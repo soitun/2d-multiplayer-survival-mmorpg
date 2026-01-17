@@ -2,7 +2,7 @@ import { Player as SpacetimeDBPlayer, ItemDefinition as SpacetimeDBItemDefinitio
 
 // Import rendering constants
 import { CAMPFIRE_RENDER_Y_OFFSET, CAMPFIRE_HEIGHT } from '../renderers/campfireRenderingUtils';
-import { LANTERN_RENDER_Y_OFFSET, LANTERN_HEIGHT } from '../renderers/lanternRenderingUtils';
+import { LANTERN_RENDER_Y_OFFSET, LANTERN_HEIGHT, LANTERN_TYPE_LANTERN } from '../renderers/lanternRenderingUtils';
 import { FURNACE_RENDER_Y_OFFSET, FURNACE_HEIGHT } from '../renderers/furnaceRenderingUtils';
 import { BARBECUE_RENDER_Y_OFFSET, BARBECUE_HEIGHT } from '../renderers/barbecueRenderingUtils';
 import { BuildingCluster } from '../buildingVisibilityUtils';
@@ -728,8 +728,17 @@ export const renderLanternLight = ({
     // Apply indoor clipping if lantern is inside an enclosed building
     const restoreClip = applyIndoorClip(ctx, lantern.posX, lantern.posY, cameraOffsetX, cameraOffsetY, buildingClusters);
 
+    const isWard = lantern.lanternType !== LANTERN_TYPE_LANTERN;
+    
+    // For wards, center the light on the visual center of the mystical structure
+    // Ward sprites are 256x256, so we offset significantly from posY to hit the visual heart
+    // For regular lanterns, use the visual center of the sprite
+    const WARD_VISUAL_LIGHT_Y_OFFSET = 140; // Higher up for visual centering on ward structure
+    
     const visualCenterX = lantern.posX;
-    const visualCenterY = lantern.posY - (LANTERN_HEIGHT / 2) - LANTERN_RENDER_Y_OFFSET;
+    const visualCenterY = isWard 
+        ? lantern.posY - WARD_VISUAL_LIGHT_Y_OFFSET  // Center on visual mystical heart
+        : lantern.posY - (LANTERN_HEIGHT / 2) - LANTERN_RENDER_Y_OFFSET; // Standard lantern center
     
     const lightScreenX = visualCenterX + cameraOffsetX;
     const lightScreenY = visualCenterY + cameraOffsetY;
@@ -741,66 +750,146 @@ export const renderLanternLight = ({
     const steadyLanternX = lightScreenX + lanternAsymmetryX;
     const steadyLanternY = lightScreenY + lanternAsymmetryY;
 
-    // FOCUSED LANTERN LIGHTING SYSTEM - spot lighting, natural intensity
-    const LANTERN_SCALE = 1.0; // Focused spot lighting, smaller coverage than campfire
+    if (isWard) {
+        // === AAA PIXEL ART WARD LIGHTING ===
+        // Multi-layered ethereal/mystical glow with soft transitions
+        // Larger, more dramatic than regular lanterns
+        
+        const WARD_LIGHT_SCALE = 2.5; // Larger scale for ward mystical aura
+        const wardFlicker = baseFlicker * 0.3; // Very subtle flicker for mystical feel
+        
+        // Layer 1: Very large ambient glow (ethereal outer aura)
+        const outerAuraRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 4.5 * WARD_LIGHT_SCALE + wardFlicker * 0.1);
+        const outerAuraGradient = ctx.createRadialGradient(
+            steadyLanternX, steadyLanternY, 0,
+            steadyLanternX, steadyLanternY, outerAuraRadius
+        );
+        outerAuraGradient.addColorStop(0, 'rgba(255, 235, 200, 0.04)');    // Warm mystical center
+        outerAuraGradient.addColorStop(0.2, 'rgba(245, 220, 180, 0.03)');  // Soft amber glow
+        outerAuraGradient.addColorStop(0.5, 'rgba(235, 200, 160, 0.02)');  // Gentle transition
+        outerAuraGradient.addColorStop(0.75, 'rgba(225, 180, 140, 0.01)'); // Very soft
+        outerAuraGradient.addColorStop(1, 'rgba(215, 160, 120, 0)');       // Fade to nothing
+        
+        ctx.fillStyle = outerAuraGradient;
+        ctx.beginPath();
+        ctx.arc(steadyLanternX, steadyLanternY, outerAuraRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Layer 2: Main ambient illumination (warm mystical presence)
+        const mainAuraRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 3.0 * WARD_LIGHT_SCALE + wardFlicker * 0.2);
+        const mainAuraGradient = ctx.createRadialGradient(
+            steadyLanternX, steadyLanternY, 0,
+            steadyLanternX, steadyLanternY, mainAuraRadius
+        );
+        mainAuraGradient.addColorStop(0, 'rgba(255, 230, 190, 0.12)');    // Bright warm center
+        mainAuraGradient.addColorStop(0.15, 'rgba(250, 220, 175, 0.10)'); // Rich amber
+        mainAuraGradient.addColorStop(0.35, 'rgba(240, 205, 155, 0.08)'); // Warm glow
+        mainAuraGradient.addColorStop(0.55, 'rgba(230, 185, 135, 0.05)'); // Soft transition
+        mainAuraGradient.addColorStop(0.75, 'rgba(220, 165, 115, 0.03)'); // Gentle fade
+        mainAuraGradient.addColorStop(0.9, 'rgba(210, 145, 100, 0.015)'); // Very soft
+        mainAuraGradient.addColorStop(1, 'rgba(200, 130, 85, 0)');        // Complete fade
+        
+        ctx.fillStyle = mainAuraGradient;
+        ctx.beginPath();
+        ctx.arc(steadyLanternX, steadyLanternY, mainAuraRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Layer 3: Core mystical light (intense warm heart)
+        const coreRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 1.2 * WARD_LIGHT_SCALE + wardFlicker * 0.5);
+        const coreGradient = ctx.createRadialGradient(
+            steadyLanternX, steadyLanternY, 0,
+            steadyLanternX, steadyLanternY, coreRadius
+        );
+        coreGradient.addColorStop(0, 'rgba(255, 240, 210, 0.22)');   // Bright mystical core
+        coreGradient.addColorStop(0.2, 'rgba(250, 225, 185, 0.18)'); // Rich golden
+        coreGradient.addColorStop(0.4, 'rgba(240, 205, 160, 0.14)'); // Warm amber
+        coreGradient.addColorStop(0.6, 'rgba(230, 185, 135, 0.10)'); // Soft glow
+        coreGradient.addColorStop(0.8, 'rgba(220, 165, 115, 0.05)'); // Gentle fade
+        coreGradient.addColorStop(1, 'rgba(210, 145, 100, 0)');      // Complete fade
+        
+        ctx.fillStyle = coreGradient;
+        ctx.beginPath();
+        ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Layer 4: Hotspot (intense central glow)
+        const hotspotRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 0.4 * WARD_LIGHT_SCALE);
+        const hotspotGradient = ctx.createRadialGradient(
+            lightScreenX, lightScreenY, 0,
+            lightScreenX, lightScreenY, hotspotRadius
+        );
+        hotspotGradient.addColorStop(0, 'rgba(255, 250, 235, 0.18)'); // Bright white-gold center
+        hotspotGradient.addColorStop(0.4, 'rgba(255, 240, 210, 0.12)'); // Golden glow
+        hotspotGradient.addColorStop(0.7, 'rgba(250, 225, 185, 0.06)'); // Soft fade
+        hotspotGradient.addColorStop(1, 'rgba(245, 210, 165, 0)');      // Complete fade
+        
+        ctx.fillStyle = hotspotGradient;
+        ctx.beginPath();
+        ctx.arc(lightScreenX, lightScreenY, hotspotRadius, 0, Math.PI * 2);
+        ctx.fill();
+    } else {
+        // === REGULAR LANTERN LIGHTING ===
+        // FOCUSED LANTERN LIGHTING SYSTEM - spot lighting, natural intensity
+        const LANTERN_SCALE = 1.0; // Focused spot lighting, smaller coverage than campfire
 
-    // Layer 1: Large ambient glow (tallow through glass - warm amber, extended reach)
-    const ambientRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 3.5 * LANTERN_SCALE + baseFlicker * 0.1);
-    const ambientGradient = ctx.createRadialGradient(
-        steadyLanternX, steadyLanternY, 0,
-        steadyLanternX, steadyLanternY, ambientRadius
-    );
-    ambientGradient.addColorStop(0, 'rgba(230, 200, 150, 0.05)'); // Natural tallow amber center
-    ambientGradient.addColorStop(0.15, 'rgba(220, 180, 130, 0.04)'); // Natural amber glow
-    ambientGradient.addColorStop(0.35, 'rgba(210, 160, 110, 0.035)'); // Natural amber transition
-    ambientGradient.addColorStop(0.55, 'rgba(200, 140, 90, 0.03)'); // Natural deep amber
-    ambientGradient.addColorStop(0.75, 'rgba(190, 125, 75, 0.02)'); // Natural amber orange
-    ambientGradient.addColorStop(0.9, 'rgba(180, 110, 65, 0.015)'); // Natural soft amber
-    ambientGradient.addColorStop(1, 'rgba(170, 95, 55, 0)'); // Natural amber fade
-    
-    ctx.fillStyle = ambientGradient;
-    ctx.beginPath();
-    ctx.arc(steadyLanternX, steadyLanternY, ambientRadius, 0, Math.PI * 2);
-    ctx.fill();
+        // Layer 1: Large ambient glow (tallow through glass - warm amber, extended reach)
+        const ambientRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 3.5 * LANTERN_SCALE + baseFlicker * 0.1);
+        const ambientGradient = ctx.createRadialGradient(
+            steadyLanternX, steadyLanternY, 0,
+            steadyLanternX, steadyLanternY, ambientRadius
+        );
+        ambientGradient.addColorStop(0, 'rgba(230, 200, 150, 0.05)'); // Natural tallow amber center
+        ambientGradient.addColorStop(0.15, 'rgba(220, 180, 130, 0.04)'); // Natural amber glow
+        ambientGradient.addColorStop(0.35, 'rgba(210, 160, 110, 0.035)'); // Natural amber transition
+        ambientGradient.addColorStop(0.55, 'rgba(200, 140, 90, 0.03)'); // Natural deep amber
+        ambientGradient.addColorStop(0.75, 'rgba(190, 125, 75, 0.02)'); // Natural amber orange
+        ambientGradient.addColorStop(0.9, 'rgba(180, 110, 65, 0.015)'); // Natural soft amber
+        ambientGradient.addColorStop(1, 'rgba(170, 95, 55, 0)'); // Natural amber fade
+        
+        ctx.fillStyle = ambientGradient;
+        ctx.beginPath();
+        ctx.arc(steadyLanternX, steadyLanternY, ambientRadius, 0, Math.PI * 2);
+        ctx.fill();
 
-    // Layer 2: Main illumination (tallow flame through glass with smooth transitions)
-    const mainRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 2.2 * LANTERN_SCALE + baseFlicker * 0.3);
-    const mainGradient = ctx.createRadialGradient(
-        steadyLanternX, steadyLanternY, 0,
-        steadyLanternX, steadyLanternY, mainRadius
-    );
-    mainGradient.addColorStop(0, 'rgba(235, 215, 170, 0.16)'); // Natural tallow center (glass filtered)
-    mainGradient.addColorStop(0.12, 'rgba(225, 205, 150, 0.14)'); // Natural amber bright center
-    mainGradient.addColorStop(0.25, 'rgba(220, 190, 135, 0.12)'); // Natural rich amber
-    mainGradient.addColorStop(0.4, 'rgba(210, 175, 120, 0.11)'); // Natural amber transition
-    mainGradient.addColorStop(0.6, 'rgba(200, 160, 105, 0.09)'); // Natural deep amber
-    mainGradient.addColorStop(0.8, 'rgba(190, 145, 90, 0.06)'); // Natural amber orange
-    mainGradient.addColorStop(0.95, 'rgba(180, 130, 80, 0.03)'); // Natural soft amber
-    mainGradient.addColorStop(1, 'rgba(170, 115, 70, 0)'); // Natural amber fade
-    
-    ctx.fillStyle = mainGradient;
-    ctx.beginPath();
-    ctx.arc(steadyLanternX, steadyLanternY, mainRadius, 0, Math.PI * 2);
-    ctx.fill();
+        // Layer 2: Main illumination (tallow flame through glass with smooth transitions)
+        const mainRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 2.2 * LANTERN_SCALE + baseFlicker * 0.3);
+        const mainGradient = ctx.createRadialGradient(
+            steadyLanternX, steadyLanternY, 0,
+            steadyLanternX, steadyLanternY, mainRadius
+        );
+        mainGradient.addColorStop(0, 'rgba(235, 215, 170, 0.16)'); // Natural tallow center (glass filtered)
+        mainGradient.addColorStop(0.12, 'rgba(225, 205, 150, 0.14)'); // Natural amber bright center
+        mainGradient.addColorStop(0.25, 'rgba(220, 190, 135, 0.12)'); // Natural rich amber
+        mainGradient.addColorStop(0.4, 'rgba(210, 175, 120, 0.11)'); // Natural amber transition
+        mainGradient.addColorStop(0.6, 'rgba(200, 160, 105, 0.09)'); // Natural deep amber
+        mainGradient.addColorStop(0.8, 'rgba(190, 145, 90, 0.06)'); // Natural amber orange
+        mainGradient.addColorStop(0.95, 'rgba(180, 130, 80, 0.03)'); // Natural soft amber
+        mainGradient.addColorStop(1, 'rgba(170, 115, 70, 0)'); // Natural amber fade
+        
+        ctx.fillStyle = mainGradient;
+        ctx.beginPath();
+        ctx.arc(steadyLanternX, steadyLanternY, mainRadius, 0, Math.PI * 2);
+        ctx.fill();
 
-    // Layer 3: Core bright light (tallow flame center through glass with reduced glare) 
-    const coreRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 0.9 * LANTERN_SCALE + baseFlicker * 0.8);
-    const coreGradient = ctx.createRadialGradient(
-        steadyLanternX, steadyLanternY, 0,
-        steadyLanternX, steadyLanternY, coreRadius
-    );
-    coreGradient.addColorStop(0, 'rgba(240, 220, 180, 0.20)'); // Natural tallow core (glass diffused)
-    coreGradient.addColorStop(0.15, 'rgba(230, 210, 160, 0.18)'); // Natural amber bright core
-    coreGradient.addColorStop(0.3, 'rgba(225, 200, 145, 0.16)'); // Natural rich amber
-    coreGradient.addColorStop(0.5, 'rgba(215, 185, 130, 0.14)'); // Natural deep amber
-    coreGradient.addColorStop(0.7, 'rgba(205, 170, 115, 0.11)'); // Natural amber transition
-    coreGradient.addColorStop(0.85, 'rgba(195, 155, 100, 0.07)'); // Natural warm amber
-    coreGradient.addColorStop(1, 'rgba(185, 140, 85, 0)'); // Natural amber fade
-    
-    ctx.fillStyle = coreGradient;
-    ctx.beginPath();
-    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
-    ctx.fill();
+        // Layer 3: Core bright light (tallow flame center through glass with reduced glare) 
+        const coreRadius = Math.max(0, LANTERN_LIGHT_RADIUS_BASE * 0.9 * LANTERN_SCALE + baseFlicker * 0.8);
+        const coreGradient = ctx.createRadialGradient(
+            steadyLanternX, steadyLanternY, 0,
+            steadyLanternX, steadyLanternY, coreRadius
+        );
+        coreGradient.addColorStop(0, 'rgba(240, 220, 180, 0.20)'); // Natural tallow core (glass diffused)
+        coreGradient.addColorStop(0.15, 'rgba(230, 210, 160, 0.18)'); // Natural amber bright core
+        coreGradient.addColorStop(0.3, 'rgba(225, 200, 145, 0.16)'); // Natural rich amber
+        coreGradient.addColorStop(0.5, 'rgba(215, 185, 130, 0.14)'); // Natural deep amber
+        coreGradient.addColorStop(0.7, 'rgba(205, 170, 115, 0.11)'); // Natural amber transition
+        coreGradient.addColorStop(0.85, 'rgba(195, 155, 100, 0.07)'); // Natural warm amber
+        coreGradient.addColorStop(1, 'rgba(185, 140, 85, 0)'); // Natural amber fade
+        
+        ctx.fillStyle = coreGradient;
+        ctx.beginPath();
+        ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
+        ctx.fill();
+    }
     
     // Restore context if we applied a clip
     if (restoreClip) restoreClip();

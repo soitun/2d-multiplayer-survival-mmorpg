@@ -1045,6 +1045,17 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             // No duration - permanent while in shipwreck zone
                         };
                         break;
+                    case 'MemoryBeaconSanity':
+                        effectApplies = true;
+                        effectData = {
+                            id: 'memory_beacon_sanity',
+                            name: 'Sanity Haven',
+                            emoji: '🧠',
+                            type: 'positive' as const,
+                            description: 'The Memory Resonance Beacon creates a pocket of stable reality. Your mind is protected from shard-induced insanity while within its field.',
+                            // No duration - permanent while in beacon zone
+                        };
+                        break;
                     case 'BuildingPrivilege':
                         // Only show building privilege status if player is within range of a hearth
                         const BUILDING_PRIVILEGE_RADIUS_SQUARED = 1000.0 * 1000.0; // 1000px radius (doubled from 500px)

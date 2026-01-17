@@ -1312,6 +1312,7 @@ pub fn restore_from_offline_corpse(ctx: &ReducerContext, player_id: Identity, co
                 loaded_ammo_count: 0,
                 is_ready_to_fire: false,
                 preferred_arrow_type: None,
+                reload_start_time_ms: 0,
                 head_item_instance_id: None,
                 chest_item_instance_id: None,
                 legs_item_instance_id: None,

@@ -45,6 +45,11 @@ use crate::alk::{
     ALK_CENTRAL_COMPOUND_COLLISION_Y_OFFSET
 };
 use crate::alk::alk_station as AlkStationTableTrait;
+// Import lantern table trait for ward collision detection (regular lanterns have no collision)
+use crate::lantern::lantern as LanternTableTrait;
+// Ward collision constants - wards are larger and need collision
+const WARD_COLLISION_RADIUS: f32 = 40.0; // Wards are larger than regular lanterns
+const WARD_COLLISION_Y_OFFSET: f32 = 80.0; // Offset collision upward to match visual center
 // Import wall cell table trait for collision detection
 use crate::building::{wall_cell as WallCellTableTrait, FOUNDATION_TILE_SIZE_PX};
 // Import door table trait for anti-tunneling collision detection
@@ -123,6 +128,7 @@ pub fn calculate_slide_collision_with_grid(
     let homestead_hearths = ctx.db.homestead_hearth(); // Access homestead hearth table
     let basalt_columns = ctx.db.basalt_column(); // Access basalt column table
     let alk_stations = ctx.db.alk_station(); // Access ALK delivery station table
+    let lanterns = ctx.db.lantern(); // Access lantern table (for ward collision)
     let wall_cells = ctx.db.wall_cell(); // Access wall cell table
     
     // GET: Current player's crouching state for effective radius calculation
@@ -861,6 +867,60 @@ pub fn calculate_slide_collision_with_grid(
                     }
                 }
             },
+            spatial_grid::EntityType::Lantern(lantern_id) => {
+                // Lanterns: Only wards (lantern_type > 0) have collision, regular lanterns intentionally have no collision
+                if let Some(lantern) = lanterns.id().find(lantern_id) {
+                    if lantern.is_destroyed { continue; }
+                    // Only wards have collision (lantern_type: 1 = Ancestral Ward, 2 = Signal Disruptor, 3 = Memory Beacon)
+                    if lantern.lantern_type == 0 { continue; } // Skip regular lanterns
+                    
+                    let ward_collision_y = lantern.pos_y - WARD_COLLISION_Y_OFFSET;
+                    let dx = final_x - lantern.pos_x;
+                    let dy = final_y - ward_collision_y;
+                    let dist_sq = dx * dx + dy * dy;
+                    let min_dist = current_player_radius + WARD_COLLISION_RADIUS + SLIDE_SEPARATION_DISTANCE;
+                    let min_dist_sq = min_dist * min_dist;
+
+                    if dist_sq < min_dist_sq {
+                        log::debug!("Player-Ward collision for slide: {:?} vs ward {}", sender_id, lantern.id);
+                        let collision_normal_x = dx;
+                        let collision_normal_y = dy;
+                        let normal_mag_sq = dist_sq;
+                        if normal_mag_sq > 0.0 {
+                            let normal_mag = normal_mag_sq.sqrt();
+                            let norm_x = collision_normal_x / normal_mag;
+                            let norm_y = collision_normal_y / normal_mag;
+                            let dot_product = server_dx * norm_x + server_dy * norm_y;
+
+                            // Only slide if moving toward the object (dot_product < 0)
+                            if dot_product < 0.0 {
+                                let projection_x = dot_product * norm_x;
+                                let projection_y = dot_product * norm_y;
+                                let slide_dx = server_dx - projection_x;
+                                let slide_dy = server_dy - projection_y;
+                                final_x = current_player_pos_x + slide_dx;
+                                final_y = current_player_pos_y + slide_dy;
+
+                                // 🛡️ SEPARATION ENFORCEMENT: Ensure minimum separation after sliding
+                                let final_dx = final_x - lantern.pos_x;
+                                let final_dy = final_y - ward_collision_y;
+                                let final_dist = (final_dx * final_dx + final_dy * final_dy).sqrt();
+                                if final_dist < min_dist {
+                                    let separation_direction = if final_dist > 0.001 {
+                                        (final_dx / final_dist, final_dy / final_dist)
+                                    } else {
+                                        (1.0, 0.0) // Default direction
+                                    };
+                                    final_x = lantern.pos_x + separation_direction.0 * min_dist;
+                                    final_y = ward_collision_y + separation_direction.1 * min_dist;
+                                }
+                            }
+                            final_x = final_x.max(current_player_radius).min(WORLD_WIDTH_PX - current_player_radius);
+                            final_y = final_y.max(current_player_radius).min(WORLD_HEIGHT_PX - current_player_radius);
+                        }
+                    }
+                }
+            },
             _ => {} // Campfire, etc. - no slide collision
         }
     }
@@ -1020,6 +1080,7 @@ pub fn resolve_push_out_collision_with_grid(
     let homestead_hearths = ctx.db.homestead_hearth(); // Access homestead hearth table
     let basalt_columns = ctx.db.basalt_column(); // Access basalt column table
     let alk_stations = ctx.db.alk_station(); // Access ALK delivery station table
+    let lanterns = ctx.db.lantern(); // Access lantern table (for ward collision)
     let wall_cells = ctx.db.wall_cell(); // Access wall cell table
     
     // GET: Current player's crouching state for effective radius calculation
@@ -1547,6 +1608,33 @@ pub fn resolve_push_out_collision_with_grid(
                         let dy = resolved_y - hearth_collision_y;
                         let dist_sq = dx * dx + dy * dy;
                         let min_dist = current_player_radius + HEARTH_COLLISION_RADIUS + separation_distance;
+                        let min_dist_sq = min_dist * min_dist;
+                        
+                        // OPTIMIZATION: Early exit with exact distance check
+                        if dist_sq >= min_dist_sq || dist_sq <= 0.0 {
+                            continue;
+                        }
+                        
+                        overlap_found_in_iter = true;
+                        let distance = dist_sq.sqrt();
+                        let overlap = (min_dist - distance) + separation_distance;
+                        resolved_x += (dx / distance) * overlap;
+                        resolved_y += (dy / distance) * overlap;
+                    }
+                },
+                spatial_grid::EntityType::Lantern(lantern_id) => {
+                    // Lanterns: Only wards (lantern_type > 0) have collision, regular lanterns intentionally have no collision
+                    log::debug!("[PushOutEntityType] Found Lantern/Ward: {}", lantern_id);
+                    if let Some(lantern) = lanterns.id().find(lantern_id) {
+                        if lantern.is_destroyed { continue; }
+                        // Only wards have collision (lantern_type: 1 = Ancestral Ward, 2 = Signal Disruptor, 3 = Memory Beacon)
+                        if lantern.lantern_type == 0 { continue; } // Skip regular lanterns
+                        
+                        let ward_collision_y = lantern.pos_y - WARD_COLLISION_Y_OFFSET;
+                        let dx = resolved_x - lantern.pos_x;
+                        let dy = resolved_y - ward_collision_y;
+                        let dist_sq = dx * dx + dy * dy;
+                        let min_dist = current_player_radius + WARD_COLLISION_RADIUS + separation_distance;
                         let min_dist_sq = min_dist * min_dist;
                         
                         // OPTIMIZATION: Early exit with exact distance check

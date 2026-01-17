@@ -41,10 +41,12 @@ pub enum LoadoutType {
     Explosives,
     /// Farmer loadout: Tiller, seeds, and farming infrastructure
     Farmer,
+    /// NightOwl loadout: All lantern/ward types with fuel for night defense
+    NightOwl,
 }
 
 // ⬇️ CHANGE THIS TO SWITCH LOADOUTS ⬇️
-const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Basic;
+const ACTIVE_LOADOUT: LoadoutType = LoadoutType::NightOwl;
 
 // Configuration flag: Set to false to disable starting equipment (cloth armor)
 const GRANT_STARTING_EQUIPMENT: bool = false;
@@ -312,6 +314,36 @@ fn get_loadout_items(loadout: LoadoutType) -> Vec<(&'static str, u32, Option<u8>
             ("Cerametal Field Cauldron Mk. II", 1, None, Some(12)),
             ("Bandage", 10, None, Some(13)),
         ],
+
+        // ====================================================================
+        // NIGHTOWL - Night defense specialist with all lantern/ward types
+        // ====================================================================
+        LoadoutType::NightOwl => vec![
+            // Hotbar - Firearms for testing hostile NPC combat + lanterns/wards
+            ("PP-91 KEDR", 1, Some(0), None),                // SMG - primary weapon for fighting hostiles
+            ("Makarov PM", 1, Some(1), None),                 // Pistol - backup weapon
+            ("Lantern", 1, Some(2), None),                    // Basic lantern
+            ("Ancestral Ward", 1, Some(3), None),            // Tier 1 ward (tallow fuel)
+            ("Signal Disruptor", 1, Some(4), None),          // Tier 2 ward (battery fuel)
+            ("Memory Resonance Beacon", 1, Some(5), None),   // Tier 3 ward (battery fuel)
+            // Inventory - Ammo and fuel
+            ("9x18mm Round", 2000, None, Some(0)),           // Lots of ammo for SMG/pistol testing
+            ("Tallow", 50, None, Some(1)),                    // Fuel for Lantern & Ancestral Ward (2 tallow = 10 min night)
+            ("Scrap Batteries", 30, None, Some(2)),          // Fuel for Signal Disruptor & Memory Beacon
+            ("Reed Water Bottle", 1, None, Some(3)),         // Hydration
+            ("Cerametal Field Cauldron Mk. II", 1, None, Some(4)), // Cooking
+            ("Bandage", 20, None, Some(5)),                   // Medical supplies
+            ("Camp Fire", 2, None, Some(6)),                  // Backup heat/light source
+            // Materials for crafting more fuel if needed
+            ("Metal Fragments", 100, None, Some(7)),         // For crafting Scrap Batteries
+            ("Sulfur", 50, None, Some(8)),                    // For crafting Scrap Batteries
+            ("Charcoal", 50, None, Some(9)),                  // For crafting Scrap Batteries
+            ("Animal Fat", 30, None, Some(10)),                // For crafting Tallow
+            ("Cloth", 20, None, Some(11)),                    // For crafting Tallow
+            ("Flashlight", 1, None, Some(12)),                 // For lighting up the night
+            ("Combat Ladle", 1, None, Some(13)),              // Backup melee weapon
+            ("Torch", 1, None, Some(14)),                      // Backup light source
+        ],
     }
 }
 
@@ -405,6 +437,7 @@ pub(crate) fn grant_starting_items(ctx: &ReducerContext, player_id: Identity, us
                     loaded_ammo_count: 0,
                     is_ready_to_fire: false,
                     preferred_arrow_type: None,
+                    reload_start_time_ms: 0,
                     head_item_instance_id: None,
                     chest_item_instance_id: None,
                     legs_item_instance_id: None,

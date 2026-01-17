@@ -206,6 +206,7 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
         // - Arrow arc requires skill to compensate
         // - Close range forces decisive engagements
         // - Accessible materials, good for hunting and light PvP
+        // - INSTANT NOCK - no reload time, just draw and fire
         RangedWeaponStats {
             item_name: "Hunting Bow".to_string(),
             weapon_range: 520.0,       // Close-mid range - rewards aggressive positioning
@@ -214,6 +215,7 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
             reload_time_secs: 0.85,    // Fast follow-up shots - aggressive playstyle
             magazine_capacity: 0,      // Single-shot (arrows loaded one at a time)
             is_automatic: false,       // Semi-auto - must click for each shot
+            magazine_reload_time_secs: 0.0, // Instant nock - no reload animation
         },
         
         // TIER 2: Crossbow (Mid Game)
@@ -222,6 +224,7 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
         // - Mechanical precision (highest accuracy)
         // - Slow reload creates risk/reward tension
         // - Best for ambushes and calculated shots
+        // - MECHANICAL RELOAD - takes time to crank the string back
         RangedWeaponStats {
             item_name: "Crossbow".to_string(),
             weapon_range: 680.0,       // Good range - can engage from cover
@@ -230,22 +233,25 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
             reload_time_secs: 2.3,     // Slow reload - make your shot count
             magazine_capacity: 0,      // Single-shot (bolts loaded one at a time)
             is_automatic: false,       // Semi-auto - must click for each shot
+            magazine_reload_time_secs: 2.0, // 2 seconds to crank crossbow string
         },
         
         // TIER 3: Makarov PM (Late Game)
-        // THE "RAPID FIRE WEAPON" - Highest DPS, expensive to run
-        // - Fastest fire rate for sustained pressure
+        // THE "PRECISION PISTOL" - High per-shot damage, deliberate firing
+        // - Slow semi-auto fire rate (1 shot/sec) encourages aimed shots
         // - Magazine allows 8 shots before reload
-        // - Lower per-shot damage balanced by volume
-        // - Burns through expensive 9x18mm ammo quickly
+        // - Higher per-shot damage than SMG, lower DPS
+        // - Burns through expensive 9x18mm ammo but rewards accuracy
+        // - MAGAZINE SWAP - takes time to eject and insert magazine
         RangedWeaponStats {
             item_name: "Makarov PM".to_string(),
             weapon_range: 820.0,       // Longest range - engage at distance
             projectile_speed: 1300.0,  // Very fast bullets, nearly hitscan
-            accuracy: 0.84,            // 84% accuracy - recoil affects rapid fire
-            reload_time_secs: 0.38,    // Rapid semi-auto fire
+            accuracy: 0.88,            // 88% accuracy - slow fire rate means better aim
+            reload_time_secs: 1.0,     // 1 second between shots - deliberate semi-auto
             magazine_capacity: 8,      // 8-round magazine
             is_automatic: false,       // Semi-auto pistol - must click for each shot
+            magazine_reload_time_secs: 2.5, // 2.5 seconds to swap magazine
         },
         
         // TIER 4: PP-91 KEDR (Endgame)
@@ -255,6 +261,7 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
         // - Lower accuracy than pistol due to rapid fire
         // - Burns through 9x18mm ammo extremely fast
         // - FULLY AUTOMATIC - hold mouse button to spray
+        // - LONGER RELOAD - larger magazine takes more time to swap
         RangedWeaponStats {
             item_name: "PP-91 KEDR".to_string(),
             weapon_range: 720.0,       // Shorter than pistol - SMG loses accuracy at range
@@ -263,6 +270,7 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
             reload_time_secs: 0.10,    // Extreme fire rate - 10 rounds per second
             magazine_capacity: 30,     // 30-round magazine
             is_automatic: true,        // FULL AUTO - hold mouse button to fire continuously
+            magazine_reload_time_secs: 3.0, // 3 seconds to swap larger magazine
         },
         
         // UNDERWATER: Reed Harpoon Gun
@@ -271,6 +279,7 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
         // - Small 2-dart magazine for underwater hunting
         // - Crossbow-like ballistics: fast projectile, good range, accurate
         // - Slower reload between shots, but magazine allows follow-up
+        // - PNEUMATIC RELOAD - takes time to re-pressurize and load darts
         RangedWeaponStats {
             item_name: "Reed Harpoon Gun".to_string(),
             weapon_range: 650.0,       // Similar to crossbow range (680)
@@ -279,6 +288,7 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
             reload_time_secs: 1.8,     // Time between shots (slower than bow, faster than crossbow)
             magazine_capacity: 2,      // 2-dart magazine - limited capacity
             is_automatic: false,       // Semi-auto - must click for each shot
+            magazine_reload_time_secs: 2.0, // 2 seconds to reload darts
         },
     ];
 
@@ -295,9 +305,11 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
                 || existing.reload_time_secs != stats.reload_time_secs
                 || existing.magazine_capacity != stats.magazine_capacity
                 || existing.is_automatic != stats.is_automatic
+                || existing.magazine_reload_time_secs != stats.magazine_reload_time_secs
             {
-                log::info!("Updating ranged stats for '{}': range {:.0}->{:.0}, is_automatic={}", 
-                    stats.item_name, existing.weapon_range, stats.weapon_range, stats.is_automatic);
+                log::info!("Updating ranged stats for '{}': range {:.0}->{:.0}, reload_time={:.1}s, magazine_reload={:.1}s", 
+                    stats.item_name, existing.weapon_range, stats.weapon_range, 
+                    stats.reload_time_secs, stats.magazine_reload_time_secs);
                 ranged_stats.item_name().update(stats);
                 updated_count += 1;
             }

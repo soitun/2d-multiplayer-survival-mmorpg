@@ -12,5 +12,6 @@ pub struct RangedWeaponStats {
     pub reload_time_secs: f32,      // Time between shots (per shot fire rate)
     pub magazine_capacity: u8,      // How many rounds can be loaded at once (0 = single-shot like bow)
     pub is_automatic: bool,         // If true, weapon fires continuously when holding mouse button (e.g., SMGs)
+    pub magazine_reload_time_secs: f32, // Time to reload/nock (0 = instant like bow)
     // pub ammo_item_def_id: Option<u64>, // Future: if different ammo types are used
-} 
+}

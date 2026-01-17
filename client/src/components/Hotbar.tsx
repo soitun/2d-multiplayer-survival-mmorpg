@@ -164,6 +164,13 @@ const Hotbar: React.FC<HotbarProps> = ({
   const [weaponCooldownDuration, setWeaponCooldownDuration] = useState<number>(1000);
   const [weaponCooldownSlot, setWeaponCooldownSlot] = useState<number | null>(null);
   
+  // Reload cooldown state - for magazine reload animations
+  const [isReloadCooldownActive, setIsReloadCooldownActive] = useState<boolean>(false);
+  const [reloadCooldownStartTime, setReloadCooldownStartTime] = useState<number | null>(null);
+  const [reloadCooldownProgress, setReloadCooldownProgress] = useState<number>(0);
+  const [reloadCooldownDuration, setReloadCooldownDuration] = useState<number>(2000);
+  const [reloadCooldownSlot, setReloadCooldownSlot] = useState<number | null>(null);
+  
   // Tooltip state
   const [tooltip, setTooltip] = useState<TooltipState>({
     visible: false,
@@ -175,6 +182,8 @@ const Hotbar: React.FC<HotbarProps> = ({
   const animationFrameRef = useRef<number | null>(null);
   const weaponCooldownAnimationRef = useRef<number | null>(null);
   const weaponCooldownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reloadCooldownAnimationRef = useRef<number | null>(null);
+  const reloadCooldownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const numSlots = 6;
   const prevSelectedSlotRef = useRef<number>(selectedSlot);
   const prevActiveEffectsRef = useRef<Set<string>>(new Set());
@@ -236,6 +245,12 @@ const Hotbar: React.FC<HotbarProps> = ({
       }
       if (weaponCooldownTimeoutRef.current) {
         clearTimeout(weaponCooldownTimeoutRef.current);
+      }
+      if (reloadCooldownAnimationRef.current) {
+        cancelAnimationFrame(reloadCooldownAnimationRef.current);
+      }
+      if (reloadCooldownTimeoutRef.current) {
+        clearTimeout(reloadCooldownTimeoutRef.current);
       }
     };
   }, []);
@@ -326,14 +341,9 @@ const Hotbar: React.FC<HotbarProps> = ({
            itemInSlot.definition.isEquippable;
   }, [localPlayer?.isOnWater, localPlayer?.isSnorkeling, findItemForSlot]);
 
-  // Helper to check if a weapon uses magazine system (no cooldown overlay)
-  const usesMagazineSystem = useCallback((itemDef: ItemDefinition): boolean => {
-    if (itemDef.category.tag !== 'RangedWeapon') return false;
-    const weaponStats = rangedWeaponStats.get(itemDef.name);
-    return (weaponStats?.magazineCapacity ?? 0) > 0;
-  }, [rangedWeaponStats]);
-
   // Effect to track weapon cooldowns based on activeEquipment swingStartTimeMs - simplified
+  // Now shows cooldown overlay for ALL weapons including magazine-based firearms
+  // This gives visual feedback on fire rate (e.g., 1 second for pistol)
   // Skip cooldown overlay for magazine-based weapons (they use ammo bar instead)
   useEffect(() => {
     if (!activeEquipment || !playerIdentity) {
@@ -359,10 +369,8 @@ const Hotbar: React.FC<HotbarProps> = ({
             const itemInSlot = findItemForSlot(slotIndex);
             if (itemInSlot && BigInt(itemInSlot.instance.instanceId) === activeEquipment.equippedItemInstanceId) {
               
-              // Skip cooldown overlay for magazine-based weapons (use ammo bar instead)
-              if (usesMagazineSystem(itemInSlot.definition)) {
-                break; // Don't show cooldown overlay for firearms with magazines
-              }
+              // Show cooldown overlay for ALL weapons including magazine-based firearms
+              // This gives visual feedback on fire rate cooldown (1 second for pistol, etc.)
               
               if (isWeaponWithCooldown(itemInSlot.definition)) {
                 const attackIntervalMs = getWeaponCooldownDurationMs(itemInSlot.definition);
@@ -409,10 +417,7 @@ const Hotbar: React.FC<HotbarProps> = ({
               const itemInSlot = findItemForSlot(slotIndex);
               if (itemInSlot && BigInt(itemInSlot.instance.instanceId) === activeEquipment.equippedItemInstanceId) {
                 
-                // Skip cooldown overlay for magazine-based weapons
-                if (usesMagazineSystem(itemInSlot.definition)) {
-                  break;
-                }
+                // Show cooldown overlay for ALL weapons including magazine-based firearms
                 
                 if (isWeaponWithCooldown(itemInSlot.definition)) {
                   const attackIntervalMs = getWeaponCooldownDurationMs(itemInSlot.definition);
@@ -445,7 +450,7 @@ const Hotbar: React.FC<HotbarProps> = ({
         }
       }
     }
-  }, [activeEquipment, findItemForSlot, isWeaponWithCooldown, usesMagazineSystem, playerIdentity, numSlots]);
+  }, [activeEquipment, findItemForSlot, isWeaponWithCooldown, playerIdentity, numSlots]);
 
   // Weapon cooldown animation loop - simplified to match consumable system
   useEffect(() => {
@@ -487,6 +492,120 @@ const Hotbar: React.FC<HotbarProps> = ({
       }
     };
   }, [isWeaponCooldownActive, weaponCooldownStartTime, weaponCooldownDuration]);
+
+  // Track reload cooldowns based on activeEquipment.reloadStartTimeMs
+  // This shows an overlay when reloading magazines (makarov, KEDR, crossbow, etc.)
+  // Hunting bow has 0 reload time so it doesn't show an overlay
+  useEffect(() => {
+    if (!activeEquipment || !playerIdentity) {
+      return;
+    }
+
+    // Get reload start time from active equipment (in milliseconds)
+    const serverReloadTime = Number((activeEquipment as any).reloadStartTimeMs ?? 0);
+    
+    // Only process if there's a reload in progress
+    if (serverReloadTime > 0 && activeEquipment.equippedItemDefId) {
+      // Find the item definition to get its reload time
+      const itemDef = itemDefinitions.get(activeEquipment.equippedItemDefId.toString());
+      if (itemDef && itemDef.category.tag === 'RangedWeapon' && rangedWeaponStats) {
+        const weaponStats = rangedWeaponStats.get(itemDef.name);
+        const magazineReloadTimeSecs = (weaponStats as any)?.magazineReloadTimeSecs ?? 0;
+        
+        // Only show overlay if weapon has a reload time > 0
+        if (magazineReloadTimeSecs > 0) {
+          const reloadTimeMs = magazineReloadTimeSecs * 1000;
+          
+          // Find which hotbar slot contains the equipped item
+          if (activeEquipment.equippedItemInstanceId) {
+            for (let slotIndex = 0; slotIndex < numSlots; slotIndex++) {
+              const itemInSlot = findItemForSlot(slotIndex);
+              if (itemInSlot && BigInt(itemInSlot.instance.instanceId) === activeEquipment.equippedItemInstanceId) {
+                // Use client time for smooth animation
+                const clientStartTime = Date.now();
+                
+                // Calculate how much time has passed since server recorded the reload
+                // The server timestamp is in epoch milliseconds
+                const serverNowMs = Date.now(); // Approximate server time with client time
+                const elapsedSinceReload = serverNowMs - serverReloadTime;
+                
+                // Only show overlay if reload is still in progress
+                if (elapsedSinceReload < reloadTimeMs) {
+                  // Clear any existing reload cooldown
+                  if (reloadCooldownTimeoutRef.current) {
+                    clearTimeout(reloadCooldownTimeoutRef.current);
+                  }
+                  
+                  // Start reload cooldown animation
+                  const adjustedStartTime = clientStartTime - elapsedSinceReload;
+                  setIsReloadCooldownActive(true);
+                  setReloadCooldownStartTime(adjustedStartTime);
+                  setReloadCooldownProgress(elapsedSinceReload / reloadTimeMs);
+                  setReloadCooldownDuration(reloadTimeMs);
+                  setReloadCooldownSlot(slotIndex);
+                  
+                  // Set timeout to clear reload cooldown when it expires
+                  const remainingTime = reloadTimeMs - elapsedSinceReload;
+                  reloadCooldownTimeoutRef.current = setTimeout(() => {
+                    setIsReloadCooldownActive(false);
+                    setReloadCooldownStartTime(null);
+                    setReloadCooldownProgress(0);
+                    setReloadCooldownSlot(null);
+                  }, remainingTime);
+                } else {
+                  // Reload finished, clear overlay
+                  setIsReloadCooldownActive(false);
+                  setReloadCooldownStartTime(null);
+                  setReloadCooldownProgress(0);
+                  setReloadCooldownSlot(null);
+                }
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }, [activeEquipment, findItemForSlot, itemDefinitions, rangedWeaponStats, playerIdentity, numSlots]);
+
+  // Reload cooldown animation loop - similar to weapon cooldown
+  useEffect(() => {
+    if (isReloadCooldownActive && reloadCooldownStartTime !== null) {
+      const animate = () => {
+        if (reloadCooldownStartTime === null) { 
+          if (reloadCooldownAnimationRef.current) cancelAnimationFrame(reloadCooldownAnimationRef.current);
+          setIsReloadCooldownActive(false);
+          setReloadCooldownProgress(0);
+          return;
+        }
+        const elapsedTimeMs = Date.now() - reloadCooldownStartTime;
+        const currentProgress = Math.min(1, elapsedTimeMs / reloadCooldownDuration); 
+        setReloadCooldownProgress(currentProgress);
+        
+        if (currentProgress < 1) {
+          reloadCooldownAnimationRef.current = requestAnimationFrame(animate);
+        } else {
+          setIsReloadCooldownActive(false);
+          setReloadCooldownStartTime(null);
+          setReloadCooldownProgress(0);
+          setReloadCooldownSlot(null);
+        }
+      };
+      reloadCooldownAnimationRef.current = requestAnimationFrame(animate);
+    } else {
+      if (reloadCooldownAnimationRef.current) {
+        cancelAnimationFrame(reloadCooldownAnimationRef.current);
+        reloadCooldownAnimationRef.current = null;
+      }
+    }
+
+    return () => {
+      if (reloadCooldownAnimationRef.current) {
+        cancelAnimationFrame(reloadCooldownAnimationRef.current);
+        reloadCooldownAnimationRef.current = null;
+      }
+    };
+  }, [isReloadCooldownActive, reloadCooldownStartTime, reloadCooldownDuration]);
 
   // useEffect for the cooldown animation progress - MOVED AFTER findItemForSlot
   useEffect(() => {
@@ -1302,9 +1421,22 @@ const Hotbar: React.FC<HotbarProps> = ({
         ammoCapacity = magazineCapacity;
         // Check if this weapon is currently equipped
         const isEquipped = activeEquipment?.equippedItemInstanceId === BigInt(item.instance.instanceId);
-        ammoLoaded = isEquipped 
-          ? (activeEquipment as any)?.loadedAmmoCount ?? 0 
-          : 0;
+        if (isEquipped) {
+          // Weapon is currently equipped - read from ActiveEquipment
+          ammoLoaded = (activeEquipment as any)?.loadedAmmoCount ?? 0;
+        } else if (item.instance.itemData) {
+          // Weapon is NOT equipped - parse loaded ammo from item_data JSON
+          // Server stores: {"loaded_ammo_def_id": 123, "loaded_ammo_count": 5}
+          try {
+            const itemData = JSON.parse(item.instance.itemData);
+            ammoLoaded = itemData.loaded_ammo_count ?? 0;
+          } catch {
+            // Not valid JSON or no ammo data - weapon is empty
+            ammoLoaded = 0;
+          }
+        } else {
+          ammoLoaded = 0;
+        }
       }
     }
 
@@ -1676,11 +1808,23 @@ const Hotbar: React.FC<HotbarProps> = ({
                 // Check if this weapon is currently equipped (to show loaded ammo count)
                 const isEquipped = activeEquipment?.equippedItemInstanceId === BigInt(populatedItem.instance.instanceId);
                 
-                // Get loaded ammo count from active equipment (only if this weapon is equipped)
-                // loadedAmmoCount is a u8 field we added - it will appear after bindings regeneration
-                const loadedAmmoCount = isEquipped 
-                  ? (activeEquipment as any)?.loadedAmmoCount ?? 0 
-                  : 0;
+                // Get loaded ammo count - either from ActiveEquipment (if equipped) or from item_data JSON (if not equipped)
+                // This allows players to see loaded bullets on weapons that aren't currently active
+                let loadedAmmoCount = 0;
+                if (isEquipped) {
+                  // Weapon is currently equipped - read from ActiveEquipment
+                  loadedAmmoCount = (activeEquipment as any)?.loadedAmmoCount ?? 0;
+                } else if (populatedItem.instance.itemData) {
+                  // Weapon is NOT equipped - parse loaded ammo from item_data JSON
+                  // Server stores: {"loaded_ammo_def_id": 123, "loaded_ammo_count": 5}
+                  try {
+                    const itemData = JSON.parse(populatedItem.instance.itemData);
+                    loadedAmmoCount = itemData.loaded_ammo_count ?? 0;
+                  } catch {
+                    // Not valid JSON or no ammo data - weapon is empty
+                    loadedAmmoCount = 0;
+                  }
+                }
                 
                 // Calculate bar dimensions
                 const barHeight = SLOT_SIZE - 8; // 4px padding top and bottom
@@ -1889,6 +2033,37 @@ const Hotbar: React.FC<HotbarProps> = ({
                 borderRadius: '2px',
               }}
               title={`Weapon Cooldown: ${Math.round((1 - weaponCooldownProgress) * 100)}% remaining`}
+            />
+          </div>
+        );
+      })()}
+      
+      {/* Reload cooldown overlay - shows when reloading magazines/nocking crossbow */}
+      {isReloadCooldownActive && reloadCooldownSlot !== null && (() => {
+        const slotPos = getSlotPosition(reloadCooldownSlot);
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              left: `${slotPos.left}px`,
+              bottom: `${slotPos.bottom}px`,
+              width: `${slotPos.width}px`,
+              height: `${slotPos.height}px`,
+              zIndex: 9998, // Below weapon cooldown so both can stack if needed
+              pointerEvents: 'none',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: '0px',
+                left: '0px',
+                width: '100%',
+                height: `${(1 - reloadCooldownProgress) * 100}%`,
+                backgroundColor: 'rgba(40, 80, 120, 0.7)', // Bluish tint for reload
+                borderRadius: '2px',
+              }}
+              title={`Reloading: ${Math.round((1 - reloadCooldownProgress) * 100)}% remaining`}
             />
           </div>
         );

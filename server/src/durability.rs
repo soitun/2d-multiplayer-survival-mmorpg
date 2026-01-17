@@ -38,8 +38,10 @@ pub const TORCH_TOTAL_DURATION_SECS: f32 = 900.0;
 /// 100 durability / 180 ticks ≈ 0.556 per tick
 pub const TORCH_DURABILITY_LOSS_PER_TICK: f32 = MAX_DURABILITY / (TORCH_TOTAL_DURATION_SECS / TORCH_DURABILITY_TICK_INTERVAL_SECS as f32);
 
-/// Total flashlight duration in seconds (30 minutes = 1800 seconds - longer than torch)
-pub const FLASHLIGHT_TOTAL_DURATION_SECS: f32 = 1800.0;
+/// Total flashlight duration in seconds (12 minutes = 720 seconds)
+/// Balanced for 10-minute nights: lasts just over 1 night, requires resource management
+/// Flashlight deters apparitions (they hesitate in beam) so shorter duration balances the power
+pub const FLASHLIGHT_TOTAL_DURATION_SECS: f32 = 720.0;
 
 /// Durability lost per flashlight tick
 /// With 5-second ticks over 1800 seconds = 360 ticks

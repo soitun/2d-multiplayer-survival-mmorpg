@@ -66,6 +66,13 @@ import { InterpolatedGrassData } from './useGrassInterpolation'; // Import Inter
 import { COMPOUND_BUILDINGS, getBuildingWorldPosition, getBuildingYSortPosition, getAllCompoundBuildings } from '../config/compoundBuildings'; // Import compound buildings config
 import { hasActiveStoneDestruction, checkStoneDestructionVisibility } from '../utils/renderers/stoneRenderingUtils'; // Import stone destruction tracking
 import { hasActiveCoralDestruction, checkCoralDestructionVisibility } from '../utils/renderers/livingCoralRenderingUtils'; // Import coral destruction tracking
+// Ward radius constants for expanded viewport filtering (to render ward circles even when ward is off-screen)
+import { 
+  LANTERN_TYPE_LANTERN,
+  ANCESTRAL_WARD_RADIUS_PX, 
+  SIGNAL_DISRUPTOR_RADIUS_PX, 
+  MEMORY_BEACON_RADIUS_PX 
+} from '../utils/renderers/lanternRenderingUtils';
 
 export interface ViewportBounds {
   viewMinX: number;
@@ -979,7 +986,33 @@ export function useEntityFiltering(
     if (!lanterns) return [];
     
     const allLanterns = Array.from(lanterns.values());
-    const visibleFiltered = allLanterns.filter(e => isEntityInView(e, viewBounds, stableTimestamp) && !e.isDestroyed);
+    
+    // Filter lanterns, but for wards we need expanded bounds to include radius circles
+    const visibleFiltered = allLanterns.filter(e => {
+      if (e.isDestroyed) return false;
+      
+      // Regular lanterns use standard viewport filtering
+      if (e.lanternType === LANTERN_TYPE_LANTERN || !e.isBurning) {
+        return isEntityInView(e, viewBounds, stableTimestamp);
+      }
+      
+      // For active wards, check if their radius circle would be visible
+      // A circle is visible if its center is within (radius) pixels of the viewport
+      let wardRadius = 0;
+      if (e.lanternType === 1) wardRadius = ANCESTRAL_WARD_RADIUS_PX;
+      else if (e.lanternType === 2) wardRadius = SIGNAL_DISRUPTOR_RADIUS_PX;
+      else if (e.lanternType === 3) wardRadius = MEMORY_BEACON_RADIUS_PX;
+      
+      // Expand view bounds by ward radius to check if the radius circle would be visible
+      const expandedBounds = {
+        viewMinX: viewBounds.viewMinX - wardRadius,
+        viewMaxX: viewBounds.viewMaxX + wardRadius,
+        viewMinY: viewBounds.viewMinY - wardRadius,
+        viewMaxY: viewBounds.viewMaxY + wardRadius,
+      };
+      
+      return isEntityInView(e, expandedBounds, stableTimestamp);
+    });
     
     return visibleFiltered;
   }, [lanterns, isEntityInView, viewBounds, stableTimestamp]);

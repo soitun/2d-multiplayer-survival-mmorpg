@@ -729,6 +729,12 @@ export function getContainerConfig(containerType: ContainerType, entity?: Contai
     return baseConfig;
 }
 
+// Lantern type constants (must match server)
+export const LANTERN_TYPE_LANTERN = 0;
+export const LANTERN_TYPE_ANCESTRAL_WARD = 1;
+export const LANTERN_TYPE_SIGNAL_DISRUPTOR = 2;
+export const LANTERN_TYPE_MEMORY_BEACON = 3;
+
 /**
  * Helper to capitalize container type for display
  */
@@ -752,6 +758,22 @@ export function getContainerDisplayName(containerType: ContainerType, entity?: C
         }
     }
     
+    // Handle dynamic names for lantern types (including wards)
+    if (containerType === 'lantern' && entity) {
+        const lantern = entity as Lantern;
+        switch (lantern.lanternType) {
+            case LANTERN_TYPE_ANCESTRAL_WARD:
+                return 'ANCESTRAL WARD';
+            case LANTERN_TYPE_SIGNAL_DISRUPTOR:
+                return 'SIGNAL DISRUPTOR';
+            case LANTERN_TYPE_MEMORY_BEACON:
+                return 'MEMORY RESONANCE BEACON';
+            case LANTERN_TYPE_LANTERN:
+            default:
+                return 'LANTERN';
+        }
+    }
+    
     const nameMap = {
         campfire: 'CAMPFIRE',
         furnace: 'FURNACE',
@@ -767,6 +789,30 @@ export function getContainerDisplayName(containerType: ContainerType, entity?: C
     };
     
     return nameMap[containerType];
+}
+
+/**
+ * Get the required fuel type name for a lantern/ward based on its type
+ * Returns the item name that this lantern type accepts as fuel
+ */
+export function getLanternFuelTypeName(lanternType: number): string {
+    switch (lanternType) {
+        case LANTERN_TYPE_SIGNAL_DISRUPTOR:
+        case LANTERN_TYPE_MEMORY_BEACON:
+            return 'Scrap Batteries';
+        case LANTERN_TYPE_ANCESTRAL_WARD:
+        case LANTERN_TYPE_LANTERN:
+        default:
+            return 'Tallow';
+    }
+}
+
+/**
+ * Check if an item is valid fuel for a specific lantern type
+ */
+export function isValidFuelForLantern(itemName: string, lanternType: number): boolean {
+    const requiredFuel = getLanternFuelTypeName(lanternType);
+    return itemName === requiredFuel;
 }
 
 /**

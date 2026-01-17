@@ -525,6 +525,13 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
             log::warn!("Failed to update Lagunov's Ghost status for player {:?}: {}", player_id, e);
         }
         // <<< END LAGUNOV'S GHOST EFFECT MANAGEMENT >>>
+        
+        // <<< ADD MEMORY BEACON SANITY EFFECT MANAGEMENT >>>
+        // Update Memory Beacon sanity status based on player position (display-only - shows insanity immunity)
+        if let Err(e) = crate::active_effects::update_player_memory_beacon_status(ctx, player_id, player.position_x, player.position_y) {
+            log::warn!("Failed to update Memory Beacon sanity status for player {:?}: {}", player_id, e);
+        }
+        // <<< END MEMORY BEACON SANITY EFFECT MANAGEMENT >>>
 
         // <<< ADD COOKING STATION PROXIMITY EFFECT MANAGEMENT >>>
         // Update cooking station status based on player position (enables advanced food recipes)
@@ -738,8 +745,25 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
             }
         }
         
-        let new_insanity = (player.insanity + (insanity_change_per_sec * elapsed_seconds))
-            .max(0.0).min(PLAYER_MAX_INSANITY);
+        // MEMORY BEACON SANITY HAVEN: If player is inside an active Memory Beacon zone,
+        // immediately clear all insanity and prevent any accumulation.
+        // This is the unique benefit of Memory Beacons over Signal Disruptors.
+        let is_in_memory_beacon_zone = crate::wild_animal_npc::hostile_spawning::is_position_in_memory_beacon_zone(
+            ctx, player.position_x, player.position_y
+        );
+        
+        let new_insanity = if is_in_memory_beacon_zone {
+            // Memory Beacon zone: immediately nuke insanity to 0
+            if player.insanity > 0.0 {
+                log::info!("Player {:?} is in Memory Beacon zone - insanity cleared ({:.1}% -> 0%)", 
+                    player_id, player.insanity);
+            }
+            0.0
+        } else {
+            // Normal insanity calculation
+            (player.insanity + (insanity_change_per_sec * elapsed_seconds))
+                .max(0.0).min(PLAYER_MAX_INSANITY)
+        };
         
         // Detect insanity threshold crossings for SOVA sound triggers (client-side sounds)
         // Check thresholds in descending order to catch the highest one crossed

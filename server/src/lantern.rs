@@ -20,6 +20,9 @@ pub const LANTERN_WARMTH_RADIUS_SQUARED: f32 = 3600.0; // 60 pixel radius (same 
 pub const WARMTH_PER_SECOND: f32 = 0.5; // Same warmth as campfire
 pub const LANTERN_PLACEMENT_MAX_DISTANCE: f32 = 150.0;
 pub const LANTERN_PLACEMENT_MAX_DISTANCE_SQUARED: f32 = LANTERN_PLACEMENT_MAX_DISTANCE * LANTERN_PLACEMENT_MAX_DISTANCE;
+// Wards need larger placement distance to avoid collision overlap with player (collision radius 40)
+pub const WARD_PLACEMENT_MAX_DISTANCE: f32 = 160.0;
+pub const WARD_PLACEMENT_MAX_DISTANCE_SQUARED: f32 = WARD_PLACEMENT_MAX_DISTANCE * WARD_PLACEMENT_MAX_DISTANCE;
 pub const LANTERN_LANTERN_COLLISION_DISTANCE: f32 = 100.0;
 pub const LANTERN_LANTERN_COLLISION_DISTANCE_SQUARED: f32 = LANTERN_LANTERN_COLLISION_DISTANCE * LANTERN_LANTERN_COLLISION_DISTANCE;
 pub const LANTERN_INITIAL_HEALTH: f32 = 80.0;
@@ -30,7 +33,76 @@ pub const PLAYER_LANTERN_INTERACTION_DISTANCE: f32 = 200.0;
 pub const PLAYER_LANTERN_INTERACTION_DISTANCE_SQUARED: f32 = PLAYER_LANTERN_INTERACTION_DISTANCE * PLAYER_LANTERN_INTERACTION_DISTANCE;
 pub const INITIAL_LANTERN_FUEL_AMOUNT: u32 = 25; // UNUSED: Lanterns now start empty when placed
 
+// === LANTERN TYPE CONSTANTS ===
+// lantern_type: 0 = Lantern, 1 = Ancestral Ward, 2 = Signal Disruptor, 3 = Memory Beacon
+pub const LANTERN_TYPE_LANTERN: u8 = 0;
+pub const LANTERN_TYPE_ANCESTRAL_WARD: u8 = 1;
+pub const LANTERN_TYPE_SIGNAL_DISRUPTOR: u8 = 2;
+pub const LANTERN_TYPE_MEMORY_BEACON: u8 = 3;
+
+// === WARD BURN DURATIONS (seconds per fuel unit) ===
+// Rebalanced to make fuel a meaningful ongoing cost for complete immunity protection
+// Option A (Moderate): Creates a "tax" on safety that scales with benefit
+pub const LANTERN_BURN_DURATION_SECS: f32 = 120.0;           // Lantern: 2 min per Tallow (unchanged)
+pub const ANCESTRAL_WARD_BURN_DURATION_SECS: f32 = 150.0;    // Ancestral Ward: 2.5 min per Tallow (4/night)
+pub const SIGNAL_DISRUPTOR_BURN_DURATION_SECS: f32 = 120.0;  // Signal Disruptor: 2 min per Battery (5/night)
+pub const MEMORY_BEACON_BURN_DURATION_SECS: f32 = 120.0;     // Memory Beacon: 2 min per Battery (same as Signal Disruptor)
+
+// === WARD DETERRENCE CONSTANTS ===
+// Wards create active deterrence zones where hostile apparitions WILL NOT ENTER.
+// Unlike spawn reduction, this is a hard barrier - apparitions actively avoid these areas.
+// This allows players to "civilize" their bases and not contend with enemies at night.
+// Higher tier wards provide larger protection zones for bigger bases/multiplayer compounds.
+//
+// Scale reference:
+//   - Single shelter: ~384px footprint
+//   - Foundation cell: 96px
+//   - Viewport: ~1920x1080px
+//   - World size: 500x500 tiles = 16000x16000px
+
+// Tier 1: Ancestral Ward - Solo camp protection
+// 550px radius = 1100px diameter = ~34 tiles across
+// Covers: 1 shelter + campfire + storage with some breathing room
+pub const ANCESTRAL_WARD_RADIUS_PX: f32 = 550.0;
+pub const ANCESTRAL_WARD_RADIUS_SQ: f32 = ANCESTRAL_WARD_RADIUS_PX * ANCESTRAL_WARD_RADIUS_PX;
+
+// Tier 2: Signal Disruptor - Homestead protection (duo/small group)
+// 1100px radius = 2200px diameter = ~69 tiles across
+// Covers: Multiple shelters, crafting areas, small garden
+pub const SIGNAL_DISRUPTOR_RADIUS_PX: f32 = 1100.0;
+pub const SIGNAL_DISRUPTOR_RADIUS_SQ: f32 = SIGNAL_DISRUPTOR_RADIUS_PX * SIGNAL_DISRUPTOR_RADIUS_PX;
+
+// Tier 3: Memory Resonance Beacon - MONSTER ATTRACTOR (completely different from protective wards!)
+// Unlike Ancestral Ward and Signal Disruptor which REPEL hostiles, the Memory Beacon ATTRACTS them.
+// This creates a high-risk/high-reward farming tool for players who want to hunt apparitions.
+//
+// How it works:
+// - Places a beacon that INCREASES hostile spawn rates in a large radius (2000px)
+// - Players inside a smaller "sanity haven" zone (600px) have insanity cleared
+// - The beacon auto-destructs after 10 minutes (cannot be picked up - prevents griefing)
+// - Spend 250+ shards + batteries to build, gamble on farming more shards from kills
+//
+// Edge case: If placed inside a protected ward zone, the spawn boost won't matter
+// because hostiles still can't spawn/enter protective ward zones.
+pub const MEMORY_BEACON_SANITY_RADIUS_PX: f32 = 600.0;  // Small sanity clearing zone (stay close!)
+pub const MEMORY_BEACON_SANITY_RADIUS_SQ: f32 = MEMORY_BEACON_SANITY_RADIUS_PX * MEMORY_BEACON_SANITY_RADIUS_PX;
+pub const MEMORY_BEACON_ATTRACTION_RADIUS_PX: f32 = 2000.0;  // Large spawn attraction zone
+pub const MEMORY_BEACON_ATTRACTION_RADIUS_SQ: f32 = MEMORY_BEACON_ATTRACTION_RADIUS_PX * MEMORY_BEACON_ATTRACTION_RADIUS_PX;
+pub const MEMORY_BEACON_SPAWN_MULTIPLIER: f32 = 1.5;  // 1.5x spawn rate within attraction radius (nerfed from 2.5x)
+pub const MEMORY_BEACON_LIFETIME_SECS: u64 = 300;  // Auto-destructs after 5 minutes (nerfed from 10 min)
+
+// Legacy constant for backward compatibility (use MEMORY_BEACON_SANITY_RADIUS_SQ instead)
+pub const MEMORY_BEACON_RADIUS_PX: f32 = MEMORY_BEACON_SANITY_RADIUS_PX;
+pub const MEMORY_BEACON_RADIUS_SQ: f32 = MEMORY_BEACON_SANITY_RADIUS_SQ;
+
+// === WARD HEALTH VALUES ===
+pub const ANCESTRAL_WARD_HEALTH: f32 = 150.0;
+pub const SIGNAL_DISRUPTOR_HEALTH: f32 = 200.0;
+pub const MEMORY_BEACON_HEALTH: f32 = 300.0;
+
 // --- Lantern Table ---
+// Also used for Wards (lantern_type > 0)
+// lantern_type: 0 = Lantern, 1 = Ancestral Ward, 2 = Signal Disruptor, 3 = Memory Beacon
 #[spacetimedb::table(name = lantern, public)]
 #[derive(Clone, Debug)]
 pub struct Lantern {
@@ -39,11 +111,12 @@ pub struct Lantern {
     pub id: u32,
     pub pos_x: f32,
     pub pos_y: f32,
+    #[index(btree)]
     pub chunk_index: u32,
     pub placed_by: Identity,
     pub placed_at: Timestamp,
     pub is_burning: bool,
-    // Fuel slot for tallow
+    // Fuel slot (Tallow for lantern/ancestral ward, Scrap Batteries for signal disruptor/memory beacon)
     pub fuel_instance_id_0: Option<u64>,
     pub fuel_def_id_0: Option<u64>,
     pub current_fuel_def_id: Option<u64>,
@@ -56,6 +129,8 @@ pub struct Lantern {
     pub last_damaged_by: Option<Identity>,
     // Mark as monument placeable (indestructible, public access)
     pub is_monument: bool,
+    // Lantern type: 0 = Lantern, 1 = Ancestral Ward, 2 = Signal Disruptor, 3 = Memory Beacon
+    pub lantern_type: u8,
 }
 
 // --- Scheduled Processing Table ---
@@ -110,88 +185,88 @@ impl ItemContainer for Lantern {
  ******************************************************************************/
 
 /// --- Move Item to Lantern ---
+/// Validates fuel type based on lantern_type:
+/// - Lantern (0) and Ancestral Ward (1): Accept Tallow only
+/// - Signal Disruptor (2) and Memory Beacon (3): Accept Scrap Batteries only
 #[spacetimedb::reducer]
 pub fn move_item_to_lantern(ctx: &ReducerContext, lantern_id: u32, target_slot_index: u8, item_instance_id: u64) -> Result<(), String> {
     let (_player, mut lantern) = validate_lantern_interaction(ctx, lantern_id)?;
+    
+    // Validate fuel type based on lantern_type
+    let item = ctx.db.inventory_item().instance_id().find(&item_instance_id)
+        .ok_or_else(|| "Item not found.".to_string())?;
+    let item_def = ctx.db.item_definition().id().find(&item.item_def_id)
+        .ok_or_else(|| "Item definition not found.".to_string())?;
+    
+    let is_valid_fuel = match lantern.lantern_type {
+        LANTERN_TYPE_LANTERN | LANTERN_TYPE_ANCESTRAL_WARD => {
+            // Lanterns and Ancestral Wards accept Tallow
+            item_def.name == "Tallow"
+        }
+        LANTERN_TYPE_SIGNAL_DISRUPTOR | LANTERN_TYPE_MEMORY_BEACON => {
+            // Signal Disruptors and Memory Beacons accept Scrap Batteries
+            item_def.name == "Scrap Batteries"
+        }
+        _ => false,
+    };
+    
+    if !is_valid_fuel {
+        let expected_fuel = match lantern.lantern_type {
+            LANTERN_TYPE_LANTERN => "Tallow",
+            LANTERN_TYPE_ANCESTRAL_WARD => "Tallow",
+            LANTERN_TYPE_SIGNAL_DISRUPTOR => "Scrap Batteries",
+            LANTERN_TYPE_MEMORY_BEACON => "Scrap Batteries",
+            _ => "valid fuel",
+        };
+        let structure_name = get_lantern_type_name(lantern.lantern_type);
+        return Err(format!("{} requires {} as fuel, not {}.", structure_name, expected_fuel, item_def.name));
+    }
+    
     handle_move_to_container_slot(ctx, &mut lantern, target_slot_index, item_instance_id)?;
     ctx.db.lantern().id().update(lantern.clone());
     schedule_next_lantern_processing(ctx, lantern_id);
     Ok(())
 }
 
-/// --- Light Lantern ---
+/// Helper function to get the display name for a lantern type
+fn get_lantern_type_name(lantern_type: u8) -> &'static str {
+    match lantern_type {
+        LANTERN_TYPE_LANTERN => "Lantern",
+        LANTERN_TYPE_ANCESTRAL_WARD => "Ancestral Ward",
+        LANTERN_TYPE_SIGNAL_DISRUPTOR => "Signal Disruptor",
+        LANTERN_TYPE_MEMORY_BEACON => "Memory Resonance Beacon",
+        _ => "Unknown Structure",
+    }
+}
+
+/// --- Light Lantern / Activate Ward ---
 #[spacetimedb::reducer]
 pub fn light_lantern(ctx: &ReducerContext, lantern_id: u32) -> Result<(), String> {
     let (_player, mut lantern) = validate_lantern_interaction(ctx, lantern_id)?;
+    let structure_name = get_lantern_type_name(lantern.lantern_type);
+    let required_fuel = get_required_fuel_name(lantern.lantern_type);
     
     if lantern.is_burning {
-        return Err("Lantern is already lit.".to_string());
+        return Err(format!("{} is already active.", structure_name));
     }
     
     if !check_if_lantern_has_fuel(ctx, &lantern) {
-        return Err("Cannot light lantern, requires tallow fuel.".to_string());
+        return Err(format!("Cannot activate {}, requires {} as fuel.", structure_name, required_fuel));
     }
     
     lantern.is_burning = true;
-    log::info!("Lantern {} lit by player {:?}.", lantern.id, ctx.sender);
     
-    // Start lantern sound
-    start_lantern_sound(ctx, lantern.id as u64, lantern.pos_x, lantern.pos_y);
-    
-    ctx.db.lantern().id().update(lantern.clone());
-    schedule_next_lantern_processing(ctx, lantern_id);
-    Ok(())
-}
-
-/// --- Extinguish Lantern ---
-#[spacetimedb::reducer]
-pub fn extinguish_lantern(ctx: &ReducerContext, lantern_id: u32) -> Result<(), String> {
-    let (_player, mut lantern) = validate_lantern_interaction(ctx, lantern_id)?;
-    
-    if !lantern.is_burning {
-        return Err("Lantern is already extinguished.".to_string());
+    // Start burning from fuel - this sets burn time but DOESN'T consume the fuel yet
+    // The fuel item remains visible in the slot until its burn time is exhausted
+    if !start_burning_from_fuel(ctx, &mut lantern) {
+        lantern.is_burning = false;
+        return Err(format!("Failed to start burning {} - no valid fuel found.", structure_name));
     }
     
-    lantern.is_burning = false;
-    lantern.current_fuel_def_id = None;
-    lantern.remaining_fuel_burn_time_secs = None;
-    log::info!("Lantern {} extinguished by player {:?}.", lantern.id, ctx.sender);
+    log::info!("{} {} activated by player {:?}.", structure_name, lantern.id, ctx.sender);
     
-    // Stop lantern sound
-    stop_lantern_sound(ctx, lantern.id as u64);
-    
-    ctx.db.lantern().id().update(lantern.clone());
-    schedule_next_lantern_processing(ctx, lantern_id);
-    Ok(())
-}
-
-/// --- Toggle Lantern ---
-/// Toggles the burning state of the lantern (lights or extinguishes it).
-/// Similar to toggle_campfire_burning but without rain protection since lanterns are typically protected.
-#[spacetimedb::reducer]
-pub fn toggle_lantern(ctx: &ReducerContext, lantern_id: u32) -> Result<(), String> {
-    let (_player, mut lantern) = validate_lantern_interaction(ctx, lantern_id)?;
-    
-    if lantern.is_burning {
-        // Extinguish the lantern
-        lantern.is_burning = false;
-        lantern.current_fuel_def_id = None;
-        lantern.remaining_fuel_burn_time_secs = None;
-        log::info!("Lantern {} extinguished by player {:?}.", lantern.id, ctx.sender);
-        
-        // Stop lantern sound
-        stop_lantern_sound(ctx, lantern.id as u64);
-    } else {
-        // Light the lantern
-        if !check_if_lantern_has_fuel(ctx, &lantern) {
-            return Err("Cannot light lantern, requires tallow fuel.".to_string());
-        }
-        
-        lantern.is_burning = true;
-        // remaining_fuel_burn_time_secs will be set by the first call to process_lantern_logic_scheduled
-        log::info!("Lantern {} lit by player {:?}.", lantern.id, ctx.sender);
-        
-        // Start lantern sound
+    // Start lantern sound (only for actual lanterns)
+    if lantern.lantern_type == LANTERN_TYPE_LANTERN {
         start_lantern_sound(ctx, lantern.id as u64, lantern.pos_x, lantern.pos_y);
     }
     
@@ -200,74 +275,185 @@ pub fn toggle_lantern(ctx: &ReducerContext, lantern_id: u32) -> Result<(), Strin
     Ok(())
 }
 
-/// --- Pickup Lantern ---
+/// --- Extinguish Lantern / Deactivate Ward ---
 #[spacetimedb::reducer]
-pub fn pickup_lantern(ctx: &ReducerContext, lantern_id: u32) -> Result<(), String> {
-    let (player, lantern) = validate_lantern_interaction(ctx, lantern_id)?;
+pub fn extinguish_lantern(ctx: &ReducerContext, lantern_id: u32) -> Result<(), String> {
+    let (_player, mut lantern) = validate_lantern_interaction(ctx, lantern_id)?;
+    let structure_name = get_lantern_type_name(lantern.lantern_type);
     
-    // Drop all fuel items first
-    for slot_index in 0..NUM_FUEL_SLOTS as u8 {
-        if lantern.get_slot_instance_id(slot_index).is_some() {
-            drop_item_from_lantern_slot_to_world(ctx, lantern_id, slot_index)?;
+    if !lantern.is_burning {
+        return Err(format!("{} is already inactive.", structure_name));
+    }
+    
+    lantern.is_burning = false;
+    lantern.current_fuel_def_id = None;
+    lantern.remaining_fuel_burn_time_secs = None;
+    log::info!("{} {} deactivated by player {:?}.", structure_name, lantern.id, ctx.sender);
+    
+    // Stop lantern sound (only for actual lanterns)
+    if lantern.lantern_type == LANTERN_TYPE_LANTERN {
+        stop_lantern_sound(ctx, lantern.id as u64);
+    }
+    
+    ctx.db.lantern().id().update(lantern.clone());
+    schedule_next_lantern_processing(ctx, lantern_id);
+    Ok(())
+}
+
+/// --- Toggle Lantern / Ward ---
+/// Toggles the burning/active state of the lantern or ward.
+/// Similar to toggle_campfire_burning but without rain protection since lanterns are typically protected.
+#[spacetimedb::reducer]
+pub fn toggle_lantern(ctx: &ReducerContext, lantern_id: u32) -> Result<(), String> {
+    let (_player, mut lantern) = validate_lantern_interaction(ctx, lantern_id)?;
+    let structure_name = get_lantern_type_name(lantern.lantern_type);
+    let required_fuel = get_required_fuel_name(lantern.lantern_type);
+    
+    if lantern.is_burning {
+        // Deactivate the structure
+        lantern.is_burning = false;
+        lantern.current_fuel_def_id = None;
+        lantern.remaining_fuel_burn_time_secs = None;
+        log::info!("{} {} deactivated by player {:?}.", structure_name, lantern.id, ctx.sender);
+        
+        // Stop lantern sound (only for actual lanterns)
+        if lantern.lantern_type == LANTERN_TYPE_LANTERN {
+            stop_lantern_sound(ctx, lantern.id as u64);
+        }
+    } else {
+        // Activate the structure
+        if !check_if_lantern_has_fuel(ctx, &lantern) {
+            return Err(format!("Cannot activate {}, requires {} as fuel.", structure_name, required_fuel));
+        }
+        
+        lantern.is_burning = true;
+        
+        // Start burning from fuel - this sets burn time but DOESN'T consume the fuel yet
+        // The fuel item remains visible in the slot until its burn time is exhausted
+        if !start_burning_from_fuel(ctx, &mut lantern) {
+            lantern.is_burning = false;
+            return Err(format!("Failed to start burning {} - no valid fuel found.", structure_name));
+        }
+        
+        log::info!("{} {} activated by player {:?}.", structure_name, lantern.id, ctx.sender);
+        
+        // Start lantern sound (only for actual lanterns)
+        if lantern.lantern_type == LANTERN_TYPE_LANTERN {
+            start_lantern_sound(ctx, lantern.id as u64, lantern.pos_x, lantern.pos_y);
         }
     }
     
-    // Get lantern item definition
+    ctx.db.lantern().id().update(lantern.clone());
+    schedule_next_lantern_processing(ctx, lantern_id);
+    Ok(())
+}
+
+/// --- Pickup Lantern or Ward ---
+/// Note: Memory Resonance Beacons CANNOT be picked up - they auto-destruct after 10 minutes.
+/// This prevents griefing (placing one near someone else's base to attract monsters).
+#[spacetimedb::reducer]
+pub fn pickup_lantern(ctx: &ReducerContext, lantern_id: u32) -> Result<(), String> {
+    let (player, lantern) = validate_lantern_interaction(ctx, lantern_id)?;
+    let structure_name = get_lantern_type_name(lantern.lantern_type);
+    let expected_item_name = get_item_name_for_lantern_type(lantern.lantern_type);
+    
+    // Memory Resonance Beacons cannot be picked up - they auto-destruct
+    // This prevents griefing by placing them near other players' bases
+    if lantern.lantern_type == LANTERN_TYPE_MEMORY_BEACON {
+        return Err("Memory Resonance Beacons cannot be picked up. They will auto-destruct after 10 minutes.".to_string());
+    }
+    
+    // Check if there's fuel inside - cannot pickup if fuel is present
+    let has_fuel = (0..NUM_FUEL_SLOTS as u8).any(|slot_index| {
+        lantern.get_slot_instance_id(slot_index).is_some()
+    });
+    
+    if has_fuel {
+        return Err(format!("Cannot pick up {} while it contains fuel. Remove fuel first.", structure_name));
+    }
+    
+    // Get the correct item definition based on lantern_type
     let item_defs = ctx.db.item_definition();
-    let lantern_def = item_defs.iter()
-        .find(|def| def.name == "Lantern")
-        .ok_or_else(|| "Lantern item definition not found.".to_string())?;
+    let item_def = item_defs.iter()
+        .find(|def| def.name == expected_item_name)
+        .ok_or_else(|| format!("{} item definition not found.", expected_item_name))?;
     
-    // Add lantern item to player inventory
+    // Add item to player inventory
     let new_location = find_first_empty_player_slot(ctx, ctx.sender)
-        .ok_or_else(|| "Player inventory is full, cannot pickup lantern.".to_string())?;
+        .ok_or_else(|| format!("Player inventory is full, cannot pickup {}.", structure_name))?;
     
-    let new_lantern_item = InventoryItem {
+    let new_item = InventoryItem {
         instance_id: 0, // Auto-inc
-        item_def_id: lantern_def.id,
+        item_def_id: item_def.id,
         quantity: 1,
         location: new_location,
         item_data: None, // Initialize as empty
     };
     
-    ctx.db.inventory_item().try_insert(new_lantern_item)
-        .map_err(|e| format!("Failed to insert lantern item: {}", e))?;
+    ctx.db.inventory_item().try_insert(new_item)
+        .map_err(|e| format!("Failed to insert {} item: {}", structure_name, e))?;
     
-    // 🔊 Stop lantern sound if it was burning when picked up
-    if lantern.is_burning {
+    // 🔊 Stop lantern sound if it was burning when picked up (only for actual lanterns)
+    if lantern.is_burning && lantern.lantern_type == LANTERN_TYPE_LANTERN {
         stop_lantern_sound(ctx, lantern.id as u64);
     }
     
-    // Delete the lantern entity
+    // Delete the lantern/ward entity
     ctx.db.lantern().id().delete(lantern_id);
     
-    log::info!("Player {:?} picked up lantern {}", ctx.sender, lantern_id);
+    log::info!("Player {:?} picked up {} {}", ctx.sender, structure_name, lantern_id);
     Ok(())
 }
 
-/// --- Place Lantern ---
+/// Helper to get the expected item name for a lantern type
+fn get_item_name_for_lantern_type(lantern_type: u8) -> &'static str {
+    match lantern_type {
+        LANTERN_TYPE_LANTERN => "Lantern",
+        LANTERN_TYPE_ANCESTRAL_WARD => "Ancestral Ward",
+        LANTERN_TYPE_SIGNAL_DISRUPTOR => "Signal Disruptor",
+        LANTERN_TYPE_MEMORY_BEACON => "Memory Resonance Beacon",
+        _ => "Lantern",
+    }
+}
+
+/// Helper to get health values for a lantern type
+fn get_health_for_lantern_type(lantern_type: u8) -> (f32, f32) {
+    match lantern_type {
+        LANTERN_TYPE_LANTERN => (LANTERN_INITIAL_HEALTH, LANTERN_MAX_HEALTH),
+        LANTERN_TYPE_ANCESTRAL_WARD => (ANCESTRAL_WARD_HEALTH, ANCESTRAL_WARD_HEALTH),
+        LANTERN_TYPE_SIGNAL_DISRUPTOR => (SIGNAL_DISRUPTOR_HEALTH, SIGNAL_DISRUPTOR_HEALTH),
+        LANTERN_TYPE_MEMORY_BEACON => (MEMORY_BEACON_HEALTH, MEMORY_BEACON_HEALTH),
+        _ => (LANTERN_INITIAL_HEALTH, LANTERN_MAX_HEALTH),
+    }
+}
+
+/// --- Place Lantern or Ward ---
+/// lantern_type: 0 = Lantern, 1 = Ancestral Ward, 2 = Signal Disruptor, 3 = Memory Beacon
 #[spacetimedb::reducer]
-pub fn place_lantern(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, world_y: f32) -> Result<(), String> {
+pub fn place_lantern(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, world_y: f32, lantern_type: u8) -> Result<(), String> {
     let sender_id = ctx.sender;
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let players = ctx.db.player();
     let lanterns = ctx.db.lantern();
 
-    // Look up item definition IDs
-    let lantern_def_id = item_defs.iter()
-        .find(|def| def.name == "Lantern")
-        .map(|def| def.id)
-        .ok_or_else(|| "Item definition for 'Lantern' not found.".to_string())?;
+    // Validate lantern_type
+    if lantern_type > LANTERN_TYPE_MEMORY_BEACON {
+        return Err(format!("Invalid lantern type: {}", lantern_type));
+    }
 
-    let tallow_def_id = item_defs.iter()
-        .find(|def| def.name == "Tallow")
+    let structure_name = get_lantern_type_name(lantern_type);
+    let expected_item_name = get_item_name_for_lantern_type(lantern_type);
+
+    // Look up item definition for the expected type
+    let expected_def_id = item_defs.iter()
+        .find(|def| def.name == expected_item_name)
         .map(|def| def.id)
-        .ok_or_else(|| "Item definition for 'Tallow' not found.".to_string())?;
+        .ok_or_else(|| format!("Item definition for '{}' not found.", expected_item_name))?;
 
     log::info!(
-        "[PlaceLantern] Player {:?} attempting placement of item {} at ({:.1}, {:.1})",
-        sender_id, item_instance_id, world_x, world_y
+        "[Place{}] Player {:?} attempting placement of item {} at ({:.1}, {:.1})",
+        structure_name, sender_id, item_instance_id, world_x, world_y
     );
 
     // Check if position is within monument zones (ALK stations, rune stones, hot springs, quarries)
@@ -278,37 +464,44 @@ pub fn place_lantern(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         .ok_or_else(|| "Player not found".to_string())?;
 
     if player.is_dead {
-        return Err("Cannot place lantern while dead.".to_string());
+        return Err(format!("Cannot place {} while dead.", structure_name));
     }
     if player.is_knocked_out {
-        return Err("Cannot place lantern while knocked out.".to_string());
+        return Err(format!("Cannot place {} while knocked out.", structure_name));
     }
 
     let dx_place = world_x - player.position_x;
     let dy_place = world_y - player.position_y;
     let dist_sq_place = dx_place * dx_place + dy_place * dy_place;
-    if dist_sq_place > LANTERN_PLACEMENT_MAX_DISTANCE_SQUARED {
-        return Err(format!("Cannot place lantern too far away ({} > {}).",
-                dist_sq_place.sqrt(), LANTERN_PLACEMENT_MAX_DISTANCE));
+    // Wards (type > 0) have larger placement distance to avoid collision overlap with player
+    let (max_dist_sq, max_dist) = if lantern_type > LANTERN_TYPE_LANTERN {
+        (WARD_PLACEMENT_MAX_DISTANCE_SQUARED, WARD_PLACEMENT_MAX_DISTANCE)
+    } else {
+        (LANTERN_PLACEMENT_MAX_DISTANCE_SQUARED, LANTERN_PLACEMENT_MAX_DISTANCE)
+    };
+    if dist_sq_place > max_dist_sq {
+        return Err(format!("Cannot place {} too far away ({} > {}).",
+                structure_name, dist_sq_place.sqrt(), max_dist));
     }
 
     // Check if placement position is on a wall
     if crate::building::is_position_on_wall(ctx, world_x, world_y) {
-        return Err("Cannot place lantern on a wall.".to_string());
+        return Err(format!("Cannot place {} on a wall.", structure_name));
     }
 
     // Check if placement position is on water (including hot springs)
     if crate::environment::is_position_on_water(ctx, world_x, world_y) {
-        return Err("Cannot place lantern on water.".to_string());
+        return Err(format!("Cannot place {} on water.", structure_name));
     }
 
-    // Check for collision with other lanterns
+    // Check for collision with other lanterns/wards
     for other_lantern in lanterns.iter() {
         let dx_lantern = world_x - other_lantern.pos_x;
         let dy_lantern = world_y - other_lantern.pos_y;
         let dist_sq_lantern = dx_lantern * dx_lantern + dy_lantern * dy_lantern;
         if dist_sq_lantern < LANTERN_LANTERN_COLLISION_DISTANCE_SQUARED {
-            return Err("Cannot place lantern too close to another lantern.".to_string());
+            let other_name = get_lantern_type_name(other_lantern.lantern_type);
+            return Err(format!("Cannot place {} too close to another {}.", structure_name, other_name));
         }
     }
 
@@ -333,25 +526,29 @@ pub fn place_lantern(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         }
     }
 
-    if item_to_consume.item_def_id != lantern_def_id {
-        return Err(format!("Item instance {} is not a Lantern.", item_instance_id));
+    if item_to_consume.item_def_id != expected_def_id {
+        return Err(format!("Item instance {} is not a {}.", item_instance_id, expected_item_name));
     }
 
     // Consume the item
     log::info!(
-        "[PlaceLantern] Consuming item instance {} from player {:?}",
-        item_instance_id, sender_id
+        "[Place{}] Consuming item instance {} from player {:?}",
+        structure_name, item_instance_id, sender_id
     );
     inventory_items.instance_id().delete(item_instance_id);
 
-    // Create lantern entity (without fuel)
+    // Create entity (without fuel)
     let current_time = ctx.timestamp;
     let chunk_idx = calculate_chunk_index(world_x, world_y);
+    let (initial_health, max_health) = get_health_for_lantern_type(lantern_type);
+    let required_fuel = get_required_fuel_name(lantern_type);
 
+    // No Y offset - client sends the exact position where the item should be placed
+    // The client's placement preview accounts for sprite rendering offsets
     let new_lantern = Lantern {
         id: 0, // Auto-incremented
         pos_x: world_x,
-        pos_y: world_y + 32.0, // Compensate for bottom-anchoring
+        pos_y: world_y, // Store exactly what client sends
         chunk_index: chunk_idx,
         placed_by: sender_id,
         placed_at: current_time,
@@ -360,21 +557,22 @@ pub fn place_lantern(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         fuel_def_id_0: None,
         current_fuel_def_id: None,
         remaining_fuel_burn_time_secs: None,
-        health: LANTERN_INITIAL_HEALTH,
-        max_health: LANTERN_MAX_HEALTH,
+        health: initial_health,
+        max_health,
         is_destroyed: false,
         destroyed_at: None,
         last_hit_time: None,
         last_damaged_by: None,
-        is_monument: false, // Player-placed lanterns are not monuments
+        is_monument: false, // Player-placed structures are not monuments
+        lantern_type,
     };
 
     let inserted_lantern = lanterns.try_insert(new_lantern.clone())
-        .map_err(|e| format!("Failed to insert lantern entity: {}", e))?;
+        .map_err(|e| format!("Failed to insert {} entity: {}", structure_name, e))?;
     let new_lantern_id = inserted_lantern.id;
 
-    log::info!("Player {} placed an empty lantern {} at ({:.1}, {:.1}). Add tallow to use.",
-             player.username, new_lantern_id, world_x, world_y);
+    log::info!("Player {} placed an empty {} {} at ({:.1}, {:.1}). Add {} to use.",
+             player.username, structure_name, new_lantern_id, world_x, world_y, required_fuel);
 
     // Schedule initial processing
     schedule_next_lantern_processing(ctx, new_lantern_id);
@@ -396,6 +594,7 @@ pub fn process_lantern_logic_scheduled(ctx: &ReducerContext, schedule_args: Lant
 
     let lantern_id = schedule_args.lantern_id as u32;
     let mut lanterns = ctx.db.lantern();
+    let current_time = ctx.timestamp;
 
     let mut lantern = match lanterns.id().find(lantern_id) {
         Some(lantern) => lantern,
@@ -408,6 +607,44 @@ pub fn process_lantern_logic_scheduled(ctx: &ReducerContext, schedule_args: Lant
     if lantern.is_destroyed {
         log::info!("[LanternScheduled] Lantern {} is destroyed, canceling schedule.", lantern_id);
         return Ok(());
+    }
+    
+    // MEMORY BEACON AUTO-DESTRUCT: Check if this is a Memory Beacon that has exceeded its lifetime
+    // Memory Beacons auto-destruct after 10 minutes to prevent griefing
+    if lantern.lantern_type == LANTERN_TYPE_MEMORY_BEACON {
+        let elapsed_us = current_time.to_micros_since_unix_epoch() - lantern.placed_at.to_micros_since_unix_epoch();
+        let elapsed_secs = elapsed_us / 1_000_000;
+        
+        if elapsed_secs >= MEMORY_BEACON_LIFETIME_SECS as i64 {
+            // Auto-destruct the Memory Beacon
+            log::info!("🔮 [MemoryBeacon] Beacon {} auto-destructing after {} seconds (lifetime: {} secs)", 
+                      lantern_id, elapsed_secs, MEMORY_BEACON_LIFETIME_SECS);
+            
+            // Drop any remaining fuel as world items at the beacon's position
+            for slot_index in 0..NUM_FUEL_SLOTS as u8 {
+                if let Some(item_instance_id) = lantern.get_slot_instance_id(slot_index) {
+                    if let Some(item) = ctx.db.inventory_item().instance_id().find(item_instance_id) {
+                        // Create dropped item in world
+                        let _ = create_dropped_item_entity_with_data(
+                            ctx,
+                            item.item_def_id,
+                            item.quantity,
+                            lantern.pos_x,
+                            lantern.pos_y,
+                            item.item_data.clone()
+                        );
+                        // Delete the item from inventory
+                        ctx.db.inventory_item().instance_id().delete(item_instance_id);
+                    }
+                }
+            }
+            
+            // Delete the beacon entity
+            ctx.db.lantern().id().delete(lantern_id);
+            
+            // TODO: Consider adding a visual/sound effect for the destruction
+            return Ok(());
+        }
     }
 
     if !lantern.is_burning {
@@ -426,14 +663,20 @@ pub fn process_lantern_logic_scheduled(ctx: &ReducerContext, schedule_args: Lant
         let new_remaining_time = remaining_time - time_elapsed;
 
         if new_remaining_time <= 0.0 {
-            // Current fuel unit is exhausted
-            log::info!("[LanternScheduled] Fuel unit exhausted in lantern {}.", lantern_id);
+            // Current fuel unit's burn time is exhausted - NOW we consume it
+            log::info!("[LanternScheduled] Burn time exhausted for one fuel unit in lantern {}.", lantern_id);
+            
+            // Actually consume (decrement) one unit of fuel from the slot
+            consume_one_fuel_unit(ctx, &mut lantern);
+            
+            // Clear current burn tracking
             lantern.remaining_fuel_burn_time_secs = None;
             lantern.current_fuel_def_id = None;
             needs_update = true;
 
-            // Try to find next fuel unit
-            if !try_consume_next_fuel_unit(ctx, &mut lantern) {
+            // Try to start burning from remaining fuel (if any)
+            if !start_burning_from_fuel(ctx, &mut lantern) {
+                // No more fuel available
                 should_extinguish = true;
             } else {
                 needs_update = true;
@@ -444,8 +687,8 @@ pub fn process_lantern_logic_scheduled(ctx: &ReducerContext, schedule_args: Lant
             needs_update = true;
         }
     } else {
-        // No current fuel, try to start burning next unit
-        if !try_consume_next_fuel_unit(ctx, &mut lantern) {
+        // No current fuel burn time set, try to start burning from available fuel
+        if !start_burning_from_fuel(ctx, &mut lantern) {
             should_extinguish = true;
         } else {
             needs_update = true;
@@ -509,16 +752,37 @@ fn validate_lantern_interaction(ctx: &ReducerContext, lantern_id: u32) -> Result
     Ok((player, lantern))
 }
 
+/// Get the required fuel name for a given lantern type
+fn get_required_fuel_name(lantern_type: u8) -> &'static str {
+    match lantern_type {
+        LANTERN_TYPE_LANTERN | LANTERN_TYPE_ANCESTRAL_WARD => "Tallow",
+        LANTERN_TYPE_SIGNAL_DISRUPTOR | LANTERN_TYPE_MEMORY_BEACON => "Scrap Batteries",
+        _ => "Tallow", // Default to Tallow
+    }
+}
+
+/// Get the burn duration in seconds for a given lantern type
+fn get_burn_duration_secs(lantern_type: u8) -> f32 {
+    match lantern_type {
+        LANTERN_TYPE_LANTERN => LANTERN_BURN_DURATION_SECS,
+        LANTERN_TYPE_ANCESTRAL_WARD => ANCESTRAL_WARD_BURN_DURATION_SECS,
+        LANTERN_TYPE_SIGNAL_DISRUPTOR => SIGNAL_DISRUPTOR_BURN_DURATION_SECS,
+        LANTERN_TYPE_MEMORY_BEACON => MEMORY_BEACON_BURN_DURATION_SECS,
+        _ => LANTERN_BURN_DURATION_SECS,
+    }
+}
+
 pub(crate) fn check_if_lantern_has_fuel(ctx: &ReducerContext, lantern: &Lantern) -> bool {
     let inventory_table = ctx.db.inventory_item();
     let item_def_table = ctx.db.item_definition();
+    let required_fuel = get_required_fuel_name(lantern.lantern_type);
 
     // Check each fuel slot
     for slot_index in 0..NUM_FUEL_SLOTS as u8 {
         if let Some(item_instance_id) = lantern.get_slot_instance_id(slot_index) {
             if let Some(item) = inventory_table.instance_id().find(item_instance_id) {
                 if let Some(item_def) = item_def_table.id().find(item.item_def_id) {
-                    if item_def.name == "Tallow" && item.quantity > 0 {
+                    if item_def.name == required_fuel && item.quantity > 0 {
                         return true;
                     }
                 }
@@ -528,33 +792,68 @@ pub(crate) fn check_if_lantern_has_fuel(ctx: &ReducerContext, lantern: &Lantern)
     false
 }
 
-fn try_consume_next_fuel_unit(ctx: &ReducerContext, lantern: &mut Lantern) -> bool {
+/// Start burning from available fuel WITHOUT consuming it yet.
+/// The fuel item remains visible in the slot - it will only be consumed when burn time expires.
+fn start_burning_from_fuel(ctx: &ReducerContext, lantern: &mut Lantern) -> bool {
     let inventory_table = ctx.db.inventory_item();
     let item_def_table = ctx.db.item_definition();
+    let required_fuel = get_required_fuel_name(lantern.lantern_type);
+    let burn_duration = get_burn_duration_secs(lantern.lantern_type);
+    let structure_name = get_lantern_type_name(lantern.lantern_type);
 
-    // Look for tallow in fuel slots
+    // Look for valid fuel in fuel slots
+    for slot_index in 0..NUM_FUEL_SLOTS as u8 {
+        if let Some(item_instance_id) = lantern.get_slot_instance_id(slot_index) {
+            if let Some(item) = inventory_table.instance_id().find(item_instance_id) {
+                if let Some(item_def) = item_def_table.id().find(item.item_def_id) {
+                    if item_def.name == required_fuel && item.quantity > 0 {
+                        // Set burn time based on lantern type - DON'T consume yet
+                        // The fuel item stays in the slot, visible to the player
+                        lantern.current_fuel_def_id = Some(item_def.id);
+                        lantern.remaining_fuel_burn_time_secs = Some(burn_duration);
+                        
+                        log::info!("[{}] Started burning {} in {} {}, {:.0} seconds per unit, {} units available.", 
+                            structure_name, required_fuel, structure_name, lantern.id, burn_duration, item.quantity);
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Actually consume one unit of fuel from the slot.
+/// Called when burn time for one unit has fully expired.
+/// Returns true if fuel was consumed (and more may be available), false if no fuel to consume.
+fn consume_one_fuel_unit(ctx: &ReducerContext, lantern: &mut Lantern) -> bool {
+    let inventory_table = ctx.db.inventory_item();
+    let item_def_table = ctx.db.item_definition();
+    let required_fuel = get_required_fuel_name(lantern.lantern_type);
+    let structure_name = get_lantern_type_name(lantern.lantern_type);
+
+    // Look for valid fuel in fuel slots
     for slot_index in 0..NUM_FUEL_SLOTS as u8 {
         if let Some(item_instance_id) = lantern.get_slot_instance_id(slot_index) {
             if let Some(mut item) = inventory_table.instance_id().find(item_instance_id) {
                 if let Some(item_def) = item_def_table.id().find(item.item_def_id) {
-                    if item_def.name == "Tallow" && item.quantity > 0 {
-                        // Consume one unit of tallow
+                    if item_def.name == required_fuel && item.quantity > 0 {
+                        // Consume one unit of fuel
                         item.quantity -= 1;
+                        let remaining_quantity = item.quantity; // Capture before potential move
                         
                         if item.quantity == 0 {
-                            // Remove empty item
+                            // Remove empty item - this is when the last unit is exhausted
                             inventory_table.instance_id().delete(item_instance_id);
                             lantern.set_slot(slot_index, None, None);
+                            log::info!("[{}] Last {} unit consumed in {} {}.", 
+                                structure_name, required_fuel, structure_name, lantern.id);
                         } else {
                             // Update item quantity
                             inventory_table.instance_id().update(item);
+                            log::info!("[{}] Consumed 1 {} in {} {}, {} units remaining.", 
+                                structure_name, required_fuel, structure_name, lantern.id, remaining_quantity);
                         }
-
-                        // Set burn time (double the duration of campfire wood)
-                        lantern.current_fuel_def_id = Some(item_def.id);
-                        lantern.remaining_fuel_burn_time_secs = Some(FUEL_BURN_DURATION_MICROSECONDS as f32 / 1_000_000.0);
-                        
-                        log::info!("[Lantern] Started burning tallow unit in lantern {}, {} seconds remaining.", lantern.id, FUEL_BURN_DURATION_MICROSECONDS / 1_000_000);
                         return true;
                     }
                 }
@@ -653,16 +952,22 @@ impl ContainerItemClearer for LanternClearer {
 /// --- Remove Fuel from Lantern ---
 /// Removes the fuel item from a specific lantern slot and returns it to the player inventory/hotbar.
 /// Uses the quick move logic (attempts merge, then finds first empty slot).
+/// Note: If the lantern is burning with remaining burn time, it will continue until that time runs out.
 #[spacetimedb::reducer]
 pub fn quick_move_from_lantern(ctx: &ReducerContext, lantern_id: u32, source_slot_index: u8) -> Result<(), String> {
     let (_player, mut lantern) = validate_lantern_interaction(ctx, lantern_id)?;
     inventory_management::handle_quick_move_from_container(ctx, &mut lantern, source_slot_index)?;
+    
+    // Only extinguish immediately if there's no fuel in slots AND no remaining burn time
+    // (already-consumed fuel should continue burning until it runs out)
     let still_has_fuel = check_if_lantern_has_fuel(ctx, &lantern);
-    if !still_has_fuel && lantern.is_burning {
+    let has_remaining_burn_time = lantern.remaining_fuel_burn_time_secs.map_or(false, |t| t > 0.0);
+    
+    if !still_has_fuel && !has_remaining_burn_time && lantern.is_burning {
         lantern.is_burning = false;
         lantern.current_fuel_def_id = None;
         lantern.remaining_fuel_burn_time_secs = None;
-        log::info!("Lantern {} extinguished as last valid fuel was removed.", lantern_id);
+        log::info!("Lantern {} extinguished as last valid fuel was removed and no burn time remaining.", lantern_id);
     }
     ctx.db.lantern().id().update(lantern.clone());
     schedule_next_lantern_processing(ctx, lantern_id);
@@ -753,6 +1058,7 @@ pub fn quick_move_to_lantern(
 
 /// --- Move From Lantern to Player ---
 /// Moves a specific item FROM a lantern slot TO a specific player inventory/hotbar slot.
+/// Note: If the lantern is burning with remaining burn time, it will continue until that time runs out.
 #[spacetimedb::reducer]
 pub fn move_item_from_lantern_to_player_slot(
     ctx: &ReducerContext,
@@ -763,11 +1069,16 @@ pub fn move_item_from_lantern_to_player_slot(
 ) -> Result<(), String> {
     let (_player, mut lantern) = validate_lantern_interaction(ctx, lantern_id)?;
     inventory_management::handle_move_from_container_slot(ctx, &mut lantern, source_slot_index, target_slot_type, target_slot_index)?;
+    
+    // Only extinguish immediately if there's no fuel in slots AND no remaining burn time
     let still_has_fuel = check_if_lantern_has_fuel(ctx, &lantern);
-    if !still_has_fuel && lantern.is_burning {
+    let has_remaining_burn_time = lantern.remaining_fuel_burn_time_secs.map_or(false, |t| t > 0.0);
+    
+    if !still_has_fuel && !has_remaining_burn_time && lantern.is_burning {
         lantern.is_burning = false;
         lantern.current_fuel_def_id = None;
         lantern.remaining_fuel_burn_time_secs = None;
+        log::info!("Lantern {} extinguished - no fuel remaining.", lantern_id);
     }
     ctx.db.lantern().id().update(lantern.clone());
     schedule_next_lantern_processing(ctx, lantern_id);
@@ -803,12 +1114,15 @@ pub fn split_stack_from_lantern(
     )?;
 
     // Check if lantern should be extinguished after fuel removal
+    // Only extinguish immediately if there's no fuel in slots AND no remaining burn time
     let still_has_fuel = check_if_lantern_has_fuel(ctx, &lantern);
-    if !still_has_fuel && lantern.is_burning {
+    let has_remaining_burn_time = lantern.remaining_fuel_burn_time_secs.map_or(false, |t| t > 0.0);
+    
+    if !still_has_fuel && !has_remaining_burn_time && lantern.is_burning {
         lantern.is_burning = false;
         lantern.current_fuel_def_id = None;
         lantern.remaining_fuel_burn_time_secs = None;
-        log::info!("Lantern {} extinguished as last valid fuel was removed.", source_lantern_id);
+        log::info!("Lantern {} extinguished - no fuel remaining.", source_lantern_id);
     }
 
     ctx.db.lantern().id().update(lantern.clone());

@@ -49,6 +49,8 @@ use crate::alk::alk_station as AlkStationTableTrait;
 use crate::cairn::cairn as CairnTableTrait;
 // Import sea stack table trait
 use crate::sea_stack::sea_stack as SeaStackTableTrait;
+// Import lantern table trait (for ward collision - regular lanterns don't have collision)
+use crate::lantern::lantern as LanternTableTrait;
 
 // Cell size should be larger than the largest collision radius to ensure
 // we only need to check adjacent cells. We use 8x the player radius for better performance with larger worlds.
@@ -90,6 +92,7 @@ pub enum EntityType {
     AlkStation(u32), // ADDED ALK delivery station entity type (large industrial structure with collision)
     Cairn(u64), // ADDED Cairn entity type (monument with AABB collision)
     SeaStack(u64), // ADDED SeaStack entity type (ocean rock with scaled AABB collision)
+    Lantern(u32), // ADDED Lantern entity type (for ward collision - regular lanterns intentionally have no collision)
     // EXCLUDED: Grass - removed for performance to fix rubber-banding issues
 }
 
@@ -144,7 +147,8 @@ impl SpatialGrid {
                             + BasaltColumnTableTrait
                             + AlkStationTableTrait
                             + CairnTableTrait
-                            + SeaStackTableTrait>
+                            + SeaStackTableTrait
+                            + LanternTableTrait>
                            (db: &DB, current_time: spacetimedb::Timestamp) -> Self {
         let mut grid = Self::new();
         grid.populate_from_world(db, current_time);
@@ -234,7 +238,8 @@ impl SpatialGrid {
                             + BasaltColumnTableTrait
                             + AlkStationTableTrait
                             + CairnTableTrait
-                            + SeaStackTableTrait>
+                            + SeaStackTableTrait
+                            + LanternTableTrait>
                                  (&mut self, db: &DB, current_time: spacetimedb::Timestamp) {
         self.clear();
         
@@ -376,6 +381,15 @@ impl SpatialGrid {
                 self.add_entity(EntityType::AlkStation(station.station_id), station.world_pos_x, station.world_pos_y);
             }
         }
+        
+        // Add lanterns/wards (only wards have collision, regular lanterns intentionally have no collision)
+        // lantern_type: 0 = Lantern, 1 = Ancestral Ward, 2 = Signal Disruptor, 3 = Memory Beacon
+        for lantern in db.lantern().iter() {
+            if !lantern.is_destroyed && lantern.lantern_type > 0 {
+                // Only add wards (type > 0) to spatial grid for collision
+                self.add_entity(EntityType::Lantern(lantern.id), lantern.pos_x, lantern.pos_y);
+            }
+        }
     }
     
     // PERFORMANCE OPTIMIZED: Faster population method for high-density areas
@@ -392,7 +406,8 @@ impl SpatialGrid {
                                             + BasaltColumnTableTrait
                                             + AlkStationTableTrait
                                             + CairnTableTrait
-                                            + SeaStackTableTrait>
+                                            + SeaStackTableTrait
+                                            + LanternTableTrait>
                                            (&mut self, db: &DB, current_time: spacetimedb::Timestamp) {
         self.clear();
         
@@ -522,6 +537,15 @@ impl SpatialGrid {
             }
         }
         
+        // Add lanterns/wards (only wards have collision, regular lanterns intentionally have no collision)
+        // lantern_type: 0 = Lantern, 1 = Ancestral Ward, 2 = Signal Disruptor, 3 = Memory Beacon
+        for lantern in db.lantern().iter() {
+            if !lantern.is_destroyed && lantern.lantern_type > 0 {
+                // Only add wards (type > 0) to spatial grid for collision
+                entities_to_add.push((EntityType::Lantern(lantern.id), lantern.pos_x, lantern.pos_y));
+            }
+        }
+        
         // Batch add all simple entities
         for (entity_type, x, y) in entities_to_add {
             self.add_entity(entity_type, x, y);
@@ -582,7 +606,8 @@ pub fn get_cached_spatial_grid<DB: PlayerTableTrait + TreeTableTrait + StoneTabl
                                  + BasaltColumnTableTrait
                                  + AlkStationTableTrait
                                  + CairnTableTrait
-                                 + SeaStackTableTrait>
+                                 + SeaStackTableTrait
+                                 + LanternTableTrait>
                               (db: &DB, current_time: spacetimedb::Timestamp) -> &'static SpatialGrid {
     unsafe {
         // Check if we need to refresh the cache

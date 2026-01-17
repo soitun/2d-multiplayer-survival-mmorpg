@@ -7210,19 +7210,19 @@ export class RemoteReducers {
     this.connection.offReducer("place_homestead_hearth", callback);
   }
 
-  placeLantern(itemInstanceId: bigint, worldX: number, worldY: number) {
-    const __args = { itemInstanceId, worldX, worldY };
+  placeLantern(itemInstanceId: bigint, worldX: number, worldY: number, lanternType: number) {
+    const __args = { itemInstanceId, worldX, worldY, lanternType };
     let __writer = new __BinaryWriter(1024);
     PlaceLantern.serialize(__writer, __args);
     let __argsBuffer = __writer.getBuffer();
     this.connection.callReducer("place_lantern", __argsBuffer, this.setCallReducerFlags.placeLanternFlags);
   }
 
-  onPlaceLantern(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, worldX: number, worldY: number) => void) {
+  onPlaceLantern(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, worldX: number, worldY: number, lanternType: number) => void) {
     this.connection.onReducer("place_lantern", callback);
   }
 
-  removeOnPlaceLantern(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, worldX: number, worldY: number) => void) {
+  removeOnPlaceLantern(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, worldX: number, worldY: number, lanternType: number) => void) {
     this.connection.offReducer("place_lantern", callback);
   }
 

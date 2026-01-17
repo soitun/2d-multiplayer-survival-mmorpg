@@ -33,6 +33,8 @@ use super::core::{
     execute_standard_patrol, wild_animal,
     set_flee_destination_away_from_threat,
     update_animal_position,
+    // Flashlight hesitation system - apparitions slow down and won't escalate when in beam
+    is_in_player_flashlight_beam, FLASHLIGHT_HESITATION_SPEED_MULTIPLIER,
 };
 
 pub struct ShoreboundBehavior;
@@ -136,6 +138,15 @@ impl AnimalBehavior for ShoreboundBehavior {
                             // Keep circling at standoff distance, don't charge
                             animal.stalk_distance = animal.stalk_distance.max(SHELTER_STANDOFF_DISTANCE);
                             return Ok(()); // Stay in stalking state, don't charge
+                        }
+                        
+                        // FLASHLIGHT HESITATION: If in player's flashlight beam, don't escalate to charging
+                        // The light keeps apparitions hesitant - they stay in stalking mode
+                        let in_flashlight_beam = is_in_player_flashlight_beam(&target_player, animal.pos_x, animal.pos_y);
+                        if in_flashlight_beam {
+                            // Stay in stalking state, don't charge while blinded by light
+                            log::debug!("Shorebound {} hesitates - caught in flashlight beam", animal.id);
+                            return Ok(());
                         }
                         
                         // AGGRESSIVE: If already in attack range during stalking, immediately charge!
@@ -245,8 +256,12 @@ impl AnimalBehavior for ShoreboundBehavior {
         if animal.state == AnimalState::Stalking {
             if let Some(target_id) = animal.target_player_id {
                 if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
-                    // Update orbit angle
-                    animal.stalk_angle += STALK_ORBIT_SPEED * dt;
+                    // FLASHLIGHT HESITATION: Check if in flashlight beam for speed reduction
+                    let in_flashlight_beam = is_in_player_flashlight_beam(&target_player, animal.pos_x, animal.pos_y);
+                    let speed_multiplier = if in_flashlight_beam { FLASHLIGHT_HESITATION_SPEED_MULTIPLIER } else { 1.0 };
+                    
+                    // Update orbit angle (slower when hesitating in beam)
+                    animal.stalk_angle += STALK_ORBIT_SPEED * dt * speed_multiplier;
                     if animal.stalk_angle > 2.0 * PI {
                         animal.stalk_angle -= 2.0 * PI;
                     }
@@ -258,9 +273,9 @@ impl AnimalBehavior for ShoreboundBehavior {
                         STALK_MIN_DISTANCE + 20.0
                     };
                     
-                    // Gradually approach, but respect minimum distance
+                    // Gradually approach, but respect minimum distance (slower in beam)
                     if animal.stalk_distance > min_distance {
-                        animal.stalk_distance -= STALK_APPROACH_RATE * dt;
+                        animal.stalk_distance -= STALK_APPROACH_RATE * dt * speed_multiplier;
                         animal.stalk_distance = animal.stalk_distance.max(min_distance);
                     }
                     
@@ -268,8 +283,9 @@ impl AnimalBehavior for ShoreboundBehavior {
                     let target_x = target_player.position_x + animal.stalk_distance * animal.stalk_angle.cos();
                     let target_y = target_player.position_y + animal.stalk_distance * animal.stalk_angle.sin();
                     
-                    // Move towards that position
-                    move_towards_target(ctx, animal, target_x, target_y, stats.movement_speed, dt);
+                    // Move towards that position (slower when in flashlight beam)
+                    let effective_speed = stats.movement_speed * speed_multiplier;
+                    move_towards_target(ctx, animal, target_x, target_y, effective_speed, dt);
                     
                     // COLLISION ENFORCEMENT: Ensure we don't end up inside the player/shelter
                     let dx = animal.pos_x - target_player.position_x;

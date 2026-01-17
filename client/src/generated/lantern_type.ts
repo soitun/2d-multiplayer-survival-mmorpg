@@ -47,6 +47,7 @@ export type Lantern = {
   lastHitTime: __Timestamp | undefined,
   lastDamagedBy: __Identity | undefined,
   isMonument: boolean,
+  lanternType: number,
 };
 let _cached_Lantern_type_value: __AlgebraicTypeType | null = null;
 
@@ -80,6 +81,7 @@ export const Lantern = {
       { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "lastDamagedBy", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createIdentityType()) },
       { name: "isMonument", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "lanternType", algebraicType: __AlgebraicTypeValue.U8 },
     );
     return _cached_Lantern_type_value;
   },

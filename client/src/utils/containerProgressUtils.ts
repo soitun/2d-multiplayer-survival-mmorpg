@@ -5,10 +5,37 @@
  * to display visual progress overlays similar to weapon cooldowns
  */
 
-import { Campfire, Furnace, Barbecue, WoodenStorageBox, CookingProgress, InventoryItem } from '../generated';
+import { Campfire, Furnace, Barbecue, WoodenStorageBox, Lantern, CookingProgress, InventoryItem } from '../generated';
 import { ContainerType, ContainerEntity } from './containerUtils';
 
 const COMPOST_CONVERSION_TIME_SECS = 300; // 5 minutes (matching server constant)
+
+// === LANTERN/WARD BURN DURATIONS (must match server constants) ===
+// Rebalanced to make fuel a meaningful ongoing cost for complete immunity protection
+// Option A (Moderate): Creates a "tax" on safety that scales with benefit
+const LANTERN_BURN_DURATION_SECS = 120.0;           // Lantern: 2 min per Tallow (unchanged)
+const ANCESTRAL_WARD_BURN_DURATION_SECS = 150.0;    // Ancestral Ward: 2.5 min per Tallow (4/night)
+const SIGNAL_DISRUPTOR_BURN_DURATION_SECS = 120.0;  // Signal Disruptor: 2 min per Battery (5/night)
+const MEMORY_BEACON_BURN_DURATION_SECS = 90.0;      // Memory Beacon: 1.5 min per Battery (7/night)
+
+// Lantern type constants (must match server)
+const LANTERN_TYPE_LANTERN = 0;
+const LANTERN_TYPE_ANCESTRAL_WARD = 1;
+const LANTERN_TYPE_SIGNAL_DISRUPTOR = 2;
+const LANTERN_TYPE_MEMORY_BEACON = 3;
+
+/**
+ * Get burn duration for a lantern type
+ */
+function getBurnDurationForLanternType(lanternType: number): number {
+    switch (lanternType) {
+        case LANTERN_TYPE_ANCESTRAL_WARD: return ANCESTRAL_WARD_BURN_DURATION_SECS;
+        case LANTERN_TYPE_SIGNAL_DISRUPTOR: return SIGNAL_DISRUPTOR_BURN_DURATION_SECS;
+        case LANTERN_TYPE_MEMORY_BEACON: return MEMORY_BEACON_BURN_DURATION_SECS;
+        case LANTERN_TYPE_LANTERN:
+        default: return LANTERN_BURN_DURATION_SECS;
+    }
+}
 
 /**
  * Calculate cooking progress for a campfire/furnace slot
@@ -79,6 +106,27 @@ export function getCompostProgress(
 }
 
 /**
+ * Calculate fuel burn progress for a lantern/ward
+ * Returns progress as 0.0 to 1.0 (0% to 100% remaining)
+ * Progress goes DOWN as fuel is consumed (overlay fills up)
+ */
+export function getLanternFuelProgress(
+    lantern: Lantern | null | undefined
+): number {
+    if (!lantern || !lantern.isBurning) return 0;
+    
+    const remainingTime = lantern.remainingFuelBurnTimeSecs;
+    if (remainingTime === null || remainingTime === undefined || remainingTime <= 0) return 0;
+    
+    const totalBurnTime = getBurnDurationForLanternType(lantern.lanternType);
+    
+    // Progress is how much has been consumed (for overlay that fills up)
+    // 0.0 = just started (full fuel), 1.0 = almost empty
+    const consumed = 1.0 - (remainingTime / totalBurnTime);
+    return Math.min(1.0, Math.max(0, consumed));
+}
+
+/**
  * Get progress for all slots in a container
  * Returns a map of slot index -> progress (0.0 to 1.0)
  */
@@ -115,6 +163,18 @@ export function getAllSlotProgress(
                     }
                 }
             });
+        }
+    }
+    // For lanterns/wards, use fuel burn progress on fuel slot (slot 0)
+    // Note: We show progress based on remainingFuelBurnTimeSecs, NOT items in slot
+    // because fuel is "consumed" (item deleted) when burn time starts
+    else if (containerType === 'lantern') {
+        const lantern = containerEntity as Lantern;
+        if (lantern.isBurning) { // Show if burning, regardless of slot contents
+            const progress = getLanternFuelProgress(lantern);
+            if (progress > 0 && progress < 1.0) { // Only show if actively burning
+                progressMap.set(0, progress);
+            }
         }
     }
     

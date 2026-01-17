@@ -236,13 +236,15 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
                                         left: '0px',
                                         width: '100%',
                                         height: `${(1 - progress) * 100}%`,
-                                        backgroundColor: containerType === 'wooden_storage_box' 
-                                            ? 'rgba(101, 67, 33, 0.6)' // Brown for compost
-                                            : 'rgba(0, 0, 0, 0.5)', // Dark for cooking
+                                        backgroundColor: 'rgba(0, 200, 100, 0.4)', // Dark green for all fuel burn progress
                                         borderRadius: '2px',
                                         transition: 'height 0.1s linear',
                                     }}
-                                    title={`${containerType === 'wooden_storage_box' ? 'Fertilizing' : 'Cooking'} Progress: ${Math.round(progress * 100)}%`}
+                                    title={`${
+                                        containerType === 'wooden_storage_box' ? 'Fertilizing' : 
+                                        containerType === 'lantern' ? 'Fuel Burn' : 
+                                        'Cooking'
+                                    } Progress: ${Math.round(progress * 100)}%`}
                                 />
                             </div>,
                             document.body

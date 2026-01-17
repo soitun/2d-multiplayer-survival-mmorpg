@@ -62,9 +62,18 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
 
         // === METAL MATERIALS ===
 
-        // Scrap Batteries - Scavenged electronics
-        basic_material("Scrap Batteries", "Damaged and partially depleted batteries. Can be used to craft basic electronics or as a power source in a pinch.", 10)
+        // Scrap Batteries - Craftable power source for advanced wards
+        // Can still be found as loot, but now also craftable for sustainable ward operation
+        ItemBuilder::new("Scrap Batteries", "Jury-rigged power cells cobbled together from salvaged materials. Essential fuel for Signal Disruptors and Memory Resonance Beacons. Burns for 5 minutes per battery.", ItemCategory::Material)
             .icon("scrap_batteries.png")
+            .stackable(10)
+            .fuel(300.0) // 5 minutes burn time - 2 batteries last a full night (10 min)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 5 },
+                CostIngredient { item_name: "Sulfur".to_string(), quantity: 3 },
+                CostIngredient { item_name: "Charcoal".to_string(), quantity: 2 },
+            ])
+            .crafting_output(1, 5) // Makes 1 battery, takes 5 seconds
             .respawn_time(300)
             .build(),
 

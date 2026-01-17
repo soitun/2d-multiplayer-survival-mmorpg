@@ -537,7 +537,8 @@ function AppContent() {
             basaltColumns, // Add basalt columns for collision detection
             livingCorals, // Add living corals for collision detection (underwater)
             doors, // Add doors for collision detection (closed doors only)
-            alkStations // Add ALK stations for collision detection (large industrial structures)
+            alkStations, // Add ALK stations for collision detection (large industrial structures)
+            lanterns // Add lanterns/wards for collision detection (only wards have collision, NOT regular lanterns)
         }
     });
 

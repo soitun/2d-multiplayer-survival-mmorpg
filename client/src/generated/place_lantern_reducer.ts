@@ -32,6 +32,7 @@ export type PlaceLantern = {
   itemInstanceId: bigint,
   worldX: number,
   worldY: number,
+  lanternType: number,
 };
 let _cached_PlaceLantern_type_value: __AlgebraicTypeType | null = null;
 
@@ -50,6 +51,7 @@ export const PlaceLantern = {
       { name: "itemInstanceId", algebraicType: __AlgebraicTypeValue.U64 },
       { name: "worldX", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "worldY", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "lanternType", algebraicType: __AlgebraicTypeValue.U8 },
     );
     return _cached_PlaceLantern_type_value;
   },

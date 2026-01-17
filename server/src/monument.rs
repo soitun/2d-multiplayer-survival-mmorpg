@@ -1279,6 +1279,7 @@ pub fn spawn_monument_placeables(
                     last_hit_time: None,
                     last_damaged_by: None,
                     is_monument: true, // Mark as monument placeable
+                    lantern_type: 0, // Regular lantern (not a ward)
                 };
                 
                 match ctx.db.lantern().try_insert(lantern) {

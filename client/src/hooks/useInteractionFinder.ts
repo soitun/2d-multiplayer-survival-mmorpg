@@ -873,13 +873,20 @@ export function useInteractionFinder({
                 const lantern = lanterns?.get(String(closestLanternId));
                 let isEmpty = true;
                 if (lantern) {
+                    // Determine the required fuel type based on lantern type
+                    // lanternType: 0 = Lantern, 1 = Ancestral Ward (Tallow)
+                    // lanternType: 2 = Signal Disruptor, 3 = Memory Beacon (Scrap Batteries)
+                    const requiredFuel = (lantern.lanternType === 2 || lantern.lanternType === 3) 
+                        ? "Scrap Batteries" 
+                        : "Tallow";
+                    
                     // Check if lantern has valid fuel items (match server-side logic)
                     if (lantern.fuelInstanceId0 !== undefined && lantern.fuelInstanceId0 > 0n) {
-                        // Check if the actual item exists and is valid tallow
+                        // Check if the actual item exists and is the correct fuel type
                         const fuelItem = inventoryItems?.get(String(lantern.fuelInstanceId0));
                         if (fuelItem) {
                             const itemDef = itemDefinitions?.get(String(fuelItem.itemDefId));
-                            if (itemDef && itemDef.name === "Tallow" && fuelItem.quantity > 0) {
+                            if (itemDef && itemDef.name === requiredFuel && fuelItem.quantity > 0) {
                                 isEmpty = false;
                             }
                         }

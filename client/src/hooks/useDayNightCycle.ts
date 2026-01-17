@@ -14,7 +14,7 @@ import {
 } from '../generated';
 import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT, BARBECUE_LIGHT_RADIUS_BASE, BARBECUE_FLICKER_AMOUNT, SOVA_AURA_RADIUS_BASE } from '../utils/renderers/lightRenderingUtils';
 import { CAMPFIRE_HEIGHT } from '../utils/renderers/campfireRenderingUtils';
-import { LANTERN_HEIGHT } from '../utils/renderers/lanternRenderingUtils';
+import { LANTERN_HEIGHT, LANTERN_RENDER_Y_OFFSET, LANTERN_TYPE_LANTERN } from '../utils/renderers/lanternRenderingUtils';
 import { FURNACE_HEIGHT, FURNACE_RENDER_Y_OFFSET } from '../utils/renderers/furnaceRenderingUtils';
 import { BARBECUE_HEIGHT, BARBECUE_RENDER_Y_OFFSET } from '../utils/renderers/barbecueRenderingUtils';
 import { FIRE_PATCH_VISUAL_RADIUS } from '../utils/renderers/firePatchRenderingUtils';
@@ -648,39 +648,120 @@ export function useDayNightCycle({
         // Render lantern light cutouts
         lanterns.forEach(lantern => {
             if (lantern.isBurning && !lantern.isDestroyed) {
-                // Adjust Y position for the light source to be centered on the lantern flame
-                const visualCenterWorldY = lantern.posY - (LANTERN_HEIGHT / 2);
-                const adjustedGradientCenterWorldY = visualCenterWorldY; // Lanterns don't need extra offset like campfires
+                // For wards, center light on the visual center of the structure (higher up than collision)
+                // Wards are tall 256x256 sprites, so we offset significantly from posY
+                // For regular lanterns, use the standard visual center calculation
+                const isWard = lantern.lanternType !== LANTERN_TYPE_LANTERN;
+                // AAA Pixel Art: Ward light should emanate from the mystical center of the structure
+                // This is higher than the collision circle - approximately 60% up the sprite
+                const WARD_VISUAL_LIGHT_Y_OFFSET = 140; // Higher up for visual centering on ward structure
+                
+                const visualCenterWorldY = isWard 
+                    ? lantern.posY - WARD_VISUAL_LIGHT_Y_OFFSET  // Center on visual mystical heart
+                    : lantern.posY - (LANTERN_HEIGHT / 2) - LANTERN_RENDER_Y_OFFSET; // Standard lantern center (includes render offset)
                 
                 const screenX = lantern.posX + cameraOffsetX;
-                const screenY = adjustedGradientCenterWorldY + cameraOffsetY;
+                const screenY = visualCenterWorldY + cameraOffsetY;
                 
                 // Check if lantern is inside an enclosed building
                 const enclosingCluster = buildingClusters 
                     ? findEnclosingCluster(lantern.posX, lantern.posY, buildingClusters)
                     : null;
                 
-                // LANTERN CUTOUT - Larger and more stable than torch, but more contained than campfire
-                const flicker = (Math.random() - 0.5) * 2 * LANTERN_FLICKER_AMOUNT;
-                const lightRadius = Math.max(0, (LANTERN_LIGHT_RADIUS_BASE * 1.8) + flicker); // 1.8x radius for good coverage
-                
-                // Use clipped rendering if inside a building
-                renderClippedLightCutout(
-                    maskCtx,
-                    screenX,
-                    screenY,
-                    lightRadius,
-                    [
-                        { stop: 0.05, alpha: 1 },    // Full cutout at center
-                        { stop: 0.3, alpha: 0.85 },  // Strong cutout zone
-                        { stop: 0.6, alpha: 0.5 },   // Gradual transition
-                        { stop: 0.85, alpha: 0.2 },  // Gentle fade
-                        { stop: 1, alpha: 0 },       // Complete fade to darkness
-                    ],
-                    enclosingCluster,
-                    cameraOffsetX,
-                    cameraOffsetY
-                );
+                if (isWard) {
+                    // === AAA PIXEL ART WARD CUTOUTS ===
+                    // Multi-layered ethereal glow with soft, mystical transitions
+                    // Inspired by Sea of Stars magical light sources
+                    
+                    // Wards have larger, more dramatic cutouts with ethereal quality
+                    const WARD_CUTOUT_RADIUS = 280; // Larger base radius for ward mystical aura
+                    const flicker = (Math.random() - 0.5) * 2 * (LANTERN_FLICKER_AMOUNT * 0.5); // Subtle flicker
+                    const lightRadius = Math.max(0, WARD_CUTOUT_RADIUS + flicker);
+                    
+                    // Apply clip if inside a building
+                    if (enclosingCluster) {
+                        maskCtx.save();
+                        const clipPath = createClusterClipPath(enclosingCluster.cluster, cameraOffsetX, cameraOffsetY);
+                        maskCtx.clip(clipPath);
+                    }
+                    
+                    // LAYER 1: Large soft outer cutout - creates ethereal visibility bubble
+                    const outerRadius = lightRadius * 1.3;
+                    const outerGradient = maskCtx.createRadialGradient(
+                        screenX, screenY, lightRadius * 0.1,
+                        screenX, screenY, outerRadius
+                    );
+                    outerGradient.addColorStop(0, 'rgba(0,0,0,0.6)');    // Soft cutout center
+                    outerGradient.addColorStop(0.3, 'rgba(0,0,0,0.4)');  // Gentle transition
+                    outerGradient.addColorStop(0.6, 'rgba(0,0,0,0.2)');  // Soft fade
+                    outerGradient.addColorStop(0.85, 'rgba(0,0,0,0.08)'); // Very soft edge
+                    outerGradient.addColorStop(1, 'rgba(0,0,0,0)');      // Fade to darkness
+                    
+                    maskCtx.fillStyle = outerGradient;
+                    maskCtx.beginPath();
+                    maskCtx.arc(screenX, screenY, outerRadius, 0, Math.PI * 2);
+                    maskCtx.fill();
+                    
+                    // LAYER 2: Main cutout - strong visibility zone
+                    const mainGradient = maskCtx.createRadialGradient(
+                        screenX, screenY, lightRadius * 0.05,
+                        screenX, screenY, lightRadius
+                    );
+                    mainGradient.addColorStop(0, 'rgba(0,0,0,1)');       // Full cutout at center
+                    mainGradient.addColorStop(0.15, 'rgba(0,0,0,0.95)'); // Near-full cutout
+                    mainGradient.addColorStop(0.35, 'rgba(0,0,0,0.8)');  // Strong cutout zone
+                    mainGradient.addColorStop(0.55, 'rgba(0,0,0,0.55)'); // Mid transition
+                    mainGradient.addColorStop(0.75, 'rgba(0,0,0,0.3)');  // Soft fade
+                    mainGradient.addColorStop(0.9, 'rgba(0,0,0,0.1)');   // Very soft
+                    mainGradient.addColorStop(1, 'rgba(0,0,0,0)');       // Complete fade
+                    
+                    maskCtx.fillStyle = mainGradient;
+                    maskCtx.beginPath();
+                    maskCtx.arc(screenX, screenY, lightRadius, 0, Math.PI * 2);
+                    maskCtx.fill();
+                    
+                    // LAYER 3: Bright core - intense mystical center
+                    const coreRadius = lightRadius * 0.4;
+                    const coreGradient = maskCtx.createRadialGradient(
+                        screenX, screenY, 0,
+                        screenX, screenY, coreRadius
+                    );
+                    coreGradient.addColorStop(0, 'rgba(0,0,0,1)');      // Intense core
+                    coreGradient.addColorStop(0.4, 'rgba(0,0,0,0.9)');  // Strong
+                    coreGradient.addColorStop(0.7, 'rgba(0,0,0,0.5)');  // Fade
+                    coreGradient.addColorStop(1, 'rgba(0,0,0,0)');      // Soft edge
+                    
+                    maskCtx.fillStyle = coreGradient;
+                    maskCtx.beginPath();
+                    maskCtx.arc(screenX, screenY, coreRadius, 0, Math.PI * 2);
+                    maskCtx.fill();
+                    
+                    // Restore context if we applied a clip
+                    if (enclosingCluster) {
+                        maskCtx.restore();
+                    }
+                } else {
+                    // Regular lantern - standard cutout
+                    const flicker = (Math.random() - 0.5) * 2 * LANTERN_FLICKER_AMOUNT;
+                    const lightRadius = Math.max(0, (LANTERN_LIGHT_RADIUS_BASE * 1.8) + flicker);
+                    
+                    renderClippedLightCutout(
+                        maskCtx,
+                        screenX,
+                        screenY,
+                        lightRadius,
+                        [
+                            { stop: 0.05, alpha: 1 },    // Full cutout at center
+                            { stop: 0.3, alpha: 0.85 },  // Strong cutout zone
+                            { stop: 0.6, alpha: 0.5 },   // Gradual transition
+                            { stop: 0.85, alpha: 0.2 },  // Gentle fade
+                            { stop: 1, alpha: 0 },       // Complete fade to darkness
+                        ],
+                        enclosingCluster,
+                        cameraOffsetX,
+                        cameraOffsetY
+                    );
+                }
             }
         });
 

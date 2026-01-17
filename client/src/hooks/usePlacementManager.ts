@@ -436,7 +436,7 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
   }
 
   // List of items that cannot be placed on water
-  const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Wooden Storage Box', 'Large Wooden Storage Box', 'Refrigerator', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', "Matron's Chest", 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath"];
+  const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Ancestral Ward', 'Signal Disruptor', 'Memory Resonance Beacon', 'Wooden Storage Box', 'Large Wooden Storage Box', 'Refrigerator', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', "Matron's Chest", 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath"];
   
   // Seeds that don't require water or beach (most seeds) cannot be planted on water
   const isSeedButNotSpecialSeed = isSeedItemValid(placementInfo.itemName) && 
@@ -878,10 +878,22 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
           // App.tsx's handleBarbecueInsert callback will call it upon success.
           break;
         case 'Lantern':
-          // console.log(`[PlacementManager] Calling placeLantern reducer with instance ID: ${placementInfo.instanceId}`);
-          connection.reducers.placeLantern(placementInfo.instanceId, worldX, worldY);
-          // Note: We don't call cancelPlacement here. 
-          // App.tsx's handleLanternInsert callback will call it upon success.
+          // Regular lanterns: 56px tall sprite, rendered at posY - 56 - 6
+          // For cursor at center: server needs posY = cursorY + 34 (56/2 + 6)
+          connection.reducers.placeLantern(placementInfo.instanceId, worldX, worldY + 34, 0);
+          break;
+        case 'Ancestral Ward':
+          // Wards: 256px tall sprites, rendered at posY - 256 - 6
+          // For cursor at center: server needs posY = cursorY + 134 (256/2 + 6)
+          connection.reducers.placeLantern(placementInfo.instanceId, worldX, worldY + 134, 1);
+          break;
+        case 'Signal Disruptor':
+          // Same offset as Ancestral Ward
+          connection.reducers.placeLantern(placementInfo.instanceId, worldX, worldY + 134, 2);
+          break;
+        case 'Memory Resonance Beacon':
+          // Same offset as Ancestral Ward
+          connection.reducers.placeLantern(placementInfo.instanceId, worldX, worldY + 134, 3);
           break;
         case 'Wooden Storage Box':
         case 'Large Wooden Storage Box':

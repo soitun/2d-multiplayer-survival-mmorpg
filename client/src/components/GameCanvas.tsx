@@ -72,6 +72,7 @@ import { useEntityFiltering, YSortedEntityType } from '../hooks/useEntityFilteri
 import { useSpacetimeTables } from '../hooks/useSpacetimeTables';
 import { useCampfireParticles, Particle } from '../hooks/useCampfireParticles';
 import { useTorchParticles } from '../hooks/useTorchParticles';
+import { useWardParticles, renderWardParticles } from '../hooks/useWardParticles';
 import { useResourceSparkleParticles } from '../hooks/useResourceSparkleParticles';
 import { useHostileDeathEffects } from '../hooks/useHostileDeathEffects';
 import { useImpactParticles } from '../hooks/useImpactParticles';
@@ -99,6 +100,7 @@ import { renderAttackRangeDebug } from '../utils/renderers/attackRangeDebugUtils
 import { renderChunkBoundaries, renderInteriorDebug, renderCollisionDebug, renderYSortDebug } from '../utils/renderers/debugOverlayUtils'; // Consolidated debug overlays
 import { renderMobileTapAnimation } from '../utils/renderers/mobileRenderingUtils'; // Mobile-specific rendering
 import { renderYSortedEntities } from '../utils/renderers/renderingUtils.ts';
+import { renderWardRadius, LANTERN_TYPE_LANTERN } from '../utils/renderers/lanternRenderingUtils';
 import { preloadMonumentImages } from '../utils/renderers/monumentRenderingUtils';
 import { renderFoundationTargetIndicator, renderWallTargetIndicator } from '../utils/renderers/foundationRenderingUtils'; // ADDED: Foundation and wall target indicators
 import { renderInteractionLabels, renderLocalPlayerStatusTags } from '../utils/renderers/labelRenderingUtils.ts';
@@ -1774,6 +1776,34 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       img.src = module.default;
     });
 
+    // Load ward off images for placement previews
+    import('../assets/doodads/ancestral_ward_off.png').then((module) => {
+      const img = new Image();
+      img.onload = () => {
+        doodadImagesRef.current.set('ancestral_ward_off.png', img);
+      };
+      img.onerror = () => console.error('Failed to load ancestral_ward_off.png');
+      img.src = module.default;
+    });
+
+    import('../assets/doodads/signal_disruptor_off.png').then((module) => {
+      const img = new Image();
+      img.onload = () => {
+        doodadImagesRef.current.set('signal_disruptor_off.png', img);
+      };
+      img.onerror = () => console.error('Failed to load signal_disruptor_off.png');
+      img.src = module.default;
+    });
+
+    import('../assets/doodads/memory_beacon.png').then((module) => {
+      const img = new Image();
+      img.onload = () => {
+        doodadImagesRef.current.set('memory_beacon.png', img);
+      };
+      img.onerror = () => console.error('Failed to load memory_beacon.png');
+      img.src = module.default;
+    });
+
     // Monument images are now loaded via static imports in monumentRenderingUtils.ts
     // (same pattern as treeRenderingUtils.ts - uses imageManager for preloading)
     // Includes both static monuments (compound buildings) and dynamic monuments (shipwrecks)
@@ -1982,6 +2012,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     localPlayer: localPlayer ?? null,
   });
 
+  // Ward particle effects - unique effects for each ward type when active
+  // Ancestral Ward: tallow smoke, Signal Disruptor: electrical static, Memory Beacon: ethereal glow
+  const wardParticles = useWardParticles({
+    visibleLanternsMap,
+    deltaTime: 0, // Not used anymore, but kept for compatibility
+  });
+
   // Shore wave particle effects - animated waves lapping at beach/sea transitions
   // Calculate viewBounds for viewport culling
   const shoreWaveViewBounds = useMemo(() => ({
@@ -2147,23 +2184,82 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Render other particles (smoke, smoke_burst) with AAA pixel art style
     if (otherParticles.length > 0) {
       ctx.save();
-      // Disable anti-aliasing for crisp pixel art
-      ctx.imageSmoothingEnabled = false;
-      ctx.shadowBlur = 0; // No shadow for smoke particles
+      
+      // Separate memory particles from regular smoke for different rendering
+      const memoryParticles: any[] = [];
+      const regularSmokeParticles: any[] = [];
+      
       for (let i = 0; i < otherParticles.length; i++) {
-        const particle = otherParticles[i];
-        const isStaticCampfireSmoke = particle.id && particle.id.startsWith('smoke_static_');
-        
-        ctx.globalAlpha = particle.alpha || 1;
-        ctx.fillStyle = particle.color || '#888888';
-        
-        // Use square pixels for pixel art style (Sea of Stars)
-        // Static campfire smoke uses larger pixels for dramatic effect
-        const pixelSize = Math.max(1, Math.floor(particle.size));
-        const pixelX = Math.floor(particle.x - pixelSize / 2);
-        const pixelY = Math.floor(particle.y - pixelSize / 2);
-        ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+        const p = otherParticles[i];
+        if (p.id && (p.id.startsWith('memory_') || p.id.startsWith('memoryfrag_'))) {
+          memoryParticles.push(p);
+        } else {
+          regularSmokeParticles.push(p);
+        }
       }
+      
+      // Render MEMORY BEACON particles as soft glowing circles (ethereal effect)
+      if (memoryParticles.length > 0) {
+        ctx.imageSmoothingEnabled = true; // Enable smoothing for soft glow effect
+        for (let i = 0; i < memoryParticles.length; i++) {
+          const particle = memoryParticles[i];
+          const isFragment = particle.id && particle.id.startsWith('memoryfrag_');
+          
+          ctx.globalAlpha = particle.alpha || 1;
+          
+          // Create soft glowing circle with radial gradient
+          const radius = Math.max(2, particle.size * (isFragment ? 1.5 : 1.2));
+          const gradient = ctx.createRadialGradient(
+            particle.x, particle.y, 0,
+            particle.x, particle.y, radius
+          );
+          
+          // Parse the color and create gradient from center (bright) to edge (transparent)
+          const baseColor = particle.color || '#9966FF';
+          gradient.addColorStop(0, baseColor);
+          gradient.addColorStop(0.4, baseColor);
+          gradient.addColorStop(1, 'transparent');
+          
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Add inner glow for fragments (larger memory particles)
+          if (isFragment) {
+            ctx.globalAlpha = (particle.alpha || 1) * 0.5;
+            const innerGradient = ctx.createRadialGradient(
+              particle.x, particle.y, 0,
+              particle.x, particle.y, radius * 0.5
+            );
+            innerGradient.addColorStop(0, '#FFFFFF');
+            innerGradient.addColorStop(1, 'transparent');
+            ctx.fillStyle = innerGradient;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, radius * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+      
+      // Render regular smoke particles with pixel art style
+      if (regularSmokeParticles.length > 0) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.shadowBlur = 0; // No shadow for smoke particles
+        for (let i = 0; i < regularSmokeParticles.length; i++) {
+          const particle = regularSmokeParticles[i];
+          
+          ctx.globalAlpha = particle.alpha || 1;
+          ctx.fillStyle = particle.color || '#888888';
+          
+          // Use square pixels for pixel art style (Sea of Stars)
+          const pixelSize = Math.max(1, Math.floor(particle.size));
+          const pixelX = Math.floor(particle.x - pixelSize / 2);
+          const pixelY = Math.floor(particle.y - pixelSize / 2);
+          ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+        }
+      }
+      
       ctx.restore();
     }
   };
@@ -2919,6 +3015,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         isLocalPlayerSnorkeling: isSnorkeling, // ADDED: Pass snorkeling state for underwater rendering
         alwaysShowPlayerNames, // ADDED: Pass setting for always showing player names
         playerStats, // ADDED: Pass player stats for title display on name labels
+        largeQuarries, // ADDED: Pass large quarry locations for building restriction zones
+        detectedHotSprings, // ADDED: Pass hot spring locations for building restriction zones
+        placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
       });
     } else {
     // --- Swimming players exist, need full merge/sort ---
@@ -3234,6 +3333,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           isLocalPlayerSnorkeling: isSnorkeling, // ADDED: Pass snorkeling state for underwater rendering
           alwaysShowPlayerNames, // ADDED: Pass setting for always showing player names
           playerStats, // ADDED: Pass player stats for title display on name labels
+          largeQuarries, // ADDED: Pass large quarry locations for building restriction zones
+          detectedHotSprings, // ADDED: Pass hot spring locations for building restriction zones
+          placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
         });
         currentBatch = [];
       }
@@ -3362,6 +3464,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       renderParticlesToCanvas(ctx, furnaceParticles);
       renderParticlesToCanvas(ctx, barbecueParticles);
       renderParticlesToCanvas(ctx, firePatchParticles);
+      renderWardParticles(ctx, wardParticles, 0, 0); // Custom renderer for proper flame/wisp shapes
       // NOTE: Resource sparkle particles moved to after day/night overlay for visibility at night
 
       // Render cut grass effects
@@ -3495,6 +3598,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         basaltColumns: basaltColumns || new Map(),
         doors: doors || new Map(),
         alkStations: alkStations || new Map(),
+        lanterns: lanterns || new Map(), // Add lanterns for ward collision
       };
       
       // Get collision shapes from the client collision system
@@ -3640,6 +3744,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (overlayRgba !== 'transparent' && overlayRgba !== 'rgba(0,0,0,0.00)' && maskCanvas) {
       ctx.drawImage(maskCanvas, 0, 0);
     }
+
+    // --- Render Ward Protection Radius (Above Day/Night Overlay for visibility) ---
+    // Ward radius uses diegetic energy field rendering that glows through darkness
+    if (visibleLanterns && visibleLanterns.length > 0) {
+      ctx.save();
+      ctx.translate(currentCameraOffsetX, currentCameraOffsetY);
+      for (const lantern of visibleLanterns) {
+        // Only render for wards (not regular lanterns)
+        if (lantern.lanternType !== LANTERN_TYPE_LANTERN && !lantern.isDestroyed) {
+          renderWardRadius(ctx, lantern, currentCycleProgress, true); // true = over day/night, diegetic rendering
+        }
+      }
+      ctx.restore();
+    }
+    // --- End Ward Protection Radius ---
 
     // --- Render Resource Sparkle Particles (Above Day/Night Overlay for visibility) ---
     // Resource sparkle particles render AFTER day/night overlay so they glow visibly at night

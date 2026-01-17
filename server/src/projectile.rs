@@ -227,23 +227,16 @@ pub fn fire_projectile(
     let magazine_capacity = weapon_stats_for_magazine.as_ref().map(|s| s.magazine_capacity).unwrap_or(0);
 
     // --- Fire Rate / Reload Cooldown Check ---
-    // For magazine-based weapons: No cooldown between shots when magazine has ammo (gun-like)
-    // For single-shot weapons (bow, crossbow): Apply reload_time_secs between each shot
+    // ALL ranged weapons now have a fire rate cooldown (reload_time_secs)
+    // This prevents spam-clicking for instant fire and makes semi-auto weapons feel distinct
     // This check MUST happen before ammo consumption to avoid wasting ammo on rejected shots
-    let is_magazine_weapon = magazine_capacity > 0;
-    let has_ammo_in_magazine = equipment.loaded_ammo_count > 0;
-    
-    // Only apply fire rate cooldown to single-shot weapons OR magazine weapons with empty magazine
-    // Magazine weapons with loaded ammo fire instantly (like a real gun)
-    if !is_magazine_weapon || !has_ammo_in_magazine {
-        if let Some(weapon_stats) = &weapon_stats_for_magazine {
-            if let Some(last_attack_record) = ctx.db.player_last_attack_timestamp().player_id().find(&player_id) {
-                let time_since_last_attack = ctx.timestamp.to_micros_since_unix_epoch() - last_attack_record.last_attack_timestamp.to_micros_since_unix_epoch();
-                let required_reload_time_micros = (weapon_stats.reload_time_secs * 1_000_000.0) as i64;
-                
-                if time_since_last_attack < required_reload_time_micros {
-                    return Err("Weapon is still reloading".to_string());
-                }
+    if let Some(weapon_stats) = &weapon_stats_for_magazine {
+        if let Some(last_attack_record) = ctx.db.player_last_attack_timestamp().player_id().find(&player_id) {
+            let time_since_last_attack = ctx.timestamp.to_micros_since_unix_epoch() - last_attack_record.last_attack_timestamp.to_micros_since_unix_epoch();
+            let required_reload_time_micros = (weapon_stats.reload_time_secs * 1_000_000.0) as i64;
+            
+            if time_since_last_attack < required_reload_time_micros {
+                return Err("Weapon is still cooling down".to_string());
             }
         }
     }

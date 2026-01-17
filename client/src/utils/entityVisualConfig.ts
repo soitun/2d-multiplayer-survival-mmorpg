@@ -168,12 +168,56 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   lantern: {
     centerOffsetX: 0,
-    centerOffsetY: -40,  // Outline higher on the lantern
+    centerOffsetY: -34,  // Visual center: posY - 28 - 6 = posY - 34 (half of 56px + 6px offset)
     width: 48,
-    height: 72,
-    placementYOffset: 0,
-    spriteWidth: 64,
-    spriteHeight: 96,
+    height: 56,
+    placementYOffset: 0,  // Cursor at center (server adds +34)
+    spriteWidth: 48,
+    spriteHeight: 56,
+  },
+  
+  // === WARD ENTITIES ===
+  // Wards are 256x256 sprites rendered with lanternRenderingUtils:
+  //   drawX = posX - width/2 = posX - 128
+  //   drawY = posY - height - 6 = posY - 262 (sprite TOP edge)
+  // 
+  // Server stores pos_y = click_y + 134, so:
+  //   drawY = (click_y + 134) - 262 = click_y - 128
+  // 
+  // Client preview with placementYOffset = 0:
+  //   preview top = click_y - 128 (cursor at center) ✓
+  // 
+  // Visual center relative to posY:
+  //   centerY = posY - 262 + 128 = posY - 134
+  
+  ancestral_ward: {
+    centerOffsetX: 0,
+    centerOffsetY: -134,  // Visual center relative to posY
+    width: 200,           // Interaction box width (smaller than sprite for precision)
+    height: 220,          // Interaction box height
+    placementYOffset: 0,  // Cursor at center of preview (server adds +134)
+    spriteWidth: 256,
+    spriteHeight: 256,
+  },
+  
+  signal_disruptor: {
+    centerOffsetX: 0,
+    centerOffsetY: -134,  // Visual center relative to posY
+    width: 200,           // Interaction box width
+    height: 220,          // Interaction box height
+    placementYOffset: 0,  // Cursor at center of preview (server adds +134)
+    spriteWidth: 256,
+    spriteHeight: 256,
+  },
+  
+  memory_beacon: {
+    centerOffsetX: 0,
+    centerOffsetY: -134,  // Visual center relative to posY
+    width: 200,           // Interaction box width
+    height: 220,          // Interaction box height
+    placementYOffset: 0,  // Cursor at center of preview (server adds +134)
+    spriteWidth: 256,
+    spriteHeight: 256,
   },
   
   rain_collector: {

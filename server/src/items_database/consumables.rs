@@ -1122,10 +1122,11 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // === SPECIALTY FOODS & MISC ===
-        ItemBuilder::new("Tallow", "Rendered animal fat. High in calories and can be used as a slow-burning fuel source for lanterns. Can be eaten in a pinch to stave off hunger, but it's not very appetizing and will make you thirsty.", ItemCategory::Consumable)
+        ItemBuilder::new("Tallow", "Rendered animal fat. High in calories and can be used as a slow-burning fuel source for lanterns and Ancestral Wards. Can be eaten in a pinch to stave off hunger, but it's not very appetizing and will make you thirsty.", ItemCategory::Consumable)
             .icon("tallow.png")
             .stackable(1000)
             .consumable(0.0, 20.0, -7.0)
+            .fuel(300.0) // 5 minutes burn time - 2 tallow lasts a full night (10 min)
             .crafting_cost(vec![
                 CostIngredient { item_name: "Animal Fat".to_string(), quantity: 3 },
                 CostIngredient { item_name: "Cloth".to_string(), quantity: 2 },

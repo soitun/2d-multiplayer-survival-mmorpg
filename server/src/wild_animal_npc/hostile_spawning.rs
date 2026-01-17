@@ -50,6 +50,25 @@ use crate::wooden_storage_box::wooden_storage_box as WoodenStorageBoxTableTrait;
 use crate::shelter::shelter as ShelterTableTrait;
 use crate::lantern::lantern as LanternTableTrait;
 
+// Ward protection imports (used for deterrence zone checks during spawning)
+// Note: Spawn rate reduction has been removed - wards now create deterrence zones
+// where apparitions simply won't spawn or approach. This is handled in core.rs NPC AI.
+//
+// IMPORTANT: Memory Beacon is NOT a protective ward! It ATTRACTS hostiles instead of repelling.
+// Memory Beacon constants are imported for the spawn attraction system.
+use crate::lantern::{
+    LANTERN_TYPE_LANTERN,
+    LANTERN_TYPE_ANCESTRAL_WARD,
+    LANTERN_TYPE_SIGNAL_DISRUPTOR,
+    LANTERN_TYPE_MEMORY_BEACON,
+    ANCESTRAL_WARD_RADIUS_SQ,
+    SIGNAL_DISRUPTOR_RADIUS_SQ,
+    // Memory Beacon uses different constants - it ATTRACTS instead of repelling
+    MEMORY_BEACON_SANITY_RADIUS_SQ,
+    MEMORY_BEACON_ATTRACTION_RADIUS_SQ,
+    MEMORY_BEACON_SPAWN_MULTIPLIER,
+};
+
 // --- Constants ---
 
 const TILE_SIZE: f32 = TILE_SIZE_PX as f32;
@@ -373,6 +392,169 @@ fn calculate_final_multiplier(mut total_value: f32, nearby_player_count: usize) 
     multiplier
 }
 
+/// Check if a position is inside any active PROTECTIVE ward's deterrence zone.
+/// Only Ancestral Ward and Signal Disruptor provide protection.
+/// Memory Beacon does NOT protect - it ATTRACTS hostiles instead!
+/// Returns true if position is protected (don't spawn here).
+pub fn is_position_in_active_ward_zone(ctx: &ReducerContext, x: f32, y: f32) -> bool {
+    for lantern in ctx.db.lantern().iter() {
+        // Skip if not active or destroyed
+        if !lantern.is_burning || lantern.is_destroyed {
+            continue;
+        }
+        
+        // Skip regular lanterns (no protection zone)
+        if lantern.lantern_type == LANTERN_TYPE_LANTERN {
+            continue;
+        }
+        
+        // IMPORTANT: Memory Beacon does NOT provide protection!
+        // It ATTRACTS hostiles instead of repelling them.
+        if lantern.lantern_type == LANTERN_TYPE_MEMORY_BEACON {
+            continue;
+        }
+        
+        let dx = x - lantern.pos_x;
+        let dy = y - lantern.pos_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        // Check if position is within the ward's deterrence radius
+        // Only Ancestral Ward and Signal Disruptor provide protection
+        let radius_sq = match lantern.lantern_type {
+            LANTERN_TYPE_ANCESTRAL_WARD => ANCESTRAL_WARD_RADIUS_SQ,
+            LANTERN_TYPE_SIGNAL_DISRUPTOR => SIGNAL_DISRUPTOR_RADIUS_SQ,
+            _ => continue,
+        };
+        
+        if dist_sq <= radius_sq {
+            log::debug!("🛡️ [Ward] Position ({:.0}, {:.0}) is inside ward type {} deterrence zone", 
+                       x, y, lantern.lantern_type);
+            return true;
+        }
+    }
+    
+    false
+}
+
+/// Check if a position is inside an active Memory Beacon's SANITY zone.
+/// Memory Beacons clear and prevent insanity accumulation in a small radius.
+/// This allows players to farm shards without going crazy.
+/// Note: The sanity zone (600px) is SMALLER than the attraction zone (2000px).
+/// Returns true if position is inside an active Memory Beacon's sanity zone.
+pub fn is_position_in_memory_beacon_zone(ctx: &ReducerContext, x: f32, y: f32) -> bool {
+    for lantern in ctx.db.lantern().iter() {
+        // Only check Memory Beacons (type 3)
+        if lantern.lantern_type != LANTERN_TYPE_MEMORY_BEACON {
+            continue;
+        }
+        
+        // Skip if not active or destroyed
+        if !lantern.is_burning || lantern.is_destroyed {
+            continue;
+        }
+
+        let dx = x - lantern.pos_x;
+        let dy = y - lantern.pos_y;
+        let dist_sq = dx * dx + dy * dy;
+
+        // Use the smaller SANITY radius, not the attraction radius
+        if dist_sq <= MEMORY_BEACON_SANITY_RADIUS_SQ {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Get the nearest active PROTECTIVE ward that a position is inside of, if any.
+/// Only Ancestral Ward and Signal Disruptor provide protection.
+/// Memory Beacon does NOT provide protection - it ATTRACTS hostiles!
+/// Returns (ward_x, ward_y, radius_sq) or None if not in any protective ward zone.
+pub fn get_active_ward_at_position(ctx: &ReducerContext, x: f32, y: f32) -> Option<(f32, f32, f32)> {
+    for lantern in ctx.db.lantern().iter() {
+        if !lantern.is_burning || lantern.is_destroyed {
+            continue;
+        }
+        
+        // Skip regular lanterns
+        if lantern.lantern_type == LANTERN_TYPE_LANTERN {
+            continue;
+        }
+        
+        // IMPORTANT: Memory Beacon does NOT provide protection!
+        // It ATTRACTS hostiles instead of repelling them.
+        if lantern.lantern_type == LANTERN_TYPE_MEMORY_BEACON {
+            continue;
+        }
+        
+        let dx = x - lantern.pos_x;
+        let dy = y - lantern.pos_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        // Only protective wards (Ancestral Ward, Signal Disruptor)
+        let radius_sq = match lantern.lantern_type {
+            LANTERN_TYPE_ANCESTRAL_WARD => ANCESTRAL_WARD_RADIUS_SQ,
+            LANTERN_TYPE_SIGNAL_DISRUPTOR => SIGNAL_DISRUPTOR_RADIUS_SQ,
+            _ => continue,
+        };
+        
+        if dist_sq <= radius_sq {
+            return Some((lantern.pos_x, lantern.pos_y, radius_sq));
+        }
+    }
+    
+    None
+}
+
+// ============================================================================
+// MEMORY BEACON ATTRACTION SYSTEM - Monster Farming Tool
+// ============================================================================
+// Memory Beacons are the opposite of protective wards - they ATTRACT hostiles!
+// This creates a high-risk/high-reward farming opportunity for experienced players.
+//
+// Mechanics:
+// - Active Memory Beacon creates a large attraction zone (2000px radius)
+// - Spawn rates within this zone are multiplied by 2.5x
+// - Players can farm shards from killing attracted hostiles
+// - The smaller sanity zone (600px) prevents insanity while farming
+// - Beacons auto-destruct after 10 minutes to prevent griefing
+// ============================================================================
+
+/// Calculate spawn rate multiplier from nearby active Memory Beacons.
+/// Memory Beacons ATTRACT hostiles instead of repelling them.
+/// Returns multiplier >= 1.0 (1.0 means no beacon nearby, >1.0 means spawn boost)
+pub fn get_memory_beacon_attraction_multiplier(ctx: &ReducerContext, player_x: f32, player_y: f32) -> f32 {
+    let mut max_multiplier: f32 = 1.0;
+    
+    for lantern in ctx.db.lantern().iter() {
+        // Only check Memory Beacons (type 3)
+        if lantern.lantern_type != LANTERN_TYPE_MEMORY_BEACON {
+            continue;
+        }
+        
+        // Skip if not active or destroyed
+        if !lantern.is_burning || lantern.is_destroyed {
+            continue;
+        }
+
+        let dx = player_x - lantern.pos_x;
+        let dy = player_y - lantern.pos_y;
+        let dist_sq = dx * dx + dy * dy;
+
+        // Check if player is within the ATTRACTION radius (larger than sanity radius)
+        if dist_sq <= MEMORY_BEACON_ATTRACTION_RADIUS_SQ {
+            // Use the full multiplier if within range
+            // Multiple beacons don't stack - use the highest multiplier
+            max_multiplier = max_multiplier.max(MEMORY_BEACON_SPAWN_MULTIPLIER);
+            
+            log::debug!("🔮 [MemoryBeacon] Player at ({:.0}, {:.0}) is within beacon attraction zone - spawn rate: {:.1}x", 
+                       player_x, player_y, MEMORY_BEACON_SPAWN_MULTIPLIER);
+        }
+    }
+    
+    max_multiplier
+}
+
 /// Count players within the settlement check radius
 fn count_nearby_players(ctx: &ReducerContext, player_x: f32, player_y: f32, exclude_identity: &spacetimedb::Identity) -> usize {
     ctx.db.player().iter()
@@ -557,7 +739,21 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
             nearby_player_count + 1, // Include this player in the count
         );
         
-        try_spawn_hostiles_for_player(ctx, player, current_time, is_camping, night_phase, settlement_multiplier, &mut rng);
+        // Calculate Memory Beacon attraction multiplier - beacons ATTRACT hostiles!
+        // This allows players to farm monsters by placing a Memory Beacon
+        let beacon_attraction_multiplier = get_memory_beacon_attraction_multiplier(
+            ctx,
+            player.position_x,
+            player.position_y,
+        );
+        
+        // Note: Ward protection (spawn rate reduction) has been REMOVED.
+        // Wards now create hard deterrence zones - hostiles won't spawn inside them
+        // and will actively avoid entering them. This is handled in is_valid_spawn_position
+        // and the hostile NPC AI in core.rs.
+        // Memory Beacons are the OPPOSITE - they attract hostiles for farming!
+        
+        try_spawn_hostiles_for_player(ctx, player, current_time, is_camping, night_phase, settlement_multiplier, beacon_attraction_multiplier, &mut rng);
     }
     
     Ok(())
@@ -615,6 +811,7 @@ fn try_spawn_hostiles_for_player(
     is_camping: bool,
     night_phase: NightPhase,
     settlement_multiplier: f32,
+    beacon_attraction_multiplier: f32,
     rng: &mut impl Rng,
 ) {
     let player_x = player.position_x;
@@ -624,8 +821,14 @@ fn try_spawn_hostiles_for_player(
     let (total_hostiles, shorebound_count, shardkin_count, drowned_watch_count) = 
         count_nearby_hostiles(ctx, player_x, player_y);
     
-    // Check hard cap
-    if total_hostiles >= MAX_TOTAL_HOSTILES_NEAR_PLAYER {
+    // Check hard cap (increased if Memory Beacon is active - more monsters to farm!)
+    let effective_cap = if beacon_attraction_multiplier > 1.0 {
+        MAX_TOTAL_HOSTILES_NEAR_PLAYER + 6  // +50% cap when farming with beacon
+    } else {
+        MAX_TOTAL_HOSTILES_NEAR_PLAYER
+    };
+    
+    if total_hostiles >= effective_cap {
         return;
     }
     
@@ -639,14 +842,24 @@ fn try_spawn_hostiles_for_player(
     // 1. Night phase multipliers (early/peak/desperate)
     // 2. Camping status (being stationary increases pressure)
     // 3. Settlement intensity (more civilization = more apparition attention)
+    // 4. Memory Beacon attraction (monster farming tool - massively increases spawns!)
+    // 
+    // NOTE: Protective wards (Ancestral Ward, Signal Disruptor) create hard deterrence zones.
+    // Memory Beacons are the OPPOSITE - they ATTRACT hostiles for farming!
     // =========================================================================
     
+    // Log Memory Beacon farming if active
+    if beacon_attraction_multiplier > 1.0 {
+        log::info!("🔮 [MemoryBeacon] Spawn rates boosted {:.1}x for player {:?} - FARMING MODE!", 
+                  beacon_attraction_multiplier, player.identity);
+    }
+    
     // 1. Try Shorebound (stalker) - Primary threat, scouts early, pressures throughout
-    // Base: 55% chance, modified by phase, camping, and settlement intensity
-    if shorebound_count < MAX_SHOREBOUND_NEAR_PLAYER && total_hostiles < MAX_TOTAL_HOSTILES_NEAR_PLAYER {
+    // Base: 55% chance, modified by phase, camping, settlement intensity, and beacon attraction
+    if shorebound_count < MAX_SHOREBOUND_NEAR_PLAYER && total_hostiles < effective_cap {
         let base_chance = 0.55;
         let camping_bonus = if is_camping { 0.15 } else { 0.0 };
-        let final_chance = (base_chance + camping_bonus) * shorebound_mult * settlement_multiplier;
+        let final_chance = (base_chance + camping_bonus) * shorebound_mult * settlement_multiplier * beacon_attraction_multiplier;
         
         if rng.gen::<f32>() < final_chance {
             if let Some((x, y)) = find_spawn_position(ctx, player_x, player_y, RING_B_MIN_PX, RING_B_MAX_PX, rng) {
@@ -657,11 +870,16 @@ fn try_spawn_hostiles_for_player(
     }
     
     // 2. Try Shardkin (swarmer) - Swarms emerge mid-night, peak during desperate hour
-    // Base: 40% chance, modified by phase, camping, and settlement intensity
-    if shardkin_count < MAX_SHARDKIN_NEAR_PLAYER && total_hostiles + 1 < MAX_TOTAL_HOSTILES_NEAR_PLAYER {
+    // Base: 40% chance, modified by phase, camping, settlement intensity, and beacon attraction
+    let effective_shardkin_cap = if beacon_attraction_multiplier > 1.0 {
+        MAX_SHARDKIN_NEAR_PLAYER + 4  // More swarmers when farming
+    } else {
+        MAX_SHARDKIN_NEAR_PLAYER
+    };
+    if shardkin_count < effective_shardkin_cap && total_hostiles + 1 < effective_cap {
         let base_chance = 0.40;
         let camping_bonus = if is_camping { 0.20 } else { 0.0 };
-        let final_chance = (base_chance + camping_bonus) * shardkin_mult * settlement_multiplier;
+        let final_chance = (base_chance + camping_bonus) * shardkin_mult * settlement_multiplier * beacon_attraction_multiplier;
         
         if rng.gen::<f32>() < final_chance {
             // Group size scales with phase - bigger swarms later in night
@@ -679,8 +897,8 @@ fn try_spawn_hostiles_for_player(
             };
             
             let group_size = rng.gen_range(min_group..=max_group) as usize;
-            let available_slots = (MAX_SHARDKIN_NEAR_PLAYER - shardkin_count)
-                .min(MAX_TOTAL_HOSTILES_NEAR_PLAYER - total_hostiles);
+            let available_slots = (effective_shardkin_cap - shardkin_count)
+                .min(effective_cap - total_hostiles);
             let actual_spawn = group_size.min(available_slots);
             
             // Find base spawn position
@@ -707,12 +925,18 @@ fn try_spawn_hostiles_for_player(
     }
     
     // 3. Try Drowned Watch (brute) - Only emerges late night, terrifying finale
-    // Base: 15% chance, modified by phase, camping, and settlement intensity
+    // Base: 15% chance, modified by phase, camping, settlement intensity, and beacon attraction
     // Camping bonus: +20% - large settlements attract the big ones!
-    if drowned_watch_count < MAX_DROWNED_WATCH_NEAR_PLAYER && total_hostiles + 1 <= MAX_TOTAL_HOSTILES_NEAR_PLAYER {
+    // Memory Beacon doubles Drowned Watch cap for serious farming
+    let effective_drowned_cap = if beacon_attraction_multiplier > 1.0 {
+        MAX_DROWNED_WATCH_NEAR_PLAYER + 2  // Up to 4 brutes when farming (scary!)
+    } else {
+        MAX_DROWNED_WATCH_NEAR_PLAYER
+    };
+    if drowned_watch_count < effective_drowned_cap && total_hostiles + 1 <= effective_cap {
         let base_chance = 0.15;
         let camping_bonus = if is_camping { 0.20 } else { 0.0 };
-        let final_chance = (base_chance + camping_bonus) * drowned_mult * settlement_multiplier;
+        let final_chance = (base_chance + camping_bonus) * drowned_mult * settlement_multiplier * beacon_attraction_multiplier;
         
         if rng.gen::<f32>() < final_chance {
             if let Some((x, y)) = find_spawn_position(ctx, player_x, player_y, RING_C_MIN_PX, RING_C_MAX_PX, rng) {
@@ -822,6 +1046,12 @@ fn is_valid_spawn_position(
         if rune_dist_sq < RUNESTONE_DETERRENCE_RADIUS_SQ {
             return false;
         }
+    }
+    
+    // Check active ward deterrence zones - hostile NPCs cannot spawn inside them
+    // This creates "civilized" safe areas around bases with active wards
+    if is_position_in_active_ward_zone(ctx, spawn_x, spawn_y) {
+        return false;
     }
     
     // Check general spawn validation (water, collisions, etc.)

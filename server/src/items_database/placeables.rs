@@ -295,5 +295,57 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
             .crafting_output(1, 7)
             .respawn_time(1200)
             .build(),
+
+        // === CORRUPTION WARDS ===
+        // Protective structures that create deterrence zones where apparitions cannot enter.
+        // Higher tiers provide larger protection radius - civilize your base!
+        // Fuel consumption: Tier 1 uses Tallow, Tier 2-3 use Scrap Batteries.
+
+        // Ancestral Ward - Tier 1 corruption ward (Beach/Coral materials)
+        // Burns Tallow for fuel - accessible early game defense.
+        // Creates 800px radius (~50 tiles) deterrence zone. Burns 1 Tallow per 5 minutes.
+        ItemBuilder::new("Ancestral Ward", "Ancient Aleut peoples knew this land before the corruption. Carved from wood, these protective totems still resonate with the island's memory. When fueled with Tallow, apparitions cannot approach within its protective aura. Covers a solo camp with shelter, workbenches, and storage.", ItemCategory::Placeable)
+            .icon("ancestral_ward.png")
+            .stackable(3)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 500 },
+                CostIngredient { item_name: "Tallow".to_string(), quantity: 10 },
+            ])
+            .crafting_output(1, 10)
+            .respawn_time(600)
+            .build(),
+
+        // Signal Disruptor - Tier 2 corruption ward (Metal/Industrial)
+        // Burns Scrap Batteries for fuel - mid-game defense requiring industrial resources.
+        // Creates 1600px radius (~100 tiles) deterrence zone. Burns 1 Battery per 5 minutes.
+        ItemBuilder::new("Signal Disruptor", "Salvaged military electronics, jury-rigged to emit interference patterns that repel apparitions. Requires Scrap Batteries to operate. The disruption field protects a full homestead - multiple shelters, crafting stations, gardens, and more.", ItemCategory::Placeable)
+            .icon("signal_disruptor.png")
+            .stackable(2)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 100 },
+                CostIngredient { item_name: "Scrap Batteries".to_string(), quantity: 5 },
+                CostIngredient { item_name: "Charcoal".to_string(), quantity: 50 },
+                CostIngredient { item_name: "Stone".to_string(), quantity: 50 },
+            ])
+            .crafting_output(1, 15)
+            .respawn_time(900)
+            .build(),
+
+        // Memory Resonance Beacon - HIGH-RISK/HIGH-REWARD Monster Farming Tool
+        // Burns Scrap Batteries for fuel. ATTRACTS apparitions (2.5x spawn rate) instead of repelling!
+        // Unique benefit: Players within 600px sanity haven have insanity cleared.
+        // Auto-destructs after 10 minutes to prevent griefing. Cannot be picked up once placed.
+        ItemBuilder::new("Memory Resonance Beacon", "A dangerous gamble rigged from scavenged tech and SOVA's guidance. Unlike protective wards, this beacon ATTRACTS apparitions, boosting hostile spawn rates by 2.5x in a massive radius. Experienced hunters use it to farm memory shards from kills. Stay close to the small sanity haven (600px) where insanity is cleared. WARNING: Auto-destructs after 10 minutes. Cannot be picked up. High risk, high reward.", ItemCategory::Placeable)
+            .icon("memory_beacon.png")
+            .stackable(1)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 200 },
+                CostIngredient { item_name: "Scrap Batteries".to_string(), quantity: 5 },
+                CostIngredient { item_name: "Memory Shard".to_string(), quantity: 250 },
+                CostIngredient { item_name: "Sulfur".to_string(), quantity: 50 },
+            ])
+            .crafting_output(1, 20)
+            .respawn_time(1800)
+            .build(),
     ]
 }

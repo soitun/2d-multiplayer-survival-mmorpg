@@ -55,7 +55,7 @@ import { renderPlantedSeed } from './plantedSeedRenderingUtils';
 import { renderCampfire } from './campfireRenderingUtils';
 import { renderFurnace } from './furnaceRenderingUtils'; // ADDED: Furnace renderer import
 import { renderBarbecue } from './barbecueRenderingUtils'; // ADDED: Barbecue renderer import
-import { renderLantern } from './lanternRenderingUtils';
+import { renderLantern, renderWardRadius, LANTERN_TYPE_LANTERN } from './lanternRenderingUtils';
 import { renderBrothPot } from './brothPotRenderingUtils'; // ADDED: Broth pot renderer import
 import { renderFoundation, renderFogOverlay, renderFogOverlayCluster } from './foundationRenderingUtils'; // ADDED: Foundation renderer import
 import { renderWall, renderWallExteriorShadow } from './foundationRenderingUtils'; // ADDED: Wall renderer and exterior shadow import
@@ -444,6 +444,9 @@ foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADD
   isLocalPlayerSnorkeling?: boolean; // ADDED: Whether local player is snorkeling (underwater mode)
   alwaysShowPlayerNames?: boolean; // ADDED: Show player names above heads at all times
   playerStats?: Map<string, any>; // ADDED: Player stats for title display on name labels
+  largeQuarries?: Map<string, any>; // ADDED: Large quarry locations for building restriction zones
+  detectedHotSprings?: Array<{ id: string; posX: number; posY: number; radius: number }>; // ADDED: Hot spring locations for building restriction zones
+  placementInfo?: { itemDefId?: bigint; itemName?: string } | null; // ADDED: Current placement info for showing restriction zones when placing items
 }
 
 
@@ -515,6 +518,9 @@ export const renderYSortedEntities = ({
   isLocalPlayerSnorkeling = false, // ADDED: Whether local player is snorkeling (underwater mode)
   alwaysShowPlayerNames = false, // ADDED: Show player names above heads at all times
   playerStats, // ADDED: Player stats for title display on name labels
+  largeQuarries, // ADDED: Large quarry locations for building restriction zones
+  detectedHotSprings, // ADDED: Hot spring locations for building restriction zones
+  placementInfo, // ADDED: Current placement info for showing restriction zones when placing items
 }: RenderYSortedEntitiesProps) => {
   // PERFORMANCE: Clean up memory caches periodically
   cleanupCaches();
@@ -557,6 +563,18 @@ export const renderYSortedEntities = ({
   // Pass 2-4: North doors (before ceiling tiles)
   // Pass 5: Fog overlays / ceiling tiles (with exclusions for entrance ways and south walls)
   // Pass 6: South doors (after ceiling tiles)
+  
+  // Pre-Pass: Render ward deterrence radius circles BEHIND all entities
+  // This shows players the safe zones created by wards (both active and inactive)
+  ySortedEntities.forEach(({ type, entity }) => {
+      if (type === 'lantern') {
+          const lantern = entity as any;
+          // Render radius for all wards (not regular lanterns) - both active and inactive states
+          if (lantern.lanternType !== LANTERN_TYPE_LANTERN && !lantern.isDestroyed) {
+              renderWardRadius(ctx, lantern, cycleProgress);
+          }
+      }
+  });
   
   // First Pass: Render all Y-sorted entities including ALL walls
   // ALL walls now render in Pass 1 for correct Y-sorting with players/placeables/trees
@@ -1008,14 +1026,19 @@ export const renderYSortedEntities = ({
           // Render rune stone with its shadow in the normal order (shadow first, then rune stone)
           const runeStone = entity as SpacetimeDBRuneStone;
           
-          // Check if local player has Blueprint or any Placeable item equipped to show building restriction overlay
+          // Check if local player has Blueprint equipped OR is placing a placeable item to show building restriction overlay
           let showBuildingRestriction = false;
-          if (localPlayerId && activeEquipments && itemDefinitions) {
+          // First check: Is any placeable item currently being placed? (placementInfo is non-null)
+          if (placementInfo) {
+              showBuildingRestriction = true;
+          }
+          // Second check: Is Blueprint equipped? (via ActiveEquipment)
+          if (!showBuildingRestriction && localPlayerId && activeEquipments && itemDefinitions) {
               const localEquipment = activeEquipments.get(localPlayerId);
               if (localEquipment?.equippedItemDefId) {
                   const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
-                  // Show restriction zones for Blueprint OR any Placeable category item
-                  if (equippedItemDef?.name === 'Blueprint' || equippedItemDef?.category?.tag === 'Placeable') {
+                  // Show restriction zones for Blueprint (Placeable items use placementInfo instead)
+                  if (equippedItemDef?.name === 'Blueprint') {
                       showBuildingRestriction = true;
                   }
               }
@@ -1122,11 +1145,21 @@ export const renderYSortedEntities = ({
       } else if (type === 'lantern') {
           const lantern = entity as any;
           const isTheClosestTarget = closestInteractableTarget?.type === 'lantern' && closestInteractableTarget?.id === lantern.id;
-          renderLantern(ctx, lantern, nowMs, cycleProgress);
+          // Pass localPlayerPosition for transparency occlusion (wards are tall and can block player view)
+          // Also pass playerX/playerY for health bar rendering (shows on opposite side from player)
+          renderLantern(ctx, lantern, nowMs, cycleProgress, undefined, undefined, localPlayerPosition?.x, localPlayerPosition?.y, localPlayerPosition);
           
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              const config = ENTITY_VISUAL_CONFIG.lantern;
+              // Use appropriate config based on lantern type (wards have larger bounds)
+              let config = ENTITY_VISUAL_CONFIG.lantern;
+              if (lantern.lanternType === 1) { // LANTERN_TYPE_ANCESTRAL_WARD
+                  config = ENTITY_VISUAL_CONFIG.ancestral_ward;
+              } else if (lantern.lanternType === 2) { // LANTERN_TYPE_SIGNAL_DISRUPTOR
+                  config = ENTITY_VISUAL_CONFIG.signal_disruptor;
+              } else if (lantern.lanternType === 3) { // LANTERN_TYPE_MEMORY_BEACON
+                  config = ENTITY_VISUAL_CONFIG.memory_beacon;
+              }
               const outline = getInteractionOutlineParams(lantern.posX, lantern.posY, config);
               drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
@@ -1441,12 +1474,18 @@ export const renderYSortedEntities = ({
           const alkStation = entity as SpacetimeDBAlkStation;
           const isTheClosestTarget = closestInteractableTarget?.type === 'alk_station' && closestInteractableTarget?.id === alkStation.stationId;
           
-          // Check if local player has Blueprint equipped to show safe zone overlay
+          // Check if local player has Blueprint equipped OR is placing a placeable item to show safe zone overlay
           let showSafeZone = false;
-          if (localPlayerId && activeEquipments && itemDefinitions) {
+          // First check: Is any placeable item currently being placed? (placementInfo is non-null)
+          if (placementInfo) {
+              showSafeZone = true;
+          }
+          // Second check: Is Blueprint equipped? (via ActiveEquipment)
+          if (!showSafeZone && localPlayerId && activeEquipments && itemDefinitions) {
               const localEquipment = activeEquipments.get(localPlayerId);
               if (localEquipment?.equippedItemDefId) {
                   const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
+                  // Show restriction zones for Blueprint (Placeable items use placementInfo instead)
                   if (equippedItemDef?.name === 'Blueprint') {
                       showSafeZone = true;
                   }
@@ -1491,15 +1530,20 @@ export const renderYSortedEntities = ({
           
           renderMonument(ctx, buildingWithWorldPos as any, cycleProgress, localPlayerPosition, doodadImagesRef);
           
-          // Check if local player has Blueprint or any Placeable item equipped to show building restriction overlay
+          // Check if local player has Blueprint equipped OR is placing a placeable item to show building restriction overlay
           // Only show for shipwrecks and fishing villages (monuments with building restrictions)
           let showBuildingRestriction = false;
-          if (localPlayerId && activeEquipments && itemDefinitions) {
+          // First check: Is any placeable item currently being placed? (placementInfo is non-null)
+          if (placementInfo) {
+              showBuildingRestriction = true;
+          }
+          // Second check: Is Blueprint equipped? (via ActiveEquipment)
+          if (!showBuildingRestriction && localPlayerId && activeEquipments && itemDefinitions) {
               const localEquipment = activeEquipments.get(localPlayerId);
               if (localEquipment?.equippedItemDefId) {
                   const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
-                  // Show restriction zones for Blueprint OR any Placeable category item
-                  if (equippedItemDef?.name === 'Blueprint' || equippedItemDef?.category?.tag === 'Placeable') {
+                  // Show restriction zones for Blueprint (Placeable items use placementInfo instead)
+                  if (equippedItemDef?.name === 'Blueprint') {
                       showBuildingRestriction = true;
                   }
               }
@@ -1703,4 +1747,76 @@ export const renderYSortedEntities = ({
           });
       }
   });
+
+  // PASS 7: Render large quarry building restriction zones when Blueprint equipped or placing a placeable item
+  // Large quarries are monuments that should show restriction zones similar to ALK stations and rune stones
+  if (largeQuarries && largeQuarries.size > 0) {
+      // Check if local player has Blueprint equipped OR is placing a placeable item
+      let showBuildingRestriction = false;
+      // First check: Is any placeable item currently being placed? (placementInfo is non-null)
+      if (placementInfo) {
+          showBuildingRestriction = true;
+      }
+      // Second check: Is Blueprint equipped? (via ActiveEquipment)
+      if (!showBuildingRestriction && localPlayerId && activeEquipments && itemDefinitions) {
+          const localEquipment = activeEquipments.get(localPlayerId);
+          if (localEquipment?.equippedItemDefId) {
+              const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
+              // Show restriction zones for Blueprint (Placeable items use placementInfo instead)
+              if (equippedItemDef?.name === 'Blueprint') {
+                  showBuildingRestriction = true;
+              }
+          }
+      }
+      
+      if (showBuildingRestriction) {
+          // Large quarry restriction radius matches server-side MONUMENT_RESTRICTION_RADIUS (800px)
+          const LARGE_QUARRY_RESTRICTION_RADIUS = 800.0;
+          
+          largeQuarries.forEach((quarry: any) => {
+              const zoneConfig: BuildingRestrictionZoneConfig = {
+                  centerX: quarry.worldX,
+                  centerY: quarry.worldY,
+                  radius: LARGE_QUARRY_RESTRICTION_RADIUS,
+              };
+              renderBuildingRestrictionOverlay(ctx, zoneConfig);
+          });
+      }
+  }
+
+  // PASS 8: Render hot spring building restriction zones when Blueprint equipped or placing a placeable item
+  // Hot springs are monument areas with 800px restriction radius around their detected centers
+  if (detectedHotSprings && detectedHotSprings.length > 0) {
+      // Check if local player has Blueprint equipped OR is placing a placeable item
+      let showBuildingRestriction = false;
+      // First check: Is any placeable item currently being placed? (placementInfo is non-null)
+      if (placementInfo) {
+          showBuildingRestriction = true;
+      }
+      // Second check: Is Blueprint equipped? (via ActiveEquipment)
+      if (!showBuildingRestriction && localPlayerId && activeEquipments && itemDefinitions) {
+          const localEquipment = activeEquipments.get(localPlayerId);
+          if (localEquipment?.equippedItemDefId) {
+              const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
+              // Show restriction zones for Blueprint (Placeable items use placementInfo instead)
+              if (equippedItemDef?.name === 'Blueprint') {
+                  showBuildingRestriction = true;
+              }
+          }
+      }
+      
+      if (showBuildingRestriction) {
+          // Hot spring restriction radius matches server-side MONUMENT_RESTRICTION_RADIUS (800px)
+          const HOT_SPRING_RESTRICTION_RADIUS = 800.0;
+          
+          detectedHotSprings.forEach((hotSpring) => {
+              const zoneConfig: BuildingRestrictionZoneConfig = {
+                  centerX: hotSpring.posX,
+                  centerY: hotSpring.posY,
+                  radius: HOT_SPRING_RESTRICTION_RADIUS,
+              };
+              renderBuildingRestrictionOverlay(ctx, zoneConfig);
+          });
+      }
+  }
 };

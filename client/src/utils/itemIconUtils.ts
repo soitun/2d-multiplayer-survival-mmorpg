@@ -473,6 +473,11 @@ import metalDoorIcon from '../assets/items/metal_door.png';
 import babushkaSurpriseIcon from '../assets/items/babushka_surprise.png';
 import matriarchWrathIcon from '../assets/items/matriarch_wrath.png';
 
+// Corruption Wards
+import ancestralWardIcon from '../assets/items/ancestral_ward.png';
+import signalDisruptorIcon from '../assets/items/signal_disruptor.png';
+import memoryBeaconIcon from '../assets/items/memory_beacon.png';
+
 // Misc/Special
 import deathMarkerIcon from '../assets/items/death_marker.png';
 
@@ -918,6 +923,11 @@ const iconMap: { [key: string]: string | undefined } = {
   // Explosives
   'babushka_surprise.png': babushkaSurpriseIcon,
   'matriarch_wrath.png': matriarchWrathIcon,
+  
+  // Corruption Wards
+  'ancestral_ward.png': ancestralWardIcon,
+  'signal_disruptor.png': signalDisruptorIcon,
+  'memory_beacon.png': memoryBeaconIcon,
   
   // Misc/Special
   'death_marker.png': deathMarkerIcon,

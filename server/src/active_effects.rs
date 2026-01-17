@@ -93,6 +93,9 @@ pub enum EffectType {
     
     // === SHIPWRECK PROTECTION EFFECT ===
     LagunovGhost,      // Protected by Admiral Lagunov's ghost spirit near shipwreck (hostile NPCs avoid this area)
+    
+    // === MEMORY BEACON EFFECT ===
+    MemoryBeaconSanity, // Inside Memory Beacon sanity zone - insanity is cleared and cannot accumulate (display only)
 }
 
 // Table defining food poisoning risks for different food items
@@ -216,7 +219,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
 
     // Skip cozy, tree cover, exhausted, building privilege, rune stone effects, hot spring, fumarole, safe zone, fishing village bonus, and Lagunov's Ghost - they are managed by other systems, not the effect tick system
     // These effects are permanent until removed by other systems, so skip them entirely
-    if effect.effect_type == EffectType::Cozy || effect.effect_type == EffectType::TreeCover || effect.effect_type == EffectType::Exhausted || effect.effect_type == EffectType::BuildingPrivilege || effect.effect_type == EffectType::ProductionRune || effect.effect_type == EffectType::AgrarianRune || effect.effect_type == EffectType::MemoryRune || effect.effect_type == EffectType::HotSpring || effect.effect_type == EffectType::Fumarole || effect.effect_type == EffectType::SafeZone || effect.effect_type == EffectType::FishingVillageBonus || effect.effect_type == EffectType::NearCookingStation || effect.effect_type == EffectType::LagunovGhost {
+    if effect.effect_type == EffectType::Cozy || effect.effect_type == EffectType::TreeCover || effect.effect_type == EffectType::Exhausted || effect.effect_type == EffectType::BuildingPrivilege || effect.effect_type == EffectType::ProductionRune || effect.effect_type == EffectType::AgrarianRune || effect.effect_type == EffectType::MemoryRune || effect.effect_type == EffectType::HotSpring || effect.effect_type == EffectType::Fumarole || effect.effect_type == EffectType::SafeZone || effect.effect_type == EffectType::FishingVillageBonus || effect.effect_type == EffectType::NearCookingStation || effect.effect_type == EffectType::LagunovGhost || effect.effect_type == EffectType::MemoryBeaconSanity {
         continue;
     }
     
@@ -262,7 +265,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         effect.target_player_id
                     },
                     // Other effect types shouldn't reach this code path, but we need to handle them
-                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::NearCookingStation | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment | EffectType::BrewCooldown | EffectType::Stun | EffectType::LagunovGhost => {
+                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::NearCookingStation | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment | EffectType::BrewCooldown | EffectType::Stun | EffectType::LagunovGhost | EffectType::MemoryBeaconSanity => {
                         log::warn!("[EffectTick] Unexpected effect type {:?} in bandage processing", effect.effect_type);
                         Some(effect.player_id)
                     }
@@ -732,6 +735,12 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         },
                         EffectType::LagunovGhost => {
                             // Lagunov's Ghost is an informational effect for shipwreck protection
+                            // No per-tick processing needed - managed by proximity system
+                            amount_this_tick = 0.0;
+                        },
+                        EffectType::MemoryBeaconSanity => {
+                            // Memory Beacon Sanity is a display-only effect for insanity immunity
+                            // Actual insanity clearing is handled in player_stats.rs
                             // No per-tick processing needed - managed by proximity system
                             amount_this_tick = 0.0;
                         },
@@ -3765,4 +3774,94 @@ pub fn try_apply_blunt_weapon_stun(
     }
     
     false
+}
+
+// Memory Beacon Sanity Effect Management
+// ============================
+// This is a display-only effect that shows players they're in a Memory Beacon sanity zone
+// The actual insanity clearing is handled in player_stats.rs
+
+/// Checks if a player is currently within a Memory Beacon sanity zone
+pub fn is_player_in_memory_beacon_zone(ctx: &ReducerContext, player_x: f32, player_y: f32) -> bool {
+    crate::wild_animal_npc::hostile_spawning::is_position_in_memory_beacon_zone(ctx, player_x, player_y)
+}
+
+/// Updates Memory Beacon sanity effect for a player based on their position
+/// This is a display-only effect - actual insanity clearing is in player_stats.rs
+pub fn update_player_memory_beacon_status(ctx: &ReducerContext, player_id: Identity, player_x: f32, player_y: f32) -> Result<(), String> {
+    let is_in_beacon_zone = is_player_in_memory_beacon_zone(ctx, player_x, player_y);
+    let has_beacon_effect = player_has_memory_beacon_effect(ctx, player_id);
+    
+    log::debug!("Memory Beacon status check for player {:?}: in_zone={}, has_effect={}", 
+        player_id, is_in_beacon_zone, has_beacon_effect);
+    
+    if is_in_beacon_zone {
+        // Apply Memory Beacon sanity effect if not present
+        if !has_beacon_effect {
+            log::info!("Applying Memory Beacon sanity effect to player {:?} (insanity immunity)", player_id);
+            apply_memory_beacon_effect(ctx, player_id)?;
+        }
+    } else {
+        // Remove Memory Beacon sanity effect when player leaves
+        if has_beacon_effect {
+            log::info!("Removing Memory Beacon sanity effect from player {:?}", player_id);
+            remove_memory_beacon_effect(ctx, player_id);
+        }
+    }
+    
+    Ok(())
+}
+
+/// Checks if a player currently has the Memory Beacon sanity effect active
+pub fn player_has_memory_beacon_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::MemoryBeaconSanity)
+}
+
+/// Applies Memory Beacon sanity effect to a player (display only)
+fn apply_memory_beacon_effect(ctx: &ReducerContext, player_id: Identity) -> Result<(), String> {
+    let current_time = ctx.timestamp;
+    // Set a very far future time (1 year from now) - effectively permanent while in zone
+    let very_far_future = current_time + TimeDuration::from_micros(365 * 24 * 60 * 60 * 1_000_000i64);
+    
+    let beacon_effect = ActiveConsumableEffect {
+        effect_id: 0, // auto_inc
+        player_id,
+        target_player_id: None,
+        item_def_id: 0, // Not from an item
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at: very_far_future, // Effectively permanent while in zone
+        total_amount: None, // No accumulation for this effect
+        amount_applied_so_far: None,
+        effect_type: EffectType::MemoryBeaconSanity,
+        tick_interval_micros: 1_000_000, // 1 second ticks (not really used)
+        next_tick_at: current_time + TimeDuration::from_micros(1_000_000),
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(beacon_effect) {
+        Ok(inserted_effect) => {
+            log::info!("Applied Memory Beacon sanity effect {} to player {:?}", inserted_effect.effect_id, player_id);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("Failed to apply Memory Beacon sanity effect to player {:?}: {:?}", player_id, e);
+            Err("Failed to apply Memory Beacon sanity effect".to_string())
+        }
+    }
+}
+
+/// Removes Memory Beacon sanity effect from a player
+fn remove_memory_beacon_effect(ctx: &ReducerContext, player_id: Identity) {
+    let mut effects_to_remove = Vec::new();
+    for effect in ctx.db.active_consumable_effect().iter() {
+        if effect.player_id == player_id && effect.effect_type == EffectType::MemoryBeaconSanity {
+            effects_to_remove.push(effect.effect_id);
+        }
+    }
+    
+    for effect_id in effects_to_remove {
+        ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
+        log::info!("Removed Memory Beacon sanity effect {} from player {:?}", effect_id, player_id);
+    }
 }

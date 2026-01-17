@@ -138,6 +138,7 @@ pub struct ActiveEquipment {
     pub loaded_ammo_count: u8, // How many rounds are currently loaded in the magazine (0-255)
     pub is_ready_to_fire: bool, // Whether the ranged weapon is loaded and ready
     pub preferred_arrow_type: Option<String>, // Player's preferred arrow type for cycling (e.g., "Wooden Arrow")
+    pub reload_start_time_ms: u64, // Timestamp (ms) when reload started, 0 if not reloading
     // Fields for worn armor
     pub head_item_instance_id: Option<u64>,
     pub chest_item_instance_id: Option<u64>,
@@ -487,9 +488,26 @@ pub fn load_ranged_weapon(ctx: &ReducerContext) -> Result<(), String> {
         return Err("Equipped item is not a ranged weapon.".to_string());
     }
 
-    // Get weapon stats for magazine capacity
+    // Get weapon stats for magazine capacity and reload time
     let weapon_stats = ranged_weapon_stats.item_name().find(&item_def.name);
     let magazine_capacity = weapon_stats.as_ref().map(|s| s.magazine_capacity).unwrap_or(0);
+    let magazine_reload_time_secs = weapon_stats.as_ref().map(|s| s.magazine_reload_time_secs).unwrap_or(0.0);
+    
+    // --- Reload Cooldown Check ---
+    // If weapon has a reload time and we've started a reload, check if enough time has passed
+    let current_time_ms = (ctx.timestamp.to_micros_since_unix_epoch() / 1000) as u64;
+    
+    if magazine_reload_time_secs > 0.0 && current_equipment.reload_start_time_ms > 0 {
+        let reload_time_ms = (magazine_reload_time_secs * 1000.0) as u64;
+        let elapsed_ms = current_time_ms.saturating_sub(current_equipment.reload_start_time_ms);
+        
+        if elapsed_ms < reload_time_ms {
+            let remaining_ms = reload_time_ms - elapsed_ms;
+            return Err(format!("Still reloading... ({:.1}s remaining)", remaining_ms as f32 / 1000.0));
+        }
+        // Reload cooldown complete - allow the reload to proceed
+        log::info!("[LoadRangedWeapon] Player {:?} reload cooldown complete after {}ms", sender_id, elapsed_ms);
+    }
 
     // Determine the compatible ammo type based on weapon
     // Bows and Crossbows use Arrow ammunition
@@ -656,11 +674,16 @@ pub fn load_ranged_weapon(ctx: &ReducerContext) -> Result<(), String> {
         current_equipment.loaded_ammo_count = current_loaded + rounds_to_load;
         current_equipment.is_ready_to_fire = true;
         current_equipment.preferred_arrow_type = Some(selected_ammo.0.clone());
+        // Set reload start time for cooldown tracking (client shows overlay based on this)
+        // Only set if weapon has a reload time > 0
+        if magazine_reload_time_secs > 0.0 {
+            current_equipment.reload_start_time_ms = current_time_ms;
+        }
         active_equipments.player_identity().update(current_equipment);
 
-        log::info!("[LoadRangedWeapon] Player {:?} loaded {} rounds of {} into {} (total: {}/{}).", 
+        log::info!("[LoadRangedWeapon] Player {:?} loaded {} rounds of {} into {} (total: {}/{}, reload_time={}s).", 
             sender_id, rounds_to_load, selected_ammo.0, item_def.name, 
-            current_loaded + rounds_to_load, magazine_capacity);
+            current_loaded + rounds_to_load, magazine_capacity, magazine_reload_time_secs);
         
         // Emit reload sound for magazine-based weapons
         if is_harpoon_gun {
@@ -677,6 +700,11 @@ pub fn load_ranged_weapon(ctx: &ReducerContext) -> Result<(), String> {
         current_equipment.loaded_ammo_count = 1; // Mark as having 1 "virtual" round for display purposes
         current_equipment.is_ready_to_fire = true;
         current_equipment.preferred_arrow_type = Some(selected_ammo.0.clone());
+        // Set reload start time for cooldown tracking (client shows overlay based on this)
+        // Only set if weapon has a reload time > 0 (e.g., crossbow has reload time, bow doesn't)
+        if magazine_reload_time_secs > 0.0 {
+            current_equipment.reload_start_time_ms = current_time_ms;
+        }
         active_equipments.player_identity().update(current_equipment);
 
         log::info!("[LoadRangedWeapon] Player {:?} loaded {} with {} (ready to fire).", 
@@ -1219,6 +1247,7 @@ fn get_or_create_active_equipment(ctx: &ReducerContext, player_id: Identity) -> 
             loaded_ammo_count: 0,
             is_ready_to_fire: false,
             preferred_arrow_type: None,
+            reload_start_time_ms: 0,
             head_item_instance_id: None,
             chest_item_instance_id: None,
             legs_item_instance_id: None,

@@ -34,6 +34,8 @@ use super::core::{
     execute_standard_patrol, wild_animal,
     set_flee_destination_away_from_threat,
     update_animal_position,
+    // Flashlight hesitation system - apparitions slow down and won't escalate when in beam
+    is_in_player_flashlight_beam, FLASHLIGHT_HESITATION_SPEED_MULTIPLIER,
 };
 
 pub struct DrownedWatchBehavior;
@@ -100,6 +102,15 @@ impl AnimalBehavior for DrownedWatchBehavior {
         match animal.state {
             AnimalState::Idle | AnimalState::Patrolling => {
                 if let Some(player) = detected_player {
+                    // FLASHLIGHT HESITATION: If in player's flashlight beam, don't escalate to chasing
+                    // The light keeps apparitions hesitant - they stay in patrol mode
+                    let in_flashlight_beam = is_in_player_flashlight_beam(player, animal.pos_x, animal.pos_y);
+                    if in_flashlight_beam {
+                        // Stay in patrol state, don't chase while blinded by light
+                        log::debug!("DrownedWatch {} hesitates - caught in flashlight beam", animal.id);
+                        return Ok(());
+                    }
+                    
                     // Check if player is camping (inside building) - prioritize structure attack
                     if player.is_inside_building {
                         // Look for structures to attack (doors preferred)
@@ -119,6 +130,15 @@ impl AnimalBehavior for DrownedWatchBehavior {
                 if let Some(target_id) = animal.target_player_id {
                     if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
                         let distance = get_player_distance(animal, &target_player);
+                        
+                        // FLASHLIGHT HESITATION: If caught in beam while chasing, revert to patrol
+                        // The light disrupts their aggression - even the mighty DrownedWatch hesitates
+                        let in_flashlight_beam = is_in_player_flashlight_beam(&target_player, animal.pos_x, animal.pos_y);
+                        if in_flashlight_beam {
+                            transition_to_state(animal, AnimalState::Patrolling, current_time, None, "flashlight disrupted chase");
+                            log::debug!("DrownedWatch {} breaks chase - caught in flashlight beam", animal.id);
+                            return Ok(());
+                        }
                         
                         // DrownedWatch doesn't chase far
                         if distance > MAX_CHASE_DISTANCE {

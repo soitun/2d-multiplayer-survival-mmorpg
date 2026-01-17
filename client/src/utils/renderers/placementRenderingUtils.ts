@@ -5,7 +5,12 @@ import { CAMPFIRE_WIDTH_PREVIEW, CAMPFIRE_HEIGHT_PREVIEW } from './campfireRende
 import { FURNACE_WIDTH_PREVIEW, FURNACE_HEIGHT_PREVIEW } from './furnaceRenderingUtils'; // ADDED: Furnace dimensions
 import { BARBECUE_WIDTH_PREVIEW, BARBECUE_HEIGHT_PREVIEW } from './barbecueRenderingUtils'; // ADDED: Barbecue dimensions
 import { ENTITY_VISUAL_CONFIG, getPlacementPreviewPosition } from '../entityVisualConfig'; // Centralized visual config
-import { LANTERN_WIDTH_PREVIEW, LANTERN_HEIGHT_PREVIEW } from './lanternRenderingUtils';
+import { 
+    LANTERN_WIDTH_PREVIEW, LANTERN_HEIGHT_PREVIEW,
+    ANCESTRAL_WARD_WIDTH, ANCESTRAL_WARD_HEIGHT,
+    SIGNAL_DISRUPTOR_WIDTH, SIGNAL_DISRUPTOR_HEIGHT,
+    MEMORY_BEACON_WIDTH, MEMORY_BEACON_HEIGHT
+} from './lanternRenderingUtils';
 import { SLEEPING_BAG_WIDTH, SLEEPING_BAG_HEIGHT } from './sleepingBagRenderingUtils';
 import { STASH_WIDTH, STASH_HEIGHT } from './stashRenderingUtils';
 import { SHELTER_RENDER_WIDTH, SHELTER_RENDER_HEIGHT } from './shelterRenderingUtils';
@@ -458,7 +463,7 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
     }
 
     // List of items that cannot be placed on water
-    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath"];
+    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Ancestral Ward', 'Signal Disruptor', 'Memory Resonance Beacon', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath"];
     
     // Seeds that don't require water or beach (most seeds) cannot be planted on water
     const isSeedButNotSpecialSeed = isSeedItemValid(placementInfo.itemName) && 
@@ -734,6 +739,13 @@ export function isPlacementTooFar(
         // Doors match server BUILDING_PLACEMENT_MAX_DISTANCE = 128.0
         const DOOR_PLACEMENT_MAX_DISTANCE = 128.0;
         clientPlacementRangeSq = DOOR_PLACEMENT_MAX_DISTANCE * DOOR_PLACEMENT_MAX_DISTANCE;
+    } else if (placementInfo.iconAssetName === 'ancestral_ward.png' || 
+               placementInfo.iconAssetName === 'signal_disruptor.png' || 
+               placementInfo.iconAssetName === 'memory_beacon.png') {
+        // Wards have larger placement range (160px) because they have collision (radius 40)
+        // and players need to place them further away to avoid collision overlap
+        const WARD_PLACEMENT_MAX_DISTANCE = 160.0;
+        clientPlacementRangeSq = WARD_PLACEMENT_MAX_DISTANCE * WARD_PLACEMENT_MAX_DISTANCE;
     } else {
         // Use standard interaction distance for other items (campfires, lanterns, boxes, etc.)
         clientPlacementRangeSq = PLAYER_BOX_INTERACTION_DISTANCE_SQUARED * 1.1;
@@ -1458,6 +1470,15 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'large_wood_box.png') {
         // For large wooden box, use the large_wood_box.png from doodads folder (matches actual placement rendering)
         previewImg = doodadImagesRef.current?.get('large_wood_box.png');
+    } else if (placementInfo.iconAssetName === 'ancestral_ward.png') {
+        // For Ancestral Ward, use the "off" version from doodads folder for placement preview
+        previewImg = doodadImagesRef.current?.get('ancestral_ward_off.png');
+    } else if (placementInfo.iconAssetName === 'signal_disruptor.png') {
+        // For Signal Disruptor, use the "off" version from doodads folder for placement preview
+        previewImg = doodadImagesRef.current?.get('signal_disruptor_off.png');
+    } else if (placementInfo.iconAssetName === 'memory_beacon.png') {
+        // For Memory Beacon, use the single sprite from doodads folder for placement preview
+        previewImg = doodadImagesRef.current?.get('memory_beacon.png');
     } else {
         // For other items, use the item images (including hearth.png)
         previewImg = itemImagesRef.current?.get(placementInfo.iconAssetName);
@@ -1476,6 +1497,18 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'lantern_off.png') {
         drawWidth = LANTERN_WIDTH_PREVIEW; 
         drawHeight = LANTERN_HEIGHT_PREVIEW;
+    } else if (placementInfo.iconAssetName === 'ancestral_ward.png') {
+        // Ancestral Ward preview dimensions (Tier 1 ward - larger than lantern)
+        drawWidth = ANCESTRAL_WARD_WIDTH;
+        drawHeight = ANCESTRAL_WARD_HEIGHT;
+    } else if (placementInfo.iconAssetName === 'signal_disruptor.png') {
+        // Signal Disruptor preview dimensions (Tier 2 ward)
+        drawWidth = SIGNAL_DISRUPTOR_WIDTH;
+        drawHeight = SIGNAL_DISRUPTOR_HEIGHT;
+    } else if (placementInfo.iconAssetName === 'memory_beacon.png') {
+        // Memory Resonance Beacon preview dimensions (Tier 3 ward)
+        drawWidth = MEMORY_BEACON_WIDTH;
+        drawHeight = MEMORY_BEACON_HEIGHT;
     } else if (placementInfo.itemName === 'Compost' || placementInfo.iconAssetName === 'compost.png') {
         // Compost preview dimensions (matches actual rendering: 128px x 128px)
         drawWidth = COMPOST_WIDTH; // 128px
@@ -1855,6 +1888,30 @@ export function renderPlacementPreview({
         adjustedX = preview.x;
         adjustedY = preview.y;
         // Override draw dimensions from config
+        drawWidth = preview.width;
+        drawHeight = preview.height;
+    } else if (placementInfo.iconAssetName === 'ancestral_ward.png') {
+        // Use centralized visual config for Ancestral Ward
+        const config = ENTITY_VISUAL_CONFIG.ancestral_ward;
+        const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
+        adjustedX = preview.x;
+        adjustedY = preview.y;
+        drawWidth = preview.width;
+        drawHeight = preview.height;
+    } else if (placementInfo.iconAssetName === 'signal_disruptor.png') {
+        // Use centralized visual config for Signal Disruptor
+        const config = ENTITY_VISUAL_CONFIG.signal_disruptor;
+        const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
+        adjustedX = preview.x;
+        adjustedY = preview.y;
+        drawWidth = preview.width;
+        drawHeight = preview.height;
+    } else if (placementInfo.iconAssetName === 'memory_beacon.png') {
+        // Use centralized visual config for Memory Resonance Beacon
+        const config = ENTITY_VISUAL_CONFIG.memory_beacon;
+        const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
+        adjustedX = preview.x;
+        adjustedY = preview.y;
         drawWidth = preview.width;
         drawHeight = preview.height;
     } else {

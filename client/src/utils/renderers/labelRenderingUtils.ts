@@ -344,7 +344,17 @@ export function renderInteractionLabels({
         case 'lantern': {
             const lantern = lanterns.get(closestInteractableTarget.id.toString());
             if (lantern) {
-                const config = ENTITY_VISUAL_CONFIG.lantern;
+                // Use appropriate config based on lantern type (wards have different dimensions)
+                let config;
+                if (lantern.lanternType === 1) { // LANTERN_TYPE_ANCESTRAL_WARD
+                    config = ENTITY_VISUAL_CONFIG.ancestral_ward;
+                } else if (lantern.lanternType === 2) { // LANTERN_TYPE_SIGNAL_DISRUPTOR
+                    config = ENTITY_VISUAL_CONFIG.signal_disruptor;
+                } else if (lantern.lanternType === 3) { // LANTERN_TYPE_MEMORY_BEACON
+                    config = ENTITY_VISUAL_CONFIG.memory_beacon;
+                } else {
+                    config = ENTITY_VISUAL_CONFIG.lantern;
+                }
                 const labelPos = getLabelPosition(lantern.posX, lantern.posY, config);
                 renderStyledInteractionLabel(ctx, text, labelPos.x, labelPos.y);
             }

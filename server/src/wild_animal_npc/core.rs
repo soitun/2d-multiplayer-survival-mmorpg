@@ -69,6 +69,25 @@ const FOUNDATION_FEAR_RADIUS_SQUARED: f32 = FOUNDATION_FEAR_RADIUS * FOUNDATION_
 const GROUP_COURAGE_THRESHOLD: usize = 3; // 3+ animals = ignore fire fear
 const GROUP_DETECTION_RADIUS: f32 = 300.0; // Distance to count group members
 
+// === FLASHLIGHT BEAM HESITATION CONSTANTS ===
+// Flashlight beam causes apparitions (hostile NPCs) to hesitate - they slow down and won't escalate aggression
+// Unlike fire fear, this is DIRECTIONAL (cone-based) and only affects hostile NPCs
+// This creates tactical gameplay: shine light on threats to buy time, but you can't fight while holding flashlight
+pub const FLASHLIGHT_BEAM_RANGE: f32 = 400.0; // How far the flashlight beam reaches
+pub const FLASHLIGHT_BEAM_RANGE_SQUARED: f32 = FLASHLIGHT_BEAM_RANGE * FLASHLIGHT_BEAM_RANGE;
+pub const FLASHLIGHT_BEAM_HALF_ANGLE: f32 = 0.523599; // ~30 degrees (60° total cone) in radians
+pub const FLASHLIGHT_HESITATION_SPEED_MULTIPLIER: f32 = 0.55; // 55% speed when in beam (significant slowdown)
+
+// === WARD DETERRENCE CONSTANTS ===
+// Wards create hard deterrence zones where hostile NPCs WILL NOT ENTER.
+// Unlike spawn reduction, this is a complete barrier - hostiles actively flee from ward zones.
+// This allows players to "civilize" their bases and have safe areas during night.
+// Ward radii are imported from lantern.rs:
+//   - Ancestral Ward: 800px radius (~50 tiles) - solo camp protection
+//   - Signal Disruptor: 1600px radius (~100 tiles) - homestead/duo protection
+//   - Memory Beacon: 3500px radius (~218 tiles) - large multiplayer compound
+// The deterrence check uses hostile_spawning::is_position_in_active_ward_zone()
+
 // Pack behavior constants  
 const PACK_FORMATION_RADIUS: f32 = 400.0; // Distance wolves can form packs (increased for better encounters)
 const PACK_FORMATION_CHANCE: f32 = 0.20; // 20% chance per encounter to form pack (increased)
@@ -1297,6 +1316,66 @@ fn execute_animal_movement(
         AnimalState::Chasing => {
             if let Some(target_id) = animal.target_player_id {
                 if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
+                    // WARD DETERRENCE: Hostile NPCs will NOT enter active ward zones
+                    // If the target player is inside a ward zone, break off chase and flee
+                    // This is only for hostile NPCs (apparitions) - regular animals ignore wards
+                    if animal.is_hostile_npc {
+                        // Check if target player is inside an active ward zone
+                        if let Some((ward_x, ward_y, ward_radius_sq)) = 
+                            crate::wild_animal_npc::hostile_spawning::get_active_ward_at_position(
+                                ctx, target_player.position_x, target_player.position_y
+                            ) {
+                            // Player is protected by a ward - hostile cannot approach
+                            // Calculate flee direction AWAY from the ward center
+                            let dx = animal.pos_x - ward_x;
+                            let dy = animal.pos_y - ward_y;
+                            let dist = (dx * dx + dy * dy).sqrt();
+                            
+                            if dist > 1.0 {
+                                // Set flee destination to a point well outside the ward radius
+                                let ward_radius = ward_radius_sq.sqrt();
+                                let flee_distance = ward_radius + 200.0; // Move 200px beyond ward radius
+                                animal.investigation_x = Some(ward_x + (dx / dist) * flee_distance);
+                                animal.investigation_y = Some(ward_y + (dy / dist) * flee_distance);
+                            }
+                            
+                            // Transition to patrolling - break off chase, target is in safe zone
+                            animal.target_player_id = None;
+                            animal.state = AnimalState::Patrolling;
+                            log::debug!("🛡️ [Ward] Hostile {:?} {} broke off chase - player inside ward zone", 
+                                       animal.species, animal.id);
+                            return Ok(()); // Exit early, don't continue chase
+                        }
+                        
+                        // Also check if the hostile NPC itself is inside a ward zone (shouldn't happen but safety check)
+                        if crate::wild_animal_npc::hostile_spawning::is_position_in_active_ward_zone(
+                            ctx, animal.pos_x, animal.pos_y
+                        ) {
+                            // Hostile is inside ward zone - flee immediately!
+                            if let Some((ward_x, ward_y, ward_radius_sq)) = 
+                                crate::wild_animal_npc::hostile_spawning::get_active_ward_at_position(
+                                    ctx, animal.pos_x, animal.pos_y
+                                ) {
+                                let dx = animal.pos_x - ward_x;
+                                let dy = animal.pos_y - ward_y;
+                                let dist = (dx * dx + dy * dy).sqrt();
+                                
+                                if dist > 1.0 {
+                                    let ward_radius = ward_radius_sq.sqrt();
+                                    let flee_distance = ward_radius + 200.0;
+                                    animal.investigation_x = Some(ward_x + (dx / dist) * flee_distance);
+                                    animal.investigation_y = Some(ward_y + (dy / dist) * flee_distance);
+                                }
+                            }
+                            
+                            animal.target_player_id = None;
+                            animal.state = AnimalState::Fleeing;
+                            log::info!("🛡️ [Ward] Hostile {:?} {} is inside ward zone - fleeing!", 
+                                      animal.species, animal.id);
+                            return Ok(());
+                        }
+                    }
+                    
                     let distance_sq = get_distance_squared(
                         animal.pos_x, animal.pos_y,
                         target_player.position_x, target_player.position_y
@@ -1315,13 +1394,18 @@ fn execute_animal_movement(
                     );
                     let new_distance = new_distance_sq.sqrt();
                     
+                    // FLASHLIGHT HESITATION: Hostile NPCs move slower when in flashlight beam
+                    // This applies during chasing movement to give players a tactical advantage
+                    let hesitation_multiplier = get_flashlight_hesitation_multiplier(ctx, animal);
+                    
                     // Normal chase behavior - fire fear logic handled above
                     // 🐺 NOTE: Once an animal is chasing (e.g., you attacked it), wolf fur won't stop it!
                     // Intimidation only prevents initial detection/aggro
                     if new_distance > stats.attack_range * 0.9 { // Start moving when slightly outside attack range
                         // Move directly toward player - no stopping short
-                        is_sprinting = true; // Chasing uses sprint speed
-                        move_towards_target(ctx, animal, target_player.position_x, target_player.position_y, stats.sprint_speed, dt);
+                        is_sprinting = hesitation_multiplier >= 1.0; // Only sprint if not hesitating
+                        let effective_speed = stats.sprint_speed * hesitation_multiplier;
+                        move_towards_target(ctx, animal, target_player.position_x, target_player.position_y, effective_speed, dt);
                     }
                     // If within 90% of attack range, stop moving and let attack system handle it
                 }
@@ -1893,6 +1977,24 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
                     let push_factor = (exclusion_radius + 50.0) / dist; // 50px buffer
                     proposed_x = zone_x + mdx * push_factor;
                     proposed_y = zone_y + mdy * push_factor;
+                }
+            }
+            
+            // WARD DETERRENCE: Block entry into active ward zones
+            // Wards create civilized safe zones where hostile NPCs cannot enter
+            // This allows players to build protected bases during night
+            if let Some((ward_x, ward_y, ward_radius_sq)) = 
+                crate::wild_animal_npc::hostile_spawning::get_active_ward_at_position(ctx, proposed_x, proposed_y) {
+                let wdx = proposed_x - ward_x;
+                let wdy = proposed_y - ward_y;
+                let dist = (wdx * wdx + wdy * wdy).sqrt();
+                
+                if dist > 0.0 {
+                    // Push to just outside the ward radius with a buffer
+                    let ward_radius = ward_radius_sq.sqrt();
+                    let push_factor = (ward_radius + 50.0) / dist; // 50px buffer
+                    proposed_x = ward_x + wdx * push_factor;
+                    proposed_y = ward_y + wdy * push_factor;
                 }
             }
             
@@ -2937,6 +3039,106 @@ fn is_fire_nearby(ctx: &ReducerContext, animal_x: f32, animal_y: f32) -> bool {
     }
     
     false
+}
+
+// === FLASHLIGHT BEAM HESITATION SYSTEM ===
+// Flashlight beams cause apparitions (hostile NPCs) to hesitate when caught in the light cone.
+// Unlike fire fear (which causes fleeing), flashlight hesitation:
+// - Slows movement to 55% speed
+// - Prevents escalation from Stalking → Chasing (they stay hesitant)
+// - Only affects hostile NPCs (Shorebound, Shardkin, DrownedWatch)
+// - Is directional (cone-based, player must aim at them)
+// This creates tactical gameplay: flashlight occupies weapon slot, so you choose to deter OR fight
+
+/// Check if a hostile NPC is within any player's flashlight beam cone
+/// Returns Some(player_identity) if in beam, None if not
+pub fn is_in_any_flashlight_beam(ctx: &ReducerContext, npc_x: f32, npc_y: f32) -> Option<Identity> {
+    for player in ctx.db.player().iter() {
+        // Skip dead players or those with flashlight off
+        if player.is_dead || !player.is_flashlight_on {
+            continue;
+        }
+        
+        // Check distance first (cheaper than angle calculation)
+        let dx = npc_x - player.position_x;
+        let dy = npc_y - player.position_y;
+        let distance_sq = dx * dx + dy * dy;
+        
+        if distance_sq > FLASHLIGHT_BEAM_RANGE_SQUARED || distance_sq < 1.0 {
+            continue; // Too far or too close (avoid div by zero)
+        }
+        
+        // Calculate angle from player to NPC
+        let angle_to_npc = dy.atan2(dx);
+        
+        // Get player's flashlight aim direction
+        let aim_angle = player.flashlight_aim_angle;
+        
+        // Calculate angular difference (handling wraparound)
+        let mut angle_diff = (angle_to_npc - aim_angle).abs();
+        if angle_diff > PI {
+            angle_diff = 2.0 * PI - angle_diff;
+        }
+        
+        // Check if NPC is within the beam cone
+        if angle_diff <= FLASHLIGHT_BEAM_HALF_ANGLE {
+            return Some(player.identity);
+        }
+    }
+    
+    None
+}
+
+/// Check if a specific player's flashlight beam is hitting an NPC at given position
+/// More efficient when checking against a specific player
+pub fn is_in_player_flashlight_beam(player: &Player, npc_x: f32, npc_y: f32) -> bool {
+    // Skip if flashlight is off or player is dead
+    if !player.is_flashlight_on || player.is_dead {
+        return false;
+    }
+    
+    // Check distance first
+    let dx = npc_x - player.position_x;
+    let dy = npc_y - player.position_y;
+    let distance_sq = dx * dx + dy * dy;
+    
+    if distance_sq > FLASHLIGHT_BEAM_RANGE_SQUARED || distance_sq < 1.0 {
+        return false;
+    }
+    
+    // Calculate angle from player to NPC
+    let angle_to_npc = dy.atan2(dx);
+    
+    // Get player's flashlight aim direction
+    let aim_angle = player.flashlight_aim_angle;
+    
+    // Calculate angular difference (handling wraparound)
+    let mut angle_diff = (angle_to_npc - aim_angle).abs();
+    if angle_diff > PI {
+        angle_diff = 2.0 * PI - angle_diff;
+    }
+    
+    // Check if NPC is within the beam cone
+    angle_diff <= FLASHLIGHT_BEAM_HALF_ANGLE
+}
+
+/// Get the speed multiplier for a hostile NPC based on flashlight beam exposure
+/// Returns 1.0 if not in beam, FLASHLIGHT_HESITATION_SPEED_MULTIPLIER if in beam
+pub fn get_flashlight_hesitation_multiplier(ctx: &ReducerContext, animal: &WildAnimal) -> f32 {
+    // Only hostile NPCs are affected by flashlight hesitation
+    let is_hostile = matches!(animal.species,
+        AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch);
+    
+    if !is_hostile {
+        return 1.0; // Regular animals are not affected
+    }
+    
+    // Check if in any flashlight beam
+    if is_in_any_flashlight_beam(ctx, animal.pos_x, animal.pos_y).is_some() {
+        FLASHLIGHT_HESITATION_SPEED_MULTIPLIER
+    } else {
+        1.0
+    }
 }
 
 /// Count nearby animals of the same species to determine group courage
