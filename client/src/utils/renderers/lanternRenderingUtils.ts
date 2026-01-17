@@ -562,11 +562,5 @@ export function renderMemoryBeaconTimer(
     ctx.fillStyle = textColor;
     ctx.fillText(timeText, timerX, timerY);
     
-    // Draw small warning icon only when critical (< 1 min remaining)
-    if (remainingSecs < 60) {
-        ctx.font = '10px Arial';
-        ctx.fillText('⚠', timerX - 28, timerY);
-    }
-    
     ctx.restore();
 }

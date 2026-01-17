@@ -88,7 +88,7 @@ pub const MEMORY_BEACON_SANITY_RADIUS_PX: f32 = 600.0;  // Small sanity clearing
 pub const MEMORY_BEACON_SANITY_RADIUS_SQ: f32 = MEMORY_BEACON_SANITY_RADIUS_PX * MEMORY_BEACON_SANITY_RADIUS_PX;
 pub const MEMORY_BEACON_ATTRACTION_RADIUS_PX: f32 = 2000.0;  // Large spawn attraction zone
 pub const MEMORY_BEACON_ATTRACTION_RADIUS_SQ: f32 = MEMORY_BEACON_ATTRACTION_RADIUS_PX * MEMORY_BEACON_ATTRACTION_RADIUS_PX;
-pub const MEMORY_BEACON_SPAWN_MULTIPLIER: f32 = 1.5;  // 1.5x spawn rate within attraction radius (nerfed from 2.5x)
+pub const MEMORY_BEACON_SPAWN_MULTIPLIER: f32 = 2.5;  // 2.5x spawn rate within attraction radius (significant boost)
 pub const MEMORY_BEACON_LIFETIME_SECS: u64 = 300;  // Auto-destructs after 5 minutes (nerfed from 10 min)
 
 // Legacy constant for backward compatibility (use MEMORY_BEACON_SANITY_RADIUS_SQ instead)
