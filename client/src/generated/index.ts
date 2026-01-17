@@ -763,6 +763,8 @@ import { BarrelRespawnScheduleTableHandle } from "./barrel_respawn_schedule_tabl
 export { BarrelRespawnScheduleTableHandle };
 import { BasaltColumnTableHandle } from "./basalt_column_table.ts";
 export { BasaltColumnTableHandle };
+import { BeaconDropEventTableHandle } from "./beacon_drop_event_table.ts";
+export { BeaconDropEventTableHandle };
 import { BrewRecipeCacheTableHandle } from "./brew_recipe_cache_table.ts";
 export { BrewRecipeCacheTableHandle };
 import { BrothPotTableHandle } from "./broth_pot_table.ts";
@@ -1099,6 +1101,8 @@ import { BasaltColumn } from "./basalt_column_type.ts";
 export { BasaltColumn };
 import { BasaltColumnType } from "./basalt_column_type_type.ts";
 export { BasaltColumnType };
+import { BeaconDropEvent } from "./beacon_drop_event_type.ts";
+export { BeaconDropEvent };
 import { BrewRecipeCache } from "./brew_recipe_cache_type.ts";
 export { BrewRecipeCache };
 import { BrothPot } from "./broth_pot_type.ts";
@@ -1622,6 +1626,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (BasaltColumn.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    beacon_drop_event: {
+      tableName: "beacon_drop_event" as const,
+      rowType: BeaconDropEvent.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (BeaconDropEvent.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     brew_recipe_cache: {
@@ -11823,6 +11836,11 @@ export class RemoteTables {
   get basaltColumn(): BasaltColumnTableHandle<'basalt_column'> {
     // clientCache is a private property
     return new BasaltColumnTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<BasaltColumn>(REMOTE_MODULE.tables.basalt_column));
+  }
+
+  get beaconDropEvent(): BeaconDropEventTableHandle<'beacon_drop_event'> {
+    // clientCache is a private property
+    return new BeaconDropEventTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<BeaconDropEvent>(REMOTE_MODULE.tables.beacon_drop_event));
   }
 
   get brewRecipeCache(): BrewRecipeCacheTableHandle<'brew_recipe_cache'> {

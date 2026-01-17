@@ -327,6 +327,9 @@ interface GameScreenProps {
     questCompletionNotifications?: Map<string, any>;
     questProgressNotifications?: Map<string, any>;
     sovaQuestMessages?: Map<string, any>;
+    
+    // Memory Beacon server events (airdrop-style)
+    beaconDropEvents?: Map<string, any>;
 
     // Player progression notifications (unified in UplinkNotifications)
     levelUpNotifications?: SpacetimeDB.LevelUpNotification[];
@@ -1138,6 +1141,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 alwaysShowPlayerNames={alwaysShowPlayerNames}
                 playerStats={props.playerStats} // ADDED: For title display on player name labels
                 rangedWeaponStats={rangedWeaponStats} // ADDED: For auto-fire detection
+                beaconDropEvents={props.beaconDropEvents} // ADDED: Memory Beacon server events
                 // Mobile controls
                 isMobile={props.isMobile}
                 onMobileTap={props.onMobileTap}

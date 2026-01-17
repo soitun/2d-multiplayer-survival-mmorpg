@@ -327,6 +327,9 @@ interface GameCanvasProps {
   tapAnimation?: { x: number; y: number; startTime: number } | null;
   onMobileInteractInfoChange?: (info: { hasTarget: boolean; label?: string } | null) => void;
   mobileInteractTrigger?: number;
+  
+  // Memory Beacon server events (airdrop-style)
+  beaconDropEvents?: Map<string, any>;
 }
 
 /**
@@ -455,6 +458,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   tapAnimation,
   onMobileInteractInfoChange,
   mobileInteractTrigger,
+  // Memory Beacon server events (airdrop-style)
+  beaconDropEvents,
 }) => {
   // console.log('[GameCanvas IS RUNNING] showInventory:', showInventory);
 
@@ -4508,6 +4513,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       // Matronage system for player visibility
       matronageMembers: matronageMembers,
       matronages: matronages,
+      // Memory Beacon server events (airdrop-style)
+      beaconDropEvents: beaconDropEvents,
     });
   }, [
     isMinimapOpen,

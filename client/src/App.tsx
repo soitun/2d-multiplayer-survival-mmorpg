@@ -344,6 +344,7 @@ function AppContent() {
       questCompletionNotifications,
       questProgressNotifications,
       sovaQuestMessages,
+      beaconDropEvents, // ADDED: Memory Beacon server events
     } = useSpacetimeTables({ 
         connection, 
         cancelPlacement: placementActions.cancelPlacement,
@@ -1396,6 +1397,7 @@ function AppContent() {
                             questCompletionNotifications={questCompletionNotifications}
                             questProgressNotifications={questProgressNotifications}
                             sovaQuestMessages={sovaQuestMessages}
+                            beaconDropEvents={beaconDropEvents} // ADDED: Memory Beacon server events
                             shipwreckParts={shipwreckParts} // ADDED: Shipwreck monument parts (one-time read of static world gen data)
                             fishingVillageParts={fishingVillageParts} // ADDED: Fishing village monument parts (one-time read of static world gen data)
                             largeQuarries={largeQuarries} // ADDED: Large quarry locations with types for minimap labels

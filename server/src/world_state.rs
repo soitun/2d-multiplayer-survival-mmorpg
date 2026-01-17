@@ -1186,6 +1186,14 @@ pub fn tick_world_state(ctx: &ReducerContext, _timestamp: Timestamp) -> Result<(
             _             => TimeOfDay::Midnight, // Fallback (should never reach here)
         };
 
+        // BEACON EVENT: Trigger beacon spawn check when transitioning TO Dusk
+        // Only trigger once when time_of_day changes from non-Dusk to Dusk
+        let old_time_of_day = world_state.time_of_day.clone();
+        if old_time_of_day != TimeOfDay::Dusk && new_time_of_day == TimeOfDay::Dusk {
+            log::info!("🌅 Time of day transitioning to Dusk - checking beacon spawn...");
+            crate::beacon_event::on_dusk_started(ctx);
+        }
+
         // Assign the calculated new values to the world_state object
         world_state.cycle_progress = new_progress;
         world_state.time_of_day = new_time_of_day;

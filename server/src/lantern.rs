@@ -88,7 +88,7 @@ pub const MEMORY_BEACON_SANITY_RADIUS_PX: f32 = 600.0;  // Small sanity clearing
 pub const MEMORY_BEACON_SANITY_RADIUS_SQ: f32 = MEMORY_BEACON_SANITY_RADIUS_PX * MEMORY_BEACON_SANITY_RADIUS_PX;
 pub const MEMORY_BEACON_ATTRACTION_RADIUS_PX: f32 = 2000.0;  // Large spawn attraction zone
 pub const MEMORY_BEACON_ATTRACTION_RADIUS_SQ: f32 = MEMORY_BEACON_ATTRACTION_RADIUS_PX * MEMORY_BEACON_ATTRACTION_RADIUS_PX;
-pub const MEMORY_BEACON_SPAWN_MULTIPLIER: f32 = 2.5;  // 2.5x spawn rate within attraction radius (significant boost)
+pub const MEMORY_BEACON_SPAWN_MULTIPLIER: f32 = 10.0;  // 10.0x spawn rate within attraction radius (significant boost)
 pub const MEMORY_BEACON_LIFETIME_SECS: u64 = 300;  // Auto-destructs after 5 minutes (nerfed from 10 min)
 
 // Legacy constant for backward compatibility (use MEMORY_BEACON_SANITY_RADIUS_SQ instead)
@@ -610,15 +610,22 @@ pub fn process_lantern_logic_scheduled(ctx: &ReducerContext, schedule_args: Lant
     }
     
     // MEMORY BEACON AUTO-DESTRUCT: Check if this is a Memory Beacon that has exceeded its lifetime
-    // Memory Beacons auto-destruct after 10 minutes to prevent griefing
+    // Server event beacons (is_monument=true) last 30 minutes, player-placed ones last 5 minutes
     if lantern.lantern_type == LANTERN_TYPE_MEMORY_BEACON {
         let elapsed_us = current_time.to_micros_since_unix_epoch() - lantern.placed_at.to_micros_since_unix_epoch();
         let elapsed_secs = elapsed_us / 1_000_000;
         
-        if elapsed_secs >= MEMORY_BEACON_LIFETIME_SECS as i64 {
+        // Use longer lifetime for server event beacons (is_monument = true)
+        let lifetime_secs = if lantern.is_monument {
+            crate::beacon_event::BEACON_EVENT_LIFETIME_SECS as i64
+        } else {
+            MEMORY_BEACON_LIFETIME_SECS as i64
+        };
+        
+        if elapsed_secs >= lifetime_secs {
             // Auto-destruct the Memory Beacon
             log::info!("🔮 [MemoryBeacon] Beacon {} auto-destructing after {} seconds (lifetime: {} secs)", 
-                      lantern_id, elapsed_secs, MEMORY_BEACON_LIFETIME_SECS);
+                      lantern_id, elapsed_secs, lifetime_secs);
             
             // Drop any remaining fuel as world items at the beacon's position
             for slot_index in 0..NUM_FUEL_SLOTS as u8 {

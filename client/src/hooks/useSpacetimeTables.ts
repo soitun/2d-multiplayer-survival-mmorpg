@@ -192,6 +192,7 @@ export interface SpacetimeTableStates {
     questCompletionNotifications: Map<string, SpacetimeDB.QuestCompletionNotification>; // ADDED: Quest completion notifications
     questProgressNotifications: Map<string, SpacetimeDB.QuestProgressNotification>; // ADDED: Quest progress notifications
     sovaQuestMessages: Map<string, SpacetimeDB.SovaQuestMessage>; // ADDED: SOVA quest messages
+    beaconDropEvents: Map<string, SpacetimeDB.BeaconDropEvent>; // ADDED: Memory Beacon server events (airdrop-style)
 }
 
 // Define the props the hook accepts
@@ -313,6 +314,7 @@ export const useSpacetimeTables = ({
     const [questCompletionNotifications, setQuestCompletionNotifications] = useState<Map<string, SpacetimeDB.QuestCompletionNotification>>(() => new Map());
     const [questProgressNotifications, setQuestProgressNotifications] = useState<Map<string, SpacetimeDB.QuestProgressNotification>>(() => new Map());
     const [sovaQuestMessages, setSovaQuestMessages] = useState<Map<string, SpacetimeDB.SovaQuestMessage>>(() => new Map());
+    const [beaconDropEvents, setBeaconDropEvents] = useState<Map<string, SpacetimeDB.BeaconDropEvent>>(() => new Map());
 
     // OPTIMIZATION: Ref for batched weather updates
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
@@ -1279,6 +1281,17 @@ export const useSpacetimeTables = ({
                 }
             };
 
+            // --- Beacon Drop Event Subscriptions (server events for minimap markers) ---
+            const handleBeaconDropEventInsert = (ctx: any, event: SpacetimeDB.BeaconDropEvent) => {
+                setBeaconDropEvents(prev => new Map(prev).set(event.id.toString(), event));
+            };
+            const handleBeaconDropEventUpdate = (ctx: any, oldEvent: SpacetimeDB.BeaconDropEvent, newEvent: SpacetimeDB.BeaconDropEvent) => {
+                setBeaconDropEvents(prev => new Map(prev).set(newEvent.id.toString(), newEvent));
+            };
+            const handleBeaconDropEventDelete = (ctx: any, event: SpacetimeDB.BeaconDropEvent) => {
+                setBeaconDropEvents(prev => { const newMap = new Map(prev); newMap.delete(event.id.toString()); return newMap; });
+            };
+
             // --- Player Pin Subscriptions ---
             const handlePlayerPinInsert = (ctx: any, pin: SpacetimeDB.PlayerPin) => setPlayerPins(prev => new Map(prev).set(pin.playerId.toHexString(), pin));
             const handlePlayerPinUpdate = (ctx: any, oldPin: SpacetimeDB.PlayerPin, newPin: SpacetimeDB.PlayerPin) => setPlayerPins(prev => new Map(prev).set(newPin.playerId.toHexString(), newPin));
@@ -2108,6 +2121,8 @@ export const useSpacetimeTables = ({
             connection.db.questCompletionNotification.onInsert(handleQuestCompletionNotificationInsert); connection.db.questCompletionNotification.onDelete(handleQuestCompletionNotificationDelete);
             connection.db.questProgressNotification.onInsert(handleQuestProgressNotificationInsert); connection.db.questProgressNotification.onDelete(handleQuestProgressNotificationDelete);
             connection.db.sovaQuestMessage.onInsert(handleSovaQuestMessageInsert); connection.db.sovaQuestMessage.onDelete(handleSovaQuestMessageDelete);
+            // Beacon drop event subscriptions (server events for minimap markers)
+            connection.db.beaconDropEvent.onInsert(handleBeaconDropEventInsert); connection.db.beaconDropEvent.onUpdate(handleBeaconDropEventUpdate); connection.db.beaconDropEvent.onDelete(handleBeaconDropEventDelete);
             connection.db.playerPin.onInsert(handlePlayerPinInsert); connection.db.playerPin.onUpdate(handlePlayerPinUpdate); connection.db.playerPin.onDelete(handlePlayerPinDelete);
             connection.db.activeConnection.onInsert(handleActiveConnectionInsert);
             connection.db.activeConnection.onDelete(handleActiveConnectionDelete);
@@ -2578,6 +2593,10 @@ export const useSpacetimeTables = ({
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[SOVA_QUEST_MESSAGE Sub Error]:", err))
                     .subscribe('SELECT * FROM sova_quest_message'),
+                // Memory Beacon server events (airdrop-style) - for minimap markers
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[BEACON_DROP_EVENT Sub Error]:", err))
+                    .subscribe('SELECT * FROM beacon_drop_event'),
             ];
             // console.log("[useSpacetimeTables] currentInitialSubs content:", currentInitialSubs); // ADDED LOG
             nonSpatialHandlesRef.current = currentInitialSubs;
@@ -2989,5 +3008,6 @@ export const useSpacetimeTables = ({
         questCompletionNotifications, // ADDED: Quest completion notifications
         questProgressNotifications, // ADDED: Quest progress notifications
         sovaQuestMessages, // ADDED: SOVA quest messages
+        beaconDropEvents, // ADDED: Memory Beacon server events (airdrop-style)
     };
 }; 

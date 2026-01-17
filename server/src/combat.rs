@@ -407,6 +407,10 @@ pub fn find_targets_in_cone(
         if lantern_entity.is_destroyed {
             continue;
         }
+        // Skip server event beacons - they are invincible (prevents griefing)
+        if crate::beacon_event::is_server_event_beacon(&lantern_entity) {
+            continue;
+        }
         // Lanterns are smaller objects, use their base position for targeting
         let dx = lantern_entity.pos_x - player.position_x;
         let dy = lantern_entity.pos_y - player.position_y;

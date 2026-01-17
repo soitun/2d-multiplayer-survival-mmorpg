@@ -160,6 +160,7 @@ mod repair_bench; // <<< ADDED: Repair bench for item repair
 mod cooking_station; // <<< ADDED: Cooking station for advanced food recipes
 mod player_progression; // <<< ADDED: Player progression system (XP, achievements, leaderboards)
 mod quests; // <<< ADDED: Quest system (tutorial + daily quests)
+mod beacon_event; // <<< ADDED: Memory Beacon server event system (airdrop-style)
 
 // ADD: Re-export respawn reducer
 pub use respawn::respawn_randomly;
@@ -923,6 +924,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
             log::info!("Compressed chunk data already exists ({}), skipping generation", existing_chunk_data_count);
         }
     }
+
+    // ADD: Initialize beacon event system (airdrop-style memory beacon spawning)
+    crate::beacon_event::init_beacon_event_system(ctx);
 
     log::info!("Module initialization complete.");
     Ok(())

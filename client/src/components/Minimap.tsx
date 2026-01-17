@@ -1,6 +1,6 @@
 import { gameConfig } from '../config/gameConfig';
 import { calculateChunkIndex } from '../utils/chunkUtils';
-import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather, AlkStation as SpacetimeDBAlkStation, ShipwreckPart, LivingCoral as SpacetimeDBLivingCoral } from '../generated';
+import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather, AlkStation as SpacetimeDBAlkStation, ShipwreckPart, LivingCoral as SpacetimeDBLivingCoral, BeaconDropEvent as SpacetimeDBBeaconDropEvent } from '../generated';
 import { useRef, useCallback } from 'react';
 
 // --- Calculate Proportional Dimensions ---
@@ -77,6 +77,13 @@ const QUARRY_STONE_COLOR = '#A0A0A0'; // Gray for stone quarry
 const QUARRY_SULFUR_COLOR = '#FFD700'; // Gold/yellow for sulfur quarry
 const QUARRY_METAL_COLOR = '#B87333'; // Copper/bronze for metal quarry
 const QUARRY_GLOW_COLOR = '#FFFFFF'; // White glow for visibility
+
+// Memory Beacon Event constants - SERVER EVENT MARKERS (airdrop-style)
+const BEACON_EVENT_ICON_SIZE = 24; // Large for high visibility as major event
+const BEACON_EVENT_COLOR = '#FF00FF'; // Bright magenta/purple for beacon events
+const BEACON_EVENT_GLOW_COLOR = '#FF66FF'; // Lighter magenta glow
+const BEACON_EVENT_OUTLINE_COLOR = '#000000'; // Black outline for contrast
+const BEACON_EVENT_OUTLINE_WIDTH = 2.5;
 
 const RESOURCE_ICON_OUTLINE_COLOR = 'rgba(0, 0, 0, 0.8)'; // Strong black outline for clarity
 const RESOURCE_ICON_OUTLINE_WIDTH = 1.5; // Thicker outline for tactical visibility
@@ -256,6 +263,8 @@ interface MinimapProps {
   // Matronage system props for player visibility
   matronageMembers?: Map<string, any>; // Matronage membership tracking
   matronages?: Map<string, any>; // Matronage organizations
+  // Memory Beacon server events (airdrop-style)
+  beaconDropEvents?: Map<string, SpacetimeDBBeaconDropEvent>; // Active beacon drop events
 }
 
 // Bright, clear terrain colors for easy readability
@@ -637,6 +646,8 @@ export function drawMinimapOntoCanvas({
   // Destructure matronage props
   matronageMembers, // Matronage membership tracking
   matronages, // Matronage organizations
+  // Destructure beacon drop event props
+  beaconDropEvents, // Active beacon drop events
 }: MinimapProps) {
   // On mobile (smaller canvas), use full canvas dimensions; on desktop, use fixed dimensions
   const isMobile = canvasWidth <= 768 || canvasHeight <= 768;
@@ -1385,6 +1396,73 @@ export function drawMinimapOntoCanvas({
         // Fill with quarry type color
         ctx.fillStyle = quarryColor;
         ctx.fillText(quarryLabel, x, y);
+        
+        ctx.restore();
+      }
+    });
+  }
+
+  // --- Draw Memory Beacon Events (SERVER EVENT MARKERS - AIRDROP STYLE) ---
+  // These are high-priority server events that spawn at Dusk with a chance
+  // They attract hostile NPCs and provide a sanity haven for farming
+  if (beaconDropEvents && beaconDropEvents.size > 0) {
+    beaconDropEvents.forEach(event => {
+      // Only show active beacon events
+      if (!event.isActive) return;
+      
+      const screenCoords = worldToMinimap(event.worldX, event.worldY);
+      if (screenCoords) {
+        const iconSize = BEACON_EVENT_ICON_SIZE;
+        const halfSize = iconSize / 2;
+        const x = screenCoords.x;
+        const y = screenCoords.y;
+        
+        ctx.save();
+        
+        // Draw pulsing glow effect (beacon events are important!)
+        const pulseTime = Date.now() / 500; // Faster pulse for urgency
+        const pulseIntensity = 0.5 + 0.5 * Math.sin(pulseTime);
+        ctx.shadowColor = BEACON_EVENT_GLOW_COLOR;
+        ctx.shadowBlur = 15 + 10 * pulseIntensity;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // Draw beacon icon - diamond shape with inner circle (like a radar ping)
+        ctx.beginPath();
+        ctx.moveTo(x, y - halfSize); // Top
+        ctx.lineTo(x + halfSize, y); // Right
+        ctx.lineTo(x, y + halfSize); // Bottom
+        ctx.lineTo(x - halfSize, y); // Left
+        ctx.closePath();
+        
+        // Draw outline
+        ctx.strokeStyle = BEACON_EVENT_OUTLINE_COLOR;
+        ctx.lineWidth = BEACON_EVENT_OUTLINE_WIDTH;
+        ctx.stroke();
+        
+        // Fill with beacon color
+        ctx.fillStyle = BEACON_EVENT_COLOR;
+        ctx.fill();
+        
+        // Draw inner circle (radar ping effect)
+        ctx.beginPath();
+        ctx.arc(x, y, halfSize * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill();
+        
+        // Draw label below the beacon
+        if (showNames) {
+          ctx.font = 'bold 12px "Courier New", monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.shadowColor = BEACON_EVENT_GLOW_COLOR;
+          ctx.shadowBlur = 8;
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 3;
+          ctx.strokeText('BEACON', x, y + halfSize + 4);
+          ctx.fillStyle = BEACON_EVENT_COLOR;
+          ctx.fillText('BEACON', x, y + halfSize + 4);
+        }
         
         ctx.restore();
       }

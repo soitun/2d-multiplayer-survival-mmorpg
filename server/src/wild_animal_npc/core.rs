@@ -2510,31 +2510,31 @@ pub fn damage_wild_animal_with_weapon(
                 if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, attacker_id, "animals_killed", 1) {
                     log::error!("Failed to track animal kill stat: {}", e);
                 }
+                
+                // Track quest progress for animal kills (only real animals, not void manifestations)
+                if let Err(e) = crate::quests::track_quest_progress(
+                    ctx,
+                    attacker_id,
+                    crate::quests::QuestObjectiveType::KillAnyAnimal,
+                    None,
+                    1,
+                ) {
+                    log::error!("Failed to track quest progress for animal kill: {}", e);
+                }
+                // Track specific animal type kills for quests
+                let species_name = format!("{:?}", animal.species);
+                if let Err(e) = crate::quests::track_quest_progress(
+                    ctx,
+                    attacker_id,
+                    crate::quests::QuestObjectiveType::KillSpecificAnimal,
+                    Some(&species_name),
+                    1,
+                ) {
+                    log::error!("Failed to track specific animal quest progress: {}", e);
+                }
             }
             
-            // Track quest progress for animal kills
-            if let Err(e) = crate::quests::track_quest_progress(
-                ctx,
-                attacker_id,
-                crate::quests::QuestObjectiveType::KillAnyAnimal,
-                None,
-                1,
-            ) {
-                log::error!("Failed to track quest progress for animal kill: {}", e);
-            }
-            // Track specific animal type kills for quests
-            let species_name = format!("{:?}", animal.species);
-            if let Err(e) = crate::quests::track_quest_progress(
-                ctx,
-                attacker_id,
-                crate::quests::QuestObjectiveType::KillSpecificAnimal,
-                Some(&species_name),
-                1,
-            ) {
-                log::error!("Failed to track specific animal quest progress: {}", e);
-            }
-            
-            // Track weapon-specific kill achievement if weapon name provided
+            // Track weapon-specific kill achievement if weapon name provided (counts for both animals and void manifestations)
             if let Some(wep_name) = weapon_name {
                 let weapon_stat = categorize_weapon_for_achievement(wep_name);
                 if !weapon_stat.is_empty() {

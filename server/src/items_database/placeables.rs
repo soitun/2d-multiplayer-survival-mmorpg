@@ -335,17 +335,10 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
         // Burns Scrap Batteries for fuel. ATTRACTS apparitions (2.5x spawn rate) instead of repelling!
         // Unique benefit: Players within 600px sanity haven have insanity cleared.
         // Auto-destructs after 10 minutes to prevent griefing. Cannot be picked up once placed.
-        ItemBuilder::new("Memory Resonance Beacon", "A dangerous gamble rigged from scavenged tech and SOVA's guidance. Unlike protective wards, this beacon ATTRACTS apparitions, boosting hostile spawn rates by 2.5x in a massive radius. Experienced hunters use it to farm memory shards from kills. Stay close to the small sanity haven (600px) where insanity is cleared. WARNING: Auto-destructs after 10 minutes. Cannot be picked up. High risk, high reward.", ItemCategory::Placeable)
+        // NOT CRAFTABLE - Obtained from server events
+        ItemBuilder::new("Memory Resonance Beacon", "Extremely rare device, not craftable by players. Obtained only from special server events. Unlike protective wards, this beacon ATTRACTS apparitions, increasing hostile spawn rates by in a large radius. Useful for experienced hunters seeking memory shards, but dangerous: stay within its small sanity haven to clear insanity. WARNING: Auto-destructs after some time. Cannot be picked up once placed.", ItemCategory::Placeable)
             .icon("memory_beacon.png")
             .stackable(1)
-            .crafting_cost(vec![
-                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 200 },
-                CostIngredient { item_name: "Scrap Batteries".to_string(), quantity: 5 },
-                CostIngredient { item_name: "Memory Shard".to_string(), quantity: 250 },
-                CostIngredient { item_name: "Sulfur".to_string(), quantity: 50 },
-            ])
-            .crafting_output(1, 20)
-            .respawn_time(1800)
-            .build(),
+            .build(), // No crafting recipe - obtained from server events
     ]
 }
