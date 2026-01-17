@@ -106,6 +106,7 @@ import { renderFoundationTargetIndicator, renderWallTargetIndicator } from '../u
 import { renderInteractionLabels, renderLocalPlayerStatusTags } from '../utils/renderers/labelRenderingUtils.ts';
 import { renderPlacementPreview, isPlacementTooFar } from '../utils/renderers/placementRenderingUtils.ts';
 import { detectHotSprings } from '../utils/hotSpringDetector'; // ADDED: Hot spring detection
+import { detectQuarries } from '../utils/quarryDetector'; // ADDED: Small quarry detection for building restriction zones
 import { renderHotSprings } from '../utils/renderers/hotSpringRenderingUtils'; // ADDED: Hot spring rendering
 import { useBuildingManager, BuildingMode, BuildingTier, FoundationShape } from '../hooks/useBuildingManager'; // ADDED: Building manager
 import { BuildingRadialMenu } from './BuildingRadialMenu'; // ADDED: Building radial menu
@@ -986,6 +987,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Detect hot springs from world chunk data
   const detectedHotSprings = useMemo(() => {
     return detectHotSprings(chunkCacheRef.current);
+  }, [chunkCacheVersion]); // Recalculate when chunk data changes
+
+  // Detect small quarries from world chunk data for building restriction zones
+  const detectedQuarries = useMemo(() => {
+    return detectQuarries(chunkCacheRef.current);
   }, [chunkCacheVersion]); // Recalculate when chunk data changes
 
   // Optimized: Memoize the integer tile coordinates for the viewport
@@ -3017,6 +3023,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         playerStats, // ADDED: Pass player stats for title display on name labels
         largeQuarries, // ADDED: Pass large quarry locations for building restriction zones
         detectedHotSprings, // ADDED: Pass hot spring locations for building restriction zones
+        detectedQuarries, // ADDED: Pass small quarry locations for building restriction zones
         placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
       });
     } else {
@@ -3335,6 +3342,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           playerStats, // ADDED: Pass player stats for title display on name labels
           largeQuarries, // ADDED: Pass large quarry locations for building restriction zones
           detectedHotSprings, // ADDED: Pass hot spring locations for building restriction zones
+          detectedQuarries, // ADDED: Pass small quarry locations for building restriction zones
           placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
         });
         currentBatch = [];

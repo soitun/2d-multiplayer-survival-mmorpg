@@ -446,6 +446,7 @@ foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADD
   playerStats?: Map<string, any>; // ADDED: Player stats for title display on name labels
   largeQuarries?: Map<string, any>; // ADDED: Large quarry locations for building restriction zones
   detectedHotSprings?: Array<{ id: string; posX: number; posY: number; radius: number }>; // ADDED: Hot spring locations for building restriction zones
+  detectedQuarries?: Array<{ id: string; posX: number; posY: number; radius: number }>; // ADDED: Small quarry locations for building restriction zones
   placementInfo?: { itemDefId?: bigint; itemName?: string } | null; // ADDED: Current placement info for showing restriction zones when placing items
 }
 
@@ -520,6 +521,7 @@ export const renderYSortedEntities = ({
   playerStats, // ADDED: Player stats for title display on name labels
   largeQuarries, // ADDED: Large quarry locations for building restriction zones
   detectedHotSprings, // ADDED: Hot spring locations for building restriction zones
+  detectedQuarries, // ADDED: Small quarry locations for building restriction zones
   placementInfo, // ADDED: Current placement info for showing restriction zones when placing items
 }: RenderYSortedEntitiesProps) => {
   // PERFORMANCE: Clean up memory caches periodically
@@ -1770,14 +1772,19 @@ export const renderYSortedEntities = ({
       }
       
       if (showBuildingRestriction) {
-          // Large quarry restriction radius matches server-side MONUMENT_RESTRICTION_RADIUS (800px)
-          const LARGE_QUARRY_RESTRICTION_RADIUS = 800.0;
+          // Large quarries have radiusTiles (their own size), so effective restriction = quarryRadius + restriction
+          const TILE_SIZE_PX = 48;
+          const QUARRY_RESTRICTION_RADIUS = 400.0; // Halved from 800px to better match actual restriction
           
           largeQuarries.forEach((quarry: any) => {
+              // quarry.radiusTiles is the quarry's own radius in tiles
+              const quarryRadiusPx = (quarry.radiusTiles || 0) * TILE_SIZE_PX;
+              const effectiveRadius = quarryRadiusPx + QUARRY_RESTRICTION_RADIUS;
+              
               const zoneConfig: BuildingRestrictionZoneConfig = {
                   centerX: quarry.worldX,
                   centerY: quarry.worldY,
-                  radius: LARGE_QUARRY_RESTRICTION_RADIUS,
+                  radius: effectiveRadius,
               };
               renderBuildingRestrictionOverlay(ctx, zoneConfig);
           });
@@ -1806,14 +1813,55 @@ export const renderYSortedEntities = ({
       }
       
       if (showBuildingRestriction) {
-          // Hot spring restriction radius matches server-side MONUMENT_RESTRICTION_RADIUS (800px)
-          const HOT_SPRING_RESTRICTION_RADIUS = 800.0;
+          // Server checks 800px from ANY hot spring tile, not just center
+          // So visual radius = cluster_radius + 800px monument restriction
+          const MONUMENT_RESTRICTION_RADIUS = 800.0;
           
           detectedHotSprings.forEach((hotSpring) => {
+              // Add cluster radius to the monument restriction to show the full exclusion zone
+              const effectiveRadius = hotSpring.radius + MONUMENT_RESTRICTION_RADIUS;
               const zoneConfig: BuildingRestrictionZoneConfig = {
                   centerX: hotSpring.posX,
                   centerY: hotSpring.posY,
-                  radius: HOT_SPRING_RESTRICTION_RADIUS,
+                  radius: effectiveRadius,
+              };
+              renderBuildingRestrictionOverlay(ctx, zoneConfig);
+          });
+      }
+  }
+
+  // PASS 9: Render small quarry building restriction zones when Blueprint equipped or placing a placeable item
+  // Small quarries are tile-based monument areas - server checks 800px from ANY quarry tile
+  if (detectedQuarries && detectedQuarries.length > 0) {
+      // Check if local player has Blueprint equipped OR is placing a placeable item
+      let showBuildingRestriction = false;
+      // First check: Is any placeable item currently being placed? (placementInfo is non-null)
+      if (placementInfo) {
+          showBuildingRestriction = true;
+      }
+      // Second check: Is Blueprint equipped? (via ActiveEquipment)
+      if (!showBuildingRestriction && localPlayerId && activeEquipments && itemDefinitions) {
+          const localEquipment = activeEquipments.get(localPlayerId);
+          if (localEquipment?.equippedItemDefId) {
+              const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
+              // Show restriction zones for Blueprint (Placeable items use placementInfo instead)
+              if (equippedItemDef?.name === 'Blueprint') {
+                  showBuildingRestriction = true;
+              }
+          }
+      }
+      
+      if (showBuildingRestriction) {
+          // Small quarries - visual radius = cluster_radius + restriction
+          const QUARRY_RESTRICTION_RADIUS = 400.0; // Halved from 800px to better match actual restriction
+          
+          detectedQuarries.forEach((quarry) => {
+              // Add cluster radius to the quarry restriction to show the full exclusion zone
+              const effectiveRadius = quarry.radius + QUARRY_RESTRICTION_RADIUS;
+              const zoneConfig: BuildingRestrictionZoneConfig = {
+                  centerX: quarry.posX,
+                  centerY: quarry.posY,
+                  radius: effectiveRadius,
               };
               renderBuildingRestrictionOverlay(ctx, zoneConfig);
           });

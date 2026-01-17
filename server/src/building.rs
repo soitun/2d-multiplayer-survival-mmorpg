@@ -562,11 +562,15 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
         }
     }
     
-    // Check hot springs and quarries (same 800px radius)
+    // Check hot springs and quarries (different radii: hot springs 800px, quarries 400px)
     // OPTIMIZATION: Use indexed lookups per tile (O(log n) each) but only check tiles within radius
     // Most tiles don't exist (sparse world), so empty lookups are very fast
     // Early exit when monument found - typical case: 0-1 monuments in search area
+    const QUARRY_PLACEMENT_RESTRICTION_RADIUS: f32 = 400.0; // 400px for quarries
+    const QUARRY_PLACEMENT_RESTRICTION_RADIUS_SQ: f32 = QUARRY_PLACEMENT_RESTRICTION_RADIUS * QUARRY_PLACEMENT_RESTRICTION_RADIUS;
+    
     let tile_size = crate::TILE_SIZE_PX as f32;
+    // Use the larger radius (hot springs 800px) for the search area
     let check_radius_tiles = (MONUMENT_PLACEMENT_RESTRICTION_RADIUS / tile_size).ceil() as i32 + 1;
     let center_tile_x = (world_x / tile_size).floor() as i32;
     let center_tile_y = (world_y / tile_size).floor() as i32;
@@ -610,13 +614,15 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
                 let tdy = world_y - tile_center_y_exact;
                 let distance_sq = tdx * tdx + tdy * tdy;
                 
+                // Use different restriction radii for different tile types
+                let (restriction_radius_sq, monument_type) = if tile.tile_type == crate::TileType::HotSpringWater {
+                    (MONUMENT_PLACEMENT_RESTRICTION_RADIUS_SQ, "hot springs")
+                } else {
+                    (QUARRY_PLACEMENT_RESTRICTION_RADIUS_SQ, "quarries")
+                };
+                
                 // Early exit: Found a monument within restriction radius
-                if distance_sq <= MONUMENT_PLACEMENT_RESTRICTION_RADIUS_SQ {
-                    let monument_type = if tile.tile_type == crate::TileType::HotSpringWater { 
-                        "hot springs" 
-                    } else { 
-                        "quarries" 
-                    };
+                if distance_sq <= restriction_radius_sq {
                     return Err(format!("Cannot place items near {}. These monuments must remain unobstructed.", monument_type));
                 }
             }

@@ -16,6 +16,7 @@ import { isWaterContainer, getWaterLevelPercentage } from '../utils/waterContain
 import { hasDurabilitySystem, isItemBroken, isFoodItem } from '../utils/durabilityHelpers';
 import DurabilityBar from './DurabilityBar';
 import styles from './InventoryUI.module.css';
+import { RangedWeaponStats } from '../generated';
 
 interface ContainerSlotsProps {
     containerType: ContainerType;
@@ -53,6 +54,9 @@ interface ContainerSlotsProps {
     getSlotIndicator?: (slotType: string, slotIndex: number | string, parentId?: number | bigint) => { progress: number } | undefined;
     onHotLootSlotHover?: (item: PopulatedItem, slotInfo: DragSourceSlotInfo, context: 'player' | 'container') => void;
     setHotLootCurrentHover?: (item: PopulatedItem | null, slotInfo: DragSourceSlotInfo | null, context: 'player' | 'container' | null) => void;
+    
+    // Ranged weapon stats for ammo bar display
+    rangedWeaponStats?: Map<string, RangedWeaponStats>;
 }
 
 const ContainerSlots: React.FC<ContainerSlotsProps> = ({
@@ -75,6 +79,7 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
     getSlotIndicator,
     onHotLootSlotHover,
     setHotLootCurrentHover,
+    rangedWeaponStats,
 }) => {
     // Track slot element refs for overlay positioning
     const slotRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -193,6 +198,11 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
                         {/* Water level indicator - same pattern used across all containers */}
                         {itemInSlot && isWaterContainer(itemInSlot.definition.name) && (
                             <WaterLevelIndicator item={itemInSlot} />
+                        )}
+                        
+                        {/* Ammo bar indicator - for magazine-based ranged weapons (LEFT side) */}
+                        {itemInSlot && itemInSlot.definition.category.tag === 'RangedWeapon' && rangedWeaponStats && (
+                            <AmmoBarIndicator item={itemInSlot} rangedWeaponStats={rangedWeaponStats} />
                         )}
                         
                         {/* Durability indicator - for weapons, tools, torches (RIGHT side, GREEN) */}
@@ -339,6 +349,72 @@ const DurabilityIndicator: React.FC<{ item: PopulatedItem }> = ({ item }) => {
                 </div>
             )}
         </>
+    );
+};
+
+// Ammo bar indicator component - for magazine-based ranged weapons (LEFT side)
+// Shows individual bullet notches in brass/gold color
+const AmmoBarIndicator: React.FC<{ 
+    item: PopulatedItem; 
+    rangedWeaponStats: Map<string, RangedWeaponStats>;
+}> = ({ item, rangedWeaponStats }) => {
+    const weaponStats = rangedWeaponStats.get(item.definition.name);
+    const magazineCapacity = weaponStats?.magazineCapacity ?? 0;
+    
+    // Only show for magazine-based weapons
+    if (magazineCapacity === 0) return null;
+    
+    // For items in containers, ammo is always stored in itemData JSON (not equipped)
+    let loadedAmmoCount = 0;
+    if (item.instance.itemData) {
+        try {
+            const itemData = JSON.parse(item.instance.itemData);
+            loadedAmmoCount = itemData.loaded_ammo_count ?? 0;
+        } catch {
+            loadedAmmoCount = 0;
+        }
+    }
+    
+    return (
+        <div
+            style={{
+                position: 'absolute',
+                left: '3px',
+                top: '4px',
+                bottom: '4px',
+                width: '6px',
+                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                borderRadius: '2px',
+                zIndex: 4,
+                pointerEvents: 'none',
+                display: 'flex',
+                flexDirection: 'column-reverse',
+                padding: '1px',
+                boxSizing: 'border-box',
+                border: '1px solid rgba(255, 200, 100, 0.4)',
+            }}
+        >
+            {Array.from({ length: magazineCapacity }).map((_, bulletIndex) => {
+                const isFilled = bulletIndex < loadedAmmoCount;
+                return (
+                    <div
+                        key={`container-ammo-${bulletIndex}`}
+                        style={{
+                            flex: 1,
+                            marginTop: bulletIndex > 0 ? '1px' : '0px',
+                            backgroundColor: isFilled 
+                                ? 'rgba(255, 200, 80, 0.95)'
+                                : 'rgba(60, 60, 60, 0.6)',
+                            borderRadius: '1px',
+                            boxShadow: isFilled 
+                                ? '0 0 3px rgba(255, 180, 50, 0.8)' 
+                                : 'none',
+                            transition: 'background-color 0.2s ease, box-shadow 0.2s ease',
+                        }}
+                    />
+                );
+            })}
+        </div>
     );
 };
 

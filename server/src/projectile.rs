@@ -225,6 +225,21 @@ pub fn fire_projectile(
     // Get weapon stats for magazine capacity and fire rate
     let weapon_stats_for_magazine = ctx.db.ranged_weapon_stats().item_name().find(&item_def.name);
     let magazine_capacity = weapon_stats_for_magazine.as_ref().map(|s| s.magazine_capacity).unwrap_or(0);
+    let magazine_reload_time_secs = weapon_stats_for_magazine.as_ref().map(|s| s.magazine_reload_time_secs).unwrap_or(0.0);
+
+    // --- Check if currently reloading (reload cooldown in progress) ---
+    // Prevents firing during magazine reload animation
+    // This check MUST happen before fire rate check to avoid confusion
+    if magazine_reload_time_secs > 0.0 && equipment.reload_start_time_ms > 0 {
+        let current_time_ms = (ctx.timestamp.to_micros_since_unix_epoch() / 1000) as u64;
+        let reload_time_ms = (magazine_reload_time_secs * 1000.0) as u64;
+        let elapsed_ms = current_time_ms.saturating_sub(equipment.reload_start_time_ms);
+        
+        if elapsed_ms < reload_time_ms {
+            let remaining_ms = reload_time_ms - elapsed_ms;
+            return Err(format!("Still reloading... ({:.1}s remaining)", remaining_ms as f32 / 1000.0));
+        }
+    }
 
     // --- Fire Rate / Reload Cooldown Check ---
     // ALL ranged weapons now have a fire rate cooldown (reload_time_secs)

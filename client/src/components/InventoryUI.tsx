@@ -23,6 +23,7 @@ import {
     ItemDefinition,
     DbConnection,
     ActiveEquipment,
+    RangedWeaponStats,
     Campfire as SpacetimeDBCampfire,
     Furnace as SpacetimeDBFurnace,
     Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
@@ -78,6 +79,7 @@ interface InventoryUIProps {
     onClose: () => void;
     inventoryItems: Map<string, InventoryItem>;
     itemDefinitions: Map<string, ItemDefinition>;
+    rangedWeaponStats: Map<string, RangedWeaponStats>; // ADDED: For ammo bar display
     connection: DbConnection | null;
     activeEquipments: Map<string, ActiveEquipment>;
     onItemDragStart: (info: DraggedItemInfo) => void;
@@ -147,6 +149,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
     onClose,
     inventoryItems,
     itemDefinitions,
+    rangedWeaponStats,
     connection,
     activeEquipments,
     onItemDragStart,
@@ -308,6 +311,12 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
         });
         return armorDefs;
     }, [itemsByEquipSlot]);
+
+    // Get local player's active equipment for ammo bar display
+    const localPlayerActiveEquipment = useMemo(() => {
+        if (!playerIdentity) return null;
+        return activeEquipments.get(playerIdentity.toHexString()) ?? null;
+    }, [playerIdentity, activeEquipments]);
 
     // --- Callbacks & Handlers ---
     const handleItemMouseEnter = useCallback((item: PopulatedItem, event: React.MouseEvent<HTMLDivElement>) => {
@@ -1125,6 +1134,69 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                             );
                                         })()}
                                         
+                                        {/* Ammo bar indicator for magazine-based ranged weapons in equipment slots */}
+                                        {item && item.definition.category.tag === 'RangedWeapon' && (() => {
+                                            const weaponStats = rangedWeaponStats.get(item.definition.name);
+                                            const magazineCapacity = weaponStats?.magazineCapacity ?? 0;
+                                            
+                                            if (magazineCapacity === 0) return null;
+                                            
+                                            const isEquipped = localPlayerActiveEquipment?.equippedItemInstanceId === BigInt(item.instance.instanceId);
+                                            let loadedAmmoCount = 0;
+                                            if (isEquipped) {
+                                                loadedAmmoCount = (localPlayerActiveEquipment as any)?.loadedAmmoCount ?? 0;
+                                            } else if (item.instance.itemData) {
+                                                try {
+                                                    const itemData = JSON.parse(item.instance.itemData);
+                                                    loadedAmmoCount = itemData.loaded_ammo_count ?? 0;
+                                                } catch {
+                                                    loadedAmmoCount = 0;
+                                                }
+                                            }
+                                            
+                                            return (
+                                                <div
+                                                    style={{
+                                                        position: 'absolute',
+                                                        left: '3px',
+                                                        top: '4px',
+                                                        bottom: '4px',
+                                                        width: '6px',
+                                                        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                                        borderRadius: '2px',
+                                                        zIndex: 4,
+                                                        pointerEvents: 'none',
+                                                        display: 'flex',
+                                                        flexDirection: 'column-reverse',
+                                                        padding: '1px',
+                                                        boxSizing: 'border-box',
+                                                        border: '1px solid rgba(255, 200, 100, 0.4)',
+                                                    }}
+                                                >
+                                                    {Array.from({ length: magazineCapacity }).map((_, bulletIndex) => {
+                                                        const isFilled = bulletIndex < loadedAmmoCount;
+                                                        return (
+                                                            <div
+                                                                key={`equip-ammo-${bulletIndex}`}
+                                                                style={{
+                                                                    flex: 1,
+                                                                    marginTop: bulletIndex > 0 ? '1px' : '0px',
+                                                                    backgroundColor: isFilled 
+                                                                        ? 'rgba(255, 200, 80, 0.95)'
+                                                                        : 'rgba(60, 60, 60, 0.6)',
+                                                                    borderRadius: '1px',
+                                                                    boxShadow: isFilled 
+                                                                        ? '0 0 3px rgba(255, 180, 50, 0.8)' 
+                                                                        : 'none',
+                                                                    transition: 'background-color 0.2s ease, box-shadow 0.2s ease',
+                                                                }}
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
+                                        
                                         {/* Durability bar indicator for weapons, tools, torches, food in equipment slots (RIGHT side) */}
                                         {/* Shows current durability in green/yellow/red and lost max durability (from repairs) in red at top */}
                                         {item && hasDurabilitySystem(item.definition) && (
@@ -1285,6 +1357,69 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                     );
                                 })()}
                                 
+                                {/* Ammo bar indicator for magazine-based ranged weapons */}
+                                {item && item.definition.category.tag === 'RangedWeapon' && (() => {
+                                    const weaponStats = rangedWeaponStats.get(item.definition.name);
+                                    const magazineCapacity = weaponStats?.magazineCapacity ?? 0;
+                                    
+                                    if (magazineCapacity === 0) return null;
+                                    
+                                    const isEquipped = localPlayerActiveEquipment?.equippedItemInstanceId === BigInt(item.instance.instanceId);
+                                    let loadedAmmoCount = 0;
+                                    if (isEquipped) {
+                                        loadedAmmoCount = (localPlayerActiveEquipment as any)?.loadedAmmoCount ?? 0;
+                                    } else if (item.instance.itemData) {
+                                        try {
+                                            const itemData = JSON.parse(item.instance.itemData);
+                                            loadedAmmoCount = itemData.loaded_ammo_count ?? 0;
+                                        } catch {
+                                            loadedAmmoCount = 0;
+                                        }
+                                    }
+                                    
+                                    return (
+                                        <div
+                                            style={{
+                                                position: 'absolute',
+                                                left: '3px',
+                                                top: '4px',
+                                                bottom: '4px',
+                                                width: '6px',
+                                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                                borderRadius: '2px',
+                                                zIndex: 4,
+                                                pointerEvents: 'none',
+                                                display: 'flex',
+                                                flexDirection: 'column-reverse',
+                                                padding: '1px',
+                                                boxSizing: 'border-box',
+                                                border: '1px solid rgba(255, 200, 100, 0.4)',
+                                            }}
+                                        >
+                                            {Array.from({ length: magazineCapacity }).map((_, bulletIndex) => {
+                                                const isFilled = bulletIndex < loadedAmmoCount;
+                                                return (
+                                                    <div
+                                                        key={`ammo-${bulletIndex}`}
+                                                        style={{
+                                                            flex: 1,
+                                                            marginTop: bulletIndex > 0 ? '1px' : '0px',
+                                                            backgroundColor: isFilled 
+                                                                ? 'rgba(255, 200, 80, 0.95)'
+                                                                : 'rgba(60, 60, 60, 0.6)',
+                                                            borderRadius: '1px',
+                                                            boxShadow: isFilled 
+                                                                ? '0 0 3px rgba(255, 180, 50, 0.8)' 
+                                                                : 'none',
+                                                            transition: 'background-color 0.2s ease, box-shadow 0.2s ease',
+                                                        }}
+                                                    />
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
+                                
                                 {/* Durability bar indicator for weapons, tools, torches, food (RIGHT side) */}
                                 {/* Shows current durability in green/yellow/red and lost max durability (from repairs) in red at top */}
                                 {item && hasDurabilitySystem(item.definition) && (
@@ -1351,6 +1486,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                             interactionTarget={interactionTarget}
                             inventoryItems={inventoryItems}
                             itemDefinitions={itemDefinitions}
+                            rangedWeaponStats={rangedWeaponStats}
                             campfires={campfires}
                             furnaces={furnaces}
                             barbecues={barbecues}

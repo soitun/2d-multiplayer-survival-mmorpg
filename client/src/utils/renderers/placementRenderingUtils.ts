@@ -516,8 +516,10 @@ function isPositionInMonumentZone(
 ): boolean {
     if (!connection) return false;
     
-    const MONUMENT_RESTRICTION_RADIUS = 800.0;
+    const MONUMENT_RESTRICTION_RADIUS = 800.0; // For hot springs and rune stones
     const MONUMENT_RESTRICTION_RADIUS_SQ = MONUMENT_RESTRICTION_RADIUS * MONUMENT_RESTRICTION_RADIUS;
+    const QUARRY_RESTRICTION_RADIUS = 400.0; // Smaller radius for quarries
+    const QUARRY_RESTRICTION_RADIUS_SQ = QUARRY_RESTRICTION_RADIUS * QUARRY_RESTRICTION_RADIUS;
     const TILE_SIZE_LOCAL = 48;
     
     // Check ALK stations
@@ -551,7 +553,7 @@ function isPositionInMonumentZone(
         }
     }
     
-    // Check hot springs and quarries using tile type lookup
+    // Check hot springs and quarries using tile type lookup (different radii)
     const checkRadiusTiles = Math.ceil(MONUMENT_RESTRICTION_RADIUS / TILE_SIZE_LOCAL) + 1;
     const centerTileX = Math.floor(worldX / TILE_SIZE_LOCAL);
     const centerTileY = Math.floor(worldY / TILE_SIZE_LOCAL);
@@ -568,7 +570,9 @@ function isPositionInMonumentZone(
                 const tdx = worldX - tileCenterX;
                 const tdy = worldY - tileCenterY;
                 const distSq = tdx * tdx + tdy * tdy;
-                if (distSq <= MONUMENT_RESTRICTION_RADIUS_SQ) {
+                // Use different radius for quarries vs hot springs
+                const restrictionRadiusSq = tileType === 'Quarry' ? QUARRY_RESTRICTION_RADIUS_SQ : MONUMENT_RESTRICTION_RADIUS_SQ;
+                if (distSq <= restrictionRadiusSq) {
                     return true; // Too close to hot spring or quarry
                 }
             }
@@ -838,12 +842,15 @@ function isFoundationPlacementValid(
         }
     }
 
-    // Check if position is near monuments (rune stones, hot springs, quarries) - 800px radius
+    // Check if position is near monuments (rune stones, hot springs, quarries)
+    // Hot springs and rune stones: 800px, Quarries: 400px
     const MONUMENT_RESTRICTION_RADIUS = 800.0;
     const MONUMENT_RESTRICTION_RADIUS_SQ = MONUMENT_RESTRICTION_RADIUS * MONUMENT_RESTRICTION_RADIUS;
+    const QUARRY_RESTRICTION_RADIUS = 400.0;
+    const QUARRY_RESTRICTION_RADIUS_SQ = QUARRY_RESTRICTION_RADIUS * QUARRY_RESTRICTION_RADIUS;
     const TILE_SIZE = 48;
     
-    // Check rune stones
+    // Check rune stones (800px)
     for (const runeStone of connection.db.runeStone.iter()) {
         const dx = worldX - runeStone.posX;
         const dy = worldY - runeStone.posY;
@@ -854,7 +861,7 @@ function isFoundationPlacementValid(
         }
     }
     
-    // Check hot springs and quarries using tile type lookup
+    // Check hot springs (800px) and quarries (400px) using tile type lookup
     // PERFORMANCE FIX: Reduced check radius from 17 tiles to 8 tiles for better performance
     // The monument restriction is still enforced, but we only check tiles that could realistically be in range
     const OPTIMIZED_CHECK_RADIUS_TILES = 8; // Reduced from ~17 to improve performance
@@ -874,7 +881,9 @@ function isFoundationPlacementValid(
                 const tdx = worldX - tileCenterX;
                 const tdy = worldY - tileCenterY;
                 const distSq = tdx * tdx + tdy * tdy;
-                if (distSq <= MONUMENT_RESTRICTION_RADIUS_SQ) {
+                // Use different radius for quarries vs hot springs
+                const restrictionRadiusSq = tileType === 'Quarry' ? QUARRY_RESTRICTION_RADIUS_SQ : MONUMENT_RESTRICTION_RADIUS_SQ;
+                if (distSq <= restrictionRadiusSq) {
                     foundMonumentTile = true;
                 }
             }

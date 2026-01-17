@@ -22,6 +22,7 @@ import { getAllSlotProgress } from '../utils/containerProgressUtils';
 // Import Types
 import { 
     ItemDefinition, InventoryItem, DbConnection, 
+    RangedWeaponStats, // ADDED: For ammo bar display
     Campfire as SpacetimeDBCampfire,
     Furnace as SpacetimeDBFurnace,
     Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
@@ -150,6 +151,7 @@ interface ExternalContainerUIProps {
     interactionTarget: InteractionTarget;
     inventoryItems: Map<string, InventoryItem>;
     itemDefinitions: Map<string, ItemDefinition>;
+    rangedWeaponStats: Map<string, RangedWeaponStats>; // ADDED: For ammo bar display
     campfires: Map<string, SpacetimeDBCampfire>;
     furnaces: Map<string, SpacetimeDBFurnace>;
     barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues
@@ -186,6 +188,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
     interactionTarget,
     inventoryItems,
     itemDefinitions,
+    rangedWeaponStats, // ADDED: For ammo bar display
     campfires,
     furnaces,
     barbecues, // ADDED: Barbecues
@@ -1356,6 +1359,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 getSlotIndicator={getSlotIndicator}
                 onHotLootSlotHover={onHotLootSlotHover}
                 setHotLootCurrentHover={setHotLootCurrentHover}
+                rangedWeaponStats={rangedWeaponStats}
             />
 
             {/* Generic Container Buttons - handles toggle/light/extinguish (shown before broth pot for campfires) */}

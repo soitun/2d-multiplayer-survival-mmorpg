@@ -1505,6 +1505,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     onClose={handleClose}
                     inventoryItems={inventoryItems}
                     itemDefinitions={itemDefinitions}
+                    rangedWeaponStats={rangedWeaponStats}
                     connection={connection}
                     activeEquipments={activeEquipments}
                     onItemDragStart={onItemDragStart}
