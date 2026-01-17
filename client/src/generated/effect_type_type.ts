@@ -67,7 +67,8 @@ export type EffectType = EffectTypeVariants.HealthRegen |
   EffectTypeVariants.Entrainment |
   EffectTypeVariants.BrewCooldown |
   EffectTypeVariants.Stun |
-  EffectTypeVariants.LagunovGhost;
+  EffectTypeVariants.LagunovGhost |
+  EffectTypeVariants.MemoryBeaconSanity;
 
 let _cached_EffectType_type_value: __AlgebraicTypeType | null = null;
 
@@ -117,6 +118,7 @@ export const EffectType = {
   BrewCooldown: { tag: "BrewCooldown" } as const,
   Stun: { tag: "Stun" } as const,
   LagunovGhost: { tag: "LagunovGhost" } as const,
+  MemoryBeaconSanity: { tag: "MemoryBeaconSanity" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_EffectType_type_value) return _cached_EffectType_type_value;
@@ -160,6 +162,7 @@ export const EffectType = {
       { name: "BrewCooldown", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Stun", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "LagunovGhost", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "MemoryBeaconSanity", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_EffectType_type_value;
   },

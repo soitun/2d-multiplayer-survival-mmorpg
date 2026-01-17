@@ -36,6 +36,7 @@ export type RangedWeaponStats = {
   reloadTimeSecs: number,
   magazineCapacity: number,
   isAutomatic: boolean,
+  magazineReloadTimeSecs: number,
 };
 let _cached_RangedWeaponStats_type_value: __AlgebraicTypeType | null = null;
 
@@ -58,6 +59,7 @@ export const RangedWeaponStats = {
       { name: "reloadTimeSecs", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "magazineCapacity", algebraicType: __AlgebraicTypeValue.U8 },
       { name: "isAutomatic", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "magazineReloadTimeSecs", algebraicType: __AlgebraicTypeValue.F32 },
     );
     return _cached_RangedWeaponStats_type_value;
   },
