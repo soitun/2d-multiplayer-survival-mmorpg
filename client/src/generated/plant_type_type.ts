@@ -88,6 +88,7 @@ export type PlantType = PlantTypeVariants.BorealNettle |
   PlantTypeVariants.MetalOrePile |
   PlantTypeVariants.SulfurPile |
   PlantTypeVariants.CharcoalPile |
+  PlantTypeVariants.SoggyPlantFiberPile |
   PlantTypeVariants.ConiferSapling |
   PlantTypeVariants.DeciduousSapling;
 
@@ -159,6 +160,7 @@ export const PlantType = {
   MetalOrePile: { tag: "MetalOrePile" } as const,
   SulfurPile: { tag: "SulfurPile" } as const,
   CharcoalPile: { tag: "CharcoalPile" } as const,
+  SoggyPlantFiberPile: { tag: "SoggyPlantFiberPile" } as const,
   ConiferSapling: { tag: "ConiferSapling" } as const,
   DeciduousSapling: { tag: "DeciduousSapling" } as const,
 
@@ -224,6 +226,7 @@ export const PlantType = {
       { name: "MetalOrePile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "SulfurPile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "CharcoalPile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SoggyPlantFiberPile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ConiferSapling", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DeciduousSapling", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );

@@ -23,6 +23,7 @@ import crowFlyingSheet from '../../assets/crow_flying.png';
 // Night hostile NPC sprite sheets
 import shoreboundWalkingSheet from '../../assets/shorebound_walking.png';
 import shardkinWalkingSheet from '../../assets/shardkin_walking.png';
+import shardkinWalkingAnimatedSheet from '../../assets/shardkin_walking_release.png'; // NEW: 6x4 animated spritesheet
 import drownedWatchWalkingSheet from '../../assets/drowned_watch_walking.png';
 
 
@@ -58,6 +59,83 @@ const FLYING_SPRITE_SHEET_CONFIG = {
     directionMap: SPRITE_SHEET_CONFIG.directionMap,
 };
 
+// === ANIMATED SPRITE SHEET CONFIG (6x4 layout like player walking) ===
+// Used for hostile NPCs with proper walking animations (Shardkin, Shorebound, DrownedWatch)
+// Layout: 6 columns (animation frames), 4 rows (down, right, left, up)
+// 
+// Per-species configurations since each has different sprite sizes:
+//   - Shardkin:     48x48 per frame → 288x192 sheet
+//   - Shorebound:   64x64 per frame → 384x256 sheet (like player)
+//   - DrownedWatch: 96x96 per frame → 576x384 sheet
+interface AnimatedSpriteConfig {
+    sheetWidth: number;
+    sheetHeight: number;
+    frameWidth: number;
+    frameHeight: number;
+}
+
+const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
+    // ═══════════════════════════════════════════════════════════════════════════
+    // HOSTILE NPC ANIMATED SPRITESHEETS (6x4 layout: 6 frames × 4 directions)
+    // Row order: Down, Right, Left, Up (same as player)
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    // SHARDKIN - Small swarmer creature
+    // Artist spec: 48x48 per frame → 288x192 total sheet
+    // Renders at: 72x72 (1.5x scale)
+    'Shardkin': {
+        sheetWidth: 288,   // 48px × 6 frames
+        sheetHeight: 192,  // 48px × 4 rows
+        frameWidth: 48,
+        frameHeight: 48,
+    },
+    
+    // SHOREBOUND - Lean stalker, fast predator (uncomment when asset is added)
+    // Artist spec: 64x64 per frame → 384x256 total sheet (artist's 64-bit tier)
+    // Renders at: 160x160 (2.5x scale) - ~1.67x player size
+    // 'Shorebound': {
+    //     sheetWidth: 384,   // 64px × 6 frames
+    //     sheetHeight: 256,  // 64px × 4 rows
+    //     frameWidth: 64,
+    //     frameHeight: 64,
+    // },
+    
+    // DROWNED WATCH - Massive brute, heavy boss-type (uncomment when asset is added)
+    // Artist spec: 96x96 per frame → 576x384 total sheet (artist's 96-bit tier)
+    // Renders at: 192x192 (2x scale) - 2x player size, imposing "oh crap" moment
+    // 'DrownedWatch': {
+    //     sheetWidth: 576,   // 96px × 6 frames
+    //     sheetHeight: 384,  // 96px × 4 rows
+    //     frameWidth: 96,
+    //     frameHeight: 96,
+    // },
+};
+
+// Common layout for all animated spritesheets (6 cols x 4 rows)
+const ANIMATED_SHEET_COLS = 6;
+const ANIMATED_SHEET_ROWS = 4;
+
+// Direction to row mapping (matches player format - same for all species)
+const ANIMATED_DIRECTION_ROW_MAP: Record<string, number> = {
+    'down':  0,  // Row 0: facing down
+    'right': 1,  // Row 1: facing right
+    'left':  2,  // Row 2: facing left
+    'up':    3,  // Row 3: facing up
+};
+
+// Animation timing for walking cycle
+const ANIMATED_WALK_FRAME_DURATION_MS = 100; // Time per frame (100ms = smooth animation)
+
+// Helper to check if species uses animated spritesheet
+function usesAnimatedSpritesheet(species: AnimalSpecies): boolean {
+    return species.tag in ANIMATED_SPRITE_CONFIGS;
+}
+
+// Get the animated config for a species (returns undefined if not animated)
+function getAnimatedConfig(species: AnimalSpecies): AnimatedSpriteConfig | undefined {
+    return ANIMATED_SPRITE_CONFIGS[species.tag];
+}
+
 // Calculate frame dimensions from sheet size
 const FRAME_WIDTH = Math.floor(SPRITE_SHEET_CONFIG.sheetWidth / SPRITE_SHEET_CONFIG.sheetCols);
 const FRAME_HEIGHT = Math.floor(SPRITE_SHEET_CONFIG.sheetHeight / SPRITE_SHEET_CONFIG.sheetRows);
@@ -77,7 +155,7 @@ const speciesSpriteSheets: Record<string, string> = {
     'Wolverine': wolverineWalkingSheet,
     // Night hostile NPCs have custom sprites
     'Shorebound': shoreboundWalkingSheet,
-    'Shardkin': shardkinWalkingSheet,
+    'Shardkin': shardkinWalkingAnimatedSheet, // NEW: Use animated 6x4 spritesheet
     'DrownedWatch': drownedWatchWalkingSheet,
 };
 
@@ -282,6 +360,51 @@ function getSpriteSheet(species: AnimalSpecies, isFlying: boolean = false): stri
     return speciesSpriteSheets[species.tag] || foxWalkingSheet; // Fallback to fox
 }
 
+// Get the source rectangle for an ANIMATED sprite (6x4 layout like player)
+// Returns sprite frame based on direction, animation frame, and species-specific frame size
+function getAnimatedSpriteSourceRect(
+    species: AnimalSpecies,
+    direction: string,
+    animationFrame: number
+): { sx: number; sy: number; sw: number; sh: number } {
+    const config = getAnimatedConfig(species);
+    if (!config) {
+        // Fallback - shouldn't happen if usesAnimatedSpritesheet is checked first
+        return { sx: 0, sy: 0, sw: 48, sh: 48 };
+    }
+    
+    const { frameWidth, frameHeight } = config;
+    
+    // Normalize direction to 4-way
+    let normalizedDir = direction.toLowerCase();
+    
+    // Map diagonal directions to closest cardinal direction
+    if (normalizedDir === 'up_left' || normalizedDir === 'up-left' || normalizedDir === 'upleft') {
+        normalizedDir = 'left';
+    } else if (normalizedDir === 'up_right' || normalizedDir === 'up-right' || normalizedDir === 'upright') {
+        normalizedDir = 'right';
+    } else if (normalizedDir === 'down_left' || normalizedDir === 'down-left' || normalizedDir === 'downleft') {
+        normalizedDir = 'left';
+    } else if (normalizedDir === 'down_right' || normalizedDir === 'down-right' || normalizedDir === 'downright') {
+        normalizedDir = 'right';
+    }
+    
+    // Default to 'down' if direction not found
+    if (ANIMATED_DIRECTION_ROW_MAP[normalizedDir] === undefined) {
+        normalizedDir = 'down';
+    }
+    
+    const row = ANIMATED_DIRECTION_ROW_MAP[normalizedDir];
+    const col = animationFrame % ANIMATED_SHEET_COLS; // Cycle through animation frames
+    
+    return {
+        sx: col * frameWidth,
+        sy: row * frameHeight,
+        sw: frameWidth,
+        sh: frameHeight,
+    };
+}
+
 // Get the source rectangle for a sprite from the sheet based on direction (no animation)
 function getSpriteSourceRect(
     direction: string,
@@ -352,15 +475,21 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
             // Wolverines are medium-sized but stocky and muscular
             return { width: 112, height: 112, shadowRadius: 36 };
         // Night hostile NPCs (2x size for visibility and impact)
-        case 'Shorebound':
-            // Stalker - fast, lean predator (1.5x player-sized)
-            return { width: 192, height: 192, shadowRadius: 64 };
+        // ═══════════════════════════════════════════════════════════════════════
+        // HOSTILE NPCs - Sizes designed for clean 2x pixel scaling
+        // ═══════════════════════════════════════════════════════════════════════
         case 'Shardkin':
-            // Swarmer - doubled size for better visibility
-            return { width: 120, height: 120, shadowRadius: 52 };
+            // Swarmer - small hostile creature (48x48 sprite × 1.5 = 72x72)
+            // 0.75x player size (player is 96x96 render) - small but dangerous in groups
+            return { width: 72, height: 72, shadowRadius: 24 };
+        case 'Shorebound':
+            // Stalker - lean, fast predator (64x64 sprite × 2.5 = 160x160)
+            // ~1.67x player size (player is 96x96 render)
+            return { width: 160, height: 160, shadowRadius: 52 };
         case 'DrownedWatch':
-            // Brute - massive, heavy (2x original)
-            return { width: 220, height: 220, shadowRadius: 104 };
+            // Brute - massive, heavy boss-type (96x96 sprite × 2 = 192x192)
+            // 2x player size (player is 96x96 render) - the "oh crap" moment
+            return { width: 192, height: 192, shadowRadius: 64 };
         default:
             return { width: 96, height: 96, shadowRadius: 32 };
     }
@@ -550,12 +679,40 @@ export function renderWildAnimal({
     // Birds use flying sprites when isFlying is true, walking sprites otherwise
     const isBird = animal.species.tag === 'Tern' || animal.species.tag === 'Crow';
     const useFlying = isBird && animal.isFlying === true;
+    const useAnimated = usesAnimatedSpritesheet(animal.species);
     const spriteSheetSrc = getSpriteSheet(animal.species, useFlying);
     const spriteSheetImage = imageManager.getImage(spriteSheetSrc);
     
-    // Get the appropriate frame dimensions based on flying state
-    const currentFrameWidth = useFlying ? FLYING_FRAME_WIDTH : FRAME_WIDTH;
-    const currentFrameHeight = useFlying ? FLYING_FRAME_HEIGHT : FRAME_HEIGHT;
+    // Get the appropriate frame dimensions based on sprite type
+    const animatedConfig = useAnimated ? getAnimatedConfig(animal.species) : undefined;
+    let currentFrameWidth: number;
+    let currentFrameHeight: number;
+    if (useAnimated && animatedConfig) {
+        currentFrameWidth = animatedConfig.frameWidth;
+        currentFrameHeight = animatedConfig.frameHeight;
+    } else if (useFlying) {
+        currentFrameWidth = FLYING_FRAME_WIDTH;
+        currentFrameHeight = FLYING_FRAME_HEIGHT;
+    } else {
+        currentFrameWidth = FRAME_WIDTH;
+        currentFrameHeight = FRAME_HEIGHT;
+    }
+    
+    // Calculate animation frame for animated sprites based on movement
+    let calculatedAnimFrame = 0;
+    if (useAnimated && movementState) {
+        // Check if animal is moving (has significant velocity)
+        const velocityMagnitude = Math.sqrt(movementState.velocityX * movementState.velocityX + movementState.velocityY * movementState.velocityY);
+        const isMoving = velocityMagnitude > 0.02; // Threshold for "moving"
+        
+        if (isMoving) {
+            // Calculate animation frame based on time for smooth walking cycle
+            calculatedAnimFrame = Math.floor(nowMs / ANIMATED_WALK_FRAME_DURATION_MS) % ANIMATED_SHEET_COLS;
+        } else {
+            // Idle pose - use frame 0 or 1 (neutral stance)
+            calculatedAnimFrame = 0;
+        }
+    }
     
     // Debug logging for bird sprite selection (enable to debug)
     // if (isBird && Math.random() < 0.001) { // Log 0.1% of frames to avoid spam
@@ -603,6 +760,12 @@ export function renderWildAnimal({
     ctx.save();
     ctx.globalAlpha = alpha;
     
+    // Enable crisp pixel scaling for animated sprites (nearest-neighbor instead of bilinear)
+    // This keeps pixel art sharp when scaling up (e.g., 48x48 sprite rendered at 72x72)
+    if (useAnimated) {
+        ctx.imageSmoothingEnabled = false;
+    }
+    
     // Note: No horizontal flipping needed - sprite sheets have all 4 directions
     // Legacy flipping is only used for static images that don't have sprite sheets
     const shouldFlip = !useSpriteSheet && animal.facingDirection === "right";
@@ -622,7 +785,10 @@ export function renderWildAnimal({
             const shadowCtx = shadowCanvas.getContext('2d');
             
             if (shadowCtx) {
-                const spriteRect = getSpriteSourceRect(animal.facingDirection, useFlying);
+                // Use animated sprite rect for animated species, standard for others
+                const spriteRect = useAnimated 
+                    ? getAnimatedSpriteSourceRect(animal.species, animal.facingDirection, calculatedAnimFrame)
+                    : getSpriteSourceRect(animal.facingDirection, useFlying);
                 shadowCtx.drawImage(
                     animalImage,
                     spriteRect.sx, spriteRect.sy, spriteRect.sw, spriteRect.sh,
@@ -715,8 +881,11 @@ export function renderWildAnimal({
         // --- Prepare sprite on offscreen canvas (for white flash tinting and sprite sheet extraction) ---
         if (offscreenCtx && animalImage) {
             // Get sprite frame info for sprite sheets
+            // Use animated sprite rect for animated species, standard for others
             const spriteRect = useSpriteSheet 
-                ? getSpriteSourceRect(animal.facingDirection, useFlying)
+                ? (useAnimated 
+                    ? getAnimatedSpriteSourceRect(animal.species, animal.facingDirection, calculatedAnimFrame)
+                    : getSpriteSourceRect(animal.facingDirection, useFlying))
                 : null;
             
             if (useSpriteSheet && spriteRect) {
@@ -780,7 +949,10 @@ export function renderWildAnimal({
         } else {
             // Fallback: draw image directly without flash effect
             if (useSpriteSheet) {
-                const spriteRect = getSpriteSourceRect(animal.facingDirection, useFlying);
+                // Use animated sprite rect for animated species, standard for others
+                const spriteRect = useAnimated 
+                    ? getAnimatedSpriteSourceRect(animal.species, animal.facingDirection, calculatedAnimFrame)
+                    : getSpriteSourceRect(animal.facingDirection, useFlying);
                 ctx.drawImage(
                     animalImage!,
                     spriteRect.sx, spriteRect.sy, spriteRect.sw, spriteRect.sh,
@@ -815,9 +987,11 @@ export function preloadWildAnimalImages(): void {
         cableViperWalkingSheet,
         ternWalkingSheet,
         crowWalkingSheet,
+        voleWalkingSheet,
+        wolverineWalkingSheet,
         // Night hostile NPCs
         shoreboundWalkingSheet,
-        shardkinWalkingSheet,
+        shardkinWalkingAnimatedSheet, // Use animated spritesheet for Shardkin
         drownedWatchWalkingSheet,
     ];
     

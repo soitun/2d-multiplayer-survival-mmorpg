@@ -9,6 +9,7 @@ import errorIcon from '../assets/items/error.png';
 import woodIcon from '../assets/items/wood.png';
 import stoneIcon from '../assets/items/stone.png';
 import plantFiberIcon from '../assets/items/plant_fiber.png';
+import soggyPlantFiberIcon from '../assets/items/plant_fiber_soggy.png';
 import clothIcon from '../assets/items/cloth.png';
 import charcoalIcon from '../assets/items/charcoal.png';
 import coalIcon from '../assets/items/coal.png';
@@ -487,6 +488,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'wood.png': woodIcon,
   'stone.png': stoneIcon,
   'plant_fiber.png': plantFiberIcon,
+  'plant_fiber_soggy.png': soggyPlantFiberIcon,
   'cloth.png': clothIcon,
   'charcoal.png': charcoalIcon,
   'coal.png': coalIcon,

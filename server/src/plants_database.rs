@@ -87,6 +87,7 @@ pub enum PlantType {
     MetalOrePile,   // Pile of metal ore - alpine/quarry areas only, rare
     SulfurPile,     // Pile of sulfur deposits - alpine/volcanic areas only, rare
     CharcoalPile,   // Pile of charcoal - forest areas (old burn sites), rare
+    SoggyPlantFiberPile, // Storm debris - spawns when plants are destroyed by heavy storms
     
     // === TREE SAPLINGS (Planted trees that grow into actual Tree entities) ===
     ConiferSapling,   // Planted from Pinecone - grows into a conifer tree
@@ -1147,6 +1148,26 @@ lazy_static! {
             growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Always available
         });
         
+        // === STORM DEBRIS ===
+        // Spawns when plants are destroyed by heavy storms (35% chance per plant death)
+        // Yields Soggy Plant Fiber which can be dried into regular Plant Fiber
+        configs.insert(PlantType::SoggyPlantFiberPile, PlantConfig {
+            entity_name: "Soggy Plant Fiber Pile".to_string(),
+            density_percent: 0.0, // Never spawns naturally - only from storm destruction
+            min_distance_sq: 30.0 * 30.0, // Can spawn close together (storm debris)
+            min_tree_distance_sq: 0.0, // No tree distance requirement
+            min_stone_distance_sq: 0.0, // No stone distance requirement
+            noise_threshold: 1.0, // Never spawns naturally
+            primary_yield: ("Soggy Plant Fiber".to_string(), 2, 4), // 2-4 soggy fiber per pile
+            secondary_yield: None,
+            seed_type: "".to_string(), // No seeds
+            seed_drop_chance: 0.0,
+            min_respawn_time_secs: 0, // No respawn - one-time storm debris
+            max_respawn_time_secs: 0,
+            spawn_condition: SpawnCondition::Plains, // Doesn't matter - spawns at plant death location
+            growing_seasons: vec![], // Never grows naturally
+        });
+        
         // === TREE SAPLINGS ===
         // These are special plants that grow into Tree entities when mature.
         // Longer growth time balances the renewable wood source.
@@ -1290,7 +1311,7 @@ fn get_plant_category(plant_type: &PlantType) -> PlantCategory {
         // Resource piles
         PlantType::WoodPile | PlantType::BeachWoodPile | PlantType::StonePile |
         PlantType::LeavesPile | PlantType::MetalOrePile | PlantType::SulfurPile |
-        PlantType::CharcoalPile => PlantCategory::ResourcePile,
+        PlantType::CharcoalPile | PlantType::SoggyPlantFiberPile => PlantCategory::ResourcePile,
         
         // Special (includes tree saplings which become Tree entities when mature)
         PlantType::MemoryShard | PlantType::SeaweedBed |
@@ -1522,7 +1543,7 @@ pub fn get_plant_bit_index(plant_type: &PlantType) -> Option<u32> {
         // ===== NOT TRACKED (Resource piles, special items, tree saplings) =====
         PlantType::WoodPile | PlantType::BeachWoodPile | PlantType::StonePile |
         PlantType::LeavesPile | PlantType::MetalOrePile | PlantType::SulfurPile |
-        PlantType::CharcoalPile | PlantType::MemoryShard | PlantType::SeaweedBed |
-        PlantType::ConiferSapling | PlantType::DeciduousSapling => None,
+        PlantType::CharcoalPile | PlantType::SoggyPlantFiberPile | PlantType::MemoryShard | 
+        PlantType::SeaweedBed | PlantType::ConiferSapling | PlantType::DeciduousSapling => None,
     }
 } 

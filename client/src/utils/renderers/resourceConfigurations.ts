@@ -125,6 +125,11 @@ RESOURCE_CONFIGS.StonePile = {
   targetWidth: 80
 };
 
+RESOURCE_CONFIGS.SoggyPlantFiberPile = {
+  ...RESOURCE_CONFIGS.SoggyPlantFiberPile,
+  targetWidth: 80 // Match other resource piles for visibility
+};
+
 // === UNDERWATER PLANTS ===
 RESOURCE_CONFIGS.SeaweedBed = {
   ...RESOURCE_CONFIGS.SeaweedBed,

@@ -1,6 +1,6 @@
 /******************************************************************************
  *                                                                            *
- * Drowned Watch Behavior - Night Brute Enemy                                *
+ * Drowned Watch Behavior - Night Brute Enemy (Ward Hunter)                  *
  *                                                                            *
  * Slow, heavy threat and primary structure attacker.                        *
  * Moves deliberately, doesn't chase far, but deals massive damage.          *
@@ -14,6 +14,14 @@
  * - Stops attacking structures if player exits base or engages directly     *
  * - Structure attacks bypass normal melee defenses                          *
  * - Despawns at dawn                                                        *
+ *                                                                            *
+ * WARD HUNTING (Special):                                                   *
+ * - DrownedWatch IGNORES ward protection zones - they don't flee from wards *
+ * - They actively TARGET and DESTROY protective wards (Ancestral Ward,      *
+ *   Signal Disruptor) to remove player protection                           *
+ * - Will hunt wards from 800px away, prioritizing them over other targets   *
+ * - Once attacking a ward, won't stop until it's destroyed or they die      *
+ * - HP bar shows when ward is hit (standard behavior)                       *
  *                                                                            *
  ******************************************************************************/
 

@@ -45,6 +45,7 @@ use crate::building::foundation_cell as FoundationCellTableTrait; // ADDED: For 
 use crate::building::FoundationCell; // ADDED: Concrete type for pre-fetching
 use crate::building::wall_cell as WallCellTableTrait; // ADDED: For structure attacks
 use crate::door::door as DoorTableTrait; // ADDED: For structure attacks
+use crate::lantern::lantern as LanternTableTrait; // ADDED: For ward attacks (DrownedWatch)
 // Import player progression table traits
 use crate::player_progression::player_stats as PlayerStatsTableTrait;
 // Runestone imports for hostile NPC deterrence
@@ -834,6 +835,21 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                 }
                             }
                             
+                            // DrownedWatch special behavior: HUNT WARDS proactively, even if player is not in building!
+                            // DrownedWatch ignores ward protection and goes straight for them to destroy ward protection
+                            if matches!(animal.species, AnimalSpecies::DrownedWatch) && animal.target_structure_id.is_none() {
+                                const WARD_HUNT_RANGE: f32 = 800.0; // Extended range - DrownedWatch actively seeks wards
+                                if let Some((ward_id, ward_type, dist_sq)) = crate::wild_animal_npc::hostile_spawning::find_nearest_active_ward(
+                                    ctx, animal.pos_x, animal.pos_y, WARD_HUNT_RANGE
+                                ) {
+                                    log::info!("👹 [DrownedWatch] {} detected ward {} at {:.1}px - switching to destroy mode!", 
+                                              animal.id, ward_id, dist_sq.sqrt());
+                                    animal.target_structure_id = Some(ward_id);
+                                    animal.target_structure_type = Some(ward_type.clone());
+                                    transition_to_state(&mut animal, AnimalState::AttackingStructure, current_time, Some(target_id), &format!("hunting ward #{}", ward_id));
+                                }
+                            }
+                            
                             if animal.is_hostile_npc && target_player.is_inside_building {
                                 // Only Drowned Watch (brutes) can attack structures - Shorebound and Shardkin cannot
                                 // This creates gameplay differentiation: small/medium hostiles circle outside,
@@ -848,9 +864,27 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                     // Shelter AABB is ~300x125px, so hostile blocked at edge is ~150-200px from center
                                     // Use 400px to ensure hostiles can always find the shelter they're blocked by
                                     const STRUCTURE_SEARCH_RANGE: f32 = 400.0;
-                                    let structure_result = crate::wild_animal_npc::hostile_spawning::find_nearest_attackable_structure(
-                                        ctx, animal.pos_x, animal.pos_y, STRUCTURE_SEARCH_RANGE
-                                    );
+                                    
+                                    // DrownedWatch PRIORITIZES wards - they go straight for protective wards to destroy them!
+                                    // This makes them the counter to ward protection - players can't just hide behind wards forever
+                                    let structure_result = if matches!(animal.species, AnimalSpecies::DrownedWatch) {
+                                        // First check for wards in extended range (DrownedWatch specifically hunts wards)
+                                        const WARD_HUNT_RANGE: f32 = 800.0; // Extended range for ward hunting
+                                        if let Some(ward_result) = crate::wild_animal_npc::hostile_spawning::find_nearest_active_ward(
+                                            ctx, animal.pos_x, animal.pos_y, WARD_HUNT_RANGE
+                                        ) {
+                                            Some(ward_result)
+                                        } else {
+                                            // No wards found, fall back to regular structures
+                                            crate::wild_animal_npc::hostile_spawning::find_nearest_attackable_structure(
+                                                ctx, animal.pos_x, animal.pos_y, STRUCTURE_SEARCH_RANGE
+                                            )
+                                        }
+                                    } else {
+                                        crate::wild_animal_npc::hostile_spawning::find_nearest_attackable_structure(
+                                            ctx, animal.pos_x, animal.pos_y, STRUCTURE_SEARCH_RANGE
+                                        )
+                                    };
                                     
                                     log::info!("👹 [HostileNPC DEBUG] {:?} {} searching for structures within {}px - found: {:?}", 
                                         animal.species, animal.id, STRUCTURE_SEARCH_RANGE, structure_result.is_some());
@@ -876,9 +910,14 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
             // Process structure attacks for hostile NPCs
             if animal.state == AnimalState::AttackingStructure && animal.is_hostile_npc {
                 if let (Some(struct_id), Some(ref struct_type)) = (animal.target_structure_id, animal.target_structure_type.clone()) {
-                    // Check if player exited building - switch back to chasing
-                    // REMOVED distance check - hostiles should keep attacking structures even if player is nearby (behind wall)
-                    let should_stop_attacking = if let Some(target_id) = animal.target_player_id {
+                    // Check if hostile should stop attacking
+                    // DrownedWatch NEVER stops attacking wards - they destroy them until dead!
+                    // For other structures, stop if player exited building
+                    let is_attacking_ward = struct_type == "ward";
+                    let should_stop_attacking = if is_attacking_ward {
+                        // Never stop attacking wards - DrownedWatch must destroy the protection!
+                        false
+                    } else if let Some(target_id) = animal.target_player_id {
                         if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
                             // Only stop if player EXITED the building entirely
                             !target_player.is_inside_building
@@ -907,6 +946,7 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                 // Use AABB center for attack range check (matches player attack detection)
                                 (s.pos_x, s.pos_y - crate::shelter::SHELTER_AABB_CENTER_Y_OFFSET_FROM_POS_Y)
                             }),
+                            "ward" => ctx.db.lantern().id().find(struct_id as u32).map(|l| (l.pos_x, l.pos_y)),
                             "wall" | _ => ctx.db.wall_cell().id().find(struct_id).map(|w| {
                                 let wx = (w.cell_x as f32 * crate::building::FOUNDATION_TILE_SIZE_PX as f32) + (crate::building::FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
                                 let wy = (w.cell_y as f32 * crate::building::FOUNDATION_TILE_SIZE_PX as f32) + (crate::building::FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
@@ -947,12 +987,26 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                         animal.target_structure_type = None;
                                         
                                         // Try to find another structure
+                                        // DrownedWatch prioritizes wards, others use regular structure search
                                         const STRUCTURE_SEARCH_RANGE: f32 = 200.0;
-                                        if let Some((new_id, new_type, _)) = 
+                                        const WARD_HUNT_RANGE: f32 = 800.0;
+                                        
+                                        let new_target = if matches!(animal.species, AnimalSpecies::DrownedWatch) {
+                                            // DrownedWatch: Check for wards first
+                                            crate::wild_animal_npc::hostile_spawning::find_nearest_active_ward(
+                                                ctx, animal.pos_x, animal.pos_y, WARD_HUNT_RANGE
+                                            ).or_else(|| {
+                                                crate::wild_animal_npc::hostile_spawning::find_nearest_attackable_structure(
+                                                    ctx, animal.pos_x, animal.pos_y, STRUCTURE_SEARCH_RANGE
+                                                )
+                                            })
+                                        } else {
                                             crate::wild_animal_npc::hostile_spawning::find_nearest_attackable_structure(
                                                 ctx, animal.pos_x, animal.pos_y, STRUCTURE_SEARCH_RANGE
-                                            ) 
-                                        {
+                                            )
+                                        };
+                                        
+                                        if let Some((new_id, new_type, _)) = new_target {
                                             animal.target_structure_id = Some(new_id);
                                             animal.target_structure_type = Some(new_type);
                                         } else {
@@ -1319,7 +1373,8 @@ fn execute_animal_movement(
                     // WARD DETERRENCE: Hostile NPCs will NOT enter active ward zones
                     // If the target player is inside a ward zone, break off chase and flee
                     // This is only for hostile NPCs (apparitions) - regular animals ignore wards
-                    if animal.is_hostile_npc {
+                    // EXCEPTION: DrownedWatch IGNORES wards - they target and destroy them!
+                    if animal.is_hostile_npc && !matches!(animal.species, AnimalSpecies::DrownedWatch) {
                         // Check if target player is inside an active ward zone
                         if let Some((ward_x, ward_y, ward_radius_sq)) = 
                             crate::wild_animal_npc::hostile_spawning::get_active_ward_at_position(
@@ -1565,6 +1620,7 @@ fn execute_animal_movement(
                         // Use AABB center for movement/attack targeting (matches player attack detection)
                         (s.pos_x, s.pos_y - crate::shelter::SHELTER_AABB_CENTER_Y_OFFSET_FROM_POS_Y)
                     }),
+                    "ward" => ctx.db.lantern().id().find(struct_id as u32).map(|l| (l.pos_x, l.pos_y)),
                     "wall" | _ => ctx.db.wall_cell().id().find(struct_id).map(|w| {
                         let wx = (w.cell_x as f32 * crate::building::FOUNDATION_TILE_SIZE_PX as f32) + (crate::building::FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
                         let wy = (w.cell_y as f32 * crate::building::FOUNDATION_TILE_SIZE_PX as f32) + (crate::building::FOUNDATION_TILE_SIZE_PX as f32 / 2.0);

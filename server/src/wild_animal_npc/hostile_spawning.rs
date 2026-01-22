@@ -1358,6 +1358,60 @@ pub fn find_nearest_attackable_structure(
     None
 }
 
+/// Find the nearest active PROTECTIVE ward (Ancestral Ward or Signal Disruptor)
+/// Used by DrownedWatch to target and destroy ward protection
+/// Memory Beacons are NOT targeted (they attract, not protect)
+/// Returns (ward_id, "ward", distance_sq)
+pub fn find_nearest_active_ward(
+    ctx: &ReducerContext,
+    hostile_x: f32,
+    hostile_y: f32,
+    max_range: f32,
+) -> Option<(u64, String, f32)> {
+    let max_range_sq = max_range * max_range;
+    let mut nearest_ward: Option<(u64, f32)> = None;
+    
+    for lantern in ctx.db.lantern().iter() {
+        // Skip destroyed or inactive wards
+        if lantern.is_destroyed || !lantern.is_burning {
+            continue;
+        }
+        
+        // Skip regular lanterns (no deterrence effect)
+        if lantern.lantern_type == LANTERN_TYPE_LANTERN {
+            continue;
+        }
+        
+        // Skip Memory Beacons (they ATTRACT, not protect - no need to destroy)
+        if lantern.lantern_type == LANTERN_TYPE_MEMORY_BEACON {
+            continue;
+        }
+        
+        // Only target protective wards (Ancestral Ward, Signal Disruptor)
+        if lantern.lantern_type != LANTERN_TYPE_ANCESTRAL_WARD && 
+           lantern.lantern_type != LANTERN_TYPE_SIGNAL_DISRUPTOR {
+            continue;
+        }
+        
+        let dx = lantern.pos_x - hostile_x;
+        let dy = lantern.pos_y - hostile_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq < max_range_sq {
+            if nearest_ward.is_none() || dist_sq < nearest_ward.unwrap().1 {
+                nearest_ward = Some((lantern.id as u64, dist_sq));
+            }
+        }
+    }
+    
+    if let Some((ward_id, dist_sq)) = nearest_ward {
+        log::info!("👹 [DrownedWatch] Found active ward {} at distance {:.1}px to destroy!", ward_id, dist_sq.sqrt());
+        return Some((ward_id, "ward".to_string(), dist_sq));
+    }
+    
+    None
+}
+
 /// Apply hostile NPC damage to a structure
 /// BYPASSES normal melee damage reduction (hostile attacks are effective)
 pub fn hostile_attack_structure(
@@ -1443,6 +1497,44 @@ pub fn hostile_attack_structure(
                 }
                 
                 ctx.db.shelter().id().update(shelter);
+                return Ok(destroyed);
+            }
+        },
+        "ward" => {
+            // DrownedWatch attacks wards to destroy ward protection!
+            let lanterns = ctx.db.lantern();
+            if let Some(mut lantern) = lanterns.id().find(structure_id as u32) {
+                if lantern.is_destroyed {
+                    return Ok(false);
+                }
+                
+                // Get ward type name for logging
+                let ward_name = match lantern.lantern_type {
+                    LANTERN_TYPE_ANCESTRAL_WARD => "Ancestral Ward",
+                    LANTERN_TYPE_SIGNAL_DISRUPTOR => "Signal Disruptor",
+                    _ => "Ward",
+                };
+                
+                // HOSTILE ATTACKS BYPASS MELEE REDUCTION - full damage!
+                let old_health = lantern.health;
+                lantern.health = (lantern.health - damage).max(0.0);
+                lantern.last_hit_time = Some(current_time);
+                
+                let destroyed = lantern.health <= 0.0;
+                if destroyed {
+                    lantern.is_destroyed = true;
+                    lantern.destroyed_at = Some(current_time);
+                    // Stop ward sound if it was burning
+                    if lantern.is_burning && lantern.lantern_type == LANTERN_TYPE_LANTERN {
+                        crate::sound_events::stop_lantern_sound(ctx, lantern.id as u64);
+                    }
+                    log::info!("👹 [DrownedWatch] {} {} destroyed! Ward protection removed!", ward_name, structure_id);
+                } else {
+                    log::info!("👹 [DrownedWatch] {} {} took {:.1} damage. Health: {:.1} -> {:.1}", 
+                              ward_name, structure_id, damage, old_health, lantern.health);
+                }
+                
+                ctx.db.lantern().id().update(lantern);
                 return Ok(destroyed);
             }
         },

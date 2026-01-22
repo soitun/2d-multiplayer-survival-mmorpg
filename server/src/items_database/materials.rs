@@ -25,6 +25,17 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .respawn_time(300)
             .build(),
 
+        // Soggy Plant Fiber - Storm debris that can be dried into regular Plant Fiber
+        // Found when heavy storms destroy plants (35% chance per plant death)
+        // Needs to be dried in campfire/furnace to become usable Plant Fiber
+        // Balance: 12 sec drying time makes this slower than just harvesting grass
+        basic_material("Soggy Plant Fiber", "Waterlogged plant fiber salvaged from storm debris. Can be dried in a campfire or furnace to convert into usable Plant Fiber.", 1000)
+            .icon("plant_fiber_soggy.png")
+            .cook_time(12.0) // 12 seconds to dry each piece
+            .cooked_item("Plant Fiber") // Dries into regular Plant Fiber (1:1 conversion)
+            .respawn_time(0) // Storm debris - no respawn
+            .build(),
+
         // Cloth - Crafted textile
         ItemBuilder::new("Cloth", "Woven fabric, used for basic clothing.", ItemCategory::Material)
             .icon("cloth.png")

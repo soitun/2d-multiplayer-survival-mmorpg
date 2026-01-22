@@ -155,10 +155,11 @@ pub fn spawn_living_corals_in_chunk(
 
 // --- Storm Debris Spawning ---
 // Heavy storms (only HeavyStorm, the most intense weather) spawn individual items on beaches:
-// - HarvestableResource (BeachWoodPile/Driftwood) - reduced rate
-// - DroppedItem entities (Seaweed, Coral Fragments, Shells)
+// - HarvestableResource (BeachWoodPile/Driftwood) - 20% chance
+// - DroppedItem entities: Seaweed (30%), Coral Fragments (35%), Shells (10%), Memory Shards (5% RARE)
 // NOTE: Only spawns on Beach tiles (not Sand), and only if chunk is "picked clean" of existing debris
 // NOTE: Only spawns in SHORE CHUNKS (chunks containing water) - not inland beach areas
+// NOTE: Spawns BOTH when HeavyStorm ends AND periodically DURING HeavyStorm (see world_state.rs)
 
 /// Check if a chunk is a "shore chunk" - has coastal beach tiles (near water)
 /// This ensures storm debris only spawns on actual coastlines, not inland beach areas
@@ -201,15 +202,17 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
     let mut seaweed_id = None;
     let mut coral_frag_id = None;
     let mut shell_id = None;
+    let mut memory_shard_id = None;
     
     for def in ctx.db.item_definition().iter() {
         match def.name.as_str() {
             "Seaweed" => seaweed_id = Some(def.id),
             "Coral Fragments" => coral_frag_id = Some(def.id),
             "Shell" => shell_id = Some(def.id),
+            "Memory Shard" => memory_shard_id = Some(def.id),
             _ => {}
         }
-        if seaweed_id.is_some() && coral_frag_id.is_some() && shell_id.is_some() {
+        if seaweed_id.is_some() && coral_frag_id.is_some() && shell_id.is_some() && memory_shard_id.is_some() {
             break;
         }
     }
@@ -217,6 +220,7 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
     let seaweed_id = seaweed_id.ok_or("Seaweed item definition not found")?;
     let coral_frag_id = coral_frag_id.ok_or("Coral Fragments item definition not found")?;
     let shell_id = shell_id.ok_or("Shell item definition not found")?;
+    let memory_shard_id = memory_shard_id.ok_or("Memory Shard item definition not found")?;
     
     // Check if there's ANY existing storm debris in this chunk
     // This includes driftwood (BeachWoodPile) AND dropped items (seaweed, coral, shells)
@@ -227,14 +231,15 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
         .filter(chunk_index)
         .any(|r| r.plant_type == PlantType::BeachWoodPile && r.respawn_at == Timestamp::UNIX_EPOCH);
     
-    // Check for dropped storm debris items (seaweed, coral fragments, shells)
+    // Check for dropped storm debris items (seaweed, coral fragments, shells, memory shards)
     let existing_dropped_debris = ctx.db.dropped_item()
         .chunk_index()
         .filter(chunk_index)
         .any(|item| {
             item.item_def_id == seaweed_id || 
             item.item_def_id == coral_frag_id || 
-            item.item_def_id == shell_id
+            item.item_def_id == shell_id ||
+            item.item_def_id == memory_shard_id
         });
     
     // If ANY storm debris exists, skip spawning - wait until picked clean
@@ -285,12 +290,13 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
             continue;
         }
         
-        // Determine what to spawn (REBALANCED: less driftwood, more coral fragments)
+        // Determine what to spawn (REBALANCED with Memory Shards)
+        // Distribution: 20% driftwood, 30% seaweed, 35% coral, 10% shell, 5% memory shard
         let spawn_roll = rng.gen::<f32>();
         let item_chunk = calculate_chunk_index(pos_x, pos_y);
         
         if spawn_roll < 0.20 {
-            // 20% chance: Spawn driftwood (reduced from 40%)
+            // 20% chance: Spawn driftwood
             let driftwood = create_harvestable_resource(
                 PlantType::BeachWoodPile,
                 pos_x,
@@ -302,7 +308,7 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
             spawned_driftwood += 1;
             log::info!("Storm spawned driftwood at ({:.1}, {:.1})", pos_x, pos_y);
         } else if spawn_roll < 0.50 {
-            // 30% chance: Spawn seaweed (unchanged)
+            // 30% chance: Spawn seaweed
             let quantity = rng.gen_range(1..=3);
             ctx.db.dropped_item().insert(DroppedItem {
                 id: 0,
@@ -317,7 +323,7 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
             spawned_items += 1;
             log::info!("Storm spawned {} seaweed at ({:.1}, {:.1})", quantity, pos_x, pos_y);
         } else if spawn_roll < 0.85 {
-            // 35% chance: Spawn coral fragments (increased from 20%)
+            // 35% chance: Spawn coral fragments
             let quantity = rng.gen_range(1..=3);
             ctx.db.dropped_item().insert(DroppedItem {
                 id: 0,
@@ -331,8 +337,8 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
             });
             spawned_items += 1;
             log::info!("Storm spawned {} coral fragments at ({:.1}, {:.1})", quantity, pos_x, pos_y);
-        } else {
-            // 15% chance: Spawn shell (increased from 10%)
+        } else if spawn_roll < 0.95 {
+            // 10% chance: Spawn shell
             ctx.db.dropped_item().insert(DroppedItem {
                 id: 0,
                 item_def_id: shell_id,
@@ -345,6 +351,21 @@ pub fn spawn_storm_debris_on_beaches(ctx: &ReducerContext, chunk_index: u32) -> 
             });
             spawned_items += 1;
             log::info!("Storm spawned shell at ({:.1}, {:.1})", pos_x, pos_y);
+        } else {
+            // 5% chance: Spawn Memory Shard (RARE technological debris)
+            // Lore: Violent storms dislodge ancient cognitive archives from the seafloor
+            ctx.db.dropped_item().insert(DroppedItem {
+                id: 0,
+                item_def_id: memory_shard_id,
+                quantity: 1, // Always just 1 - these are precious
+                pos_x,
+                pos_y,
+                chunk_index: item_chunk,
+                created_at: ctx.timestamp,
+                item_data: None,
+            });
+            spawned_items += 1;
+            log::info!("⚡ Storm spawned Memory Shard at ({:.1}, {:.1})!", pos_x, pos_y);
         }
     }
     

@@ -1427,7 +1427,7 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
             let plant_type = plant.seed_type.clone();
             let plant_pos_x = plant.pos_x;
             let plant_pos_y = plant.pos_y;
-            let weather = chunk_weather.current_weather;
+            let weather = chunk_weather.current_weather.clone();
             
             // Delete the plant - it died from weather
             ctx.db.planted_seed().id().delete(plant.id);
@@ -1435,6 +1435,27 @@ pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule
             
             log::info!("Plant {} ({}) died from {:?} at ({:.1}, {:.1}) - progress was {:.1}%", 
                       plant_id, plant_type, weather, plant_pos_x, plant_pos_y, plant.growth_progress * 100.0);
+            
+            // === SOGGY PLANT FIBER SPAWNING ===
+            // When plants are destroyed by HeavyStorm, there's a 35% chance to spawn
+            // a Soggy Plant Fiber pile at the location as salvageable storm debris.
+            // This creates a consolation prize for farmers who lose crops to storms.
+            if matches!(weather, WeatherType::HeavyStorm) {
+                let spawn_chance: f32 = 0.35; // 35% chance to spawn soggy fiber
+                if ctx.rng().gen::<f32>() < spawn_chance {
+                    let chunk_index = calculate_chunk_index(plant_pos_x, plant_pos_y);
+                    let soggy_pile = crate::harvestable_resource::create_harvestable_resource(
+                        PlantType::SoggyPlantFiberPile,
+                        plant_pos_x,
+                        plant_pos_y,
+                        chunk_index,
+                        false, // Not player-planted (storm debris)
+                    );
+                    ctx.db.harvestable_resource().insert(soggy_pile);
+                    log::info!("🌧️ Storm spawned Soggy Plant Fiber pile at ({:.1}, {:.1}) from destroyed plant {}", 
+                              plant_pos_x, plant_pos_y, plant_type);
+                }
+            }
             
             continue; // Skip to next plant
         }
