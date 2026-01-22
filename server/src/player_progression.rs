@@ -409,11 +409,22 @@ pub fn get_or_init_player_stats(ctx: &ReducerContext, player_id: Identity) -> Pl
 
 /// Award XP to a player and check for level ups
 pub fn award_xp(ctx: &ReducerContext, player_id: Identity, xp_amount: u64) -> Result<(), String> {
+    // Check for PvP XP bonus
+    let mut final_xp_amount = xp_amount;
+    if let Some(player) = ctx.db.player().identity().find(&player_id) {
+        if crate::combat::is_pvp_active_for_player(&player, ctx.timestamp) {
+            let bonus = ((xp_amount as f32) * 0.25) as u64;
+            final_xp_amount = xp_amount + bonus;
+            log::info!("PvP XP bonus: {} -> {} (+{}) for player {:?}", 
+                xp_amount, final_xp_amount, bonus, player_id);
+        }
+    }
+    
     let stats_table = ctx.db.player_stats();
     let mut stats = get_or_init_player_stats(ctx, player_id);
     
     let old_level = stats.level;
-    stats.total_xp += xp_amount;
+    stats.total_xp += final_xp_amount;
     stats.updated_at = ctx.timestamp;
     
     // Check for level up

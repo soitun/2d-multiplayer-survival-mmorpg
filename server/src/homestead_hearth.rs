@@ -1517,6 +1517,24 @@ pub fn damage_hearth(
         return Err("Hearth is already destroyed.".to_string());
     }
     
+    // <<< PVP RAIDING CHECK >>>
+    if let Some(attacker_player) = ctx.db.player().identity().find(&attacker_id) {
+        let attacker_pvp = crate::combat::is_pvp_active_for_player(&attacker_player, timestamp);
+        
+        if hearth.placed_by != attacker_id {
+            if let Some(owner_player) = ctx.db.player().identity().find(&hearth.placed_by) {
+                let owner_pvp = crate::combat::is_pvp_active_for_player(&owner_player, timestamp);
+                
+                if !attacker_pvp || !owner_pvp {
+                    log::debug!("Structure raiding blocked - Attacker PvP: {}, Owner PvP: {}", 
+                        attacker_pvp, owner_pvp);
+                    return Err("Cannot damage structure - PvP raiding requires both players to have PvP enabled.".to_string());
+                }
+            }
+        }
+    }
+    // <<< END PVP RAIDING CHECK >>>
+    
     let old_health = hearth.health;
     hearth.health = (hearth.health - damage).max(0.0);
     hearth.last_hit_time = Some(timestamp);

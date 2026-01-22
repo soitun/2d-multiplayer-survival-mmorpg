@@ -1992,6 +1992,25 @@ pub fn damage_wall(
         return Err("Wall is already destroyed.".to_string());
     }
     
+    // <<< PVP RAIDING CHECK >>>
+    if let Some(attacker_player) = ctx.db.player().identity().find(&attacker_id) {
+        let attacker_pvp = crate::combat::is_pvp_active_for_player(&attacker_player, timestamp);
+        
+        // Check if owner has PvP enabled (if owner is not the attacker)
+        if wall.owner != attacker_id {
+            if let Some(owner_player) = ctx.db.player().identity().find(&wall.owner) {
+                let owner_pvp = crate::combat::is_pvp_active_for_player(&owner_player, timestamp);
+                
+                if !attacker_pvp || !owner_pvp {
+                    log::debug!("Structure raiding blocked - Attacker PvP: {}, Owner PvP: {}", 
+                        attacker_pvp, owner_pvp);
+                    return Err("Cannot damage structure - PvP raiding requires both players to have PvP enabled.".to_string());
+                }
+            }
+        }
+    }
+    // <<< END PVP RAIDING CHECK >>>
+    
     // Apply melee damage reduction based on wall tier
     // Higher tier walls resist melee damage significantly (Rust-like mechanics)
     let damage_multiplier = get_melee_damage_multiplier(wall.tier);
@@ -2051,6 +2070,7 @@ pub fn damage_wall(
 /// Used by explosion system - explosives are effective against all tiers
 pub fn damage_wall_explosive(
     ctx: &ReducerContext,
+    attacker_id: Identity,
     wall_id: u64,
     damage: f32,
 ) {
@@ -2060,6 +2080,24 @@ pub fn damage_wall_explosive(
         if wall.is_destroyed {
             return;
         }
+        
+        // <<< PVP RAIDING CHECK >>>
+        if let Some(attacker_player) = ctx.db.player().identity().find(&attacker_id) {
+            let attacker_pvp = crate::combat::is_pvp_active_for_player(&attacker_player, ctx.timestamp);
+            
+            if wall.owner != attacker_id {
+                if let Some(owner_player) = ctx.db.player().identity().find(&wall.owner) {
+                    let owner_pvp = crate::combat::is_pvp_active_for_player(&owner_player, ctx.timestamp);
+                    
+                    if !attacker_pvp || !owner_pvp {
+                        log::debug!("Structure raiding blocked - Attacker PvP: {}, Owner PvP: {}", 
+                            attacker_pvp, owner_pvp);
+                        return; // Skip this structure in explosion
+                    }
+                }
+            }
+        }
+        // <<< END PVP RAIDING CHECK >>>
         
         // Explosive damage bypasses melee reduction - full damage to all tiers
         let old_health = wall.health;
@@ -2086,6 +2124,7 @@ pub fn damage_wall_explosive(
 /// Applies explosive damage to a foundation (bypasses melee damage reduction)
 pub fn damage_foundation_explosive(
     ctx: &ReducerContext,
+    attacker_id: Identity,
     foundation_id: u64,
     damage: f32,
 ) {
@@ -2095,6 +2134,24 @@ pub fn damage_foundation_explosive(
         if foundation.is_destroyed {
             return;
         }
+        
+        // <<< PVP RAIDING CHECK >>>
+        if let Some(attacker_player) = ctx.db.player().identity().find(&attacker_id) {
+            let attacker_pvp = crate::combat::is_pvp_active_for_player(&attacker_player, ctx.timestamp);
+            
+            if foundation.owner != attacker_id {
+                if let Some(owner_player) = ctx.db.player().identity().find(&foundation.owner) {
+                    let owner_pvp = crate::combat::is_pvp_active_for_player(&owner_player, ctx.timestamp);
+                    
+                    if !attacker_pvp || !owner_pvp {
+                        log::debug!("Structure raiding blocked - Attacker PvP: {}, Owner PvP: {}", 
+                            attacker_pvp, owner_pvp);
+                        return; // Skip this structure in explosion
+                    }
+                }
+            }
+        }
+        // <<< END PVP RAIDING CHECK >>>
         
         // Explosive damage bypasses melee reduction - full damage to all tiers
         let old_health = foundation.health;

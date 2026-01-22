@@ -387,8 +387,8 @@ fn detonate_explosive(ctx: &ReducerContext, explosive: PlacedExplosive) {
 fn apply_explosion_damage(ctx: &ReducerContext, explosive: &PlacedExplosive) {
     let blast_radius_sq = explosive.blast_radius * explosive.blast_radius;
     
-    // Damage structures (walls, doors, foundations)
-    damage_structures_in_radius(ctx, explosive.pos_x, explosive.pos_y, explosive.blast_radius, blast_radius_sq, explosive.structure_damage);
+    // Damage structures (walls, doors, foundations) - pass explosive placer for PvP checks
+    damage_structures_in_radius(ctx, explosive.placed_by, explosive.pos_x, explosive.pos_y, explosive.blast_radius, blast_radius_sq, explosive.structure_damage);
     
     // Damage placeables (furnaces, boxes, lanterns, stashes, etc.)
     damage_placeables_in_radius(ctx, explosive.pos_x, explosive.pos_y, explosive.blast_radius, blast_radius_sq, explosive.structure_damage);
@@ -404,7 +404,7 @@ fn apply_explosion_damage(ctx: &ReducerContext, explosive: &PlacedExplosive) {
 }
 
 // --- Structure Damage ---
-fn damage_structures_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32, radius: f32, radius_sq: f32, damage: f32) {
+fn damage_structures_in_radius(ctx: &ReducerContext, attacker_id: Identity, center_x: f32, center_y: f32, radius: f32, radius_sq: f32, damage: f32) {
     use crate::building::FOUNDATION_TILE_SIZE_PX;
     
     // Damage walls
@@ -418,8 +418,8 @@ fn damage_structures_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f3
         let dist_sq = dx * dx + dy * dy;
         
         if dist_sq <= radius_sq {
-            // Explosive damage bypasses melee reduction
-            crate::building::damage_wall_explosive(ctx, wall.id, damage);
+            // Explosive damage bypasses melee reduction (PvP check inside function)
+            crate::building::damage_wall_explosive(ctx, attacker_id, wall.id, damage);
         }
     }
     
@@ -430,7 +430,8 @@ fn damage_structures_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f3
         let dist_sq = dx * dx + dy * dy;
         
         if dist_sq <= radius_sq {
-            crate::door::damage_door_explosive(ctx, door.id, damage);
+            // PvP check inside function
+            crate::door::damage_door_explosive(ctx, attacker_id, door.id, damage);
         }
     }
     
@@ -445,7 +446,8 @@ fn damage_structures_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f3
         let dist_sq = dx * dx + dy * dy;
         
         if dist_sq <= radius_sq {
-            crate::building::damage_foundation_explosive(ctx, foundation.id, damage);
+            // PvP check inside function
+            crate::building::damage_foundation_explosive(ctx, attacker_id, foundation.id, damage);
         }
     }
 }

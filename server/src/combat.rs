@@ -102,6 +102,59 @@ pub const PVP_KNOCKBACK_DISTANCE: f32 = 32.0;
 /// Set to true to enable PvP damage between players.
 pub const PVP_ENABLED: bool = false;
 
+/// Combat extension window - if player was in PvP combat within this time, timer can't expire
+const PVP_COMBAT_EXTENSION_WINDOW_MICROS: i64 = 5 * 60 * 1_000_000; // 5 minutes
+
+/// Checks if a player has active PvP status (enabled + not expired + combat extension)
+pub fn is_pvp_active_for_player(player: &Player, current_time: Timestamp) -> bool {
+    if !player.pvp_enabled {
+        return false;
+    }
+    
+    let Some(until) = player.pvp_enabled_until else {
+        return false;
+    };
+    
+    // Check if base timer hasn't expired
+    if until > current_time {
+        return true;
+    }
+    
+    // Check combat extension: if player was in PvP combat within last 5 minutes, extend
+    if let Some(last_combat) = player.last_pvp_combat_time {
+        let combat_elapsed = current_time.to_micros_since_unix_epoch()
+            .saturating_sub(last_combat.to_micros_since_unix_epoch());
+        if combat_elapsed < PVP_COMBAT_EXTENSION_WINDOW_MICROS {
+            return true; // Combat extension active
+        }
+    }
+    
+    false
+}
+
+/// Updates combat timestamp for both players and extends timer if needed
+fn update_pvp_combat_time(ctx: &ReducerContext, player_id: Identity, current_time: Timestamp) {
+    if let Some(mut player) = ctx.db.player().identity().find(&player_id) {
+        player.last_pvp_combat_time = Some(current_time);
+        
+        // Auto-extend timer if within 5 minutes of expiry
+        if let Some(until) = player.pvp_enabled_until {
+            let time_remaining = until.to_micros_since_unix_epoch()
+                .saturating_sub(current_time.to_micros_since_unix_epoch());
+            if time_remaining < PVP_COMBAT_EXTENSION_WINDOW_MICROS {
+                // Extend by 5 minutes from now
+                let new_until = Timestamp::from_micros_since_unix_epoch(
+                    current_time.to_micros_since_unix_epoch() + PVP_COMBAT_EXTENSION_WINDOW_MICROS
+                );
+                player.pvp_enabled_until = Some(new_until);
+                log::info!("PvP timer extended for {:?} due to active combat", player_id);
+            }
+        }
+        
+        ctx.db.player().identity().update(player);
+    }
+}
+
 // --- Combat System Types ---
 
 /// Identifiers for specific combat targets
@@ -2078,11 +2131,16 @@ pub fn damage_player(
     }
     // <<< END SAFE ZONE CHECK >>>
 
-    // <<< PVP CHECK - Block all player-vs-player damage when PvP is disabled >>>
-    // If the attacker is a player (not an NPC) and PvP is disabled, block the damage.
-    // This single check blocks melee, projectile, and explosive damage from players to players.
-    if !PVP_ENABLED && attacker_player_opt.is_some() {
-        log::debug!("PvP disabled - Player {:?} cannot damage player {:?}", attacker_id, target_id);
+    // <<< PVP CHECK - Per-player PvP flag system >>>
+    let attacker_pvp_active = attacker_player_opt.as_ref()
+        .map(|p| is_pvp_active_for_player(p, timestamp))
+        .unwrap_or(false);
+    let target_pvp_active = is_pvp_active_for_player(&target_player, timestamp);
+
+    // Both players must have PvP enabled for damage to occur
+    if attacker_player_opt.is_some() && (!attacker_pvp_active || !target_pvp_active) {
+        log::debug!("PvP blocked - Attacker PvP: {}, Target PvP: {}", 
+            attacker_pvp_active, target_pvp_active);
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::Player), resource_granted: None });
     }
     // <<< END PVP CHECK >>>
@@ -2142,6 +2200,12 @@ pub fn damage_player(
     let old_health = target_player.health;
     target_player.health = (target_player.health - final_damage).clamp(0.0, MAX_HEALTH_VALUE);
     let actual_damage_applied = old_health - target_player.health; // This is essentially final_damage clamped by remaining health
+
+    // Update PvP combat timestamps for both players (extends timer if in combat near expiry)
+    if actual_damage_applied > 0.0 && attacker_player_opt.is_some() {
+        update_pvp_combat_time(ctx, attacker_id, timestamp);
+        update_pvp_combat_time(ctx, target_id, timestamp);
+    }
 
     // <<< APPLY MELEE DAMAGE REFLECTION (WOODEN ARMOR) >>>
     // Only reflect damage from melee attacks (not projectiles)
@@ -2580,6 +2644,24 @@ pub fn damage_lantern(
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::Lantern), resource_granted: None });
     }
 
+    // <<< PVP RAIDING CHECK >>>
+    if let Some(attacker_player) = ctx.db.player().identity().find(attacker_id) {
+        let attacker_pvp = is_pvp_active_for_player(&attacker_player, timestamp);
+        
+        if lantern.placed_by != attacker_id {
+            if let Some(owner_player) = ctx.db.player().identity().find(&lantern.placed_by) {
+                let owner_pvp = is_pvp_active_for_player(&owner_player, timestamp);
+                
+                if !attacker_pvp || !owner_pvp {
+                    log::debug!("Structure raiding blocked - Attacker PvP: {}, Owner PvP: {}", 
+                        attacker_pvp, owner_pvp);
+                    return Ok(AttackResult { hit: false, target_type: Some(TargetType::Lantern), resource_granted: None });
+                }
+            }
+        }
+    }
+    // <<< END PVP RAIDING CHECK >>>
+
     let old_health = lantern.health;
     lantern.health = (lantern.health - damage).max(0.0);
     lantern.last_hit_time = Some(timestamp);
@@ -2692,6 +2774,24 @@ pub fn damage_campfire(
     if campfire.is_destroyed {
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::Campfire), resource_granted: None });
     }
+
+    // <<< PVP RAIDING CHECK >>>
+    if let Some(attacker_player) = ctx.db.player().identity().find(attacker_id) {
+        let attacker_pvp = is_pvp_active_for_player(&attacker_player, timestamp);
+        
+        if campfire.placed_by != attacker_id {
+            if let Some(owner_player) = ctx.db.player().identity().find(&campfire.placed_by) {
+                let owner_pvp = is_pvp_active_for_player(&owner_player, timestamp);
+                
+                if !attacker_pvp || !owner_pvp {
+                    log::debug!("Structure raiding blocked - Attacker PvP: {}, Owner PvP: {}", 
+                        attacker_pvp, owner_pvp);
+                    return Ok(AttackResult { hit: false, target_type: Some(TargetType::Campfire), resource_granted: None });
+                }
+            }
+        }
+    }
+    // <<< END PVP RAIDING CHECK >>>
 
     let old_health = campfire.health;
     campfire.health = (campfire.health - damage).max(0.0);
@@ -2873,6 +2973,25 @@ pub fn damage_wooden_storage_box(
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::WoodenStorageBox), resource_granted: None });
     }
 
+    // <<< PVP RAIDING CHECK >>>
+    if let Some(attacker_player) = ctx.db.player().identity().find(attacker_id) {
+        let attacker_pvp = is_pvp_active_for_player(&attacker_player, timestamp);
+        
+        // Check if owner has PvP enabled (if owner is not the attacker)
+        if wooden_box.placed_by != attacker_id {
+            if let Some(owner_player) = ctx.db.player().identity().find(&wooden_box.placed_by) {
+                let owner_pvp = is_pvp_active_for_player(&owner_player, timestamp);
+                
+                if !attacker_pvp || !owner_pvp {
+                    log::debug!("Structure raiding blocked - Attacker PvP: {}, Owner PvP: {}", 
+                        attacker_pvp, owner_pvp);
+                    return Ok(AttackResult { hit: false, target_type: Some(TargetType::WoodenStorageBox), resource_granted: None });
+                }
+            }
+        }
+    }
+    // <<< END PVP RAIDING CHECK >>>
+
     let old_health = wooden_box.health;
     wooden_box.health = (wooden_box.health - damage).max(0.0);
     wooden_box.last_hit_time = Some(timestamp);
@@ -2963,6 +3082,24 @@ pub fn damage_stash(
          return Ok(AttackResult { hit: false, target_type: Some(TargetType::Stash), resource_granted: None });
     }
 
+    // <<< PVP RAIDING CHECK >>>
+    if let Some(attacker_player) = ctx.db.player().identity().find(attacker_id) {
+        let attacker_pvp = is_pvp_active_for_player(&attacker_player, timestamp);
+        
+        if stash.placed_by != attacker_id {
+            if let Some(owner_player) = ctx.db.player().identity().find(&stash.placed_by) {
+                let owner_pvp = is_pvp_active_for_player(&owner_player, timestamp);
+                
+                if !attacker_pvp || !owner_pvp {
+                    log::debug!("Structure raiding blocked - Attacker PvP: {}, Owner PvP: {}", 
+                        attacker_pvp, owner_pvp);
+                    return Ok(AttackResult { hit: false, target_type: Some(TargetType::Stash), resource_granted: None });
+                }
+            }
+        }
+    }
+    // <<< END PVP RAIDING CHECK >>>
+
     let old_health = stash.health;
     stash.health = (stash.health - damage).max(0.0);
     stash.last_hit_time = Some(timestamp);
@@ -3042,6 +3179,24 @@ pub fn damage_sleeping_bag(
     if bag.is_destroyed {
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::SleepingBag), resource_granted: None });
     }
+
+    // <<< PVP RAIDING CHECK >>>
+    if let Some(attacker_player) = ctx.db.player().identity().find(attacker_id) {
+        let attacker_pvp = is_pvp_active_for_player(&attacker_player, timestamp);
+        
+        if bag.placed_by != attacker_id {
+            if let Some(owner_player) = ctx.db.player().identity().find(&bag.placed_by) {
+                let owner_pvp = is_pvp_active_for_player(&owner_player, timestamp);
+                
+                if !attacker_pvp || !owner_pvp {
+                    log::debug!("Structure raiding blocked - Attacker PvP: {}, Owner PvP: {}", 
+                        attacker_pvp, owner_pvp);
+                    return Ok(AttackResult { hit: false, target_type: Some(TargetType::SleepingBag), resource_granted: None });
+                }
+            }
+        }
+    }
+    // <<< END PVP RAIDING CHECK >>>
 
     let old_health = bag.health;
     bag.health = (bag.health - damage).max(0.0);
@@ -4247,6 +4402,24 @@ pub fn damage_rain_collector(
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::RainCollector), resource_granted: None });
     }
 
+    // <<< PVP RAIDING CHECK >>>
+    if let Some(attacker_player) = ctx.db.player().identity().find(attacker_id) {
+        let attacker_pvp = is_pvp_active_for_player(&attacker_player, timestamp);
+        
+        if rain_collector.placed_by != attacker_id {
+            if let Some(owner_player) = ctx.db.player().identity().find(&rain_collector.placed_by) {
+                let owner_pvp = is_pvp_active_for_player(&owner_player, timestamp);
+                
+                if !attacker_pvp || !owner_pvp {
+                    log::debug!("Structure raiding blocked - Attacker PvP: {}, Owner PvP: {}", 
+                        attacker_pvp, owner_pvp);
+                    return Ok(AttackResult { hit: false, target_type: Some(TargetType::RainCollector), resource_granted: None });
+                }
+            }
+        }
+    }
+    // <<< END PVP RAIDING CHECK >>>
+
     let old_health = rain_collector.health;
     rain_collector.health = (rain_collector.health - damage).max(0.0);
     rain_collector.last_hit_time = Some(timestamp);
@@ -4351,6 +4524,24 @@ pub fn damage_furnace(
     if furnace.is_destroyed {
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::Furnace), resource_granted: None });
     }
+
+    // <<< PVP RAIDING CHECK >>>
+    if let Some(attacker_player) = ctx.db.player().identity().find(attacker_id) {
+        let attacker_pvp = is_pvp_active_for_player(&attacker_player, timestamp);
+        
+        if furnace.placed_by != attacker_id {
+            if let Some(owner_player) = ctx.db.player().identity().find(&furnace.placed_by) {
+                let owner_pvp = is_pvp_active_for_player(&owner_player, timestamp);
+                
+                if !attacker_pvp || !owner_pvp {
+                    log::debug!("Structure raiding blocked - Attacker PvP: {}, Owner PvP: {}", 
+                        attacker_pvp, owner_pvp);
+                    return Ok(AttackResult { hit: false, target_type: Some(TargetType::Furnace), resource_granted: None });
+                }
+            }
+        }
+    }
+    // <<< END PVP RAIDING CHECK >>>
 
     let old_health = furnace.health;
     furnace.health = (furnace.health - damage).max(0.0);

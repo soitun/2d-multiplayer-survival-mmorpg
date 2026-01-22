@@ -453,6 +453,55 @@ pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
                     }
                 }
             }
+            "/pvp" => {
+                let player = ctx.db.player().identity().find(&sender_id)
+                    .ok_or("Player not found")?;
+                
+                // Check if already active (using helper from combat module)
+                let is_active = crate::combat::is_pvp_active_for_player(&player, current_time);
+                
+                if is_active {
+                    // Calculate remaining time
+                    if let Some(until) = player.pvp_enabled_until {
+                        let remaining_micros = until.to_micros_since_unix_epoch()
+                            .saturating_sub(current_time.to_micros_since_unix_epoch());
+                        let remaining_mins = (remaining_micros / 60_000_000) + 1; // Round up
+                        
+                        // Send private feedback
+                        let feedback = PrivateMessage {
+                            id: 0,
+                            recipient_identity: sender_id,
+                            sender_display_name: "SYSTEM".to_string(),
+                            text: format!("PvP is already enabled. ~{} minutes remaining. Timer extends if you're in combat.", remaining_mins),
+                            sent: current_time,
+                        };
+                        ctx.db.private_message().insert(feedback);
+                    }
+                } else {
+                    // Enable PvP for 30 minutes
+                    let pvp_duration_micros: i64 = 30 * 60 * 1_000_000; // 30 minutes
+                    let until = Timestamp::from_micros_since_unix_epoch(
+                        current_time.to_micros_since_unix_epoch() + pvp_duration_micros
+                    );
+                    
+                    let mut updated_player = player.clone();
+                    updated_player.pvp_enabled = true;
+                    updated_player.pvp_enabled_until = Some(until);
+                    updated_player.last_pvp_combat_time = None; // Reset combat timer
+                    ctx.db.player().identity().update(updated_player);
+                    
+                    // Send confirmation
+                    let feedback = PrivateMessage {
+                        id: 0,
+                        recipient_identity: sender_id,
+                        sender_display_name: "SYSTEM".to_string(),
+                        text: "PvP ENABLED for 30 minutes! You gain +25% XP. You can attack (and be attacked by) other PvP players and raid their structures.".to_string(),
+                        sent: current_time,
+                    };
+                    ctx.db.private_message().insert(feedback);
+                }
+                return Ok(());
+            }
             _ => {
                 return Err(format!("Unknown command: {}", command));
             }

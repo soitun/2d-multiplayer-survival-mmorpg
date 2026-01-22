@@ -194,6 +194,25 @@ pub fn damage_door(
         return Err(format!("Door {} is already destroyed", door_id));
     }
     
+    // <<< PVP RAIDING CHECK >>>
+    if let Some(attacker_player) = ctx.db.player().identity().find(&attacker_id) {
+        let attacker_pvp = crate::combat::is_pvp_active_for_player(&attacker_player, current_time);
+        
+        // Check if owner has PvP enabled (if owner is not the attacker)
+        if door.owner_id != attacker_id {
+            if let Some(owner_player) = ctx.db.player().identity().find(&door.owner_id) {
+                let owner_pvp = crate::combat::is_pvp_active_for_player(&owner_player, current_time);
+                
+                if !attacker_pvp || !owner_pvp {
+                    log::debug!("Structure raiding blocked - Attacker PvP: {}, Owner PvP: {}", 
+                        attacker_pvp, owner_pvp);
+                    return Err("Cannot damage structure - PvP raiding requires both players to have PvP enabled.".to_string());
+                }
+            }
+        }
+    }
+    // <<< END PVP RAIDING CHECK >>>
+    
     // Apply melee damage reduction based on door type
     // Doors resist melee significantly to prevent bypassing walls
     let damage_multiplier = get_door_damage_multiplier(door.door_type);
@@ -227,6 +246,7 @@ pub fn damage_door(
 /// Used by explosion system - explosives are effective against all door types
 pub fn damage_door_explosive(
     ctx: &ReducerContext,
+    attacker_id: Identity,
     door_id: u64,
     damage: f32,
 ) {
@@ -236,6 +256,24 @@ pub fn damage_door_explosive(
         if door.is_destroyed {
             return;
         }
+        
+        // <<< PVP RAIDING CHECK >>>
+        if let Some(attacker_player) = ctx.db.player().identity().find(&attacker_id) {
+            let attacker_pvp = crate::combat::is_pvp_active_for_player(&attacker_player, ctx.timestamp);
+            
+            if door.owner_id != attacker_id {
+                if let Some(owner_player) = ctx.db.player().identity().find(&door.owner_id) {
+                    let owner_pvp = crate::combat::is_pvp_active_for_player(&owner_player, ctx.timestamp);
+                    
+                    if !attacker_pvp || !owner_pvp {
+                        log::debug!("Structure raiding blocked - Attacker PvP: {}, Owner PvP: {}", 
+                            attacker_pvp, owner_pvp);
+                        return; // Skip this structure in explosion
+                    }
+                }
+            }
+        }
+        // <<< END PVP RAIDING CHECK >>>
         
         // Explosive damage bypasses melee reduction - full damage to all door types
         let old_health = door.health;

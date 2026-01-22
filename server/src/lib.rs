@@ -665,6 +665,9 @@ pub struct Player {
     pub offline_corpse_id: Option<u32>, // Links to corpse created when player went offline
     pub is_aiming_throw: bool, // NEW: Tracks if player is in throw-aiming state (right mouse held)
     pub has_seen_memory_shard_tutorial: bool, // NEW: Tracks if player has seen SOVA's memory shard explanation
+    pub pvp_enabled: bool, // Whether PvP mode is currently active
+    pub pvp_enabled_until: Option<Timestamp>, // When PvP will auto-disable (minimum 30min)
+    pub last_pvp_combat_time: Option<Timestamp>, // Last time player dealt/received PvP damage (for combat extension)
 }
 
 // Table to store the last attack timestamp for each player
@@ -1794,6 +1797,9 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         shard_carry_start_time: None, // NEW: Not carrying shards initially
         offline_corpse_id: None, // No offline corpse for new players
         has_seen_memory_shard_tutorial: false, // NEW: Player hasn't seen SOVA's memory shard explanation yet
+        pvp_enabled: false, // PvP disabled by default
+        pvp_enabled_until: None, // No PvP timer initially
+        last_pvp_combat_time: None, // No PvP combat history initially
     };
 
     // Insert the new player
