@@ -103,6 +103,7 @@ export interface SpacetimeTableStates {
     furnaces: Map<string, SpacetimeDB.Furnace>; // ADDED: Furnace support
     barbecues: Map<string, SpacetimeDB.Barbecue>; // ADDED: Barbecue support
     lanterns: Map<string, SpacetimeDB.Lantern>;
+    turrets: Map<string, SpacetimeDB.Turret>; // ADDED: Turret support
     homesteadHearths: Map<string, SpacetimeDB.HomesteadHearth>; // ADDED: Homestead Hearth support
     brothPots: Map<string, SpacetimeDB.BrothPot>; // ADDED: Broth pot support
     harvestableResources: Map<string, SpacetimeDB.HarvestableResource>;
