@@ -160,6 +160,11 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
             log::warn!("Failed to spawn shipwreck barrels: {}", e);
         }
         
+        // Spawn military rations around shipwreck parts - these respawn
+        if let Err(e) = crate::monument::spawn_shipwreck_military_rations(ctx, &shipwreck_positions) {
+            log::warn!("Failed to spawn shipwreck military rations: {}", e);
+        }
+        
         // Spawn decorations (Memory Shards) - one-time loot scattered in the wreckage
         // These don't respawn but provide initial exploration rewards
         let decoration_configs = crate::monument::get_shipwreck_decorations();

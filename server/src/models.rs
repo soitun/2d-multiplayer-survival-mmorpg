@@ -15,6 +15,7 @@ pub enum ContainerType {
     HomesteadHearth,
     BrothPot,
     Barbecue,
+    Turret,
     // Other container types can be added here
 }
 
@@ -116,6 +117,7 @@ pub enum TargetType {
     Foundation, // ADDED: Building foundation target type
     Wall, // ADDED: Building wall target type
     Door, // ADDED: Building door target type
+    Turret, // ADDED: Turret target type
     HomesteadHearth, // ADDED: Homestead Hearth target type
     LivingCoral, // ADDED: Living coral underwater resource
 }

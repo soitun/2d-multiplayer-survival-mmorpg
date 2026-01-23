@@ -11,7 +11,7 @@
  *                                                                            *
  ******************************************************************************/
 
-use spacetimedb::{ReducerContext, Table};
+use spacetimedb::{ReducerContext, Table, Timestamp};
 use log;
 
 use crate::wooden_storage_box::{
@@ -150,6 +150,7 @@ pub fn place_cooking_station(
         destroyed_at: None,
         last_hit_time: None,
         last_damaged_by: None,
+        respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning (player-placed cooking stations don't respawn)
         // Monument placeable system (player-placed cooking stations are not monuments)
         is_monument: false,
         active_user_id: None,

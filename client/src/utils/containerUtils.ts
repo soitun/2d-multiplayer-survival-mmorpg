@@ -7,7 +7,7 @@
 
 import { 
     InventoryItem, ItemDefinition,
-    Campfire, Furnace, Barbecue, Fumarole, Lantern, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth, BrothPot
+    Campfire, Furnace, Barbecue, Fumarole, Lantern, Turret, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth, BrothPot
 } from '../generated';
 import { PopulatedItem } from '../components/InventoryUI';
 import { DragSourceSlotInfo, DraggedItemInfo, SlotType } from '../types/dragDropTypes';
@@ -15,11 +15,11 @@ import { playImmediateSound } from '../hooks/useSoundSystem';
 
 // Container type definitions based on actual usage
 export type ContainerType = 
-    | 'campfire' | 'furnace' | 'barbecue' | 'lantern'                        // Fuel containers
+    | 'campfire' | 'furnace' | 'barbecue' | 'lantern' | 'turret'                        // Fuel containers
     | 'fumarole'                                                 // Incineration container (always-on, destroys items for charcoal)
     | 'wooden_storage_box' | 'player_corpse' | 'stash' | 'rain_collector' | 'homestead_hearth' | 'broth_pot'; // Storage containers
 
-export type ContainerEntity = Campfire | Furnace | Barbecue | Fumarole | Lantern | WoodenStorageBox | PlayerCorpse | Stash | RainCollector | HomesteadHearth | BrothPot;
+export type ContainerEntity = Campfire | Furnace | Barbecue | Fumarole | Lantern | Turret | WoodenStorageBox | PlayerCorpse | Stash | RainCollector | HomesteadHearth | BrothPot;
 
 // Container configurations - simple and focused on actual patterns
 export const CONTAINER_CONFIGS = {
@@ -28,6 +28,7 @@ export const CONTAINER_CONFIGS = {
     furnace: { slots: 5, slotType: 'furnace_fuel', fieldPrefix: 'slotInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
     barbecue: { slots: 12, slotType: 'barbecue_fuel', fieldPrefix: 'slotInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 6 }, // 12 slots in 6x2 grid (matches standard inventory row width)
     lantern: { slots: 1, slotType: 'lantern_fuel', fieldPrefix: 'fuelInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
+    turret: { slots: 1, slotType: 'turret_ammo', fieldPrefix: 'ammoInstanceId', hasToggle: false, hasLightExtinguish: false, special: false, gridCols: 1 },
     
     // Incineration containers (always-on, destroys items)
     fumarole: { slots: 6, slotType: 'fumarole', fieldPrefix: 'slotInstanceId', hasToggle: false, hasLightExtinguish: false, special: false, gridCols: 1 },
@@ -52,6 +53,7 @@ export function getReducerName(containerType: ContainerType, action: string): st
         barbecue: 'Barbecue',
         fumarole: 'Fumarole',
         lantern: 'Lantern',
+        turret: 'Turret',
         wooden_storage_box: 'Box',
         player_corpse: 'Corpse',
         stash: 'Stash',
@@ -85,6 +87,7 @@ export function getDragDropReducerNames(containerType: ContainerType, entity?: C
         barbecue: 'Barbecue',
         fumarole: 'Fumarole',
         lantern: 'Lantern',
+        turret: 'Turret',
         wooden_storage_box: 'Box',
         player_corpse: 'Corpse',
         stash: 'Stash',
@@ -500,6 +503,11 @@ export function getSlotFieldNames(containerType: ContainerType, entity?: Contain
         return ['slot0InstanceId'];
     }
     
+    // Special case for turret (uses ammoInstanceId, not ammoInstanceId0)
+    if (containerType === 'turret') {
+        return ['ammoInstanceId'];
+    }
+    
     // Generate field names from pattern
     return Array.from({ length: config.slots }, (_, i) => `${config.fieldPrefix}${i}`);
 }
@@ -681,12 +689,16 @@ export const BOX_TYPE_REFRIGERATOR = 2;
 export const BOX_TYPE_COMPOST = 3;
 export const BOX_TYPE_BACKPACK = 4;
 export const BOX_TYPE_REPAIR_BENCH = 5;
+export const BOX_TYPE_COOKING_STATION = 6;
+export const BOX_TYPE_SCARECROW = 7;
+export const BOX_TYPE_MILITARY_RATION = 8;
 export const NUM_BOX_SLOTS = 18;
 export const NUM_REPAIR_BENCH_SLOTS = 1;
 export const NUM_LARGE_BOX_SLOTS = 48;
 export const NUM_REFRIGERATOR_SLOTS = 30;
 export const NUM_COMPOST_SLOTS = 20;
 export const NUM_BACKPACK_SLOTS = 35; // Matches NUM_CORPSE_SLOTS (30 + 5 = 35 slots)
+export const NUM_MILITARY_RATION_SLOTS = 3;
 
 /**
  * Get container configuration
@@ -718,6 +730,10 @@ export function getContainerConfig(containerType: ContainerType, entity?: Contai
             case BOX_TYPE_REPAIR_BENCH:
                 slots = NUM_REPAIR_BENCH_SLOTS;
                 gridCols = 1; // Single slot, centered with flexbox
+                break;
+            case BOX_TYPE_MILITARY_RATION:
+                slots = NUM_MILITARY_RATION_SLOTS;
+                gridCols = 3; // 3 columns for 3 slots
                 break;
             default:
                 slots = NUM_BOX_SLOTS;
@@ -753,6 +769,8 @@ export function getContainerDisplayName(containerType: ContainerType, entity?: C
                 return 'BACKPACK';
             case BOX_TYPE_REPAIR_BENCH:
                 return 'REPAIR BENCH';
+            case BOX_TYPE_MILITARY_RATION:
+                return 'MILITARY RATION';
             default:
                 return 'WOODEN STORAGE BOX';
         }
@@ -827,6 +845,7 @@ export function getContainerEntity(
         barbecues?: Map<string, Barbecue>;
         fumaroles?: Map<string, Fumarole>;
         lanterns?: Map<string, Lantern>;
+        turrets?: Map<string, Turret>; // ADDED: Turrets prop
         woodenStorageBoxes?: Map<string, WoodenStorageBox>;
         playerCorpses?: Map<string, PlayerCorpse>;
         stashes?: Map<string, Stash>;
@@ -845,6 +864,7 @@ export function getContainerEntity(
         case 'barbecue': return containers.barbecues?.get(idStr) || null;
         case 'fumarole': return containers.fumaroles?.get(idStr) || null;
         case 'lantern': return containers.lanterns?.get(idStr) || null;
+        case 'turret': return containers.turrets?.get(idStr) || null;
         case 'wooden_storage_box': return containers.woodenStorageBoxes?.get(idStr) || null;
         case 'player_corpse': return containers.playerCorpses?.get(idStr) || null;
         case 'stash': return containers.stashes?.get(idStr) || null;

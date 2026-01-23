@@ -28,26 +28,37 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type Tree = { tag: "Tree" };
-export type Stone = { tag: "Stone" };
-export type Player = { tag: "Player" };
-export type Campfire = { tag: "Campfire" };
-export type Furnace = { tag: "Furnace" };
-export type Fumarole = { tag: "Fumarole" };
-export type Lantern = { tag: "Lantern" };
-export type WoodenStorageBox = { tag: "WoodenStorageBox" };
-export type Stash = { tag: "Stash" };
-export type SleepingBag = { tag: "SleepingBag" };
-export type Animal = { tag: "Animal" };
-export type PlayerCorpse = { tag: "PlayerCorpse" };
-export type AnimalCorpse = { tag: "AnimalCorpse" };
-export type Shelter = { tag: "Shelter" };
-export type RainCollector = { tag: "RainCollector" };
-export type Barrel = { tag: "Barrel" };
-export type Foundation = { tag: "Foundation" };
-export type Wall = { tag: "Wall" };
-export type Door = { tag: "Door" };
-export type Turret = { tag: "Turret" };
-export type HomesteadHearth = { tag: "HomesteadHearth" };
-export type LivingCoral = { tag: "LivingCoral" };
+export type PickupTurret = {
+  turretId: number,
+};
+let _cached_PickupTurret_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const PickupTurret = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_PickupTurret_type_value) return _cached_PickupTurret_type_value;
+    _cached_PickupTurret_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_PickupTurret_type_value.value.elements.push(
+      { name: "turretId", algebraicType: __AlgebraicTypeValue.U32 },
+    );
+    return _cached_PickupTurret_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: PickupTurret): void {
+    __AlgebraicTypeValue.serializeValue(writer, PickupTurret.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): PickupTurret {
+    return __AlgebraicTypeValue.deserializeValue(reader, PickupTurret.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default PickupTurret;
 

@@ -21,7 +21,7 @@ import { ENTITY_VISUAL_CONFIG, getLabelPosition } from '../entityVisualConfig';
 
 // Define the single target type for labels
 interface InteractableTarget {
-    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'barbecue' | 'fumarole' | 'lantern' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth' | 'broth_pot' | 'door' | 'alk_station' | 'cairn';
+    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'barbecue' | 'fumarole' | 'lantern' | 'turret' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth' | 'broth_pot' | 'door' | 'alk_station' | 'cairn';
     id: bigint | number | string;
     position: { x: number; y: number };
     distance: number;
@@ -42,6 +42,7 @@ interface RenderLabelsParams {
     barbecues?: Map<string, SpacetimeDBBarbecue>; // ADDED: barbecues parameter
     fumaroles: Map<string, any>; // ADDED: fumaroles parameter
     lanterns: Map<string, any>; // Add lanterns parameter
+    turrets: Map<string, any>; // ADDED: Turrets parameter
     droppedItems: Map<string, SpacetimeDBDroppedItem>;
     woodenStorageBoxes: Map<string, SpacetimeDBWoodenStorageBox>;
     playerCorpses: Map<string, SpacetimeDBPlayerCorpse>;
@@ -263,6 +264,7 @@ export function renderInteractionLabels({
     barbecues, // ADDED: barbecues parameter
     fumaroles, // ADDED: fumaroles parameter
     lanterns,
+    turrets, // ADDED: Turrets parameter
     droppedItems,
     woodenStorageBoxes,
     playerCorpses,
@@ -360,6 +362,15 @@ export function renderInteractionLabels({
             }
             break;
         }
+        case 'turret': {
+            const turret = turrets.get(closestInteractableTarget.id.toString());
+            if (turret) {
+                const config = ENTITY_VISUAL_CONFIG.turret;
+                const labelPos = getLabelPosition(turret.posX, turret.posY, config);
+                renderStyledInteractionLabel(ctx, text, labelPos.x, labelPos.y);
+            }
+            break;
+        }
         case 'box': {
             const box = woodenStorageBoxes.get(closestInteractableTarget.id.toString());
             if (box) {
@@ -375,6 +386,8 @@ export function renderInteractionLabels({
                     config = ENTITY_VISUAL_CONFIG.cooking_station;
                 } else if (box.boxType === 7) { // BOX_TYPE_SCARECROW
                     config = ENTITY_VISUAL_CONFIG.scarecrow;
+                } else if (box.boxType === 8) { // BOX_TYPE_MILITARY_RATION
+                    config = ENTITY_VISUAL_CONFIG.military_ration;
                 } else {
                     config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
                 }

@@ -18,6 +18,7 @@ use log;
 
 // Core game types
 use crate::Player;
+use crate::world_state::world_state as WorldStateTableTrait;
 use crate::PLAYER_RADIUS;
 use crate::{WORLD_WIDTH_PX, WORLD_HEIGHT_PX};
 use crate::items::{ItemDefinition, ItemCategory};
@@ -52,6 +53,7 @@ use crate::inventory_management::ItemContainer;
 use crate::environment::calculate_chunk_index;
 use crate::campfire::{Campfire, CAMPFIRE_COLLISION_RADIUS, CAMPFIRE_COLLISION_Y_OFFSET, campfire as CampfireTableTrait, campfire_processing_schedule as CampfireProcessingScheduleTableTrait};
 use crate::lantern::{Lantern, lantern as LanternTableTrait};
+use crate::turret::{Turret, turret as TurretTableTrait, NUM_AMMO_SLOTS};
 use crate::stash::{Stash, stash as StashTableTrait};
 use crate::PrivateMessage;
 use crate::private_message as PrivateMessageTableTrait;
@@ -2734,6 +2736,109 @@ pub fn damage_lantern(
     Ok(AttackResult {
         hit: true,
         target_type: Some(TargetType::Lantern),
+        resource_granted: None,
+    })
+}
+
+/// Applies damage to a turret and handles destruction/item scattering
+pub fn damage_turret(
+    ctx: &ReducerContext,
+    attacker_id: Identity,
+    turret_id: u32,
+    damage: f32,
+    timestamp: Timestamp,
+    rng: &mut impl Rng
+) -> Result<AttackResult, String> {
+    let mut turrets_table = ctx.db.turret();
+    let mut turret = turrets_table.id().find(&turret_id)
+        .ok_or_else(|| format!("Target turret {} disappeared", turret_id))?;
+
+    if turret.is_destroyed {
+        return Ok(AttackResult { hit: false, target_type: Some(TargetType::Turret), resource_granted: None });
+    }
+
+    // <<< PVP RAIDING CHECK >>>
+    // Turret raiding requires both attacker and owner to have active PvP status
+    if let Some(attacker_player) = ctx.db.player().identity().find(&attacker_id) {
+        let attacker_pvp = is_pvp_active_for_player(&attacker_player, timestamp);
+        
+        if turret.placed_by != attacker_id {
+            if let Some(owner_player) = ctx.db.player().identity().find(&turret.placed_by) {
+                let owner_pvp = is_pvp_active_for_player(&owner_player, timestamp);
+                
+                if !attacker_pvp || !owner_pvp {
+                    log::debug!("Turret raiding blocked - Attacker PvP: {}, Owner PvP: {}", 
+                        attacker_pvp, owner_pvp);
+                    return Ok(AttackResult { hit: false, target_type: Some(TargetType::Turret), resource_granted: None });
+                }
+            }
+        }
+    }
+    // <<< END PVP RAIDING CHECK >>>
+
+    let old_health = turret.health;
+    turret.health = (turret.health - damage).max(0.0);
+    turret.last_hit_time = Some(timestamp);
+
+    log::info!(
+        "Player {:?} hit Turret {} for {:.1} damage. Health: {:.1} -> {:.1}",
+        attacker_id, turret_id, damage, old_health, turret.health
+    );
+
+    if turret.health <= 0.0 {
+        turret.is_destroyed = true;
+        turret.destroyed_at = Some(timestamp);
+        
+        // Scatter items
+        let mut items_to_drop: Vec<(u64, u32)> = Vec::new();
+        
+        // Drop ammo if any
+        if let Some(ammo_instance_id) = turret.ammo_instance_id {
+            if let Some(ammo_item) = ctx.db.inventory_item().instance_id().find(&ammo_instance_id) {
+                items_to_drop.push((ammo_item.item_def_id, ammo_item.quantity));
+                ctx.db.inventory_item().instance_id().delete(ammo_instance_id);
+            }
+        }
+        
+        // Find turret item definition
+        let item_defs = ctx.db.item_definition();
+        let turret_item_name = match turret.turret_type {
+            crate::turret::TURRET_TYPE_TALLOW_STEAM => "Tallow Steam Turret",
+            _ => return Err("Unknown turret type".to_string()),
+        };
+        
+        let turret_item_def = item_defs.iter()
+            .find(|def| def.name == turret_item_name)
+            .ok_or_else(|| format!("Turret item definition '{}' not found", turret_item_name))?;
+        
+        items_to_drop.push((turret_item_def.id, 1));
+
+        turrets_table.id().update(turret.clone());
+        turrets_table.id().delete(turret_id);
+
+        log::info!("Turret {} destroyed by player {:?}. Dropping items.", turret_id, attacker_id);
+
+        // Scatter items
+        for (item_def_id, quantity) in items_to_drop {
+            let offset_x = (rng.gen::<f32>() - 0.5) * 2.0 * 15.0;
+            let offset_y = (rng.gen::<f32>() - 0.5) * 2.0 * 15.0;
+            let drop_pos_x = turret.pos_x + offset_x;
+            let drop_pos_y = turret.pos_y + offset_y;
+
+            match dropped_item::create_dropped_item_entity_no_consolidation(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
+                Ok(_) => log::debug!("Dropped {} of item_def_id {} from destroyed turret {}", quantity, item_def_id, turret_id),
+                Err(e) => log::error!("Failed to drop item_def_id {}: {}", item_def_id, e),
+            }
+        }
+        
+        dropped_item::trigger_consolidation_at_position(ctx, turret.pos_x, turret.pos_y);
+    } else {
+        turrets_table.id().update(turret);
+    }
+
+    Ok(AttackResult {
+        hit: true,
+        target_type: Some(TargetType::Turret),
         resource_granted: None,
     })
 }

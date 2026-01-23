@@ -135,6 +135,16 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     spriteHeight: 128,
   },
   
+  military_ration: {
+    centerOffsetX: 0,
+    centerOffsetY: -58,   // Same as wooden_storage_box (64x64 sprite)
+    width: 64,
+    height: 72,
+    placementYOffset: 0,
+    spriteWidth: 64,
+    spriteHeight: 64,
+  },
+  
   stash: {
     centerOffsetX: 0,
     centerOffsetY: -24,
@@ -213,6 +223,16 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   memory_beacon: {
     centerOffsetX: 0,
     centerOffsetY: -134,  // Visual center relative to posY
+    width: 200,           // Interaction box width
+    height: 220,          // Interaction box height
+    placementYOffset: 0,  // Cursor at center of preview (server adds +134)
+    spriteWidth: 256,
+    spriteHeight: 256,
+  },
+  
+  turret: {
+    centerOffsetX: 0,
+    centerOffsetY: -134,  // Visual center relative to posY (same as wards, 256x256 sprite)
     width: 200,           // Interaction box width
     height: 220,          // Interaction box height
     placementYOffset: 0,  // Cursor at center of preview (server adds +134)

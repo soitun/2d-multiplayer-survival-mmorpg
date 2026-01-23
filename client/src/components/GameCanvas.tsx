@@ -191,6 +191,7 @@ interface GameCanvasProps {
   furnaces: Map<string, SpacetimeDBFurnace>; // ADDED: Furnaces prop
   barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues prop
   lanterns: Map<string, SpacetimeDBLantern>;
+  turrets: Map<string, SpacetimeDBTurret>; // ADDED: Turret prop
   harvestableResources: Map<string, SpacetimeDBHarvestableResource>;
   droppedItems: Map<string, SpacetimeDBDroppedItem>;
   woodenStorageBoxes: Map<string, SpacetimeDBWoodenStorageBox>;
@@ -351,6 +352,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   furnaces, // ADDED: Furnaces destructuring
   barbecues, // ADDED: Barbecues destructuring
   lanterns,
+  turrets, // ADDED: Turrets destructuring
   harvestableResources,
   droppedItems,
   woodenStorageBoxes,
@@ -765,6 +767,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleFurnacesMap, // ADDED: Furnaces visible map
     visibleBarbecuesMap, // ADDED: Barbecues visible map
     visibleLanternsMap,
+    visibleTurretsMap, // ADDED: Turrets visible map
     visibleRuneStonesMap, // ADDED: Rune stones visible map
     visibleCairns, // ADDED: Cairns visible array
     visibleCairnsMap, // ADDED: Cairns visible map
@@ -815,6 +818,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     furnaces, // ADDED: Furnaces to useEntityFiltering
     barbecues, // ADDED: Barbecues to useEntityFiltering
     lanterns,
+    turrets, // ADDED: Turrets to useEntityFiltering
     homesteadHearths, // ADDED: HomesteadHearths (must match function signature order)
     harvestableResources,
     droppedItems,
@@ -1112,6 +1116,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     barbecues, // ADDED: Barbecues to useInteractionFinder
     fumaroles, // ADDED: Fumaroles to useInteractionFinder (volcanic heat source)
     lanterns,
+    turrets, // ADDED: Turrets to useInteractionFinder
     homesteadHearths, // ADDED: HomesteadHearths to useInteractionFinder
     droppedItems,
     woodenStorageBoxes,
@@ -1187,6 +1192,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     woodenStorageBoxes,
     stashes,
     players,
+    turrets, // ADDED: Turrets for pickup check
     cairns, // ADDED: Cairns for lore lookup
     playerDiscoveredCairns, // ADDED: Player discovery tracking
     playerCorpses, // ADDED: Player corpses for protection check
@@ -3511,6 +3517,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       itemDefinitions,
       closestInteractableTarget: unifiedInteractableTarget as any,
       lanterns: visibleLanternsMap,
+      turrets: visibleTurretsMap, // ADDED: Turrets to interaction labels
       rainCollectors: rainCollectors,
       brothPots: brothPots,
       homesteadHearths: visibleHomesteadHearthsMap,
@@ -3612,6 +3619,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         doors: doors || new Map(),
         alkStations: alkStations || new Map(),
         lanterns: lanterns || new Map(), // Add lanterns for ward collision
+        turrets: turrets || new Map(), // ADDED: Turrets for collision
       };
       
       // Get collision shapes from the client collision system

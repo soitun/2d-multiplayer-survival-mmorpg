@@ -331,6 +331,22 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(900)
             .build(),
 
+        // Tallow Steam Turret - Automated defensive turret
+        // Shoots superheated tallow globs at hostile NPCs and players (when PvP enabled)
+        // Each shot consumes 1 Tallow directly from loaded stack
+        ItemBuilder::new("Tallow Steam Turret", "A scrap turret built from warped sheet metal, splintered wood, and tallow-sealed joints, with a squat boiler core and a short, reinforced nozzle. The chamber heats rendered fat to a rolling boil and ejects it as a pressurized stream of scalding tallow toward targets.", ItemCategory::Placeable)
+            .icon("turret_tallow.png")
+            .stackable(2)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 150 },
+                CostIngredient { item_name: "Wood".to_string(), quantity: 75 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 8 },
+                CostIngredient { item_name: "Tallow".to_string(), quantity: 20 },
+            ])
+            .crafting_output(1, 12)
+            .respawn_time(900)
+            .build(),
+
         // Memory Resonance Beacon - HIGH-RISK/HIGH-REWARD Monster Farming Tool
         // Burns Scrap Batteries for fuel. ATTRACTS apparitions (2.5x spawn rate) instead of repelling!
         // Unique benefit: Players within 600px sanity haven have insanity cleared.

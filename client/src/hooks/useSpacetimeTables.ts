@@ -224,6 +224,7 @@ export const useSpacetimeTables = ({
     const [furnaces, setFurnaces] = useState<Map<string, SpacetimeDB.Furnace>>(() => new Map()); // ADDED: Furnace state
     const [barbecues, setBarbecues] = useState<Map<string, SpacetimeDB.Barbecue>>(() => new Map()); // ADDED: Barbecue state
     const [lanterns, setLanterns] = useState<Map<string, SpacetimeDB.Lantern>>(() => new Map());
+    const [turrets, setTurrets] = useState<Map<string, SpacetimeDB.Turret>>(() => new Map()); // ADDED: Turret state
     const [homesteadHearths, setHomesteadHearths] = useState<Map<string, SpacetimeDB.HomesteadHearth>>(() => new Map()); // ADDED: Homestead Hearth state
     const [brothPots, setBrothPots] = useState<Map<string, SpacetimeDB.BrothPot>>(() => new Map()); // ADDED: Broth pot state
     const [harvestableResources, setHarvestableResources] = useState<Map<string, SpacetimeDB.HarvestableResource>>(() => new Map());
@@ -434,6 +435,7 @@ export const useSpacetimeTables = ({
                     `SELECT * FROM barbecue WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM lantern WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM turret WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM homestead_hearth WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM broth_pot WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`,
@@ -979,6 +981,16 @@ export const useSpacetimeTables = ({
             };
             const handleLanternUpdate = (ctx: any, oldLantern: SpacetimeDB.Lantern, newLantern: SpacetimeDB.Lantern) => setLanterns(prev => new Map(prev).set(newLantern.id.toString(), newLantern));
             const handleLanternDelete = (ctx: any, lantern: SpacetimeDB.Lantern) => setLanterns(prev => { const newMap = new Map(prev); newMap.delete(lantern.id.toString()); return newMap; });
+
+            // --- Turret Subscriptions --- ADDED: Same pattern as lantern
+            const handleTurretInsert = (ctx: any, turret: SpacetimeDB.Turret) => {
+                setTurrets(prev => new Map(prev).set(turret.id.toString(), turret));
+                if (connection.identity && turret.placedBy.isEqual(connection.identity)) {
+                    cancelPlacementRef.current();
+                }
+            };
+            const handleTurretUpdate = (ctx: any, oldTurret: SpacetimeDB.Turret, newTurret: SpacetimeDB.Turret) => setTurrets(prev => new Map(prev).set(newTurret.id.toString(), newTurret));
+            const handleTurretDelete = (ctx: any, turret: SpacetimeDB.Turret) => setTurrets(prev => { const newMap = new Map(prev); newMap.delete(turret.id.toString()); return newMap; });
 
             // --- Homestead Hearth Subscriptions --- ADDED: Same pattern as campfire
             const handleHomesteadHearthInsert = (ctx: any, hearth: SpacetimeDB.HomesteadHearth) => {
@@ -2086,6 +2098,7 @@ export const useSpacetimeTables = ({
             connection.db.barbecue.onInsert(handleBarbecueInsert); connection.db.barbecue.onUpdate(handleBarbecueUpdate); connection.db.barbecue.onDelete(handleBarbecueDelete); // ADDED: Barbecue event registration
             connection.db.furnace.onInsert(handleFurnaceInsert); connection.db.furnace.onUpdate(handleFurnaceUpdate); connection.db.furnace.onDelete(handleFurnaceDelete); // ADDED: Furnace event registration
             connection.db.lantern.onInsert(handleLanternInsert); connection.db.lantern.onUpdate(handleLanternUpdate); connection.db.lantern.onDelete(handleLanternDelete);
+            connection.db.turret.onInsert(handleTurretInsert); connection.db.turret.onUpdate(handleTurretUpdate); connection.db.turret.onDelete(handleTurretDelete); // ADDED: Turret event registration
             connection.db.homesteadHearth.onInsert(handleHomesteadHearthInsert); connection.db.homesteadHearth.onUpdate(handleHomesteadHearthUpdate); connection.db.homesteadHearth.onDelete(handleHomesteadHearthDelete); // ADDED: Homestead Hearth event registration
             connection.db.brothPot.onInsert(handleBrothPotInsert); connection.db.brothPot.onUpdate(handleBrothPotUpdate); connection.db.brothPot.onDelete(handleBrothPotDelete); // ADDED: Broth pot event registration
             connection.db.itemDefinition.onInsert(handleItemDefInsert); connection.db.itemDefinition.onUpdate(handleItemDefUpdate); connection.db.itemDefinition.onDelete(handleItemDefDelete);
@@ -2700,6 +2713,7 @@ export const useSpacetimeTables = ({
                                     `SELECT * FROM barbecue WHERE chunk_index = ${chunkIndex}`, // ADDED: Barbecue initial spatial subscription
                                     `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`, // ADDED: Furnace initial spatial subscription
                                     `SELECT * FROM lantern WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM turret WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM homestead_hearth WHERE chunk_index = ${chunkIndex}`, // ADDED: Homestead Hearth initial spatial subscription
                                     `SELECT * FROM broth_pot WHERE chunk_index = ${chunkIndex}`, // ADDED: Broth pot initial spatial subscription
                                     `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`,
@@ -2917,6 +2931,7 @@ export const useSpacetimeTables = ({
         furnaces, // ADDED: Furnace state
         barbecues, // ADDED: Barbecue state
         lanterns,
+        turrets, // ADDED: Turret state
         homesteadHearths, // ADDED: Homestead Hearth state
         brothPots, // ADDED: Broth pot state
         harvestableResources,

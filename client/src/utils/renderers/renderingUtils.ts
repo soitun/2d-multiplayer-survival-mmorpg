@@ -27,6 +27,7 @@ import {
   Door as SpacetimeDBDoor, // ADDED: Building doors
   HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth
   BrothPot as SpacetimeDBBrothPot, // ADDED: BrothPot
+  Turret as SpacetimeDBTurret, // ADDED: Turret
   Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole
   BasaltColumn as SpacetimeDBBasaltColumn, // ADDED: Basalt column
   LivingCoral as SpacetimeDBLivingCoral, // Living coral (underwater harvestable via combat)
@@ -42,7 +43,7 @@ import { renderTree, renderTreeImpactEffects, renderTreeHitEffects } from './tre
 import { renderStone, renderStoneDestructionEffects, renderStoneHitEffects } from './stoneRenderingUtils';
 import { renderRuneStone } from './runeStoneRenderingUtils';
 import { renderCairn } from './cairnRenderingUtils';
-import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW } from './woodenStorageBoxRenderingUtils';
+import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW, BOX_TYPE_MILITARY_RATION } from './woodenStorageBoxRenderingUtils';
 import { renderEquippedItem } from './equippedItemRenderingUtils';
 // Import the extracted player renderer
 import { renderPlayer, isPlayerHovered } from './playerRenderingUtils';
@@ -56,6 +57,7 @@ import { renderCampfire } from './campfireRenderingUtils';
 import { renderFurnace } from './furnaceRenderingUtils'; // ADDED: Furnace renderer import
 import { renderBarbecue } from './barbecueRenderingUtils'; // ADDED: Barbecue renderer import
 import { renderLantern, renderWardRadius, LANTERN_TYPE_LANTERN } from './lanternRenderingUtils';
+import { renderTurret } from './turretRenderingUtils';
 import { renderBrothPot } from './brothPotRenderingUtils'; // ADDED: Broth pot renderer import
 import { renderFoundation, renderFogOverlay, renderFogOverlayCluster } from './foundationRenderingUtils'; // ADDED: Foundation renderer import
 import { renderWall, renderWallExteriorShadow } from './foundationRenderingUtils'; // ADDED: Wall renderer and exterior shadow import
@@ -569,7 +571,10 @@ export const renderYSortedEntities = ({
   // Pre-Pass: Render ward deterrence radius circles BEHIND all entities
   // This shows players the safe zones created by wards (both active and inactive)
   ySortedEntities.forEach(({ type, entity }) => {
-      if (type === 'lantern') {
+      if (type === 'turret') {
+          // Turrets don't have radius circles (unlike wards)
+          // They render normally in the main pass
+      } else if (type === 'lantern') {
           const lantern = entity as any;
           // Render radius for all wards (not regular lanterns) - both active and inactive states
           if (lantern.lanternType !== LANTERN_TYPE_LANTERN && !lantern.isDestroyed) {
@@ -1144,6 +1149,21 @@ export const renderYSortedEntities = ({
               const outline = getInteractionOutlineParams(barbecue.posX, barbecue.posY, config);
               drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
+      } else if (type === 'turret') {
+          const turret = entity as SpacetimeDBTurret;
+          const isTheClosestTarget = closestInteractableTarget?.type === 'turret' && closestInteractableTarget?.id === turret.id;
+          
+          // Use camera offsets from function parameters (passed from GameCanvas)
+          const camX = cameraOffsetX ?? 0;
+          const camY = cameraOffsetY ?? 0;
+          renderTurret(ctx, turret, camX, camY, cycleProgress);
+          
+          if (isTheClosestTarget) {
+              const config = ENTITY_VISUAL_CONFIG.turret;
+              const outlineColor = getInteractionOutlineColor('turret');
+              const outline = getInteractionOutlineParams(turret.posX, turret.posY, config);
+              drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
+          }
       } else if (type === 'lantern') {
           const lantern = entity as any;
           const isTheClosestTarget = closestInteractableTarget?.type === 'lantern' && closestInteractableTarget?.id === lantern.id;
@@ -1219,6 +1239,8 @@ export const renderYSortedEntities = ({
                   config = ENTITY_VISUAL_CONFIG.cooking_station;
               } else if (box.boxType === BOX_TYPE_SCARECROW) {
                   config = ENTITY_VISUAL_CONFIG.scarecrow;
+              } else if (box.boxType === BOX_TYPE_MILITARY_RATION) {
+                  config = ENTITY_VISUAL_CONFIG.military_ration;
               } else {
                   config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
               }
@@ -1261,43 +1283,67 @@ export const renderYSortedEntities = ({
       } else if (type === 'projectile') {
           const projectile = entity as SpacetimeDBProjectile;
           
-          // Debug logging disabled for performance - uncomment to debug projectile rendering
-          // console.log(`🏹 [RENDER] Projectile ${projectile.id} found in render queue`);
+          // Check if this is a turret tallow projectile (source_type = 1)
+          // Turret projectiles are rendered as primitives (glowing orange circles), not sprites
+          const PROJECTILE_SOURCE_TURRET = 1;
+          const isTurretTallow = projectile.sourceType === PROJECTILE_SOURCE_TURRET;
           
-          // Check if this is a thrown weapon (ammo_def_id == item_def_id)
-          const isThrown = projectile.ammoDefId === projectile.itemDefId;
-          
-          // Get the appropriate definition and image
-          const ammoDef = itemDefinitions.get(projectile.ammoDefId.toString());
-          let projectileImageName: string;
-          
-          if (isThrown && ammoDef) {
-              // For thrown weapons, use the weapon's icon
-              projectileImageName = ammoDef.iconAssetName;
-          } else if (ammoDef) {
-              // For regular projectiles (arrows), use the ammunition's icon
-              projectileImageName = ammoDef.iconAssetName;
-          } else {
-              // Fallback for missing definitions
-              projectileImageName = 'wooden_arrow.png';
-              console.warn(`🏹 [RENDER] No ammo definition found for projectile ${projectile.id}, using fallback`);
-          }
-          
-          // Use imageManager to get the projectile image for production compatibility
-          const projectileImageSrc = getItemIcon(projectileImageName);
-          const projectileImage = imageManager.getImage(projectileImageSrc);
-          
-          if (projectileImage) {
+          if (isTurretTallow) {
+              // Turret tallow globs are rendered as primitives - no image needed
+              // Create a dummy image object for the renderProjectile function
+              // (it will detect source_type and render as primitive instead)
+              const dummyImage = new Image();
+              dummyImage.width = 16;
+              dummyImage.height = 16;
+              
               renderProjectile({
                   ctx,
                   projectile,
-                  arrowImage: projectileImage, // Note: parameter name is still 'arrowImage' but now handles both
+                  arrowImage: dummyImage, // Dummy image - rendering uses source_type to render primitives
                   currentTimeMs: nowMs,
-                  itemDefinitions, // FIXED: Add itemDefinitions for weapon type detection
-                  applyUnderwaterTint: isLocalPlayerSnorkeling, // Teal tint when local player is underwater
+                  itemDefinitions,
+                  applyUnderwaterTint: isLocalPlayerSnorkeling,
               });
           } else {
-              console.warn(`🏹 [RENDER] Image not loaded: ${projectileImageName} for projectile ${projectile.id}`);
+              // Regular projectiles (arrows, bullets, thrown items) - use sprite images
+              // Debug logging disabled for performance - uncomment to debug projectile rendering
+              // console.log(`🏹 [RENDER] Projectile ${projectile.id} found in render queue`);
+              
+              // Check if this is a thrown weapon (ammo_def_id == item_def_id)
+              const isThrown = projectile.ammoDefId === projectile.itemDefId;
+              
+              // Get the appropriate definition and image
+              const ammoDef = itemDefinitions.get(projectile.ammoDefId.toString());
+              let projectileImageName: string;
+              
+              if (isThrown && ammoDef) {
+                  // For thrown weapons, use the weapon's icon
+                  projectileImageName = ammoDef.iconAssetName;
+              } else if (ammoDef) {
+                  // For regular projectiles (arrows), use the ammunition's icon
+                  projectileImageName = ammoDef.iconAssetName;
+              } else {
+                  // Fallback for missing definitions
+                  projectileImageName = 'wooden_arrow.png';
+                  console.warn(`🏹 [RENDER] No ammo definition found for projectile ${projectile.id}, using fallback`);
+              }
+              
+              // Use imageManager to get the projectile image for production compatibility
+              const projectileImageSrc = getItemIcon(projectileImageName);
+              const projectileImage = imageManager.getImage(projectileImageSrc);
+              
+              if (projectileImage) {
+                  renderProjectile({
+                      ctx,
+                      projectile,
+                      arrowImage: projectileImage, // Note: parameter name is still 'arrowImage' but now handles both
+                      currentTimeMs: nowMs,
+                      itemDefinitions, // FIXED: Add itemDefinitions for weapon type detection
+                      applyUnderwaterTint: isLocalPlayerSnorkeling, // Teal tint when local player is underwater
+                  });
+              } else {
+                  console.warn(`🏹 [RENDER] Image not loaded: ${projectileImageName} for projectile ${projectile.id}`);
+              }
           }
       } else if (type === 'planted_seed') {
           const plantedSeed = entity as SpacetimeDBPlantedSeed;

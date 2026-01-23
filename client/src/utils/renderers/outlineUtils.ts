@@ -101,7 +101,7 @@ function hexToRgb(hex: string): string {
 /**
  * Gets the appropriate outline color based on interaction type
  */
-export function getInteractionOutlineColor(interactionType: 'pickup' | 'open' | 'interact' | 'revive' | 'water'): string {
+export function getInteractionOutlineColor(interactionType: 'pickup' | 'open' | 'interact' | 'revive' | 'water' | 'turret'): string {
     switch (interactionType) {
         case 'pickup':
             return '#FFD700'; // Gold for pickups
@@ -113,6 +113,8 @@ export function getInteractionOutlineColor(interactionType: 'pickup' | 'open' | 
             return '#FF6B6B'; // Red for reviving players
         case 'water':
             return '#00CED1'; // Dark turquoise for water
+        case 'turret':
+            return '#FF8C00'; // Orange for turrets
         default:
             return '#00FF00'; // Default green
     }

@@ -44,8 +44,13 @@ use crate::basalt_column::{BasaltColumn, basalt_column as BasaltColumnTableTrait
 
 // Import wild animal module for collision detection
 use crate::wild_animal_npc::{wild_animal as WildAnimalTableTrait};
+use crate::turret;
 
 const GRAVITY: f32 = 600.0; // Adjust this value to change the arc. Positive values pull downwards.
+
+// Projectile source type constants
+pub const PROJECTILE_SOURCE_PLAYER: u8 = 0;
+pub const PROJECTILE_SOURCE_TURRET: u8 = 1;
 
 /// Helper function to check if a line segment intersects with a circle
 /// Returns true if the line from (x1,y1) to (x2,y2) intersects with circle at (cx,cy) with radius r
@@ -94,6 +99,7 @@ pub struct Projectile {
     pub owner_id: Identity,
     pub item_def_id: u64,
     pub ammo_def_id: u64, // NEW: The ammunition type that was fired (e.g., Wooden Arrow)
+    pub source_type: u8,  // 0 = player weapon, 1 = turret
     pub start_time: Timestamp,
     pub start_pos_x: f32,
     pub start_pos_y: f32,
@@ -569,7 +575,8 @@ pub fn fire_projectile(
         id: 0, // auto_inc
         owner_id: player_id,
         item_def_id: equipped_item_def_id,
-        ammo_def_id: loaded_ammo_def_id, 
+        ammo_def_id: loaded_ammo_def_id,
+        source_type: PROJECTILE_SOURCE_PLAYER, // Player weapon
         start_time: ctx.timestamp,
         start_pos_x: spawn_x,  // Use client-predicted position (with anti-cheat)
         start_pos_y: spawn_y,
@@ -781,8 +788,46 @@ fn calculate_projectile_damage(
 // --- END NEW HELPER FUNCTION ---
 
 // --- HELPER FUNCTION FOR FIRE PATCH CREATION ---
-/// Creates a fire patch if the projectile is a fire arrow
-/// Returns true if a fire patch was created, false otherwise
+/// Create fire patch if this is a turret tallow projectile (25% chance)
+fn create_fire_patch_if_turret_tallow(
+    ctx: &ReducerContext,
+    projectile: &Projectile,
+    pos_x: f32,
+    pos_y: f32,
+) -> bool {
+    // Check if this is a turret projectile with Tallow ammo
+    if projectile.source_type != PROJECTILE_SOURCE_TURRET {
+        return false;
+    }
+    
+    // Check if ammo is Tallow
+    let item_defs_table = ctx.db.item_definition();
+    if let Some(ammo_def) = item_defs_table.id().find(projectile.ammo_def_id) {
+        if ammo_def.name != "Tallow" {
+            return false;
+        }
+        
+        // 25% chance to create fire patch
+        use rand::{Rng, SeedableRng};
+        let mut rng = rand::rngs::StdRng::seed_from_u64(ctx.timestamp.to_micros_since_unix_epoch() as u64);
+        if rng.gen_range(0..100) < crate::turret::FIRE_PATCH_CHANCE_PERCENT {
+            // Create fire patch at hit location
+            match crate::fire_patch::create_fire_patch(ctx, pos_x, pos_y, projectile.owner_id, false, None, None) {
+                Ok(_) => {
+                    log::info!("[TurretTallow] Created fire patch at ({:.1}, {:.1}) from turret projectile {}", pos_x, pos_y, projectile.id);
+                    return true;
+                }
+                Err(e) => {
+                    log::error!("[TurretTallow] Failed to create fire patch: {}", e);
+                    return false;
+                }
+            }
+        }
+    }
+    
+    false
+}
+
 fn create_fire_patch_if_fire_arrow(
     ctx: &ReducerContext,
     ammo_item_def: &crate::items::ItemDefinition,
@@ -2032,6 +2077,9 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
 
                 // Create fire patch if this is a fire arrow (100% chance)
                 create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
+                
+                // Create fire patch if this is a turret tallow projectile (25% chance)
+                create_fire_patch_if_turret_tallow(ctx, &projectile, current_x, current_y);
 
                 // Add projectile to dropped item system (with break chance) like other hits
                 missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
@@ -2174,6 +2222,9 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                             
                             // Create fire patch if this is a fire arrow (100% chance)
                             create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, player_to_check.position_x, player_to_check.position_y, projectile.owner_id);
+                            
+                            // Create fire patch if this is a turret tallow projectile (25% chance)
+                            create_fire_patch_if_turret_tallow(ctx, &projectile, player_to_check.position_x, player_to_check.position_y);
                         } else {
                             log::info!("Projectile from {:?} (weapon: {} + ammo: {}) hit player {:?}, but combat::damage_player reported no effective damage (e.g., target already dead).", 
                                      projectile.owner_id, weapon_item_def.name, ammo_item_def.name, player_to_check.identity);
@@ -2507,6 +2558,7 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
         owner_id: player_id,
         item_def_id: equipped_item_def_id,
         ammo_def_id: equipped_item_def_id, // For thrown items, ammo_def_id is the same as item_def_id
+        source_type: PROJECTILE_SOURCE_PLAYER,
         start_time: ctx.timestamp,
         start_pos_x: player.position_x,
         start_pos_y: player.position_y,

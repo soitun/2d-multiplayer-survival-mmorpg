@@ -28,6 +28,7 @@ use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::player as PlayerTableTrait;
 use crate::world_tile as WorldTileTableTrait;
 use crate::dropped_item::{create_dropped_item_entity, calculate_drop_position};
+use crate::wooden_storage_box::wooden_storage_box;
 use crate::{Player, PLAYER_RADIUS, TileType};
 use crate::utils::get_distance_squared;
 use crate::environment::calculate_chunk_index;
@@ -597,6 +598,56 @@ pub fn spawn_barrel_clusters_scaled(
         if barrels_spawned_in_cluster > 0 {
             spawned_clusters += 1;
             log::info!("[BarrelSpawn] Completed cluster {} with {} barrels", spawned_clusters, barrels_spawned_in_cluster);
+            
+            // Spawn 1 military ration near this barrel cluster with reduced probability (30% chance)
+            const MILITARY_RATION_SPAWN_CHANCE: f32 = 0.30; // 30% chance per cluster
+            if ctx.rng().gen::<f32>() < MILITARY_RATION_SPAWN_CHANCE {
+                // Check if there's already a military ration in this cluster area (within 150px)
+                let mut has_existing_ration = false;
+                let existing_boxes = ctx.db.wooden_storage_box();
+                for existing_box in existing_boxes.iter() {
+                    if existing_box.box_type == crate::wooden_storage_box::BOX_TYPE_MILITARY_RATION {
+                        let dx = cluster_center_x - existing_box.pos_x;
+                        let dy = cluster_center_y - existing_box.pos_y;
+                        if dx * dx + dy * dy < 150.0 * 150.0 { // 150px cluster radius check
+                            has_existing_ration = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if !has_existing_ration {
+                    // Spawn ration within 50-100px of cluster center
+                    let angle = ctx.rng().gen_range(0.0..std::f32::consts::PI * 2.0);
+                    let distance = ctx.rng().gen_range(50.0..100.0);
+                    let ration_x = cluster_center_x + angle.cos() * distance;
+                    let ration_y = cluster_center_y + angle.sin() * distance;
+                    
+                    // Check collision with existing barrels
+                    let mut too_close = false;
+                    let existing_barrels = ctx.db.barrel();
+                    for existing_barrel in existing_barrels.iter() {
+                        let dx = ration_x - existing_barrel.pos_x;
+                        let dy = ration_y - existing_barrel.pos_y;
+                        if dx * dx + dy * dy < 100.0 * 100.0 { // 100px minimum distance
+                            too_close = true;
+                            break;
+                        }
+                    }
+                    
+                    if !too_close {
+                        let chunk_idx = crate::environment::calculate_chunk_index(ration_x, ration_y);
+                        match crate::military_ration::spawn_military_ration_with_loot(ctx, ration_x, ration_y, chunk_idx) {
+                            Ok(_) => {
+                                log::info!("[BarrelSpawn] Spawned 1 military ration in cluster {}", spawned_clusters);
+                            }
+                            Err(e) => {
+                                log::warn!("[BarrelSpawn] Failed to spawn military ration in cluster {}: {}", spawned_clusters, e);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -693,6 +744,56 @@ pub fn spawn_barrel_clusters(
             
             log::info!("[BarrelSpawn] Spawned cluster {} with {} barrels at ({:.1}, {:.1})", 
                       next_cluster_id - 1, cluster_size, center_x, center_y);
+            
+            // Spawn 1 military ration near this barrel cluster with reduced probability (30% chance)
+            const MILITARY_RATION_SPAWN_CHANCE: f32 = 0.30; // 30% chance per cluster
+            if ctx.rng().gen::<f32>() < MILITARY_RATION_SPAWN_CHANCE {
+                // Check if there's already a military ration in this cluster area (within 150px)
+                let mut has_existing_ration = false;
+                let existing_boxes = ctx.db.wooden_storage_box();
+                for existing_box in existing_boxes.iter() {
+                    if existing_box.box_type == crate::wooden_storage_box::BOX_TYPE_MILITARY_RATION {
+                        let dx = center_x - existing_box.pos_x;
+                        let dy = center_y - existing_box.pos_y;
+                        if dx * dx + dy * dy < 150.0 * 150.0 { // 150px cluster radius check
+                            has_existing_ration = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if !has_existing_ration {
+                    // Spawn ration within 50-100px of cluster center
+                    let angle = ctx.rng().gen_range(0.0..std::f32::consts::PI * 2.0);
+                    let distance = ctx.rng().gen_range(50.0..100.0);
+                    let ration_x = center_x + angle.cos() * distance;
+                    let ration_y = center_y + angle.sin() * distance;
+                    
+                    // Check collision with existing barrels
+                    let mut too_close = false;
+                    let existing_barrels = ctx.db.barrel();
+                    for existing_barrel in existing_barrels.iter() {
+                        let dx = ration_x - existing_barrel.pos_x;
+                        let dy = ration_y - existing_barrel.pos_y;
+                        if dx * dx + dy * dy < 100.0 * 100.0 { // 100px minimum distance
+                            too_close = true;
+                            break;
+                        }
+                    }
+                    
+                    if !too_close {
+                        let chunk_idx = crate::environment::calculate_chunk_index(ration_x, ration_y);
+                        match crate::military_ration::spawn_military_ration_with_loot(ctx, ration_x, ration_y, chunk_idx) {
+                            Ok(_) => {
+                                log::info!("[BarrelSpawn] Spawned 1 military ration in cluster {}", next_cluster_id - 1);
+                            }
+                            Err(e) => {
+                                log::warn!("[BarrelSpawn] Failed to spawn military ration in cluster {}: {}", next_cluster_id - 1, e);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     

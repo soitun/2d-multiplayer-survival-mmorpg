@@ -51,6 +51,8 @@ use crate::cairn::cairn as CairnTableTrait;
 use crate::sea_stack::sea_stack as SeaStackTableTrait;
 // Import lantern table trait (for ward collision - regular lanterns don't have collision)
 use crate::lantern::lantern as LanternTableTrait;
+// Import turret table trait (for turret collision)
+use crate::turret::turret as TurretTableTrait;
 
 // Cell size should be larger than the largest collision radius to ensure
 // we only need to check adjacent cells. We use 8x the player radius for better performance with larger worlds.
@@ -93,6 +95,7 @@ pub enum EntityType {
     Cairn(u64), // ADDED Cairn entity type (monument with AABB collision)
     SeaStack(u64), // ADDED SeaStack entity type (ocean rock with scaled AABB collision)
     Lantern(u32), // ADDED Lantern entity type (for ward collision - regular lanterns intentionally have no collision)
+    Turret(u32), // ADDED Turret entity type (for turret collision - 256x256 sprites with collision)
     // EXCLUDED: Grass - removed for performance to fix rubber-banding issues
 }
 
@@ -148,7 +151,8 @@ impl SpatialGrid {
                             + AlkStationTableTrait
                             + CairnTableTrait
                             + SeaStackTableTrait
-                            + LanternTableTrait>
+                            + LanternTableTrait
+                            + TurretTableTrait>
                            (db: &DB, current_time: spacetimedb::Timestamp) -> Self {
         let mut grid = Self::new();
         grid.populate_from_world(db, current_time);
@@ -239,7 +243,8 @@ impl SpatialGrid {
                             + AlkStationTableTrait
                             + CairnTableTrait
                             + SeaStackTableTrait
-                            + LanternTableTrait>
+                            + LanternTableTrait
+                            + TurretTableTrait>
                                  (&mut self, db: &DB, current_time: spacetimedb::Timestamp) {
         self.clear();
         
@@ -390,6 +395,13 @@ impl SpatialGrid {
                 self.add_entity(EntityType::Lantern(lantern.id), lantern.pos_x, lantern.pos_y);
             }
         }
+        
+        // Add turrets (all turrets have collision)
+        for turret in db.turret().iter() {
+            if !turret.is_destroyed {
+                self.add_entity(EntityType::Turret(turret.id), turret.pos_x, turret.pos_y);
+            }
+        }
     }
     
     // PERFORMANCE OPTIMIZED: Faster population method for high-density areas
@@ -407,7 +419,8 @@ impl SpatialGrid {
                                             + AlkStationTableTrait
                                             + CairnTableTrait
                                             + SeaStackTableTrait
-                                            + LanternTableTrait>
+                                            + LanternTableTrait
+                                            + TurretTableTrait>
                                            (&mut self, db: &DB, current_time: spacetimedb::Timestamp) {
         self.clear();
         
@@ -546,6 +559,13 @@ impl SpatialGrid {
             }
         }
         
+        // Add turrets (all turrets have collision)
+        for turret in db.turret().iter() {
+            if !turret.is_destroyed {
+                entities_to_add.push((EntityType::Turret(turret.id), turret.pos_x, turret.pos_y));
+            }
+        }
+        
         // Batch add all simple entities
         for (entity_type, x, y) in entities_to_add {
             self.add_entity(entity_type, x, y);
@@ -607,7 +627,8 @@ pub fn get_cached_spatial_grid<DB: PlayerTableTrait + TreeTableTrait + StoneTabl
                                  + AlkStationTableTrait
                                  + CairnTableTrait
                                  + SeaStackTableTrait
-                                 + LanternTableTrait>
+                                 + LanternTableTrait
+                                 + TurretTableTrait>
                               (db: &DB, current_time: spacetimedb::Timestamp) -> &'static SpatialGrid {
     unsafe {
         // Check if we need to refresh the cache

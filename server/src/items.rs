@@ -31,6 +31,7 @@ use crate::wooden_storage_box::WoodenStorageBoxClearer;
 use crate::player_corpse::PlayerCorpseClearer;
 use crate::stash::StashClearer; // Added StashClearer import
 use crate::rain_collector::RainCollector as RainCollectorClearer; // Added RainCollectorClearer import
+use crate::turret::TurretClearer; // Added TurretClearer import
 use crate::ranged_weapon_stats::RangedWeaponStats; // For the struct
 use crate::ranged_weapon_stats::ranged_weapon_stats as ranged_weapon_stats_table_accessor; // For ctx.db.ranged_weapon_stats()
 use crate::active_effects::{FoodPoisoningRisk, food_poisoning_risk as FoodPoisoningRiskTableTrait}; // For food poisoning
@@ -812,6 +813,12 @@ pub(crate) fn clear_item_from_any_container(ctx: &ReducerContext, item_instance_
     // Attempt to clear from RainCollector slots
     if RainCollectorClearer::clear_item(ctx, item_instance_id) {
         log::debug!("[ItemsClear] Item {} cleared from a rain collector.", item_instance_id);
+        return; // Item found and handled
+    }
+
+    // Attempt to clear from Turret ammo slots
+    if TurretClearer::clear_item(ctx, item_instance_id) {
+        log::debug!("[ItemsClear] Item {} cleared from a turret.", item_instance_id);
         return; // Item found and handled
     }
 

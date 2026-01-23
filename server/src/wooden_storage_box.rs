@@ -54,6 +54,12 @@ pub const NUM_SCARECROW_SLOTS: usize = 0; // No inventory - decorative/functiona
 pub const SCARECROW_INITIAL_HEALTH: f32 = 200.0;
 pub const SCARECROW_MAX_HEALTH: f32 = 200.0;
 
+// --- Military Ration ---
+pub const BOX_TYPE_MILITARY_RATION: u8 = 8;
+pub const NUM_MILITARY_RATION_SLOTS: usize = 3;
+pub const MILITARY_RATION_INITIAL_HEALTH: f32 = 100.0; // Low health, not meant to be attacked
+pub const MILITARY_RATION_MAX_HEALTH: f32 = 100.0;
+
 // Re-export refrigerator constants for backward compatibility
 pub use crate::refrigerator::{NUM_REFRIGERATOR_SLOTS, REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH};
 
@@ -202,6 +208,12 @@ pub struct WoodenStorageBox {
     pub last_hit_time: Option<Timestamp>,
     pub last_damaged_by: Option<Identity>, // ADDED: Track who last damaged this storage box
     
+    // --- Respawn System (for military rations and other spawnable containers) ---
+    /// When this container should respawn. Use Timestamp::UNIX_EPOCH (0) for "not respawning" or "partially looted".
+    /// This allows efficient btree index range queries: .respawn_at().filter(1..=now)
+    #[index(btree)]
+    pub respawn_at: Timestamp,
+    
     // --- Monument Placeable System ---
     pub is_monument: bool, // If true, this is a permanent monument placeable (indestructible, public access)
     pub active_user_id: Option<Identity>, // Player currently using this container (for safe zone exclusivity)
@@ -281,6 +293,7 @@ pub fn move_item_from_box(
 
     // Check box type before moving storage_box
     let is_backpack = storage_box.box_type == BOX_TYPE_BACKPACK;
+    let is_military_ration = storage_box.box_type == BOX_TYPE_MILITARY_RATION;
 
     // --- Commit Box Update --- 
     // The handler modified storage_box (cleared the slot) if the move was successful.
@@ -289,6 +302,11 @@ pub fn move_item_from_box(
     // Auto-despawn empty backpacks
     if is_backpack {
         let _ = crate::backpack::check_and_despawn_if_empty(ctx, box_id);
+    }
+    
+    // Auto-despawn empty military rations
+    if is_military_ration {
+        let _ = crate::military_ration::check_and_despawn_military_ration_if_empty(ctx, box_id);
     }
 
     Ok(())
@@ -470,6 +488,7 @@ pub fn quick_move_from_box(
 
     // Check box type before moving storage_box
     let is_backpack = storage_box.box_type == BOX_TYPE_BACKPACK;
+    let is_military_ration = storage_box.box_type == BOX_TYPE_MILITARY_RATION;
 
     // --- Commit Box Update --- 
     boxes.id().update(storage_box);
@@ -477,6 +496,11 @@ pub fn quick_move_from_box(
     // Auto-despawn empty backpacks
     if is_backpack {
         let _ = crate::backpack::check_and_despawn_if_empty(ctx, box_id);
+    }
+    
+    // Auto-despawn empty military rations
+    if is_military_ration {
+        let _ = crate::military_ration::check_and_despawn_military_ration_if_empty(ctx, box_id);
     }
 
     Ok(())
@@ -670,6 +694,7 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         destroyed_at: None,
         last_hit_time: None,
         last_damaged_by: None,
+        respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning (player-placed boxes don't respawn)
         // Monument placeable system (player-placed boxes are not monuments)
         is_monument: false,
         active_user_id: None,
@@ -807,6 +832,7 @@ pub fn drop_item_from_box_slot_to_world(
 
     // Check box type before moving wooden_box
     let is_backpack = wooden_box.box_type == BOX_TYPE_BACKPACK;
+    let is_military_ration = wooden_box.box_type == BOX_TYPE_MILITARY_RATION;
 
     // 4. Persist changes to the WoodenStorageBox
     wooden_box_table.id().update(wooden_box);
@@ -815,6 +841,11 @@ pub fn drop_item_from_box_slot_to_world(
     // Auto-despawn empty backpacks
     if is_backpack {
         let _ = crate::backpack::check_and_despawn_if_empty(ctx, box_id);
+    }
+    
+    // Auto-despawn empty military rations
+    if is_military_ration {
+        let _ = crate::military_ration::check_and_despawn_military_ration_if_empty(ctx, box_id);
     }
 
     Ok(())
@@ -847,6 +878,7 @@ pub fn split_and_drop_item_from_box_slot_to_world(
 
     // Check box type before moving wooden_box
     let is_backpack = wooden_box.box_type == BOX_TYPE_BACKPACK;
+    let is_military_ration = wooden_box.box_type == BOX_TYPE_MILITARY_RATION;
 
     // 4. Persist changes to the WoodenStorageBox (if its slot was cleared because the whole stack was dropped)
     wooden_box_table.id().update(wooden_box); 
@@ -856,6 +888,11 @@ pub fn split_and_drop_item_from_box_slot_to_world(
     // Auto-despawn empty backpacks
     if is_backpack {
         let _ = crate::backpack::check_and_despawn_if_empty(ctx, box_id);
+    }
+    
+    // Auto-despawn empty military rations
+    if is_military_ration {
+        let _ = crate::military_ration::check_and_despawn_military_ration_if_empty(ctx, box_id);
     }
     
     Ok(())
@@ -885,6 +922,7 @@ impl ItemContainer for WoodenStorageBox {
             BOX_TYPE_REPAIR_BENCH => NUM_REPAIR_BENCH_SLOTS,
             BOX_TYPE_COOKING_STATION => NUM_COOKING_STATION_SLOTS,
             BOX_TYPE_SCARECROW => NUM_SCARECROW_SLOTS,
+            BOX_TYPE_MILITARY_RATION => NUM_MILITARY_RATION_SLOTS,
             _ => NUM_BOX_SLOTS,
         }
     }

@@ -22,6 +22,7 @@ import {
   Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
   Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
   Lantern as SpacetimeDBLantern,
+  Turret as SpacetimeDBTurret, // ADDED: Turret import
   HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: Homestead Hearth import
   HarvestableResource as SpacetimeDBHarvestableResource,
   DroppedItem as SpacetimeDBDroppedItem,
@@ -105,6 +106,8 @@ interface EntityFilteringResult {
   visibleFurnacesMap: Map<string, SpacetimeDBFurnace>; // ADDED: Furnaces map
   visibleBarbecuesMap: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues map
   visibleLanternsMap: Map<string, SpacetimeDBLantern>;
+  visibleTurrets: SpacetimeDBTurret[]; // ADDED: Turrets
+  visibleTurretsMap: Map<string, SpacetimeDBTurret>; // ADDED: Turrets map
   visibleHomesteadHearthsMap: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: Homestead Hearths map
   visibleDroppedItemsMap: Map<string, SpacetimeDBDroppedItem>;
   visibleBoxesMap: Map<string, SpacetimeDBWoodenStorageBox>;
@@ -123,6 +126,7 @@ interface EntityFilteringResult {
   visibleShelters: SpacetimeDBShelter[]; // ADDED
   visibleSheltersMap: Map<string, SpacetimeDBShelter>; // ADDED
   visibleLanterns: SpacetimeDBLantern[];
+  visibleTurrets: SpacetimeDBTurret[]; // ADDED: Turrets (duplicate for return)
   visiblePlantedSeeds: SpacetimeDBPlantedSeed[];
   visiblePlantedSeedsMap: Map<string, SpacetimeDBPlantedSeed>; // ADDED
   visibleClouds: SpacetimeDBCloud[]; // ADDED
@@ -172,6 +176,7 @@ export type YSortedEntityType =
   | { type: 'furnace'; entity: SpacetimeDBFurnace } // ADDED: Furnace type
   | { type: 'barbecue'; entity: SpacetimeDBBarbecue } // ADDED: Barbecue type
   | { type: 'lantern'; entity: SpacetimeDBLantern }
+  | { type: 'turret'; entity: SpacetimeDBTurret } // ADDED: Turret type
   | { type: 'homestead_hearth'; entity: SpacetimeDBHomesteadHearth } // ADDED: Homestead Hearth type
   | { type: 'dropped_item'; entity: SpacetimeDBDroppedItem }
   | { type: 'projectile'; entity: SpacetimeDBProjectile }
@@ -244,6 +249,7 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
     case 'furnace':
     case 'barbecue': // ADDED: Barbecue (same as campfire)
     case 'lantern':
+    case 'turret': // ADDED: Turret (same as lantern/ward - 256x256 sprite)
     case 'homestead_hearth': // ADDED: Homestead Hearth (same as campfire)
     case 'planted_seed':
     case 'dropped_item':
@@ -650,6 +656,7 @@ export function useEntityFiltering(
   furnaces: Map<string, SpacetimeDBFurnace>, // ADDED: Furnaces parameter
   barbecues: Map<string, SpacetimeDBBarbecue>, // ADDED: Barbecues parameter
   lanterns: Map<string, SpacetimeDBLantern>,
+  turrets: Map<string, SpacetimeDBTurret>, // ADDED: Turrets parameter
   homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>, // ADDED: Homestead Hearths parameter
   harvestableResources: Map<string, SpacetimeDBHarvestableResource>,
   droppedItems: Map<string, SpacetimeDBDroppedItem>,
@@ -1450,6 +1457,11 @@ export function useEntityFiltering(
     [visibleLanterns]
   );
 
+  const visibleTurretsMap = useMemo(() => 
+    new Map(visibleTurrets.map(t => [t.id.toString(), t])), 
+    [visibleTurrets]
+  );
+
   const visibleHomesteadHearthsMap = useMemo(() => 
     new Map(visibleHomesteadHearths.map(h => [h.id.toString(), h])), 
     [visibleHomesteadHearths]
@@ -1820,6 +1832,7 @@ export function useEntityFiltering(
     visibleFurnaces.forEach(e => addEntity('furnace', e));
     visibleBarbecues.forEach(e => addEntity('barbecue', e));
     visibleLanterns.forEach(e => addEntity('lantern', e));
+    visibleTurrets.forEach(e => addEntity('turret', e)); // ADDED: Turrets
     visibleHomesteadHearths.forEach(e => addEntity('homestead_hearth', e)); // ADDED: Homestead Hearths
     visibleGrass.forEach(e => addEntity('grass', e));
     visiblePlantedSeeds.forEach(e => addEntity('planted_seed', e));
@@ -2494,6 +2507,7 @@ export function useEntityFiltering(
     visibleCampfires,
     visibleFurnaces, // ADDED: Furnaces
     visibleLanterns,
+    visibleTurrets, // ADDED: Turrets
     visibleHomesteadHearths, // ADDED: Homestead Hearths
     visiblePlayers,
     visibleTrees,
@@ -2513,6 +2527,7 @@ export function useEntityFiltering(
     visibleBarbecues, // ADDED: Barbecues
     visibleBarbecuesMap, // ADDED: Barbecues map
     visibleLanternsMap,
+    visibleTurretsMap, // ADDED: Turrets map
     visibleHomesteadHearthsMap, // ADDED: Homestead Hearths map
     visibleDroppedItemsMap,
     visibleBoxesMap,

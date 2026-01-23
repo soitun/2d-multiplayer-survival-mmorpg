@@ -221,6 +221,8 @@ import { InteractWithSleepingBag } from "./interact_with_sleeping_bag_reducer.ts
 export { InteractWithSleepingBag };
 import { InteractWithStorageBox } from "./interact_with_storage_box_reducer.ts";
 export { InteractWithStorageBox };
+import { InteractWithTurret } from "./interact_with_turret_reducer.ts";
+export { InteractWithTurret };
 import { InviteToMatronage } from "./invite_to_matronage_reducer.ts";
 export { InviteToMatronage };
 import { Jump } from "./jump_reducer.ts";
@@ -297,6 +299,8 @@ import { MoveItemToRepairBench } from "./move_item_to_repair_bench_reducer.ts";
 export { MoveItemToRepairBench };
 import { MoveItemToStash } from "./move_item_to_stash_reducer.ts";
 export { MoveItemToStash };
+import { MoveItemToTurret } from "./move_item_to_turret_reducer.ts";
+export { MoveItemToTurret };
 import { MoveItemWithinBarbecue } from "./move_item_within_barbecue_reducer.ts";
 export { MoveItemWithinBarbecue };
 import { MoveItemWithinBox } from "./move_item_within_box_reducer.ts";
@@ -347,6 +351,8 @@ import { PickupRepairBench } from "./pickup_repair_bench_reducer.ts";
 export { PickupRepairBench };
 import { PickupStorageBox } from "./pickup_storage_box_reducer.ts";
 export { PickupStorageBox };
+import { PickupTurret } from "./pickup_turret_reducer.ts";
+export { PickupTurret };
 import { PlaceBarbecue } from "./place_barbecue_reducer.ts";
 export { PlaceBarbecue };
 import { PlaceBrothPotOnCampfire } from "./place_broth_pot_on_campfire_reducer.ts";
@@ -379,6 +385,8 @@ import { PlaceSleepingBag } from "./place_sleeping_bag_reducer.ts";
 export { PlaceSleepingBag };
 import { PlaceStash } from "./place_stash_reducer.ts";
 export { PlaceStash };
+import { PlaceTurret } from "./place_turret_reducer.ts";
+export { PlaceTurret };
 import { PlaceWall } from "./place_wall_reducer.ts";
 export { PlaceWall };
 import { PlaceWoodenStorageBox } from "./place_wooden_storage_box_reducer.ts";
@@ -433,6 +441,8 @@ import { ProcessTilledTileReversions } from "./process_tilled_tile_reversions_re
 export { ProcessTilledTileReversions };
 import { ProcessTorchDurability } from "./process_torch_durability_reducer.ts";
 export { ProcessTorchDurability };
+import { ProcessTurretLogicScheduled } from "./process_turret_logic_scheduled_reducer.ts";
+export { ProcessTurretLogicScheduled };
 import { ProcessWildAnimalAi } from "./process_wild_animal_ai_reducer.ts";
 export { ProcessWildAnimalAi };
 import { PromoteToPraMatron } from "./promote_to_pra_matron_reducer.ts";
@@ -467,6 +477,8 @@ import { QuickMoveFromRainCollector } from "./quick_move_from_rain_collector_red
 export { QuickMoveFromRainCollector };
 import { QuickMoveFromStash } from "./quick_move_from_stash_reducer.ts";
 export { QuickMoveFromStash };
+import { QuickMoveFromTurret } from "./quick_move_from_turret_reducer.ts";
+export { QuickMoveFromTurret };
 import { QuickMoveToBarbecue } from "./quick_move_to_barbecue_reducer.ts";
 export { QuickMoveToBarbecue };
 import { QuickMoveToBox } from "./quick_move_to_box_reducer.ts";
@@ -1021,6 +1033,10 @@ import { TorchDurabilityScheduleTableHandle } from "./torch_durability_schedule_
 export { TorchDurabilityScheduleTableHandle };
 import { TreeTableHandle } from "./tree_table.ts";
 export { TreeTableHandle };
+import { TurretTableHandle } from "./turret_table.ts";
+export { TurretTableHandle };
+import { TurretProcessingScheduleTableHandle } from "./turret_processing_schedule_table.ts";
+export { TurretProcessingScheduleTableHandle };
 import { TutorialQuestDefinitionTableHandle } from "./tutorial_quest_definition_table.ts";
 export { TutorialQuestDefinitionTableHandle };
 import { WallCellTableHandle } from "./wall_cell_table.ts";
@@ -1439,6 +1455,10 @@ import { Tree } from "./tree_type.ts";
 export { Tree };
 import { TreeType } from "./tree_type_type.ts";
 export { TreeType };
+import { Turret } from "./turret_type.ts";
+export { Turret };
+import { TurretProcessingSchedule } from "./turret_processing_schedule_type.ts";
+export { TurretProcessingSchedule };
 import { TutorialQuestDefinition } from "./tutorial_quest_definition_type.ts";
 export { TutorialQuestDefinition };
 import { WallCell } from "./wall_cell_type.ts";
@@ -2782,6 +2802,24 @@ const REMOTE_MODULE = {
         colType: (Tree.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    turret: {
+      tableName: "turret" as const,
+      rowType: Turret.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (Turret.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    turret_processing_schedule: {
+      tableName: "turret_processing_schedule" as const,
+      rowType: TurretProcessingSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (TurretProcessingSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     tutorial_quest_definition: {
       tableName: "tutorial_quest_definition" as const,
       rowType: TutorialQuestDefinition.getTypeScriptAlgebraicType(),
@@ -3263,6 +3301,10 @@ const REMOTE_MODULE = {
       reducerName: "interact_with_storage_box",
       argsType: InteractWithStorageBox.getTypeScriptAlgebraicType(),
     },
+    interact_with_turret: {
+      reducerName: "interact_with_turret",
+      argsType: InteractWithTurret.getTypeScriptAlgebraicType(),
+    },
     invite_to_matronage: {
       reducerName: "invite_to_matronage",
       argsType: InviteToMatronage.getTypeScriptAlgebraicType(),
@@ -3415,6 +3457,10 @@ const REMOTE_MODULE = {
       reducerName: "move_item_to_stash",
       argsType: MoveItemToStash.getTypeScriptAlgebraicType(),
     },
+    move_item_to_turret: {
+      reducerName: "move_item_to_turret",
+      argsType: MoveItemToTurret.getTypeScriptAlgebraicType(),
+    },
     move_item_within_barbecue: {
       reducerName: "move_item_within_barbecue",
       argsType: MoveItemWithinBarbecue.getTypeScriptAlgebraicType(),
@@ -3515,6 +3561,10 @@ const REMOTE_MODULE = {
       reducerName: "pickup_storage_box",
       argsType: PickupStorageBox.getTypeScriptAlgebraicType(),
     },
+    pickup_turret: {
+      reducerName: "pickup_turret",
+      argsType: PickupTurret.getTypeScriptAlgebraicType(),
+    },
     place_barbecue: {
       reducerName: "place_barbecue",
       argsType: PlaceBarbecue.getTypeScriptAlgebraicType(),
@@ -3578,6 +3628,10 @@ const REMOTE_MODULE = {
     place_stash: {
       reducerName: "place_stash",
       argsType: PlaceStash.getTypeScriptAlgebraicType(),
+    },
+    place_turret: {
+      reducerName: "place_turret",
+      argsType: PlaceTurret.getTypeScriptAlgebraicType(),
     },
     place_wall: {
       reducerName: "place_wall",
@@ -3687,6 +3741,10 @@ const REMOTE_MODULE = {
       reducerName: "process_torch_durability",
       argsType: ProcessTorchDurability.getTypeScriptAlgebraicType(),
     },
+    process_turret_logic_scheduled: {
+      reducerName: "process_turret_logic_scheduled",
+      argsType: ProcessTurretLogicScheduled.getTypeScriptAlgebraicType(),
+    },
     process_wild_animal_ai: {
       reducerName: "process_wild_animal_ai",
       argsType: ProcessWildAnimalAi.getTypeScriptAlgebraicType(),
@@ -3754,6 +3812,10 @@ const REMOTE_MODULE = {
     quick_move_from_stash: {
       reducerName: "quick_move_from_stash",
       argsType: QuickMoveFromStash.getTypeScriptAlgebraicType(),
+    },
+    quick_move_from_turret: {
+      reducerName: "quick_move_from_turret",
+      argsType: QuickMoveFromTurret.getTypeScriptAlgebraicType(),
     },
     quick_move_to_barbecue: {
       reducerName: "quick_move_to_barbecue",
@@ -4400,6 +4462,7 @@ export type Reducer = never
 | { name: "InteractWithLantern", args: InteractWithLantern }
 | { name: "InteractWithSleepingBag", args: InteractWithSleepingBag }
 | { name: "InteractWithStorageBox", args: InteractWithStorageBox }
+| { name: "InteractWithTurret", args: InteractWithTurret }
 | { name: "InviteToMatronage", args: InviteToMatronage }
 | { name: "Jump", args: Jump }
 | { name: "LeaveMatronage", args: LeaveMatronage }
@@ -4438,6 +4501,7 @@ export type Reducer = never
 | { name: "MoveItemToRefrigerator", args: MoveItemToRefrigerator }
 | { name: "MoveItemToRepairBench", args: MoveItemToRepairBench }
 | { name: "MoveItemToStash", args: MoveItemToStash }
+| { name: "MoveItemToTurret", args: MoveItemToTurret }
 | { name: "MoveItemWithinBarbecue", args: MoveItemWithinBarbecue }
 | { name: "MoveItemWithinBox", args: MoveItemWithinBox }
 | { name: "MoveItemWithinBrothPot", args: MoveItemWithinBrothPot }
@@ -4463,6 +4527,7 @@ export type Reducer = never
 | { name: "PickupLantern", args: PickupLantern }
 | { name: "PickupRepairBench", args: PickupRepairBench }
 | { name: "PickupStorageBox", args: PickupStorageBox }
+| { name: "PickupTurret", args: PickupTurret }
 | { name: "PlaceBarbecue", args: PlaceBarbecue }
 | { name: "PlaceBrothPotOnCampfire", args: PlaceBrothPotOnCampfire }
 | { name: "PlaceBrothPotOnFumarole", args: PlaceBrothPotOnFumarole }
@@ -4479,6 +4544,7 @@ export type Reducer = never
 | { name: "PlaceShelter", args: PlaceShelter }
 | { name: "PlaceSleepingBag", args: PlaceSleepingBag }
 | { name: "PlaceStash", args: PlaceStash }
+| { name: "PlaceTurret", args: PlaceTurret }
 | { name: "PlaceWall", args: PlaceWall }
 | { name: "PlaceWoodenStorageBox", args: PlaceWoodenStorageBox }
 | { name: "PlantSeed", args: PlantSeed }
@@ -4506,6 +4572,7 @@ export type Reducer = never
 | { name: "ProcessSleepingBagDeterioration", args: ProcessSleepingBagDeterioration }
 | { name: "ProcessTilledTileReversions", args: ProcessTilledTileReversions }
 | { name: "ProcessTorchDurability", args: ProcessTorchDurability }
+| { name: "ProcessTurretLogicScheduled", args: ProcessTurretLogicScheduled }
 | { name: "ProcessWildAnimalAi", args: ProcessWildAnimalAi }
 | { name: "PromoteToPraMatron", args: PromoteToPraMatron }
 | { name: "PurchaseMemoryGridNode", args: PurchaseMemoryGridNode }
@@ -4523,6 +4590,7 @@ export type Reducer = never
 | { name: "QuickMoveFromLantern", args: QuickMoveFromLantern }
 | { name: "QuickMoveFromRainCollector", args: QuickMoveFromRainCollector }
 | { name: "QuickMoveFromStash", args: QuickMoveFromStash }
+| { name: "QuickMoveFromTurret", args: QuickMoveFromTurret }
 | { name: "QuickMoveToBarbecue", args: QuickMoveToBarbecue }
 | { name: "QuickMoveToBox", args: QuickMoveToBox }
 | { name: "QuickMoveToBrothPot", args: QuickMoveToBrothPot }
@@ -6094,6 +6162,22 @@ export class RemoteReducers {
     this.connection.offReducer("interact_with_storage_box", callback);
   }
 
+  interactWithTurret(turretId: number) {
+    const __args = { turretId };
+    let __writer = new __BinaryWriter(1024);
+    InteractWithTurret.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("interact_with_turret", __argsBuffer, this.setCallReducerFlags.interactWithTurretFlags);
+  }
+
+  onInteractWithTurret(callback: (ctx: ReducerEventContext, turretId: number) => void) {
+    this.connection.onReducer("interact_with_turret", callback);
+  }
+
+  removeOnInteractWithTurret(callback: (ctx: ReducerEventContext, turretId: number) => void) {
+    this.connection.offReducer("interact_with_turret", callback);
+  }
+
   inviteToMatronage(targetUsername: string) {
     const __args = { targetUsername };
     let __writer = new __BinaryWriter(1024);
@@ -6682,6 +6766,22 @@ export class RemoteReducers {
     this.connection.offReducer("move_item_to_stash", callback);
   }
 
+  moveItemToTurret(turretId: number, slotIndex: number, itemInstanceId: bigint) {
+    const __args = { turretId, slotIndex, itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    MoveItemToTurret.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("move_item_to_turret", __argsBuffer, this.setCallReducerFlags.moveItemToTurretFlags);
+  }
+
+  onMoveItemToTurret(callback: (ctx: ReducerEventContext, turretId: number, slotIndex: number, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("move_item_to_turret", callback);
+  }
+
+  removeOnMoveItemToTurret(callback: (ctx: ReducerEventContext, turretId: number, slotIndex: number, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("move_item_to_turret", callback);
+  }
+
   moveItemWithinBarbecue(barbecueId: number, sourceSlotIndex: number, targetSlotIndex: number) {
     const __args = { barbecueId, sourceSlotIndex, targetSlotIndex };
     let __writer = new __BinaryWriter(1024);
@@ -7082,6 +7182,22 @@ export class RemoteReducers {
     this.connection.offReducer("pickup_storage_box", callback);
   }
 
+  pickupTurret(turretId: number) {
+    const __args = { turretId };
+    let __writer = new __BinaryWriter(1024);
+    PickupTurret.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("pickup_turret", __argsBuffer, this.setCallReducerFlags.pickupTurretFlags);
+  }
+
+  onPickupTurret(callback: (ctx: ReducerEventContext, turretId: number) => void) {
+    this.connection.onReducer("pickup_turret", callback);
+  }
+
+  removeOnPickupTurret(callback: (ctx: ReducerEventContext, turretId: number) => void) {
+    this.connection.offReducer("pickup_turret", callback);
+  }
+
   placeBarbecue(itemInstanceId: bigint, worldX: number, worldY: number) {
     const __args = { itemInstanceId, worldX, worldY };
     let __writer = new __BinaryWriter(1024);
@@ -7336,6 +7452,22 @@ export class RemoteReducers {
 
   removeOnPlaceStash(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, worldX: number, worldY: number) => void) {
     this.connection.offReducer("place_stash", callback);
+  }
+
+  placeTurret(itemInstanceId: bigint, worldX: number, worldY: number) {
+    const __args = { itemInstanceId, worldX, worldY };
+    let __writer = new __BinaryWriter(1024);
+    PlaceTurret.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("place_turret", __argsBuffer, this.setCallReducerFlags.placeTurretFlags);
+  }
+
+  onPlaceTurret(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, worldX: number, worldY: number) => void) {
+    this.connection.onReducer("place_turret", callback);
+  }
+
+  removeOnPlaceTurret(callback: (ctx: ReducerEventContext, itemInstanceId: bigint, worldX: number, worldY: number) => void) {
+    this.connection.offReducer("place_turret", callback);
   }
 
   placeWall(cellX: bigint, cellY: bigint, worldX: number, worldY: number, tier: number) {
@@ -7770,6 +7902,22 @@ export class RemoteReducers {
     this.connection.offReducer("process_torch_durability", callback);
   }
 
+  processTurretLogicScheduled(schedule: TurretProcessingSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    ProcessTurretLogicScheduled.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_turret_logic_scheduled", __argsBuffer, this.setCallReducerFlags.processTurretLogicScheduledFlags);
+  }
+
+  onProcessTurretLogicScheduled(callback: (ctx: ReducerEventContext, schedule: TurretProcessingSchedule) => void) {
+    this.connection.onReducer("process_turret_logic_scheduled", callback);
+  }
+
+  removeOnProcessTurretLogicScheduled(callback: (ctx: ReducerEventContext, schedule: TurretProcessingSchedule) => void) {
+    this.connection.offReducer("process_turret_logic_scheduled", callback);
+  }
+
   processWildAnimalAi(schedule: WildAnimalAiSchedule) {
     const __args = { schedule };
     let __writer = new __BinaryWriter(1024);
@@ -8040,6 +8188,22 @@ export class RemoteReducers {
 
   removeOnQuickMoveFromStash(callback: (ctx: ReducerEventContext, stashId: number, sourceSlotIndex: number) => void) {
     this.connection.offReducer("quick_move_from_stash", callback);
+  }
+
+  quickMoveFromTurret(turretId: number, slotIndex: number) {
+    const __args = { turretId, slotIndex };
+    let __writer = new __BinaryWriter(1024);
+    QuickMoveFromTurret.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("quick_move_from_turret", __argsBuffer, this.setCallReducerFlags.quickMoveFromTurretFlags);
+  }
+
+  onQuickMoveFromTurret(callback: (ctx: ReducerEventContext, turretId: number, slotIndex: number) => void) {
+    this.connection.onReducer("quick_move_from_turret", callback);
+  }
+
+  removeOnQuickMoveFromTurret(callback: (ctx: ReducerEventContext, turretId: number, slotIndex: number) => void) {
+    this.connection.offReducer("quick_move_from_turret", callback);
   }
 
   quickMoveToBarbecue(barbecueId: number, itemInstanceId: bigint) {
@@ -10502,6 +10666,11 @@ export class SetReducerFlags {
     this.interactWithStorageBoxFlags = flags;
   }
 
+  interactWithTurretFlags: __CallReducerFlags = 'FullUpdate';
+  interactWithTurret(flags: __CallReducerFlags) {
+    this.interactWithTurretFlags = flags;
+  }
+
   inviteToMatronageFlags: __CallReducerFlags = 'FullUpdate';
   inviteToMatronage(flags: __CallReducerFlags) {
     this.inviteToMatronageFlags = flags;
@@ -10692,6 +10861,11 @@ export class SetReducerFlags {
     this.moveItemToStashFlags = flags;
   }
 
+  moveItemToTurretFlags: __CallReducerFlags = 'FullUpdate';
+  moveItemToTurret(flags: __CallReducerFlags) {
+    this.moveItemToTurretFlags = flags;
+  }
+
   moveItemWithinBarbecueFlags: __CallReducerFlags = 'FullUpdate';
   moveItemWithinBarbecue(flags: __CallReducerFlags) {
     this.moveItemWithinBarbecueFlags = flags;
@@ -10817,6 +10991,11 @@ export class SetReducerFlags {
     this.pickupStorageBoxFlags = flags;
   }
 
+  pickupTurretFlags: __CallReducerFlags = 'FullUpdate';
+  pickupTurret(flags: __CallReducerFlags) {
+    this.pickupTurretFlags = flags;
+  }
+
   placeBarbecueFlags: __CallReducerFlags = 'FullUpdate';
   placeBarbecue(flags: __CallReducerFlags) {
     this.placeBarbecueFlags = flags;
@@ -10895,6 +11074,11 @@ export class SetReducerFlags {
   placeStashFlags: __CallReducerFlags = 'FullUpdate';
   placeStash(flags: __CallReducerFlags) {
     this.placeStashFlags = flags;
+  }
+
+  placeTurretFlags: __CallReducerFlags = 'FullUpdate';
+  placeTurret(flags: __CallReducerFlags) {
+    this.placeTurretFlags = flags;
   }
 
   placeWallFlags: __CallReducerFlags = 'FullUpdate';
@@ -11032,6 +11216,11 @@ export class SetReducerFlags {
     this.processTorchDurabilityFlags = flags;
   }
 
+  processTurretLogicScheduledFlags: __CallReducerFlags = 'FullUpdate';
+  processTurretLogicScheduled(flags: __CallReducerFlags) {
+    this.processTurretLogicScheduledFlags = flags;
+  }
+
   processWildAnimalAiFlags: __CallReducerFlags = 'FullUpdate';
   processWildAnimalAi(flags: __CallReducerFlags) {
     this.processWildAnimalAiFlags = flags;
@@ -11115,6 +11304,11 @@ export class SetReducerFlags {
   quickMoveFromStashFlags: __CallReducerFlags = 'FullUpdate';
   quickMoveFromStash(flags: __CallReducerFlags) {
     this.quickMoveFromStashFlags = flags;
+  }
+
+  quickMoveFromTurretFlags: __CallReducerFlags = 'FullUpdate';
+  quickMoveFromTurret(flags: __CallReducerFlags) {
+    this.quickMoveFromTurretFlags = flags;
   }
 
   quickMoveToBarbecueFlags: __CallReducerFlags = 'FullUpdate';
@@ -12500,6 +12694,16 @@ export class RemoteTables {
   get tree(): TreeTableHandle<'tree'> {
     // clientCache is a private property
     return new TreeTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Tree>(REMOTE_MODULE.tables.tree));
+  }
+
+  get turret(): TurretTableHandle<'turret'> {
+    // clientCache is a private property
+    return new TurretTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Turret>(REMOTE_MODULE.tables.turret));
+  }
+
+  get turretProcessingSchedule(): TurretProcessingScheduleTableHandle<'turret_processing_schedule'> {
+    // clientCache is a private property
+    return new TurretProcessingScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<TurretProcessingSchedule>(REMOTE_MODULE.tables.turret_processing_schedule));
   }
 
   get tutorialQuestDefinition(): TutorialQuestDefinitionTableHandle<'tutorial_quest_definition'> {

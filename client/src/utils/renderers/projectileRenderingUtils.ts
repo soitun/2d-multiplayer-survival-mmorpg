@@ -11,6 +11,10 @@ const ARROW_SPRITE_OFFSET_Y = 0; // Pixels to offset drawing from calculated cen
 
 const GRAVITY: number = 600.0; // Same as server-side
 
+// Projectile source type constants (must match server)
+const PROJECTILE_SOURCE_PLAYER = 0;
+const PROJECTILE_SOURCE_TURRET = 1;
+
 // Client-side projectile lifetime limits for cleanup (in case server is slow)
 const MAX_PROJECTILE_LIFETIME_MS = 12000; // 12 seconds max
 const MAX_PROJECTILE_DISTANCE = 1200; // Max distance before client cleanup
@@ -172,24 +176,104 @@ export const renderProjectile = ({
 
   ctx.save();
   
-  // Apply teal underwater tint when projectile is underwater (consistent with other underwater entities)
-  if (applyUnderwaterTint) {
-    ctx.filter = 'sepia(20%) hue-rotate(140deg) saturate(120%)';
+  // Check if this is a turret tallow projectile (source_type = 1)
+  const isTurretTallow = projectile.sourceType === PROJECTILE_SOURCE_TURRET;
+  
+  if (isTurretTallow) {
+    // Turret tallow projectiles use full gravity (molten globs fall)
+    const tallowGravityMultiplier = 1.0;
+    const tallowGravityEffect = 0.5 * GRAVITY * tallowGravityMultiplier * elapsedTimeSeconds * elapsedTimeSeconds;
+    const tallowCurrentY = projectile.startPosY + (projectile.velocityY * elapsedTimeSeconds) + tallowGravityEffect;
+    
+    // Render tallow glob as a glowing orange circle with particle trail
+    const globRadius = 8; // Base radius for the tallow glob
+    const glowRadius = globRadius + 4; // Outer glow radius
+    
+    // Calculate trail positions (last few positions for particle effect)
+    const trailLength = 5;
+    const trailPositions: Array<{ x: number; y: number; alpha: number }> = [];
+    for (let i = 0; i < trailLength; i++) {
+      const trailTime = elapsedTimeSeconds - (i * 0.05); // 50ms between trail points
+      if (trailTime < 0) continue;
+      
+      const trailX = projectile.startPosX + (projectile.velocityX * trailTime);
+      const trailGravityEffect = 0.5 * GRAVITY * tallowGravityMultiplier * trailTime * trailTime;
+      const trailY = projectile.startPosY + (projectile.velocityY * trailTime) + trailGravityEffect;
+      
+      trailPositions.push({
+        x: trailX,
+        y: trailY,
+        alpha: 0.3 * (1 - i / trailLength) // Fade out along trail
+      });
+    }
+    
+    // Draw particle trail (behind the glob)
+    trailPositions.forEach((pos, index) => {
+      if (index === 0) return; // Skip first (same as glob position)
+      
+      ctx.save();
+      ctx.globalAlpha = pos.alpha;
+      ctx.fillStyle = `rgba(255, 140, 0, ${pos.alpha})`; // Orange with alpha
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, globRadius * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+    
+    // Draw outer glow
+    const glowGradient = ctx.createRadialGradient(
+      currentX, tallowCurrentY, globRadius,
+      currentX, tallowCurrentY, glowRadius
+    );
+    glowGradient.addColorStop(0, 'rgba(255, 200, 100, 0.8)'); // Bright orange center
+    glowGradient.addColorStop(0.5, 'rgba(255, 140, 0, 0.4)'); // Orange middle
+    glowGradient.addColorStop(1, 'rgba(255, 100, 0, 0)'); // Fade to transparent
+    
+    ctx.fillStyle = glowGradient;
+    ctx.beginPath();
+    ctx.arc(currentX, tallowCurrentY, glowRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw main glob
+    const globGradient = ctx.createRadialGradient(
+      currentX, tallowCurrentY, 0,
+      currentX, tallowCurrentY, globRadius
+    );
+    globGradient.addColorStop(0, '#FFD700'); // Bright yellow center
+    globGradient.addColorStop(0.7, '#FF8C00'); // Orange
+    globGradient.addColorStop(1, '#FF4500'); // Dark orange edge
+    
+    ctx.fillStyle = globGradient;
+    ctx.beginPath();
+    ctx.arc(currentX, tallowCurrentY, globRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Add small highlight for 3D effect
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.beginPath();
+    ctx.arc(currentX - globRadius * 0.3, tallowCurrentY - globRadius * 0.3, globRadius * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    // Regular projectile rendering (arrows, bullets, thrown items)
+    // Apply teal underwater tint when projectile is underwater (consistent with other underwater entities)
+    if (applyUnderwaterTint) {
+      ctx.filter = 'sepia(20%) hue-rotate(140deg) saturate(120%)';
+    }
+    
+    // Use sub-pixel positioning for smoother movement
+    ctx.translate(Math.round(currentX * 10) / 10 + ARROW_SPRITE_OFFSET_X, Math.round(currentY * 10) / 10 + ARROW_SPRITE_OFFSET_Y);
+    ctx.rotate(angle);
+    ctx.scale(-1, 1); // Flip horizontally for correct arrow orientation
+    
+    // Draw the image centered on its new origin
+    ctx.drawImage(
+      arrowImage,
+      -drawWidth / 2, 
+      -drawHeight / 2,
+      drawWidth,
+      drawHeight
+    );
   }
-  
-  // Use sub-pixel positioning for smoother movement
-  ctx.translate(Math.round(currentX * 10) / 10 + ARROW_SPRITE_OFFSET_X, Math.round(currentY * 10) / 10 + ARROW_SPRITE_OFFSET_Y);
-  ctx.rotate(angle);
-  ctx.scale(-1, 1); // Flip horizontally for correct arrow orientation
-  
-  // Draw the image centered on its new origin
-  ctx.drawImage(
-    arrowImage,
-    -drawWidth / 2, 
-    -drawHeight / 2,
-    drawWidth,
-    drawHeight
-  );
   
   ctx.restore();
 };

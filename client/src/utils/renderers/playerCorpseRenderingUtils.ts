@@ -133,6 +133,10 @@ export function renderPlayerCorpse({
     isSnorkeling: false, // Corpses are not snorkeling
     isAimingThrow: false, // Corpses are not aiming throws
     hasSeenMemoryShardTutorial: false, // Corpses don't need tutorials
+    hasSeenSovaIntro: false, // Corpses don't need tutorials
+    pvpEnabled: false, // Corpses can't engage in PvP
+    pvpEnabledUntil: undefined, // No PvP timer for corpses
+    lastPvpCombatTime: undefined, // No PvP combat time for corpses
   };
 
   // Choose the appropriate hero sprite based on water status (corpses don't crouch)

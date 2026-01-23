@@ -1,5 +1,5 @@
 // AAA-Quality Client-side Collision Detection System
-import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, LivingCoral, Lantern } from '../generated';
+import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, LivingCoral, Lantern, Turret } from '../generated';
 // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 import { COMPOUND_BUILDINGS, getBuildingWorldPosition } from '../config/compoundBuildings';
@@ -469,6 +469,29 @@ function getCollisionCandidates(
         x: lantern.posX + COLLISION_OFFSETS.WARD.x,
         y: lantern.posY + COLLISION_OFFSETS.WARD.y,
         radius: COLLISION_RADII.WARD
+      });
+    }
+  }
+  
+  // Filter turrets (all turrets have collision - same as wards)
+  if (entities.turrets && entities.turrets.size > 0) {
+    const nearbyTurrets = filterEntitiesByDistance(
+      entities.turrets,
+      playerX,
+      playerY,
+      COLLISION_PERF.STRUCTURE_CULL_DISTANCE_SQ,
+      20 // Max turrets to check
+    );
+    
+    for (const turret of nearbyTurrets) {
+      if (turret.isDestroyed) continue;
+      
+      shapes.push({
+        id: turret.id.toString(),
+        type: `turret-${turret.id.toString()}`,
+        x: turret.posX + COLLISION_OFFSETS.TURRET.x,
+        y: turret.posY + COLLISION_OFFSETS.TURRET.y,
+        radius: COLLISION_RADII.TURRET
       });
     }
   }
@@ -954,6 +977,7 @@ export const COLLISION_RADII = {
   BASALT_COLUMN: 35, // Basalt column collision radius
   ALK_STATION: 120, // ALK delivery station collision radius (reduced for easier navigation and Y-sorting)
   WARD: 40, // Ward collision radius (for ancestral ward, signal disruptor, memory beacon - NOT regular lanterns)
+  TURRET: 40, // Turret collision radius (same as wards - 256x256 sprites)
   // STORM_PILE removed - storms now spawn HarvestableResources and DroppedItems directly
   LIVING_CORAL: 80, // Living coral collision radius (underwater coral reef, doubled for better underwater presence)
 } as const;
@@ -977,6 +1001,7 @@ export const COLLISION_OFFSETS = {
   HOMESTEAD_HEARTH: { x: 0, y: -72.5 }, // Homestead hearth collision offset (matches server-side HEARTH_COLLISION_Y_OFFSET)
   BASALT_COLUMN: { x: 0, y: -40 }, // Basalt column collision offset
   WARD: { x: 0, y: -80 }, // Ward collision offset (matches server-side WARD_COLLISION_Y_OFFSET)
+  TURRET: { x: 0, y: -80 }, // Turret collision offset (matches server-side TURRET_COLLISION_Y_OFFSET)
   // STORM_PILE removed - storms now spawn HarvestableResources and DroppedItems directly
   LIVING_CORAL: { x: 0, y: -60 }, // Living coral collision offset (doubled to match visual size)
 } as const;
@@ -1046,6 +1071,7 @@ export interface GameEntities {
   // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
   livingCorals?: Map<string, LivingCoral>; // Add living corals for collision (uses combat system)
   lanterns?: Map<string, Lantern>; // Add lanterns/wards for collision (only wards have collision, NOT regular lanterns)
+  turrets?: Map<string, Turret>; // ADDED: Turrets for collision (all turrets have collision)
 }
 
 // Exported for debug rendering

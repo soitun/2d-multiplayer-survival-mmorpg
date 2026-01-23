@@ -147,6 +147,7 @@ mod broth_pot; // <<< ADDED: Broth pot cooking system
 mod recipes; // <<< ADDED: Recipe system for broth pot cooking
 mod barbecue; // <<< ADDED: Barbecue cooking appliance system
 mod fire_patch; // <<< ADDED: Fire patch system for fire arrows
+mod turret; // <<< ADDED: Turret system for automated defense
 mod explosive; // <<< ADDED: Explosive system for raiding
 mod ai_brewing; // <<< ADDED: AI-generated brew recipes system
 mod alk; // <<< ADDED: ALK (Automated Logistics Kompound) provisioning system
@@ -161,6 +162,7 @@ mod cooking_station; // <<< ADDED: Cooking station for advanced food recipes
 mod player_progression; // <<< ADDED: Player progression system (XP, achievements, leaderboards)
 mod quests; // <<< ADDED: Quest system (tutorial + daily quests)
 mod beacon_event; // <<< ADDED: Memory Beacon server event system (airdrop-style)
+mod military_ration; // <<< ADDED: Military ration loot crate system
 
 // ADD: Re-export respawn reducer
 pub use respawn::respawn_randomly;
@@ -315,6 +317,12 @@ pub use lantern::{
     split_stack_from_lantern, split_and_drop_item_from_lantern_slot_to_world,
     drop_item_from_lantern_slot_to_world, light_lantern, extinguish_lantern, 
     toggle_lantern, pickup_lantern, interact_with_lantern
+};
+
+// Re-export turret reducers for client bindings
+pub use turret::{
+    place_turret, move_item_to_turret, quick_move_from_turret,
+    pickup_turret, interact_with_turret
 };
 
 // Re-export wooden storage box reducers for client bindings
@@ -758,6 +766,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     
     // ADD: Initialize explosive system
     crate::explosive::init_explosive_system(ctx)?;
+    
+    // ADD: Initialize turret system
+    crate::turret::init_turret_system(ctx)?;
     
     // ADD: Initialize backpack consolidation system
     crate::backpack::init_backpack_consolidation_schedule(ctx)?;

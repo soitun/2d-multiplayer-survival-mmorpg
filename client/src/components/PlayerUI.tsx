@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Player, InventoryItem, ItemDefinition, DbConnection, ActiveEquipment, Campfire as SpacetimeDBCampfire, Furnace as SpacetimeDBFurnace, Barbecue as SpacetimeDBBarbecue, Fumarole as SpacetimeDBFumarole, Lantern as SpacetimeDBLantern, WoodenStorageBox as SpacetimeDBWoodenStorageBox, Recipe, CraftingQueueItem, PlayerCorpse, StatThresholdsConfig, Stash as SpacetimeDBStash, ActiveConsumableEffect, KnockedOutStatus, WorldState, RainCollector as SpacetimeDBRainCollector, BrothPot as SpacetimeDBBrothPot, HomesteadHearth as SpacetimeDBHomesteadHearth, RangedWeaponStats, MemoryGridProgress as SpacetimeDBMemoryGridProgress } from '../generated';
+import { Player, InventoryItem, ItemDefinition, DbConnection, ActiveEquipment, Campfire as SpacetimeDBCampfire, Furnace as SpacetimeDBFurnace, Barbecue as SpacetimeDBBarbecue, Fumarole as SpacetimeDBFumarole, Lantern as SpacetimeDBLantern, Turret as SpacetimeDBTurret, WoodenStorageBox as SpacetimeDBWoodenStorageBox, Recipe, CraftingQueueItem, PlayerCorpse, StatThresholdsConfig, Stash as SpacetimeDBStash, ActiveConsumableEffect, KnockedOutStatus, WorldState, RainCollector as SpacetimeDBRainCollector, BrothPot as SpacetimeDBBrothPot, HomesteadHearth as SpacetimeDBHomesteadHearth, RangedWeaponStats, MemoryGridProgress as SpacetimeDBMemoryGridProgress } from '../generated';
 import { Identity } from 'spacetimedb';
 import InventoryUI, { PopulatedItem } from './InventoryUI';
 import Hotbar from './Hotbar';
@@ -43,6 +43,7 @@ interface PlayerUIProps {
   barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues
   fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles
   lanterns: Map<string, SpacetimeDBLantern>;
+  turrets: Map<string, SpacetimeDBTurret>; // ADDED: Turrets prop
   onSetInteractingWith: (target: InteractionTarget) => void;
   interactingWith: InteractionTarget;
   startPlacement: (itemInfo: PlacementItemInfo) => void;
@@ -89,6 +90,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
     barbecues,
     fumaroles,
     lanterns,
+    turrets, // ADDED: Turrets prop
     onSetInteractingWith,
     interactingWith,
     startPlacement,

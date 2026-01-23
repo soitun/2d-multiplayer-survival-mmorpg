@@ -6,6 +6,7 @@ import {
     Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
     Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole import (volcanic heat source)
     Lantern as SpacetimeDBLantern,
+    Turret as SpacetimeDBTurret, // ADDED: Turret import
     HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth import
     DroppedItem as SpacetimeDBDroppedItem,
     WoodenStorageBox as SpacetimeDBWoodenStorageBox,
@@ -85,6 +86,7 @@ interface UseInteractionFinderProps {
     barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecue support
     fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumarole support (volcanic heat source)
     lanterns: Map<string, SpacetimeDBLantern>;
+    turrets: Map<string, SpacetimeDBTurret>; // ADDED: Turrets support
     homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: HomesteadHearths support
     droppedItems: Map<string, SpacetimeDBDroppedItem>;
     woodenStorageBoxes: Map<string, SpacetimeDBWoodenStorageBox>;
@@ -118,6 +120,7 @@ interface UseInteractionFinderResult {
     closestInteractableBarbecueId: number | null; // ADDED: Barbecue support
     closestInteractableFumaroleId: number | null; // ADDED: Fumarole support (volcanic heat source)
     closestInteractableLanternId: number | null;
+    closestInteractableTurretId: number | null; // ADDED: Turret support
     closestInteractableHearthId: number | null; // ADDED: HomesteadHearth support
     closestInteractableDroppedItemId: bigint | null;
     closestInteractableBoxId: number | null;
@@ -243,6 +246,7 @@ export function useInteractionFinder({
     const [closestInteractableBarbecueId, setClosestInteractableBarbecueId] = useState<number | null>(null); // ADDED: Barbecue state
     const [closestInteractableFumaroleId, setClosestInteractableFumaroleId] = useState<number | null>(null); // ADDED: Fumarole state
     const [closestInteractableLanternId, setClosestInteractableLanternId] = useState<number | null>(null);
+    const [closestInteractableTurretId, setClosestInteractableTurretId] = useState<number | null>(null); // ADDED: Turret state
     const [closestInteractableHearthId, setClosestInteractableHearthId] = useState<number | null>(null); // ADDED: HomesteadHearth state
     const [closestInteractableDroppedItemId, setClosestInteractableDroppedItemId] = useState<bigint | null>(null);
     const [closestInteractableBoxId, setClosestInteractableBoxId] = useState<number | null>(null);
@@ -266,6 +270,7 @@ export function useInteractionFinder({
         closestInteractableBarbecueId: null, // ADDED: Barbecue
         closestInteractableFumaroleId: null, // ADDED: Fumarole
         closestInteractableLanternId: null,
+        closestInteractableTurretId: null, // ADDED: Turret
         closestInteractableHearthId: null, // ADDED: HomesteadHearth
         closestInteractableDroppedItemId: null,
         closestInteractableBoxId: null,
@@ -495,6 +500,32 @@ export function useInteractionFinder({
                         )) {
                             closestLanternDistSq = distSq;
                             closestLanternId = lantern.id;
+                        }
+                    }
+                });
+            }
+
+            // Find closest turret
+            let closestTurretId: number | null = null;
+            let closestTurretDistSq = PLAYER_LANTERN_INTERACTION_DISTANCE_SQUARED; // Use same distance as lanterns
+            if (turrets) {
+                turrets.forEach((turret) => {
+                    if (turret.isDestroyed) return;
+                    
+                    // Use entityVisualConfig for turret visual center
+                    const visualCenterY = turret.posY - 134; // From entityVisualConfig centerOffsetY
+                    
+                    const dx = playerX - turret.posX;
+                    const dy = playerY - visualCenterY;
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq < closestTurretDistSq) {
+                        // Check shelter access control
+                        if (canPlayerInteractWithObjectInShelter(
+                            playerX, playerY, localPlayer.identity.toHexString(),
+                            turret.posX, turret.posY, shelters
+                        )) {
+                            closestTurretDistSq = distSq;
+                            closestTurretId = turret.id;
                         }
                     }
                 });
@@ -869,6 +900,17 @@ export function useInteractionFinder({
                     });
                 }
             }
+            if (closestTurretId) {
+                const turret = turrets?.get(String(closestTurretId));
+                if (turret) {
+                    candidates.push({
+                        type: 'turret',
+                        id: closestTurretId,
+                        position: { x: turret.posX, y: turret.posY },
+                        distance: Math.sqrt(closestTurretDistSq)
+                    });
+                }
+            }
             if (closestLanternId) {
                 const lantern = lanterns?.get(String(closestLanternId));
                 let isEmpty = true;
@@ -1036,6 +1078,7 @@ export function useInteractionFinder({
             closestInteractableBarbecueId: closestBarbecueId, // ADDED: Barbecue return
             closestInteractableFumaroleId: closestFumaroleId, // ADDED: Fumarole return
             closestInteractableLanternId: closestLanternId,
+            closestInteractableTurretId: closestTurretId, // ADDED: Turret return
             closestInteractableHearthId: closestHearthId, // ADDED: HomesteadHearth return
             closestInteractableDroppedItemId: closestDroppedItemId,
             closestInteractableBoxId: closestBoxId,
@@ -1072,6 +1115,9 @@ export function useInteractionFinder({
         }
         if (calculatedResult.closestInteractableLanternId !== closestInteractableLanternId) {
             setClosestInteractableLanternId(calculatedResult.closestInteractableLanternId);
+        }
+        if (calculatedResult.closestInteractableTurretId !== closestInteractableTurretId) { // ADDED: Turret state update
+            setClosestInteractableTurretId(calculatedResult.closestInteractableTurretId);
         }
         if (calculatedResult.closestInteractableHearthId !== closestInteractableHearthId) { // ADDED: HomesteadHearth state update
             setClosestInteractableHearthId(calculatedResult.closestInteractableHearthId);
@@ -1146,6 +1192,7 @@ export function useInteractionFinder({
         closestInteractableBarbecueId, // ADDED: Barbecue final return
         closestInteractableFumaroleId, // ADDED: Fumarole final return
         closestInteractableLanternId,
+        closestInteractableTurretId, // ADDED: Turret final return
         closestInteractableHearthId, // ADDED: HomesteadHearth final return
         closestInteractableDroppedItemId,
         closestInteractableBoxId,

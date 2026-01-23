@@ -11,6 +11,8 @@ use log;
 
 use crate::environment::calculate_chunk_index;
 use crate::utils::get_distance_squared;
+use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait;
+use crate::world_state::world_state as WorldStateTableTrait;
 
 // --- Fire Patch Constants ---
 pub const FIRE_PATCH_RADIUS: f32 = 40.0; // Visual radius of fire patch (doubled from 20.0)
@@ -23,6 +25,7 @@ pub const FIRE_PATCH_DAMAGE_INTERVAL_SECS: f32 = 2.0; // Apply damage every 2 se
 pub const FIRE_PATCH_PLAYER_BURN_DAMAGE: f32 = 3.0; // Damage per tick to players
 pub const FIRE_PATCH_PLAYER_BURN_DURATION: f32 = 5.0; // 5 seconds of burn effect
 pub const FIRE_PATCH_STRUCTURE_DAMAGE_PER_TICK: f32 = 2.0; // Damage per tick to structures
+pub const FIRE_PATCH_NPC_DAMAGE: f32 = 5.0; // Damage per tick to hostile NPCs
 pub const FIRE_PROPAGATION_CHANCE: f32 = 0.10; // 10% chance to spread to nearby wooden structures (reduced from 15% to prevent chain reactions)
 
 // --- Fire Patch Table ---
@@ -197,11 +200,6 @@ pub fn process_fire_patch_damage(ctx: &ReducerContext, _args: FirePatchDamageSch
         .filter(|p| p.is_online && !p.is_dead)
         .collect();
     
-    // PERFORMANCE: Skip if no online players
-    if online_players.is_empty() {
-        return Ok(());
-    }
-    
     // Check each fire patch
     for mut fire_patch in ctx.db.fire_patch().iter() {
         // Check each online player
@@ -211,23 +209,53 @@ pub fn process_fire_patch_damage(ctx: &ReducerContext, _args: FirePatchDamageSch
             let dist_sq = dx * dx + dy * dy;
             
             if dist_sq < radius_sq {
-                // Player is in fire patch - apply burn effect (exactly like campfires)
-                match crate::active_effects::apply_burn_effect(
-                    ctx,
-                    player.identity,
-                    FIRE_PATCH_PLAYER_BURN_DAMAGE * (FIRE_PATCH_PLAYER_BURN_DURATION / FIRE_PATCH_DAMAGE_INTERVAL_SECS),
-                    FIRE_PATCH_PLAYER_BURN_DURATION,
-                    FIRE_PATCH_DAMAGE_INTERVAL_SECS,
-                    0, // Environmental source (same as campfires)
-                ) {
-                    Ok(_) => {
-                        // Update last damage tick
-                        fire_patch.last_damage_tick = current_time;
-                        ctx.db.fire_patch().id().update(fire_patch.clone());
-                        log::info!("[FirePatch] Applied/stacked burn effect for player {:?} from fire patch {}", player.identity, fire_patch.id);
+                // Fire patches only damage players with active PvP status
+                let player_pvp_active = crate::combat::is_pvp_active_for_player(player, current_time);
+                
+                // Only damage players if they have PvP enabled
+                if player_pvp_active {
+                    // Player is in fire patch - apply burn effect (exactly like campfires)
+                    match crate::active_effects::apply_burn_effect(
+                        ctx,
+                        player.identity,
+                        FIRE_PATCH_PLAYER_BURN_DAMAGE * (FIRE_PATCH_PLAYER_BURN_DURATION / FIRE_PATCH_DAMAGE_INTERVAL_SECS),
+                        FIRE_PATCH_PLAYER_BURN_DURATION,
+                        FIRE_PATCH_DAMAGE_INTERVAL_SECS,
+                        0, // Environmental source (same as campfires)
+                    ) {
+                        Ok(_) => {
+                            // Update last damage tick
+                            fire_patch.last_damage_tick = current_time;
+                            ctx.db.fire_patch().id().update(fire_patch.clone());
+                            log::info!("[FirePatch] Applied/stacked burn effect for player {:?} from fire patch {}", player.identity, fire_patch.id);
+                        }
+                        Err(e) => log::error!("[FirePatch] Failed to apply burn effect for player {:?}: {}", player.identity, e),
                     }
-                    Err(e) => log::error!("[FirePatch] Failed to apply burn effect for player {:?}: {}", player.identity, e),
                 }
+            }
+        }
+        
+        // Check each hostile NPC (always damaged by fire)
+        for mut animal in ctx.db.wild_animal().iter() {
+            if !animal.is_hostile_npc || animal.health <= 0.0 {
+                continue;
+            }
+            
+            let dx = fire_patch.pos_x - animal.pos_x;
+            let dy = fire_patch.pos_y - animal.pos_y;
+            let dist_sq = dx * dx + dy * dy;
+            
+            if dist_sq < radius_sq {
+                // Apply damage directly (hostile NPCs don't have burn effects)
+                animal.health = (animal.health - FIRE_PATCH_NPC_DAMAGE).max(0.0);
+                ctx.db.wild_animal().id().update(animal.clone());
+                
+                // Update last damage tick
+                fire_patch.last_damage_tick = current_time;
+                ctx.db.fire_patch().id().update(fire_patch.clone());
+                
+                log::info!("[FirePatch] Applied {} damage to hostile NPC {} from fire patch {}", 
+                    FIRE_PATCH_NPC_DAMAGE, animal.id, fire_patch.id);
             }
         }
     }

@@ -48,6 +48,7 @@ import {
     Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
     Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
     Lantern as SpacetimeDBLantern,
+    Turret as SpacetimeDBTurret, // ADDED: Turret import
     HarvestableResource as SpacetimeDBHarvestableResource,
     DroppedItem as SpacetimeDBDroppedItem,
     WoodenStorageBox as SpacetimeDBWoodenStorageBox,
@@ -135,6 +136,7 @@ interface GameScreenProps {
     furnaces: Map<string, SpacetimeDBFurnace>; // ADDED: Furnaces prop
     barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues prop
     lanterns: Map<string, SpacetimeDBLantern>;
+    turrets: Map<string, SpacetimeDBTurret>; // ADDED: Turret prop
     harvestableResources: Map<string, SpacetimeDBHarvestableResource>;
     droppedItems: Map<string, SpacetimeDBDroppedItem>;
     woodenStorageBoxes: Map<string, SpacetimeDBWoodenStorageBox>;
@@ -421,7 +423,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
 
     // Destructure props for cleaner usage
     const {
-        players, trees, stones, runeStones, cairns, playerDiscoveredCairns, campfires, furnaces, barbecues, lanterns, harvestableResources, droppedItems, woodenStorageBoxes, sleepingBags, // ADDED: furnaces, barbecues, runeStones, cairns
+        players, trees, stones, runeStones, cairns, playerDiscoveredCairns, campfires, furnaces, barbecues, lanterns, turrets, harvestableResources, droppedItems, woodenStorageBoxes, sleepingBags, // ADDED: furnaces, barbecues, runeStones, cairns, turrets
         playerPins, playerCorpses, stashes,
         shelters,
         plantedSeeds,
@@ -1124,6 +1126,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 onAutoActionStatesChange={handleAutoActionStatesChange}
                 isFishing={isFishing}
                 lanterns={lanterns}
+                turrets={turrets}
                 playerDrinkingCooldowns={playerDrinkingCooldowns}
                 rainCollectors={rainCollectors}
                 brothPots={brothPots}
@@ -1200,6 +1203,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 barbecues={barbecues}
                 fumaroles={props.fumaroles}
                 lanterns={lanterns}
+                turrets={turrets}
                 woodenStorageBoxes={woodenStorageBoxes}
                 playerCorpses={playerCorpses}
                 stashes={stashes}

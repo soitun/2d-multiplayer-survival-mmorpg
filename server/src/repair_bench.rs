@@ -10,7 +10,7 @@
  *                                                                            *
  ******************************************************************************/
 
-use spacetimedb::{ReducerContext, Table, Identity};
+use spacetimedb::{ReducerContext, Table, Identity, Timestamp};
 use log;
 
 use crate::wooden_storage_box::{
@@ -197,6 +197,7 @@ pub fn place_repair_bench(
         destroyed_at: None,
         last_hit_time: None,
         last_damaged_by: None,
+        respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning (player-placed repair benches don't respawn)
         // Monument placeable system (player-placed repair benches are not monuments)
         is_monument: false,
         active_user_id: None,

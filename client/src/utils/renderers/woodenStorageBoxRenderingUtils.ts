@@ -7,6 +7,7 @@ import backpackImage from '../../assets/doodads/burlap_sack.png'; // Backpack im
 import repairBenchImage from '../../assets/doodads/repair_bench.png'; // Repair bench image
 import cookingStationImage from '../../assets/doodads/cooking_station.png'; // Cooking station image
 import scarecrowImage from '../../assets/doodads/scarecrow.png'; // Scarecrow image (deters crows)
+import militaryRationImage from '../../assets/doodads/military_ration.png'; // Military ration image
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';
@@ -29,6 +30,8 @@ export const COOKING_STATION_WIDTH = 128;
 export const COOKING_STATION_HEIGHT = 128;
 export const SCARECROW_WIDTH = 128;  // Scarecrow dimensions - tall figure
 export const SCARECROW_HEIGHT = 128;
+export const MILITARY_RATION_WIDTH = 64;  // Military ration dimensions
+export const MILITARY_RATION_HEIGHT = 64;
 
 // Box type constants (must match server)
 export const BOX_TYPE_NORMAL = 0;
@@ -39,6 +42,7 @@ export const BOX_TYPE_BACKPACK = 4;
 export const BOX_TYPE_REPAIR_BENCH = 5;
 export const BOX_TYPE_COOKING_STATION = 6;
 export const BOX_TYPE_SCARECROW = 7;
+export const BOX_TYPE_MILITARY_RATION = 8;
 export const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Added interaction distance
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 10; // Make boxes shake a bit more
@@ -70,6 +74,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return cookingStationImage;
             case BOX_TYPE_SCARECROW:
                 return scarecrowImage;
+            case BOX_TYPE_MILITARY_RATION:
+                return militaryRationImage;
             default:
                 return boxImage;
         }
@@ -92,6 +98,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return { width: COOKING_STATION_WIDTH, height: COOKING_STATION_HEIGHT };
             case BOX_TYPE_SCARECROW:
                 return { width: SCARECROW_WIDTH, height: SCARECROW_HEIGHT };
+            case BOX_TYPE_MILITARY_RATION:
+                return { width: MILITARY_RATION_WIDTH, height: MILITARY_RATION_HEIGHT };
             default:
                 return { width: BOX_WIDTH, height: BOX_HEIGHT };
         }
@@ -204,6 +212,7 @@ imageManager.preloadImage(backpackImage);
 imageManager.preloadImage(repairBenchImage);
 imageManager.preloadImage(cookingStationImage);
 imageManager.preloadImage(scarecrowImage);
+imageManager.preloadImage(militaryRationImage);
 
 // --- Rendering Function (Refactored) ---
 export function renderWoodenStorageBox(

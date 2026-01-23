@@ -895,6 +895,11 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
           // Same offset as Ancestral Ward
           connection.reducers.placeLantern(placementInfo.instanceId, worldX, worldY + 134, 3);
           break;
+        case 'Tallow Steam Turret':
+          // Turrets: 256px tall sprites, rendered at posY - 256 - 6
+          // For cursor at center: server needs posY = cursorY + 134 (256/2 + 6)
+          connection.reducers.placeTurret(placementInfo.instanceId, worldX, worldY + 134);
+          break;
         case 'Wooden Storage Box':
         case 'Large Wooden Storage Box':
         case 'Refrigerator':

@@ -27,7 +27,8 @@ import {
     Furnace as SpacetimeDBFurnace,
     Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
     Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole import
-    Lantern as SpacetimeDBLantern, 
+    Lantern as SpacetimeDBLantern,
+    Turret as SpacetimeDBTurret, // ADDED: Turret import
     WoodenStorageBox as SpacetimeDBWoodenStorageBox, 
     PlayerCorpse, 
     Stash as SpacetimeDBStash,
@@ -157,6 +158,7 @@ interface ExternalContainerUIProps {
     barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues
     fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles
     lanterns: Map<string, SpacetimeDBLantern>;
+    turrets: Map<string, SpacetimeDBTurret>; // ADDED: Turrets prop
     woodenStorageBoxes: Map<string, SpacetimeDBWoodenStorageBox>;
     playerCorpses: Map<string, PlayerCorpse>;
     stashes: Map<string, SpacetimeDBStash>;
@@ -193,8 +195,9 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
     furnaces,
     barbecues, // ADDED: Barbecues
     fumaroles, // ADDED: Fumaroles
-    lanterns,
-    woodenStorageBoxes,
+        lanterns,
+        turrets, // ADDED: Turrets to useContainer
+        woodenStorageBoxes,
     playerCorpses,
     stashes,
     rainCollectors,
@@ -238,6 +241,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         barbecues,
         fumaroles,
         lanterns,
+        turrets, // ADDED: Turrets destructuring
         woodenStorageBoxes,
         playerCorpses,
         stashes,

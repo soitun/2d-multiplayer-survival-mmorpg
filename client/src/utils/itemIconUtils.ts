@@ -478,6 +478,7 @@ import matriarchWrathIcon from '../assets/items/matriarch_wrath.png';
 import ancestralWardIcon from '../assets/items/ancestral_ward.png';
 import signalDisruptorIcon from '../assets/items/signal_disruptor.png';
 import memoryBeaconIcon from '../assets/items/memory_beacon.png';
+import turretTallowIcon from '../assets/items/turret_tallow.png';
 
 // Misc/Special
 import deathMarkerIcon from '../assets/items/death_marker.png';
@@ -930,6 +931,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'ancestral_ward.png': ancestralWardIcon,
   'signal_disruptor.png': signalDisruptorIcon,
   'memory_beacon.png': memoryBeaconIcon,
+  'turret_tallow.png': turretTallowIcon,
   
   // Misc/Special
   'death_marker.png': deathMarkerIcon,

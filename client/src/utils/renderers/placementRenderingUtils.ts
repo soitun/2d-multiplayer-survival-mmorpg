@@ -11,6 +11,7 @@ import {
     SIGNAL_DISRUPTOR_WIDTH, SIGNAL_DISRUPTOR_HEIGHT,
     MEMORY_BEACON_WIDTH, MEMORY_BEACON_HEIGHT
 } from './lanternRenderingUtils';
+import { TURRET_WIDTH_PREVIEW, TURRET_HEIGHT_PREVIEW } from './turretRenderingUtils';
 import { SLEEPING_BAG_WIDTH, SLEEPING_BAG_HEIGHT } from './sleepingBagRenderingUtils';
 import { STASH_WIDTH, STASH_HEIGHT } from './stashRenderingUtils';
 import { SHELTER_RENDER_WIDTH, SHELTER_RENDER_HEIGHT } from './shelterRenderingUtils';
@@ -463,7 +464,7 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
     }
 
     // List of items that cannot be placed on water
-    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Ancestral Ward', 'Signal Disruptor', 'Memory Resonance Beacon', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath"];
+    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Ancestral Ward', 'Signal Disruptor', 'Memory Resonance Beacon', 'Tallow Steam Turret', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath"];
     
     // Seeds that don't require water or beach (most seeds) cannot be planted on water
     const isSeedButNotSpecialSeed = isSeedItemValid(placementInfo.itemName) && 
@@ -745,8 +746,9 @@ export function isPlacementTooFar(
         clientPlacementRangeSq = DOOR_PLACEMENT_MAX_DISTANCE * DOOR_PLACEMENT_MAX_DISTANCE;
     } else if (placementInfo.iconAssetName === 'ancestral_ward.png' || 
                placementInfo.iconAssetName === 'signal_disruptor.png' || 
-               placementInfo.iconAssetName === 'memory_beacon.png') {
-        // Wards have larger placement range (160px) because they have collision (radius 40)
+               placementInfo.iconAssetName === 'memory_beacon.png' ||
+               placementInfo.iconAssetName === 'turret_tallow.png') {
+        // Wards and turrets have larger placement range (160px) because they have collision (radius 40)
         // and players need to place them further away to avoid collision overlap
         const WARD_PLACEMENT_MAX_DISTANCE = 160.0;
         clientPlacementRangeSq = WARD_PLACEMENT_MAX_DISTANCE * WARD_PLACEMENT_MAX_DISTANCE;
@@ -1488,6 +1490,9 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'memory_beacon.png') {
         // For Memory Beacon, use the single sprite from doodads folder for placement preview
         previewImg = doodadImagesRef.current?.get('memory_beacon.png');
+    } else if (placementInfo.iconAssetName === 'turret_tallow.png') {
+        // For Tallow Steam Turret, use the sprite from doodads folder for placement preview
+        previewImg = doodadImagesRef.current?.get('turret_tallow.png');
     } else {
         // For other items, use the item images (including hearth.png)
         previewImg = itemImagesRef.current?.get(placementInfo.iconAssetName);
@@ -1518,6 +1523,10 @@ export function renderPlacementPreview({
         // Memory Resonance Beacon preview dimensions (Tier 3 ward)
         drawWidth = MEMORY_BEACON_WIDTH;
         drawHeight = MEMORY_BEACON_HEIGHT;
+    } else if (placementInfo.iconAssetName === 'turret_tallow.png') {
+        // Tallow Steam Turret preview dimensions (same as wards - 256x256)
+        drawWidth = TURRET_WIDTH_PREVIEW;
+        drawHeight = TURRET_HEIGHT_PREVIEW;
     } else if (placementInfo.itemName === 'Compost' || placementInfo.iconAssetName === 'compost.png') {
         // Compost preview dimensions (matches actual rendering: 128px x 128px)
         drawWidth = COMPOST_WIDTH; // 128px
@@ -1918,6 +1927,14 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'memory_beacon.png') {
         // Use centralized visual config for Memory Resonance Beacon
         const config = ENTITY_VISUAL_CONFIG.memory_beacon;
+        const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
+        adjustedX = preview.x;
+        adjustedY = preview.y;
+        drawWidth = preview.width;
+        drawHeight = preview.height;
+    } else if (placementInfo.iconAssetName === 'turret_tallow.png') {
+        // Use centralized visual config for Tallow Steam Turret
+        const config = ENTITY_VISUAL_CONFIG.turret;
         const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
         adjustedX = preview.x;
         adjustedY = preview.y;

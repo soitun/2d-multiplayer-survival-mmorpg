@@ -62,6 +62,7 @@ use crate::coral::living_coral as LivingCoralTableTrait;
 use crate::alk::alk_station as AlkStationTableTrait;
 use crate::shipwreck_part as ShipwreckPartTableTrait;
 use crate::fishing_village_part as FishingVillagePartTableTrait;
+use crate::wooden_storage_box::wooden_storage_box as WoodenStorageBoxTableTrait;
 
 // Import utils helpers and macro
 use crate::utils::{calculate_tile_bounds, attempt_single_spawn};
@@ -2418,6 +2419,8 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     let fumarole_spawn_chance = 0.006;  // 0.6% - REDUCED 2x from 1.2% (large quarries get ~3, small still get 1-2)
     let basalt_spawn_chance = 0.04;     // 4% - REDUCED by 50% from 8% (half as many columns)
     let stone_spawn_chance = 0.015;     // 1.5% - unchanged (stones are important for gameplay)
+    let military_ration_spawn_chance = 0.003; // 0.3% per quarry tile - balanced for PvP areas
+    let barrel_spawn_chance = 0.002;    // 0.2% per quarry tile - additional loot
     
     // Minimum distances for collision checking
     // Basalt columns are visually large (360x540px), so they need more space
@@ -2672,6 +2675,173 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 if let Ok(_) = ctx.db.stone().try_insert(stone) {
                     total_spawned_quarry_stone_count += 1;
                     spawned_stone_positions.push((world_x_px, world_y_px));
+                }
+            }
+        }
+        
+        // Spawn military ration with low probability (check collision with stones/fumaroles/basalt/barrels)
+        if rng.gen::<f32>() < military_ration_spawn_chance {
+            let mut too_close = false;
+            
+            // Check distance from stones
+            for (sx, sy) in &spawned_stone_positions {
+                let dx = world_x_px - sx;
+                let dy = world_y_px - sy;
+                if (dx * dx + dy * dy) < 100.0 * 100.0 { // 100px minimum distance
+                    too_close = true;
+                    break;
+                }
+            }
+            
+            // Check distance from fumaroles
+            if !too_close {
+                for (fx, fy) in &spawned_fumarole_positions {
+                    let dx = world_x_px - fx;
+                    let dy = world_y_px - fy;
+                    if (dx * dx + dy * dy) < 100.0 * 100.0 {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Check distance from basalt columns
+            if !too_close {
+                for (bx, by) in &spawned_basalt_positions {
+                    let dx = world_x_px - bx;
+                    let dy = world_y_px - by;
+                    if (dx * dx + dy * dy) < 150.0 * 150.0 { // Basalt columns are large
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Check distance from existing barrels
+            if !too_close {
+                let existing_barrels = ctx.db.barrel();
+                for existing_barrel in existing_barrels.iter() {
+                    let dx = world_x_px - existing_barrel.pos_x;
+                    let dy = world_y_px - existing_barrel.pos_y;
+                    if (dx * dx + dy * dy) < 100.0 * 100.0 {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Check distance from existing military rations
+            if !too_close {
+                let existing_boxes = ctx.db.wooden_storage_box();
+                for existing_box in existing_boxes.iter() {
+                    if existing_box.box_type == crate::wooden_storage_box::BOX_TYPE_MILITARY_RATION {
+                        let dx = world_x_px - existing_box.pos_x;
+                        let dy = world_y_px - existing_box.pos_y;
+                        if (dx * dx + dy * dy) < 100.0 * 100.0 {
+                            too_close = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if !too_close {
+                let chunk_idx = calculate_chunk_index(world_x_px, world_y_px);
+                match crate::military_ration::spawn_military_ration_with_loot(ctx, world_x_px, world_y_px, chunk_idx) {
+                    Ok(_) => {
+                        log::debug!("[QuarrySpawn] Spawned military ration at ({:.1}, {:.1})", world_x_px, world_y_px);
+                    }
+                    Err(e) => {
+                        log::warn!("[QuarrySpawn] Failed to spawn military ration: {}", e);
+                    }
+                }
+            }
+        }
+        
+        // Spawn barrel with low probability (check collision with stones/fumaroles/basalt/rations)
+        if rng.gen::<f32>() < barrel_spawn_chance {
+            let mut too_close = false;
+            
+            // Check distance from stones
+            for (sx, sy) in &spawned_stone_positions {
+                let dx = world_x_px - sx;
+                let dy = world_y_px - sy;
+                if (dx * dx + dy * dy) < 100.0 * 100.0 {
+                    too_close = true;
+                    break;
+                }
+            }
+            
+            // Check distance from fumaroles
+            if !too_close {
+                for (fx, fy) in &spawned_fumarole_positions {
+                    let dx = world_x_px - fx;
+                    let dy = world_y_px - fy;
+                    if (dx * dx + dy * dy) < 100.0 * 100.0 {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Check distance from basalt columns
+            if !too_close {
+                for (bx, by) in &spawned_basalt_positions {
+                    let dx = world_x_px - bx;
+                    let dy = world_y_px - by;
+                    if (dx * dx + dy * dy) < 150.0 * 150.0 {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Check distance from existing barrels
+            if !too_close {
+                use crate::barrel::{has_barrel_collision, has_player_barrel_collision};
+                if has_barrel_collision(ctx, world_x_px, world_y_px, None) ||
+                   has_player_barrel_collision(ctx, world_x_px, world_y_px) {
+                    too_close = true;
+                }
+            }
+            
+            // Check distance from existing military rations
+            if !too_close {
+                let existing_boxes = ctx.db.wooden_storage_box();
+                for existing_box in existing_boxes.iter() {
+                    if existing_box.box_type == crate::wooden_storage_box::BOX_TYPE_MILITARY_RATION {
+                        let dx = world_x_px - existing_box.pos_x;
+                        let dy = world_y_px - existing_box.pos_y;
+                        if (dx * dx + dy * dy) < 100.0 * 100.0 {
+                            too_close = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if !too_close {
+                let chunk_idx = calculate_chunk_index(world_x_px, world_y_px);
+                use crate::barrel::{Barrel, BARREL_INITIAL_HEALTH};
+                let new_barrel = Barrel {
+                    id: 0, // auto_inc
+                    pos_x: world_x_px,
+                    pos_y: world_y_px,
+                    chunk_index: chunk_idx,
+                    health: BARREL_INITIAL_HEALTH,
+                    variant: rng.gen_range(0..3u8), // Road barrel variants (0, 1, 2)
+                    last_hit_time: None,
+                    respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
+                    cluster_id: 0, // Individual spawns, not clusters
+                };
+                
+                match ctx.db.barrel().try_insert(new_barrel) {
+                    Ok(_) => {
+                        log::debug!("[QuarrySpawn] Spawned barrel at ({:.1}, {:.1})", world_x_px, world_y_px);
+                    }
+                    Err(e) => {
+                        log::warn!("[QuarrySpawn] Failed to spawn barrel: {}", e);
+                    }
                 }
             }
         }

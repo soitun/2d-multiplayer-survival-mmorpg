@@ -49,6 +49,7 @@ export type TargetType = TargetTypeVariants.Tree |
   TargetTypeVariants.Foundation |
   TargetTypeVariants.Wall |
   TargetTypeVariants.Door |
+  TargetTypeVariants.Turret |
   TargetTypeVariants.HomesteadHearth |
   TargetTypeVariants.LivingCoral;
 
@@ -81,6 +82,7 @@ export const TargetType = {
   Foundation: { tag: "Foundation" } as const,
   Wall: { tag: "Wall" } as const,
   Door: { tag: "Door" } as const,
+  Turret: { tag: "Turret" } as const,
   HomesteadHearth: { tag: "HomesteadHearth" } as const,
   LivingCoral: { tag: "LivingCoral" } as const,
 
@@ -107,6 +109,7 @@ export const TargetType = {
       { name: "Foundation", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Wall", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Door", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Turret", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HomesteadHearth", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "LivingCoral", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );

@@ -897,6 +897,109 @@ pub fn spawn_shipwreck_barrels(
     Ok(())
 }
 
+/// Spawns military rations around shipwreck monument parts
+/// Spawns on ground (not water) around shipwreck parts
+pub fn spawn_shipwreck_military_rations(
+    ctx: &ReducerContext,
+    monument_part_positions: &[(f32, f32)],
+) -> Result<(), String> {
+    if monument_part_positions.is_empty() {
+        return Ok(());
+    }
+    
+    use crate::environment::calculate_chunk_index;
+    use crate::wooden_storage_box::{BOX_TYPE_MILITARY_RATION, wooden_storage_box as WoodenStorageBoxTableTrait};
+    use rand::Rng;
+    
+    let mut spawned_count = 0;
+    
+    // Spawn 2-4 military rations per shipwreck part (60% chance per part)
+    for &(part_x, part_y) in monument_part_positions {
+        let spawn_roll: f32 = ctx.rng().gen();
+        if spawn_roll > 0.60 {
+            continue; // 40% chance to skip this part
+        }
+        
+        // Determine how many rations (2-4)
+        let ration_count = if ctx.rng().gen::<f32>() < 0.4 {
+            2 // 40% chance for 2 rations
+        } else if ctx.rng().gen::<f32>() < 0.8 {
+            3 // 40% chance for 3 rations
+        } else {
+            4 // 20% chance for 4 rations
+        };
+        
+        for ration_idx in 0..ration_count {
+            let mut attempts = 0;
+            const MAX_ATTEMPTS: u32 = 10;
+            
+            while attempts < MAX_ATTEMPTS {
+                attempts += 1;
+                
+                // Generate position around the shipwreck part
+                let angle = (ration_idx as f32) * (2.0 * std::f32::consts::PI / ration_count as f32) +
+                           ctx.rng().gen_range(-0.5..0.5);
+                let distance = ctx.rng().gen_range(100.0..250.0); // Distance from parts
+                let ration_x = part_x + angle.cos() * distance;
+                let ration_y = part_y + angle.sin() * distance;
+                
+                // Validate position: must be on ground (not water)
+                // Check tile type at this position
+                let tile_x = (ration_x / crate::TILE_SIZE_PX as f32).floor() as i32;
+                let tile_y = (ration_y / crate::TILE_SIZE_PX as f32).floor() as i32;
+                if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
+                    if tile_type.is_water() {
+                        continue; // Skip water tiles
+                    }
+                }
+                
+                // Check collision with existing barrels
+                use crate::barrel::{has_barrel_collision, has_player_barrel_collision};
+                if has_barrel_collision(ctx, ration_x, ration_y, None) ||
+                   has_player_barrel_collision(ctx, ration_x, ration_y) {
+                    continue;
+                }
+                
+                // Check collision with existing military rations
+                let existing_boxes = ctx.db.wooden_storage_box();
+                let mut too_close = false;
+                for existing_box in existing_boxes.iter() {
+                    if existing_box.box_type == BOX_TYPE_MILITARY_RATION {
+                        let dx = ration_x - existing_box.pos_x;
+                        let dy = ration_y - existing_box.pos_y;
+                        if dx * dx + dy * dy < 100.0 * 100.0 { // 100px minimum distance
+                            too_close = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if too_close {
+                    continue;
+                }
+                
+                // Spawn military ration
+                let chunk_idx = calculate_chunk_index(ration_x, ration_y);
+                match crate::military_ration::spawn_military_ration_with_loot(ctx, ration_x, ration_y, chunk_idx) {
+                    Ok(_) => {
+                        spawned_count += 1;
+                        log::info!("[ShipwreckRations] Spawned military ration at ({:.1}, {:.1}) near shipwreck part",
+                                  ration_x, ration_y);
+                        break; // Successfully spawned
+                    }
+                    Err(e) => {
+                        log::warn!("[ShipwreckRations] Failed to spawn military ration: {}", e);
+                        // Continue to try another position
+                    }
+                }
+            }
+        }
+    }
+    
+    log::info!("[ShipwreckRations] Spawned {} military rations around shipwreck monument", spawned_count);
+    Ok(())
+}
+
 // Future monument decoration configs can be added here:
 /*
 /// Ruins-specific decoration configuration
@@ -1357,6 +1460,7 @@ pub fn spawn_monument_placeables(
                     destroyed_at: None,
                     last_hit_time: None,
                     last_damaged_by: None,
+                    respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning (monument placeables don't respawn)
                     // Mark as monument placeable
                     is_monument: true,
                     active_user_id: None,
@@ -1438,6 +1542,7 @@ pub fn spawn_monument_placeables(
                     destroyed_at: None,
                     last_hit_time: None,
                     last_damaged_by: None,
+                    respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning (monument placeables don't respawn)
                     // Mark as monument placeable
                     is_monument: true,
                     active_user_id: None,

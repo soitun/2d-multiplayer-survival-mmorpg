@@ -78,6 +78,7 @@ interface InputHandlerProps {
     woodenStorageBoxes: Map<string, WoodenStorageBox>;
     stashes: Map<string, Stash>;
     players: Map<string, Player>;
+    turrets: Map<string, any>; // ADDED: Turrets for pickup check
     cairns: Map<string, SpacetimeDBCairn>; // ADDED: Cairns for lore lookup
     playerDiscoveredCairns: Map<string, SpacetimeDB.PlayerDiscoveredCairn>; // ADDED: Player discovery tracking
     playerCorpses: Map<string, PlayerCorpse>; // ADDED: Player corpses for protection check
@@ -434,6 +435,15 @@ export const useInputHandler = ({
                             console.log('[E-Hold ACTION] Attempting to toggle barbecue burning:', holdTarget.targetId);
                             connection.reducers.toggleBarbecueBurning(Number(holdTarget.targetId));
                             actionTaken = true;
+                            break;
+                        case 'turret':
+                            // Check if turret is empty (no ammo)
+                            const turret = turrets?.get(String(holdTarget.targetId));
+                            if (turret && !turret.ammoInstanceId) {
+                                console.log('[E-Hold ACTION] Attempting to pickup empty turret:', holdTarget.targetId);
+                                connection.reducers.pickupTurret(Number(holdTarget.targetId));
+                                actionTaken = true;
+                            }
                             break;
                         case 'lantern':
                             if (currentTarget.data?.isEmpty) {
@@ -1204,6 +1214,11 @@ export const useInputHandler = ({
                                     case 'lantern':
                                         // console.log('[E-Tap ACTION] Opening lantern interface:', currentTarget.id);
                                         onSetInteractingWith({ type: 'lantern', id: currentTarget.id });
+                                        tapActionTaken = true;
+                                        break;
+                                    case 'turret':
+                                        // console.log('[E-Tap ACTION] Opening turret interface:', currentTarget.id);
+                                        onSetInteractingWith({ type: 'turret', id: currentTarget.id });
                                         tapActionTaken = true;
                                         break;
                                     case 'box':

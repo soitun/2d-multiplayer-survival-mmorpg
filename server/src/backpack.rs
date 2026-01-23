@@ -8,7 +8,7 @@
  *                                                                            *
  ******************************************************************************/
 
-use spacetimedb::{ReducerContext, Table};
+use spacetimedb::{ReducerContext, Table, Timestamp};
 use spacetimedb::spacetimedb_lib::{ScheduleAt, TimeDuration};
 use log;
 use std::time::Duration;
@@ -210,6 +210,7 @@ fn create_backpack_at_position(
         destroyed_at: None,
         last_hit_time: None,
         last_damaged_by: None,
+        respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning (backpacks don't respawn)
         // Backpacks are not monument placeables
         is_monument: false,
         active_user_id: None,
