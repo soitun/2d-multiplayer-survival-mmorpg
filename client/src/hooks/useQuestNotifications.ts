@@ -44,6 +44,7 @@ interface QuestCompletionNotification {
     xpAwarded?: number | bigint;
     shardsAwarded?: number | bigint;
     unlockedRecipe?: string;
+    completedAt?: { microsSinceUnixEpoch: bigint };
 }
 
 interface QuestProgressNotification {
@@ -86,7 +87,43 @@ const SOVA_LABEL_MAP: Record<string, string> = {
     'daily_quests_assigned': 'SOVA: Daily Training',
 };
 
+// ============================================================================
+// Session-Based Notification Filtering
+// ============================================================================
+// 
+// IMPORTANT: We now filter notifications by SESSION TIMESTAMP instead of relying
+// on localStorage alone. This ensures that clearing browser cache does NOT replay
+// old quest completion notifications.
+//
+// How it works:
+// 1. When this module loads, we capture the current timestamp as SESSION_START_TIME
+// 2. Notifications with sentAt/completedAt BEFORE this time are considered "old"
+// 3. Old notifications are automatically marked as "seen" and not displayed
+// 4. Only notifications created AFTER the session started are shown
+//
+// This is combined with localStorage tracking (for in-session deduplication)
+// to provide airtight protection against notification replay.
+// ============================================================================
+
+// Session start time - captured once when module loads
+const SESSION_START_TIME = Date.now();
+console.log(`[useQuestNotifications] Session started at ${new Date(SESSION_START_TIME).toISOString()}`);
+
+// Convert SpacetimeDB timestamp to milliseconds
+function timestampToMs(timestamp: { microsSinceUnixEpoch: bigint } | undefined): number {
+    if (!timestamp) return 0;
+    return Number(timestamp.microsSinceUnixEpoch / 1000n);
+}
+
+// Check if a notification is from BEFORE this session started
+function isOldNotification(sentAt: { microsSinceUnixEpoch: bigint } | undefined): boolean {
+    const notificationTimeMs = timestampToMs(sentAt);
+    // Add 5 second grace period to handle clock skew and notification creation delay
+    return notificationTimeMs < (SESSION_START_TIME - 5000);
+}
+
 // LocalStorage keys for persisting seen notifications across page refreshes
+// (Still used for in-session deduplication, but timestamp filtering is primary defense)
 const SEEN_QUEST_COMPLETIONS_KEY = 'broth_seen_quest_completions';
 const SEEN_SOVA_MESSAGES_KEY = 'broth_seen_sova_messages';
 
@@ -147,13 +184,23 @@ export function useQuestNotifications({
 
     // ========================================================================
     // Handle SOVA Quest Messages - route to SOVA chat tab
+    // Now filters by session timestamp to prevent replay after cache clear
     // ========================================================================
     useEffect(() => {
         if (!sovaQuestMessages || sovaQuestMessages.size === 0) return;
         if (!sovaMessageAdderRef.current) return;
         
         sovaQuestMessages.forEach((message, id) => {
+            // Skip if already seen this session
             if (seenSovaQuestMessageIds.has(id)) return;
+            
+            // CRITICAL: Skip old notifications from before this session started
+            // This prevents replaying notifications after browser cache is cleared
+            if (isOldNotification(message.sentAt)) {
+                // Silently mark as seen without displaying
+                setSeenSovaQuestMessageIds(prev => new Set(prev).add(id));
+                return;
+            }
             
             // Mark as seen and persist to localStorage
             setSeenSovaQuestMessageIds(prev => {
@@ -204,6 +251,7 @@ export function useQuestNotifications({
 
     // ========================================================================
     // Handle Quest Completion Notifications - show celebration UI
+    // Now filters by session timestamp to prevent replay after cache clear
     // ========================================================================
     useEffect(() => {
         // IMPORTANT: Don't process notifications until playerIdentity is available
@@ -212,13 +260,19 @@ export function useQuestNotifications({
         if (!questCompletionNotifications || questCompletionNotifications.size === 0) return;
         
         questCompletionNotifications.forEach((notification, id) => {
-            if (seenQuestCompletionIds.has(id)) {
-                // Already seen this notification (persisted in localStorage)
-                return;
-            }
+            // Skip if already seen this session
+            if (seenQuestCompletionIds.has(id)) return;
             
             // Only show if it's for the local player
             if (notification.playerId?.toHexString() !== playerIdentity.toHexString()) return;
+            
+            // CRITICAL: Skip old notifications from before this session started
+            // This prevents replaying quest completion celebrations after cache clear
+            if (isOldNotification(notification.completedAt)) {
+                // Silently mark as seen without displaying
+                setSeenQuestCompletionIds(prev => new Set(prev).add(id));
+                return;
+            }
             
             console.log('[QuestNotifications] 🆕 NEW quest completion to display:', id, notification.questName, notification.questType);
             

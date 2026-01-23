@@ -11,14 +11,15 @@
  * - Memory shard tutorial (event-driven)
  * - First hostile encounter tutorial (event-driven) - warns about night apparitions
  * 
- * All tutorials:
- * - Are played only once per player (persisted to localStorage)
- * - Show SOVA sound box with waveform visualization
- * - Send messages to SOVA chat with tab flash
- * - Handle audio playback errors gracefully
+ * Tutorial state is now tracked SERVER-SIDE on the Player table:
+ * - hasSeenSovaIntro: boolean - Crash intro tutorial
+ * - hasSeenMemoryShardTutorial: boolean - Memory shard warning
+ * 
+ * This ensures clearing browser cache does NOT replay these tutorials.
+ * The server is the source of truth for "has player seen this tutorial".
  */
 
-import { useEffect, useRef, useCallback, MutableRefObject } from 'react';
+import { useEffect, useRef, MutableRefObject } from 'react';
 
 // ============================================================================
 // Types
@@ -50,6 +51,12 @@ interface UseSovaTutorialsProps {
     localPlayerId: string | null | undefined;
     showSovaSoundBoxRef: MutableRefObject<ShowSovaSoundBoxFn | null | undefined>;
     sovaMessageAdderRef: MutableRefObject<SovaMessageAdderFn | null | undefined>;
+    // SERVER-SIDE tutorial flags from Player table (source of truth)
+    // These prevent tutorials from replaying when browser cache is cleared
+    hasSeenSovaIntro?: boolean;
+    hasSeenMemoryShardTutorial?: boolean;
+    // Callback to mark SOVA intro as seen on the server
+    onMarkSovaIntroSeen?: () => void;
     // Optional entity data for proximity-based tutorials
     localPlayerPosition?: { x: number; y: number } | null;
     runeStones?: Map<string, RuneStoneData>;
@@ -238,6 +245,9 @@ export function useSovaTutorials({
     localPlayerId,
     showSovaSoundBoxRef,
     sovaMessageAdderRef,
+    hasSeenSovaIntro,
+    hasSeenMemoryShardTutorial,
+    onMarkSovaIntroSeen,
     localPlayerPosition,
     runeStones,
     alkStations,
@@ -245,6 +255,9 @@ export function useSovaTutorials({
     
     // Track if component is mounted to avoid state updates after unmount
     const isMountedRef = useRef(true);
+    
+    // Track if we've already triggered the intro this session (prevents double-play during data loading)
+    const hasTriggeredIntroThisSession = useRef(false);
     
     // Track if we've already fired the proximity events this session (to avoid spamming)
     const hasFiredRuneStoneEvent = useRef(false);
@@ -258,27 +271,41 @@ export function useSovaTutorials({
     }, []);
 
     // ========================================================================
-    // Part 1: SOVA Crash Intro (5 seconds after spawn)
+    // Part 1: SOVA Crash Intro (2.5 seconds after spawn)
+    // Uses SERVER-SIDE flag (hasSeenSovaIntro) as source of truth
+    // This ensures clearing browser cache does NOT replay the intro
     // ========================================================================
     useEffect(() => {
-        const { storageKey, delayMs, audioFile, soundBoxLabel, message } = TUTORIALS.crashIntro;
+        const { delayMs, audioFile, soundBoxLabel, message } = TUTORIALS.crashIntro;
         
-        // Skip if already played or no player yet
-        if (hasBeenPlayed(storageKey) || !localPlayerId) {
+        // Skip if no player yet or already triggered this session
+        if (!localPlayerId || hasTriggeredIntroThisSession.current) {
+            return;
+        }
+        
+        // Wait for server data to load (hasSeenSovaIntro will be undefined initially)
+        if (hasSeenSovaIntro === undefined) {
+            console.log('[SovaTutorials] 🚢 Waiting for server data to determine intro state...');
+            return;
+        }
+        
+        // Skip if server says player has already seen the intro
+        if (hasSeenSovaIntro === true) {
+            console.log('[SovaTutorials] 🚢 Server confirms intro already seen, skipping');
+            hasTriggeredIntroThisSession.current = true;
             return;
         }
 
-        console.log('[SovaTutorials] 🚢 Scheduling crash intro in 5 seconds...');
+        console.log('[SovaTutorials] 🚢 Server confirms intro NOT seen, scheduling in 2.5 seconds...');
+        hasTriggeredIntroThisSession.current = true; // Prevent double-scheduling
         
         const timer = setTimeout(() => {
-            // Double-check (race condition protection)
-            if (hasBeenPlayed(storageKey) || !isMountedRef.current) {
+            // Double-check mount status
+            if (!isMountedRef.current) {
                 return;
             }
 
-            // Mark as played FIRST
-            markAsPlayed(storageKey);
-            // Store timestamp for other sounds to check
+            // Store timestamp for other sounds to check (still useful for overlap prevention)
             localStorage.setItem(INTRO_STARTED_KEY, Date.now().toString());
             
             console.log('[SovaTutorials] 🚢 Playing crash intro NOW');
@@ -291,12 +318,21 @@ export function useSovaTutorials({
                     messageId: `sova-intro-crash-${Date.now()}`,
                 },
                 showSovaSoundBoxRef.current,
-                sovaMessageAdderRef.current
+                sovaMessageAdderRef.current,
+                {
+                    onAudioStart: () => {
+                        // Mark as seen on the server AFTER audio starts successfully
+                        if (onMarkSovaIntroSeen) {
+                            console.log('[SovaTutorials] 🚢 Marking intro as seen on server');
+                            onMarkSovaIntroSeen();
+                        }
+                    }
+                }
             );
         }, delayMs);
 
         return () => clearTimeout(timer);
-    }, [localPlayerId, showSovaSoundBoxRef, sovaMessageAdderRef]);
+    }, [localPlayerId, hasSeenSovaIntro, showSovaSoundBoxRef, sovaMessageAdderRef, onMarkSovaIntroSeen]);
 
     // ========================================================================
     // Part 2: SOVA Tutorial Hint (3.5 minutes after spawn)
@@ -339,31 +375,25 @@ export function useSovaTutorials({
 
     // ========================================================================
     // Part 3: Memory Shard Tutorial (Event-driven)
-    // Plays the first time a memory shard is picked up AFTER intro finishes.
-    // If intro is still playing, we skip entirely and wait for next pickup.
+    // SERVER controls when this triggers via has_seen_memory_shard_tutorial flag
+    // The server emits SovaMemoryShardTutorial sound event ONLY for players
+    // who haven't seen it yet. We trust the server's decision here.
+    // 
     // Triggered by: useSoundSystem.ts when it receives SovaMemoryShardTutorial sound event
     // ========================================================================
     useEffect(() => {
-        const { storageKey, audioFile, soundBoxLabel, eventName, message } = TUTORIALS.memoryShard;
+        const { audioFile, soundBoxLabel, eventName, message } = TUTORIALS.memoryShard;
         
         const handleEvent = () => {
-            console.log('[SovaTutorials] 🔮 Memory shard tutorial event received');
+            console.log('[SovaTutorials] 🔮 Memory shard tutorial event received from server');
             
-            // Already played before? Skip entirely
-            if (hasBeenPlayed(storageKey)) {
-                console.log('[SovaTutorials] 🔮 Memory shard tutorial already played, skipping');
-                return;
-            }
-            
-            // Intro still playing? Skip this time, but DON'T mark as played
-            // So it will play next time player picks up a memory shard
+            // Intro still playing? Skip this time - server will re-trigger on next pickup
             if (isIntroStillPlaying()) {
-                console.log('[SovaTutorials] 🔮 Intro still playing - skipping memory shard tutorial (will play next time)');
+                console.log('[SovaTutorials] 🔮 Intro still playing - skipping memory shard tutorial audio (will play next time)');
                 return;
             }
             
-            // Mark as played FIRST to prevent duplicate plays
-            markAsPlayed(storageKey);
+            // Server already marked this as seen, just play the audio
             console.log('[SovaTutorials] 🔮 Playing memory shard tutorial NOW');
             
             playSovaTutorial(

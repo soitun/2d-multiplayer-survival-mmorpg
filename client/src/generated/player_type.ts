@@ -66,6 +66,10 @@ export type Player = {
   offlineCorpseId: number | undefined,
   isAimingThrow: boolean,
   hasSeenMemoryShardTutorial: boolean,
+  hasSeenSovaIntro: boolean,
+  pvpEnabled: boolean,
+  pvpEnabledUntil: __Timestamp | undefined,
+  lastPvpCombatTime: __Timestamp | undefined,
 };
 let _cached_Player_type_value: __AlgebraicTypeType | null = null;
 
@@ -118,6 +122,10 @@ export const Player = {
       { name: "offlineCorpseId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
       { name: "isAimingThrow", algebraicType: __AlgebraicTypeValue.Bool },
       { name: "hasSeenMemoryShardTutorial", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "hasSeenSovaIntro", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "pvpEnabled", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "pvpEnabledUntil", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "lastPvpCombatTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
     );
     return _cached_Player_type_value;
   },

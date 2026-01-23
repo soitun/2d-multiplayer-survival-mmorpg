@@ -13,6 +13,27 @@ const NOTIFICATION_TIMEOUT_MS = 6000; // Achievements stay for 6 seconds
 const FADE_OUT_DURATION_MS = 500; // Fade out animation duration
 const SEEN_ACHIEVEMENTS_STORAGE_KEY = 'broth_seen_achievement_notifications';
 
+// ============================================================================
+// Session-Based Notification Filtering
+// ============================================================================
+// Session start time - captured once when module loads
+// Notifications created BEFORE this time are considered "old" and not displayed
+// This prevents replaying old achievements after browser cache is cleared
+const SESSION_START_TIME = Date.now();
+
+// Convert SpacetimeDB timestamp to milliseconds
+function timestampToMs(timestamp: { microsSinceUnixEpoch: bigint } | undefined): number {
+    if (!timestamp) return 0;
+    return Number(timestamp.microsSinceUnixEpoch / 1000n);
+}
+
+// Check if a notification is from BEFORE this session started
+function isOldNotification(unlockedAt: { microsSinceUnixEpoch: bigint } | undefined): boolean {
+    const notificationTimeMs = timestampToMs(unlockedAt);
+    // Add 5 second grace period to handle clock skew
+    return notificationTimeMs < (SESSION_START_TIME - 5000);
+}
+
 // Load seen achievement IDs from localStorage
 function loadSeenAchievementIds(): Set<string> {
   try {
@@ -95,9 +116,26 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
   }, []);
 
   useEffect(() => {
-    // Get the latest notifications excluding dismissed ones
+    // Filter notifications:
+    // 1. Exclude already dismissed notifications
+    // 2. CRITICAL: Exclude old notifications from before this session started
+    //    This prevents replaying achievements after browser cache is cleared
     const newVisible = notifications
-      .filter(n => !dismissedIds.has(n.id.toString()))
+      .filter(n => {
+        const id = n.id.toString();
+        // Skip if already dismissed this session
+        if (dismissedIds.has(id)) return false;
+        
+        // CRITICAL: Skip old notifications from before session started
+        // This is the primary defense against cache-clear replay
+        if (isOldNotification(n.unlockedAt)) {
+          // Silently mark as dismissed without displaying
+          setDismissedIds(prev => new Set(prev).add(id));
+          return false;
+        }
+        
+        return true;
+      })
       .slice(-MAX_NOTIFICATIONS);
     
     setVisibleNotifications(newVisible);

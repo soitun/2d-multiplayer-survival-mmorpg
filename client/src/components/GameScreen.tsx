@@ -540,12 +540,33 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         sovaMessageAdderRef.current = sovaMessageAdder;
     }, [sovaMessageAdder]);
     
+    // Get local player's server-side tutorial flags
+    const localPlayerForTutorial = localPlayerId ? props.players.get(localPlayerId) : undefined;
+    const hasSeenSovaIntro = localPlayerForTutorial?.hasSeenSovaIntro;
+    const hasSeenMemoryShardTutorial = localPlayerForTutorial?.hasSeenMemoryShardTutorial;
+    
+    // Callback to mark SOVA intro as seen on the server (prevents replay after cache clear)
+    const handleMarkSovaIntroSeen = useCallback(() => {
+        if (props.connection?.reducers) {
+            try {
+                props.connection.reducers.markSovaIntroSeen();
+                console.log('[GameScreen] Called markSovaIntroSeen reducer');
+            } catch (error) {
+                console.error('[GameScreen] Failed to mark SOVA intro as seen:', error);
+            }
+        }
+    }, [props.connection]);
+    
     // === SOVA Tutorial Sounds (abstracted to useSovaTutorials hook) ===
-    // Handles: crash intro (5s), tutorial hint (3.5min), first resource, memory shard, rune stone, alk station tutorials
+    // Handles: crash intro (2.5s), tutorial hint (3.5min), memory shard, rune stone, alk station tutorials
+    // Now uses SERVER-SIDE flags to prevent replaying tutorials after browser cache is cleared
     useSovaTutorials({
         localPlayerId,
         showSovaSoundBoxRef,
         sovaMessageAdderRef,
+        hasSeenSovaIntro,
+        hasSeenMemoryShardTutorial,
+        onMarkSovaIntroSeen: handleMarkSovaIntroSeen,
         localPlayerPosition: predictedPosition,
         runeStones: props.runeStones,
         alkStations: props.alkStations,

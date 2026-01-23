@@ -664,7 +664,8 @@ pub struct Player {
     pub shard_carry_start_time: Option<Timestamp>, // NEW: When player started carrying memory shards (for time-based insanity scaling)
     pub offline_corpse_id: Option<u32>, // Links to corpse created when player went offline
     pub is_aiming_throw: bool, // NEW: Tracks if player is in throw-aiming state (right mouse held)
-    pub has_seen_memory_shard_tutorial: bool, // NEW: Tracks if player has seen SOVA's memory shard explanation
+    pub has_seen_memory_shard_tutorial: bool, // Tracks if player has seen SOVA's memory shard explanation
+    pub has_seen_sova_intro: bool, // Tracks if player has seen SOVA's crash intro
     pub pvp_enabled: bool, // Whether PvP mode is currently active
     pub pvp_enabled_until: Option<Timestamp>, // When PvP will auto-disable (minimum 30min)
     pub last_pvp_combat_time: Option<Timestamp>, // Last time player dealt/received PvP damage (for combat extension)
@@ -1796,7 +1797,8 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         last_insanity_threshold: 0.0, // NEW: No threshold crossed initially
         shard_carry_start_time: None, // NEW: Not carrying shards initially
         offline_corpse_id: None, // No offline corpse for new players
-        has_seen_memory_shard_tutorial: false, // NEW: Player hasn't seen SOVA's memory shard explanation yet
+        has_seen_memory_shard_tutorial: false, // Player hasn't seen SOVA's memory shard explanation yet
+        has_seen_sova_intro: false, // Player hasn't seen SOVA's crash intro yet
         pvp_enabled: false, // PvP disabled by default
         pvp_enabled_until: None, // No PvP timer initially
         last_pvp_combat_time: None, // No PvP combat history initially
@@ -2409,5 +2411,24 @@ pub fn regenerate_compressed_chunks(ctx: &ReducerContext) -> Result<(), String> 
             log::error!("Failed to regenerate compressed chunk data: {}", e);
             Err(format!("Failed to regenerate compressed chunks: {}", e))
         }
+    }
+}
+
+/// Mark SOVA intro as seen - called by client when the intro audio finishes
+/// This persists server-side so clearing browser cache won't replay the intro
+#[spacetimedb::reducer]
+pub fn mark_sova_intro_seen(ctx: &ReducerContext) -> Result<(), String> {
+    let player_id = ctx.sender;
+    let players = ctx.db.player();
+    
+    if let Some(mut player) = players.identity().find(&player_id) {
+        if !player.has_seen_sova_intro {
+            player.has_seen_sova_intro = true;
+            players.identity().update(player);
+            log::info!("[SOVA] Player {:?} marked intro as seen", player_id);
+        }
+        Ok(())
+    } else {
+        Err("Player not found".to_string())
     }
 }

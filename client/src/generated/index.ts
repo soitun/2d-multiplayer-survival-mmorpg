@@ -235,6 +235,8 @@ import { ManageSeasonalPlants } from "./manage_seasonal_plants_reducer.ts";
 export { ManageSeasonalPlants };
 import { ManualCleanupThunderEvents } from "./manual_cleanup_thunder_events_reducer.ts";
 export { ManualCleanupThunderEvents };
+import { MarkSovaIntroSeen } from "./mark_sova_intro_seen_reducer.ts";
+export { MarkSovaIntroSeen };
 import { MoveItemFromBarbecueToPlayerSlot } from "./move_item_from_barbecue_to_player_slot_reducer.ts";
 export { MoveItemFromBarbecueToPlayerSlot };
 import { MoveItemFromBox } from "./move_item_from_box_reducer.ts";
@@ -3289,6 +3291,10 @@ const REMOTE_MODULE = {
       reducerName: "manual_cleanup_thunder_events",
       argsType: ManualCleanupThunderEvents.getTypeScriptAlgebraicType(),
     },
+    mark_sova_intro_seen: {
+      reducerName: "mark_sova_intro_seen",
+      argsType: MarkSovaIntroSeen.getTypeScriptAlgebraicType(),
+    },
     move_item_from_barbecue_to_player_slot: {
       reducerName: "move_item_from_barbecue_to_player_slot",
       argsType: MoveItemFromBarbecueToPlayerSlot.getTypeScriptAlgebraicType(),
@@ -4401,6 +4407,7 @@ export type Reducer = never
 | { name: "LoadRangedWeapon", args: LoadRangedWeapon }
 | { name: "ManageSeasonalPlants", args: ManageSeasonalPlants }
 | { name: "ManualCleanupThunderEvents", args: ManualCleanupThunderEvents }
+| { name: "MarkSovaIntroSeen", args: MarkSovaIntroSeen }
 | { name: "MoveItemFromBarbecueToPlayerSlot", args: MoveItemFromBarbecueToPlayerSlot }
 | { name: "MoveItemFromBox", args: MoveItemFromBox }
 | { name: "MoveItemFromBrothPot", args: MoveItemFromBrothPot }
@@ -6181,6 +6188,18 @@ export class RemoteReducers {
 
   removeOnManualCleanupThunderEvents(callback: (ctx: ReducerEventContext) => void) {
     this.connection.offReducer("manual_cleanup_thunder_events", callback);
+  }
+
+  markSovaIntroSeen() {
+    this.connection.callReducer("mark_sova_intro_seen", new Uint8Array(0), this.setCallReducerFlags.markSovaIntroSeenFlags);
+  }
+
+  onMarkSovaIntroSeen(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("mark_sova_intro_seen", callback);
+  }
+
+  removeOnMarkSovaIntroSeen(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("mark_sova_intro_seen", callback);
   }
 
   moveItemFromBarbecueToPlayerSlot(barbecueId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) {
@@ -10516,6 +10535,11 @@ export class SetReducerFlags {
   manualCleanupThunderEventsFlags: __CallReducerFlags = 'FullUpdate';
   manualCleanupThunderEvents(flags: __CallReducerFlags) {
     this.manualCleanupThunderEventsFlags = flags;
+  }
+
+  markSovaIntroSeenFlags: __CallReducerFlags = 'FullUpdate';
+  markSovaIntroSeen(flags: __CallReducerFlags) {
+    this.markSovaIntroSeenFlags = flags;
   }
 
   moveItemFromBarbecueToPlayerSlotFlags: __CallReducerFlags = 'FullUpdate';
