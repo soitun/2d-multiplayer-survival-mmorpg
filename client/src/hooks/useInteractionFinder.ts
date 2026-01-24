@@ -25,7 +25,7 @@ import {
     ItemDefinition as SpacetimeDBItemDefinition,
     PlayerDrinkingCooldown as SpacetimeDBPlayerDrinkingCooldown,
 } from '../generated';
-import { InteractableTarget } from '../types/interactions';
+import { InteractableTarget, InteractionTargetType } from '../types/interactions';
 import { selectHighestPriorityTarget } from '../types/interactions'; // ADDED: Import priority selection helper
 import {
     PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED,
@@ -218,6 +218,7 @@ export function useInteractionFinder({
     barbecues, // ADDED: Barbecue prop destructuring
     fumaroles, // ADDED: Fumarole prop destructuring (volcanic heat source)
     lanterns,
+    turrets, // ADDED: Turrets prop destructuring
     homesteadHearths, // ADDED: HomesteadHearths prop destructuring
     droppedItems,
     woodenStorageBoxes,
@@ -310,6 +311,9 @@ export function useInteractionFinder({
 
         let closestLanternId: number | null = null;
         let closestLanternDistSq = PLAYER_LANTERN_INTERACTION_DISTANCE_SQUARED;
+
+        let closestTurretId: number | null = null; // ADDED: Turret tracking
+        let closestTurretDistSq = PLAYER_LANTERN_INTERACTION_DISTANCE_SQUARED; // Use same distance as lanterns
 
         let closestHearthId: number | null = null; // ADDED: HomesteadHearth tracking
         let closestHearthDistSq = PLAYER_HEARTH_INTERACTION_DISTANCE_SQUARED;
@@ -506,10 +510,8 @@ export function useInteractionFinder({
             }
 
             // Find closest turret
-            let closestTurretId: number | null = null;
-            let closestTurretDistSq = PLAYER_LANTERN_INTERACTION_DISTANCE_SQUARED; // Use same distance as lanterns
             if (turrets) {
-                turrets.forEach((turret) => {
+                turrets.forEach((turret: SpacetimeDBTurret) => {
                     if (turret.isDestroyed) return;
                     
                     // Use entityVisualConfig for turret visual center
@@ -900,11 +902,11 @@ export function useInteractionFinder({
                     });
                 }
             }
-            if (closestTurretId) {
+            if (closestTurretId !== null) {
                 const turret = turrets?.get(String(closestTurretId));
                 if (turret) {
                     candidates.push({
-                        type: 'turret',
+                        type: 'turret' as InteractionTargetType,
                         id: closestTurretId,
                         position: { x: turret.posX, y: turret.posY },
                         distance: Math.sqrt(closestTurretDistSq)

@@ -436,7 +436,7 @@ export const useInputHandler = ({
                             connection.reducers.toggleBarbecueBurning(Number(holdTarget.targetId));
                             actionTaken = true;
                             break;
-                        case 'turret':
+                        case 'turret' as InteractionTargetType:
                             // Check if turret is empty (no ammo)
                             const turret = turrets?.get(String(holdTarget.targetId));
                             if (turret && !turret.ammoInstanceId) {
@@ -1216,9 +1216,9 @@ export const useInputHandler = ({
                                         onSetInteractingWith({ type: 'lantern', id: currentTarget.id });
                                         tapActionTaken = true;
                                         break;
-                                    case 'turret':
+                                    case 'turret' as InteractionTargetType:
                                         // console.log('[E-Tap ACTION] Opening turret interface:', currentTarget.id);
-                                        onSetInteractingWith({ type: 'turret', id: currentTarget.id });
+                                        onSetInteractingWith({ type: 'turret' as InteractionTargetType, id: currentTarget.id });
                                         tapActionTaken = true;
                                         break;
                                     case 'box':

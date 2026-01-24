@@ -144,6 +144,7 @@ export function getContainerTypeFromSlotType(slotType: string): ContainerType | 
         'barbecue_fuel': 'barbecue',
         'fumarole': 'fumarole',
         'lantern_fuel': 'lantern',
+        'turret_fuel': 'turret',
         'wooden_storage_box': 'wooden_storage_box',
         'player_corpse': 'player_corpse',
         'stash': 'stash',
@@ -798,6 +799,7 @@ export function getContainerDisplayName(containerType: ContainerType, entity?: C
         barbecue: 'BARBECUE',
         fumarole: 'FUMAROLE', // Volcanic heat source
         lantern: 'LANTERN',
+        turret: 'TURRET',
         wooden_storage_box: 'WOODEN STORAGE BOX',
         player_corpse: 'Player Corpse',
         stash: 'STASH',

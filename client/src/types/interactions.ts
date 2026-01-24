@@ -37,6 +37,7 @@ export type InteractionTargetType =
     | 'barbecue'  // ADDED: Barbecue support (same behavior as campfire)
     | 'fumarole'  // ADDED: Fumarole support (volcanic heat source with broth pot)
     | 'lantern'
+    | 'turret'  // ADDED: Turret support
     | 'homestead_hearth'  // ADDED: HomesteadHearth support
     | 'dropped_item' 
     | 'box'  // wooden_storage_box
@@ -105,6 +106,11 @@ export const INTERACTION_CONFIGS: Record<InteractionTargetType, InteractionConfi
         behavior: InteractionBehavior.INTERFACE,
         priority: 80,
         actionType: 'open_lantern'
+    },
+    turret: {
+        behavior: InteractionBehavior.INTERFACE,
+        priority: 80,
+        actionType: 'open_turret'
     },
     homestead_hearth: {
         behavior: InteractionBehavior.INTERFACE,

@@ -47,6 +47,7 @@ import {
   HarvestableResource as SpacetimeDBHarvestableResource,
   FoundationCell, // ADDED: Foundation cell type
   HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth type
+  Turret as SpacetimeDBTurret, // ADDED: Turret type
   AlkStation as SpacetimeDBAlkStation, // ADDED: ALK delivery stations
   AlkContract as SpacetimeDBAlkContract, // ADDED: ALK contracts
   AlkPlayerContract as SpacetimeDBAlkPlayerContract, // ADDED: ALK player contracts
@@ -1116,7 +1117,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     barbecues, // ADDED: Barbecues to useInteractionFinder
     fumaroles, // ADDED: Fumaroles to useInteractionFinder (volcanic heat source)
     lanterns,
-    turrets, // ADDED: Turrets to useInteractionFinder
+    turrets: visibleTurretsMap, // ADDED: Turrets to useInteractionFinder (use visible map)
     homesteadHearths, // ADDED: HomesteadHearths to useInteractionFinder
     droppedItems,
     woodenStorageBoxes,
@@ -1190,9 +1191,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     closestInteractableTarget: unifiedInteractableTarget,
     // Essential entity maps for validation and data lookup
     woodenStorageBoxes,
+    turrets: visibleTurretsMap, // ADDED: Turrets for pickup check (use visible map)
     stashes,
     players,
-    turrets, // ADDED: Turrets for pickup check
     cairns, // ADDED: Cairns for lore lookup
     playerDiscoveredCairns, // ADDED: Player discovery tracking
     playerCorpses, // ADDED: Player corpses for protection check

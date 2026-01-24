@@ -92,6 +92,7 @@ interface InventoryUIProps {
     barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues
     fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles
     lanterns: Map<string, SpacetimeDBLantern>;
+    turrets: Map<string, any>; // ADDED: Turrets prop
     woodenStorageBoxes: Map<string, SpacetimeDBWoodenStorageBox>; // <<< ADDED Prop Definition
     playerCorpses: Map<string, PlayerCorpse>; // <<< ADD prop definition for corpses
     stashes: Map<string, SpacetimeDBStash>; // <<< ADDED stashes prop
@@ -161,6 +162,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
     barbecues,
     fumaroles,
     lanterns,
+    turrets,
     woodenStorageBoxes,
     playerCorpses,
     stashes,
@@ -1492,6 +1494,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                             barbecues={barbecues}
                             fumaroles={fumaroles}
                             lanterns={lanterns}
+                            turrets={turrets}
                             woodenStorageBoxes={woodenStorageBoxes}
                             playerCorpses={playerCorpses}
                             stashes={stashes}

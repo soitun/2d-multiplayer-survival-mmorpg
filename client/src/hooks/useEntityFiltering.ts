@@ -126,7 +126,6 @@ interface EntityFilteringResult {
   visibleShelters: SpacetimeDBShelter[]; // ADDED
   visibleSheltersMap: Map<string, SpacetimeDBShelter>; // ADDED
   visibleLanterns: SpacetimeDBLantern[];
-  visibleTurrets: SpacetimeDBTurret[]; // ADDED: Turrets (duplicate for return)
   visiblePlantedSeeds: SpacetimeDBPlantedSeed[];
   visiblePlantedSeedsMap: Map<string, SpacetimeDBPlantedSeed>; // ADDED
   visibleClouds: SpacetimeDBCloud[]; // ADDED
@@ -1023,6 +1022,18 @@ export function useEntityFiltering(
     
     return visibleFiltered;
   }, [lanterns, isEntityInView, viewBounds, stableTimestamp]);
+
+  const visibleTurrets = useMemo(() => {
+    if (!turrets) return [];
+    
+    const allTurrets = Array.from(turrets.values());
+    
+    // Filter turrets - same pattern as lanterns
+    return allTurrets.filter(e => {
+      if (e.isDestroyed) return false;
+      return isEntityInView(e, viewBounds, stableTimestamp);
+    });
+  }, [turrets, isEntityInView, viewBounds, stableTimestamp]);
 
   const visibleHomesteadHearths = useMemo(() => 
     // Check source map - same filtering as campfires
@@ -2507,7 +2518,7 @@ export function useEntityFiltering(
     visibleCampfires,
     visibleFurnaces, // ADDED: Furnaces
     visibleLanterns,
-    visibleTurrets, // ADDED: Turrets
+    visibleTurrets, // ADDED: Turrets (array)
     visibleHomesteadHearths, // ADDED: Homestead Hearths
     visiblePlayers,
     visibleTrees,

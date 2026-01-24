@@ -82,18 +82,16 @@ const turretConfig: GroundEntityConfig<Turret> = {
         }
     },
 
-    shouldRender: (entity) => !entity.isDestroyed,
-
-    drawCustomOverlay: (ctx, entity, entityPosX, entityPosY, imageDrawWidth, imageDrawHeight) => {
+    drawOverlay: (ctx, entity, finalDrawX, finalDrawY, finalDrawWidth, finalDrawHeight, nowMs, baseDrawX, baseDrawY) => {
         // Render health bar if turret is damaged (only when PvP is enabled)
-        if (entity.health < entity.maxHealth) {
+        if (entity.health && entity.maxHealth && entity.health < entity.maxHealth) {
             renderEntityHealthBar(
                 ctx,
-                entityPosX,
-                entityPosY - imageDrawHeight / 2 - 10,
+                finalDrawX + finalDrawWidth / 2,
+                finalDrawY - 10,
                 entity.health,
                 entity.maxHealth,
-                imageDrawWidth
+                finalDrawWidth
             );
         }
     },
@@ -109,15 +107,19 @@ export function renderTurret(
     cameraOffsetY: number,
     cycleProgress: number
 ): void {
-    renderConfiguredGroundEntity(
+    const nowMs = performance.now();
+    const entityPosX = turret.posX - cameraOffsetX;
+    const entityPosY = turret.posY - cameraOffsetY;
+    
+    renderConfiguredGroundEntity({
         ctx,
-        turret,
-        turretConfig,
-        cameraOffsetX,
-        cameraOffsetY,
-        cycleProgress,
-        imageManager
-    );
+        entity: turret,
+        config: turretConfig,
+        nowMs,
+        entityPosX,
+        entityPosY,
+        cycleProgress
+    });
 }
 
 /**
