@@ -24,6 +24,11 @@ interface AssetItem {
 const ASSET_DATA: AssetItem[] = [
     // ═══ COMPLETED - Character Sprites (6 sheets) - $325 paid as bundle ═══
     { id: 'char-walk', type: 'Character', name: 'Walk Cycle (6×4 grid, 4 directions)', status: 'replaced', replacementType: 'Human pixel artist', payout: 324.78, estimate: 55 },
+    
+    // ═══ COMPLETED - Hostile Enemy Apparitions (3 spritesheets) - $240 total ═══
+    { id: 'enemy-shardkin', type: 'Enemy NPC', name: 'Shardkin — Full animation spritesheet', status: 'replaced', replacementType: 'Human pixel artist', payout: 60.00, estimate: 60 },
+    { id: 'enemy-shorebound', type: 'Enemy NPC', name: 'Shorebound — Full animation spritesheet', status: 'replaced', replacementType: 'Human pixel artist', payout: 80.00, estimate: 80 },
+    { id: 'enemy-drowned-watch', type: 'Enemy NPC', name: 'Drowned Watch — Full animation spritesheet', status: 'replaced', replacementType: 'Human pixel artist', payout: 100.00, estimate: 100 },
     { id: 'char-sprint', type: 'Character', name: 'Sprint Animation (8×4 grid)', status: 'replaced', replacementType: 'Human pixel artist', payout: null, estimate: 55 },
     { id: 'char-idle', type: 'Character', name: 'Idle Animation (4×4 grid, 16 frames)', status: 'replaced', replacementType: 'Human pixel artist', payout: null, estimate: 55 },
     { id: 'char-crouch', type: 'Character', name: 'Crouch Animation (2×4 grid, 8 frames)', status: 'replaced', replacementType: 'Human pixel artist', payout: null, estimate: 40 },
@@ -382,6 +387,77 @@ const AIDisclosurePage: React.FC = () => {
                                 <img 
                                     src="/images/blog/order_details.png" 
                                     alt="Fiverr order details showing commission of character sprite sheets from human artist"
+                                    style={{
+                                        width: '100%',
+                                        maxWidth: '500px',
+                                        borderRadius: '4px',
+                                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Hostile Enemy Apparitions */}
+                    <div style={{
+                        backgroundColor: 'rgba(0, 150, 0, 0.1)',
+                        border: '1px solid rgba(0, 200, 0, 0.3)',
+                        borderRadius: '8px',
+                        padding: '24px',
+                        marginBottom: '16px',
+                    }}>
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '16px',
+                        }}>
+                            <div>
+                                <p style={{
+                                    fontSize: '16px',
+                                    color: 'rgba(255, 255, 255, 0.9)',
+                                    marginBottom: '16px',
+                                }}>
+                                    <strong style={{ color: '#4ade80' }}>Hostile Enemy Apparition Spritesheets</strong> — Three unique hostile enemy types were commissioned from human pixel artists. Each includes full animation sets for idle, movement, attack, and death animations.
+                                </p>
+                                <ul style={{
+                                    fontSize: '14px',
+                                    color: 'rgba(255, 255, 255, 0.8)',
+                                    marginBottom: '12px',
+                                    paddingLeft: '20px',
+                                }}>
+                                    <li style={{ marginBottom: '4px' }}><strong>Shardkin</strong> — $60</li>
+                                    <li style={{ marginBottom: '4px' }}><strong>Shorebound</strong> — $80</li>
+                                    <li style={{ marginBottom: '4px' }}><strong>Drowned Watch</strong> — $100</li>
+                                </ul>
+                                <p style={{
+                                    fontSize: '14px',
+                                    color: 'rgba(255, 255, 255, 0.7)',
+                                    margin: 0,
+                                    fontStyle: 'italic',
+                                }}>
+                                    Total Investment: $240.00
+                                </p>
+                            </div>
+                            
+                            {/* Proof of Order */}
+                            <div style={{
+                                marginTop: '12px',
+                                padding: '12px',
+                                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                                borderRadius: '6px',
+                            }}>
+                                <p style={{
+                                    fontSize: '12px',
+                                    color: 'rgba(255, 255, 255, 0.5)',
+                                    marginBottom: '8px',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1px',
+                                }}>
+                                    📄 Proof of Commission
+                                </p>
+                                <img 
+                                    src="/images/blog/order_details2.png" 
+                                    alt="Order details showing commission of hostile enemy apparition spritesheets from human artist"
                                     style={{
                                         width: '100%',
                                         maxWidth: '500px',
