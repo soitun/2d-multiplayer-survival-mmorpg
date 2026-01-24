@@ -88,13 +88,16 @@ const turretConfig: GroundEntityConfig<Turret> = {
     drawOverlay: (ctx, entity, finalDrawX, finalDrawY, finalDrawWidth, finalDrawHeight, nowMs, baseDrawX, baseDrawY) => {
         // Render health bar if turret is damaged (only when PvP is enabled)
         if (entity.health && entity.maxHealth && entity.health < entity.maxHealth) {
+            // Use entity position as player position fallback (health bar uses it for distance-based visibility)
             renderEntityHealthBar(
                 ctx,
-                finalDrawX + finalDrawWidth / 2,
-                finalDrawY - 10,
-                entity.health,
-                entity.maxHealth,
-                finalDrawWidth
+                entity,
+                TURRET_WIDTH,
+                TURRET_HEIGHT,
+                nowMs,
+                entity.posX,
+                entity.posY,
+                -TURRET_RENDER_Y_OFFSET
             );
         }
     },

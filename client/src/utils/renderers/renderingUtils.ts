@@ -780,15 +780,15 @@ export const renderYSortedEntities = ({
              const clientReceptionTime = (dodgeRollState as any).clientReceptionTimeMs || Date.now();
              const elapsed = nowMs - clientReceptionTime;
              
-             if (elapsed < 500) { // 500ms dodge roll duration (match server)
-                 isDodgeRolling = true;
-                 dodgeRollProgress = elapsed / 500.0;
+            if (elapsed < 300) { // 300ms dodge roll duration (SYNCED WITH SERVER)
+                isDodgeRolling = true;
+                dodgeRollProgress = elapsed / 300.0;
                  // Only log successful dodge rolls occasionally to reduce spam
                 //  if (Math.random() < 0.05) { // 5% chance to log
                 //      console.log(`[DODGE] Player dodging - Progress: ${(dodgeRollProgress * 100).toFixed(1)}%, elapsed: ${elapsed.toFixed(0)}ms`);
                 //  }
              }
-             // Silently ignore expired dodge states (elapsed > 500ms)
+             // Silently ignore expired dodge states (elapsed > 300ms)
          }
          // No logging for players without dodge state - this is the normal case
          

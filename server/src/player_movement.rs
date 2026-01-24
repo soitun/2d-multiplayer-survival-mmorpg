@@ -38,10 +38,10 @@ use crate::sound_events::emit_swimming_sound;
 use crate::sound_events::emit_snorkel_emerge_sound;
 
 // === DODGE ROLL CONSTANTS ===
-pub const DODGE_ROLL_DISTANCE: f32 = 450.0; // Increased from 300 to 450 pixels for better PvP effectiveness
-pub const DODGE_ROLL_DURATION_MS: u64 = 500; // 500ms for complete animation
-pub const DODGE_ROLL_COOLDOWN_MS: u64 = 500; // 500ms cooldown - can dodge again immediately when animation finishes
-pub const DODGE_ROLL_SPEED: f32 = DODGE_ROLL_DISTANCE / (DODGE_ROLL_DURATION_MS as f32 / 1000.0); // Pixels per second
+pub const DODGE_ROLL_DISTANCE: f32 = 240.0; // 5 tiles (2.5 body lengths) - meaningful burst repositioning
+pub const DODGE_ROLL_DURATION_MS: u64 = 300; // 300ms for snappy, reactive dodge
+pub const DODGE_ROLL_COOLDOWN_MS: u64 = 400; // 400ms cooldown - prevents spam but allows tactical use
+pub const DODGE_ROLL_SPEED: f32 = DODGE_ROLL_DISTANCE / (DODGE_ROLL_DURATION_MS as f32 / 1000.0); // 800 px/s - matches arrow speed, 1.9x sprint!
 
 // Table to track dodge roll state for each player
 #[spacetimedb::table(name = player_dodge_roll_state, public)]
@@ -369,7 +369,7 @@ pub fn dodge_roll(ctx: &ReducerContext, move_x: f32, move_y: f32) -> Result<(), 
 // === SIMPLE CLIENT-AUTHORITATIVE MOVEMENT SYSTEM ===
 
 /// Simple movement validation constants
-const BASE_MAX_MOVEMENT_SPEED: f32 = PLAYER_SPEED * SPRINT_SPEED_MULTIPLIER * 6.0; // 4800 px/s max (INCREASED from 4.0x to 6.0x buffer for client prediction + rubber band prevention)
+const BASE_MAX_MOVEMENT_SPEED: f32 = PLAYER_SPEED * SPRINT_SPEED_MULTIPLIER * 6.0; // 2520 px/s max (240 * 1.75 * 6) - buffer for client prediction + rubber band prevention
 const MAX_TELEPORT_DISTANCE: f32 = 1200.0; // Increased from 800px for better lag tolerance and high frame rates
 const POSITION_UPDATE_TIMEOUT_MS: u64 = 30000; // 30 seconds (increased from 20s for very high ping)
 
