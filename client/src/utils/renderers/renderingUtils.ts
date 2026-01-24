@@ -43,7 +43,7 @@ import { renderTree, renderTreeImpactEffects, renderTreeHitEffects } from './tre
 import { renderStone, renderStoneDestructionEffects, renderStoneHitEffects } from './stoneRenderingUtils';
 import { renderRuneStone } from './runeStoneRenderingUtils';
 import { renderCairn } from './cairnRenderingUtils';
-import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW, BOX_TYPE_MILITARY_RATION } from './woodenStorageBoxRenderingUtils';
+import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MINE_CART } from './woodenStorageBoxRenderingUtils';
 import { renderEquippedItem } from './equippedItemRenderingUtils';
 // Import the extracted player renderer
 import { renderPlayer, isPlayerHovered } from './playerRenderingUtils';
@@ -142,8 +142,8 @@ const dodgeRollVisualCache = new Map<string, DodgeRollVisualState>();
 const MOVEMENT_BUFFER_MS = 150;
 
 // Dodge roll constants (should match server)
-const DODGE_ROLL_DURATION_MS = 400;
-const DODGE_ROLL_DISTANCE = 320;
+const DODGE_ROLL_DURATION_MS = 500;
+const DODGE_ROLL_DISTANCE = 450;
 
 // --- MEMORY OPTIMIZATION: Object Pools ---
 // Reduces garbage collection pressure by reusing objects instead of creating new ones
@@ -780,9 +780,9 @@ export const renderYSortedEntities = ({
              const clientReceptionTime = (dodgeRollState as any).clientReceptionTimeMs || Date.now();
              const elapsed = nowMs - clientReceptionTime;
              
-            if (elapsed < 400) { // 400ms dodge roll duration (SYNCED WITH SERVER)
+            if (elapsed < 500) { // 500ms dodge roll duration (SYNCED WITH SERVER)
                 isDodgeRolling = true;
-                dodgeRollProgress = elapsed / 400.0;
+                dodgeRollProgress = elapsed / 500.0;
                  // Only log successful dodge rolls occasionally to reduce spam
                 //  if (Math.random() < 0.05) { // 5% chance to log
                 //      console.log(`[DODGE] Player dodging - Progress: ${(dodgeRollProgress * 100).toFixed(1)}%, elapsed: ${elapsed.toFixed(0)}ms`);
@@ -1241,6 +1241,8 @@ export const renderYSortedEntities = ({
                   config = ENTITY_VISUAL_CONFIG.scarecrow;
               } else if (box.boxType === BOX_TYPE_MILITARY_RATION) {
                   config = ENTITY_VISUAL_CONFIG.military_ration;
+              } else if (box.boxType === BOX_TYPE_MINE_CART) {
+                  config = ENTITY_VISUAL_CONFIG.mine_cart;
               } else {
                   config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
               }

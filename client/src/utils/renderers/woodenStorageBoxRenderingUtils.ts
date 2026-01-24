@@ -8,6 +8,7 @@ import repairBenchImage from '../../assets/doodads/repair_bench.png'; // Repair 
 import cookingStationImage from '../../assets/doodads/cooking_station.png'; // Cooking station image
 import scarecrowImage from '../../assets/doodads/scarecrow.png'; // Scarecrow image (deters crows)
 import militaryRationImage from '../../assets/doodads/military_ration.png'; // Military ration image
+import mineCartImage from '../../assets/doodads/mine_cart.png'; // Mine cart image (quarry-exclusive)
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';
@@ -32,6 +33,8 @@ export const SCARECROW_WIDTH = 128;  // Scarecrow dimensions - tall figure
 export const SCARECROW_HEIGHT = 128;
 export const MILITARY_RATION_WIDTH = 64;  // Military ration dimensions
 export const MILITARY_RATION_HEIGHT = 64;
+export const MINE_CART_WIDTH = 64;  // Mine cart dimensions (quarry-exclusive)
+export const MINE_CART_HEIGHT = 64;
 
 // Box type constants (must match server)
 export const BOX_TYPE_NORMAL = 0;
@@ -43,6 +46,7 @@ export const BOX_TYPE_REPAIR_BENCH = 5;
 export const BOX_TYPE_COOKING_STATION = 6;
 export const BOX_TYPE_SCARECROW = 7;
 export const BOX_TYPE_MILITARY_RATION = 8;
+export const BOX_TYPE_MINE_CART = 9;
 export const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Added interaction distance
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 10; // Make boxes shake a bit more
@@ -76,6 +80,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return scarecrowImage;
             case BOX_TYPE_MILITARY_RATION:
                 return militaryRationImage;
+            case BOX_TYPE_MINE_CART:
+                return mineCartImage;
             default:
                 return boxImage;
         }
@@ -100,6 +106,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return { width: SCARECROW_WIDTH, height: SCARECROW_HEIGHT };
             case BOX_TYPE_MILITARY_RATION:
                 return { width: MILITARY_RATION_WIDTH, height: MILITARY_RATION_HEIGHT };
+            case BOX_TYPE_MINE_CART:
+                return { width: MINE_CART_WIDTH, height: MINE_CART_HEIGHT };
             default:
                 return { width: BOX_WIDTH, height: BOX_HEIGHT };
         }

@@ -6,9 +6,11 @@
  * at night and despawning them at dawn.                                     *
  *                                                                            *
  * Key features:                                                              *
- * - Spawn only during night (Dusk, Night)                                  *
+ * - Spawn only during night (Dusk, Night) by default                        *
+ * - MEMORY BEACON EXCEPTION: Spawns 24/7 within beacon attraction zone!     *
  * - Spawn in rings around players (outside viewport)                        *
  * - Despawn all hostiles at dawn over 10-15 seconds                        *
+ * - Hostiles near Memory Beacons are NOT despawned at dawn                 *
  * - Respect runestone deterrence radius                                     *
  * - Never spawn inside player structures                                    *
  *                                                                            *
@@ -515,10 +517,39 @@ pub fn get_active_ward_at_position(ctx: &ReducerContext, x: f32, y: f32) -> Opti
 // Mechanics:
 // - Active Memory Beacon creates a large attraction zone (2000px radius)
 // - Spawn rates within this zone are multiplied by 2.5x
-// - Players can farm shards from killing attracted hostiles
+// - ***DAYTIME SPAWNING***: Hostiles spawn 24/7 near beacons, not just at night!
+// - Players can farm shards from killing attracted hostiles day AND night
 // - The smaller sanity zone (600px) prevents insanity while farming
-// - Beacons auto-destruct after 10 minutes to prevent griefing
+// - Hostiles near beacons are NOT despawned at dawn (they persist!)
+// - Beacons auto-destruct after 90 minutes (server event duration)
 // ============================================================================
+
+/// Check if a position is within ANY active Memory Beacon's attraction zone.
+/// Memory Beacons allow daytime spawning within their radius!
+/// Returns true if within a beacon zone (allows daytime spawning).
+pub fn is_position_in_memory_beacon_attraction_zone(ctx: &ReducerContext, x: f32, y: f32) -> bool {
+    for lantern in ctx.db.lantern().iter() {
+        // Only check Memory Beacons (type 3)
+        if lantern.lantern_type != LANTERN_TYPE_MEMORY_BEACON {
+            continue;
+        }
+        
+        // Skip if not active or destroyed
+        if !lantern.is_burning || lantern.is_destroyed {
+            continue;
+        }
+
+        let dx = x - lantern.pos_x;
+        let dy = y - lantern.pos_y;
+        let dist_sq = dx * dx + dy * dy;
+
+        if dist_sq <= MEMORY_BEACON_ATTRACTION_RADIUS_SQ {
+            return true;
+        }
+    }
+    
+    false
+}
 
 /// Calculate spawn rate multiplier from nearby active Memory Beacons.
 /// Memory Beacons ATTRACT hostiles instead of repelling them.
@@ -669,14 +700,21 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
     let cycle_progress = world_state.cycle_progress;
     let night_phase = NightPhase::from_progress(cycle_progress);
     
-    // Only spawn during actual night phases
-    if night_phase == NightPhase::NotNight {
+    // Check if any active Memory Beacons exist (allows daytime spawning!)
+    let has_active_beacon = ctx.db.lantern().iter().any(|l| 
+        l.lantern_type == LANTERN_TYPE_MEMORY_BEACON && l.is_burning && !l.is_destroyed
+    );
+    
+    // Only spawn during actual night phases, UNLESS there's an active Memory Beacon
+    // Memory Beacons allow daytime spawning within their attraction radius!
+    if night_phase == NightPhase::NotNight && !has_active_beacon {
         // Check if we need to start dawn cleanup - trigger at Dawn OR Morning (failsafe)
         if matches!(world_state.time_of_day, TimeOfDay::Dawn | TimeOfDay::Morning | TimeOfDay::TwilightMorning) {
             start_dawn_cleanup_if_needed(ctx, current_time);
         }
         
         // AGGRESSIVE CLEANUP: Force-remove any hostiles that exist during daytime
+        // EXCEPTION: Hostiles within Memory Beacon attraction zones are NOT removed!
         // This is a failsafe in case the scheduled cleanup didn't work
         // GRACE PERIOD: Don't delete hostiles that spawned within the last 30 seconds
         // This prevents instant deletion at the day/night transition moment
@@ -691,13 +729,21 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
                 // Check if hostile is past the grace period
                 let spawn_time_us = a.created_at.to_micros_since_unix_epoch();
                 let age_us = current_time_us - spawn_time_us;
-                age_us > SPAWN_GRACE_PERIOD_US
+                if age_us <= SPAWN_GRACE_PERIOD_US {
+                    return false;
+                }
+                // DON'T remove hostiles that are within a Memory Beacon's attraction zone!
+                // They're supposed to be there for farming
+                if is_position_in_memory_beacon_attraction_zone(ctx, a.pos_x, a.pos_y) {
+                    return false;
+                }
+                true
             })
             .map(|a| a.id)
             .collect();
         
         if !daytime_hostiles.is_empty() {
-            log::warn!("⚠️ [HostileNPC] Found {} hostiles during daytime ({:?}), force removing!", 
+            log::warn!("⚠️ [HostileNPC] Found {} hostiles during daytime ({:?}) outside beacon zones, force removing!", 
                       daytime_hostiles.len(), world_state.time_of_day);
             for id in &daytime_hostiles {
                 ctx.db.wild_animal().id().delete(id);
@@ -706,6 +752,9 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
         
         return Ok(());
     }
+    
+    // If it's daytime but there's an active beacon, only spawn for players NEAR the beacon
+    let is_daytime = night_phase == NightPhase::NotNight;
     
     // Log phase transitions for debugging
     log::debug!("🌙 [HostileNPC] Night phase: {} (progress: {:.3})", night_phase.name(), cycle_progress);
@@ -724,6 +773,24 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
     let mut rng = rand::rngs::StdRng::seed_from_u64(current_time.to_micros_since_unix_epoch() as u64);
     
     for player in &players {
+        // Calculate Memory Beacon attraction multiplier - beacons ATTRACT hostiles!
+        // This allows players to farm monsters by placing a Memory Beacon
+        let beacon_attraction_multiplier = get_memory_beacon_attraction_multiplier(
+            ctx,
+            player.position_x,
+            player.position_y,
+        );
+        
+        // DAYTIME CHECK: If it's daytime, ONLY spawn for players near Memory Beacons
+        // This makes the beacon event much more valuable - apparitions spawn day AND night!
+        if is_daytime {
+            // Skip this player if they're not near a Memory Beacon during daytime
+            if beacon_attraction_multiplier <= 1.0 {
+                continue;
+            }
+            log::info!("☀️🔮 [MemoryBeacon] DAYTIME SPAWNING enabled for player {:?} - near active beacon!", player.identity);
+        }
+        
         // Update camping state for this player
         update_player_camping_state(ctx, player, current_time);
         
@@ -739,21 +806,16 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
             nearby_player_count + 1, // Include this player in the count
         );
         
-        // Calculate Memory Beacon attraction multiplier - beacons ATTRACT hostiles!
-        // This allows players to farm monsters by placing a Memory Beacon
-        let beacon_attraction_multiplier = get_memory_beacon_attraction_multiplier(
-            ctx,
-            player.position_x,
-            player.position_y,
-        );
-        
         // Note: Ward protection (spawn rate reduction) has been REMOVED.
         // Wards now create hard deterrence zones - hostiles won't spawn inside them
         // and will actively avoid entering them. This is handled in is_valid_spawn_position
         // and the hostile NPC AI in core.rs.
         // Memory Beacons are the OPPOSITE - they attract hostiles for farming!
         
-        try_spawn_hostiles_for_player(ctx, player, current_time, is_camping, night_phase, settlement_multiplier, beacon_attraction_multiplier, &mut rng);
+        // Use PeakNight phase for daytime beacon spawns (full spawn rates!)
+        let effective_phase = if is_daytime { NightPhase::PeakNight } else { night_phase };
+        
+        try_spawn_hostiles_for_player(ctx, player, current_time, is_camping, effective_phase, settlement_multiplier, beacon_attraction_multiplier, &mut rng);
     }
     
     Ok(())
@@ -1192,9 +1254,15 @@ pub fn process_dawn_cleanup(ctx: &ReducerContext, args: HostileDawnCleanupSchedu
     
     // Check if cleanup is complete (all time elapsed)
     if elapsed_ms >= DAWN_CLEANUP_DURATION_MS as i64 {
-        // Force remove all remaining hostiles
+        // Force remove all remaining hostiles EXCEPT those near Memory Beacons
         let hostile_ids: Vec<u64> = ctx.db.wild_animal().iter()
-            .filter(|a| a.is_hostile_npc)
+            .filter(|a| {
+                if !a.is_hostile_npc {
+                    return false;
+                }
+                // DON'T remove hostiles that are within a Memory Beacon's attraction zone!
+                !is_position_in_memory_beacon_attraction_zone(ctx, a.pos_x, a.pos_y)
+            })
             .map(|a| a.id)
             .collect();
         
@@ -1203,7 +1271,7 @@ pub fn process_dawn_cleanup(ctx: &ReducerContext, args: HostileDawnCleanupSchedu
         }
         
         if !hostile_ids.is_empty() {
-            log::info!("🌅 [HostileNPC] Dawn cleanup complete - removed {} remaining hostiles", hostile_ids.len());
+            log::info!("🌅 [HostileNPC] Dawn cleanup complete - removed {} remaining hostiles (beacon zone hostiles preserved)", hostile_ids.len());
         }
         
         // Cleanup complete - don't reschedule
@@ -1227,7 +1295,11 @@ pub fn process_dawn_cleanup(ctx: &ReducerContext, args: HostileDawnCleanupSchedu
             // Check if hostile is past the grace period
             let spawn_time_us = a.created_at.to_micros_since_unix_epoch();
             let age_us = current_time_us - spawn_time_us;
-            age_us > CLEANUP_GRACE_PERIOD_US
+            if age_us <= CLEANUP_GRACE_PERIOD_US {
+                return false;
+            }
+            // DON'T remove hostiles that are within a Memory Beacon's attraction zone!
+            !is_position_in_memory_beacon_attraction_zone(ctx, a.pos_x, a.pos_y)
         })
         .collect();
     

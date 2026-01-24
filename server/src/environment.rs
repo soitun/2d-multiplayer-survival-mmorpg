@@ -2420,6 +2420,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     let basalt_spawn_chance = 0.04;     // 4% - REDUCED by 50% from 8% (half as many columns)
     let stone_spawn_chance = 0.015;     // 1.5% - unchanged (stones are important for gameplay)
     let military_ration_spawn_chance = 0.003; // 0.3% per quarry tile - balanced for PvP areas
+    let mine_cart_spawn_chance = 0.003; // 0.3% per quarry tile - mining equipment (quarry-exclusive)
     let barrel_spawn_chance = 0.002;    // 0.2% per quarry tile - additional loot
     
     // Minimum distances for collision checking
@@ -2753,6 +2754,86 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     }
                     Err(e) => {
                         log::warn!("[QuarrySpawn] Failed to spawn military ration: {}", e);
+                    }
+                }
+            }
+        }
+        
+        // Spawn mine cart with low probability (quarry-exclusive loot container for mining equipment)
+        if rng.gen::<f32>() < mine_cart_spawn_chance {
+            let mut too_close = false;
+            
+            // Check distance from stones
+            for (sx, sy) in &spawned_stone_positions {
+                let dx = world_x_px - sx;
+                let dy = world_y_px - sy;
+                if (dx * dx + dy * dy) < 100.0 * 100.0 { // 100px minimum distance
+                    too_close = true;
+                    break;
+                }
+            }
+            
+            // Check distance from fumaroles
+            if !too_close {
+                for (fx, fy) in &spawned_fumarole_positions {
+                    let dx = world_x_px - fx;
+                    let dy = world_y_px - fy;
+                    if (dx * dx + dy * dy) < 100.0 * 100.0 {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Check distance from basalt columns
+            if !too_close {
+                for (bx, by) in &spawned_basalt_positions {
+                    let dx = world_x_px - bx;
+                    let dy = world_y_px - by;
+                    if (dx * dx + dy * dy) < 150.0 * 150.0 { // Basalt columns are large
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Check distance from existing barrels
+            if !too_close {
+                let existing_barrels = ctx.db.barrel();
+                for existing_barrel in existing_barrels.iter() {
+                    let dx = world_x_px - existing_barrel.pos_x;
+                    let dy = world_y_px - existing_barrel.pos_y;
+                    if (dx * dx + dy * dy) < 100.0 * 100.0 {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Check distance from existing mine carts and military rations
+            if !too_close {
+                let existing_boxes = ctx.db.wooden_storage_box();
+                for existing_box in existing_boxes.iter() {
+                    if existing_box.box_type == crate::wooden_storage_box::BOX_TYPE_MINE_CART ||
+                       existing_box.box_type == crate::wooden_storage_box::BOX_TYPE_MILITARY_RATION {
+                        let dx = world_x_px - existing_box.pos_x;
+                        let dy = world_y_px - existing_box.pos_y;
+                        if (dx * dx + dy * dy) < 100.0 * 100.0 {
+                            too_close = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if !too_close {
+                let chunk_idx = calculate_chunk_index(world_x_px, world_y_px);
+                match crate::mine_cart::spawn_mine_cart_with_loot(ctx, world_x_px, world_y_px, chunk_idx) {
+                    Ok(_) => {
+                        log::debug!("[QuarrySpawn] Spawned mine cart at ({:.1}, {:.1})", world_x_px, world_y_px);
+                    }
+                    Err(e) => {
+                        log::warn!("[QuarrySpawn] Failed to spawn mine cart: {}", e);
                     }
                 }
             }

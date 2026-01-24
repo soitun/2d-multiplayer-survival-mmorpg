@@ -531,6 +531,8 @@ import { RespawnDestroyedBarrels } from "./respawn_destroyed_barrels_reducer.ts"
 export { RespawnDestroyedBarrels };
 import { RespawnMilitaryRations } from "./respawn_military_rations_reducer.ts";
 export { RespawnMilitaryRations };
+import { RespawnMineCarts } from "./respawn_mine_carts_reducer.ts";
+export { RespawnMineCarts };
 import { RespawnRandomly } from "./respawn_randomly_reducer.ts";
 export { RespawnRandomly };
 import { ReviveKnockedOutPlayer } from "./revive_knocked_out_player_reducer.ts";
@@ -925,6 +927,8 @@ import { MessageTableHandle } from "./message_table.ts";
 export { MessageTableHandle };
 import { MilitaryRationRespawnScheduleTableHandle } from "./military_ration_respawn_schedule_table.ts";
 export { MilitaryRationRespawnScheduleTableHandle };
+import { MineCartRespawnScheduleTableHandle } from "./mine_cart_respawn_schedule_table.ts";
+export { MineCartRespawnScheduleTableHandle };
 import { MinimapCacheTableHandle } from "./minimap_cache_table.ts";
 export { MinimapCacheTableHandle };
 import { PlacedExplosiveTableHandle } from "./placed_explosive_table.ts";
@@ -1311,6 +1315,8 @@ import { Message } from "./message_type.ts";
 export { Message };
 import { MilitaryRationRespawnSchedule } from "./military_ration_respawn_schedule_type.ts";
 export { MilitaryRationRespawnSchedule };
+import { MineCartRespawnSchedule } from "./mine_cart_respawn_schedule_type.ts";
+export { MineCartRespawnSchedule };
 import { MinimapCache } from "./minimap_cache_type.ts";
 export { MinimapCache };
 import { MovementPattern } from "./movement_pattern_type.ts";
@@ -2311,6 +2317,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "scheduledId",
         colType: (MilitaryRationRespawnSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    mine_cart_respawn_schedule: {
+      tableName: "mine_cart_respawn_schedule" as const,
+      rowType: MineCartRespawnSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "scheduledId",
+      primaryKeyInfo: {
+        colName: "scheduledId",
+        colType: (MineCartRespawnSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     minimap_cache: {
@@ -3936,6 +3951,10 @@ const REMOTE_MODULE = {
       reducerName: "respawn_military_rations",
       argsType: RespawnMilitaryRations.getTypeScriptAlgebraicType(),
     },
+    respawn_mine_carts: {
+      reducerName: "respawn_mine_carts",
+      argsType: RespawnMineCarts.getTypeScriptAlgebraicType(),
+    },
     respawn_randomly: {
       reducerName: "respawn_randomly",
       argsType: RespawnRandomly.getTypeScriptAlgebraicType(),
@@ -4636,6 +4655,7 @@ export type Reducer = never
 | { name: "RespawnAtSleepingBag", args: RespawnAtSleepingBag }
 | { name: "RespawnDestroyedBarrels", args: RespawnDestroyedBarrels }
 | { name: "RespawnMilitaryRations", args: RespawnMilitaryRations }
+| { name: "RespawnMineCarts", args: RespawnMineCarts }
 | { name: "RespawnRandomly", args: RespawnRandomly }
 | { name: "ReviveKnockedOutPlayer", args: ReviveKnockedOutPlayer }
 | { name: "RevokePlayerBuildingPrivilege", args: RevokePlayerBuildingPrivilege }
@@ -8626,6 +8646,22 @@ export class RemoteReducers {
     this.connection.offReducer("respawn_military_rations", callback);
   }
 
+  respawnMineCarts(schedule: MineCartRespawnSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    RespawnMineCarts.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("respawn_mine_carts", __argsBuffer, this.setCallReducerFlags.respawnMineCartsFlags);
+  }
+
+  onRespawnMineCarts(callback: (ctx: ReducerEventContext, schedule: MineCartRespawnSchedule) => void) {
+    this.connection.onReducer("respawn_mine_carts", callback);
+  }
+
+  removeOnRespawnMineCarts(callback: (ctx: ReducerEventContext, schedule: MineCartRespawnSchedule) => void) {
+    this.connection.offReducer("respawn_mine_carts", callback);
+  }
+
   respawnRandomly() {
     this.connection.callReducer("respawn_randomly", new Uint8Array(0), this.setCallReducerFlags.respawnRandomlyFlags);
   }
@@ -11477,6 +11513,11 @@ export class SetReducerFlags {
     this.respawnMilitaryRationsFlags = flags;
   }
 
+  respawnMineCartsFlags: __CallReducerFlags = 'FullUpdate';
+  respawnMineCarts(flags: __CallReducerFlags) {
+    this.respawnMineCartsFlags = flags;
+  }
+
   respawnRandomlyFlags: __CallReducerFlags = 'FullUpdate';
   respawnRandomly(flags: __CallReducerFlags) {
     this.respawnRandomlyFlags = flags;
@@ -12460,6 +12501,11 @@ export class RemoteTables {
   get militaryRationRespawnSchedule(): MilitaryRationRespawnScheduleTableHandle<'military_ration_respawn_schedule'> {
     // clientCache is a private property
     return new MilitaryRationRespawnScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<MilitaryRationRespawnSchedule>(REMOTE_MODULE.tables.military_ration_respawn_schedule));
+  }
+
+  get mineCartRespawnSchedule(): MineCartRespawnScheduleTableHandle<'mine_cart_respawn_schedule'> {
+    // clientCache is a private property
+    return new MineCartRespawnScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<MineCartRespawnSchedule>(REMOTE_MODULE.tables.mine_cart_respawn_schedule));
   }
 
   get minimapCache(): MinimapCacheTableHandle<'minimap_cache'> {

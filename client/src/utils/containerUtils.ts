@@ -693,6 +693,7 @@ export const BOX_TYPE_REPAIR_BENCH = 5;
 export const BOX_TYPE_COOKING_STATION = 6;
 export const BOX_TYPE_SCARECROW = 7;
 export const BOX_TYPE_MILITARY_RATION = 8;
+export const BOX_TYPE_MINE_CART = 9;
 export const NUM_BOX_SLOTS = 18;
 export const NUM_REPAIR_BENCH_SLOTS = 1;
 export const NUM_LARGE_BOX_SLOTS = 48;
@@ -700,6 +701,7 @@ export const NUM_REFRIGERATOR_SLOTS = 30;
 export const NUM_COMPOST_SLOTS = 20;
 export const NUM_BACKPACK_SLOTS = 35; // Matches NUM_CORPSE_SLOTS (30 + 5 = 35 slots)
 export const NUM_MILITARY_RATION_SLOTS = 3;
+export const NUM_MINE_CART_SLOTS = 3;
 
 /**
  * Get container configuration
@@ -734,6 +736,10 @@ export function getContainerConfig(containerType: ContainerType, entity?: Contai
                 break;
             case BOX_TYPE_MILITARY_RATION:
                 slots = NUM_MILITARY_RATION_SLOTS;
+                gridCols = 3; // 3 columns for 3 slots
+                break;
+            case BOX_TYPE_MINE_CART:
+                slots = NUM_MINE_CART_SLOTS;
                 gridCols = 3; // 3 columns for 3 slots
                 break;
             default:
@@ -772,6 +778,8 @@ export function getContainerDisplayName(containerType: ContainerType, entity?: C
                 return 'REPAIR BENCH';
             case BOX_TYPE_MILITARY_RATION:
                 return 'MILITARY RATION';
+            case BOX_TYPE_MINE_CART:
+                return 'MINE CART';
             default:
                 return 'WOODEN STORAGE BOX';
         }

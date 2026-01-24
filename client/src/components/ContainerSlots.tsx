@@ -11,7 +11,7 @@ import DroppableSlot from './DroppableSlot';
 import DraggableItem from './DraggableItem';
 import { PopulatedItem } from './InventoryUI';
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
-import { ContainerType, ContainerEntity, getContainerConfig, BOX_TYPE_MILITARY_RATION } from '../utils/containerUtils';
+import { ContainerType, ContainerEntity, getContainerConfig, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MINE_CART } from '../utils/containerUtils';
 import { WoodenStorageBox, RangedWeaponStats } from '../generated';
 import { isWaterContainer, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
 import { hasDurabilitySystem, isItemBroken, isFoodItem } from '../utils/durabilityHelpers';
@@ -114,10 +114,11 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
     // Determine if this should render as a grid
     const isGridLayout = config.gridCols && config.gridCols > 1;
     
-    // Check if this is a military ration (3 slots, should be close together and centered)
-    const isMilitaryRation = containerType === 'wooden_storage_box' && 
-                             containerEntity && 
-                             (containerEntity as WoodenStorageBox).boxType === BOX_TYPE_MILITARY_RATION;
+    // Check if this is a military ration or mine cart (3 slots, should be close together and centered)
+    const isCompactContainer = containerType === 'wooden_storage_box' && 
+                               containerEntity && 
+                               ((containerEntity as WoodenStorageBox).boxType === BOX_TYPE_MILITARY_RATION ||
+                                (containerEntity as WoodenStorageBox).boxType === BOX_TYPE_MINE_CART);
     
     // Container styles
     const containerStyle: React.CSSProperties = {
@@ -125,7 +126,7 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
         ...(isGridLayout ? {
             display: 'grid',
             gridTemplateColumns: `repeat(${config.gridCols}, 1fr)`,
-            gap: isMilitaryRation ? '2px' : '4px', // Tighter spacing for military rations
+            gap: isCompactContainer ? '2px' : '4px', // Tighter spacing for compact containers
             justifyContent: 'center', // Center the grid
             width: 'fit-content', // Allow grid to shrink to content
             margin: '0 auto' // Center horizontally

@@ -60,6 +60,12 @@ pub const NUM_MILITARY_RATION_SLOTS: usize = 3;
 pub const MILITARY_RATION_INITIAL_HEALTH: f32 = 100.0; // Low health, not meant to be attacked
 pub const MILITARY_RATION_MAX_HEALTH: f32 = 100.0;
 
+// --- Mine Cart ---
+pub const BOX_TYPE_MINE_CART: u8 = 9;
+pub const NUM_MINE_CART_SLOTS: usize = 3;
+pub const MINE_CART_INITIAL_HEALTH: f32 = 100.0; // Low health, not meant to be attacked
+pub const MINE_CART_MAX_HEALTH: f32 = 100.0;
+
 // Re-export refrigerator constants for backward compatibility
 pub use crate::refrigerator::{NUM_REFRIGERATOR_SLOTS, REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH};
 
@@ -294,6 +300,7 @@ pub fn move_item_from_box(
     // Check box type before moving storage_box
     let is_backpack = storage_box.box_type == BOX_TYPE_BACKPACK;
     let is_military_ration = storage_box.box_type == BOX_TYPE_MILITARY_RATION;
+    let is_mine_cart = storage_box.box_type == BOX_TYPE_MINE_CART;
 
     // --- Commit Box Update --- 
     // The handler modified storage_box (cleared the slot) if the move was successful.
@@ -307,6 +314,11 @@ pub fn move_item_from_box(
     // Auto-despawn empty military rations
     if is_military_ration {
         let _ = crate::military_ration::check_and_despawn_military_ration_if_empty(ctx, box_id);
+    }
+    
+    // Auto-despawn empty mine carts
+    if is_mine_cart {
+        let _ = crate::mine_cart::check_and_despawn_mine_cart_if_empty(ctx, box_id);
     }
 
     Ok(())
@@ -489,6 +501,7 @@ pub fn quick_move_from_box(
     // Check box type before moving storage_box
     let is_backpack = storage_box.box_type == BOX_TYPE_BACKPACK;
     let is_military_ration = storage_box.box_type == BOX_TYPE_MILITARY_RATION;
+    let is_mine_cart = storage_box.box_type == BOX_TYPE_MINE_CART;
 
     // --- Commit Box Update --- 
     boxes.id().update(storage_box);
@@ -501,6 +514,11 @@ pub fn quick_move_from_box(
     // Auto-despawn empty military rations
     if is_military_ration {
         let _ = crate::military_ration::check_and_despawn_military_ration_if_empty(ctx, box_id);
+    }
+    
+    // Auto-despawn empty mine carts
+    if is_mine_cart {
+        let _ = crate::mine_cart::check_and_despawn_mine_cart_if_empty(ctx, box_id);
     }
 
     Ok(())
@@ -833,6 +851,7 @@ pub fn drop_item_from_box_slot_to_world(
     // Check box type before moving wooden_box
     let is_backpack = wooden_box.box_type == BOX_TYPE_BACKPACK;
     let is_military_ration = wooden_box.box_type == BOX_TYPE_MILITARY_RATION;
+    let is_mine_cart = wooden_box.box_type == BOX_TYPE_MINE_CART;
 
     // 4. Persist changes to the WoodenStorageBox
     wooden_box_table.id().update(wooden_box);
@@ -846,6 +865,11 @@ pub fn drop_item_from_box_slot_to_world(
     // Auto-despawn empty military rations
     if is_military_ration {
         let _ = crate::military_ration::check_and_despawn_military_ration_if_empty(ctx, box_id);
+    }
+    
+    // Auto-despawn empty mine carts
+    if is_mine_cart {
+        let _ = crate::mine_cart::check_and_despawn_mine_cart_if_empty(ctx, box_id);
     }
 
     Ok(())
@@ -879,6 +903,7 @@ pub fn split_and_drop_item_from_box_slot_to_world(
     // Check box type before moving wooden_box
     let is_backpack = wooden_box.box_type == BOX_TYPE_BACKPACK;
     let is_military_ration = wooden_box.box_type == BOX_TYPE_MILITARY_RATION;
+    let is_mine_cart = wooden_box.box_type == BOX_TYPE_MINE_CART;
 
     // 4. Persist changes to the WoodenStorageBox (if its slot was cleared because the whole stack was dropped)
     wooden_box_table.id().update(wooden_box); 
@@ -893,6 +918,11 @@ pub fn split_and_drop_item_from_box_slot_to_world(
     // Auto-despawn empty military rations
     if is_military_ration {
         let _ = crate::military_ration::check_and_despawn_military_ration_if_empty(ctx, box_id);
+    }
+    
+    // Auto-despawn empty mine carts
+    if is_mine_cart {
+        let _ = crate::mine_cart::check_and_despawn_mine_cart_if_empty(ctx, box_id);
     }
     
     Ok(())
@@ -923,6 +953,7 @@ impl ItemContainer for WoodenStorageBox {
             BOX_TYPE_COOKING_STATION => NUM_COOKING_STATION_SLOTS,
             BOX_TYPE_SCARECROW => NUM_SCARECROW_SLOTS,
             BOX_TYPE_MILITARY_RATION => NUM_MILITARY_RATION_SLOTS,
+            BOX_TYPE_MINE_CART => NUM_MINE_CART_SLOTS,
             _ => NUM_BOX_SLOTS,
         }
     }

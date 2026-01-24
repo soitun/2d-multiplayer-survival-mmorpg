@@ -42,9 +42,10 @@ export const SIGNAL_DISRUPTOR_RADIUS_PX = 1100.0;   // Tier 2: Homestead
 // Memory Beacon: ATTRACTS hostiles instead of repelling! Sanity zone is small (600px)
 export const MEMORY_BEACON_RADIUS_PX = 600.0;       // Tier 3: Sanity haven only (ATTRACTS hostiles in larger 2000px radius!)
 
-// === MEMORY BEACON LIFETIME (must match server constant in lantern.rs) ===
-// Memory Beacons auto-destruct after this time to prevent griefing
-export const MEMORY_BEACON_LIFETIME_SECS = 300; // 5 minutes (nerfed from 10 min)
+// === MEMORY BEACON LIFETIME (must match server constant in beacon_event.rs) ===
+// Memory Beacons are server-spawned events only (at Dusk) and last 90 minutes
+// Must match BEACON_EVENT_LIFETIME_SECS in server/src/beacon_event.rs
+export const MEMORY_BEACON_LIFETIME_SECS = 5400; // 90 minutes (5400 seconds)
 
 // Offset for rendering to align with server-side collision/interaction zones
 export const LANTERN_RENDER_Y_OFFSET = 6; // Visual offset from entity's base Y
@@ -481,6 +482,8 @@ export function renderWardRadius(
  * Render the countdown timer for Memory Beacons.
  * Shows remaining time before auto-destruct in MM:SS format.
  * Positioned above the beacon with a cyberpunk-style display.
+ * 
+ * Memory Beacons are server-spawned events (at Dusk) and last 90 minutes.
  * 
  * @param ctx - Canvas rendering context
  * @param lantern - The lantern/ward entity (only renders for Memory Beacons)

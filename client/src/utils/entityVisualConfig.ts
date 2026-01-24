@@ -145,6 +145,16 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     spriteHeight: 64,
   },
   
+  mine_cart: {
+    centerOffsetX: 0,
+    centerOffsetY: -58,   // Same as wooden_storage_box (64x64 sprite)
+    width: 64,
+    height: 72,
+    placementYOffset: 0,
+    spriteWidth: 64,
+    spriteHeight: 64,
+  },
+  
   stash: {
     centerOffsetX: 0,
     centerOffsetY: -24,

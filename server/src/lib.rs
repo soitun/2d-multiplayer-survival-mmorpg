@@ -163,6 +163,7 @@ mod player_progression; // <<< ADDED: Player progression system (XP, achievement
 mod quests; // <<< ADDED: Quest system (tutorial + daily quests)
 mod beacon_event; // <<< ADDED: Memory Beacon server event system (airdrop-style)
 mod military_ration; // <<< ADDED: Military ration loot crate system
+mod mine_cart; // <<< ADDED: Mine cart loot crate system (quarry-only spawns)
 
 // ADD: Re-export respawn reducer
 pub use respawn::respawn_randomly;
