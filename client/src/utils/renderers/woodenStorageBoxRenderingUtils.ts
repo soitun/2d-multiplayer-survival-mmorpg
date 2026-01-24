@@ -9,6 +9,7 @@ import cookingStationImage from '../../assets/doodads/cooking_station.png'; // C
 import scarecrowImage from '../../assets/doodads/scarecrow.png'; // Scarecrow image (deters crows)
 import militaryRationImage from '../../assets/doodads/military_ration.png'; // Military ration image
 import mineCartImage from '../../assets/doodads/mine_cart.png'; // Mine cart image (quarry-exclusive)
+import fishTrapImage from '../../assets/doodads/fish_trap.png'; // Fish trap image (shore-only)
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';
@@ -35,6 +36,8 @@ export const MILITARY_RATION_WIDTH = 64;  // Military ration dimensions
 export const MILITARY_RATION_HEIGHT = 64;
 export const MINE_CART_WIDTH = 64;  // Mine cart dimensions (quarry-exclusive)
 export const MINE_CART_HEIGHT = 64;
+export const FISH_TRAP_WIDTH = 96;  // Fish trap dimensions
+export const FISH_TRAP_HEIGHT = 96;
 
 // Box type constants (must match server)
 export const BOX_TYPE_NORMAL = 0;
@@ -47,6 +50,7 @@ export const BOX_TYPE_COOKING_STATION = 6;
 export const BOX_TYPE_SCARECROW = 7;
 export const BOX_TYPE_MILITARY_RATION = 8;
 export const BOX_TYPE_MINE_CART = 9;
+export const BOX_TYPE_FISH_TRAP = 10;
 export const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Added interaction distance
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 10; // Make boxes shake a bit more
@@ -82,6 +86,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return militaryRationImage;
             case BOX_TYPE_MINE_CART:
                 return mineCartImage;
+            case BOX_TYPE_FISH_TRAP:
+                return fishTrapImage;
             default:
                 return boxImage;
         }
@@ -108,6 +114,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return { width: MILITARY_RATION_WIDTH, height: MILITARY_RATION_HEIGHT };
             case BOX_TYPE_MINE_CART:
                 return { width: MINE_CART_WIDTH, height: MINE_CART_HEIGHT };
+            case BOX_TYPE_FISH_TRAP:
+                return { width: FISH_TRAP_WIDTH, height: FISH_TRAP_HEIGHT };
             default:
                 return { width: BOX_WIDTH, height: BOX_HEIGHT };
         }
@@ -206,6 +214,8 @@ function getBoxDimensions(boxType: number): { width: number; height: number } {
             return { width: COOKING_STATION_WIDTH, height: COOKING_STATION_HEIGHT };
         case BOX_TYPE_SCARECROW:
             return { width: SCARECROW_WIDTH, height: SCARECROW_HEIGHT };
+        case BOX_TYPE_FISH_TRAP:
+            return { width: FISH_TRAP_WIDTH, height: FISH_TRAP_HEIGHT };
         default:
             return { width: BOX_WIDTH, height: BOX_HEIGHT };
     }

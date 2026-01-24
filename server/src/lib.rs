@@ -78,6 +78,7 @@ mod dropped_item; // Declare dropped_item module
 mod wooden_storage_box; // Add the new module
 mod refrigerator; // Refrigerator-specific container logic
 mod compost; // Compost-specific container logic
+mod fish_trap; // Fish trap-specific container logic (passive fishing)
 mod backpack; // Backpack auto-consolidation system
 
 mod items_database; // <<< NEW: Modular items database
@@ -761,6 +762,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     
     // ADD: Initialize compost processing system
     crate::compost::init_compost_system(ctx)?;
+    
+    // ADD: Initialize fish trap processing system
+    crate::fish_trap::init_fish_trap_system(ctx)?;
     
     // ADD: Initialize fire patch cleanup system
     crate::fire_patch::init_fire_patch_system(ctx)?;

@@ -369,19 +369,19 @@ function isItemInRefrigerator(item: InventoryItem, connection: DbConnection | nu
 
 /**
  * Format time remaining until spoilage for display
- * Returns formatted string like "12h 30m" or "2d 5h" or "Spoiled" or "Refrigerated"
+ * Returns formatted string like "12h 30m" or "2d 5h" or "Spoiled" or "Preserved"
  * @param item - The inventory item
  * @param itemDef - The item definition
- * @param connection - Optional database connection to check if item is in a refrigerator
+ * @param connection - Optional database connection to check if item is in a pantry
  */
 export function formatFoodSpoilageTimeRemaining(item: InventoryItem, itemDef: ItemDefinition, connection?: DbConnection | null): string {
     if (!isFoodItem(itemDef)) {
         return '';
     }
     
-    // Check if item is in a refrigerator - if so, show "Refrigerated"
+    // Check if item is in a pantry - if so, show "Preserved"
     if (connection && isItemInRefrigerator(item, connection)) {
-        return 'Refrigerated';
+        return 'Preserved';
     }
     
     const timeRemainingHours = calculateFoodSpoilageTimeRemaining(item, itemDef);

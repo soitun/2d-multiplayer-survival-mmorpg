@@ -9,6 +9,7 @@ import { Campfire, Furnace, Barbecue, WoodenStorageBox, Lantern, CookingProgress
 import { ContainerType, ContainerEntity } from './containerUtils';
 
 const COMPOST_CONVERSION_TIME_SECS = 300; // 5 minutes (matching server constant)
+const FISH_TRAP_CONVERSION_TIME_SECS = 600; // 10 minutes (matching server constant)
 
 // === LANTERN/WARD BURN DURATIONS (must match server constants) ===
 // Rebalanced to make fuel a meaningful ongoing cost for complete immunity protection
@@ -106,6 +107,34 @@ export function getCompostProgress(
 }
 
 /**
+ * Calculate fishing progress for a fish trap slot
+ * Returns progress as 0.0 to 1.0 (0% to 100%)
+ */
+export function getFishTrapProgress(
+    item: InventoryItem | null | undefined,
+    currentTimeMs: number
+): number {
+    if (!item || !item.itemData) return 0;
+    
+    try {
+        const dataMap = JSON.parse(item.itemData);
+        const placedAtMicros = dataMap?.fish_trap_placed_at;
+        
+        if (!placedAtMicros || typeof placedAtMicros !== 'number') return 0;
+        
+        // Convert microseconds to milliseconds
+        const placedAtMs = placedAtMicros / 1000;
+        const elapsedSecs = (currentTimeMs - placedAtMs) / 1000;
+        
+        // Progress is elapsed time / conversion time (10 minutes)
+        return Math.min(1.0, Math.max(0, elapsedSecs / FISH_TRAP_CONVERSION_TIME_SECS));
+    } catch (e) {
+        // Invalid JSON or missing data
+        return 0;
+    }
+}
+
+/**
  * Calculate fuel burn progress for a lantern/ward
  * Returns progress as 0.0 to 1.0 (0% to 100% remaining)
  * Progress goes DOWN as fuel is consumed (overlay fills up)
@@ -159,6 +188,15 @@ export function getAllSlotProgress(
                 if (item?.instance) {
                     const progress = getCompostProgress(item.instance, currentTimeMs);
                     if (progress > 0 && progress < 1.0) { // Only show if actively composting
+                        progressMap.set(index, progress);
+                    }
+                }
+            });
+        } else if (storageBox.boxType === 10) { // BOX_TYPE_FISH_TRAP = 10
+            items.forEach((item, index) => {
+                if (item?.instance) {
+                    const progress = getFishTrapProgress(item.instance, currentTimeMs);
+                    if (progress > 0 && progress < 1.0) { // Only show if actively fishing
                         progressMap.set(index, progress);
                     }
                 }

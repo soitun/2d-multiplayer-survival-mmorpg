@@ -500,7 +500,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                     }
                     
                     // For food: show spoilage time directly (not "Full (time)")
-                    // "Refrigerated" means spoilage is paused
+                    // "Preserved" means spoilage is paused (item is in a pantry)
                     // Otherwise show time remaining
                     const spoilageValue = spoilageTime || durabilityDisplay;
                     stats.push({ 
@@ -606,12 +606,14 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                         connection.reducers.quickMoveToCorpse(containerId, itemInstanceId);
                         break;
                     case 'wooden_storage_box':
-                        // Check if this is a compost/refrigerator box and use the appropriate reducer
+                        // Check if this is a compost/refrigerator/fish trap box and use the appropriate reducer
                         const boxEntity = woodenStorageBoxes.get(containerId.toString());
                         if (boxEntity?.boxType === 3) { // BOX_TYPE_COMPOST = 3
                             connection.reducers.quickMoveToCompost(containerId, itemInstanceId);
                         } else if (boxEntity?.boxType === 2) { // BOX_TYPE_REFRIGERATOR = 2
                             connection.reducers.quickMoveToRefrigerator(containerId, itemInstanceId);
+                        } else if (boxEntity?.boxType === 10) { // BOX_TYPE_FISH_TRAP = 10
+                            connection.reducers.quickMoveToFishTrap(containerId, itemInstanceId);
                         } else {
                             connection.reducers.quickMoveToBox(containerId, itemInstanceId);
                         }
@@ -943,7 +945,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                     }
                     
                     // For food: show spoilage time directly (not "Full (time)")
-                    // "Refrigerated" means spoilage is paused
+                    // "Preserved" means spoilage is paused (item is in a pantry)
                     // Otherwise show time remaining
                     const spoilageValue = spoilageTime || durabilityDisplay;
                     stats.push({ 

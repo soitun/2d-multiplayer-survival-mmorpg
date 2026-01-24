@@ -631,6 +631,48 @@ pub fn is_tile_inland_water(ctx: &ReducerContext, tile_x: i32, tile_y: i32) -> b
     !in_coastal_zone
 }
 
+/// Checks if a position is on shore (land tile adjacent to water)
+/// Returns true if the position is NOT on water AND has at least one adjacent water tile.
+/// Used for placing fish traps which must be on land but next to water.
+pub fn is_position_on_shore(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    // Must NOT be on water itself
+    if is_position_on_water(ctx, pos_x, pos_y) {
+        return false;
+    }
+    
+    // Convert pixel position to tile coordinates
+    let tile_x = (pos_x / TILE_SIZE_PX as f32).floor() as i32;
+    let tile_y = (pos_y / TILE_SIZE_PX as f32).floor() as i32;
+    
+    // Check 8 neighboring tiles - at least one must be water
+    for dy in -1..=1 {
+        for dx in -1..=1 {
+            // Skip the center tile (already checked above)
+            if dx == 0 && dy == 0 {
+                continue;
+            }
+            
+            let check_x = tile_x + dx;
+            let check_y = tile_y + dy;
+            
+            // Skip if out of bounds
+            if check_x < 0 || check_y < 0 || 
+               check_x >= WORLD_WIDTH_TILES as i32 || check_y >= WORLD_HEIGHT_TILES as i32 {
+                continue;
+            }
+            
+            // Check if neighboring tile is water
+            if let Some(tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
+                if tile_type.is_water() {
+                    return true; // Found adjacent water - this is a shore position
+                }
+            }
+        }
+    }
+    
+    false // No adjacent water tiles found
+}
+
 /// Detects if a position is in a lake-like area (larger contiguous water body) vs a river
 /// Checks if the given world position is in deep sea (far from shore)
 /// Returns true if position is on Sea tile and at least min_distance_tiles from shore

@@ -511,15 +511,15 @@ export const MEMORY_GRID_NODES = [
   // Branch 4 LOWER (Food Storage path @ 188°)
   { 
     id: 'refrigerator', 
-    name: 'Refrigerator', 
-    description: 'Unlocks crafting Refrigerators - refrigerated containers that preserve food. Holds 30 stacks.', 
+    name: 'Pantry', 
+    description: 'Unlocks crafting Pantries - sealed larders that preserve food from spoiling. Holds 30 stacks.', 
     cost: 680, 
     tier: 3, 
     prerequisites: ['flashlight'], 
     position: getRadialPosition(BRANCH_ANGLES.BRANCH_4 + SPLIT_OFFSET, 320), // Lower path
     category: 'crafting' as const, 
     status: 'locked' as const,
-    unlocksItems: ['Refrigerator']
+    unlocksItems: ['Pantry']
   },
   // Branch 5 UPPER (Passive Bonuses path)
   { 
@@ -1095,7 +1095,7 @@ export const ITEM_TO_NODE_MAP: Record<string, string> = {
   'Diving Pick': 'diving-pick',
   'Reed Rain Collector': 'reed-rain-collector',
   'Barbecue': 'barbecue',
-  'Refrigerator': 'refrigerator',
+  'Pantry': 'refrigerator',
   'Repair Bench': 'repair-bench',
   
   // Tier 4 items

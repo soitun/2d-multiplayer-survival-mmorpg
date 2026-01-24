@@ -279,6 +279,8 @@ import { MoveItemToCompost } from "./move_item_to_compost_reducer.ts";
 export { MoveItemToCompost };
 import { MoveItemToCorpse } from "./move_item_to_corpse_reducer.ts";
 export { MoveItemToCorpse };
+import { MoveItemToFishTrap } from "./move_item_to_fish_trap_reducer.ts";
+export { MoveItemToFishTrap };
 import { MoveItemToFumarole } from "./move_item_to_fumarole_reducer.ts";
 export { MoveItemToFumarole };
 import { MoveItemToFurnace } from "./move_item_to_furnace_reducer.ts";
@@ -413,6 +415,8 @@ import { ProcessDawnCleanup } from "./process_dawn_cleanup_reducer.ts";
 export { ProcessDawnCleanup };
 import { ProcessFirePatchDamage } from "./process_fire_patch_damage_reducer.ts";
 export { ProcessFirePatchDamage };
+import { ProcessFishTrapConversion } from "./process_fish_trap_conversion_reducer.ts";
+export { ProcessFishTrapConversion };
 import { ProcessFoodSpoilage } from "./process_food_spoilage_reducer.ts";
 export { ProcessFoodSpoilage };
 import { ProcessFumaroleLogicScheduled } from "./process_fumarole_logic_scheduled_reducer.ts";
@@ -493,6 +497,8 @@ import { QuickMoveToCompost } from "./quick_move_to_compost_reducer.ts";
 export { QuickMoveToCompost };
 import { QuickMoveToCorpse } from "./quick_move_to_corpse_reducer.ts";
 export { QuickMoveToCorpse };
+import { QuickMoveToFishTrap } from "./quick_move_to_fish_trap_reducer.ts";
+export { QuickMoveToFishTrap };
 import { QuickMoveToFumarole } from "./quick_move_to_fumarole_reducer.ts";
 export { QuickMoveToFumarole };
 import { QuickMoveToFurnace } from "./quick_move_to_furnace_reducer.ts";
@@ -637,6 +643,8 @@ import { SplitStackIntoCompost } from "./split_stack_into_compost_reducer.ts";
 export { SplitStackIntoCompost };
 import { SplitStackIntoCorpse } from "./split_stack_into_corpse_reducer.ts";
 export { SplitStackIntoCorpse };
+import { SplitStackIntoFishTrap } from "./split_stack_into_fish_trap_reducer.ts";
+export { SplitStackIntoFishTrap };
 import { SplitStackIntoFumarole } from "./split_stack_into_fumarole_reducer.ts";
 export { SplitStackIntoFumarole };
 import { SplitStackIntoFurnace } from "./split_stack_into_furnace_reducer.ts";
@@ -849,6 +857,8 @@ import { FirePatchCleanupScheduleTableHandle } from "./fire_patch_cleanup_schedu
 export { FirePatchCleanupScheduleTableHandle };
 import { FirePatchDamageScheduleTableHandle } from "./fire_patch_damage_schedule_table.ts";
 export { FirePatchDamageScheduleTableHandle };
+import { FishTrapProcessScheduleTableHandle } from "./fish_trap_process_schedule_table.ts";
+export { FishTrapProcessScheduleTableHandle };
 import { FishingSessionTableHandle } from "./fishing_session_table.ts";
 export { FishingSessionTableHandle };
 import { FishingVillagePartTableHandle } from "./fishing_village_part_table.ts";
@@ -1219,6 +1229,8 @@ import { FirePatchCleanupSchedule } from "./fire_patch_cleanup_schedule_type.ts"
 export { FirePatchCleanupSchedule };
 import { FirePatchDamageSchedule } from "./fire_patch_damage_schedule_type.ts";
 export { FirePatchDamageSchedule };
+import { FishTrapProcessSchedule } from "./fish_trap_process_schedule_type.ts";
+export { FishTrapProcessSchedule };
 import { FishingSession } from "./fishing_session_type.ts";
 export { FishingSession };
 import { FishingVillagePart } from "./fishing_village_part_type.ts";
@@ -1966,6 +1978,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (FirePatchDamageSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    fish_trap_process_schedule: {
+      tableName: "fish_trap_process_schedule" as const,
+      rowType: FishTrapProcessSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (FishTrapProcessSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     fishing_session: {
@@ -3447,6 +3468,10 @@ const REMOTE_MODULE = {
       reducerName: "move_item_to_corpse",
       argsType: MoveItemToCorpse.getTypeScriptAlgebraicType(),
     },
+    move_item_to_fish_trap: {
+      reducerName: "move_item_to_fish_trap",
+      argsType: MoveItemToFishTrap.getTypeScriptAlgebraicType(),
+    },
     move_item_to_fumarole: {
       reducerName: "move_item_to_fumarole",
       argsType: MoveItemToFumarole.getTypeScriptAlgebraicType(),
@@ -3715,6 +3740,10 @@ const REMOTE_MODULE = {
       reducerName: "process_fire_patch_damage",
       argsType: ProcessFirePatchDamage.getTypeScriptAlgebraicType(),
     },
+    process_fish_trap_conversion: {
+      reducerName: "process_fish_trap_conversion",
+      argsType: ProcessFishTrapConversion.getTypeScriptAlgebraicType(),
+    },
     process_food_spoilage: {
       reducerName: "process_food_spoilage",
       argsType: ProcessFoodSpoilage.getTypeScriptAlgebraicType(),
@@ -3874,6 +3903,10 @@ const REMOTE_MODULE = {
     quick_move_to_corpse: {
       reducerName: "quick_move_to_corpse",
       argsType: QuickMoveToCorpse.getTypeScriptAlgebraicType(),
+    },
+    quick_move_to_fish_trap: {
+      reducerName: "quick_move_to_fish_trap",
+      argsType: QuickMoveToFishTrap.getTypeScriptAlgebraicType(),
     },
     quick_move_to_fumarole: {
       reducerName: "quick_move_to_fumarole",
@@ -4162,6 +4195,10 @@ const REMOTE_MODULE = {
     split_stack_into_corpse: {
       reducerName: "split_stack_into_corpse",
       argsType: SplitStackIntoCorpse.getTypeScriptAlgebraicType(),
+    },
+    split_stack_into_fish_trap: {
+      reducerName: "split_stack_into_fish_trap",
+      argsType: SplitStackIntoFishTrap.getTypeScriptAlgebraicType(),
     },
     split_stack_into_fumarole: {
       reducerName: "split_stack_into_fumarole",
@@ -4529,6 +4566,7 @@ export type Reducer = never
 | { name: "MoveItemToCampfire", args: MoveItemToCampfire }
 | { name: "MoveItemToCompost", args: MoveItemToCompost }
 | { name: "MoveItemToCorpse", args: MoveItemToCorpse }
+| { name: "MoveItemToFishTrap", args: MoveItemToFishTrap }
 | { name: "MoveItemToFumarole", args: MoveItemToFumarole }
 | { name: "MoveItemToFurnace", args: MoveItemToFurnace }
 | { name: "MoveItemToHearth", args: MoveItemToHearth }
@@ -4596,6 +4634,7 @@ export type Reducer = never
 | { name: "ProcessCorpseDespawn", args: ProcessCorpseDespawn }
 | { name: "ProcessDawnCleanup", args: ProcessDawnCleanup }
 | { name: "ProcessFirePatchDamage", args: ProcessFirePatchDamage }
+| { name: "ProcessFishTrapConversion", args: ProcessFishTrapConversion }
 | { name: "ProcessFoodSpoilage", args: ProcessFoodSpoilage }
 | { name: "ProcessFumaroleLogicScheduled", args: ProcessFumaroleLogicScheduled }
 | { name: "ProcessFurnaceLogicScheduled", args: ProcessFurnaceLogicScheduled }
@@ -4636,6 +4675,7 @@ export type Reducer = never
 | { name: "QuickMoveToCampfire", args: QuickMoveToCampfire }
 | { name: "QuickMoveToCompost", args: QuickMoveToCompost }
 | { name: "QuickMoveToCorpse", args: QuickMoveToCorpse }
+| { name: "QuickMoveToFishTrap", args: QuickMoveToFishTrap }
 | { name: "QuickMoveToFumarole", args: QuickMoveToFumarole }
 | { name: "QuickMoveToFurnace", args: QuickMoveToFurnace }
 | { name: "QuickMoveToHearth", args: QuickMoveToHearth }
@@ -4708,6 +4748,7 @@ export type Reducer = never
 | { name: "SplitStackIntoCampfire", args: SplitStackIntoCampfire }
 | { name: "SplitStackIntoCompost", args: SplitStackIntoCompost }
 | { name: "SplitStackIntoCorpse", args: SplitStackIntoCorpse }
+| { name: "SplitStackIntoFishTrap", args: SplitStackIntoFishTrap }
 | { name: "SplitStackIntoFumarole", args: SplitStackIntoFumarole }
 | { name: "SplitStackIntoFurnace", args: SplitStackIntoFurnace }
 | { name: "SplitStackIntoHearth", args: SplitStackIntoHearth }
@@ -6646,6 +6687,22 @@ export class RemoteReducers {
     this.connection.offReducer("move_item_to_corpse", callback);
   }
 
+  moveItemToFishTrap(boxId: number, targetSlotIndex: number, itemInstanceId: bigint) {
+    const __args = { boxId, targetSlotIndex, itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    MoveItemToFishTrap.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("move_item_to_fish_trap", __argsBuffer, this.setCallReducerFlags.moveItemToFishTrapFlags);
+  }
+
+  onMoveItemToFishTrap(callback: (ctx: ReducerEventContext, boxId: number, targetSlotIndex: number, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("move_item_to_fish_trap", callback);
+  }
+
+  removeOnMoveItemToFishTrap(callback: (ctx: ReducerEventContext, boxId: number, targetSlotIndex: number, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("move_item_to_fish_trap", callback);
+  }
+
   moveItemToFumarole(fumaroleId: number, targetSlotIndex: number, itemInstanceId: bigint) {
     const __args = { fumaroleId, targetSlotIndex, itemInstanceId };
     let __writer = new __BinaryWriter(1024);
@@ -7718,6 +7775,22 @@ export class RemoteReducers {
     this.connection.offReducer("process_fire_patch_damage", callback);
   }
 
+  processFishTrapConversion(args: FishTrapProcessSchedule) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    ProcessFishTrapConversion.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_fish_trap_conversion", __argsBuffer, this.setCallReducerFlags.processFishTrapConversionFlags);
+  }
+
+  onProcessFishTrapConversion(callback: (ctx: ReducerEventContext, args: FishTrapProcessSchedule) => void) {
+    this.connection.onReducer("process_fish_trap_conversion", callback);
+  }
+
+  removeOnProcessFishTrapConversion(callback: (ctx: ReducerEventContext, args: FishTrapProcessSchedule) => void) {
+    this.connection.offReducer("process_fish_trap_conversion", callback);
+  }
+
   processFoodSpoilage(args: FoodSpoilageSchedule) {
     const __args = { args };
     let __writer = new __BinaryWriter(1024);
@@ -8356,6 +8429,22 @@ export class RemoteReducers {
 
   removeOnQuickMoveToCorpse(callback: (ctx: ReducerEventContext, corpseId: number, itemInstanceId: bigint) => void) {
     this.connection.offReducer("quick_move_to_corpse", callback);
+  }
+
+  quickMoveToFishTrap(boxId: number, itemInstanceId: bigint) {
+    const __args = { boxId, itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    QuickMoveToFishTrap.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("quick_move_to_fish_trap", __argsBuffer, this.setCallReducerFlags.quickMoveToFishTrapFlags);
+  }
+
+  onQuickMoveToFishTrap(callback: (ctx: ReducerEventContext, boxId: number, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("quick_move_to_fish_trap", callback);
+  }
+
+  removeOnQuickMoveToFishTrap(callback: (ctx: ReducerEventContext, boxId: number, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("quick_move_to_fish_trap", callback);
   }
 
   quickMoveToFumarole(fumaroleId: number, itemInstanceId: bigint) {
@@ -9464,6 +9553,22 @@ export class RemoteReducers {
 
   removeOnSplitStackIntoCorpse(callback: (ctx: ReducerEventContext, corpseId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) => void) {
     this.connection.offReducer("split_stack_into_corpse", callback);
+  }
+
+  splitStackIntoFishTrap(boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) {
+    const __args = { boxId, targetSlotIndex, sourceItemInstanceId, quantityToSplit };
+    let __writer = new __BinaryWriter(1024);
+    SplitStackIntoFishTrap.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_stack_into_fish_trap", __argsBuffer, this.setCallReducerFlags.splitStackIntoFishTrapFlags);
+  }
+
+  onSplitStackIntoFishTrap(callback: (ctx: ReducerEventContext, boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) => void) {
+    this.connection.onReducer("split_stack_into_fish_trap", callback);
+  }
+
+  removeOnSplitStackIntoFishTrap(callback: (ctx: ReducerEventContext, boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) => void) {
+    this.connection.offReducer("split_stack_into_fish_trap", callback);
   }
 
   splitStackIntoFumarole(sourceItemInstanceId: bigint, quantityToSplit: number, targetFumaroleId: number, targetSlotIndex: number) {
@@ -10883,6 +10988,11 @@ export class SetReducerFlags {
     this.moveItemToCorpseFlags = flags;
   }
 
+  moveItemToFishTrapFlags: __CallReducerFlags = 'FullUpdate';
+  moveItemToFishTrap(flags: __CallReducerFlags) {
+    this.moveItemToFishTrapFlags = flags;
+  }
+
   moveItemToFumaroleFlags: __CallReducerFlags = 'FullUpdate';
   moveItemToFumarole(flags: __CallReducerFlags) {
     this.moveItemToFumaroleFlags = flags;
@@ -11218,6 +11328,11 @@ export class SetReducerFlags {
     this.processFirePatchDamageFlags = flags;
   }
 
+  processFishTrapConversionFlags: __CallReducerFlags = 'FullUpdate';
+  processFishTrapConversion(flags: __CallReducerFlags) {
+    this.processFishTrapConversionFlags = flags;
+  }
+
   processFoodSpoilageFlags: __CallReducerFlags = 'FullUpdate';
   processFoodSpoilage(flags: __CallReducerFlags) {
     this.processFoodSpoilageFlags = flags;
@@ -11416,6 +11531,11 @@ export class SetReducerFlags {
   quickMoveToCorpseFlags: __CallReducerFlags = 'FullUpdate';
   quickMoveToCorpse(flags: __CallReducerFlags) {
     this.quickMoveToCorpseFlags = flags;
+  }
+
+  quickMoveToFishTrapFlags: __CallReducerFlags = 'FullUpdate';
+  quickMoveToFishTrap(flags: __CallReducerFlags) {
+    this.quickMoveToFishTrapFlags = flags;
   }
 
   quickMoveToFumaroleFlags: __CallReducerFlags = 'FullUpdate';
@@ -11776,6 +11896,11 @@ export class SetReducerFlags {
   splitStackIntoCorpseFlags: __CallReducerFlags = 'FullUpdate';
   splitStackIntoCorpse(flags: __CallReducerFlags) {
     this.splitStackIntoCorpseFlags = flags;
+  }
+
+  splitStackIntoFishTrapFlags: __CallReducerFlags = 'FullUpdate';
+  splitStackIntoFishTrap(flags: __CallReducerFlags) {
+    this.splitStackIntoFishTrapFlags = flags;
   }
 
   splitStackIntoFumaroleFlags: __CallReducerFlags = 'FullUpdate';
@@ -12306,6 +12431,11 @@ export class RemoteTables {
   get firePatchDamageSchedule(): FirePatchDamageScheduleTableHandle<'fire_patch_damage_schedule'> {
     // clientCache is a private property
     return new FirePatchDamageScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FirePatchDamageSchedule>(REMOTE_MODULE.tables.fire_patch_damage_schedule));
+  }
+
+  get fishTrapProcessSchedule(): FishTrapProcessScheduleTableHandle<'fish_trap_process_schedule'> {
+    // clientCache is a private property
+    return new FishTrapProcessScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FishTrapProcessSchedule>(REMOTE_MODULE.tables.fish_trap_process_schedule));
   }
 
   get fishingSession(): FishingSessionTableHandle<'fishing_session'> {

@@ -110,6 +110,18 @@ fn get_mine_cart_loot_table() -> Vec<MineCartLootEntry> {
             max_quantity: 1,
             spawn_chance: 0.08, // 8% chance
         },
+        MineCartLootEntry {
+            item_def_name: "Flashlight".to_string(),
+            min_quantity: 1,
+            max_quantity: 1,
+            spawn_chance: 0.07, // 7% chance
+        },
+        MineCartLootEntry {
+            item_def_name: "Gunpowder".to_string(),
+            min_quantity: 5,
+            max_quantity: 15,
+            spawn_chance: 0.12, // 12% chance
+        },
     ]
 }
 

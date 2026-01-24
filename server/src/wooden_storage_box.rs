@@ -66,6 +66,12 @@ pub const NUM_MINE_CART_SLOTS: usize = 3;
 pub const MINE_CART_INITIAL_HEALTH: f32 = 100.0; // Low health, not meant to be attacked
 pub const MINE_CART_MAX_HEALTH: f32 = 100.0;
 
+// --- Fish Trap ---
+pub const BOX_TYPE_FISH_TRAP: u8 = 10;
+pub const NUM_FISH_TRAP_SLOTS: usize = 12; // Reasonable size for bait + catches
+pub const FISH_TRAP_INITIAL_HEALTH: f32 = 300.0;
+pub const FISH_TRAP_MAX_HEALTH: f32 = 300.0;
+
 // Re-export refrigerator constants for backward compatibility
 pub use crate::refrigerator::{NUM_REFRIGERATOR_SLOTS, REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH};
 
@@ -596,6 +602,12 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         BOX_TYPE_BACKPACK
     } else if item_def.name == "Scarecrow" {
         BOX_TYPE_SCARECROW
+    } else if item_def.name == "Fish Trap" {
+        // Fish traps must be placed on shore (land adjacent to water)
+        if !crate::environment::is_position_on_shore(ctx, world_x, world_y) {
+            return Err("Fish trap must be placed on shore (land adjacent to water).".to_string());
+        }
+        BOX_TYPE_FISH_TRAP
     } else {
         return Err("Item is not a storage container.".to_string());
     };
@@ -646,6 +658,7 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         },
         BOX_TYPE_BACKPACK => (BACKPACK_INITIAL_HEALTH, BACKPACK_MAX_HEALTH),
         BOX_TYPE_SCARECROW => (SCARECROW_INITIAL_HEALTH, SCARECROW_MAX_HEALTH),
+        BOX_TYPE_FISH_TRAP => (FISH_TRAP_INITIAL_HEALTH, FISH_TRAP_MAX_HEALTH),
         _ => (WOODEN_STORAGE_BOX_INITIAL_HEALTH, WOODEN_STORAGE_BOX_MAX_HEALTH),
     };
     
@@ -725,6 +738,7 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         BOX_TYPE_COMPOST => "Compost",
         BOX_TYPE_BACKPACK => "Backpack",
         BOX_TYPE_SCARECROW => "Scarecrow",
+        BOX_TYPE_FISH_TRAP => "Fish Trap",
         _ => "Wooden Storage Box",
     };
     log::info!("Player {:?} placed new {} with ID {}.\nLocation: {:?}", sender_id, box_type_name, inserted_box.id, item_to_place.location);
@@ -797,6 +811,7 @@ pub fn pickup_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<(), Strin
         BOX_TYPE_REPAIR_BENCH => "Repair Bench",
         BOX_TYPE_COOKING_STATION => "Cooking Station",
         BOX_TYPE_SCARECROW => "Scarecrow",
+        BOX_TYPE_FISH_TRAP => "Fish Trap",
         _ => "Wooden Storage Box",
     };
     let box_item_def = item_defs_table.iter()
@@ -954,6 +969,7 @@ impl ItemContainer for WoodenStorageBox {
             BOX_TYPE_SCARECROW => NUM_SCARECROW_SLOTS,
             BOX_TYPE_MILITARY_RATION => NUM_MILITARY_RATION_SLOTS,
             BOX_TYPE_MINE_CART => NUM_MINE_CART_SLOTS,
+            BOX_TYPE_FISH_TRAP => NUM_FISH_TRAP_SLOTS,
             _ => NUM_BOX_SLOTS,
         }
     }

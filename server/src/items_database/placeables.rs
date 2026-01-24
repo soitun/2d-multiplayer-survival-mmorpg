@@ -85,13 +85,14 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(300)
             .build(),
 
-        // Refrigerator - Food preservation container (30 slots, stops spoilage)
-        ItemBuilder::new("Refrigerator", "A refrigerated container that preserves food. Holds 30 stacks of food, seeds, and water containers.", ItemCategory::Placeable)
+        // Pantry - Food preservation container (30 slots, stops spoilage)
+        ItemBuilder::new("Pantry", "A sealed larder lined with salt and dried herbs that keeps food from spoiling. Holds 30 stacks of food, seeds, and water containers.", ItemCategory::Placeable)
             .icon("refrigerator.png")
             .crafting_cost(vec![
-                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 150 },
-                CostIngredient { item_name: "Wood".to_string(), quantity: 50 },
-                CostIngredient { item_name: "Scrap Batteries".to_string(), quantity: 3 },
+                CostIngredient { item_name: "Wood".to_string(), quantity: 150 },
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 50 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 15 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 5 },
             ])
             .crafting_output(1, 10)
             .respawn_time(600)
@@ -103,6 +104,18 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
             .crafting_cost(vec![
                 CostIngredient { item_name: "Wood".to_string(), quantity: 75 },
                 CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 20 },
+            ])
+            .crafting_output(1, 7)
+            .respawn_time(300)
+            .build(),
+
+        // Fish Trap - Passive fishing container (must be placed on shore)
+        ItemBuilder::new("Fish Trap", "A woven trap for catching fish and crabs. Must be placed on shore (land adjacent to water). Place any food as bait and check back later for your catch!", ItemCategory::Placeable)
+            .icon("fish_trap.png")
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 50 },
+                CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 30 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 5 },
             ])
             .crafting_output(1, 7)
             .respawn_time(300)

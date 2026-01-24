@@ -155,6 +155,16 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     spriteHeight: 64,
   },
   
+  fish_trap: {
+    centerOffsetX: 0,
+    centerOffsetY: -68,   // Sprite is 96x96, similar to refrigerator
+    width: 80,            // Interaction box width
+    height: 80,           // Interaction box height
+    placementYOffset: -16, // Compensate for 96px sprite vs 64px normal box
+    spriteWidth: 96,
+    spriteHeight: 96,
+  },
+  
   stash: {
     centerOffsetX: 0,
     centerOffsetY: -24,

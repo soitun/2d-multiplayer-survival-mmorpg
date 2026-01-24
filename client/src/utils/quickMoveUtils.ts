@@ -13,6 +13,7 @@ import { getContainerTypeFromSlotType } from './containerUtils';
 const BOX_TYPE_REFRIGERATOR = 2;
 const BOX_TYPE_COMPOST = 3;
 const BOX_TYPE_REPAIR_BENCH = 5;
+const BOX_TYPE_FISH_TRAP = 10;
 
 export interface QuickMoveContext {
     connection: DbConnection;
@@ -61,6 +62,8 @@ export function quickMoveToContainer(
                     connection.reducers.quickMoveToRefrigerator(containerId, itemInstanceId);
                 } else if (boxEntity?.boxType === BOX_TYPE_REPAIR_BENCH) {
                     connection.reducers.quickMoveToRepairBench(containerId, itemInstanceId);
+                } else if (boxEntity?.boxType === BOX_TYPE_FISH_TRAP) {
+                    connection.reducers.quickMoveToFishTrap(containerId, itemInstanceId);
                 } else {
                     connection.reducers.quickMoveToBox(containerId, itemInstanceId);
                 }

@@ -390,6 +390,8 @@ export function renderInteractionLabels({
                     config = ENTITY_VISUAL_CONFIG.military_ration;
                 } else if (box.boxType === 9) { // BOX_TYPE_MINE_CART
                     config = ENTITY_VISUAL_CONFIG.mine_cart;
+                } else if (box.boxType === 10) { // BOX_TYPE_FISH_TRAP
+                    config = ENTITY_VISUAL_CONFIG.fish_trap;
                 } else {
                     config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
                 }
