@@ -148,6 +148,7 @@ const getDirectionVector = (direction: string): { dx: number; dy: number } => {
 export const useInputHandler = ({
     canvasRef,
     connection,
+    turrets,
     localPlayerId,
     localPlayer,
     predictedPosition, // ADDED: Client's predicted position for accurate firing

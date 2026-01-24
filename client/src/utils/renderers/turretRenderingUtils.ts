@@ -71,14 +71,17 @@ const turretConfig: GroundEntityConfig<Turret> = {
                 SHAKE_INTENSITY_PX
             );
             
-            drawDynamicGroundShadow(
+            drawDynamicGroundShadow({
                 ctx,
-                entityPosX + shakeOffsetX,
-                entityPosY + shakeOffsetY,
+                entityImage,
+                entityCenterX: entityPosX + shakeOffsetX,
+                entityBaseY: entityPosY + shakeOffsetY,
                 imageDrawWidth,
                 imageDrawHeight,
-                cycleProgress
-            );
+                cycleProgress,
+                shakeOffsetX,
+                shakeOffsetY
+            });
         }
     },
 

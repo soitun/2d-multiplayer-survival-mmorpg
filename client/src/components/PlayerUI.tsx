@@ -1519,6 +1519,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     barbecues={barbecues}
                     fumaroles={fumaroles}
                     lanterns={lanterns}
+                    turrets={turrets}
                     woodenStorageBoxes={woodenStorageBoxes}
                     playerCorpses={playerCorpses}
                     stashes={stashes}
