@@ -248,7 +248,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
       // This fixes production time drift issues where server time != client time
       const dodgeRollStartTime = dodgeRollState?.clientReceptionTimeMs ?? (dodgeRollState ? Number(dodgeRollState.startTimeMs) : 0);
       const dodgeRollElapsedMs = dodgeRollState ? (Date.now() - dodgeRollStartTime) : 0;
-      const isDodgeRolling = dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < 300; // 300ms dodge roll duration (SYNCED WITH SERVER)
+      const isDodgeRolling = dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < 400; // 400ms dodge roll duration (SYNCED WITH SERVER)
       
       if (isDodgeRolling && dodgeRollState) {
         // SMOOTH DODGE ROLL: Use velocity-based movement for smooth collision handling
@@ -290,7 +290,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
           const dodgeDirX = dodgeDx / dodgeDistance;
           const dodgeDirY = dodgeDy / dodgeDistance;
           
-          // Calculate how far to move this frame based on dodge roll speed (240px in 300ms = 800px/s)
+          // Calculate how far to move this frame based on dodge roll speed (320px in 400ms = 800px/s)
           const DODGE_ROLL_SPEED = 800; // pixels per second - 1.9x sprint speed burst! (SYNCED WITH SERVER)
           const moveDistance = DODGE_ROLL_SPEED * deltaTime;
           

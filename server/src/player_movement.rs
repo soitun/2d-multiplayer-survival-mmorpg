@@ -38,9 +38,9 @@ use crate::sound_events::emit_swimming_sound;
 use crate::sound_events::emit_snorkel_emerge_sound;
 
 // === DODGE ROLL CONSTANTS ===
-pub const DODGE_ROLL_DISTANCE: f32 = 240.0; // 5 tiles (2.5 body lengths) - meaningful burst repositioning
-pub const DODGE_ROLL_DURATION_MS: u64 = 300; // 300ms for snappy, reactive dodge
-pub const DODGE_ROLL_COOLDOWN_MS: u64 = 400; // 400ms cooldown - prevents spam but allows tactical use
+pub const DODGE_ROLL_DISTANCE: f32 = 320.0; // 6.67 tiles (3.3 body lengths) - good distance for full animation
+pub const DODGE_ROLL_DURATION_MS: u64 = 400; // 400ms to allow full animation to play
+pub const DODGE_ROLL_COOLDOWN_MS: u64 = 500; // 500ms cooldown - prevents spam but allows tactical use
 pub const DODGE_ROLL_SPEED: f32 = DODGE_ROLL_DISTANCE / (DODGE_ROLL_DURATION_MS as f32 / 1000.0); // 800 px/s - matches arrow speed, 1.9x sprint!
 
 // Table to track dodge roll state for each player
