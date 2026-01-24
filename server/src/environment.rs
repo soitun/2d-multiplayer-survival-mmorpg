@@ -858,9 +858,9 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
                             continue;
                         }
                         
-                        // Check if adjacent tile is water or beach
-                        for adjacent_tile in world_tiles.idx_world_position().filter((check_x, check_y)) {
-                            if matches!(adjacent_tile.tile_type, TileType::Sea | TileType::Beach) {
+                        // Check if adjacent tile is water or beach (efficient chunk-based lookup)
+                        if let Some(adj_tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
+                            if matches!(adj_tile_type, TileType::Sea | TileType::Beach) {
                                 return true; // Coastal area suitable for walrus
                             }
                         }
@@ -893,9 +893,9 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
                             continue;
                         }
                         
-                        // Check if adjacent tile is water or beach
-                        for adjacent_tile in world_tiles.idx_world_position().filter((check_x, check_y)) {
-                            if matches!(adjacent_tile.tile_type, TileType::Sea | TileType::Beach) {
+                        // Check if adjacent tile is water or beach (efficient chunk-based lookup)
+                        if let Some(adj_tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
+                            if matches!(adj_tile_type, TileType::Sea | TileType::Beach) {
                                 return true; // Coastal area suitable for crab
                             }
                         }
@@ -928,9 +928,9 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
                             continue;
                         }
                         
-                        // Check if adjacent tile is water or beach
-                        for adjacent_tile in world_tiles.idx_world_position().filter((check_x, check_y)) {
-                            if matches!(adjacent_tile.tile_type, TileType::Sea | TileType::Beach) {
+                        // Check if adjacent tile is water or beach (efficient chunk-based lookup)
+                        if let Some(adj_tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
+                            if matches!(adj_tile_type, TileType::Sea | TileType::Beach) {
                                 return true; // Coastal area suitable for tern
                             }
                         }
@@ -948,7 +948,7 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
                 return false; // Crows don't like beaches
             }
             
-            // Check if too close to water (avoid coastal)
+            // Check if too close to water (avoid coastal, 2 tile radius)
             for dy in -2..=2 {
                 for dx in -2..=2 {
                     if dx == 0 && dy == 0 { continue; }
@@ -962,9 +962,9 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
                         continue;
                     }
                     
-                    // Check if adjacent tile is water or beach
-                    for adjacent_tile in world_tiles.idx_world_position().filter((check_x, check_y)) {
-                        if matches!(adjacent_tile.tile_type, TileType::Sea | TileType::Beach) {
+                    // Check if nearby tile is water or beach (efficient chunk-based lookup)
+                    if let Some(adj_tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
+                        if matches!(adj_tile_type, TileType::Sea | TileType::Beach) {
                             return false; // Too close to coast for crow
                         }
                     }
@@ -991,7 +991,7 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
                 return false;
             }
             
-            // Avoid water (check 1 tile around)
+            // Avoid water (check 1 tile around, efficient chunk-based lookup)
             for dy in -1..=1 {
                 for dx in -1..=1 {
                     if dx == 0 && dy == 0 { continue; }
@@ -1004,8 +1004,8 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
                         continue;
                     }
                     
-                    for adjacent_tile in world_tiles.idx_world_position().filter((check_x, check_y)) {
-                        if matches!(adjacent_tile.tile_type, TileType::Sea) {
+                    if let Some(adj_tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
+                        if matches!(adj_tile_type, TileType::Sea) {
                             return false; // Too close to water
                         }
                     }
@@ -1029,7 +1029,7 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
             
             // Also accept grass/dirt if NOT near the coast (wolverines roam inland)
             if matches!(tile_type, TileType::Grass | TileType::Dirt | TileType::DirtRoad) {
-                // Check if too close to water/beach (within 3 tiles)
+                // Check if too close to water/beach (within 3 tiles, efficient chunk-based lookup)
                 for dy in -3..=3 {
                     for dx in -3..=3 {
                         if dx == 0 && dy == 0 { continue; }
@@ -1042,8 +1042,8 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
                             continue;
                         }
                         
-                        for adjacent_tile in world_tiles.idx_world_position().filter((check_x, check_y)) {
-                            if matches!(adjacent_tile.tile_type, TileType::Sea | TileType::Beach) {
+                        if let Some(adj_tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
+                            if matches!(adj_tile_type, TileType::Sea | TileType::Beach) {
                                 return false; // Too close to coast for wolverine
                             }
                         }
