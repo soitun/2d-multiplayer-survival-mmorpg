@@ -142,8 +142,8 @@ const dodgeRollVisualCache = new Map<string, DodgeRollVisualState>();
 const MOVEMENT_BUFFER_MS = 150;
 
 // Dodge roll constants (should match server)
-const DODGE_ROLL_DURATION_MS = 250;
-const DODGE_ROLL_DISTANCE = 120;
+const DODGE_ROLL_DURATION_MS = 400;
+const DODGE_ROLL_DISTANCE = 320;
 
 // --- MEMORY OPTIMIZATION: Object Pools ---
 // Reduces garbage collection pressure by reusing objects instead of creating new ones

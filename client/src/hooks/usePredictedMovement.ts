@@ -162,7 +162,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
     const dodgeRollState = playerDodgeRollStates?.get(playerId) as any;
     const dodgeRollStartTime = dodgeRollState?.clientReceptionTimeMs ?? (dodgeRollState ? Number(dodgeRollState.startTimeMs) : 0);
     const dodgeRollElapsedMs = dodgeRollState ? (Date.now() - dodgeRollStartTime) : 0;
-    const isDodgeRolling = dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < 300; // 300ms dodge roll duration (SYNCED WITH SERVER)
+    const isDodgeRolling = dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < 400; // 400ms dodge roll duration (SYNCED WITH SERVER)
     
     // CRITICAL: Don't accept server position updates during dodge roll to prevent camera stutter
     if (isDodgeRolling) {
@@ -556,7 +556,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
     const dodgeRollState = playerDodgeRollStates?.get(playerId) as any;
     const dodgeRollStartTime = dodgeRollState?.clientReceptionTimeMs ?? (dodgeRollState ? Number(dodgeRollState.startTimeMs) : 0);
     const dodgeRollElapsedMs = dodgeRollState ? (Date.now() - dodgeRollStartTime) : 0;
-    const isDodgeRolling = dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < 300; // 300ms dodge roll duration (SYNCED WITH SERVER)
+    const isDodgeRolling = dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < 400; // 400ms dodge roll duration (SYNCED WITH SERVER)
     
     if (isDodgeRolling && clientDodgeRollRef.current) {
       // During dodge roll, return current position (already updated by velocity-based movement)
