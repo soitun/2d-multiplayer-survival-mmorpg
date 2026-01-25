@@ -821,6 +821,18 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                         paddingTop: '8px',
                         borderTop: '1px solid rgba(0, 212, 255, 0.3)'
                     }}>
+                        <style>{`
+                            /* Style dropdown options to match dark theme */
+                            select option {
+                                background: rgba(20, 30, 50, 0.98) !important;
+                                color: #ffffff !important;
+                            }
+                            select optgroup {
+                                background: rgba(15, 30, 50, 0.95) !important;
+                                color: #00d4ff !important;
+                                font-weight: bold;
+                            }
+                        `}</style>
                         <div style={{
                             fontSize: '10px',
                             color: '#00d4ff',

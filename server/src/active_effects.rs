@@ -1130,7 +1130,8 @@ pub fn should_player_be_cozy(ctx: &ReducerContext, player_id: Identity, player_x
     // Import necessary traits
     use crate::campfire::{campfire as CampfireTableTrait, WARMTH_RADIUS_SQUARED};
     use crate::shelter::{shelter as ShelterTableTrait, is_player_inside_shelter};
-    use crate::fishing_village_part as FishingVillagePartTableTrait;
+    use crate::monument_part as MonumentPartTableTrait;
+    use crate::MonumentType;
     
     // Fishing village communal campfire cozy radius (larger than regular campfires)
     // This is a public safe zone - cozy effect is available to all players
@@ -1152,9 +1153,9 @@ pub fn should_player_be_cozy(ctx: &ReducerContext, player_id: Identity, player_x
     }
     
     // Check for fishing village communal campfire (always burning, public cozy zone)
-    for part in ctx.db.fishing_village_part().iter() {
-        // Only the campfire (center piece) provides cozy effect
-        if part.part_type == "campfire" {
+    for part in ctx.db.monument_part().iter() {
+        // Only the fishing village center piece provides cozy effect
+        if part.monument_type == MonumentType::FishingVillage && part.is_center {
             let dx = player_x - part.world_x;
             let dy = player_y - part.world_y;
             let distance_squared = dx * dx + dy * dy;
@@ -2381,7 +2382,9 @@ pub const SAFE_ZONE_RADIUS_MULTIPLIER_SUBSTATION: f32 = 3.0; // 3x for substatio
 /// Safe zone radius matches building restriction radius to prevent abuse
 pub fn is_player_in_safe_zone(ctx: &ReducerContext, player_x: f32, player_y: f32) -> bool {
     use crate::alk::alk_station as AlkStationTableTrait;
-    use crate::fishing_village_part as FishingVillagePartTableTrait;
+    use crate::monument_part as MonumentPartTableTrait;
+    use crate::MonumentType;
+    use crate::whale_bone_graveyard::is_position_in_whale_bone_graveyard_safe_zone;
     
     // Fishing village safe zone radius - communal protection area
     const FISHING_VILLAGE_SAFE_ZONE_RADIUS: f32 = 600.0; // Protective radius around the campfire
@@ -2416,19 +2419,26 @@ pub fn is_player_in_safe_zone(ctx: &ReducerContext, player_x: f32, player_y: f32
         }
     }
     
-    // Check fishing village communal campfire safe zone
-    // The village campfire provides protection from PvP and hostile animal attacks
-    for part in ctx.db.fishing_village_part().iter() {
-        // Only the campfire (center piece) creates the safe zone
-        if part.part_type == "campfire" {
-            let dx = player_x - part.world_x;
-            let dy = player_y - part.world_y;
-            let distance_sq = dx * dx + dy * dy;
-            
-            if distance_sq <= FISHING_VILLAGE_SAFE_ZONE_RADIUS_SQ {
-                return true;
-            }
+    // Check fishing village communal safe zone
+    // The village center provides protection from PvP and hostile animal attacks
+    for part in ctx.db.monument_part().iter() {
+        // Only the center piece creates the safe zone
+        if part.monument_type != MonumentType::FishingVillage || !part.is_center {
+            continue;
         }
+        let dx = player_x - part.world_x;
+        let dy = player_y - part.world_y;
+        let distance_sq = dx * dx + dy * dy;
+        
+        if distance_sq <= FISHING_VILLAGE_SAFE_ZONE_RADIUS_SQ {
+            return true;
+        }
+    }
+    
+    // Check whale bone graveyard safe zone
+    // The ancient graveyard and hermit's camp provide protection
+    if is_position_in_whale_bone_graveyard_safe_zone(ctx, player_x, player_y) {
+        return true;
     }
     
     false

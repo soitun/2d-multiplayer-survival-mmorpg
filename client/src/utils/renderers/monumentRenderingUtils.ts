@@ -73,14 +73,22 @@ export function preloadMonumentImages(): void {
     loadImage('hull7.png', import('../../assets/doodads/hull7.png?url'));
     
     // Fishing village monument images (Aleut-style village)
-    loadImage('fv_campfire.png', import('../../assets/doodads/fv_campfire.png?url'));
-    loadImage('fv_hut1.png', import('../../assets/doodads/fv_hut1.png?url'));
+    // Note: Campfire is a functional monument placeable, not a visual doodad
+    loadImage('fv_lodge.png', import('../../assets/doodads/fv_lodge.png?url'));
     loadImage('fv_hut2.png', import('../../assets/doodads/fv_hut2.png?url'));
     loadImage('fv_hut3.png', import('../../assets/doodads/fv_hut3.png?url'));
     loadImage('fv_dock.png', import('../../assets/doodads/fv_dock.png?url'));
     loadImage('fv_smokerack1.png', import('../../assets/doodads/fv_smokerack1.png?url'));
     loadImage('fv_smokerack2.png', import('../../assets/doodads/fv_smokerack2.png?url'));
     loadImage('fv_kayak.png', import('../../assets/doodads/fv_kayak.png?url'));
+    
+    // Whale Bone Graveyard monument images (ancient whale bone graveyard on beach)
+    // Note: Campfire is a functional monument placeable, not a visual doodad
+    loadImage('wbg_ribcage.png', import('../../assets/doodads/wbg_ribcage.png?url'));
+    loadImage('wbg_skull.png', import('../../assets/doodads/wbg_skull.png?url'));
+    loadImage('wbg_spine.png', import('../../assets/doodads/wbg_spine.png?url'));
+    loadImage('wbg_jawbone.png', import('../../assets/doodads/wbg_jawbone.png?url'));
+    loadImage('wbg_hermit_hut.png', import('../../assets/doodads/wbg_hermit_hut.png?url'));
 }
 
 /**
@@ -116,14 +124,22 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             'hull7.png': () => import('../../assets/doodads/hull7.png?url'),
             
             // Fishing village monument images (Aleut-style village)
-            'fv_campfire.png': () => import('../../assets/doodads/fv_campfire.png?url'),
-            'fv_hut1.png': () => import('../../assets/doodads/fv_hut1.png?url'),
+            // Note: Campfire is a functional monument placeable, not a visual doodad
+            'fv_lodge.png': () => import('../../assets/doodads/fv_lodge.png?url'),
             'fv_hut2.png': () => import('../../assets/doodads/fv_hut2.png?url'),
             'fv_hut3.png': () => import('../../assets/doodads/fv_hut3.png?url'),
             'fv_dock.png': () => import('../../assets/doodads/fv_dock.png?url'),
             'fv_smokerack1.png': () => import('../../assets/doodads/fv_smokerack1.png?url'),
             'fv_smokerack2.png': () => import('../../assets/doodads/fv_smokerack2.png?url'),
             'fv_kayak.png': () => import('../../assets/doodads/fv_kayak.png?url'),
+            
+            // Whale Bone Graveyard monument images (ancient whale bone graveyard on beach)
+            // Note: Campfire is a functional monument placeable, not a visual doodad
+            'wbg_ribcage.png': () => import('../../assets/doodads/wbg_ribcage.png?url'),
+            'wbg_skull.png': () => import('../../assets/doodads/wbg_skull.png?url'),
+            'wbg_spine.png': () => import('../../assets/doodads/wbg_spine.png?url'),
+            'wbg_jawbone.png': () => import('../../assets/doodads/wbg_jawbone.png?url'),
+            'wbg_hermit_hut.png': () => import('../../assets/doodads/wbg_hermit_hut.png?url'),
         };
     
         const loader = imageMap[imagePath];

@@ -27,49 +27,57 @@ import {
   type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
   type TableHandle as __TableHandle,
 } from "spacetimedb";
+import { MonumentType } from "./monument_type_type";
+// Mark import as potentially unused
+declare type __keep_MonumentType = MonumentType;
 
-export type ShipwreckPart = {
+
+export type MonumentPart = {
   id: bigint,
+  monumentType: MonumentType,
   worldX: number,
   worldY: number,
   imagePath: string,
+  partType: string,
   isCenter: boolean,
   collisionRadius: number,
 };
-let _cached_ShipwreckPart_type_value: __AlgebraicTypeType | null = null;
+let _cached_MonumentPart_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const ShipwreckPart = {
+export const MonumentPart = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_ShipwreckPart_type_value) return _cached_ShipwreckPart_type_value;
-    _cached_ShipwreckPart_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_ShipwreckPart_type_value.value.elements.push(
+    if (_cached_MonumentPart_type_value) return _cached_MonumentPart_type_value;
+    _cached_MonumentPart_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_MonumentPart_type_value.value.elements.push(
       { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "monumentType", algebraicType: MonumentType.getTypeScriptAlgebraicType() },
       { name: "worldX", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "worldY", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "imagePath", algebraicType: __AlgebraicTypeValue.String },
+      { name: "partType", algebraicType: __AlgebraicTypeValue.String },
       { name: "isCenter", algebraicType: __AlgebraicTypeValue.Bool },
       { name: "collisionRadius", algebraicType: __AlgebraicTypeValue.F32 },
     );
-    return _cached_ShipwreckPart_type_value;
+    return _cached_MonumentPart_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: ShipwreckPart): void {
-    __AlgebraicTypeValue.serializeValue(writer, ShipwreckPart.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: MonumentPart): void {
+    __AlgebraicTypeValue.serializeValue(writer, MonumentPart.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): ShipwreckPart {
-    return __AlgebraicTypeValue.deserializeValue(reader, ShipwreckPart.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): MonumentPart {
+    return __AlgebraicTypeValue.deserializeValue(reader, MonumentPart.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default ShipwreckPart;
+export default MonumentPart;
 
 

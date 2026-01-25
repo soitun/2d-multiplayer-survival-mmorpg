@@ -315,8 +315,7 @@ function AppContent() {
       alkState, // ADDED: ALK system state
       playerShardBalance, // ADDED: Player shard balances
       memoryGridProgress, // ADDED: Memory Grid unlocks
-      shipwreckParts, // ADDED: Shipwreck monument parts (one-time read of static world gen data)
-      fishingVillageParts, // ADDED: Fishing village monument parts (one-time read of static world gen data)
+      monumentParts, // ADDED: Unified monument parts (all monument types, one-time read of static world gen data)
       largeQuarries, // ADDED: Large quarry locations with types for minimap labels
       // Matronage system
       matronages, // ADDED: Matronage pooled rewards organizations
@@ -662,9 +661,9 @@ function AppContent() {
         crossfadeDuration: 3000, // 3 second crossfade
         shuffleMode: true,
         preloadAll: true,
-        // Pass player position and fishing village parts for zone-based music
+        // Pass player position and monument parts for zone-based music
         playerPosition: playerMusicPosition,
-        fishingVillageParts: fishingVillageParts,
+        monumentParts: monumentParts, // Music system will filter by monument type internally
     });
     
     // Update music volume when state changes
@@ -1399,8 +1398,7 @@ function AppContent() {
                             questProgressNotifications={questProgressNotifications}
                             sovaQuestMessages={sovaQuestMessages}
                             beaconDropEvents={beaconDropEvents} // ADDED: Memory Beacon server events
-                            shipwreckParts={shipwreckParts} // ADDED: Shipwreck monument parts (one-time read of static world gen data)
-                            fishingVillageParts={fishingVillageParts} // ADDED: Fishing village monument parts (one-time read of static world gen data)
+                            monumentParts={monumentParts} // ADDED: Unified monument parts (all monument types)
                             largeQuarries={largeQuarries} // ADDED: Large quarry locations with types for minimap labels
                             // Matronage system
                             matronages={matronages}

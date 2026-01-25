@@ -687,8 +687,7 @@ export function useEntityFiltering(
   isTreeFalling?: (treeId: string) => boolean, // NEW: Check if tree is falling
   worldChunkData?: Map<string, any>, // ADDED: World chunk data for tile type lookups
   alkStations?: Map<string, SpacetimeDBAlkStation>, // ADDED: ALK delivery stations
-  shipwreckParts?: Map<string, any>, // ADDED: Shipwreck monument parts
-  fishingVillageParts?: Map<string, any>, // ADDED: Fishing village monument parts
+  monumentParts?: Map<string, any>, // ADDED: Unified monument parts (shipwreck, fishing village, whale bone graveyard)
   // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
   livingCorals?: Map<string, SpacetimeDBLivingCoral> // Living corals (uses combat system)
 ): EntityFilteringResult {
@@ -1270,30 +1269,47 @@ export function useEntityFiltering(
     });
   }, [alkStations, viewBounds]);
 
-  // ADDED: Compound buildings filtering - static buildings + dynamic monuments (shipwrecks, fishing village)
+  // ADDED: Compound buildings filtering - static buildings + dynamic monuments (shipwrecks, fishing village, whale bone graveyard)
   // Static buildings come from config, dynamic monuments come from database
   const visibleCompoundBuildings = useMemo(() => {
-    // Merge static compound buildings with dynamic monument parts
-    const shipwreckPartsArray = shipwreckParts ? Array.from(shipwreckParts.values()).map(part => ({
-      id: part.id,
-      worldX: part.worldX,
-      worldY: part.worldY,
-      imagePath: part.imagePath,
-      isCenter: part.isCenter,
-      collisionRadius: part.collisionRadius,
-    })) : [];
+    // Filter unified monument parts by type
+    // NOTE: MonumentType is a tagged union with a `tag` property (e.g., { tag: 'Shipwreck' })
+    const shipwreckPartsArray = monumentParts ? Array.from(monumentParts.values())
+      .filter((part: any) => part.monumentType?.tag === 'Shipwreck')
+      .map(part => ({
+        id: part.id,
+        worldX: part.worldX,
+        worldY: part.worldY,
+        imagePath: part.imagePath,
+        isCenter: part.isCenter,
+        collisionRadius: part.collisionRadius,
+      })) : [];
     
-    const fishingVillagePartsArray = fishingVillageParts ? Array.from(fishingVillageParts.values()).map(part => ({
-      id: part.id,
-      worldX: part.worldX,
-      worldY: part.worldY,
-      imagePath: part.imagePath,
-      partType: part.partType,
-      isCenter: part.isCenter,
-      collisionRadius: part.collisionRadius,
-    })) : [];
+    const fishingVillagePartsArray = monumentParts ? Array.from(monumentParts.values())
+      .filter((part: any) => part.monumentType?.tag === 'FishingVillage')
+      .map(part => ({
+        id: part.id,
+        worldX: part.worldX,
+        worldY: part.worldY,
+        imagePath: part.imagePath,
+        partType: part.partType,
+        isCenter: part.isCenter,
+        collisionRadius: part.collisionRadius,
+      })) : [];
     
-    const allBuildings = getAllCompoundBuildings(shipwreckPartsArray, fishingVillagePartsArray);
+    const whaleBoneGraveyardPartsArray = monumentParts ? Array.from(monumentParts.values())
+      .filter((part: any) => part.monumentType?.tag === 'WhaleBoneGraveyard')
+      .map(part => ({
+        id: part.id,
+        worldX: part.worldX,
+        worldY: part.worldY,
+        imagePath: part.imagePath,
+        partType: part.partType,
+        isCenter: part.isCenter,
+        collisionRadius: part.collisionRadius,
+      })) : [];
+    
+    const allBuildings = getAllCompoundBuildings(shipwreckPartsArray, fishingVillagePartsArray, whaleBoneGraveyardPartsArray);
     
     // Convert buildings to entity format with world positions
     return allBuildings.map(building => {
@@ -1321,7 +1337,7 @@ export function useEntityFiltering(
              bottom + buffer >= viewBounds.viewMinY &&
              top - buffer <= viewBounds.viewMaxY;
     });
-  }, [viewBounds, shipwreckParts, fishingVillageParts]);
+  }, [viewBounds, monumentParts]);
 
   const visibleSeaStacks = useMemo(() => 
     seaStacks ? Array.from(seaStacks.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))

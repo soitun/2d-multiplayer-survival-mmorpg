@@ -14,8 +14,8 @@
  */
 
 use spacetimedb::{ReducerContext, Table, Timestamp};
-use crate::shipwreck_part as ShipwreckPartTableTrait;
-use crate::fishing_village_part as FishingVillagePartTableTrait;
+use crate::monument_part as MonumentPartTableTrait;
+use crate::MonumentType;
 use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::harvestable_resource::harvestable_resource as HarvestableResourceTableTrait;
 use crate::barrel::barrel as BarrelTableTrait;
@@ -33,10 +33,12 @@ pub mod clearance {
     /// Fishing village parts - clear a 10-tile radius (500px)
     pub const FISHING_VILLAGE: f32 = 500.0;
     
+    /// Whale bone graveyard parts - clear an 11-tile radius (550px)
+    pub const WHALE_BONE_GRAVEYARD: f32 = 550.0;
+    
     // Future monument types can be added here:
     // pub const RUINS: f32 = 400.0;
     // pub const CRASH_SITE: f32 = 350.0;
-    // pub const WHALEBONE_REEF: f32 = 250.0;
     // etc.
 }
 
@@ -54,10 +56,14 @@ pub fn is_position_near_monument(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -
         return true;
     }
     
+    // Check whale bone graveyard monuments
+    if is_near_whale_bone_graveyard(ctx, pos_x, pos_y) {
+        return true;
+    }
+    
     // Future monument checks can be added here:
     // if is_near_ruins(ctx, pos_x, pos_y) { return true; }
     // if is_near_crash_site(ctx, pos_x, pos_y) { return true; }
-    // if is_near_whalebone_reef(ctx, pos_x, pos_y) { return true; }
     
     false // Not near any monument
 }
@@ -66,7 +72,10 @@ pub fn is_position_near_monument(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -
 fn is_near_shipwreck(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
     let clearance_sq = clearance::SHIPWRECK * clearance::SHIPWRECK;
     
-    for part in ctx.db.shipwreck_part().iter() {
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::Shipwreck {
+            continue;
+        }
         let dx = pos_x - part.world_x;
         let dy = pos_y - part.world_y;
         let dist_sq = dx * dx + dy * dy;
@@ -83,7 +92,30 @@ fn is_near_shipwreck(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
 fn is_near_fishing_village(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
     let clearance_sq = clearance::FISHING_VILLAGE * clearance::FISHING_VILLAGE;
     
-    for part in ctx.db.fishing_village_part().iter() {
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::FishingVillage {
+            continue;
+        }
+        let dx = pos_x - part.world_x;
+        let dy = pos_y - part.world_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq < clearance_sq {
+            return true;
+        }
+    }
+    
+    false
+}
+
+/// Checks if position is near any whale bone graveyard part
+fn is_near_whale_bone_graveyard(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    let clearance_sq = clearance::WHALE_BONE_GRAVEYARD * clearance::WHALE_BONE_GRAVEYARD;
+    
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::WhaleBoneGraveyard {
+            continue;
+        }
         let dx = pos_x - part.world_x;
         let dy = pos_y - part.world_y;
         let dist_sq = dx * dx + dy * dy;
@@ -480,8 +512,10 @@ pub fn generate_fishing_village(
         // We rotate these offsets based on water_direction to orient the village
         // =============================================================================
         
-        // Add campfire first (at center position)
-        village_parts.push((center_world_x, center_world_y, "fv_campfire.png".to_string(), "campfire".to_string()));
+        // Add center marker at campfire position for zone/safe zone calculations
+        // The functional campfire is spawned via monument placeables - this is just a reference point
+        // Using "center" part_type since the actual campfire entity handles the visual
+        village_parts.push((center_world_x, center_world_y, "".to_string(), "center".to_string()));
         
         log::info!("🏘️ Using grid layout with water direction ({:.2}, {:.2})", 
                    water_direction_x, water_direction_y);
@@ -494,7 +528,7 @@ pub fn generate_fishing_village(
         // LAYOUT: Tightened for cohesive village feel with smaller buildings
         let structure_configs: [(&str, &str, f32, f32); 6] = [
             // Huts - set back INLAND from campfire (negative = away from water)
-            ("hut", "fv_hut1.png", -380.0, -400.0),    // Inland-left
+            ("hut", "fv_lodge.png", -380.0, -400.0),    // Inland-left
             ("hut", "fv_hut2.png", 380.0, -400.0),     // Inland-right
             ("hut", "fv_hut3.png", 0.0, -580.0),       // Far inland center
             
@@ -573,6 +607,199 @@ pub fn generate_fishing_village(
     (village_center, village_parts)
 }
 
+/// Generate whale bone graveyard monument on beach (separate from shipwreck and fishing village)
+/// Ancient whale bone graveyard with hermit's hut, various whale bone parts scattered on beach.
+/// Returns (center_position, graveyard_parts) where:
+/// - center_position: (x, y) in world pixels for ribcage center piece
+/// - graveyard_parts: Vec of (x, y, image_path, part_type) for all whale bone structures
+pub fn generate_whale_bone_graveyard(
+    noise: &Perlin,
+    shore_distance: &[Vec<f64>],
+    river_network: &[Vec<bool>],
+    lake_map: &[Vec<bool>],
+    shipwreck_centers: &[(f32, f32)], // Avoid placing near shipwreck
+    fishing_village_center: Option<(f32, f32)>, // Avoid placing near fishing village
+    width: usize,
+    height: usize,
+) -> (Option<(f32, f32)>, Vec<(f32, f32, String, String)>) {
+    let mut graveyard_center: Option<(f32, f32)> = None;
+    let mut graveyard_parts: Vec<(f32, f32, String, String)> = Vec::new();
+    
+    log::info!("🦴 Generating whale bone graveyard monument on beach...");
+    
+    // Find beach tiles - prefer DIFFERENT area from shipwreck and fishing village
+    // Focus on the bottom third of the map (beach tiles here)
+    let map_height_third = height * 2 / 3;
+    let min_shore_dist = 3.0;  // At least 3 tiles from water (not IN water)
+    let max_shore_dist = 12.0; // At most 12 tiles from water (on the beach)
+    let min_distance_from_edge = 30;
+    let min_distance_from_shipwreck = 100.0; // Minimum tiles away from shipwreck
+    let min_distance_from_fishing_village = 80.0; // Minimum tiles away from fishing village
+    
+    let mut candidate_positions = Vec::new();
+    
+    // Search bottom third of map for beach tiles
+    for y in (map_height_third + min_distance_from_edge)..(height - min_distance_from_edge) {
+        for x in min_distance_from_edge..(width - min_distance_from_edge) {
+            let shore_dist = shore_distance[y][x];
+            
+            // Must be on beach (not water, not too far inland)
+            if shore_dist >= min_shore_dist && shore_dist <= max_shore_dist {
+                // Must not be on river or lake
+                if river_network[y][x] || lake_map[y][x] {
+                    continue;
+                }
+                
+                // Check distance from shipwreck - must be far away
+                let tile_world_x = (x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                let tile_world_y = (y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                
+                let mut too_close_to_monument = false;
+                for &(shipwreck_x, shipwreck_y) in shipwreck_centers {
+                    let dx = tile_world_x - shipwreck_x;
+                    let dy = tile_world_y - shipwreck_y;
+                    let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                    if dist_tiles < min_distance_from_shipwreck {
+                        too_close_to_monument = true;
+                        break;
+                    }
+                }
+                
+                // Check distance from fishing village
+                if let Some((fv_x, fv_y)) = fishing_village_center {
+                    let dx = tile_world_x - fv_x;
+                    let dy = tile_world_y - fv_y;
+                    let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                    if dist_tiles < min_distance_from_fishing_village {
+                        too_close_to_monument = true;
+                    }
+                }
+                
+                if too_close_to_monument {
+                    continue;
+                }
+                
+                candidate_positions.push((x, y, shore_dist));
+            }
+        }
+    }
+    
+    if candidate_positions.is_empty() {
+        log::warn!("🦴 No valid beach positions found for whale bone graveyard");
+        return (graveyard_center, graveyard_parts);
+    }
+    
+    log::info!("🦴 Found {} candidate positions for whale bone graveyard (shore_dist {}-{})", 
+               candidate_positions.len(), min_shore_dist, max_shore_dist);
+    
+    // Select position using noise - prefer positions with moderate beach width
+    let mut best_score = f64::NEG_INFINITY;
+    let mut best_position: Option<(usize, usize)> = None;
+    
+    for &(x, y, shore_dist) in &candidate_positions {
+        // Score: noise value + bonus for being in sweet spot of beach (not too close to water, not too inland)
+        let noise_val = noise.get([x as f64 * 0.01, y as f64 * 0.01, 30000.0]); // Different seed than other monuments
+        let beach_bonus = 1.0 - ((shore_dist - 7.0).abs() / 7.0).min(1.0) * 0.5; // Peak at shore_dist ~7
+        let score = noise_val + beach_bonus;
+        
+        if score > best_score {
+            best_score = score;
+            best_position = Some((x, y));
+        }
+    }
+    
+    if let Some((center_x, center_y)) = best_position {
+        let tile_size_px = crate::TILE_SIZE_PX as f32;
+        let center_world_x = (center_x as f32 + 0.5) * tile_size_px;
+        let center_world_y = (center_y as f32 + 0.5) * tile_size_px;
+        
+        graveyard_center = Some((center_world_x, center_world_y));
+        
+        log::info!("🦴✨ PLACED WHALE BONE GRAVEYARD CENTER (hermit hut) at tile ({}, {}) = 📍 World Position: ({:.0}, {:.0}) ✨",
+                   center_x, center_y, center_world_x, center_world_y);
+        
+        // =============================================================================
+        // WHALE BONE GRAVEYARD LAYOUT
+        // =============================================================================
+        // The hermit's hut is the center of the graveyard, surrounded by whale bones
+        // Bones are spread far apart to create a sprawling, ancient graveyard feel
+        // The hermit tends his campfire near the hut
+        //
+        // Layout (in local coords) - spread out ~2x further:
+        //              RIBCAGE (-150, -450)
+        //     SKULL (-450, -200)               SPINE (450, -150)
+        //                    HUT (0, 0) <- CENTER
+        //                    CAMPFIRE (80, 120)
+        //              JAWBONE (200, 400)
+        //
+        // =============================================================================
+        
+        // Structure definitions: (part_type, image_name, offset_x, offset_y)
+        // Using same coordinate system as fishing village (water direction not critical for graveyard)
+        // Note: Functional campfire is spawned via monument placeables, not as a visual doodad
+        let structure_configs: [(&str, &str, f32, f32); 5] = [
+            // Hermit's hut - CENTER PIECE - the heart of the graveyard
+            ("hermit_hut", "wbg_hermit_hut.png", 0.0, 0.0),
+            
+            // Large whale ribcage - north, prominent landmark
+            ("ribcage", "wbg_ribcage.png", -150.0, -450.0),
+            
+            // Whale skull - far north-west
+            ("skull", "wbg_skull.png", -450.0, -200.0),
+            
+            // Whale spine - far north-east
+            ("spine", "wbg_spine.png", 450.0, -150.0),
+            
+            // Whale jawbone - south, near the water
+            ("jawbone", "wbg_jawbone.png", 200.0, 400.0),
+        ];
+        
+        for (part_type, image_name, offset_x, offset_y) in structure_configs.iter() {
+            let part_world_x = center_world_x + offset_x;
+            let part_world_y = center_world_y + offset_y;
+            
+            // Convert to tile coords for validation
+            let part_tile_x = (part_world_x / tile_size_px) as i32;
+            let part_tile_y = (part_world_y / tile_size_px) as i32;
+            
+            // Bounds check
+            if part_tile_x < 5 || part_tile_y < 5 || 
+               part_tile_x >= (width as i32 - 5) || part_tile_y >= (height as i32 - 5) {
+                log::warn!("🦴 {} out of bounds at tile ({}, {})", part_type, part_tile_x, part_tile_y);
+                continue;
+            }
+            
+            let px = part_tile_x as usize;
+            let py = part_tile_y as usize;
+            
+            // Check terrain - allow some flexibility for bone placement
+            let part_shore_dist = shore_distance[py][px];
+            
+            // Skip only if in water or on river/lake
+            if part_shore_dist < -1.0 || river_network[py][px] || lake_map[py][px] {
+                log::warn!("🦴 {} terrain invalid: shore_dist={:.1}", part_type, part_shore_dist);
+                continue;
+            }
+            
+            // Determine if this is the center piece (hermit hut is the heart of the graveyard)
+            let is_center = *part_type == "hermit_hut";
+            
+            // Place the structure!
+            graveyard_parts.push((part_world_x, part_world_y, image_name.to_string(), part_type.to_string()));
+            
+            log::info!("🦴✨ PLACED {} ({}) at ({:.0}, {:.0}), offset=({:.0}, {:.0}) ✨",
+                       part_type.to_uppercase(), image_name, part_world_x, part_world_y,
+                       offset_x, offset_y);
+        }
+        
+        log::info!("🦴 Whale bone graveyard generation complete: {} total structures", graveyard_parts.len());
+    } else {
+        log::warn!("🦴 Failed to select whale bone graveyard position");
+    }
+    
+    (graveyard_center, graveyard_parts)
+}
+
 // =============================================================================
 // MONUMENT DECORATIONS (Flavor Items)
 // =============================================================================
@@ -649,6 +876,51 @@ pub fn get_shipwreck_harvestables() -> Vec<MonumentHarvestableConfig> {
             spawn_chance: 0.25, // 25% chance for bonus spawn
             min_distance: 90.0,
             max_distance: 220.0,
+        },
+    ]
+}
+
+/// Whale Bone Graveyard-specific decoration configuration
+/// Currently empty - whale bone graveyard uses harvestable resources instead
+pub fn get_whale_bone_graveyard_decorations() -> Vec<MonumentDecorationConfig> {
+    vec![
+        // No one-time decorations - all resources respawn
+    ]
+}
+
+/// Whale Bone Graveyard-specific harvestable resource configuration
+/// Spawns Beach Wood Piles (driftwood) and Stone Piles (whale bones = bone meal) around bone parts
+pub fn get_whale_bone_graveyard_harvestables() -> Vec<MonumentHarvestableConfig> {
+    vec![
+        // Beach Wood Pile - driftwood scattered among the bones
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::BeachWoodPile,
+            spawn_chance: 0.70, // 70% chance per part
+            min_distance: 60.0,
+            max_distance: 180.0,
+        },
+        // Second Beach Wood Pile spawn - additional driftwood
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::BeachWoodPile,
+            spawn_chance: 0.40, // 40% chance for second pile
+            min_distance: 80.0,
+            max_distance: 200.0,
+        },
+        // Stone Pile - smaller bone fragments (represented as stone for now)
+        // These are scattered bone fragments from the ancient whales
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::StonePile,
+            spawn_chance: 0.50, // 50% per part
+            min_distance: 50.0,
+            max_distance: 150.0,
+        },
+        // Memory Shard - mysterious ancient tech found among the bones
+        // Perhaps the hermit has been collecting them?
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::MemoryShard,
+            spawn_chance: 0.30, // 30% per part = ~2 shards per graveyard
+            min_distance: 70.0,
+            max_distance: 160.0,
         },
     ]
 }
@@ -1007,6 +1279,206 @@ pub fn spawn_shipwreck_military_rations(
     Ok(())
 }
 
+/// Spawns beach barrels around whale bone graveyard monument parts
+/// Uses barrel.rs system but spawns specifically around whale bone graveyard locations
+pub fn spawn_whale_bone_graveyard_barrels(
+    ctx: &ReducerContext,
+    monument_part_positions: &[(f32, f32)],
+) -> Result<(), String> {
+    if monument_part_positions.is_empty() {
+        return Ok(());
+    }
+    
+    use crate::barrel::{Barrel, BARREL_INITIAL_HEALTH, SEA_BARREL_VARIANT_START, SEA_BARREL_VARIANT_END};
+    use crate::environment::calculate_chunk_index;
+    use crate::barrel::{has_barrel_collision, has_player_barrel_collision};
+    use rand::Rng;
+    
+    let barrels = ctx.db.barrel();
+    let mut spawned_count = 0;
+    
+    // Spawn 1-2 beach barrels per whale bone part (50% chance per part)
+    for &(part_x, part_y) in monument_part_positions {
+        let spawn_roll: f32 = ctx.rng().gen();
+        if spawn_roll > 0.50 {
+            continue; // 50% chance to skip this part
+        }
+        
+        // Determine how many barrels (1-2)
+        let barrel_count = if ctx.rng().gen::<f32>() < 0.5 {
+            1 // 50% chance for 1 barrel
+        } else {
+            2 // 50% chance for 2 barrels
+        };
+        
+        for barrel_idx in 0..barrel_count {
+            let mut attempts = 0;
+            const MAX_ATTEMPTS: u32 = 10;
+            
+            while attempts < MAX_ATTEMPTS {
+                attempts += 1;
+                
+                // Generate position around the whale bone part
+                let angle = (barrel_idx as f32) * (2.0 * std::f32::consts::PI / barrel_count as f32) +
+                           ctx.rng().gen_range(-0.5..0.5);
+                let distance = ctx.rng().gen_range(120.0..300.0);
+                let barrel_x = part_x + angle.cos() * distance;
+                let barrel_y = part_y + angle.sin() * distance;
+                
+                // Validate position: must be on beach
+                if !crate::environment::is_position_on_beach_tile(ctx, barrel_x, barrel_y) {
+                    continue;
+                }
+                
+                // Check collisions
+                if has_barrel_collision(ctx, barrel_x, barrel_y, None) ||
+                   has_player_barrel_collision(ctx, barrel_x, barrel_y) {
+                    continue;
+                }
+                
+                // Spawn beach barrel (sea variants 3, 4, 5)
+                let variant = ctx.rng().gen_range(SEA_BARREL_VARIANT_START..SEA_BARREL_VARIANT_END);
+                let chunk_idx = calculate_chunk_index(barrel_x, barrel_y);
+                
+                let new_barrel = Barrel {
+                    id: 0,
+                    pos_x: barrel_x,
+                    pos_y: barrel_y,
+                    chunk_index: chunk_idx,
+                    health: BARREL_INITIAL_HEALTH,
+                    variant,
+                    last_hit_time: None,
+                    respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
+                    cluster_id: 0, // Individual spawns, not clusters
+                };
+                
+                match barrels.try_insert(new_barrel) {
+                    Ok(inserted_barrel) => {
+                        spawned_count += 1;
+                        log::info!("[WhaleBoneGraveyardBarrels] Spawned beach barrel #{} (variant {}) at ({:.1}, {:.1})",
+                                  inserted_barrel.id, variant, barrel_x, barrel_y);
+                        break; // Successfully spawned
+                    }
+                    Err(e) => {
+                        log::warn!("[WhaleBoneGraveyardBarrels] Failed to insert barrel: {}", e);
+                    }
+                }
+            }
+        }
+    }
+    
+    log::info!("[WhaleBoneGraveyardBarrels] Spawned {} beach barrels around whale bone graveyard monument", spawned_count);
+    Ok(())
+}
+
+/// Spawns military rations around whale bone graveyard monument parts
+/// Fewer than shipwreck (40% chance vs 60%) - the hermit has already picked through most of them
+pub fn spawn_whale_bone_graveyard_military_rations(
+    ctx: &ReducerContext,
+    monument_part_positions: &[(f32, f32)],
+) -> Result<(), String> {
+    if monument_part_positions.is_empty() {
+        return Ok(());
+    }
+    
+    use crate::environment::calculate_chunk_index;
+    use crate::wooden_storage_box::{BOX_TYPE_MILITARY_RATION, wooden_storage_box as WoodenStorageBoxTableTrait};
+    use rand::Rng;
+    
+    let mut spawned_count = 0;
+    
+    // Spawn max 1 military ration per part (40% chance per part - less than shipwreck)
+    for &(part_x, part_y) in monument_part_positions {
+        let spawn_roll: f32 = ctx.rng().gen();
+        if spawn_roll > 0.40 {
+            continue; // 60% chance to skip this part
+        }
+        
+        // Check if there's already a military ration nearby (within 200px)
+        let existing_boxes = ctx.db.wooden_storage_box();
+        let mut has_existing_ration = false;
+        for existing_box in existing_boxes.iter() {
+            if existing_box.box_type == BOX_TYPE_MILITARY_RATION {
+                let dx = part_x - existing_box.pos_x;
+                let dy = part_y - existing_box.pos_y;
+                if dx * dx + dy * dy < 200.0 * 200.0 {
+                    has_existing_ration = true;
+                    break;
+                }
+            }
+        }
+        
+        if has_existing_ration {
+            continue;
+        }
+        
+        // Try to spawn 1 military ration near this part
+        let mut attempts = 0;
+        const MAX_ATTEMPTS: u32 = 10;
+        
+        while attempts < MAX_ATTEMPTS {
+            attempts += 1;
+            
+            // Generate position around the part
+            let angle = ctx.rng().gen_range(0.0..std::f32::consts::PI * 2.0);
+            let distance = ctx.rng().gen_range(80.0..200.0);
+            let ration_x = part_x + angle.cos() * distance;
+            let ration_y = part_y + angle.sin() * distance;
+            
+            // Validate position: must be on ground (not water)
+            let tile_x = (ration_x / crate::TILE_SIZE_PX as f32).floor() as i32;
+            let tile_y = (ration_y / crate::TILE_SIZE_PX as f32).floor() as i32;
+            if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
+                if tile_type.is_water() {
+                    continue;
+                }
+            }
+            
+            // Check collision with existing barrels
+            use crate::barrel::{has_barrel_collision, has_player_barrel_collision};
+            if has_barrel_collision(ctx, ration_x, ration_y, None) ||
+               has_player_barrel_collision(ctx, ration_x, ration_y) {
+                continue;
+            }
+            
+            // Check collision with existing military rations
+            let existing_boxes = ctx.db.wooden_storage_box();
+            let mut too_close = false;
+            for existing_box in existing_boxes.iter() {
+                if existing_box.box_type == BOX_TYPE_MILITARY_RATION {
+                    let dx = ration_x - existing_box.pos_x;
+                    let dy = ration_y - existing_box.pos_y;
+                    if dx * dx + dy * dy < 100.0 * 100.0 {
+                        too_close = true;
+                        break;
+                    }
+                }
+            }
+            
+            if too_close {
+                continue;
+            }
+            
+            // Spawn military ration
+            let chunk_idx = calculate_chunk_index(ration_x, ration_y);
+            match crate::military_ration::spawn_military_ration_with_loot(ctx, ration_x, ration_y, chunk_idx) {
+                Ok(_) => {
+                    spawned_count += 1;
+                    log::info!("[WhaleBoneGraveyardRations] Spawned military ration at ({:.1}, {:.1})",
+                              ration_x, ration_y);
+                    break;
+                }
+                Err(e) => {
+                    log::warn!("[WhaleBoneGraveyardRations] Failed to spawn military ration: {}", e);
+                }
+            }
+        }
+    }
+    
+    log::info!("[WhaleBoneGraveyardRations] Spawned {} military rations around whale bone graveyard monument", spawned_count);
+    Ok(())
+}
+
 // Future monument decoration configs can be added here:
 /*
 /// Ruins-specific decoration configuration
@@ -1211,7 +1683,17 @@ pub fn get_shipwreck_placeables() -> Vec<MonumentPlaceableConfig> {
 /// Get monument placeables for the Fishing Village monument
 pub fn get_fishing_village_placeables() -> Vec<MonumentPlaceableConfig> {
     vec![
-        // No placeables - fishing village only has decorative structures
+        // Central campfire - the heart of the fishing village community
+        MonumentPlaceableConfig::campfire(0.0, 0.0),
+    ]
+}
+
+/// Get monument placeables for the Whale Bone Graveyard monument
+pub fn get_whale_bone_graveyard_placeables() -> Vec<MonumentPlaceableConfig> {
+    vec![
+        // Single campfire near the hermit's hut (which is now at center 0, 0)
+        // Placed slightly in front and to the right of the hut for player access
+        MonumentPlaceableConfig::campfire(80.0, 120.0),
     ]
 }
 

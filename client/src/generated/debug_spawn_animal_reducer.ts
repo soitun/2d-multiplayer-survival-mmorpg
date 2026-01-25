@@ -28,50 +28,37 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type FishingVillagePart = {
-  id: bigint,
-  worldX: number,
-  worldY: number,
-  imagePath: string,
-  partType: string,
-  isCenter: boolean,
-  collisionRadius: number,
+export type DebugSpawnAnimal = {
+  speciesStr: string,
 };
-let _cached_FishingVillagePart_type_value: __AlgebraicTypeType | null = null;
+let _cached_DebugSpawnAnimal_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const FishingVillagePart = {
+export const DebugSpawnAnimal = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_FishingVillagePart_type_value) return _cached_FishingVillagePart_type_value;
-    _cached_FishingVillagePart_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_FishingVillagePart_type_value.value.elements.push(
-      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
-      { name: "worldX", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "worldY", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "imagePath", algebraicType: __AlgebraicTypeValue.String },
-      { name: "partType", algebraicType: __AlgebraicTypeValue.String },
-      { name: "isCenter", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "collisionRadius", algebraicType: __AlgebraicTypeValue.F32 },
+    if (_cached_DebugSpawnAnimal_type_value) return _cached_DebugSpawnAnimal_type_value;
+    _cached_DebugSpawnAnimal_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_DebugSpawnAnimal_type_value.value.elements.push(
+      { name: "speciesStr", algebraicType: __AlgebraicTypeValue.String },
     );
-    return _cached_FishingVillagePart_type_value;
+    return _cached_DebugSpawnAnimal_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: FishingVillagePart): void {
-    __AlgebraicTypeValue.serializeValue(writer, FishingVillagePart.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: DebugSpawnAnimal): void {
+    __AlgebraicTypeValue.serializeValue(writer, DebugSpawnAnimal.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): FishingVillagePart {
-    return __AlgebraicTypeValue.deserializeValue(reader, FishingVillagePart.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): DebugSpawnAnimal {
+    return __AlgebraicTypeValue.deserializeValue(reader, DebugSpawnAnimal.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default FishingVillagePart;
-
+export default DebugSpawnAnimal;
 

@@ -12,7 +12,8 @@
 // ------------------------------------
 
 use crate::ReducerContext;
-use crate::shipwreck_part as ShipwreckPartTableTrait;
+use crate::monument_part as MonumentPartTableTrait;
+use crate::MonumentType;
 use spacetimedb::Table;
 
 /// Protection radius for shipwreck parts (in pixels)
@@ -44,7 +45,10 @@ pub const SHIPWRECK_NPC_EXCLUSION_RADIUS_SQ: f32 = SHIPWRECK_NPC_EXCLUSION_RADIU
 /// # Returns
 /// `true` if the position would collide with any shipwreck part
 pub fn check_shipwreck_collision(ctx: &ReducerContext, pos_x: f32, pos_y: f32, entity_radius: f32) -> bool {
-    for part in ctx.db.shipwreck_part().iter() {
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::Shipwreck {
+            continue;
+        }
         let dx = pos_x - part.world_x;
         let dy = pos_y - part.world_y;
         let dist_sq = dx * dx + dy * dy;
@@ -81,7 +85,10 @@ pub fn resolve_shipwreck_collision(
     let mut resolved_y = pos_y;
     let mut any_collision = false;
     
-    for part in ctx.db.shipwreck_part().iter() {
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::Shipwreck {
+            continue;
+        }
         let dx = resolved_x - part.world_x;
         let dy = resolved_y - part.world_y;
         let dist_sq = dx * dx + dy * dy;
@@ -130,7 +137,10 @@ pub fn line_intersects_shipwreck(
     end_x: f32,
     end_y: f32,
 ) -> bool {
-    for part in ctx.db.shipwreck_part().iter() {
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::Shipwreck {
+            continue;
+        }
         // Line-circle intersection test for shipwreck parts
         let dx = end_x - start_x;
         let dy = end_y - start_y;
@@ -175,7 +185,10 @@ pub fn line_intersects_shipwreck(
 /// # Returns
 /// `true` if the position is within protection radius of any shipwreck part
 pub fn is_position_protected_by_shipwreck(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
-    for part in ctx.db.shipwreck_part().iter() {
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::Shipwreck {
+            continue;
+        }
         let dx = pos_x - part.world_x;
         // Apply Y-offset to check distance from visual center, not anchor point
         let dy = pos_y - (part.world_y - SHIPWRECK_PROTECTION_Y_OFFSET);
@@ -204,7 +217,10 @@ pub fn is_position_protected_by_shipwreck(ctx: &ReducerContext, pos_x: f32, pos_
 pub fn get_nearest_shipwreck_part(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> Option<(u64, f32)> {
     let mut nearest: Option<(u64, f32)> = None;
     
-    for part in ctx.db.shipwreck_part().iter() {
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::Shipwreck {
+            continue;
+        }
         let dx = pos_x - part.world_x;
         // Apply Y-offset to check distance from visual center, not anchor point
         let dy = pos_y - (part.world_y - SHIPWRECK_PROTECTION_Y_OFFSET);
@@ -229,15 +245,16 @@ pub fn get_nearest_shipwreck_part(ctx: &ReducerContext, pos_x: f32, pos_y: f32) 
 /// Returns Some((center_x, center_y, distance)) if inside exclusion zone.
 pub fn is_position_in_shipwreck_exclusion_zone(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> Option<(f32, f32, f32)> {
     // Only check the center piece for the exclusion zone (not each individual part)
-    for part in ctx.db.shipwreck_part().iter() {
-        if part.is_center {
-            let dx = pos_x - part.world_x;
-            let dy = pos_y - part.world_y;
-            let dist_sq = dx * dx + dy * dy;
-            
-            if dist_sq < SHIPWRECK_NPC_EXCLUSION_RADIUS_SQ {
-                return Some((part.world_x, part.world_y, dist_sq.sqrt()));
-            }
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::Shipwreck || !part.is_center {
+            continue;
+        }
+        let dx = pos_x - part.world_x;
+        let dy = pos_y - part.world_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq < SHIPWRECK_NPC_EXCLUSION_RADIUS_SQ {
+            return Some((part.world_x, part.world_y, dist_sq.sqrt()));
         }
     }
     

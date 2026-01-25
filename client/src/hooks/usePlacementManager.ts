@@ -610,35 +610,40 @@ function isMonumentZonePlacementBlocked(connection: DbConnection | null, worldX:
     }
   }
   
-  // Check fishing village monument (Aleut-style village - protected area)
+  // Check monument parts (unified table for fishing village, shipwreck, whale bone graveyard)
+  // NOTE: MonumentType is a tagged union with a `tag` property (e.g., { tag: 'FishingVillage' })
   const FISHING_VILLAGE_RESTRICTION_RADIUS = 800.0;
   const FISHING_VILLAGE_RESTRICTION_RADIUS_SQ = FISHING_VILLAGE_RESTRICTION_RADIUS * FISHING_VILLAGE_RESTRICTION_RADIUS;
+  const SHIPWRECK_RESTRICTION_RADIUS = 1500.0; // 2.5x monument::clearance::SHIPWRECK (600 * 2.5)
+  const SHIPWRECK_RESTRICTION_RADIUS_SQ = SHIPWRECK_RESTRICTION_RADIUS * SHIPWRECK_RESTRICTION_RADIUS;
+  const WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS = 800.0;
+  const WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS_SQ = WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS * WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS;
   
-  for (const part of connection.db.fishingVillagePart.iter()) {
+  for (const part of connection.db.monumentPart.iter()) {
     // Only check against the center piece for the exclusion zone
     if (part.isCenter) {
       const dx = worldX - part.worldX;
       const dy = worldY - part.worldY;
       const distanceSq = dx * dx + dy * dy;
-      if (distanceSq <= FISHING_VILLAGE_RESTRICTION_RADIUS_SQ) {
-        return true; // Blocked by fishing village
+      
+      // Use different restriction radius based on monument type
+      let restrictionRadiusSq: number;
+      switch (part.monumentType?.tag) {
+        case 'Shipwreck':
+          restrictionRadiusSq = SHIPWRECK_RESTRICTION_RADIUS_SQ;
+          break;
+        case 'FishingVillage':
+          restrictionRadiusSq = FISHING_VILLAGE_RESTRICTION_RADIUS_SQ;
+          break;
+        case 'WhaleBoneGraveyard':
+          restrictionRadiusSq = WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS_SQ;
+          break;
+        default:
+          restrictionRadiusSq = FISHING_VILLAGE_RESTRICTION_RADIUS_SQ; // Default fallback
       }
-    }
-  }
-  
-  // Check shipwreck monument (beached ship - protected area)
-  // 2.5x the obstacle clearance radius to create a larger no-build zone
-  const SHIPWRECK_RESTRICTION_RADIUS = 1500.0; // 2.5x monument::clearance::SHIPWRECK (600 * 2.5)
-  const SHIPWRECK_RESTRICTION_RADIUS_SQ = SHIPWRECK_RESTRICTION_RADIUS * SHIPWRECK_RESTRICTION_RADIUS;
-  
-  for (const part of connection.db.shipwreckPart.iter()) {
-    // Only check against the center hull piece for the exclusion zone
-    if (part.isCenter) {
-      const dx = worldX - part.worldX;
-      const dy = worldY - part.worldY;
-      const distanceSq = dx * dx + dy * dy;
-      if (distanceSq <= SHIPWRECK_RESTRICTION_RADIUS_SQ) {
-        return true; // Blocked by shipwreck
+      
+      if (distanceSq <= restrictionRadiusSq) {
+        return true; // Blocked by monument
       }
     }
   }

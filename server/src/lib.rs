@@ -156,6 +156,7 @@ mod matronage; // <<< ADDED: Matronage pooled rewards system
 pub mod compound_buildings; // <<< ADDED: Static compound building collision system
 mod shipwreck; // <<< ADDED: Shipwreck monument collision system
 mod fishing_village; // <<< ADDED: Fishing village monument collision system
+mod whale_bone_graveyard; // <<< ADDED: Whale Bone Graveyard monument collision system
 pub mod monument; // <<< ADDED: Generic monument system for clearance zones (shipwrecks, ruins, crash sites, etc.)
 mod durability; // <<< ADDED: Item durability system for weapons, tools, and torches
 mod repair_bench; // <<< ADDED: Repair bench for item repair
@@ -1339,7 +1340,8 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
     let mut found_shipwreck_spawn = false;
     
     // Try to spawn at shipwreck first (for new players - thematic spawn location)
-    if let Some(shipwreck_center) = ctx.db.shipwreck_part().iter().find(|part| part.is_center) {
+    if let Some(shipwreck_center) = ctx.db.monument_part().iter()
+        .find(|part| part.monument_type == crate::MonumentType::Shipwreck && part.is_center) {
         log::info!("🚢 Found shipwreck center at ({:.0}, {:.0}) - attempting to spawn new player nearby", 
                    shipwreck_center.world_x, shipwreck_center.world_y);
         
@@ -2260,44 +2262,36 @@ pub struct MinimapCache {
     pub generated_at: Timestamp,
 }
 
-/// Shipwreck monument positions (dynamically placed during world generation)
-#[spacetimedb::table(name = shipwreck_part, public)]
-#[derive(Clone, Debug)]
-pub struct ShipwreckPart {
-    #[primary_key]
-    #[auto_inc]
-    pub id: u64,
-    /// World X position in pixels
-    pub world_x: f32,
-    /// World Y position in pixels
-    pub world_y: f32,
-    /// Image filename (e.g., "hull1.png")
-    pub image_path: String,
-    /// Whether this is the center piece (hull1.png)
-    pub is_center: bool,
-    /// Collision radius in pixels
-    pub collision_radius: f32,
+/// Monument type enum to distinguish different monument types
+#[derive(spacetimedb::SpacetimeType, Clone, Debug, PartialEq)]
+pub enum MonumentType {
+    Shipwreck,
+    FishingVillage,
+    WhaleBoneGraveyard,
 }
 
-/// Fishing village monument positions (dynamically placed during world generation)
-/// Aleut-style fishing village with huts, dock, smoke racks, and campfire
-#[spacetimedb::table(name = fishing_village_part, public)]
+/// Unified monument part table for all monument types
+/// Replaces separate shipwreck_part, fishing_village_part, and whale_bone_graveyard_part tables
+#[spacetimedb::table(name = monument_part, public)]
 #[derive(Clone, Debug)]
-pub struct FishingVillagePart {
+pub struct MonumentPart {
     #[primary_key]
     #[auto_inc]
     pub id: u64,
+    /// Monument type to distinguish which monument this part belongs to
+    pub monument_type: MonumentType,
     /// World X position in pixels
     pub world_x: f32,
     /// World Y position in pixels
     pub world_y: f32,
-    /// Image filename (e.g., "hut1.png", "dock.png", "smokerack.png")
+    /// Image filename (e.g., "hull1.png", "fv_hut1.png", "wbg_ribcage.png")
     pub image_path: String,
-    /// Part type for identification (campfire, hut, dock, smokerack, kayak)
+    /// Part type for identification (e.g., "hull", "campfire", "ribcage", "hut")
+    /// Can be empty string for shipwreck parts that don't need specific part types
     pub part_type: String,
-    /// Whether this is the center piece (campfire)
+    /// Whether this is the center piece of the monument
     pub is_center: bool,
-    /// Collision radius in pixels (0 = no collision per user request)
+    /// Collision radius in pixels (0 = no collision)
     pub collision_radius: f32,
 }
 

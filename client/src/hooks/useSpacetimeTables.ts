@@ -162,8 +162,7 @@ export interface SpacetimeTableStates {
     alkState: SpacetimeDB.AlkState | null; // ADDED: ALK system state
     playerShardBalance: Map<string, SpacetimeDB.PlayerShardBalance>; // ADDED: Player shard balances
     memoryGridProgress: Map<string, SpacetimeDB.MemoryGridProgress>; // ADDED: Memory Grid unlocks
-    shipwreckParts: Map<string, any>; // ADDED: Shipwreck monument parts (placeholder until bindings regenerated)
-    fishingVillageParts: Map<string, any>; // ADDED: Fishing village monument parts
+    monumentParts: Map<string, any>; // ADDED: Unified monument parts (all monument types)
     largeQuarries: Map<string, any>; // ADDED: Large quarry locations with types for minimap labels
     // Coral system tables (StormPile removed - storms now spawn HarvestableResources and DroppedItems directly)
     livingCorals: Map<string, SpacetimeDB.LivingCoral>; // ADDED: Living coral for underwater harvesting (uses combat system)
@@ -286,8 +285,7 @@ export const useSpacetimeTables = ({
     const [alkState, setAlkState] = useState<SpacetimeDB.AlkState | null>(null); // ADDED: ALK system state
     const [playerShardBalance, setPlayerShardBalance] = useState<Map<string, SpacetimeDB.PlayerShardBalance>>(() => new Map()); // ADDED: Player shard balances
     const [memoryGridProgress, setMemoryGridProgress] = useState<Map<string, SpacetimeDB.MemoryGridProgress>>(() => new Map()); // ADDED: Memory Grid unlocks
-    const [shipwreckParts, setShipwreckParts] = useState<Map<string, any>>(() => new Map()); // ADDED: Shipwreck monument parts (placeholder until bindings regenerated)
-    const [fishingVillageParts, setFishingVillageParts] = useState<Map<string, any>>(() => new Map()); // ADDED: Fishing village monument parts
+    const [monumentParts, setMonumentParts] = useState<Map<string, any>>(() => new Map()); // ADDED: Unified monument parts (all monument types)
     const [largeQuarries, setLargeQuarries] = useState<Map<string, any>>(() => new Map()); // ADDED: Large quarry locations with types for minimap labels
     // Matronage system state
     const [matronages, setMatronages] = useState<Map<string, any>>(() => new Map()); // ADDED: Matronage pooled rewards organizations
@@ -1956,26 +1954,15 @@ export const useSpacetimeTables = ({
                 setAlkStations(prev => { const newMap = new Map(prev); newMap.delete(station.stationId.toString()); return newMap; });
             };
 
-            // Shipwreck Part handlers - for shipwreck monument rendering
-            const handleShipwreckPartInsert = (ctx: any, part: any) => {
-                setShipwreckParts(prev => new Map(prev).set(part.id.toString(), part));
+            // Monument Part handlers - unified handler for all monument types (shipwreck, fishing village, whale bone graveyard)
+            const handleMonumentPartInsert = (ctx: any, part: any) => {
+                setMonumentParts(prev => new Map(prev).set(part.id.toString(), part));
             };
-            const handleShipwreckPartUpdate = (ctx: any, oldPart: any, newPart: any) => {
-                setShipwreckParts(prev => new Map(prev).set(newPart.id.toString(), newPart));
+            const handleMonumentPartUpdate = (ctx: any, oldPart: any, newPart: any) => {
+                setMonumentParts(prev => new Map(prev).set(newPart.id.toString(), newPart));
             };
-            const handleShipwreckPartDelete = (ctx: any, part: any) => {
-                setShipwreckParts(prev => { const newMap = new Map(prev); newMap.delete(part.id.toString()); return newMap; });
-            };
-
-            // Fishing Village Part handlers - for fishing village monument rendering
-            const handleFishingVillagePartInsert = (ctx: any, part: any) => {
-                setFishingVillageParts(prev => new Map(prev).set(part.id.toString(), part));
-            };
-            const handleFishingVillagePartUpdate = (ctx: any, oldPart: any, newPart: any) => {
-                setFishingVillageParts(prev => new Map(prev).set(newPart.id.toString(), newPart));
-            };
-            const handleFishingVillagePartDelete = (ctx: any, part: any) => {
-                setFishingVillageParts(prev => { const newMap = new Map(prev); newMap.delete(part.id.toString()); return newMap; });
+            const handleMonumentPartDelete = (ctx: any, part: any) => {
+                setMonumentParts(prev => { const newMap = new Map(prev); newMap.delete(part.id.toString()); return newMap; });
             };
 
             // Large Quarry handlers - for minimap quarry type labels (Stone/Sulfur/Metal Quarry)
@@ -2332,15 +2319,10 @@ export const useSpacetimeTables = ({
             connection.db.alkStation.onUpdate(handleAlkStationUpdate);
             connection.db.alkStation.onDelete(handleAlkStationDelete);
 
-            // Register Shipwreck Part callbacks - for shipwreck monument rendering
-            connection.db.shipwreckPart.onInsert(handleShipwreckPartInsert);
-            connection.db.shipwreckPart.onUpdate(handleShipwreckPartUpdate);
-            connection.db.shipwreckPart.onDelete(handleShipwreckPartDelete);
-
-            // Register Fishing Village Part callbacks - for fishing village monument rendering
-            connection.db.fishingVillagePart.onInsert(handleFishingVillagePartInsert);
-            connection.db.fishingVillagePart.onUpdate(handleFishingVillagePartUpdate);
-            connection.db.fishingVillagePart.onDelete(handleFishingVillagePartDelete);
+            // Register Monument Part callbacks - unified subscription for all monument types
+            connection.db.monumentPart.onInsert(handleMonumentPartInsert);
+            connection.db.monumentPart.onUpdate(handleMonumentPartUpdate);
+            connection.db.monumentPart.onDelete(handleMonumentPartDelete);
 
             // Register Large Quarry callbacks - for minimap quarry type labels
             connection.db.largeQuarry.onInsert(handleLargeQuarryInsert);
@@ -2515,18 +2497,13 @@ export const useSpacetimeTables = ({
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[PLAYER_SHARD_BALANCE Sub Error]:", err))
                     .subscribe('SELECT * FROM player_shard_balance'),
-                // ADDED Shipwreck Part subscription - NON-SPATIAL (one-time read of static world gen data)
-                // Shipwrecks are placed during world generation and never change - similar to minimap_cache.
+                // ADDED Monument Part subscription - NON-SPATIAL (one-time read of static world gen data)
+                // Unified table for all monument types: shipwrecks, fishing villages, whale bone graveyards
+                // Monuments are placed during world generation and never change - similar to minimap_cache.
                 // Client reads once on connect, then treats as static config like compound buildings.
                 connection.subscriptionBuilder()
-                    .onError((err) => console.error("[SHIPWRECK_PART Sub Error]:", err))
-                    .subscribe('SELECT * FROM shipwreck_part'),
-                // ADDED Fishing Village Part subscription - NON-SPATIAL (one-time read of static world gen data)
-                // Fishing villages are placed during world generation and never change - similar to shipwrecks.
-                // Client reads once on connect, then treats as static config like compound buildings.
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[FISHING_VILLAGE_PART Sub Error]:", err))
-                    .subscribe('SELECT * FROM fishing_village_part'),
+                    .onError((err) => console.error("[MONUMENT_PART Sub Error]:", err))
+                    .subscribe('SELECT * FROM monument_part'),
                 // ADDED Large Quarry subscription - NON-SPATIAL (one-time read of static world gen data)
                 // Large quarries are placed during world generation and never change.
                 // Used for minimap labels (Stone Quarry, Sulfur Quarry, Metal Quarry)
@@ -2993,8 +2970,7 @@ export const useSpacetimeTables = ({
         alkState, // ADDED: ALK system state
         playerShardBalance, // ADDED: Player shard balances
         memoryGridProgress, // ADDED: Memory Grid unlocks
-        shipwreckParts, // ADDED: Shipwreck monument parts
-        fishingVillageParts, // ADDED: Fishing village monument parts
+        monumentParts, // ADDED: Unified monument parts (all monument types)
         largeQuarries, // ADDED: Large quarry locations with types for minimap labels
         // Coral system (StormPile removed - storms now spawn HarvestableResources and DroppedItems directly)
         livingCorals, // Living coral for underwater harvesting (uses combat system)

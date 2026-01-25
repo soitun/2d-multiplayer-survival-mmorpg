@@ -232,17 +232,26 @@ const fadeAudio = async (audio: HTMLAudioElement, fromVolume: number, toVolume: 
 // Helper function to detect which music zone the player is in
 const detectMusicZone = (
     playerPos: PlayerPosition | null,
-    fishingVillageParts: Map<string, any> | null
+    monumentParts: Map<string, any> | null
 ): MusicZone => {
-    if (!playerPos || !fishingVillageParts || fishingVillageParts.size === 0) {
+    if (!playerPos || !monumentParts || monumentParts.size === 0) {
         return 'normal';
     }
 
-    // Find the fishing village center (campfire)
+    // Filter fishing village parts from unified monument parts
+    // NOTE: MonumentType is a tagged union with a `tag` property (e.g., { tag: 'FishingVillage' })
+    const fishingVillageParts = Array.from(monumentParts.values())
+        .filter((part: any) => part.monumentType?.tag === 'FishingVillage');
+    
+    if (fishingVillageParts.length === 0) {
+        return 'normal';
+    }
+
+    // Find the fishing village center
     let centerX: number | null = null;
     let centerY: number | null = null;
 
-    for (const part of fishingVillageParts.values()) {
+    for (const part of fishingVillageParts) {
         // Check for center piece using both naming conventions
         const isCenter = part.is_center || part.isCenter;
         if (isCenter) {
@@ -255,7 +264,7 @@ const detectMusicZone = (
     // If no center found, use average of all parts
     if (centerX === null || centerY === null) {
         let sumX = 0, sumY = 0, count = 0;
-        for (const part of fishingVillageParts.values()) {
+        for (const part of fishingVillageParts) {
             const x = part.world_x ?? part.worldX;
             const y = part.world_y ?? part.worldY;
             if (x !== undefined && y !== undefined) {
@@ -288,11 +297,11 @@ const detectMusicZone = (
 
 interface MusicSystemOptions extends Partial<MusicSystemConfig> {
     playerPosition?: PlayerPosition | null;
-    fishingVillageParts?: Map<string, any> | null;
+    monumentParts?: Map<string, any> | null; // Unified monument parts (will filter for fishing village internally)
 }
 
 export const useMusicSystem = (options: MusicSystemOptions = {}) => {
-    const { playerPosition, fishingVillageParts, ...config } = options;
+    const { playerPosition, monumentParts, ...config } = options;
     const finalConfig = { ...DEFAULT_CONFIG, ...config };
     
     const [state, setState] = useState<MusicSystemState>({
@@ -821,8 +830,8 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
 
     // Zone detection and switching
     const detectedZone = useMemo(() => {
-        return detectMusicZone(playerPosition ?? null, fishingVillageParts ?? null);
-    }, [playerPosition?.x, playerPosition?.y, fishingVillageParts]);
+        return detectMusicZone(playerPosition ?? null, monumentParts ?? null);
+    }, [playerPosition?.x, playerPosition?.y, monumentParts]);
 
     // Switch zones when detected zone changes and music is playing
     const previousZoneRef = useRef<MusicZone>('normal');

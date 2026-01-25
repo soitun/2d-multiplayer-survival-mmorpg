@@ -111,6 +111,8 @@ import { DebugSetTime } from "./debug_set_time_reducer.ts";
 export { DebugSetTime };
 import { DebugSetWeather } from "./debug_set_weather_reducer.ts";
 export { DebugSetWeather };
+import { DebugSpawnAnimal } from "./debug_spawn_animal_reducer.ts";
+export { DebugSpawnAnimal };
 import { DebugUpdateCloudIntensity } from "./debug_update_cloud_intensity_reducer.ts";
 export { DebugUpdateCloudIntensity };
 import { DeclineMatronageInvitation } from "./decline_matronage_invitation_reducer.ts";
@@ -861,8 +863,6 @@ import { FishTrapProcessScheduleTableHandle } from "./fish_trap_process_schedule
 export { FishTrapProcessScheduleTableHandle };
 import { FishingSessionTableHandle } from "./fishing_session_table.ts";
 export { FishingSessionTableHandle };
-import { FishingVillagePartTableHandle } from "./fishing_village_part_table.ts";
-export { FishingVillagePartTableHandle };
 import { FoodPoisoningRiskTableHandle } from "./food_poisoning_risk_table.ts";
 export { FoodPoisoningRiskTableHandle };
 import { FoodSpoilageScheduleTableHandle } from "./food_spoilage_schedule_table.ts";
@@ -941,6 +941,8 @@ import { MineCartRespawnScheduleTableHandle } from "./mine_cart_respawn_schedule
 export { MineCartRespawnScheduleTableHandle };
 import { MinimapCacheTableHandle } from "./minimap_cache_table.ts";
 export { MinimapCacheTableHandle };
+import { MonumentPartTableHandle } from "./monument_part_table.ts";
+export { MonumentPartTableHandle };
 import { PlacedExplosiveTableHandle } from "./placed_explosive_table.ts";
 export { PlacedExplosiveTableHandle };
 import { PlantConfigDefinitionTableHandle } from "./plant_config_definition_table.ts";
@@ -1019,8 +1021,6 @@ import { SeasonalPlantManagementScheduleTableHandle } from "./seasonal_plant_man
 export { SeasonalPlantManagementScheduleTableHandle };
 import { ShelterTableHandle } from "./shelter_table.ts";
 export { ShelterTableHandle };
-import { ShipwreckPartTableHandle } from "./shipwreck_part_table.ts";
-export { ShipwreckPartTableHandle };
 import { SleepingBagTableHandle } from "./sleeping_bag_table.ts";
 export { SleepingBagTableHandle };
 import { SleepingBagDeteriorationScheduleTableHandle } from "./sleeping_bag_deterioration_schedule_table.ts";
@@ -1233,8 +1233,6 @@ import { FishTrapProcessSchedule } from "./fish_trap_process_schedule_type.ts";
 export { FishTrapProcessSchedule };
 import { FishingSession } from "./fishing_session_type.ts";
 export { FishingSession };
-import { FishingVillagePart } from "./fishing_village_part_type.ts";
-export { FishingVillagePart };
 import { FoodPoisoningRisk } from "./food_poisoning_risk_type.ts";
 export { FoodPoisoningRisk };
 import { FoodSpoilageSchedule } from "./food_spoilage_schedule_type.ts";
@@ -1331,6 +1329,10 @@ import { MineCartRespawnSchedule } from "./mine_cart_respawn_schedule_type.ts";
 export { MineCartRespawnSchedule };
 import { MinimapCache } from "./minimap_cache_type.ts";
 export { MinimapCache };
+import { MonumentPart } from "./monument_part_type.ts";
+export { MonumentPart };
+import { MonumentType } from "./monument_type_type.ts";
+export { MonumentType };
 import { MovementPattern } from "./movement_pattern_type.ts";
 export { MovementPattern };
 import { ObjectiveLogic } from "./objective_logic_type.ts";
@@ -1437,8 +1439,6 @@ import { SeasonalPlantManagementSchedule } from "./seasonal_plant_management_sch
 export { SeasonalPlantManagementSchedule };
 import { Shelter } from "./shelter_type.ts";
 export { Shelter };
-import { ShipwreckPart } from "./shipwreck_part_type.ts";
-export { ShipwreckPart };
 import { SleepingBag } from "./sleeping_bag_type.ts";
 export { SleepingBag };
 import { SleepingBagDeteriorationSchedule } from "./sleeping_bag_deterioration_schedule_type.ts";
@@ -1998,15 +1998,6 @@ const REMOTE_MODULE = {
         colType: (FishingSession.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
-    fishing_village_part: {
-      tableName: "fishing_village_part" as const,
-      rowType: FishingVillagePart.getTypeScriptAlgebraicType(),
-      primaryKey: "id",
-      primaryKeyInfo: {
-        colName: "id",
-        colType: (FishingVillagePart.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
-      },
-    },
     food_poisoning_risk: {
       tableName: "food_poisoning_risk" as const,
       rowType: FoodPoisoningRisk.getTypeScriptAlgebraicType(),
@@ -2358,6 +2349,15 @@ const REMOTE_MODULE = {
         colType: (MinimapCache.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    monument_part: {
+      tableName: "monument_part" as const,
+      rowType: MonumentPart.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (MonumentPart.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     placed_explosive: {
       tableName: "placed_explosive" as const,
       rowType: PlacedExplosive.getTypeScriptAlgebraicType(),
@@ -2707,15 +2707,6 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (Shelter.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
-      },
-    },
-    shipwreck_part: {
-      tableName: "shipwreck_part" as const,
-      rowType: ShipwreckPart.getTypeScriptAlgebraicType(),
-      primaryKey: "id",
-      primaryKeyInfo: {
-        colName: "id",
-        colType: (ShipwreckPart.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     sleeping_bag: {
@@ -3131,6 +3122,10 @@ const REMOTE_MODULE = {
     debug_set_weather: {
       reducerName: "debug_set_weather",
       argsType: DebugSetWeather.getTypeScriptAlgebraicType(),
+    },
+    debug_spawn_animal: {
+      reducerName: "debug_spawn_animal",
+      argsType: DebugSpawnAnimal.getTypeScriptAlgebraicType(),
     },
     debug_update_cloud_intensity: {
       reducerName: "debug_update_cloud_intensity",
@@ -4482,6 +4477,7 @@ export type Reducer = never
 | { name: "DebugSetSeason", args: DebugSetSeason }
 | { name: "DebugSetTime", args: DebugSetTime }
 | { name: "DebugSetWeather", args: DebugSetWeather }
+| { name: "DebugSpawnAnimal", args: DebugSpawnAnimal }
 | { name: "DebugUpdateCloudIntensity", args: DebugUpdateCloudIntensity }
 | { name: "DeclineMatronageInvitation", args: DeclineMatronageInvitation }
 | { name: "DeliverAlkContract", args: DeliverAlkContract }
@@ -5421,6 +5417,22 @@ export class RemoteReducers {
 
   removeOnDebugSetWeather(callback: (ctx: ReducerEventContext, weatherTypeStr: string) => void) {
     this.connection.offReducer("debug_set_weather", callback);
+  }
+
+  debugSpawnAnimal(speciesStr: string) {
+    const __args = { speciesStr };
+    let __writer = new __BinaryWriter(1024);
+    DebugSpawnAnimal.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("debug_spawn_animal", __argsBuffer, this.setCallReducerFlags.debugSpawnAnimalFlags);
+  }
+
+  onDebugSpawnAnimal(callback: (ctx: ReducerEventContext, speciesStr: string) => void) {
+    this.connection.onReducer("debug_spawn_animal", callback);
+  }
+
+  removeOnDebugSpawnAnimal(callback: (ctx: ReducerEventContext, speciesStr: string) => void) {
+    this.connection.offReducer("debug_spawn_animal", callback);
   }
 
   debugUpdateCloudIntensity() {
@@ -10578,6 +10590,11 @@ export class SetReducerFlags {
     this.debugSetWeatherFlags = flags;
   }
 
+  debugSpawnAnimalFlags: __CallReducerFlags = 'FullUpdate';
+  debugSpawnAnimal(flags: __CallReducerFlags) {
+    this.debugSpawnAnimalFlags = flags;
+  }
+
   debugUpdateCloudIntensityFlags: __CallReducerFlags = 'FullUpdate';
   debugUpdateCloudIntensity(flags: __CallReducerFlags) {
     this.debugUpdateCloudIntensityFlags = flags;
@@ -12443,11 +12460,6 @@ export class RemoteTables {
     return new FishingSessionTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FishingSession>(REMOTE_MODULE.tables.fishing_session));
   }
 
-  get fishingVillagePart(): FishingVillagePartTableHandle<'fishing_village_part'> {
-    // clientCache is a private property
-    return new FishingVillagePartTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FishingVillagePart>(REMOTE_MODULE.tables.fishing_village_part));
-  }
-
   get foodPoisoningRisk(): FoodPoisoningRiskTableHandle<'food_poisoning_risk'> {
     // clientCache is a private property
     return new FoodPoisoningRiskTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FoodPoisoningRisk>(REMOTE_MODULE.tables.food_poisoning_risk));
@@ -12643,6 +12655,11 @@ export class RemoteTables {
     return new MinimapCacheTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<MinimapCache>(REMOTE_MODULE.tables.minimap_cache));
   }
 
+  get monumentPart(): MonumentPartTableHandle<'monument_part'> {
+    // clientCache is a private property
+    return new MonumentPartTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<MonumentPart>(REMOTE_MODULE.tables.monument_part));
+  }
+
   get placedExplosive(): PlacedExplosiveTableHandle<'placed_explosive'> {
     // clientCache is a private property
     return new PlacedExplosiveTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlacedExplosive>(REMOTE_MODULE.tables.placed_explosive));
@@ -12836,11 +12853,6 @@ export class RemoteTables {
   get shelter(): ShelterTableHandle<'shelter'> {
     // clientCache is a private property
     return new ShelterTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Shelter>(REMOTE_MODULE.tables.shelter));
-  }
-
-  get shipwreckPart(): ShipwreckPartTableHandle<'shipwreck_part'> {
-    // clientCache is a private property
-    return new ShipwreckPartTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ShipwreckPart>(REMOTE_MODULE.tables.shipwreck_part));
   }
 
   get sleepingBag(): SleepingBagTableHandle<'sleeping_bag'> {

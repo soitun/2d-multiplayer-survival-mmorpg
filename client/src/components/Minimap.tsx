@@ -1,6 +1,6 @@
 import { gameConfig } from '../config/gameConfig';
 import { calculateChunkIndex } from '../utils/chunkUtils';
-import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather, AlkStation as SpacetimeDBAlkStation, ShipwreckPart, LivingCoral as SpacetimeDBLivingCoral, BeaconDropEvent as SpacetimeDBBeaconDropEvent } from '../generated';
+import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather, AlkStation as SpacetimeDBAlkStation, LivingCoral as SpacetimeDBLivingCoral, BeaconDropEvent as SpacetimeDBBeaconDropEvent } from '../generated';
 import { useRef, useCallback } from 'react';
 
 // --- Calculate Proportional Dimensions ---
@@ -77,6 +77,10 @@ const QUARRY_STONE_COLOR = '#A0A0A0'; // Gray for stone quarry
 const QUARRY_SULFUR_COLOR = '#FFD700'; // Gold/yellow for sulfur quarry
 const QUARRY_METAL_COLOR = '#B87333'; // Copper/bronze for metal quarry
 const QUARRY_GLOW_COLOR = '#FFFFFF'; // White glow for visibility
+
+// Whale Bone Graveyard constants - EXPLORATION/SAFE ZONE LANDMARK
+const WHALE_BONE_GRAVEYARD_COLOR = '#E8E8E8'; // Pale bone white/ivory for ancient bones
+const WHALE_BONE_GRAVEYARD_GLOW_COLOR = '#B8B8B8'; // Pale gray glow (eerie, ancient)
 
 // Memory Beacon Event constants - SERVER EVENT MARKERS (airdrop-style)
 const BEACON_EVENT_ICON_SIZE = 24; // Large for high visibility as major event
@@ -225,8 +229,7 @@ interface MinimapProps {
   campfires: Map<string, SpacetimeDBCampfire>; // Add campfires
   sleepingBags: Map<string, SpacetimeDBSleepingBag>; // Add sleeping bags
   alkStations?: Map<string, SpacetimeDBAlkStation>; // ALK delivery stations
-  shipwreckParts?: Map<string, ShipwreckPart>; // Shipwreck monument parts
-  fishingVillageParts?: Map<string, any>; // Fishing village monument parts
+  monumentParts?: Map<string, any>; // Unified monument parts (all monument types)
   largeQuarries?: Map<string, any>; // Large quarry locations with types for labels (Stone/Sulfur/Metal Quarry)
   livingCorals?: Map<string, SpacetimeDBLivingCoral>; // Living coral reefs (underwater harvestable resources)
 
@@ -607,8 +610,7 @@ export function drawMinimapOntoCanvas({
   campfires,
   sleepingBags,
   alkStations, // ALK delivery stations
-  shipwreckParts, // Shipwreck monument parts
-  fishingVillageParts, // Fishing village monument parts
+  monumentParts, // Unified monument parts (all monument types)
   largeQuarries, // Large quarry locations with types for labels
   livingCorals, // Living coral reefs (underwater resources)
 
@@ -1236,20 +1238,25 @@ export function drawMinimapOntoCanvas({
 
   // --- Draw Shipwreck Parts (EXPLORATION LANDMARKS) ---
   // Show ONE representative "SHIPWRECK" label for the entire structure
-  if (shipwreckParts && shipwreckParts.size > 0 && showNames === true) {
+  // Filter shipwreck parts from unified monument parts
+  // NOTE: MonumentType is a tagged union with a `tag` property (e.g., { tag: 'Shipwreck' })
+  const shipwreckPartsFiltered = monumentParts ? Array.from(monumentParts.values())
+    .filter((part: any) => part.monumentType?.tag === 'Shipwreck') : [];
+  
+  if (shipwreckPartsFiltered.length > 0 && showNames === true) {
     // Find ONE representative shipwreck part (prefer center part, otherwise use first part)
-    let representativePart: ShipwreckPart | null = null;
+    let representativePart: any | null = null;
     
     // First, try to find a center part
-    shipwreckParts.forEach((part) => {
+    shipwreckPartsFiltered.forEach((part: any) => {
       if (part.isCenter) {
         representativePart = part;
       }
     });
     
     // If no center part found, just use the first part
-    if (!representativePart && shipwreckParts.size > 0) {
-      representativePart = Array.from(shipwreckParts.values())[0];
+    if (!representativePart && shipwreckPartsFiltered.length > 0) {
+      representativePart = shipwreckPartsFiltered[0];
     }
     
     // Draw the label for the representative part
@@ -1288,20 +1295,25 @@ export function drawMinimapOntoCanvas({
 
   // --- Draw Fishing Village Parts (EXPLORATION LANDMARKS) ---
   // Show ONE representative "FISHING VILLAGE" label for the entire structure
-  if (fishingVillageParts && fishingVillageParts.size > 0 && showNames === true) {
-    // Find ONE representative fishing village part (prefer center part/campfire, otherwise use first part)
+  // Filter fishing village parts from unified monument parts
+  // NOTE: MonumentType is a tagged union with a `tag` property (e.g., { tag: 'FishingVillage' })
+  const fishingVillagePartsFiltered = monumentParts ? Array.from(monumentParts.values())
+    .filter((part: any) => part.monumentType?.tag === 'FishingVillage') : [];
+  
+  if (fishingVillagePartsFiltered.length > 0 && showNames === true) {
+    // Find ONE representative fishing village part (prefer center part, otherwise use first part)
     let representativePart: any | null = null;
     
-    // First, try to find a center part (campfire)
-    fishingVillageParts.forEach((part) => {
-      if (part.isCenter || part.partType === 'campfire') {
+    // First, try to find a center part
+    fishingVillagePartsFiltered.forEach((part: any) => {
+      if (part.isCenter) {
         representativePart = part;
       }
     });
     
     // If no center part found, just use the first part
-    if (!representativePart && fishingVillageParts.size > 0) {
-      representativePart = Array.from(fishingVillageParts.values())[0];
+    if (!representativePart && fishingVillagePartsFiltered.length > 0) {
+      representativePart = fishingVillagePartsFiltered[0];
     }
     
     // Draw the label for the representative part
@@ -1336,6 +1348,63 @@ export function drawMinimapOntoCanvas({
         // Fill with fishing village color
         ctx.fillStyle = FISHING_VILLAGE_COLOR;
         ctx.fillText('FISHING VILLAGE', x, y);
+        
+        ctx.restore();
+      }
+    }
+  }
+
+  // --- Draw Whale Bone Graveyard Parts (EXPLORATION LANDMARKS) ---
+  // Show ONE representative "WHALE GRAVEYARD" label for the entire structure
+  // Filter whale bone graveyard parts from unified monument parts
+  // NOTE: MonumentType is a tagged union with a `tag` property (e.g., { tag: 'WhaleBoneGraveyard' })
+  const whaleBoneGraveyardPartsFiltered = monumentParts ? Array.from(monumentParts.values())
+    .filter((part: any) => part.monumentType?.tag === 'WhaleBoneGraveyard') : [];
+  
+  if (whaleBoneGraveyardPartsFiltered.length > 0 && showNames === true) {
+    // Find ONE representative whale bone graveyard part (prefer center part/ribcage, otherwise use first part)
+    let representativePart: any | null = null;
+    
+    // First, try to find a center part (ribcage)
+    whaleBoneGraveyardPartsFiltered.forEach((part: any) => {
+      if (part.isCenter || part.partType === 'ribcage') {
+        representativePart = part;
+      }
+    });
+    
+    // If no center part found, just use the first part
+    if (!representativePart && whaleBoneGraveyardPartsFiltered.length > 0) {
+      representativePart = whaleBoneGraveyardPartsFiltered[0];
+    }
+    
+    // Draw the label for the representative part
+    if (representativePart) {
+      const screenCoords = worldToMinimap(representativePart.worldX, representativePart.worldY);
+      if (screenCoords) {
+        const x = screenCoords.x;
+        const y = screenCoords.y;
+        
+        ctx.save();
+        
+        // Draw "WHALE GRAVEYARD" text with cyberpunk styling - same size as other landmarks
+        ctx.font = 'bold 14px "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Add glow effect for visibility (eerie bone glow)
+        ctx.shadowColor = WHALE_BONE_GRAVEYARD_GLOW_COLOR;
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // Draw text with black outline for contrast
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        ctx.strokeText('WHALE GRAVEYARD', x, y);
+        
+        // Fill with whale bone graveyard color (pale bone white)
+        ctx.fillStyle = WHALE_BONE_GRAVEYARD_COLOR;
+        ctx.fillText('WHALE GRAVEYARD', x, y);
         
         ctx.restore();
       }

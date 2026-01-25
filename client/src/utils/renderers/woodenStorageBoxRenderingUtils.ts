@@ -34,8 +34,8 @@ export const SCARECROW_WIDTH = 128;  // Scarecrow dimensions - tall figure
 export const SCARECROW_HEIGHT = 128;
 export const MILITARY_RATION_WIDTH = 64;  // Military ration dimensions
 export const MILITARY_RATION_HEIGHT = 64;
-export const MINE_CART_WIDTH = 64;  // Mine cart dimensions (quarry-exclusive)
-export const MINE_CART_HEIGHT = 64;
+export const MINE_CART_WIDTH = 192;  // Mine cart dimensions (quarry-exclusive) - 3x larger for visibility
+export const MINE_CART_HEIGHT = 192;
 export const FISH_TRAP_WIDTH = 96;  // Fish trap dimensions
 export const FISH_TRAP_HEIGHT = 96;
 
@@ -214,6 +214,10 @@ function getBoxDimensions(boxType: number): { width: number; height: number } {
             return { width: COOKING_STATION_WIDTH, height: COOKING_STATION_HEIGHT };
         case BOX_TYPE_SCARECROW:
             return { width: SCARECROW_WIDTH, height: SCARECROW_HEIGHT };
+        case BOX_TYPE_MILITARY_RATION:
+            return { width: MILITARY_RATION_WIDTH, height: MILITARY_RATION_HEIGHT };
+        case BOX_TYPE_MINE_CART:
+            return { width: MINE_CART_WIDTH, height: MINE_CART_HEIGHT };
         case BOX_TYPE_FISH_TRAP:
             return { width: FISH_TRAP_WIDTH, height: FISH_TRAP_HEIGHT };
         default:

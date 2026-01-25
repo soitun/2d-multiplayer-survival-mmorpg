@@ -1,14 +1,13 @@
 use spacetimedb::{ReducerContext, Table, Timestamp, Identity};
 use noise::{NoiseFn, Perlin, Seedable};
 use log;
-use crate::{WorldTile, TileType, WorldGenConfig, MinimapCache, ShipwreckPart, FishingVillagePart, LargeQuarry, LargeQuarryType, WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES};
+use crate::{WorldTile, TileType, WorldGenConfig, MinimapCache, MonumentPart, MonumentType, LargeQuarry, LargeQuarryType, WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES};
 
 // Import the table trait
 use crate::world_tile as WorldTileTableTrait;
 use crate::minimap_cache as MinimapCacheTableTrait;
 use crate::world_chunk_data as WorldChunkDataTableTrait;
-use crate::shipwreck_part as ShipwreckPartTableTrait;
-use crate::fishing_village_part as FishingVillagePartTableTrait;
+use crate::monument_part as MonumentPartTableTrait;
 use crate::large_quarry as LargeQuarryTableTrait;
 
 use rand::{Rng, SeedableRng};
@@ -59,21 +58,12 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         }
     }
     
-    // Clear existing shipwreck parts
-    let shipwreck_count = ctx.db.shipwreck_part().iter().count();
-    if shipwreck_count > 0 {
-        log::info!("Clearing {} existing shipwreck parts", shipwreck_count);
-        for part in ctx.db.shipwreck_part().iter() {
-            ctx.db.shipwreck_part().id().delete(&part.id);
-        }
-    }
-    
-    // Clear existing fishing village parts
-    let fishing_village_count = ctx.db.fishing_village_part().iter().count();
-    if fishing_village_count > 0 {
-        log::info!("Clearing {} existing fishing village parts", fishing_village_count);
-        for part in ctx.db.fishing_village_part().iter() {
-            ctx.db.fishing_village_part().id().delete(&part.id);
+    // Clear existing monument parts (unified table for all monument types)
+    let monument_parts_count = ctx.db.monument_part().iter().count();
+    if monument_parts_count > 0 {
+        log::info!("Clearing {} existing monument parts", monument_parts_count);
+        for part in ctx.db.monument_part().iter() {
+            ctx.db.monument_part().id().delete(&part.id);
         }
     }
     
@@ -111,22 +101,26 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     // Following compound buildings pattern: client-side rendering, server-side collision only
     // Center uses hull7.png (to avoid duplication), parts use hull1.png through hull6.png (6 unique parts)
     for (center_x, center_y) in &world_features.shipwreck_centers {
-        ctx.db.shipwreck_part().insert(ShipwreckPart {
+        ctx.db.monument_part().insert(MonumentPart {
             id: 0, // auto_inc
+            monument_type: MonumentType::Shipwreck,
             world_x: *center_x,
             world_y: *center_y,
             image_path: "hull7.png".to_string(), // Center uses hull7.png to avoid duplication with parts
+            part_type: "center".to_string(),
             is_center: true,
             collision_radius: 80.0, // Collision radius for center piece
         });
     }
     
     for (part_x, part_y, image_path) in &world_features.shipwreck_parts {
-        ctx.db.shipwreck_part().insert(ShipwreckPart {
+        ctx.db.monument_part().insert(MonumentPart {
             id: 0, // auto_inc
+            monument_type: MonumentType::Shipwreck,
             world_x: *part_x,
             world_y: *part_y,
             image_path: image_path.clone(),
+            part_type: "hull".to_string(), // Generic part type for shipwreck parts
             is_center: false,
             collision_radius: 40.0, // Smaller collision radius for crash parts
         });
@@ -185,15 +179,16 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     // Store fishing village positions in database table for client access (one-time read, then static)
     // Following compound buildings pattern: client-side rendering, NO collision per user request
     if let Some((center_x, center_y)) = world_features.fishing_village_center {
-        // All parts are stored (including campfire which is first in the parts list)
+        // All parts are stored (center marker is first in the parts list for zone calculations)
         for (part_x, part_y, image_path, part_type) in &world_features.fishing_village_parts {
-            ctx.db.fishing_village_part().insert(FishingVillagePart {
+            ctx.db.monument_part().insert(MonumentPart {
                 id: 0, // auto_inc
+                monument_type: MonumentType::FishingVillage,
                 world_x: *part_x,
                 world_y: *part_y,
                 image_path: image_path.clone(),
                 part_type: part_type.clone(),
-                is_center: *part_type == "campfire",
+                is_center: *part_type == "center", // Center marker for zone calculations
                 collision_radius: 0.0, // NO collision per user request
             });
         }
@@ -206,6 +201,62 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         match crate::monument::spawn_monument_placeables(ctx, "Fishing Village", center_x, center_y, &placeable_configs) {
             Ok(count) => log::info!("🏘️ Spawned {} monument placeables at Fishing Village", count),
             Err(e) => log::warn!("Failed to spawn fishing village placeables: {}", e),
+        }
+    }
+    
+    // Store whale bone graveyard positions in database table for client access (one-time read, then static)
+    // Following compound buildings pattern: client-side rendering, NO collision for walkability
+    if let Some((center_x, center_y)) = world_features.whale_bone_graveyard_center {
+        // All parts are stored (ribcage is the center piece)
+        for (part_x, part_y, image_path, part_type) in &world_features.whale_bone_graveyard_parts {
+            ctx.db.monument_part().insert(MonumentPart {
+                id: 0, // auto_inc
+                monument_type: MonumentType::WhaleBoneGraveyard,
+                world_x: *part_x,
+                world_y: *part_y,
+                image_path: image_path.clone(),
+                part_type: part_type.clone(),
+                is_center: *part_type == "ribcage",
+                collision_radius: 0.0, // NO collision for walkability
+            });
+        }
+        
+        log::info!("🦴 Stored {} whale bone graveyard parts in database - client reads once, then treats as static config",
+                   world_features.whale_bone_graveyard_parts.len());
+        
+        // Spawn respawnable resources around whale bone graveyard monument
+        let mut graveyard_positions = Vec::new();
+        for (part_x, part_y, _, _) in &world_features.whale_bone_graveyard_parts {
+            graveyard_positions.push((*part_x, *part_y));
+        }
+        
+        // Spawn harvestable resources (Beach Wood Piles, Stone Piles) - these respawn
+        let harvestable_configs = crate::monument::get_whale_bone_graveyard_harvestables();
+        if let Err(e) = crate::monument::spawn_monument_harvestables(ctx, &graveyard_positions, &harvestable_configs) {
+            log::warn!("Failed to spawn whale bone graveyard harvestables: {}", e);
+        }
+        
+        // Spawn beach barrels around whale bone graveyard parts - these respawn
+        if let Err(e) = crate::monument::spawn_whale_bone_graveyard_barrels(ctx, &graveyard_positions) {
+            log::warn!("Failed to spawn whale bone graveyard barrels: {}", e);
+        }
+        
+        // Spawn military rations around whale bone graveyard parts (fewer than shipwreck)
+        if let Err(e) = crate::monument::spawn_whale_bone_graveyard_military_rations(ctx, &graveyard_positions) {
+            log::warn!("Failed to spawn whale bone graveyard military rations: {}", e);
+        }
+        
+        // Spawn decorations (one-time items)
+        let decoration_configs = crate::monument::get_whale_bone_graveyard_decorations();
+        if let Err(e) = crate::monument::spawn_monument_decorations(ctx, &graveyard_positions, &decoration_configs) {
+            log::warn!("Failed to spawn whale bone graveyard decorations: {}", e);
+        }
+        
+        // Spawn monument placeables (campfire near hermit's hut) for player use
+        let placeable_configs = crate::monument::get_whale_bone_graveyard_placeables();
+        match crate::monument::spawn_monument_placeables(ctx, "Whale Bone Graveyard", center_x, center_y, &placeable_configs) {
+            Ok(count) => log::info!("🦴 Spawned {} monument placeables at Whale Bone Graveyard", count),
+            Err(e) => log::warn!("Failed to spawn whale bone graveyard placeables: {}", e),
         }
     }
     
@@ -260,6 +311,8 @@ struct WorldFeatures {
     shipwreck_parts: Vec<(f32, f32, String)>, // Shipwreck crash parts (x, y, image_path) in world pixels
     fishing_village_center: Option<(f32, f32)>, // Fishing village center position (campfire) in world pixels
     fishing_village_parts: Vec<(f32, f32, String, String)>, // Fishing village parts (x, y, image_path, part_type) in world pixels
+    whale_bone_graveyard_center: Option<(f32, f32)>, // Whale bone graveyard center position (ribcage) in world pixels
+    whale_bone_graveyard_parts: Vec<(f32, f32, String, String)>, // Whale bone graveyard parts (x, y, image_path, part_type) in world pixels
     coral_reef_zones: Vec<Vec<bool>>, // Coral reef zones (deep sea areas for living coral)
     width: usize,
     height: usize,
@@ -330,6 +383,11 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         noise, &shore_distance, &river_network, &lake_map, &shipwreck_centers, width, height
     );
     
+    // Generate whale bone graveyard monument on beach (separate from shipwreck and fishing village)
+    let (whale_bone_graveyard_center, whale_bone_graveyard_parts) = crate::monument::generate_whale_bone_graveyard(
+        noise, &shore_distance, &river_network, &lake_map, &shipwreck_centers, fishing_village_center, width, height
+    );
+    
     // Generate coral reef zones (deep sea areas for living coral spawning)
     let coral_reef_zones = generate_coral_reef_zones(config, noise, &shore_distance, width, height);
     
@@ -356,6 +414,8 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         shipwreck_parts,
         fishing_village_center,
         fishing_village_parts,
+        whale_bone_graveyard_center,
+        whale_bone_graveyard_parts,
         coral_reef_zones,
         width,
         height,

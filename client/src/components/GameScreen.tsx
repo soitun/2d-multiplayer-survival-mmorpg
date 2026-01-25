@@ -298,10 +298,8 @@ interface GameScreenProps {
     alkPlayerContracts?: Map<string, SpacetimeDBAlkPlayerContract>;
     // ALK system state
     alkState?: SpacetimeDBAlkState | null;
-    // Shipwreck monument parts (one-time read of static world gen data)
-    shipwreckParts?: Map<string, any>;
-    // Fishing village monument parts (one-time read of static world gen data)
-    fishingVillageParts?: Map<string, any>;
+    // Unified monument parts (all monument types, one-time read of static world gen data)
+    monumentParts?: Map<string, any>;
     // Large quarry locations with types for minimap labels (Stone/Sulfur/Metal Quarry)
     largeQuarries?: Map<string, any>;
     // Player shard balances
@@ -1145,8 +1143,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 showStatusOverlays={statusOverlaysEnabled}
                 alkStations={props.alkStations}
                 alkContracts={props.alkContracts}
-                shipwreckParts={props.shipwreckParts}
-                fishingVillageParts={props.fishingVillageParts}
+                monumentParts={props.monumentParts}
                 largeQuarries={props.largeQuarries}
                 alkPlayerContracts={props.alkPlayerContracts}
                 alkState={props.alkState}

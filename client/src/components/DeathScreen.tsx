@@ -30,8 +30,7 @@ interface DeathScreenProps {
   pinMarkerImage?: HTMLImageElement | null;
   campfireWarmthImage?: HTMLImageElement | null;
   torchOnImage?: HTMLImageElement | null;
-  shipwreckParts?: Map<string, ShipwreckPart>; // Shipwreck monument parts
-  fishingVillageParts?: Map<string, any>; // Fishing village monument parts
+  monumentParts?: Map<string, any>; // Unified monument parts (all monument types)
   largeQuarries?: Map<string, any>; // Large quarry locations with types for minimap labels
   livingCorals?: Map<string, LivingCoral>; // Living coral reefs for minimap
 }
@@ -81,8 +80,7 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
   campfires,
   playerPin,
   sleepingBagImage,
-  shipwreckParts, // Shipwreck monument parts
-  fishingVillageParts, // Fishing village monument parts
+  monumentParts, // Unified monument parts (all monument types)
   largeQuarries, // Large quarry locations with types for minimap labels
   livingCorals, // Living coral reefs for minimap
   // Destructure new props
@@ -250,10 +248,8 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
       torchOnImage,
       // Add grid coordinates visibility preference
       showGridCoordinates,
-      // Shipwreck monument parts for minimap
-      shipwreckParts,
-      // Fishing village monument parts for minimap
-      fishingVillageParts,
+      // Unified monument parts for minimap (will filter by type internally)
+      monumentParts,
       // Large quarry locations with types for minimap labels
       largeQuarries,
       // Living coral reefs for minimap

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
     TutorialQuestDefinition, 
     DailyQuestDefinition,
@@ -90,6 +90,9 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, onClose]);
+
+    // Tab state
+    const [activeTab, setActiveTab] = useState<'mission' | 'daily'>('mission');
 
     if (!isOpen) return null;
 
@@ -239,49 +242,139 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                     </button>
                 </div>
 
+                {/* Tab Navigation */}
+                <div style={{
+                    display: 'flex',
+                    borderBottom: `2px solid ${UI_BORDER_COLOR}`,
+                    background: 'rgba(0, 10, 20, 0.5)',
+                    flexShrink: 0,
+                }}>
+                    {/* Primary Mission Tab */}
+                    <button
+                        onClick={() => setActiveTab('mission')}
+                        style={{
+                            flex: 1,
+                            padding: isMobile ? '14px 12px' : '16px 20px',
+                            background: activeTab === 'mission' 
+                                ? 'linear-gradient(180deg, rgba(192, 132, 252, 0.2), rgba(192, 132, 252, 0.05))'
+                                : 'transparent',
+                            border: 'none',
+                            borderBottom: activeTab === 'mission' 
+                                ? `3px solid ${SOVA_PURPLE}`
+                                : '3px solid transparent',
+                            color: activeTab === 'mission' ? SOVA_PURPLE : '#6b7280',
+                            fontSize: isMobile ? '11px' : '14px',
+                            fontWeight: 'bold',
+                            fontFamily: UI_FONT_FAMILY,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '10px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '1px',
+                            textShadow: activeTab === 'mission' ? '0 0 15px rgba(192, 132, 252, 0.5)' : 'none',
+                        }}
+                        onMouseEnter={(e) => {
+                            if (activeTab !== 'mission') {
+                                e.currentTarget.style.color = SOVA_PURPLE;
+                                e.currentTarget.style.background = 'rgba(192, 132, 252, 0.1)';
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (activeTab !== 'mission') {
+                                e.currentTarget.style.color = '#6b7280';
+                                e.currentTarget.style.background = 'transparent';
+                            }
+                        }}
+                    >
+                        <span style={{ fontSize: isMobile ? '16px' : '18px' }}>🎯</span>
+                        <span>Primary Mission</span>
+                        {tutorialProgress?.tutorialCompleted && (
+                            <span style={{ 
+                                color: '#4ade80', 
+                                fontSize: isMobile ? '8px' : '10px',
+                                padding: '2px 6px',
+                                background: 'rgba(74, 222, 128, 0.2)',
+                                borderRadius: '3px',
+                            }}>
+                                ✓
+                            </span>
+                        )}
+                    </button>
+
+                    {/* Daily Training Tab */}
+                    <button
+                        onClick={() => setActiveTab('daily')}
+                        style={{
+                            flex: 1,
+                            padding: isMobile ? '14px 12px' : '16px 20px',
+                            background: activeTab === 'daily' 
+                                ? 'linear-gradient(180deg, rgba(0, 255, 255, 0.2), rgba(0, 255, 255, 0.05))'
+                                : 'transparent',
+                            border: 'none',
+                            borderBottom: activeTab === 'daily' 
+                                ? `3px solid ${SOVA_CYAN}`
+                                : '3px solid transparent',
+                            color: activeTab === 'daily' ? SOVA_CYAN : '#6b7280',
+                            fontSize: isMobile ? '11px' : '14px',
+                            fontWeight: 'bold',
+                            fontFamily: UI_FONT_FAMILY,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '10px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '1px',
+                            textShadow: activeTab === 'daily' ? GLOW_CYAN : 'none',
+                        }}
+                        onMouseEnter={(e) => {
+                            if (activeTab !== 'daily') {
+                                e.currentTarget.style.color = SOVA_CYAN;
+                                e.currentTarget.style.background = 'rgba(0, 255, 255, 0.1)';
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (activeTab !== 'daily') {
+                                e.currentTarget.style.color = '#6b7280';
+                                e.currentTarget.style.background = 'transparent';
+                            }
+                        }}
+                    >
+                        <span style={{ fontSize: isMobile ? '16px' : '18px' }}>📋</span>
+                        <span>Daily Training</span>
+                        <span style={{ 
+                            color: dailyQuestsWithDefs.filter(d => d.quest.status.tag === 'Completed').length === dailyQuestsWithDefs.length && dailyQuestsWithDefs.length > 0
+                                ? '#4ade80' 
+                                : '#9ca3af', 
+                            fontSize: isMobile ? '10px' : '12px',
+                            padding: '2px 8px',
+                            background: 'rgba(0, 0, 0, 0.4)',
+                            borderRadius: '3px',
+                        }}>
+                            {dailyQuestsWithDefs.filter(d => d.quest.status.tag === 'Completed').length}/{dailyQuestsWithDefs.length}
+                        </span>
+                    </button>
+                </div>
+
                 {/* Scrollable Content */}
                 <div 
                     className="quest-panel-scroll"
                     data-id="quests-panel-scroll"
                     style={{
                         padding: '24px',
-                        overflowY: 'scroll',
+                        overflowY: 'auto',
                         flex: '1 1 auto',
                         minHeight: 0,
-                        maxHeight: 'calc(85vh - 140px)', // Subtract header (~70px) and footer (~70px)
                     }}
                     onWheel={(e) => e.stopPropagation()}
                 >
-                    {/* Primary Mission Section */}
-                    <div style={{ marginBottom: '32px' }}>
-                        <div style={{
-                            color: SOVA_PURPLE,
-                            fontSize: isMobile ? '13px' : '16px',
-                            fontWeight: 'bold',
-                            marginBottom: '18px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            textTransform: 'uppercase',
-                            letterSpacing: '2px',
-                            textShadow: '0 0 15px rgba(192, 132, 252, 0.5)',
-                        }}>
-                            <span style={{ fontSize: '20px' }}>🎯</span>
-                            <span>Primary Mission</span>
-                            {tutorialProgress?.tutorialCompleted && (
-                                <span style={{ 
-                                    color: '#4ade80', 
-                                    fontSize: '12px',
-                                    padding: '4px 12px',
-                                    background: 'rgba(74, 222, 128, 0.1)',
-                                    borderRadius: '4px',
-                                    border: '1px solid rgba(74, 222, 128, 0.3)',
-                                }}>
-                                    ✓ COMPLETE
-                                </span>
-                            )}
-                        </div>
-
+                    {/* Primary Mission Tab Content */}
+                    {activeTab === 'mission' && (
+                        <>
                         {currentTutorialQuest ? (
                             <div style={{
                                 background: 'linear-gradient(135deg, rgba(192, 132, 252, 0.12), rgba(0, 170, 255, 0.08))',
@@ -436,36 +529,73 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                                 ⏳ No active mission. Initializing directive uplink...
                             </div>
                         )}
-                    </div>
 
-                    {/* Daily Training Section */}
-                    <div style={{ marginBottom: '32px' }}>
-                        <div style={{
-                            color: SOVA_CYAN,
-                            fontSize: isMobile ? '13px' : '16px',
-                            fontWeight: 'bold',
-                            marginBottom: '18px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            textTransform: 'uppercase',
-                            letterSpacing: '2px',
-                            textShadow: GLOW_CYAN,
-                        }}>
-                            <span style={{ fontSize: '20px' }}>📋</span>
-                            <span>Daily Training</span>
-                            <span style={{ 
-                                color: '#9ca3af', 
-                                fontSize: isMobile ? '12px' : '14px', 
-                                fontWeight: 'normal',
-                                padding: '4px 12px',
-                                background: 'rgba(0, 0, 0, 0.3)',
-                                borderRadius: '4px',
-                            }}>
-                                {dailyQuestsWithDefs.filter(d => d.quest.status.tag === 'Completed').length}/{dailyQuestsWithDefs.length}
-                            </span>
-                        </div>
+                        {/* Calibration Progress Overview */}
+                        {tutorialProgress && !tutorialProgress.tutorialCompleted && sortedTutorialQuests.length > 0 && (
+                            <div style={{ marginTop: '24px' }}>
+                                <div style={{
+                                    color: '#9ca3af',
+                                    fontSize: isMobile ? '12px' : '14px',
+                                    fontWeight: 'bold',
+                                    marginBottom: '14px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1px',
+                                }}>
+                                    <span>📊</span>
+                                    <span>Calibration Progress</span>
+                                </div>
+                                <div style={{ 
+                                    display: 'flex', 
+                                    flexWrap: 'wrap', 
+                                    gap: '6px',
+                                    padding: '14px',
+                                    background: 'rgba(20, 25, 40, 0.5)',
+                                    borderRadius: '10px',
+                                    border: '1px solid rgba(107, 114, 128, 0.2)',
+                                }}>
+                                    {sortedTutorialQuests.map((quest, index) => {
+                                        const isCompleted = index < (tutorialProgress?.currentQuestIndex || 0);
+                                        const isCurrent = index === tutorialProgress?.currentQuestIndex;
+                                        return (
+                                            <div
+                                                key={quest.id}
+                                                title={quest.name}
+                                                style={{
+                                                    width: '32px',
+                                                    height: '32px',
+                                                    borderRadius: '6px',
+                                                    backgroundColor: isCompleted ? '#4ade80' : isCurrent ? SOVA_PURPLE : '#374151',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '12px',
+                                                    fontWeight: 'bold',
+                                                    color: isCompleted || isCurrent ? '#fff' : '#6b7280',
+                                                    border: isCurrent ? `2px solid ${SOVA_CYAN}` : '1px solid rgba(107, 114, 128, 0.3)',
+                                                    boxShadow: isCurrent ? `0 0 15px ${SOVA_CYAN}` : isCompleted ? '0 0 10px rgba(74, 222, 128, 0.3)' : 'none',
+                                                    cursor: 'default',
+                                                    transition: 'all 0.2s ease',
+                                                }}
+                                            >
+                                                {isCompleted ? '✓' : index + 1}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div style={{ color: '#6b7280', fontSize: isMobile ? '11px' : '13px', marginTop: '14px', textAlign: 'center' }}>
+                                    Mission {(tutorialProgress?.currentQuestIndex || 0) + 1} of {sortedTutorialQuests.length}
+                                </div>
+                            </div>
+                        )}
+                        </>
+                    )}
 
+                    {/* Daily Training Tab Content */}
+                    {activeTab === 'daily' && (
+                        <>
                         {dailyQuestsWithDefs.length > 0 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                 {dailyQuestsWithDefs.map(({ quest, definition }) => {
@@ -566,67 +696,7 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                                 ⏳ Daily training assignments not yet initialized. Check back soon.
                             </div>
                         )}
-                    </div>
-
-                    {/* Calibration Progress Overview */}
-                    {tutorialProgress && !tutorialProgress.tutorialCompleted && sortedTutorialQuests.length > 0 && (
-                        <div style={{ marginBottom: '16px' }}>
-                            <div style={{
-                                color: '#9ca3af',
-                                fontSize: isMobile ? '12px' : '14px',
-                                fontWeight: 'bold',
-                                marginBottom: '14px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '10px',
-                                textTransform: 'uppercase',
-                                letterSpacing: '1px',
-                            }}>
-                                <span>📊</span>
-                                <span>Calibration Progress</span>
-                            </div>
-                            <div style={{ 
-                                display: 'flex', 
-                                flexWrap: 'wrap', 
-                                gap: '6px',
-                                padding: '14px',
-                                background: 'rgba(20, 25, 40, 0.5)',
-                                borderRadius: '10px',
-                                border: '1px solid rgba(107, 114, 128, 0.2)',
-                            }}>
-                                {sortedTutorialQuests.map((quest, index) => {
-                                    const isCompleted = index < (tutorialProgress?.currentQuestIndex || 0);
-                                    const isCurrent = index === tutorialProgress?.currentQuestIndex;
-                                    return (
-                                        <div
-                                            key={quest.id}
-                                            title={quest.name}
-                                            style={{
-                                                width: '32px',
-                                                height: '32px',
-                                                borderRadius: '6px',
-                                                backgroundColor: isCompleted ? '#4ade80' : isCurrent ? SOVA_PURPLE : '#374151',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                fontSize: '12px',
-                                                fontWeight: 'bold',
-                                                color: isCompleted || isCurrent ? '#fff' : '#6b7280',
-                                                border: isCurrent ? `2px solid ${SOVA_CYAN}` : '1px solid rgba(107, 114, 128, 0.3)',
-                                                boxShadow: isCurrent ? `0 0 15px ${SOVA_CYAN}` : isCompleted ? '0 0 10px rgba(74, 222, 128, 0.3)' : 'none',
-                                                cursor: 'default',
-                                                transition: 'all 0.2s ease',
-                                            }}
-                                        >
-                                            {isCompleted ? '✓' : index + 1}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <div style={{ color: '#6b7280', fontSize: isMobile ? '11px' : '13px', marginTop: '14px', textAlign: 'center' }}>
-                                Mission {(tutorialProgress?.currentQuestIndex || 0) + 1} of {sortedTutorialQuests.length}
-                            </div>
-                        </div>
+                        </>
                     )}
                 </div>
 

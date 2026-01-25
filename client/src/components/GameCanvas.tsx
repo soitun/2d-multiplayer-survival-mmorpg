@@ -288,10 +288,8 @@ interface GameCanvasProps {
   playerShardBalance?: Map<string, SpacetimeDBPlayerShardBalance>;
   // Memory Grid progress for crafting unlocks
   memoryGridProgress?: Map<string, SpacetimeDBMemoryGridProgress>;
-  // Shipwreck monument parts (dynamically placed during world generation)
-  shipwreckParts?: Map<string, any>;
-  // Fishing village monument parts (dynamically placed during world generation)
-  fishingVillageParts?: Map<string, any>;
+  // Unified monument parts (all monument types, dynamically placed during world generation)
+  monumentParts?: Map<string, any>;
   // Large quarry locations with types for minimap labels (Stone/Sulfur/Metal Quarry)
   largeQuarries?: Map<string, any>;
   // Weather overlay toggle for main game canvas atmospheric effects
@@ -432,8 +430,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   treeShadowsEnabled, // NEW: Destructure treeShadowsEnabled for visual cortex module setting
   chunkWeather, // Chunk-based weather data
   alkStations, // ALK delivery stations for minimap
-  shipwreckParts, // Shipwreck monument parts
-  fishingVillageParts, // Fishing village monument parts
+  monumentParts, // Unified monument parts (all monument types)
   largeQuarries, // Large quarry locations with types for minimap labels
   alkContracts, // ALK contracts for provisioning board
   alkPlayerContracts, // Player's accepted ALK contracts
@@ -851,8 +848,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     isTreeFalling, // NEW: Pass falling tree checker so falling trees stay visible
     worldChunkDataMap, // PERFORMANCE FIX: Use memoized Map instead of creating new one every render
     alkStations, // ADDED: ALK delivery stations
-    shipwreckParts, // ADDED: Shipwreck monument parts for rendering and interaction
-    fishingVillageParts, // ADDED: Fishing village monument parts for rendering
+    monumentParts, // ADDED: Unified monument parts for rendering and interaction
     livingCorals, // Living coral for underwater harvesting (uses combat system)
   );
 
@@ -867,7 +863,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     runeStones, // ADDED: RuneStones for night light cutouts
     firePatches, // ADDED: Fire patches for night light cutouts
     fumaroles, // ADDED: Fumaroles for heat glow at night
-    fishingVillageParts: fishingVillageParts ?? new Map(), // ADDED: Fishing village campfire light
+    monumentParts: monumentParts ?? new Map(), // ADDED: Unified monument parts (fishing village campfire light)
     players, // Pass all players
     activeEquipments, // Pass all active equipments
     itemDefinitions, // Pass all item definitions
@@ -887,6 +883,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Sync ySortedEntities to ref (reduces renderGame dependency array churn)
   useEffect(() => { ySortedEntitiesRef.current = ySortedEntities; }, [ySortedEntities]);
+
+  // Filter shipwreck parts from unified monument parts (for night lights rendering)
+  const shipwreckPartsMap = useMemo(() => {
+    if (!monumentParts) return new Map();
+    const filtered = new Map();
+    monumentParts.forEach((part: any, id: string) => {
+      if (part.monumentType?.tag === 'Shipwreck') {
+        filtered.set(id, part);
+      }
+    });
+    return filtered;
+  }, [monumentParts]);
 
   // --- UI State ---
   const { hoveredPlayerIds, handlePlayerHover } = usePlayerHover();
@@ -1980,17 +1988,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [isAutoAttacking, onAutoActionStatesChange]);
 
   // Use the particle hooks - they now run independently
-  // Compute static campfire positions from fishing village parts (always burning)
+  // Compute static campfire positions from fishing village center (always burning)
   const staticCampfires = useMemo(() => {
-    if (!fishingVillageParts || fishingVillageParts.size === 0) return [];
+    if (!monumentParts || monumentParts.size === 0) return [];
     const campfires: { id: string; posX: number; posY: number }[] = [];
-    fishingVillageParts.forEach((part: any) => {
-      if (part.partType === 'campfire') {
+    monumentParts.forEach((part: any) => {
+      // Fishing village center has the functional campfire
+      if (part.monumentType?.tag === 'FishingVillage' && part.isCenter) {
         campfires.push({ id: part.id.toString(), posX: part.worldX, posY: part.worldY });
       }
     });
     return campfires;
-  }, [fishingVillageParts]);
+  }, [monumentParts]);
 
   const campfireParticles = useCampfireParticles({
     visibleCampfiresMap,
@@ -4041,9 +4050,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // Fishing Village Campfire Light - Always burning communal fire
     // Renders the warm, cozy light from the Aleut-style central campfire
-    if (fishingVillageParts && fishingVillageParts.size > 0) {
-      fishingVillageParts.forEach((part: any) => {
-        if (part.partType === 'campfire') {
+    if (monumentParts && monumentParts.size > 0) {
+      monumentParts.forEach((part: any) => {
+        // Fishing village center has the functional campfire
+        if (part.monumentType?.tag === 'FishingVillage' && part.isCenter) {
           renderFishingVillageCampfireLight({
             ctx,
             worldX: part.worldX,
@@ -4106,10 +4116,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // Shipwreck Night Lights - Eerie blue/purple glow for protected zones
     // Shipwrecks serve as safe havens for new players - hostile NPCs won't approach
-    if (shipwreckParts && shipwreckParts.size > 0) {
+    // shipwreckPartsMap is pre-computed at component level via useMemo
+    if (shipwreckPartsMap && shipwreckPartsMap.size > 0) {
       renderAllShipwreckNightLights(
         ctx,
-        shipwreckParts,
+        shipwreckPartsMap,
         currentCycleProgress,
         currentCameraOffsetX,
         currentCameraOffsetY,
@@ -4126,7 +4137,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (showShipwreckDebug) {
         renderAllShipwreckDebugZones(
           ctx,
-          shipwreckParts,
+          shipwreckPartsMap,
           currentCameraOffsetX,
           currentCameraOffsetY,
           -currentCameraOffsetX, // viewMinX
@@ -4509,10 +4520,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       chunkWeatherData: chunkWeatherForMinimap,
       // ALK delivery stations for minimap
       alkStations: alkStations,
-      // Shipwreck monument parts for minimap
-      shipwreckParts: shipwreckParts,
-      // Fishing village monument parts for minimap
-      fishingVillageParts: fishingVillageParts,
+      // Unified monument parts for minimap (will filter by type internally)
+      monumentParts: monumentParts,
       // Large quarry locations with types for minimap labels
       largeQuarries: largeQuarries,
       // Living coral reefs for minimap (underwater resources)
@@ -4655,10 +4664,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           pinMarkerImage={pinMarkerImg}
           campfireWarmthImage={campfireWarmthImg}
           torchOnImage={torchOnImg}
-          // Shipwreck monument parts for minimap
-          shipwreckParts={shipwreckParts}
-          // Fishing village monument parts for minimap
-          fishingVillageParts={fishingVillageParts}
+          // Unified monument parts for minimap (will filter by type internally)
+          monumentParts={monumentParts}
           // Large quarry locations with types for minimap labels
           largeQuarries={largeQuarries}
           // Living coral reefs for minimap

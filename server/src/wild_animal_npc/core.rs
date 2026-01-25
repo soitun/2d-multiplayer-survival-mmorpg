@@ -52,8 +52,8 @@ use crate::player_progression::player_stats as PlayerStatsTableTrait;
 use crate::rune_stone::{rune_stone as RuneStoneTableTrait, RUNE_STONE_DETERRENCE_RADIUS};
 // Monument safe zone imports - hostile NPCs actively avoid these areas
 use crate::alk::alk_station as AlkStationTableTrait;
-use crate::fishing_village_part as FishingVillagePartTableTrait;
-use crate::shipwreck_part as ShipwreckPartTableTrait;
+use crate::monument_part as MonumentPartTableTrait;
+use crate::MonumentType;
 
 // Collision detection constants
 const ANIMAL_COLLISION_RADIUS: f32 = 32.0; // Animals maintain 32px distance from each other
@@ -1141,7 +1141,10 @@ fn update_animal_ai_state(
         // SHIPWRECK PART AVOIDANCE - Check each individual shipwreck part (192px zones)
         // This works like shelter avoidance - small zones around each part, not one big monument zone
         // NOTE: Protection zones are centered at visual center of sprites (using Y-offset)
-        for part in ctx.db.shipwreck_part().iter() {
+        for part in ctx.db.monument_part().iter() {
+            if part.monument_type != MonumentType::Shipwreck {
+                continue;
+            }
             let dx = animal.pos_x - part.world_x;
             // Apply Y-offset to check distance from visual center, not anchor point
             let protection_center_y = part.world_y - crate::shipwreck::SHIPWRECK_PROTECTION_Y_OFFSET;
@@ -1706,7 +1709,10 @@ fn execute_attack(
         // <<< SHIPWRECK PROTECTION CHECK - Players in shipwreck zones are immune to hostile NPC damage >>>
         // Only check if NPC is near a shipwreck AND player is in protection zone
         if animal.is_hostile_npc {
-            let npc_near_shipwreck = ctx.db.shipwreck_part().iter().any(|part| {
+            let npc_near_shipwreck = ctx.db.monument_part().iter().any(|part| {
+                if part.monument_type != MonumentType::Shipwreck {
+                    return false;
+                }
                 let dx = animal.pos_x - part.world_x;
                 let protection_center_y = part.world_y - crate::shipwreck::SHIPWRECK_PROTECTION_Y_OFFSET;
                 let dy = animal.pos_y - protection_center_y;
@@ -1860,7 +1866,10 @@ fn find_detected_player(ctx: &ReducerContext, animal: &WildAnimal, stats: &Anima
     // Pre-compute if NPC is near any shipwreck (within 500px) - only then check player protection
     // This optimization prevents NPCs far from shipwrecks from incorrectly skipping players
     let npc_near_shipwreck = if is_hostile_npc {
-        ctx.db.shipwreck_part().iter().any(|part| {
+        ctx.db.monument_part().iter().any(|part| {
+            if part.monument_type != MonumentType::Shipwreck {
+                return false;
+            }
             let dx = animal.pos_x - part.world_x;
             // Use the Y-offset for consistent zone calculation
             let protection_center_y = part.world_y - crate::shipwreck::SHIPWRECK_PROTECTION_Y_OFFSET;
@@ -2057,7 +2066,10 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
             // SHIPWRECK PART AVOIDANCE: Block entry into individual shipwreck part zones (192px each)
             // This works like shelter avoidance - small zones around each part, not one big zone
             // NOTE: Protection zones are centered at visual center of sprites (using Y-offset)
-            for part in ctx.db.shipwreck_part().iter() {
+            for part in ctx.db.monument_part().iter() {
+                if part.monument_type != MonumentType::Shipwreck {
+                    continue;
+                }
                 let sdx = proposed_x - part.world_x;
                 // Apply Y-offset to check distance from visual center, not anchor point
                 let protection_center_y = part.world_y - crate::shipwreck::SHIPWRECK_PROTECTION_Y_OFFSET;
@@ -2959,9 +2971,9 @@ pub fn get_monument_exclusion_zone(ctx: &ReducerContext, x: f32, y: f32) -> Opti
         }
     }
     
-    // Check Fishing Village (use campfire as center)
-    for part in ctx.db.fishing_village_part().iter() {
-        if part.part_type == "campfire" {
+    // Check Fishing Village (use center as exclusion zone center)
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type == MonumentType::FishingVillage && part.is_center {
             let dx = x - part.world_x;
             let dy = y - part.world_y;
             let dist_sq = dx * dx + dy * dy;
@@ -2987,7 +2999,10 @@ pub fn is_position_in_shipwreck_part_zone(ctx: &ReducerContext, x: f32, y: f32) 
     crate::shipwreck::is_position_protected_by_shipwreck(ctx, x, y)
         .then(|| {
             // Find the closest part to return its position (visual center)
-            for part in ctx.db.shipwreck_part().iter() {
+            for part in ctx.db.monument_part().iter() {
+                if part.monument_type != MonumentType::Shipwreck {
+                    continue;
+                }
                 let dx = x - part.world_x;
                 // Apply Y-offset to check distance from visual center, not anchor point
                 let protection_center_y = part.world_y - crate::shipwreck::SHIPWRECK_PROTECTION_Y_OFFSET;

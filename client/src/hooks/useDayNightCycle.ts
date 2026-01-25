@@ -426,7 +426,7 @@ interface UseDayNightCycleProps {
     runeStones: Map<string, SpacetimeDBRuneStone>; // ADDED: RuneStones for night light cutouts
     firePatches: Map<string, SpacetimeDBFirePatch>; // ADDED: Fire patches for night light cutouts
     fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles for heat glow at night
-    fishingVillageParts: Map<string, any>; // ADDED: Fishing village parts for campfire light
+    monumentParts: Map<string, any>; // ADDED: Unified monument parts (will filter for fishing village)
     players: Map<string, SpacetimeDBPlayer>;
     activeEquipments: Map<string, SpacetimeDBActiveEquipment>;
     itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
@@ -458,7 +458,7 @@ export function useDayNightCycle({
     runeStones, // ADDED: RuneStones
     firePatches, // ADDED: Fire patches
     fumaroles, // ADDED: Fumaroles
-    fishingVillageParts, // ADDED: Fishing village parts for campfire light
+    monumentParts, // ADDED: Unified monument parts (will filter for fishing village)
     players,
     activeEquipments,
     itemDefinitions,
@@ -614,8 +614,10 @@ export function useDayNightCycle({
         // This is a LARGE communal campfire - cozy safe zone with warm light
         // Y offset to center light on the firepit in the 1024x1024 image (rendered at 256x256)
         const FV_CAMPFIRE_Y_OFFSET = -150; // Dropped 100px lower for better alignment
-        fishingVillageParts.forEach(part => {
-            if (part.partType === 'campfire') {
+        monumentParts.forEach(part => {
+            // Fishing village center has the functional campfire
+            // NOTE: MonumentType is a tagged union with a `tag` property
+            if (part.monumentType?.tag === 'FishingVillage' && part.isCenter) {
                 const screenX = part.worldX + cameraOffsetX;
                 const screenY = part.worldY + cameraOffsetY + FV_CAMPFIRE_Y_OFFSET; // Apply offset
                 

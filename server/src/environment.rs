@@ -60,8 +60,8 @@ use crate::large_quarry as LargeQuarryTableTrait;
 use crate::coral::living_coral as LivingCoralTableTrait;
 // Monument table traits for cairn avoidance checks
 use crate::alk::alk_station as AlkStationTableTrait;
-use crate::shipwreck_part as ShipwreckPartTableTrait;
-use crate::fishing_village_part as FishingVillagePartTableTrait;
+use crate::monument_part as MonumentPartTableTrait;
+use crate::MonumentType;
 use crate::wooden_storage_box::wooden_storage_box as WoodenStorageBoxTableTrait;
 
 // Import utils helpers and macro
@@ -1446,7 +1446,10 @@ fn seed_cairns(ctx: &ReducerContext) -> Result<(), String> {
         }
         
         // Check minimum distance from shipwreck parts
-        let too_close_to_shipwreck = ctx.db.shipwreck_part().iter().any(|part| {
+        let too_close_to_shipwreck = ctx.db.monument_part().iter().any(|part| {
+            if part.monument_type != MonumentType::Shipwreck {
+                return false;
+            }
             let dx = pos_x - part.world_x;
             let dy = pos_y - part.world_y;
             dx * dx + dy * dy < crate::cairn::MIN_CAIRN_SHIPWRECK_DISTANCE_SQ
@@ -1457,7 +1460,10 @@ fn seed_cairns(ctx: &ReducerContext) -> Result<(), String> {
         }
         
         // Check minimum distance from fishing village parts
-        let too_close_to_fishing_village = ctx.db.fishing_village_part().iter().any(|part| {
+        let too_close_to_fishing_village = ctx.db.monument_part().iter().any(|part| {
+            if part.monument_type != MonumentType::FishingVillage {
+                return false;
+            }
             let dx = pos_x - part.world_x;
             let dy = pos_y - part.world_y;
             dx * dx + dy * dy < crate::cairn::MIN_CAIRN_FISHING_VILLAGE_DISTANCE_SQ

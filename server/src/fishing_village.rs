@@ -7,7 +7,8 @@
 // ------------------------------------
 
 use crate::ReducerContext;
-use crate::fishing_village_part as FishingVillagePartTableTrait;
+use crate::monument_part as MonumentPartTableTrait;
+use crate::MonumentType;
 use spacetimedb::Table;
 
 // =============================================================================
@@ -37,16 +38,17 @@ pub const FISHING_VILLAGE_PREMIUM_TIER_BONUS: f32 = 0.05; // +5% chance for prem
 /// The bonus zone is larger than the village itself to cover nearby fishing waters
 /// Returns true if the position qualifies for fishing bonuses
 pub fn is_position_in_fishing_village_zone(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
-    for part in ctx.db.fishing_village_part().iter() {
-        // Only check against the campfire (center piece) for zone determination
-        if part.is_center {
-            let dx = pos_x - part.world_x;
-            let dy = pos_y - part.world_y;
-            let dist_sq = dx * dx + dy * dy;
-            
-            if dist_sq <= FISHING_VILLAGE_BONUS_RADIUS_SQ {
-                return true;
-            }
+    for part in ctx.db.monument_part().iter() {
+        // Only check against the center piece for zone determination
+        if part.monument_type != MonumentType::FishingVillage || !part.is_center {
+            continue;
+        }
+        let dx = pos_x - part.world_x;
+        let dy = pos_y - part.world_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq <= FISHING_VILLAGE_BONUS_RADIUS_SQ {
+            return true;
         }
     }
     
@@ -56,8 +58,8 @@ pub fn is_position_in_fishing_village_zone(ctx: &ReducerContext, pos_x: f32, pos
 /// Gets the fishing village center position if it exists
 /// Returns Some((x, y)) of the village center, or None if not found
 pub fn get_fishing_village_center(ctx: &ReducerContext) -> Option<(f32, f32)> {
-    for part in ctx.db.fishing_village_part().iter() {
-        if part.is_center {
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type == MonumentType::FishingVillage && part.is_center {
             return Some((part.world_x, part.world_y));
         }
     }
@@ -76,7 +78,10 @@ pub fn get_fishing_village_center(ctx: &ReducerContext) -> Option<(f32, f32)> {
 /// # Returns
 /// `true` if the position would collide with any fishing village part
 pub fn check_fishing_village_collision(ctx: &ReducerContext, pos_x: f32, pos_y: f32, entity_radius: f32) -> bool {
-    for part in ctx.db.fishing_village_part().iter() {
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::FishingVillage {
+            continue;
+        }
         // Skip parts with 0 collision radius (no collision)
         if part.collision_radius <= 0.0 {
             continue;
@@ -119,7 +124,10 @@ pub fn resolve_fishing_village_collision(
     let mut resolved_y = pos_y;
     let mut any_collision = false;
     
-    for part in ctx.db.fishing_village_part().iter() {
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::FishingVillage {
+            continue;
+        }
         // Skip parts with 0 collision radius (no collision)
         if part.collision_radius <= 0.0 {
             continue;
@@ -174,7 +182,10 @@ pub fn line_intersects_fishing_village(
     end_x: f32,
     end_y: f32,
 ) -> bool {
-    for part in ctx.db.fishing_village_part().iter() {
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::FishingVillage {
+            continue;
+        }
         // Skip parts with 0 collision radius (no collision)
         if part.collision_radius <= 0.0 {
             continue;

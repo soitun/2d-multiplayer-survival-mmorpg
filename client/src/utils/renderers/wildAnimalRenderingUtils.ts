@@ -9,6 +9,7 @@ import {
 // Import sprite sheets (320x320, 3x3 grid, ~107x107 per frame)
 // These are the PRIMARY source for all animals
 import walrusWalkingSheet from '../../assets/walrus_walking.png';
+import walrusWalkingAnimatedSheet from '../../assets/walrus_walking_release.png'; // NEW: 4x4 animated spritesheet
 import foxWalkingSheet from '../../assets/fox_walking.png';
 import foxWalkingAnimatedSheet from '../../assets/fox_walking_release.png'; // NEW: 4x4 animated spritesheet
 import crabWalkingSheet from '../../assets/crab_walking.png';
@@ -95,6 +96,18 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         rows: 4,           // 4 directions
     },
     
+    // ARCTICWALRUS - Large passive wildlife (4x4 layout: 4 frames × 4 directions)
+    // Artist spec: 80x80 per frame → 320x320 total sheet
+    // Renders at: 128x128 (1.6x scale)
+    'ArcticWalrus': {
+        sheetWidth: 320,   // 80px × 4 frames
+        sheetHeight: 320,  // 80px × 4 rows
+        frameWidth: 80,
+        frameHeight: 80,
+        cols: 4,           // 4 animation frames
+        rows: 4,           // 4 directions
+    },
+    
     // ═══════════════════════════════════════════════════════════════════════════
     // HOSTILE NPC ANIMATED SPRITESHEETS (6x4 layout: 6 frames × 4 directions)
     // Row order: Down, Right, Left, Up (same as player)
@@ -173,7 +186,7 @@ const speciesSpriteSheets: Record<string, string> = {
     'CinderFox': foxWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'TundraWolf': tundraWolfWalkingSheet,
     'CableViper': cableViperWalkingSheet,
-    'ArcticWalrus': walrusWalkingSheet,
+    'ArcticWalrus': walrusWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'BeachCrab': crabWalkingSheet,
     'Tern': ternWalkingSheet,
     'Crow': crowWalkingSheet,
@@ -1008,6 +1021,7 @@ export function preloadWildAnimalImages(): void {
     // All animal sprite sheets (walking/grounded)
     const spriteSheets = [
         walrusWalkingSheet,
+        walrusWalkingAnimatedSheet, // NEW: Animated 4x4 walrus spritesheet
         foxWalkingSheet,
         foxWalkingAnimatedSheet, // NEW: Animated 4x4 fox spritesheet
         crabWalkingSheet,
