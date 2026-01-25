@@ -77,7 +77,7 @@ const GROUP_DETECTION_RADIUS: f32 = 300.0; // Distance to count group members
 pub const FLASHLIGHT_BEAM_RANGE: f32 = 400.0; // How far the flashlight beam reaches
 pub const FLASHLIGHT_BEAM_RANGE_SQUARED: f32 = FLASHLIGHT_BEAM_RANGE * FLASHLIGHT_BEAM_RANGE;
 pub const FLASHLIGHT_BEAM_HALF_ANGLE: f32 = 0.523599; // ~30 degrees (60° total cone) in radians
-pub const FLASHLIGHT_HESITATION_SPEED_MULTIPLIER: f32 = 0.55; // 55% speed when in beam (significant slowdown)
+pub const FLASHLIGHT_HESITATION_SPEED_MULTIPLIER: f32 = 0.10; // 10% speed when in beam (severe slowdown - nearly frozen)
 
 // === WARD DETERRENCE CONSTANTS ===
 // Wards create hard deterrence zones where hostile NPCs WILL NOT ENTER.

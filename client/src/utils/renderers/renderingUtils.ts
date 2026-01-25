@@ -1583,7 +1583,7 @@ export const renderYSortedEntities = ({
           renderMonument(ctx, buildingWithWorldPos as any, cycleProgress, localPlayerPosition, doodadImagesRef);
           
           // Check if local player has Blueprint equipped OR is placing a placeable item to show building restriction overlay
-          // Only show for shipwrecks and fishing villages (monuments with building restrictions)
+          // Only show for monuments with building restrictions (shipwrecks, fishing villages, whale bone graveyards)
           let showBuildingRestriction = false;
           // First check: Is any placeable item currently being placed? (placementInfo is non-null)
           if (placementInfo) {
@@ -1601,7 +1601,7 @@ export const renderYSortedEntities = ({
               }
           }
           
-          // Render building restriction overlay for shipwrecks and fishing villages
+          // Render building restriction overlay for monuments (shipwrecks, fishing villages, whale bone graveyards)
           if (showBuildingRestriction && buildingEntity.isCenter) {
               const buildingId = buildingEntity.id;
               let restrictionRadius = 0;
@@ -1611,6 +1611,8 @@ export const renderYSortedEntities = ({
                   restrictionRadius = 1500; // 2.5x the original 600 (monument::clearance::SHIPWRECK)
               } else if (buildingId.startsWith('fishing_village_')) {
                   restrictionRadius = 800; // Same as FISHING_VILLAGE_RESTRICTION_RADIUS
+              } else if (buildingId.startsWith('wbg_')) {
+                  restrictionRadius = 800; // Same as WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS
               }
               
               if (restrictionRadius > 0) {

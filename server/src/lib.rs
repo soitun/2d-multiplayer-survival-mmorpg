@@ -403,6 +403,7 @@ pub use knocked_out::get_knocked_out_status; // For client bindings
 
 // Re-export bones reducer for client bindings
 pub use bones::crush_bone_item;
+pub use bones::unravel_rope;
 
 // ADD: Re-export torch reducer for client bindings
 pub use torch::toggle_torch;

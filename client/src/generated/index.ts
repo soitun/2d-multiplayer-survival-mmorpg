@@ -723,6 +723,8 @@ import { TransferWaterFromContainerToPot } from "./transfer_water_from_container
 export { TransferWaterFromContainerToPot };
 import { TransferWaterFromPotToContainer } from "./transfer_water_from_pot_to_container_reducer.ts";
 export { TransferWaterFromPotToContainer };
+import { UnravelRope } from "./unravel_rope_reducer.ts";
+export { UnravelRope };
 import { UpdateCloudIntensities } from "./update_cloud_intensities_reducer.ts";
 export { UpdateCloudIntensities };
 import { UpdateCloudPositions } from "./update_cloud_positions_reducer.ts";
@@ -4347,6 +4349,10 @@ const REMOTE_MODULE = {
       reducerName: "transfer_water_from_pot_to_container",
       argsType: TransferWaterFromPotToContainer.getTypeScriptAlgebraicType(),
     },
+    unravel_rope: {
+      reducerName: "unravel_rope",
+      argsType: UnravelRope.getTypeScriptAlgebraicType(),
+    },
     update_cloud_intensities: {
       reducerName: "update_cloud_intensities",
       argsType: UpdateCloudIntensities.getTypeScriptAlgebraicType(),
@@ -4783,6 +4789,7 @@ export type Reducer = never
 | { name: "TransferWaterFromContainerToCollector", args: TransferWaterFromContainerToCollector }
 | { name: "TransferWaterFromContainerToPot", args: TransferWaterFromContainerToPot }
 | { name: "TransferWaterFromPotToContainer", args: TransferWaterFromPotToContainer }
+| { name: "UnravelRope", args: UnravelRope }
 | { name: "UpdateCloudIntensities", args: UpdateCloudIntensities }
 | { name: "UpdateCloudPositions", args: UpdateCloudPositions }
 | { name: "UpdateFlashlightAim", args: UpdateFlashlightAim }
@@ -10155,6 +10162,22 @@ export class RemoteReducers {
     this.connection.offReducer("transfer_water_from_pot_to_container", callback);
   }
 
+  unravelRope(itemInstanceId: bigint) {
+    const __args = { itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    UnravelRope.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("unravel_rope", __argsBuffer, this.setCallReducerFlags.unravelRopeFlags);
+  }
+
+  onUnravelRope(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("unravel_rope", callback);
+  }
+
+  removeOnUnravelRope(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("unravel_rope", callback);
+  }
+
   updateCloudIntensities(scheduleArgs: CloudIntensitySchedule) {
     const __args = { scheduleArgs };
     let __writer = new __BinaryWriter(1024);
@@ -12108,6 +12131,11 @@ export class SetReducerFlags {
   transferWaterFromPotToContainerFlags: __CallReducerFlags = 'FullUpdate';
   transferWaterFromPotToContainer(flags: __CallReducerFlags) {
     this.transferWaterFromPotToContainerFlags = flags;
+  }
+
+  unravelRopeFlags: __CallReducerFlags = 'FullUpdate';
+  unravelRope(flags: __CallReducerFlags) {
+    this.unravelRopeFlags = flags;
   }
 
   updateCloudIntensitiesFlags: __CallReducerFlags = 'FullUpdate';

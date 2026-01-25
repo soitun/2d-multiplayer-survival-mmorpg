@@ -174,8 +174,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .respawn_time(30)
             .attack_interval(0.5)
             .build(),
-
-        ItemBuilder::new("Flashlight", "A handheld electric light source. Provides bright, focused illumination but requires batteries to operate.", ItemCategory::Tool)
+        ItemBuilder::new("Flashlight", "A handheld electric light source. Provides bright, focused illumination and slows down nighttime apparitions.", ItemCategory::Tool)
             .icon("flashlight.png")
             .equippable(None)
             

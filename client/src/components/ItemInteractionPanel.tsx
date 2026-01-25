@@ -100,6 +100,16 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
             });
         }
 
+        // Check if item is unravelable (Rope -> Plant Fiber with penalty)
+        if (itemName === "Rope") {
+            actions.push({
+                label: 'Unravel',
+                action: 'unravel',
+                description: 'Unravel into plant fiber (10-14)',
+                buttonStyle: 'crushButton' // Reuse the same style
+            });
+        }
+
         // Check if item is a water container with water content
         if (isWaterContainer(itemName) && hasWaterContent(item.instance)) {
             actions.push({
@@ -139,6 +149,11 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
                     // console.log(`Crushing item ${itemInstanceId}: ${selectedItem.definition.name}`);
                     connection.reducers.crushBoneItem(itemInstanceId);
                     playImmediateSound('crush_bones');
+                    break;
+                case 'unravel':
+                    // console.log(`Unraveling rope ${itemInstanceId}: ${selectedItem.definition.name}`);
+                    connection.reducers.unravelRope(itemInstanceId);
+                    playImmediateSound('crush_bones'); // Reuse crushing sound for deconstruction
                     break;
                 case 'consume':
                     // console.log(`Consuming item ${itemInstanceId}: ${selectedItem.definition.name}`);

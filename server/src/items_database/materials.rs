@@ -37,7 +37,7 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // Cloth - Crafted textile
-        ItemBuilder::new("Cloth", "Woven fabric, used for basic clothing.", ItemCategory::Material)
+        ItemBuilder::new("Cloth", "Woven fabric, used for basic clothing and bowstrings.", ItemCategory::Material)
             .icon("cloth.png")
             .stackable(1000)
             .crafting_cost(vec![

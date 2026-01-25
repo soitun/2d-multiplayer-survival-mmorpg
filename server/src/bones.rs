@@ -10,6 +10,11 @@ use crate::dropped_item::try_give_item_to_player;
 const MIN_FRAGMENTS_PER_BONE: u32 = 8; // New min value
 const MAX_FRAGMENTS_PER_BONE: u32 = 12; // New max value
 
+// Constants for rope unraveling (deconstruction with penalty)
+// Rope costs 20 Plant Fiber to make, so we return 50-70% (10-14)
+const MIN_FIBER_PER_ROPE: u32 = 10;
+const MAX_FIBER_PER_ROPE: u32 = 14;
+
 // Skull-specific fragment amounts (larger skulls yield more material)
 const VOLE_SKULL_FRAGMENTS: u32 = 5;     // Tiny skull - smallest
 const FOX_SKULL_FRAGMENTS: u32 = 15;     // Small skull
@@ -95,5 +100,69 @@ pub fn crush_bone_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<()
             Ok(())
         },
         Err(e) => Err(format!("Failed to give bone fragments to player: {}", e))
+    }
+}
+
+/// Unravels rope back into plant fiber with a penalty.
+/// Rope costs 20 Plant Fiber to make, but unraveling only returns 10-14 (50-70%).
+/// If inventory is full, fiber will be dropped near the player.
+#[spacetimedb::reducer]
+pub fn unravel_rope(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
+    let sender_id = ctx.sender;
+    let inventory_table = ctx.db.inventory_item();
+    let item_def_table = ctx.db.item_definition();
+
+    // 1. Fetch and validate the item to unravel
+    let item_to_unravel = inventory_table.instance_id().find(item_instance_id)
+        .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
+
+    let item_def = item_def_table.id().find(item_to_unravel.item_def_id)
+        .ok_or_else(|| format!("Item definition {} not found", item_to_unravel.item_def_id))?;
+
+    // 2. Validate item is Rope and player owns it
+    if item_def.name != "Rope" {
+        return Err(format!("Cannot unravel '{}'. Only Rope can be unraveled into Plant Fiber.", item_def.name));
+    }
+
+    // Validate ownership through location
+    match &item_to_unravel.location {
+        crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
+        crate::models::ItemLocation::Hotbar(data) if data.owner_id == sender_id => (),
+        crate::models::ItemLocation::Equipped(data) if data.owner_id == sender_id => (),
+        _ => return Err("Item must be in your inventory, hotbar, or equipped to unravel.".to_string()),
+    }
+
+    // 3. Calculate fiber to return (with penalty - 50-70% of original 20 cost)
+    let fiber_to_create = ctx.rng().gen_range(MIN_FIBER_PER_ROPE..=MAX_FIBER_PER_ROPE);
+
+    // Find the Plant Fiber item definition by name
+    let plant_fiber_def = item_def_table.iter()
+        .find(|def| def.name == "Plant Fiber")
+        .ok_or_else(|| "Plant Fiber item definition not found".to_string())?;
+
+    log::info!("[UnravelRope] Player {} unraveling rope into {} plant fiber (penalty applied)", 
+             sender_id, fiber_to_create);
+
+    // 4. Update item quantity or delete if last one
+    if item_to_unravel.quantity > 1 {
+        let mut updated_item = item_to_unravel.clone();
+        updated_item.quantity -= 1;
+        inventory_table.instance_id().update(updated_item);
+    } else {
+        // Delete the item if it's the last one
+        inventory_table.instance_id().delete(item_instance_id);
+    }
+
+    // 5. Give plant fiber to player (or drop near them if inventory full)
+    match try_give_item_to_player(ctx, sender_id, plant_fiber_def.id, fiber_to_create) {
+        Ok(added_to_inventory) => {
+            if added_to_inventory {
+                log::info!("[UnravelRope] Added {} plant fiber to inventory for player {}", fiber_to_create, sender_id);
+            } else {
+                log::info!("[UnravelRope] Inventory full, dropped {} plant fiber near player {}", fiber_to_create, sender_id);
+            }
+            Ok(())
+        },
+        Err(e) => Err(format!("Failed to give plant fiber to player: {}", e))
     }
 } 

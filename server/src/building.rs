@@ -629,39 +629,44 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
         }
     }
     
-    // Check fishing village monument (Aleut-style village - protected area)
-    const FISHING_VILLAGE_RESTRICTION_RADIUS: f32 = 800.0; // Exclusion zone around the village
+    // Check all monument types in the monument_part table (single iteration for performance)
+    // Each monument type has different restriction radii:
+    // - Shipwreck: 1500px (2.5x clearance radius)
+    // - Fishing Village: 800px
+    // - Whale Bone Graveyard: 800px
+    const FISHING_VILLAGE_RESTRICTION_RADIUS: f32 = 800.0;
     const FISHING_VILLAGE_RESTRICTION_RADIUS_SQ: f32 = FISHING_VILLAGE_RESTRICTION_RADIUS * FISHING_VILLAGE_RESTRICTION_RADIUS;
-    
-    for part in ctx.db.monument_part().iter() {
-        // Only check against the center piece for simplicity
-        // This creates a circular exclusion zone around the village center
-        if part.monument_type == MonumentType::FishingVillage && part.is_center {
-            let dx = world_x - part.world_x;
-            let dy = world_y - part.world_y;
-            let distance_sq = dx * dx + dy * dy;
-            
-            if distance_sq <= FISHING_VILLAGE_RESTRICTION_RADIUS_SQ {
-                return Err("Cannot place items within the Fishing Village. This monument must remain unobstructed.".to_string());
-            }
-        }
-    }
-    
-    // Check shipwreck monument (beached ship - protected area)
-    // 2.5x the obstacle clearance radius to create a larger no-build zone
     const SHIPWRECK_RESTRICTION_RADIUS: f32 = 1500.0; // 2.5x monument::clearance::SHIPWRECK (600 * 2.5)
     const SHIPWRECK_RESTRICTION_RADIUS_SQ: f32 = SHIPWRECK_RESTRICTION_RADIUS * SHIPWRECK_RESTRICTION_RADIUS;
+    const WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS: f32 = 800.0; // Same as fishing village
+    const WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS_SQ: f32 = WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS * WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS;
     
     for part in ctx.db.monument_part().iter() {
-        // Only check against the center hull piece for simplicity
-        // This creates a circular exclusion zone around the shipwreck center
-        if part.monument_type == MonumentType::Shipwreck && part.is_center {
-            let dx = world_x - part.world_x;
-            let dy = world_y - part.world_y;
-            let distance_sq = dx * dx + dy * dy;
-            
-            if distance_sq <= SHIPWRECK_RESTRICTION_RADIUS_SQ {
-                return Err("Cannot place items within the Shipwreck. This monument must remain unobstructed.".to_string());
+        // Only check against center pieces for simplicity
+        // This creates circular exclusion zones around monument centers
+        if !part.is_center {
+            continue;
+        }
+        
+        let dx = world_x - part.world_x;
+        let dy = world_y - part.world_y;
+        let distance_sq = dx * dx + dy * dy;
+        
+        match part.monument_type {
+            MonumentType::Shipwreck => {
+                if distance_sq <= SHIPWRECK_RESTRICTION_RADIUS_SQ {
+                    return Err("Cannot place items within the Shipwreck. This monument must remain unobstructed.".to_string());
+                }
+            }
+            MonumentType::FishingVillage => {
+                if distance_sq <= FISHING_VILLAGE_RESTRICTION_RADIUS_SQ {
+                    return Err("Cannot place items within the Fishing Village. This monument must remain unobstructed.".to_string());
+                }
+            }
+            MonumentType::WhaleBoneGraveyard => {
+                if distance_sq <= WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS_SQ {
+                    return Err("Cannot place items within the Whale Bone Graveyard. This monument must remain unobstructed.".to_string());
+                }
             }
         }
     }

@@ -1499,7 +1499,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
         // === NEW: ALPINE-SPECIFIC PLANTS ===
         // Survival food: Edible raw, burns directly to charcoal (no burnt stage)
         // Lichen and moss also provide plant fiber (fibrous materials)
-        ItemBuilder::new("Arctic Lichen", "A slow-growing alpine lichen. Extremely hardy, grows year-round on rocks. Edible raw.", ItemCategory::Consumable)
+        ItemBuilder::new("Arctic Lichen", "A slow-growing alpine lichen. Extremely hardy, grows year-round. Edible raw.", ItemCategory::Consumable)
             .icon("arctic_lichen.png")
             .stackable(10)
             .consumable(3.0, 8.0, 5.0) // Low nutrition but edible raw
@@ -1507,7 +1507,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(1800)
             .build(),
 
-        ItemBuilder::new("Mountain Moss", "Alpine moss that grows on rocks. Can be eaten raw or burned directly to charcoal. Provides plant fiber.", ItemCategory::Consumable)
+        ItemBuilder::new("Mountain Moss", "Moss. Can be eaten raw or burned directly to charcoal. Provides plant fiber.", ItemCategory::Consumable)
             .icon("mountain_moss.png")
             .stackable(15)
             .consumable(4.0, 10.0, 6.0) // Slightly better than lichen

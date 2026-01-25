@@ -819,11 +819,6 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
               </span>
             </div>
           )}
-          
-          {/* Base Growth Time Note */}
-          <div className={styles.baseTimeNote}>
-            * Time updates in real-time based on current conditions
-          </div>
         </div>
       )}
     </div>
