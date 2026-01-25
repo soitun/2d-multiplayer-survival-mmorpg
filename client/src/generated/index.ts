@@ -959,6 +959,8 @@ import { PlayerAchievementTableHandle } from "./player_achievement_table.ts";
 export { PlayerAchievementTableHandle };
 import { PlayerCampingStateTableHandle } from "./player_camping_state_table.ts";
 export { PlayerCampingStateTableHandle };
+import { PlayerCombatReadinessTableHandle } from "./player_combat_readiness_table.ts";
+export { PlayerCombatReadinessTableHandle };
 import { PlayerCorpseTableHandle } from "./player_corpse_table.ts";
 export { PlayerCorpseTableHandle };
 import { PlayerCorpseDespawnScheduleTableHandle } from "./player_corpse_despawn_schedule_table.ts";
@@ -1359,6 +1361,8 @@ import { PlayerAchievement } from "./player_achievement_type.ts";
 export { PlayerAchievement };
 import { PlayerCampingState } from "./player_camping_state_type.ts";
 export { PlayerCampingState };
+import { PlayerCombatReadiness } from "./player_combat_readiness_type.ts";
+export { PlayerCombatReadiness };
 import { PlayerCorpse } from "./player_corpse_type.ts";
 export { PlayerCorpse };
 import { PlayerCorpseDespawnSchedule } from "./player_corpse_despawn_schedule_type.ts";
@@ -2421,6 +2425,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "playerIdentity",
         colType: (PlayerCampingState.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    player_combat_readiness: {
+      tableName: "player_combat_readiness" as const,
+      rowType: PlayerCombatReadiness.getTypeScriptAlgebraicType(),
+      primaryKey: "playerIdentity",
+      primaryKeyInfo: {
+        colName: "playerIdentity",
+        colType: (PlayerCombatReadiness.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     player_corpse: {
@@ -12721,6 +12734,11 @@ export class RemoteTables {
   get playerCampingState(): PlayerCampingStateTableHandle<'player_camping_state'> {
     // clientCache is a private property
     return new PlayerCampingStateTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerCampingState>(REMOTE_MODULE.tables.player_camping_state));
+  }
+
+  get playerCombatReadiness(): PlayerCombatReadinessTableHandle<'player_combat_readiness'> {
+    // clientCache is a private property
+    return new PlayerCombatReadinessTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<PlayerCombatReadiness>(REMOTE_MODULE.tables.player_combat_readiness));
   }
 
   get playerCorpse(): PlayerCorpseTableHandle<'player_corpse'> {
