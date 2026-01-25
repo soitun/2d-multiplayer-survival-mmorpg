@@ -161,9 +161,10 @@ const SETTLEMENT_VALUE_FOR_MAX: f32 = 100.0;      // This much value = max multi
 // Combat readiness constants
 const COMBAT_READINESS_DECAY_HALF_LIFE_HOURS: f32 = 2.0; // Peak power halves every 2 hours
 const PEAK_RETENTION_FACTOR: f32 = 0.7;  // Dropped items still count at 70% of peak
-const MIN_COMBAT_MULTIPLIER: f32 = 0.4;  // New players get 60% fewer spawns
+const MIN_COMBAT_MULTIPLIER: f32 = 0.1;  // Brand new players get 90% fewer spawns (very easy start)
 const MAX_COMBAT_MULTIPLIER: f32 = 1.2;  // Geared players get 20% more spawns
 const BASELINE_COMBAT_SCORE: f32 = 35.0; // Score for 1.0x multiplier
+const WEAPON_SCAN_INTERVAL_SECS: i64 = 60; // Only rescan weapons every 60 seconds (performance)
 
 // Weapon power tiers (based on pvp_damage_max)
 // Tier 0: 0-10 damage → Power: 0-5 (Combat Ladle, Rock, Torch)
@@ -754,46 +755,58 @@ fn get_or_create_readiness(
 
 /// Calculate combat readiness score with peak tracking and decay
 /// Returns a score from 0.0-100.0 that represents player combat capability
+/// PERFORMANCE: Only rescans weapons every WEAPON_SCAN_INTERVAL_SECS to avoid
+/// expensive full table scans every spawn tick.
 pub fn calculate_combat_readiness(
     ctx: &ReducerContext,
     player_id: &spacetimedb::Identity,
     current_time: Timestamp,
 ) -> f32 {
-    // Scan current weapons
+    // Get or create readiness state
+    let state = get_or_create_readiness(ctx, player_id, current_time);
+    
+    // PERFORMANCE: Only rescan weapons every 60 seconds, use cached value otherwise
+    let time_since_update_secs = (current_time.to_micros_since_unix_epoch() - state.last_update.to_micros_since_unix_epoch()) / 1_000_000;
+    let needs_weapon_scan = time_since_update_secs >= WEAPON_SCAN_INTERVAL_SECS;
+    
+    // If no scan needed, return cached score immediately (very fast path)
+    if !needs_weapon_scan && state.combat_readiness_score > 0.0 {
+        return state.combat_readiness_score;
+    }
+    
+    // Scan current weapons (only happens every 60 seconds)
     let current_power = scan_player_weapons(ctx, player_id);
     
-    // Get or create readiness state
-    let mut state = get_or_create_readiness(ctx, player_id, current_time);
-    
-    // Update peak (only goes up, decays separately)
-    if current_power > state.peak_weapon_power {
-        state.peak_weapon_power = current_power;
-    }
-    
-    // Apply time-based decay to peak (halves every COMBAT_READINESS_DECAY_HALF_LIFE_HOURS)
-    let time_diff_us = current_time.to_micros_since_unix_epoch() - state.last_update.to_micros_since_unix_epoch();
-    let hours_elapsed = (time_diff_us as f32) / (3_600_000_000.0); // Convert microseconds to hours
-    
-    if hours_elapsed > 0.0 {
+    // Calculate updated peak with decay
+    let hours_elapsed = (time_since_update_secs as f32) / 3600.0;
+    let decayed_peak = if hours_elapsed > 0.0 {
         let decay_factor = 0.5_f32.powf(hours_elapsed / COMBAT_READINESS_DECAY_HALF_LIFE_HOURS);
-        state.peak_weapon_power *= decay_factor;
-    }
+        state.peak_weapon_power * decay_factor
+    } else {
+        state.peak_weapon_power
+    };
     
-    // Final score = max(current_power, peak_weapon_power * PEAK_RETENTION_FACTOR)
+    // Update peak (only goes up after decay is applied)
+    let new_peak = current_power.max(decayed_peak);
+    
+    // Final score = max(current_power, peak * PEAK_RETENTION_FACTOR)
     // This means dropping items still leaves you at ~70% of your peak
-    let score = current_power.max(state.peak_weapon_power * PEAK_RETENTION_FACTOR);
+    let score = current_power.max(new_peak * PEAK_RETENTION_FACTOR);
     let final_score = score.clamp(0.0, 100.0);
     
-    // Update state
-    state.current_weapon_power = current_power;
-    state.combat_readiness_score = final_score;
-    state.last_update = current_time;
+    // Update state in database
+    let updated_state = PlayerCombatReadiness {
+        player_identity: *player_id,
+        peak_weapon_power: new_peak,
+        current_weapon_power: current_power,
+        combat_readiness_score: final_score,
+        last_update: current_time,
+    };
     
-    // Update or insert the state
     if ctx.db.player_combat_readiness().player_identity().find(player_id).is_some() {
-        ctx.db.player_combat_readiness().player_identity().update(state);
+        ctx.db.player_combat_readiness().player_identity().update(updated_state);
     } else {
-        ctx.db.player_combat_readiness().insert(state);
+        ctx.db.player_combat_readiness().insert(updated_state);
     }
     
     final_score
@@ -802,15 +815,22 @@ pub fn calculate_combat_readiness(
 /// Calculate combat multiplier from combat readiness score
 /// Returns a multiplier from MIN_COMBAT_MULTIPLIER to MAX_COMBAT_MULTIPLIER
 fn calculate_combat_multiplier(combat_score: f32) -> f32 {
-    if combat_score < 20.0 {
-        // Score 0-20: New player protection (0.4x - 0.6x)
-        MIN_COMBAT_MULTIPLIER + (combat_score / 20.0) * 0.2
-    } else if combat_score < 50.0 {
-        // Score 20-50: Normal gameplay (0.6x - 1.0x)
-        0.6 + ((combat_score - 20.0) / 30.0) * 0.4
+    if combat_score < 15.0 {
+        // Score 0-15: Brand new player protection (0.1x - 0.2x)
+        // Combat Ladle only gives ~5 score, so they stay at ~0.13x
+        MIN_COMBAT_MULTIPLIER + (combat_score / 15.0) * 0.1
+    } else if combat_score < 35.0 {
+        // Score 15-35: Early game (0.2x - 0.6x)
+        // Stone Spear (~25) gets ~0.4x, Wooden Spear (~20) gets ~0.3x
+        0.2 + ((combat_score - 15.0) / 20.0) * 0.4
+    } else if combat_score < 60.0 {
+        // Score 35-60: Mid game (0.6x - 1.0x)
+        // Good melee + backup weapon gets ~50 score = ~0.84x
+        0.6 + ((combat_score - 35.0) / 25.0) * 0.4
     } else {
-        // Score 50-100: Experienced player (1.0x - 1.2x)
-        1.0 + ((combat_score - 50.0) / 50.0) * 0.2
+        // Score 60-100: Experienced player (1.0x - 1.2x)
+        // Military weapons + ranged = full challenge
+        1.0 + ((combat_score - 60.0) / 40.0) * 0.2
     }
 }
 
