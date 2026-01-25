@@ -31,8 +31,23 @@ pub const FISH_TRAP_PROCESS_INTERVAL_SECS: u64 = 60; // Process every minute
 pub const FISH_TRAP_CONVERSION_TIME_SECS: u64 = 600; // 10 minutes to convert bait to fish/crab
 
 // Output probabilities (as percentages out of 100)
-pub const FISH_TRAP_FISH_CHANCE: u32 = 60; // 60% chance for Raw Fish
-pub const FISH_TRAP_CRAB_CHANCE: u32 = 40; // 40% chance for Crab Meat
+// Fish traps are passive and only catch common tier fish/shellfish + junk
+// They CANNOT catch rare/premium fish - that requires active fishing
+pub const FISH_TRAP_JUNK_CHANCE: u32 = 15;      // 15% junk (Seaweed, Shell Fragment, etc.)
+pub const FISH_TRAP_SMALL_FISH_CHANCE: u32 = 35; // 35% small fish (Twigfish, Herring, Smelt)
+pub const FISH_TRAP_SHELLFISH_CHANCE: u32 = 25;  // 25% shellfish (Mussel, Urchin, Chiton)
+pub const FISH_TRAP_CRAB_CHANCE: u32 = 25;       // 25% crab (Raw Crab Meat)
+
+// Output item pools (common tier only - passive trapping cannot catch rare fish!)
+pub const FISH_TRAP_SMALL_FISH: &[&str] = &["Raw Twigfish", "Raw Herring", "Raw Smelt"];
+pub const FISH_TRAP_SHELLFISH: &[&str] = &["Raw Blue Mussel", "Raw Sea Urchin", "Raw Black Katy Chiton"];
+pub const FISH_TRAP_CRAB: &[&str] = &["Raw Crab Meat"];
+pub const FISH_TRAP_JUNK: &[&str] = &["Seaweed", "Shell Fragment", "Old Boot", "Rusty Hook"];
+
+// Fishing village bonus constants
+// Fish traps in the Aleut fishing village zone get bonuses similar to fishing
+pub const FISH_TRAP_VILLAGE_CONVERSION_TIME_SECS: u64 = 300; // 5 minutes (half normal time) when in village
+pub const FISH_TRAP_VILLAGE_DOUBLE_YIELD: bool = true; // Double yield (2x output) when in village
 
 // --- Fish Trap Schedule Table ---
 #[spacetimedb::table(name = fish_trap_process_schedule, scheduled(process_fish_trap_conversion))]
@@ -257,8 +272,69 @@ pub fn quick_move_to_fish_trap(
  *                    SCHEDULED FISH TRAP PROCESSING                           *
  ******************************************************************************/
 
+/// Item definition cache for fish trap outputs
+struct FishTrapOutputCache {
+    /// Map of item name to (def_id, max_stack)
+    items: std::collections::HashMap<String, (u64, u32)>,
+}
+
+impl FishTrapOutputCache {
+    /// Build cache of all possible fish trap output items
+    fn build(ctx: &ReducerContext) -> Self {
+        let item_defs = ctx.db.item_definition();
+        let mut items = std::collections::HashMap::new();
+        
+        // Collect all possible output items
+        let all_outputs: Vec<&str> = FISH_TRAP_SMALL_FISH.iter()
+            .chain(FISH_TRAP_SHELLFISH.iter())
+            .chain(FISH_TRAP_CRAB.iter())
+            .chain(FISH_TRAP_JUNK.iter())
+            .copied()
+            .collect();
+        
+        for def in item_defs.iter() {
+            if all_outputs.contains(&def.name.as_str()) {
+                let max_stack = if def.is_stackable { def.stack_size } else { 1 };
+                items.insert(def.name.clone(), (def.id, max_stack));
+            }
+        }
+        
+        FishTrapOutputCache { items }
+    }
+    
+    /// Get a random item from a category using deterministic RNG
+    fn get_random_from_pool(&self, pool: &[&str], hash: u64) -> Option<(u64, u32)> {
+        let idx = (hash as usize) % pool.len();
+        let item_name = pool[idx];
+        self.items.get(item_name).copied()
+    }
+    
+    /// Select output based on fish trap probabilities
+    fn select_output(&self, hash: u64, sub_hash: u64) -> Option<(u64, u32, &'static str)> {
+        let roll = (hash % 100) as u32;
+        
+        if roll < FISH_TRAP_JUNK_CHANCE {
+            // Junk (15%)
+            self.get_random_from_pool(FISH_TRAP_JUNK, sub_hash)
+                .map(|(id, stack)| (id, stack, "junk"))
+        } else if roll < FISH_TRAP_JUNK_CHANCE + FISH_TRAP_SMALL_FISH_CHANCE {
+            // Small fish (35%)
+            self.get_random_from_pool(FISH_TRAP_SMALL_FISH, sub_hash)
+                .map(|(id, stack)| (id, stack, "fish"))
+        } else if roll < FISH_TRAP_JUNK_CHANCE + FISH_TRAP_SMALL_FISH_CHANCE + FISH_TRAP_SHELLFISH_CHANCE {
+            // Shellfish (25%)
+            self.get_random_from_pool(FISH_TRAP_SHELLFISH, sub_hash)
+                .map(|(id, stack)| (id, stack, "shellfish"))
+        } else {
+            // Crab (25%)
+            self.get_random_from_pool(FISH_TRAP_CRAB, sub_hash)
+                .map(|(id, stack)| (id, stack, "crab"))
+        }
+    }
+}
+
 /// Scheduled reducer that processes fish trap conversion
-/// Converts bait (food items) into fish/crab over time
+/// Converts bait (food items) into fish/shellfish/crab/junk over time
 #[spacetimedb::reducer]
 pub fn process_fish_trap_conversion(ctx: &ReducerContext, _args: FishTrapProcessSchedule) -> Result<(), String> {
     // Security check - only scheduler can run this
@@ -274,39 +350,8 @@ pub fn process_fish_trap_conversion(ctx: &ReducerContext, _args: FishTrapProcess
     
     let current_time = ctx.timestamp;
     
-    // Find output item definitions (Raw Fish and Crab Meat)
-    let (fish_def_id, fish_max_stack, crab_def_id, crab_max_stack): (u64, u32, u64, u32);
-    {
-        let item_defs = ctx.db.item_definition();
-        let mut fish_found: Option<(u64, u32)> = None;
-        let mut crab_found: Option<(u64, u32)> = None;
-        
-        for def in item_defs.iter() {
-            if def.name == "Raw Fish" {
-                let max_stack = if def.is_stackable { def.stack_size } else { 1 };
-                fish_found = Some((def.id, max_stack));
-            } else if def.name == "Crab Meat" {
-                let max_stack = if def.is_stackable { def.stack_size } else { 1 };
-                crab_found = Some((def.id, max_stack));
-            }
-            if fish_found.is_some() && crab_found.is_some() {
-                break;
-            }
-        }
-        
-        match (fish_found, crab_found) {
-            (Some((f_id, f_stack)), Some((c_id, c_stack))) => {
-                fish_def_id = f_id;
-                fish_max_stack = f_stack;
-                crab_def_id = c_id;
-                crab_max_stack = c_stack;
-            }
-            _ => {
-                log::warn!("[FishTrap] Raw Fish or Crab Meat item definition not found");
-                return Ok(()); // Skip processing if output items don't exist
-            }
-        }
-    }
+    // Build output item cache
+    let output_cache = FishTrapOutputCache::build(ctx);
     
     // Collect all fish trap box IDs to process
     let mut fish_trap_box_ids: Vec<u32> = Vec::new();
@@ -321,7 +366,7 @@ pub fn process_fish_trap_conversion(ctx: &ReducerContext, _args: FishTrapProcess
     
     // Process each fish trap box individually
     for box_id in fish_trap_box_ids {
-        let _ = process_single_fish_trap(ctx, box_id, current_time, fish_def_id, fish_max_stack, crab_def_id, crab_max_stack);
+        let _ = process_single_fish_trap(ctx, box_id, current_time, &output_cache);
     }
     
     Ok(())
@@ -332,10 +377,7 @@ fn process_single_fish_trap(
     ctx: &ReducerContext,
     box_id: u32,
     current_time: Timestamp,
-    fish_def_id: u64,
-    fish_max_stack: u32,
-    crab_def_id: u64,
-    crab_max_stack: u32,
+    output_cache: &FishTrapOutputCache,
 ) -> Result<(), String> {
     // Get fresh table handles
     let boxes_table = ctx.db.wooden_storage_box();
@@ -351,9 +393,21 @@ fn process_single_fish_trap(
     let mut fish_trap = fish_trap_original.clone();
     let num_slots: usize = fish_trap.num_slots();
     
+    // Check if fish trap is in the Aleut fishing village zone for bonuses
+    let in_fishing_village = crate::fishing_village::is_position_in_fishing_village_zone(
+        ctx, fish_trap.pos_x, fish_trap.pos_y
+    );
+    
+    // Determine conversion time based on village bonus
+    let conversion_time_secs = if in_fishing_village {
+        FISH_TRAP_VILLAGE_CONVERSION_TIME_SECS // 5 minutes in village
+    } else {
+        FISH_TRAP_CONVERSION_TIME_SECS // 10 minutes normally
+    };
+    
     let mut items_to_remove: Vec<(u8, u64)> = Vec::new();
     let mut items_to_timestamp: Vec<u64> = Vec::new();
-    let mut output_to_add: Vec<(u64, u32)> = Vec::new(); // (def_id, quantity)
+    let mut output_to_add: Vec<(u64, u32, u32)> = Vec::new(); // (def_id, max_stack, quantity)
     
     // Check each slot for valid bait items
     // IMPORTANT: Process ONE unit at a time, not entire stacks
@@ -375,20 +429,29 @@ fn process_single_fish_trap(
                             let placed_micros: i64 = placed_at.to_micros_since_unix_epoch();
                             let elapsed_micros: u64 = (current_micros.saturating_sub(placed_micros)) as u64;
                             let elapsed_secs: u64 = elapsed_micros / 1_000_000;
-                            if elapsed_secs >= FISH_TRAP_CONVERSION_TIME_SECS {
-                                // Determine output (fish or crab) using deterministic RNG
-                                let output_def_id = {
-                                    // Use a simple hash for deterministic randomness
-                                    let hash = ((box_id as u64) ^ (slot_idx as u64) ^ (current_micros as u64)) % 100;
-                                    if hash < FISH_TRAP_FISH_CHANCE as u64 {
-                                        fish_def_id
-                                    } else {
-                                        crab_def_id
-                                    }
-                                };
+                            if elapsed_secs >= conversion_time_secs {
+                                // Determine output using deterministic RNG
+                                // Use two hashes: one for category, one for specific item within category
+                                let category_hash = ((box_id as u64).wrapping_mul(31)) ^ ((slot_idx as u64).wrapping_mul(17)) ^ (current_micros as u64);
+                                let item_hash = category_hash.wrapping_mul(37) ^ (current_micros as u64).wrapping_add(slot_idx as u64);
                                 
-                                // Add one unit of output
-                                output_to_add.push((output_def_id, 1));
+                                if let Some((output_def_id, output_max_stack, output_type)) = output_cache.select_output(category_hash, item_hash) {
+                                    // Add output - double yield if in fishing village (but NOT for junk!)
+                                    let output_qty = if in_fishing_village && FISH_TRAP_VILLAGE_DOUBLE_YIELD && output_type != "junk" {
+                                        log::info!("🏘️🦀 Fish trap {} in Aleut village - double {} yield!", box_id, output_type);
+                                        2u32
+                                    } else {
+                                        1u32
+                                    };
+                                    output_to_add.push((output_def_id, output_max_stack, output_qty));
+                                    
+                                    // Log what was caught
+                                    if let Some(output_name) = output_cache.items.iter().find(|(_, (id, _))| *id == output_def_id).map(|(name, _)| name.as_str()) {
+                                        log::info!("🪤 Fish trap {} caught: {} ({})", box_id, output_name, output_type);
+                                    }
+                                } else {
+                                    log::warn!("[FishTrap] Could not select output item - item definitions may be missing");
+                                }
                                 
                                 // Reduce bait quantity by 1
                                 if item.quantity > 1 {
@@ -431,9 +494,8 @@ fn process_single_fish_trap(
         items_table.instance_id().delete(item_id);
     }
     
-    // Add output items (fish/crab) to fish trap slots
-    for (output_def_id, output_qty) in output_to_add {
-        let output_max_stack = if output_def_id == fish_def_id { fish_max_stack } else { crab_max_stack };
+    // Add output items (fish/shellfish/crab/junk) to fish trap slots
+    for (output_def_id, output_max_stack, output_qty) in output_to_add {
         let mut remaining_to_add = output_qty;
         
         // Try to stack with existing output items

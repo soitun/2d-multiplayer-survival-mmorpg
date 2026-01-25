@@ -180,6 +180,57 @@ function isPositionOnTundra(connection: DbConnection | null, worldX: number, wor
 }
 
 /**
+ * Check if a position is on shore (land tile adjacent to water)
+ * Returns true if the position is NOT on water AND has at least one adjacent water tile.
+ * Used for fish trap placement validation.
+ */
+function isPositionOnShore(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+  if (!connection) {
+    return false;
+  }
+
+  // Must NOT be on water itself
+  if (isPositionOnWater(connection, worldX, worldY)) {
+    return false;
+  }
+  
+  const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
+  
+  // Check 8 adjacent tiles for water
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      
+      const checkTileX = tileX + dx;
+      const checkTileY = tileY + dy;
+      
+      // Get tile type from chunk data
+      const tileType = getTileTypeFromChunkData(connection, checkTileX, checkTileY);
+      if (tileType === 'Sea' || tileType === 'HotSpringWater') {
+        return true; // Found adjacent water - this is a shore position
+      }
+    }
+  }
+  
+  return false; // No adjacent water tiles found
+}
+
+/**
+ * Check if fish trap placement is blocked (not on shore)
+ * Fish traps must be placed on land adjacent to water.
+ */
+function isFishTrapPlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+  if (!connection) return false;
+  
+  // Fish traps must be on shore (land adjacent to water)
+  if (!isPositionOnShore(connection, worldX, worldY)) {
+    return true; // Block if not on shore
+  }
+  
+  return false; // Valid placement
+}
+
+/**
  * Calculates the distance to the nearest shore (non-water tile) from a water position.
  * Returns distance in pixels, or -1 if position is not on water.
  */
@@ -433,6 +484,15 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
       console.log('[WaterPlacement] Birch Catkin blocked: Cannot plant on alpine tiles');
       return true;
     }
+  }
+
+  // Special case: Fish Trap - must be placed on shore (land adjacent to water)
+  if (placementInfo.itemName === 'Fish Trap') {
+    const blocked = isFishTrapPlacementBlocked(connection, worldX, worldY);
+    if (blocked) {
+      console.log('[WaterPlacement] Fish Trap blocked: Must be placed on shore (land adjacent to water)');
+    }
+    return blocked;
   }
 
   // List of items that cannot be placed on water
@@ -904,6 +964,7 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
         case 'Large Wooden Storage Box':
         case 'Pantry':
         case 'Compost':
+        case 'Fish Trap':
           // console.log(`[PlacementManager] Calling placeWoodenStorageBox reducer with instance ID: ${placementInfo.instanceId}`);
           connection.reducers.placeWoodenStorageBox(placementInfo.instanceId, worldX, worldY);
           // Assume App.tsx will have a handleWoodenStorageBoxInsert similar to campfire

@@ -231,6 +231,210 @@ imageManager.preloadImage(repairBenchImage);
 imageManager.preloadImage(cookingStationImage);
 imageManager.preloadImage(scarecrowImage);
 imageManager.preloadImage(militaryRationImage);
+imageManager.preloadImage(fishTrapImage);
+
+// === FISH TRAP WATER EFFECTS CONFIGURATION ===
+const FISH_TRAP_WATER_CONFIG = {
+    // Water line position (fraction of sprite height from top)
+    // Fish traps sit lower in the water than barrels since they're designed for fishing
+    WATER_LINE_OFFSET: 0.60, // 60% down from top = trap sits mostly in water
+    // Wave animation for water line
+    WAVE_AMPLITUDE: 1.2, // Gentle wave movement
+    WAVE_FREQUENCY: 0.003, // Slow wave frequency
+    WAVE_SECONDARY_AMPLITUDE: 0.6,
+    WAVE_SECONDARY_FREQUENCY: 0.005,
+    // Swaying animation (very gentle for a trap anchored to shore)
+    SWAY_AMPLITUDE: 0.008, // Minimal rotation (radians) - about 0.46 degrees
+    SWAY_FREQUENCY: 0.0006, // Slow, peaceful swaying
+    SWAY_SECONDARY_FREQUENCY: 0.001, // Secondary sway for organic feel
+    // Bobbing animation (vertical)
+    BOB_AMPLITUDE: 1.2, // Slight vertical bob in pixels
+    BOB_FREQUENCY: 0.0012, // Slow bob
+    // Underwater tint
+    UNDERWATER_TINT_COLOR: { r: 12, g: 62, b: 79 },
+    UNDERWATER_TINT_INTENSITY: 0.30,
+};
+
+// Cached offscreen canvas for fish trap tinting (reused to avoid allocations)
+let fishTrapOffscreenCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
+let fishTrapOffscreenCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
+
+function getFishTrapOffscreenCanvas(width: number, height: number): { canvas: OffscreenCanvas | HTMLCanvasElement, ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } {
+    if (!fishTrapOffscreenCanvas || fishTrapOffscreenCanvas.width < width || fishTrapOffscreenCanvas.height < height) {
+        try {
+            fishTrapOffscreenCanvas = new OffscreenCanvas(width, height);
+        } catch {
+            fishTrapOffscreenCanvas = document.createElement('canvas');
+            fishTrapOffscreenCanvas.width = width;
+            fishTrapOffscreenCanvas.height = height;
+        }
+        fishTrapOffscreenCtx = fishTrapOffscreenCanvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+    }
+    return { canvas: fishTrapOffscreenCanvas, ctx: fishTrapOffscreenCtx! };
+}
+
+/**
+ * Renders a fish trap with water effects (water line, underwater tinting, gentle swaying/bobbing)
+ * Fish traps are always on shore, so they always get water effects
+ */
+function renderFishTrapWithWaterEffects(
+    ctx: CanvasRenderingContext2D,
+    box: WoodenStorageBox,
+    nowMs: number,
+    cycleProgress: number,
+    playerX?: number,
+    playerY?: number
+): void {
+    // Don't render if destroyed
+    if (box.isDestroyed) return;
+    
+    const img = imageManager.getImage(fishTrapImage);
+    
+    if (!img || !img.complete || img.naturalWidth === 0) {
+        // Fallback color
+        ctx.fillStyle = '#8B7355';
+        ctx.fillRect(box.posX - 32, box.posY - 64, 64, 64);
+        return;
+    }
+    
+    // Get dimensions
+    const drawWidth = FISH_TRAP_WIDTH;
+    const drawHeight = FISH_TRAP_HEIGHT;
+    const yOffset = 20; // Standard box Y offset
+    
+    // Calculate sway animation (very gentle rotation for anchored trap)
+    const swayPrimary = Math.sin(nowMs * FISH_TRAP_WATER_CONFIG.SWAY_FREQUENCY + box.posX * 0.01) 
+        * FISH_TRAP_WATER_CONFIG.SWAY_AMPLITUDE;
+    const swaySecondary = Math.sin(nowMs * FISH_TRAP_WATER_CONFIG.SWAY_SECONDARY_FREQUENCY + box.posY * 0.01 + Math.PI * 0.5) 
+        * FISH_TRAP_WATER_CONFIG.SWAY_AMPLITUDE * 0.5;
+    const totalSway = swayPrimary + swaySecondary;
+    
+    // Calculate bob animation (vertical movement)
+    const bobOffset = Math.sin(nowMs * FISH_TRAP_WATER_CONFIG.BOB_FREQUENCY + box.posX * 0.02) 
+        * FISH_TRAP_WATER_CONFIG.BOB_AMPLITUDE;
+    
+    // Base position
+    const baseX = box.posX;
+    const baseY = box.posY + bobOffset;
+    const drawX = baseX - drawWidth / 2;
+    const drawY = baseY - drawHeight - yOffset;
+    
+    // Calculate water line position (in local sprite coordinates)
+    const waterLineLocalY = drawHeight * FISH_TRAP_WATER_CONFIG.WATER_LINE_OFFSET;
+    const waterLineWorldY = drawY + waterLineLocalY;
+    
+    // Wave calculation helper
+    const getWaveOffset = (x: number) => {
+        return Math.sin(nowMs * FISH_TRAP_WATER_CONFIG.WAVE_FREQUENCY + x * 0.02) 
+            * FISH_TRAP_WATER_CONFIG.WAVE_AMPLITUDE
+            + Math.sin(nowMs * FISH_TRAP_WATER_CONFIG.WAVE_SECONDARY_FREQUENCY + x * 0.03 + Math.PI * 0.3) 
+            * FISH_TRAP_WATER_CONFIG.WAVE_SECONDARY_AMPLITUDE;
+    };
+    
+    // --- Create tinted underwater version on offscreen canvas ---
+    const { canvas: offscreen, ctx: offCtx } = getFishTrapOffscreenCanvas(drawWidth + 4, drawHeight + 4);
+    offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
+    
+    // Draw fish trap to offscreen
+    offCtx.drawImage(img, 2, 2, drawWidth, drawHeight);
+    
+    // Apply tint using source-atop (only affects existing non-transparent pixels)
+    offCtx.globalCompositeOperation = 'source-atop';
+    const { r, g, b } = FISH_TRAP_WATER_CONFIG.UNDERWATER_TINT_COLOR;
+    const tintIntensity = FISH_TRAP_WATER_CONFIG.UNDERWATER_TINT_INTENSITY;
+    offCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${tintIntensity})`;
+    offCtx.fillRect(0, 0, offscreen.width, offscreen.height);
+    
+    // Darken slightly
+    offCtx.fillStyle = `rgba(0, 20, 40, 0.15)`;
+    offCtx.fillRect(0, 0, offscreen.width, offscreen.height);
+    
+    offCtx.globalCompositeOperation = 'source-over';
+    
+    ctx.save();
+    
+    // Apply rotation around the bottom center of the trap (pivot point)
+    const pivotX = baseX;
+    const pivotY = baseY;
+    ctx.translate(pivotX, pivotY);
+    ctx.rotate(totalSway);
+    ctx.translate(-pivotX, -pivotY);
+    
+    const waveSegments = 12;
+    const segmentWidth = drawWidth / waveSegments;
+    
+    // --- Draw underwater portion (tinted) ---
+    ctx.save();
+    ctx.beginPath();
+    
+    // Create wavy clip path for underwater portion
+    ctx.moveTo(drawX - 5, baseY + 50);
+    ctx.lineTo(drawX - 5, waterLineWorldY);
+    
+    for (let i = 0; i <= waveSegments; i++) {
+        const segX = drawX + i * segmentWidth;
+        ctx.lineTo(segX, waterLineWorldY + getWaveOffset(segX));
+    }
+    
+    ctx.lineTo(drawX + drawWidth + 5, baseY + 50);
+    ctx.closePath();
+    ctx.clip();
+    
+    // Draw tinted trap from offscreen canvas
+    ctx.drawImage(offscreen, drawX - 2, drawY - 2);
+    ctx.restore();
+    
+    // --- Draw above-water portion (normal) ---
+    ctx.save();
+    ctx.beginPath();
+    
+    // Clip to top portion with inverse wave
+    ctx.moveTo(drawX - 5, drawY - 5);
+    ctx.lineTo(drawX + drawWidth + 5, drawY - 5);
+    ctx.lineTo(drawX + drawWidth + 5, waterLineWorldY);
+    
+    for (let i = waveSegments; i >= 0; i--) {
+        const segX = drawX + i * segmentWidth;
+        ctx.lineTo(segX, waterLineWorldY + getWaveOffset(segX));
+    }
+    
+    ctx.closePath();
+    ctx.clip();
+    
+    // Draw normal fish trap
+    ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+    ctx.restore();
+    
+    // --- Draw water line ---
+    ctx.strokeStyle = 'rgba(150, 180, 200, 0.45)';
+    ctx.lineWidth = 1.0;
+    ctx.lineCap = 'round';
+    
+    ctx.beginPath();
+    const lineStartX = drawX + drawWidth * 0.15;
+    const lineEndX = drawX + drawWidth * 0.85;
+    const lineSegments = 8;
+    const lineSegmentWidth = (lineEndX - lineStartX) / lineSegments;
+    
+    for (let i = 0; i <= lineSegments; i++) {
+        const segX = lineStartX + i * lineSegmentWidth;
+        const waveOffset = getWaveOffset(segX);
+        
+        if (i === 0) {
+            ctx.moveTo(segX, waterLineWorldY + waveOffset);
+        } else {
+            ctx.lineTo(segX, waterLineWorldY + waveOffset);
+        }
+    }
+    ctx.stroke();
+    
+    ctx.restore(); // Restore from rotation transform
+    
+    // Render health bar for fish trap
+    if (playerX !== undefined && playerY !== undefined) {
+        renderEntityHealthBar(ctx, box, drawWidth, drawHeight, nowMs, playerX, playerY, -yOffset);
+    }
+}
 
 // --- Rendering Function (Refactored) ---
 export function renderWoodenStorageBox(
@@ -241,6 +445,12 @@ export function renderWoodenStorageBox(
     playerX?: number,
     playerY?: number
 ) {
+    // Fish traps get special water effects rendering (always on shore/in water)
+    if (box.boxType === BOX_TYPE_FISH_TRAP && !box.isDestroyed) {
+        renderFishTrapWithWaterEffects(ctx, box, nowMs, cycleProgress, playerX, playerY);
+        return;
+    }
+    
     renderConfiguredGroundEntity({
         ctx,
         entity: box,
