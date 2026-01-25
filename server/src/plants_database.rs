@@ -88,6 +88,7 @@ pub enum PlantType {
     SulfurPile,     // Pile of sulfur deposits - alpine/volcanic areas only, rare
     CharcoalPile,   // Pile of charcoal - forest areas (old burn sites), rare
     SoggyPlantFiberPile, // Storm debris - spawns when plants are destroyed by heavy storms
+    BonePile,           // Pile of bone fragments - whale bone graveyard monument only
     
     // === TREE SAPLINGS (Planted trees that grow into actual Tree entities) ===
     ConiferSapling,   // Planted from Pinecone - grows into a conifer tree
@@ -1168,6 +1169,25 @@ lazy_static! {
             growing_seasons: vec![], // Never grows naturally
         });
         
+        // === MONUMENT-SPECIFIC PILES ===
+        
+        configs.insert(PlantType::BonePile, PlantConfig {
+            entity_name: "Bone Pile".to_string(),
+            density_percent: 0.0, // Never spawns naturally - only at whale bone graveyard monument
+            min_distance_sq: 60.0 * 60.0,
+            min_tree_distance_sq: 0.0, // No tree distance requirement (monument-placed)
+            min_stone_distance_sq: 0.0, // No stone distance requirement (monument-placed)
+            noise_threshold: 1.0, // Never spawns naturally
+            primary_yield: ("Bone Fragments".to_string(), 8, 15), // 8-15 bone fragments per pile
+            secondary_yield: Some(("Animal Bone".to_string(), 1, 2, 0.25)), // 25% chance for 1-2 whole bones
+            seed_type: "".to_string(), // No seeds
+            seed_drop_chance: 0.0,
+            min_respawn_time_secs: 1800, // 30 minutes - bones don't regenerate quickly
+            max_respawn_time_secs: 2700, // 45 minutes
+            spawn_condition: SpawnCondition::Coastal, // Monument placement only (beach/coastal area)
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Always available
+        });
+        
         // === TREE SAPLINGS ===
         // These are special plants that grow into Tree entities when mature.
         // Longer growth time balances the renewable wood source.
@@ -1311,7 +1331,7 @@ fn get_plant_category(plant_type: &PlantType) -> PlantCategory {
         // Resource piles
         PlantType::WoodPile | PlantType::BeachWoodPile | PlantType::StonePile |
         PlantType::LeavesPile | PlantType::MetalOrePile | PlantType::SulfurPile |
-        PlantType::CharcoalPile | PlantType::SoggyPlantFiberPile => PlantCategory::ResourcePile,
+        PlantType::CharcoalPile | PlantType::SoggyPlantFiberPile | PlantType::BonePile => PlantCategory::ResourcePile,
         
         // Special (includes tree saplings which become Tree entities when mature)
         PlantType::MemoryShard | PlantType::SeaweedBed |
@@ -1543,7 +1563,8 @@ pub fn get_plant_bit_index(plant_type: &PlantType) -> Option<u32> {
         // ===== NOT TRACKED (Resource piles, special items, tree saplings) =====
         PlantType::WoodPile | PlantType::BeachWoodPile | PlantType::StonePile |
         PlantType::LeavesPile | PlantType::MetalOrePile | PlantType::SulfurPile |
-        PlantType::CharcoalPile | PlantType::SoggyPlantFiberPile | PlantType::MemoryShard | 
-        PlantType::SeaweedBed | PlantType::ConiferSapling | PlantType::DeciduousSapling => None,
+        PlantType::CharcoalPile | PlantType::SoggyPlantFiberPile | PlantType::BonePile |
+        PlantType::MemoryShard | PlantType::SeaweedBed | 
+        PlantType::ConiferSapling | PlantType::DeciduousSapling => None,
     }
 } 

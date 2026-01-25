@@ -127,6 +127,8 @@ const NO_PITCH_VARIATION_SOUNDS: Set<SoundType> = new Set([
     'error_building_privilege',
     'error_tier_upgrade',
     'error_planting',
+    'error_planting_monument',
+    'error_seed_occupied',
     'error_field_cauldron_placement',
     'error_chest_placement',
     'error_foundation_monument',
@@ -368,6 +370,8 @@ const PRELOAD_SOUNDS = [
     'error_building_privilege.mp3',                         // 1 error building privilege variation
     'error_tier_upgrade.mp3',                               // 1 error tier upgrade variation
     'error_planting.mp3',                                    // 1 error planting variation
+    'error_planting_monument.mp3',                           // 1 error planting monument variation (no pitch variation)
+    'error_seed_occupied.mp3',                               // 1 error seed occupied variation (no pitch variation)
     'error_field_cauldron_placement.mp3',                   // 1 error field cauldron placement variation
     'construction_placement_error.mp3',                     // 1 construction placement error variation
     'player_burnt.mp3',                                      // 1 player burnt variation
@@ -633,6 +637,10 @@ const playLocalSound = async (
                 variationCount = 1; // error_tier_upgrade.mp3
             } else if (soundType === 'error_planting') {
                 variationCount = 1; // error_planting.mp3
+            } else if (soundType === 'error_planting_monument') {
+                variationCount = 1; // error_planting_monument.mp3
+            } else if (soundType === 'error_seed_occupied') {
+                variationCount = 1; // error_seed_occupied.mp3
             } else if (soundType === 'error_field_cauldron_placement') {
                 variationCount = 1; // error_field_cauldron_placement.mp3
             } else if (soundType === 'error_chest_placement') {

@@ -786,8 +786,12 @@ pub fn cleanup_expired_dodge_rolls(ctx: &ReducerContext, _args: DodgeRollCleanup
 
 /// Initialize the dodge roll cleanup system.
 /// 
-/// This function sets up a periodic task that runs every 100ms to clean up
+/// This function sets up a periodic task that runs every 500ms to clean up
 /// expired dodge roll states (older than 500ms).
+/// 
+/// OPTIMIZATION: Changed from 100ms to 500ms (matches dodge roll duration).
+/// Since dodge rolls last 500ms, there's no benefit to checking more frequently.
+/// This reduces scheduled reducer calls by 80%.
 pub fn init_dodge_roll_cleanup_system(ctx: &ReducerContext) -> Result<(), String> {
     // Check if already scheduled
     if ctx.db.dodge_roll_cleanup_schedule().iter().next().is_some() {
@@ -795,8 +799,9 @@ pub fn init_dodge_roll_cleanup_system(ctx: &ReducerContext) -> Result<(), String
         return Ok(());
     }
     
-    // Schedule cleanup to run every 100ms (0.1 seconds)
-    let cleanup_interval_micros = 100_000i64; // 100ms in microseconds
+    // Schedule cleanup to run every 500ms (matches dodge roll duration)
+    // No benefit to running more frequently since dodge rolls last 500ms
+    let cleanup_interval_micros = 500_000i64; // 500ms in microseconds
     
     crate::try_insert_schedule!(
         ctx.db.dodge_roll_cleanup_schedule(),
@@ -807,6 +812,6 @@ pub fn init_dodge_roll_cleanup_system(ctx: &ReducerContext) -> Result<(), String
         "Dodge roll cleanup"
     );
     
-    log::info!("Dodge roll cleanup system initialized successfully (runs every 100ms)");
+    log::info!("Dodge roll cleanup system initialized successfully (runs every 500ms)");
     Ok(())
 }

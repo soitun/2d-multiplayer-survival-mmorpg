@@ -320,7 +320,16 @@ export const useSpacetimeTables = ({
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
     const chunkWeatherUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    // OPTIMIZATION: Ref for batched wild animal updates (AI ticks 8x/sec)
+    // Batching reduces React re-renders from 8/sec/animal to ~10/sec total
+    const wildAnimalsRef = useRef<Map<string, SpacetimeDB.WildAnimal>>(new Map());
+    const wildAnimalsUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const WILD_ANIMAL_BATCH_INTERVAL_MS = 100; // Flush at 10fps - smooth enough for animation
 
+    // OPTIMIZATION: Ref for batched projectile updates (high frequency during combat)
+    const projectilesRef = useRef<Map<string, SpacetimeDBProjectile>>(new Map());
+    const projectilesUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const PROJECTILE_BATCH_INTERVAL_MS = 50; // Flush at 20fps - needs to be responsive for combat
 
     // Get local player identity for sound system
     const localPlayerIdentity = connection?.identity || null;
@@ -349,9 +358,8 @@ export const useSpacetimeTables = ({
     const playersRef = useRef<Map<string, SpacetimeDB.Player>>(new Map());
     const lastPlayerUpdateRef = useRef<number>(0); // For throttling React updates
 
-    // NOTE: Wild animal updates are NOT throttled - viewport filtering happens at render time
-    // in useEntityFiltering.ts, which is more efficient than throttling updates
-
+    // NOTE: Wild animal and projectile updates now use batched refs (see above)
+    // This reduces React re-renders while maintaining smooth animation
 
     // Throttle spatial subscription updates to prevent frame drops
     const lastSpatialUpdateRef = useRef<number>(0);
@@ -1425,17 +1433,30 @@ export const useSpacetimeTables = ({
                 setRangedWeaponStats(prev => { const newMap = new Map(prev); newMap.delete(stats.itemName); return newMap; });
 
             // --- Projectile Callbacks --- Added
+            // OPTIMIZATION: Batched updates to reduce React re-renders during combat
+            // Projectiles update frequently when arrows/thrown items are in flight
+            const scheduleProjectileUpdate = () => {
+                if (projectilesUpdateTimeoutRef.current) return; // Already scheduled
+                projectilesUpdateTimeoutRef.current = setTimeout(() => {
+                    setProjectiles(new Map(projectilesRef.current));
+                    projectilesUpdateTimeoutRef.current = null;
+                }, PROJECTILE_BATCH_INTERVAL_MS);
+            };
+
             const handleProjectileInsert = (ctx: any, projectile: SpacetimeDBProjectile) => {
                 // console.log("[DEBUG] Projectile INSERT received:", projectile);
-                setProjectiles(prev => new Map(prev).set(projectile.id.toString(), projectile));
+                projectilesRef.current.set(projectile.id.toString(), projectile);
+                scheduleProjectileUpdate();
             };
             const handleProjectileUpdate = (ctx: any, oldProjectile: SpacetimeDBProjectile, newProjectile: SpacetimeDBProjectile) => {
                 // console.log("[DEBUG] Projectile UPDATE received:", newProjectile);
-                setProjectiles(prev => new Map(prev).set(newProjectile.id.toString(), newProjectile));
+                projectilesRef.current.set(newProjectile.id.toString(), newProjectile);
+                scheduleProjectileUpdate();
             };
             const handleProjectileDelete = (ctx: any, projectile: SpacetimeDBProjectile) => {
                 // console.log("[DEBUG] Projectile DELETE received:", projectile);
-                setProjectiles(prev => { const newMap = new Map(prev); newMap.delete(projectile.id.toString()); return newMap; });
+                projectilesRef.current.delete(projectile.id.toString());
+                scheduleProjectileUpdate();
             };
 
             // --- DeathMarker Callbacks --- Added
@@ -1696,8 +1717,20 @@ export const useSpacetimeTables = ({
             // Wild Animal handlers - NOW USES SPATIAL SUBSCRIPTIONS (not global)
             // Performance fix: only receive updates for animals in nearby chunks (~5-15)
             // instead of all ~100 animals on the entire map
+            // 
+            // OPTIMIZATION: Batched updates to reduce React re-renders
+            // AI ticks 8x/sec per animal - batching reduces re-renders from 8/sec/animal to ~10/sec total
+            const scheduleWildAnimalUpdate = () => {
+                if (wildAnimalsUpdateTimeoutRef.current) return; // Already scheduled
+                wildAnimalsUpdateTimeoutRef.current = setTimeout(() => {
+                    setWildAnimals(new Map(wildAnimalsRef.current));
+                    wildAnimalsUpdateTimeoutRef.current = null;
+                }, WILD_ANIMAL_BATCH_INTERVAL_MS);
+            };
+
             const handleWildAnimalInsert = (ctx: any, animal: SpacetimeDB.WildAnimal) => {
-                setWildAnimals(prev => new Map(prev).set(animal.id.toString(), animal));
+                wildAnimalsRef.current.set(animal.id.toString(), animal);
+                scheduleWildAnimalUpdate();
                 
                 // SOVA Tutorial: First Hostile Encounter
                 // Trigger when the player first sees a hostile NPC at night
@@ -1711,7 +1744,8 @@ export const useSpacetimeTables = ({
             };
             const handleWildAnimalUpdate = (ctx: any, oldAnimal: SpacetimeDB.WildAnimal, newAnimal: SpacetimeDB.WildAnimal) => {
                 trackSubUpdate('wildAnimal_update');
-                setWildAnimals(prev => new Map(prev).set(newAnimal.id.toString(), newAnimal));
+                wildAnimalsRef.current.set(newAnimal.id.toString(), newAnimal);
+                scheduleWildAnimalUpdate();
             };
             const handleWildAnimalDelete = (ctx: any, animal: SpacetimeDB.WildAnimal) => {
                 // Check if this was a hostile NPC death - trigger client-side particle effects
@@ -1731,11 +1765,8 @@ export const useSpacetimeTables = ({
                     }, 3000);
                 }
                 
-                setWildAnimals(prev => {
-                    const newMap = new Map(prev);
-                    newMap.delete(animal.id.toString());
-                    return newMap;
-                });
+                wildAnimalsRef.current.delete(animal.id.toString());
+                scheduleWildAnimalUpdate();
             };
 
             // Note: Hostile NPCs (Shorebound, Shardkin, DrownedWatch) are now part of WildAnimal table
@@ -2827,9 +2858,14 @@ export const useSpacetimeTables = ({
                 setKnockedOutStatus(new Map());
                 setRangedWeaponStats(new Map());
                 setProjectiles(new Map());
+                // Clear the projectiles ref and cancel pending timeout
+                projectilesRef.current.clear();
+                if (projectilesUpdateTimeoutRef.current) {
+                    clearTimeout(projectilesUpdateTimeoutRef.current);
+                    projectilesUpdateTimeoutRef.current = null;
+                }
                 setDeathMarkers(new Map());
                 setShelters(new Map());
-                // world tile client cache removed
                 setPlayerDodgeRollStates(new Map());
                 // Clear the playerDodgeRollStates ref as well
                 playerDodgeRollStatesRef.current.clear();
@@ -2839,6 +2875,12 @@ export const useSpacetimeTables = ({
                 setContinuousSounds(new Map());
                 setPlayerDrinkingCooldowns(new Map());
                 setWildAnimals(new Map());
+                // Clear the wildAnimals ref and cancel pending timeout
+                wildAnimalsRef.current.clear();
+                if (wildAnimalsUpdateTimeoutRef.current) {
+                    clearTimeout(wildAnimalsUpdateTimeoutRef.current);
+                    wildAnimalsUpdateTimeoutRef.current = null;
+                }
                 setAnimalCorpses(new Map());
                 setSeaStacks(new Map());
                 setChunkWeather(new Map());

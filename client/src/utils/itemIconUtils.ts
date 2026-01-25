@@ -232,7 +232,8 @@ import burntCarrotIcon from '../assets/items/burnt_carrot.png';
 import cornIcon from '../assets/items/corn.png';
 import cookedCornIcon from '../assets/items/cooked_corn.png';
 import burntCornIcon from '../assets/items/burnt_corn.png';
-import beetsIcon from '../assets/items/beets.png';
+import beetsIcon from '../assets/items/beet.png';
+import cookedBeetIcon from '../assets/items/cooked_beet.png';
 import horseradishIcon from '../assets/items/horseradish.png';
 import salsifyIcon from '../assets/items/salsify.png';
 import cabbageIcon from '../assets/items/cabbage.png';
@@ -703,7 +704,8 @@ const iconMap: { [key: string]: string | undefined } = {
   'corn.png': cornIcon,
   'cooked_corn.png': cookedCornIcon,
   'burnt_corn.png': burntCornIcon,
-  'beets.png': beetsIcon,
+  'beet.png': beetsIcon,
+  'cooked_beet.png': cookedBeetIcon,
   'horseradish.png': horseradishIcon,
   'salsify.png': salsifyIcon,
   'cabbage.png': cabbageIcon,

@@ -273,7 +273,8 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
         PlantType::MetalOrePile |
         PlantType::SulfurPile |
         PlantType::CharcoalPile |
-        PlantType::SoggyPlantFiberPile
+        PlantType::SoggyPlantFiberPile |
+        PlantType::BonePile
     );
     
     // Track plants harvested for achievements (count harvest ACTIONS, not items received)

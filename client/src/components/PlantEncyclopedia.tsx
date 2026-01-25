@@ -22,7 +22,7 @@ const ITEM_ICON_MAPPINGS: Record<string, string> = {
   'Salsify Root': 'salsify.png',
   'Salsify Seeds': 'salsify_seeds.png',
   'Beet Seeds': 'beet_seeds.png',
-  'Beet': 'beets.png', // Singular form
+  'Beet': 'beet.png', // Singular form
   'Common Reed Stalk': 'reed_stalk.png',
   // Dogbane items
   'Dogbane Fiber': 'dogbane.png', // Use plant icon for fiber

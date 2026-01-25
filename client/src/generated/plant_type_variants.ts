@@ -87,6 +87,7 @@ export type MetalOrePile = { tag: "MetalOrePile" };
 export type SulfurPile = { tag: "SulfurPile" };
 export type CharcoalPile = { tag: "CharcoalPile" };
 export type SoggyPlantFiberPile = { tag: "SoggyPlantFiberPile" };
+export type BonePile = { tag: "BonePile" };
 export type ConiferSapling = { tag: "ConiferSapling" };
 export type DeciduousSapling = { tag: "DeciduousSapling" };
 

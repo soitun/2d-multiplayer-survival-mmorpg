@@ -78,6 +78,7 @@ import metalOrePileImageSource from '../../assets/doodads/pile_metal.png';
 import sulfurPileImageSource from '../../assets/doodads/pile_sulfur.png';
 import charcoalPileImageSource from '../../assets/doodads/pile_charcoal.png';
 import soggyPlantFiberPileImageSource from '../../assets/doodads/plant_fiber_soggy.png';
+import bonePileImageSource from '../../assets/doodads/pile_bones.png';
 
 // Underwater plants
 import seaweedBedImageSource from '../../assets/doodads/seaweed.png';
@@ -163,6 +164,7 @@ export const RESOURCE_IMAGE_SOURCES = {
   SulfurPile: sulfurPileImageSource,
   CharcoalPile: charcoalPileImageSource,
   SoggyPlantFiberPile: soggyPlantFiberPileImageSource,
+  BonePile: bonePileImageSource,
   
   // === UNDERWATER PLANTS (Require snorkeling to harvest) ===
   SeaweedBed: seaweedBedImageSource

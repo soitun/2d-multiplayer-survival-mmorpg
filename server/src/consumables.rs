@@ -412,7 +412,8 @@ pub fn apply_item_effects_and_consume(
         // Don't fail the entire consumption - food poisoning is a "side effect"
     }
     
-    // Check for seed drop from consuming plant-based food (60% chance)
+    // Check for seed drop from consuming plant-based food (25% chance)
+    // Works for raw, cooked, and burnt versions of food items
     if let Err(seed_error) = try_grant_seed_from_consumption(ctx, player_id, &item_def.name) {
         log::warn!("[EffectsHelper] Failed to grant seed from consumption for player {:?}, item '{}': {}", 
             player_id, item_def.name, seed_error);
@@ -580,11 +581,27 @@ fn apply_brewing_recipe_effect(
     Ok(())
 }
 
+/// Helper function to normalize item name for plant matching
+/// Strips "Cooked " and "Burnt " prefixes, handles "Raw " prefix for matching
+fn normalize_item_name_for_plant_match(item_name: &str) -> String {
+    // Strip cooking prefixes
+    let normalized = if item_name.starts_with("Cooked ") {
+        item_name.strip_prefix("Cooked ").unwrap_or(item_name)
+    } else if item_name.starts_with("Burnt ") {
+        item_name.strip_prefix("Burnt ").unwrap_or(item_name)
+    } else {
+        item_name
+    };
+    normalized.to_string()
+}
+
 /// Helper function to find plant type from item name (by checking primary yield)
 /// Returns Some(PlantType) if the item is produced by a plant, None otherwise
 /// Checks both primary and secondary yields (e.g., Nettle Leaves is a secondary yield from Boreal Nettle)
+/// Also matches cooked/burnt versions of food items (e.g., "Cooked Carrot" -> PlantType::Carrot)
 fn get_plant_type_from_item_name(item_name: &str) -> Option<PlantType> {
-    PLANT_CONFIGS.iter()
+    // First try exact match
+    let exact_match = PLANT_CONFIGS.iter()
         .find(|(_, config)| {
             // Check primary yield
             if config.primary_yield.0 == item_name {
@@ -598,17 +615,59 @@ fn get_plant_type_from_item_name(item_name: &str) -> Option<PlantType> {
             }
             false
         })
+        .map(|(plant_type, _)| *plant_type);
+    
+    if exact_match.is_some() {
+        return exact_match;
+    }
+    
+    // Try matching with normalized name (strips Cooked/Burnt prefix)
+    let normalized = normalize_item_name_for_plant_match(item_name);
+    if normalized == item_name {
+        // No normalization happened, no point in trying again
+        return None;
+    }
+    
+    // Try matching the normalized name against primary/secondary yields
+    PLANT_CONFIGS.iter()
+        .find(|(_, config)| {
+            // Check primary yield - need to handle "Raw Corn" -> "Corn" case
+            let primary_normalized = normalize_item_name_for_plant_match(&config.primary_yield.0);
+            if primary_normalized == normalized || config.primary_yield.0 == normalized {
+                return true;
+            }
+            // Also check if raw item name without "Raw " prefix matches
+            if config.primary_yield.0.starts_with("Raw ") {
+                let without_raw = config.primary_yield.0.strip_prefix("Raw ").unwrap_or(&config.primary_yield.0);
+                if without_raw == normalized {
+                    return true;
+                }
+            }
+            // Check secondary yield
+            if let Some(ref secondary) = config.secondary_yield {
+                let secondary_normalized = normalize_item_name_for_plant_match(&secondary.0);
+                if secondary_normalized == normalized || secondary.0 == normalized {
+                    return true;
+                }
+            }
+            false
+        })
         .map(|(plant_type, _)| *plant_type)
 }
 
+/// Seed drop chance when consuming plant-based food items
+/// 25% is a low but meaningful chance - rewards eating raw/cooked veggies with occasional seeds
+const SEED_DROP_CHANCE_ON_CONSUMPTION: f32 = 0.25;
+
 /// Attempts to grant a seed when consuming a plant-based food item
-/// 60% chance to grant exactly 1 seed of the plant that produces this item
+/// Low chance (25%) to grant exactly 1 seed of the plant that produces this item
+/// Works for raw, cooked, and burnt versions of food
 fn try_grant_seed_from_consumption(
     ctx: &ReducerContext,
     player_id: Identity,
     item_name: &str,
 ) -> Result<(), String> {
-    // Find which plant type produces this item
+    // Find which plant type produces this item (works for raw, cooked, burnt versions)
     let plant_type = match get_plant_type_from_item_name(item_name) {
         Some(pt) => pt,
         None => {
@@ -632,8 +691,8 @@ fn try_grant_seed_from_consumption(
         }
     };
     
-    // 60% chance to grant one seed
-    if ctx.rng().gen::<f32>() < 0.60 {
+    // Low chance to grant one seed (configurable via constant)
+    if ctx.rng().gen::<f32>() < SEED_DROP_CHANCE_ON_CONSUMPTION {
         let item_defs = ctx.db.item_definition();
         
         // Find the seed item definition

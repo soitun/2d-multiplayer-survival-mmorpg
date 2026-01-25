@@ -889,25 +889,32 @@ pub fn get_whale_bone_graveyard_decorations() -> Vec<MonumentDecorationConfig> {
 /// Spawns Beach Wood Piles (driftwood) and Stone Piles (whale bones = bone meal) around bone parts
 pub fn get_whale_bone_graveyard_harvestables() -> Vec<MonumentHarvestableConfig> {
     vec![
+        // Bone Pile - whale bone fragments scattered throughout the graveyard
+        // Primary source of bone fragments at this monument
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::BonePile,
+            spawn_chance: 0.80, // 80% chance per part - abundant bone fragments
+            min_distance: 50.0,
+            max_distance: 160.0,
+        },
+        // Second Bone Pile spawn - more bone fragments
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::BonePile,
+            spawn_chance: 0.50, // 50% chance for second pile
+            min_distance: 70.0,
+            max_distance: 180.0,
+        },
         // Beach Wood Pile - driftwood scattered among the bones
         MonumentHarvestableConfig {
             plant_type: crate::plants_database::PlantType::BeachWoodPile,
-            spawn_chance: 0.70, // 70% chance per part
+            spawn_chance: 0.60, // 60% chance per part (reduced from 70%)
             min_distance: 60.0,
             max_distance: 180.0,
         },
-        // Second Beach Wood Pile spawn - additional driftwood
-        MonumentHarvestableConfig {
-            plant_type: crate::plants_database::PlantType::BeachWoodPile,
-            spawn_chance: 0.40, // 40% chance for second pile
-            min_distance: 80.0,
-            max_distance: 200.0,
-        },
-        // Stone Pile - smaller bone fragments (represented as stone for now)
-        // These are scattered bone fragments from the ancient whales
+        // Stone Pile - occasional stone debris
         MonumentHarvestableConfig {
             plant_type: crate::plants_database::PlantType::StonePile,
-            spawn_chance: 0.50, // 50% per part
+            spawn_chance: 0.35, // 35% per part (reduced from 50%)
             min_distance: 50.0,
             max_distance: 150.0,
         },
@@ -1281,6 +1288,7 @@ pub fn spawn_shipwreck_military_rations(
 pub fn spawn_whale_bone_graveyard_barrels(
     ctx: &ReducerContext,
     monument_part_positions: &[(f32, f32)],
+    center_position: Option<(f32, f32)>,
 ) -> Result<(), String> {
     if monument_part_positions.is_empty() {
         return Ok(());
@@ -1294,12 +1302,31 @@ pub fn spawn_whale_bone_graveyard_barrels(
     let barrels = ctx.db.barrel();
     let mut spawned_count = 0;
     
+    // Threshold to identify hermit hut (center piece) - within 10 pixels
+    const HERMIT_HUT_THRESHOLD: f32 = 10.0;
+    
     // Spawn 1-2 beach barrels per whale bone part (50% chance per part)
     for &(part_x, part_y) in monument_part_positions {
         let spawn_roll: f32 = ctx.rng().gen();
         if spawn_roll > 0.50 {
             continue; // 50% chance to skip this part
         }
+        
+        // Check if this is the hermit hut (center piece)
+        let is_hermit_hut = if let Some((center_x, center_y)) = center_position {
+            let dx = part_x - center_x;
+            let dy = part_y - center_y;
+            (dx * dx + dy * dy).sqrt() < HERMIT_HUT_THRESHOLD
+        } else {
+            false
+        };
+        
+        // Use larger distance range for hermit hut to spawn barrels further away
+        let (min_distance, max_distance) = if is_hermit_hut {
+            (200.0, 450.0) // Further from hermit hut
+        } else {
+            (120.0, 300.0) // Normal distance for other parts
+        };
         
         // Determine how many barrels (1-2)
         let barrel_count = if ctx.rng().gen::<f32>() < 0.5 {
@@ -1318,7 +1345,7 @@ pub fn spawn_whale_bone_graveyard_barrels(
                 // Generate position around the whale bone part
                 let angle = (barrel_idx as f32) * (2.0 * std::f32::consts::PI / barrel_count as f32) +
                            ctx.rng().gen_range(-0.5..0.5);
-                let distance = ctx.rng().gen_range(120.0..300.0);
+                let distance = ctx.rng().gen_range(min_distance..max_distance);
                 let barrel_x = part_x + angle.cos() * distance;
                 let barrel_y = part_y + angle.sin() * distance;
                 

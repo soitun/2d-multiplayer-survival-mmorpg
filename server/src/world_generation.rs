@@ -237,7 +237,8 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         }
         
         // Spawn beach barrels around whale bone graveyard parts - these respawn
-        if let Err(e) = crate::monument::spawn_whale_bone_graveyard_barrels(ctx, &graveyard_positions) {
+        // Pass center position so hermit hut barrels spawn further away
+        if let Err(e) = crate::monument::spawn_whale_bone_graveyard_barrels(ctx, &graveyard_positions, Some((center_x, center_y))) {
             log::warn!("Failed to spawn whale bone graveyard barrels: {}", e);
         }
         
