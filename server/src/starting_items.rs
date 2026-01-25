@@ -35,18 +35,20 @@ pub enum LoadoutType {
     Developer,
     /// Swimming/Water testing: Snorkel, fishing rod, water containers
     Swimming,
-    /// Farming testing: Seeds, compost, fertilizer, water containers
-    Farming,
+    /// Gardener loadout: Seeds, compost, fertilizer, water containers
+    Gardener,
     /// Explosives testing: Babushka's Surprise and Matriarch's Wrath
     Explosives,
     /// Farmer loadout: Tiller, seeds, and farming infrastructure
     Farmer,
     /// NightOwl loadout: All lantern/ward types with fuel for night defense
     NightOwl,
+    /// Fisher loadout: Fishing rods, fish traps, bait, and coastal supplies
+    Fisher,
 }
 
 // ⬇️ CHANGE THIS TO SWITCH LOADOUTS ⬇️
-const ACTIVE_LOADOUT: LoadoutType = LoadoutType::NightOwl;
+const ACTIVE_LOADOUT: LoadoutType = LoadoutType::Basic;
 
 // Configuration flag: Set to false to disable starting equipment (cloth armor)
 const GRANT_STARTING_EQUIPMENT: bool = false;
@@ -237,9 +239,9 @@ fn get_loadout_items(loadout: LoadoutType) -> Vec<(&'static str, u32, Option<u8>
         ],
 
         // ====================================================================
-        // FARMING - Crop cultivation and gardening
+        // GARDENER - Crop cultivation and gardening
         // ====================================================================
-        LoadoutType::Farming => vec![
+        LoadoutType::Gardener => vec![
             // Hotbar - Farming essentials
             ("Combat Ladle", 1, Some(0), None),       // Basic tool
             ("Torch", 1, Some(1), None),
@@ -325,7 +327,7 @@ fn get_loadout_items(loadout: LoadoutType) -> Vec<(&'static str, u32, Option<u8>
             ("Lantern", 1, Some(2), None),                    // Basic lantern
             ("Ancestral Ward", 1, Some(3), None),            // Tier 1 ward (tallow fuel)
             ("Signal Disruptor", 1, Some(4), None),          // Tier 2 ward (battery fuel)
-            ("Memory Resonance Beacon", 1, Some(5), None),   // Tier 3 ward (battery fuel)
+            ("Flashlight", 1, Some(5), None),   // Flashlight for night vision
             // Inventory - Ammo and fuel
             ("9x18mm Round", 2000, None, Some(0)),           // Lots of ammo for SMG/pistol testing
             ("Tallow", 50, None, Some(1)),                    // Fuel for Lantern & Ancestral Ward (2 tallow = 10 min night)
@@ -334,15 +336,27 @@ fn get_loadout_items(loadout: LoadoutType) -> Vec<(&'static str, u32, Option<u8>
             ("Cerametal Field Cauldron Mk. II", 1, None, Some(4)), // Cooking
             ("Bandage", 20, None, Some(5)),                   // Medical supplies
             ("Camp Fire", 2, None, Some(6)),                  // Backup heat/light source
-            // Materials for crafting more fuel if needed
-            ("Metal Fragments", 100, None, Some(7)),         // For crafting Scrap Batteries
-            ("Sulfur", 50, None, Some(8)),                    // For crafting Scrap Batteries
-            ("Charcoal", 50, None, Some(9)),                  // For crafting Scrap Batteries
-            ("Animal Fat", 30, None, Some(10)),                // For crafting Tallow
-            ("Cloth", 20, None, Some(11)),                    // For crafting Tallow
-            ("Flashlight", 1, None, Some(12)),                 // For lighting up the night
-            ("Combat Ladle", 1, None, Some(13)),              // Backup melee weapon
-            ("Torch", 1, None, Some(14)),                      // Backup light source
+        ],
+
+        // ====================================================================
+        // FISHER - Coastal fishing and seafood specialist
+        // ====================================================================
+        LoadoutType::Fisher => vec![
+            // Hotbar - Fishing essentials
+            ("Primitive Reed Fishing Rod", 1, Some(0), None),  // Primary fishing tool
+            ("Fish Trap", 3, Some(1), None),                   // Passive fishing - place on shore
+            ("Bone Gaff Hook", 1, Some(2), None),              // Secondary fishing tool
+            ("Torch", 1, Some(3), None),                       // Light for night fishing
+            ("Reed Water Bottle", 1, Some(4), None),           // Hydration
+            ("Cerametal Field Cauldron Mk. II", 1, Some(5), None), // Cooking fish
+            // Inventory - Bait and coastal supplies
+            ("Raw Herring", 10, None, Some(0)),                // Small fish - use as bait
+            ("Raw Blue Mussel", 10, None, Some(1)),            // Shellfish - use as bait
+            ("Seaweed", 15, None, Some(2)),                    // Edible fishing byproduct
+            ("Raw Crab Meat", 5, None, Some(3)),               // Starter crab meat
+            ("Raw Sea Urchin", 5, None, Some(4)),              // Coastal delicacy
+            ("Camp Fire", 3, None, Some(5)),                   // For cooking catches
+            ("Wooden Storage Box", 3, None, Some(6)),          // Store your catches
         ],
     }
 }

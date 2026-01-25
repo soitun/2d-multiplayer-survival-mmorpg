@@ -2423,6 +2423,44 @@ pub fn spawn_wild_animal(
     Ok(())
 }
 
+/// Debug reducer to spawn a wild animal near the player (for testing)
+/// Takes a species string and spawns the animal at a random offset from the player
+#[spacetimedb::reducer]
+pub fn debug_spawn_animal(ctx: &ReducerContext, species_str: String) -> Result<(), String> {
+    // Parse the species string
+    let species = match species_str.as_str() {
+        "CinderFox" => AnimalSpecies::CinderFox,
+        "TundraWolf" => AnimalSpecies::TundraWolf,
+        "CableViper" => AnimalSpecies::CableViper,
+        "ArcticWalrus" => AnimalSpecies::ArcticWalrus,
+        "BeachCrab" => AnimalSpecies::BeachCrab,
+        "Tern" => AnimalSpecies::Tern,
+        "Crow" => AnimalSpecies::Crow,
+        "Vole" => AnimalSpecies::Vole,
+        "Wolverine" => AnimalSpecies::Wolverine,
+        "Shorebound" => AnimalSpecies::Shorebound,
+        "Shardkin" => AnimalSpecies::Shardkin,
+        "DrownedWatch" => AnimalSpecies::DrownedWatch,
+        _ => return Err(format!("Invalid species: {}. Valid options: CinderFox, TundraWolf, CableViper, ArcticWalrus, BeachCrab, Tern, Crow, Vole, Wolverine, Shorebound, Shardkin, DrownedWatch", species_str)),
+    };
+    
+    // Get the player's position
+    let player = ctx.db.player().identity().find(&ctx.sender)
+        .ok_or_else(|| "Player not found".to_string())?;
+    
+    // Spawn at a random offset from the player (100-200 pixels away)
+    let mut rng = ctx.rng();
+    let angle = rng.gen::<f32>() * std::f32::consts::PI * 2.0;
+    let distance = 100.0 + rng.gen::<f32>() * 100.0;
+    let spawn_x = player.position_x + angle.cos() * distance;
+    let spawn_y = player.position_y + angle.sin() * distance;
+    
+    log::info!("🐾 Debug spawning {:?} near player at ({:.0}, {:.0})", species, spawn_x, spawn_y);
+    
+    // Call the existing spawn function
+    spawn_wild_animal(ctx, species, spawn_x, spawn_y)
+}
+
 /// Internal function to handle animal damage with optional weapon tracking
 /// weapon_name: Optional weapon name for tracking weapon-specific kill achievements
 pub fn damage_wild_animal_with_weapon(

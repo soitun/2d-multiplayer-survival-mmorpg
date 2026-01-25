@@ -14,9 +14,29 @@ interface DebugPanelProps {
     connection: DbConnection | null;
 }
 
+// All spawnable animal/NPC species
+const ANIMAL_SPECIES = [
+    // Wildlife
+    { value: 'CinderFox', label: '🦊 Cinder Fox', category: 'Wildlife' },
+    { value: 'TundraWolf', label: '🐺 Tundra Wolf', category: 'Wildlife' },
+    { value: 'CableViper', label: '🐍 Cable Viper', category: 'Wildlife' },
+    { value: 'ArcticWalrus', label: '🦭 Arctic Walrus', category: 'Wildlife' },
+    { value: 'BeachCrab', label: '🦀 Beach Crab', category: 'Wildlife' },
+    { value: 'Vole', label: '🐭 Vole', category: 'Wildlife' },
+    { value: 'Wolverine', label: '🦡 Wolverine', category: 'Wildlife' },
+    // Birds
+    { value: 'Tern', label: '🐦 Tern', category: 'Birds' },
+    { value: 'Crow', label: '🐦‍⬛ Crow', category: 'Birds' },
+    // Hostile NPCs
+    { value: 'Shorebound', label: '👹 Shorebound', category: 'Hostile NPCs' },
+    { value: 'Shardkin', label: '👾 Shardkin', category: 'Hostile NPCs' },
+    { value: 'DrownedWatch', label: '💀 Drowned Watch', category: 'Hostile NPCs' },
+];
+
 const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connection }) => {
     const { showAutotileDebug, toggleAutotileDebug, showChunkBoundaries, toggleChunkBoundaries, showInteriorDebug, toggleInteriorDebug, showCollisionDebug, toggleCollisionDebug, showAttackRangeDebug, toggleAttackRangeDebug, showYSortDebug, toggleYSortDebug, showShipwreckDebug, toggleShipwreckDebug } = useDebug();
     const [isMinimized, setIsMinimized] = useState(false);
+    const [selectedAnimal, setSelectedAnimal] = useState(ANIMAL_SPECIES[0].value);
 
     const cycleWeather = (direction: 'forward' | 'backward') => {
         const weatherTypes = ['Clear', 'LightRain', 'ModerateRain', 'HeavyRain', 'HeavyStorm'];
@@ -83,6 +103,17 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                 (connection.reducers as any).debugSetSeason(nextSeason);
             } catch (error) {
                 console.warn('Debug season function not available (production build?):', error);
+            }
+        }
+    };
+
+    const spawnAnimal = () => {
+        if (connection && selectedAnimal) {
+            try {
+                (connection.reducers as any).debugSpawnAnimal(selectedAnimal);
+                console.log(`Spawning ${selectedAnimal} near player`);
+            } catch (error) {
+                console.warn('Debug spawn animal function not available (production build?):', error);
             }
         }
     };
@@ -782,6 +813,88 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                         >
                             →
                         </button>
+                    </div>
+
+                    {/* Animal Spawner Section */}
+                    <div style={{
+                        marginTop: '8px',
+                        paddingTop: '8px',
+                        borderTop: '1px solid rgba(0, 212, 255, 0.3)'
+                    }}>
+                        <div style={{
+                            fontSize: '10px',
+                            color: '#00d4ff',
+                            marginBottom: '6px',
+                            textAlign: 'center',
+                            opacity: 0.8
+                        }}>
+                            🐾 SPAWN CREATURE
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                            <select
+                                value={selectedAnimal}
+                                onChange={(e) => setSelectedAnimal(e.target.value)}
+                                onFocus={(e) => e.currentTarget.blur()}
+                                style={{
+                                    flex: 1,
+                                    background: 'linear-gradient(135deg, rgba(30, 40, 60, 0.9), rgba(20, 30, 50, 0.95))',
+                                    color: '#ffffff',
+                                    border: '1px solid rgba(0, 212, 255, 0.4)',
+                                    padding: '6px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '10px',
+                                    cursor: 'pointer',
+                                    fontFamily: 'inherit',
+                                    outline: 'none'
+                                }}
+                            >
+                                <optgroup label="🌲 Wildlife">
+                                    {ANIMAL_SPECIES.filter(a => a.category === 'Wildlife').map(animal => (
+                                        <option key={animal.value} value={animal.value}>{animal.label}</option>
+                                    ))}
+                                </optgroup>
+                                <optgroup label="🐦 Birds">
+                                    {ANIMAL_SPECIES.filter(a => a.category === 'Birds').map(animal => (
+                                        <option key={animal.value} value={animal.value}>{animal.label}</option>
+                                    ))}
+                                </optgroup>
+                                <optgroup label="👹 Hostile NPCs">
+                                    {ANIMAL_SPECIES.filter(a => a.category === 'Hostile NPCs').map(animal => (
+                                        <option key={animal.value} value={animal.value}>{animal.label}</option>
+                                    ))}
+                                </optgroup>
+                            </select>
+                            <button
+                                onClick={(e) => {
+                                    spawnAnimal();
+                                    e.currentTarget.blur();
+                                }}
+                                onFocus={(e) => e.currentTarget.blur()}
+                                style={{
+                                    background: 'linear-gradient(135deg, rgba(255, 100, 100, 0.3), rgba(200, 60, 60, 0.4))',
+                                    color: '#ff6b6b',
+                                    border: '1px solid #ff6b6b',
+                                    padding: '6px 12px',
+                                    borderRadius: '4px',
+                                    fontSize: '10px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    fontFamily: 'inherit',
+                                    textShadow: '0 0 5px #ff6b6b',
+                                    whiteSpace: 'nowrap'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 100, 100, 0.5), rgba(200, 60, 60, 0.6))';
+                                    e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 107, 107, 0.5)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 100, 100, 0.3), rgba(200, 60, 60, 0.4))';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                }}
+                            >
+                                SPAWN
+                            </button>
+                        </div>
                     </div>
                 </>
             )}

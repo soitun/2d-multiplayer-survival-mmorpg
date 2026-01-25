@@ -11,7 +11,7 @@ import DroppableSlot from './DroppableSlot';
 import DraggableItem from './DraggableItem';
 import { PopulatedItem } from './InventoryUI';
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
-import { ContainerType, ContainerEntity, getContainerConfig, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MINE_CART } from '../utils/containerUtils';
+import { ContainerType, ContainerEntity, getContainerConfig, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MINE_CART, BOX_TYPE_COMPOST, BOX_TYPE_FISH_TRAP } from '../utils/containerUtils';
 import { WoodenStorageBox, RangedWeaponStats } from '../generated';
 import { isWaterContainer, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
 import { hasDurabilitySystem, isItemBroken, isFoodItem } from '../utils/durabilityHelpers';
@@ -260,8 +260,11 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
                                         transition: 'height 0.1s linear',
                                     }}
                                     title={`${
-                                        containerType === 'wooden_storage_box' ? 'Fertilizing' : 
-                                        containerType === 'lantern' ? 'Fuel Burn' : 
+                                        containerType === 'wooden_storage_box' 
+                                            ? (containerEntity as WoodenStorageBox)?.boxType === BOX_TYPE_FISH_TRAP 
+                                                ? 'Catching' 
+                                                : 'Fertilizing'
+                                            : containerType === 'lantern' ? 'Fuel Burn' : 
                                         'Cooking'
                                     } Progress: ${Math.round(progress * 100)}%`}
                                 />

@@ -10,6 +10,7 @@ import {
 // These are the PRIMARY source for all animals
 import walrusWalkingSheet from '../../assets/walrus_walking.png';
 import foxWalkingSheet from '../../assets/fox_walking.png';
+import foxWalkingAnimatedSheet from '../../assets/fox_walking_release.png'; // NEW: 4x4 animated spritesheet
 import crabWalkingSheet from '../../assets/crab_walking.png';
 import tundraWolfWalkingSheet from '../../assets/tundra_wolf_walking.png';
 import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
@@ -72,9 +73,28 @@ interface AnimatedSpriteConfig {
     sheetHeight: number;
     frameWidth: number;
     frameHeight: number;
+    cols: number;  // Number of animation frame columns
+    rows: number;  // Number of direction rows
 }
 
 const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
+    // ═══════════════════════════════════════════════════════════════════════════
+    // WILDLIFE ANIMATED SPRITESHEETS
+    // Row order: Down, Right, Left, Up (same as player)
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    // CINDERFOX - Passive wildlife (4x4 layout: 4 frames × 4 directions)
+    // Artist spec: 80x80 per frame → 320x320 total sheet
+    // Renders at: 128x128 (1.6x scale)
+    'CinderFox': {
+        sheetWidth: 320,   // 80px × 4 frames
+        sheetHeight: 320,  // 80px × 4 rows
+        frameWidth: 80,
+        frameHeight: 80,
+        cols: 4,           // 4 animation frames
+        rows: 4,           // 4 directions
+    },
+    
     // ═══════════════════════════════════════════════════════════════════════════
     // HOSTILE NPC ANIMATED SPRITESHEETS (6x4 layout: 6 frames × 4 directions)
     // Row order: Down, Right, Left, Up (same as player)
@@ -88,6 +108,8 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         sheetHeight: 192,  // 48px × 4 rows
         frameWidth: 48,
         frameHeight: 48,
+        cols: 6,           // 6 animation frames
+        rows: 4,           // 4 directions
     },
     
     // SHOREBOUND - Lean stalker, fast predator (uncomment when asset is added)
@@ -98,6 +120,8 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
     //     sheetHeight: 256,  // 64px × 4 rows
     //     frameWidth: 64,
     //     frameHeight: 64,
+    //     cols: 6,
+    //     rows: 4,
     // },
     
     // DROWNED WATCH - Massive brute, heavy boss-type (uncomment when asset is added)
@@ -108,6 +132,8 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
     //     sheetHeight: 384,  // 96px × 4 rows
     //     frameWidth: 96,
     //     frameHeight: 96,
+    //     cols: 6,
+    //     rows: 4,
     // },
 };
 
@@ -144,7 +170,7 @@ const FLYING_FRAME_HEIGHT = Math.floor(FLYING_SPRITE_SHEET_CONFIG.sheetHeight / 
 
 // Map species to their sprite sheets (all animals now have sprite sheets)
 const speciesSpriteSheets: Record<string, string> = {
-    'CinderFox': foxWalkingSheet,
+    'CinderFox': foxWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'TundraWolf': tundraWolfWalkingSheet,
     'CableViper': cableViperWalkingSheet,
     'ArcticWalrus': walrusWalkingSheet,
@@ -360,7 +386,7 @@ function getSpriteSheet(species: AnimalSpecies, isFlying: boolean = false): stri
     return speciesSpriteSheets[species.tag] || foxWalkingSheet; // Fallback to fox
 }
 
-// Get the source rectangle for an ANIMATED sprite (6x4 layout like player)
+// Get the source rectangle for an ANIMATED sprite (supports various layouts like 4x4 or 6x4)
 // Returns sprite frame based on direction, animation frame, and species-specific frame size
 function getAnimatedSpriteSourceRect(
     species: AnimalSpecies,
@@ -373,7 +399,7 @@ function getAnimatedSpriteSourceRect(
         return { sx: 0, sy: 0, sw: 48, sh: 48 };
     }
     
-    const { frameWidth, frameHeight } = config;
+    const { frameWidth, frameHeight, cols } = config;
     
     // Normalize direction to 4-way
     let normalizedDir = direction.toLowerCase();
@@ -395,7 +421,7 @@ function getAnimatedSpriteSourceRect(
     }
     
     const row = ANIMATED_DIRECTION_ROW_MAP[normalizedDir];
-    const col = animationFrame % ANIMATED_SHEET_COLS; // Cycle through animation frames
+    const col = animationFrame % cols; // Cycle through animation frames (using species-specific col count)
     
     return {
         sx: col * frameWidth,
@@ -700,14 +726,15 @@ export function renderWildAnimal({
     
     // Calculate animation frame for animated sprites based on movement
     let calculatedAnimFrame = 0;
-    if (useAnimated && movementState) {
+    if (useAnimated && movementState && animatedConfig) {
         // Check if animal is moving (has significant velocity)
         const velocityMagnitude = Math.sqrt(movementState.velocityX * movementState.velocityX + movementState.velocityY * movementState.velocityY);
         const isMoving = velocityMagnitude > 0.02; // Threshold for "moving"
         
         if (isMoving) {
             // Calculate animation frame based on time for smooth walking cycle
-            calculatedAnimFrame = Math.floor(nowMs / ANIMATED_WALK_FRAME_DURATION_MS) % ANIMATED_SHEET_COLS;
+            // Use species-specific column count for proper animation cycling
+            calculatedAnimFrame = Math.floor(nowMs / ANIMATED_WALK_FRAME_DURATION_MS) % animatedConfig.cols;
         } else {
             // Idle pose - use frame 0 or 1 (neutral stance)
             calculatedAnimFrame = 0;
@@ -982,6 +1009,7 @@ export function preloadWildAnimalImages(): void {
     const spriteSheets = [
         walrusWalkingSheet,
         foxWalkingSheet,
+        foxWalkingAnimatedSheet, // NEW: Animated 4x4 fox spritesheet
         crabWalkingSheet,
         tundraWolfWalkingSheet,
         cableViperWalkingSheet,
