@@ -491,7 +491,7 @@ export function renderAllShipwreckNightLights(
     
     shipwreckParts.forEach((part) => {
         // Only render shipwreck monument parts
-        if (part.monument_type.tag !== 'Shipwreck') {
+        if (part.monumentType.tag !== 'Shipwreck') {
             return;
         }
         
@@ -609,7 +609,7 @@ export function renderAllShipwreckDebugZones(
     
     shipwreckParts.forEach((part) => {
         // Only render shipwreck monument parts
-        if (part.monument_type.tag !== 'Shipwreck') {
+        if (part.monumentType.tag !== 'Shipwreck') {
             return;
         }
         
