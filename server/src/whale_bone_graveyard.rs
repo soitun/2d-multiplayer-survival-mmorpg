@@ -44,9 +44,10 @@ pub const WHALE_BONE_GRAVEYARD_NPC_EXCLUSION_RADIUS: f32 = 1200.0;
 pub const WHALE_BONE_GRAVEYARD_NPC_EXCLUSION_RADIUS_SQ: f32 = WHALE_BONE_GRAVEYARD_NPC_EXCLUSION_RADIUS * WHALE_BONE_GRAVEYARD_NPC_EXCLUSION_RADIUS;
 
 /// Safe zone radius for the whale bone graveyard
-/// Players within this radius are protected from PvP damage (like fishing village)
-pub const WHALE_BONE_GRAVEYARD_SAFE_ZONE_RADIUS: f32 = 600.0;
-pub const WHALE_BONE_GRAVEYARD_SAFE_ZONE_RADIUS_SQ: f32 = WHALE_BONE_GRAVEYARD_SAFE_ZONE_RADIUS * WHALE_BONE_GRAVEYARD_SAFE_ZONE_RADIUS;
+/// NOTE: Safe zone DISABLED - whale bone graveyard is NOT a PvP-protected area
+/// Players can engage in PvP combat here (unlike fishing village)
+pub const WHALE_BONE_GRAVEYARD_SAFE_ZONE_RADIUS: f32 = 0.0; // Disabled
+pub const WHALE_BONE_GRAVEYARD_SAFE_ZONE_RADIUS_SQ: f32 = 0.0; // Disabled
 
 /// Cozy effect radius - players near the hermit's campfire feel cozy
 pub const WHALE_BONE_GRAVEYARD_COZY_RADIUS: f32 = 400.0;
@@ -108,21 +109,11 @@ pub fn is_position_in_whale_bone_graveyard_exclusion_zone(ctx: &ReducerContext, 
 }
 
 /// Check if a position is within the safe zone of the whale bone graveyard
-/// Players within this zone are protected from PvP damage
-pub fn is_position_in_whale_bone_graveyard_safe_zone(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
-    for part in ctx.db.monument_part().iter() {
-        if part.monument_type != MonumentType::WhaleBoneGraveyard || !part.is_center {
-            continue;
-        }
-        let dx = pos_x - part.world_x;
-        let dy = pos_y - part.world_y;
-        let dist_sq = dx * dx + dy * dy;
-        
-        if dist_sq <= WHALE_BONE_GRAVEYARD_SAFE_ZONE_RADIUS_SQ {
-            return true;
-        }
-    }
-    
+/// NOTE: Safe zone DISABLED - whale bone graveyard is NOT a PvP-protected area
+/// Always returns false - players can engage in PvP combat here
+pub fn is_position_in_whale_bone_graveyard_safe_zone(_ctx: &ReducerContext, _pos_x: f32, _pos_y: f32) -> bool {
+    // Safe zone disabled per design decision
+    // The whale bone graveyard is a hostile/mysterious area where PvP is allowed
     false
 }
 

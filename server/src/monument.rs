@@ -503,19 +503,14 @@ pub fn generate_fishing_village(
         // =============================================================================
         // Layout (in local coords where +X is perpendicular to shore, +Y is along shore):
         //
-        //     HUT1 (-350, -350)     HUT3 (0, -500)     HUT2 (+350, -350)   <- INLAND
+        //     HUT1 (-480, -500)     HUT3 (0, -700)     HUT2 (+480, -500)   <- INLAND
         //                                    
-        //     SMOKE1 (-200, -120)  CAMPFIRE (0, 0)   SMOKE2 (+200, -120)
+        //     SMOKE1 (-320, -200)  CAMPFIRE (0, 0)   SMOKE2 (+320, -200)
         //                                    
-        //                              DOCK (0, +220)                    <- WATER
+        //                              DOCK (280, +350)                   <- WATER
         //
         // We rotate these offsets based on water_direction to orient the village
         // =============================================================================
-        
-        // Add center marker at campfire position for zone/safe zone calculations
-        // The functional campfire is spawned via monument placeables - this is just a reference point
-        // Using "center" part_type since the actual campfire entity handles the visual
-        village_parts.push((center_world_x, center_world_y, "".to_string(), "center".to_string()));
         
         log::info!("🏘️ Using grid layout with water direction ({:.2}, {:.2})", 
                    water_direction_x, water_direction_y);
@@ -525,20 +520,22 @@ pub fn generate_fishing_village(
         // Positive offset_along_shore = "right" when facing water
         // NOTE: Campfire is already ON the beach (2-6 tiles from water), so towards_water
         //       offsets need careful tuning - positive values go INTO water!
-        // LAYOUT: Tightened for cohesive village feel with smaller buildings
-        let structure_configs: [(&str, &str, f32, f32); 6] = [
-            // Huts - set back INLAND from campfire (negative = away from water)
-            ("hut", "fv_lodge.png", -380.0, -400.0),    // Inland-left
-            ("hut", "fv_hut2.png", 380.0, -400.0),     // Inland-right
-            ("hut", "fv_hut3.png", 0.0, -580.0),       // Far inland center
+        // LAYOUT: Spread out for spacious village feel with visual campfire at center
+        let structure_configs: [(&str, &str, f32, f32); 7] = [
+            // Campfire - CENTER PIECE - using visual doodad fv_campfire.png
+            ("campfire", "fv_campfire.png", 0.0, 0.0),
             
-            // Smoke racks - closer to campfire, flanking it
-            ("smokerack", "fv_smokerack1.png", -180.0, -100.0),
-            ("smokerack", "fv_smokerack2.png", 180.0, -100.0),
+            // Huts - set back INLAND from campfire (negative = away from water), spread wider
+            ("hut", "fv_lodge.png", -480.0, -500.0),    // Inland-left
+            ("hut", "fv_hut2.png", 480.0, -500.0),     // Inland-right
+            ("hut", "fv_hut3.png", 0.0, -700.0),       // Far inland center
+            
+            // Smoke racks - further from campfire, flanking it with more space
+            ("smokerack", "fv_smokerack1.png", -320.0, -200.0),
+            ("smokerack", "fv_smokerack2.png", 320.0, -200.0),
             
             // Dock - EXTENDING INTO WATER, positioned away from smokeracks
-            // Reduced towards_water offset from 450 to 300 for more reliable placement
-            ("dock", "fv_dock.png", 280.0, 300.0),     // Right of campfire, extending into water
+            ("dock", "fv_dock.png", 280.0, 350.0),     // Right of campfire, extending into water
         ];
         
         // Calculate perpendicular direction (along the shore)
@@ -1681,10 +1678,11 @@ pub fn get_shipwreck_placeables() -> Vec<MonumentPlaceableConfig> {
 }
 
 /// Get monument placeables for the Fishing Village monument
+/// NOTE: No functional campfire - using visual doodad fv_campfire.png instead
 pub fn get_fishing_village_placeables() -> Vec<MonumentPlaceableConfig> {
     vec![
-        // Central campfire - the heart of the fishing village community
-        MonumentPlaceableConfig::campfire(0.0, 0.0),
+        // No placeables - the campfire is now a visual doodad (fv_campfire.png)
+        // This keeps the village purely decorative and allows existing campfires to work
     ]
 }
 

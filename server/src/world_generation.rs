@@ -188,7 +188,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 world_y: *part_y,
                 image_path: image_path.clone(),
                 part_type: part_type.clone(),
-                is_center: *part_type == "center", // Center marker for zone calculations
+                is_center: *part_type == "campfire", // Campfire is the center (visual doodad)
                 collision_radius: 0.0, // NO collision per user request
             });
         }
@@ -207,7 +207,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     // Store whale bone graveyard positions in database table for client access (one-time read, then static)
     // Following compound buildings pattern: client-side rendering, NO collision for walkability
     if let Some((center_x, center_y)) = world_features.whale_bone_graveyard_center {
-        // All parts are stored (ribcage is the center piece)
+        // All parts are stored (hermit hut is the center piece)
         for (part_x, part_y, image_path, part_type) in &world_features.whale_bone_graveyard_parts {
             ctx.db.monument_part().insert(MonumentPart {
                 id: 0, // auto_inc
@@ -216,7 +216,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 world_y: *part_y,
                 image_path: image_path.clone(),
                 part_type: part_type.clone(),
-                is_center: *part_type == "ribcage",
+                is_center: *part_type == "hermit_hut", // Hermit hut is the center of the graveyard
                 collision_radius: 0.0, // NO collision for walkability
             });
         }

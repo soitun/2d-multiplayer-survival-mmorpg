@@ -14,6 +14,7 @@ import foxWalkingSheet from '../../assets/fox_walking.png';
 import foxWalkingAnimatedSheet from '../../assets/fox_walking_release.png'; // NEW: 4x4 animated spritesheet
 import crabWalkingSheet from '../../assets/crab_walking.png';
 import tundraWolfWalkingSheet from '../../assets/tundra_wolf_walking.png';
+import tundraWolfWalkingAnimatedSheet from '../../assets/tundra_wolf_walking_release.png'; // NEW: 4x4 animated spritesheet
 import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
 import ternWalkingSheet from '../../assets/tern_walking.png';
 import crowWalkingSheet from '../../assets/crow_walking.png';
@@ -108,6 +109,18 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         rows: 4,           // 4 directions
     },
     
+    // TUNDRAWOLF - Large predator wildlife (4x4 layout: 4 frames × 4 directions)
+    // Artist spec: 80x80 per frame → 320x320 total sheet
+    // Renders at: 128x128 (1.6x scale)
+    'TundraWolf': {
+        sheetWidth: 320,   // 80px × 4 frames
+        sheetHeight: 320,  // 80px × 4 rows
+        frameWidth: 80,
+        frameHeight: 80,
+        cols: 4,           // 4 animation frames
+        rows: 4,           // 4 directions
+    },
+    
     // ═══════════════════════════════════════════════════════════════════════════
     // HOSTILE NPC ANIMATED SPRITESHEETS (6x4 layout: 6 frames × 4 directions)
     // Row order: Down, Right, Left, Up (same as player)
@@ -184,7 +197,7 @@ const FLYING_FRAME_HEIGHT = Math.floor(FLYING_SPRITE_SHEET_CONFIG.sheetHeight / 
 // Map species to their sprite sheets (all animals now have sprite sheets)
 const speciesSpriteSheets: Record<string, string> = {
     'CinderFox': foxWalkingAnimatedSheet, // Use animated 4x4 spritesheet
-    'TundraWolf': tundraWolfWalkingSheet,
+    'TundraWolf': tundraWolfWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'CableViper': cableViperWalkingSheet,
     'ArcticWalrus': walrusWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'BeachCrab': crabWalkingSheet,
@@ -1026,6 +1039,7 @@ export function preloadWildAnimalImages(): void {
         foxWalkingAnimatedSheet, // NEW: Animated 4x4 fox spritesheet
         crabWalkingSheet,
         tundraWolfWalkingSheet,
+        tundraWolfWalkingAnimatedSheet, // NEW: Animated 4x4 tundra wolf spritesheet
         cableViperWalkingSheet,
         ternWalkingSheet,
         crowWalkingSheet,

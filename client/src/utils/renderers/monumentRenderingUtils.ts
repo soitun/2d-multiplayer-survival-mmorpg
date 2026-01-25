@@ -73,7 +73,7 @@ export function preloadMonumentImages(): void {
     loadImage('hull7.png', import('../../assets/doodads/hull7.png?url'));
     
     // Fishing village monument images (Aleut-style village)
-    // Note: Campfire is a functional monument placeable, not a visual doodad
+    loadImage('fv_campfire.png', import('../../assets/doodads/fv_campfire.png?url')); // Visual campfire at center
     loadImage('fv_lodge.png', import('../../assets/doodads/fv_lodge.png?url'));
     loadImage('fv_hut2.png', import('../../assets/doodads/fv_hut2.png?url'));
     loadImage('fv_hut3.png', import('../../assets/doodads/fv_hut3.png?url'));
@@ -124,7 +124,7 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             'hull7.png': () => import('../../assets/doodads/hull7.png?url'),
             
             // Fishing village monument images (Aleut-style village)
-            // Note: Campfire is a functional monument placeable, not a visual doodad
+            'fv_campfire.png': () => import('../../assets/doodads/fv_campfire.png?url'), // Visual campfire at center
             'fv_lodge.png': () => import('../../assets/doodads/fv_lodge.png?url'),
             'fv_hut2.png': () => import('../../assets/doodads/fv_hut2.png?url'),
             'fv_hut3.png': () => import('../../assets/doodads/fv_hut3.png?url'),
