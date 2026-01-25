@@ -8,7 +8,7 @@
  * AAA quality pixel art style inspired by Sea of Stars / Hyper Light Drifter.
  */
 
-import { ShipwreckPart } from '../../generated';
+import { MonumentPart, MonumentType } from '../../generated';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // NIGHT LIGHTING CONFIGURATION - EERIE SHIPWRECK ATMOSPHERE
@@ -85,7 +85,7 @@ interface RisingParticle {
  * Generate deterministic particle data for a shipwreck part
  */
 function generateRisingParticles(
-    part: ShipwreckPart,
+    part: MonumentPart,
     nowMs: number
 ): RisingParticle[] {
     const particles: RisingParticle[] = [];
@@ -142,7 +142,7 @@ function lerpColor(
  */
 function renderGroundLightPool(
     ctx: CanvasRenderingContext2D,
-    part: ShipwreckPart,
+    part: MonumentPart,
     cameraOffsetX: number,
     cameraOffsetY: number,
     nowMs: number,
@@ -191,7 +191,7 @@ function renderGroundLightPool(
  */
 function renderRisingParticles(
     ctx: CanvasRenderingContext2D,
-    part: ShipwreckPart,
+    part: MonumentPart,
     cycleProgress: number,
     cameraOffsetX: number,
     cameraOffsetY: number,
@@ -317,7 +317,7 @@ function renderRisingParticles(
  */
 export function renderShipwreckNightLight(
     ctx: CanvasRenderingContext2D,
-    part: ShipwreckPart,
+    part: MonumentPart,
     cycleProgress: number,
     cameraOffsetX: number,
     cameraOffsetY: number,
@@ -472,7 +472,7 @@ export function renderShipwreckNightLight(
  */
 export function renderAllShipwreckNightLights(
     ctx: CanvasRenderingContext2D,
-    shipwreckParts: Map<string, ShipwreckPart>,
+    shipwreckParts: Map<string, MonumentPart>,
     cycleProgress: number,
     cameraOffsetX: number,
     cameraOffsetY: number,
@@ -490,6 +490,11 @@ export function renderAllShipwreckNightLights(
     const buffer = NIGHT_LIGHT_RADIUS * 1.5;
     
     shipwreckParts.forEach((part) => {
+        // Only render shipwreck monument parts
+        if (part.monument_type.tag !== 'Shipwreck') {
+            return;
+        }
+        
         // Viewport culling with buffer for light radius
         if (part.worldX + buffer < viewMinX || part.worldX - buffer > viewMaxX ||
             part.worldY + buffer < viewMinY || part.worldY - buffer > viewMaxY) {
@@ -510,7 +515,7 @@ export function renderAllShipwreckNightLights(
  */
 export function renderShipwreckDebugZone(
     ctx: CanvasRenderingContext2D,
-    part: ShipwreckPart,
+    part: MonumentPart,
     cameraOffsetX: number,
     cameraOffsetY: number
 ): void {
@@ -592,7 +597,7 @@ export function renderShipwreckDebugZone(
  */
 export function renderAllShipwreckDebugZones(
     ctx: CanvasRenderingContext2D,
-    shipwreckParts: Map<string, ShipwreckPart>,
+    shipwreckParts: Map<string, MonumentPart>,
     cameraOffsetX: number,
     cameraOffsetY: number,
     viewMinX: number,
@@ -603,6 +608,11 @@ export function renderAllShipwreckDebugZones(
     const buffer = PROTECTION_INDICATOR_RADIUS + 100;
     
     shipwreckParts.forEach((part) => {
+        // Only render shipwreck monument parts
+        if (part.monument_type.tag !== 'Shipwreck') {
+            return;
+        }
+        
         // Viewport culling
         if (part.worldX + buffer < viewMinX || part.worldX - buffer > viewMaxX ||
             part.worldY + buffer < viewMinY || part.worldY - buffer > viewMaxY) {
