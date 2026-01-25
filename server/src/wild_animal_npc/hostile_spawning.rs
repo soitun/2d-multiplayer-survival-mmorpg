@@ -41,6 +41,8 @@ use super::core::{
 // Table trait imports
 use crate::player as PlayerTableTrait;
 use crate::active_connection as ActiveConnectionTableTrait;
+use crate::items::{inventory_item as InventoryItemTableTrait, item_definition as ItemDefinitionTableTrait, ItemCategory};
+use crate::models::ItemLocation;
 
 // Settlement intensity table imports
 use crate::planted_seeds::planted_seed as PlantedSeedTableTrait;
@@ -142,6 +144,33 @@ const MAX_FOUNDATION_VALUE: f32 = 10.0;   // Cap foundation contribution to avoi
 // Settlement value thresholds
 const SETTLEMENT_VALUE_FOR_BASELINE: f32 = 20.0;  // This much value = 1.0x multiplier
 const SETTLEMENT_VALUE_FOR_MAX: f32 = 100.0;      // This much value = max multiplier
+
+// ============================================================================
+// COMBAT READINESS SYSTEM - Scales spawn rates based on weapon power
+// ============================================================================
+// Tracks player weapon power to adjust hostile spawn rates appropriately.
+// New players with basic weapons (Combat Ladle) get reduced spawn rates,
+// while players with high-tier weapons face increased challenge.
+//
+// Anti-gaming mechanisms:
+// - Peak power memory persists even if weapons are dropped
+// - Slow decay rate (hours) prevents instant reset
+// - Comprehensive scanning of inventory/hotbar/equipped items
+// ============================================================================
+
+// Combat readiness constants
+const COMBAT_READINESS_DECAY_HALF_LIFE_HOURS: f32 = 2.0; // Peak power halves every 2 hours
+const PEAK_RETENTION_FACTOR: f32 = 0.7;  // Dropped items still count at 70% of peak
+const MIN_COMBAT_MULTIPLIER: f32 = 0.4;  // New players get 60% fewer spawns
+const MAX_COMBAT_MULTIPLIER: f32 = 1.2;  // Geared players get 20% more spawns
+const BASELINE_COMBAT_SCORE: f32 = 35.0; // Score for 1.0x multiplier
+
+// Weapon power tiers (based on pvp_damage_max)
+// Tier 0: 0-10 damage → Power: 0-5 (Combat Ladle, Rock, Torch)
+// Tier 1: 11-25 damage → Power: 10-25 (Stone tools, Bone weapons)
+// Tier 2: 26-40 damage → Power: 30-50 (Spears, Bush Knife, Skulls)
+// Tier 3: 41-60 damage → Power: 55-75 (Battle Axe, War Hammer, Military weapons)
+// Tier 4: Ranged weapons → Power: 60-100 (based on damage + magazine capacity)
 
 // ============================================================================
 // NIGHT PHASE SYSTEM - Creates tension arc through the night
@@ -604,6 +633,187 @@ fn count_nearby_players(ctx: &ReducerContext, player_x: f32, player_y: f32, excl
         .count()
 }
 
+// ============================================================================
+// COMBAT READINESS CALCULATION FUNCTIONS
+// ============================================================================
+
+/// Calculate weapon power score from pvp_damage_max
+/// Returns a power score (0.0-100.0) based on weapon tier
+fn calculate_weapon_power(item_def: &crate::items::ItemDefinition) -> f32 {
+    let damage_max = item_def.pvp_damage_max.unwrap_or(0);
+    
+    // Tier 0: 0-10 damage → Power: 0-5 (Combat Ladle, Rock, Torch)
+    if damage_max <= 10 {
+        return (damage_max as f32 / 10.0) * 5.0;
+    }
+    
+    // Tier 1: 11-25 damage → Power: 10-25 (Stone tools, Bone weapons)
+    if damage_max <= 25 {
+        return 10.0 + ((damage_max - 11) as f32 / 14.0) * 15.0;
+    }
+    
+    // Tier 2: 26-40 damage → Power: 30-50 (Spears, Bush Knife, Skulls)
+    if damage_max <= 40 {
+        return 30.0 + ((damage_max - 26) as f32 / 14.0) * 20.0;
+    }
+    
+    // Tier 3: 41-60 damage → Power: 55-75 (Battle Axe, War Hammer, Military weapons)
+    if damage_max <= 60 {
+        return 55.0 + ((damage_max - 41) as f32 / 19.0) * 20.0;
+    }
+    
+    // Tier 4+: 61+ damage → Power: 75-100 (Highest tier weapons)
+    return 75.0 + ((damage_max - 61).min(39) as f32 / 39.0) * 25.0;
+}
+
+/// Calculate weapon power for ranged weapons (considers damage + magazine capacity)
+/// Ranged weapons get bonus power based on their effectiveness
+fn calculate_ranged_weapon_power(item_def: &crate::items::ItemDefinition) -> f32 {
+    let damage_max = item_def.pvp_damage_max.unwrap_or(0);
+    
+    // Base power from damage (similar to melee tiers)
+    let base_power = if damage_max <= 50 {
+        40.0 + (damage_max as f32 / 50.0) * 20.0  // 40-60 for low-mid ranged
+    } else {
+        60.0 + ((damage_max - 50).min(50) as f32 / 50.0) * 40.0  // 60-100 for high ranged
+    };
+    
+    // Bonus for ranged weapons (they're more effective than melee)
+    // Crossbow (78-95) gets ~85 power, Hunting Bow (42-52) gets ~55 power
+    base_power
+}
+
+/// Scan player's inventory, hotbar, and equipped items for weapons
+/// Returns the sum of top 2-3 weapon powers (to account for backup weapons)
+fn scan_player_weapons(ctx: &ReducerContext, player_id: &spacetimedb::Identity) -> f32 {
+    let mut weapon_powers: Vec<f32> = Vec::new();
+    
+    // Scan all inventory items owned by this player
+    for item in ctx.db.inventory_item().iter() {
+        // Check if item belongs to this player
+        let is_player_item = match &item.location {
+            ItemLocation::Inventory(data) => data.owner_id == *player_id,
+            ItemLocation::Hotbar(data) => data.owner_id == *player_id,
+            ItemLocation::Equipped(data) => data.owner_id == *player_id,
+            _ => false,
+        };
+        
+        if !is_player_item {
+            continue;
+        }
+        
+        // Get item definition
+        if let Some(item_def) = ctx.db.item_definition().id().find(&item.item_def_id) {
+            // Check if it's a weapon
+            let is_weapon = item_def.category == ItemCategory::Weapon || 
+                           item_def.category == ItemCategory::RangedWeapon;
+            
+            if is_weapon && (item_def.pvp_damage_min.is_some() || item_def.pvp_damage_max.is_some()) {
+                let power = if item_def.category == ItemCategory::RangedWeapon {
+                    calculate_ranged_weapon_power(&item_def)
+                } else {
+                    calculate_weapon_power(&item_def)
+                };
+                
+                // Add power for each quantity (stacked weapons count)
+                for _ in 0..item.quantity.min(3) {  // Cap at 3 per stack to avoid abuse
+                    weapon_powers.push(power);
+                }
+            }
+        }
+    }
+    
+    // Sort by power (descending) and take top 3 weapons
+    weapon_powers.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+    
+    // Sum top 3 weapons (allows for primary + backup + ranged)
+    weapon_powers.iter().take(3).sum()
+}
+
+/// Get or create combat readiness state for a player
+fn get_or_create_readiness(
+    ctx: &ReducerContext,
+    player_id: &spacetimedb::Identity,
+    current_time: Timestamp,
+) -> PlayerCombatReadiness {
+    if let Some(mut state) = ctx.db.player_combat_readiness().player_identity().find(player_id) {
+        state
+    } else {
+        // Create new state
+        let new_state = PlayerCombatReadiness {
+            player_identity: *player_id,
+            peak_weapon_power: 0.0,
+            current_weapon_power: 0.0,
+            combat_readiness_score: 0.0,
+            last_update: current_time,
+        };
+        ctx.db.player_combat_readiness().insert(new_state.clone());
+        new_state
+    }
+}
+
+/// Calculate combat readiness score with peak tracking and decay
+/// Returns a score from 0.0-100.0 that represents player combat capability
+pub fn calculate_combat_readiness(
+    ctx: &ReducerContext,
+    player_id: &spacetimedb::Identity,
+    current_time: Timestamp,
+) -> f32 {
+    // Scan current weapons
+    let current_power = scan_player_weapons(ctx, player_id);
+    
+    // Get or create readiness state
+    let mut state = get_or_create_readiness(ctx, player_id, current_time);
+    
+    // Update peak (only goes up, decays separately)
+    if current_power > state.peak_weapon_power {
+        state.peak_weapon_power = current_power;
+    }
+    
+    // Apply time-based decay to peak (halves every COMBAT_READINESS_DECAY_HALF_LIFE_HOURS)
+    let time_diff_us = current_time.to_micros_since_unix_epoch() - state.last_update.to_micros_since_unix_epoch();
+    let hours_elapsed = (time_diff_us as f32) / (3_600_000_000.0); // Convert microseconds to hours
+    
+    if hours_elapsed > 0.0 {
+        let decay_factor = 0.5_f32.powf(hours_elapsed / COMBAT_READINESS_DECAY_HALF_LIFE_HOURS);
+        state.peak_weapon_power *= decay_factor;
+    }
+    
+    // Final score = max(current_power, peak_weapon_power * PEAK_RETENTION_FACTOR)
+    // This means dropping items still leaves you at ~70% of your peak
+    let score = current_power.max(state.peak_weapon_power * PEAK_RETENTION_FACTOR);
+    let final_score = score.clamp(0.0, 100.0);
+    
+    // Update state
+    state.current_weapon_power = current_power;
+    state.combat_readiness_score = final_score;
+    state.last_update = current_time;
+    
+    // Update or insert the state
+    if ctx.db.player_combat_readiness().player_identity().find(player_id).is_some() {
+        ctx.db.player_combat_readiness().player_identity().update(state);
+    } else {
+        ctx.db.player_combat_readiness().insert(state);
+    }
+    
+    final_score
+}
+
+/// Calculate combat multiplier from combat readiness score
+/// Returns a multiplier from MIN_COMBAT_MULTIPLIER to MAX_COMBAT_MULTIPLIER
+fn calculate_combat_multiplier(combat_score: f32) -> f32 {
+    if combat_score < 20.0 {
+        // Score 0-20: New player protection (0.4x - 0.6x)
+        MIN_COMBAT_MULTIPLIER + (combat_score / 20.0) * 0.2
+    } else if combat_score < 50.0 {
+        // Score 20-50: Normal gameplay (0.6x - 1.0x)
+        0.6 + ((combat_score - 20.0) / 30.0) * 0.4
+    } else {
+        // Score 50-100: Experienced player (1.0x - 1.2x)
+        1.0 + ((combat_score - 50.0) / 50.0) * 0.2
+    }
+}
+
 // --- Player Camping Tracker Table ---
 // Tracks player positions and when they started being stationary
 #[table(name = player_camping_state, public)]
@@ -613,6 +823,19 @@ pub struct PlayerCampingState {
     pub last_known_x: f32,
     pub last_known_y: f32,
     pub stationary_since: Timestamp,
+}
+
+// --- Player Combat Readiness Table ---
+// Tracks weapon power to scale hostile spawn rates appropriately
+#[table(name = player_combat_readiness, public)]
+#[derive(Clone)]
+pub struct PlayerCombatReadiness {
+    #[primary_key]
+    pub player_identity: spacetimedb::Identity,
+    pub peak_weapon_power: f32,      // Highest weapon power ever held (decays slowly)
+    pub current_weapon_power: f32,   // Current weapons in possession
+    pub combat_readiness_score: f32, // Final calculated score (0.0-100.0)
+    pub last_update: Timestamp,
 }
 
 // --- Schedule Tables ---
@@ -894,6 +1117,10 @@ fn try_spawn_hostiles_for_player(
         return;
     }
     
+    // Calculate combat readiness and multiplier
+    let combat_score = calculate_combat_readiness(ctx, &player.identity, current_time);
+    let combat_multiplier = calculate_combat_multiplier(combat_score);
+    
     // Get phase-based spawn multipliers for dynamic night tension
     let (shorebound_mult, shardkin_mult, drowned_mult) = night_phase.get_spawn_multipliers();
     
@@ -905,6 +1132,7 @@ fn try_spawn_hostiles_for_player(
     // 2. Camping status (being stationary increases pressure)
     // 3. Settlement intensity (more civilization = more apparition attention)
     // 4. Memory Beacon attraction (monster farming tool - massively increases spawns!)
+    // 5. Combat readiness (weapon power - new players get reduced spawns, geared players get more)
     // 
     // NOTE: Protective wards (Ancestral Ward, Signal Disruptor) create hard deterrence zones.
     // Memory Beacons are the OPPOSITE - they ATTRACT hostiles for farming!
@@ -916,12 +1144,16 @@ fn try_spawn_hostiles_for_player(
                   beacon_attraction_multiplier, player.identity);
     }
     
+    // Log combat readiness for debugging
+    log::debug!("⚔️ [CombatReadiness] Player {:?} - Score: {:.1}, Multiplier: {:.2}x", 
+               player.identity, combat_score, combat_multiplier);
+    
     // 1. Try Shorebound (stalker) - Primary threat, scouts early, pressures throughout
-    // Base: 55% chance, modified by phase, camping, settlement intensity, and beacon attraction
+    // Base: 55% chance, modified by phase, camping, settlement intensity, beacon attraction, and combat readiness
     if shorebound_count < MAX_SHOREBOUND_NEAR_PLAYER && total_hostiles < effective_cap {
         let base_chance = 0.55;
         let camping_bonus = if is_camping { 0.15 } else { 0.0 };
-        let final_chance = (base_chance + camping_bonus) * shorebound_mult * settlement_multiplier * beacon_attraction_multiplier;
+        let final_chance = (base_chance + camping_bonus) * shorebound_mult * settlement_multiplier * beacon_attraction_multiplier * combat_multiplier;
         
         if rng.gen::<f32>() < final_chance {
             if let Some((x, y)) = find_spawn_position(ctx, player_x, player_y, RING_B_MIN_PX, RING_B_MAX_PX, rng) {
@@ -932,7 +1164,7 @@ fn try_spawn_hostiles_for_player(
     }
     
     // 2. Try Shardkin (swarmer) - Swarms emerge mid-night, peak during desperate hour
-    // Base: 40% chance, modified by phase, camping, settlement intensity, and beacon attraction
+    // Base: 40% chance, modified by phase, camping, settlement intensity, beacon attraction, and combat readiness
     let effective_shardkin_cap = if beacon_attraction_multiplier > 1.0 {
         MAX_SHARDKIN_NEAR_PLAYER + 4  // More swarmers when farming
     } else {
@@ -941,7 +1173,7 @@ fn try_spawn_hostiles_for_player(
     if shardkin_count < effective_shardkin_cap && total_hostiles + 1 < effective_cap {
         let base_chance = 0.40;
         let camping_bonus = if is_camping { 0.20 } else { 0.0 };
-        let final_chance = (base_chance + camping_bonus) * shardkin_mult * settlement_multiplier * beacon_attraction_multiplier;
+        let final_chance = (base_chance + camping_bonus) * shardkin_mult * settlement_multiplier * beacon_attraction_multiplier * combat_multiplier;
         
         if rng.gen::<f32>() < final_chance {
             // Group size scales with phase - bigger swarms later in night
@@ -987,7 +1219,7 @@ fn try_spawn_hostiles_for_player(
     }
     
     // 3. Try Drowned Watch (brute) - Only emerges late night, terrifying finale
-    // Base: 15% chance, modified by phase, camping, settlement intensity, and beacon attraction
+    // Base: 15% chance, modified by phase, camping, settlement intensity, beacon attraction, and combat readiness
     // Camping bonus: +20% - large settlements attract the big ones!
     // Memory Beacon doubles Drowned Watch cap for serious farming
     let effective_drowned_cap = if beacon_attraction_multiplier > 1.0 {
@@ -998,7 +1230,7 @@ fn try_spawn_hostiles_for_player(
     if drowned_watch_count < effective_drowned_cap && total_hostiles + 1 <= effective_cap {
         let base_chance = 0.15;
         let camping_bonus = if is_camping { 0.20 } else { 0.0 };
-        let final_chance = (base_chance + camping_bonus) * drowned_mult * settlement_multiplier * beacon_attraction_multiplier;
+        let final_chance = (base_chance + camping_bonus) * drowned_mult * settlement_multiplier * beacon_attraction_multiplier * combat_multiplier;
         
         if rng.gen::<f32>() < final_chance {
             if let Some((x, y)) = find_spawn_position(ctx, player_x, player_y, RING_C_MIN_PX, RING_C_MAX_PX, rng) {
