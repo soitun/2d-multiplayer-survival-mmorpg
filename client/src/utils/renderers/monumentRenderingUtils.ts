@@ -373,22 +373,26 @@ export function renderMonument(
     // (since drawY = worldY - height + anchorYOffset, sprite bottom = drawY + height = worldY + anchorYOffset)
     // So we need to adjust entityBaseY to the visual base, or use negative pivotYOffset
     // Using negative pivotYOffset to move shadow pivot DOWN to match sprite visual base
-    drawDynamicGroundShadow({
-        ctx,
-        entityImage: img,
-        entityCenterX: worldX,
-        entityBaseY: worldY,
-        imageDrawWidth: building.width,
-        imageDrawHeight: building.height,
-        cycleProgress,
-        maxShadowAlpha: building.id.startsWith('guardpost') ? 0.4 : 0.5, // Lighter shadows for guardposts (light poles)
-        maxStretchFactor: building.id.startsWith('guardpost') ? 1.8 : 2.0, // Smaller stretch for guardposts
-        minStretchFactor: 0.2,
-        // Guardposts are perfect with +10, secondary buildings need more upward offset (+30) to push shadow up
-        pivotYOffset: building.id.startsWith('guardpost') 
-            ? -building.anchorYOffset + 10  // Guardposts: perfect offset
-            : -building.anchorYOffset + 50,  // Secondary buildings: push shadow up more
-    });
+    // SKIP shadow for flat ground objects like hv_storage.png (it's lying flat on the ground)
+    const isFlat = building.imagePath === 'hv_storage.png';
+    if (!isFlat) {
+        drawDynamicGroundShadow({
+            ctx,
+            entityImage: img,
+            entityCenterX: worldX,
+            entityBaseY: worldY,
+            imageDrawWidth: building.width,
+            imageDrawHeight: building.height,
+            cycleProgress,
+            maxShadowAlpha: building.id.startsWith('guardpost') ? 0.4 : 0.5, // Lighter shadows for guardposts (light poles)
+            maxStretchFactor: building.id.startsWith('guardpost') ? 1.8 : 2.0, // Smaller stretch for guardposts
+            minStretchFactor: 0.2,
+            // Guardposts are perfect with +10, secondary buildings need more upward offset (+30) to push shadow up
+            pivotYOffset: building.id.startsWith('guardpost') 
+                ? -building.anchorYOffset + 10  // Guardposts: perfect offset
+                : -building.anchorYOffset + 50,  // Secondary buildings: push shadow up more
+        });
+    }
     
     // Apply transparency if needed
     if (shouldApplyTransparency) {

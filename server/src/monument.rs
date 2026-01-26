@@ -1002,39 +1002,40 @@ pub fn generate_hunting_village(
         // =============================================================================
         // HUNTING VILLAGE LAYOUT
         // =============================================================================
-        // The main lodge is the center of the village, with huts, campfire, and
-        // utility structures arranged around it in a clearing.
+        // Semi-circle arrangement around the central campfire as the focal point.
+        // The lodge is the center piece (for zone calculations), with huts forming
+        // a protective semi-circle to the north. Utility structures near campfire.
         //
         // Layout (in local coords):
         //
-        //              HUT3 (0, -500)                              <- NORTH
-        //     HUT1 (-400, -300)         HUT2 (+400, -300)
+        //                    HUT3 (0, -500)                        <- FAR NORTH (back of semi-circle)
+        //     HUT1 (-520, -280)               HUT2 (+520, -280)    <- NW/NE flanks
         //                                    
-        //     DRYING_RACK (-350, -50)  LODGE (0, 0)   STORAGE (+350, -50)  <- CENTER
+        //                    LODGE (0, 0)                          <- CENTER (zone anchor)
         //                                    
-        //                        CAMPFIRE (0, +250)                <- SOUTH
+        //     DRYING_RACK (-200, +130)  STORAGE (+200, +130)       <- NEAR CAMPFIRE (flanking)
+        //                    CAMPFIRE (0, +180)                    <- SOUTH (visual focal point)
         //
-        // Note: Tree ring will be spawned around the village during world generation
+        // The semi-circle opens to the south, creating a cozy gathering space
+        // around the campfire. Tree ring spawned during world generation.
         // =============================================================================
         
         // Structure definitions: (part_type, image_name, offset_x, offset_y)
         let structure_configs: [(&str, &str, f32, f32); 7] = [
-            // Main lodge - CENTER PIECE - the heart of the hunting village
+            // Main lodge - CENTER PIECE - the heart of the hunting village (zone anchor)
             ("lodge", "hv_lodge.png", 0.0, 0.0),
             
-            // Hunting huts - arranged in a semicircle to the north
-            ("hut", "hv_hut1.png", -400.0, -300.0),
-            ("hut", "hv_hut2.png", 400.0, -300.0),
-            ("hut", "hv_hut3.png", 0.0, -500.0),
+            // Hunting huts - arranged in a semi-circle to the north (spread out more)
+            ("hut", "hv_hut1.png", -520.0, -280.0),  // Northwest flank
+            ("hut", "hv_hut2.png", 520.0, -280.0),   // Northeast flank
+            ("hut", "hv_hut3.png", 0.0, -500.0),     // Far north (back of semi-circle)
             
-            // Campfire - south of the lodge (using fishing village asset)
-            ("campfire", "fv_campfire.png", 0.0, 250.0),
+            // Campfire - south of lodge, the visual focal point of the gathering space
+            ("campfire", "fv_campfire.png", 0.0, 180.0),
             
-            // Drying rack for pelts and meat - west of lodge
-            ("drying_rack", "hv_drying_rack.png", -350.0, -50.0),
-            
-            // Outdoor storage - east of lodge
-            ("storage", "hv_storage.png", 350.0, -50.0),
+            // Utility structures - flanking the campfire, easily accessible
+            ("drying_rack", "hv_drying_rack.png", -200.0, 130.0),   // West of campfire
+            ("storage", "hv_storage.png", 200.0, 130.0),            // East of campfire
         ];
         
         for (part_type, image_name, offset_x, offset_y) in structure_configs.iter() {

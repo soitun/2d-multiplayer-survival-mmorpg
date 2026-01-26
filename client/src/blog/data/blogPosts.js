@@ -1,4 +1,5 @@
 // Import all blog posts
+import brothBulletsJanuary2026Update from './posts/broth-bullets-january-2026-update';
 import brothBulletsAlphaLaunch from './posts/broth-bullets-alpha-launch';
 import spacetimedbRevolution from './posts/spacetimedb-revolution';
 import proceduralWorldGeneration from './posts/procedural-world-generation';
@@ -25,6 +26,8 @@ import brothBulletsCookingSystemEmergentGameplay from './posts/broth-bullets-coo
 
 // Export posts as an array, sorted by date (newest first)
 export const blogPosts = [
+  // January 2026 Posts
+  brothBulletsJanuary2026Update, // January 26, 2026 - Development Update
   // December 2025 Posts
   diegeticUiDesignSova, // December 12, 2025 - Diegetic UI and SOVA
   // AI SEO Optimized Posts - Broth Bullets Focused (November 17, 2025)
