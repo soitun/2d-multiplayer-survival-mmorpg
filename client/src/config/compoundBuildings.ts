@@ -568,7 +568,6 @@ const MONUMENT_PART_SIZES: Record<string, { width: number; height: number }> = {
   // Hunting Village parts
   'lodge': { width: 512, height: 512 },
   'drying_rack': { width: 320, height: 320 },
-  'storage': { width: 320, height: 320 },
   
   // Default fallback
   'default': { width: 512, height: 512 },

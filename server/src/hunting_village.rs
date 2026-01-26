@@ -15,7 +15,6 @@
 // - hv_hut3.png: Small hunting hut (variant)
 // - fv_campfire.png: Campfire (reusing fishing village asset)
 // - hv_drying_rack.png: Drying rack for pelts and meat
-// - hv_storage.png: Outdoor storage structure
 // ------------------------------------
 
 use crate::ReducerContext;
