@@ -1,0 +1,67 @@
+Broth & Bullets
+Copyright 2025 Martin Erlic
+
+This product includes software developed by Martin Erlic.
+
+================================================================================
+
+INTELLECTUAL PROPERTY NOTICE
+
+The source code in this repository is licensed under the Apache License 2.0.
+However, the following elements remain the exclusive intellectual property of
+Martin Erlic and are NOT covered by the Apache 2.0 license:
+
+TRADEMARKS & BRANDING
+---------------------
+- "Broth & Bullets" name and all associated branding
+- Game logos, wordmarks, and visual identity
+- Marketing materials and promotional content
+
+CREATIVE CONTENT
+----------------
+- Story, lore, and narrative content
+- Original character designs and backstories
+- World-building elements and setting details
+- Quest content and dialogue
+
+PROTECTED ASSETS
+----------------
+- Hand-crafted pixel art and sprites (non-AI generated)
+- Main player character sprite and animations
+- Custom character designs
+- Original music and sound effects
+- Any assets specifically created for Broth & Bullets
+
+AI-GENERATED ASSETS
+-------------------
+AI-generated assets (created using tools like GPT-4o, retrodiffusion.ai, etc.)
+included in this repository may be used freely under the Apache 2.0 license,
+as they do not constitute original creative works with copyright protection.
+
+WHAT THIS MEANS FOR YOU
+-----------------------
+✅ You CAN freely use, modify, and distribute the SOURCE CODE
+✅ You CAN use AI-generated assets and generic game systems
+✅ You CAN build your own game using this codebase as a foundation
+✅ You CAN run private servers for experimentation and learning
+
+❌ You CANNOT use "Broth & Bullets" name or branding commercially
+❌ You CANNOT present derivative works as official Broth & Bullets
+❌ You CANNOT use original character designs without permission
+❌ You CANNOT operate competing Broth & Bullets servers
+❌ You CANNOT redistribute protected assets separately from the code
+
+THIRD-PARTY COMPONENTS
+----------------------
+This project uses the following third-party components:
+
+- SpacetimeDB (https://spacetimedb.com) - Business Source License / Apache 2.0
+- React (https://reactjs.org) - MIT License
+- Vite (https://vitejs.dev) - MIT License
+- OpenAuthJS (https://openauth.js.org) - MIT License
+- Kokoro TTS - Apache 2.0 License
+
+For licensing inquiries regarding Broth & Bullets intellectual property,
+please contact Martin Erlic.
+
+================================================================================

@@ -2,7 +2,7 @@
 
 # 2D Multiplayer Survival MMORPG Starter Pack
 
-![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
 ![React](https://img.shields.io/badge/React-19-blue.svg)
 ![Vite](https://img.shields.io/badge/Vite-6-purple.svg)
 ![SpacetimeDB](https://img.shields.io/badge/SpacetimeDB-latest-orange.svg)
@@ -615,7 +615,9 @@ vibe-coding-starter-pack-2d-survival/
 ├── github.png            # Banner image
 ├── guide.mdc             # Development guide (Cursor rules)
 ├── index.html            # Root HTML file
-├── LICENSE               # MIT License
+├── CONTRIBUTING.md       # Contribution guidelines
+├── LICENSE               # Apache 2.0 License
+├── NOTICE                # IP and attribution notices
 ├── package.json          # Root package.json with client scripts
 ├── preview.png           # Gameplay preview image
 ├── README.md             # This file
@@ -756,60 +758,61 @@ The tool maintains consistency between frames and generates properly formatted s
 
 ## 🤝 Contributing
 
-We welcome contributions to this project! To contribute, please follow the standard GitHub Fork & Pull Request workflow:
+We welcome contributions that improve correctness, stability, or player experience!
 
-1.  **Fork the Repository**: Click the 'Fork' button on the top right of the main repository page (`SeloSlav/vibe-coding-starter-pack-2d-multiplayer-survival`) to create your personal copy under your GitHub account.
-2.  **Clone Your Fork**: Clone *your forked repository* to your local machine:
-    ```bash
-    git clone https://github.com/YOUR_USERNAME/vibe-coding-starter-pack-2d-multiplayer-survival.git
-    cd vibe-coding-starter-pack-2d-multiplayer-survival
-    ```
-    (Replace `YOUR_USERNAME` with your actual GitHub username).
-3.  **Create a Branch**: Create a new branch for your feature or fix:
-    ```bash
-    git checkout -b feature/your-feature-name
-    ```
-4.  **Implement Your Changes**: Make your code changes, following project style guidelines.
-5.  **Test Thoroughly**: Ensure your changes work as expected and don't break existing functionality.
-6.  **Commit Your Changes**: Commit your work with a clear message:
-    ```bash
-    git commit -m "feat: Add awesome new feature"
-    ```
-7.  **Push Your Branch**: Push your changes *to your fork*:
-    ```bash
-    git push origin feature/your-feature-name
-    ```
-8.  **Open a Pull Request**: Go back to the *original* repository (`SeloSlav/vibe-coding-starter-pack-2d-multiplayer-survival`) on GitHub. You should see a prompt to create a Pull Request from your recently pushed branch. Click it, or navigate to the "Pull Requests" tab and click "New Pull Request".
-9.  **Configure the PR**: Ensure the base repository is `SeloSlav/vibe-coding-starter-pack-2d-multiplayer-survival` and the base branch is typically `main` (or the relevant development branch). Ensure the head repository is your fork and the compare branch is your feature branch (`feature/your-feature-name`).
-10. **Describe Your Changes**: Provide a clear title and description for your Pull Request, explaining the changes and their purpose.
+Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines on:
 
-Whether you're interested in adding new gameplay mechanics, improving existing systems, or enhancing the codebase, your contributions are valuable to making this starter pack even better!
+- What types of contributions are welcome
+- How to set up your development environment
+- The pull request process
+- Code style guidelines
+- How to report exploits (privately!)
 
-For questions or discussions about potential contributions, feel free to open an issue first to discuss your ideas.
+**Quick Start:**
+
+1. Fork the repository
+2. Clone your fork and set up the development environment
+3. Create a feature branch (`git checkout -b feature/your-feature-name`)
+4. Make your changes and test thoroughly
+5. Submit a Pull Request
+
+Whether you're interested in adding new gameplay mechanics, improving existing systems, or enhancing the codebase, your contributions are valuable!
+
+For questions or discussions, feel free to open an issue first or join our [Discord](https://discord.com/channels/1037340874172014652/1395802030169391221/threads/1409306941888397496).
 
 ## 📜 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the **Apache License 2.0** - see the [LICENSE](./LICENSE) file for details.
 
-### ⚖️ Copyright & Intellectual Property
+The game's assets and IP remain protected, and the official Broth & Bullets servers will continue to be operated by Martin Erlic. For more information see [NOTICE](./NOTICE).
 
-While the **codebase** is released under the MIT License, the following elements of **Broth & Bullets** remain the exclusive copyright and intellectual property of **Martin Erlic**:
+### What you can and cannot do
 
-- **Game Title**: "Broth & Bullets" and all associated branding
-- **Story & Lore**: All narrative content, world-building, character backstories, and plot elements
-- **Original Characters**: Character designs, personalities, and non-AI generated character assets
-- **Custom Art Assets**: Non-AI generated sprites, including but not limited to:
-  - Main player character sprite
-  - Custom character designs
-  - Hand-crafted environmental assets
-  - Unique visual elements specific to Broth & Bullets
-- **Game-Specific Content**: Any content that defines the unique identity of Broth & Bullets as a game
+To avoid any confusion, here is a clear summary of what is allowed and what is not:
 
-**What this means:**
-- ✅ You can freely use, modify, and distribute the **code** under MIT License
-- ✅ You can use AI-generated assets and generic game systems for your own projects
-- ❌ You cannot use the "Broth & Bullets" name, branding, or story for commercial purposes
-- ❌ You cannot use original character designs or hand-crafted assets without permission
+**You can:**
+
+- ✅ Read and study the code to better understand how the game works
+- ✅ Modify and experiment with the code locally
+- ✅ Run your own servers for experimentation and learning
+- ✅ Use it as a reference for building your own projects
+- ✅ Make a game similar to Broth & Bullets with your own IP (art and themes) using our code as a basis
+- ✅ Contribute back to the project via Pull Requests
+
+**You cannot:**
+
+- ❌ Use Broth & Bullets' art, game content, music, or other protected assets
+- ❌ Use the "Broth & Bullets" name, branding, or story for commercial purposes
+- ❌ Present forks or derivative works as official Broth & Bullets
+- ❌ Operate official, unofficial, private, or competing Broth & Bullets servers
+- ❌ Use original character designs or hand-crafted assets without permission
+- ❌ Do anything that violates the Apache 2.0 license
+
+### Reporting Exploits
+
+We truly appreciate any reporting of in-game exploits. To ensure that exploits are addressed quickly and not abused by other players, we ask that you submit them privately. **Do not** create public issues or share exploit details in Discord.
+
+Contributors who report meaningful, previously unreported, and verified exploits may receive special recognition.
 
 For licensing inquiries regarding Broth & Bullets intellectual property, please contact Martin Erlic.
 
