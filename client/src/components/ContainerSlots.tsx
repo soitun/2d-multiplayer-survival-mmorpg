@@ -36,6 +36,9 @@ interface ContainerSlotsProps {
     onItemMouseLeave: () => void;
     onItemMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
     
+    // Optional click handler for ItemInteractionPanel
+    onItemClick?: (item: PopulatedItem) => void;
+    
     // Optional styling
     className?: string;
     style?: React.CSSProperties;
@@ -70,6 +73,7 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
     onItemMouseEnter,
     onItemMouseLeave,
     onItemMouseMove,
+    onItemClick,
     className,
     style,
     disabledSlots,
@@ -201,6 +205,7 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
                                 onMouseEnter={isDisabled ? () => {} : (e) => onItemMouseEnter(itemInSlot, e)}
                                 onMouseLeave={isDisabled ? () => {} : onItemMouseLeave}
                                 onMouseMove={isDisabled ? () => {} : onItemMouseMove}
+                                onClick={isDisabled || !onItemClick ? undefined : () => onItemClick(itemInSlot)}
                             />
                         )}
                         

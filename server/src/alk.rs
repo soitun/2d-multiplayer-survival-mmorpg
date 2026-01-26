@@ -52,10 +52,13 @@ pub const ALK_STATION_WIDTH: f32 = 480.0;
 pub const ALK_STATION_HEIGHT: f32 = 480.0;
 pub const ALK_STATION_Y_OFFSET: f32 = 0.0; // Anchor point offset (worldPosY is the anchor)
 
-/// AABB collision dimensions - bottom 1/3 height, 1/2 width (matches compound buildings)
-pub const ALK_STATION_COLLISION_WIDTH: f32 = ALK_STATION_WIDTH * 0.5;  // 50% of building width
+/// AABB collision dimensions - bottom 1/3 height for substations
+/// Central compound uses 50% of building width (240px), substations use 350px
+pub const ALK_STATION_COLLISION_WIDTH: f32 = ALK_STATION_WIDTH * 0.5;  // 50% of building width (central compound)
+pub const ALK_SUBSTATION_COLLISION_WIDTH: f32 = 350.0;  // Substations: 350px wide collision
 pub const ALK_STATION_COLLISION_HEIGHT: f32 = ALK_STATION_HEIGHT / 3.0; // Bottom 1/3 of building height (substations)
 pub const ALK_STATION_AABB_HALF_WIDTH: f32 = ALK_STATION_COLLISION_WIDTH / 2.0;
+pub const ALK_SUBSTATION_AABB_HALF_WIDTH: f32 = ALK_SUBSTATION_COLLISION_WIDTH / 2.0;
 pub const ALK_STATION_AABB_HALF_HEIGHT: f32 = ALK_STATION_COLLISION_HEIGHT / 2.0;
 
 /// Central compound collision dimensions - half height from top (bottom 1/6 height, 1/2 width)
@@ -69,9 +72,10 @@ pub const ALK_STATION_COLLISION_RADIUS: f32 = 120.0;
 pub const ALK_STATION_COLLISION_Y_OFFSET: f32 = 170.0;
 
 /// Squared collision distance for player-ALK station collision checks (using AABB bounds)
+/// Uses substation width (350px) as it's the larger collision area
 pub const PLAYER_ALK_STATION_COLLISION_DISTANCE_SQUARED: f32 = 
-    (PLAYER_RADIUS + ALK_STATION_COLLISION_WIDTH.max(ALK_STATION_COLLISION_HEIGHT)) * 
-    (PLAYER_RADIUS + ALK_STATION_COLLISION_WIDTH.max(ALK_STATION_COLLISION_HEIGHT));
+    (PLAYER_RADIUS + ALK_SUBSTATION_COLLISION_WIDTH.max(ALK_STATION_COLLISION_HEIGHT)) * 
+    (PLAYER_RADIUS + ALK_SUBSTATION_COLLISION_WIDTH.max(ALK_STATION_COLLISION_HEIGHT));
 
 // ============================================================================
 // GAMEPLAY CONSTANTS

@@ -540,11 +540,13 @@ function getCollisionCandidates(
       // Larger cull distance for large structure
       if (distSq > COLLISION_PERF.STRUCTURE_CULL_DISTANCE_SQ * 2) continue;
       
-      // AABB collision at the building base (bottom 1/3 height, 1/2 width)
+      // AABB collision at the building base (bottom 1/3 height for substations)
       // Central compound (stationId 0) uses half height from top, pushed up by its height
-      // Similar to compound buildings
+      // Substations use 350px collision width, central compound uses 50% of building width
       const isCentralCompound = station.stationId === 0;
-      const collisionWidth = ALK_STATION_WIDTH * 0.5;  // 50% of building width
+      const collisionWidth = isCentralCompound 
+        ? ALK_STATION_WIDTH * 0.5  // Central compound: 50% of building width (240px)
+        : 350;  // Substations: 350px collision width
       const collisionHeight = isCentralCompound 
         ? ALK_STATION_HEIGHT / 6  // Central compound: half height from top (bottom 1/6)
         : ALK_STATION_HEIGHT / 3; // Substations: bottom 1/3 of building height

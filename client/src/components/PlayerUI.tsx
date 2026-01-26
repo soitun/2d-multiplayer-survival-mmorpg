@@ -19,6 +19,8 @@ import CyberpunkKnockedOutScreen from './CyberpunkKnockedOutScreen';
 import CraftingScreen from './CraftingScreen';
 // Hot loot hook
 import { useHotLoot } from '../hooks/useHotLoot';
+// ItemInteractionPanel for hotbar/external container item clicks
+import ItemInteractionPanel from './ItemInteractionPanel';
 // --- END NEW IMPORTS ---
 
 // Import status icons for mobile UI
@@ -120,6 +122,26 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
 }) => {
     const [localPlayer, setLocalPlayer] = useState<Player | null>(null);
     const [lowNeedThreshold, setLowNeedThreshold] = useState<number>(20.0);
+    
+    // Lifted state for ItemInteractionPanel - allows clicking items in Hotbar/ExternalContainerUI while inventory is open
+    const [selectedInventoryItem, setSelectedInventoryItem] = useState<PopulatedItem | null>(null);
+    
+    // Handler for selecting items from any source (InventoryUI, Hotbar, ExternalContainerUI)
+    const handleSelectInventoryItem = useCallback((item: PopulatedItem | null) => {
+        setSelectedInventoryItem(item);
+    }, []);
+    
+    // Handler for closing the item interaction panel
+    const handleCloseItemInteraction = useCallback(() => {
+        setSelectedInventoryItem(null);
+    }, []);
+    
+    // Clear selected item when inventory closes
+    useEffect(() => {
+        if (!showInventory) {
+            setSelectedInventoryItem(null);
+        }
+    }, [showInventory]);
     
     // Get local player stats for XP bar
     const localPlayerStats = useMemo(() => {
@@ -1542,6 +1564,9 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     getSlotIndicator={getSlotIndicator}
                     handleHotLootSlotHover={handleHotLootSlotHover}
                     setHotLootCurrentHover={setHotLootCurrentHover}
+                    selectedInventoryItem={selectedInventoryItem}
+                    onSelectInventoryItem={handleSelectInventoryItem}
+                    onCloseItemInteraction={handleCloseItemInteraction}
                  />
              )}
 
@@ -1588,6 +1613,17 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     handleHotLootSlotHover={handleHotLootSlotHover}
                     setHotLootCurrentHover={setHotLootCurrentHover}
                     playerStats={playerStats}
+                    isInventoryOpen={showInventory}
+                    onSelectInventoryItem={showInventory ? handleSelectInventoryItem : undefined}
+                />
+            )}
+
+            {/* ItemInteractionPanel for hotbar items - only shows when inventory is open and item selected from hotbar/external container */}
+            {showInventory && selectedInventoryItem && (
+                <ItemInteractionPanel
+                    selectedItem={selectedInventoryItem}
+                    connection={connection}
+                    onClose={handleCloseItemInteraction}
                 />
             )}
 

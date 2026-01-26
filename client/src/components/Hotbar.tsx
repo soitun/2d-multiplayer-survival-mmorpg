@@ -71,6 +71,9 @@ interface HotbarProps {
   setHotLootCurrentHover?: (item: PopulatedItem | null, slotInfo: DragSourceSlotInfo | null, context: 'player' | 'container' | null) => void;
   // XP bar props
   playerStats?: Map<string, any>;
+  // ItemInteractionPanel support - allows clicking items when inventory is open
+  isInventoryOpen?: boolean;
+  onSelectInventoryItem?: (item: PopulatedItem | null) => void;
 }
 
 // Add tooltip interface
@@ -148,6 +151,8 @@ const Hotbar: React.FC<HotbarProps> = ({
     handleHotLootSlotHover,
     setHotLootCurrentHover,
     playerStats,
+    isInventoryOpen,
+    onSelectInventoryItem,
 }) => {
   const [selectedSlot, setSelectedSlot] = useState<number>(-1);
   const [isVisualCooldownActive, setIsVisualCooldownActive] = useState<boolean>(false);
@@ -1757,6 +1762,7 @@ const Hotbar: React.FC<HotbarProps> = ({
                       onItemDragStart={onItemDragStart}
                       onItemDrop={onItemDrop}
                       onContextMenu={(event) => handleHotbarItemContextMenu(event, populatedItem)}
+                      onClick={isInventoryOpen && onSelectInventoryItem ? () => onSelectInventoryItem(populatedItem) : undefined}
                    />
               )}
               

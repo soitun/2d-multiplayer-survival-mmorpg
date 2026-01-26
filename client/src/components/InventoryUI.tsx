@@ -118,6 +118,10 @@ interface InventoryUIProps {
     getSlotIndicator?: (slotType: string, slotIndex: number | string, parentId?: number | bigint) => { progress: number } | undefined;
     handleHotLootSlotHover?: (item: PopulatedItem, slotInfo: DragSourceSlotInfo, context: 'player' | 'container') => void;
     setHotLootCurrentHover?: (item: PopulatedItem | null, slotInfo: DragSourceSlotInfo | null, context: 'player' | 'container' | null) => void;
+    // Lifted ItemInteractionPanel state (allows Hotbar/ExternalContainerUI items to trigger the panel)
+    selectedInventoryItem?: PopulatedItem | null;
+    onSelectInventoryItem?: (item: PopulatedItem | null) => void;
+    onCloseItemInteraction?: () => void;
 }
 
 // Represents an item instance with its definition for rendering
@@ -185,6 +189,10 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
     getSlotIndicator,
     handleHotLootSlotHover,
     setHotLootCurrentHover,
+    // Lifted ItemInteractionPanel state
+    selectedInventoryItem: externalSelectedItem,
+    onSelectInventoryItem,
+    onCloseItemInteraction,
 }) => {
     const isPlacingItem = placementInfo !== null;
     const prevInteractionTargetRef = useRef<typeof interactionTarget | undefined>(undefined);
@@ -196,8 +204,16 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
     const [tooltipContent, setTooltipContent] = useState<TooltipContent | null>(null);
     const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
-    // NEW: Selected item for interaction
-    const [selectedInventoryItem, setSelectedInventoryItem] = useState<PopulatedItem | null>(null);
+    // Selected item for interaction - use lifted state if available, otherwise local state
+    const [localSelectedItem, setLocalSelectedItem] = useState<PopulatedItem | null>(null);
+    const selectedInventoryItem = externalSelectedItem !== undefined ? externalSelectedItem : localSelectedItem;
+    const setSelectedInventoryItem = useCallback((item: PopulatedItem | null) => {
+        if (onSelectInventoryItem) {
+            onSelectInventoryItem(item);
+        } else {
+            setLocalSelectedItem(item);
+        }
+    }, [onSelectInventoryItem]);
 
     // Add to state declarations
     const [splitDragInfo, setSplitDragInfo] = useState<{ item: PopulatedItem, quantity: number } | null>(null);
@@ -564,12 +580,16 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
         } else {
             setSelectedInventoryItem(item);
         }
-    }, [selectedInventoryItem, draggedItemInfo]);
+    }, [selectedInventoryItem, draggedItemInfo, setSelectedInventoryItem]);
 
     // NEW: Handler for closing the item interaction panel
     const handleCloseItemInteraction = useCallback(() => {
-        setSelectedInventoryItem(null);
-    }, []);
+        if (onCloseItemInteraction) {
+            onCloseItemInteraction();
+        } else {
+            setSelectedInventoryItem(null);
+        }
+    }, [onCloseItemInteraction, setSelectedInventoryItem]);
 
     const handleInventoryItemContextMenu = useCallback((event: React.MouseEvent<HTMLDivElement>, itemInfo: PopulatedItem) => {
         event.preventDefault();
@@ -1519,6 +1539,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                             getSlotIndicator={getSlotIndicator}
                             onHotLootSlotHover={handleHotLootSlotHover || undefined}
                             setHotLootCurrentHover={setHotLootCurrentHover || undefined}
+                            onSelectInventoryItem={setSelectedInventoryItem}
                         />
                     ) : (
                         // Otherwise, show the crafting UI

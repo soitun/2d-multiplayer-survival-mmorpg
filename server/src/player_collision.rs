@@ -39,6 +39,7 @@ use crate::alk::{
     ALK_STATION_COLLISION_RADIUS, 
     ALK_STATION_COLLISION_Y_OFFSET,
     ALK_STATION_AABB_HALF_WIDTH,
+    ALK_SUBSTATION_AABB_HALF_WIDTH,
     ALK_STATION_AABB_HALF_HEIGHT,
     ALK_STATION_COLLISION_HEIGHT,
     ALK_CENTRAL_COMPOUND_AABB_HALF_HEIGHT,
@@ -357,7 +358,7 @@ pub fn calculate_slide_collision_with_grid(
                         let (aabb_half_height, aabb_half_width, y_offset) = if is_central_compound {
                             (ALK_CENTRAL_COMPOUND_AABB_HALF_HEIGHT, ALK_STATION_AABB_HALF_WIDTH, ALK_CENTRAL_COMPOUND_COLLISION_Y_OFFSET)
                         } else {
-                            (ALK_STATION_AABB_HALF_HEIGHT, ALK_STATION_AABB_HALF_WIDTH, 0.0)
+                            (ALK_STATION_AABB_HALF_HEIGHT, ALK_SUBSTATION_AABB_HALF_WIDTH, 0.0)
                         };
                         let station_aabb_center_y = sprite_bottom - aabb_half_height - y_offset;
                         
@@ -1267,7 +1268,7 @@ pub fn resolve_push_out_collision_with_grid(
                         let (aabb_half_height, aabb_half_width, y_offset) = if is_central_compound {
                             (ALK_CENTRAL_COMPOUND_AABB_HALF_HEIGHT, ALK_STATION_AABB_HALF_WIDTH, ALK_CENTRAL_COMPOUND_COLLISION_Y_OFFSET)
                         } else {
-                            (ALK_STATION_AABB_HALF_HEIGHT, ALK_STATION_AABB_HALF_WIDTH, 0.0)
+                            (ALK_STATION_AABB_HALF_HEIGHT, ALK_SUBSTATION_AABB_HALF_WIDTH, 0.0)
                         };
                         let station_aabb_center_y = sprite_bottom - aabb_half_height - y_offset;
                         

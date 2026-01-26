@@ -1011,6 +1011,8 @@ import { RangedWeaponStatsTableHandle } from "./ranged_weapon_stats_table.ts";
 export { RangedWeaponStatsTableHandle };
 import { RecipeTableHandle } from "./recipe_table.ts";
 export { RecipeTableHandle };
+import { ReedMarshTableHandle } from "./reed_marsh_table.ts";
+export { ReedMarshTableHandle };
 import { RuneStoneTableHandle } from "./rune_stone_table.ts";
 export { RuneStoneTableHandle };
 import { RuneStoneItemSpawnScheduleTableHandle } from "./rune_stone_item_spawn_schedule_table.ts";
@@ -1425,6 +1427,8 @@ import { Recipe } from "./recipe_type.ts";
 export { Recipe };
 import { RecipeIngredient } from "./recipe_ingredient_type.ts";
 export { RecipeIngredient };
+import { ReedMarsh } from "./reed_marsh_type.ts";
+export { ReedMarsh };
 import { RuneStone } from "./rune_stone_type.ts";
 export { RuneStone };
 import { RuneStoneItemSpawnSchedule } from "./rune_stone_item_spawn_schedule_type.ts";
@@ -2659,6 +2663,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "recipeId",
         colType: (Recipe.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    reed_marsh: {
+      tableName: "reed_marsh" as const,
+      rowType: ReedMarsh.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (ReedMarsh.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     rune_stone: {
@@ -12864,6 +12877,11 @@ export class RemoteTables {
   get recipe(): RecipeTableHandle<'recipe'> {
     // clientCache is a private property
     return new RecipeTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Recipe>(REMOTE_MODULE.tables.recipe));
+  }
+
+  get reedMarsh(): ReedMarshTableHandle<'reed_marsh'> {
+    // clientCache is a private property
+    return new ReedMarshTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ReedMarsh>(REMOTE_MODULE.tables.reed_marsh));
   }
 
   get runeStone(): RuneStoneTableHandle<'rune_stone'> {

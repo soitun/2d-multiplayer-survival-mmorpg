@@ -17,11 +17,13 @@ import tundraWolfWalkingSheet from '../../assets/tundra_wolf_walking.png';
 import tundraWolfWalkingAnimatedSheet from '../../assets/tundra_wolf_walking_release.png'; // NEW: 4x4 animated spritesheet
 import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
 import ternWalkingSheet from '../../assets/tern_walking.png';
+import ternWalkingAnimatedSheet from '../../assets/tern_walking_release.png'; // NEW: 4x4 animated spritesheet
 import crowWalkingSheet from '../../assets/crow_walking.png';
 import voleWalkingSheet from '../../assets/vole_walking.png';
 import wolverineWalkingSheet from '../../assets/wolverine_walking.png';
 // Flying sprite sheets for birds
 import ternFlyingSheet from '../../assets/tern_flying.png';
+import ternFlyingAnimatedSheet from '../../assets/tern_flying_release.png'; // NEW: 4x4 animated flying spritesheet
 import crowFlyingSheet from '../../assets/crow_flying.png';
 // Night hostile NPC sprite sheets
 import shoreboundWalkingSheet from '../../assets/shorebound_walking.png';
@@ -121,6 +123,18 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         rows: 4,           // 4 directions
     },
     
+    // TERN - Coastal seabird (4x4 layout: 4 frames × 4 directions)
+    // Artist spec: 80x80 per frame → 320x320 total sheet
+    // Renders at: 96x96 (1.2x scale) - medium-sized bird
+    'Tern': {
+        sheetWidth: 320,   // 80px × 4 frames
+        sheetHeight: 320,  // 80px × 4 rows
+        frameWidth: 80,
+        frameHeight: 80,
+        cols: 4,           // 4 animation frames
+        rows: 4,           // 4 directions
+    },
+    
     // ═══════════════════════════════════════════════════════════════════════════
     // HOSTILE NPC ANIMATED SPRITESHEETS (6x4 layout: 6 frames × 4 directions)
     // Row order: Down, Right, Left, Up (same as player)
@@ -201,7 +215,7 @@ const speciesSpriteSheets: Record<string, string> = {
     'CableViper': cableViperWalkingSheet,
     'ArcticWalrus': walrusWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'BeachCrab': crabWalkingSheet,
-    'Tern': ternWalkingSheet,
+    'Tern': ternWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'Crow': crowWalkingSheet,
     'Vole': voleWalkingSheet,
     'Wolverine': wolverineWalkingSheet,
@@ -213,7 +227,7 @@ const speciesSpriteSheets: Record<string, string> = {
 
 // Map species to their flying sprite sheets (for birds when in flight)
 const speciesFlyingSpriteSheets: Record<string, string> = {
-    'Tern': ternFlyingSheet,
+    'Tern': ternFlyingAnimatedSheet, // Use animated 4x4 flying spritesheet
     'Crow': crowFlyingSheet,
 };
 
@@ -515,8 +529,8 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
         case 'BeachCrab':
             return { width: 64, height: 64, shadowRadius: 20 };
         case 'Tern':
-            // Terns are medium-sized coastal birds
-            return { width: 96, height: 96, shadowRadius: 28 };
+            // Terns are small coastal seabirds
+            return { width: 64, height: 64, shadowRadius: 20 };
         case 'Crow':
             // Crows are medium-sized inland birds (slightly larger)
             return { width: 104, height: 104, shadowRadius: 30 };
@@ -798,9 +812,8 @@ export function renderWildAnimal({
 
     const props = getSpeciesRenderingProps(animal.species);
     
-    // Terns are twice as large when flying (their flying sprite sheet is smaller)
-    // Crows stay the same size
-    const flyingSizeMultiplier = (animal.species.tag === 'Tern' && useFlying) ? 1.75 : 1.0;
+    // Flying terns appear slightly larger to account for wingspan
+    const flyingSizeMultiplier = (animal.species.tag === 'Tern' && useFlying) ? 1.3 : 1.0;
     const renderWidth = props.width * flyingSizeMultiplier;
     const renderHeight = props.height * flyingSizeMultiplier;
     
@@ -827,11 +840,51 @@ export function renderWildAnimal({
         ctx.translate(-renderPosX * 2, 0); // Adjust position after flipping
     }
 
-    // Render dynamic shadow based on time of day (using current sprite frame)
+    // Render shadow - flying birds get special detached oval shadows
     {
         ctx.save();
-        if (useSpriteSheet && animalImage) {
-            // Create a temporary canvas to extract the current frame for shadow
+        
+        // Flying birds (Tern, Crow) get a special detached shadow
+        if (isBird && useFlying) {
+            // ═══════════════════════════════════════════════════════════════════════
+            // FLYING BIRD SHADOW - Simple detached oval that shows height
+            // ═══════════════════════════════════════════════════════════════════════
+            // Design principles:
+            // 1. Shadow is DETACHED from bird (offset diagonally down-right)
+            // 2. Shadow is SMALLER than grounded shadow (shows altitude)
+            // 3. Shadow is MORE TRANSPARENT (softer, lower contrast)
+            // 4. Shadow is a SIMPLE OVAL (not sprite silhouette)
+            // 5. Shadow does NOT animate with wing flaps
+            
+            // Global light direction: coming from upper-left, so shadow goes down-right
+            const shadowOffsetX = 25;  // Offset to the right
+            const shadowOffsetY = 45;  // Offset downward (shows height separation)
+            
+            // Shadow is smaller than the bird (shows altitude)
+            const baseShadowWidth = props.width * 0.5;  // 50% of grounded size
+            const baseShadowHeight = props.width * 0.15; // Flat oval
+            
+            // Shadow is more transparent when flying (softer, less contrast)
+            const flyingShadowAlpha = 0.25;
+            
+            // Shadow position: below and to the right of the bird
+            const shadowX = renderPosX + shadowOffsetX;
+            const shadowY = renderPosY + renderHeight / 2 + shadowOffsetY;
+            
+            // Draw simple oval shadow with soft edges
+            ctx.fillStyle = `rgba(0, 0, 0, ${flyingShadowAlpha})`;
+            ctx.beginPath();
+            ctx.ellipse(
+                shadowX,
+                shadowY,
+                baseShadowWidth,
+                baseShadowHeight,
+                0, 0, Math.PI * 2
+            );
+            ctx.fill();
+            
+        } else if (useSpriteSheet && animalImage) {
+            // GROUNDED SHADOW - Use sprite silhouette for dynamic shadow
             const shadowCanvas = document.createElement('canvas');
             shadowCanvas.width = currentFrameWidth;
             shadowCanvas.height = currentFrameHeight;
@@ -1042,6 +1095,7 @@ export function preloadWildAnimalImages(): void {
         tundraWolfWalkingAnimatedSheet, // NEW: Animated 4x4 tundra wolf spritesheet
         cableViperWalkingSheet,
         ternWalkingSheet,
+        ternWalkingAnimatedSheet, // NEW: Animated 4x4 tern walking spritesheet
         crowWalkingSheet,
         voleWalkingSheet,
         wolverineWalkingSheet,
@@ -1054,6 +1108,7 @@ export function preloadWildAnimalImages(): void {
     // Flying sprite sheets for birds
     const flyingSpriteSheets = [
         ternFlyingSheet,
+        ternFlyingAnimatedSheet, // NEW: Animated 4x4 tern flying spritesheet
         crowFlyingSheet,
     ];
     
