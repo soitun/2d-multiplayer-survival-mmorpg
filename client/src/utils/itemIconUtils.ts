@@ -96,6 +96,7 @@ import reedSnorkelIcon from '../assets/items/reed_snorkel.png';
 import reedFlippersIcon from '../assets/items/reed_flippers.png';
 import boneHookIcon from '../assets/items/fishing_gaff_hook.png';
 import fishingRodIcon from '../assets/items/reed_fishing_rod.png';
+import fishTrapIcon from '../assets/items/fish_trap.png';
 import reedBellowsIcon from '../assets/items/reed_bellows.png';
 import reedWaterBottleIcon from '../assets/items/reed_water_bottle.png';
 import waterJugIcon from '../assets/items/water_jug.png';
@@ -582,6 +583,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'reed_snorkel.png': reedSnorkelIcon,
   'fishing_gaff_hook.png': boneHookIcon,
   'reed_fishing_rod.png': fishingRodIcon,
+  'fish_trap.png': fishTrapIcon,
   'reed_bellows.png': reedBellowsIcon,
   'reed_water_bottle.png': reedWaterBottleIcon,
   'water_jug.png': waterJugIcon,
