@@ -157,6 +157,7 @@ pub mod compound_buildings; // <<< ADDED: Static compound building collision sys
 mod shipwreck; // <<< ADDED: Shipwreck monument collision system
 mod fishing_village; // <<< ADDED: Fishing village monument collision system
 mod whale_bone_graveyard; // <<< ADDED: Whale Bone Graveyard monument collision system
+mod hunting_village; // <<< ADDED: Hunting Village monument collision system
 pub mod monument; // <<< ADDED: Generic monument system for clearance zones (shipwrecks, ruins, crash sites, etc.)
 mod durability; // <<< ADDED: Item durability system for weapons, tools, and torches
 mod repair_bench; // <<< ADDED: Repair bench for item repair
@@ -2269,6 +2270,7 @@ pub enum MonumentType {
     Shipwreck,
     FishingVillage,
     WhaleBoneGraveyard,
+    HuntingVillage,
 }
 
 /// Unified monument part table for all monument types
@@ -2285,7 +2287,7 @@ pub struct MonumentPart {
     pub world_x: f32,
     /// World Y position in pixels
     pub world_y: f32,
-    /// Image filename (e.g., "hull1.png", "fv_hut1.png", "wbg_ribcage.png")
+    /// Image filename (e.g., "hull1.png", "hv_hut1.png", "wbg_ribcage.png")
     pub image_path: String,
     /// Part type for identification (e.g., "hull", "campfire", "ribcage", "hut")
     /// Can be empty string for shipwreck parts that don't need specific part types

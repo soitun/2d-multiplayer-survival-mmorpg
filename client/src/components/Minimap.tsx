@@ -82,6 +82,10 @@ const QUARRY_GLOW_COLOR = '#FFFFFF'; // White glow for visibility
 const WHALE_BONE_GRAVEYARD_COLOR = '#E8E8E8'; // Pale bone white/ivory for ancient bones
 const WHALE_BONE_GRAVEYARD_GLOW_COLOR = '#B8B8B8'; // Pale gray glow (eerie, ancient)
 
+// Hunting Village constants - EXPLORATION/SAFE ZONE LANDMARK (boreal forest)
+const HUNTING_VILLAGE_COLOR = '#8B4513'; // Saddle brown for rustic wood buildings
+const HUNTING_VILLAGE_GLOW_COLOR = '#228B22'; // Forest green glow (forest biome)
+
 // Memory Beacon Event constants - SERVER EVENT MARKERS (airdrop-style)
 const BEACON_EVENT_ICON_SIZE = 24; // Large for high visibility as major event
 const BEACON_EVENT_COLOR = '#FF00FF'; // Bright magenta/purple for beacon events
@@ -1405,6 +1409,63 @@ export function drawMinimapOntoCanvas({
         // Fill with whale bone graveyard color (pale bone white)
         ctx.fillStyle = WHALE_BONE_GRAVEYARD_COLOR;
         ctx.fillText('WHALE GRAVEYARD', x, y);
+        
+        ctx.restore();
+      }
+    }
+  }
+
+  // --- Draw Hunting Village Parts (EXPLORATION LANDMARKS) ---
+  // Show ONE representative "HUNTING VILLAGE" label for the entire structure
+  // Filter hunting village parts from unified monument parts
+  // NOTE: MonumentType is a tagged union with a `tag` property (e.g., { tag: 'HuntingVillage' })
+  const huntingVillagePartsFiltered = monumentParts ? Array.from(monumentParts.values())
+    .filter((part: any) => part.monumentType?.tag === 'HuntingVillage') : [];
+  
+  if (huntingVillagePartsFiltered.length > 0 && showNames === true) {
+    // Find ONE representative hunting village part (prefer center part/lodge, otherwise use first part)
+    let representativePart: any | null = null;
+    
+    // First, try to find a center part (lodge)
+    huntingVillagePartsFiltered.forEach((part: any) => {
+      if (part.isCenter || part.partType === 'lodge') {
+        representativePart = part;
+      }
+    });
+    
+    // If no center part found, just use the first part
+    if (!representativePart && huntingVillagePartsFiltered.length > 0) {
+      representativePart = huntingVillagePartsFiltered[0];
+    }
+    
+    // Draw the label for the representative part
+    if (representativePart) {
+      const screenCoords = worldToMinimap(representativePart.worldX, representativePart.worldY);
+      if (screenCoords) {
+        const x = screenCoords.x;
+        const y = screenCoords.y;
+        
+        ctx.save();
+        
+        // Draw "HUNTING VILLAGE" text with cyberpunk styling - same size as other landmarks
+        ctx.font = 'bold 14px "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Add glow effect for visibility (forest green glow)
+        ctx.shadowColor = HUNTING_VILLAGE_GLOW_COLOR;
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // Draw text with black outline for contrast
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        ctx.strokeText('HUNTING VILLAGE', x, y);
+        
+        // Fill with hunting village color (rustic wood brown)
+        ctx.fillStyle = HUNTING_VILLAGE_COLOR;
+        ctx.fillText('HUNTING VILLAGE', x, y);
         
         ctx.restore();
       }

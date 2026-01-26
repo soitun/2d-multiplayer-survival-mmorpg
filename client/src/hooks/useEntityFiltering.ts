@@ -1269,47 +1269,26 @@ export function useEntityFiltering(
     });
   }, [alkStations, viewBounds]);
 
-  // ADDED: Compound buildings filtering - static buildings + dynamic monuments (shipwrecks, fishing village, whale bone graveyard)
+  // ADDED: Compound buildings filtering - static buildings + dynamic monuments
   // Static buildings come from config, dynamic monuments come from database
+  // All monument types (Shipwreck, FishingVillage, WhaleBoneGraveyard, HuntingVillage, etc.) 
+  // are processed in a single efficient pass
   const visibleCompoundBuildings = useMemo(() => {
-    // Filter unified monument parts by type
+    // Convert all monument parts to unified format in a single pass
     // NOTE: MonumentType is a tagged union with a `tag` property (e.g., { tag: 'Shipwreck' })
-    const shipwreckPartsArray = monumentParts ? Array.from(monumentParts.values())
-      .filter((part: any) => part.monumentType?.tag === 'Shipwreck')
-      .map(part => ({
+    const allMonumentParts = monumentParts ? Array.from(monumentParts.values())
+      .map((part: any) => ({
         id: part.id,
         worldX: part.worldX,
         worldY: part.worldY,
         imagePath: part.imagePath,
+        partType: part.partType || '', // Some monuments (like shipwreck) may not have partType
         isCenter: part.isCenter,
         collisionRadius: part.collisionRadius,
+        monumentType: part.monumentType?.tag || 'Unknown', // Extract tag from tagged union
       })) : [];
     
-    const fishingVillagePartsArray = monumentParts ? Array.from(monumentParts.values())
-      .filter((part: any) => part.monumentType?.tag === 'FishingVillage')
-      .map(part => ({
-        id: part.id,
-        worldX: part.worldX,
-        worldY: part.worldY,
-        imagePath: part.imagePath,
-        partType: part.partType,
-        isCenter: part.isCenter,
-        collisionRadius: part.collisionRadius,
-      })) : [];
-    
-    const whaleBoneGraveyardPartsArray = monumentParts ? Array.from(monumentParts.values())
-      .filter((part: any) => part.monumentType?.tag === 'WhaleBoneGraveyard')
-      .map(part => ({
-        id: part.id,
-        worldX: part.worldX,
-        worldY: part.worldY,
-        imagePath: part.imagePath,
-        partType: part.partType,
-        isCenter: part.isCenter,
-        collisionRadius: part.collisionRadius,
-      })) : [];
-    
-    const allBuildings = getAllCompoundBuildings(shipwreckPartsArray, fishingVillagePartsArray, whaleBoneGraveyardPartsArray);
+    const allBuildings = getAllCompoundBuildings(allMonumentParts);
     
     // Convert buildings to entity format with world positions
     return allBuildings.map(building => {

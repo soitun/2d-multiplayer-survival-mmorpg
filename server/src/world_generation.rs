@@ -261,6 +261,49 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         }
     }
     
+    // Store hunting village positions in database table for client access (one-time read, then static)
+    // Following compound buildings pattern: client-side rendering, NO collision for walkability
+    if let Some((center_x, center_y)) = world_features.hunting_village_center {
+        // All parts are stored (lodge is the center piece)
+        for (part_x, part_y, image_path, part_type) in &world_features.hunting_village_parts {
+            ctx.db.monument_part().insert(MonumentPart {
+                id: 0, // auto_inc
+                monument_type: MonumentType::HuntingVillage,
+                world_x: *part_x,
+                world_y: *part_y,
+                image_path: image_path.clone(),
+                part_type: part_type.clone(),
+                is_center: *part_type == "lodge", // Lodge is the center of the village
+                collision_radius: 0.0, // NO collision for walkability
+            });
+        }
+        
+        log::info!("🏕️ Stored {} hunting village parts in database - client reads once, then treats as static config",
+                   world_features.hunting_village_parts.len());
+        
+        // Spawn respawnable resources around hunting village
+        let mut village_positions = Vec::new();
+        for (part_x, part_y, _, _) in &world_features.hunting_village_parts {
+            village_positions.push((*part_x, *part_y));
+        }
+        
+        // Spawn harvestable resources - these respawn
+        let harvestable_configs = crate::monument::get_hunting_village_harvestables();
+        if let Err(e) = crate::monument::spawn_monument_harvestables(ctx, &village_positions, &harvestable_configs) {
+            log::warn!("Failed to spawn hunting village harvestables: {}", e);
+        }
+        
+        // Spawn monument placeables for player use
+        let placeable_configs = crate::monument::get_hunting_village_placeables();
+        match crate::monument::spawn_monument_placeables(ctx, "Hunting Village", center_x, center_y, &placeable_configs) {
+            Ok(count) => log::info!("🏕️ Spawned {} monument placeables at Hunting Village", count),
+            Err(e) => log::warn!("Failed to spawn hunting village placeables: {}", e),
+        }
+        
+        // Spawn tree ring around the hunting village
+        spawn_hunting_village_tree_ring(ctx, center_x, center_y);
+    }
+    
     // Store large quarry positions and types in database for client minimap display
     // Similar to shipwreck - client reads once, then treats as static config
     for (tile_x, tile_y, radius, quarry_type) in &world_features.large_quarry_centers {
@@ -314,6 +357,8 @@ struct WorldFeatures {
     fishing_village_parts: Vec<(f32, f32, String, String)>, // Fishing village parts (x, y, image_path, part_type) in world pixels
     whale_bone_graveyard_center: Option<(f32, f32)>, // Whale bone graveyard center position (ribcage) in world pixels
     whale_bone_graveyard_parts: Vec<(f32, f32, String, String)>, // Whale bone graveyard parts (x, y, image_path, part_type) in world pixels
+    hunting_village_center: Option<(f32, f32)>, // Hunting village center position (lodge) in world pixels
+    hunting_village_parts: Vec<(f32, f32, String, String)>, // Hunting village parts (x, y, image_path, part_type) in world pixels
     coral_reef_zones: Vec<Vec<bool>>, // Coral reef zones (deep sea areas for living coral)
     width: usize,
     height: usize,
@@ -389,6 +434,13 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         noise, &shore_distance, &river_network, &lake_map, &shipwreck_centers, fishing_village_center, width, height
     );
     
+    // Generate hunting village monument in forest biome (safe zone with tree ring)
+    // Must be in forest (not tundra), away from hot springs and other monuments
+    let (hunting_village_center, hunting_village_parts) = crate::monument::generate_hunting_village(
+        noise, &shore_distance, &river_network, &lake_map, &forest_areas, &tundra_areas, &hot_spring_centers,
+        &shipwreck_centers, fishing_village_center, whale_bone_graveyard_center, width, height
+    );
+    
     // Generate coral reef zones (deep sea areas for living coral spawning)
     let coral_reef_zones = generate_coral_reef_zones(config, noise, &shore_distance, width, height);
     
@@ -417,6 +469,8 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         fishing_village_parts,
         whale_bone_graveyard_center,
         whale_bone_graveyard_parts,
+        hunting_village_center,
+        hunting_village_parts,
         coral_reef_zones,
         width,
         height,
@@ -2219,6 +2273,144 @@ fn generate_forest_areas_with_biomes(
     
     log::info!("Generated {} forest tiles ({:.1}% of land) - including hot spring rings", forest_count, forest_percentage);
     forest
+}
+
+/// Spawns trees around the hunting village using noise for natural distribution
+/// Creates a forest clearing effect with trees encircling the village organically
+fn spawn_hunting_village_tree_ring(
+    ctx: &ReducerContext,
+    center_x: f32,
+    center_y: f32,
+) {
+    use crate::tree::{Tree, TreeType, TREE_INITIAL_HEALTH, TREE_MIN_RESOURCES, TREE_MAX_RESOURCES};
+    use crate::tree::tree as TreeTableTrait;
+    use crate::environment::calculate_chunk_index;
+    use rand::Rng;
+    use noise::{NoiseFn, Perlin};
+    
+    log::info!("🏕️🌲 Spawning natural tree distribution around hunting village at ({:.0}, {:.0})", center_x, center_y);
+    
+    // Create noise generator for natural tree placement
+    let tree_noise = Perlin::new(ctx.rng().gen::<u32>());
+    
+    // Tree distribution parameters
+    let clearing_radius = 550.0;     // Inner clearing around village (no trees)
+    let dense_start_radius = 650.0;  // Where trees start appearing more frequently
+    let outer_radius = 1200.0;       // Maximum radius to spawn trees
+    let noise_scale = 0.008;         // Scale of noise pattern
+    let density_threshold = 0.1;     // Noise value threshold for spawning a tree
+    let sample_step = 60.0;          // Grid step size for sampling positions
+    
+    // Forest tree types for the boreal setting (weighted towards conifers)
+    let forest_tree_types = [
+        TreeType::SitkaSpruce,
+        TreeType::SitkaSpruce,      // Extra weight for spruce
+        TreeType::MountainHemlock,
+        TreeType::MountainHemlock2,
+        TreeType::SiberianBirch,
+    ];
+    
+    let mut spawned_count = 0;
+    let max_trees = 60; // Cap to prevent over-spawning
+    
+    // Sample positions in a grid around the village
+    let search_range = outer_radius as i32;
+    let step = sample_step as i32;
+    
+    for dy in (-search_range..=search_range).step_by(step as usize) {
+        for dx in (-search_range..=search_range).step_by(step as usize) {
+            if spawned_count >= max_trees {
+                break;
+            }
+            
+            let sample_x = center_x + dx as f32;
+            let sample_y = center_y + dy as f32;
+            
+            // Calculate distance from village center
+            let dist = ((dx * dx + dy * dy) as f32).sqrt();
+            
+            // Skip if too close (in clearing) or too far
+            if dist < clearing_radius || dist > outer_radius {
+                continue;
+            }
+            
+            // Calculate spawn probability based on distance and noise
+            // Trees are more likely to spawn further from the clearing
+            let distance_factor = if dist < dense_start_radius {
+                // Sparse zone: low probability
+                (dist - clearing_radius) / (dense_start_radius - clearing_radius) * 0.3
+            } else {
+                // Dense zone: higher probability
+                0.3 + (dist - dense_start_radius) / (outer_radius - dense_start_radius) * 0.5
+            };
+            
+            // Add noise variation for natural clumping
+            let noise_val = tree_noise.get([
+                sample_x as f64 * noise_scale,
+                sample_y as f64 * noise_scale,
+                50000.0 // Unique seed offset
+            ]);
+            
+            // Combined probability
+            let spawn_probability = distance_factor * ((noise_val + 1.0) / 2.0) as f32;
+            
+            // Check if we should spawn a tree here
+            if spawn_probability < density_threshold || ctx.rng().gen::<f32>() > spawn_probability {
+                continue;
+            }
+            
+            // Add random offset for more organic feel
+            let offset_x: f32 = ctx.rng().gen_range(-25.0..25.0);
+            let offset_y: f32 = ctx.rng().gen_range(-25.0..25.0);
+            let tree_x = sample_x + offset_x;
+            let tree_y = sample_y + offset_y;
+            
+            // Calculate chunk index
+            let chunk_idx = calculate_chunk_index(tree_x, tree_y);
+            
+            // Select tree type with noise-based variation for natural clustering
+            let type_noise = tree_noise.get([
+                tree_x as f64 * 0.01,
+                tree_y as f64 * 0.01,
+                60000.0
+            ]);
+            let type_index = ((type_noise + 1.0) / 2.0 * forest_tree_types.len() as f64) as usize % forest_tree_types.len();
+            let tree_type = forest_tree_types[type_index].clone();
+            
+            // Calculate resources for this tree
+            let resource_remaining = ctx.rng().gen_range(TREE_MIN_RESOURCES..=TREE_MAX_RESOURCES);
+            
+            // Create tree entity
+            let new_tree = Tree {
+                id: 0, // auto_inc
+                pos_x: tree_x,
+                pos_y: tree_y,
+                health: TREE_INITIAL_HEALTH,
+                resource_remaining,
+                tree_type,
+                chunk_index: chunk_idx,
+                last_hit_time: None,
+                respawn_at: spacetimedb::Timestamp::UNIX_EPOCH, // Not respawning initially
+                is_player_planted: false, // Monument trees are wild
+            };
+            
+            // Insert tree
+            match ctx.db.tree().try_insert(new_tree) {
+                Ok(_) => {
+                    spawned_count += 1;
+                }
+                Err(e) => {
+                    log::warn!("🏕️🌲 Failed to spawn tree at ({:.0}, {:.0}): {}", tree_x, tree_y, e);
+                }
+            }
+        }
+        
+        if spawned_count >= max_trees {
+            break;
+        }
+    }
+    
+    log::info!("🏕️🌲 Spawned {} trees around hunting village using natural noise distribution", spawned_count);
 }
 
 /// Generate coral reef zones (deep sea areas for living coral spawning)

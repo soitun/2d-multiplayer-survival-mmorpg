@@ -634,12 +634,15 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
     // - Shipwreck: 1500px (2.5x clearance radius)
     // - Fishing Village: 800px
     // - Whale Bone Graveyard: 800px
+    // - Hunting Village: 800px
     const FISHING_VILLAGE_RESTRICTION_RADIUS: f32 = 800.0;
     const FISHING_VILLAGE_RESTRICTION_RADIUS_SQ: f32 = FISHING_VILLAGE_RESTRICTION_RADIUS * FISHING_VILLAGE_RESTRICTION_RADIUS;
     const SHIPWRECK_RESTRICTION_RADIUS: f32 = 1500.0; // 2.5x monument::clearance::SHIPWRECK (600 * 2.5)
     const SHIPWRECK_RESTRICTION_RADIUS_SQ: f32 = SHIPWRECK_RESTRICTION_RADIUS * SHIPWRECK_RESTRICTION_RADIUS;
     const WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS: f32 = 800.0; // Same as fishing village
     const WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS_SQ: f32 = WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS * WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS;
+    const HUNTING_VILLAGE_RESTRICTION_RADIUS: f32 = 800.0; // Same as fishing village
+    const HUNTING_VILLAGE_RESTRICTION_RADIUS_SQ: f32 = HUNTING_VILLAGE_RESTRICTION_RADIUS * HUNTING_VILLAGE_RESTRICTION_RADIUS;
     
     for part in ctx.db.monument_part().iter() {
         // Only check against center pieces for simplicity
@@ -666,6 +669,11 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
             MonumentType::WhaleBoneGraveyard => {
                 if distance_sq <= WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS_SQ {
                     return Err("Cannot place items within the Whale Bone Graveyard. This monument must remain unobstructed.".to_string());
+                }
+            }
+            MonumentType::HuntingVillage => {
+                if distance_sq <= HUNTING_VILLAGE_RESTRICTION_RADIUS_SQ {
+                    return Err("Cannot place items within the Hunting Village. This monument must remain unobstructed.".to_string());
                 }
             }
         }

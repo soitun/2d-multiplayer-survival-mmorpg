@@ -2385,6 +2385,7 @@ pub fn is_player_in_safe_zone(ctx: &ReducerContext, player_x: f32, player_y: f32
     use crate::monument_part as MonumentPartTableTrait;
     use crate::MonumentType;
     use crate::whale_bone_graveyard::is_position_in_whale_bone_graveyard_safe_zone;
+    use crate::hunting_village::is_position_in_hunting_village_safe_zone;
     
     // Fishing village safe zone radius - communal protection area
     const FISHING_VILLAGE_SAFE_ZONE_RADIUS: f32 = 600.0; // Protective radius around the campfire
@@ -2438,6 +2439,12 @@ pub fn is_player_in_safe_zone(ctx: &ReducerContext, player_x: f32, player_y: f32
     // Check whale bone graveyard safe zone
     // The ancient graveyard and hermit's camp provide protection
     if is_position_in_whale_bone_graveyard_safe_zone(ctx, player_x, player_y) {
+        return true;
+    }
+    
+    // Check hunting village safe zone
+    // The boreal hunting village provides a safe haven for travelers
+    if is_position_in_hunting_village_safe_zone(ctx, player_x, player_y) {
         return true;
     }
     

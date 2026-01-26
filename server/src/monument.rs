@@ -36,6 +36,10 @@ pub mod clearance {
     /// Whale bone graveyard parts - clear an 11-tile radius (550px)
     pub const WHALE_BONE_GRAVEYARD: f32 = 550.0;
     
+    /// Hunting village parts - clear a 12-tile radius (600px)
+    /// Slightly larger to accommodate the tree ring around the village
+    pub const HUNTING_VILLAGE: f32 = 600.0;
+    
     // Future monument types can be added here:
     // pub const RUINS: f32 = 400.0;
     // pub const CRASH_SITE: f32 = 350.0;
@@ -58,6 +62,11 @@ pub fn is_position_near_monument(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -
     
     // Check whale bone graveyard monuments
     if is_near_whale_bone_graveyard(ctx, pos_x, pos_y) {
+        return true;
+    }
+    
+    // Check hunting village monuments
+    if is_near_hunting_village(ctx, pos_x, pos_y) {
         return true;
     }
     
@@ -114,6 +123,26 @@ fn is_near_whale_bone_graveyard(ctx: &ReducerContext, pos_x: f32, pos_y: f32) ->
     
     for part in ctx.db.monument_part().iter() {
         if part.monument_type != MonumentType::WhaleBoneGraveyard {
+            continue;
+        }
+        let dx = pos_x - part.world_x;
+        let dy = pos_y - part.world_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq < clearance_sq {
+            return true;
+        }
+    }
+    
+    false
+}
+
+/// Checks if position is near any hunting village part
+fn is_near_hunting_village(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    let clearance_sq = clearance::HUNTING_VILLAGE * clearance::HUNTING_VILLAGE;
+    
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::HuntingVillage {
             continue;
         }
         let dx = pos_x - part.world_x;
@@ -795,6 +824,234 @@ pub fn generate_whale_bone_graveyard(
     }
     
     (graveyard_center, graveyard_parts)
+}
+
+/// Generate hunting village monument in a forest biome
+/// Boreal Aleutian-style hunting village with lodge, huts, campfire, and surrounding tree ring.
+/// Returns (center_position, village_parts) where:
+/// - center_position: (x, y) in world pixels for lodge center piece
+/// - village_parts: Vec of (x, y, image_path, part_type) for all village structures
+pub fn generate_hunting_village(
+    noise: &Perlin,
+    shore_distance: &[Vec<f64>],
+    river_network: &[Vec<bool>],
+    lake_map: &[Vec<bool>],
+    forest_areas: &[Vec<bool>],
+    tundra_areas: &[Vec<bool>],
+    hot_spring_centers: &[(f32, f32, i32)],
+    shipwreck_centers: &[(f32, f32)],
+    fishing_village_center: Option<(f32, f32)>,
+    whale_bone_graveyard_center: Option<(f32, f32)>,
+    width: usize,
+    height: usize,
+) -> (Option<(f32, f32)>, Vec<(f32, f32, String, String)>) {
+    let mut village_center: Option<(f32, f32)> = None;
+    let mut village_parts: Vec<(f32, f32, String, String)> = Vec::new();
+    
+    log::info!("🏕️ Generating hunting village monument in forest biome...");
+    
+    // Find suitable forest tiles - must be in FOREST biome (NOT tundra), away from water
+    // Focus on middle-northern area of the map (forest-rich zone)
+    let map_height_quarter = height / 4; // Start at 1/4 down the map
+    let map_height_three_quarters = height * 3 / 4; // End at 3/4 down
+    let min_shore_dist = 15.0;  // At least 15 tiles from water (deep in forest)
+    let min_distance_from_edge = 40;
+    let min_distance_from_shipwreck = 100.0; // Minimum tiles away from shipwreck
+    let min_distance_from_fishing_village = 80.0; // Minimum tiles away from fishing village
+    let min_distance_from_whale_graveyard = 80.0; // Minimum tiles away from whale graveyard
+    let min_distance_from_hot_spring = 60.0; // Minimum tiles away from hot springs
+    
+    let mut candidate_positions = Vec::new();
+    
+    // Search middle portion of map for forest tiles
+    for y in (map_height_quarter + min_distance_from_edge)..(map_height_three_quarters - min_distance_from_edge) {
+        for x in min_distance_from_edge..(width - min_distance_from_edge) {
+            let shore_dist = shore_distance[y][x];
+            
+            // Must be deep inland, in a forest area, and NOT in tundra
+            if shore_dist >= min_shore_dist && forest_areas[y][x] && !tundra_areas[y][x] {
+                // Must not be on river or lake
+                if river_network[y][x] || lake_map[y][x] {
+                    continue;
+                }
+                
+                // Check distance from other monuments and special features
+                let tile_world_x = (x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                let tile_world_y = (y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                
+                let mut too_close = false;
+                
+                // Check distance from shipwreck
+                for &(shipwreck_x, shipwreck_y) in shipwreck_centers {
+                    let dx = tile_world_x - shipwreck_x;
+                    let dy = tile_world_y - shipwreck_y;
+                    let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                    if dist_tiles < min_distance_from_shipwreck {
+                        too_close = true;
+                        break;
+                    }
+                }
+                
+                // Check distance from hot springs
+                if !too_close {
+                    for &(hs_x, hs_y, hs_radius) in hot_spring_centers {
+                        let dx = tile_world_x - hs_x;
+                        let dy = tile_world_y - hs_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        // Must be further than the hot spring radius + buffer
+                        let min_dist = min_distance_from_hot_spring + hs_radius as f32;
+                        if dist_tiles < min_dist {
+                            too_close = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // Check distance from fishing village
+                if !too_close {
+                    if let Some((fv_x, fv_y)) = fishing_village_center {
+                        let dx = tile_world_x - fv_x;
+                        let dy = tile_world_y - fv_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        if dist_tiles < min_distance_from_fishing_village {
+                            too_close = true;
+                        }
+                    }
+                }
+                
+                // Check distance from whale bone graveyard
+                if !too_close {
+                    if let Some((wbg_x, wbg_y)) = whale_bone_graveyard_center {
+                        let dx = tile_world_x - wbg_x;
+                        let dy = tile_world_y - wbg_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        if dist_tiles < min_distance_from_whale_graveyard {
+                            too_close = true;
+                        }
+                    }
+                }
+                
+                if too_close {
+                    continue;
+                }
+                
+                candidate_positions.push((x, y, shore_dist));
+            }
+        }
+    }
+    
+    if candidate_positions.is_empty() {
+        log::warn!("🏕️ No valid forest positions found for hunting village");
+        return (village_center, village_parts);
+    }
+    
+    log::info!("🏕️ Found {} candidate positions for hunting village in forest biome", 
+               candidate_positions.len());
+    
+    // Select position using noise - prefer positions deeper in forest
+    let mut best_score = f64::NEG_INFINITY;
+    let mut best_position: Option<(usize, usize)> = None;
+    
+    for &(x, y, shore_dist) in &candidate_positions {
+        // Score: noise value + bonus for being deeper inland
+        let noise_val = noise.get([x as f64 * 0.01, y as f64 * 0.01, 40000.0]); // Different seed than other monuments
+        let inland_bonus = (shore_dist - min_shore_dist).min(30.0) / 30.0 * 0.3; // Bonus for deeper inland
+        let score = noise_val + inland_bonus;
+        
+        if score > best_score {
+            best_score = score;
+            best_position = Some((x, y));
+        }
+    }
+    
+    if let Some((center_x, center_y)) = best_position {
+        let tile_size_px = crate::TILE_SIZE_PX as f32;
+        let center_world_x = (center_x as f32 + 0.5) * tile_size_px;
+        let center_world_y = (center_y as f32 + 0.5) * tile_size_px;
+        
+        village_center = Some((center_world_x, center_world_y));
+        
+        log::info!("🏕️✨ PLACED HUNTING VILLAGE CENTER (lodge) at tile ({}, {}) = 📍 World Position: ({:.0}, {:.0}) ✨",
+                   center_x, center_y, center_world_x, center_world_y);
+        
+        // =============================================================================
+        // HUNTING VILLAGE LAYOUT
+        // =============================================================================
+        // The main lodge is the center of the village, with huts, campfire, and
+        // utility structures arranged around it in a clearing.
+        //
+        // Layout (in local coords):
+        //
+        //              HUT3 (0, -500)                              <- NORTH
+        //     HUT1 (-400, -300)         HUT2 (+400, -300)
+        //                                    
+        //     DRYING_RACK (-350, -50)  LODGE (0, 0)   STORAGE (+350, -50)  <- CENTER
+        //                                    
+        //                        CAMPFIRE (0, +250)                <- SOUTH
+        //
+        // Note: Tree ring will be spawned around the village during world generation
+        // =============================================================================
+        
+        // Structure definitions: (part_type, image_name, offset_x, offset_y)
+        let structure_configs: [(&str, &str, f32, f32); 7] = [
+            // Main lodge - CENTER PIECE - the heart of the hunting village
+            ("lodge", "hv_lodge.png", 0.0, 0.0),
+            
+            // Hunting huts - arranged in a semicircle to the north
+            ("hut", "hv_hut1.png", -400.0, -300.0),
+            ("hut", "hv_hut2.png", 400.0, -300.0),
+            ("hut", "hv_hut3.png", 0.0, -500.0),
+            
+            // Campfire - south of the lodge (using fishing village asset)
+            ("campfire", "fv_campfire.png", 0.0, 250.0),
+            
+            // Drying rack for pelts and meat - west of lodge
+            ("drying_rack", "hv_drying_rack.png", -350.0, -50.0),
+            
+            // Outdoor storage - east of lodge
+            ("storage", "hv_storage.png", 350.0, -50.0),
+        ];
+        
+        for (part_type, image_name, offset_x, offset_y) in structure_configs.iter() {
+            let part_world_x = center_world_x + offset_x;
+            let part_world_y = center_world_y + offset_y;
+            
+            // Convert to tile coords for validation
+            let part_tile_x = (part_world_x / tile_size_px) as i32;
+            let part_tile_y = (part_world_y / tile_size_px) as i32;
+            
+            // Bounds check
+            if part_tile_x < 5 || part_tile_y < 5 || 
+               part_tile_x >= (width as i32 - 5) || part_tile_y >= (height as i32 - 5) {
+                log::warn!("🏕️ {} out of bounds at tile ({}, {})", part_type, part_tile_x, part_tile_y);
+                continue;
+            }
+            
+            let px = part_tile_x as usize;
+            let py = part_tile_y as usize;
+            
+            // Check terrain - must be on land, not water/river/lake
+            let part_shore_dist = shore_distance[py][px];
+            
+            if part_shore_dist < 0.0 || river_network[py][px] || lake_map[py][px] {
+                log::warn!("🏕️ {} terrain invalid: shore_dist={:.1}", part_type, part_shore_dist);
+                continue;
+            }
+            
+            // Place the structure!
+            village_parts.push((part_world_x, part_world_y, image_name.to_string(), part_type.to_string()));
+            
+            log::info!("🏕️✨ PLACED {} ({}) at ({:.0}, {:.0}), offset=({:.0}, {:.0}) ✨",
+                       part_type.to_uppercase(), image_name, part_world_x, part_world_y,
+                       offset_x, offset_y);
+        }
+        
+        log::info!("🏕️ Hunting village generation complete: {} total structures", village_parts.len());
+    } else {
+        log::warn!("🏕️ Failed to select hunting village position");
+    }
+    
+    (village_center, village_parts)
 }
 
 // =============================================================================
@@ -1719,6 +1976,31 @@ pub fn get_whale_bone_graveyard_placeables() -> Vec<MonumentPlaceableConfig> {
         // Single campfire near the hermit's hut (which is now at center 0, 0)
         // Placed slightly in front and to the right of the hut for player access
         MonumentPlaceableConfig::campfire(80.0, 120.0),
+    ]
+}
+
+/// Get monument placeables for the Hunting Village monument
+/// Provides a functional campfire for cooking and warmth
+pub fn get_hunting_village_placeables() -> Vec<MonumentPlaceableConfig> {
+    vec![
+        // No functional placeables - the campfire is a visual doodad (fv_campfire.png)
+        // like Fishing Village. The visual campfire provides cozy effect via zone check.
+        // If functional campfire is desired later, uncomment below:
+        // MonumentPlaceableConfig::campfire(0.0, 250.0), // South of lodge
+    ]
+}
+
+/// Hunting Village-specific harvestable resource configuration
+/// Spawns wood piles and hunting-related resources around the village
+pub fn get_hunting_village_harvestables() -> Vec<MonumentHarvestableConfig> {
+    vec![
+        // Wood pile - forest resources near the village
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::StonePile,
+            spawn_chance: 0.50, // 50% per part
+            min_distance: 80.0,
+            max_distance: 200.0,
+        },
     ]
 }
 

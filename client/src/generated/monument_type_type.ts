@@ -32,7 +32,8 @@ import * as MonumentTypeVariants from './monument_type_variants'
 // The tagged union or sum type for the algebraic type `MonumentType`.
 export type MonumentType = MonumentTypeVariants.Shipwreck |
   MonumentTypeVariants.FishingVillage |
-  MonumentTypeVariants.WhaleBoneGraveyard;
+  MonumentTypeVariants.WhaleBoneGraveyard |
+  MonumentTypeVariants.HuntingVillage;
 
 let _cached_MonumentType_type_value: __AlgebraicTypeType | null = null;
 
@@ -47,6 +48,7 @@ export const MonumentType = {
   Shipwreck: { tag: "Shipwreck" } as const,
   FishingVillage: { tag: "FishingVillage" } as const,
   WhaleBoneGraveyard: { tag: "WhaleBoneGraveyard" } as const,
+  HuntingVillage: { tag: "HuntingVillage" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_MonumentType_type_value) return _cached_MonumentType_type_value;
@@ -55,6 +57,7 @@ export const MonumentType = {
       { name: "Shipwreck", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "FishingVillage", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "WhaleBoneGraveyard", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "HuntingVillage", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_MonumentType_type_value;
   },

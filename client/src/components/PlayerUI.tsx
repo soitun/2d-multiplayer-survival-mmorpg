@@ -1010,7 +1010,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             name: 'Safe Zone',
                             emoji: '🛡️',
                             type: 'positive' as const,
-                            description: 'Protected from player, animal, and projectile damage while near ALK stations or fishing village.',
+                            description: 'Protected from player, animal, and projectile damage.',
                             // No duration - permanent while in safe zone
                         };
                         break;

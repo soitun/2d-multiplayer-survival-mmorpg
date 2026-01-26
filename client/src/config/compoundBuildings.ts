@@ -540,52 +540,52 @@ export function getCompoundBuildingsWithLights(): Array<{
 }
 
 /**
- * Convert shipwreck parts from database to compound building format.
- * Shipwrecks are dynamically placed during world generation, but then treated as static config.
- * Client reads shipwreck positions once on world load, then treats them like compound buildings.
+ * Size configuration for monument part types.
+ * Maps partType to display dimensions (width, height).
+ * All monument images are typically 1024x1024, scaled down for visual balance.
  */
-export function getShipwreckBuildings(shipwreckParts: Array<{
-  id: bigint;
-  worldX: number;
-  worldY: number;
-  imagePath: string;
-  isCenter: boolean;
-  collisionRadius: number;
-}>): CompoundBuilding[] {
-  const center = getWorldCenter();
+const MONUMENT_PART_SIZES: Record<string, { width: number; height: number }> = {
+  // Shipwreck parts (default size for ship parts)
+  'hull': { width: 512, height: 512 },
+  'bow': { width: 512, height: 512 },
+  'stern': { width: 512, height: 512 },
+  'mast': { width: 512, height: 512 },
   
-  return shipwreckParts.map((part, index) => {
-    // Calculate offset from world center (matching compound building pattern)
-    const offsetX = part.worldX - center.x;
-    const offsetY = part.worldY - center.y;
-    
-    // All ship parts are rendered at half size (512x512) for better spacing
-    const width = 512;
-    const height = 512;
-    const anchorYOffset = 0; // Anchor at bottom of sprite
-    
-    return {
-      id: `shipwreck_${part.id}`,
-      offsetX,
-      offsetY,
-      imagePath: part.imagePath,
-      width,
-      height,
-      anchorYOffset,
-      collisionRadius: part.collisionRadius,
-      collisionYOffset: 0,
-      isCenter: part.isCenter, // Preserve for building restriction overlay
-    };
-  });
+  // Fishing Village parts
+  'campfire': { width: 256, height: 256 },
+  'hut': { width: 512, height: 512 },
+  'dock': { width: 384, height: 384 },
+  'smokerack': { width: 256, height: 256 },
+  'kayak': { width: 320, height: 320 },
+  
+  // Whale Bone Graveyard parts
+  'ribcage': { width: 640, height: 640 },
+  'skull': { width: 480, height: 480 },
+  'spine': { width: 512, height: 512 },
+  'jawbone': { width: 384, height: 384 },
+  'hermit_hut': { width: 400, height: 400 },
+  
+  // Hunting Village parts
+  'lodge': { width: 512, height: 512 },
+  'drying_rack': { width: 320, height: 320 },
+  'storage': { width: 320, height: 320 },
+  
+  // Default fallback
+  'default': { width: 512, height: 512 },
+};
+
+/**
+ * Get the display size for a monument part based on its partType.
+ * Falls back to default size if partType is not found.
+ */
+function getMonumentPartSize(partType: string): { width: number; height: number } {
+  return MONUMENT_PART_SIZES[partType] || MONUMENT_PART_SIZES['default'];
 }
 
 /**
- * Convert fishing village parts from database to compound building format.
- * Fishing villages are dynamically placed during world generation, but then treated as static config.
- * Client reads fishing village positions once on world load, then treats them like compound buildings.
- * NOTE: Fishing village has NO collision per user request (collisionRadius = 0)
+ * Monument part from database (unified format for all monument types).
  */
-export function getFishingVillageBuildings(fishingVillageParts: Array<{
+export interface MonumentPartData {
   id: bigint;
   worldX: number;
   worldY: number;
@@ -593,173 +593,53 @@ export function getFishingVillageBuildings(fishingVillageParts: Array<{
   partType: string;
   isCenter: boolean;
   collisionRadius: number;
-}>): CompoundBuilding[] {
-  const center = getWorldCenter();
-  
-  return fishingVillageParts.map((part, index) => {
-    // Calculate offset from world center (matching compound building pattern)
-    const offsetX = part.worldX - center.x;
-    const offsetY = part.worldY - center.y;
-    
-    // Size based on part type 
-    // Images are 1024x1024 square - sizes tuned for visual balance
-    let width = 512;
-    let height = 512;
-    
-    // Adjust sizes based on part type - all images are 1024x1024 square
-    switch (part.partType) {
-      case 'campfire':
-        width = 256;   // Smaller firepit
-        height = 256;
-        break;
-      case 'hut':
-        width = 512;   // Huts at half original (1024 -> 512) - PERFECT
-        height = 512;
-        break;
-      case 'dock':
-        width = 384;   // Dock slightly smaller
-        height = 384;
-        break;
-      case 'smokerack':
-        width = 256;   // Smaller smoke racks
-        height = 256;
-        break;
-      case 'kayak':
-        width = 320;   // Kayak medium size
-        height = 320;
-        break;
-      default:
-        width = 512;   // Default to half size
-        height = 512;
-    }
-    
-    const anchorYOffset = 0; // Anchor at bottom of sprite
-    
-    return {
-      id: `fishing_village_${part.id}`,
-      offsetX,
-      offsetY,
-      imagePath: part.imagePath,
-      width,
-      height,
-      anchorYOffset,
-      collisionRadius: part.collisionRadius, // 0 = no collision per user request
-      collisionYOffset: 0,
-      isCenter: part.isCenter, // Preserve for building restriction overlay
-    };
-  });
+  monumentType: string; // Tag from MonumentType enum (e.g., 'Shipwreck', 'FishingVillage')
 }
 
 /**
- * Convert whale bone graveyard parts from database to compound building format.
- * Whale bone graveyards are dynamically placed during world generation, but then treated as static config.
- * Client reads graveyard positions once on world load, then treats them like compound buildings.
- * NOTE: Whale bone graveyard has NO collision per user request (collisionRadius = 0)
+ * Convert ALL monument parts from database to compound building format in a single pass.
+ * This is more efficient than filtering by type separately.
+ * Handles: Shipwreck, FishingVillage, WhaleBoneGraveyard, HuntingVillage, and any future monuments.
  */
-export function getWhaleBoneGraveyardBuildings(whaleBoneGraveyardParts: Array<{
-  id: bigint;
-  worldX: number;
-  worldY: number;
-  imagePath: string;
-  partType: string;
-  isCenter: boolean;
-  collisionRadius: number;
-}>): CompoundBuilding[] {
+export function getMonumentBuildings(monumentParts: MonumentPartData[]): CompoundBuilding[] {
   const center = getWorldCenter();
   
-  return whaleBoneGraveyardParts
-    .filter(part => part.imagePath && part.imagePath.length > 0) // Skip center markers with empty image
+  return monumentParts
+    .filter(part => part.imagePath && part.imagePath.length > 0) // Skip parts with empty images
     .map((part, index) => {
-    // Calculate offset from world center (matching compound building pattern)
-    const offsetX = part.worldX - center.x;
-    const offsetY = part.worldY - center.y;
-    
-    // Size based on part type 
-    // Images are expected to be large (1024x1024) - sizes tuned for visual balance
-    let width = 512;
-    let height = 512;
-    
-    // Adjust sizes based on part type
-    switch (part.partType) {
-      case 'ribcage':
-        width = 640;   // Large central ribcage
-        height = 640;
-        break;
-      case 'skull':
-        width = 480;   // Medium skull
-        height = 480;
-        break;
-      case 'spine':
-        width = 512;   // Spine section
-        height = 512;
-        break;
-      case 'jawbone':
-        width = 384;   // Smaller jawbone
-        height = 384;
-        break;
-      case 'hermit_hut':
-        width = 400;   // Hermit's small hut
-        height = 400;
-        break;
-      default:
-        width = 512;   // Default size
-        height = 512;
-    }
-    
-    const anchorYOffset = 0; // Anchor at bottom of sprite
-    
-    return {
-      id: `wbg_${part.id}_${index}`,
-      imagePath: part.imagePath,
-      offsetX,
-      offsetY,
-      width,
-      height,
-      anchorYOffset,
-      collisionRadius: part.collisionRadius, // NO collision per user request (0)
-      collisionYOffset: 0, // Collision at anchor point
-      isCenter: part.isCenter, // Preserve for building restriction overlay
-    };
-  });
+      // Calculate offset from world center (matching compound building pattern)
+      const offsetX = part.worldX - center.x;
+      const offsetY = part.worldY - center.y;
+      
+      // Get size based on part type
+      const { width, height } = getMonumentPartSize(part.partType);
+      
+      // Generate unique ID based on monument type
+      const idPrefix = part.monumentType.toLowerCase().replace(/([A-Z])/g, '_$1').replace(/^_/, '');
+      
+      return {
+        id: `${idPrefix}_${part.id}_${index}`,
+        imagePath: part.imagePath,
+        offsetX,
+        offsetY,
+        width,
+        height,
+        anchorYOffset: 0, // Anchor at bottom of sprite
+        collisionRadius: part.collisionRadius,
+        collisionYOffset: 0,
+        isCenter: part.isCenter,
+      };
+    });
 }
 
 /**
- * Get all compound buildings including shipwrecks, fishing village, and whale bone graveyard.
- * Dynamic monuments are read once from database during world load, then treated as static config.
+ * Get all compound buildings including static buildings and all monument parts.
+ * Monument parts are processed in a single efficient pass.
  * This matches the compound buildings pattern: client-side rendering, server-side collision only.
  */
-export function getAllCompoundBuildings(
-  shipwreckParts?: Array<{
-    id: bigint;
-    worldX: number;
-    worldY: number;
-    imagePath: string;
-    isCenter: boolean;
-    collisionRadius: number;
-  }>,
-  fishingVillageParts?: Array<{
-    id: bigint;
-    worldX: number;
-    worldY: number;
-    imagePath: string;
-    partType: string;
-    isCenter: boolean;
-    collisionRadius: number;
-  }>,
-  whaleBoneGraveyardParts?: Array<{
-    id: bigint;
-    worldX: number;
-    worldY: number;
-    imagePath: string;
-    partType: string;
-    isCenter: boolean;
-    collisionRadius: number;
-  }>
-): CompoundBuilding[] {
+export function getAllCompoundBuildings(monumentParts?: MonumentPartData[]): CompoundBuilding[] {
   const staticBuildings = COMPOUND_BUILDINGS;
-  const shipwreckBuildings = shipwreckParts ? getShipwreckBuildings(shipwreckParts) : [];
-  const fishingVillageBuildings = fishingVillageParts ? getFishingVillageBuildings(fishingVillageParts) : [];
-  const whaleBoneGraveyardBuildings = whaleBoneGraveyardParts ? getWhaleBoneGraveyardBuildings(whaleBoneGraveyardParts) : [];
-  return [...staticBuildings, ...shipwreckBuildings, ...fishingVillageBuildings, ...whaleBoneGraveyardBuildings];
+  const monumentBuildings = monumentParts ? getMonumentBuildings(monumentParts) : [];
+  return [...staticBuildings, ...monumentBuildings];
 }
 
