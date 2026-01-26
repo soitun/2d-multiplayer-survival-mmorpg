@@ -2015,6 +2015,17 @@ pub fn get_hunting_village_placeables() -> Vec<MonumentPlaceableConfig> {
     ]
 }
 
+/// Get monument placeables for Hot Springs
+/// A cozy campfire on the beach near the hot spring pool adds atmosphere
+pub fn get_hot_spring_placeables() -> Vec<MonumentPlaceableConfig> {
+    vec![
+        // Single campfire on the beach, offset from the hot spring center
+        // Hot springs have ~7-9 tile radius (336-432px), so we need 450+ px offset
+        // to place the campfire on the beach outside the water pool
+        MonumentPlaceableConfig::campfire(480.0, -100.0),
+    ]
+}
+
 /// Hunting Village-specific harvestable resource configuration
 /// Spawns wood piles and hunting-related resources around the village
 pub fn get_hunting_village_harvestables() -> Vec<MonumentHarvestableConfig> {
@@ -2389,5 +2400,125 @@ pub fn spawn_monument_placeables(
         spawned_count, monument_name, monument_center_x, monument_center_y);
     
     Ok(spawned_count)
+}
+
+// =============================================================================
+// REED MARSH RESOURCE SPAWNING
+// =============================================================================
+
+/// Spawns reeds, water barrels, and memory shards around reed marsh centers
+/// Reed marshes are natural wetland areas - great for farming reeds, barrels, memory shards, and hunting terns
+pub fn spawn_reed_marsh_resources(ctx: &ReducerContext) -> Result<(), String> {
+    use crate::reed_marsh as ReedMarshTableTrait;
+    use crate::barrel::{Barrel, BARREL_INITIAL_HEALTH, SEA_BARREL_VARIANT_START, SEA_BARREL_VARIANT_END};
+    use crate::harvestable_resource::{HarvestableResource, create_harvestable_resource};
+    use crate::plants_database::PlantType;
+    use crate::environment::calculate_chunk_index;
+    
+    // Collect marsh data first to avoid borrow issues
+    let marsh_data: Vec<(f32, f32, f32)> = ctx.db.reed_marsh()
+        .iter()
+        .map(|m| (m.world_x, m.world_y, m.radius_px))
+        .collect();
+    
+    if marsh_data.is_empty() {
+        log::info!("[ReedMarsh] No reed marshes found to spawn resources in");
+        return Ok(());
+    }
+    
+    let mut total_reeds = 0;
+    let mut total_barrels = 0;
+    let mut total_shards = 0;
+    
+    for (marsh_x, marsh_y, radius_px) in &marsh_data {
+        let mut marsh_reeds = 0;
+        let mut marsh_barrels = 0;
+        let mut marsh_shards = 0;
+        
+        // Spawn reeds (main resource) - 5-8 reed plants per marsh
+        // Reeds grow along the marshy edges of rivers and lakes
+        let reed_count = ctx.rng().gen_range(5..=8);
+        for _ in 0..reed_count {
+            let angle = ctx.rng().gen::<f32>() * std::f32::consts::PI * 2.0;
+            let distance = ctx.rng().gen_range(30.0..*radius_px);
+            let spawn_x = marsh_x + angle.cos() * distance;
+            let spawn_y = marsh_y + angle.sin() * distance;
+            
+            let chunk_idx = calculate_chunk_index(spawn_x, spawn_y);
+            
+            let reed = create_harvestable_resource(
+                PlantType::Reed,
+                spawn_x,
+                spawn_y,
+                chunk_idx,
+                false // Not player planted
+            );
+            
+            ctx.db.harvestable_resource().insert(reed);
+            marsh_reeds += 1;
+        }
+        
+        // Spawn water barrels (1-2 per marsh) - washed up cargo and flotsam
+        let barrel_count = ctx.rng().gen_range(1..=2);
+        for _ in 0..barrel_count {
+            let angle = ctx.rng().gen::<f32>() * std::f32::consts::PI * 2.0;
+            let distance = ctx.rng().gen_range(50.0..*radius_px * 0.9);
+            let spawn_x = marsh_x + angle.cos() * distance;
+            let spawn_y = marsh_y + angle.sin() * distance;
+            
+            let chunk_idx = calculate_chunk_index(spawn_x, spawn_y);
+            // Use sea barrel variants (washed up look)
+            let variant = ctx.rng().gen_range(SEA_BARREL_VARIANT_START..SEA_BARREL_VARIANT_END);
+            
+            let barrel = Barrel {
+                id: 0, // auto_inc
+                pos_x: spawn_x,
+                pos_y: spawn_y,
+                chunk_index: chunk_idx,
+                health: BARREL_INITIAL_HEALTH,
+                variant,
+                last_hit_time: None,
+                respawn_at: spacetimedb::Timestamp::UNIX_EPOCH, // 0 = not respawning
+                cluster_id: 0, // Reed marsh barrels don't belong to a cluster
+            };
+            
+            ctx.db.barrel().insert(barrel);
+            marsh_barrels += 1;
+        }
+        
+        // Spawn memory shards (50% chance for 1 shard per marsh)
+        // Debris washed up from the crashed ship finds its way to these wetlands
+        if ctx.rng().gen::<f32>() < 0.50 {
+            let angle = ctx.rng().gen::<f32>() * std::f32::consts::PI * 2.0;
+            let distance = ctx.rng().gen_range(40.0..*radius_px * 0.85);
+            let spawn_x = marsh_x + angle.cos() * distance;
+            let spawn_y = marsh_y + angle.sin() * distance;
+            
+            let chunk_idx = calculate_chunk_index(spawn_x, spawn_y);
+            
+            let shard = create_harvestable_resource(
+                PlantType::MemoryShard,
+                spawn_x,
+                spawn_y,
+                chunk_idx,
+                false // Not player planted
+            );
+            
+            ctx.db.harvestable_resource().insert(shard);
+            marsh_shards += 1;
+        }
+        
+        log::debug!("🌾 [ReedMarsh] ({:.0}, {:.0}): {} reeds, {} barrels, {} shards",
+                   marsh_x, marsh_y, marsh_reeds, marsh_barrels, marsh_shards);
+        
+        total_reeds += marsh_reeds;
+        total_barrels += marsh_barrels;
+        total_shards += marsh_shards;
+    }
+    
+    log::info!("🌾 [ReedMarsh] Total spawned: {} reeds, {} barrels, {} memory shards across {} marshes",
+               total_reeds, total_barrels, total_shards, marsh_data.len());
+    
+    Ok(())
 }
 

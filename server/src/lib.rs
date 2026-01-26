@@ -2315,6 +2315,23 @@ pub struct LargeQuarry {
     pub quarry_type: LargeQuarryType,
 }
 
+/// Reed Marsh zones - environmental monuments located in larger rivers
+/// Contains reeds, water barrels, memory shards, and attracts terns
+/// Building is restricted within these zones
+#[spacetimedb::table(name = reed_marsh, public)]
+#[derive(Clone, Debug)]
+pub struct ReedMarsh {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    /// World X position in pixels (center of marsh)
+    pub world_x: f32,
+    /// World Y position in pixels (center of marsh)
+    pub world_y: f32,
+    /// Radius of the marsh in pixels
+    pub radius_px: f32,
+}
+
 // ADD: Utility functions for tile compression
 impl TileType {
     /// Convert TileType to u8 for compression

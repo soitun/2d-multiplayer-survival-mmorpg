@@ -57,6 +57,7 @@ use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::fumarole::fumarole as FumaroleTableTrait;
 use crate::basalt_column::basalt_column as BasaltColumnTableTrait;
 use crate::large_quarry as LargeQuarryTableTrait;
+use crate::reed_marsh as ReedMarshTableTrait;
 use crate::coral::living_coral as LivingCoralTableTrait;
 // Monument table traits for cairn avoidance checks
 use crate::alk::alk_station as AlkStationTableTrait;
@@ -439,6 +440,78 @@ pub fn is_position_in_hot_spring_area(ctx: &ReducerContext, pos_x: f32, pos_y: f
     }
     
     false
+}
+
+/// Finds hot spring centers by clustering HotSpringWater tiles
+/// Returns a list of (center_x, center_y) in world pixel coordinates
+pub fn find_hot_spring_centers(ctx: &ReducerContext) -> Vec<(f32, f32)> {
+    use std::collections::{HashSet, VecDeque};
+    
+    // Collect all HotSpringWater tiles
+    let hot_spring_tiles: Vec<(i32, i32)> = ctx.db.world_tile()
+        .iter()
+        .filter(|tile| tile.tile_type == crate::TileType::HotSpringWater)
+        .map(|tile| (tile.world_x, tile.world_y))
+        .collect();
+    
+    if hot_spring_tiles.is_empty() {
+        return Vec::new();
+    }
+    
+    log::debug!("[HotSpringCenters] Found {} HotSpringWater tiles", hot_spring_tiles.len());
+    
+    // Build a set for fast lookup
+    let tile_set: HashSet<(i32, i32)> = hot_spring_tiles.iter().cloned().collect();
+    let mut visited: HashSet<(i32, i32)> = HashSet::new();
+    let mut centers: Vec<(f32, f32)> = Vec::new();
+    
+    // Flood-fill to find connected clusters (each cluster = one hot spring)
+    for &start_tile in &hot_spring_tiles {
+        if visited.contains(&start_tile) {
+            continue;
+        }
+        
+        // BFS to find all connected tiles in this cluster
+        let mut cluster: Vec<(i32, i32)> = Vec::new();
+        let mut queue: VecDeque<(i32, i32)> = VecDeque::new();
+        queue.push_back(start_tile);
+        visited.insert(start_tile);
+        
+        while let Some((tx, ty)) = queue.pop_front() {
+            cluster.push((tx, ty));
+            
+            // Check 4-connected neighbors (up, down, left, right)
+            for (dx, dy) in &[(0, 1), (0, -1), (1, 0), (-1, 0)] {
+                let neighbor = (tx + dx, ty + dy);
+                if tile_set.contains(&neighbor) && !visited.contains(&neighbor) {
+                    visited.insert(neighbor);
+                    queue.push_back(neighbor);
+                }
+            }
+        }
+        
+        // Calculate the center of this cluster (average of all tile positions)
+        if !cluster.is_empty() {
+            let sum_x: i32 = cluster.iter().map(|(x, _)| x).sum();
+            let sum_y: i32 = cluster.iter().map(|(_, y)| y).sum();
+            let count = cluster.len() as f32;
+            
+            // Convert tile center to world pixels
+            let center_tile_x = sum_x as f32 / count;
+            let center_tile_y = sum_y as f32 / count;
+            let center_world_x = (center_tile_x + 0.5) * crate::TILE_SIZE_PX as f32;
+            let center_world_y = (center_tile_y + 0.5) * crate::TILE_SIZE_PX as f32;
+            
+            centers.push((center_world_x, center_world_y));
+            log::debug!(
+                "[HotSpringCenters] Found hot spring cluster with {} tiles, center at ({:.0}, {:.0})",
+                cluster.len(), center_world_x, center_world_y
+            );
+        }
+    }
+    
+    log::info!("[HotSpringCenters] Detected {} hot springs from tile clusters", centers.len());
+    centers
 }
 
 /// Helper function to check if a sea tile is too close to beach tiles
@@ -2244,14 +2317,46 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         }
     }
 
-    // --- DISABLED: Hot Spring Entity Spawning (now using HotSpringWater tile type instead) ---
-    // Hot springs are now handled purely via the HotSpringWater tile type
-    // No need for entities - the healing effect triggers when standing on HotSpringWater tiles
-    // The minimap will show them in bright white/cyan color
-    log::info!("Hot springs are now generated as HotSpringWater tiles (no entities needed)");
+    // --- Hot Spring Decorations (Barrels + Campfire) ---
+    // Hot springs are tile-based (HotSpringWater tiles) - we add atmosphere with barrels and a campfire
+    log::info!("🌊 Hot springs: Finding centers and spawning decorations...");
     
+    // Find hot spring centers by clustering HotSpringWater tiles
+    let hot_spring_centers = find_hot_spring_centers(ctx);
+    log::info!("🌊 Found {} hot spring centers", hot_spring_centers.len());
     
-    // Set counters to 0 since we're not spawning entities anymore
+    // Spawn beach barrels around hot springs for flavor
+    match barrel::spawn_hot_spring_barrels(ctx, &hot_spring_centers) {
+        Ok(count) => {
+            log::info!("🛢️ Spawned {} barrels around hot springs", count);
+        }
+        Err(e) => {
+            log::error!("Failed to spawn hot spring barrels: {}", e);
+        }
+    }
+    
+    // Spawn a campfire at each hot spring
+    let mut hot_spring_campfire_count = 0u32;
+    for (center_x, center_y) in &hot_spring_centers {
+        let placeables = monument::get_hot_spring_placeables();
+        match monument::spawn_monument_placeables(
+            ctx, 
+            "Hot Spring", 
+            *center_x, 
+            *center_y, 
+            &placeables
+        ) {
+            Ok(count) => {
+                hot_spring_campfire_count += count;
+            }
+            Err(e) => {
+                log::error!("Failed to spawn hot spring campfire at ({:.0}, {:.0}): {}", center_x, center_y, e);
+            }
+        }
+    }
+    log::info!("🔥 Spawned {} campfires at hot springs", hot_spring_campfire_count);
+    
+    // Set counters to 0 since hot springs themselves are tile-based (no entity count)
     let spawned_hot_spring_count = 0;
 
     // --- Seed Quarry Entities (Fumaroles, Basalt Columns, Stones) ---
@@ -3429,6 +3534,11 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         "Finished seeding {} wild animals (target: {}, attempts: {}).",
         spawned_wild_animal_count, target_wild_animal_count, wild_animal_attempts
     );
+
+    // --- Seed Terns near Reed Marshes ---
+    // Reed marshes attract terns as a hunting/scavenging location
+    let terns_spawned = spawn_terns_near_reed_marshes(ctx, &mut rng, &spawned_wild_animal_positions);
+    log::info!("🐦 Spawned {} terns near reed marshes", terns_spawned);
 
     // --- Seed Grass --- OPTIMIZED: Simple noise-based spawning on Grass/Forest tiles
     // REVERTED from plains detection (too intensive) back to efficient random sampling
@@ -4651,3 +4761,120 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
 /// allowing resource gathering to feel rewarding. Players should find
 /// plants regularly while exploring but not be drowning in them.
 pub const GLOBAL_PLANT_DENSITY_MULTIPLIER: f32 = 0.10;
+
+// =============================================================================
+// REED MARSH TERN SPAWNING
+// =============================================================================
+
+/// Spawn terns near reed marsh zones
+/// Reed marshes attract terns as scavenger birds for the player to hunt
+fn spawn_terns_near_reed_marshes(
+    ctx: &ReducerContext,
+    rng: &mut StdRng,
+    existing_animal_positions: &[(f32, f32)],
+) -> u32 {
+    use crate::wild_animal_npc::core::{WildAnimal, AnimalSpecies, AnimalState, MovementPattern};
+    use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait;
+    
+    let mut spawned_count = 0;
+    let current_time = ctx.timestamp;
+    
+    // Collect marsh data to avoid borrow issues
+    let marsh_data: Vec<(f32, f32, f32)> = ctx.db.reed_marsh()
+        .iter()
+        .map(|m| (m.world_x, m.world_y, m.radius_px))
+        .collect();
+    
+    if marsh_data.is_empty() {
+        return 0;
+    }
+    
+    // Spawn 1-2 terns near each marsh (more marshes = more distributed terns)
+    for (marsh_x, marsh_y, radius_px) in &marsh_data {
+        let tern_count = rng.gen_range(1..=2);
+        
+        for _ in 0..tern_count {
+            // Generate spawn position near the marsh
+            let angle = rng.gen::<f32>() * std::f32::consts::PI * 2.0;
+            let distance = rng.gen_range(50.0..*radius_px * 1.2); // Can spawn slightly outside marsh area too
+            let spawn_x = marsh_x + angle.cos() * distance;
+            let spawn_y = marsh_y + angle.sin() * distance;
+            
+            // Check for collision with existing animals (simple distance check)
+            let min_animal_dist_sq = 150.0 * 150.0;
+            let too_close_to_animal = existing_animal_positions.iter()
+                .any(|(ax, ay)| {
+                    let dx = spawn_x - ax;
+                    let dy = spawn_y - ay;
+                    (dx * dx + dy * dy) < min_animal_dist_sq
+                });
+            
+            if too_close_to_animal {
+                continue;
+            }
+            
+            // Calculate chunk index
+            let chunk_idx = calculate_chunk_index(spawn_x, spawn_y);
+            
+            let tern = WildAnimal {
+                id: 0, // auto_inc
+                species: AnimalSpecies::Tern,
+                pos_x: spawn_x,
+                pos_y: spawn_y,
+                direction_x: 1.0,
+                direction_y: 0.0,
+                facing_direction: "down".to_string(),
+                state: AnimalState::Grounded, // Birds start grounded
+                health: 80.0, // Tern max health
+                spawn_x,
+                spawn_y,
+                target_player_id: None,
+                last_attack_time: None,
+                state_change_time: current_time,
+                hide_until: None,
+                investigation_x: None,
+                investigation_y: None,
+                patrol_phase: rng.gen::<f32>(),
+                scent_ping_timer: 0,
+                movement_pattern: MovementPattern::Wander,
+                chunk_index: chunk_idx,
+                created_at: current_time,
+                last_hit_time: None,
+                pack_id: None,
+                is_pack_leader: false,
+                pack_join_time: None,
+                last_pack_check: None,
+                fire_fear_overridden_by: None,
+                tamed_by: None,
+                tamed_at: None,
+                heart_effect_until: None,
+                crying_effect_until: None,
+                last_food_check: None,
+                held_item_name: None,
+                held_item_quantity: None,
+                flying_target_x: None,
+                flying_target_y: None,
+                is_flying: false, // Start grounded
+                is_hostile_npc: false,
+                target_structure_id: None,
+                target_structure_type: None,
+                stalk_angle: 0.0,
+                stalk_distance: 0.0,
+                despawn_at: None,
+            };
+            
+            match ctx.db.wild_animal().try_insert(tern) {
+                Ok(inserted) => {
+                    spawned_count += 1;
+                    log::debug!("🐦 Spawned Tern #{} near reed marsh at ({:.1}, {:.1})", 
+                               inserted.id, spawn_x, spawn_y);
+                }
+                Err(e) => {
+                    log::warn!("Failed to spawn tern near reed marsh: {}", e);
+                }
+            }
+        }
+    }
+    
+    spawned_count
+}

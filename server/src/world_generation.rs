@@ -1,7 +1,7 @@
 use spacetimedb::{ReducerContext, Table, Timestamp, Identity};
 use noise::{NoiseFn, Perlin, Seedable};
 use log;
-use crate::{WorldTile, TileType, WorldGenConfig, MinimapCache, MonumentPart, MonumentType, LargeQuarry, LargeQuarryType, WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES};
+use crate::{WorldTile, TileType, WorldGenConfig, MinimapCache, MonumentPart, MonumentType, LargeQuarry, LargeQuarryType, ReedMarsh, WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES};
 
 // Import the table trait
 use crate::world_tile as WorldTileTableTrait;
@@ -9,6 +9,7 @@ use crate::minimap_cache as MinimapCacheTableTrait;
 use crate::world_chunk_data as WorldChunkDataTableTrait;
 use crate::monument_part as MonumentPartTableTrait;
 use crate::large_quarry as LargeQuarryTableTrait;
+use crate::reed_marsh as ReedMarshTableTrait;
 
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
@@ -35,6 +36,18 @@ const QUARRY_SMALL_MAX_RADIUS_TILES: i32 = 14;  // Slightly larger
 const MIN_QUARRY_DISTANCE: f32 = 100.0; // Reduced for more placement options
 const MIN_SMALL_QUARRY_DISTANCE: f32 = 50.0; // Reduced for more small quarries
 const MIN_QUARRY_TO_HOT_SPRING_DISTANCE: f32 = 80.0; // Keep quarries away from hot springs
+
+// --- Reed Marsh Constants ---
+/// Base count for 600x600 map - more marshes for organic distribution along waterways
+const REED_MARSH_BASE_COUNT: u32 = 16;
+/// Minimum water tile count in area to qualify as a marsh location (lowered for more positions)
+const REED_MARSH_MIN_WATER_TILES: usize = 6;
+/// Radius of reed marsh zone in pixels (building restriction area)
+const REED_MARSH_RADIUS_PX: f32 = 250.0; // ~5 tiles radius - smaller for denser placement
+/// Minimum distance between reed marshes in pixels (reduced for natural clustering along waterways)
+const MIN_REED_MARSH_DISTANCE: f32 = 350.0; // Allow marshes to cluster organically
+/// Minimum distance for same-waterway marshes (even closer for river chains)
+const MIN_REED_MARSH_CHAIN_DISTANCE: f32 = 200.0;
 
 #[spacetimedb::reducer]
 pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<(), String> {
@@ -323,6 +336,26 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                    world_features.large_quarry_centers.len());
     }
     
+    // Store reed marsh positions in database for building restrictions and resource spawning
+    // Reed marshes are environmental monuments in larger rivers (tern hunting, reed collection)
+    for (world_x, world_y) in &world_features.reed_marsh_centers {
+        ctx.db.reed_marsh().insert(ReedMarsh {
+            id: 0, // auto_inc
+            world_x: *world_x,
+            world_y: *world_y,
+            radius_px: REED_MARSH_RADIUS_PX,
+        });
+    }
+    
+    if !world_features.reed_marsh_centers.is_empty() {
+        log::info!("🌾 Stored {} reed marsh locations in database", world_features.reed_marsh_centers.len());
+        
+        // Spawn resources in reed marshes (reeds, barrels, memory shards)
+        if let Err(e) = crate::monument::spawn_reed_marsh_resources(ctx) {
+            log::warn!("Failed to spawn reed marsh resources: {}", e);
+        }
+    }
+    
     // Sea stacks will be generated in environment.rs alongside trees and stones
     
     log::info!("World generation complete!");
@@ -358,6 +391,7 @@ struct WorldFeatures {
     hunting_village_center: Option<(f32, f32)>, // Hunting village center position (lodge) in world pixels
     hunting_village_parts: Vec<(f32, f32, String, String)>, // Hunting village parts (x, y, image_path, part_type) in world pixels
     coral_reef_zones: Vec<Vec<bool>>, // Coral reef zones (deep sea areas for living coral)
+    reed_marsh_centers: Vec<(f32, f32)>, // Reed marsh center positions (x, y) in world pixels
     width: usize,
     height: usize,
 }
@@ -442,6 +476,9 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     // Generate coral reef zones (deep sea areas for living coral spawning)
     let coral_reef_zones = generate_coral_reef_zones(config, noise, &shore_distance, width, height);
     
+    // Generate reed marsh centers (wide river sections for tern hunting and reed collection)
+    let reed_marsh_centers = generate_reed_marsh_centers(config, noise, &river_network, &lake_map, &shore_distance, width, height);
+    
     WorldFeatures {
         heightmap,
         shore_distance,
@@ -470,6 +507,7 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         hunting_village_center,
         hunting_village_parts,
         coral_reef_zones,
+        reed_marsh_centers,
         width,
         height,
     }
@@ -2316,6 +2354,256 @@ fn generate_coral_reef_zones(
     let reef_percentage = (reef_count as f64 / (width * height) as f64) * 100.0;
     log::info!("Generated {} coral reef tiles ({:.2}% of map) - deep sea areas", reef_count, reef_percentage);
     coral_reef
+}
+
+/// Generate reed marsh centers organically along rivers and lakes
+/// Reed marshes are natural wetland areas where players can hunt terns, collect reeds,
+/// find washed-up barrels, and scavenge memory shards. They cluster naturally along
+/// waterways forming chains of wetlands.
+fn generate_reed_marsh_centers(
+    config: &WorldGenConfig,
+    noise: &Perlin,
+    river_network: &[Vec<bool>],
+    lake_map: &[Vec<bool>],
+    shore_distance: &[Vec<f64>],
+    width: usize,
+    height: usize,
+) -> Vec<(f32, f32)> {
+    let mut marsh_centers: Vec<(f32, f32)> = Vec::new();
+    
+    // Scale count with map size - more marshes for larger maps
+    let map_area_tiles = (width * height) as f32;
+    let base_area_tiles = 360_000.0; // 600x600 baseline
+    let scale_factor = (map_area_tiles / base_area_tiles).sqrt();
+    
+    // Target count: ~16 on 600x600, scales naturally with larger maps
+    // Use 0.9 power for slightly sub-linear scaling (very large maps don't need proportionally as many)
+    let target_count = ((REED_MARSH_BASE_COUNT as f32) * scale_factor.powf(0.9))
+        .round()
+        .max(6.0) as usize; // Minimum 6 marshes even on small maps
+    
+    log::info!("🌾 Generating organic reed marsh distribution along waterways (target: {}, scale factor: {:.2}x)", target_count, scale_factor);
+    
+    // Scan the map for good marsh locations with finer granularity
+    let scan_step = 8; // Finer scan for more candidate positions
+    let check_radius = 5; // Smaller radius for precise placement along water edges
+    let min_water_tiles = ((REED_MARSH_MIN_WATER_TILES as f32) * scale_factor.max(0.4)).max(4.0) as usize;
+    
+    // Structure to track marsh candidates with detailed scoring
+    struct MarshCandidate {
+        x: f32,
+        y: f32,
+        water_score: usize,    // Combined river + lake tiles
+        river_score: usize,    // River tiles specifically (for chaining)
+        lake_score: usize,     // Lake tiles specifically
+        edge_score: usize,     // Land tiles adjacent to water (marshy edges)
+        is_river: bool,        // Primarily river marsh vs lake marsh
+        noise_bonus: f32,      // Noise-based organic variation
+    }
+    
+    let mut candidates: Vec<MarshCandidate> = Vec::new();
+    
+    for scan_y in (check_radius..height.saturating_sub(check_radius)).step_by(scan_step) {
+        for scan_x in (check_radius..width.saturating_sub(check_radius)).step_by(scan_step) {
+            let mut river_count = 0;
+            let mut lake_count = 0;
+            let mut edge_count = 0; // Land tiles adjacent to water
+            
+            for dy in -(check_radius as i32)..=(check_radius as i32) {
+                for dx in -(check_radius as i32)..=(check_radius as i32) {
+                    let check_x = (scan_x as i32 + dx) as usize;
+                    let check_y = (scan_y as i32 + dy) as usize;
+                    
+                    if check_x < width && check_y < height {
+                        let is_river = river_network[check_y][check_x];
+                        let is_lake = lake_map[check_y][check_x];
+                        
+                        if is_river {
+                            river_count += 1;
+                        }
+                        if is_lake {
+                            lake_count += 1;
+                        }
+                        
+                        // Count edge tiles - land tiles that touch water (creates marshy shoreline feel)
+                        if !is_river && !is_lake && shore_distance[check_y][check_x] > 0.0 {
+                            let mut adjacent_to_water = false;
+                            for ny in -1..=1i32 {
+                                for nx in -1..=1i32 {
+                                    let ax = (check_x as i32 + nx) as usize;
+                                    let ay = (check_y as i32 + ny) as usize;
+                                    if ax < width && ay < height {
+                                        if river_network[ay][ax] || lake_map[ay][ax] {
+                                            adjacent_to_water = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if adjacent_to_water { break; }
+                            }
+                            if adjacent_to_water {
+                                edge_count += 1;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            let water_score = river_count + lake_count;
+            
+            // Good marsh locations need:
+            // - Some water (river or lake) - lowered threshold for more organic spread
+            // - At least 2 edge tiles (minimal marshy shoreline)
+            // - Must be inland (not ocean coast)
+            if water_score >= min_water_tiles && edge_count >= 2 {
+                let shore_dist = shore_distance[scan_y][scan_x];
+                if shore_dist > 8.0 { // Must be inland (not ocean shoreline)
+                    let world_x_px = (scan_x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                    let world_y_px = (scan_y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                    
+                    // Add noise-based organic variation to scoring
+                    // This creates natural clustering in some areas and gaps in others
+                    let noise_val = noise.get([scan_x as f64 * 0.02, scan_y as f64 * 0.02, 7.77]) as f32;
+                    let noise_bonus = (noise_val + 1.0) * 0.5; // Normalize to 0-1
+                    
+                    candidates.push(MarshCandidate {
+                        x: world_x_px,
+                        y: world_y_px,
+                        water_score,
+                        river_score: river_count,
+                        lake_score: lake_count,
+                        edge_score: edge_count,
+                        is_river: river_count > lake_count,
+                        noise_bonus,
+                    });
+                }
+            }
+        }
+    }
+    
+    // Sort by combined organic score - best marsh locations first
+    // Balance water coverage, marshy edges, and noise variation for organic feel
+    candidates.sort_by(|a, b| {
+        // Base score from water and edges
+        let base_a = a.water_score as f32 * 1.5 + a.edge_score as f32 * 2.5;
+        let base_b = b.water_score as f32 * 1.5 + b.edge_score as f32 * 2.5;
+        
+        // Apply noise bonus for organic variation (multiplier between 0.7 and 1.3)
+        let score_a = base_a * (0.7 + a.noise_bonus * 0.6);
+        let score_b = base_b * (0.7 + b.noise_bonus * 0.6);
+        
+        score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    
+    log::info!("🌾 Found {} potential reed marsh positions along waterways", candidates.len());
+    
+    // Select marsh positions with variable distance constraints for organic clustering
+    let base_min_dist_sq = MIN_REED_MARSH_DISTANCE * MIN_REED_MARSH_DISTANCE;
+    let chain_min_dist_sq = MIN_REED_MARSH_CHAIN_DISTANCE * MIN_REED_MARSH_CHAIN_DISTANCE;
+    
+    let mut river_marshes = 0;
+    let mut lake_marshes = 0;
+    
+    // Track which marshes are part of "chains" along the same waterway
+    struct PlacedMarsh {
+        x: f32,
+        y: f32,
+        is_river: bool,
+    }
+    let mut placed_marshes: Vec<PlacedMarsh> = Vec::new();
+    
+    for candidate in &candidates {
+        if marsh_centers.len() >= target_count {
+            break;
+        }
+        
+        // Check distance from existing marshes with variable constraints
+        // River marshes along the same river can be closer (forming chains)
+        // Different type marshes (river vs lake) need more distance
+        let mut too_close = false;
+        for placed in &placed_marshes {
+            let dx = candidate.x - placed.x;
+            let dy = candidate.y - placed.y;
+            let dist_sq = dx * dx + dy * dy;
+            
+            // Same type (river-river or lake-lake) can be closer for natural chains
+            let min_dist_sq = if candidate.is_river == placed.is_river {
+                chain_min_dist_sq
+            } else {
+                base_min_dist_sq
+            };
+            
+            if dist_sq < min_dist_sq {
+                too_close = true;
+                break;
+            }
+        }
+        
+        if !too_close {
+            marsh_centers.push((candidate.x, candidate.y));
+            placed_marshes.push(PlacedMarsh {
+                x: candidate.x,
+                y: candidate.y,
+                is_river: candidate.is_river,
+            });
+            
+            let marsh_type = if candidate.is_river { "river" } else { "lake" };
+            if candidate.is_river { river_marshes += 1; } else { lake_marshes += 1; }
+            
+            log::info!("🌾 Reed Marsh #{} ({}): ({:.0}, {:.0}) - water: {}, edges: {}, noise: {:.2}", 
+                       marsh_centers.len(), marsh_type, candidate.x, candidate.y, 
+                       candidate.water_score, candidate.edge_score, candidate.noise_bonus);
+        }
+    }
+    
+    // If we haven't hit target, do a second pass with relaxed constraints
+    // This ensures we get organic coverage even in sparser water areas
+    if marsh_centers.len() < target_count && candidates.len() > marsh_centers.len() {
+        let relaxed_chain_dist_sq = (MIN_REED_MARSH_CHAIN_DISTANCE * 0.7).powi(2);
+        
+        for candidate in &candidates {
+            if marsh_centers.len() >= target_count {
+                break;
+            }
+            
+            // Skip if already placed
+            let already_placed = placed_marshes.iter().any(|p| 
+                (p.x - candidate.x).abs() < 10.0 && (p.y - candidate.y).abs() < 10.0
+            );
+            if already_placed { continue; }
+            
+            let mut too_close = false;
+            for placed in &placed_marshes {
+                let dx = candidate.x - placed.x;
+                let dy = candidate.y - placed.y;
+                let dist_sq = dx * dx + dy * dy;
+                
+                if dist_sq < relaxed_chain_dist_sq {
+                    too_close = true;
+                    break;
+                }
+            }
+            
+            if !too_close {
+                marsh_centers.push((candidate.x, candidate.y));
+                placed_marshes.push(PlacedMarsh {
+                    x: candidate.x,
+                    y: candidate.y,
+                    is_river: candidate.is_river,
+                });
+                
+                let marsh_type = if candidate.is_river { "river" } else { "lake" };
+                if candidate.is_river { river_marshes += 1; } else { lake_marshes += 1; }
+                
+                log::info!("🌾 Reed Marsh #{} ({}, relaxed): ({:.0}, {:.0})", 
+                           marsh_centers.len(), marsh_type, candidate.x, candidate.y);
+            }
+        }
+    }
+    
+    log::info!("🌾 Generated {} organic reed marsh zones ({} along rivers, {} around lakes)", 
+               marsh_centers.len(), river_marshes, lake_marshes);
+    marsh_centers
 }
 
 fn generate_chunk(

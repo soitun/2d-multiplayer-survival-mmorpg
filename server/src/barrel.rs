@@ -1135,4 +1135,122 @@ pub fn spawn_beach_barrels(
         spawned_count, target_count, attempts
     );
     Ok(())
-} 
+}
+
+/// Spawns beach barrels around hot springs for extra flavor
+/// Places 2-4 barrels on Beach tiles adjacent to each hot spring
+pub fn spawn_hot_spring_barrels(
+    ctx: &ReducerContext,
+    hot_spring_centers: &[(f32, f32)],
+) -> Result<u32, String> {
+    if hot_spring_centers.is_empty() {
+        log::info!("[HotSpringBarrelSpawn] No hot springs found, skipping barrel spawning");
+        return Ok(0);
+    }
+
+    log::info!("[HotSpringBarrelSpawn] Spawning barrels around {} hot springs...", hot_spring_centers.len());
+
+    let mut total_spawned = 0u32;
+    let barrels = ctx.db.barrel();
+
+    for (center_x, center_y) in hot_spring_centers {
+        // Target 2-4 barrels per hot spring
+        let target_barrels = ctx.rng().gen_range(2..=4);
+        let mut spawned_this_spring = 0u32;
+        let mut attempts = 0u32;
+        let max_attempts = target_barrels * 15; // Give plenty of attempts
+        let mut spawned_positions: Vec<(f32, f32)> = Vec::new();
+
+        while spawned_this_spring < target_barrels && attempts < max_attempts {
+            attempts += 1;
+
+            // Pick a random position on the beach ring around the hot spring
+            // Hot springs have water radius ~7-9 tiles, beach is just outside
+            // Try spawning 8-14 tiles from center (beach zone)
+            let angle = ctx.rng().gen_range(0.0..std::f32::consts::TAU);
+            let distance = ctx.rng().gen_range(8.0..14.0) * crate::TILE_SIZE_PX as f32;
+            
+            let barrel_x = center_x + angle.cos() * distance;
+            let barrel_y = center_y + angle.sin() * distance;
+
+            // Must be on a beach tile
+            if !crate::environment::is_position_on_beach_tile(ctx, barrel_x, barrel_y) {
+                continue;
+            }
+
+            // Check distance from other hot spring barrels we've placed
+            let mut too_close = false;
+            for &(other_x, other_y) in &spawned_positions {
+                let dx = barrel_x - other_x;
+                let dy = barrel_y - other_y;
+                if dx * dx + dy * dy < MIN_BEACH_BARREL_DISTANCE_SQ {
+                    too_close = true;
+                    break;
+                }
+            }
+            if too_close {
+                continue;
+            }
+
+            // Check distance from existing barrels
+            let mut too_close_to_existing = false;
+            for existing_barrel in barrels.iter() {
+                if existing_barrel.health == 0.0 { continue; }
+                let dx = barrel_x - existing_barrel.pos_x;
+                let dy = barrel_y - existing_barrel.pos_y;
+                if dx * dx + dy * dy < MIN_BEACH_BARREL_DISTANCE_SQ {
+                    too_close_to_existing = true;
+                    break;
+                }
+            }
+            if too_close_to_existing {
+                continue;
+            }
+
+            // Check collision with players
+            if has_player_barrel_collision(ctx, barrel_x, barrel_y) {
+                continue;
+            }
+
+            // Spawn a sea barrel variant (3, 4, or 5) - these look like washed-up flotsam
+            let variant = ctx.rng().gen_range(SEA_BARREL_VARIANT_START..SEA_BARREL_VARIANT_END);
+            let chunk_idx = crate::environment::calculate_chunk_index(barrel_x, barrel_y);
+
+            let new_barrel = Barrel {
+                id: 0,
+                pos_x: barrel_x,
+                pos_y: barrel_y,
+                chunk_index: chunk_idx,
+                health: BARREL_INITIAL_HEALTH,
+                variant,
+                last_hit_time: None,
+                respawn_at: Timestamp::UNIX_EPOCH,
+                cluster_id: 0,
+            };
+
+            match barrels.try_insert(new_barrel) {
+                Ok(inserted_barrel) => {
+                    spawned_positions.push((barrel_x, barrel_y));
+                    spawned_this_spring += 1;
+                    total_spawned += 1;
+                    log::debug!(
+                        "[HotSpringBarrelSpawn] Spawned barrel #{} (variant {}) at ({:.1}, {:.1}) near hot spring ({:.1}, {:.1})",
+                        inserted_barrel.id, variant, barrel_x, barrel_y, center_x, center_y
+                    );
+                }
+                Err(e) => {
+                    log::warn!("[HotSpringBarrelSpawn] Failed to insert barrel: {}", e);
+                }
+            }
+        }
+
+        log::info!(
+            "[HotSpringBarrelSpawn] Hot spring at ({:.0}, {:.0}): spawned {} barrels",
+            center_x, center_y, spawned_this_spring
+        );
+    }
+
+    log::info!("[HotSpringBarrelSpawn] Total: spawned {} barrels around {} hot springs", 
+        total_spawned, hot_spring_centers.len());
+    Ok(total_spawned)
+}

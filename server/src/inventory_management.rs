@@ -1064,6 +1064,7 @@ pub(crate) fn handle_split_within_container<C: ItemContainer>(
 }
 
 /// Handles quickly moving an item FROM a container slot to the first available player slot.
+/// This function now properly stacks items with existing stacks before creating new ones.
 pub(crate) fn handle_quick_move_from_container<C: ItemContainer>(
     ctx: &ReducerContext, 
     container: &mut C, 
@@ -1071,7 +1072,7 @@ pub(crate) fn handle_quick_move_from_container<C: ItemContainer>(
 ) -> Result<(), String> {
     let sender_id = ctx.sender;
     let inventory_table = ctx.db.inventory_item();
-    // let item_def_table = ctx.db.item_definition(); // Not needed for this function
+    let item_def_table = ctx.db.item_definition();
 
     // --- 1. Validate Source and Get Item ID --- 
     if source_slot_index >= container.num_slots() as u8 {
@@ -1079,65 +1080,176 @@ pub(crate) fn handle_quick_move_from_container<C: ItemContainer>(
     }
     let source_instance_id = container.get_slot_instance_id(source_slot_index)
         .ok_or("Source container slot is empty.")?;
-    // let source_def_id = container.get_slot_def_id(source_slot_index)
-    //     .ok_or_else(|| format!("Source slot {} missing def ID! Inconsistent state.", source_slot_index))?;
     
-    // --- 2. Find First Available Player Slot --- 
+    // Get the source item details
+    let source_item = inventory_table.instance_id().find(source_instance_id)
+        .ok_or_else(|| format!("Item {} not found in database", source_instance_id))?;
+    let source_def = item_def_table.id().find(source_item.item_def_id)
+        .ok_or_else(|| format!("Item definition {} not found", source_item.item_def_id))?;
+    
+    let mut remaining_quantity = source_item.quantity;
+    let source_def_id = source_item.item_def_id;
+    let source_item_data = source_item.item_data.clone();
+    
+    log::info!("[InvManager QuickMoveFromContainer] Moving item {} ({}) qty {} from container slot {} to player {:?}.", 
+             source_instance_id, source_def.name, remaining_quantity, source_slot_index, sender_id);
+
+    // --- 2. Try to stack with existing items if stackable ---
+    // Only stack items without special item_data (water containers, etc. should not stack)
+    let can_stack = source_def.is_stackable && source_item_data.is_none();
+    
+    if can_stack && remaining_quantity > 0 {
+        // First check hotbar stacks
+        let hotbar_items_to_update: Vec<(u64, u32)> = inventory_table.iter()
+            .filter(|item| {
+                match &item.location {
+                    ItemLocation::Hotbar(data) => {
+                        data.owner_id == sender_id && 
+                        item.item_def_id == source_def_id && 
+                        item.item_data.is_none() &&
+                        item.quantity < source_def.stack_size
+                    },
+                    _ => false,
+                }
+            })
+            .map(|item| {
+                let space_available = source_def.stack_size.saturating_sub(item.quantity);
+                let transfer_qty = std::cmp::min(remaining_quantity, space_available);
+                (item.instance_id, transfer_qty)
+            })
+            .filter(|(_, qty)| *qty > 0)
+            .collect();
+        
+        for (target_id, transfer_qty) in hotbar_items_to_update {
+            if remaining_quantity == 0 { break; }
+            if let Some(mut target_item) = inventory_table.instance_id().find(target_id) {
+                let actual_transfer = std::cmp::min(remaining_quantity, transfer_qty);
+                target_item.quantity += actual_transfer;
+                let final_quantity = target_item.quantity; // Store before move
+                remaining_quantity -= actual_transfer;
+                inventory_table.instance_id().update(target_item);
+                log::debug!("[InvManager QuickMoveFromContainer] Stacked {} into hotbar item {} (now qty {})", 
+                         actual_transfer, target_id, final_quantity);
+            }
+        }
+        
+        // Then check inventory stacks
+        if remaining_quantity > 0 {
+            let inventory_items_to_update: Vec<(u64, u32)> = inventory_table.iter()
+                .filter(|item| {
+                    match &item.location {
+                        ItemLocation::Inventory(data) => {
+                            data.owner_id == sender_id && 
+                            item.item_def_id == source_def_id && 
+                            item.item_data.is_none() &&
+                            item.quantity < source_def.stack_size
+                        },
+                        _ => false,
+                    }
+                })
+                .map(|item| {
+                    let space_available = source_def.stack_size.saturating_sub(item.quantity);
+                    let transfer_qty = std::cmp::min(remaining_quantity, space_available);
+                    (item.instance_id, transfer_qty)
+                })
+                .filter(|(_, qty)| *qty > 0)
+                .collect();
+            
+            for (target_id, transfer_qty) in inventory_items_to_update {
+                if remaining_quantity == 0 { break; }
+                if let Some(mut target_item) = inventory_table.instance_id().find(target_id) {
+                    let actual_transfer = std::cmp::min(remaining_quantity, transfer_qty);
+                    target_item.quantity += actual_transfer;
+                    let final_quantity = target_item.quantity; // Store before move
+                    remaining_quantity -= actual_transfer;
+                    inventory_table.instance_id().update(target_item);
+                    log::debug!("[InvManager QuickMoveFromContainer] Stacked {} into inventory item {} (now qty {})", 
+                             actual_transfer, target_id, final_quantity);
+                }
+            }
+        }
+    }
+    
+    // --- 3. Handle remaining quantity or full item move ---
+    if remaining_quantity == 0 {
+        // All items were stacked into existing stacks - delete source item and clear container slot
+        log::info!("[InvManager QuickMoveFromContainer] All {} items fully stacked into existing stacks. Deleting source item {}.", 
+                 source_item.quantity, source_instance_id);
+        container.set_slot(source_slot_index, None, None);
+        
+        // Update source item to Unknown location before deleting (for cleanliness)
+        let mut item_to_delete = inventory_table.instance_id().find(source_instance_id)
+            .ok_or_else(|| format!("Item {} not found for deletion after stacking", source_instance_id))?;
+        item_to_delete.location = ItemLocation::Unknown;
+        item_to_delete.quantity = 0;
+        inventory_table.instance_id().update(item_to_delete);
+        inventory_table.instance_id().delete(source_instance_id);
+        return Ok(());
+    }
+    
+    // Some or all items remain - need to find a slot
     let target_location_opt = find_first_empty_player_slot(ctx, sender_id);
 
     if let Some(target_location) = target_location_opt {
-        log::info!("[InvManager QuickMoveFromContainer] Attempting to move item {} from container slot {} to player {:?} at calculated location {:?}.", 
-                 source_instance_id, source_slot_index, sender_id, target_location);
-
-        // --- 3. Clear Container Slot --- 
-        container.set_slot(source_slot_index, None, None);
-        log::info!("[InvManager QuickMoveFromContainer] Cleared container slot {} (held item {}). Verify struct: Slot {} now holds {:?}.", 
-                 source_slot_index, source_instance_id, source_slot_index, container.get_slot_instance_id(source_slot_index));
-
-        // --- Update item's location to the TARGET PLAYER LOCATION before moving to player inventory --- 
-        let mut item_to_move_to_player = inventory_table.instance_id().find(source_instance_id)
-            .ok_or_else(|| format!("Item {} not found before attempting to set its location for player move", source_instance_id))?;
+        // Update source item quantity if partially stacked
+        let stacked_amount = source_item.quantity - remaining_quantity;
+        if stacked_amount > 0 {
+            log::info!("[InvManager QuickMoveFromContainer] Partially stacked {} of {} items. Moving remaining {} to empty slot.", 
+                     stacked_amount, source_item.quantity, remaining_quantity);
+        }
         
-        log::info!("[InvManager QuickMoveFromContainer] Current location of item {} before setting to target player slot: {:?}", source_instance_id, item_to_move_to_player.location);
-        item_to_move_to_player.location = target_location.clone(); // target_location is ItemLocation::Inventory or ItemLocation::Hotbar
-        inventory_table.instance_id().update(item_to_move_to_player.clone()); // Persist this new location
-        log::info!("[InvManager QuickMoveFromContainer] Set location of item {} to {:?}. Now attempting move via player_inventory functions.", source_instance_id, target_location);
+        // --- Clear Container Slot --- 
+        container.set_slot(source_slot_index, None, None);
 
-        // --- 4. Move Item to Player (using the determined target_location) ---
+        // --- Update item's location and quantity --- 
+        let mut item_to_move = inventory_table.instance_id().find(source_instance_id)
+            .ok_or_else(|| format!("Item {} not found before moving to player", source_instance_id))?;
+        
+        item_to_move.location = target_location.clone();
+        item_to_move.quantity = remaining_quantity;
+        inventory_table.instance_id().update(item_to_move);
+
+        // --- Finalize move to player slot ---
         match target_location {
-            ItemLocation::Inventory(ref data) => { // data is InventoryLocationData
+            ItemLocation::Inventory(ref data) => {
                 if let Err(e) = move_item_to_inventory(ctx, source_instance_id, data.slot_index) {
-                    // Attempt to revert
                     log::error!("[InvManager QuickMoveFromContainer] Failed to move item {} to player inv slot {}: {}. Attempting revert.", source_instance_id, data.slot_index, e);
                     let source_item_for_revert = inventory_table.instance_id().find(source_instance_id).ok_or_else(|| format!("QuickMove: Source item {} lost during revert", source_instance_id))?;
-                    let source_def_id_for_revert = source_item_for_revert.item_def_id;
-                    container.set_slot(source_slot_index, Some(source_instance_id), Some(source_def_id_for_revert));
+                    container.set_slot(source_slot_index, Some(source_instance_id), Some(source_def_id));
                     return Err(e);
                 }
             }
-            ItemLocation::Hotbar(ref data) => { // data is HotbarLocationData - add ref
+            ItemLocation::Hotbar(ref data) => {
                 if let Err(e) = move_item_to_hotbar(ctx, source_instance_id, data.slot_index) {
-                     // Attempt to revert
                     log::error!("[InvManager QuickMoveFromContainer] Failed to move item {} to player hotbar slot {}: {}. Attempting revert.", source_instance_id, data.slot_index, e);
                     let source_item_for_revert = inventory_table.instance_id().find(source_instance_id).ok_or_else(|| format!("QuickMove: Source item {} lost during revert", source_instance_id))?;
-                    let source_def_id_for_revert = source_item_for_revert.item_def_id;
-                    container.set_slot(source_slot_index, Some(source_instance_id), Some(source_def_id_for_revert));
+                    container.set_slot(source_slot_index, Some(source_instance_id), Some(source_def_id));
                     return Err(e);
                 }
             }
-            _ => { // Should not happen if find_first_empty_player_slot is correct
-                log::error!("[InvManager QuickMoveFromContainer] Unexpected target location type from find_first_empty_player_slot: {:?}. Reverting item {} to container slot {}.", target_location, source_instance_id, source_slot_index);
-                let source_item_for_revert = inventory_table.instance_id().find(source_instance_id).ok_or_else(|| format!("QuickMove: Source item {} lost during revert", source_instance_id))?;
-                let source_def_id_for_revert = source_item_for_revert.item_def_id;
-                container.set_slot(source_slot_index, Some(source_instance_id), Some(source_def_id_for_revert));
+            _ => {
+                log::error!("[InvManager QuickMoveFromContainer] Unexpected target location type: {:?}. Reverting item {} to container slot {}.", target_location, source_instance_id, source_slot_index);
+                container.set_slot(source_slot_index, Some(source_instance_id), Some(source_def_id));
                 return Err("Unexpected target location type for quick move.".to_string());
             }
         }
-        log::info!("[InvManager QuickMoveFromContainer] Successfully moved item {} to player at {:?}.", source_instance_id, target_location);
+        log::info!("[InvManager QuickMoveFromContainer] Successfully moved item {} (qty {}) to player at {:?}.", source_instance_id, remaining_quantity, target_location);
     } else {
-        log::warn!("[InvManager QuickMoveFromContainer] Player {:?} inventory and hotbar are full. Cannot quick move item {} from container slot {}.", 
-                 sender_id, source_instance_id, source_slot_index);
-        return Err("Player inventory and hotbar are full.".to_string());
+        // No empty slots - but we may have stacked some items
+        if remaining_quantity < source_item.quantity {
+            // Partially stacked - update source item quantity and keep it in container
+            log::info!("[InvManager QuickMoveFromContainer] Player inventory full. Partially stacked {} items, {} remain in container.", 
+                     source_item.quantity - remaining_quantity, remaining_quantity);
+            let mut updated_source = inventory_table.instance_id().find(source_instance_id)
+                .ok_or_else(|| format!("Item {} not found for partial stack update", source_instance_id))?;
+            updated_source.quantity = remaining_quantity;
+            inventory_table.instance_id().update(updated_source);
+            // Container slot still holds the item with reduced quantity
+        } else {
+            log::warn!("[InvManager QuickMoveFromContainer] Player {:?} inventory and hotbar are full. Cannot quick move item {} from container slot {}.", 
+                     sender_id, source_instance_id, source_slot_index);
+            return Err("Player inventory and hotbar are full.".to_string());
+        }
     }
 
     Ok(())
