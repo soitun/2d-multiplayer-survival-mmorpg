@@ -632,12 +632,12 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
     // Check all monument types in the monument_part table (single iteration for performance)
     // Each monument type has different restriction radii:
     // - Shipwreck: 1500px (2.5x clearance radius)
-    // - Fishing Village: 800px
+    // - Fishing Village: 1000px (25% larger than original 800)
     // - Whale Bone Graveyard: 800px
     // - Hunting Village: 800px
-    const FISHING_VILLAGE_RESTRICTION_RADIUS: f32 = 800.0;
+    const FISHING_VILLAGE_RESTRICTION_RADIUS: f32 = 1000.0; // 25% larger than original 800
     const FISHING_VILLAGE_RESTRICTION_RADIUS_SQ: f32 = FISHING_VILLAGE_RESTRICTION_RADIUS * FISHING_VILLAGE_RESTRICTION_RADIUS;
-    const SHIPWRECK_RESTRICTION_RADIUS: f32 = 1500.0; // 2.5x monument::clearance::SHIPWRECK (600 * 2.5)
+    const SHIPWRECK_RESTRICTION_RADIUS: f32 = 1875.0; // 25% larger than original 1500
     const SHIPWRECK_RESTRICTION_RADIUS_SQ: f32 = SHIPWRECK_RESTRICTION_RADIUS * SHIPWRECK_RESTRICTION_RADIUS;
     const WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS: f32 = 800.0; // Same as fishing village
     const WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS_SQ: f32 = WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS * WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS;

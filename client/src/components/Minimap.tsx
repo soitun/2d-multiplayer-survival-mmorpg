@@ -176,7 +176,7 @@ function isNightTimeOfDay(tag: string): boolean {
   );
 }
 
-// Helper function to draw a directional triangular player icon
+// Helper function to draw a directional circular player icon with chevron
 function drawPlayerIcon(
   ctx: CanvasRenderingContext2D, 
   x: number, 
@@ -187,37 +187,39 @@ function drawPlayerIcon(
 ) {
   ctx.save();
   
-  // Move to the player position and rotate
-  ctx.translate(x, y);
-  ctx.rotate(rotation);
+  const radius = size / 2;
   
-  const halfSize = size / 2;
-  const cornerRadius = size * 0.15; // Small corner radius for slight rounding
-  
-  // Draw the triangular caret pointing right (will be rotated to correct direction)
+  // Draw the circle outline first
   ctx.beginPath();
-  
-  // Start at the tip (right point)
-  ctx.moveTo(halfSize, 0);
-  
-  // Draw to bottom-left with slight rounding
-  ctx.lineTo(-halfSize * 0.6, halfSize * 0.8);
-  ctx.arcTo(-halfSize, halfSize * 0.8, -halfSize, 0, cornerRadius);
-  
-  // Draw to top-left with slight rounding  
-  ctx.lineTo(-halfSize, -halfSize * 0.8);
-  ctx.arcTo(-halfSize * 0.6, -halfSize * 0.8, halfSize, 0, cornerRadius);
-  
-  ctx.closePath();
-  
-  // Draw outline first
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
   ctx.strokeStyle = PLAYER_ICON_OUTLINE_COLOR;
   ctx.lineWidth = PLAYER_ICON_OUTLINE_WIDTH;
   ctx.stroke();
   
-  // Fill with player color
+  // Fill the circle with player color
   ctx.fillStyle = fillColor;
   ctx.fill();
+  
+  // Now draw the ">" chevron inside the circle
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  
+  // Chevron dimensions (scaled to fit inside circle nicely)
+  const chevronSize = radius * 0.7; // Size of chevron arms
+  const chevronThickness = size * 0.08; // Line thickness for chevron
+  
+  // Draw chevron ">" pointing right (will be rotated)
+  ctx.beginPath();
+  ctx.moveTo(-chevronSize * 0.4, -chevronSize * 0.6); // Top-left of chevron
+  ctx.lineTo(chevronSize * 0.4, 0);                    // Point (right side)
+  ctx.lineTo(-chevronSize * 0.4, chevronSize * 0.6);   // Bottom-left of chevron
+  
+  // Stroke the chevron with contrasting color
+  ctx.strokeStyle = PLAYER_ICON_OUTLINE_COLOR;
+  ctx.lineWidth = chevronThickness;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.stroke();
   
   ctx.restore();
 }

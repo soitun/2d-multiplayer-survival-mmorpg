@@ -369,7 +369,7 @@ pub fn dodge_roll(ctx: &ReducerContext, move_x: f32, move_y: f32) -> Result<(), 
 // === SIMPLE CLIENT-AUTHORITATIVE MOVEMENT SYSTEM ===
 
 /// Simple movement validation constants
-const BASE_MAX_MOVEMENT_SPEED: f32 = PLAYER_SPEED * SPRINT_SPEED_MULTIPLIER * 6.0; // 2520 px/s max (240 * 1.75 * 6) - buffer for client prediction + rubber band prevention
+const BASE_MAX_MOVEMENT_SPEED: f32 = PLAYER_SPEED * SPRINT_SPEED_MULTIPLIER * 6.0; // 3360 px/s max (320 * 1.75 * 6) - buffer for client prediction + rubber band prevention
 const MAX_TELEPORT_DISTANCE: f32 = 1200.0; // Increased from 800px for better lag tolerance and high frame rates
 const POSITION_UPDATE_TIMEOUT_MS: u64 = 30000; // 30 seconds (increased from 20s for very high ping)
 

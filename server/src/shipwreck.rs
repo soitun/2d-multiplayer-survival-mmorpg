@@ -31,7 +31,7 @@ pub const SHIPWRECK_PROTECTION_Y_OFFSET: f32 = 220.0;
 /// NPC exclusion zone radius - matches building restriction radius
 /// Hostile NPCs will actively avoid entering this entire zone
 /// This is much larger than protection radius to prevent NPC griefing
-pub const SHIPWRECK_NPC_EXCLUSION_RADIUS: f32 = 1500.0;
+pub const SHIPWRECK_NPC_EXCLUSION_RADIUS: f32 = 1875.0; // 25% larger than original 1500
 pub const SHIPWRECK_NPC_EXCLUSION_RADIUS_SQ: f32 = SHIPWRECK_NPC_EXCLUSION_RADIUS * SHIPWRECK_NPC_EXCLUSION_RADIUS;
 
 /// Check if a position collides with any shipwreck part.

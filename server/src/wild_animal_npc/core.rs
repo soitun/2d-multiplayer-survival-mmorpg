@@ -129,7 +129,7 @@ const WANDER_ACTIVATION_DISTANCE_SQUARED: f32 = WANDER_ACTIVATION_DISTANCE * WAN
 // Hostile NPCs will patrol around these zones, not enter them at all
 const ALK_CENTRAL_EXCLUSION_MULTIPLIER: f32 = 7.0; // ~1750px for central compound
 const ALK_SUBSTATION_EXCLUSION_MULTIPLIER: f32 = 3.0; // ~600px for substations
-const FISHING_VILLAGE_EXCLUSION_RADIUS: f32 = 800.0; // Same as building restriction
+const FISHING_VILLAGE_EXCLUSION_RADIUS: f32 = 1000.0; // 25% larger than original 800 for building restriction
 const FISHING_VILLAGE_EXCLUSION_RADIUS_SQ: f32 = FISHING_VILLAGE_EXCLUSION_RADIUS * FISHING_VILLAGE_EXCLUSION_RADIUS;
 
 // === ANIMAL WALKING SOUND CONSTANTS ===

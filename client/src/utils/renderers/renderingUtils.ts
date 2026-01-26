@@ -1601,18 +1601,22 @@ export const renderYSortedEntities = ({
               }
           }
           
-          // Render building restriction overlay for monuments (shipwrecks, fishing villages, whale bone graveyards)
+          // Render building restriction overlay for monuments (shipwrecks, fishing villages, whale bone graveyards, hunting villages)
           if (showBuildingRestriction && buildingEntity.isCenter) {
               const buildingId = buildingEntity.id;
               let restrictionRadius = 0;
               
               // Determine restriction radius based on monument type
+              // ID prefix is generated from MonumentType enum (CamelCase -> snake_case)
+              // e.g., Shipwreck -> shipwreck_, FishingVillage -> fishing_village_, etc.
               if (buildingId.startsWith('shipwreck_')) {
-                  restrictionRadius = 1500; // 2.5x the original 600 (monument::clearance::SHIPWRECK)
+                  restrictionRadius = 1875; // SHIPWRECK_NPC_EXCLUSION_RADIUS from server (25% larger than 1500)
               } else if (buildingId.startsWith('fishing_village_')) {
-                  restrictionRadius = 800; // Same as FISHING_VILLAGE_RESTRICTION_RADIUS
-              } else if (buildingId.startsWith('wbg_')) {
-                  restrictionRadius = 800; // Same as WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS
+                  restrictionRadius = 1000; // FISHING_VILLAGE_EXCLUSION_RADIUS from server (25% larger than 800)
+              } else if (buildingId.startsWith('whale_bone_graveyard_')) {
+                  restrictionRadius = 1200; // WHALE_BONE_GRAVEYARD_NPC_EXCLUSION_RADIUS from server
+              } else if (buildingId.startsWith('hunting_village_')) {
+                  restrictionRadius = 1200; // HUNTING_VILLAGE_NPC_EXCLUSION_RADIUS from server
               }
               
               if (restrictionRadius > 0) {

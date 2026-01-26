@@ -36,9 +36,9 @@ pub mod clearance {
     /// Whale bone graveyard parts - clear an 11-tile radius (550px)
     pub const WHALE_BONE_GRAVEYARD: f32 = 550.0;
     
-    /// Hunting village parts - clear a 12-tile radius (600px)
-    /// Slightly larger to accommodate the tree ring around the village
-    pub const HUNTING_VILLAGE: f32 = 600.0;
+    /// Hunting village parts - clear a 10-tile radius (500px) same as fishing village
+    /// Trees around the village are spawned separately, not blocked by this
+    pub const HUNTING_VILLAGE: f32 = 500.0;
     
     // Future monument types can be added here:
     // pub const RUINS: f32 = 400.0;
@@ -65,10 +65,10 @@ pub fn is_position_near_monument(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -
         return true;
     }
     
-    // Check hunting village monuments
-    if is_near_hunting_village(ctx, pos_x, pos_y) {
-        return true;
-    }
+    // Hunting village check temporarily disabled - trees blocked everywhere bug
+    // if is_near_hunting_village(ctx, pos_x, pos_y) {
+    //     return true;
+    // }
     
     // Future monument checks can be added here:
     // if is_near_ruins(ctx, pos_x, pos_y) { return true; }
@@ -137,12 +137,15 @@ fn is_near_whale_bone_graveyard(ctx: &ReducerContext, pos_x: f32, pos_y: f32) ->
     false
 }
 
-/// Checks if position is near any hunting village part
+/// Checks if position is near the hunting village CENTER (lodge only)
+/// Only checks center piece to avoid creating massive exclusion zones from multiple parts
 fn is_near_hunting_village(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
     let clearance_sq = clearance::HUNTING_VILLAGE * clearance::HUNTING_VILLAGE;
     
     for part in ctx.db.monument_part().iter() {
-        if part.monument_type != MonumentType::HuntingVillage {
+        // Only check the CENTER (lodge) of hunting village, not every part
+        // This prevents a massive exclusion zone from multiple overlapping radii
+        if part.monument_type != MonumentType::HuntingVillage || !part.is_center {
             continue;
         }
         let dx = pos_x - part.world_x;
@@ -850,7 +853,7 @@ pub fn generate_hunting_village(
     
     log::info!("🏕️ Generating hunting village monument in forest biome...");
     
-    // Find suitable forest tiles - must be in FOREST biome (NOT tundra), away from water
+    // Find suitable forest tiles - must be in FOREST biome (NOT tundra), away from water and rivers
     // Focus on middle-northern area of the map (forest-rich zone)
     let map_height_quarter = height / 4; // Start at 1/4 down the map
     let map_height_three_quarters = height * 3 / 4; // End at 3/4 down
@@ -860,6 +863,7 @@ pub fn generate_hunting_village(
     let min_distance_from_fishing_village = 80.0; // Minimum tiles away from fishing village
     let min_distance_from_whale_graveyard = 80.0; // Minimum tiles away from whale graveyard
     let min_distance_from_hot_spring = 60.0; // Minimum tiles away from hot springs
+    let min_distance_from_river = 8; // Minimum tiles away from rivers
     
     let mut candidate_positions = Vec::new();
     
@@ -872,6 +876,27 @@ pub fn generate_hunting_village(
             if shore_dist >= min_shore_dist && forest_areas[y][x] && !tundra_areas[y][x] {
                 // Must not be on river or lake
                 if river_network[y][x] || lake_map[y][x] {
+                    continue;
+                }
+                
+                // Check if too close to a river (check surrounding tiles)
+                let mut too_close_to_river = false;
+                for check_dy in -(min_distance_from_river as i32)..=(min_distance_from_river as i32) {
+                    for check_dx in -(min_distance_from_river as i32)..=(min_distance_from_river as i32) {
+                        let check_x = x as i32 + check_dx;
+                        let check_y = y as i32 + check_dy;
+                        if check_x >= 0 && check_y >= 0 && 
+                           (check_x as usize) < width && (check_y as usize) < height {
+                            if river_network[check_y as usize][check_x as usize] {
+                                too_close_to_river = true;
+                                break;
+                            }
+                        }
+                    }
+                    if too_close_to_river { break; }
+                }
+                
+                if too_close_to_river {
                     continue;
                 }
                 

@@ -25,8 +25,10 @@ export const MUSIC_ZONE_INFO: Record<MusicZone, { name: string; icon: string }> 
     alk_compound: { name: 'ALK Compound', icon: '🏭' },
 };
 
-// Zone detection radius in pixels (matches server clearance::FISHING_VILLAGE)
-const FISHING_VILLAGE_ZONE_RADIUS = 500;
+// Zone detection radius in pixels - should cover the whole fishing village area
+// Server's FISHING_VILLAGE_BONUS_RADIUS is 1200px, but music zone should be even larger
+// to ensure the ambient music plays throughout the entire village experience
+const FISHING_VILLAGE_ZONE_RADIUS = 1400;
 
 // Normal world music tracks (in /public/music/)
 const NORMAL_TRACKS: MusicTrack[] = [

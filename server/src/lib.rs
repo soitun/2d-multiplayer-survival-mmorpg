@@ -500,8 +500,8 @@ use crate::campfire::{Campfire, WARMTH_RADIUS_SQUARED, WARMTH_PER_SECOND, CAMPFI
 // --- Global Constants ---
 pub const TILE_SIZE_PX: u32 = 48;
 pub const PLAYER_RADIUS: f32 = 32.0; // Player collision radius
-pub const PLAYER_SPEED: f32 = 240.0; // Speed in pixels per second - 5 tiles/sec for Zelda-like feel (SYNCED WITH CLIENT)
-pub const PLAYER_SPRINT_MULTIPLIER: f32 = 1.75; // 1.75x speed for sprinting (420 px/s) - SYNCED WITH CLIENT
+pub const PLAYER_SPEED: f32 = 320.0; // Speed in pixels per second - 6.67 tiles/sec (SYNCED WITH CLIENT)
+pub const PLAYER_SPRINT_MULTIPLIER: f32 = 1.75; // 1.75x speed for sprinting (560 px/s) - SYNCED WITH CLIENT
 
 // ADD: Crouching reduces collision radius by half  
 pub const CROUCHING_RADIUS_MULTIPLIER: f32 = 0.5;

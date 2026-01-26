@@ -615,7 +615,9 @@ export function getMonumentBuildings(monumentParts: MonumentPartData[]): Compoun
       const { width, height } = getMonumentPartSize(part.partType);
       
       // Generate unique ID based on monument type
-      const idPrefix = part.monumentType.toLowerCase().replace(/([A-Z])/g, '_$1').replace(/^_/, '');
+      // Convert CamelCase to snake_case: WhaleBoneGraveyard -> whale_bone_graveyard
+      // IMPORTANT: Insert underscores BEFORE converting to lowercase
+      const idPrefix = part.monumentType.replace(/([A-Z])/g, '_$1').replace(/^_/, '').toLowerCase();
       
       return {
         id: `${idPrefix}_${part.id}_${index}`,

@@ -5,8 +5,8 @@ import { resolveClientCollision, GameEntities } from '../utils/clientCollision';
 
 // Simple client-authoritative movement constants
 const POSITION_UPDATE_INTERVAL_MS = 25; // 40fps for better prediction accuracy with high latency
-const PLAYER_SPEED = 240; // pixels per second - 5 tiles/sec for Zelda-like feel (SYNCED WITH SERVER)
-const SPRINT_MULTIPLIER = 1.75; // 1.75x speed for sprinting (420 px/s) (SYNCED WITH SERVER)
+const PLAYER_SPEED = 320; // pixels per second - 6.67 tiles/sec (SYNCED WITH SERVER)
+const SPRINT_MULTIPLIER = 1.75; // 1.75x speed for sprinting (560 px/s) (SYNCED WITH SERVER)
 // Note: Dodge roll now uses server-authoritative interpolation instead of speed multipliers
 const WATER_SPEED_PENALTY = 0.5; // Half speed in water (matches server WATER_SPEED_PENALTY)
 const EXHAUSTED_SPEED_PENALTY = 0.75; // 25% speed reduction when exhausted (matches server EXHAUSTED_SPEED_PENALTY)

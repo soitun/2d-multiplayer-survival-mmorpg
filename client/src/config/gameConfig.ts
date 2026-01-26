@@ -46,8 +46,8 @@ export const gameConfig = {
   get worldHeightPx() { return this.worldHeightTiles * this.tileSize; },
 
   // Player Movement
-  playerSpeed: 240.0, // 5 tiles/sec - Zelda-like responsive feel (SYNCED WITH SERVER)
-  sprintMultiplier: 1.75, // 1.75x speed for sprinting (420 px/s) - meaningful boost (SYNCED WITH SERVER)
+  playerSpeed: 320.0, // 6.67 tiles/sec - faster walking (SYNCED WITH SERVER)
+  sprintMultiplier: 1.75, // 1.75x speed for sprinting (560 px/s) - meaningful boost (SYNCED WITH SERVER)
   crouchMultiplier: 0.5, // Half speed when crouching (120 px/s)
   waterSpeedPenalty: 0.5, // Speed reduction in water
 
