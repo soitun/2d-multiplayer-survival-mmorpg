@@ -286,7 +286,7 @@ const AIDisclosurePage: React.FC = () => {
                         marginBottom: '20px',
                         lineHeight: '1.8',
                     }}>
-                        We believe storytelling may be <strong>the last truly human profession</strong>. Not because AI can't generate words or images that look like stories. It clearly can. But because authentic stories come from somewhere AI cannot reach: the lived human experience, our collective memory, our hopes and fears, our cultural heritage passed down through generations.
+                        We believe storytelling may be <strong>the last truly human profession</strong>. Not because AI can't generate words or images that look like stories. It can. But because authentic stories come from somewhere AI can't reach: the lived human experience, our collective memory, our hopes and fears, our cultural heritage passed down through generations.
                     </p>
                     
                     <p style={{
@@ -1119,7 +1119,7 @@ const AIDisclosurePage: React.FC = () => {
                                 marginBottom: '16px',
                                 lineHeight: '1.7',
                             }}>
-                                The <strong>entire codebase</strong> — client, server, networking, all game systems — has been released under the <strong>MIT License</strong>. Over a year of work, given freely to the community.
+                                The <strong>entire codebase</strong> — client, server, networking, all game systems — has been released under the <strong>Apache 2.0 License</strong>. Over a year of work, given freely to the community.
                             </p>
                             <p style={{
                                 fontSize: '15px',
@@ -1138,7 +1138,6 @@ const AIDisclosurePage: React.FC = () => {
                                 <li style={{ marginBottom: '8px' }}>⭐ <strong>Contribute</strong> — Submit pull requests, fix bugs, add features</li>
                                 <li style={{ marginBottom: '8px' }}>🔀 <strong>Fork it</strong> — Build your own survival game with our engine</li>
                                 <li style={{ marginBottom: '8px' }}>🎮 <strong>Clone it</strong> — Learn from the architecture, use it in your projects</li>
-                                <li style={{ marginBottom: '0' }}>🖥️ <strong>Host your own server</strong> — Run your own Broth & Bullets community</li>
                             </ul>
                             <a 
                                 href="https://github.com/SeloSlav/2d-multiplayer-survival-mmorpg" 
