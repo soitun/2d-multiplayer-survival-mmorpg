@@ -19,8 +19,6 @@ import CyberpunkKnockedOutScreen from './CyberpunkKnockedOutScreen';
 import CraftingScreen from './CraftingScreen';
 // Hot loot hook
 import { useHotLoot } from '../hooks/useHotLoot';
-// ItemInteractionPanel for hotbar/external container item clicks
-import ItemInteractionPanel from './ItemInteractionPanel';
 // --- END NEW IMPORTS ---
 
 // Import status icons for mobile UI
@@ -1618,14 +1616,8 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                 />
             )}
 
-            {/* ItemInteractionPanel for hotbar items - only shows when inventory is open and item selected from hotbar/external container */}
-            {showInventory && selectedInventoryItem && (
-                <ItemInteractionPanel
-                    selectedItem={selectedInventoryItem}
-                    connection={connection}
-                    onClose={handleCloseItemInteraction}
-                />
-            )}
+            {/* ItemInteractionPanel is now rendered inside InventoryUI to avoid duplication */}
+            {/* It handles items selected from inventory, hotbar, and external containers */}
 
             {/* Drag Overlay is removed - ghost handled by DraggableItem */}
        </>

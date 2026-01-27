@@ -1539,7 +1539,6 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                             getSlotIndicator={getSlotIndicator}
                             onHotLootSlotHover={handleHotLootSlotHover || undefined}
                             setHotLootCurrentHover={setHotLootCurrentHover || undefined}
-                            onSelectInventoryItem={setSelectedInventoryItem}
                         />
                     ) : (
                         // Otherwise, show the crafting UI
