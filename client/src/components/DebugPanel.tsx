@@ -24,6 +24,7 @@ const ANIMAL_SPECIES = [
     { value: 'BeachCrab', label: '🦀 Beach Crab', category: 'Wildlife' },
     { value: 'Vole', label: '🐭 Vole', category: 'Wildlife' },
     { value: 'Wolverine', label: '🦡 Wolverine', category: 'Wildlife' },
+    { value: 'Caribou', label: '🦌 Caribou', category: 'Wildlife' },
     // Birds
     { value: 'Tern', label: '🐦 Tern', category: 'Birds' },
     { value: 'Crow', label: '🐦‍⬛ Crow', category: 'Birds' },

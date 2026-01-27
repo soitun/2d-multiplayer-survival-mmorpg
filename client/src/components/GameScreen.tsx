@@ -570,6 +570,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         localPlayerPosition: predictedPosition,
         runeStones: props.runeStones,
         alkStations: props.alkStations,
+        monumentParts: props.monumentParts,
     });
 
     // === QUEST NOTIFICATION HANDLERS (abstracted to useQuestNotifications hook) ===

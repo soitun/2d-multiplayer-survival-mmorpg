@@ -1121,6 +1121,29 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .cookable(50.0, "Charcoal")
             .build(),
 
+        // === CARIBOU MEAT ===
+        ItemBuilder::new("Raw Caribou Meat", "Fresh, lean venison from a caribou. A prized meat of the northern hunters, tender and nutritious when properly cooked.", ItemCategory::Consumable)
+            .icon("caribou_meat.png")
+            .stackable(10)
+            .consumable(15.0, 25.0, -5.0) // Good raw nutrition - lean and tender
+            .cookable(35.0, "Cooked Caribou Meat")
+            .build(),
+
+        ItemBuilder::new("Cooked Caribou Meat", "Expertly prepared caribou venison. Tender, lean, and richly flavored - a true delicacy of the north.", ItemCategory::Consumable)
+            .icon("cooked_caribou_meat.png")
+            .stackable(10)
+            .consumable(50.0, 70.0, 20.0) // Excellent nutrition - large animal, hard to hunt
+            .cookable(30.0, "Burnt Caribou Meat")
+            .build(),
+
+        ItemBuilder::new("Burnt Caribou Meat", "Overcooked caribou meat. The once-tender venison has become dry and charred.", ItemCategory::Consumable)
+            .icon("burnt_caribou_meat.png")
+            .stackable(10)
+            .consumable(-6.0, 18.0, -18.0) // Penalty for burning good meat
+            .crafting_output(15, 0)
+            .cookable(40.0, "Charcoal")
+            .build(),
+
         // === SPECIALTY FOODS & MISC ===
         ItemBuilder::new("Tallow", "Rendered animal fat. High in calories and can be used as a slow-burning fuel source for lanterns and Ancestral Wards. Can be eaten in a pinch to stave off hunger, but it's not very appetizing and will make you thirsty.", ItemCategory::Consumable)
             .icon("tallow.png")

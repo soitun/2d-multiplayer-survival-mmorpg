@@ -315,6 +315,45 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         // NOTE: Trees around hunting village come from natural seed_environment spawning
     }
     
+    // Store crashed research drone positions in database table for client access
+    // This is a dangerous crash site in the tundra - NOT a safe zone, NO buffs
+    if let Some((center_x, center_y)) = world_features.crashed_research_drone_center {
+        // Store the single drone part (center piece)
+        for (part_x, part_y, image_path, part_type) in &world_features.crashed_research_drone_parts {
+            ctx.db.monument_part().insert(MonumentPart {
+                id: 0, // auto_inc
+                monument_type: MonumentType::CrashedResearchDrone,
+                world_x: *part_x,
+                world_y: *part_y,
+                image_path: image_path.clone(),
+                part_type: part_type.clone(),
+                is_center: true, // Single part is always center
+                collision_radius: 0.0, // NO collision for walkability
+            });
+        }
+        
+        log::info!("🛸 Stored {} crashed research drone parts in database - client reads once, then treats as static config",
+                   world_features.crashed_research_drone_parts.len());
+        
+        // Collect part positions for spawning
+        let drone_positions: Vec<(f32, f32)> = world_features.crashed_research_drone_parts
+            .iter()
+            .map(|(part_x, part_y, _, _)| (*part_x, *part_y))
+            .collect();
+        
+        // Use coordinated spawn function to avoid overlapping entities
+        // This spawns placeables, harvestables, and barrels with collision avoidance
+        match crate::monument::spawn_crashed_research_drone_all(ctx, center_x, center_y, &drone_positions) {
+            Ok((placeables, harvestables, barrels)) => {
+                log::info!("🛸 Crashed Research Drone spawned: {} placeables, {} harvestables, {} barrels (with collision avoidance)",
+                          placeables, harvestables, barrels);
+            }
+            Err(e) => {
+                log::warn!("Failed to spawn crashed research drone entities: {}", e);
+            }
+        }
+    }
+    
     // Store large quarry positions and types in database for client minimap display
     // Similar to shipwreck - client reads once, then treats as static config
     for (tile_x, tile_y, radius, quarry_type) in &world_features.large_quarry_centers {
@@ -390,6 +429,8 @@ struct WorldFeatures {
     whale_bone_graveyard_parts: Vec<(f32, f32, String, String)>, // Whale bone graveyard parts (x, y, image_path, part_type) in world pixels
     hunting_village_center: Option<(f32, f32)>, // Hunting village center position (lodge) in world pixels
     hunting_village_parts: Vec<(f32, f32, String, String)>, // Hunting village parts (x, y, image_path, part_type) in world pixels
+    crashed_research_drone_center: Option<(f32, f32)>, // Crashed research drone center position in world pixels
+    crashed_research_drone_parts: Vec<(f32, f32, String, String)>, // Crashed research drone parts (x, y, image_path, part_type) in world pixels
     coral_reef_zones: Vec<Vec<bool>>, // Coral reef zones (deep sea areas for living coral)
     reed_marsh_centers: Vec<(f32, f32)>, // Reed marsh center positions (x, y) in world pixels
     width: usize,
@@ -473,6 +514,13 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         &shipwreck_centers, fishing_village_center, whale_bone_graveyard_center, width, height
     );
     
+    // Generate crashed research drone monument in tundra biome (dangerous crash site)
+    // Spawns barrels, memory shards, sulfur piles, and metal ore piles - NOT a safe zone
+    let (crashed_research_drone_center, crashed_research_drone_parts) = crate::monument::generate_crashed_research_drone(
+        noise, &shore_distance, &river_network, &lake_map, &tundra_areas, &hot_spring_centers,
+        &shipwreck_centers, fishing_village_center, whale_bone_graveyard_center, hunting_village_center, width, height
+    );
+    
     // Generate coral reef zones (deep sea areas for living coral spawning)
     let coral_reef_zones = generate_coral_reef_zones(config, noise, &shore_distance, width, height);
     
@@ -506,6 +554,8 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         whale_bone_graveyard_parts,
         hunting_village_center,
         hunting_village_parts,
+        crashed_research_drone_center,
+        crashed_research_drone_parts,
         coral_reef_zones,
         reed_marsh_centers,
         width,

@@ -30,20 +30,46 @@ pub mod clearance {
     /// Shipwreck parts - clear a 12-tile radius (600px)
     pub const SHIPWRECK: f32 = 600.0;
     
-    /// Fishing village parts - clear a 10-tile radius (500px)
-    pub const FISHING_VILLAGE: f32 = 500.0;
+    /// Fishing village parts - clear a 12-tile radius (600px)
+    pub const FISHING_VILLAGE: f32 = 600.0;
     
     /// Whale bone graveyard parts - clear an 11-tile radius (550px)
-    pub const WHALE_BONE_GRAVEYARD: f32 = 550.0;
+    pub const WHALE_BONE_GRAVEYARD: f32 = 600.0;
     
-    /// Hunting village parts - clear a 10-tile radius (500px) same as fishing village
+    /// Hunting village parts - clear a 12-tile radius (600px)
     /// Trees around the village are spawned separately, not blocked by this
-    pub const HUNTING_VILLAGE: f32 = 500.0;
+    pub const HUNTING_VILLAGE: f32 = 600.0;
     
-    // Future monument types can be added here:
-    // pub const RUINS: f32 = 400.0;
-    // pub const CRASH_SITE: f32 = 350.0;
-    // etc.
+    /// Crashed research drone - clear a 12-tile radius (600px)
+    /// Smaller monument, single piece with surrounding loot
+    pub const CRASHED_RESEARCH_DRONE: f32 = 600.0;
+}
+
+/// Minimum distance between monument spawns (barrels, harvestables, placeables)
+/// Prevents overlapping entities at monuments
+pub const MONUMENT_SPAWN_MIN_DISTANCE: f32 = 50.0;
+pub const MONUMENT_SPAWN_MIN_DISTANCE_SQ: f32 = MONUMENT_SPAWN_MIN_DISTANCE * MONUMENT_SPAWN_MIN_DISTANCE;
+
+/// Represents an occupied position at a monument
+#[derive(Clone, Debug)]
+pub struct OccupiedPosition {
+    pub x: f32,
+    pub y: f32,
+    pub radius: f32, // Collision radius for this entity
+}
+
+/// Check if a position conflicts with any occupied positions
+pub fn is_position_occupied(x: f32, y: f32, radius: f32, occupied: &[OccupiedPosition]) -> bool {
+    for pos in occupied {
+        let dx = x - pos.x;
+        let dy = y - pos.y;
+        let dist_sq = dx * dx + dy * dy;
+        let min_dist = radius + pos.radius;
+        if dist_sq < min_dist * min_dist {
+            return true;
+        }
+    }
+    false
 }
 
 /// Checks if the given world position is too close to any monument
@@ -70,9 +96,10 @@ pub fn is_position_near_monument(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -
     //     return true;
     // }
     
-    // Future monument checks can be added here:
-    // if is_near_ruins(ctx, pos_x, pos_y) { return true; }
-    // if is_near_crash_site(ctx, pos_x, pos_y) { return true; }
+    // Check crashed research drone monuments
+    if is_near_crashed_research_drone(ctx, pos_x, pos_y) {
+        return true;
+    }
     
     false // Not near any monument
 }
@@ -146,6 +173,26 @@ fn is_near_hunting_village(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool
         // Only check the CENTER (lodge) of hunting village, not every part
         // This prevents a massive exclusion zone from multiple overlapping radii
         if part.monument_type != MonumentType::HuntingVillage || !part.is_center {
+            continue;
+        }
+        let dx = pos_x - part.world_x;
+        let dy = pos_y - part.world_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq < clearance_sq {
+            return true;
+        }
+    }
+    
+    false
+}
+
+/// Checks if position is near any crashed research drone
+fn is_near_crashed_research_drone(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    let clearance_sq = clearance::CRASHED_RESEARCH_DRONE * clearance::CRASHED_RESEARCH_DRONE;
+    
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::CrashedResearchDrone {
             continue;
         }
         let dx = pos_x - part.world_x;
@@ -1079,6 +1126,222 @@ pub fn generate_hunting_village(
 }
 
 // =============================================================================
+// CRASHED RESEARCH DRONE MONUMENT
+// =============================================================================
+
+/// Generate crashed research drone monument in tundra biome
+/// Returns (center_position, parts) where:
+/// - center_position: Option<(x, y)> in world pixels for the drone center piece
+/// - parts: Vec of (x, y, image_path, part_type) for the single drone structure
+pub fn generate_crashed_research_drone(
+    noise: &Perlin,
+    shore_distance: &[Vec<f64>],
+    river_network: &[Vec<bool>],
+    lake_map: &[Vec<bool>],
+    tundra_areas: &[Vec<bool>],
+    hot_spring_centers: &[(f32, f32, i32)],
+    shipwreck_centers: &[(f32, f32)],
+    fishing_village_center: Option<(f32, f32)>,
+    whale_bone_graveyard_center: Option<(f32, f32)>,
+    hunting_village_center: Option<(f32, f32)>,
+    width: usize,
+    height: usize,
+) -> (Option<(f32, f32)>, Vec<(f32, f32, String, String)>) {
+    let mut drone_center: Option<(f32, f32)> = None;
+    let mut drone_parts: Vec<(f32, f32, String, String)> = Vec::new();
+    
+    log::info!("🛸 Generating crashed research drone monument in tundra biome...");
+    
+    // Find suitable tundra tiles - must be in TUNDRA biome, away from water and rivers
+    let min_shore_dist = 10.0;  // At least 10 tiles from water
+    let min_distance_from_edge = 30;
+    let min_distance_from_shipwreck = 80.0; // Minimum tiles away from shipwreck
+    let min_distance_from_fishing_village = 80.0; // Minimum tiles away from fishing village
+    let min_distance_from_whale_graveyard = 80.0; // Minimum tiles away from whale graveyard
+    let min_distance_from_hunting_village = 80.0; // Minimum tiles away from hunting village
+    let min_distance_from_hot_spring = 50.0; // Minimum tiles away from hot springs
+    let min_distance_from_river = 5; // Minimum tiles away from rivers
+    
+    let mut candidate_positions = Vec::new();
+    
+    // Search entire map for tundra tiles
+    for y in min_distance_from_edge..(height - min_distance_from_edge) {
+        for x in min_distance_from_edge..(width - min_distance_from_edge) {
+            let shore_dist = shore_distance[y][x];
+            
+            // Must be inland and in tundra area
+            if shore_dist >= min_shore_dist && tundra_areas[y][x] {
+                // Must not be on river or lake
+                if river_network[y][x] || lake_map[y][x] {
+                    continue;
+                }
+                
+                // Check if too close to a river (check surrounding tiles)
+                let mut too_close_to_river = false;
+                for check_dy in -(min_distance_from_river as i32)..=(min_distance_from_river as i32) {
+                    for check_dx in -(min_distance_from_river as i32)..=(min_distance_from_river as i32) {
+                        let check_x = x as i32 + check_dx;
+                        let check_y = y as i32 + check_dy;
+                        if check_x >= 0 && check_y >= 0 && 
+                           (check_x as usize) < width && (check_y as usize) < height {
+                            if river_network[check_y as usize][check_x as usize] {
+                                too_close_to_river = true;
+                                break;
+                            }
+                        }
+                    }
+                    if too_close_to_river { break; }
+                }
+                
+                if too_close_to_river {
+                    continue;
+                }
+                
+                // Check distance from other monuments and special features
+                let tile_world_x = (x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                let tile_world_y = (y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                
+                let mut too_close = false;
+                
+                // Check distance from shipwreck
+                for &(shipwreck_x, shipwreck_y) in shipwreck_centers {
+                    let dx = tile_world_x - shipwreck_x;
+                    let dy = tile_world_y - shipwreck_y;
+                    let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                    if dist_tiles < min_distance_from_shipwreck {
+                        too_close = true;
+                        break;
+                    }
+                }
+                
+                // Check distance from hot springs
+                if !too_close {
+                    for &(hs_x, hs_y, hs_radius) in hot_spring_centers {
+                        let dx = tile_world_x - hs_x;
+                        let dy = tile_world_y - hs_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        let min_dist = min_distance_from_hot_spring + hs_radius as f32;
+                        if dist_tiles < min_dist {
+                            too_close = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // Check distance from fishing village
+                if !too_close {
+                    if let Some((fv_x, fv_y)) = fishing_village_center {
+                        let dx = tile_world_x - fv_x;
+                        let dy = tile_world_y - fv_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        if dist_tiles < min_distance_from_fishing_village {
+                            too_close = true;
+                        }
+                    }
+                }
+                
+                // Check distance from whale bone graveyard
+                if !too_close {
+                    if let Some((wbg_x, wbg_y)) = whale_bone_graveyard_center {
+                        let dx = tile_world_x - wbg_x;
+                        let dy = tile_world_y - wbg_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        if dist_tiles < min_distance_from_whale_graveyard {
+                            too_close = true;
+                        }
+                    }
+                }
+                
+                // Check distance from hunting village
+                if !too_close {
+                    if let Some((hv_x, hv_y)) = hunting_village_center {
+                        let dx = tile_world_x - hv_x;
+                        let dy = tile_world_y - hv_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        if dist_tiles < min_distance_from_hunting_village {
+                            too_close = true;
+                        }
+                    }
+                }
+                
+                if too_close {
+                    continue;
+                }
+                
+                candidate_positions.push((x, y, shore_dist));
+            }
+        }
+    }
+    
+    if candidate_positions.is_empty() {
+        log::warn!("🛸 No valid tundra positions found for crashed research drone");
+        return (drone_center, drone_parts);
+    }
+    
+    log::info!("🛸 Found {} candidate positions for crashed research drone in tundra biome", 
+               candidate_positions.len());
+    
+    // Select position using noise - prefer positions deeper in tundra
+    let mut best_score = f64::NEG_INFINITY;
+    let mut best_position: Option<(usize, usize)> = None;
+    
+    for &(x, y, shore_dist) in &candidate_positions {
+        // Score: noise value + bonus for being deeper inland
+        let noise_val = noise.get([x as f64 * 0.01, y as f64 * 0.01, 50000.0]); // Unique seed for this monument
+        let inland_bonus = (shore_dist - min_shore_dist).min(20.0) / 20.0 * 0.3;
+        let score = noise_val + inland_bonus;
+        
+        if score > best_score {
+            best_score = score;
+            best_position = Some((x, y));
+        }
+    }
+    
+    if let Some((center_x, center_y)) = best_position {
+        let tile_size_px = crate::TILE_SIZE_PX as f32;
+        let center_world_x = (center_x as f32 + 0.5) * tile_size_px;
+        let center_world_y = (center_y as f32 + 0.5) * tile_size_px;
+        
+        drone_center = Some((center_world_x, center_world_y));
+        
+        log::info!("🛸✨ PLACED CRASHED RESEARCH DRONE at tile ({}, {}) = 📍 World Position: ({:.0}, {:.0}) ✨",
+                   center_x, center_y, center_world_x, center_world_y);
+        
+        // =============================================================================
+        // CRASHED RESEARCH DRONE LAYOUT
+        // =============================================================================
+        // Single crashed drone structure - the main wreckage
+        // Surrounded by loot (barrels, memory shards, sulfur piles, metal fragments)
+        // spawned via separate functions after placement
+        //
+        // Layout (in local coords):
+        //                    DRONE (0, 0) <- Center piece
+        // =============================================================================
+        
+        // Single structure: the crashed drone
+        let part_type = "drone";
+        let image_name = "hv_storage.png";
+        let offset_x = 0.0;
+        let offset_y = 0.0;
+        
+        let part_world_x = center_world_x + offset_x;
+        let part_world_y = center_world_y + offset_y;
+        
+        // Place the structure
+        drone_parts.push((part_world_x, part_world_y, image_name.to_string(), part_type.to_string()));
+        
+        log::info!("🛸✨ PLACED {} ({}) at ({:.0}, {:.0}) ✨",
+                   part_type.to_uppercase(), image_name, part_world_x, part_world_y);
+        
+        log::info!("🛸 Crashed research drone generation complete: {} structure", drone_parts.len());
+    } else {
+        log::warn!("🛸 Failed to select crashed research drone position");
+    }
+    
+    (drone_center, drone_parts)
+}
+
+// =============================================================================
 // MONUMENT DECORATIONS (Flavor Items)
 // =============================================================================
 
@@ -1284,19 +1547,28 @@ pub fn spawn_monument_decorations(
 
 /// Spawns harvestable resources around monument parts
 /// Efficiently collects all positions first, then spawns harvestable resources
-pub fn spawn_monument_harvestables(
+/// Spawns harvestable resources around monument parts with collision avoidance
+/// Takes a mutable list of occupied positions and adds spawned positions to it
+/// `skip_biome_check` - if true, skips the beach/coastal tile check for resources like MemoryShard
+///                      (used for inland monuments like Crashed Research Drone)
+pub fn spawn_monument_harvestables_with_collision(
     ctx: &ReducerContext,
     monument_part_positions: &[(f32, f32)],
     harvestable_configs: &[MonumentHarvestableConfig],
-) -> Result<(), String> {
+    occupied_positions: &mut Vec<OccupiedPosition>,
+    skip_biome_check: bool,
+) -> Result<u32, String> {
     if monument_part_positions.is_empty() {
-        return Ok(()); // No parts, nothing to spawn
+        return Ok(0); // No parts, nothing to spawn
     }
     
     let harvestable_resources = ctx.db.harvestable_resource();
-    let mut harvestables_to_spawn: Vec<(f32, f32, crate::plants_database::PlantType)> = Vec::new();
+    const HARVESTABLE_RADIUS: f32 = 30.0; // Collision radius for harvestable resources
+    const MAX_PLACEMENT_ATTEMPTS: u32 = 10; // Max attempts to find non-colliding position
     
-    // Collect all harvestable spawn positions
+    let mut spawned_count = 0u32;
+    
+    // Process each monument part
     for &(part_x, part_y) in monument_part_positions {
         for config in harvestable_configs {
             // Roll for spawn chance
@@ -1305,57 +1577,88 @@ pub fn spawn_monument_harvestables(
                 continue; // This harvestable doesn't spawn for this part
             }
             
-            // Calculate spawn position (random angle and distance from part)
-            let angle = ctx.rng().gen_range(0.0..(2.0 * std::f32::consts::PI));
-            let distance = ctx.rng().gen_range(config.min_distance..config.max_distance);
-            let spawn_x = part_x + angle.cos() * distance;
-            let spawn_y = part_y + angle.sin() * distance;
+            // Try multiple attempts to find a non-colliding position
+            let mut spawn_x = 0.0;
+            let mut spawn_y = 0.0;
+            let mut found_position = false;
             
-            harvestables_to_spawn.push((spawn_x, spawn_y, config.plant_type));
-        }
-    }
-    
-    log::info!("[MonumentHarvestables] Collected {} harvestable spawns around {} monument parts", 
-               harvestables_to_spawn.len(), monument_part_positions.len());
-    
-    // Spawn all collected harvestables
-    let mut spawned_count = 0;
-    for (spawn_x, spawn_y, plant_type) in harvestables_to_spawn {
-        // Validate position: coastal resources must be on beach tiles
-        let is_coastal_resource = plant_type == crate::plants_database::PlantType::BeachWoodPile ||
-                                   plant_type == crate::plants_database::PlantType::MemoryShard;
-        if is_coastal_resource {
-            if !crate::environment::is_position_on_beach_tile(ctx, spawn_x, spawn_y) {
-                log::debug!("[MonumentHarvestables] Skipping {:?} at ({:.1}, {:.1}) - not on beach", plant_type, spawn_x, spawn_y);
+            for _attempt in 0..MAX_PLACEMENT_ATTEMPTS {
+                // Calculate spawn position (random angle and distance from part)
+                let angle = ctx.rng().gen_range(0.0..(2.0 * std::f32::consts::PI));
+                let distance = ctx.rng().gen_range(config.min_distance..config.max_distance);
+                spawn_x = part_x + angle.cos() * distance;
+                spawn_y = part_y + angle.sin() * distance;
+                
+                // Check collision with occupied positions
+                if !is_position_occupied(spawn_x, spawn_y, HARVESTABLE_RADIUS, occupied_positions) {
+                    found_position = true;
+                    break;
+                }
+            }
+            
+            if !found_position {
+                log::debug!("[MonumentHarvestables] Could not find non-colliding position for {:?} after {} attempts", 
+                           config.plant_type, MAX_PLACEMENT_ATTEMPTS);
                 continue;
             }
-        }
-        
-        let chunk_idx = crate::environment::calculate_chunk_index(spawn_x, spawn_y);
-        
-        // Create harvestable resource
-        let harvestable = crate::harvestable_resource::create_harvestable_resource(
-            plant_type,
-            spawn_x,
-            spawn_y,
-            chunk_idx,
-            false // Mark as wild (not player-planted)
-        );
-        
-        match harvestable_resources.try_insert(harvestable) {
-            Ok(inserted) => {
-                spawned_count += 1;
-                log::debug!("[MonumentHarvestables] Spawned {:?} at ({:.1}, {:.1})", 
-                           plant_type, spawn_x, spawn_y);
+            
+            // Validate position: coastal resources must be on beach tiles
+            // UNLESS skip_biome_check is true (for inland monuments like Crashed Research Drone)
+            if !skip_biome_check {
+                let is_coastal_resource = config.plant_type == crate::plants_database::PlantType::BeachWoodPile ||
+                                           config.plant_type == crate::plants_database::PlantType::MemoryShard;
+                if is_coastal_resource {
+                    if !crate::environment::is_position_on_beach_tile(ctx, spawn_x, spawn_y) {
+                        log::debug!("[MonumentHarvestables] Skipping {:?} at ({:.1}, {:.1}) - not on beach", config.plant_type, spawn_x, spawn_y);
+                        continue;
+                    }
+                }
             }
-            Err(e) => {
-                log::warn!("[MonumentHarvestables] Failed to spawn {:?} at ({:.1}, {:.1}): {}", 
-                          plant_type, spawn_x, spawn_y, e);
+            
+            let chunk_idx = crate::environment::calculate_chunk_index(spawn_x, spawn_y);
+            
+            // Create harvestable resource
+            let harvestable = crate::harvestable_resource::create_harvestable_resource(
+                config.plant_type,
+                spawn_x,
+                spawn_y,
+                chunk_idx,
+                false // Mark as wild (not player-planted)
+            );
+            
+            match harvestable_resources.try_insert(harvestable) {
+                Ok(_inserted) => {
+                    spawned_count += 1;
+                    // Add to occupied positions
+                    occupied_positions.push(OccupiedPosition {
+                        x: spawn_x,
+                        y: spawn_y,
+                        radius: HARVESTABLE_RADIUS,
+                    });
+                    log::debug!("[MonumentHarvestables] Spawned {:?} at ({:.1}, {:.1})", 
+                               config.plant_type, spawn_x, spawn_y);
+                }
+                Err(e) => {
+                    log::warn!("[MonumentHarvestables] Failed to spawn {:?} at ({:.1}, {:.1}): {}", 
+                              config.plant_type, spawn_x, spawn_y, e);
+                }
             }
         }
     }
     
     log::info!("[MonumentHarvestables] Successfully spawned {} harvestable resources", spawned_count);
+    Ok(spawned_count)
+}
+
+/// Legacy version without collision tracking - calls the new version with empty occupied list
+/// Uses beach/biome check by default (for coastal monuments like shipwrecks)
+pub fn spawn_monument_harvestables(
+    ctx: &ReducerContext,
+    monument_part_positions: &[(f32, f32)],
+    harvestable_configs: &[MonumentHarvestableConfig],
+) -> Result<(), String> {
+    let mut occupied = Vec::new();
+    spawn_monument_harvestables_with_collision(ctx, monument_part_positions, harvestable_configs, &mut occupied, false)?;
     Ok(())
 }
 
@@ -1784,6 +2087,118 @@ pub fn spawn_whale_bone_graveyard_military_rations(
     Ok(())
 }
 
+/// Spawns barrels around crashed research drone monument with collision avoidance
+/// Uses road barrel variants (0, 1, 2) since this is inland tundra
+/// Takes a mutable list of occupied positions and adds spawned barrel positions to it
+pub fn spawn_crashed_research_drone_barrels_with_collision(
+    ctx: &ReducerContext,
+    monument_part_positions: &[(f32, f32)],
+    occupied_positions: &mut Vec<OccupiedPosition>,
+) -> Result<u32, String> {
+    if monument_part_positions.is_empty() {
+        return Ok(0);
+    }
+    
+    use crate::barrel::{Barrel, BARREL_INITIAL_HEALTH};
+    use crate::environment::calculate_chunk_index;
+    use crate::barrel::{has_barrel_collision, has_player_barrel_collision};
+    use rand::Rng;
+    
+    const BARREL_RADIUS: f32 = 35.0; // Collision radius for barrels
+    
+    let barrels = ctx.db.barrel();
+    let mut spawned_count = 0u32;
+    
+    // Spawn 2-4 barrels per drone part (high spawn rate for good loot)
+    for &(part_x, part_y) in monument_part_positions {
+        // Determine how many barrels (2-4)
+        let barrel_count = ctx.rng().gen_range(2..=4);
+        
+        for barrel_idx in 0..barrel_count {
+            let mut attempts = 0;
+            const MAX_ATTEMPTS: u32 = 20; // Increased attempts due to more collision checks
+            
+            while attempts < MAX_ATTEMPTS {
+                attempts += 1;
+                
+                // Generate position around the drone crash site
+                let angle = (barrel_idx as f32) * (2.0 * std::f32::consts::PI / barrel_count as f32) +
+                           ctx.rng().gen_range(-0.8..0.8);
+                let distance = ctx.rng().gen_range(80.0..200.0);
+                let barrel_x = part_x + angle.cos() * distance;
+                let barrel_y = part_y + angle.sin() * distance;
+                
+                // Validate position: must not be on water
+                let tile_x = (barrel_x / crate::TILE_SIZE_PX as f32).floor() as i32;
+                let tile_y = (barrel_y / crate::TILE_SIZE_PX as f32).floor() as i32;
+                if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
+                    if tile_type.is_water() {
+                        continue; // Skip water tiles
+                    }
+                }
+                
+                // Check collision with occupied positions (placeables, harvestables)
+                if is_position_occupied(barrel_x, barrel_y, BARREL_RADIUS, occupied_positions) {
+                    continue;
+                }
+                
+                // Check collisions with existing barrels
+                if has_barrel_collision(ctx, barrel_x, barrel_y, None) ||
+                   has_player_barrel_collision(ctx, barrel_x, barrel_y) {
+                    continue;
+                }
+                
+                // Spawn road barrel (variants 0, 1, 2) since this is inland tundra
+                let variant = ctx.rng().gen_range(0..3);
+                let chunk_idx = calculate_chunk_index(barrel_x, barrel_y);
+                
+                let new_barrel = Barrel {
+                    id: 0,
+                    pos_x: barrel_x,
+                    pos_y: barrel_y,
+                    chunk_index: chunk_idx,
+                    health: BARREL_INITIAL_HEALTH,
+                    variant,
+                    last_hit_time: None,
+                    respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
+                    cluster_id: 0, // Individual spawns, not clusters
+                };
+                
+                match barrels.try_insert(new_barrel) {
+                    Ok(inserted_barrel) => {
+                        spawned_count += 1;
+                        // Add to occupied positions
+                        occupied_positions.push(OccupiedPosition {
+                            x: barrel_x,
+                            y: barrel_y,
+                            radius: BARREL_RADIUS,
+                        });
+                        log::info!("[CrashedDroneBarrels] Spawned barrel #{} (variant {}) at ({:.1}, {:.1})",
+                                  inserted_barrel.id, variant, barrel_x, barrel_y);
+                        break; // Successfully spawned
+                    }
+                    Err(e) => {
+                        log::warn!("[CrashedDroneBarrels] Failed to insert barrel: {}", e);
+                    }
+                }
+            }
+        }
+    }
+    
+    log::info!("[CrashedDroneBarrels] Spawned {} barrels around crashed research drone monument", spawned_count);
+    Ok(spawned_count)
+}
+
+/// Legacy version without collision tracking - calls the new version with empty occupied list
+pub fn spawn_crashed_research_drone_barrels(
+    ctx: &ReducerContext,
+    monument_part_positions: &[(f32, f32)],
+) -> Result<(), String> {
+    let mut occupied = Vec::new();
+    spawn_crashed_research_drone_barrels_with_collision(ctx, monument_part_positions, &mut occupied)?;
+    Ok(())
+}
+
 // Future monument decoration configs can be added here:
 /*
 /// Ruins-specific decoration configuration
@@ -2037,6 +2452,138 @@ pub fn get_hunting_village_harvestables() -> Vec<MonumentHarvestableConfig> {
             max_distance: 200.0,
         },
     ]
+}
+
+/// Crashed Research Drone harvestable resource configuration
+/// Spawns memory shards, sulfur piles, and metal ore piles around the crash site
+pub fn get_crashed_research_drone_harvestables() -> Vec<MonumentHarvestableConfig> {
+    vec![
+        // Memory Shards - scattered tech debris from the drone (primary loot)
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::MemoryShard,
+            spawn_chance: 0.90, // 90% chance - guaranteed tech loot
+            min_distance: 60.0,
+            max_distance: 150.0,
+        },
+        // Second Memory Shard spawn
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::MemoryShard,
+            spawn_chance: 0.60, // 60% chance for bonus shard
+            min_distance: 80.0,
+            max_distance: 180.0,
+        },
+        // Third Memory Shard spawn
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::MemoryShard,
+            spawn_chance: 0.40, // 40% chance for extra shard
+            min_distance: 100.0,
+            max_distance: 200.0,
+        },
+        // Sulfur Pile - fuel residue from the crash
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::SulfurPile,
+            spawn_chance: 0.75, // 75% chance
+            min_distance: 70.0,
+            max_distance: 160.0,
+        },
+        // Second Sulfur Pile
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::SulfurPile,
+            spawn_chance: 0.50, // 50% chance for bonus pile
+            min_distance: 90.0,
+            max_distance: 200.0,
+        },
+        // Metal Ore Pile - scattered drone components
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::MetalOrePile,
+            spawn_chance: 0.80, // 80% chance
+            min_distance: 60.0,
+            max_distance: 150.0,
+        },
+        // Second Metal Ore Pile
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::MetalOrePile,
+            spawn_chance: 0.55, // 55% chance for bonus pile
+            min_distance: 80.0,
+            max_distance: 180.0,
+        },
+    ]
+}
+
+/// Get monument placeables for the Crashed Research Drone monument
+/// Abandoned survivor camp - someone tried to survive here before they disappeared...
+/// NOT a safe zone, but has useful equipment left behind
+pub fn get_crashed_research_drone_placeables() -> Vec<MonumentPlaceableConfig> {
+    vec![
+        // Abandoned campfire - left unlit, but still usable
+        MonumentPlaceableConfig::campfire(-120.0, 150.0),
+        
+        // Furnace - the survivor was trying to smelt materials from the wreckage
+        MonumentPlaceableConfig::furnace(140.0, 180.0),
+        
+        // Rain collector - water collection for survival (moved further away)
+        MonumentPlaceableConfig::rain_collector(-220.0, -120.0),
+        
+        // Repair bench - they were trying to repair something from the drone (moved further away)
+        MonumentPlaceableConfig::repair_bench(200.0, -140.0),
+    ]
+}
+
+/// Calculate placeable world positions without spawning them
+/// Used to pre-populate occupied positions list for collision avoidance
+pub fn calculate_placeable_positions(
+    monument_center_x: f32,
+    monument_center_y: f32,
+    configs: &[MonumentPlaceableConfig],
+) -> Vec<OccupiedPosition> {
+    const PLACEABLE_RADIUS: f32 = 45.0; // Collision radius for placeables
+    
+    configs.iter().map(|config| {
+        OccupiedPosition {
+            x: monument_center_x + config.offset_x,
+            y: monument_center_y + config.offset_y,
+            radius: PLACEABLE_RADIUS,
+        }
+    }).collect()
+}
+
+/// Coordinated spawn function for Crashed Research Drone monument
+/// Spawns all entities (placeables, harvestables, barrels) with collision avoidance
+/// This ensures no overlapping spawns at the monument
+pub fn spawn_crashed_research_drone_all(
+    ctx: &ReducerContext,
+    center_x: f32,
+    center_y: f32,
+    part_positions: &[(f32, f32)],
+) -> Result<(u32, u32, u32), String> {
+    // Start with placeable positions as occupied (they're fixed, deterministic)
+    let placeable_configs = get_crashed_research_drone_placeables();
+    let mut occupied_positions = calculate_placeable_positions(center_x, center_y, &placeable_configs);
+    
+    log::info!("[CrashedDroneSpawn] Pre-marked {} placeable positions as occupied", occupied_positions.len());
+    
+    // Spawn harvestables, avoiding placeable positions
+    // IMPORTANT: skip_biome_check = true because the drone is in tundra, not on a beach
+    // This allows Memory Shards (normally coastal-only) to spawn at the inland crash site
+    let harvestable_configs = get_crashed_research_drone_harvestables();
+    let harvestable_count = spawn_monument_harvestables_with_collision(
+        ctx, part_positions, &harvestable_configs, &mut occupied_positions, true // skip biome check
+    )?;
+    
+    // Spawn barrels, avoiding placeables and harvestables
+    let barrel_count = spawn_crashed_research_drone_barrels_with_collision(
+        ctx, part_positions, &mut occupied_positions
+    )?;
+    
+    // Finally spawn the actual placeables (they have fixed positions)
+    let placeable_count = spawn_monument_placeables(
+        ctx, "Crashed Research Drone", center_x, center_y, &placeable_configs
+    )?;
+    
+    log::info!("[CrashedDroneSpawn] Completed spawning: {} placeables, {} harvestables, {} barrels (total {} occupied positions)",
+               placeable_count, harvestable_count, barrel_count, occupied_positions.len());
+    
+    Ok((placeable_count, harvestable_count, barrel_count))
 }
 
 /// Spawn monument placeables at the given monument center position

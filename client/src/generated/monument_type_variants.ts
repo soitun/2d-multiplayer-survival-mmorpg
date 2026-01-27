@@ -32,4 +32,5 @@ export type Shipwreck = { tag: "Shipwreck" };
 export type FishingVillage = { tag: "FishingVillage" };
 export type WhaleBoneGraveyard = { tag: "WhaleBoneGraveyard" };
 export type HuntingVillage = { tag: "HuntingVillage" };
+export type CrashedResearchDrone = { tag: "CrashedResearchDrone" };
 

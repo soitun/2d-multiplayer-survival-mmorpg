@@ -79,6 +79,7 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.GrowlTern |
   SoundTypeVariants.GrowlVole |
   SoundTypeVariants.GrowlWolverine |
+  SoundTypeVariants.GrowlCaribou |
   SoundTypeVariants.GrowlShorebound |
   SoundTypeVariants.GrowlShardkin |
   SoundTypeVariants.GrowlDrownedWatch |
@@ -126,6 +127,7 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.DeathViper |
   SoundTypeVariants.DeathVole |
   SoundTypeVariants.DeathWolverine |
+  SoundTypeVariants.DeathCaribou |
   SoundTypeVariants.DeathPlayer |
   SoundTypeVariants.AnimalBurrow |
   SoundTypeVariants.PlayerHurt |
@@ -192,6 +194,7 @@ export const SoundType = {
   GrowlTern: { tag: "GrowlTern" } as const,
   GrowlVole: { tag: "GrowlVole" } as const,
   GrowlWolverine: { tag: "GrowlWolverine" } as const,
+  GrowlCaribou: { tag: "GrowlCaribou" } as const,
   GrowlShorebound: { tag: "GrowlShorebound" } as const,
   GrowlShardkin: { tag: "GrowlShardkin" } as const,
   GrowlDrownedWatch: { tag: "GrowlDrownedWatch" } as const,
@@ -239,6 +242,7 @@ export const SoundType = {
   DeathViper: { tag: "DeathViper" } as const,
   DeathVole: { tag: "DeathVole" } as const,
   DeathWolverine: { tag: "DeathWolverine" } as const,
+  DeathCaribou: { tag: "DeathCaribou" } as const,
   DeathPlayer: { tag: "DeathPlayer" } as const,
   AnimalBurrow: { tag: "AnimalBurrow" } as const,
   PlayerHurt: { tag: "PlayerHurt" } as const,
@@ -299,6 +303,7 @@ export const SoundType = {
       { name: "GrowlTern", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "GrowlVole", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "GrowlWolverine", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "GrowlCaribou", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "GrowlShorebound", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "GrowlShardkin", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "GrowlDrownedWatch", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
@@ -346,6 +351,7 @@ export const SoundType = {
       { name: "DeathViper", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DeathVole", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DeathWolverine", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DeathCaribou", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DeathPlayer", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "AnimalBurrow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "PlayerHurt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

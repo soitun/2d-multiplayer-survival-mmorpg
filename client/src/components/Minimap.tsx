@@ -86,6 +86,10 @@ const WHALE_BONE_GRAVEYARD_GLOW_COLOR = '#B8B8B8'; // Pale gray glow (eerie, anc
 const HUNTING_VILLAGE_COLOR = '#8B4513'; // Saddle brown for rustic wood buildings
 const HUNTING_VILLAGE_GLOW_COLOR = '#228B22'; // Forest green glow (forest biome)
 
+// Crashed Research Drone constants - DANGEROUS CRASH SITE (tundra)
+const CRASHED_DRONE_COLOR = '#00FFFF'; // Bright cyan for tech debris
+const CRASHED_DRONE_GLOW_COLOR = '#FF4500'; // Orange-red glow (dangerous/explosive)
+
 // Memory Beacon Event constants - SERVER EVENT MARKERS (airdrop-style)
 const BEACON_EVENT_ICON_SIZE = 24; // Large for high visibility as major event
 const BEACON_EVENT_COLOR = '#FF00FF'; // Bright magenta/purple for beacon events
@@ -1468,6 +1472,63 @@ export function drawMinimapOntoCanvas({
         // Fill with hunting village color (rustic wood brown)
         ctx.fillStyle = HUNTING_VILLAGE_COLOR;
         ctx.fillText('HUNTING VILLAGE', x, y);
+        
+        ctx.restore();
+      }
+    }
+  }
+
+  // --- Draw Crashed Research Drone Parts (DANGEROUS CRASH SITE) ---
+  // Show ONE representative "CRASHED DRONE" label for the entire structure
+  // Filter crashed research drone parts from unified monument parts
+  // NOTE: MonumentType is a tagged union with a `tag` property (e.g., { tag: 'CrashedResearchDrone' })
+  const crashedDronePartsFiltered = monumentParts ? Array.from(monumentParts.values())
+    .filter((part: any) => part.monumentType?.tag === 'CrashedResearchDrone') : [];
+  
+  if (crashedDronePartsFiltered.length > 0 && showNames === true) {
+    // Find ONE representative crashed drone part (prefer center part, otherwise use first part)
+    let representativePart: any | null = null;
+    
+    // First, try to find a center part (drone)
+    crashedDronePartsFiltered.forEach((part: any) => {
+      if (part.isCenter || part.partType === 'drone') {
+        representativePart = part;
+      }
+    });
+    
+    // If no center part found, just use the first part
+    if (!representativePart && crashedDronePartsFiltered.length > 0) {
+      representativePart = crashedDronePartsFiltered[0];
+    }
+    
+    // Draw the label for the representative part
+    if (representativePart) {
+      const screenCoords = worldToMinimap(representativePart.worldX, representativePart.worldY);
+      if (screenCoords) {
+        const x = screenCoords.x;
+        const y = screenCoords.y;
+        
+        ctx.save();
+        
+        // Draw "CRASHED DRONE" text with cyberpunk styling - same size as other landmarks
+        ctx.font = 'bold 14px "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Add glow effect for visibility (orange-red danger glow)
+        ctx.shadowColor = CRASHED_DRONE_GLOW_COLOR;
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // Draw text with black outline for contrast
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        ctx.strokeText('CRASHED DRONE', x, y);
+        
+        // Fill with crashed drone color (bright cyan for tech)
+        ctx.fillStyle = CRASHED_DRONE_COLOR;
+        ctx.fillText('CRASHED DRONE', x, y);
         
         ctx.restore();
       }

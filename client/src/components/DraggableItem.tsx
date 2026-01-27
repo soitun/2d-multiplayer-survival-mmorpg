@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { PopulatedItem } from './InventoryUI'; // Assuming type is exported from InventoryUI
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes'; // Correct import path
-import { itemIcons, getItemIcon } from '../utils/itemIconUtils';
+import { itemIcons, getItemIcon, isBurntItem } from '../utils/itemIconUtils';
 import styles from './DraggableItem.module.css'; // We'll create this CSS file
 
 interface DraggableItemProps {
@@ -56,6 +56,12 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     imgEl.style.height = '40px';
     imgEl.style.objectFit = 'contain';
     imgEl.style.imageRendering = 'pixelated';
+    
+    // Apply burnt filter to ghost image if this is a burnt item
+    if (isBurntItem(item.definition.name)) {
+      imgEl.style.filter = 'sepia(100%) saturate(50%) brightness(0.6) contrast(1.1)';
+    }
+    
     ghost.appendChild(imgEl);
 
     // Display quantity: Either the split quantity or the original quantity
@@ -299,6 +305,15 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     }
   };
 
+  // Check if this is a burnt item - apply visual filter to distinguish from cooked
+  const isBurnt = isBurntItem(item.definition.name);
+  
+  // Burnt item filter: sepia + reduced brightness gives a charred/burnt appearance
+  // This allows us to reuse cooked icons for burnt items while making them visually distinct
+  const burntFilterStyle: React.CSSProperties = isBurnt ? {
+    filter: 'sepia(100%) saturate(50%) brightness(0.6) contrast(1.1)',
+  } : {};
+
   // Basic rendering of the item
   return (
     <div 
@@ -316,6 +331,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
         src={getItemIcon(item.definition.iconAssetName)}
         alt={item.definition.name}
         className={styles.itemImage}
+        style={burntFilterStyle}
         draggable="false" // Prevent native image drag
       />
       {item.definition.isStackable && item.instance.quantity > 1 && (

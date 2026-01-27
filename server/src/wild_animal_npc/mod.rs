@@ -11,6 +11,7 @@ pub mod tern;
 pub mod crow;
 pub mod vole;
 pub mod wolverine;
+pub mod caribou;
 pub mod respawn;
 pub mod animal_corpse;
 
@@ -31,6 +32,7 @@ pub use tern::TernBehavior;
 pub use crow::CrowBehavior;
 pub use vole::VoleBehavior;
 pub use wolverine::WolverineBehavior;
+pub use caribou::CaribouBehavior;
 
 // Re-export animal corpse functionality
 pub use animal_corpse::*;

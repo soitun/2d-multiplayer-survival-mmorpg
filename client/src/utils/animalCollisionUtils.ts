@@ -16,6 +16,13 @@ export const ANIMAL_COLLISION_SIZES = {
   BeachCrab: { width: 64, height: 48 }, // Small crab - compact collision box
   Tern: { width: 72, height: 56 }, // Medium-sized coastal bird
   Crow: { width: 64, height: 48 }, // Medium-sized inland bird
+  Vole: { width: 40, height: 32 }, // Tiny rodent - small collision box
+  Wolverine: { width: 88, height: 64 }, // Medium stocky predator
+  Caribou: { width: 96, height: 80 }, // Large herd herbivore
+  // Night hostile NPCs
+  Shorebound: { width: 128, height: 96 }, // Lean stalker
+  Shardkin: { width: 56, height: 48 }, // Small swarmer
+  DrownedWatch: { width: 160, height: 128 }, // Massive brute
 } as const;
 
 // Default collision size for unknown species

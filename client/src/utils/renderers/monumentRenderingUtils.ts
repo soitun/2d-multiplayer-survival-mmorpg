@@ -97,6 +97,9 @@ export function preloadMonumentImages(): void {
     loadImage('hv_hut2.png', import('../../assets/doodads/hv_hut2.png?url'));
     loadImage('hv_hut3.png', import('../../assets/doodads/hv_hut3.png?url'));
     loadImage('hv_drying_rack.png', import('../../assets/doodads/hv_drying_rack.png?url'));
+    
+    // Crashed Research Drone monument images (tundra crash site)
+    loadImage('hv_storage.png', import('../../assets/doodads/hv_storage.png?url'));
 }
 
 /**
@@ -156,6 +159,9 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             'hv_hut2.png': () => import('../../assets/doodads/hv_hut2.png?url'),
             'hv_hut3.png': () => import('../../assets/doodads/hv_hut3.png?url'),
             'hv_drying_rack.png': () => import('../../assets/doodads/hv_drying_rack.png?url'),
+            
+            // Crashed Research Drone monument images (tundra crash site)
+            'hv_storage.png': () => import('../../assets/doodads/hv_storage.png?url'),
         };
     
         const loader = imageMap[imagePath];
@@ -367,26 +373,29 @@ export function renderMonument(
     }
     
     // Draw dynamic ground shadow (before building sprite, like ALK central compound)
+    // Skip shadow for crashed research drone since it's flat on the ground
     // The sprite's visual base (where it touches ground) is at worldY + anchorYOffset
     // (since drawY = worldY - height + anchorYOffset, sprite bottom = drawY + height = worldY + anchorYOffset)
     // So we need to adjust entityBaseY to the visual base, or use negative pivotYOffset
     // Using negative pivotYOffset to move shadow pivot DOWN to match sprite visual base
-    drawDynamicGroundShadow({
-        ctx,
-        entityImage: img,
-        entityCenterX: worldX,
-        entityBaseY: worldY,
-        imageDrawWidth: building.width,
-        imageDrawHeight: building.height,
-        cycleProgress,
-        maxShadowAlpha: building.id.startsWith('guardpost') ? 0.4 : 0.5, // Lighter shadows for guardposts (light poles)
-        maxStretchFactor: building.id.startsWith('guardpost') ? 1.8 : 2.0, // Smaller stretch for guardposts
-        minStretchFactor: 0.2,
-        // Guardposts are perfect with +10, secondary buildings need more upward offset (+30) to push shadow up
-        pivotYOffset: building.id.startsWith('guardpost') 
-            ? -building.anchorYOffset + 10  // Guardposts: perfect offset
-            : -building.anchorYOffset + 50,  // Secondary buildings: push shadow up more
-    });
+    if (!building.id.startsWith('crashed_research_drone')) {
+        drawDynamicGroundShadow({
+            ctx,
+            entityImage: img,
+            entityCenterX: worldX,
+            entityBaseY: worldY,
+            imageDrawWidth: building.width,
+            imageDrawHeight: building.height,
+            cycleProgress,
+            maxShadowAlpha: building.id.startsWith('guardpost') ? 0.4 : 0.5, // Lighter shadows for guardposts (light poles)
+            maxStretchFactor: building.id.startsWith('guardpost') ? 1.8 : 2.0, // Smaller stretch for guardposts
+            minStretchFactor: 0.2,
+            // Guardposts are perfect with +10, secondary buildings need more upward offset (+30) to push shadow up
+            pivotYOffset: building.id.startsWith('guardpost') 
+                ? -building.anchorYOffset + 10  // Guardposts: perfect offset
+                : -building.anchorYOffset + 50,  // Secondary buildings: push shadow up more
+        });
+    }
     
     // Apply transparency if needed
     if (shouldApplyTransparency) {

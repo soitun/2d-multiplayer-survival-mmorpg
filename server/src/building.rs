@@ -644,6 +644,8 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
     const WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS_SQ: f32 = WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS * WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS;
     const HUNTING_VILLAGE_RESTRICTION_RADIUS: f32 = 800.0; // Same as fishing village
     const HUNTING_VILLAGE_RESTRICTION_RADIUS_SQ: f32 = HUNTING_VILLAGE_RESTRICTION_RADIUS * HUNTING_VILLAGE_RESTRICTION_RADIUS;
+    const CRASHED_RESEARCH_DRONE_RESTRICTION_RADIUS: f32 = 600.0; // Smaller monument in tundra
+    const CRASHED_RESEARCH_DRONE_RESTRICTION_RADIUS_SQ: f32 = CRASHED_RESEARCH_DRONE_RESTRICTION_RADIUS * CRASHED_RESEARCH_DRONE_RESTRICTION_RADIUS;
     
     for part in ctx.db.monument_part().iter() {
         // Only check against center pieces for simplicity
@@ -675,6 +677,11 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
             MonumentType::HuntingVillage => {
                 if distance_sq <= HUNTING_VILLAGE_RESTRICTION_RADIUS_SQ {
                     return Err("Cannot place items within the Hunting Village. This monument must remain unobstructed.".to_string());
+                }
+            }
+            MonumentType::CrashedResearchDrone => {
+                if distance_sq <= CRASHED_RESEARCH_DRONE_RESTRICTION_RADIUS_SQ {
+                    return Err("Cannot place items within the Crashed Research Drone site. This monument must remain unobstructed.".to_string());
                 }
             }
         }

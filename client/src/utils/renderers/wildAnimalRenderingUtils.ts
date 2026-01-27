@@ -21,6 +21,7 @@ import ternWalkingAnimatedSheet from '../../assets/tern_walking_release.png'; //
 import crowWalkingSheet from '../../assets/crow_walking.png';
 import voleWalkingSheet from '../../assets/vole_walking.png';
 import wolverineWalkingSheet from '../../assets/wolverine_walking.png';
+import caribouWalkingAnimatedSheet from '../../assets/caribou_walking_release.png'; // NEW: 4x4 animated spritesheet
 // Flying sprite sheets for birds
 import ternFlyingSheet from '../../assets/tern_flying.png';
 import ternFlyingAnimatedSheet from '../../assets/tern_flying_release.png'; // NEW: 4x4 animated flying spritesheet
@@ -135,6 +136,18 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         rows: 4,           // 4 directions
     },
     
+    // CARIBOU - Large herd herbivore (4x4 layout: 4 frames × 4 directions)
+    // Artist spec: 80x80 per frame → 320x320 total sheet
+    // Renders at: 128x128 (1.6x scale) - large animal
+    'Caribou': {
+        sheetWidth: 320,   // 80px × 4 frames
+        sheetHeight: 320,  // 80px × 4 rows
+        frameWidth: 80,
+        frameHeight: 80,
+        cols: 4,           // 4 animation frames
+        rows: 4,           // 4 directions
+    },
+    
     // ═══════════════════════════════════════════════════════════════════════════
     // HOSTILE NPC ANIMATED SPRITESHEETS (6x4 layout: 6 frames × 4 directions)
     // Row order: Down, Right, Left, Up (same as player)
@@ -219,6 +232,7 @@ const speciesSpriteSheets: Record<string, string> = {
     'Crow': crowWalkingSheet,
     'Vole': voleWalkingSheet,
     'Wolverine': wolverineWalkingSheet,
+    'Caribou': caribouWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     // Night hostile NPCs have custom sprites
     'Shorebound': shoreboundWalkingSheet,
     'Shardkin': shardkinWalkingAnimatedSheet, // NEW: Use animated 6x4 spritesheet
@@ -540,6 +554,9 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
         case 'Wolverine':
             // Wolverines are medium-sized but stocky and muscular
             return { width: 112, height: 112, shadowRadius: 36 };
+        case 'Caribou':
+            // Caribou are large herd herbivores with antlers
+            return { width: 128, height: 128, shadowRadius: 42 };
         // Night hostile NPCs (2x size for visibility and impact)
         // ═══════════════════════════════════════════════════════════════════════
         // HOSTILE NPCs - Sizes designed for clean 2x pixel scaling
@@ -800,6 +817,7 @@ export function renderWildAnimal({
             case 'BeachCrab': return '#E85D04'; // Orange-red
             case 'Tern': return '#E0E0E0'; // Light gray/white
             case 'Crow': return '#1A1A1A'; // Black
+            case 'Caribou': return '#8B7355'; // Brown/tan (caribou fur color)
             // Night hostile NPCs
             case 'Shorebound': return '#2C5F2D'; // Dark forest green
             case 'Shardkin': return '#4A0E4E'; // Dark purple
@@ -1099,6 +1117,7 @@ export function preloadWildAnimalImages(): void {
         crowWalkingSheet,
         voleWalkingSheet,
         wolverineWalkingSheet,
+        caribouWalkingAnimatedSheet, // Animated caribou spritesheet
         // Night hostile NPCs
         shoreboundWalkingSheet,
         shardkinWalkingAnimatedSheet, // Use animated spritesheet for Shardkin

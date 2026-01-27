@@ -221,25 +221,20 @@ import burlapBackpackIcon from '../assets/items/burlap_backpack.png';
 // Basic crops
 import pumpkinIcon from '../assets/items/pumpkin.png';
 import cookedPumpkinIcon from '../assets/items/cooked_pumpkin.png';
-import burntPumpkinIcon from '../assets/items/burnt_pumpkin.png';
 import potatoIcon from '../assets/items/potato.png';
 import cookedPotatoIcon from '../assets/items/cooked_potato.png';
-import burntPotatoIcon from '../assets/items/burnt_potato.png';
 
 // Vegetables
 import carrotIcon from '../assets/items/carrot.png';
 import cookedCarrotIcon from '../assets/items/cooked_carrot.png';
-import burntCarrotIcon from '../assets/items/burnt_carrot.png';
 import cornIcon from '../assets/items/corn.png';
 import cookedCornIcon from '../assets/items/cooked_corn.png';
-import burntCornIcon from '../assets/items/burnt_corn.png';
 import beetsIcon from '../assets/items/beet.png';
 import cookedBeetIcon from '../assets/items/cooked_beet.png';
 import horseradishIcon from '../assets/items/horseradish.png';
 import salsifyIcon from '../assets/items/salsify.png';
 import cabbageIcon from '../assets/items/cabbage.png';
 import cookedCabbageIcon from '../assets/items/cooked_cabbage.png';
-import burntCabbageIcon from '../assets/items/burnt_cabbage.png';
 import fireweedShootsIcon from '../assets/items/fireweed_shoots.png';
 
 // Mushrooms
@@ -253,7 +248,6 @@ import chanterelleIcon from '../assets/items/chanterelle.png';
 // Herbs & medicinal plants
 import chicoryIcon from '../assets/items/chicory.png';
 import cookedChicoryIcon from '../assets/items/cooked_chicory.png';
-import burntChicoryIcon from '../assets/items/burnt_chicory.png';
 import yarrowIcon from '../assets/items/yarrow.png';
 import chamomileIcon from '../assets/items/chamomile.png';
 import mintIcon from '../assets/items/mint.png';
@@ -292,7 +286,6 @@ import dogbaneFiberIcon from '../assets/items/dogbane.png';
 // Other plants
 import sunflowerIcon from '../assets/items/sunflower.png';
 import cookedSunflowerIcon from '../assets/items/cooked_sunflower.png';
-import burntSunflowerIcon from '../assets/items/burnt_sunflower.png';
 import sunflowerSeedsIcon from '../assets/items/sunflower_seeds.png';
 
 // Berries (subarctic/boreal region berries)
@@ -306,19 +299,14 @@ import cranberriesIcon from '../assets/items/cranberries.png';
 // Animal meat
 import rawHumanFleshIcon from '../assets/items/human_meat.png';
 import cookedHumanFleshIcon from '../assets/items/cooked_human_meat.png';
-import burntHumanFleshIcon from '../assets/items/burnt_human_meat.png';
 import rawWolfMeatIcon from '../assets/items/wolf_meat.png';
 import cookedWolfMeatIcon from '../assets/items/cooked_wolf_meat.png';
-import burntWolffMeatIcon from '../assets/items/burnt_wolf_meat.png';
 import rawFoxMeatIcon from '../assets/items/fox_meat.png';
 import coookedFoxMeatIcon from '../assets/items/cooked_fox_meat.png';
-import burntFoxMeatIcon from '../assets/items/burnt_fox_meat.png';
 import rawViperMeatlIcon from '../assets/items/viper_meat.png';
 import cookedViperMeatIcon from '../assets/items/cooked_viper_meat.png';
-import burntViperMeatIcon from '../assets/items/burnt_viper_meat.png';
 import rawCrabMeatIcon from '../assets/items/crab_meat.png';
 import cookedCrabMeatIcon from '../assets/items/cooked_crab_meat.png';
-import burntCrabMeatIcon from '../assets/items/burnt_crab_meat.png';
 import crabCarapaceIcon from '../assets/items/crab_carapace.png';
 import crabClawIcon from '../assets/items/crab_claw.png';
 import bearMeatIcon from '../assets/items/bear_meat.png';
@@ -326,16 +314,14 @@ import boarMeatIcon from '../assets/items/boar_meat.png';
 import chickenMeatIcon from '../assets/items/chicken_meat.png';
 import rawCrowMeatIcon from '../assets/items/raw_crow_meat.png';
 import cookedCrowMeatIcon from '../assets/items/cooked_crow_meat.png';
-import burntCrowMeatIcon from '../assets/items/burnt_crow_meat.png';
 import rawTernMeatIcon from '../assets/items/raw_tern_meat.png';
 import cookedTernMeatIcon from '../assets/items/cooked_tern_meat.png';
-import burntTernMeatIcon from '../assets/items/burnt_tern_meat.png';
 import rawVoleMeatIcon from '../assets/items/vole_meat.png';
 import cookedVoleMeatIcon from '../assets/items/cooked_vole_meat.png';
-import burntVoleMeatIcon from '../assets/items/burnt_vole_meat.png';
 import rawWolverineMeatIcon from '../assets/items/wolverine_meat.png';
 import cookedWolverineMeatIcon from '../assets/items/cooked_wolverine_meat.png';
-import burntWolverineMeatIcon from '../assets/items/burnt_wolverine_meat.png';
+import rawCaribouMeatIcon from '../assets/items/caribou_meat.png';
+import cookedCaribouMeatIcon from '../assets/items/cooked_caribou_meat.png';
 
 // Fish - Raw fish icons
 import rawTwigfishIcon from '../assets/items/raw_twigfish.png';
@@ -355,9 +341,8 @@ import rawSockeyeSalmonIcon from '../assets/items/raw_sockeye_salmon.png';
 import rawKingSalmonIcon from '../assets/items/raw_king_salmon.png';
 import rawHalibutIcon from '../assets/items/raw_halibut.png';
 
-// Fish - Cooked and burnt versions (keeping existing Twigfish)
+// Fish - Cooked versions (burnt items use cooked icons with visual filter)
 import cookedTwigfishIcon from '../assets/items/cooked_twigfish.png';
-import burntTwigfishIcon from '../assets/items/burnt_twigfish.png';
 
 // Specialty foods
 import tallowIcon from '../assets/items/tallow.png';
@@ -692,27 +677,22 @@ const iconMap: { [key: string]: string | undefined } = {
   'burlap_backpack.png': burlapBackpackIcon,
 
   // === CONSUMABLES ===
-  // Basic crops
+  // Basic crops (burnt icons use cooked icons with visual filter applied by DraggableItem)
   'pumpkin.png': pumpkinIcon,
   'cooked_pumpkin.png': cookedPumpkinIcon,
-  'burnt_pumpkin.png': burntPumpkinIcon,
   'potato.png': potatoIcon,
   'cooked_potato.png': cookedPotatoIcon,
-  'burnt_potato.png': burntPotatoIcon,
   // Vegetables
   'carrot.png': carrotIcon,
   'cooked_carrot.png': cookedCarrotIcon,
-  'burnt_carrot.png': burntCarrotIcon,
   'corn.png': cornIcon,
   'cooked_corn.png': cookedCornIcon,
-  'burnt_corn.png': burntCornIcon,
   'beet.png': beetsIcon,
   'cooked_beet.png': cookedBeetIcon,
   'horseradish.png': horseradishIcon,
   'salsify.png': salsifyIcon,
   'cabbage.png': cabbageIcon,
   'cooked_cabbage.png': cookedCabbageIcon,
-  'burnt_cabbage.png': burntCabbageIcon,
   'fireweed_shoots.png': fireweedShootsIcon,
   
   // Mushrooms
@@ -735,7 +715,6 @@ const iconMap: { [key: string]: string | undefined } = {
   // Herbs & medicinal plants
   'chicory.png': chicoryIcon,
   'cooked_chicory.png': cookedChicoryIcon,
-  'burnt_chicory.png': burntChicoryIcon,
   'yarrow.png': yarrowIcon,
   'chamomile.png': chamomileIcon,
   'mint.png': mintIcon,
@@ -773,7 +752,6 @@ const iconMap: { [key: string]: string | undefined } = {
   // Other plants
   'sunflower.png': sunflowerIcon,
   'cooked_sunflower.png': cookedSunflowerIcon,
-  'burnt_sunflower.png': burntSunflowerIcon,
   'sunflower_seeds.png': sunflowerSeedsIcon,
   
   // Berries (subarctic/boreal region berries)
@@ -787,19 +765,14 @@ const iconMap: { [key: string]: string | undefined } = {
   // Animal meat
   'human_meat.png': rawHumanFleshIcon,
   'cooked_human_meat.png': cookedHumanFleshIcon,
-  'burnt_human_meat.png': burntHumanFleshIcon,
   'wolf_meat.png': rawWolfMeatIcon,
   'cooked_wolf_meat.png': cookedWolfMeatIcon,
-  'burnt_wolf_meat.png': burntWolffMeatIcon,
   'fox_meat.png': rawFoxMeatIcon,
   'cooked_fox_meat.png': coookedFoxMeatIcon,
-  'burnt_fox_meat.png': burntFoxMeatIcon,
   'viper_meat.png': rawViperMeatlIcon,
   'cooked_viper_meat.png': cookedViperMeatIcon,
-  'burnt_viper_meat.png': burntViperMeatIcon,
   'crab_meat.png': rawCrabMeatIcon,
   'cooked_crab_meat.png': cookedCrabMeatIcon,
-  'burnt_crab_meat.png': burntCrabMeatIcon,
   'crab_carapace.png': crabCarapaceIcon,
   'crab_claw.png': crabClawIcon,
   'bear_meat.png': bearMeatIcon,
@@ -807,16 +780,14 @@ const iconMap: { [key: string]: string | undefined } = {
   'chicken_meat.png': chickenMeatIcon,
   'raw_crow_meat.png': rawCrowMeatIcon,
   'cooked_crow_meat.png': cookedCrowMeatIcon,
-  'burnt_crow_meat.png': burntCrowMeatIcon,
   'raw_tern_meat.png': rawTernMeatIcon,
   'cooked_tern_meat.png': cookedTernMeatIcon,
-  'burnt_tern_meat.png': burntTernMeatIcon,
   'vole_meat.png': rawVoleMeatIcon,
   'cooked_vole_meat.png': cookedVoleMeatIcon,
-  'burnt_vole_meat.png': burntVoleMeatIcon,
   'wolverine_meat.png': rawWolverineMeatIcon,
   'cooked_wolverine_meat.png': cookedWolverineMeatIcon,
-  'burnt_wolverine_meat.png': burntWolverineMeatIcon,
+  'caribou_meat.png': rawCaribouMeatIcon,
+  'cooked_caribou_meat.png': cookedCaribouMeatIcon,
   
   // Fish - Raw fish
   'raw_twigfish.png': rawTwigfishIcon,
@@ -836,9 +807,8 @@ const iconMap: { [key: string]: string | undefined } = {
   'raw_king_salmon.png': rawKingSalmonIcon,
   'raw_halibut.png': rawHalibutIcon,
   
-  // Fish - Cooked and burnt (keeping existing Twigfish)
+  // Fish - Cooked versions (burnt items use cooked icons with visual filter)
   'cooked_twigfish.png': cookedTwigfishIcon,
-  'burnt_twigfish.png': burntTwigfishIcon,
   
   // Specialty foods
   'tallow.png': tallowIcon,
@@ -961,6 +931,34 @@ const iconMap: { [key: string]: string | undefined } = {
   'mixed_berry_bowl.png': mixedBerryBowlIcon,
 };
 
+/**
+ * Helper function to check if an item name indicates it's a burnt food item.
+ * Used by DraggableItem to apply visual filters.
+ */
+export function isBurntItem(itemName: string | undefined | null): boolean {
+    if (!itemName) return false;
+    return itemName.startsWith('Burnt ');
+}
+
+/**
+ * Converts a burnt icon asset name to its cooked equivalent.
+ * burnt_xxx.png -> cooked_xxx.png
+ * Returns original if not a burnt icon or no cooked equivalent exists.
+ */
+function getBurntToCoookedIcon(assetName: string): string | null {
+    if (!assetName.startsWith('burnt_')) return null;
+    
+    // Convert burnt_xxx.png to cooked_xxx.png
+    const cookedName = assetName.replace('burnt_', 'cooked_');
+    
+    // Check if the cooked version exists in our icon map
+    if (iconMap[cookedName]) {
+        return cookedName;
+    }
+    
+    return null;
+}
+
 // Export a function that provides the fallback logic
 export function getItemIcon(assetName: string | undefined | null): string {
     if (!assetName) {
@@ -999,6 +997,15 @@ export function getItemIcon(assetName: string | undefined | null): string {
     if (assetName.length > 500 && /^[A-Za-z0-9+/=]+$/.test(assetName)) {
         console.log('[ItemIconUtils] Detected likely base64 image data, assuming PNG');
         return `data:image/png;base64,${assetName}`;
+    }
+    
+    // Check if this is a burnt item - use cooked icon instead if available
+    // This saves creating separate burnt icons for every food type
+    if (assetName.startsWith('burnt_')) {
+        const cookedIconName = getBurntToCoookedIcon(assetName);
+        if (cookedIconName && iconMap[cookedIconName]) {
+            return iconMap[cookedIconName]!;
+        }
     }
     
     const iconPath = iconMap[assetName];

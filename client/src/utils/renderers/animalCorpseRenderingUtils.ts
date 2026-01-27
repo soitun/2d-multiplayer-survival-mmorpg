@@ -11,37 +11,76 @@ import ternWalkingSheet from '../../assets/tern_walking.png';
 import crowWalkingSheet from '../../assets/crow_walking.png';
 import voleWalkingSheet from '../../assets/vole_walking.png';
 import wolverineWalkingSheet from '../../assets/wolverine_walking.png';
+// Import release pattern spritesheets (4x4 layout)
+import foxWalkingAnimatedSheet from '../../assets/fox_walking_release.png';
+import tundraWolfWalkingAnimatedSheet from '../../assets/tundra_wolf_walking_release.png';
+import walrusWalkingAnimatedSheet from '../../assets/walrus_walking_release.png';
+import ternWalkingAnimatedSheet from '../../assets/tern_walking_release.png';
+import caribouWalkingAnimatedSheet from '../../assets/caribou_walking_release.png';
 
-// Sprite sheet configuration (must match wildAnimalRenderingUtils)
-const SPRITE_SHEET_CONFIG = {
+// Sprite sheet configuration for 3x3 sheets (legacy pattern)
+const SPRITE_SHEET_CONFIG_3X3 = {
     sheetWidth: 320,
     sheetHeight: 320,
     sheetCols: 3,
     sheetRows: 3, 
 };
 
-const FRAME_WIDTH = Math.floor(SPRITE_SHEET_CONFIG.sheetWidth / SPRITE_SHEET_CONFIG.sheetCols);
-const FRAME_HEIGHT = Math.floor(SPRITE_SHEET_CONFIG.sheetHeight / SPRITE_SHEET_CONFIG.sheetRows);
+// Sprite sheet configuration for 4x4 release pattern sheets
+const SPRITE_SHEET_CONFIG_4X4 = {
+    sheetWidth: 320,
+    sheetHeight: 320,
+    sheetCols: 4,
+    sheetRows: 4,
+};
 
-// Right-facing sprite position (middle left of sheet - col 0, row 1)
-const RIGHT_FACING_COL = 0;
-const RIGHT_FACING_ROW = 1;
+const FRAME_WIDTH_3X3 = Math.floor(SPRITE_SHEET_CONFIG_3X3.sheetWidth / SPRITE_SHEET_CONFIG_3X3.sheetCols);
+const FRAME_HEIGHT_3X3 = Math.floor(SPRITE_SHEET_CONFIG_3X3.sheetHeight / SPRITE_SHEET_CONFIG_3X3.sheetRows);
+
+const FRAME_WIDTH_4X4 = Math.floor(SPRITE_SHEET_CONFIG_4X4.sheetWidth / SPRITE_SHEET_CONFIG_4X4.sheetCols);
+const FRAME_HEIGHT_4X4 = Math.floor(SPRITE_SHEET_CONFIG_4X4.sheetHeight / SPRITE_SHEET_CONFIG_4X4.sheetRows);
+
+// Right-facing sprite position for 3x3 sheets (middle left of sheet - col 0, row 1)
+const RIGHT_FACING_COL_3X3 = 0;
+const RIGHT_FACING_ROW_3X3 = 1;
+
+// For 4x4 release pattern: use frame 0, direction 0 (down-facing, first frame)
+// This gives us a good corpse pose - then flip it upside down
+const CORPSE_FRAME_4X4 = 0; // First animation frame
+const CORPSE_DIRECTION_4X4 = 0; // Down-facing (row 0)
 
 // Animal corpse dimensions and rendering constants
 export const ANIMAL_CORPSE_HEIGHT = 96; // Height for interaction indicators
 export const ANIMAL_CORPSE_COLLISION_RADIUS = 16; // From server-side constant
 
 // Map species to their sprite sheets
+// Animals using 4x4 release pattern: CinderFox, TundraWolf, ArcticWalrus, Tern, Caribou
+// Animals using 3x3 pattern: CableViper, BeachCrab, Crow, Vole, Wolverine
 const speciesSpriteSheets: Record<string, string> = {
-    'CinderFox': foxWalkingSheet,
-    'TundraWolf': tundraWolfWalkingSheet,
-    'CableViper': cableViperWalkingSheet,
-    'ArcticWalrus': walrusWalkingSheet,
-    'BeachCrab': crabWalkingSheet,
-    'Tern': ternWalkingSheet,
-    'Crow': crowWalkingSheet,
-    'Vole': voleWalkingSheet,
-    'Wolverine': wolverineWalkingSheet,
+    'CinderFox': foxWalkingAnimatedSheet, // 4x4 release pattern
+    'TundraWolf': tundraWolfWalkingAnimatedSheet, // 4x4 release pattern
+    'CableViper': cableViperWalkingSheet, // 3x3 pattern
+    'ArcticWalrus': walrusWalkingAnimatedSheet, // 4x4 release pattern
+    'BeachCrab': crabWalkingSheet, // 3x3 pattern
+    'Tern': ternWalkingAnimatedSheet, // 4x4 release pattern
+    'Crow': crowWalkingSheet, // 3x3 pattern
+    'Vole': voleWalkingSheet, // 3x3 pattern
+    'Wolverine': wolverineWalkingSheet, // 3x3 pattern
+    'Caribou': caribouWalkingAnimatedSheet, // 4x4 release pattern
+};
+
+// Track which species use 4x4 release pattern
+const usesReleasePattern: Record<string, boolean> = {
+    'CinderFox': true,
+    'TundraWolf': true,
+    'ArcticWalrus': true,
+    'Tern': true,
+    'Caribou': true,
+    'CableViper': false,
+    'BeachCrab': false,
+    'Crow': false,
+    'Vole': false,
+    'Wolverine': false,
 };
 
 // Get corpse render size based on species (match live animal sizes)
@@ -65,6 +104,8 @@ function getCorpseRenderSize(species: any): { width: number; height: number } {
             return { width: 48, height: 48 }; // Tiny rodent
         case 'Wolverine':
             return { width: 112, height: 112 }; // Stocky medium predator
+        case 'Caribou':
+            return { width: 128, height: 128 }; // Large herd herbivore
         default:
             return { width: 96, height: 96 };
     }
@@ -81,6 +122,8 @@ export const preloadAnimalCorpseImages = () => {
     Object.values(speciesSpriteSheets).forEach(sheet => {
         imageManager.preloadImage(sheet);
     });
+    // Also preload release pattern sheets explicitly
+    imageManager.preloadImage(caribouWalkingAnimatedSheet);
 };
 
 /**
@@ -139,14 +182,33 @@ export const renderAnimalCorpse = (
   // Flip vertically only (upside down but still facing right)
   ctx.scale(1, -1);
   
-  // Calculate source rectangle for the right-facing sprite
-  const sx = RIGHT_FACING_COL * FRAME_WIDTH;
-  const sy = RIGHT_FACING_ROW * FRAME_HEIGHT;
+  // Check if this species uses the 4x4 release pattern
+  const isReleasePattern = usesReleasePattern[corpse.animalSpecies.tag] || false;
+  
+  let sx: number;
+  let sy: number;
+  let frameWidth: number;
+  let frameHeight: number;
+  
+  if (isReleasePattern) {
+    // 4x4 release pattern: use frame 0, direction 0 (down-facing)
+    // Then flip upside down for corpse effect
+    sx = CORPSE_FRAME_4X4 * FRAME_WIDTH_4X4;
+    sy = CORPSE_DIRECTION_4X4 * FRAME_HEIGHT_4X4;
+    frameWidth = FRAME_WIDTH_4X4;
+    frameHeight = FRAME_HEIGHT_4X4;
+  } else {
+    // 3x3 pattern: use right-facing sprite (col 0, row 1)
+    sx = RIGHT_FACING_COL_3X3 * FRAME_WIDTH_3X3;
+    sy = RIGHT_FACING_ROW_3X3 * FRAME_HEIGHT_3X3;
+    frameWidth = FRAME_WIDTH_3X3;
+    frameHeight = FRAME_HEIGHT_3X3;
+  }
   
   // Render the sprite frame (flipped vertically)
   ctx.drawImage(
     spriteSheet,
-    sx, sy, FRAME_WIDTH, FRAME_HEIGHT,  // Source rect from sprite sheet
+    sx, sy, frameWidth, frameHeight,  // Source rect from sprite sheet
     -renderSize.width / 2, -renderSize.height / 2, renderSize.width, renderSize.height  // Dest rect
   );
 

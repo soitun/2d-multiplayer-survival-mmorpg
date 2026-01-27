@@ -40,13 +40,14 @@ pub fn maintain_wild_animal_population(ctx: &ReducerContext) -> Result<(), Strin
     
     // Species distribution (same as initial seeding)
     let species_weights = [
-        (AnimalSpecies::CinderFox, 30),      // 30% - Common
-        (AnimalSpecies::ArcticWalrus, 15),   // 15% - Common (beaches only)
-        (AnimalSpecies::BeachCrab, 20),      // 20% - Common beach creature
+        (AnimalSpecies::CinderFox, 25),      // 25% - Common
+        (AnimalSpecies::ArcticWalrus, 12),   // 12% - Common (beaches only)
+        (AnimalSpecies::BeachCrab, 18),      // 18% - Common beach creature
         (AnimalSpecies::TundraWolf, 5),      // 5% - RARE predator
         (AnimalSpecies::CableViper, 5),      // 5% - RARE ambush predator
-        (AnimalSpecies::Tern, 15),           // 15% - Coastal scavenger bird (beaches)
+        (AnimalSpecies::Tern, 12),           // 12% - Coastal scavenger bird (beaches)
         (AnimalSpecies::Crow, 10),           // 10% - Inland thief bird
+        (AnimalSpecies::Caribou, 13),        // 13% - Tundra/alpine herd animal
     ];
     let total_weight: u32 = species_weights.iter().map(|(_, weight)| weight).sum();
     

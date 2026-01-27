@@ -2271,6 +2271,7 @@ pub enum MonumentType {
     FishingVillage,
     WhaleBoneGraveyard,
     HuntingVillage,
+    CrashedResearchDrone,
 }
 
 /// Unified monument part table for all monument types

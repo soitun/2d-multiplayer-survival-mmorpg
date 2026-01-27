@@ -33,7 +33,8 @@ import * as MonumentTypeVariants from './monument_type_variants'
 export type MonumentType = MonumentTypeVariants.Shipwreck |
   MonumentTypeVariants.FishingVillage |
   MonumentTypeVariants.WhaleBoneGraveyard |
-  MonumentTypeVariants.HuntingVillage;
+  MonumentTypeVariants.HuntingVillage |
+  MonumentTypeVariants.CrashedResearchDrone;
 
 let _cached_MonumentType_type_value: __AlgebraicTypeType | null = null;
 
@@ -49,6 +50,7 @@ export const MonumentType = {
   FishingVillage: { tag: "FishingVillage" } as const,
   WhaleBoneGraveyard: { tag: "WhaleBoneGraveyard" } as const,
   HuntingVillage: { tag: "HuntingVillage" } as const,
+  CrashedResearchDrone: { tag: "CrashedResearchDrone" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_MonumentType_type_value) return _cached_MonumentType_type_value;
@@ -58,6 +60,7 @@ export const MonumentType = {
       { name: "FishingVillage", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "WhaleBoneGraveyard", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HuntingVillage", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CrashedResearchDrone", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_MonumentType_type_value;
   },

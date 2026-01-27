@@ -1128,6 +1128,47 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
             false // Not suitable terrain
         }
         
+        AnimalSpecies::Caribou => {
+            // 🦌 CARIBOU HABITAT: Tundra, alpine, and open grassland regions
+            // Caribou are large herd animals that prefer open terrain for grazing
+            // They avoid beaches, coastal areas, and dense forests
+            if matches!(tile_type, TileType::Beach | TileType::Sand) {
+                return false; // Caribou don't like beaches
+            }
+            
+            // Perfect habitat: tundra and alpine areas
+            if matches!(tile_type, TileType::Tundra | TileType::Alpine | TileType::TundraGrass) {
+                return true; // Ideal habitat for caribou
+            }
+            
+            // Also accept open grass/dirt areas (caribou graze on plains)
+            if matches!(tile_type, TileType::Grass | TileType::Dirt | TileType::DirtRoad) {
+                // Check if too close to water/beach (within 2 tiles, efficient chunk-based lookup)
+                for dy in -2..=2 {
+                    for dx in -2..=2 {
+                        if dx == 0 && dy == 0 { continue; }
+                        
+                        let check_x = tile_x + dx;
+                        let check_y = tile_y + dy;
+                        
+                        if check_x < 0 || check_y < 0 || 
+                           check_x >= WORLD_WIDTH_TILES as i32 || check_y >= WORLD_HEIGHT_TILES as i32 {
+                            continue;
+                        }
+                        
+                        if let Some(adj_tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
+                            if matches!(adj_tile_type, TileType::Sea | TileType::Beach) {
+                                return false; // Too close to coast for caribou
+                            }
+                        }
+                    }
+                }
+                return true; // Open inland area suitable for caribou
+            }
+            
+            false // Not suitable terrain
+        }
+        
         // Night hostile NPCs - they use a different spawn system (player-relative)
         // These species should never go through normal animal spawning
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => {
@@ -3246,15 +3287,16 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
 
     // Define species distribution (weighted probabilities)
     let species_weights = [
-        (AnimalSpecies::CinderFox, 19),      // 19% - Common (reduced to make room for more voles)
-        (AnimalSpecies::ArcticWalrus, 12),   // 12% - Common (beaches only)
-        (AnimalSpecies::BeachCrab, 15),      // 15% - Common beach creature
+        (AnimalSpecies::CinderFox, 17),      // 17% - Common (reduced to make room for caribou)
+        (AnimalSpecies::ArcticWalrus, 10),   // 10% - Common (beaches only)
+        (AnimalSpecies::BeachCrab, 13),      // 13% - Common beach creature
         (AnimalSpecies::TundraWolf, 5),      // 5% - RARE predator
         (AnimalSpecies::CableViper, 5),      // 5% - RARE ambush predator
-        (AnimalSpecies::Tern, 12),           // 12% - Coastal scavenger bird (beaches)
+        (AnimalSpecies::Tern, 10),           // 10% - Coastal scavenger bird (beaches)
         (AnimalSpecies::Crow, 8),            // 8% - Inland thief bird
-        (AnimalSpecies::Vole, 18),           // 18% - Common prey animal (tundra/grassland/forest) - INCREASED for early-game food
+        (AnimalSpecies::Vole, 16),           // 16% - Common prey animal (tundra/grassland/forest)
         (AnimalSpecies::Wolverine, 6),       // 6% - Uncommon aggressive predator (tundra/alpine)
+        (AnimalSpecies::Caribou, 10),        // 10% - Herd herbivore (tundra/alpine/grassland)
     ];
     let total_weight: u32 = species_weights.iter().map(|(_, weight)| weight).sum();
     

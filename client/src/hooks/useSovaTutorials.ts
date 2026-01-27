@@ -47,6 +47,13 @@ interface AlkStationData {
     worldPosY: number;
 }
 
+interface MonumentPartData {
+    worldX: number;
+    worldY: number;
+    monumentType?: { tag: string };
+    isCenter?: boolean;
+}
+
 interface UseSovaTutorialsProps {
     localPlayerId: string | null | undefined;
     showSovaSoundBoxRef: MutableRefObject<ShowSovaSoundBoxFn | null | undefined>;
@@ -61,6 +68,7 @@ interface UseSovaTutorialsProps {
     localPlayerPosition?: { x: number; y: number } | null;
     runeStones?: Map<string, RuneStoneData>;
     alkStations?: Map<string, AlkStationData>;
+    monumentParts?: Map<string, MonumentPartData>;
 }
 
 // ============================================================================
@@ -109,6 +117,13 @@ const TUTORIALS = {
         soundBoxLabel: 'SOVA: Military Frequency Detected',
         eventName: 'sova-alk-station-tutorial',
         message: `That structure is broadcasting on a military frequency. Analyzing... Decoding the header now. A-L-K — Automated Logistics Kompound. Pre-collapse infrastructure, still operational. There's a central compound somewhere on the island and several substations scattered around. They all connect to the same contract system — bring them resources, they pay you in shards. Press E at a station to deliver contracts you've accepted. To browse and accept new contracts remotely, press G and select the ALK Board from my interface. Could be useful for converting surplus materials into something more valuable.`,
+    },
+    crashedDrone: {
+        storageKey: 'broth_crashed_drone_tutorial_played',
+        audioFile: '/sounds/sova_tutorial_crashed_drone.mp3',
+        soundBoxLabel: 'SOVA: Wreckage Analysis',
+        eventName: 'sova-crashed-drone-tutorial',
+        message: `Hold up — I'm detecting residual electromagnetic signatures from that wreckage. Scanning... It's a research drone. Pre-collapse tech, military-grade sensors. Someone already tried to salvage it — there's an abandoned camp nearby. Furnace, rain collector, repair station... whoever set this up knew what they were doing. They were probably trying to extract the drone's memory cores. The good news? They left their equipment behind. The bad news? They left everything behind. No body, no trail. Just... gone. Be careful out here, agent. Grab what you can — Memory Shards, sulfur, metal fragments — the wreckage is rich with salvage. But don't linger. Whatever happened to that survivor... I don't think they saw it coming.`,
     },
 } as const;
 
@@ -251,6 +266,7 @@ export function useSovaTutorials({
     localPlayerPosition,
     runeStones,
     alkStations,
+    monumentParts,
 }: UseSovaTutorialsProps): void {
     
     // Track if component is mounted to avoid state updates after unmount
@@ -262,6 +278,7 @@ export function useSovaTutorials({
     // Track if we've already fired the proximity events this session (to avoid spamming)
     const hasFiredRuneStoneEvent = useRef(false);
     const hasFiredAlkStationEvent = useRef(false);
+    const hasFiredCrashedDroneEvent = useRef(false);
     
     useEffect(() => {
         isMountedRef.current = true;
@@ -543,7 +560,50 @@ export function useSovaTutorials({
     }, [showSovaSoundBoxRef, sovaMessageAdderRef]);
 
     // ========================================================================
-    // Part 7: Proximity Detection for Rune Stones and ALK Stations
+    // Part 6b: Crashed Research Drone Tutorial (Event-driven)
+    // Plays the first time the player approaches the crashed drone in tundra.
+    // Explains the abandoned survivor camp and dangerous loot opportunity.
+    // ========================================================================
+    useEffect(() => {
+        const { storageKey, audioFile, soundBoxLabel, eventName, message } = TUTORIALS.crashedDrone;
+        
+        const handleEvent = () => {
+            console.log('[SovaTutorials] 🛸 Crashed drone tutorial event received');
+            
+            // Already played before? Skip entirely
+            if (hasBeenPlayed(storageKey)) {
+                console.log('[SovaTutorials] 🛸 Crashed drone tutorial already played, skipping');
+                return;
+            }
+            
+            // Intro still playing? Skip this time, but DON'T mark as played
+            if (isIntroStillPlaying()) {
+                console.log('[SovaTutorials] 🛸 Intro still playing - skipping crashed drone tutorial (will play next time)');
+                return;
+            }
+            
+            // Mark as played FIRST to prevent duplicate plays
+            markAsPlayed(storageKey);
+            console.log('[SovaTutorials] 🛸 Playing crashed drone tutorial NOW');
+            
+            playSovaTutorial(
+                {
+                    audioFile,
+                    soundBoxLabel,
+                    message,
+                    messageId: `sova-crashed-drone-tutorial-${Date.now()}`,
+                },
+                showSovaSoundBoxRef.current,
+                sovaMessageAdderRef.current
+            );
+        };
+
+        window.addEventListener(eventName, handleEvent as EventListener);
+        return () => window.removeEventListener(eventName, handleEvent as EventListener);
+    }, [showSovaSoundBoxRef, sovaMessageAdderRef]);
+
+    // ========================================================================
+    // Part 7: Proximity Detection for Rune Stones, ALK Stations, and Monuments
     // Fires tutorial events when player first approaches these structures.
     // ========================================================================
     useEffect(() => {
@@ -590,7 +650,29 @@ export function useSovaTutorials({
                 }
             }
         }
-    }, [localPlayerPosition, localPlayerId, runeStones, alkStations]);
+        
+        // Check crashed research drone proximity (filter monument parts by type)
+        if (monumentParts && monumentParts.size > 0 && !hasFiredCrashedDroneEvent.current) {
+            // Don't fire if already played
+            if (!hasBeenPlayed(TUTORIALS.crashedDrone.storageKey)) {
+                for (const part of monumentParts.values()) {
+                    // Only check crashed research drone parts
+                    if (part.monumentType?.tag !== 'CrashedResearchDrone') continue;
+                    
+                    const dx = playerX - part.worldX;
+                    const dy = playerY - part.worldY;
+                    const distSq = dx * dx + dy * dy;
+                    
+                    if (distSq < TUTORIAL_PROXIMITY_DISTANCE_SQ) {
+                        console.log('[SovaTutorials] 🛸 Player approached crashed research drone - firing tutorial event');
+                        hasFiredCrashedDroneEvent.current = true;
+                        window.dispatchEvent(new Event(TUTORIALS.crashedDrone.eventName));
+                        break;
+                    }
+                }
+            }
+        }
+    }, [localPlayerPosition, localPlayerId, runeStones, alkStations, monumentParts]);
 }
 
 export default useSovaTutorials;

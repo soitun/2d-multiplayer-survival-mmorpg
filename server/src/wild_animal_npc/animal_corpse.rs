@@ -136,6 +136,8 @@ pub fn get_animal_loot_chances(animal_species: AnimalSpecies) -> (f64, f64, f64,
         AnimalSpecies::Vole => (0.20, 0.0, 0.25, 0.85), // Little fat (small animal), no cloth (too small), some bone fragments, high meat chance (easy prey)
         // Wolverine - aggressive medium predator, excellent drops
         AnimalSpecies::Wolverine => (0.80, 0.0, 0.70, 0.90), // High fat (winter stores), no special cloth (drops generic leather instead), good bone, excellent meat
+        // Caribou - large herbivore, excellent drops (tough to hunt but rewarding)
+        AnimalSpecies::Caribou => (0.75, 0.85, 0.70, 0.95), // High fat, excellent hide, good bone, nearly guaranteed meat - large animal
         // Hostile NPCs don't drop regular loot - they despawn and grant memory shards
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => (0.0, 0.0, 0.0, 0.0),
     }
@@ -153,6 +155,7 @@ fn get_meat_type(animal_species: AnimalSpecies) -> &'static str {
         AnimalSpecies::Crow => "Raw Crow Meat", // Gamey bird meat
         AnimalSpecies::Vole => "Raw Vole Meat", // Tiny, lean rodent meat
         AnimalSpecies::Wolverine => "Raw Wolverine Meat", // Dense, gamey predator meat
+        AnimalSpecies::Caribou => "Raw Caribou Meat", // Lean, tender venison-like meat
         // Hostile NPCs don't drop meat - they dissolve/despawn
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => "Rotten Meat",
     }
@@ -274,6 +277,7 @@ pub fn get_harvest_loot(
             AnimalSpecies::Crow => Some("Crow Feathers"), // Birds drop feathers
             AnimalSpecies::Vole => None, // Voles are too small for usable fur
             AnimalSpecies::Wolverine => None, // Wolverines don't drop special fur (use generic Animal Leather instead)
+            AnimalSpecies::Caribou => Some("Caribou Hide"), // Large herbivore - valuable hide
             // Hostile NPCs don't drop cloth resources
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => None,
         };
@@ -310,6 +314,7 @@ pub fn get_harvest_loot(
             AnimalSpecies::Crow => 0.0, // No rare trophy for crows
             AnimalSpecies::Vole => 0.0, // Voles are too small for trophies
             AnimalSpecies::Wolverine => 0.0, // Wolverines don't have special fur armor set, so no rare trophy
+            AnimalSpecies::Caribou => if tool_name == "AK74 Bayonet" { 0.04 } else { 0.025 }, // 4%/2.5% chance for caribou antlers
             // Hostile NPCs don't drop rare trophies
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
         };
@@ -325,6 +330,7 @@ pub fn get_harvest_loot(
                 AnimalSpecies::Crow => unreachable!(), // Already checked above
                 AnimalSpecies::Vole => unreachable!(), // Already checked above
                 AnimalSpecies::Wolverine => unreachable!(), // Already checked above
+                AnimalSpecies::Caribou => "Caribou Antlers", // Rare placeable trophy
                 // Hostile NPCs never reach here (chance is 0)
                 AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => unreachable!(),
             };
