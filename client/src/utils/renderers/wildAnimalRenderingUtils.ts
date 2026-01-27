@@ -21,6 +21,7 @@ import ternWalkingAnimatedSheet from '../../assets/tern_walking_release.png'; //
 import crowWalkingSheet from '../../assets/crow_walking.png';
 import voleWalkingSheet from '../../assets/vole_walking.png';
 import wolverineWalkingSheet from '../../assets/wolverine_walking.png';
+import wolverineWalkingAnimatedSheet from '../../assets/wolverine_walking_release.png'; // NEW: 4x4 animated spritesheet
 import caribouWalkingAnimatedSheet from '../../assets/caribou_walking_release.png'; // NEW: 4x4 animated spritesheet
 // Flying sprite sheets for birds
 import ternFlyingSheet from '../../assets/tern_flying.png';
@@ -148,6 +149,19 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         rows: 4,           // 4 directions
     },
     
+    // WOLVERINE - Medium-sized but stocky and muscular predator (4x4 layout: 4 frames × 4 directions)
+    // Artist spec: Check actual frame size - if clipped, may need adjustment
+    // If image is 320x320, frames should be 80x80, but sprites may overflow cells
+    // Renders at: 112x112 (1.4x scale) - medium-sized predator
+    'Wolverine': {
+        sheetWidth: 320,   // Total sheet width
+        sheetHeight: 320,  // Total sheet height
+        frameWidth: 80,    // Frame width (320 / 4 = 80)
+        frameHeight: 80,   // Frame height (320 / 4 = 80)
+        cols: 4,           // 4 animation frames
+        rows: 4,           // 4 directions
+    },
+    
     // ═══════════════════════════════════════════════════════════════════════════
     // HOSTILE NPC ANIMATED SPRITESHEETS (6x4 layout: 6 frames × 4 directions)
     // Row order: Down, Right, Left, Up (same as player)
@@ -231,7 +245,7 @@ const speciesSpriteSheets: Record<string, string> = {
     'Tern': ternWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'Crow': crowWalkingSheet,
     'Vole': voleWalkingSheet,
-    'Wolverine': wolverineWalkingSheet,
+    'Wolverine': wolverineWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'Caribou': caribouWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     // Night hostile NPCs have custom sprites
     'Shorebound': shoreboundWalkingSheet,
@@ -1117,6 +1131,7 @@ export function preloadWildAnimalImages(): void {
         crowWalkingSheet,
         voleWalkingSheet,
         wolverineWalkingSheet,
+        wolverineWalkingAnimatedSheet, // NEW: Animated 4x4 wolverine spritesheet
         caribouWalkingAnimatedSheet, // Animated caribou spritesheet
         // Night hostile NPCs
         shoreboundWalkingSheet,
