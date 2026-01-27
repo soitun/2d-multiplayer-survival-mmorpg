@@ -60,7 +60,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
         return localStorage.getItem('craftingSearchTerm') || '';
     });
     const [craftedRecipeIdsThisSession, setCraftedRecipeIdsThisSession] = useState<Set<string>>(new Set()); // New state
-    const [hoveredRecipe, setHoveredRecipe] = useState<{ id: string; name: string; x: number; y: number } | null>(null); // For local name-only tooltip
+    const [hoveredRecipe, setHoveredRecipe] = useState<{ id: string; name: string; x: number; y: number; requiresStation?: string | null } | null>(null); // For local name-only tooltip
 
     // Timer to update queue times
     useEffect(() => {
@@ -421,8 +421,26 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                         const requiredStation = getRequiredStation(recipe);
                         const hasStationAccess = isStationRequirementMet(recipe);
                         
+                        // Check if player has resources but needs station (for orange styling)
+                        const hasResourcesButNeedsStation = isMemoryGridUnlocked && !hasStationAccess && requiredStation && canCraft(recipe, 1);
+                        
                         // Recipe is only craftable if unlocked, station available, AND has resources (quantity 1 for quick craft)
                         const isCraftable = isMemoryGridUnlocked && hasStationAccess && canCraft(recipe, 1);
+
+                        // Determine border color: green=craftable, orange=has ingredients but needs station, red=missing ingredients, purple=locked
+                        const getBorderColor = () => {
+                            if (!isMemoryGridUnlocked) return '1px solid rgba(139, 92, 246, 0.4)'; // Purple - locked
+                            if (isCraftable) return '1px solid rgba(0, 255, 136, 0.5)'; // Green - craftable
+                            if (hasResourcesButNeedsStation) return '1px solid rgba(255, 165, 0, 0.6)'; // Orange - has ingredients, needs station
+                            return '1px solid rgba(255, 51, 102, 0.4)'; // Red - missing ingredients
+                        };
+
+                        const getBoxShadow = () => {
+                            if (!isMemoryGridUnlocked) return 'inset 0 0 6px rgba(139, 92, 246, 0.1)';
+                            if (isCraftable) return '0 0 8px rgba(0, 255, 136, 0.2), inset 0 0 6px rgba(0, 255, 136, 0.1)';
+                            if (hasResourcesButNeedsStation) return '0 0 8px rgba(255, 165, 0, 0.25), inset 0 0 6px rgba(255, 165, 0, 0.1)';
+                            return 'inset 0 0 6px rgba(255, 51, 102, 0.1)';
+                        };
 
                         return (
                             <div 
@@ -438,20 +456,14 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                     padding: '4px',
                                     background: !isMemoryGridUnlocked 
                                         ? 'linear-gradient(135deg, rgba(40, 30, 50, 0.6), rgba(30, 25, 40, 0.7))'
-                                        : isCraftable 
-                                            ? 'linear-gradient(135deg, rgba(20, 30, 60, 0.6), rgba(15, 25, 50, 0.7))'
-                                            : 'linear-gradient(135deg, rgba(30, 20, 40, 0.6), rgba(25, 15, 35, 0.7))',
+                                        : hasResourcesButNeedsStation
+                                            ? 'linear-gradient(135deg, rgba(50, 35, 20, 0.6), rgba(40, 30, 15, 0.7))'
+                                            : isCraftable 
+                                                ? 'linear-gradient(135deg, rgba(20, 30, 60, 0.6), rgba(15, 25, 50, 0.7))'
+                                                : 'linear-gradient(135deg, rgba(30, 20, 40, 0.6), rgba(25, 15, 35, 0.7))',
                                     borderRadius: '4px',
-                                    border: !isMemoryGridUnlocked 
-                                        ? '1px solid rgba(139, 92, 246, 0.4)'
-                                        : isCraftable 
-                                            ? '1px solid rgba(0, 255, 136, 0.5)' 
-                                            : '1px solid rgba(255, 51, 102, 0.4)',
-                                    boxShadow: !isMemoryGridUnlocked 
-                                        ? 'inset 0 0 6px rgba(139, 92, 246, 0.1)'
-                                        : isCraftable 
-                                            ? '0 0 8px rgba(0, 255, 136, 0.2), inset 0 0 6px rgba(0, 255, 136, 0.1)' 
-                                            : 'inset 0 0 6px rgba(255, 51, 102, 0.1)',
+                                    border: getBorderColor(),
+                                    boxShadow: getBoxShadow(),
                                     cursor: isCraftable ? 'pointer' : 'not-allowed',
                                     transition: 'all 0.15s ease',
                                     opacity: !isMemoryGridUnlocked ? 0.7 : 1,
@@ -467,7 +479,8 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                         id: recipe.recipeId.toString(),
                                         name: outputDef.name,
                                         x: rect.left,
-                                        y: rect.top + rect.height / 2
+                                        y: rect.top + rect.height / 2,
+                                        requiresStation: hasResourcesButNeedsStation ? requiredStation : null
                                     });
                                 }}
                                 onMouseLeave={(e) => {
@@ -483,7 +496,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                         height: '32px', 
                                         objectFit: 'contain', 
                                         imageRendering: 'pixelated',
-                                        filter: !isMemoryGridUnlocked ? 'grayscale(60%) brightness(0.7)' : !isCraftable ? 'grayscale(40%) brightness(0.8)' : 'none'
+                                        filter: !isMemoryGridUnlocked ? 'grayscale(60%) brightness(0.7)' : !isCraftable && !hasResourcesButNeedsStation ? 'grayscale(40%) brightness(0.8)' : 'none'
                                     }}
                                 />
                                 {/* Lock overlay for locked recipes */}
@@ -496,6 +509,18 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                         filter: 'drop-shadow(0 0 3px rgba(0,0,0,0.8))'
                                     }}>
                                         🔒
+                                    </div>
+                                )}
+                                {/* Cooking station indicator for recipes that need a station */}
+                                {isMemoryGridUnlocked && hasResourcesButNeedsStation && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        bottom: '1px',
+                                        right: '1px',
+                                        fontSize: '10px',
+                                        filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.9))'
+                                    }}>
+                                        🍳
                                     </div>
                                 )}
                             </div>
@@ -613,19 +638,38 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                     transform: 'translateX(-100%) translateY(-50%)',
                     padding: '6px 10px',
                     background: 'linear-gradient(135deg, rgba(20, 30, 60, 0.95), rgba(15, 25, 50, 0.98))',
-                    border: '1px solid rgba(0, 170, 255, 0.5)',
+                    border: hoveredRecipe.requiresStation 
+                        ? '1px solid rgba(255, 165, 0, 0.6)' 
+                        : '1px solid rgba(0, 170, 255, 0.5)',
                     borderRadius: '4px',
-                    color: '#00ffff',
+                    color: hoveredRecipe.requiresStation ? '#ffa500' : '#00ffff',
                     fontSize: '12px',
                     fontWeight: 'bold',
                     fontFamily: '"Courier New", monospace',
                     whiteSpace: 'nowrap',
                     zIndex: 10000,
                     pointerEvents: 'none',
-                    boxShadow: '0 0 10px rgba(0, 170, 255, 0.3)',
-                    textShadow: '0 0 5px rgba(0, 255, 255, 0.5)'
+                    boxShadow: hoveredRecipe.requiresStation 
+                        ? '0 0 10px rgba(255, 165, 0, 0.3)' 
+                        : '0 0 10px rgba(0, 170, 255, 0.3)',
+                    textShadow: hoveredRecipe.requiresStation 
+                        ? '0 0 5px rgba(255, 165, 0, 0.5)' 
+                        : '0 0 5px rgba(0, 255, 255, 0.5)'
                 }}>
-                    {hoveredRecipe.name}
+                    <div>{hoveredRecipe.name}</div>
+                    {hoveredRecipe.requiresStation && (
+                        <div style={{ 
+                            fontSize: '10px', 
+                            marginTop: '4px', 
+                            color: '#ffcc66',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                        }}>
+                            <span>🍳</span>
+                            <span>Requires {hoveredRecipe.requiresStation}</span>
+                        </div>
+                    )}
                 </div>,
                 document.body
             )}

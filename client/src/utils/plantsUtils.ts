@@ -226,7 +226,9 @@ export function isSeedItemValid(itemName: string, itemDefinitions?: Map<string, 
     name.includes('spore') ||
     name.includes('rhizome') ||
     name.includes('cuttings') || // "Mint Cuttings"
-    name.includes('bulbs') || // "Bear Garlic Bulbs"
+    name.includes('bulb') || // "Bear Garlic Bulbs", "Kamchatka Lily Bulb" (matches both singular and plural)
+    name.includes('bulbil') || // "Bistort Bulbils" - viviparous alpine plant
+    name.includes('root') || // "Silverweed Root", "Horseradish Root"
     name.includes('potato') || // "Seed Potato"
     name.includes('frond') || // "Seaweed Frond" - underwater plant propagation
     name.includes('pinecone') || // "Pinecone" - tree seed for conifers

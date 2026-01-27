@@ -16,6 +16,7 @@ import {
     DbConnection,
     InventoryLocationData,
     HotbarLocationData,
+    ActiveConsumableEffect,
 } from '../generated';
 import { Identity } from 'spacetimedb';
 import { getItemIcon } from '../utils/itemIconUtils';
@@ -45,6 +46,7 @@ interface CraftingScreenProps {
     onClose: () => void;
     onSearchFocusChange?: (isFocused: boolean) => void;
     purchasedMemoryNodes?: Set<string>;
+    activeConsumableEffects?: Map<string, ActiveConsumableEffect>; // For checking cooking station proximity
 }
 
 // Helper to calculate remaining time
@@ -62,6 +64,7 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
     onClose,
     onSearchFocusChange,
     purchasedMemoryNodes = new Set(['center']),
+    activeConsumableEffects,
 }) => {
     const [currentTime, setCurrentTime] = useState(Date.now());
     const [craftQuantities, setCraftQuantities] = useState<Map<string, number>>(new Map());
@@ -200,6 +203,46 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
         const nodeData = MEMORY_GRID_NODES.find(n => n.id === requiredNode);
         return nodeData?.name || requiredNode;
     }, [itemDefinitions]);
+
+    // --- Helper to check if player is near a cooking station ---
+    const isNearCookingStation = useMemo((): boolean => {
+        if (!activeConsumableEffects || !playerIdentity) return false;
+        
+        const playerIdHex = playerIdentity.toHexString();
+        for (const effect of activeConsumableEffects.values()) {
+            if (effect.playerId.toHexString() === playerIdHex) {
+                const effectTypeTag = effect.effectType ? (effect.effectType as any).tag : undefined;
+                if (effectTypeTag === 'NearCookingStation') {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }, [activeConsumableEffects, playerIdentity]);
+
+    // --- Helper to check if a recipe requires a crafting station ---
+    const getRequiredStation = useCallback((recipe: Recipe): string | null => {
+        const outputDef = itemDefinitions.get(recipe.outputItemDefId.toString());
+        if (!outputDef) return null;
+        
+        // Check if the item has a requires_station field (from server schema)
+        const requires = (outputDef as any).requiresStation || (outputDef as any).requires_station;
+        return requires || null;
+    }, [itemDefinitions]);
+
+    // --- Helper to check if station requirement is met for a recipe ---
+    const isStationRequirementMet = useCallback((recipe: Recipe): boolean => {
+        const requiredStation = getRequiredStation(recipe);
+        if (!requiredStation) return true; // No station required
+        
+        // Check if player has the corresponding effect
+        if (requiredStation === 'Cooking Station') {
+            return isNearCookingStation;
+        }
+        
+        // Unknown station type - default to not met
+        return false;
+    }, [getRequiredStation, isNearCookingStation]);
 
     // Filter recipes based on category and search
     const filteredRecipes = useMemo(() => {
@@ -446,12 +489,18 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
                                     const maxCraftable = calculateMaxCraftable(recipe);
                                     const isMemoryGridUnlocked = isRecipeUnlockedByMemoryGrid(recipe);
                                     const requiredNodeName = !isMemoryGridUnlocked ? getRequiredNodeName(recipe) : null;
-                                    const isCraftable = isMemoryGridUnlocked && canCraft(recipe, currentQuantity) && currentQuantity <= maxCraftable && currentQuantity > 0;
+                                    
+                                    // Check cooking station requirement
+                                    const requiredStation = getRequiredStation(recipe);
+                                    const hasStationAccess = isStationRequirementMet(recipe);
+                                    
+                                    // Recipe is only craftable if: unlocked, station requirement met, and has resources
+                                    const isCraftable = isMemoryGridUnlocked && hasStationAccess && canCraft(recipe, currentQuantity) && currentQuantity <= maxCraftable && currentQuantity > 0;
 
                                     return (
                                         <div
                                             key={recipe.recipeId.toString()}
-                                            className={`${styles.recipeRow} ${isCraftable ? styles.recipeCraftable : ''} ${!isMemoryGridUnlocked ? styles.recipeLocked : ''}`}
+                                            className={`${styles.recipeRow} ${isCraftable ? styles.recipeCraftable : ''} ${!isMemoryGridUnlocked ? styles.recipeLocked : ''} ${(requiredStation && !hasStationAccess) ? styles.recipeLocked : ''}`}
                                         >
                                             {/* Recipe Icon */}
                                             <div
@@ -482,6 +531,22 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
                                                     <div className={styles.lockMessage}>
                                                         <span>⚡</span>
                                                         <span>Unlock "<strong>{requiredNodeName}</strong>" in Memory Grid</span>
+                                                    </div>
+                                                )}
+
+                                                {/* Cooking Station requirement message */}
+                                                {isMemoryGridUnlocked && requiredStation && !hasStationAccess && (
+                                                    <div style={{
+                                                        fontSize: '11px',
+                                                        color: '#f0ad4e',
+                                                        marginTop: '2px',
+                                                        marginBottom: '4px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px'
+                                                    }}>
+                                                        <span>🍳</span>
+                                                        <span>Requires <strong>{requiredStation}</strong> nearby</span>
                                                     </div>
                                                 )}
 
@@ -565,11 +630,12 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
                                                     MAX
                                                 </button>
                                                 <button
-                                                    className={`${styles.craftBtn} ${!isMemoryGridUnlocked ? styles.craftBtnLocked : ''}`}
+                                                    className={`${styles.craftBtn} ${!isMemoryGridUnlocked ? styles.craftBtnLocked : ''} ${(requiredStation && !hasStationAccess) ? styles.craftBtnLocked : ''}`}
                                                     onClick={() => handleCraftItem(recipe.recipeId, currentQuantity)}
                                                     disabled={!isCraftable}
+                                                    title={requiredStation && !hasStationAccess ? `Requires ${requiredStation} nearby` : undefined}
                                                 >
-                                                    {!isMemoryGridUnlocked ? 'LOCKED' : 'CRAFT'}
+                                                    {!isMemoryGridUnlocked ? 'LOCKED' : (requiredStation && !hasStationAccess) ? 'STATION' : 'CRAFT'}
                                                 </button>
                                             </div>
                                         </div>

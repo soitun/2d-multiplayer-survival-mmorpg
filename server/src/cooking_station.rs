@@ -28,8 +28,8 @@ use crate::items::{
 use crate::environment::calculate_chunk_index;
 use crate::player as PlayerTableTrait;
 
-/// Cooking station proximity distance in pixels (100px as specified)
-pub const COOKING_STATION_PROXIMITY_DISTANCE: f32 = 100.0;
+/// Cooking station proximity distance in pixels (250px for ease of use)
+pub const COOKING_STATION_PROXIMITY_DISTANCE: f32 = 250.0;
 pub const COOKING_STATION_PROXIMITY_DISTANCE_SQUARED: f32 = COOKING_STATION_PROXIMITY_DISTANCE * COOKING_STATION_PROXIMITY_DISTANCE;
 
 /******************************************************************************

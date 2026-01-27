@@ -1580,6 +1580,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     onClose={onToggleCraftingScreen}
                     onSearchFocusChange={onCraftingSearchFocusChange}
                     purchasedMemoryNodes={purchasedMemoryNodes}
+                    activeConsumableEffects={activeConsumableEffects}
                 />
             )}
 
