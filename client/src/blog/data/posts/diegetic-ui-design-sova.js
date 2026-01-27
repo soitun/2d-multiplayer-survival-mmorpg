@@ -68,7 +68,7 @@ export default {
 
     <p>Broth & Bullets isn't a standalone game. It's part of the Babushka universe - a four-book series exploring a world of bioelectric enhancement, corporate warfare, and survival against impossible odds.</p>
 
-    <p>The upcoming book <strong><a href="https://www.babushkabook.com/" target="_blank" rel="noopener noreferrer">Tides of Oblivion</a></strong> serves as an epilogue to the series and focuses specifically on the events of this island – the same island you're surviving on. The cairns you discover, the factions you align with, the technology you scavenge – it all connects to a larger narrative.</p>
+    <p>The companion book, <strong><a href="https://mybook.to/brothandbullets4" target="_blank" rel="noopener noreferrer">Tides of Oblivion</a></strong>, serves as an epilogue to the <strong><a href="https://mybook.to/brothandbullets4" target="_blank" rel="noopener noreferrer">Babushka series</a></strong> and focuses specifically on the events of this island – the same island you're surviving on. The cairns you discover, the factions you align with, the technology you scavenge – it all connects to a larger narrative.</p>
 
     <h2>✨ Why Diegetic Design Matters</h2>
 
