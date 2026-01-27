@@ -1363,9 +1363,12 @@ const Hotbar: React.FC<HotbarProps> = ({
     
     // Check if mouse is over QuestsPanel to allow scrolling
     const isOverQuestsPanel = target.closest('[data-id="quests-panel-scroll"]') !== null;
+    
+    // Check if mouse is over DebugPanel to allow scrolling
+    const isOverDebugPanel = target.closest('[data-id="debug-panel-scroll"]') !== null;
 
-    if (inventoryPanel || craftingScreen || chatInputIsFocused || craftSearchIsFocused || isGameMenuOpen || isOverChat || isOverCraftingScreen || isOverQuestsPanel || event.deltaY === 0) {
-      return; // Don't interfere if inventory/crafting screen/chat/search/game menu/quests panel is open, over these elements, or no vertical scroll
+    if (inventoryPanel || craftingScreen || chatInputIsFocused || craftSearchIsFocused || isGameMenuOpen || isOverChat || isOverCraftingScreen || isOverQuestsPanel || isOverDebugPanel || event.deltaY === 0) {
+      return; // Don't interfere if inventory/crafting screen/chat/search/game menu/quests panel/debug panel is open, over these elements, or no vertical scroll
     }
 
     event.preventDefault(); // Prevent page scrolling (only if inventory is NOT open)

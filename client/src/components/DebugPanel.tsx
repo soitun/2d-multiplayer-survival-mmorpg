@@ -14,6 +14,34 @@ interface DebugPanelProps {
     connection: DbConnection | null;
 }
 
+// Custom scrollbar styles for the debug panel
+const scrollbarStyles = `
+    .debug-panel-scroll::-webkit-scrollbar {
+        width: 8px;
+    }
+    .debug-panel-scroll::-webkit-scrollbar-track {
+        background: rgba(0, 30, 50, 0.5);
+        border-radius: 4px;
+    }
+    .debug-panel-scroll::-webkit-scrollbar-thumb {
+        background: rgba(0, 212, 255, 0.4);
+        border-radius: 4px;
+        border: 1px solid rgba(0, 212, 255, 0.2);
+    }
+    .debug-panel-scroll::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 212, 255, 0.6);
+    }
+    /* Hide native number input spinners */
+    .debug-qty-input::-webkit-outer-spin-button,
+    .debug-qty-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    .debug-qty-input {
+        -moz-appearance: textfield;
+    }
+`;
+
 // All spawnable animal/NPC species
 const ANIMAL_SPECIES = [
     // Wildlife
@@ -38,6 +66,11 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
     const { showAutotileDebug, toggleAutotileDebug, showChunkBoundaries, toggleChunkBoundaries, showInteriorDebug, toggleInteriorDebug, showCollisionDebug, toggleCollisionDebug, showAttackRangeDebug, toggleAttackRangeDebug, showYSortDebug, toggleYSortDebug, showShipwreckDebug, toggleShipwreckDebug } = useDebug();
     const [isMinimized, setIsMinimized] = useState(false);
     const [selectedAnimal, setSelectedAnimal] = useState(ANIMAL_SPECIES[0].value);
+    
+    // Item spawner state
+    const [spawnItemName, setSpawnItemName] = useState('');
+    const [spawnItemQuantity, setSpawnItemQuantity] = useState('1');
+    const [spawnStatus, setSpawnStatus] = useState<{message: string, type: 'success' | 'error'} | null>(null);
 
     const cycleWeather = (direction: 'forward' | 'backward') => {
         const weatherTypes = ['Clear', 'LightRain', 'ModerateRain', 'HeavyRain', 'HeavyStorm'];
@@ -119,6 +152,30 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
         }
     };
 
+    const spawnItem = () => {
+        if (connection && spawnItemName.trim()) {
+            const qty = parseInt(spawnItemQuantity, 10);
+            if (isNaN(qty) || qty < 1) {
+                setSpawnStatus({ message: 'Quantity must be at least 1', type: 'error' });
+                setTimeout(() => setSpawnStatus(null), 3000);
+                return;
+            }
+            try {
+                (connection.reducers as any).debugSpawnItem(spawnItemName.trim(), qty);
+                console.log(`Spawning ${qty}x ${spawnItemName.trim()} near player`);
+                setSpawnStatus({ message: `Spawned ${qty}x ${spawnItemName.trim()}`, type: 'success' });
+                setTimeout(() => setSpawnStatus(null), 3000);
+            } catch (error) {
+                console.warn('Debug spawn item function not available (production build?):', error);
+                setSpawnStatus({ message: 'Spawn function not available', type: 'error' });
+                setTimeout(() => setSpawnStatus(null), 3000);
+            }
+        } else if (!spawnItemName.trim()) {
+            setSpawnStatus({ message: 'Enter an item name', type: 'error' });
+            setTimeout(() => setSpawnStatus(null), 3000);
+        }
+    };
+
     const getWeatherColor = () => {
         const weather = worldState?.currentWeather?.tag;
         switch (weather) {
@@ -185,8 +242,17 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
             gap: '8px',
             boxShadow: '0 0 20px rgba(0, 212, 255, 0.3), inset 0 0 15px rgba(0, 212, 255, 0.1)',
             fontFamily: '"Press Start 2P", monospace',
-            minWidth: '240px'
-        }}>
+            minWidth: '240px',
+            maxHeight: '475px',
+            overflowY: 'auto',
+            overflowX: 'hidden'
+        }}
+        className="debug-panel-scroll"
+        data-id="debug-panel-scroll"
+        onWheel={(e) => e.stopPropagation()}
+        >
+            {/* Inject scrollbar styles */}
+            <style>{scrollbarStyles}</style>
             {/* Header with Minimize Button */}
             <div style={{
                 display: 'flex',
@@ -909,6 +975,211 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                             </button>
                         </div>
                     </div>
+
+                    {/* Item Spawner Section */}
+                    <div style={{
+                        marginTop: '8px',
+                        paddingTop: '8px',
+                        borderTop: '1px solid rgba(0, 212, 255, 0.3)'
+                    }}>
+                        <div style={{
+                            fontSize: '10px',
+                            color: '#00d4ff',
+                            marginBottom: '6px',
+                            textAlign: 'center',
+                            opacity: 0.8
+                        }}>
+                            📦 SPAWN ITEM
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {/* Item name input */}
+                            <input
+                                type="text"
+                                value={spawnItemName}
+                                onChange={(e) => setSpawnItemName(e.target.value)}
+                                placeholder="Item name (exact match)"
+                                data-allow-spacebar="true"
+                                style={{
+                                    background: 'linear-gradient(135deg, rgba(30, 40, 60, 0.9), rgba(20, 30, 50, 0.95))',
+                                    color: '#ffffff',
+                                    border: '1px solid rgba(0, 212, 255, 0.4)',
+                                    padding: '6px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '9px',
+                                    fontFamily: 'inherit',
+                                    outline: 'none',
+                                    width: '100%',
+                                    boxSizing: 'border-box'
+                                }}
+                                onFocus={(e) => {
+                                    e.currentTarget.style.borderColor = '#00d4ff';
+                                    e.currentTarget.style.boxShadow = '0 0 5px rgba(0, 212, 255, 0.3)';
+                                }}
+                                onBlur={(e) => {
+                                    e.currentTarget.style.borderColor = 'rgba(0, 212, 255, 0.4)';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                }}
+                                onKeyDown={(e) => {
+                                    e.stopPropagation();
+                                    e.nativeEvent.stopImmediatePropagation(); // Stop ALL listeners including capture phase
+                                    if (e.key === 'Enter') {
+                                        spawnItem();
+                                    }
+                                }}
+                                onKeyUp={(e) => {
+                                    e.stopPropagation();
+                                    e.nativeEvent.stopImmediatePropagation();
+                                }}
+                                onKeyPress={(e) => {
+                                    e.stopPropagation();
+                                    e.nativeEvent.stopImmediatePropagation();
+                                }}
+                            />
+                            
+                            {/* Quantity and spawn button row */}
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                                {/* Custom quantity input with +/- buttons */}
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    background: 'linear-gradient(135deg, rgba(30, 40, 60, 0.9), rgba(20, 30, 50, 0.95))',
+                                    border: '1px solid rgba(0, 212, 255, 0.4)',
+                                    borderRadius: '4px',
+                                    overflow: 'hidden'
+                                }}>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const current = parseInt(spawnItemQuantity, 10) || 1;
+                                            setSpawnItemQuantity(Math.max(1, current - 1).toString());
+                                        }}
+                                        style={{
+                                            background: 'rgba(0, 212, 255, 0.15)',
+                                            color: '#00d4ff',
+                                            border: 'none',
+                                            borderRight: '1px solid rgba(0, 212, 255, 0.3)',
+                                            padding: '4px 8px',
+                                            fontSize: '12px',
+                                            cursor: 'pointer',
+                                            fontFamily: 'inherit',
+                                            lineHeight: 1
+                                        }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0, 212, 255, 0.3)'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0, 212, 255, 0.15)'; }}
+                                    >
+                                        −
+                                    </button>
+                                    <input
+                                        type="number"
+                                        className="debug-qty-input"
+                                        value={spawnItemQuantity}
+                                        onChange={(e) => setSpawnItemQuantity(e.target.value)}
+                                        min="1"
+                                        style={{
+                                            background: 'transparent',
+                                            color: '#ffffff',
+                                            border: 'none',
+                                            padding: '4px 4px',
+                                            fontSize: '10px',
+                                            fontFamily: 'inherit',
+                                            outline: 'none',
+                                            width: '40px',
+                                            textAlign: 'center'
+                                        }}
+                                        onKeyDown={(e) => {
+                                            e.stopPropagation();
+                                            e.nativeEvent.stopImmediatePropagation();
+                                            if (e.key === 'Enter') {
+                                                spawnItem();
+                                            }
+                                        }}
+                                        onKeyUp={(e) => {
+                                            e.stopPropagation();
+                                            e.nativeEvent.stopImmediatePropagation();
+                                        }}
+                                        onKeyPress={(e) => {
+                                            e.stopPropagation();
+                                            e.nativeEvent.stopImmediatePropagation();
+                                        }}
+                                    />
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const current = parseInt(spawnItemQuantity, 10) || 0;
+                                            setSpawnItemQuantity((current + 1).toString());
+                                        }}
+                                        style={{
+                                            background: 'rgba(0, 212, 255, 0.15)',
+                                            color: '#00d4ff',
+                                            border: 'none',
+                                            borderLeft: '1px solid rgba(0, 212, 255, 0.3)',
+                                            padding: '4px 8px',
+                                            fontSize: '12px',
+                                            cursor: 'pointer',
+                                            fontFamily: 'inherit',
+                                            lineHeight: 1
+                                        }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0, 212, 255, 0.3)'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0, 212, 255, 0.15)'; }}
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                                <button
+                                    onClick={(e) => {
+                                        spawnItem();
+                                        e.currentTarget.blur();
+                                    }}
+                                    onFocus={(e) => e.currentTarget.blur()}
+                                    style={{
+                                        flex: 1,
+                                        background: 'linear-gradient(135deg, rgba(0, 200, 150, 0.3), rgba(0, 150, 100, 0.4))',
+                                        color: '#00c896',
+                                        border: '1px solid #00c896',
+                                        padding: '6px 12px',
+                                        borderRadius: '4px',
+                                        fontSize: '10px',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease',
+                                        fontFamily: 'inherit',
+                                        textShadow: '0 0 5px #00c896',
+                                        whiteSpace: 'nowrap'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0, 200, 150, 0.5), rgba(0, 150, 100, 0.6))';
+                                        e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 200, 150, 0.5)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0, 200, 150, 0.3), rgba(0, 150, 100, 0.4))';
+                                        e.currentTarget.style.boxShadow = 'none';
+                                    }}
+                                >
+                                    SPAWN
+                                </button>
+                            </div>
+                            
+                            {/* Status message */}
+                            {spawnStatus && (
+                                <div style={{
+                                    fontSize: '8px',
+                                    color: spawnStatus.type === 'success' ? '#00ff88' : '#ff6b6b',
+                                    textAlign: 'center',
+                                    padding: '4px',
+                                    background: spawnStatus.type === 'success' 
+                                        ? 'rgba(0, 255, 136, 0.1)' 
+                                        : 'rgba(255, 107, 107, 0.1)',
+                                    borderRadius: '4px',
+                                    border: `1px solid ${spawnStatus.type === 'success' ? 'rgba(0, 255, 136, 0.3)' : 'rgba(255, 107, 107, 0.3)'}`
+                                }}>
+                                    {spawnStatus.message}
+                                </div>
+                            )}
+                            
+                        </div>
+                    </div>
+
+                    {/* Spacer for scrolling room */}
+                    <div style={{ height: '100px' }} />
                 </>
             )}
         </div>

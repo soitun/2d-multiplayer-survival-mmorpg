@@ -113,6 +113,8 @@ import { DebugSetWeather } from "./debug_set_weather_reducer.ts";
 export { DebugSetWeather };
 import { DebugSpawnAnimal } from "./debug_spawn_animal_reducer.ts";
 export { DebugSpawnAnimal };
+import { DebugSpawnItem } from "./debug_spawn_item_reducer.ts";
+export { DebugSpawnItem };
 import { DebugUpdateCloudIntensity } from "./debug_update_cloud_intensity_reducer.ts";
 export { DebugUpdateCloudIntensity };
 import { DeclineMatronageInvitation } from "./decline_matronage_invitation_reducer.ts";
@@ -3157,6 +3159,10 @@ const REMOTE_MODULE = {
       reducerName: "debug_spawn_animal",
       argsType: DebugSpawnAnimal.getTypeScriptAlgebraicType(),
     },
+    debug_spawn_item: {
+      reducerName: "debug_spawn_item",
+      argsType: DebugSpawnItem.getTypeScriptAlgebraicType(),
+    },
     debug_update_cloud_intensity: {
       reducerName: "debug_update_cloud_intensity",
       argsType: DebugUpdateCloudIntensity.getTypeScriptAlgebraicType(),
@@ -4516,6 +4522,7 @@ export type Reducer = never
 | { name: "DebugSetTime", args: DebugSetTime }
 | { name: "DebugSetWeather", args: DebugSetWeather }
 | { name: "DebugSpawnAnimal", args: DebugSpawnAnimal }
+| { name: "DebugSpawnItem", args: DebugSpawnItem }
 | { name: "DebugUpdateCloudIntensity", args: DebugUpdateCloudIntensity }
 | { name: "DeclineMatronageInvitation", args: DeclineMatronageInvitation }
 | { name: "DeliverAlkContract", args: DeliverAlkContract }
@@ -5473,6 +5480,22 @@ export class RemoteReducers {
 
   removeOnDebugSpawnAnimal(callback: (ctx: ReducerEventContext, speciesStr: string) => void) {
     this.connection.offReducer("debug_spawn_animal", callback);
+  }
+
+  debugSpawnItem(itemName: string, quantity: number) {
+    const __args = { itemName, quantity };
+    let __writer = new __BinaryWriter(1024);
+    DebugSpawnItem.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("debug_spawn_item", __argsBuffer, this.setCallReducerFlags.debugSpawnItemFlags);
+  }
+
+  onDebugSpawnItem(callback: (ctx: ReducerEventContext, itemName: string, quantity: number) => void) {
+    this.connection.onReducer("debug_spawn_item", callback);
+  }
+
+  removeOnDebugSpawnItem(callback: (ctx: ReducerEventContext, itemName: string, quantity: number) => void) {
+    this.connection.offReducer("debug_spawn_item", callback);
   }
 
   debugUpdateCloudIntensity() {
@@ -10665,6 +10688,11 @@ export class SetReducerFlags {
   debugSpawnAnimalFlags: __CallReducerFlags = 'FullUpdate';
   debugSpawnAnimal(flags: __CallReducerFlags) {
     this.debugSpawnAnimalFlags = flags;
+  }
+
+  debugSpawnItemFlags: __CallReducerFlags = 'FullUpdate';
+  debugSpawnItem(flags: __CallReducerFlags) {
+    this.debugSpawnItemFlags = flags;
   }
 
   debugUpdateCloudIntensityFlags: __CallReducerFlags = 'FullUpdate';

@@ -559,3 +559,73 @@ pub fn drop_active_weapon_on_death(
     
     Ok(Some(item_name))
 }
+
+/// Debug reducer to spawn an item by name in front of the player (for testing)
+/// Takes an item name (must match exactly) and quantity
+#[spacetimedb::reducer]
+pub fn debug_spawn_item(ctx: &ReducerContext, item_name: String, quantity: u32) -> Result<(), String> {
+    if quantity == 0 {
+        return Err("Quantity must be at least 1".to_string());
+    }
+    
+    // Find the item definition by name
+    let item_def_table = ctx.db.item_definition();
+    let item_def = item_def_table.iter()
+        .find(|def| def.name == item_name)
+        .ok_or_else(|| format!("Item '{}' not found in item database", item_name))?;
+    
+    let item_def_id = item_def.id;
+    let stack_size = item_def.stack_size;
+    let is_stackable = item_def.is_stackable;
+    
+    // Get the player's position
+    let player = ctx.db.player().identity().find(&ctx.sender)
+        .ok_or_else(|| "Player not found".to_string())?;
+    
+    // Calculate drop position in front of player
+    let (drop_x, drop_y) = calculate_drop_position(&player);
+    
+    // If the item is stackable and quantity exceeds stack size, create multiple drops
+    let mut remaining = quantity;
+    let mut drops_created = 0u32;
+    
+    while remaining > 0 {
+        let drop_qty = if is_stackable {
+            remaining.min(stack_size)
+        } else {
+            1 // Non-stackable items drop 1 at a time
+        };
+        
+        // Add small random offset for multiple drops so they don't overlap exactly
+        let offset_x = if drops_created > 0 {
+            let mut rng = ctx.rng();
+            (rng.gen::<f32>() - 0.5) * 40.0
+        } else {
+            0.0
+        };
+        let offset_y = if drops_created > 0 {
+            let mut rng = ctx.rng();
+            (rng.gen::<f32>() - 0.5) * 40.0
+        } else {
+            0.0
+        };
+        
+        create_dropped_item_entity(
+            ctx,
+            item_def_id,
+            drop_qty,
+            (drop_x + offset_x).max(PLAYER_RADIUS).min(crate::WORLD_WIDTH_PX - PLAYER_RADIUS),
+            (drop_y + offset_y).max(PLAYER_RADIUS).min(crate::WORLD_HEIGHT_PX - PLAYER_RADIUS),
+        )?;
+        
+        remaining -= drop_qty;
+        drops_created += 1;
+    }
+    
+    log::info!(
+        "📦 Debug spawned {} '{}' (DefID: {}) near player {:?} at ({:.1}, {:.1}) in {} drop(s)",
+        quantity, item_name, item_def_id, ctx.sender, drop_x, drop_y, drops_created
+    );
+    
+    Ok(())
+}
