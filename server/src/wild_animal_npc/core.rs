@@ -3354,6 +3354,11 @@ pub fn find_closest_fire_position(ctx: &ReducerContext, animal_x: f32, animal_y:
 
 /// Check if an animal should fear fire (considers group courage)
 fn should_fear_fire(ctx: &ReducerContext, animal: &WildAnimal) -> bool {
+    // Wolverines are completely fearless - they ignore fire entirely
+    if animal.species == AnimalSpecies::Wolverine {
+        return false;
+    }
+    
     // Count nearby group members
     let group_size = count_nearby_group_members(ctx, animal);
     
@@ -4622,7 +4627,7 @@ pub fn handle_attack_aftermath(
         
         AnimalSpecies::Caribou => {
             // Caribou flee after attacking (they only attack when low health/cornered)
-            let caribou_max_health = 350.0; // Caribou max health
+            let caribou_max_health = 120.0; // Caribou max health (reduced for balanced hunting)
             let health_percent = animal.health / caribou_max_health;
             if health_percent < 0.25 {
                 // Very low health - continue desperate fight

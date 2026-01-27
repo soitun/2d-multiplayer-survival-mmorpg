@@ -279,10 +279,31 @@ fn spawn_beacon_at(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> Result<(), S
 }
 
 /// Send a chat message announcing the beacon spawn
+/// Note: grid_x and grid_y here are the raw tile coordinates (pos / TILE_SIZE)
+/// We need to convert them to the same grid system the client minimap uses
 fn send_beacon_spawn_announcement(ctx: &ReducerContext, grid_x: i32, grid_y: i32) {
-    // Convert to letter+number grid format (A1, B2, etc.)
-    let grid_letter = ((grid_x / 16) as u8 + b'A') as char;
-    let grid_number = (grid_y / 16) + 1;
+    // Calculate grid cell size to match client minimap display
+    // Client formula: Math.round((Math.round(SERVER_WORLD_WIDTH_TILES / 5) + 1) / Math.SQRT2 * TILE_SIZE)
+    // This is ~4107 pixels for a 600-tile world
+    let world_width_tiles = crate::WORLD_WIDTH_TILES as f32;
+    let tile_size = crate::TILE_SIZE_PX as f32;
+    
+    // Match client's MINIMAP_GRID_DIAGONAL_TILES = Math.round(SERVER_WORLD_WIDTH_TILES / 5) + 1
+    let grid_diagonal_tiles = (world_width_tiles / 5.0).round() + 1.0;
+    // Match client's MINIMAP_GRID_CELL_SIZE_PIXELS = Math.round((diagonal / sqrt(2)) * TILE_SIZE)
+    let grid_cell_size_pixels = ((grid_diagonal_tiles / std::f32::consts::SQRT_2) * tile_size).round();
+    
+    // Convert tile coordinates to world pixels, then to grid cell
+    let world_x = grid_x as f32 * tile_size;
+    let world_y = grid_y as f32 * tile_size;
+    
+    // Calculate which grid cell this position falls into (matching client's col/row calculation)
+    let grid_col = (world_x / grid_cell_size_pixels).floor() as i32;
+    let grid_row = (world_y / grid_cell_size_pixels).floor() as i32;
+    
+    // Convert to letter+number format (A1, B2, etc.) - matching client's String.fromCharCode(65 + col)
+    let grid_letter = ((grid_col as u8).min(25) + b'A') as char; // Cap at 'Z' for safety
+    let grid_number = grid_row + 1; // Client uses (row + 1)
     
     let message = crate::chat::Message {
         id: 0,
@@ -295,7 +316,8 @@ fn send_beacon_spawn_announcement(ctx: &ReducerContext, grid_x: i32, grid_y: i32
     };
     
     ctx.db.message().insert(message);
-    log::info!("[BeaconEvent] Announced beacon spawn at grid {}{}", grid_letter, grid_number);
+    log::info!("[BeaconEvent] Announced beacon spawn at grid {}{} (from tile coords [{}, {}], world pos [{:.0}, {:.0}], cell_size={:.0})", 
+               grid_letter, grid_number, grid_x, grid_y, world_x, world_y, grid_cell_size_pixels);
 }
 
 // === CLEANUP ===

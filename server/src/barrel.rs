@@ -142,6 +142,7 @@ pub fn get_barrel_loot_table(ctx: &ReducerContext) -> Vec<BarrelLootEntry> {
         ("Tin of Sprats in Oil", 1, 2, 0.30),  // Quality preserved food - reduced from 40%
         ("Tin Can", 1, 2, 0.28),               // Metal source - moved from rare tier
         ("Fermented Cabbage Jar", 1, 1, 0.25), // Specialty preserved food - reduced from 20%
+        ("Old Hardtack Biscuits", 1, 2, 0.32), // Military biscuits - solid sustenance, common in barrels
         
         // --- RARE TIER (8-18% drop rates) - Valuable items ---
         ("AK74 Bayonet", 1, 1, 0.12),          // Fast military melee weapon - reduced from 18%

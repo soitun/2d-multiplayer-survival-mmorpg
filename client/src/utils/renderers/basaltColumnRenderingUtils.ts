@@ -48,7 +48,7 @@ const basaltColumnConfig: GroundEntityConfig<BasaltColumn> = {
             maxStretchFactor: 1.4,  // Larger stretch for taller columns
             minStretchFactor: 0.25,  // Compressed at noon
             shadowBlur: 4,           // Slightly larger shadow blur
-            pivotYOffset: 72,        // Pivot point for shadow (scaled from 40)
+            pivotYOffset: 10,        // Lowered pivot point for shadow (was 72, too high)
         });
     },
 

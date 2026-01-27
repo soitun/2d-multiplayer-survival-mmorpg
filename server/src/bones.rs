@@ -165,4 +165,94 @@ pub fn unravel_rope(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), S
         },
         Err(e) => Err(format!("Failed to give plant fiber to player: {}", e))
     }
+}
+
+// Constants for pulverizing items into flour
+const MIN_FLOUR_PER_BULB: u32 = 2;  // Bulbs/roots yield 2-3 flour each
+const MAX_FLOUR_PER_BULB: u32 = 3;
+const MIN_FLOUR_PER_SEEDS: u32 = 1; // Seeds yield 1-2 flour each
+const MAX_FLOUR_PER_SEEDS: u32 = 2;
+
+/// Items that can be pulverized into flour (traditional Aleut flour sources)
+const PULVERIZABLE_ITEMS: &[&str] = &[
+    "Kamchatka Lily Bulb",
+    "Silverweed Root",
+    "Bistort Bulbils",
+    "Angelica Seeds",
+    "Beach Lyme Grass Seeds",
+];
+
+/// Pulverizes starchy plants/seeds into flour.
+/// Traditional Aleut method of creating flour from native plants.
+/// If inventory is full, flour will be dropped near the player.
+#[spacetimedb::reducer]
+pub fn pulverize_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
+    let sender_id = ctx.sender;
+    let inventory_table = ctx.db.inventory_item();
+    let item_def_table = ctx.db.item_definition();
+
+    // 1. Fetch and validate the item to pulverize
+    let item_to_pulverize = inventory_table.instance_id().find(item_instance_id)
+        .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
+
+    let item_def = item_def_table.id().find(item_to_pulverize.item_def_id)
+        .ok_or_else(|| format!("Item definition {} not found", item_to_pulverize.item_def_id))?;
+
+    // 2. Validate item is pulverizable
+    let item_name = item_def.name.as_str();
+    if !PULVERIZABLE_ITEMS.contains(&item_name) {
+        return Err(format!("Cannot pulverize '{}'. Only starchy roots, bulbs, and certain seeds can be ground into flour.", item_def.name));
+    }
+
+    // Validate ownership through location
+    match &item_to_pulverize.location {
+        crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
+        crate::models::ItemLocation::Hotbar(data) if data.owner_id == sender_id => (),
+        crate::models::ItemLocation::Equipped(data) if data.owner_id == sender_id => (),
+        _ => return Err("Item must be in your inventory, hotbar, or equipped to pulverize.".to_string()),
+    }
+
+    // 3. Calculate flour yield based on item type
+    let flour_to_create = match item_name {
+        "Kamchatka Lily Bulb" | "Silverweed Root" | "Bistort Bulbils" => {
+            // Bulbs and roots yield more flour
+            ctx.rng().gen_range(MIN_FLOUR_PER_BULB..=MAX_FLOUR_PER_BULB)
+        },
+        "Angelica Seeds" | "Beach Lyme Grass Seeds" => {
+            // Seeds yield less flour
+            ctx.rng().gen_range(MIN_FLOUR_PER_SEEDS..=MAX_FLOUR_PER_SEEDS)
+        },
+        _ => unreachable!(), // Already validated above
+    };
+
+    // Find the Flour item definition by name
+    let flour_def = item_def_table.iter()
+        .find(|def| def.name == "Flour")
+        .ok_or_else(|| "Flour item definition not found".to_string())?;
+
+    log::info!("[PulverizeItem] Player {} pulverizing {} into {} flour", 
+             sender_id, item_def.name, flour_to_create);
+
+    // 4. Update item quantity or delete if last one
+    if item_to_pulverize.quantity > 1 {
+        let mut updated_item = item_to_pulverize.clone();
+        updated_item.quantity -= 1;
+        inventory_table.instance_id().update(updated_item);
+    } else {
+        // Delete the item if it's the last one
+        inventory_table.instance_id().delete(item_instance_id);
+    }
+
+    // 5. Give flour to player (or drop near them if inventory full)
+    match try_give_item_to_player(ctx, sender_id, flour_def.id, flour_to_create) {
+        Ok(added_to_inventory) => {
+            if added_to_inventory {
+                log::info!("[PulverizeItem] Added {} flour to inventory for player {}", flour_to_create, sender_id);
+            } else {
+                log::info!("[PulverizeItem] Inventory full, dropped {} flour near player {}", flour_to_create, sender_id);
+            }
+            Ok(())
+        },
+        Err(e) => Err(format!("Failed to give flour to player: {}", e))
+    }
 } 

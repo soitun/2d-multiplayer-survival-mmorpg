@@ -453,6 +453,8 @@ import { ProcessWildAnimalAi } from "./process_wild_animal_ai_reducer.ts";
 export { ProcessWildAnimalAi };
 import { PromoteToPraMatron } from "./promote_to_pra_matron_reducer.ts";
 export { PromoteToPraMatron };
+import { PulverizeItem } from "./pulverize_item_reducer.ts";
+export { PulverizeItem };
 import { PurchaseMemoryGridNode } from "./purchase_memory_grid_node_reducer.ts";
 export { PurchaseMemoryGridNode };
 import { QueryHearthUpkeepCosts } from "./query_hearth_upkeep_costs_reducer.ts";
@@ -3835,6 +3837,10 @@ const REMOTE_MODULE = {
       reducerName: "promote_to_pra_matron",
       argsType: PromoteToPraMatron.getTypeScriptAlgebraicType(),
     },
+    pulverize_item: {
+      reducerName: "pulverize_item",
+      argsType: PulverizeItem.getTypeScriptAlgebraicType(),
+    },
     purchase_memory_grid_node: {
       reducerName: "purchase_memory_grid_node",
       argsType: PurchaseMemoryGridNode.getTypeScriptAlgebraicType(),
@@ -4680,6 +4686,7 @@ export type Reducer = never
 | { name: "ProcessTurretLogicScheduled", args: ProcessTurretLogicScheduled }
 | { name: "ProcessWildAnimalAi", args: ProcessWildAnimalAi }
 | { name: "PromoteToPraMatron", args: PromoteToPraMatron }
+| { name: "PulverizeItem", args: PulverizeItem }
 | { name: "PurchaseMemoryGridNode", args: PurchaseMemoryGridNode }
 | { name: "QueryHearthUpkeepCosts", args: QueryHearthUpkeepCosts }
 | { name: "QuickMoveFromBarbecue", args: QuickMoveFromBarbecue }
@@ -8108,6 +8115,22 @@ export class RemoteReducers {
     this.connection.offReducer("promote_to_pra_matron", callback);
   }
 
+  pulverizeItem(itemInstanceId: bigint) {
+    const __args = { itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    PulverizeItem.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("pulverize_item", __argsBuffer, this.setCallReducerFlags.pulverizeItemFlags);
+  }
+
+  onPulverizeItem(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("pulverize_item", callback);
+  }
+
+  removeOnPulverizeItem(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("pulverize_item", callback);
+  }
+
   purchaseMemoryGridNode(nodeId: string) {
     const __args = { nodeId };
     let __writer = new __BinaryWriter(1024);
@@ -11482,6 +11505,11 @@ export class SetReducerFlags {
   promoteToPraMatronFlags: __CallReducerFlags = 'FullUpdate';
   promoteToPraMatron(flags: __CallReducerFlags) {
     this.promoteToPraMatronFlags = flags;
+  }
+
+  pulverizeItemFlags: __CallReducerFlags = 'FullUpdate';
+  pulverizeItem(flags: __CallReducerFlags) {
+    this.pulverizeItemFlags = flags;
   }
 
   purchaseMemoryGridNodeFlags: __CallReducerFlags = 'FullUpdate';

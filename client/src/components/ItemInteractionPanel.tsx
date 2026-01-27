@@ -110,6 +110,20 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
             });
         }
 
+        // Check if item can be pulverized into flour (traditional Aleut flour sources)
+        if (itemName === "Kamchatka Lily Bulb" ||
+            itemName === "Silverweed Root" ||
+            itemName === "Bistort Bulbils" ||
+            itemName === "Angelica Seeds" ||
+            itemName === "Beach Lyme Grass Seeds") {
+            actions.push({
+                label: 'Pulverize',
+                action: 'pulverize',
+                description: 'Grind into flour',
+                buttonStyle: 'crushButton' // Reuse the same style
+            });
+        }
+
         // Check if item is a water container with water content
         if (isWaterContainer(itemName) && hasWaterContent(item.instance)) {
             actions.push({
@@ -154,6 +168,11 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
                     // console.log(`Unraveling rope ${itemInstanceId}: ${selectedItem.definition.name}`);
                     connection.reducers.unravelRope(itemInstanceId);
                     playImmediateSound('crush_bones'); // Reuse crushing sound for deconstruction
+                    break;
+                case 'pulverize':
+                    // console.log(`Pulverizing item ${itemInstanceId}: ${selectedItem.definition.name}`);
+                    connection.reducers.pulverizeItem(itemInstanceId);
+                    playImmediateSound('crush_bones'); // Reuse crushing sound for grinding
                     break;
                 case 'consume':
                     // console.log(`Consuming item ${itemInstanceId}: ${selectedItem.definition.name}`);

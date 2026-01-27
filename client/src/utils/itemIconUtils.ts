@@ -237,6 +237,30 @@ import cabbageIcon from '../assets/items/cabbage.png';
 import cookedCabbageIcon from '../assets/items/cooked_cabbage.png';
 import fireweedShootsIcon from '../assets/items/fireweed_shoots.png';
 
+// Fennel
+import fennelIcon from '../assets/items/fennel.png';
+import cookedFennelIcon from '../assets/items/cooked_fennel.png';
+import fennelFrondsIcon from '../assets/items/fennel_fronds.png';
+import fennelSeedsIcon from '../assets/items/fennel_seeds.png';
+
+// Aleutian Plants (new additions)
+import kamchatkaLilyBulbIcon from '../assets/items/kamchatka_lily_bulb.png';
+import cookedKamchatkaLilyBulbIcon from '../assets/items/cooked_kamchatka_lily_bulb.png';
+import wildCeleryStalksIcon from '../assets/items/wild_celery_stalks.png';
+import cookedWildCeleryIcon from '../assets/items/cooked_wild_celery.png';
+import angelicaSeedsIcon from '../assets/items/angelica_seeds.png';
+import silverweedRootIcon from '../assets/items/silverweed_root.png';
+import cookedSilverweedRootIcon from '../assets/items/cooked_silverweed_root.png';
+import nagoonberriesIcon from '../assets/items/nagoonberries.png';
+import nagoonberrySeedsIcon from '../assets/items/nagoonberry_seeds.png';
+import bistortBulbilsIcon from '../assets/items/bistort_bulbils.png';
+import cookedBistortBulbilsIcon from '../assets/items/cooked_bistort_bulbils.png';
+
+// Flour and Bread
+import flourIcon from '../assets/items/flour.png';
+import aleutianBreadIcon from '../assets/items/aleutian_bread.png';
+import berryAleutianBreadIcon from '../assets/items/berry_aleutian_bread.png';
+
 // Mushrooms
 import flyAgaricIcon from '../assets/items/fly_agaric.png';
 import porciniIcon from '../assets/items/porcini.png';
@@ -694,6 +718,30 @@ const iconMap: { [key: string]: string | undefined } = {
   'cabbage.png': cabbageIcon,
   'cooked_cabbage.png': cookedCabbageIcon,
   'fireweed_shoots.png': fireweedShootsIcon,
+  
+  // Fennel
+  'fennel.png': fennelIcon,
+  'cooked_fennel.png': cookedFennelIcon,
+  'fennel_fronds.png': fennelFrondsIcon,
+  'fennel_seeds.png': fennelSeedsIcon,
+  
+  // Aleutian Plants (new additions)
+  'kamchatka_lily_bulb.png': kamchatkaLilyBulbIcon,
+  'cooked_kamchatka_lily_bulb.png': cookedKamchatkaLilyBulbIcon,
+  'wild_celery_stalks.png': wildCeleryStalksIcon,
+  'cooked_wild_celery.png': cookedWildCeleryIcon,
+  'angelica_seeds.png': angelicaSeedsIcon,
+  'silverweed_root.png': silverweedRootIcon,
+  'cooked_silverweed_root.png': cookedSilverweedRootIcon,
+  'nagoonberries.png': nagoonberriesIcon,
+  'nagoonberry_seeds.png': nagoonberrySeedsIcon,
+  'bistort_bulbils.png': bistortBulbilsIcon,
+  'cooked_bistort_bulbils.png': cookedBistortBulbilsIcon,
+  
+  // Flour and Bread
+  'flour.png': flourIcon,
+  'aleutian_bread.png': aleutianBreadIcon,
+  'berry_aleutian_bread.png': berryAleutianBreadIcon,
   
   // Mushrooms
   'fly_agaric.png': flyAgaricIcon,

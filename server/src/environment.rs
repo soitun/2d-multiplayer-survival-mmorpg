@@ -31,6 +31,7 @@ use crate::{
     rune_stone::{RuneStone, RuneStoneType},
     cairn::Cairn,
     // REMOVED: hot_spring::HotSpring, - No longer using hot spring entities
+    whale_bone_graveyard,
     utils::*,
     WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES, WORLD_WIDTH_PX, WORLD_HEIGHT_PX, TILE_SIZE_PX,
     PLAYER_RADIUS,
@@ -3582,6 +3583,11 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     let terns_spawned = spawn_terns_near_reed_marshes(ctx, &mut rng, &spawned_wild_animal_positions);
     log::info!("🐦 Spawned {} terns near reed marshes", terns_spawned);
 
+    // --- Seed Wolverines near Whale Bone Graveyard ---
+    // Wolverines are attracted to the mysterious whale bone graveyard
+    let wolverines_spawned = spawn_wolverines_near_whale_bone_graveyard(ctx, &mut rng, &spawned_wild_animal_positions);
+    log::info!("🦡 Spawned {} wolverines near whale bone graveyard", wolverines_spawned);
+
     // --- Seed Grass --- OPTIMIZED: Simple noise-based spawning on Grass/Forest tiles
     // REVERTED from plains detection (too intensive) back to efficient random sampling
     log::info!("Seeding Grass (optimized - Grass/Forest tiles only)...");
@@ -4914,6 +4920,128 @@ fn spawn_terns_near_reed_marshes(
                 Err(e) => {
                     log::warn!("Failed to spawn tern near reed marsh: {}", e);
                 }
+            }
+        }
+    }
+    
+    spawned_count
+}
+
+// =============================================================================
+// WHALE BONE GRAVEYARD WOLVERINE SPAWNING
+// =============================================================================
+
+/// Spawn wolverines near the whale bone graveyard
+/// Wolverines are fearless predators attracted to the mysterious graveyard
+fn spawn_wolverines_near_whale_bone_graveyard(
+    ctx: &ReducerContext,
+    rng: &mut StdRng,
+    existing_animal_positions: &[(f32, f32)],
+) -> u32 {
+    use crate::wild_animal_npc::core::{WildAnimal, AnimalSpecies, AnimalState, MovementPattern};
+    use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait;
+    
+    let mut spawned_count = 0;
+    let current_time = ctx.timestamp;
+    
+    // Get whale bone graveyard center position
+    let graveyard_center = whale_bone_graveyard::get_whale_bone_graveyard_center(ctx);
+    
+    if graveyard_center.is_none() {
+        log::debug!("No whale bone graveyard found, skipping wolverine spawning");
+        return 0;
+    }
+    
+    let (graveyard_x, graveyard_y) = graveyard_center.unwrap();
+    
+    // Spawn 2-4 wolverines near the graveyard
+    let wolverine_count = rng.gen_range(2..=4);
+    log::info!("🦡 Attempting to spawn {} wolverines near whale bone graveyard at ({:.0}, {:.0})", 
+               wolverine_count, graveyard_x, graveyard_y);
+    
+    // Spawn radius around the graveyard (outside the NPC exclusion zone but still nearby)
+    // The exclusion zone is 1200px, so we spawn just outside it for thematic effect
+    let spawn_min_radius = 400.0;  // Minimum distance from center
+    let spawn_max_radius = 800.0;  // Maximum distance from center
+    
+    for _ in 0..wolverine_count {
+        // Generate spawn position around the graveyard
+        let angle = rng.gen::<f32>() * std::f32::consts::PI * 2.0;
+        let distance = rng.gen_range(spawn_min_radius..spawn_max_radius);
+        let spawn_x = graveyard_x + angle.cos() * distance;
+        let spawn_y = graveyard_y + angle.sin() * distance;
+        
+        // Check for collision with existing animals (simple distance check)
+        let min_animal_dist_sq = 200.0 * 200.0;
+        let too_close_to_animal = existing_animal_positions.iter()
+            .any(|(ax, ay)| {
+                let dx = spawn_x - ax;
+                let dy = spawn_y - ay;
+                (dx * dx + dy * dy) < min_animal_dist_sq
+            });
+        
+        if too_close_to_animal {
+            continue;
+        }
+        
+        // Calculate chunk index
+        let chunk_idx = calculate_chunk_index(spawn_x, spawn_y);
+        
+        let wolverine = WildAnimal {
+            id: 0, // auto_inc
+            species: AnimalSpecies::Wolverine,
+            pos_x: spawn_x,
+            pos_y: spawn_y,
+            direction_x: 1.0,
+            direction_y: 0.0,
+            facing_direction: "down".to_string(),
+            state: AnimalState::Patrolling,
+            health: 150.0, // Wolverine max health
+            spawn_x,
+            spawn_y,
+            target_player_id: None,
+            last_attack_time: None,
+            state_change_time: current_time,
+            hide_until: None,
+            investigation_x: None,
+            investigation_y: None,
+            patrol_phase: rng.gen::<f32>(),
+            scent_ping_timer: 0,
+            movement_pattern: MovementPattern::Wander,
+            chunk_index: chunk_idx,
+            created_at: current_time,
+            last_hit_time: None,
+            pack_id: None,
+            is_pack_leader: false,
+            pack_join_time: None,
+            last_pack_check: None,
+            fire_fear_overridden_by: None,
+            tamed_by: None,
+            tamed_at: None,
+            heart_effect_until: None,
+            crying_effect_until: None,
+            last_food_check: None,
+            held_item_name: None,
+            held_item_quantity: None,
+            flying_target_x: None,
+            flying_target_y: None,
+            is_flying: false,
+            is_hostile_npc: false,
+            target_structure_id: None,
+            target_structure_type: None,
+            stalk_angle: 0.0,
+            stalk_distance: 0.0,
+            despawn_at: None,
+        };
+        
+        match ctx.db.wild_animal().try_insert(wolverine) {
+            Ok(inserted) => {
+                spawned_count += 1;
+                log::info!("🦡 Spawned Wolverine #{} near whale bone graveyard at ({:.1}, {:.1})", 
+                           inserted.id, spawn_x, spawn_y);
+            }
+            Err(e) => {
+                log::warn!("Failed to spawn wolverine near whale bone graveyard: {}", e);
             }
         }
     }

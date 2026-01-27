@@ -73,6 +73,13 @@ fn get_military_ration_loot_table() -> Vec<MilitaryRationLootEntry> {
             max_quantity: 2,
             spawn_chance: 0.30, // 30% chance
         },
+        // Military preserved foods (good chance - thematic for rations)
+        MilitaryRationLootEntry {
+            item_def_name: "Old Hardtack Biscuits".to_string(),
+            min_quantity: 1,
+            max_quantity: 2,
+            spawn_chance: 0.40, // 40% chance - very common in military rations
+        },
         // Uncommon foods (medium chance)
         MilitaryRationLootEntry {
             item_def_name: "Cooked Pumpkin".to_string(),

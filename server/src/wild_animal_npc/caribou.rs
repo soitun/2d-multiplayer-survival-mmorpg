@@ -37,7 +37,8 @@ use super::core::{
 // Caribou-specific constants
 const CARIBOU_SPOOK_DISTANCE: f32 = 350.0; // Distance at which caribou get spooked by players
 const CARIBOU_SPOOK_DISTANCE_SQUARED: f32 = CARIBOU_SPOOK_DISTANCE * CARIBOU_SPOOK_DISTANCE;
-const CARIBOU_HERD_DETECTION_RADIUS: f32 = 300.0; // How far caribou look for herd members
+const CARIBOU_HERD_DETECTION_RADIUS: f32 = 1400.0; // Large radius so scattered caribou can reconvene after fleeing
+const CARIBOU_HERD_CLOSE_DISTANCE: f32 = 400.0; // Distance at which caribou consider themselves "close enough" to herd
 const CARIBOU_LOW_HEALTH_THRESHOLD: f32 = 0.30; // Below 30% health, caribou fight back
 
 pub struct CaribouBehavior;
@@ -290,12 +291,12 @@ impl AnimalBehavior for CaribouBehavior {
     ) {
         // Caribou patrol slowly - grazing behavior
         // Try to stay near other caribou (herd behavior)
-        if rng.gen::<f32>() < 0.10 { // 10% chance to check for herd
+        if rng.gen::<f32>() < 0.15 { // 15% chance to check for herd (increased for better reconvening)
             if let Some((herd_x, herd_y)) = find_nearby_caribou_herd_center(ctx, animal) {
                 let distance_to_herd = ((animal.pos_x - herd_x).powi(2) + (animal.pos_y - herd_y).powi(2)).sqrt();
                 
                 // If too far from herd, bias movement toward them
-                if distance_to_herd > 150.0 {
+                if distance_to_herd > CARIBOU_HERD_CLOSE_DISTANCE {
                     let dx = herd_x - animal.pos_x;
                     let dy = herd_y - animal.pos_y;
                     let distance = (dx * dx + dy * dy).sqrt();

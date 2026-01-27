@@ -381,6 +381,29 @@ function getCollisionCandidates(
     });
   }
 
+  // Filter rain collectors (both player-placed and monument rain collectors)
+  if (entities.rainCollectors && entities.rainCollectors.size > 0) {
+    const nearbyRainCollectors = filterEntitiesByDistance(
+      entities.rainCollectors,
+      playerX,
+      playerY,
+      COLLISION_PERF.STRUCTURE_CULL_DISTANCE_SQ,
+      COLLISION_PERF.MAX_STRUCTURES_TO_CHECK
+    );
+    
+    for (const rainCollector of nearbyRainCollectors) {
+      if (rainCollector.isDestroyed) continue; // Skip destroyed rain collectors
+      
+      shapes.push({
+        id: rainCollector.id.toString(),
+        type: `rain_collector-${rainCollector.id.toString()}`,
+        x: rainCollector.posX + COLLISION_OFFSETS.RAIN_COLLECTOR.x,
+        y: rainCollector.posY + COLLISION_OFFSETS.RAIN_COLLECTOR.y,
+        radius: COLLISION_RADII.RAIN_COLLECTOR
+      });
+    }
+  }
+
   // Filter barbecues
   if (entities.barbecues && entities.barbecues.size > 0) {
     const nearbyBarbecues = filterEntitiesByDistance(

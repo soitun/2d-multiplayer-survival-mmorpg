@@ -30,13 +30,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(30)
             .build(),
 
-        ItemBuilder::new("Potato", "A raw potato. Starchy and filling when cooked.", ItemCategory::Consumable)
-            .icon("potato.png")
-            .stackable(20)
-            .consumable(6.0, 15.0, 2.0)
-            .cookable(30.0, "Cooked Potato")
-            .respawn_time(200)
-            .build(),
+        // NOTE: Raw Potato moved to seeds.rs - it's now Placeable + Consumable (plant potatoes to grow potatoes)
 
         ItemBuilder::new("Cooked Potato", "Fluffy and satisfying. A hearty source of energy.", ItemCategory::Consumable)
             .icon("cooked_potato.png")
@@ -165,13 +159,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .build(),
 
 
-        ItemBuilder::new("Horseradish", "A pungent root vegetable with a sharp, spicy flavor. Can be eaten raw or cooked for better nutrition.", ItemCategory::Consumable)
-            .icon("horseradish.png")
-            .stackable(12)
-            .consumable(5.0, 8.0, 3.0)
-            .cookable(40.0, "Cooked Horseradish")
-            .respawn_time(220)
-            .build(),
+        // NOTE: Raw Horseradish Root moved to seeds.rs - it's now Placeable + Consumable (plant roots to grow more)
 
         ItemBuilder::new("Cooked Horseradish", "Tender and flavorful cooked horseradish. A flavorful addition to meals that provides decent nutrition.", ItemCategory::Consumable)
             .icon("cooked_horseradish.png")
@@ -264,6 +252,142 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .crafting_output(12, 0)
             .cookable(50.0, "Charcoal")
             .respawn_time(60)
+            .build(),
+
+        // Fennel - Cool-season vegetable with edible bulb, fronds, and seeds
+        ItemBuilder::new("Fennel", "A crisp fennel bulb with a mild anise flavor. All parts are edible - the bulb, fronds, and seeds.", ItemCategory::Consumable)
+            .icon("fennel.png")
+            .stackable(12)
+            .consumable(10.0, 18.0, 8.0) // health, hunger, thirst - refreshing and nutritious
+            .cookable(35.0, "Cooked Fennel")
+            .respawn_time(220)
+            .build(),
+
+        ItemBuilder::new("Cooked Fennel", "Tender caramelized fennel with a sweet, delicate flavor. Excellent nutrition.", ItemCategory::Consumable)
+            .icon("cooked_fennel.png")
+            .stackable(12)
+            .consumable(28.0, 50.0, 18.0) // health, hunger, thirst - good nutrition when cooked
+            .cookable(48.0, "Burnt Fennel")
+            .respawn_time(280)
+            .build(),
+
+        ItemBuilder::new("Burnt Fennel", "Overcooked fennel that has turned black and bitter. Can be processed into charcoal.", ItemCategory::Consumable)
+            .icon("burnt_fennel.png")
+            .stackable(12)
+            .consumable(-2.0, 8.0, -8.0) // health, hunger, thirst
+            .crafting_output(12, 0)
+            .cookable(55.0, "Charcoal")
+            .respawn_time(70)
+            .build(),
+
+        ItemBuilder::new("Fennel Fronds", "Feathery fennel leaves with a delicate anise flavor. Excellent as a garnish or tea.", ItemCategory::Consumable)
+            .icon("fennel_fronds.png")
+            .stackable(25)
+            .consumable(8.0, 6.0, 4.0) // health, hunger, thirst - light but flavorful
+            .cookable(20.0, "Charcoal") // Burns directly - delicate leaves
+            .respawn_time(100)
+            .build(),
+
+        // === COOKED STARCHY PLANTS (raw versions in seeds.rs as they're plantable) ===
+        
+        // Kamchatka Lily Bulb - cooked and burnt versions
+        ItemBuilder::new("Cooked Kamchatka Lily Bulb", "A tender, sweet cooked lily bulb. Highly nutritious traditional food.", ItemCategory::Consumable)
+            .icon("cooked_kamchatka_lily_bulb.png")
+            .stackable(15)
+            .consumable(45.0, 70.0, 15.0) // Excellent nutrition when cooked
+            .cookable(50.0, "Burnt Kamchatka Lily Bulb")
+            .respawn_time(300)
+            .build(),
+
+        ItemBuilder::new("Burnt Kamchatka Lily Bulb", "Overcooked lily bulb that has turned black and bitter. Can be processed into charcoal.", ItemCategory::Consumable)
+            .icon("burnt_kamchatka_lily_bulb.png")
+            .stackable(15)
+            .consumable(-3.0, 10.0, -10.0)
+            .crafting_output(12, 0)
+            .cookable(55.0, "Charcoal")
+            .respawn_time(80)
+            .build(),
+
+        // Silverweed Root - cooked and burnt versions
+        ItemBuilder::new("Cooked Silverweed Root", "Tender cooked silverweed root. Sweet and starchy - excellent traditional food.", ItemCategory::Consumable)
+            .icon("cooked_silverweed_root.png")
+            .stackable(20)
+            .consumable(35.0, 55.0, 12.0) // Good nutrition when cooked
+            .cookable(45.0, "Burnt Silverweed Root")
+            .respawn_time(280)
+            .build(),
+
+        ItemBuilder::new("Burnt Silverweed Root", "Overcooked silverweed root that has charred. Can be processed into charcoal.", ItemCategory::Consumable)
+            .icon("burnt_silverweed_root.png")
+            .stackable(20)
+            .consumable(-2.0, 8.0, -8.0)
+            .crafting_output(10, 0)
+            .cookable(50.0, "Charcoal")
+            .respawn_time(70)
+            .build(),
+
+        // Bistort Bulbils - cooked and burnt versions
+        ItemBuilder::new("Cooked Bistort Bulbils", "Tender cooked bistort bulbils. Nutty and satisfying - a unique alpine delicacy.", ItemCategory::Consumable)
+            .icon("cooked_bistort_bulbils.png")
+            .stackable(40)
+            .consumable(28.0, 45.0, 10.0) // Good nutrition when cooked
+            .cookable(40.0, "Burnt Bistort Bulbils")
+            .respawn_time(260)
+            .build(),
+
+        ItemBuilder::new("Burnt Bistort Bulbils", "Overcooked bistort bulbils that have charred. Can be processed into charcoal.", ItemCategory::Consumable)
+            .icon("burnt_bistort_bulbils.png")
+            .stackable(40)
+            .consumable(-2.0, 6.0, -6.0)
+            .crafting_output(8, 0)
+            .cookable(45.0, "Charcoal")
+            .respawn_time(60)
+            .build(),
+
+        // === NEW ALEUTIAN PLANTS ===
+        
+        // Wild Celery (Angelica) - Important traditional Aleut food
+        ItemBuilder::new("Wild Celery Stalks", "Fresh stalks of wild celery (Angelica lucida). Crisp and aromatic with a distinctive flavor. A prized traditional Aleut vegetable eaten raw.", ItemCategory::Consumable)
+            .icon("wild_celery_stalks.png")
+            .stackable(15)
+            .consumable(12.0, 20.0, 8.0) // Good nutrition - important traditional food
+            .cookable(30.0, "Cooked Wild Celery")
+            .respawn_time(200)
+            .build(),
+
+        ItemBuilder::new("Cooked Wild Celery", "Tender cooked wild celery with a milder flavor. Nutritious and satisfying.", ItemCategory::Consumable)
+            .icon("cooked_wild_celery.png")
+            .stackable(15)
+            .consumable(25.0, 38.0, 15.0) // Excellent nutrition
+            .cookable(40.0, "Burnt Wild Celery")
+            .respawn_time(260)
+            .build(),
+
+        ItemBuilder::new("Burnt Wild Celery", "Overcooked wild celery that has lost its appeal. Can be processed into charcoal.", ItemCategory::Consumable)
+            .icon("burnt_wild_celery.png")
+            .stackable(15)
+            .consumable(-2.0, 8.0, -6.0)
+            .crafting_output(10, 0)
+            .cookable(50.0, "Charcoal")
+            .respawn_time(70)
+            .build(),
+
+        // Nagoonberries - Prized Arctic raspberry
+        ItemBuilder::new("Nagoonberries", "Prized Arctic raspberries with an exquisite sweet-tart flavor. Considered one of the finest wild berries in the north.", ItemCategory::Consumable)
+            .icon("nagoonberries.png")
+            .stackable(25)
+            .consumable(15.0, 18.0, 15.0) // Excellent berry - high value
+            .cookable(20.0, "Burnt Nagoonberries")
+            .respawn_time(300)
+            .build(),
+
+        ItemBuilder::new("Burnt Nagoonberries", "Overcooked nagoonberries. A tragic waste of such prized berries.", ItemCategory::Consumable)
+            .icon("burnt_nagoonberries.png")
+            .stackable(25)
+            .consumable(-3.0, 3.0, -5.0)
+            .crafting_output(7, 0)
+            .cookable(25.0, "Charcoal")
+            .respawn_time(50)
             .build(),
 
         // Fireweed Shoots - Edible tundra plant shoots
@@ -1161,35 +1285,35 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
         ItemBuilder::new("Tin of Sprats in Oil", "Small oily fish preserved in a tin. Provides good nutrition and a slight health boost from the omega oils.", ItemCategory::Consumable)
             .icon("tin_of_sprats.png")
             .stackable(10)
-            .consumable(15.0, 35.0, -5.0)
+            .consumable(25.0, 35.0, -15.0)
             .respawn_time(900)
             .build(),
 
         ItemBuilder::new("Fermented Cabbage Jar", "Sour, salty fermented cabbage. High in salt content - will make you very thirsty but provides some nutrition.", ItemCategory::Consumable)
             .icon("fermented_cabbage_jar.png")
             .stackable(5)
-            .consumable(8.0, 20.0, -25.0)
+            .consumable(25.0, 20.0, -25.0)
             .respawn_time(720)
             .build(),
 
         ItemBuilder::new("Old Hardtack Biscuits", "Rock-hard military biscuits that could break a tooth. Barely edible but they last forever and provide sustenance.", ItemCategory::Consumable)
             .icon("old_hardtack_biscuits.png")
             .stackable(15)
-            .consumable(-8.0, 45.0, -15.0)
+            .consumable(25.0, 45.0, -10.0)
             .respawn_time(600)
             .build(),
 
         ItemBuilder::new("Expired Soviet Chocolate", "Old chocolate bar with Cyrillic text. Provides a morale boost but shows signs of age - consume at your own risk.", ItemCategory::Consumable)
             .icon("expired_soviet_chocolate.png")
             .stackable(8)
-            .consumable(-3.0, 15.0, 5.0)
+            .consumable(25.0, 15.0, 5.0)
             .respawn_time(1200)
             .build(),
 
         ItemBuilder::new("Mystery Can (Label Missing)", "A dented can with no readable label. Could be delicious stew, could be pet food. Only one way to find out...", ItemCategory::Consumable)
             .icon("mystery_can.png")
             .stackable(5)
-            .consumable(0.0, 30.0, 0.0)
+            .consumable(0.0, 50.0, 0.0)
             .respawn_time(800)
             .build(),
 
@@ -1755,6 +1879,32 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Crowberries".to_string(), quantity: 2 },
             ])
             .crafting_output(1, 0)
+            .requires_station("Cooking Station")
+            .build(),
+
+        // === ALEUTIAN BREAD - Premium Traditional Food ===
+        // One of the best consumables in the game - requires traditional flour sources
+        ItemBuilder::new("Aleutian Bread", "Traditional flatbread made from Aleut flour sources. Dense, nutritious, and incredibly satisfying. A testament to the ingenuity of island survival.", ItemCategory::Consumable)
+            .icon("aleutian_bread.png")
+            .stackable(10)
+            .consumable(80.0, 100.0, 25.0) // One of the best - high health and hunger restoration
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Flour".to_string(), quantity: 4 },
+            ])
+            .crafting_output(2, 0) // Makes 2 loaves
+            .requires_station("Cooking Station")
+            .build(),
+
+        // Premium version with berries
+        ItemBuilder::new("Berry Aleutian Bread", "Traditional Aleutian bread enriched with cloudberries. The perfect balance of savory and sweet - the finest food in the islands.", ItemCategory::Consumable)
+            .icon("berry_aleutian_bread.png")
+            .stackable(8)
+            .consumable(95.0, 110.0, 40.0) // THE BEST consumable - excellent across all stats
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Flour".to_string(), quantity: 4 },
+                CostIngredient { item_name: "Cloudberries".to_string(), quantity: 3 },
+            ])
+            .crafting_output(2, 0) // Makes 2 loaves
             .requires_station("Cooking Station")
             .build(),
 

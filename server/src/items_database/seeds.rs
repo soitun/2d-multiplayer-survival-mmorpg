@@ -94,6 +94,64 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .cookable(20.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
+        ItemBuilder::new("Fennel Seeds", "Aromatic fennel seeds. Plant to grow fennel or use as a spice. Mild anise flavor.", ItemCategory::Placeable)
+            .icon("fennel_seeds.png")
+            .stackable(80)
+            .respawn_time(450) // 7.5 minutes
+            .consumable(2.0, 1.0, 0.0) // health, hunger, thirst - aromatic seeds, slightly medicinal
+            .cookable(20.0, "Charcoal") // Burns directly to charcoal - small seeds just char
+            .build(),
+
+        // Kamchatka Lily Bulb - both food AND seed (like Horseradish Root pattern)
+        // Can be COOKED for food OR PULVERIZED for flour
+        ItemBuilder::new("Kamchatka Lily Bulb", "A starchy, nutritious bulb from the Kamchatka Lily. Can be eaten raw, cooked for better nutrition, or pulverized into flour. Also plantable.", ItemCategory::Placeable)
+            .icon("kamchatka_lily_bulb.png")
+            .stackable(15)
+            .respawn_time(400) // ~7 minutes
+            .consumable(25.0, 35.0, 5.0) // High health/hunger - nutritious raw bulb
+            .cookable(40.0, "Cooked Kamchatka Lily Bulb") // Cooks to food, pulverize for flour
+            .build(),
+
+        // === NEW ALEUTIAN PLANTS ===
+        
+        // Angelica Seeds - from Wild Celery, can be planted or pulverized to flour
+        ItemBuilder::new("Angelica Seeds", "Aromatic seeds from wild celery (Angelica). Can be planted, used as a spice, or pulverized into flour. Traditional Aleut food.", ItemCategory::Placeable)
+            .icon("angelica_seeds.png")
+            .stackable(60)
+            .respawn_time(400)
+            .consumable(2.0, 2.0, 0.0) // Slightly medicinal/aromatic
+            .cookable(25.0, "Charcoal") // Seeds char when cooked, pulverize for flour
+            .build(),
+        
+        // Silverweed Root - starchy coastal root, both food AND seed
+        // Can be COOKED for food OR PULVERIZED for flour
+        ItemBuilder::new("Silverweed Root", "A starchy root from the silverweed plant. Can be eaten raw, cooked for better nutrition, or pulverized into flour. Also plantable.", ItemCategory::Placeable)
+            .icon("silverweed_root.png")
+            .stackable(20)
+            .respawn_time(350)
+            .consumable(15.0, 25.0, 5.0) // Good nutrition - starchy root
+            .cookable(35.0, "Cooked Silverweed Root") // Cooks to food, pulverize for flour
+            .build(),
+        
+        // Nagoonberry Seeds - for planting Arctic raspberries
+        ItemBuilder::new("Nagoonberry Seeds", "Tiny seeds from the prized nagoonberry. Can be planted to grow nagoonberry bushes.", ItemCategory::Placeable)
+            .icon("nagoonberry_seeds.png")
+            .stackable(80)
+            .respawn_time(500)
+            .consumable(0.5, 0.5, 0.5) // Minimal nutrition
+            .cookable(18.0, "Charcoal") // Too small for anything
+            .build(),
+        
+        // Bistort Bulbils - tiny starchy bulbils, both food AND seed
+        // Can be COOKED for food OR PULVERIZED for flour
+        ItemBuilder::new("Bistort Bulbils", "Tiny starchy bulbils from alpine bistort. Can be eaten raw, cooked for better nutrition, or pulverized into flour. A unique viviparous plant.", ItemCategory::Placeable)
+            .icon("bistort_bulbils.png")
+            .stackable(40)
+            .respawn_time(380)
+            .consumable(10.0, 18.0, 3.0) // Good nutrition - starchy
+            .cookable(30.0, "Cooked Bistort Bulbils") // Cooks to food, pulverize for flour
+            .build(),
+
         // === ADDITIONAL VEGETABLE SEEDS ===
 
 
@@ -183,13 +241,13 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .cookable(20.0, "Charcoal") // Burns directly to charcoal - cuttings just char
             .build(),
 
-        // Horseradish Root - Root cutting for planting
-        ItemBuilder::new("Horseradish Root", "Root cutting for growing horseradish. Can be eaten but is extremely pungent and hot.", ItemCategory::Placeable)
+        // Horseradish Root - both food AND seed (plant roots to grow more horseradish)
+        ItemBuilder::new("Horseradish Root", "A pungent root vegetable. Can be eaten raw, cooked, or planted to grow more horseradish. Strong, spicy flavor.", ItemCategory::Placeable)
             .icon("horseradish_root.png")
-            .stackable(15)
-            .respawn_time(1200) // 20 minutes
-            .consumable(1.0, -1.0, -3.0) // health, hunger, thirst - very strong, reduces appetite
-            .cookable(35.0, "Charcoal") // Burns directly to charcoal - root just chars
+            .stackable(12)
+            .respawn_time(220)
+            .consumable(5.0, 8.0, 3.0) // Same as the old "Horseradish" consumable
+            .cookable(40.0, "Cooked Horseradish") // Now cooks properly
             .build(),
 
 
@@ -382,16 +440,18 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .cookable(25.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
-        // === NON-EDIBLE PLANTING MATERIALS ===
+        // === ROOT VEGETABLES (food IS the seed) ===
 
-        // Seed Potato - Not technically a seed, but plantable
-        ItemBuilder::new("Seed Potato", "Potato tuber for planting. Not recommended for eating raw.", ItemCategory::Placeable)
-            .icon("seed_potato.png")
+        // Potato - Plant potatoes to grow potatoes (realistic farming)
+        ItemBuilder::new("Potato", "A raw potato. Can be eaten, cooked, or planted to grow more potatoes. Starchy and filling.", ItemCategory::Placeable)
+            .icon("potato.png")
             .stackable(20)
-            .respawn_time(900) // 15 minutes - rare
-            .consumable(-1.0, -2.0, -2.0) // health, hunger, thirst
-            .cookable(40.0, "Charcoal") // Burns directly to charcoal - raw potato chars
+            .respawn_time(200)
+            .consumable(6.0, 15.0, 2.0) // Same nutrition as before
+            .cookable(30.0, "Cooked Potato")
             .build(),
+
+        // === OTHER PLANTING MATERIALS ===
 
         // Corn Seeds - Large seeds
         ItemBuilder::new("Corn Seeds", "Large seeds for planting corn. Can be eaten but are quite hard.", ItemCategory::Placeable)
@@ -476,13 +536,14 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .cookable(22.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
-        // Beach Lyme Grass Seeds - Coastal grass seeds (beach-only planting)
-        ItemBuilder::new("Beach Lyme Grass Seeds", "Seeds for growing beach lyme grass. Can only be planted on beach tiles. Can be eaten but are fibrous and not very nutritious.", ItemCategory::Placeable)
+        // Beach Lyme Grass Seeds - Coastal grass seeds (beach-only planting) - TRADITIONAL FLOUR SOURCE
+        // Can be PULVERIZED into flour (traditional Aleut method)
+        ItemBuilder::new("Beach Lyme Grass Seeds", "Seeds for growing beach lyme grass. Can only be planted on beach tiles. Can be pulverized into flour - a traditional Aleut food source.", ItemCategory::Placeable)
             .icon("beach_lyme_grass_seeds.png")
             .stackable(60)
             .respawn_time(480) // 8 minutes - fast-growing coastal grass
             .consumable(0.5, 0.5, 0.0) // health, hunger, thirst - minimal nutrition
-            .cookable(22.0, "Charcoal") // Burns directly to charcoal - grass seeds just char
+            .cookable(22.0, "Charcoal") // Seeds char when cooked, pulverize for flour
             .build(),
 
         // === ALPINE PLANT SPORES/SEEDS ===

@@ -26,6 +26,12 @@ import dogbaneImageSource from '../../assets/doodads/dogbane.png';
 import bogCottonImageSource from '../../assets/doodads/bog_cotton.png';
 import salsifyImageSource from '../../assets/doodads/salsify.png';
 import cabbageImageSource from '../../assets/doodads/cabbage.png';
+import fennelImageSource from '../../assets/doodads/fennel.png';
+import kamchatkaLilyImageSource from '../../assets/doodads/kamchatka_lily.png';
+import wildCeleryImageSource from '../../assets/doodads/wild_celery.png';
+import silverweedImageSource from '../../assets/doodads/silverweed.png';
+import nagoonberryImageSource from '../../assets/doodads/nagoonberry.png';
+import alpineBistortImageSource from '../../assets/doodads/alpine_bistort.png';
 
 // NEW ARCTIC/SUBARCTIC PLANTS
 import scurvyGrassImageSource from '../../assets/doodads/scurvy_grass.png';
@@ -83,6 +89,9 @@ import bonePileImageSource from '../../assets/doodads/pile_bones.png';
 // Underwater plants
 import seaweedBedImageSource from '../../assets/doodads/seaweed.png';
 
+// Tree saplings (these grow into Tree entities, not harvestable resources, but included for type completeness)
+import plantedSeedImageSource from '../../assets/doodads/planted_seed.png';
+
 // Resource type to image source mapping (BOTANICALLY ACCURATE FOR ALEUTIAN ISLANDS)
 export const RESOURCE_IMAGE_SOURCES = {
   // === BASIC CROPS (Cold-hardy varieties) ===
@@ -96,7 +105,7 @@ export const RESOURCE_IMAGE_SOURCES = {
   Carrot: carrotImageSource,
   Beets: beetsImageSource,
   Horseradish: horseradishImageSource,
-  Corn: cornImageSource,
+  Corn: cornImageSource,  
   
   // === HERBS & MEDICINAL PLANTS (Arctic/Subarctic species) ===
   Chicory: chicoryImageSource,
@@ -112,6 +121,12 @@ export const RESOURCE_IMAGE_SOURCES = {
   Flax: flaxImageSource,
   Salsify: salsifyImageSource,
   Cabbage: cabbageImageSource,
+  Fennel: fennelImageSource,
+  KamchatkaLily: kamchatkaLilyImageSource,
+  WildCelery: wildCeleryImageSource,
+  Silverweed: silverweedImageSource,
+  Nagoonberry: nagoonberryImageSource,
+  AlpineBistort: alpineBistortImageSource,
   
   // === NEW: ARCTIC/SUBARCTIC PLANTS (Botanically accurate for Aleutian Islands) ===
   ScurvyGrass: scurvyGrassImageSource,
@@ -167,7 +182,11 @@ export const RESOURCE_IMAGE_SOURCES = {
   BonePile: bonePileImageSource,
   
   // === UNDERWATER PLANTS (Require snorkeling to harvest) ===
-  SeaweedBed: seaweedBedImageSource
+  SeaweedBed: seaweedBedImageSource,
+  
+  // === TREE SAPLINGS (Grow into Tree entities, not harvestable resources) ===
+  ConiferSapling: plantedSeedImageSource,
+  DeciduousSapling: plantedSeedImageSource
 } as Record<HarvestableResourceType, string>; // Using 'as' instead of 'satisfies' - new types will be added after bindings regeneration
 
 // Explicit type export for better type inference

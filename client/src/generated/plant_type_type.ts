@@ -40,6 +40,12 @@ export type PlantType = PlantTypeVariants.BorealNettle |
   PlantTypeVariants.Horseradish |
   PlantTypeVariants.Corn |
   PlantTypeVariants.Cabbage |
+  PlantTypeVariants.Fennel |
+  PlantTypeVariants.KamchatkaLily |
+  PlantTypeVariants.WildCelery |
+  PlantTypeVariants.Silverweed |
+  PlantTypeVariants.Nagoonberry |
+  PlantTypeVariants.AlpineBistort |
   PlantTypeVariants.Chicory |
   PlantTypeVariants.Yarrow |
   PlantTypeVariants.Chamomile |
@@ -113,6 +119,12 @@ export const PlantType = {
   Horseradish: { tag: "Horseradish" } as const,
   Corn: { tag: "Corn" } as const,
   Cabbage: { tag: "Cabbage" } as const,
+  Fennel: { tag: "Fennel" } as const,
+  KamchatkaLily: { tag: "KamchatkaLily" } as const,
+  WildCelery: { tag: "WildCelery" } as const,
+  Silverweed: { tag: "Silverweed" } as const,
+  Nagoonberry: { tag: "Nagoonberry" } as const,
+  AlpineBistort: { tag: "AlpineBistort" } as const,
   Chicory: { tag: "Chicory" } as const,
   Yarrow: { tag: "Yarrow" } as const,
   Chamomile: { tag: "Chamomile" } as const,
@@ -180,6 +192,12 @@ export const PlantType = {
       { name: "Horseradish", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Corn", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Cabbage", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Fennel", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "KamchatkaLily", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "WildCelery", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Silverweed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Nagoonberry", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "AlpineBistort", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Chicory", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Yarrow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Chamomile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

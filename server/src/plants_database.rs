@@ -20,6 +20,12 @@ pub enum PlantType {
     Horseradish,  // Extremely cold-hardy perennial - single best root crop for Aleutian Islands
     Corn,         // Cold-hardy variety - grows near water sources
     Cabbage,      // Cold-hardy leafy vegetable - excellent for northern climates
+    Fennel,       // Cool-season crop - bulb, seeds, and fronds all edible (NOT perennial in Aleutians)
+    KamchatkaLily, // Native bulb plant - the bulb is both food and seed (like Horseradish Root)
+    WildCelery,    // Angelica lucida - important traditional Aleut food, stems and seeds edible
+    Silverweed,    // Argentina anserina - starchy coastal root, can be ground to flour
+    Nagoonberry,   // Rubus arcticus - Arctic raspberry, prized berry
+    AlpineBistort, // Bistorta vivipara - starchy bulbils, alpine plant
     
     // === HERBS & MEDICINAL PLANTS (Arctic/Subarctic species) ===
     Chicory,      // Cold-hardy perennial herb
@@ -192,8 +198,8 @@ lazy_static! {
             noise_threshold: 0.65,
             primary_yield: ("Potato".to_string(), 1, 2),
             secondary_yield: Some(("Plant Fiber".to_string(), 1, 3, 0.80)),
-            seed_type: "Seed Potato".to_string(),
-            seed_drop_chance: 0.80, // 80% chance - essential food crop must be sustainable
+            seed_type: "Potato".to_string(), // Plant potatoes to grow potatoes (realistic)
+            seed_drop_chance: 0.0, // No seed drops - the food IS the seed (you don't get seeds from eating potatoes)
             min_respawn_time_secs: 900,  // 15 minutes
             max_respawn_time_secs: 1800, // 30 minutes
             spawn_condition: SpawnCondition::Clearings,
@@ -433,8 +439,8 @@ lazy_static! {
             noise_threshold: 0.70,
             primary_yield: ("Horseradish Root".to_string(), 1, 1),
             secondary_yield: None,
-            seed_type: "Horseradish Root".to_string(),
-            seed_drop_chance: 0.80, // 55% chance - important cold-hardy food crop must be sustainable
+            seed_type: "Horseradish Root".to_string(), // The root IS the seed
+            seed_drop_chance: 0.0, // No seed drops - the food IS the seed (you don't get seeds from eating roots)
             min_respawn_time_secs: 2000, // 33 minutes
             max_respawn_time_secs: 3000, // 50 minutes
             spawn_condition: SpawnCondition::NearWater,
@@ -473,6 +479,108 @@ lazy_static! {
             max_respawn_time_secs: 1500, // 25 minutes
             spawn_condition: SpawnCondition::Clearings, // Similar to potatoes - needs open areas
             growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn], // Cool to warm season crop
+        });
+        
+        configs.insert(PlantType::Fennel, PlantConfig {
+            entity_name: "Fennel".to_string(),
+            density_percent: 0.0005, // Moderate density (~125 plants)
+            min_distance_sq: 35.0 * 35.0,
+            min_tree_distance_sq: 20.0 * 20.0,
+            min_stone_distance_sq: 25.0 * 25.0,
+            noise_threshold: 0.66,
+            primary_yield: ("Fennel".to_string(), 1, 2), // 1-2 fennel bulbs per harvest
+            secondary_yield: Some(("Fennel Fronds".to_string(), 2, 4, 0.75)), // 75% chance for feathery leaves
+            seed_type: "Fennel Seeds".to_string(),
+            seed_drop_chance: 0.80, // Standardized 80% - farming sustainability ensured
+            min_respawn_time_secs: 1000, // ~17 minutes
+            max_respawn_time_secs: 1600, // ~27 minutes
+            spawn_condition: SpawnCondition::Clearings, // Similar to other vegetables - needs open areas
+            growing_seasons: vec![Season::Spring, Season::Summer], // Cool-season crop - NOT perennial in Aleutians, frost-sensitive
+        });
+        
+        configs.insert(PlantType::KamchatkaLily, PlantConfig {
+            entity_name: "Kamchatka Lily".to_string(),
+            density_percent: 0.0004, // Moderate-rare density (~100 plants)
+            min_distance_sq: 40.0 * 40.0,
+            min_tree_distance_sq: 25.0 * 25.0,
+            min_stone_distance_sq: 30.0 * 30.0,
+            noise_threshold: 0.68,
+            primary_yield: ("Kamchatka Lily Bulb".to_string(), 1, 2), // 1-2 bulbs per harvest
+            secondary_yield: None,
+            seed_type: "Kamchatka Lily Bulb".to_string(), // The bulb IS the seed (like Horseradish Root)
+            seed_drop_chance: 0.0, // No seed drops - the food IS the seed (you don't get seeds from eating bulbs)
+            min_respawn_time_secs: 1200, // 20 minutes
+            max_respawn_time_secs: 1800, // 30 minutes
+            spawn_condition: SpawnCondition::Forest, // Native to forest edges and meadows
+            growing_seasons: vec![Season::Spring, Season::Summer], // Spring bloomer, goes dormant in cold
+        });
+        
+        configs.insert(PlantType::WildCelery, PlantConfig {
+            entity_name: "Wild Celery".to_string(),
+            density_percent: 0.0005, // Moderate density (~125 plants)
+            min_distance_sq: 35.0 * 35.0,
+            min_tree_distance_sq: 20.0 * 20.0,
+            min_stone_distance_sq: 25.0 * 25.0,
+            noise_threshold: 0.65,
+            primary_yield: ("Wild Celery Stalks".to_string(), 2, 4), // Edible stems
+            secondary_yield: Some(("Angelica Seeds".to_string(), 1, 3, 0.60)), // Seeds can be ground to flour
+            seed_type: "Angelica Seeds".to_string(),
+            seed_drop_chance: 0.80,
+            min_respawn_time_secs: 1000, // ~17 minutes
+            max_respawn_time_secs: 1500, // ~25 minutes
+            spawn_condition: SpawnCondition::NearWater, // Grows along streams and coastal meadows
+            growing_seasons: vec![Season::Spring, Season::Summer],
+        });
+        
+        configs.insert(PlantType::Silverweed, PlantConfig {
+            entity_name: "Silverweed".to_string(),
+            density_percent: 0.0005, // Moderate density (~125 plants)
+            min_distance_sq: 30.0 * 30.0,
+            min_tree_distance_sq: 20.0 * 20.0,
+            min_stone_distance_sq: 25.0 * 25.0,
+            noise_threshold: 0.64,
+            primary_yield: ("Silverweed Root".to_string(), 1, 2), // Starchy root - can be ground to flour
+            secondary_yield: None,
+            seed_type: "Silverweed Root".to_string(), // Spreads by stolons - root IS the seed
+            seed_drop_chance: 0.0, // No seed drops - the food IS the seed
+            min_respawn_time_secs: 1100, // ~18 minutes
+            max_respawn_time_secs: 1700, // ~28 minutes
+            spawn_condition: SpawnCondition::Coastal, // Grows in coastal/wet areas
+            growing_seasons: vec![Season::Spring, Season::Summer],
+        });
+        
+        configs.insert(PlantType::Nagoonberry, PlantConfig {
+            entity_name: "Nagoonberry".to_string(),
+            density_percent: 0.0004, // Moderate-rare density (~100 plants)
+            min_distance_sq: 35.0 * 35.0,
+            min_tree_distance_sq: 25.0 * 25.0,
+            min_stone_distance_sq: 30.0 * 30.0,
+            noise_threshold: 0.68,
+            primary_yield: ("Nagoonberries".to_string(), 2, 4), // Prized Arctic berries
+            secondary_yield: None,
+            seed_type: "Nagoonberry Seeds".to_string(),
+            seed_drop_chance: 0.80,
+            min_respawn_time_secs: 1200, // 20 minutes
+            max_respawn_time_secs: 1800, // 30 minutes
+            spawn_condition: SpawnCondition::Forest, // Wet meadows and forest edges
+            growing_seasons: vec![Season::Spring, Season::Summer],
+        });
+        
+        configs.insert(PlantType::AlpineBistort, PlantConfig {
+            entity_name: "Alpine Bistort".to_string(),
+            density_percent: 0.0004, // Moderate-rare density (~100 plants)
+            min_distance_sq: 35.0 * 35.0,
+            min_tree_distance_sq: 30.0 * 30.0,
+            min_stone_distance_sq: 25.0 * 25.0,
+            noise_threshold: 0.70,
+            primary_yield: ("Bistort Bulbils".to_string(), 2, 5), // Tiny starchy bulbils - unique propagation
+            secondary_yield: None,
+            seed_type: "Bistort Bulbils".to_string(), // Bulbils ARE the seed (viviparous plant)
+            seed_drop_chance: 0.0, // No seed drops - the food IS the seed
+            min_respawn_time_secs: 1300, // ~22 minutes
+            max_respawn_time_secs: 1900, // ~32 minutes
+            spawn_condition: SpawnCondition::Alpine, // Alpine tundra
+            growing_seasons: vec![Season::Spring, Season::Summer],
         });
         
         // === HERBS & MEDICINAL PLANTS ===
@@ -1299,7 +1407,12 @@ fn get_plant_category(plant_type: &PlantType) -> PlantCategory {
     match plant_type {
         // Vegetables
         PlantType::Potato | PlantType::Pumpkin | PlantType::Carrot | PlantType::Beets |
-        PlantType::Horseradish | PlantType::Corn | PlantType::Salsify | PlantType::Cabbage => PlantCategory::Vegetable,
+        PlantType::Horseradish | PlantType::Corn | PlantType::Salsify | PlantType::Cabbage |
+        PlantType::Fennel | PlantType::KamchatkaLily | PlantType::WildCelery | 
+        PlantType::Silverweed | PlantType::AlpineBistort => PlantCategory::Vegetable,
+        
+        // Nagoonberry is a berry
+        PlantType::Nagoonberry => PlantCategory::Berry,
         
         // Berries
         PlantType::Lingonberries | PlantType::Cloudberries | PlantType::Bilberries |
@@ -1540,7 +1653,7 @@ pub fn get_plant_bit_index(plant_type: &PlantType) -> Option<u32> {
         PlantType::MountainMoss => Some(31),
         PlantType::ArcticPoppy => Some(32),
         
-        // ===== VEGETABLES (Bits 33-40) =====
+        // ===== VEGETABLES (Bits 33-40, 49) =====
         PlantType::Potato => Some(33),
         PlantType::Pumpkin => Some(34),
         PlantType::Carrot => Some(35),
@@ -1549,6 +1662,12 @@ pub fn get_plant_bit_index(plant_type: &PlantType) -> Option<u32> {
         PlantType::Corn => Some(38),
         PlantType::Salsify => Some(39),
         PlantType::Cabbage => Some(40),
+        PlantType::Fennel => Some(49), // Added after fiber plants (bits 41-48)
+        PlantType::KamchatkaLily => Some(50),
+        PlantType::WildCelery => Some(51),
+        PlantType::Silverweed => Some(52),
+        PlantType::Nagoonberry => Some(53),
+        PlantType::AlpineBistort => Some(54),
         
         // ===== FIBER PLANTS (Bits 41-48) =====
         PlantType::BorealNettle => Some(41),

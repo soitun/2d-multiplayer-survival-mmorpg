@@ -293,12 +293,14 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       return alkStation.worldPosY - ALK_STATION_VISUAL_FOOT_OFFSET;
     }
     case 'compound_building': {
-      // Compound buildings: worldY is the anchor point (building "feet" - where players walk)
-      // Similar to ALK stations: worldPosY is sprite bottom, visual foot is offset upward
-      // For compound buildings: worldY IS the visual foot (anchor point), sprite bottom is below
-      // Use anchor point directly for Y-sorting (same as ALK station visual foot)
+      // Compound buildings: Use 87.5% height threshold for Y-sorting
+      // Monument images are squares (256x256) but actual visual content is in the bottom portion
+      // Player should be BEHIND when in top 87.5%, IN FRONT only when in bottom 12.5%
+      // Sprite visual bounds: top = worldY - height + anchorYOffset, bottom = worldY + anchorYOffset
+      // 87.5% threshold = worldY - (height * 0.125) + anchorYOffset (only bottom 12.5% = player in front)
       const building = entity as CompoundBuildingEntity;
-      return building.worldY; // Anchor point = visual foot = where players walk
+      const sortThresholdY = building.worldY - (building.height * 0.125) + (building.anchorYOffset || 0);
+      return sortThresholdY;
     }
     case 'foundation_cell': {
       // Foundation cells use cell coordinates - convert to world pixel Y
@@ -1989,25 +1991,29 @@ export function useEntityFiltering(
       }
       
       // ABSOLUTE SECOND CHECK: Player vs Compound Building - tall structure Y-sorting
-      // EXACT SAME PATTERN as ALK station - use worldY directly (the visual foot/anchor point)
-      // Just like ALK station uses worldPosY, compound building uses worldY
-      // Player renders in front when their Y >= building's worldY
+      // Use 87.5% height threshold: player behind in top 87.5%, in front in bottom 12.5%
+      // Monument images are squares (256x256) but actual content is in bottom portion
+      // Sprite bounds: top = worldY - height + anchorYOffset, bottom = worldY + anchorYOffset
+      // 87.5% threshold = worldY - (height * 0.125) + anchorYOffset (only bottom 12.5% = player in front)
       if (a.type === 'player' && b.type === 'compound_building') {
         const player = a.entity as SpacetimeDBPlayer;
         const building = b.entity as CompoundBuildingEntity;
-        // worldY is the visual foot (anchor point) - same as ALK station's worldPosY
-        if (player.positionY >= building.worldY) {
-          return 1; // Player at/past building's visual foot - player in front
+        // Calculate 87.5% Y threshold for sorting (player in front only in bottom 12.5%)
+        const sortThresholdY = building.worldY - (building.height * 0.125) + (building.anchorYOffset || 0);
+        if (player.positionY >= sortThresholdY) {
+          return 1; // Player in bottom 12.5% of monument - player in front
         }
-        return -1; // Player is north of building - player behind (building on top)
+        return -1; // Player in top 87.5% of monument - player behind (building on top)
       }
       if (a.type === 'compound_building' && b.type === 'player') {
         const building = a.entity as CompoundBuildingEntity;
         const player = b.entity as SpacetimeDBPlayer;
-        if (player.positionY >= building.worldY) {
-          return -1; // Player at/past building's visual foot - player in front (inverted)
+        // Calculate 87.5% Y threshold for sorting (player in front only in bottom 12.5%)
+        const sortThresholdY = building.worldY - (building.height * 0.125) + (building.anchorYOffset || 0);
+        if (player.positionY >= sortThresholdY) {
+          return -1; // Player in bottom 12.5% of monument - player in front (inverted)
         }
-        return 1; // Player is north of building - player behind (inverted)
+        return 1; // Player in top 87.5% of monument - player behind (inverted)
       }
       
       // Flying birds MUST render above everything (trees, stones, players, etc.)

@@ -47,6 +47,15 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .respawn_time(300)
             .build(),
 
+        // Flour - Traditional Aleut flour from various starchy plants and seeds
+        // Created by cooking: Beach Lyme Grass Seeds, Kamchatka Lily Bulb, Silverweed Root, Bistort Bulbils, Angelica Seeds
+        ItemBuilder::new("Flour", "Coarse flour ground from traditional Aleut food sources. Can be used to make Aleutian Bread or eaten directly in emergencies.", ItemCategory::Material)
+            .icon("flour.png")
+            .stackable(500)
+            .consumable(3.0, 15.0, -10.0) // Can be eaten but very dry
+            .respawn_time(0) // Only from processing
+            .build(),
+
         // Charcoal - Essential for ammunition and advanced crafting
         basic_material("Charcoal", "Carbon residue from burnt organic matter. Essential crafting material for ammunition and advanced items.", 1000)
             .icon("charcoal.png")

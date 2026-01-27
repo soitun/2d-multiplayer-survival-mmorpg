@@ -379,6 +379,20 @@ export function renderMonument(
     // So we need to adjust entityBaseY to the visual base, or use negative pivotYOffset
     // Using negative pivotYOffset to move shadow pivot DOWN to match sprite visual base
     if (!building.id.startsWith('crashed_research_drone')) {
+        // NOON FIX: At noon, monument shadows appear too far below (detached from building)
+        // because the shadow is very short but still starts from the base pivot.
+        // Add extra upward offset at noon to keep shadow visually attached to building base.
+        // Noon is roughly cycleProgress 0.35-0.55, peak at 0.45
+        let noonExtraOffset = 0;
+        if (cycleProgress >= 0.35 && cycleProgress < 0.55) {
+            // Parabolic curve: 0 at edges (0.35, 0.55), max at center (0.45)
+            const noonT = (cycleProgress - 0.35) / 0.20; // 0 to 1 across noon period
+            const noonFactor = 1.0 - Math.abs(noonT - 0.5) * 2.0; // 0 at edges, 1 at peak
+            // Push shadow UP (more positive offset = higher on screen = behind building)
+            // For tall monuments (256px), push up by ~120px at peak noon
+            noonExtraOffset = noonFactor * building.height * 0.5;
+        }
+        
         drawDynamicGroundShadow({
             ctx,
             entityImage: img,
@@ -390,10 +404,12 @@ export function renderMonument(
             maxShadowAlpha: building.id.startsWith('guardpost') ? 0.4 : 0.5, // Lighter shadows for guardposts (light poles)
             maxStretchFactor: building.id.startsWith('guardpost') ? 1.8 : 2.0, // Smaller stretch for guardposts
             minStretchFactor: 0.2,
+            shadowBlur: 3, // Match other world entities for visual consistency
             // Guardposts are perfect with +10, secondary buildings need more upward offset (+30) to push shadow up
+            // Add noonExtraOffset to push shadow UP behind building at noon
             pivotYOffset: building.id.startsWith('guardpost') 
-                ? -building.anchorYOffset + 10  // Guardposts: perfect offset
-                : -building.anchorYOffset + 50,  // Secondary buildings: push shadow up more
+                ? -building.anchorYOffset + 10 + noonExtraOffset  // Guardposts: perfect offset + noon fix
+                : -building.anchorYOffset + 50 + noonExtraOffset,  // Secondary buildings: push shadow up more + noon fix
         });
     }
     
