@@ -103,6 +103,9 @@ export function preloadMonumentImages(): void {
     
     // Hot Spring monument images (abandoned bath house shack)
     loadImage('hs_shack.png', import('../../assets/doodads/hs_shack.png?url'));
+    
+    // Weather Station monument images (alpine radar dish)
+    loadImage('ws_radar.png', import('../../assets/doodads/ws_radar.png?url'));
 }
 
 /**
@@ -168,6 +171,9 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             
             // Hot Spring monument images (abandoned bath house shack)
             'hs_shack.png': () => import('../../assets/doodads/hs_shack.png?url'),
+            
+            // Weather Station monument images (alpine radar dish)
+            'ws_radar.png': () => import('../../assets/doodads/ws_radar.png?url'),
         };
     
         const loader = imageMap[imagePath];

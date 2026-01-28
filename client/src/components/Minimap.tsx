@@ -90,6 +90,10 @@ const HUNTING_VILLAGE_GLOW_COLOR = '#228B22'; // Forest green glow (forest biome
 const CRASHED_DRONE_COLOR = '#00FFFF'; // Bright cyan for tech debris
 const CRASHED_DRONE_GLOW_COLOR = '#FF4500'; // Orange-red glow (dangerous/explosive)
 
+// Weather Station constants - ALPINE MONITORING SITE
+const WEATHER_STATION_COLOR = '#87CEEB'; // Sky blue for weather equipment
+const WEATHER_STATION_GLOW_COLOR = '#4169E1'; // Royal blue glow (scientific/cold)
+
 // Memory Beacon Event constants - SERVER EVENT MARKERS (airdrop-style)
 const BEACON_EVENT_ICON_SIZE = 24; // Large for high visibility as major event
 const BEACON_EVENT_COLOR = '#FF00FF'; // Bright magenta/purple for beacon events
@@ -1529,6 +1533,63 @@ export function drawMinimapOntoCanvas({
         // Fill with crashed drone color (bright cyan for tech)
         ctx.fillStyle = CRASHED_DRONE_COLOR;
         ctx.fillText('CRASHED DRONE', x, y);
+        
+        ctx.restore();
+      }
+    }
+  }
+
+  // --- Draw Weather Station Parts (ALPINE MONITORING SITE) ---
+  // Show ONE representative "WEATHER STATION" label for the entire structure
+  // Filter weather station parts from unified monument parts
+  // NOTE: MonumentType is a tagged union with a `tag` property (e.g., { tag: 'WeatherStation' })
+  const weatherStationPartsFiltered = monumentParts ? Array.from(monumentParts.values())
+    .filter((part: any) => part.monumentType?.tag === 'WeatherStation') : [];
+  
+  if (weatherStationPartsFiltered.length > 0 && showNames === true) {
+    // Find ONE representative weather station part (prefer center part, otherwise use first part)
+    let representativePart: any | null = null;
+    
+    // First, try to find a center part (radar)
+    weatherStationPartsFiltered.forEach((part: any) => {
+      if (part.isCenter || part.partType === 'radar') {
+        representativePart = part;
+      }
+    });
+    
+    // If no center part found, just use the first part
+    if (!representativePart && weatherStationPartsFiltered.length > 0) {
+      representativePart = weatherStationPartsFiltered[0];
+    }
+    
+    // Draw the label for the representative part
+    if (representativePart) {
+      const screenCoords = worldToMinimap(representativePart.worldX, representativePart.worldY);
+      if (screenCoords) {
+        const x = screenCoords.x;
+        const y = screenCoords.y;
+        
+        ctx.save();
+        
+        // Draw "WEATHER STATION" text with cyberpunk styling - same size as other landmarks
+        ctx.font = 'bold 14px "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Add glow effect for visibility (royal blue scientific glow)
+        ctx.shadowColor = WEATHER_STATION_GLOW_COLOR;
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // Draw text with black outline for contrast
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        ctx.strokeText('WEATHER STATION', x, y);
+        
+        // Fill with weather station color (sky blue for weather equipment)
+        ctx.fillStyle = WEATHER_STATION_COLOR;
+        ctx.fillText('WEATHER STATION', x, y);
         
         ctx.restore();
       }

@@ -38,6 +38,7 @@ export type Crow = { tag: "Crow" };
 export type Vole = { tag: "Vole" };
 export type Wolverine = { tag: "Wolverine" };
 export type Caribou = { tag: "Caribou" };
+export type SalmonShark = { tag: "SalmonShark" };
 export type Shorebound = { tag: "Shorebound" };
 export type Shardkin = { tag: "Shardkin" };
 export type DrownedWatch = { tag: "DrownedWatch" };

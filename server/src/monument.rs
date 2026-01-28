@@ -44,6 +44,10 @@ pub mod clearance {
     /// Crashed research drone - clear a 12-tile radius (600px)
     /// Smaller monument, single piece with surrounding loot
     pub const CRASHED_RESEARCH_DRONE: f32 = 600.0;
+    
+    /// Weather station - clear a 10-tile radius (480px)
+    /// Single large radar dish structure with barrels in northern alpine terrain
+    pub const WEATHER_STATION: f32 = 480.0;
 }
 
 /// Minimum distance between monument spawns (barrels, harvestables, placeables)
@@ -100,6 +104,11 @@ pub fn is_position_near_monument(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -
     
     // Check crashed research drone monuments
     if is_near_crashed_research_drone(ctx, pos_x, pos_y) {
+        return true;
+    }
+    
+    // Check weather station monuments
+    if is_near_weather_station(ctx, pos_x, pos_y) {
         return true;
     }
     
@@ -195,6 +204,26 @@ fn is_near_crashed_research_drone(ctx: &ReducerContext, pos_x: f32, pos_y: f32) 
     
     for part in ctx.db.monument_part().iter() {
         if part.monument_type != MonumentType::CrashedResearchDrone {
+            continue;
+        }
+        let dx = pos_x - part.world_x;
+        let dy = pos_y - part.world_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq < clearance_sq {
+            return true;
+        }
+    }
+    
+    false
+}
+
+/// Checks if position is near any weather station
+fn is_near_weather_station(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    let clearance_sq = clearance::WEATHER_STATION * clearance::WEATHER_STATION;
+    
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::WeatherStation {
             continue;
         }
         let dx = pos_x - part.world_x;
@@ -1343,6 +1372,227 @@ pub fn generate_crashed_research_drone(
     (drone_center, drone_parts)
 }
 
+/// Generate weather station monument in alpine biome (far north)
+/// Returns (center_position, monument_parts) where:
+/// - center_position: Option<(x, y)> in world pixels for the radar dish
+/// - monument_parts: Vec of (x, y, image_path, part_type) for the single radar dish structure
+pub fn generate_weather_station(
+    noise: &Perlin,
+    shore_distance: &[Vec<f64>],
+    river_network: &[Vec<bool>],
+    lake_map: &[Vec<bool>],
+    alpine_areas: &[Vec<bool>],
+    hot_spring_centers: &[(f32, f32, i32)],
+    shipwreck_centers: &[(f32, f32)],
+    fishing_village_center: Option<(f32, f32)>,
+    whale_bone_graveyard_center: Option<(f32, f32)>,
+    hunting_village_center: Option<(f32, f32)>,
+    crashed_research_drone_center: Option<(f32, f32)>,
+    width: usize,
+    height: usize,
+) -> (Option<(f32, f32)>, Vec<(f32, f32, String, String)>) {
+    let mut station_center: Option<(f32, f32)> = None;
+    let mut station_parts: Vec<(f32, f32, String, String)> = Vec::new();
+    
+    log::info!("📡 Generating weather station monument in alpine biome...");
+    
+    // Find suitable alpine tiles - must be in ALPINE biome, away from water and rivers
+    let min_shore_dist = 15.0;  // At least 15 tiles from water (alpine is further inland)
+    let min_distance_from_edge = 35;
+    let min_distance_from_other_monuments = 80.0; // Minimum tiles away from other monuments
+    let min_distance_from_hot_spring = 50.0; // Minimum tiles away from hot springs
+    let min_distance_from_river = 5; // Minimum tiles away from rivers
+    
+    let mut candidate_positions = Vec::new();
+    
+    // Search entire map for alpine tiles
+    for y in min_distance_from_edge..(height - min_distance_from_edge) {
+        for x in min_distance_from_edge..(width - min_distance_from_edge) {
+            let shore_dist = shore_distance[y][x];
+            
+            // Must be inland and in alpine area
+            if shore_dist >= min_shore_dist && alpine_areas[y][x] {
+                // Must not be on river or lake
+                if river_network[y][x] || lake_map[y][x] {
+                    continue;
+                }
+                
+                // Check if too close to a river (check surrounding tiles)
+                let mut too_close_to_river = false;
+                for check_dy in -(min_distance_from_river as i32)..=(min_distance_from_river as i32) {
+                    for check_dx in -(min_distance_from_river as i32)..=(min_distance_from_river as i32) {
+                        let check_x = x as i32 + check_dx;
+                        let check_y = y as i32 + check_dy;
+                        if check_x >= 0 && check_y >= 0 && 
+                           (check_x as usize) < width && (check_y as usize) < height {
+                            if river_network[check_y as usize][check_x as usize] {
+                                too_close_to_river = true;
+                                break;
+                            }
+                        }
+                    }
+                    if too_close_to_river { break; }
+                }
+                
+                if too_close_to_river {
+                    continue;
+                }
+                
+                // Check distance from other monuments and special features
+                let tile_world_x = (x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                let tile_world_y = (y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                
+                let mut too_close = false;
+                
+                // Check distance from shipwreck
+                for &(shipwreck_x, shipwreck_y) in shipwreck_centers {
+                    let dx = tile_world_x - shipwreck_x;
+                    let dy = tile_world_y - shipwreck_y;
+                    let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                    if dist_tiles < min_distance_from_other_monuments {
+                        too_close = true;
+                        break;
+                    }
+                }
+                
+                // Check distance from hot springs
+                if !too_close {
+                    for &(hs_x, hs_y, hs_radius) in hot_spring_centers {
+                        let dx = tile_world_x - hs_x;
+                        let dy = tile_world_y - hs_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        let min_dist = min_distance_from_hot_spring + hs_radius as f32;
+                        if dist_tiles < min_dist {
+                            too_close = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // Check distance from fishing village
+                if !too_close {
+                    if let Some((fv_x, fv_y)) = fishing_village_center {
+                        let dx = tile_world_x - fv_x;
+                        let dy = tile_world_y - fv_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        if dist_tiles < min_distance_from_other_monuments {
+                            too_close = true;
+                        }
+                    }
+                }
+                
+                // Check distance from whale bone graveyard
+                if !too_close {
+                    if let Some((wbg_x, wbg_y)) = whale_bone_graveyard_center {
+                        let dx = tile_world_x - wbg_x;
+                        let dy = tile_world_y - wbg_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        if dist_tiles < min_distance_from_other_monuments {
+                            too_close = true;
+                        }
+                    }
+                }
+                
+                // Check distance from hunting village
+                if !too_close {
+                    if let Some((hv_x, hv_y)) = hunting_village_center {
+                        let dx = tile_world_x - hv_x;
+                        let dy = tile_world_y - hv_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        if dist_tiles < min_distance_from_other_monuments {
+                            too_close = true;
+                        }
+                    }
+                }
+                
+                // Check distance from crashed research drone
+                if !too_close {
+                    if let Some((crd_x, crd_y)) = crashed_research_drone_center {
+                        let dx = tile_world_x - crd_x;
+                        let dy = tile_world_y - crd_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        if dist_tiles < min_distance_from_other_monuments {
+                            too_close = true;
+                        }
+                    }
+                }
+                
+                if too_close {
+                    continue;
+                }
+                
+                candidate_positions.push((x, y, shore_dist));
+            }
+        }
+    }
+    
+    if candidate_positions.is_empty() {
+        log::warn!("📡 No valid alpine positions found for weather station");
+        return (station_center, station_parts);
+    }
+    
+    log::info!("📡 Found {} candidate positions for weather station in alpine biome", 
+               candidate_positions.len());
+    
+    // Select position using noise - prefer positions deeper in alpine
+    let mut best_score = f64::NEG_INFINITY;
+    let mut best_position: Option<(usize, usize)> = None;
+    
+    for &(x, y, shore_dist) in &candidate_positions {
+        // Score: noise value + bonus for being deeper inland
+        let noise_val = noise.get([x as f64 * 0.01, y as f64 * 0.01, 60000.0]); // Unique seed for weather station
+        let inland_bonus = (shore_dist - min_shore_dist).min(25.0) / 25.0 * 0.35;
+        let score = noise_val + inland_bonus;
+        
+        if score > best_score {
+            best_score = score;
+            best_position = Some((x, y));
+        }
+    }
+    
+    if let Some((center_x, center_y)) = best_position {
+        let tile_size_px = crate::TILE_SIZE_PX as f32;
+        let center_world_x = (center_x as f32 + 0.5) * tile_size_px;
+        let center_world_y = (center_y as f32 + 0.5) * tile_size_px;
+        
+        station_center = Some((center_world_x, center_world_y));
+        
+        log::info!("📡✨ PLACED WEATHER STATION at tile ({}, {}) = 📍 World Position: ({:.0}, {:.0}) ✨",
+                   center_x, center_y, center_world_x, center_world_y);
+        
+        // =============================================================================
+        // WEATHER STATION LAYOUT
+        // =============================================================================
+        // Single large radar dish structure - a weather monitoring station
+        // Surrounded by barrels (supply containers) spawned via separate functions
+        //
+        // Layout (in local coords):
+        //                    RADAR (0, 0) <- Center piece
+        // =============================================================================
+        
+        // Single structure: the radar dish
+        let part_type = "radar";
+        let image_name = "ws_radar.png";
+        let offset_x = 0.0;
+        let offset_y = 0.0;
+        
+        let part_world_x = center_world_x + offset_x;
+        let part_world_y = center_world_y + offset_y;
+        
+        // Place the structure
+        station_parts.push((part_world_x, part_world_y, image_name.to_string(), part_type.to_string()));
+        
+        log::info!("📡✨ PLACED {} ({}) at ({:.0}, {:.0}) ✨",
+                   part_type.to_uppercase(), image_name, part_world_x, part_world_y);
+        
+        log::info!("📡 Weather station generation complete: {} structure", station_parts.len());
+    } else {
+        log::warn!("📡 Failed to select weather station position");
+    }
+    
+    (station_center, station_parts)
+}
+
 // =============================================================================
 // MONUMENT DECORATIONS (Flavor Items)
 // =============================================================================
@@ -2199,6 +2449,95 @@ pub fn spawn_crashed_research_drone_barrels(
     let mut occupied = Vec::new();
     spawn_crashed_research_drone_barrels_with_collision(ctx, monument_part_positions, &mut occupied)?;
     Ok(())
+}
+
+/// Spawn barrels around weather station monument with collision avoidance
+/// Spawns 4-6 barrels in a ring around the radar dish
+pub fn spawn_weather_station_barrels(
+    ctx: &ReducerContext,
+    center_x: f32,
+    center_y: f32,
+) -> Result<u32, String> {
+    use crate::barrel::{Barrel, BARREL_INITIAL_HEALTH};
+    use crate::environment::calculate_chunk_index;
+    use crate::barrel::{has_barrel_collision, has_player_barrel_collision};
+    use rand::Rng;
+    
+    const BARREL_RADIUS: f32 = 35.0; // Collision radius for barrels
+    
+    let mut spawned_count = 0u32;
+    let mut occupied_positions: Vec<OccupiedPosition> = Vec::new();
+    
+    // Spawn 4-6 barrels around the weather station
+    let barrel_count = ctx.rng().gen_range(4..=6);
+    
+    for barrel_idx in 0..barrel_count {
+        let mut attempts = 0;
+        const MAX_ATTEMPTS: u32 = 25;
+        
+        while attempts < MAX_ATTEMPTS {
+            attempts += 1;
+            
+            // Generate position in a ring around the radar dish
+            // Space barrels evenly with some randomness
+            let base_angle = (barrel_idx as f32) * (2.0 * std::f32::consts::PI / barrel_count as f32);
+            let angle = base_angle + ctx.rng().gen_range(-0.4..0.4);
+            let distance = ctx.rng().gen_range(100.0..200.0); // Ring distance from center
+            let barrel_x = center_x + angle.cos() * distance;
+            let barrel_y = center_y + angle.sin() * distance;
+            
+            // Validate position: must not be on water
+            let tile_x = (barrel_x / crate::TILE_SIZE_PX as f32).floor() as i32;
+            let tile_y = (barrel_y / crate::TILE_SIZE_PX as f32).floor() as i32;
+            if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
+                if tile_type.is_water() {
+                    continue; // Skip water tiles
+                }
+            }
+            
+            // Check collision with already placed barrels
+            if is_position_occupied(barrel_x, barrel_y, BARREL_RADIUS, &occupied_positions) {
+                continue;
+            }
+            
+            // Check collisions with existing barrels in database
+            if has_barrel_collision(ctx, barrel_x, barrel_y, None) ||
+               has_player_barrel_collision(ctx, barrel_x, barrel_y) {
+                continue;
+            }
+            
+            // Spawn road barrel (variants 0, 1, 2) since this is inland alpine
+            let variant = ctx.rng().gen_range(0..3);
+            let chunk_idx = calculate_chunk_index(barrel_x, barrel_y);
+            
+            let new_barrel = Barrel {
+                id: 0,
+                pos_x: barrel_x,
+                pos_y: barrel_y,
+                chunk_index: chunk_idx,
+                health: BARREL_INITIAL_HEALTH,
+                variant,
+                last_hit_time: None,
+                respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
+                cluster_id: 0, // Individual spawns, not clusters
+            };
+            
+            ctx.db.barrel().insert(new_barrel);
+            spawned_count += 1;
+            
+            // Track this position
+            occupied_positions.push(OccupiedPosition {
+                x: barrel_x,
+                y: barrel_y,
+                radius: BARREL_RADIUS,
+            });
+            
+            break; // Successfully placed, move to next barrel
+        }
+    }
+    
+    log::info!("[WeatherStationBarrels] Spawned {} barrels around weather station monument", spawned_count);
+    Ok(spawned_count)
 }
 
 // Future monument decoration configs can be added here:

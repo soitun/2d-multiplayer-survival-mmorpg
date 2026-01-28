@@ -646,6 +646,8 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
     const HUNTING_VILLAGE_RESTRICTION_RADIUS_SQ: f32 = HUNTING_VILLAGE_RESTRICTION_RADIUS * HUNTING_VILLAGE_RESTRICTION_RADIUS;
     const CRASHED_RESEARCH_DRONE_RESTRICTION_RADIUS: f32 = 600.0; // Smaller monument in tundra
     const CRASHED_RESEARCH_DRONE_RESTRICTION_RADIUS_SQ: f32 = CRASHED_RESEARCH_DRONE_RESTRICTION_RADIUS * CRASHED_RESEARCH_DRONE_RESTRICTION_RADIUS;
+    const WEATHER_STATION_RESTRICTION_RADIUS: f32 = 480.0; // Alpine radar dish monument
+    const WEATHER_STATION_RESTRICTION_RADIUS_SQ: f32 = WEATHER_STATION_RESTRICTION_RADIUS * WEATHER_STATION_RESTRICTION_RADIUS;
     
     for part in ctx.db.monument_part().iter() {
         // Only check against center pieces for simplicity
@@ -687,6 +689,11 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
             MonumentType::HotSpring => {
                 // Hot spring shacks are visual doodads only, no placement restriction
                 // (Hot spring water tiles already have their own restriction via TileType check above)
+            }
+            MonumentType::WeatherStation => {
+                if distance_sq <= WEATHER_STATION_RESTRICTION_RADIUS_SQ {
+                    return Err("Cannot place items within the Weather Station. This monument must remain unobstructed.".to_string());
+                }
             }
         }
     }
