@@ -13,6 +13,7 @@ const ZONE_COLORS: Record<MusicZone, { primary: string; secondary: string; glow:
     fishing_village: { primary: '#4fc3f7', secondary: '#81d4fa', glow: 'rgba(79, 195, 247, 0.8)' },
     hunting_village: { primary: '#8b6f47', secondary: '#a0826d', glow: 'rgba(139, 111, 71, 0.8)' },
     alk_compound: { primary: '#ffc107', secondary: '#ff9800', glow: 'rgba(255, 193, 7, 0.8)' },
+    alk_substation: { primary: '#9c27b0', secondary: '#ba68c8', glow: 'rgba(156, 39, 176, 0.8)' },
 };
 
 interface MusicControlPanelProps {

@@ -1432,6 +1432,7 @@ export const renderYSortedEntities = ({
               cycleProgress,
               animationFrame,
               localPlayerPosition: localPlayerPosition || { x: 0, y: 0 },
+              isLocalPlayerSnorkeling, // Pass snorkeling state for underwater rendering (sharks)
           });
           
           // Render thought bubbles for tamed animals (hearts, crying, etc.)

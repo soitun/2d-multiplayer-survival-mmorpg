@@ -193,6 +193,7 @@ pub enum AnimalSpecies {
     Vole,       // Tiny skittish rodent that burrows and flees
     Wolverine,  // Fearless aggressive predator that attacks on sight
     Caribou,    // Large herbivore - flees by default, attacks only when low health, spawns in herds
+    SalmonShark,   // Aquatic predator: Fast, persistent hunter that only spawns/swims in water
     // Night-only hostile NPCs (spawn at dusk, despawn at dawn)
     Shorebound,    // Stalker: Fast, low health, circles and pressures players
     Shardkin,      // Swarmer: Small, fast, aggressive swarms that attack on contact
@@ -217,6 +218,9 @@ pub enum AnimalState {
     Grounded,      // Birds on the ground - either still or walking in tiny circles
     Scavenging,    // Terns picking up dropped items
     Stealing,      // Crows stealing from player inventory
+    // Aquatic predator states (SalmonShark)
+    Swimming,          // Patrolling in water - actively hunting
+    SwimmingChase,     // Chasing prey in water - very fast, persistent
     // Night hostile NPC states
     Stalking,          // Shorebound: Circling and pressuring player before attacking
     AttackingStructure, // DrownedWatch/Shardkin: Attacking walls or doors
@@ -415,6 +419,7 @@ pub enum AnimalBehaviorEnum {
     Vole(crate::wild_animal_npc::vole::VoleBehavior),
     Wolverine(crate::wild_animal_npc::wolverine::WolverineBehavior),
     Caribou(crate::wild_animal_npc::caribou::CaribouBehavior),
+    SalmonShark(crate::wild_animal_npc::salmon_shark::SalmonSharkBehavior),
     // Night hostile NPCs
     Shorebound(crate::wild_animal_npc::shorebound::ShoreboundBehavior),
     Shardkin(crate::wild_animal_npc::shardkin::ShardkinBehavior),
@@ -434,6 +439,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Vole(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::Wolverine(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::Caribou(behavior) => behavior.get_stats(),
+            AnimalBehaviorEnum::SalmonShark(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_stats(),
@@ -452,6 +458,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Vole(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::Wolverine(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::Caribou(behavior) => behavior.get_movement_pattern(),
+            AnimalBehaviorEnum::SalmonShark(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_movement_pattern(),
@@ -478,6 +485,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Vole(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::Wolverine(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::Caribou(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
+            AnimalBehaviorEnum::SalmonShark(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
@@ -504,6 +512,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Vole(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::Wolverine(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::Caribou(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
+            AnimalBehaviorEnum::SalmonShark(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
@@ -530,6 +539,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Vole(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::Wolverine(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::Caribou(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
+            AnimalBehaviorEnum::SalmonShark(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
@@ -555,6 +565,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Vole(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::Wolverine(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::Caribou(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
+            AnimalBehaviorEnum::SalmonShark(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
@@ -573,6 +584,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Vole(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::Wolverine(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::Caribou(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
+            AnimalBehaviorEnum::SalmonShark(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
@@ -599,6 +611,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Vole(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::Wolverine(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::Caribou(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
+            AnimalBehaviorEnum::SalmonShark(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
@@ -617,6 +630,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Vole(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::Wolverine(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::Caribou(behavior) => behavior.can_be_tamed(),
+            AnimalBehaviorEnum::SalmonShark(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.can_be_tamed(),
@@ -635,6 +649,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Vole(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::Wolverine(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::Caribou(behavior) => behavior.get_taming_foods(),
+            AnimalBehaviorEnum::SalmonShark(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_taming_foods(),
@@ -653,6 +668,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Vole(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::Wolverine(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::Caribou(behavior) => behavior.get_chase_abandonment_multiplier(),
+            AnimalBehaviorEnum::SalmonShark(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_chase_abandonment_multiplier(),
@@ -673,6 +689,7 @@ impl AnimalSpecies {
             AnimalSpecies::Vole => AnimalBehaviorEnum::Vole(crate::wild_animal_npc::vole::VoleBehavior),
             AnimalSpecies::Wolverine => AnimalBehaviorEnum::Wolverine(crate::wild_animal_npc::wolverine::WolverineBehavior),
             AnimalSpecies::Caribou => AnimalBehaviorEnum::Caribou(crate::wild_animal_npc::caribou::CaribouBehavior),
+            AnimalSpecies::SalmonShark => AnimalBehaviorEnum::SalmonShark(crate::wild_animal_npc::salmon_shark::SalmonSharkBehavior),
             AnimalSpecies::Shorebound => AnimalBehaviorEnum::Shorebound(crate::wild_animal_npc::shorebound::ShoreboundBehavior),
             AnimalSpecies::Shardkin => AnimalBehaviorEnum::Shardkin(crate::wild_animal_npc::shardkin::ShardkinBehavior),
             AnimalSpecies::DrownedWatch => AnimalBehaviorEnum::DrownedWatch(crate::wild_animal_npc::drowned_watch::DrownedWatchBehavior),
@@ -1221,6 +1238,7 @@ fn update_animal_ai_state(
                 AnimalSpecies::Vole => 350.0, // Voles flee quickly from buildings
                 AnimalSpecies::Wolverine => 0.0, // Wolverines are fearless - don't flee from foundations
                 AnimalSpecies::Caribou => 400.0, // Caribou flee from foundations
+                AnimalSpecies::SalmonShark => 0.0, // Sharks don't flee from foundations (water-only)
                 // Night hostile NPCs don't flee from foundations
                 AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
             };
@@ -1264,6 +1282,7 @@ fn update_animal_ai_state(
                         AnimalSpecies::Vole => 450.0,         // Voles flee quickly from fire
                         AnimalSpecies::Wolverine => 0.0,      // Wolverines are fearless - don't flee from fire
                         AnimalSpecies::Caribou => 500.0,      // Caribou flee from fire
+                        AnimalSpecies::SalmonShark => 0.0,    // Sharks don't flee from fire (water-only)
                         // Night hostile NPCs don't flee from fire
                         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
                     };
@@ -1315,6 +1334,7 @@ fn update_animal_ai_state(
                     AnimalSpecies::Vole => 450.0, // Voles flee quickly from campfires
                     AnimalSpecies::Wolverine => 0.0, // Wolverines are fearless - don't flee from campfires
                     AnimalSpecies::Caribou => 500.0, // Caribou flee from campfires
+                    AnimalSpecies::SalmonShark => 0.0, // Sharks don't flee from campfires (water-only)
                     // Night hostile NPCs don't flee from campfires
                     AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
                 };
@@ -2273,6 +2293,7 @@ fn apply_knockback_to_player(animal: &WildAnimal, target: &mut Player, current_t
             AnimalSpecies::Vole => 4.0, // Tiny knockback - tiny rodent bite
             AnimalSpecies::Wolverine => 56.0, // Strong knockback - aggressive predator
             AnimalSpecies::Caribou => 48.0, // Strong knockback - large herbivore charge
+            AnimalSpecies::SalmonShark => 40.0, // Moderate knockback - shark bite
             // Hostile NPCs
             AnimalSpecies::Shorebound => 36.0, // Fast stalker - moderate knockback
             AnimalSpecies::Shardkin => 20.0, // Small swarmer - light knockback
@@ -2331,6 +2352,7 @@ fn handle_player_death(ctx: &ReducerContext, target: &mut Player, animal: &WildA
         AnimalSpecies::Vole => "Vole",
         AnimalSpecies::Wolverine => "Wolverine",
         AnimalSpecies::Caribou => "Caribou",
+        AnimalSpecies::SalmonShark => "Salmon Shark",
         // Hostile NPCs
         AnimalSpecies::Shorebound => "The Shorebound",
         AnimalSpecies::Shardkin => "The Shardkin",
@@ -2472,6 +2494,7 @@ pub fn debug_spawn_animal(ctx: &ReducerContext, species_str: String) -> Result<(
         "Vole" => AnimalSpecies::Vole,
         "Wolverine" => AnimalSpecies::Wolverine,
         "Caribou" => AnimalSpecies::Caribou,
+        "SalmonShark" => AnimalSpecies::SalmonShark,
         "Shorebound" => AnimalSpecies::Shorebound,
         "Shardkin" => AnimalSpecies::Shardkin,
         "DrownedWatch" => AnimalSpecies::DrownedWatch,
@@ -3828,6 +3851,9 @@ pub fn handle_fire_detection_and_flee(
         AnimalSpecies::Crow => 450.0,                  // Crows fly away from fire
         AnimalSpecies::Vole => 400.0,                  // Voles flee quickly from fire
         AnimalSpecies::Caribou => 500.0,              // Caribou flee quickly from fire
+        AnimalSpecies::SalmonShark => {
+            return false; // Sharks are water-only - don't flee from fire
+        },
         AnimalSpecies::Wolverine => {
             return false; // Wolverines are fearless - don't flee from fire
         }
@@ -3915,6 +3941,9 @@ pub fn emit_species_sound(
         AnimalSpecies::Caribou => {
             crate::sound_events::emit_caribou_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
         },
+        AnimalSpecies::SalmonShark => {
+            // Sharks are silent hunters - no growl sound
+        },
         // Night hostile NPCs have their own custom sounds
         AnimalSpecies::Shorebound => {
             crate::sound_events::emit_shorebound_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
@@ -3947,6 +3976,7 @@ pub fn emit_death_sound(
         AnimalSpecies::Vole => SoundType::DeathVole,
         AnimalSpecies::Wolverine => SoundType::DeathWolverine,
         AnimalSpecies::Caribou => SoundType::DeathCaribou,
+        AnimalSpecies::SalmonShark => SoundType::DeathCaribou, // Use similar death sound for now
         // Hostile NPCs use their own death sound (already handled separately)
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => {
             return; // These use HostileDeath sound via hostile_spawning.rs
@@ -4117,6 +4147,7 @@ pub fn maybe_change_patrol_direction(
         AnimalSpecies::Vole => 0.25,          // Voles are very erratic and skittish
         AnimalSpecies::Wolverine => 0.10,     // Wolverines are deliberate predators
         AnimalSpecies::Caribou => 0.08,       // Caribou are calm, slow grazers
+        AnimalSpecies::SalmonShark => 0.05,   // Sharks swim in smooth, deliberate patterns
         // Hostile NPCs - different patrol patterns
         AnimalSpecies::Shorebound => 0.15,    // Stalker - moderate direction changes while circling
         AnimalSpecies::Shardkin => 0.20,      // Swarmer - erratic movements
@@ -4197,6 +4228,7 @@ pub fn execute_standard_flee(
             AnimalSpecies::Vole => 500.0 + (rng.gen::<f32>() * 300.0), // 10-16m for voles - fast scurry
             AnimalSpecies::Wolverine => 0.0, // Wolverines NEVER flee
             AnimalSpecies::Caribou => 600.0 + (rng.gen::<f32>() * 400.0), // 12-20m for caribou - fast sprint
+            AnimalSpecies::SalmonShark => 0.0, // Sharks NEVER flee
             // Night hostile NPCs don't flee
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
         };
@@ -4235,6 +4267,7 @@ pub fn execute_standard_flee(
             AnimalSpecies::Vole => 2_500_000,       // 2.5 seconds - quick burrow/hide
             AnimalSpecies::Wolverine => 500_000,    // 0.5 seconds - wolverines don't flee, recover fast
             AnimalSpecies::Caribou => 4_000_000,    // 4 seconds - caribou flee far and fast
+            AnimalSpecies::SalmonShark => 500_000, // 0.5 seconds - sharks don't flee, recover fast
             // Hostile NPCs don't flee - but if they somehow enter flee state, recover quickly
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 500_000, // 0.5 seconds
         };
@@ -4647,6 +4680,12 @@ pub fn handle_attack_aftermath(
             }
         },
         
+        AnimalSpecies::SalmonShark => {
+            // Salmon Sharks are persistent predators - continue aggressive pursuit
+            transition_to_state(animal, AnimalState::SwimmingChase, current_time, Some(target_player.identity), "shark pursuit");
+            log::info!("Salmon Shark {} delivered devastating bite - continuing pursuit", animal.id);
+        },
+        
         // Hostile NPCs - continue attacking aggressively
         AnimalSpecies::Shorebound => {
             // Shorebound stalkers continue pressuring after attack
@@ -4789,6 +4828,19 @@ pub fn handle_standard_damage_response(
                     set_flee_destination_away_from_threat(animal, attacker.position_x, attacker.position_y, 500.0, rng);
                     transition_to_state(animal, AnimalState::Fleeing, current_time, None, "caribou flee damage");
                     log::info!("Caribou {} fleeing after damage", animal.id);
+                }
+            },
+            
+            AnimalSpecies::SalmonShark => {
+                // Salmon Sharks NEVER flee - they become MORE aggressive when damaged
+                // Check if attacker is in water (snorkeling)
+                if attacker.is_snorkeling {
+                    transition_to_state(animal, AnimalState::SwimmingChase, current_time, Some(attacker.identity), "shark enraged");
+                    log::info!("Salmon Shark {} ENRAGED by attacker - aggressive pursuit!", animal.id);
+                } else {
+                    // Attacker on surface - patrol near area
+                    transition_to_state(animal, AnimalState::Swimming, current_time, None, "shark circling");
+                    log::info!("Salmon Shark {} circling area where attacked from surface", animal.id);
                 }
             },
             
@@ -5444,6 +5496,7 @@ pub fn handle_fire_trap_escape(
                 AnimalSpecies::Vole => 500.0,         // Voles flee quickly
                 AnimalSpecies::Wolverine => 0.0,      // Wolverines don't flee from fire
                 AnimalSpecies::Caribou => 550.0,      // Caribou flee quickly from fire
+                AnimalSpecies::SalmonShark => 0.0,    // Sharks don't flee from fire traps (water-only)
                 // Night hostile NPCs don't flee from fire traps
                 AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
             };

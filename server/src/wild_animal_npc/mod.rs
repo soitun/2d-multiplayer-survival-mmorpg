@@ -12,6 +12,7 @@ pub mod crow;
 pub mod vole;
 pub mod wolverine;
 pub mod caribou;
+pub mod salmon_shark;
 pub mod respawn;
 pub mod animal_corpse;
 

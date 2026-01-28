@@ -865,6 +865,7 @@ pub fn emit_animal_walking_sound(
         AnimalSpecies::Vole => 1.5,          // Very high pitch - tiny scurrying
         AnimalSpecies::Wolverine => 0.85,    // Medium-low pitch - aggressive predator
         AnimalSpecies::Caribou => 0.75,      // Low pitch - large heavy herbivore
+        AnimalSpecies::SalmonShark => 0.8,   // Low pitch - large aquatic predator (underwater movement sounds)
         // Night hostile NPCs (use wolf sounds as placeholder)
         AnimalSpecies::Shorebound => 0.95,   // Fast stalker - slightly deeper
         AnimalSpecies::Shardkin => 1.15,     // Small swarmer - higher pitch

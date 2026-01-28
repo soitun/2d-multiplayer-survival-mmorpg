@@ -17,6 +17,7 @@ import tundraWolfWalkingAnimatedSheet from '../../assets/tundra_wolf_walking_rel
 import walrusWalkingAnimatedSheet from '../../assets/walrus_walking_release.png';
 import ternWalkingAnimatedSheet from '../../assets/tern_walking_release.png';
 import caribouWalkingAnimatedSheet from '../../assets/caribou_walking_release.png';
+import salmonSharkWalkingAnimatedSheet from '../../assets/salmon_shark_walking_release.png';
 
 // Sprite sheet configuration for 3x3 sheets (legacy pattern)
 const SPRITE_SHEET_CONFIG_3X3 = {
@@ -67,6 +68,7 @@ const speciesSpriteSheets: Record<string, string> = {
     'Vole': voleWalkingSheet, // 3x3 pattern
     'Wolverine': wolverineWalkingSheet, // 3x3 pattern
     'Caribou': caribouWalkingAnimatedSheet, // 4x4 release pattern
+    'SalmonShark': salmonSharkWalkingAnimatedSheet, // 4x4 release pattern (256x256 frames)
 };
 
 // Track which species use 4x4 release pattern
@@ -76,12 +78,17 @@ const usesReleasePattern: Record<string, boolean> = {
     'ArcticWalrus': true,
     'Tern': true,
     'Caribou': true,
+    'SalmonShark': true, // 4x4 release pattern (256x256 frames, 1024x1024 sheet)
     'CableViper': false,
     'BeachCrab': false,
     'Crow': false,
     'Vole': false,
     'Wolverine': false,
 };
+
+// Special large frame config for SalmonShark (256x256 frames instead of 80x80)
+const FRAME_WIDTH_SHARK = 256;
+const FRAME_HEIGHT_SHARK = 256;
 
 // Get corpse render size based on species (match live animal sizes)
 function getCorpseRenderSize(species: any): { width: number; height: number } {
@@ -106,6 +113,8 @@ function getCorpseRenderSize(species: any): { width: number; height: number } {
             return { width: 112, height: 112 }; // Stocky medium predator
         case 'Caribou':
             return { width: 128, height: 128 }; // Large herd herbivore
+        case 'SalmonShark':
+            return { width: 160, height: 160 }; // Large aquatic predator
         default:
             return { width: 96, height: 96 };
     }
@@ -124,6 +133,7 @@ export const preloadAnimalCorpseImages = () => {
     });
     // Also preload release pattern sheets explicitly
     imageManager.preloadImage(caribouWalkingAnimatedSheet);
+    imageManager.preloadImage(salmonSharkWalkingAnimatedSheet);
 };
 
 /**
@@ -193,10 +203,18 @@ export const renderAnimalCorpse = (
   if (isReleasePattern) {
     // 4x4 release pattern: use frame 0, direction 0 (down-facing)
     // Then flip upside down for corpse effect
-    sx = CORPSE_FRAME_4X4 * FRAME_WIDTH_4X4;
-    sy = CORPSE_DIRECTION_4X4 * FRAME_HEIGHT_4X4;
-    frameWidth = FRAME_WIDTH_4X4;
-    frameHeight = FRAME_HEIGHT_4X4;
+    // SalmonShark has larger frames (256x256) compared to other animals (80x80)
+    if (corpse.animalSpecies.tag === 'SalmonShark') {
+      sx = CORPSE_FRAME_4X4 * FRAME_WIDTH_SHARK;
+      sy = CORPSE_DIRECTION_4X4 * FRAME_HEIGHT_SHARK;
+      frameWidth = FRAME_WIDTH_SHARK;
+      frameHeight = FRAME_HEIGHT_SHARK;
+    } else {
+      sx = CORPSE_FRAME_4X4 * FRAME_WIDTH_4X4;
+      sy = CORPSE_DIRECTION_4X4 * FRAME_HEIGHT_4X4;
+      frameWidth = FRAME_WIDTH_4X4;
+      frameHeight = FRAME_HEIGHT_4X4;
+    }
   } else {
     // 3x3 pattern: use right-facing sprite (col 0, row 1)
     sx = RIGHT_FACING_COL_3X3 * FRAME_WIDTH_3X3;

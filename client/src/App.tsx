@@ -667,6 +667,7 @@ function AppContent() {
         // Pass player position and monument parts for zone-based music
         playerPosition: playerMusicPosition,
         monumentParts: monumentParts, // Music system will filter by monument type internally
+        alkStations: alkStations, // ALK stations for zone detection
     });
     
     // Update music volume when state changes

@@ -4498,11 +4498,13 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::CableViper => Some("Viper Scale"),
             crate::wild_animal_npc::AnimalSpecies::ArcticWalrus => None, // Walrus doesn't drop cloth-type resources
             crate::wild_animal_npc::AnimalSpecies::BeachCrab => None, // Crabs don't drop fur/cloth - they have shells
-            crate::wild_animal_npc::AnimalSpecies::Tern => Some("Feathers"), // Terns drop feathers
-            crate::wild_animal_npc::AnimalSpecies::Crow => Some("Feathers"), // Crows drop feathers
+            crate::wild_animal_npc::AnimalSpecies::Tern => Some("Tern Feathers"), // Terns drop feathers
+            crate::wild_animal_npc::AnimalSpecies::Crow => Some("Crow Feathers"), // Crows drop feathers
             crate::wild_animal_npc::AnimalSpecies::Vole => None, // Voles are too small for usable fur
             crate::wild_animal_npc::AnimalSpecies::Wolverine => None, // Wolverines drop Animal Leather instead
-            crate::wild_animal_npc::AnimalSpecies::Caribou => Some("Caribou Hide"), // Caribou drop warm hides
+            crate::wild_animal_npc::AnimalSpecies::Caribou => None, // Caribou drop warm hides
+            // SalmonShark - no loot (no underwater harvesting tools)
+            crate::wild_animal_npc::AnimalSpecies::SalmonShark => None,
             // Night hostile NPCs don't drop items - they grant memory shards instead
             crate::wild_animal_npc::AnimalSpecies::Shorebound | 
             crate::wild_animal_npc::AnimalSpecies::Shardkin | 
@@ -4561,6 +4563,8 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::Vole => Some("Raw Vole Meat"),
             crate::wild_animal_npc::AnimalSpecies::Wolverine => Some("Raw Wolverine Meat"),
             crate::wild_animal_npc::AnimalSpecies::Caribou => Some("Raw Caribou Meat"),
+            // SalmonShark - no loot (no underwater harvesting tools)
+            crate::wild_animal_npc::AnimalSpecies::SalmonShark => None,
             // Night hostile NPCs don't drop items
             crate::wild_animal_npc::AnimalSpecies::Shorebound | 
             crate::wild_animal_npc::AnimalSpecies::Shardkin | 
@@ -4595,6 +4599,8 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::Vole => Some("Vole Skull"), // Tiny novelty trophy skull
             crate::wild_animal_npc::AnimalSpecies::Wolverine => Some("Wolverine Skull"), // Fierce predator skull
             crate::wild_animal_npc::AnimalSpecies::Caribou => Some("Caribou Skull"), // Large herbivore skull
+            // SalmonShark - no loot (no underwater harvesting tools)
+            crate::wild_animal_npc::AnimalSpecies::SalmonShark => None,
             // Night hostile NPCs don't drop items
             crate::wild_animal_npc::AnimalSpecies::Shorebound | 
             crate::wild_animal_npc::AnimalSpecies::Shardkin | 

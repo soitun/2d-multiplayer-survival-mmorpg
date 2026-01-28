@@ -110,10 +110,11 @@ pub fn spawn_living_corals_in_chunk(
         // Convert to tile coordinates to check tile type
         let (tile_x, tile_y) = world_pos_to_tile_coords(pos_x, pos_y);
         
-        // Check if this is a water tile (coral grows in water near beaches)
+        // Check if this is sea water (coral grows in sea water, not hot springs)
         if let Some(tile_type) = get_tile_type_at_position(ctx, tile_x, tile_y) {
-            if !tile_type.is_water() {
-                continue; // Skip non-water tiles
+            // Only spawn in Sea water, exclude HotSpringWater
+            if !tile_type.is_sea_water() {
+                continue; // Skip non-sea-water tiles (including hot springs)
             }
         } else {
             continue;

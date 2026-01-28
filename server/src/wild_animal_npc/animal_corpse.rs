@@ -138,6 +138,8 @@ pub fn get_animal_loot_chances(animal_species: AnimalSpecies) -> (f64, f64, f64,
         AnimalSpecies::Wolverine => (0.80, 0.0, 0.70, 0.90), // High fat (winter stores), no special cloth (drops generic leather instead), good bone, excellent meat
         // Caribou - large herbivore, excellent drops (tough to hunt but rewarding)
         AnimalSpecies::Caribou => (0.75, 0.85, 0.70, 0.95), // High fat, excellent hide, good bone, nearly guaranteed meat - large animal
+        // SalmonShark - no loot (no underwater harvesting tools, can't use knives underwater)
+        AnimalSpecies::SalmonShark => (0.0, 0.0, 0.0, 0.0),
         // Hostile NPCs don't drop regular loot - they despawn and grant memory shards
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => (0.0, 0.0, 0.0, 0.0),
     }
@@ -156,6 +158,8 @@ fn get_meat_type(animal_species: AnimalSpecies) -> &'static str {
         AnimalSpecies::Vole => "Raw Vole Meat", // Tiny, lean rodent meat
         AnimalSpecies::Wolverine => "Raw Wolverine Meat", // Dense, gamey predator meat
         AnimalSpecies::Caribou => "Raw Caribou Meat", // Lean, tender venison-like meat
+        // SalmonShark - no meat drops (no underwater harvesting)
+        AnimalSpecies::SalmonShark => "Raw Shark Meat", // Never actually dropped - no underwater harvesting
         // Hostile NPCs don't drop meat - they dissolve/despawn
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => "Rotten Meat",
     }
@@ -284,6 +288,8 @@ pub fn get_harvest_loot(
             AnimalSpecies::Vole => None, // Voles are too small for usable fur
             AnimalSpecies::Wolverine => None, // Wolverines don't drop special fur (use generic Animal Leather instead)
             AnimalSpecies::Caribou => Some("Caribou Hide"), // Large herbivore - valuable hide
+            // SalmonShark - no cloth drops (no underwater harvesting)
+            AnimalSpecies::SalmonShark => None,
             // Hostile NPCs don't drop cloth resources
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => None,
         };
@@ -321,6 +327,8 @@ pub fn get_harvest_loot(
             AnimalSpecies::Vole => 0.0, // Voles are too small for trophies
             AnimalSpecies::Wolverine => 0.0, // Wolverines don't have special fur armor set, so no rare trophy
             AnimalSpecies::Caribou => if tool_name == "AK74 Bayonet" { 0.04 } else { 0.025 }, // 4%/2.5% chance for caribou antlers
+            // SalmonShark - no rare trophy drops (no underwater harvesting)
+            AnimalSpecies::SalmonShark => 0.0,
             // Hostile NPCs don't drop rare trophies
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
         };
@@ -337,6 +345,8 @@ pub fn get_harvest_loot(
                 AnimalSpecies::Vole => unreachable!(), // Already checked above
                 AnimalSpecies::Wolverine => unreachable!(), // Already checked above
                 AnimalSpecies::Caribou => "Caribou Antlers", // Rare placeable trophy
+                // SalmonShark - never reaches here (chance is 0)
+                AnimalSpecies::SalmonShark => unreachable!(),
                 // Hostile NPCs never reach here (chance is 0)
                 AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => unreachable!(),
             };

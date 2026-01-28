@@ -586,7 +586,8 @@ pub fn is_position_on_ocean_water(ctx: &ReducerContext, pos_x: f32, pos_y: f32) 
     
     // Use the multi-column index to efficiently find the tile at (world_x, world_y)
     for tile in world_tiles.idx_world_position().filter((tile_x, tile_y)) {
-        if tile.tile_type.is_water() { // Includes both Sea and HotSpringWater
+        // Must be deep sea water (NOT hot springs, NOT beach, NOT inland water)
+        if tile.tile_type == crate::TileType::Sea {
             // Check if it's ocean water (not inland water like rivers/lakes)
             if !is_tile_inland_water(ctx, tile_x, tile_y) {
                 // Also check that it's not too close to beach tiles
@@ -1168,6 +1169,17 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
             }
             
             false // Not suitable terrain
+        }
+        
+        AnimalSpecies::SalmonShark => {
+            // 🦈 SALMON SHARK HABITAT: Deep water only (Sea tiles)
+            // Salmon Sharks are aquatic apex predators that live exclusively in open water
+            // They never venture onto land - water-only entity
+            if tile_type == TileType::Sea {
+                return true; // Perfect habitat - open water
+            }
+            
+            false // Sharks only spawn in Sea tiles
         }
         
         // Night hostile NPCs - they use a different spawn system (player-relative)
@@ -2398,6 +2410,51 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     }
     log::info!("🔥 Spawned {} campfires at hot springs", hot_spring_campfire_count);
     
+    // Spawn abandoned bath house shack at each hot spring (visual doodad via MonumentPart)
+    // Position: offset from center to be on the beach, opposite side from campfire
+    let mut hot_spring_shack_count = 0u32;
+    let mut hot_spring_crate_count = 0u32;
+    for (center_x, center_y) in &hot_spring_centers {
+        // Shack position: southwest of center (opposite from campfire which is east)
+        // Hot springs have ~7-9 tile radius (336-432px), offset further for beach placement
+        let shack_offset_x = -380.0_f32;
+        let shack_offset_y = 250.0_f32;
+        let shack_x = center_x + shack_offset_x;
+        let shack_y = center_y + shack_offset_y;
+        
+        // Insert the shack as a MonumentPart for client-side rendering
+        ctx.db.monument_part().insert(crate::MonumentPart {
+            id: 0, // auto_inc
+            monument_type: crate::MonumentType::HotSpring,
+            world_x: shack_x,
+            world_y: shack_y,
+            image_path: "hs_shack.png".to_string(),
+            part_type: "shack".to_string(),
+            is_center: false, // Not the center of the hot spring
+            collision_radius: 0.0, // No collision for walkability
+        });
+        hot_spring_shack_count += 1;
+        
+        // Spawn loot crates near the shack (military crates for exploration rewards)
+        // Place 2-3 crates around the shack entrance
+        let crate_positions = [
+            (shack_x + 80.0, shack_y + 30.0),   // Right side of shack
+            (shack_x - 60.0, shack_y + 40.0),   // Left side of shack
+            (shack_x + 20.0, shack_y + 60.0),   // Front of shack
+        ];
+        
+        for (crate_x, crate_y) in crate_positions {
+            // Use military_ration module to spawn military crates (loot containers)
+            if let Err(e) = crate::military_ration::spawn_military_ration_at_position(ctx, crate_x, crate_y) {
+                log::warn!("Failed to spawn hot spring loot crate at ({:.0}, {:.0}): {}", crate_x, crate_y, e);
+            } else {
+                hot_spring_crate_count += 1;
+            }
+        }
+    }
+    log::info!("🏚️ Spawned {} abandoned shacks at hot springs", hot_spring_shack_count);
+    log::info!("📦 Spawned {} loot crates near hot spring shacks", hot_spring_crate_count);
+    
     // Set counters to 0 since hot springs themselves are tile-based (no entity count)
     let spawned_hot_spring_count = 0;
 
@@ -3298,6 +3355,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         (AnimalSpecies::Vole, 16),           // 16% - Common prey animal (tundra/grassland/forest)
         (AnimalSpecies::Wolverine, 6),       // 6% - Uncommon aggressive predator (tundra/alpine)
         (AnimalSpecies::Caribou, 10),        // 10% - Herd herbivore (tundra/alpine/grassland)
+        (AnimalSpecies::SalmonShark, 4),     // 4% - RARE aquatic apex predator (deep water only)
     ];
     let total_weight: u32 = species_weights.iter().map(|(_, weight)| weight).sum();
     

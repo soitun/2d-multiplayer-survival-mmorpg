@@ -51,47 +51,96 @@ pub struct MilitaryRationLootEntry {
 // --- Food Loot Table ---
 
 /// Returns the loot table for military rations
-/// Common foods have high spawn chance, uncommon have medium chance
+/// Focuses on raw tubers, preserved foods, and military rations that would realistically
+/// be stored in military ration containers (no cooked food)
 fn get_military_ration_loot_table() -> Vec<MilitaryRationLootEntry> {
     vec![
-        // Common foods (high chance)
+        // Raw tubers (most common - realistic for stored rations)
         MilitaryRationLootEntry {
-            item_def_name: "Cooked Potato".to_string(),
+            item_def_name: "Potato".to_string(),
             min_quantity: 1,
-            max_quantity: 2,
-            spawn_chance: 0.35, // 35% chance
+            max_quantity: 3,
+            spawn_chance: 0.45, // 45% chance - most common
         },
         MilitaryRationLootEntry {
-            item_def_name: "Cooked Carrot".to_string(),
-            min_quantity: 1,
-            max_quantity: 2,
-            spawn_chance: 0.30, // 30% chance
-        },
-        MilitaryRationLootEntry {
-            item_def_name: "Cooked Corn".to_string(),
+            item_def_name: "Beet".to_string(),
             min_quantity: 1,
             max_quantity: 2,
             spawn_chance: 0.30, // 30% chance
         },
-        // Military preserved foods (good chance - thematic for rations)
+        MilitaryRationLootEntry {
+            item_def_name: "Carrot".to_string(),
+            min_quantity: 1,
+            max_quantity: 2,
+            spawn_chance: 0.25, // 25% chance
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Raw Corn".to_string(),
+            min_quantity: 1,
+            max_quantity: 2,
+            spawn_chance: 0.20, // 20% chance - dried/preserved corn
+        },
+        // Military preserved foods (thematic for rations)
         MilitaryRationLootEntry {
             item_def_name: "Old Hardtack Biscuits".to_string(),
             min_quantity: 1,
             max_quantity: 2,
-            spawn_chance: 0.40, // 40% chance - very common in military rations
+            spawn_chance: 0.35, // 35% chance - very common in military rations
         },
-        // Uncommon foods (medium chance)
         MilitaryRationLootEntry {
-            item_def_name: "Cooked Pumpkin".to_string(),
+            item_def_name: "Expired Soviet Chocolate".to_string(),
+            min_quantity: 1,
+            max_quantity: 1,
+            spawn_chance: 0.25, // 25% chance - common morale boost item
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Aleutian Bread".to_string(),
+            min_quantity: 1,
+            max_quantity: 2,
+            spawn_chance: 0.20, // 20% chance - stale bread ration
+        },
+        // Canned/preserved foods (realistic for barrels and storage)
+        MilitaryRationLootEntry {
+            item_def_name: "Tin of Sprats in Oil".to_string(),
             min_quantity: 1,
             max_quantity: 1,
             spawn_chance: 0.15, // 15% chance
         },
         MilitaryRationLootEntry {
-            item_def_name: "Cooked Beet".to_string(),
+            item_def_name: "Mystery Can (Label Missing)".to_string(),
             min_quantity: 1,
             max_quantity: 1,
             spawn_chance: 0.12, // 12% chance
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Fermented Cabbage Jar".to_string(),
+            min_quantity: 1,
+            max_quantity: 1,
+            spawn_chance: 0.10, // 10% chance
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Dried Seaweed".to_string(),
+            min_quantity: 1,
+            max_quantity: 3,
+            spawn_chance: 0.18, // 18% chance - explicitly dried/preserved snack
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Tallow".to_string(),
+            min_quantity: 1,
+            max_quantity: 2,
+            spawn_chance: 0.08, // 8% chance - emergency ration food (rendered fat)
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Cabbage".to_string(),
+            min_quantity: 1,
+            max_quantity: 1,
+            spawn_chance: 0.15, // 15% chance - whole cabbages store for months
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Sunflower".to_string(),
+            min_quantity: 1,
+            max_quantity: 2,
+            spawn_chance: 0.12, // 12% chance - edible seeds, common Soviet ration item
         },
     ]
 }
@@ -281,7 +330,7 @@ pub fn spawn_military_ration_with_loot(
     // Ensure we spawned at least 1 item (safety check)
     if items_spawned == 0 {
         // Force spawn at least one item
-        let loot_entry = &loot_table[0]; // Use first entry (Cooked Potato)
+        let loot_entry = &loot_table[0]; // Use first entry (Potato - raw tuber)
         let item_def = item_defs.iter()
             .find(|def| def.name == loot_entry.item_def_name)
             .ok_or_else(|| format!("Item definition not found: {}", loot_entry.item_def_name))?;
@@ -341,6 +390,17 @@ pub fn spawn_military_ration_with_loot(
     );
     
     Ok(inserted_ration.id)
+}
+
+/// Simple wrapper to spawn a military ration at a position with automatic chunk calculation
+/// Used for spawning loot crates at hot springs and other monuments
+pub fn spawn_military_ration_at_position(
+    ctx: &ReducerContext,
+    pos_x: f32,
+    pos_y: f32,
+) -> Result<u32, String> {
+    let chunk_index = calculate_chunk_index(pos_x, pos_y);
+    spawn_military_ration_with_loot(ctx, pos_x, pos_y, chunk_index)
 }
 
 // --- Auto-Deletion Function ---

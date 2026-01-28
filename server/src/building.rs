@@ -684,6 +684,10 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
                     return Err("Cannot place items within the Crashed Research Drone site. This monument must remain unobstructed.".to_string());
                 }
             }
+            MonumentType::HotSpring => {
+                // Hot spring shacks are visual doodads only, no placement restriction
+                // (Hot spring water tiles already have their own restriction via TileType check above)
+            }
         }
     }
     

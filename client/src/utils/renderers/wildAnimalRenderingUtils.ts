@@ -23,6 +23,7 @@ import voleWalkingSheet from '../../assets/vole_walking.png';
 import wolverineWalkingSheet from '../../assets/wolverine_walking.png';
 import wolverineWalkingAnimatedSheet from '../../assets/wolverine_walking_release.png'; // NEW: 4x4 animated spritesheet
 import caribouWalkingAnimatedSheet from '../../assets/caribou_walking_release.png'; // NEW: 4x4 animated spritesheet
+import salmonSharkWalkingAnimatedSheet from '../../assets/salmon_shark_walking_release.png'; // NEW: 4x4 animated spritesheet (aquatic predator)
 // Flying sprite sheets for birds
 import ternFlyingSheet from '../../assets/tern_flying.png';
 import ternFlyingAnimatedSheet from '../../assets/tern_flying_release.png'; // NEW: 4x4 animated flying spritesheet
@@ -149,6 +150,19 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         rows: 4,           // 4 directions
     },
     
+    // SALMONSHARK - Aquatic apex predator (4x4 layout: 4 frames × 4 directions)
+    // Artist spec: 256x256 per frame → 1024x1024 total sheet
+    // Renders at: 160x160 - large aquatic predator
+    // Always rendered "underwater" with blur effect when viewed from surface
+    'SalmonShark': {
+        sheetWidth: 1024,  // 256px × 4 frames
+        sheetHeight: 1024, // 256px × 4 rows
+        frameWidth: 256,
+        frameHeight: 256,
+        cols: 4,           // 4 animation frames
+        rows: 4,           // 4 directions
+    },
+    
     // WOLVERINE - Medium-sized but stocky and muscular predator (4x4 layout: 4 frames × 4 directions)
     // Artist spec: Check actual frame size - if clipped, may need adjustment
     // If image is 320x320, frames should be 80x80, but sprites may overflow cells
@@ -247,6 +261,7 @@ const speciesSpriteSheets: Record<string, string> = {
     'Vole': voleWalkingSheet,
     'Wolverine': wolverineWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'Caribou': caribouWalkingAnimatedSheet, // Use animated 4x4 spritesheet
+    'SalmonShark': salmonSharkWalkingAnimatedSheet, // Use animated 4x4 spritesheet (aquatic)
     // Night hostile NPCs have custom sprites
     'Shorebound': shoreboundWalkingSheet,
     'Shardkin': shardkinWalkingAnimatedSheet, // NEW: Use animated 6x4 spritesheet
@@ -443,6 +458,7 @@ interface WildAnimalRenderProps {
     cycleProgress: number;
     animationFrame?: number;
     localPlayerPosition?: { x: number; y: number } | null;
+    isLocalPlayerSnorkeling?: boolean; // For underwater rendering (sharks always underwater)
 }
 
 // Get the sprite sheet for a species (considers flying state for birds)
@@ -571,6 +587,9 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
         case 'Caribou':
             // Caribou are large herd herbivores with antlers
             return { width: 128, height: 128, shadowRadius: 42 };
+        case 'SalmonShark':
+            // Salmon Sharks are large aquatic predators - always underwater
+            return { width: 160, height: 160, shadowRadius: 0 }; // No ground shadow (underwater)
         // Night hostile NPCs (2x size for visibility and impact)
         // ═══════════════════════════════════════════════════════════════════════
         // HOSTILE NPCs - Sizes designed for clean 2x pixel scaling
@@ -599,7 +618,8 @@ export function renderWildAnimal({
     nowMs,
     cycleProgress,
     animationFrame = 0,
-    localPlayerPosition
+    localPlayerPosition,
+    isLocalPlayerSnorkeling = false
 }: WildAnimalRenderProps) {
     // Check for burrow effect BEFORE skipping burrowed animals
     // This allows us to detect when an animal JUST burrowed and create the particle effect
@@ -832,6 +852,7 @@ export function renderWildAnimal({
             case 'Tern': return '#E0E0E0'; // Light gray/white
             case 'Crow': return '#1A1A1A'; // Black
             case 'Caribou': return '#8B7355'; // Brown/tan (caribou fur color)
+            case 'SalmonShark': return '#708090'; // Slate gray (shark skin color)
             // Night hostile NPCs
             case 'Shorebound': return '#2C5F2D'; // Dark forest green
             case 'Shardkin': return '#4A0E4E'; // Dark purple
@@ -987,6 +1008,24 @@ export function renderWildAnimal({
         ctx.restore();
     }
 
+    // 🦈 SALMON SHARK UNDERWATER RENDERING
+    // Sharks are always underwater - apply visual effects based on viewer perspective
+    const isShark = animal.species.tag === 'SalmonShark';
+    const viewingSharkFromAbove = isShark && !isLocalPlayerSnorkeling;
+    const viewingSharkFromUnderwater = isShark && isLocalPlayerSnorkeling;
+    
+    // Save filter state if we need to apply underwater blur
+    const savedFilter = ctx.filter;
+    if (viewingSharkFromAbove) {
+        // Viewing shark from above water - apply underwater blur effect (like coral)
+        ctx.filter = 'blur(2px)';
+        ctx.globalAlpha = 0.7; // Slightly transparent when viewed through water
+    } else if (viewingSharkFromUnderwater) {
+        // Viewing shark from underwater - apply teal underwater tint
+        ctx.globalAlpha = 1.0;
+        // Teal tint will be applied via composite operations after drawing
+    }
+
     if (useImageFallback) {
         // Draw fallback colored circle with shake applied
         const centerX = renderPosX + shakeX; // Use interpolated position
@@ -1110,6 +1149,21 @@ export function renderWildAnimal({
             }
         }
     }
+    
+    // 🦈 Apply underwater teal tint overlay for sharks when viewer is underwater
+    if (viewingSharkFromUnderwater && !useImageFallback) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.fillStyle = 'rgba(0, 180, 180, 0.15)'; // Subtle teal underwater tint
+        ctx.fillRect(renderX, renderY, renderWidth, renderHeight);
+        ctx.restore();
+    }
+    
+    // Restore filter if we applied underwater blur
+    if (viewingSharkFromAbove) {
+        ctx.filter = savedFilter;
+        ctx.globalAlpha = 1.0;
+    }
 
     ctx.restore();
 }
@@ -1133,6 +1187,7 @@ export function preloadWildAnimalImages(): void {
         wolverineWalkingSheet,
         wolverineWalkingAnimatedSheet, // NEW: Animated 4x4 wolverine spritesheet
         caribouWalkingAnimatedSheet, // Animated caribou spritesheet
+        salmonSharkWalkingAnimatedSheet, // Animated salmon shark spritesheet (aquatic)
         // Night hostile NPCs
         shoreboundWalkingSheet,
         shardkinWalkingAnimatedSheet, // Use animated spritesheet for Shardkin

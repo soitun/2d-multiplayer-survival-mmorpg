@@ -16,7 +16,7 @@ interface MusicTrack {
 }
 
 // Music zone types - extensible for future monuments
-export type MusicZone = 'normal' | 'fishing_village' | 'hunting_village' | 'alk_compound';
+export type MusicZone = 'normal' | 'fishing_village' | 'hunting_village' | 'alk_compound' | 'alk_substation';
 
 // Zone metadata for UI display
 export const MUSIC_ZONE_INFO: Record<MusicZone, { name: string; icon: string }> = {
@@ -24,6 +24,7 @@ export const MUSIC_ZONE_INFO: Record<MusicZone, { name: string; icon: string }> 
     fishing_village: { name: 'Fishing Village', icon: '🎣' },
     hunting_village: { name: 'Hunting Village', icon: '🏕️' },
     alk_compound: { name: 'ALK Compound', icon: '🏭' },
+    alk_substation: { name: 'ALK Substation', icon: '⚡' },
 };
 
 // Zone detection radius in pixels - should cover the whole fishing village area
@@ -35,6 +36,11 @@ const FISHING_VILLAGE_ZONE_RADIUS = 1400;
 // Server's HUNTING_VILLAGE_SAFE_ZONE_RADIUS is 600px, but music zone should be larger
 // to ensure the ambient music plays throughout the entire village experience
 const HUNTING_VILLAGE_ZONE_RADIUS = 1400;
+
+// ALK zone radius - covers the interaction area plus some buffer
+// ALK stations have interaction_radius of 250px (compound) or 200px (substations)
+// Music zone should be larger to ensure ambient music plays throughout the area
+const ALK_ZONE_RADIUS = 400;
 
 // Normal world music tracks (in /public/music/)
 const NORMAL_TRACKS: MusicTrack[] = [
@@ -68,16 +74,25 @@ const HUNTING_VILLAGE_TRACKS: MusicTrack[] = [
     { filename: 'The_Long_Watch.mp3', displayName: 'The Long Watch', path: 'hv/The_Long_Watch.mp3' },
 ];
 
+// ALK music tracks (in /public/music/alk/) - shared by compound and substations
+const ALK_TRACKS: MusicTrack[] = [
+    { filename: 'Throughput_Without_Witness.mp3', displayName: 'Throughput Without Witness', path: 'alk/Throughput_Without_Witness.mp3' },
+    { filename: 'Autonomous_Allocation.mp3', displayName: 'Autonomous Allocation', path: 'alk/Autonomous_Allocation.mp3' },
+    { filename: 'Legacy_Code_In_Permafrost.mp3', displayName: 'Legacy Code In Permafrost', path: 'alk/Legacy_Code_In_Permafrost.mp3' },
+    { filename: 'Failsafe_Still_Running.mp3', displayName: 'Failsafe Still Running', path: 'alk/Failsafe_Still_Running.mp3' },
+];
+
 // Zone-based track mapping
 const ZONE_TRACKS: Record<MusicZone, MusicTrack[]> = {
     normal: NORMAL_TRACKS,
     fishing_village: FISHING_VILLAGE_TRACKS,
     hunting_village: HUNTING_VILLAGE_TRACKS,
-    alk_compound: NORMAL_TRACKS, // Placeholder until ALK music is added
+    alk_compound: ALK_TRACKS,
+    alk_substation: ALK_TRACKS,
 };
 
 // All tracks for preloading
-const ALL_TRACKS: MusicTrack[] = [...NORMAL_TRACKS, ...FISHING_VILLAGE_TRACKS, ...HUNTING_VILLAGE_TRACKS];
+const ALL_TRACKS: MusicTrack[] = [...NORMAL_TRACKS, ...FISHING_VILLAGE_TRACKS, ...HUNTING_VILLAGE_TRACKS, ...ALK_TRACKS];
 
 // Legacy export for backward compatibility
 const MUSIC_TRACKS = NORMAL_TRACKS;
@@ -116,6 +131,15 @@ interface MusicSystemState {
 interface PlayerPosition {
     x: number;
     y: number;
+}
+
+// ALK station interface (matching SpacetimeDB type)
+interface AlkStation {
+    stationId: number;
+    worldPosX: number;
+    worldPosY: number;
+    interactionRadius: number;
+    isActive: boolean;
 }
 
 // Fishing village part interface (matching SpacetimeDB type)
@@ -249,9 +273,34 @@ const fadeAudio = async (audio: HTMLAudioElement, fromVolume: number, toVolume: 
 // Helper function to detect which music zone the player is in
 const detectMusicZone = (
     playerPos: PlayerPosition | null,
-    monumentParts: Map<string, any> | null
+    monumentParts: Map<string, any> | null,
+    alkStations: Map<string, AlkStation> | null
 ): MusicZone => {
-    if (!playerPos || !monumentParts || monumentParts.size === 0) {
+    if (!playerPos) {
+        return 'normal';
+    }
+
+    // Check for ALK stations first (they don't use monumentParts)
+    if (alkStations && alkStations.size > 0) {
+        // Check central compound first (stationId === 0)
+        for (const station of alkStations.values()) {
+            if (!station.isActive) continue;
+            
+            const dx = playerPos.x - station.worldPosX;
+            const dy = playerPos.y - station.worldPosY;
+            const distSq = dx * dx + dy * dy;
+            const zoneRadiusSq = ALK_ZONE_RADIUS * ALK_ZONE_RADIUS;
+            
+            if (distSq < zoneRadiusSq) {
+                // Central compound (stationId 0) gets alk_compound zone
+                // Substations (stationId 1-4) get alk_substation zone
+                return station.stationId === 0 ? 'alk_compound' : 'alk_substation';
+            }
+        }
+    }
+
+    // Check monument-based zones (fishing village, hunting village)
+    if (!monumentParts || monumentParts.size === 0) {
         return 'normal';
     }
 
@@ -352,18 +401,17 @@ const detectMusicZone = (
         }
     }
 
-    // Future: Add ALK compound zone detection here
-    // For now, return normal
     return 'normal';
 };
 
 interface MusicSystemOptions extends Partial<MusicSystemConfig> {
     playerPosition?: PlayerPosition | null;
     monumentParts?: Map<string, any> | null; // Unified monument parts (will filter for fishing village internally)
+    alkStations?: Map<string, AlkStation> | null; // ALK stations for zone detection
 }
 
 export const useMusicSystem = (options: MusicSystemOptions = {}) => {
-    const { playerPosition, monumentParts, ...config } = options;
+    const { playerPosition, monumentParts, alkStations, ...config } = options;
     const finalConfig = { ...DEFAULT_CONFIG, ...config };
     
     const [state, setState] = useState<MusicSystemState>({
@@ -892,8 +940,8 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
 
     // Zone detection and switching
     const detectedZone = useMemo(() => {
-        return detectMusicZone(playerPosition ?? null, monumentParts ?? null);
-    }, [playerPosition?.x, playerPosition?.y, monumentParts]);
+        return detectMusicZone(playerPosition ?? null, monumentParts ?? null, alkStations ?? null);
+    }, [playerPosition?.x, playerPosition?.y, monumentParts, alkStations]);
 
     // Switch zones when detected zone changes and music is playing
     const previousZoneRef = useRef<MusicZone>('normal');
