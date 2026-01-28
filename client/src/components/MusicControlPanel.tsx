@@ -11,6 +11,7 @@ const UI_FONT_FAMILY = '"Press Start 2P", cursive';
 const ZONE_COLORS: Record<MusicZone, { primary: string; secondary: string; glow: string }> = {
     normal: { primary: '#ff6b9d', secondary: '#4ecdc4', glow: 'rgba(255, 107, 157, 0.8)' },
     fishing_village: { primary: '#4fc3f7', secondary: '#81d4fa', glow: 'rgba(79, 195, 247, 0.8)' },
+    hunting_village: { primary: '#8b6f47', secondary: '#a0826d', glow: 'rgba(139, 111, 71, 0.8)' },
     alk_compound: { primary: '#ffc107', secondary: '#ff9800', glow: 'rgba(255, 193, 7, 0.8)' },
 };
 

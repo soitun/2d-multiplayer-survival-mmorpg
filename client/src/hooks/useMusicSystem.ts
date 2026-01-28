@@ -16,12 +16,13 @@ interface MusicTrack {
 }
 
 // Music zone types - extensible for future monuments
-export type MusicZone = 'normal' | 'fishing_village' | 'alk_compound';
+export type MusicZone = 'normal' | 'fishing_village' | 'hunting_village' | 'alk_compound';
 
 // Zone metadata for UI display
 export const MUSIC_ZONE_INFO: Record<MusicZone, { name: string; icon: string }> = {
     normal: { name: 'Wilderness', icon: '🌲' },
     fishing_village: { name: 'Fishing Village', icon: '🎣' },
+    hunting_village: { name: 'Hunting Village', icon: '🏕️' },
     alk_compound: { name: 'ALK Compound', icon: '🏭' },
 };
 
@@ -29,6 +30,11 @@ export const MUSIC_ZONE_INFO: Record<MusicZone, { name: string; icon: string }> 
 // Server's FISHING_VILLAGE_BONUS_RADIUS is 1200px, but music zone should be even larger
 // to ensure the ambient music plays throughout the entire village experience
 const FISHING_VILLAGE_ZONE_RADIUS = 1400;
+
+// Hunting village zone radius - similar to fishing village
+// Server's HUNTING_VILLAGE_SAFE_ZONE_RADIUS is 600px, but music zone should be larger
+// to ensure the ambient music plays throughout the entire village experience
+const HUNTING_VILLAGE_ZONE_RADIUS = 1400;
 
 // Normal world music tracks (in /public/music/)
 const NORMAL_TRACKS: MusicTrack[] = [
@@ -54,15 +60,24 @@ const FISHING_VILLAGE_TRACKS: MusicTrack[] = [
     { filename: 'Whale_Bone_Drums.mp3', displayName: 'Whale Bone Drums', path: 'fv/Whale_Bone_Drums.mp3' },
 ];
 
+// Hunting Village music tracks (in /public/music/hv/)
+const HUNTING_VILLAGE_TRACKS: MusicTrack[] = [
+    { filename: 'Where_The_Rifles_Rest.mp3', displayName: 'Where The Rifles Rest', path: 'hv/Where_The_Rifles_Rest.mp3' },
+    { filename: 'Smoke_On_The_Line.mp3', displayName: 'Smoke On The Line', path: 'hv/Smoke_On_The_Line.mp3' },
+    { filename: 'After_The_Kill.mp3', displayName: 'After The Kill', path: 'hv/After_The_Kill.mp3' },
+    { filename: 'The_Long_Watch.mp3', displayName: 'The Long Watch', path: 'hv/The_Long_Watch.mp3' },
+];
+
 // Zone-based track mapping
 const ZONE_TRACKS: Record<MusicZone, MusicTrack[]> = {
     normal: NORMAL_TRACKS,
     fishing_village: FISHING_VILLAGE_TRACKS,
+    hunting_village: HUNTING_VILLAGE_TRACKS,
     alk_compound: NORMAL_TRACKS, // Placeholder until ALK music is added
 };
 
 // All tracks for preloading
-const ALL_TRACKS: MusicTrack[] = [...NORMAL_TRACKS, ...FISHING_VILLAGE_TRACKS];
+const ALL_TRACKS: MusicTrack[] = [...NORMAL_TRACKS, ...FISHING_VILLAGE_TRACKS, ...HUNTING_VILLAGE_TRACKS];
 
 // Legacy export for backward compatibility
 const MUSIC_TRACKS = NORMAL_TRACKS;
@@ -240,55 +255,100 @@ const detectMusicZone = (
         return 'normal';
     }
 
-    // Filter fishing village parts from unified monument parts
-    // NOTE: MonumentType is a tagged union with a `tag` property (e.g., { tag: 'FishingVillage' })
+    // Check fishing village first
     const fishingVillageParts = Array.from(monumentParts.values())
         .filter((part: any) => part.monumentType?.tag === 'FishingVillage');
     
-    if (fishingVillageParts.length === 0) {
-        return 'normal';
-    }
+    if (fishingVillageParts.length > 0) {
+        // Find the fishing village center
+        let centerX: number | null = null;
+        let centerY: number | null = null;
 
-    // Find the fishing village center
-    let centerX: number | null = null;
-    let centerY: number | null = null;
-
-    for (const part of fishingVillageParts) {
-        // Check for center piece using both naming conventions
-        const isCenter = part.is_center || part.isCenter;
-        if (isCenter) {
-            centerX = part.world_x ?? part.worldX;
-            centerY = part.world_y ?? part.worldY;
-            break;
-        }
-    }
-
-    // If no center found, use average of all parts
-    if (centerX === null || centerY === null) {
-        let sumX = 0, sumY = 0, count = 0;
         for (const part of fishingVillageParts) {
-            const x = part.world_x ?? part.worldX;
-            const y = part.world_y ?? part.worldY;
-            if (x !== undefined && y !== undefined) {
-                sumX += x;
-                sumY += y;
-                count++;
+            // Check for center piece using both naming conventions
+            const isCenter = part.is_center || part.isCenter;
+            if (isCenter) {
+                centerX = part.world_x ?? part.worldX;
+                centerY = part.world_y ?? part.worldY;
+                break;
             }
         }
-        if (count > 0) {
-            centerX = sumX / count;
-            centerY = sumY / count;
+
+        // If no center found, use average of all parts
+        if (centerX === null || centerY === null) {
+            let sumX = 0, sumY = 0, count = 0;
+            for (const part of fishingVillageParts) {
+                const x = part.world_x ?? part.worldX;
+                const y = part.world_y ?? part.worldY;
+                if (x !== undefined && y !== undefined) {
+                    sumX += x;
+                    sumY += y;
+                    count++;
+                }
+            }
+            if (count > 0) {
+                centerX = sumX / count;
+                centerY = sumY / count;
+            }
+        }
+
+        // Check if player is within zone radius
+        if (centerX !== null && centerY !== null) {
+            const dx = playerPos.x - centerX;
+            const dy = playerPos.y - centerY;
+            const distSq = dx * dx + dy * dy;
+            
+            if (distSq < FISHING_VILLAGE_ZONE_RADIUS * FISHING_VILLAGE_ZONE_RADIUS) {
+                return 'fishing_village';
+            }
         }
     }
 
-    // Check if player is within zone radius
-    if (centerX !== null && centerY !== null) {
-        const dx = playerPos.x - centerX;
-        const dy = playerPos.y - centerY;
-        const distSq = dx * dx + dy * dy;
-        
-        if (distSq < FISHING_VILLAGE_ZONE_RADIUS * FISHING_VILLAGE_ZONE_RADIUS) {
-            return 'fishing_village';
+    // Check for hunting village
+    const huntingVillageParts = Array.from(monumentParts.values())
+        .filter((part: any) => part.monumentType?.tag === 'HuntingVillage');
+    
+    if (huntingVillageParts.length > 0) {
+        // Find the hunting village center
+        let centerX: number | null = null;
+        let centerY: number | null = null;
+
+        for (const part of huntingVillageParts) {
+            const isCenter = part.is_center || part.isCenter;
+            if (isCenter) {
+                centerX = part.world_x ?? part.worldX;
+                centerY = part.world_y ?? part.worldY;
+                break;
+            }
+        }
+
+        // If no center found, use average of all parts
+        if (centerX === null || centerY === null) {
+            let sumX = 0, sumY = 0, count = 0;
+            for (const part of huntingVillageParts) {
+                const x = part.world_x ?? part.worldX;
+                const y = part.world_y ?? part.worldY;
+                if (x !== undefined && y !== undefined) {
+                    sumX += x;
+                    sumY += y;
+                    count++;
+                }
+            }
+            if (count > 0) {
+                centerX = sumX / count;
+                centerY = sumY / count;
+            }
+        }
+
+        // Check if player is within zone radius
+        if (centerX !== null && centerY !== null) {
+            const dx = playerPos.x - centerX;
+            const dy = playerPos.y - centerY;
+            const distSq = dx * dx + dy * dy;
+            
+            if (distSq < HUNTING_VILLAGE_ZONE_RADIUS * HUNTING_VILLAGE_ZONE_RADIUS) {
+                return 'hunting_village';
+            }
         }
     }
 
