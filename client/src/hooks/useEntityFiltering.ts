@@ -42,6 +42,7 @@ import {
   FoundationCell as SpacetimeDBFoundationCell, // ADDED: Building foundations
   WallCell as SpacetimeDBWallCell, // ADDED: Building walls
   Door as SpacetimeDBDoor, // ADDED: Building doors
+  Fence as SpacetimeDBFence, // ADDED: Building fences
   Fumarole as SpacetimeDBFumarole, // ADDED: Fumaroles (geothermal vents)
   BasaltColumn as SpacetimeDBBasaltColumn, // ADDED: Basalt columns (decorative obstacles)
   AlkStation as SpacetimeDBAlkStation, // ADDED: ALK delivery stations

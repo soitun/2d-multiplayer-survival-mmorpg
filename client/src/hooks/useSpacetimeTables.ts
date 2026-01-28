@@ -1902,7 +1902,7 @@ export const useSpacetimeTables = ({
                 const visuallySignificant =
                     Math.abs(oldFence.posX - newFence.posX) > 0.1 ||
                     Math.abs(oldFence.posY - newFence.posY) > 0.1 ||
-                    oldFence.orientation !== newFence.orientation ||
+                    oldFence.edge !== newFence.edge ||
                     oldFence.health !== newFence.health ||
                     oldFence.isDestroyed !== newFence.isDestroyed;
 
