@@ -23,7 +23,7 @@ use crate::{
     TileType, WorldTile,
     harvestable_resource::{self, HarvestableResource},
     grass::{Grass, GrassAppearanceType},
-    wild_animal_npc::{AnimalSpecies, AnimalState, MovementPattern, WildAnimal},
+    wild_animal_npc::{AnimalSpecies, AnimalState, MovementPattern, WildAnimal, CaribouSex},
     cloud::{Cloud, CloudUpdateSchedule, CloudShapeType, CloudType},
     barrel,
     plants_database,
@@ -3414,28 +3414,35 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         let perception_range = stats.perception_range;
         let attack_damage = stats.attack_damage;
         
-        // WALRUS GROUP SPAWNING: Spawn multiple walruses together
-        let walrus_group_size = if chosen_species == AnimalSpecies::ArcticWalrus {
-            rng.gen_range(3..=6) // Spawn 3-6 walruses per group
-        } else {
-            1 // All other animals spawn alone
+        // GROUP SPAWNING: Spawn walruses and caribou in groups
+        let group_size = match chosen_species {
+            AnimalSpecies::ArcticWalrus => rng.gen_range(3..=6), // 3-6 walruses per group
+            AnimalSpecies::Caribou => rng.gen_range(3..=5),      // 3-5 caribou per herd (for breeding)
+            _ => 1, // All other animals spawn alone
         };
         
-        let mut walrus_positions = Vec::new();
-        walrus_positions.push((pos_x, pos_y)); // Include the main spawn position
+        let mut group_positions = Vec::new();
+        group_positions.push((pos_x, pos_y)); // Include the main spawn position
         
-        // If spawning multiple walruses, generate additional positions nearby
-        if walrus_group_size > 1 {
-            for _ in 1..walrus_group_size {
+        // Group spacing varies by species
+        let (min_group_distance, max_group_distance) = match chosen_species {
+            AnimalSpecies::ArcticWalrus => (30.0, 60.0),  // Walruses cluster tightly
+            AnimalSpecies::Caribou => (40.0, 100.0),      // Caribou spread out more (herd grazing)
+            _ => (30.0, 60.0),
+        };
+        
+        // If spawning multiple animals, generate additional positions nearby
+        if group_size > 1 {
+            for _ in 1..group_size {
                 let mut attempts = 0;
                 let max_attempts = 20;
                 
                 while attempts < max_attempts {
                     attempts += 1;
                     
-                    // Generate position within 30-60 pixels of the main spawn point
+                    // Generate position within species-appropriate distance of the main spawn point
                     let angle = rng.gen::<f32>() * 2.0 * std::f32::consts::PI;
-                    let distance = rng.gen_range(30.0..60.0);
+                    let distance = rng.gen_range(min_group_distance..max_group_distance);
                     let group_pos_x = pos_x + (angle.cos() * distance);
                     let group_pos_y = pos_y + (angle.sin() * distance);
                     
@@ -3445,16 +3452,16 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                         continue;
                     }
                     
-                    // Check if suitable for walrus spawning
+                    // Check if suitable for this species spawning
                     if is_position_on_water(ctx, group_pos_x, group_pos_y) || 
                        is_position_in_central_compound(group_pos_x, group_pos_y) ||
                        !is_wild_animal_location_suitable(ctx, group_pos_x, group_pos_y, chosen_species, &spawned_tree_positions) {
                         continue;
                     }
                     
-                    // Check distance from other walruses in this group (minimum 25px apart)
+                    // Check distance from other animals in this group (minimum 25px apart)
                     let mut too_close_to_group_member = false;
-                    for &(other_x, other_y) in &walrus_positions {
+                    for &(other_x, other_y) in &group_positions {
                         let dx = group_pos_x - other_x;
                         let dy = group_pos_y - other_y;
                         if dx * dx + dy * dy < (25.0 * 25.0) {
@@ -3481,18 +3488,23 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     }
                     
                     // Position is valid, add to group
-                    walrus_positions.push((group_pos_x, group_pos_y));
+                    group_positions.push((group_pos_x, group_pos_y));
                     break;
                 }
             }
         }
         
         log::info!("Spawning {} {:?} at position ({:.1}, {:.1})", 
-                  walrus_positions.len(), chosen_species, pos_x, pos_y);
+                  group_positions.len(), chosen_species, pos_x, pos_y);
+        
+        // For caribou herds, track sex assignment to ensure breeding viability
+        let mut caribou_males_spawned = 0;
+        let mut caribou_females_spawned = 0;
+        let caribou_herd_size = group_positions.len();
         
         // Spawn all animals in the group
         let mut group_spawn_success = true;
-        for (i, &(spawn_x, spawn_y)) in walrus_positions.iter().enumerate() {
+        for (i, &(spawn_x, spawn_y)) in group_positions.iter().enumerate() {
             let new_animal = crate::wild_animal_npc::WildAnimal {
                 id: 0, // auto_inc
                 species: chosen_species,
@@ -3555,8 +3567,44 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     spawned_wild_animal_positions.push((spawn_x, spawn_y));
                     spawned_wild_animal_count += 1;
                     
+                    // For caribou, assign sex and create breeding data
+                    // Ensure at least one male and one female per herd for breeding viability
+                    if matches!(chosen_species, AnimalSpecies::Caribou) {
+                        let assigned_sex = if caribou_herd_size >= 2 {
+                            // Force at least one of each sex for breeding
+                            if caribou_males_spawned == 0 && i == caribou_herd_size - 1 && caribou_females_spawned > 0 {
+                                // Last caribou, no males yet, force male
+                                CaribouSex::Male
+                            } else if caribou_females_spawned == 0 && i == caribou_herd_size - 1 && caribou_males_spawned > 0 {
+                                // Last caribou, no females yet, force female
+                                CaribouSex::Female
+                            } else if caribou_males_spawned == 0 && i == 0 {
+                                // First caribou, assign male to guarantee one
+                                CaribouSex::Male
+                            } else if caribou_females_spawned == 0 && i == 1 {
+                                // Second caribou, assign female to guarantee one  
+                                CaribouSex::Female
+                            } else {
+                                // Random for others
+                                if rng.gen::<bool>() { CaribouSex::Male } else { CaribouSex::Female }
+                            }
+                        } else {
+                            // Single caribou, random sex
+                            if rng.gen::<bool>() { CaribouSex::Male } else { CaribouSex::Female }
+                        };
+                        
+                        match assigned_sex {
+                            CaribouSex::Male => caribou_males_spawned += 1,
+                            CaribouSex::Female => caribou_females_spawned += 1,
+                        }
+                        
+                        if let Err(e) = crate::wild_animal_npc::assign_caribou_sex_forced(ctx, inserted_animal.id, assigned_sex) {
+                            log::warn!("Failed to assign sex to caribou {}: {}", inserted_animal.id, e);
+                        }
+                    }
+                    
                     log::info!("Spawned {:?} #{} at ({:.1}, {:.1}) [group member {}/{}]", 
-                              chosen_species, inserted_animal.id, spawn_x, spawn_y, i + 1, walrus_positions.len());
+                              chosen_species, inserted_animal.id, spawn_x, spawn_y, i + 1, group_positions.len());
                 }
                 Err(e) => {
                     log::warn!("Failed to insert {:?} group member {} at ({:.1}, {:.1}): {}. Skipping this animal.", 

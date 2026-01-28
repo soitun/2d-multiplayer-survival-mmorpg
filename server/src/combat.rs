@@ -42,6 +42,7 @@ use crate::grass::grass as GrassTableTrait; // RE-ADDED: grass table trait for d
 use crate::tree::tree as TreeTableTrait;
 use crate::stone::stone as StoneTableTrait;
 use crate::door::door as DoorTableTrait;
+use crate::fence::fence as FenceTableTrait;
 use crate::rune_stone::rune_stone as RuneStoneTableTrait;
 use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::items::inventory_item as InventoryItemTableTrait;
@@ -182,6 +183,7 @@ pub enum TargetId {
     Wall(u64), // ADDED: Wall target
     LivingCoral(u64), // ADDED: Living coral target (underwater resource)
     Door(u64), // ADDED: Door target (attackable doors)
+    Fence(u64), // ADDED: Fence target
 }
 
 /// Represents a potential target within attack range
@@ -1157,6 +1159,59 @@ pub fn find_targets_in_cone(
                 targets.push(Target {
                     target_type: TargetType::Door,
                     id: TargetId::Door(door.id),
+                    distance_sq: dist_sq,
+                });
+            }
+        }
+    }
+    
+    // Check fences (can be directly targeted, similar to walls)
+    const FENCE_ATTACK_RANGE: f32 = 120.0; // Same range as other structures
+    const FENCE_ATTACK_RANGE_SQ: f32 = FENCE_ATTACK_RANGE * FENCE_ATTACK_RANGE;
+    
+    use crate::fence::fence as FenceTableTrait;
+    use crate::TILE_SIZE_PX;
+    
+    for fence in ctx.db.fence().iter() {
+        if fence.is_destroyed {
+            continue;
+        }
+        
+        // Fences are positioned at tile EDGES (horizontal at south edge, vertical at east edge)
+        let dx = fence.pos_x - player.position_x;
+        let dy = fence.pos_y - player.position_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        // Use shorter range for fences - must be very close to hit
+        if dist_sq < FENCE_ATTACK_RANGE_SQ && dist_sq > 0.0 {
+            let distance = dist_sq.sqrt();
+            let target_vec_x = dx / distance;
+            let target_vec_y = dy / distance;
+            
+            let dot_product = forward_x * target_vec_x + forward_y * target_vec_y;
+            let angle_rad = dot_product.acos();
+            
+            if angle_rad <= half_attack_angle_rad {
+                // Check if line of sight is blocked by shelter walls
+                if is_line_blocked_by_shelter(
+                    ctx,
+                    player.identity,
+                    None,
+                    player.position_x,
+                    player.position_y,
+                    fence.pos_x,
+                    fence.pos_y,
+                ) {
+                    log::debug!(
+                        "Player {:?} cannot attack Fence {}: line of sight blocked by shelter",
+                        player.identity, fence.id
+                    );
+                    continue;
+                }
+                
+                targets.push(Target {
+                    target_type: TargetType::Wall, // Use Wall target type for consistency
+                    id: TargetId::Fence(fence.id),
                     distance_sq: dist_sq,
                 });
             }
@@ -3800,6 +3855,14 @@ pub fn process_attack(
                 return Err("Target door not found".to_string());
             }
         },
+        TargetId::Fence(fence_id) => {
+            if let Some(fence) = ctx.db.fence().id().find(fence_id) {
+                // Fences are positioned at tile EDGES
+                (fence.pos_x, fence.pos_y, None)
+            } else {
+                return Err("Target fence not found".to_string());
+            }
+        },
         TargetId::LivingCoral(coral_id) => {
             if let Some(coral) = ctx.db.living_coral().id().find(coral_id) {
                 (coral.pos_x, coral.pos_y - LIVING_CORAL_COLLISION_Y_OFFSET, None)
@@ -3816,7 +3879,9 @@ pub fn process_attack(
     // Check if melee attack hits a wall first (walls block attacks AND take damage)
     // EXCEPTION: If the target itself is a wall, skip this check (handle direct wall damage below)
     let target_is_wall = matches!(target.id, TargetId::Wall(_));
-    if !target_is_wall {
+    let target_is_fence = matches!(target.id, TargetId::Fence(_));
+    if !target_is_wall && !target_is_fence {
+        // Check for wall collision blocking the attack
         if let Some(wall_id) = crate::building::check_line_hits_wall(
             ctx,
             attacker.position_x,
@@ -3878,6 +3943,73 @@ pub fn process_attack(
         // Block the attack from hitting targets behind the wall
         return Ok(AttackResult {
             hit: true, // Attack hit something (the wall)
+            target_type: Some(TargetType::Wall),
+            resource_granted: None,
+        });
+        }
+        
+        // Check for fence collision blocking the attack
+        if let Some(fence_id) = crate::fence::check_line_hits_fence(
+            ctx,
+            attacker.position_x,
+            attacker.position_y,
+            target_x,
+            target_y,
+        ) {
+        log::info!(
+            "[ProcessAttack] Melee attack from Player {:?} hit Fence {} - damaging fence and blocking attack",
+            attacker_id, fence_id
+        );
+        
+        // Check if attacker is using repair hammer - repair instead of damage
+        if let Some(active_equip) = ctx.db.active_equipment().player_identity().find(&attacker_id) {
+            if let Some(equipped_item_id) = active_equip.equipped_item_instance_id {
+                if let Some(equipped_item) = ctx.db.inventory_item().instance_id().find(&equipped_item_id) {
+                    if let Some(item_def) = ctx.db.item_definition().id().find(&equipped_item.item_def_id) {
+                        if crate::repair::is_repair_hammer(&item_def) {
+                            // Use repair instead of damage
+                            let (damage, _, _) = calculate_damage_and_yield(&item_def, TargetType::Wall, rng);
+                            match crate::repair::repair_fence(ctx, attacker_id, fence_id, damage, timestamp) {
+                                Ok(result) => return Ok(result),
+                                Err(e) => {
+                                    log::error!("[ProcessAttack] Error repairing Fence {}: {}", fence_id, e);
+                                    // Fall through to block attack even if repair failed
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Calculate damage for the fence
+        let (damage, _, _) = calculate_damage_and_yield(item_def, TargetType::Wall, rng);
+        
+        // Apply damage to the fence
+        match crate::fence::damage_fence(
+            ctx,
+            attacker_id,
+            fence_id,
+            damage,
+            timestamp,
+        ) {
+            Ok(_) => {
+                log::info!(
+                    "[ProcessAttack] Melee attack dealt {:.1} damage to Fence {}",
+                    damage, fence_id
+                );
+            }
+            Err(e) => {
+                log::error!(
+                    "[ProcessAttack] Error applying melee damage to Fence {}: {}",
+                    fence_id, e
+                );
+            }
+        }
+        
+        // Block the attack from hitting targets behind the fence
+        return Ok(AttackResult {
+            hit: true, // Attack hit something (the fence)
             target_type: Some(TargetType::Wall),
             resource_granted: None,
         });
@@ -4060,6 +4192,29 @@ pub fn process_attack(
                 .map(|_| AttackResult {
                     hit: true,
                     target_type: Some(TargetType::Door),
+                    resource_granted: None,
+                })
+        },
+        TargetId::Fence(fence_id) => {
+            // Direct fence attack - check if repair hammer first
+            if let Some(active_equip) = ctx.db.active_equipment().player_identity().find(&attacker_id) {
+                if let Some(equipped_item_id) = active_equip.equipped_item_instance_id {
+                    if let Some(equipped_item) = ctx.db.inventory_item().instance_id().find(&equipped_item_id) {
+                        if let Some(item_def) = ctx.db.item_definition().id().find(&equipped_item.item_def_id) {
+                            if crate::repair::is_repair_hammer(&item_def) {
+                                // Use repair instead of damage
+                                return crate::repair::repair_fence(ctx, attacker_id, *fence_id, damage, timestamp);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Direct fence attack - damage the targeted fence
+            crate::fence::damage_fence(ctx, attacker_id, *fence_id, damage, timestamp)
+                .map(|_| AttackResult {
+                    hit: true,
+                    target_type: Some(TargetType::Wall), // Use Wall target type for consistency
                     resource_granted: None,
                 })
         },
@@ -4298,6 +4453,19 @@ pub fn damage_animal_corpse(
         }
     };
 
+    // Get caribou age-based drop multipliers if this is a caribou
+    let (caribou_meat_mult, caribou_fat_mult, caribou_bone_mult) = 
+        if animal_corpse.animal_species == crate::wild_animal_npc::AnimalSpecies::Caribou {
+            // Look up caribou breeding data for age-based drops
+            let age_stage = crate::wild_animal_npc::get_caribou_age_stage(ctx, animal_corpse.animal_id);
+            let (meat, fat, bone) = crate::wild_animal_npc::get_caribou_drop_multipliers(age_stage);
+            log::debug!("[DamageAnimalCorpse:{}] Caribou age: {:?}, multipliers: meat={:.2}, fat={:.2}, bone={:.2}", 
+                       animal_corpse_id, age_stage, meat, fat, bone);
+            (meat, fat, bone)
+        } else {
+            (1.0, 1.0, 1.0) // Non-caribou get full drops
+        };
+    
     // Grant resources based on RNG and animal type
     // Apply logarithmic bonus based on time alive
     // Note: Crabs don't drop Animal Fat - they have exoskeletons, not fat reserves
@@ -4307,16 +4475,19 @@ pub fn damage_animal_corpse(
     {
         let base_fat = quantity_per_hit;
         let time_alive_bonus = calculate_fat_bonus_from_time_alive(animal_corpse.spawned_at, animal_corpse.death_time);
-        let total_fat = base_fat + time_alive_bonus;
+        // Apply caribou age multiplier for fat
+        let total_fat = ((base_fat + time_alive_bonus) as f32 * caribou_fat_mult).round() as u32;
         
-        log::debug!(
-            "[DamageAnimalCorpse:{}] Time alive bonus: {} (base: {}, total: {})",
-            animal_corpse_id, time_alive_bonus, base_fat, total_fat
-        );
-        
-        match grant_resource(ctx, attacker_id, "Animal Fat", total_fat) {
-            Ok(_) => resources_granted.push(("Animal Fat".to_string(), total_fat)),
-            Err(e) => log::error!("Failed to grant Animal Fat: {}", e),
+        if total_fat > 0 {
+            log::debug!(
+                "[DamageAnimalCorpse:{}] Time alive bonus: {} (base: {}, total: {})",
+                animal_corpse_id, time_alive_bonus, base_fat, total_fat
+            );
+            
+            match grant_resource(ctx, attacker_id, "Animal Fat", total_fat) {
+                Ok(_) => resources_granted.push(("Animal Fat".to_string(), total_fat)),
+                Err(e) => log::error!("Failed to grant Animal Fat: {}", e),
+            }
         }
     }
 
@@ -4368,9 +4539,13 @@ pub fn damage_animal_corpse(
         && animal_corpse.animal_species != crate::wild_animal_npc::AnimalSpecies::BeachCrab
         && rng.gen_bool(actual_bone_chance) 
     {
-        match grant_resource(ctx, attacker_id, "Animal Bone", quantity_per_hit) {
-            Ok(_) => resources_granted.push(("Animal Bone".to_string(), quantity_per_hit)),
-            Err(e) => log::error!("Failed to grant Animal Bone: {}", e),
+        // Apply caribou age multiplier for bones
+        let bone_quantity = (quantity_per_hit as f32 * caribou_bone_mult).round() as u32;
+        if bone_quantity > 0 {
+            match grant_resource(ctx, attacker_id, "Animal Bone", bone_quantity) {
+                Ok(_) => resources_granted.push(("Animal Bone".to_string(), bone_quantity)),
+                Err(e) => log::error!("Failed to grant Animal Bone: {}", e),
+            }
         }
     }
 
@@ -4392,9 +4567,13 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::DrownedWatch => None,
         };
         if let Some(meat_name) = meat_type {
-            match grant_resource(ctx, attacker_id, meat_name, quantity_per_hit) {
-                Ok(_) => resources_granted.push((meat_name.to_string(), quantity_per_hit)),
-                Err(e) => log::error!("Failed to grant {}: {}", meat_name, e),
+            // Apply caribou age multiplier for meat
+            let meat_quantity = (quantity_per_hit as f32 * caribou_meat_mult).round() as u32;
+            if meat_quantity > 0 {
+                match grant_resource(ctx, attacker_id, meat_name, meat_quantity) {
+                    Ok(_) => resources_granted.push((meat_name.to_string(), meat_quantity)),
+                    Err(e) => log::error!("Failed to grant {}: {}", meat_name, e),
+                }
             }
         }
     }
@@ -4453,6 +4632,11 @@ pub fn damage_animal_corpse(
                     animal_corpse_id, attacker_id, e
                 ),
             }
+        }
+        
+        // Clean up caribou breeding data if this was a caribou (kept until corpse depleted for age-based drops)
+        if animal_corpse.animal_species == crate::wild_animal_npc::AnimalSpecies::Caribou {
+            crate::wild_animal_npc::cleanup_caribou_breeding_data(ctx, animal_corpse.animal_id);
         }
         
         // Delete the corpse entity

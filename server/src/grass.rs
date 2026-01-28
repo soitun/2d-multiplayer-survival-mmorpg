@@ -7,6 +7,7 @@ use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::tree::tree as TreeTableTrait;
 use crate::stone::stone as StoneTableTrait;
 use crate::building::foundation_cell as FoundationCellTableTrait;
+use crate::fence::fence as FenceTableTrait;
 use crate::sound_events::{emit_sound_at_position, SoundType};
 
 // --- Grass-Specific Constants ---
@@ -252,11 +253,13 @@ pub fn process_grass_respawn_batch(ctx: &spacetimedb::ReducerContext, _schedule:
             }
         }
         
+        // Calculate tile coordinates for foundation/fence checks
+        let grass_tile_x = (grass.pos_x / crate::building::FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+        let grass_tile_y = (grass.pos_y / crate::building::FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+        
         if !blocked {
             // Check foundations
             const MIN_GRASS_FOUNDATION_DISTANCE_SQ: f32 = 48.0 * 48.0;
-            let grass_tile_x = (grass.pos_x / crate::building::FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
-            let grass_tile_y = (grass.pos_y / crate::building::FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
             
             'foundation_check: for offset_x in -2..=2 {
                 for offset_y in -2..=2 {
@@ -267,6 +270,45 @@ pub fn process_grass_respawn_batch(ctx: &spacetimedb::ReducerContext, _schedule:
                         if !foundation.is_destroyed {
                             blocked = true;
                             break 'foundation_check;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Check fences
+        if !blocked {
+            const MIN_GRASS_FENCE_DISTANCE_SQ: f32 = 48.0 * 48.0; // Same as foundation distance
+            let fences = ctx.db.fence();
+            
+            for fence in fences.idx_cell_coords().filter((grass_tile_x, grass_tile_y)) {
+                if !fence.is_destroyed {
+                    let dx = grass.pos_x - fence.pos_x;
+                    let dy = grass.pos_y - fence.pos_y;
+                    if dx * dx + dy * dy < MIN_GRASS_FENCE_DISTANCE_SQ {
+                        blocked = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Also check adjacent cells for fences (fences can be on cell edges)
+            if !blocked {
+                'fence_check: for offset_x in -1..=1 {
+                    for offset_y in -1..=1 {
+                        if offset_x == 0 && offset_y == 0 { continue; }
+                        let check_x = grass_tile_x + offset_x;
+                        let check_y = grass_tile_y + offset_y;
+                        
+                        for fence in fences.idx_cell_coords().filter((check_x, check_y)) {
+                            if !fence.is_destroyed {
+                                let dx = grass.pos_x - fence.pos_x;
+                                let dy = grass.pos_y - fence.pos_y;
+                                if dx * dx + dy * dy < MIN_GRASS_FENCE_DISTANCE_SQ {
+                                    blocked = true;
+                                    break 'fence_check;
+                                }
+                            }
                         }
                     }
                 }

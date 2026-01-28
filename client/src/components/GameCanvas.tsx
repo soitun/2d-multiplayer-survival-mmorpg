@@ -103,7 +103,7 @@ import { renderMobileTapAnimation } from '../utils/renderers/mobileRenderingUtil
 import { renderYSortedEntities } from '../utils/renderers/renderingUtils.ts';
 import { renderWardRadius, LANTERN_TYPE_LANTERN } from '../utils/renderers/lanternRenderingUtils';
 import { preloadMonumentImages } from '../utils/renderers/monumentRenderingUtils';
-import { renderFoundationTargetIndicator, renderWallTargetIndicator } from '../utils/renderers/foundationRenderingUtils'; // ADDED: Foundation and wall target indicators
+import { renderFoundationTargetIndicator, renderWallTargetIndicator, renderFenceTargetIndicator } from '../utils/renderers/foundationRenderingUtils'; // ADDED: Foundation, wall, and fence target indicators
 import { renderInteractionLabels, renderLocalPlayerStatusTags } from '../utils/renderers/labelRenderingUtils.ts';
 import { renderPlacementPreview, isPlacementTooFar } from '../utils/renderers/placementRenderingUtils.ts';
 import { detectHotSprings } from '../utils/hotSpringDetector'; // ADDED: Hot spring detection
@@ -114,6 +114,7 @@ import { BuildingRadialMenu } from './BuildingRadialMenu'; // ADDED: Building ra
 import { UpgradeRadialMenu } from './UpgradeRadialMenu'; // ADDED: Upgrade radial menu
 import { useFoundationTargeting } from '../hooks/useFoundationTargeting'; // ADDED: Foundation targeting
 import { useWallTargeting } from '../hooks/useWallTargeting'; // ADDED: Wall targeting
+import { useFenceTargeting } from '../hooks/useFenceTargeting'; // ADDED: Fence targeting
 import { drawInteractionIndicator } from '../utils/interactionIndicator';
 import { ENTITY_VISUAL_CONFIG, getIndicatorPosition } from '../utils/entityVisualConfig';
 import { drawMinimapOntoCanvas } from './Minimap';
@@ -125,7 +126,7 @@ import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarb
 import { renderRuneStoneNightLight } from '../utils/renderers/runeStoneRenderingUtils';
 import { renderAllShipwreckNightLights, renderAllShipwreckDebugZones } from '../utils/renderers/shipwreckRenderingUtils';
 import { preloadCairnImages } from '../utils/renderers/cairnRenderingUtils';
-import { renderTree } from '../utils/renderers/treeRenderingUtils';
+import { renderTree, renderTreeCanopyShadowsOverlay } from '../utils/renderers/treeRenderingUtils';
 import { renderTillerPreview } from '../utils/renderers/tillerPreviewRenderingUtils';
 import { renderCloudsDirectly } from '../utils/renderers/cloudRenderingUtils';
 import { useFallingTreeAnimations } from '../hooks/useFallingTreeAnimations';
@@ -264,6 +265,7 @@ interface GameCanvasProps {
   foundationCells: Map<string, any>; // ADDED: Building foundations
   wallCells: Map<string, any>; // ADDED: Building walls
   doors: Map<string, any>; // ADDED: Building doors
+  fences: Map<string, any>; // ADDED: Building fences
   setMusicPanelVisible: React.Dispatch<React.SetStateAction<boolean>>;
   // Add ambient sound volume control
   environmentalVolume?: number; // 0-1 scale for ambient/environmental sounds
@@ -418,6 +420,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   foundationCells, // ADDED: Building foundations
   wallCells, // ADDED: Building walls
   doors, // ADDED: Building doors
+  fences, // ADDED: Building fences
   setMusicPanelVisible,
   environmentalVolume,
   movementDirection,
@@ -588,6 +591,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Wall targeting when Repair Hammer is equipped (prioritize over foundations)
   const { targetedWall, targetTileX: targetWallTileX, targetTileY: targetWallTileY } = useWallTargeting(
+    connection,
+    localPlayerX,
+    localPlayerY,
+    worldMousePos.x,
+    worldMousePos.y,
+    hasRepairHammer
+  );
+
+  // Fence targeting when Repair Hammer is equipped
+  const { targetedFence } = useFenceTargeting(
     connection,
     localPlayerX,
     localPlayerY,
@@ -802,6 +815,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleHomesteadHearthsMap, // ADDED: Homestead Hearths map
     visibleDoors, // ADDED: Building doors
     visibleDoorsMap, // ADDED: Building doors map
+    visibleFences, // ADDED: Building fences
+    visibleFencesMap, // ADDED: Building fences map
     buildingClusters, // ADDED: Building clusters for fog of war
     playerBuildingClusterId, // ADDED: Which building the player is in
     visibleAlkStations, // ADDED: ALK delivery stations
@@ -844,6 +859,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     foundationCells, // ADDED: Building foundations
     wallCells, // ADDED: Building walls
     doors, // ADDED: Building doors
+    fences, // ADDED: Building fences
     localPlayerId, // ADDED: Local player ID for building visibility
     isTreeFalling, // NEW: Pass falling tree checker so falling trees stay visible
     worldChunkDataMap, // PERFORMANCE FIX: Use memoized Map instead of creating new one every render
@@ -1221,6 +1237,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     isAutoWalking, // Pass auto-walk state for dodge roll detection
     targetedFoundation, // ADDED: Pass targeted foundation to input handler
     targetedWall, // ADDED: Pass targeted wall to input handler
+    targetedFence, // ADDED: Pass targeted fence to input handler
     rangedWeaponStats, // ADDED: Pass ranged weapon stats for auto-fire detection
     // Individual entity IDs for consistency and backward compatibility
   });
@@ -1329,33 +1346,41 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
   }, [mobileInteractTrigger, isMobile, unifiedInteractableTarget, connection, onSetInteractingWith]);
 
-  // Store the foundation/wall when upgrade menu opens (prevents flickering)
+  // Store the foundation/wall/fence when upgrade menu opens (prevents flickering)
   const upgradeMenuFoundationRef = useRef<FoundationCell | null>(null);
   const upgradeMenuWallRef = useRef<any | null>(null); // WallCell type
+  const upgradeMenuFenceRef = useRef<any | null>(null); // Fence type
   const prevShowUpgradeRadialMenuRef = useRef(false);
   
-  // Update stored foundation/wall when menu opens (only when menu state changes from false to true)
+  // Update stored foundation/wall/fence when menu opens (only when menu state changes from false to true)
   useEffect(() => {
     const wasOpen = prevShowUpgradeRadialMenuRef.current;
     const isOpen = showUpgradeRadialMenu;
     
     if (!wasOpen && isOpen) {
-      // Menu just opened - store the foundation or wall
+      // Menu just opened - store the foundation, wall, or fence (priority: wall > fence > foundation)
       if (targetedWall) {
         upgradeMenuWallRef.current = targetedWall;
         upgradeMenuFoundationRef.current = null;
+        upgradeMenuFenceRef.current = null;
+      } else if (targetedFence) {
+        upgradeMenuFenceRef.current = targetedFence;
+        upgradeMenuFoundationRef.current = null;
+        upgradeMenuWallRef.current = null;
       } else if (targetedFoundation) {
         upgradeMenuFoundationRef.current = targetedFoundation;
         upgradeMenuWallRef.current = null;
+        upgradeMenuFenceRef.current = null;
       }
     } else if (!isOpen) {
-      // Menu closed - clear the stored foundation/wall
+      // Menu closed - clear the stored foundation/wall/fence
       upgradeMenuFoundationRef.current = null;
       upgradeMenuWallRef.current = null;
+      upgradeMenuFenceRef.current = null;
     }
     
     prevShowUpgradeRadialMenuRef.current = isOpen;
-  }, [showUpgradeRadialMenu, targetedFoundation, targetedWall]);
+  }, [showUpgradeRadialMenu, targetedFoundation, targetedWall, targetedFence]);
 
   // Define camera and canvas dimensions for rendering
   const camera = { x: cameraOffsetX, y: cameraOffsetY };
@@ -1741,6 +1766,60 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       img.onerror = () => console.error('Failed to load metal_door_north.png');
       img.src = module.default;
     });
+
+    // Load fence sprite images for smart fence rendering (ends, centers)
+    // Vertical fence pieces
+    import('../assets/doodads/wood_fence_vertical_top.png').then((module) => {
+      const img = new Image();
+      img.onload = () => { doodadImagesRef.current.set('wood_fence_vertical_top.png', img); };
+      img.onerror = () => console.error('Failed to load wood_fence_vertical_top.png');
+      img.src = module.default;
+    });
+    import('../assets/doodads/wood_fence_vertical_center.png').then((module) => {
+      const img = new Image();
+      img.onload = () => { doodadImagesRef.current.set('wood_fence_vertical_center.png', img); };
+      img.onerror = () => console.error('Failed to load wood_fence_vertical_center.png');
+      img.src = module.default;
+    });
+    import('../assets/doodads/wood_fence_vertical_bottom.png').then((module) => {
+      const img = new Image();
+      img.onload = () => { doodadImagesRef.current.set('wood_fence_vertical_bottom.png', img); };
+      img.onerror = () => console.error('Failed to load wood_fence_vertical_bottom.png');
+      img.src = module.default;
+    });
+    import('../assets/doodads/wood_fence_vertical_single.png').then((module) => {
+      const img = new Image();
+      img.onload = () => { doodadImagesRef.current.set('wood_fence_vertical_single.png', img); };
+      img.onerror = () => console.error('Failed to load wood_fence_vertical_single.png');
+      img.src = module.default;
+    });
+    // Horizontal fence pieces
+    import('../assets/doodads/wood_fence_horizontal_left.png').then((module) => {
+      const img = new Image();
+      img.onload = () => { doodadImagesRef.current.set('wood_fence_horizontal_left.png', img); };
+      img.onerror = () => console.error('Failed to load wood_fence_horizontal_left.png');
+      img.src = module.default;
+    });
+    import('../assets/doodads/wood_fence_horizontal_center.png').then((module) => {
+      const img = new Image();
+      img.onload = () => { doodadImagesRef.current.set('wood_fence_horizontal_center.png', img); };
+      img.onerror = () => console.error('Failed to load wood_fence_horizontal_center.png');
+      img.src = module.default;
+    });
+    import('../assets/doodads/wood_fence_horizontal_right.png').then((module) => {
+      const img = new Image();
+      img.onload = () => { doodadImagesRef.current.set('wood_fence_horizontal_right.png', img); };
+      img.onerror = () => console.error('Failed to load wood_fence_horizontal_right.png');
+      img.src = module.default;
+    });
+    import('../assets/doodads/wood_fence_horizontal_single.png').then((module) => {
+      const img = new Image();
+      img.onload = () => { doodadImagesRef.current.set('wood_fence_horizontal_single.png', img); };
+      img.onerror = () => console.error('Failed to load wood_fence_horizontal_single.png');
+      img.src = module.default;
+    });
+    // Corner fence pieces - TODO: Add corner sprites later
+    // For now, corners render as brown placeholder squares
 
     // Load compost image
     import('../assets/doodads/compost.png').then((module) => {
@@ -3044,6 +3123,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         foundationTileImagesRef,
         allWalls: wallCells,
         allFoundations: foundationCells,
+        allFences: visibleFences, // ADDED: All fences for smart sprite selection based on neighbors
         buildingClusters,
         playerBuildingClusterId,
         connection, // ADDED: Pass connection for cairn biome lookup
@@ -3363,6 +3443,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           foundationTileImagesRef,
           allWalls: wallCells,
           allFoundations: foundationCells,
+          allFences: visibleFences, // ADDED: All fences for smart sprite selection based on neighbors
           buildingClusters,
           playerBuildingClusterId,
           connection, // ADDED: Pass connection for cairn biome lookup
@@ -3395,6 +3476,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     flushBatch();
     } // End of else block for swimming players exist
     // --- END Y-SORTED ENTITIES AND SWIMMING PLAYER TOP HALVES ---
+
+    // --- Render Tree Canopy Shadow Overlays (ABOVE trees and players) ---
+    // These render as soft, blurred shadows on top of entities to create realistic shade effects
+    // Skips falling trees since their canopy is no longer overhead
+    if (visibleTrees && visibleTrees.length > 0) {
+      renderTreeCanopyShadowsOverlay(ctx, visibleTrees, now_ms, isTreeFalling);
+    }
+    // --- END TREE CANOPY SHADOWS ---
 
     // --- Render animal burrow effects (dirt particles when animals burrow underground) ---
     // Process all wild animals to detect newly burrowed animals
@@ -3474,6 +3563,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       });
     }
     // --- End Wall Target Indicator ---
+
+    // --- Render Fence Target Indicator (for repair/demolish targeting) ---
+    // Render AFTER fences so it's visible on top
+    if (targetedFence && hasRepairHammer && ctx) {
+      renderFenceTargetIndicator({
+        ctx,
+        fence: targetedFence,
+        worldScale: 1.0,
+        viewOffsetX: -currentCameraOffsetX,
+        viewOffsetY: -currentCameraOffsetY,
+      });
+    }
+    // --- End Fence Target Indicator ---
 
     // REMOVED: Top half rendering now integrated into Y-sorted system above
     // REMOVED: Swimming shadows now render earlier, before sea stacks
@@ -4862,6 +4964,49 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             // Clear all menu state immediately
             setShowUpgradeRadialMenu(false);
             upgradeMenuWallRef.current = null;
+          }}
+        />
+      )}
+      
+      {/* Upgrade Radial Menu - for fences (destroy only - fences don't have tiers) */}
+      {showUpgradeRadialMenu && upgradeMenuFenceRef.current && (
+        <UpgradeRadialMenu
+          isVisible={showUpgradeRadialMenu}
+          mouseX={radialMenuMouseX}
+          mouseY={radialMenuMouseY}
+          connection={connection}
+          inventoryItems={inventoryItems}
+          itemDefinitions={itemDefinitions}
+          tile={upgradeMenuFenceRef.current}
+          tileType="fence"
+          activeConsumableEffects={activeConsumableEffects}
+          localPlayerId={localPlayerId}
+          homesteadHearths={homesteadHearths}
+          onSelect={(tier: BuildingTier) => {
+            if (connection && upgradeMenuFenceRef.current) {
+              console.log('[UpgradeRadialMenu] Upgrading fence', upgradeMenuFenceRef.current.id, 'to tier', tier);
+              connection.reducers.upgradeFence(
+                upgradeMenuFenceRef.current.id,
+                tier as number
+              );
+            }
+            // Clear all menu state immediately
+            setShowUpgradeRadialMenu(false);
+            upgradeMenuFenceRef.current = null;
+          }}
+          onCancel={() => {
+            // Clear all menu state immediately
+            setShowUpgradeRadialMenu(false);
+            upgradeMenuFenceRef.current = null;
+          }}
+          onDestroy={() => {
+            if (connection && upgradeMenuFenceRef.current) {
+              console.log('[UpgradeRadialMenu] Destroying fence', upgradeMenuFenceRef.current.id);
+              connection.reducers.destroyFence(upgradeMenuFenceRef.current.id);
+            }
+            // Clear all menu state immediately
+            setShowUpgradeRadialMenu(false);
+            upgradeMenuFenceRef.current = null;
           }}
         />
       )}

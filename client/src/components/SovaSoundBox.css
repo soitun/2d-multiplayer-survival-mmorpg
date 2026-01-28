@@ -7,7 +7,7 @@
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 9998; /* Below hotbar overlays (10000) but above most UI */
+  z-index: 900; /* Below InterfaceContainer (9998) so minimap/panels appear on top */
   
   display: flex;
   align-items: center;

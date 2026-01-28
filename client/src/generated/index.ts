@@ -125,6 +125,8 @@ import { DeliverAlkContractToMatronage } from "./deliver_alk_contract_to_matrona
 export { DeliverAlkContractToMatronage };
 import { DespawnExpiredItems } from "./despawn_expired_items_reducer.ts";
 export { DespawnExpiredItems };
+import { DestroyFence } from "./destroy_fence_reducer.ts";
+export { DestroyFence };
 import { DestroyFoundation } from "./destroy_foundation_reducer.ts";
 export { DestroyFoundation };
 import { DestroyWall } from "./destroy_wall_reducer.ts";
@@ -373,6 +375,8 @@ import { PlaceDoor } from "./place_door_reducer.ts";
 export { PlaceDoor };
 import { PlaceExplosive } from "./place_explosive_reducer.ts";
 export { PlaceExplosive };
+import { PlaceFence } from "./place_fence_reducer.ts";
+export { PlaceFence };
 import { PlaceFoundation } from "./place_foundation_reducer.ts";
 export { PlaceFoundation };
 import { PlaceFurnace } from "./place_furnace_reducer.ts";
@@ -411,6 +415,8 @@ import { ProcessBuildingDecay } from "./process_building_decay_reducer.ts";
 export { ProcessBuildingDecay };
 import { ProcessCampfireLogicScheduled } from "./process_campfire_logic_scheduled_reducer.ts";
 export { ProcessCampfireLogicScheduled };
+import { ProcessCaribouBreeding } from "./process_caribou_breeding_reducer.ts";
+export { ProcessCaribouBreeding };
 import { ProcessCompostConversion } from "./process_compost_conversion_reducer.ts";
 export { ProcessCompostConversion };
 import { ProcessCorpseDespawn } from "./process_corpse_despawn_reducer.ts";
@@ -745,6 +751,8 @@ import { UpdateProjectiles } from "./update_projectiles_reducer.ts";
 export { UpdateProjectiles };
 import { UpdateViewport } from "./update_viewport_reducer.ts";
 export { UpdateViewport };
+import { UpgradeFence } from "./upgrade_fence_reducer.ts";
+export { UpgradeFence };
 import { UpgradeFoundation } from "./upgrade_foundation_reducer.ts";
 export { UpgradeFoundation };
 import { UpgradeWall } from "./upgrade_wall_reducer.ts";
@@ -815,6 +823,12 @@ import { CampfireTableHandle } from "./campfire_table.ts";
 export { CampfireTableHandle };
 import { CampfireProcessingScheduleTableHandle } from "./campfire_processing_schedule_table.ts";
 export { CampfireProcessingScheduleTableHandle };
+import { CaribouBreedingDataTableHandle } from "./caribou_breeding_data_table.ts";
+export { CaribouBreedingDataTableHandle };
+import { CaribouBreedingScheduleTableHandle } from "./caribou_breeding_schedule_table.ts";
+export { CaribouBreedingScheduleTableHandle };
+import { CaribouRutStateTableHandle } from "./caribou_rut_state_table.ts";
+export { CaribouRutStateTableHandle };
 import { ChunkWeatherTableHandle } from "./chunk_weather_table.ts";
 export { ChunkWeatherTableHandle };
 import { ClientViewportTableHandle } from "./client_viewport_table.ts";
@@ -855,6 +869,8 @@ import { DroppedItemDespawnScheduleTableHandle } from "./dropped_item_despawn_sc
 export { DroppedItemDespawnScheduleTableHandle };
 import { ExplosiveDetonationScheduleTableHandle } from "./explosive_detonation_schedule_table.ts";
 export { ExplosiveDetonationScheduleTableHandle };
+import { FenceTableHandle } from "./fence_table.ts";
+export { FenceTableHandle };
 import { FertilizerPatchTableHandle } from "./fertilizer_patch_table.ts";
 export { FertilizerPatchTableHandle };
 import { FertilizerPatchCleanupScheduleTableHandle } from "./fertilizer_patch_cleanup_schedule_table.ts";
@@ -1165,6 +1181,16 @@ import { Campfire } from "./campfire_type.ts";
 export { Campfire };
 import { CampfireProcessingSchedule } from "./campfire_processing_schedule_type.ts";
 export { CampfireProcessingSchedule };
+import { CaribouAgeStage } from "./caribou_age_stage_type.ts";
+export { CaribouAgeStage };
+import { CaribouBreedingData } from "./caribou_breeding_data_type.ts";
+export { CaribouBreedingData };
+import { CaribouBreedingSchedule } from "./caribou_breeding_schedule_type.ts";
+export { CaribouBreedingSchedule };
+import { CaribouRutState } from "./caribou_rut_state_type.ts";
+export { CaribouRutState };
+import { CaribouSex } from "./caribou_sex_type.ts";
+export { CaribouSex };
 import { ChunkWeather } from "./chunk_weather_type.ts";
 export { ChunkWeather };
 import { ClientViewport } from "./client_viewport_type.ts";
@@ -1229,6 +1255,8 @@ import { ExplosiveDetonationSchedule } from "./explosive_detonation_schedule_typ
 export { ExplosiveDetonationSchedule };
 import { ExplosiveType } from "./explosive_type_type.ts";
 export { ExplosiveType };
+import { Fence } from "./fence_type.ts";
+export { Fence };
 import { FertilizerPatch } from "./fertilizer_patch_type.ts";
 export { FertilizerPatch };
 import { FertilizerPatchCleanupSchedule } from "./fertilizer_patch_cleanup_schedule_type.ts";
@@ -1769,6 +1797,33 @@ const REMOTE_MODULE = {
         colType: (CampfireProcessingSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    caribou_breeding_data: {
+      tableName: "caribou_breeding_data" as const,
+      rowType: CaribouBreedingData.getTypeScriptAlgebraicType(),
+      primaryKey: "animalId",
+      primaryKeyInfo: {
+        colName: "animalId",
+        colType: (CaribouBreedingData.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    caribou_breeding_schedule: {
+      tableName: "caribou_breeding_schedule" as const,
+      rowType: CaribouBreedingSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "scheduleId",
+      primaryKeyInfo: {
+        colName: "scheduleId",
+        colType: (CaribouBreedingSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    caribou_rut_state: {
+      tableName: "caribou_rut_state" as const,
+      rowType: CaribouRutState.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (CaribouRutState.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     chunk_weather: {
       tableName: "chunk_weather" as const,
       rowType: ChunkWeather.getTypeScriptAlgebraicType(),
@@ -1947,6 +2002,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (ExplosiveDetonationSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    fence: {
+      tableName: "fence" as const,
+      rowType: Fence.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (Fence.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     fertilizer_patch: {
@@ -3183,6 +3247,10 @@ const REMOTE_MODULE = {
       reducerName: "despawn_expired_items",
       argsType: DespawnExpiredItems.getTypeScriptAlgebraicType(),
     },
+    destroy_fence: {
+      reducerName: "destroy_fence",
+      argsType: DestroyFence.getTypeScriptAlgebraicType(),
+    },
     destroy_foundation: {
       reducerName: "destroy_foundation",
       argsType: DestroyFoundation.getTypeScriptAlgebraicType(),
@@ -3679,6 +3747,10 @@ const REMOTE_MODULE = {
       reducerName: "place_explosive",
       argsType: PlaceExplosive.getTypeScriptAlgebraicType(),
     },
+    place_fence: {
+      reducerName: "place_fence",
+      argsType: PlaceFence.getTypeScriptAlgebraicType(),
+    },
     place_foundation: {
       reducerName: "place_foundation",
       argsType: PlaceFoundation.getTypeScriptAlgebraicType(),
@@ -3754,6 +3826,10 @@ const REMOTE_MODULE = {
     process_campfire_logic_scheduled: {
       reducerName: "process_campfire_logic_scheduled",
       argsType: ProcessCampfireLogicScheduled.getTypeScriptAlgebraicType(),
+    },
+    process_caribou_breeding: {
+      reducerName: "process_caribou_breeding",
+      argsType: ProcessCaribouBreeding.getTypeScriptAlgebraicType(),
     },
     process_compost_conversion: {
       reducerName: "process_compost_conversion",
@@ -4423,6 +4499,10 @@ const REMOTE_MODULE = {
       reducerName: "update_viewport",
       argsType: UpdateViewport.getTypeScriptAlgebraicType(),
     },
+    upgrade_fence: {
+      reducerName: "upgrade_fence",
+      argsType: UpgradeFence.getTypeScriptAlgebraicType(),
+    },
     upgrade_foundation: {
       reducerName: "upgrade_foundation",
       argsType: UpgradeFoundation.getTypeScriptAlgebraicType(),
@@ -4528,6 +4608,7 @@ export type Reducer = never
 | { name: "DeliverAlkContract", args: DeliverAlkContract }
 | { name: "DeliverAlkContractToMatronage", args: DeliverAlkContractToMatronage }
 | { name: "DespawnExpiredItems", args: DespawnExpiredItems }
+| { name: "DestroyFence", args: DestroyFence }
 | { name: "DestroyFoundation", args: DestroyFoundation }
 | { name: "DestroyWall", args: DestroyWall }
 | { name: "DissolveMatronage", args: DissolveMatronage }
@@ -4652,6 +4733,7 @@ export type Reducer = never
 | { name: "PlaceCookingStation", args: PlaceCookingStation }
 | { name: "PlaceDoor", args: PlaceDoor }
 | { name: "PlaceExplosive", args: PlaceExplosive }
+| { name: "PlaceFence", args: PlaceFence }
 | { name: "PlaceFoundation", args: PlaceFoundation }
 | { name: "PlaceFurnace", args: PlaceFurnace }
 | { name: "PlaceHomesteadHearth", args: PlaceHomesteadHearth }
@@ -4671,6 +4753,7 @@ export type Reducer = never
 | { name: "ProcessBrothPotLogicScheduled", args: ProcessBrothPotLogicScheduled }
 | { name: "ProcessBuildingDecay", args: ProcessBuildingDecay }
 | { name: "ProcessCampfireLogicScheduled", args: ProcessCampfireLogicScheduled }
+| { name: "ProcessCaribouBreeding", args: ProcessCaribouBreeding }
 | { name: "ProcessCompostConversion", args: ProcessCompostConversion }
 | { name: "ProcessCorpseDespawn", args: ProcessCorpseDespawn }
 | { name: "ProcessDawnCleanup", args: ProcessDawnCleanup }
@@ -4838,6 +4921,7 @@ export type Reducer = never
 | { name: "UpdatePlayerPositionSimple", args: UpdatePlayerPositionSimple }
 | { name: "UpdateProjectiles", args: UpdateProjectiles }
 | { name: "UpdateViewport", args: UpdateViewport }
+| { name: "UpgradeFence", args: UpgradeFence }
 | { name: "UpgradeFoundation", args: UpgradeFoundation }
 | { name: "UpgradeWall", args: UpgradeWall }
 | { name: "UseEquippedItem", args: UseEquippedItem }
@@ -5572,6 +5656,22 @@ export class RemoteReducers {
 
   removeOnDespawnExpiredItems(callback: (ctx: ReducerEventContext, schedule: DroppedItemDespawnSchedule) => void) {
     this.connection.offReducer("despawn_expired_items", callback);
+  }
+
+  destroyFence(fenceId: bigint) {
+    const __args = { fenceId };
+    let __writer = new __BinaryWriter(1024);
+    DestroyFence.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("destroy_fence", __argsBuffer, this.setCallReducerFlags.destroyFenceFlags);
+  }
+
+  onDestroyFence(callback: (ctx: ReducerEventContext, fenceId: bigint) => void) {
+    this.connection.onReducer("destroy_fence", callback);
+  }
+
+  removeOnDestroyFence(callback: (ctx: ReducerEventContext, fenceId: bigint) => void) {
+    this.connection.offReducer("destroy_fence", callback);
   }
 
   destroyFoundation(foundationId: bigint) {
@@ -7482,6 +7582,22 @@ export class RemoteReducers {
     this.connection.offReducer("place_explosive", callback);
   }
 
+  placeFence(cellX: bigint, cellY: bigint, edge: number) {
+    const __args = { cellX, cellY, edge };
+    let __writer = new __BinaryWriter(1024);
+    PlaceFence.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("place_fence", __argsBuffer, this.setCallReducerFlags.placeFenceFlags);
+  }
+
+  onPlaceFence(callback: (ctx: ReducerEventContext, cellX: bigint, cellY: bigint, edge: number) => void) {
+    this.connection.onReducer("place_fence", callback);
+  }
+
+  removeOnPlaceFence(callback: (ctx: ReducerEventContext, cellX: bigint, cellY: bigint, edge: number) => void) {
+    this.connection.offReducer("place_fence", callback);
+  }
+
   placeFoundation(cellX: bigint, cellY: bigint, shape: number, tier: number) {
     const __args = { cellX, cellY, shape, tier };
     let __writer = new __BinaryWriter(1024);
@@ -7784,6 +7900,22 @@ export class RemoteReducers {
 
   removeOnProcessCampfireLogicScheduled(callback: (ctx: ReducerEventContext, scheduleArgs: CampfireProcessingSchedule) => void) {
     this.connection.offReducer("process_campfire_logic_scheduled", callback);
+  }
+
+  processCaribouBreeding(schedule: CaribouBreedingSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    ProcessCaribouBreeding.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_caribou_breeding", __argsBuffer, this.setCallReducerFlags.processCaribouBreedingFlags);
+  }
+
+  onProcessCaribouBreeding(callback: (ctx: ReducerEventContext, schedule: CaribouBreedingSchedule) => void) {
+    this.connection.onReducer("process_caribou_breeding", callback);
+  }
+
+  removeOnProcessCaribouBreeding(callback: (ctx: ReducerEventContext, schedule: CaribouBreedingSchedule) => void) {
+    this.connection.offReducer("process_caribou_breeding", callback);
   }
 
   processCompostConversion(args: CompostProcessSchedule) {
@@ -10378,6 +10510,22 @@ export class RemoteReducers {
     this.connection.offReducer("update_viewport", callback);
   }
 
+  upgradeFence(fenceId: bigint, newTier: number) {
+    const __args = { fenceId, newTier };
+    let __writer = new __BinaryWriter(1024);
+    UpgradeFence.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("upgrade_fence", __argsBuffer, this.setCallReducerFlags.upgradeFenceFlags);
+  }
+
+  onUpgradeFence(callback: (ctx: ReducerEventContext, fenceId: bigint, newTier: number) => void) {
+    this.connection.onReducer("upgrade_fence", callback);
+  }
+
+  removeOnUpgradeFence(callback: (ctx: ReducerEventContext, fenceId: bigint, newTier: number) => void) {
+    this.connection.offReducer("upgrade_fence", callback);
+  }
+
   upgradeFoundation(foundationId: bigint, newTier: number) {
     const __args = { foundationId, newTier };
     let __writer = new __BinaryWriter(1024);
@@ -10718,6 +10866,11 @@ export class SetReducerFlags {
   despawnExpiredItemsFlags: __CallReducerFlags = 'FullUpdate';
   despawnExpiredItems(flags: __CallReducerFlags) {
     this.despawnExpiredItemsFlags = flags;
+  }
+
+  destroyFenceFlags: __CallReducerFlags = 'FullUpdate';
+  destroyFence(flags: __CallReducerFlags) {
+    this.destroyFenceFlags = flags;
   }
 
   destroyFoundationFlags: __CallReducerFlags = 'FullUpdate';
@@ -11330,6 +11483,11 @@ export class SetReducerFlags {
     this.placeExplosiveFlags = flags;
   }
 
+  placeFenceFlags: __CallReducerFlags = 'FullUpdate';
+  placeFence(flags: __CallReducerFlags) {
+    this.placeFenceFlags = flags;
+  }
+
   placeFoundationFlags: __CallReducerFlags = 'FullUpdate';
   placeFoundation(flags: __CallReducerFlags) {
     this.placeFoundationFlags = flags;
@@ -11423,6 +11581,11 @@ export class SetReducerFlags {
   processCampfireLogicScheduledFlags: __CallReducerFlags = 'FullUpdate';
   processCampfireLogicScheduled(flags: __CallReducerFlags) {
     this.processCampfireLogicScheduledFlags = flags;
+  }
+
+  processCaribouBreedingFlags: __CallReducerFlags = 'FullUpdate';
+  processCaribouBreeding(flags: __CallReducerFlags) {
+    this.processCaribouBreedingFlags = flags;
   }
 
   processCompostConversionFlags: __CallReducerFlags = 'FullUpdate';
@@ -12260,6 +12423,11 @@ export class SetReducerFlags {
     this.updateViewportFlags = flags;
   }
 
+  upgradeFenceFlags: __CallReducerFlags = 'FullUpdate';
+  upgradeFence(flags: __CallReducerFlags) {
+    this.upgradeFenceFlags = flags;
+  }
+
   upgradeFoundationFlags: __CallReducerFlags = 'FullUpdate';
   upgradeFoundation(flags: __CallReducerFlags) {
     this.upgradeFoundationFlags = flags;
@@ -12435,6 +12603,21 @@ export class RemoteTables {
     return new CampfireProcessingScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<CampfireProcessingSchedule>(REMOTE_MODULE.tables.campfire_processing_schedule));
   }
 
+  get caribouBreedingData(): CaribouBreedingDataTableHandle<'caribou_breeding_data'> {
+    // clientCache is a private property
+    return new CaribouBreedingDataTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<CaribouBreedingData>(REMOTE_MODULE.tables.caribou_breeding_data));
+  }
+
+  get caribouBreedingSchedule(): CaribouBreedingScheduleTableHandle<'caribou_breeding_schedule'> {
+    // clientCache is a private property
+    return new CaribouBreedingScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<CaribouBreedingSchedule>(REMOTE_MODULE.tables.caribou_breeding_schedule));
+  }
+
+  get caribouRutState(): CaribouRutStateTableHandle<'caribou_rut_state'> {
+    // clientCache is a private property
+    return new CaribouRutStateTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<CaribouRutState>(REMOTE_MODULE.tables.caribou_rut_state));
+  }
+
   get chunkWeather(): ChunkWeatherTableHandle<'chunk_weather'> {
     // clientCache is a private property
     return new ChunkWeatherTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ChunkWeather>(REMOTE_MODULE.tables.chunk_weather));
@@ -12533,6 +12716,11 @@ export class RemoteTables {
   get explosiveDetonationSchedule(): ExplosiveDetonationScheduleTableHandle<'explosive_detonation_schedule'> {
     // clientCache is a private property
     return new ExplosiveDetonationScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ExplosiveDetonationSchedule>(REMOTE_MODULE.tables.explosive_detonation_schedule));
+  }
+
+  get fence(): FenceTableHandle<'fence'> {
+    // clientCache is a private property
+    return new FenceTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Fence>(REMOTE_MODULE.tables.fence));
   }
 
   get fertilizerPatch(): FertilizerPatchTableHandle<'fertilizer_patch'> {

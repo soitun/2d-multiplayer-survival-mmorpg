@@ -172,14 +172,20 @@ pub fn cleanup_expired_animal_corpses(ctx: &ReducerContext) -> Result<(), String
     let current_time = ctx.timestamp;
     let animal_corpse_table = ctx.db.animal_corpse();
     
-    let expired_corpses: Vec<u32> = animal_corpse_table
+    // Collect expired corpses with their species and animal_id for cleanup
+    let expired_corpses: Vec<(u32, AnimalSpecies, u64)> = animal_corpse_table
         .iter()
         .filter(|corpse| current_time >= corpse.despawn_at)
-        .map(|corpse| corpse.id)
+        .map(|corpse| (corpse.id, corpse.animal_species, corpse.animal_id))
         .collect();
 
     let mut cleaned_count = 0;
-    for corpse_id in expired_corpses {
+    for (corpse_id, species, animal_id) in expired_corpses {
+        // Clean up caribou breeding data if this was a caribou corpse
+        if matches!(species, AnimalSpecies::Caribou) {
+            super::caribou::cleanup_caribou_breeding_data(ctx, animal_id);
+        }
+        
         if animal_corpse_table.id().delete(&corpse_id) {
             cleaned_count += 1;
             log::debug!("Cleaned up expired animal corpse {}", corpse_id);

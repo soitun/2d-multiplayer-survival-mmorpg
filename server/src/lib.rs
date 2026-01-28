@@ -138,6 +138,7 @@ mod memory_grid; // <<< ADDED: Memory Grid tech tree system
 mod building; // <<< ADDED: Building system (foundations, walls, doors)
 mod building_enclosure; // <<< ADDED: Building enclosure detection (rain protection, "inside" logic)
 mod door; // <<< ADDED: Door system for building entrances
+mod fence; // <<< ADDED: Fence system for crop/base protection
 mod fumarole; // <<< ADDED: Fumarole module for quarry geothermal vents
 mod basalt_column; // <<< ADDED: Basalt column module for quarry decorative obstacles
 mod homestead_hearth; // <<< ADDED: Homestead Hearth for building privilege system
@@ -221,6 +222,9 @@ pub use building::place_foundation;
 
 // ADD: Re-export door reducers
 pub use door::{place_door, interact_door, pickup_door};
+
+// ADD: Re-export fence reducers
+pub use fence::place_fence;
 
 // ADD: Re-export explosive reducers
 pub use explosive::{place_explosive, relight_dud_explosive};
@@ -461,6 +465,9 @@ use crate::compost::compost_process_schedule as CompostProcessScheduleTableTrait
 use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait; // <<< ADDED: Import WildAnimal table trait
 use crate::wild_animal_npc::wild_animal_ai_schedule as WildAnimalAiScheduleTableTrait; // <<< ADDED: Import WildAnimalAiSchedule table trait
 use crate::wild_animal_npc::animal_corpse as AnimalCorpseTableTrait; // <<< ADDED: Import AnimalCorpse table trait
+use crate::wild_animal_npc::caribou::caribou_breeding_data as CaribouBreedingDataTableTrait; // <<< ADDED: Caribou breeding system
+use crate::wild_animal_npc::caribou::caribou_breeding_schedule as CaribouBreedingScheduleTableTrait; // <<< ADDED: Caribou breeding system
+use crate::wild_animal_npc::caribou::caribou_rut_state as CaribouRutStateTableTrait; // <<< ADDED: Caribou breeding system
 use crate::barrel::barrel as BarrelTableTrait; // <<< ADDED: Import Barrel table trait
 use crate::barrel::barrel_respawn_schedule as BarrelRespawnScheduleTableTrait; // <<< ADDED: Import BarrelRespawnSchedule table trait
 use crate::sea_stack::sea_stack as SeaStackTableTrait; // <<< ADDED: Import SeaStack table trait
@@ -789,6 +796,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     
     // ADD: Initialize hostile NPC spawning system (night-only enemies)
     crate::wild_animal_npc::init_hostile_spawning_system(ctx)?;
+    
+    // ADD: Initialize caribou breeding system (passive farming feature)
+    crate::wild_animal_npc::init_caribou_breeding_schedule(ctx)?;
     
     // ADD: Initialize building privilege distance check system
     crate::homestead_hearth::init_building_privilege_check_schedule(ctx)?;

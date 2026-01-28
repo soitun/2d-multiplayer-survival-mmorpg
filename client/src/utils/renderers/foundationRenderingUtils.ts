@@ -10,6 +10,7 @@ import { FoundationCell } from '../../generated';
 // For now, using any type - will be fixed after running: spacetime generate --lang typescript --out-dir ../client/src/generated --project-path .
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, foundationCellToWorldPixels } from '../../config/gameConfig';
 import React from 'react';
+import { renderEntityHealthBar } from './healthBarUtils';
 
 // Foundation colors for preview (cyberpunk neon theme)
 const FOUNDATION_PREVIEW_COLORS = {
@@ -65,6 +66,179 @@ function getWallTileFilename(tier: number, isInterior: boolean = false): string 
     case 2: return 'wall_stone.png'; // Stone
     case 3: return 'wall_metal.png'; // Metal
     default: return 'wall_twig.png'; // Default to twig
+  }
+}
+
+// =============================================================================
+// FENCE SPRITE SYSTEM - Smart sprite selection based on neighboring fences
+// =============================================================================
+
+/**
+ * Fence sprite type enum - determines which sprite to use based on connections
+ */
+export enum FenceSpriteType {
+  // Vertical fence pieces (East/West edges)
+  VERTICAL_TOP = 'vertical_top',       // Top end (no fence above)
+  VERTICAL_CENTER = 'vertical_center', // Middle piece (fences above and below)
+  VERTICAL_BOTTOM = 'vertical_bottom', // Bottom end (no fence below)
+  VERTICAL_SINGLE = 'vertical_single', // Single vertical fence (no neighbors)
+  
+  // Horizontal fence pieces (North/South edges)
+  HORIZONTAL_LEFT = 'horizontal_left',     // Left end (no fence to the left)
+  HORIZONTAL_CENTER = 'horizontal_center', // Middle piece (fences left and right)
+  HORIZONTAL_RIGHT = 'horizontal_right',   // Right end (no fence to the right)
+  HORIZONTAL_SINGLE = 'horizontal_single', // Single horizontal fence (no neighbors)
+  
+  // Corner pieces - where horizontal and vertical fences meet
+  CORNER_NW = 'corner_nw', // Northwest corner
+  CORNER_NE = 'corner_ne', // Northeast corner
+  CORNER_SW = 'corner_sw', // Southwest corner
+  CORNER_SE = 'corner_se', // Southeast corner
+}
+
+/**
+ * Get fence sprite filename based on sprite type
+ */
+function getFenceSpriteFilename(spriteType: FenceSpriteType): string {
+  switch (spriteType) {
+    // Vertical pieces
+    case FenceSpriteType.VERTICAL_TOP:
+      return 'wood_fence_vertical_top.png';
+    case FenceSpriteType.VERTICAL_CENTER:
+      return 'wood_fence_vertical_center.png';
+    case FenceSpriteType.VERTICAL_BOTTOM:
+      return 'wood_fence_vertical_bottom.png';
+    case FenceSpriteType.VERTICAL_SINGLE:
+      return 'wood_fence_vertical_single.png'; // Single piece with both caps
+    
+    // Horizontal pieces  
+    case FenceSpriteType.HORIZONTAL_LEFT:
+      return 'wood_fence_horizontal_left.png';
+    case FenceSpriteType.HORIZONTAL_CENTER:
+      return 'wood_fence_horizontal_center.png';
+    case FenceSpriteType.HORIZONTAL_RIGHT:
+      return 'wood_fence_horizontal_right.png';
+    case FenceSpriteType.HORIZONTAL_SINGLE:
+      return 'wood_fence_horizontal_single.png'; // Single piece with both caps
+    
+    // Corner pieces
+    case FenceSpriteType.CORNER_NW:
+      return 'wood_fence_corner_nw.png';
+    case FenceSpriteType.CORNER_NE:
+      return 'wood_fence_corner_ne.png';
+    case FenceSpriteType.CORNER_SW:
+      return 'wood_fence_corner_sw.png';
+    case FenceSpriteType.CORNER_SE:
+      return 'wood_fence_corner_se.png';
+    
+    default:
+      return 'wood_fence_vertical_center.png';
+  }
+}
+
+/**
+ * Get all fence sprite filenames for preloading
+ */
+export function getAllFenceSpriteFilenames(): string[] {
+  return [
+    'wood_fence_vertical_top.png',
+    'wood_fence_vertical_center.png',
+    'wood_fence_vertical_bottom.png',
+    'wood_fence_vertical_single.png',
+    'wood_fence_horizontal_left.png',
+    'wood_fence_horizontal_center.png',
+    'wood_fence_horizontal_right.png',
+    'wood_fence_horizontal_single.png',
+    'wood_fence_corner_nw.png',
+    'wood_fence_corner_ne.png',
+    'wood_fence_corner_sw.png',
+    'wood_fence_corner_se.png',
+  ];
+}
+
+// Constants for fence position matching (96px foundation cell size)
+const FENCE_CELL_SIZE = 96;
+const FENCE_POSITION_TOLERANCE = 2; // Small tolerance for floating point comparison
+
+/**
+ * Build a lookup map of fence positions for efficient neighbor checking
+ * Key format: "posX_posY_isVertical" where isVertical is 0 or 1
+ * Exported for use in renderingUtils.ts
+ */
+export function buildFencePositionMap(fences: any[]): Map<string, any> {
+  const map = new Map<string, any>();
+  for (const fence of fences) {
+    if (fence.isDestroyed) continue;
+    const isVertical = fence.edge === 1 || fence.edge === 3; // East or West
+    const key = `${Math.round(fence.posX)}_${Math.round(fence.posY)}_${isVertical ? 1 : 0}`;
+    map.set(key, fence);
+  }
+  return map;
+}
+
+/**
+ * Check if a fence exists at the specified position
+ */
+function hasFenceAt(
+  fenceMap: Map<string, any>,
+  posX: number,
+  posY: number,
+  isVertical: boolean
+): boolean {
+  const key = `${Math.round(posX)}_${Math.round(posY)}_${isVertical ? 1 : 0}`;
+  return fenceMap.has(key);
+}
+
+/**
+ * Determine the sprite type for a fence based on its neighbors
+ * 
+ * Fence edges:
+ * - 0 = North (horizontal)
+ * - 1 = East (vertical)
+ * - 2 = South (horizontal)
+ * - 3 = West (vertical)
+ * 
+ * For vertical fences (E/W), check above/below at same X, Y ± 96
+ * For horizontal fences (N/S), check left/right at X ± 96, same Y
+ */
+function determineFenceSpriteType(
+  fence: any,
+  fenceMap: Map<string, any>
+): FenceSpriteType {
+  const posX = fence.posX;
+  const posY = fence.posY;
+  const isVertical = fence.edge === 1 || fence.edge === 3; // East or West edges
+  
+  if (isVertical) {
+    // Vertical fence - check for neighbors above (Y - 96) and below (Y + 96)
+    const hasAbove = hasFenceAt(fenceMap, posX, posY - FENCE_CELL_SIZE, true);
+    const hasBelow = hasFenceAt(fenceMap, posX, posY + FENCE_CELL_SIZE, true);
+    
+    // Standard vertical piece selection
+    if (hasAbove && hasBelow) {
+      return FenceSpriteType.VERTICAL_CENTER;
+    } else if (hasAbove && !hasBelow) {
+      return FenceSpriteType.VERTICAL_BOTTOM;
+    } else if (!hasAbove && hasBelow) {
+      return FenceSpriteType.VERTICAL_TOP;
+    } else {
+      return FenceSpriteType.VERTICAL_SINGLE;
+    }
+  } else {
+    // Horizontal fence - check for neighbors left (X - 96) and right (X + 96)
+    const hasLeft = hasFenceAt(fenceMap, posX - FENCE_CELL_SIZE, posY, false);
+    const hasRight = hasFenceAt(fenceMap, posX + FENCE_CELL_SIZE, posY, false);
+    
+    // Standard horizontal piece selection
+    if (hasLeft && hasRight) {
+      return FenceSpriteType.HORIZONTAL_CENTER;
+    } else if (hasLeft && !hasRight) {
+      return FenceSpriteType.HORIZONTAL_RIGHT;
+    } else if (!hasLeft && hasRight) {
+      return FenceSpriteType.HORIZONTAL_LEFT;
+    } else {
+      return FenceSpriteType.HORIZONTAL_SINGLE;
+    }
   }
 }
 
@@ -943,6 +1117,71 @@ export function renderWallTargetIndicator({
   ctx.strokeStyle = `rgba(255, 215, 0, ${0.9 + pulseAlpha * 0.1})`;
   ctx.lineWidth = 4;
   ctx.strokeRect(wallX, wallY, wallWidth, wallHeight);
+
+  ctx.restore();
+}
+
+/**
+ * Render a target indicator (yellow highlight) for a fence when Repair Hammer is equipped
+ */
+export function renderFenceTargetIndicator({
+  ctx,
+  fence,
+  worldScale,
+  viewOffsetX,
+  viewOffsetY,
+}: {
+  ctx: CanvasRenderingContext2D;
+  fence: any; // Fence type
+  worldScale: number;
+  viewOffsetX: number;
+  viewOffsetY: number;
+}): void {
+  if (fence.isDestroyed) {
+    return;
+  }
+
+  // Fence position is stored directly in posX, posY (center of fence on edge)
+  const screenX = fence.posX;
+  const screenY = fence.posY;
+  
+  // Fence dimensions - same as walls (96px foundation cell grid)
+  const FENCE_THICKNESS = 24 * worldScale; // Fence visual thickness (24px)
+  const FOUNDATION_SIZE = 96 * worldScale; // Foundation cell size (96px)
+
+  ctx.save();
+
+  // Draw pulsing highlight overlay
+  const pulsePhase = (Date.now() % 2000) / 2000; // 0 to 1 over 2 seconds
+  const pulseAlpha = 0.4 + (Math.sin(pulsePhase * Math.PI * 2) * 0.3); // Pulse between 0.4 and 0.7
+
+  // Determine fence rectangle based on edge
+  // Edge: 0 = North, 1 = East, 2 = South, 3 = West
+  let fenceX: number, fenceY: number, fenceWidth: number, fenceHeight: number;
+
+  // Edge 0 (North) and 2 (South) are horizontal, Edge 1 (East) and 3 (West) are vertical
+  if (fence.edge === 0 || fence.edge === 2) {
+    // Horizontal fence: spans full cell width, thin in Y
+    fenceX = screenX - FOUNDATION_SIZE / 2;
+    fenceY = screenY - FENCE_THICKNESS / 2;
+    fenceWidth = FOUNDATION_SIZE;
+    fenceHeight = FENCE_THICKNESS;
+  } else {
+    // Vertical fence: thin in X, spans full cell height
+    fenceX = screenX - FENCE_THICKNESS / 2;
+    fenceY = screenY - FOUNDATION_SIZE / 2;
+    fenceWidth = FENCE_THICKNESS;
+    fenceHeight = FOUNDATION_SIZE;
+  }
+
+  // Draw highlight overlay (golden/yellow tint - same as walls)
+  ctx.fillStyle = `rgba(255, 215, 0, ${pulseAlpha})`;
+  ctx.fillRect(fenceX, fenceY, fenceWidth, fenceHeight);
+
+  // Draw border highlight (thicker and brighter)
+  ctx.strokeStyle = `rgba(255, 215, 0, ${0.9 + pulseAlpha * 0.1})`;
+  ctx.lineWidth = 4;
+  ctx.strokeRect(fenceX, fenceY, fenceWidth, fenceHeight);
 
   ctx.restore();
 }
@@ -3061,6 +3300,376 @@ export function renderWallPreview({
   }
   
   ctx.restore(); // Restore filters
+}
+
+/**
+ * Render a single fence
+ * Fences are shorter than walls and snap to 48px world tiles
+ */
+/**
+ * Render fence preview (ghost) for placement
+ * Snaps to foundation cell edges (same as walls) based on mouse position
+ */
+export function renderFencePreview({
+  ctx,
+  cellX,
+  cellY,
+  worldMouseX,
+  worldMouseY,
+  edge,
+  isValid,
+  worldScale,
+  viewOffsetX,
+  viewOffsetY,
+  foundationTileImagesRef,
+  doodadImagesRef,
+}: {
+  ctx: CanvasRenderingContext2D;
+  cellX: number;
+  cellY: number;
+  worldMouseX: number;
+  worldMouseY: number;
+  edge: number; // 0 = North, 1 = East, 2 = South, 3 = West (same as walls)
+  isValid: boolean;
+  worldScale: number;
+  viewOffsetX: number;
+  viewOffsetY: number;
+  foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>;
+  doodadImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // Doodad images for fence sprites
+}): void {
+  const FOUNDATION_SIZE = 96; // Foundation cell size (96px) - sprites are 96x96
+  
+  // Calculate fence position at cell edge (exactly like walls)
+  const cellLeft = cellX * FOUNDATION_SIZE;
+  const cellRight = cellLeft + FOUNDATION_SIZE;
+  const cellTop = cellY * FOUNDATION_SIZE;
+  const cellBottom = cellTop + FOUNDATION_SIZE;
+  const cellCenterX = cellLeft + FOUNDATION_SIZE / 2;
+  const cellCenterY = cellTop + FOUNDATION_SIZE / 2;
+  
+  let screenX: number, screenY: number;
+  switch (edge) {
+    case 0: // North edge
+      screenX = cellCenterX;
+      screenY = cellTop;
+      break;
+    case 1: // East edge
+      screenX = cellRight;
+      screenY = cellCenterY;
+      break;
+    case 2: // South edge
+      screenX = cellCenterX;
+      screenY = cellBottom;
+      break;
+    case 3: // West edge
+      screenX = cellLeft;
+      screenY = cellCenterY;
+      break;
+    default:
+      screenX = cellCenterX;
+      screenY = cellCenterY;
+  }
+  
+  const scaledFoundationSize = FOUNDATION_SIZE * worldScale;
+  
+  // Get fence sprite (use center piece for preview since we don't know neighbors yet)
+  const isVertical = edge === 1 || edge === 3; // East or West edges
+  const fenceSpriteFilename = isVertical ? 'wood_fence_vertical_center.png' : 'wood_fence_horizontal_center.png';
+  const fenceImage = doodadImagesRef?.current?.get(fenceSpriteFilename);
+  
+  // Fallback to wall image if fence sprite not loaded
+  const wallFilename = getWallTileFilename(1, false);
+  const wallImage = foundationTileImagesRef?.current?.get(wallFilename);
+  
+  const imageToUse = fenceImage?.complete ? fenceImage : (wallImage?.complete ? wallImage : null);
+  
+  if (!imageToUse) {
+    return; // Can't render without image
+  }
+  
+  ctx.save();
+  
+  // Set ghost preview opacity and color based on validity
+  ctx.globalAlpha = isValid ? 0.6 : 0.4;
+  ctx.fillStyle = isValid ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)';
+  
+  // Fence sprites are 96x96, render at full size centered on fence position
+  const fenceX = screenX - scaledFoundationSize / 2;
+  const fenceY = screenY - scaledFoundationSize / 2;
+  const fenceWidth = scaledFoundationSize;
+  const fenceHeight = scaledFoundationSize;
+  
+  // Draw fence preview at full 96x96 size
+  ctx.globalAlpha = isValid ? 0.5 : 0.3;
+  ctx.drawImage(imageToUse, fenceX, fenceY, fenceWidth, fenceHeight);
+  
+  // Draw validity overlay
+  ctx.globalAlpha = isValid ? 0.2 : 0.3;
+  ctx.fillRect(fenceX, fenceY, fenceWidth, fenceHeight);
+  
+  // Draw border to show preview
+  ctx.strokeStyle = isValid ? 'rgba(0, 255, 0, 0.8)' : 'rgba(255, 0, 0, 0.8)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(fenceX, fenceY, fenceWidth, fenceHeight);
+  
+  ctx.restore();
+}
+
+export function renderFence({
+  ctx,
+  fence,
+  worldScale,
+  viewOffsetX,
+  viewOffsetY,
+  foundationTileImagesRef,
+  cycleProgress = 0.5,
+  localPlayerPosition,
+  fencePositionMap,
+  doodadImagesRef,
+}: {
+  ctx: CanvasRenderingContext2D;
+  fence: any; // Fence - will be properly typed after regenerating bindings
+  worldScale: number;
+  viewOffsetX: number;
+  viewOffsetY: number;
+  foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>;
+  cycleProgress?: number;
+  localPlayerPosition?: { x: number; y: number } | null;
+  fencePositionMap?: Map<string, any>; // Pre-built fence position lookup map
+  doodadImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // Doodad images for fence sprites
+}): void {
+  if (fence.isDestroyed) {
+    return;
+  }
+
+  // Fence dimensions - sprites are 96x96px, render at full size
+  const FOUNDATION_SIZE = 96 * worldScale; // Foundation cell size (96px)
+
+  // Fence position is at cell edge (stored in posX, posY from server)
+  // Canvas context is already translated by camera offset
+  const screenX = fence.posX;
+  const screenY = fence.posY;
+
+  // Determine sprite type based on neighbors (if position map provided)
+  let spriteType: FenceSpriteType;
+  const isVertical = fence.edge === 1 || fence.edge === 3;
+  
+  if (fencePositionMap) {
+    spriteType = determineFenceSpriteType(fence, fencePositionMap);
+  } else {
+    // Default to center pieces if no neighbor info available
+    spriteType = isVertical ? FenceSpriteType.VERTICAL_CENTER : FenceSpriteType.HORIZONTAL_CENTER;
+  }
+  
+  // Get the appropriate fence sprite
+  const spriteFilename = getFenceSpriteFilename(spriteType);
+  const fenceImage = doodadImagesRef?.current?.get(spriteFilename);
+  
+  // Fallback to wall image if fence sprite not loaded
+  const wallFilename = getWallTileFilename(1, false); // Use wood tier (1) for fences
+  const wallImage = foundationTileImagesRef?.current?.get(wallFilename);
+  
+  const imageToUse = fenceImage?.complete ? fenceImage : (wallImage?.complete ? wallImage : null);
+
+  if (!imageToUse) {
+    return; // Can't render without image
+  }
+
+  ctx.save();
+
+  // Determine fence rectangle based on edge
+  // Edge: 0 = North, 1 = East, 2 = South, 3 = West (same as walls)
+  // Sprites are 96x96px and should be rendered at full size, centered on the fence position
+  let fenceX: number, fenceY: number, fenceWidth: number, fenceHeight: number;
+
+  // All fence sprites are 96x96, render at full size centered on fence position
+  fenceX = screenX - FOUNDATION_SIZE / 2;
+  fenceY = screenY - FOUNDATION_SIZE / 2;
+  fenceWidth = FOUNDATION_SIZE;
+  fenceHeight = FOUNDATION_SIZE;
+  
+  // Draw fence using the selected sprite at full 96x96 size
+  // Apply grayscale/sepia filter based on tier (similar to InventoryUI)
+  if (imageToUse) {
+    // Get fence tier (default to 0/Twig if not present)
+    const fenceTier = fence.tier !== undefined ? fence.tier : 0;
+    
+    // Apply filter based on tier:
+    // Twig (0) / Wood (1): No filter (normal appearance)
+    // Stone (2): Grayscale with slight sepia tint
+    // Metal (3): Strong grayscale/sepia for metallic appearance
+    if (fenceTier === 2) {
+      // Stone tier: grayscale with slight sepia
+      ctx.filter = 'grayscale(60%) sepia(20%)';
+    } else if (fenceTier === 3) {
+      // Metal tier: strong grayscale/sepia for metallic look
+      ctx.filter = 'grayscale(80%) sepia(40%) brightness(0.9)';
+    } else {
+      // Twig/Wood: no filter
+      ctx.filter = 'none';
+    }
+    
+    ctx.drawImage(imageToUse, fenceX, fenceY, fenceWidth, fenceHeight);
+    
+    // Reset filter for subsequent drawing operations
+    ctx.filter = 'none';
+  }
+
+  // Draw shadow based on time of day (similar to wall shadows)
+  // Dawn (0.0-0.05): Soft shadows, sun rising from east - shadows cast west
+  // Morning (0.05-0.35): Sun in east, shadows cast west (vertical fences cast right)
+  // Noon (0.35-0.55): Sun overhead, short shadows
+  // Afternoon (0.55-0.80): Sun in west, shadows cast east (vertical fences cast left)
+  // Evening/Night (0.80-1.0): No shadows
+  
+  const isHorizontalFence = fence.edge === 0 || fence.edge === 2;
+  const isVerticalFence = !isHorizontalFence;
+  
+  // Shadow parameters based on time of day
+  let shouldCastShadow = false;
+  let shadowAlpha = 0.0;
+  let shadowLength = FOUNDATION_SIZE * 0.25;
+  let shadowDirection = 1; // 1 = right/down, -1 = left/up
+  
+  if (cycleProgress >= 0.0 && cycleProgress < 0.05) {
+    // Dawn - soft, long shadows to the west (left)
+    shouldCastShadow = true;
+    shadowAlpha = 0.3 + (cycleProgress / 0.05) * 0.1;
+    shadowLength = FOUNDATION_SIZE * 0.4;
+    shadowDirection = isVerticalFence ? 1 : 1; // Cast right/down
+  } else if (cycleProgress >= 0.05 && cycleProgress < 0.35) {
+    // Morning - sun from east, shadows to the west
+    shouldCastShadow = true;
+    const morningProgress = (cycleProgress - 0.05) / 0.30;
+    shadowAlpha = 0.4 + morningProgress * 0.1;
+    shadowLength = FOUNDATION_SIZE * (0.35 - morningProgress * 0.1);
+    shadowDirection = isVerticalFence ? 1 : 1; // Cast right/down
+  } else if (cycleProgress >= 0.35 && cycleProgress < 0.55) {
+    // Noon - short shadows
+    shouldCastShadow = true;
+    shadowAlpha = 0.35;
+    shadowLength = FOUNDATION_SIZE * 0.2;
+    shadowDirection = 1; // Cast right/down (minimal)
+  } else if (cycleProgress >= 0.55 && cycleProgress < 0.80) {
+    // Afternoon - sun from west, shadows to the east
+    shouldCastShadow = true;
+    const afternoonProgress = (cycleProgress - 0.55) / 0.25;
+    shadowAlpha = 0.4 - afternoonProgress * 0.1;
+    shadowLength = FOUNDATION_SIZE * (0.25 + afternoonProgress * 0.15);
+    shadowDirection = isVerticalFence ? -1 : 1; // Vertical fences cast left, horizontal cast down
+  }
+  
+  if (shouldCastShadow) {
+    // The fence visual is centered in the 96x96 sprite
+    // Shadow should be offset from the center, not the edge of the sprite box
+    const centerX = screenX;
+    const centerY = screenY;
+    const fenceThickness = FOUNDATION_SIZE * 0.25; // Approximate visual thickness of fence in sprite
+    
+    ctx.globalAlpha = shadowAlpha;
+    
+    if (isHorizontalFence) {
+      // Horizontal fence: shadow below the fence center
+      const shadowY = centerY + fenceThickness / 2;
+      const shadowWidth = FOUNDATION_SIZE;
+      const shadowHeight = shadowLength;
+      
+      // Create gradient for softer shadow (darker)
+      const gradient = ctx.createLinearGradient(
+        centerX - shadowWidth / 2, shadowY,
+        centerX - shadowWidth / 2, shadowY + shadowHeight
+      );
+      gradient.addColorStop(0, 'rgba(0, 0, 0, 0.8)');
+      gradient.addColorStop(0.4, 'rgba(0, 0, 0, 0.5)');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(centerX - shadowWidth / 2, shadowY, shadowWidth, shadowHeight);
+    } else {
+      // Vertical fence: shadow to the side of the fence center
+      // Add slight inward offset: if casting left, move right a bit; if casting right, move left a bit
+      const offsetAmount = FOUNDATION_SIZE * 0.15; // Slight inward offset
+      const shadowX = shadowDirection > 0 
+        ? centerX + fenceThickness / 2 - offsetAmount // Casting right: bring in left
+        : centerX - fenceThickness / 2 - shadowLength + offsetAmount; // Casting left: bring in right
+      const shadowWidth = shadowLength;
+      const shadowHeight = FOUNDATION_SIZE;
+      
+      // Create gradient for softer shadow (darker)
+      const gradientStartX = shadowDirection > 0 ? shadowX : shadowX + shadowWidth;
+      const gradientEndX = shadowDirection > 0 ? shadowX + shadowWidth : shadowX;
+      const gradient = ctx.createLinearGradient(gradientStartX, centerY, gradientEndX, centerY);
+      gradient.addColorStop(0, 'rgba(0, 0, 0, 0.8)');
+      gradient.addColorStop(0.4, 'rgba(0, 0, 0, 0.5)');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(shadowX, centerY - shadowHeight / 2, shadowWidth, shadowHeight);
+    }
+    
+    ctx.globalAlpha = 1.0;
+  }
+
+  // Render health bar if fence is damaged (using unified health bar system)
+  if (fence.health < fence.maxHealth && localPlayerPosition) {
+    const nowMs = Date.now();
+    
+    renderEntityHealthBar(
+      ctx,
+      fence,
+      fenceWidth,
+      fenceHeight,
+      nowMs,
+      localPlayerPosition.x,
+      localPlayerPosition.y,
+      -fenceHeight / 2
+    );
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Render multiple fences with smart sprite selection based on neighbors
+ */
+export function renderFences({
+  ctx,
+  fences,
+  worldScale,
+  viewOffsetX,
+  viewOffsetY,
+  foundationTileImagesRef,
+  cycleProgress = 0.5,
+  localPlayerPosition,
+  doodadImagesRef,
+}: {
+  ctx: CanvasRenderingContext2D;
+  fences: any[]; // Fence[] - will be properly typed after regenerating bindings
+  worldScale: number;
+  viewOffsetX: number;
+  viewOffsetY: number;
+  foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>;
+  cycleProgress?: number;
+  localPlayerPosition?: { x: number; y: number } | null;
+  doodadImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // Doodad images for fence sprites
+}): void {
+  // Build fence position map once for efficient neighbor lookups
+  const fencePositionMap = buildFencePositionMap(fences);
+  
+  for (const fence of fences) {
+    renderFence({
+      ctx,
+      fence,
+      worldScale,
+      viewOffsetX,
+      viewOffsetY,
+      foundationTileImagesRef,
+      cycleProgress,
+      localPlayerPosition,
+      fencePositionMap,
+      doodadImagesRef,
+    });
+  }
 }
 
 /**

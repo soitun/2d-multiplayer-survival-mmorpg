@@ -106,6 +106,11 @@ pub fn spawn_military_ration_with_loot(
     pos_y: f32,
     chunk_index: u32,
 ) -> Result<u32, String> {
+    // Check if position is on water - military rations cannot spawn in water
+    if crate::environment::is_position_on_water(ctx, pos_x, pos_y) {
+        return Err("Cannot spawn military ration on water".to_string());
+    }
+    
     let loot_table = get_military_ration_loot_table();
     let item_defs = ctx.db.item_definition();
     let inventory_items = ctx.db.inventory_item();

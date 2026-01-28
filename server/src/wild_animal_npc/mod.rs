@@ -33,6 +33,12 @@ pub use crow::CrowBehavior;
 pub use vole::VoleBehavior;
 pub use wolverine::WolverineBehavior;
 pub use caribou::CaribouBehavior;
+pub use caribou::{
+    CaribouSex, CaribouAgeStage, CaribouBreedingData, CaribouBreedingSchedule, CaribouRutState,
+    init_caribou_breeding_schedule, create_caribou_breeding_data, assign_caribou_sex_on_spawn,
+    assign_caribou_sex_forced, cleanup_caribou_breeding_data, get_caribou_age_stage, get_caribou_sex,
+    is_caribou_pregnant, get_caribou_drop_multipliers, get_caribou_age_health_multiplier,
+};
 
 // Re-export animal corpse functionality
 pub use animal_corpse::*;

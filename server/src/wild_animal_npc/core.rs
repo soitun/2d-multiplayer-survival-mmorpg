@@ -45,6 +45,7 @@ use crate::building::foundation_cell as FoundationCellTableTrait; // ADDED: For 
 use crate::building::FoundationCell; // ADDED: Concrete type for pre-fetching
 use crate::building::wall_cell as WallCellTableTrait; // ADDED: For structure attacks
 use crate::door::door as DoorTableTrait; // ADDED: For structure attacks
+use crate::fence::fence as FenceTableTrait; // ADDED: For structure attacks
 use crate::lantern::lantern as LanternTableTrait; // ADDED: For ward attacks (DrownedWatch)
 // Import player progression table traits
 use crate::player_progression::player_stats as PlayerStatsTableTrait;
@@ -961,6 +962,7 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                 (s.pos_x, s.pos_y - crate::shelter::SHELTER_AABB_CENTER_Y_OFFSET_FROM_POS_Y)
                             }),
                             "ward" => ctx.db.lantern().id().find(struct_id as u32).map(|l| (l.pos_x, l.pos_y)),
+                            "fence" => ctx.db.fence().id().find(struct_id).map(|f| (f.pos_x, f.pos_y)),
                             "wall" | _ => ctx.db.wall_cell().id().find(struct_id).map(|w| {
                                 let wx = (w.cell_x as f32 * crate::building::FOUNDATION_TILE_SIZE_PX as f32) + (crate::building::FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
                                 let wy = (w.cell_y as f32 * crate::building::FOUNDATION_TILE_SIZE_PX as f32) + (crate::building::FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
@@ -2623,6 +2625,10 @@ pub fn damage_wild_animal_with_weapon(
                 } else {
                     log::info!("🦴 [SUCCESS] Animal corpse creation call completed successfully for animal {}", animal.id);
                 }
+                
+                // NOTE: Caribou breeding data is NOT cleaned up here - it's kept until the corpse
+                // is harvested so we can apply age-based drop multipliers. Cleanup happens in
+                // combat.rs damage_animal_corpse when the corpse is depleted or despawns.
                 
                 ctx.db.wild_animal().id().delete(&animal_id);
                 log::info!("Wild animal {} killed by player {} - corpse created", animal_id, attacker_id);

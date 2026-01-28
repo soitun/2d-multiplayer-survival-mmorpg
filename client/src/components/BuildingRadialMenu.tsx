@@ -16,6 +16,7 @@ import {
   faCube, 
   faShapes, 
   faGripLinesVertical,
+  faBorderAll,
   IconDefinition 
 } from '@fortawesome/free-solid-svg-icons';
 import { playImmediateSound } from '../hooks/useSoundSystem';
@@ -129,6 +130,15 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
       icon: faGripLinesVertical,
       description: 'Build walls between foundations',
       requirements: { wood: 15 }, // Wall cost: 15 wood
+      available: woodCount >= 15,
+      reason: woodCount < 15 ? `Need 15 wood (have ${woodCount})` : undefined,
+    },
+    {
+      mode: BuildingMode.Fence,
+      name: 'Fence',
+      icon: faBorderAll,
+      description: 'Build fences to protect crops and house animals',
+      requirements: { wood: 15 }, // Fence cost: 15 wood (same as walls)
       available: woodCount >= 15,
       reason: woodCount < 15 ? `Need 15 wood (have ${woodCount})` : undefined,
     },

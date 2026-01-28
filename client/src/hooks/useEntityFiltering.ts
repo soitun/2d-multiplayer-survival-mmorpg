@@ -153,6 +153,8 @@ interface EntityFilteringResult {
   visibleWallCellsMap: Map<string, SpacetimeDBWallCell>; // ADDED: Building walls map
   visibleDoors: SpacetimeDBDoor[]; // ADDED: Building doors
   visibleDoorsMap: Map<string, SpacetimeDBDoor>; // ADDED: Building doors map
+  visibleFences: SpacetimeDBFence[]; // ADDED: Building fences
+  visibleFencesMap: Map<string, SpacetimeDBFence>; // ADDED: Building fences map
   buildingClusters: Map<string, BuildingCluster>; // ADDED: Building clusters for fog of war
   playerBuildingClusterId: string | null; // ADDED: Which building cluster the player is in
   // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
@@ -192,6 +194,7 @@ export type YSortedEntityType =
   | { type: 'foundation_cell'; entity: SpacetimeDBFoundationCell } // ADDED: Building foundations
   | { type: 'wall_cell'; entity: SpacetimeDBWallCell } // ADDED: Building walls
   | { type: 'door'; entity: SpacetimeDBDoor } // ADDED: Building doors
+  | { type: 'fence'; entity: SpacetimeDBFence } // ADDED: Building fences
   | { type: 'fog_overlay'; entity: { clusterId: string; bounds: { minX: number; minY: number; maxX: number; maxY: number }; entranceWayFoundations?: string[]; clusterFoundationCoords?: string[]; northWallFoundations?: string[]; southWallFoundations?: string[] } } // ADDED: Fog of war overlay (renders above placeables, below walls)
   | { type: 'fumarole'; entity: SpacetimeDBFumarole } // ADDED: Fumaroles (geothermal vents in quarries)
   | { type: 'basalt_column'; entity: SpacetimeDBBasaltColumn } // ADDED: Basalt columns (decorative obstacles in quarries)
@@ -330,6 +333,11 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
         // South door: use foundation bottom + player sprite height (matches comparator)
         return foundationTopY + FOUNDATION_TILE_SIZE + 48;
       }
+    }
+    case 'fence': {
+      // Fences use world position directly (posX, posY) on 48px tile grid
+      const fence = entity as SpacetimeDBFence;
+      return fence.posY; // Use tile center Y for sorting
     }
     case 'wall_cell': {
       const wall = entity as SpacetimeDBWallCell;
@@ -685,6 +693,7 @@ export function useEntityFiltering(
   foundationCells: Map<string, SpacetimeDBFoundationCell>, // ADDED: Building foundations
   wallCells: Map<string, SpacetimeDBWallCell>, // ADDED: Building walls
   doors: Map<string, SpacetimeDBDoor>, // ADDED: Building doors
+  fences: Map<string, SpacetimeDBFence>, // ADDED: Building fences
   localPlayerId: string | undefined, // ADDED: Local player ID for building visibility
   isTreeFalling?: (treeId: string) => boolean, // NEW: Check if tree is falling
   worldChunkData?: Map<string, any>, // ADDED: World chunk data for tile type lookups
@@ -1625,6 +1634,33 @@ export function useEntityFiltering(
     [visibleDoors]
   );
 
+  // Extract fence map size BEFORE useMemo to ensure React detects changes
+  const fenceMapSize = fences?.size || 0;
+
+  // ADDED: Filter visible fences
+  const visibleFences = useMemo(() => {
+    if (!fences || typeof fences.values !== 'function') return [];
+    
+    const padding = 50; // Extra padding to catch fences on edges
+    
+    return Array.from(fences.values()).filter(fence => {
+      if (fence.isDestroyed) return false;
+      
+      // Fences use world position directly (posX, posY)
+      const worldX = fence.posX;
+      const worldY = fence.posY;
+      
+      return worldX >= viewBounds.viewMinX - padding && worldX <= viewBounds.viewMaxX + padding &&
+             worldY >= viewBounds.viewMinY - padding && worldY <= viewBounds.viewMaxY + padding;
+    });
+  }, [fences, fenceMapSize, viewBounds, stableTimestamp]);
+
+  // ADDED: Map for visible fences
+  const visibleFencesMap = useMemo(() =>
+    new Map(visibleFences.map(f => [f.id.toString(), f])),
+    [visibleFences]
+  );
+
   // ===== CACHED Y-SORTING WITH DIRTY FLAG SYSTEM =====
   // PERFORMANCE: Cache includes pre-computed sort keys for faster comparisons
   // Internal type extends YSortedEntityType with pre-computed _ySortKey and _priority
@@ -1944,6 +1980,7 @@ export function useEntityFiltering(
     
     visibleWallCells.forEach(e => addEntity('wall_cell', e)); // ADDED: Walls
     visibleDoors.forEach(e => addEntity('door', e)); // ADDED: Doors
+    visibleFences.forEach(e => addEntity('fence', e)); // ADDED: Fences
 
     // Trim array to actual size in case some entities were filtered out (e.g., stones with 0 health)
     allEntities.length = index;
@@ -2582,6 +2619,8 @@ export function useEntityFiltering(
     visibleWallCellsMap,
     visibleDoors, // ADDED: Building doors
     visibleDoorsMap, // ADDED: Building doors map
+    visibleFences, // ADDED: Building fences
+    visibleFencesMap, // ADDED: Building fences map
     buildingClusters, // ADDED: Building clusters for fog of war
     playerBuildingClusterId, // ADDED: Which building the player is in
     visibleAlkStations, // ADDED: ALK delivery stations

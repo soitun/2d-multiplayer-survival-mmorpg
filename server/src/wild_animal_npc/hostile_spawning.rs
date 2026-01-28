@@ -1583,11 +1583,12 @@ pub fn process_dawn_cleanup(ctx: &ReducerContext, args: HostileDawnCleanupSchedu
 
 use crate::door::{door as DoorTableTrait, Door};
 use crate::building::{wall_cell as WallCellTableTrait, WallCell};
+use crate::fence::{fence as FenceTableTrait, Fence};
 // Note: ShelterTableTrait already imported at the top of the file
 
-/// Find the nearest door, wall, or shelter that a hostile can attack
+/// Find the nearest door, wall, shelter, or fence that a hostile can attack
 /// Returns (structure_id, structure_type, distance_sq)
-/// Priority: doors > shelters > walls
+/// Priority: doors > shelters > walls > fences
 pub fn find_nearest_attackable_structure(
     ctx: &ReducerContext,
     hostile_x: f32,
@@ -1677,6 +1678,32 @@ pub fn find_nearest_attackable_structure(
     
     if let Some((wall_id, dist_sq)) = nearest_wall {
         return Some((wall_id, "wall".to_string(), dist_sq));
+    }
+    
+    // Last, look for fences
+    let mut nearest_fence: Option<(u64, f32)> = None;
+    for fence in ctx.db.fence().iter() {
+        if fence.is_destroyed {
+            continue;
+        }
+        
+        // Fences use world position directly (posX, posY) on 48px tile grid
+        let fence_x = fence.pos_x;
+        let fence_y = fence.pos_y;
+        
+        let dx = fence_x - hostile_x;
+        let dy = fence_y - hostile_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq < max_range_sq {
+            if nearest_fence.is_none() || dist_sq < nearest_fence.unwrap().1 {
+                nearest_fence = Some((fence.id, dist_sq));
+            }
+        }
+    }
+    
+    if let Some((fence_id, dist_sq)) = nearest_fence {
+        return Some((fence_id, "fence".to_string(), dist_sq));
     }
     
     None
@@ -1859,6 +1886,32 @@ pub fn hostile_attack_structure(
                 }
                 
                 ctx.db.lantern().id().update(lantern);
+                return Ok(destroyed);
+            }
+        },
+        "fence" => {
+            let fences = ctx.db.fence();
+            if let Some(mut fence) = fences.id().find(structure_id) {
+                if fence.is_destroyed {
+                    return Ok(false);
+                }
+                
+                // HOSTILE ATTACKS BYPASS MELEE REDUCTION - full damage!
+                let old_health = fence.health;
+                fence.health = (fence.health - damage).max(0.0);
+                fence.last_hit_time = Some(current_time);
+                
+                let destroyed = fence.health <= 0.0;
+                if destroyed {
+                    fence.is_destroyed = true;
+                    fence.destroyed_at = Some(current_time);
+                    log::info!("👹 [HostileNPC] Fence {} destroyed by hostile attack!", structure_id);
+                } else {
+                    log::info!("👹 [HostileNPC] Fence {} took {:.1} damage from hostile. Health: {:.1} -> {:.1}", 
+                              structure_id, damage, old_health, fence.health);
+                }
+                
+                ctx.db.fence().id().update(fence);
                 return Ok(destroyed);
             }
         },

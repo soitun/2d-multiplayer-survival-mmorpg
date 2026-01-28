@@ -25,6 +25,7 @@ import {
   FoundationCell as SpacetimeDBFoundationCell, // ADDED: Building foundations
   WallCell as SpacetimeDBWallCell, // ADDED: Building walls
   Door as SpacetimeDBDoor, // ADDED: Building doors
+  Fence as SpacetimeDBFence, // ADDED: Building fences
   HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth
   BrothPot as SpacetimeDBBrothPot, // ADDED: BrothPot
   Turret as SpacetimeDBTurret, // ADDED: Turret
@@ -60,7 +61,7 @@ import { renderLantern, renderWardRadius, LANTERN_TYPE_LANTERN } from './lantern
 import { renderTurret } from './turretRenderingUtils';
 import { renderBrothPot } from './brothPotRenderingUtils'; // ADDED: Broth pot renderer import
 import { renderFoundation, renderFogOverlay, renderFogOverlayCluster } from './foundationRenderingUtils'; // ADDED: Foundation renderer import
-import { renderWall, renderWallExteriorShadow } from './foundationRenderingUtils'; // ADDED: Wall renderer and exterior shadow import
+import { renderWall, renderWallExteriorShadow, renderFence, buildFencePositionMap } from './foundationRenderingUtils'; // ADDED: Wall renderer, exterior shadow, fence renderer, and fence position map builder import
 import { renderDoor } from './doorRenderingUtils'; // ADDED: Door renderer import
 import { renderStash } from './stashRenderingUtils';
 import { renderSleepingBag } from './sleepingBagRenderingUtils';
@@ -440,6 +441,7 @@ cameraOffsetY?: number;
 foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADDED: Foundation tile images
   allWalls?: Map<string, any>; // ADDED: All walls to check for adjacent walls
   allFoundations?: Map<string, any>; // ADDED: All foundations to check for adjacent foundations
+  allFences?: any[]; // ADDED: All fences for smart sprite selection based on neighbors
   buildingClusters?: Map<string, any>; // ADDED: Building clusters for fog of war
   playerBuildingClusterId?: string | null; // ADDED: Which building the player is in
   connection?: DbConnection | null; // ADDED: Connection for tile biome lookup
@@ -515,6 +517,7 @@ export const renderYSortedEntities = ({
   foundationTileImagesRef,
   allWalls, // ADDED: All walls to check for adjacent walls
   allFoundations, // ADDED: All foundations to check for adjacent foundations
+  allFences, // ADDED: All fences for smart sprite selection based on neighbors
   buildingClusters, // ADDED: Building clusters for fog of war
   playerBuildingClusterId, // ADDED: Which building the player is in
   connection, // ADDED: Connection for tile biome lookup
@@ -557,6 +560,10 @@ export const renderYSortedEntities = ({
           }
       }
   });
+  
+  // Build fence position map for smart sprite selection (neighbor detection)
+  // This allows fences to show proper end caps, center pieces, and corners
+  const fencePositionMap = allFences ? buildFencePositionMap(allFences) : new Map<string, any>();
   
   // NOTE: Underwater shadows are now rendered separately in GameCanvas.tsx
   // before the water overlay, not here in renderYSortedEntities
@@ -620,6 +627,25 @@ export const renderYSortedEntities = ({
               playerInsideCluster: playerInsideThisCluster,
               isClusterEnclosed: isEnclosed,
               entranceWayFoundations: allEntranceWayFoundations,
+          });
+          return;
+      }
+      
+      // Handle fence: render fences in Y-sorted order with smart sprite selection
+      if (type === 'fence') {
+          const fence = entity as SpacetimeDBFence;
+          
+          renderFence({
+              ctx,
+              fence: fence as any,
+              worldScale: 1.0,
+              viewOffsetX: -cameraOffsetX,
+              viewOffsetY: -cameraOffsetY,
+              foundationTileImagesRef: foundationTileImagesRef,
+              cycleProgress: cycleProgress,
+              localPlayerPosition: localPlayerPosition,
+              fencePositionMap: fencePositionMap, // Pass for neighbor detection
+              doodadImagesRef: doodadImagesRef, // Pass for fence sprite images
           });
           return;
       }

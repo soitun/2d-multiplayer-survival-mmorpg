@@ -306,8 +306,17 @@ fn spawn_animal(
     };
     
     // Attempt to spawn the animal
-    ctx.db.wild_animal().try_insert(new_animal)
-        .map_err(|e| e.to_string())
+    let inserted = ctx.db.wild_animal().try_insert(new_animal)
+        .map_err(|e| e.to_string())?;
+    
+    // For caribou, assign sex and create breeding data
+    if matches!(species, AnimalSpecies::Caribou) {
+        if let Err(e) = super::caribou::assign_caribou_sex_on_spawn(ctx, inserted.id) {
+            log::warn!("Failed to assign sex to caribou {}: {}", inserted.id, e);
+        }
+    }
+    
+    Ok(inserted)
 }
 
 /// Helper struct to organize existing positions

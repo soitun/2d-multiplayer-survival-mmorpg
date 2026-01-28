@@ -58,6 +58,9 @@ const WARD_COLLISION_Y_OFFSET: f32 = 80.0; // Offset collision upward to match v
 use crate::building::{wall_cell as WallCellTableTrait, FOUNDATION_TILE_SIZE_PX};
 // Import door table trait for anti-tunneling collision detection
 use crate::door::door as DoorTableTrait;
+// Import fence table trait for collision detection
+use crate::fence::fence as FenceTableTrait;
+use crate::fence::{check_fence_collision, FENCE_COLLISION_THICKNESS};
 use crate::TILE_SIZE_PX;
 // Import compound building collision system
 // compound_buildings import removed - collision handled client-side only
@@ -113,6 +116,14 @@ pub fn calculate_slide_collision_with_grid(
     
     if let Some(blocked_pos) = check_door_line_collision_player(ctx, current_player_pos_x, current_player_pos_y, final_x, final_y, PLAYER_RADIUS) {
         log::info!("[PlayerCollision] Player {:?} BLOCKED by door during movement from ({:.1},{:.1}) to ({:.1},{:.1}) - stopped at ({:.1},{:.1})", 
+                   sender_id, current_player_pos_x, current_player_pos_y, final_x, final_y, blocked_pos.0, blocked_pos.1);
+        final_x = blocked_pos.0;
+        final_y = blocked_pos.1;
+    }
+    
+    // Check fence collision (anti-tunneling)
+    if let Some(blocked_pos) = check_fence_line_collision_player(ctx, current_player_pos_x, current_player_pos_y, final_x, final_y, PLAYER_RADIUS) {
+        log::info!("[PlayerCollision] Player {:?} BLOCKED by fence during movement from ({:.1},{:.1}) to ({:.1},{:.1}) - stopped at ({:.1},{:.1})", 
                    sender_id, current_player_pos_x, current_player_pos_y, final_x, final_y, blocked_pos.0, blocked_pos.1);
         final_x = blocked_pos.0;
         final_y = blocked_pos.1;
@@ -1089,6 +1100,16 @@ pub fn calculate_slide_collision_with_grid(
         log::debug!("[SlideCollision] Player {:?} pushed back by door: ({:.1}, {:.1})", sender_id, pushback_x, pushback_y);
     }
     
+    // Check fence collisions - fences block movement
+    // Apply pushback to current final position, not original position
+    if let Some((pushback_x, pushback_y)) = check_fence_collision_pushback(ctx, final_x, final_y, current_player_radius) {
+        final_x += pushback_x;
+        final_y += pushback_y;
+        final_x = final_x.max(current_player_radius).min(WORLD_WIDTH_PX - current_player_radius);
+        final_y = final_y.max(current_player_radius).min(WORLD_HEIGHT_PX - current_player_radius);
+        log::debug!("[SlideCollision] Player {:?} pushed back by fence: ({:.1}, {:.1})", sender_id, pushback_x, pushback_y);
+    }
+    
     // Compound building collision REMOVED - buildings are purely decorative
     
     (final_x, final_y)
@@ -1744,6 +1765,14 @@ pub fn resolve_push_out_collision_with_grid(
             overlap_found_in_iter = true;
         }
         
+        // Check fence collisions - fences block movement (not in spatial grid)
+        // check_fence_collision_pushback already checks for collision internally
+        if let Some((pushback_x, pushback_y)) = check_fence_collision_pushback(ctx, resolved_x, resolved_y, current_player_radius) {
+            resolved_x += pushback_x;
+            resolved_y += pushback_y;
+            overlap_found_in_iter = true;
+        }
+        
         // Check wall collisions for push-out - walls are NOT in spatial grid, checked via foundation cell coordinates
         // CRITICAL FIX: Walls use FOUNDATION_TILE_SIZE_PX (96px), NOT TILE_SIZE_PX (48px)!
         // This fixes wall clipping by pushing players out of walls they've somehow ended up inside
@@ -2073,4 +2102,223 @@ fn check_door_line_collision_player(
     }
     
     None // Path is clear
+}
+
+/// ANTI-TUNNELING: Check if a player movement line crosses any fences
+/// Returns the safe position just before hitting the fence, or None if path is clear
+/// Fences now use 96px foundation cell grid (same as walls)
+fn check_fence_line_collision_player(
+    ctx: &ReducerContext,
+    start_x: f32,
+    start_y: f32,
+    end_x: f32,
+    end_y: f32,
+    player_radius: f32,
+) -> Option<(f32, f32)> {
+    const FENCE_THICKNESS: f32 = 12.0; // Slightly thicker for line check
+    const STEP_SIZE: f32 = 15.0; // Check every 15 pixels along the path
+    
+    let dx = end_x - start_x;
+    let dy = end_y - start_y;
+    let distance = (dx * dx + dy * dy).sqrt();
+    
+    if distance < 1.0 {
+        return None; // Not moving significantly
+    }
+    
+    // Number of steps to check along the path
+    let num_steps = ((distance / STEP_SIZE).ceil() as i32).max(1);
+    
+    // Calculate which cells to check (fences use 96px foundation cell grid - same as walls)
+    let min_cell_x = ((start_x.min(end_x) - player_radius) / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32 - 1;
+    let max_cell_x = ((start_x.max(end_x) + player_radius) / FOUNDATION_TILE_SIZE_PX as f32).ceil() as i32 + 1;
+    let min_cell_y = ((start_y.min(end_y) - player_radius) / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32 - 1;
+    let max_cell_y = ((start_y.max(end_y) + player_radius) / FOUNDATION_TILE_SIZE_PX as f32).ceil() as i32 + 1;
+    
+    let fences = ctx.db.fence();
+    
+    // Collect all fences in the movement area
+    // edge: 0=N, 1=E, 2=S, 3=W (same as walls)
+    let mut fences_to_check: Vec<_> = Vec::new();
+    for cell_x in min_cell_x..=max_cell_x {
+        for cell_y in min_cell_y..=max_cell_y {
+            for fence in fences.idx_cell_coords().filter((cell_x, cell_y)) {
+                if fence.is_destroyed {
+                    continue;
+                }
+                fences_to_check.push((fence.edge, fence.pos_x, fence.pos_y));
+            }
+        }
+    }
+    
+    if fences_to_check.is_empty() {
+        return None; // No fences in the area
+    }
+    
+    // Check each step along the movement path
+    for step in 0..=num_steps {
+        let t = step as f32 / num_steps as f32;
+        let check_x = start_x + dx * t;
+        let check_y = start_y + dy * t;
+        
+        // Check against all fences - fences are at cell edges (same as walls)
+        for &(edge, fence_x, fence_y) in &fences_to_check {
+            let half_edge = FOUNDATION_TILE_SIZE_PX as f32 / 2.0;
+            let half_thickness = FENCE_THICKNESS / 2.0;
+            
+            // Edge: 0=N, 1=E, 2=S, 3=W - N/S are horizontal (thin in Y), E/W are vertical (thin in X)
+            let (fence_min_x, fence_max_x, fence_min_y, fence_max_y) = match edge {
+                0 | 2 => {
+                    // North or South edge: horizontal fence spanning cell width
+                    (
+                        fence_x - half_edge,
+                        fence_x + half_edge,
+                        fence_y - half_thickness,
+                        fence_y + half_thickness,
+                    )
+                }
+                _ => {
+                    // East or West edge: vertical fence spanning cell height
+                    (
+                        fence_x - half_thickness,
+                        fence_x + half_thickness,
+                        fence_y - half_edge,
+                        fence_y + half_edge,
+                    )
+                }
+            };
+            
+            // Check if position intersects fence
+            let closest_x = check_x.max(fence_min_x).min(fence_max_x);
+            let closest_y = check_y.max(fence_min_y).min(fence_max_y);
+            let dx_to_fence = check_x - closest_x;
+            let dy_to_fence = check_y - closest_y;
+            let dist_sq = dx_to_fence * dx_to_fence + dy_to_fence * dy_to_fence;
+            
+            if dist_sq < player_radius * player_radius {
+                // Found collision! Return position one step back
+                if step == 0 {
+                    return Some((start_x, start_y));
+                }
+                let safe_t = ((step - 1) as f32 / num_steps as f32).max(0.0);
+                let safe_x = start_x + dx * safe_t;
+                let safe_y = start_y + dy * safe_t;
+                return Some((safe_x, safe_y));
+            }
+        }
+    }
+    
+    None // Path is clear
+}
+
+/// Check fence collision and return pushback vector for player movement
+/// Fences are positioned on cell edges (same as walls): N/S horizontal, E/W vertical
+/// Handles MULTIPLE fence collisions at once to prevent getting stuck at corners
+fn check_fence_collision_pushback(
+    ctx: &ReducerContext,
+    proposed_x: f32,
+    proposed_y: f32,
+    radius: f32,
+) -> Option<(f32, f32)> {
+    const CHECK_RADIUS_CELLS: i32 = 2;
+    const SEPARATION_MARGIN: f32 = 1.0;
+    
+    // Convert to foundation cell coordinates (96px grid)
+    let cell_x = (proposed_x / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    let cell_y = (proposed_y / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    let fences = ctx.db.fence();
+    
+    // Collect ALL colliding fences and their pushback contributions
+    let mut total_push_x: f32 = 0.0;
+    let mut total_push_y: f32 = 0.0;
+    let mut collision_count = 0;
+    
+    for offset_x in -CHECK_RADIUS_CELLS..=CHECK_RADIUS_CELLS {
+        for offset_y in -CHECK_RADIUS_CELLS..=CHECK_RADIUS_CELLS {
+            let check_cell_x = cell_x + offset_x;
+            let check_cell_y = cell_y + offset_y;
+            
+            for fence in fences.idx_cell_coords().filter((check_cell_x, check_cell_y)) {
+                if fence.is_destroyed {
+                    continue;
+                }
+                
+                let half_edge = FOUNDATION_TILE_SIZE_PX as f32 / 2.0;
+                let half_thickness = FENCE_COLLISION_THICKNESS / 2.0;
+                
+                // Calculate fence collision bounds (same as walls)
+                // Edge: 0=N, 1=E, 2=S, 3=W
+                let (fence_min_x, fence_max_x, fence_min_y, fence_max_y, is_horizontal) = match fence.edge {
+                    0 | 2 => {
+                        // North or South edge: horizontal fence (96px wide, 6px thick)
+                        (
+                            fence.pos_x - half_edge,
+                            fence.pos_x + half_edge,
+                            fence.pos_y - half_thickness,
+                            fence.pos_y + half_thickness,
+                            true,
+                        )
+                    }
+                    _ => {
+                        // East or West edge: vertical fence (6px wide, 96px tall)
+                        (
+                            fence.pos_x - half_thickness,
+                            fence.pos_x + half_thickness,
+                            fence.pos_y - half_edge,
+                            fence.pos_y + half_edge,
+                            false,
+                        )
+                    }
+                };
+                
+                // Expand by player radius
+                let exp_min_x = fence_min_x - radius;
+                let exp_max_x = fence_max_x + radius;
+                let exp_min_y = fence_min_y - radius;
+                let exp_max_y = fence_max_y + radius;
+                
+                // Check collision
+                if proposed_x >= exp_min_x && proposed_x <= exp_max_x &&
+                   proposed_y >= exp_min_y && proposed_y <= exp_max_y {
+                    
+                    collision_count += 1;
+                    
+                    // For thin fences, push PERPENDICULAR to the fence surface
+                    if is_horizontal {
+                        // Horizontal fence (N/S edge): push in Y direction only
+                        let dist_to_fence = proposed_y - fence.pos_y;
+                        if dist_to_fence < 0.0 {
+                            // Player is above fence, push up
+                            let target_y = fence_min_y - radius - SEPARATION_MARGIN;
+                            total_push_y += target_y - proposed_y;
+                        } else {
+                            // Player is below fence, push down
+                            let target_y = fence_max_y + radius + SEPARATION_MARGIN;
+                            total_push_y += target_y - proposed_y;
+                        }
+                    } else {
+                        // Vertical fence (E/W edge): push in X direction only
+                        let dist_to_fence = proposed_x - fence.pos_x;
+                        if dist_to_fence < 0.0 {
+                            // Player is left of fence, push left
+                            let target_x = fence_min_x - radius - SEPARATION_MARGIN;
+                            total_push_x += target_x - proposed_x;
+                        } else {
+                            // Player is right of fence, push right
+                            let target_x = fence_max_x + radius + SEPARATION_MARGIN;
+                            total_push_x += target_x - proposed_x;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if collision_count > 0 {
+        // Return combined pushback - this handles corners properly
+        // by pushing in BOTH directions if needed
+        Some((total_push_x, total_push_y))
+    } else {
+        None
+    }
 }

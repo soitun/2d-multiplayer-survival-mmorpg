@@ -99,6 +99,7 @@ interface InputHandlerProps {
     isAutoWalking: boolean; // Auto-walk state for dodge roll detection
     targetedFoundation: any | null; // ADDED: Targeted foundation for upgrade menu
     targetedWall: any | null; // ADDED: Targeted wall for upgrade menu
+    targetedFence: any | null; // ADDED: Targeted fence for repair/demolish
 }
 
 // --- Hook Return Value Interface ---
@@ -189,6 +190,7 @@ export const useInputHandler = ({
     isAutoWalking, // Auto-walk state for dodge roll detection
     targetedFoundation, // ADDED: Targeted foundation
     targetedWall, // ADDED: Targeted wall
+    targetedFence, // ADDED: Targeted fence
     rangedWeaponStats, // ADDED: For auto-fire detection
 }: InputHandlerProps): InputHandlerState => {
     // console.log('[useInputHandler IS RUNNING] isInventoryOpen:', isInventoryOpen);
@@ -238,6 +240,7 @@ export const useInputHandler = ({
     const playersRef = useLatest(players);
     const targetedFoundationRef = useLatest(targetedFoundation);
     const targetedWallRef = useLatest(targetedWall);
+    const targetedFenceRef = useLatest(targetedFence);
     const itemDefinitionsRef = useLatest(itemDefinitions);
     const rangedWeaponStatsRef = useLatest(rangedWeaponStats); // ADDED: Ref for ranged weapon stats
 
@@ -256,6 +259,7 @@ export const useInputHandler = ({
     const radialMenuShownRef = useRef<boolean>(false); // Track if menu is shown to avoid clearing timeout prematurely
     const upgradeMenuFoundationIdRef = useRef<bigint | null>(null); // Store foundation ID when menu opens
     const upgradeMenuWallIdRef = useRef<bigint | null>(null); // Store wall ID when menu opens
+    const upgradeMenuFenceIdRef = useRef<bigint | null>(null); // Store fence ID when menu opens
 
     // --- Derive input disabled state based ONLY on player death --- 
     const isPlayerDead = localPlayer?.isDead ?? false;
@@ -291,6 +295,7 @@ export const useInputHandler = ({
             // Menu closed - reset all refs to allow menu to open again
             upgradeMenuFoundationIdRef.current = null;
             upgradeMenuWallIdRef.current = null;
+            upgradeMenuFenceIdRef.current = null;
             radialMenuShownRef.current = false;
             // Clear any pending timeout
             if (radialMenuTimeoutRef.current) {
@@ -688,8 +693,11 @@ export const useInputHandler = ({
                     case 'r': // ADDED: Rotate triangle foundation shape
                         if (buildingStateRef.current?.isBuilding && buildingActionsRef.current) {
                             event.preventDefault();
-                            buildingActionsRef.current.rotateTriangleShape();
-                            console.log('[R-Key] Rotated triangle foundation shape');
+                            // Only rotate triangle foundation shapes (fences use dynamic edge detection like walls)
+                            if (buildingStateRef.current.mode !== 'fence') {
+                                buildingActionsRef.current.rotateTriangleShape();
+                                console.log('[R-Key] Rotated triangle foundation shape');
+                            }
                         }
                         return;
                 }
@@ -1579,7 +1587,42 @@ export const useInputHandler = ({
                             }, 100);
                             return;
                         }
-                        // Fall back to foundation if no wall is targeted
+                        // Check for targeted fence
+                        else if (targetedFenceRef.current) {
+                            // Don't show menu if it's already showing (prevent flickering)
+                            if (showBuildingRadialMenu) {
+                                setShowBuildingRadialMenu(false);
+                                radialMenuShownRef.current = false;
+                            }
+                            if (showUpgradeRadialMenu || radialMenuShownRef.current) {
+                                return;
+                            }
+                            // Store the fence ID so menu stays open even if targetedFence changes
+                            upgradeMenuFenceIdRef.current = targetedFenceRef.current.id;
+                            // Get mouse position for upgrade radial menu
+                            const mouseX = event.clientX;
+                            const mouseY = event.clientY;
+                            setRadialMenuMouseX(mouseX);
+                            setRadialMenuMouseY(mouseY);
+                            // Show menu after a short delay to allow for drag detection
+                            if (radialMenuTimeoutRef.current) {
+                                clearTimeout(radialMenuTimeoutRef.current);
+                                radialMenuTimeoutRef.current = null;
+                            }
+                            console.log('[UpgradeRadialMenu] Right-click detected with Repair Hammer on fence, setting up menu at', mouseX, mouseY);
+                            radialMenuTimeoutRef.current = setTimeout(() => {
+                                if (isRightMouseDownRef.current && upgradeMenuFenceIdRef.current !== null) {
+                                    console.log('[UpgradeRadialMenu] Showing upgrade radial menu for fence');
+                                    radialMenuShownRef.current = true;
+                                    setShowUpgradeRadialMenu(true);
+                                } else {
+                                    // Clear the fence ID if menu didn't show
+                                    upgradeMenuFenceIdRef.current = null;
+                                }
+                            }, 100);
+                            return;
+                        }
+                        // Fall back to foundation if no wall or fence is targeted
                         else if (targetedFoundationRef.current) {
                             // Don't show menu if it's already showing (prevent flickering)
                             if (showBuildingRadialMenu) {
@@ -1680,6 +1723,7 @@ export const useInputHandler = ({
                     // Clear the stored IDs
                     upgradeMenuFoundationIdRef.current = null;
                     upgradeMenuWallIdRef.current = null;
+                    upgradeMenuFenceIdRef.current = null;
                     // Small delay to let menu component handle selection first
                     setTimeout(() => {
                         setShowUpgradeRadialMenu(false);
@@ -1692,6 +1736,7 @@ export const useInputHandler = ({
                     radialMenuTimeoutRef.current = null;
                     upgradeMenuFoundationIdRef.current = null;
                     upgradeMenuWallIdRef.current = null;
+                    upgradeMenuFenceIdRef.current = null;
                 }
             }
         };

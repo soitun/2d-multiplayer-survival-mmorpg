@@ -42,10 +42,10 @@ interface UpgradeRadialMenuProps {
   inventoryItems: Map<string, InventoryItem>;
   itemDefinitions: Map<string, ItemDefinition>;
   tile: UpgradableBuildingTile | null; // Generic building tile
-  tileType: 'foundation' | 'wall' | 'door'; // Tile type for cost calculation
+  tileType: 'foundation' | 'wall' | 'door' | 'fence'; // Tile type for cost calculation
   onSelect: (tier: BuildingTier) => void;
   onCancel: () => void;
-  onDestroy?: () => void; // Destroy callback (only shown for Twig tier)
+  onDestroy?: () => void; // Destroy callback (only shown for Twig tier, or always for fences)
   activeConsumableEffects?: Map<string, ActiveConsumableEffect>; // ADDED: For building privilege check
   localPlayerId?: string | null; // ADDED: Local player ID for privilege check
   homesteadHearths?: Map<string, any>; // ADDED: For checking if privilege is required (no hearths = free for all)
@@ -89,7 +89,7 @@ function getUpgradeCosts(tier: BuildingTier, tileType: string, multiplier: numbe
   switch (tier) {
     case BuildingTier.Wood:
       // Wood tier costs depend on tile type
-      if (tileType === 'wall') {
+      if (tileType === 'wall' || tileType === 'fence') {
         return { wood: Math.ceil(20 * multiplier) };
       }
       // Foundation, door: 10 wood (reduced from 50 - minimal since aesthetic)
@@ -97,7 +97,7 @@ function getUpgradeCosts(tier: BuildingTier, tileType: string, multiplier: numbe
     
     case BuildingTier.Stone:
       // Stone tier costs depend on tile type
-      if (tileType === 'wall') {
+      if (tileType === 'wall' || tileType === 'fence') {
         return { stone: Math.ceil(20 * multiplier) };
       }
       // Foundation, door: 20 stone (reduced from 100 - minimal since aesthetic)
@@ -105,7 +105,7 @@ function getUpgradeCosts(tier: BuildingTier, tileType: string, multiplier: numbe
     
     case BuildingTier.Metal:
       // Metal tier costs depend on tile type
-      if (tileType === 'wall') {
+      if (tileType === 'wall' || tileType === 'fence') {
         return { metal: Math.ceil(20 * multiplier) };
       }
       // Foundation, door: 10 metal fragments (reduced from 50 - minimal since aesthetic)
@@ -219,86 +219,167 @@ export const UpgradeRadialMenu: React.FC<UpgradeRadialMenuProps> = ({
     }
   }, [tile?.owner, connection]);
 
-  // Define upgrade options (always show all 3 tiers, grey out unavailable ones)
+  // Define upgrade options (always show all 3 tiers for non-fences, grey out unavailable ones)
   const upgradeOptions: UpgradeOption[] = [];
 
-  // Wood upgrade (Twig -> Wood)
-  const woodCosts = getUpgradeCosts(BuildingTier.Wood, tileType, costMultiplier);
-  const requiredWood = woodCosts.wood || 0;
-  const hasResourcesForWood = woodCount >= requiredWood;
-  const canUpgradeToWood = currentTier < BuildingTier.Wood && hasBuildingPrivilege && hasResourcesForWood;
-  upgradeOptions.push({
-    tier: BuildingTier.Wood,
-    name: 'Wood',
-    icon: faTree,
-    description: 'Upgrade to wood tier',
-    requirements: woodCosts,
-    available: canUpgradeToWood,
-    reason: currentTier >= BuildingTier.Wood 
-      ? 'Already at or above this tier' 
-      : !hasBuildingPrivilege
-        ? 'Building privilege required'
-        : !hasResourcesForWood
-          ? `Need ${requiredWood} wood (have ${woodCount})` 
-          : undefined,
-  });
-
-  // Stone upgrade (-> Stone)
-  const stoneCosts = getUpgradeCosts(BuildingTier.Stone, tileType, costMultiplier);
-  const requiredStone = stoneCosts.stone || 0;
-  const hasResourcesForStone = stoneCount >= requiredStone;
-  const canUpgradeToStone = currentTier < BuildingTier.Stone && hasBuildingPrivilege && hasResourcesForStone;
-  upgradeOptions.push({
-    tier: BuildingTier.Stone,
-    name: 'Stone',
-    icon: faMountain,
-    description: 'Upgrade to stone tier',
-    requirements: stoneCosts,
-    available: canUpgradeToStone,
-    reason: currentTier >= BuildingTier.Stone 
-      ? 'Already at or above this tier' 
-      : !hasBuildingPrivilege
-        ? 'Building privilege required'
-        : !hasResourcesForStone
-          ? `Need ${requiredStone} stone (have ${stoneCount})` 
-          : undefined,
-  });
-
-  // Metal upgrade (-> Metal)
-  const metalCosts = getUpgradeCosts(BuildingTier.Metal, tileType, costMultiplier);
-  const requiredMetal = metalCosts.metal || 0;
-  const hasResourcesForMetal = metalCount >= requiredMetal;
-  const canUpgradeToMetal = currentTier < BuildingTier.Metal && hasBuildingPrivilege && hasResourcesForMetal;
-  upgradeOptions.push({
-    tier: BuildingTier.Metal,
-    name: 'Metal',
-    icon: faCog,
-    description: 'Upgrade to metal tier',
-    requirements: metalCosts,
-    available: canUpgradeToMetal,
-    reason: currentTier >= BuildingTier.Metal 
-      ? 'Already at or above this tier' 
-      : !hasBuildingPrivilege
-        ? 'Building privilege required'
-        : !hasResourcesForMetal
-          ? `Need ${requiredMetal} metal fragments (have ${metalCount})` 
-          : undefined,
-  });
-
-  // Destroy option (only for Twig tier)
-  // Always show the option - server will validate ownership
-  if (currentTier === BuildingTier.Twig && onDestroy) {
-    // PERFORMANCE FIX: Removed debug logging that ran every render frame
-    
+  // For fences, show upgrade tiers (Wood, Stone, Metal) plus destroy option
+  if (tileType === 'fence') {
+    // Wood upgrade (Twig -> Wood)
+    const woodCosts = getUpgradeCosts(BuildingTier.Wood, tileType, costMultiplier);
+    const requiredWood = woodCosts.wood || 0;
+    const hasResourcesForWood = woodCount >= requiredWood;
+    const canUpgradeToWood = currentTier < BuildingTier.Wood && hasBuildingPrivilege && hasResourcesForWood;
     upgradeOptions.push({
-      tier: BuildingTier.Twig, // Not used for destroy
-      name: 'Destroy',
-      icon: faTrash,
-      description: 'Destroy this building piece',
-      requirements: {},
-      available: true, // Always available - server validates ownership
-      reason: !playerOwnsTile ? 'You can only destroy buildings you built' : undefined,
+      tier: BuildingTier.Wood,
+      name: 'Wood',
+      icon: faTree,
+      description: 'Upgrade to wood tier',
+      requirements: woodCosts,
+      available: canUpgradeToWood,
+      reason: currentTier >= BuildingTier.Wood 
+        ? 'Already at or above this tier' 
+        : !hasBuildingPrivilege
+          ? 'Building privilege required'
+          : !hasResourcesForWood
+            ? `Need ${requiredWood} wood (have ${woodCount})` 
+            : undefined,
     });
+
+    // Stone upgrade (-> Stone)
+    const stoneCosts = getUpgradeCosts(BuildingTier.Stone, tileType, costMultiplier);
+    const requiredStone = stoneCosts.stone || 0;
+    const hasResourcesForStone = stoneCount >= requiredStone;
+    const canUpgradeToStone = currentTier < BuildingTier.Stone && hasBuildingPrivilege && hasResourcesForStone;
+    upgradeOptions.push({
+      tier: BuildingTier.Stone,
+      name: 'Stone',
+      icon: faMountain,
+      description: 'Upgrade to stone tier',
+      requirements: stoneCosts,
+      available: canUpgradeToStone,
+      reason: currentTier >= BuildingTier.Stone 
+        ? 'Already at or above this tier' 
+        : !hasBuildingPrivilege
+          ? 'Building privilege required'
+          : !hasResourcesForStone
+            ? `Need ${requiredStone} stone (have ${stoneCount})` 
+            : undefined,
+    });
+
+    // Metal upgrade (-> Metal)
+    const metalCosts = getUpgradeCosts(BuildingTier.Metal, tileType, costMultiplier);
+    const requiredMetal = metalCosts.metal || 0;
+    const hasResourcesForMetal = metalCount >= requiredMetal;
+    const canUpgradeToMetal = currentTier < BuildingTier.Metal && hasBuildingPrivilege && hasResourcesForMetal;
+    upgradeOptions.push({
+      tier: BuildingTier.Metal,
+      name: 'Metal',
+      icon: faCog,
+      description: 'Upgrade to metal tier',
+      requirements: metalCosts,
+      available: canUpgradeToMetal,
+      reason: currentTier >= BuildingTier.Metal 
+        ? 'Already at or above this tier' 
+        : !hasBuildingPrivilege
+          ? 'Building privilege required'
+          : !hasResourcesForMetal
+            ? `Need ${requiredMetal} metal fragments (have ${metalCount})` 
+            : undefined,
+    });
+
+    // Destroy option for fences (always show)
+    if (onDestroy) {
+      upgradeOptions.push({
+        tier: BuildingTier.Twig, // Not used for destroy
+        name: 'Destroy',
+        icon: faTrash,
+        description: 'Destroy this fence',
+        requirements: {},
+        available: true, // Always available - server validates ownership
+        reason: !playerOwnsTile ? 'You can only destroy fences you built' : undefined,
+      });
+    }
+  } else {
+    // Non-fence buildings - show upgrade tiers
+    
+    // Wood upgrade (Twig -> Wood)
+    const woodCosts = getUpgradeCosts(BuildingTier.Wood, tileType, costMultiplier);
+    const requiredWood = woodCosts.wood || 0;
+    const hasResourcesForWood = woodCount >= requiredWood;
+    const canUpgradeToWood = currentTier < BuildingTier.Wood && hasBuildingPrivilege && hasResourcesForWood;
+    upgradeOptions.push({
+      tier: BuildingTier.Wood,
+      name: 'Wood',
+      icon: faTree,
+      description: 'Upgrade to wood tier',
+      requirements: woodCosts,
+      available: canUpgradeToWood,
+      reason: currentTier >= BuildingTier.Wood 
+        ? 'Already at or above this tier' 
+        : !hasBuildingPrivilege
+          ? 'Building privilege required'
+          : !hasResourcesForWood
+            ? `Need ${requiredWood} wood (have ${woodCount})` 
+            : undefined,
+    });
+
+    // Stone upgrade (-> Stone)
+    const stoneCosts = getUpgradeCosts(BuildingTier.Stone, tileType, costMultiplier);
+    const requiredStone = stoneCosts.stone || 0;
+    const hasResourcesForStone = stoneCount >= requiredStone;
+    const canUpgradeToStone = currentTier < BuildingTier.Stone && hasBuildingPrivilege && hasResourcesForStone;
+    upgradeOptions.push({
+      tier: BuildingTier.Stone,
+      name: 'Stone',
+      icon: faMountain,
+      description: 'Upgrade to stone tier',
+      requirements: stoneCosts,
+      available: canUpgradeToStone,
+      reason: currentTier >= BuildingTier.Stone 
+        ? 'Already at or above this tier' 
+        : !hasBuildingPrivilege
+          ? 'Building privilege required'
+          : !hasResourcesForStone
+            ? `Need ${requiredStone} stone (have ${stoneCount})` 
+            : undefined,
+    });
+
+    // Metal upgrade (-> Metal)
+    const metalCosts = getUpgradeCosts(BuildingTier.Metal, tileType, costMultiplier);
+    const requiredMetal = metalCosts.metal || 0;
+    const hasResourcesForMetal = metalCount >= requiredMetal;
+    const canUpgradeToMetal = currentTier < BuildingTier.Metal && hasBuildingPrivilege && hasResourcesForMetal;
+    upgradeOptions.push({
+      tier: BuildingTier.Metal,
+      name: 'Metal',
+      icon: faCog,
+      description: 'Upgrade to metal tier',
+      requirements: metalCosts,
+      available: canUpgradeToMetal,
+      reason: currentTier >= BuildingTier.Metal 
+        ? 'Already at or above this tier' 
+        : !hasBuildingPrivilege
+          ? 'Building privilege required'
+          : !hasResourcesForMetal
+            ? `Need ${requiredMetal} metal fragments (have ${metalCount})` 
+            : undefined,
+    });
+
+    // Destroy option (only for Twig tier)
+    // Always show the option - server will validate ownership
+    if (currentTier === BuildingTier.Twig && onDestroy) {
+      // PERFORMANCE FIX: Removed debug logging that ran every render frame
+      
+      upgradeOptions.push({
+        tier: BuildingTier.Twig, // Not used for destroy
+        name: 'Destroy',
+        icon: faTrash,
+        description: 'Destroy this building piece',
+        requirements: {},
+        available: true, // Always available - server validates ownership
+        reason: !playerOwnsTile ? 'You can only destroy buildings you built' : undefined,
+      });
+    }
   }
 
   // Calculate total number of options for sector calculations

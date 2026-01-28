@@ -157,6 +157,7 @@ interface GameScreenProps {
     foundationCells: Map<string, any>; // ADDED: Building foundations
     wallCells: Map<string, any>; // ADDED: Building walls
     doors: Map<string, any>; // ADDED: Building doors
+    fences: Map<string, any>; // ADDED: Building fences
     fumaroles: Map<string, any>; // ADDED fumaroles
     basaltColumns: Map<string, any>; // ADDED basalt columns
     livingCorals: Map<string, any>; // Living coral for underwater harvesting (uses combat system)
@@ -1078,6 +1079,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 foundationCells={props.foundationCells}
                 wallCells={props.wallCells}
                 doors={props.doors}
+                fences={props.fences}
                 fumaroles={props.fumaroles}
                 basaltColumns={props.basaltColumns}
                 livingCorals={props.livingCorals}

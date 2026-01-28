@@ -1367,10 +1367,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                 }}>
                                     Where <strong>Rust's</strong> intense survival meets <strong>Blazing Beaks'</strong> quirky combat, all wrapped in <strong>Stardew Valley's&nbsp;</strong>
                                     cozy farming vibes. Survive as a resourceful babushka in this top-down multiplayer experience where
-                                    every meal matters and every trade counts. Farm during the day, but prepare for the night. Something 
-                                    ancient corrupts this island, and when darkness falls, memory apparitions hunt the living. Build from 
-                                    simple shelters to thriving homesteads, work together to survive, and uncover the mystery that haunts 
-                                    this persistent world.
+                                    every meal matters and every trade counts. Farm while the sun shines, but when the light fades... 
+                                    something stirs. Something that remembers. Build from simple shelters to thriving homesteads, work 
+                                    together to survive, and uncover what haunts this persistent world.
                                 </p>
                             </div>
 
@@ -1694,7 +1693,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                         },
                                         {
                                             question: "HOW DO I START SURVIVING?",
-                                            answer: "You begin with basic survival gear and a lifetime of accumulated wisdom. Hunt wild animals, gather plant fibers, collect wood and stone to build your first campfire. Days last 20 minutes, so use them wisely to farm, craft, and prepare. When the 10-minute night falls, find shelter or face the memory apparitions that emerge from the darkness. Work with neighbors to survive what you couldn't alone."
+                                            answer: "You begin with basic survival gear and a lifetime of accumulated wisdom. Hunt wild animals, gather plant fibers, collect wood and stone to build your first campfire. Use the daylight wisely to farm, craft, and prepare. When darkness falls, find shelter—or face what emerges from it. Work with neighbors to survive what you couldn't alone."
                                         },
                                         {
                                             question: "WHAT'S SO SPECIAL ABOUT BREWING?",
@@ -1724,7 +1723,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                                         textAlign: 'center',
                                                         margin: '0',
                                                     }}>
-                                                        We've progressed from primitive survival to firearms! Crossbows, fire arrows, and now guns help you survive not just the harsh elements, but the mysterious memory apparitions that emerge during the 10-minute nights. These are echoes of something corrupted by an unknown force on the island. Days last 20 minutes, giving you time to farm, trade, and prepare before darkness falls. The persistent world is live and growing!
+                                                        We've progressed from primitive survival to firearms! Crossbows, fire arrows, and now guns help you survive not just the harsh elements, but what emerges when the sun sets. Something ancient stirs on this island—echoes of a corruption no one fully understands. Use daylight to farm, trade, and prepare. When darkness falls, you'll need every advantage. The persistent world is live and growing!
                                                     </p>
 
                                                     <div style={{
@@ -1790,8 +1789,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                                                     { name: "🎣 Simple Fishing", status: "100%" },
                                                                     { name: "🔧 Tool & Weapon Durability", status: "100%" },
                                                                     { name: "👥 Social & Team Features", status: "100%" },
-                                                                    { name: "🌙 Day/Night Cycle (20/10 min)", status: "100%" },
-                                                                    { name: "👻 Memory Apparitions", status: "100%" },
+                                                                    { name: "🌙 Day/Night Cycle", status: "100%" },
+                                                                    { name: "👻 Nighttime Threats", status: "100%" },
                                                                 ].map((feature, index) => (
                                                                     <tr key={index} style={{
                                                                         backgroundColor: 'rgba(0, 100, 0, 0.2)',
@@ -1879,11 +1878,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                         },
                                         {
                                             question: "IS THIS A PVP GAME?",
-                                            answer: "Broth & Bullets is a mutual survival experience. You're fighting the island, not each other. When night falls, memory apparitions emerge to hunt the living, and you'll need every neighbor you have. Collaborate to survive harsh winters, defend against the corrupted echoes, and build communities that can weather any storm. Optional PvP zones are planned for the future, but the core experience is about cooperation against an ancient, mysterious threat."
+                                            answer: "Broth & Bullets is a mutual survival experience. You're fighting the island, not each other. When night falls, the darkness brings things that hunger for the living—and you'll need every neighbor you have. Collaborate to survive harsh winters, defend against what lurks in the shadows, and build communities that can weather any storm. Optional PvP zones are planned for the future, but the core experience is about cooperation against an ancient, mysterious threat."
                                         },
                                         {
                                             question: "WHAT'S THE LONG-TERM VISION?",
-                                            answer: "A thriving community of persistent servers where players build lasting legacies together. Whether you prefer cozy daytime farming or intense night survival against the corrupted apparitions, there's a place for you. We're committed to deep survival mechanics, complex brewing systems, dynamic seasons, and unraveling the mystery of what ancient force haunts this island."
+                                            answer: "A thriving community of persistent servers where players build lasting legacies together. Whether you prefer cozy daytime farming or braving what comes after dark, there's a place for you. We're committed to deep survival mechanics, complex brewing systems, dynamic seasons, and unraveling the mystery of what ancient force haunts this island."
                                         }
                                     ].map((faq, index) => (
                                         <div key={index} style={{

@@ -20,7 +20,7 @@ import { COMPOST_WIDTH, COMPOST_HEIGHT, REFRIGERATOR_WIDTH, REFRIGERATOR_HEIGHT,
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, worldPixelsToFoundationCell, foundationCellToWorldCenter } from '../../config/gameConfig';
 import { DbConnection } from '../../generated';
 import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement, isPineconeBlockedOnBeach, isBirchCatkinBlockedOnAlpine } from '../plantsUtils';
-import { renderFoundationPreview, renderWallPreview } from './foundationRenderingUtils';
+import { renderFoundationPreview, renderWallPreview, renderFencePreview } from './foundationRenderingUtils';
 
 // Import interaction distance constants
 const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 80.0 * 80.0; // From useInteractionFinder.ts
@@ -1326,6 +1326,170 @@ function isWallPlacementValid(
 }
 
 /**
+ * Check if fence placement is valid (client-side validation)
+ * Fences now use 96px foundation cell grid (same as walls)
+ * Checks: no overlapping fence/wall, distance, resources, water tiles
+ */
+function isFencePlacementValid(
+    connection: DbConnection | null,
+    cellX: number,
+    cellY: number,
+    edge: number, // 0 = North, 1 = East, 2 = South, 3 = West (same as walls)
+    worldMouseX: number,
+    worldMouseY: number,
+    playerX: number,
+    playerY: number,
+    inventoryItems?: Map<string, any>,
+    itemDefinitions?: Map<string, any>
+): boolean {
+    if (!connection) return false;
+
+    const BUILDING_PLACEMENT_MAX_DISTANCE = 128.0;
+    const BUILDING_PLACEMENT_MAX_DISTANCE_SQUARED = BUILDING_PLACEMENT_MAX_DISTANCE * BUILDING_PLACEMENT_MAX_DISTANCE;
+    
+    // Fence cost: 15 wood
+    const REQUIRED_WOOD = 15;
+    
+    // Foundation cell size (96px) - same as walls
+    const FOUNDATION_SIZE = 96;
+
+    // Calculate world position at cell edge (exactly like walls)
+    const cellLeft = cellX * FOUNDATION_SIZE;
+    const cellRight = cellLeft + FOUNDATION_SIZE;
+    const cellTop = cellY * FOUNDATION_SIZE;
+    const cellBottom = cellTop + FOUNDATION_SIZE;
+    const cellCenterX = cellLeft + FOUNDATION_SIZE / 2;
+    const cellCenterY = cellTop + FOUNDATION_SIZE / 2;
+    
+    let worldX: number, worldY: number;
+    switch (edge) {
+        case 0: // North edge
+            worldX = cellCenterX;
+            worldY = cellTop;
+            break;
+        case 1: // East edge
+            worldX = cellRight;
+            worldY = cellCenterY;
+            break;
+        case 2: // South edge
+            worldX = cellCenterX;
+            worldY = cellBottom;
+            break;
+        case 3: // West edge
+            worldX = cellLeft;
+            worldY = cellCenterY;
+            break;
+        default:
+            worldX = cellCenterX;
+            worldY = cellCenterY;
+    }
+
+    // Check distance
+    const dx = worldX - playerX;
+    const dy = worldY - playerY;
+    const distSq = dx * dx + dy * dy;
+    if (distSq > BUILDING_PLACEMENT_MAX_DISTANCE_SQUARED) {
+        return false;
+    }
+
+    // Check that player is NOT standing on the fence position
+    const FENCE_COLLISION_THICKNESS = 6;
+    const PLAYER_RADIUS = 32;
+    const halfEdge = FOUNDATION_SIZE / 2;
+    const halfThickness = FENCE_COLLISION_THICKNESS / 2;
+    
+    let fenceMinX: number, fenceMaxX: number, fenceMinY: number, fenceMaxY: number;
+    // Edge 0 (North) and 2 (South) are horizontal, Edge 1 (East) and 3 (West) are vertical
+    if (edge === 0 || edge === 2) {
+        // Horizontal fence
+        fenceMinX = worldX - halfEdge - PLAYER_RADIUS;
+        fenceMaxX = worldX + halfEdge + PLAYER_RADIUS;
+        fenceMinY = worldY - halfThickness - PLAYER_RADIUS;
+        fenceMaxY = worldY + halfThickness + PLAYER_RADIUS;
+    } else {
+        // Vertical fence
+        fenceMinX = worldX - halfThickness - PLAYER_RADIUS;
+        fenceMaxX = worldX + halfThickness + PLAYER_RADIUS;
+        fenceMinY = worldY - halfEdge - PLAYER_RADIUS;
+        fenceMaxY = worldY + halfEdge + PLAYER_RADIUS;
+    }
+    
+    if (playerX >= fenceMinX && playerX <= fenceMaxX &&
+        playerY >= fenceMinY && playerY <= fenceMaxY) {
+        return false; // Player is standing on fence position
+    }
+
+    // Check if there's already a fence at this exact edge
+    for (const fence of connection.db.fence.iter()) {
+        if (fence.cellX === cellX && fence.cellY === cellY && fence.edge === edge && !fence.isDestroyed) {
+            return false; // Fence already exists at this edge
+        }
+    }
+    
+    // Check adjacent cells for shared edges (same as walls)
+    // North edge of (x, y) = South edge of (x, y-1)
+    // East edge of (x, y) = West edge of (x+1, y)
+    // South edge of (x, y) = North edge of (x, y+1)
+    // West edge of (x, y) = East edge of (x-1, y)
+    let adjacentCellX: number, adjacentCellY: number, oppositeEdge: number;
+    switch (edge) {
+        case 0: adjacentCellX = cellX; adjacentCellY = cellY - 1; oppositeEdge = 2; break;
+        case 1: adjacentCellX = cellX + 1; adjacentCellY = cellY; oppositeEdge = 3; break;
+        case 2: adjacentCellX = cellX; adjacentCellY = cellY + 1; oppositeEdge = 0; break;
+        case 3: adjacentCellX = cellX - 1; adjacentCellY = cellY; oppositeEdge = 1; break;
+        default: adjacentCellX = cellX; adjacentCellY = cellY; oppositeEdge = edge;
+    }
+    
+    for (const fence of connection.db.fence.iter()) {
+        if (fence.cellX === adjacentCellX && fence.cellY === adjacentCellY && fence.edge === oppositeEdge && !fence.isDestroyed) {
+            return false; // Fence already exists on shared edge
+        }
+    }
+    
+    // Check if wall exists at this edge (cannot place fence where wall is)
+    for (const wall of connection.db.wallCell.iter()) {
+        if (wall.cellX === cellX && wall.cellY === cellY && wall.edge === edge && !wall.isDestroyed) {
+            return false; // Wall exists at this edge
+        }
+    }
+    for (const wall of connection.db.wallCell.iter()) {
+        if (wall.cellX === adjacentCellX && wall.cellY === adjacentCellY && wall.edge === oppositeEdge && !wall.isDestroyed) {
+            return false; // Wall exists on shared edge
+        }
+    }
+
+    // Check resources if inventory items provided
+    if (inventoryItems && itemDefinitions) {
+        // Find "Wood" item definition
+        let woodItemDef: any = null;
+        for (const def of itemDefinitions.values()) {
+            if (def.name === 'Wood') {
+                woodItemDef = def;
+                break;
+            }
+        }
+
+        if (!woodItemDef) {
+            return false; // Wood item definition not found
+        }
+
+        // Calculate total wood available
+        let totalWood = 0;
+        for (const item of inventoryItems.values()) {
+            if (item.itemDefId === woodItemDef.id && item.quantity > 0) {
+                totalWood += item.quantity;
+            }
+        }
+
+        if (totalWood < REQUIRED_WOOD) {
+            return false; // Not enough wood
+        }
+    }
+
+    return true;
+}
+
+/**
  * Renders the placement preview item/structure following the mouse.
  */
 export function renderPlacementPreview({
@@ -1413,6 +1577,53 @@ export function renderPlacementPreview({
                     connection, // ADDED: Pass connection to check foundation shape
                 });
             }
+        } else if (buildingState.mode === BuildingMode.Fence) {
+            // Fence placement - now uses 96px foundation cell grid (same as walls)
+            const { cellX, cellY } = worldPixelsToFoundationCell(worldMouseX, worldMouseY);
+            
+            // Determine which edge based on mouse position relative to cell center (same as walls)
+            const cellCenterX = cellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+            const cellCenterY = cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+            const dx = worldMouseX - cellCenterX;
+            const dy = worldMouseY - cellCenterY;
+            const absDx = Math.abs(dx);
+            const absDy = Math.abs(dy);
+            
+            // Determine edge: N=0, E=1, S=2, W=3
+            let edge: number;
+            if (absDy > absDx) {
+                edge = dy < 0 ? 0 : 2; // North or South
+            } else {
+                edge = dx < 0 ? 3 : 1; // West or East
+            }
+            
+            const isValid = isFencePlacementValid(
+                connection,
+                cellX,
+                cellY,
+                edge,
+                worldMouseX,
+                worldMouseY,
+                localPlayerX,
+                localPlayerY,
+                inventoryItems,
+                itemDefinitions
+            );
+
+            renderFencePreview({
+                ctx,
+                cellX: cellX,
+                cellY: cellY,
+                worldMouseX,
+                worldMouseY,
+                edge,
+                isValid,
+                worldScale,
+                viewOffsetX,
+                viewOffsetY,
+                foundationTileImagesRef,
+                doodadImagesRef, // Pass for fence sprite images
+            });
         }
         return; // Building preview rendered, exit early
     }

@@ -27,6 +27,8 @@ use crate::building::wall_cell as WallCellTableTrait;
 use crate::building::foundation_cell as FoundationCellTableTrait;
 use crate::building::FOUNDATION_TILE_SIZE_PX;
 use crate::door::door as DoorTableTrait;
+use crate::fence::fence as FenceTableTrait;
+use crate::fence::{check_fence_collision, FENCE_COLLISION_THICKNESS};
 use crate::wild_animal_npc::{WildAnimal, wild_animal as WildAnimalTableTrait};
 use crate::fishing::is_water_tile;
 use crate::TILE_SIZE_PX;
@@ -124,6 +126,13 @@ pub fn resolve_animal_collision(
         return blocked_pos; // Return position before hitting door
     }
     
+    // Also check fences along the movement path (anti-tunneling)
+    if let Some(blocked_pos) = check_fence_line_collision(ctx, current_x, current_y, proposed_x, proposed_y) {
+        log::info!("[AnimalCollision] Animal {} BLOCKED by fence during movement from ({:.1},{:.1}) to ({:.1},{:.1}) - stopped at ({:.1},{:.1})", 
+                   animal_id, current_x, current_y, proposed_x, proposed_y, blocked_pos.0, blocked_pos.1);
+        return blocked_pos; // Return position before hitting fence
+    }
+    
     // Check and resolve pushback collisions
     let mut collision_detected = false;
     
@@ -170,6 +179,18 @@ pub fn resolve_animal_collision(
         collision_detected = true;
         log::debug!("[AnimalCollision] Animal {} pushed back by door: ({:.1}, {:.1})", 
                    animal_id, pushback_x, pushback_y);
+    }
+    
+    // Check fence collisions at destination (backup check)
+    if check_fence_collision(ctx, final_x, final_y, ANIMAL_COLLISION_RADIUS) {
+        // Calculate pushback from fence collision
+        if let Some((pushback_x, pushback_y)) = check_fence_collision_pushback(ctx, final_x, final_y, ANIMAL_COLLISION_RADIUS) {
+            final_x = current_x + pushback_x;
+            final_y = current_y + pushback_y;
+            collision_detected = true;
+            log::debug!("[AnimalCollision] Animal {} pushed back by fence: ({:.1}, {:.1})", 
+                       animal_id, pushback_x, pushback_y);
+        }
     }
     
     // Check foundation triangle hypotenuse collisions
@@ -375,6 +396,187 @@ fn check_door_line_collision(
     }
     
     None // Path is clear
+}
+
+/// ANTI-TUNNELING: Check if a movement line crosses any fences
+/// Returns the safe position just before hitting the fence, or None if path is clear
+fn check_fence_line_collision(
+    ctx: &ReducerContext,
+    start_x: f32,
+    start_y: f32,
+    end_x: f32,
+    end_y: f32,
+) -> Option<(f32, f32)> {
+    const FENCE_THICKNESS: f32 = 12.0; // Slightly thicker for line check
+    const STEP_SIZE: f32 = 20.0; // Check every 20 pixels along the path
+    
+    let dx = end_x - start_x;
+    let dy = end_y - start_y;
+    let distance = (dx * dx + dy * dy).sqrt();
+    
+    if distance < 1.0 {
+        return None; // Not moving significantly
+    }
+    
+    // Number of steps to check along the path
+    let num_steps = ((distance / STEP_SIZE).ceil() as i32).max(1);
+    
+    // Calculate which cells to check (fences use 96px foundation cell grid - same as walls)
+    let min_cell_x = ((start_x.min(end_x) - ANIMAL_COLLISION_RADIUS) / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32 - 1;
+    let max_cell_x = ((start_x.max(end_x) + ANIMAL_COLLISION_RADIUS) / FOUNDATION_TILE_SIZE_PX as f32).ceil() as i32 + 1;
+    let min_cell_y = ((start_y.min(end_y) - ANIMAL_COLLISION_RADIUS) / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32 - 1;
+    let max_cell_y = ((start_y.max(end_y) + ANIMAL_COLLISION_RADIUS) / FOUNDATION_TILE_SIZE_PX as f32).ceil() as i32 + 1;
+    
+    let fences = ctx.db.fence();
+    
+    // Collect all fences in the movement area
+    // edge: 0=N, 1=E, 2=S, 3=W (same as walls)
+    let mut fences_to_check: Vec<_> = Vec::new();
+    for cell_x in min_cell_x..=max_cell_x {
+        for cell_y in min_cell_y..=max_cell_y {
+            for fence in fences.idx_cell_coords().filter((cell_x, cell_y)) {
+                if fence.is_destroyed {
+                    continue;
+                }
+                fences_to_check.push((fence.edge, fence.pos_x, fence.pos_y));
+            }
+        }
+    }
+    
+    if fences_to_check.is_empty() {
+        return None; // No fences in the area
+    }
+    
+    // Check each step along the movement path
+    for step in 0..=num_steps {
+        let t = step as f32 / num_steps as f32;
+        let check_x = start_x + dx * t;
+        let check_y = start_y + dy * t;
+        
+        // Check against all fences - fences are at cell edges (same as walls)
+        for &(edge, fence_x, fence_y) in &fences_to_check {
+            let half_edge = FOUNDATION_TILE_SIZE_PX as f32 / 2.0;
+            let half_thickness = FENCE_THICKNESS / 2.0;
+            
+            // Edge: 0=N, 1=E, 2=S, 3=W - N/S are horizontal (thin in Y), E/W are vertical (thin in X)
+            let (fence_min_x, fence_max_x, fence_min_y, fence_max_y) = match edge {
+                0 | 2 => {
+                    // North or South edge: horizontal fence spanning cell width
+                    (
+                        fence_x - half_edge,
+                        fence_x + half_edge,
+                        fence_y - half_thickness,
+                        fence_y + half_thickness,
+                    )
+                }
+                _ => {
+                    // East or West edge: vertical fence spanning cell height
+                    (
+                        fence_x - half_thickness,
+                        fence_x + half_thickness,
+                        fence_y - half_edge,
+                        fence_y + half_edge,
+                    )
+                }
+            };
+            
+            // Check if position intersects fence
+            let closest_x = check_x.max(fence_min_x).min(fence_max_x);
+            let closest_y = check_y.max(fence_min_y).min(fence_max_y);
+            let dx_to_fence = check_x - closest_x;
+            let dy_to_fence = check_y - closest_y;
+            let dist_sq = dx_to_fence * dx_to_fence + dy_to_fence * dy_to_fence;
+            
+            if dist_sq < ANIMAL_COLLISION_RADIUS * ANIMAL_COLLISION_RADIUS {
+                // Found collision! Return position one step back
+                if step == 0 {
+                    return Some((start_x, start_y));
+                }
+                let safe_t = ((step - 1) as f32 / num_steps as f32).max(0.0);
+                let safe_x = start_x + dx * safe_t;
+                let safe_y = start_y + dy * safe_t;
+                return Some((safe_x, safe_y));
+            }
+        }
+    }
+    
+    None // Path is clear
+}
+
+/// Check fence collision and return pushback vector
+/// Fences now use 96px foundation cell grid (same as walls)
+fn check_fence_collision_pushback(
+    ctx: &ReducerContext,
+    proposed_x: f32,
+    proposed_y: f32,
+    radius: f32,
+) -> Option<(f32, f32)> {
+    const CHECK_RADIUS_CELLS: i32 = 2; // Check fences within 2 cells
+    
+    // Convert to foundation cell coordinates (96px grid)
+    let cell_x = (proposed_x / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    let cell_y = (proposed_y / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    let fences = ctx.db.fence();
+    
+    for offset_x in -CHECK_RADIUS_CELLS..=CHECK_RADIUS_CELLS {
+        for offset_y in -CHECK_RADIUS_CELLS..=CHECK_RADIUS_CELLS {
+            let check_cell_x = cell_x + offset_x;
+            let check_cell_y = cell_y + offset_y;
+            
+            for fence in fences.idx_cell_coords().filter((check_cell_x, check_cell_y)) {
+                if fence.is_destroyed {
+                    continue;
+                }
+                
+                // Calculate fence collision bounds (same as walls)
+                let half_edge = FOUNDATION_TILE_SIZE_PX as f32 / 2.0;
+                let half_thickness = FENCE_COLLISION_THICKNESS / 2.0;
+                
+                // Edge: 0=N, 1=E, 2=S, 3=W
+                let (fence_min_x, fence_max_x, fence_min_y, fence_max_y) = match fence.edge {
+                    0 | 2 => {
+                        // North or South edge: horizontal fence
+                        (
+                            fence.pos_x - half_edge,
+                            fence.pos_x + half_edge,
+                            fence.pos_y - half_thickness - radius,
+                            fence.pos_y + half_thickness + radius,
+                        )
+                    }
+                    _ => {
+                        // East or West edge: vertical fence
+                        (
+                            fence.pos_x - half_thickness - radius,
+                            fence.pos_x + half_thickness + radius,
+                            fence.pos_y - half_edge,
+                            fence.pos_y + half_edge,
+                        )
+                    }
+                };
+                
+                // Check if position (with radius) intersects fence AABB
+                if proposed_x + radius >= fence_min_x && proposed_x - radius <= fence_max_x &&
+                   proposed_y + radius >= fence_min_y && proposed_y - radius <= fence_max_y {
+                    // Calculate pushback direction (away from fence center)
+                    let dx = proposed_x - fence.pos_x;
+                    let dy = proposed_y - fence.pos_y;
+                    let distance_sq = dx * dx + dy * dy;
+                    
+                    if distance_sq > 0.001 {
+                        let distance = distance_sq.sqrt();
+                        let pushback_x = (dx / distance) * COLLISION_PUSHBACK_FORCE;
+                        let pushback_y = (dy / distance) * COLLISION_PUSHBACK_FORCE;
+                        return Some((pushback_x, pushback_y));
+                    } else {
+                        // Too close, push in a default direction
+                        return Some((COLLISION_PUSHBACK_FORCE, 0.0));
+                    }
+                }
+            }
+        }
+    }
+    
+    None
 }
 
 /// Checks if a position would collide with shelter walls

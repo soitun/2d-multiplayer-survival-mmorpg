@@ -307,6 +307,7 @@ function AppContent() {
       foundationCells, // ADDED: Building foundations
       wallCells, // ADDED: Building walls
       doors, // ADDED: Building doors
+      fences, // ADDED: Building fences
       playerDodgeRollStates,
       chunkWeather, // ADDED: Chunk-based weather
       alkStations, // ADDED: ALK delivery stations for minimap
@@ -537,8 +538,10 @@ function AppContent() {
             basaltColumns, // Add basalt columns for collision detection
             livingCorals, // Add living corals for collision detection (underwater)
             doors, // Add doors for collision detection (closed doors only)
+            fences, // Add fences for collision detection
             alkStations, // Add ALK stations for collision detection (large industrial structures)
-            lanterns // Add lanterns/wards for collision detection (only wards have collision, NOT regular lanterns)
+            lanterns, // Add lanterns/wards for collision detection (only wards have collision, NOT regular lanterns)
+            turrets // Add turrets for collision detection
         }
     });
 
@@ -1304,6 +1307,7 @@ function AppContent() {
                             foundationCells={foundationCells}
                             wallCells={wallCells}
                             doors={doors}
+                            fences={fences}
                             inventoryItems={inventoryItems}
                             itemDefinitions={itemDefinitions}
                             worldState={worldState}

@@ -155,6 +155,7 @@ export interface SpacetimeTableStates {
     foundationCells: Map<string, SpacetimeDB.FoundationCell>; // ADDED: Building foundations
     wallCells: Map<string, SpacetimeDB.WallCell>; // ADDED: Building walls
     doors: Map<string, SpacetimeDB.Door>; // ADDED: Building doors
+    fences: Map<string, SpacetimeDB.Fence>; // ADDED: Building fences
     chunkWeather: Map<string, any>; // ADDED: Chunk-based weather (types will be generated after server build)
     alkStations: Map<string, SpacetimeDB.AlkStation>; // ADDED: ALK delivery stations for minimap
     alkContracts: Map<string, SpacetimeDB.AlkContract>; // ADDED: ALK contracts
@@ -278,6 +279,7 @@ export const useSpacetimeTables = ({
     const [foundationCells, setFoundationCells] = useState<Map<string, SpacetimeDB.FoundationCell>>(() => new Map()); // ADDED: Building foundations
     const [wallCells, setWallCells] = useState<Map<string, SpacetimeDB.WallCell>>(() => new Map()); // ADDED: Building walls
     const [doors, setDoors] = useState<Map<string, SpacetimeDB.Door>>(() => new Map()); // ADDED: Building doors
+    const [fences, setFences] = useState<Map<string, SpacetimeDB.Fence>>(() => new Map()); // ADDED: Building fences
     const [chunkWeather, setChunkWeather] = useState<Map<string, any>>(() => new Map()); // ADDED: Chunk-based weather
     const [alkStations, setAlkStations] = useState<Map<string, SpacetimeDB.AlkStation>>(() => new Map()); // ADDED: ALK delivery stations
     const [alkContracts, setAlkContracts] = useState<Map<string, SpacetimeDB.AlkContract>>(() => new Map()); // ADDED: ALK contracts
@@ -458,6 +460,7 @@ export const useSpacetimeTables = ({
                     `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM fence WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`, // MOVED: Now spatial - only animals in nearby chunks (includes hostile NPCs with is_hostile_npc = true)
@@ -510,6 +513,7 @@ export const useSpacetimeTables = ({
                 newHandlesForChunk.push(timedSubscribe('FoundationCell', `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('WallCell', `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('Door', `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('Fence', `SELECT * FROM fence WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('Fumarole', `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('BasaltColumn', `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('WildAnimal', `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`)); // Includes hostile NPCs (Shorebound, Shardkin, DrownedWatch) with is_hostile_npc = true
@@ -1885,6 +1889,31 @@ export const useSpacetimeTables = ({
                 setDoors(prev => { const newMap = new Map(prev); newMap.delete(door.id.toString()); return newMap; });
             };
 
+            // Fence handlers - SPATIAL
+            const handleFenceInsert = (ctx: any, fence: SpacetimeDB.Fence) => {
+                setFences(prev => {
+                    const newMap = new Map(prev);
+                    newMap.set(fence.id.toString(), fence);
+                    return newMap;
+                });
+            };
+            const handleFenceUpdate = (ctx: any, oldFence: SpacetimeDB.Fence, newFence: SpacetimeDB.Fence) => {
+                // Only update for visually significant changes
+                const visuallySignificant =
+                    Math.abs(oldFence.posX - newFence.posX) > 0.1 ||
+                    Math.abs(oldFence.posY - newFence.posY) > 0.1 ||
+                    oldFence.orientation !== newFence.orientation ||
+                    oldFence.health !== newFence.health ||
+                    oldFence.isDestroyed !== newFence.isDestroyed;
+
+                if (visuallySignificant) {
+                    setFences(prev => new Map(prev).set(newFence.id.toString(), newFence));
+                }
+            };
+            const handleFenceDelete = (ctx: any, fence: SpacetimeDB.Fence) => {
+                setFences(prev => { const newMap = new Map(prev); newMap.delete(fence.id.toString()); return newMap; });
+            };
+
             // Fumarole handlers - SPATIAL
             const handleFumaroleInsert = (ctx: any, fumarole: SpacetimeDB.Fumarole) => {
                 // console.log('🔥 [FUMAROLE INSERT] Fumarole', fumarole.id, 'at', fumarole.posX, fumarole.posY, 'chunk', fumarole.chunkIndex);
@@ -2323,6 +2352,11 @@ export const useSpacetimeTables = ({
             connection.db.door.onUpdate(handleDoorUpdate);
             connection.db.door.onDelete(handleDoorDelete);
 
+            // Register Fence callbacks - SPATIAL
+            connection.db.fence.onInsert(handleFenceInsert);
+            connection.db.fence.onUpdate(handleFenceUpdate);
+            connection.db.fence.onDelete(handleFenceDelete);
+
             // Register Fumarole callbacks - SPATIAL
             connection.db.fumarole.onInsert(handleFumaroleInsert);
             connection.db.fumarole.onUpdate(handleFumaroleUpdate);
@@ -2735,6 +2769,7 @@ export const useSpacetimeTables = ({
                                     `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`, // ADDED: Foundation initial spatial subscription
                                     `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`, // ADDED: Wall initial spatial subscription
                                     `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`, // ADDED: Door initial spatial subscription
+                                    `SELECT * FROM fence WHERE chunk_index = ${chunkIndex}`, // ADDED: Fence initial spatial subscription
                                     `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`, // ADDED: Fumarole initial spatial subscription
                                     `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`, // ADDED: Basalt column initial spatial subscription
                                     // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
@@ -3000,6 +3035,7 @@ export const useSpacetimeTables = ({
         foundationCells, // ADDED: Building foundations
         wallCells, // ADDED: Building walls
         doors, // ADDED: Building doors
+        fences, // ADDED: Building fences
         runeStones, // ADDED: Rune stones
         cairns, // ADDED: Cairn lore monuments
         playerDiscoveredCairns, // ADDED: Player discovery tracking

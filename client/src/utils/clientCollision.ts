@@ -1,5 +1,5 @@
 // AAA-Quality Client-side Collision Detection System
-import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, LivingCoral, Lantern, Turret } from '../generated';
+import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, LivingCoral, Lantern, Turret, Fence } from '../generated';
 // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 import { COMPOUND_BUILDINGS, getBuildingWorldPosition } from '../config/compoundBuildings';
@@ -980,6 +980,49 @@ function getCollisionCandidates(
   // Foundations do NOT have collision - players can walk through them freely
   // Only walls (placed on foundation edges) have collision
   
+  // Filter fences - thin AABB collision
+  // Fences now use 96px foundation cell grid (same as walls)
+  // Edge: 0=North, 1=East, 2=South, 3=West
+  const FENCE_COLLISION_THICKNESS = 6; // Same as server-side
+  const FENCE_FOUNDATION_SIZE = 96; // Foundation cell size (96px) - same as walls
+  
+  if (entities.fences && entities.fences.size > 0) {
+    for (const fence of entities.fences.values()) {
+      if (fence.isDestroyed) continue;
+      
+      // Check distance to player
+      const dx = fence.posX - playerX;
+      const dy = fence.posY - playerY;
+      const distanceSq = dx * dx + dy * dy;
+      const maxDistanceSq = 150 * 150; // Check fences within 150px
+      
+      if (distanceSq > maxDistanceSq) continue;
+      
+      // Fences span full cell edge (96px) - same as walls
+      // Edge 0 (North) and 2 (South) are horizontal, Edge 1 (East) and 3 (West) are vertical
+      let fenceWidth: number, fenceHeight: number;
+      
+      if (fence.edge === 0 || fence.edge === 2) {
+        // Horizontal fence (North/South edge): spans cell width, thin in Y
+        fenceWidth = FENCE_FOUNDATION_SIZE;
+        fenceHeight = FENCE_COLLISION_THICKNESS;
+      } else {
+        // Vertical fence (East/West edge): thin in X, spans cell height
+        fenceWidth = FENCE_COLLISION_THICKNESS;
+        fenceHeight = FENCE_FOUNDATION_SIZE;
+      }
+      
+      shapes.push({
+        id: `fence-${fence.id.toString()}`,
+        type: `fence-${fence.id.toString()}`,
+        x: fence.posX,
+        y: fence.posY,
+        width: fenceWidth,
+        height: fenceHeight
+      });
+    }
+  }
+  
   return shapes;
 }
 
@@ -1097,6 +1140,7 @@ export interface GameEntities {
   livingCorals?: Map<string, LivingCoral>; // Add living corals for collision (uses combat system)
   lanterns?: Map<string, Lantern>; // Add lanterns/wards for collision (only wards have collision, NOT regular lanterns)
   turrets?: Map<string, Turret>; // ADDED: Turrets for collision (all turrets have collision)
+  fences?: Map<string, Fence>; // ADDED: Fences for collision
 }
 
 // Exported for debug rendering
@@ -1122,8 +1166,8 @@ interface CollisionHit {
   distance: number;
 }
 
-// ===== ANTI-TUNNELING FOR WALLS AND DOORS =====
-// Prevents fast-moving players (especially during dodge rolls) from passing through thin walls/doors
+// ===== ANTI-TUNNELING FOR WALLS, DOORS, AND FENCES =====
+// Prevents fast-moving players (especially during dodge rolls) from passing through thin walls/doors/fences
 function checkWallDoorLineTunneling(
   fromX: number,
   fromY: number,
@@ -1151,8 +1195,9 @@ function checkWallDoorLineTunneling(
   const minCellY = Math.floor((Math.min(fromY, toY) - PLAYER_RADIUS) / FOUNDATION_SIZE) - 1;
   const maxCellY = Math.ceil((Math.max(fromY, toY) + PLAYER_RADIUS) / FOUNDATION_SIZE) + 1;
   
-  // Collect walls and doors to check
+  // Collect walls, doors, and fences to check
   const wallsToCheck: Array<{ cellX: number; cellY: number; edge: number; type: 'wall' | 'door' }> = [];
+  const fencesToCheck: Array<{ posX: number; posY: number; edge: number }> = [];
   
   if (entities.wallCells) {
     for (const wall of entities.wallCells.values()) {
@@ -1177,7 +1222,22 @@ function checkWallDoorLineTunneling(
     }
   }
   
-  if (wallsToCheck.length === 0) {
+  // Add fences to anti-tunneling check
+  // Fences now use 96px foundation cell grid (same as walls)
+  if (entities.fences) {
+    for (const fence of entities.fences.values()) {
+      if (fence.isDestroyed) continue;
+      // Check if fence is in the movement area (expanded by player radius)
+      if (fence.posX >= (minCellX * FOUNDATION_SIZE - PLAYER_RADIUS) && 
+          fence.posX <= ((maxCellX + 1) * FOUNDATION_SIZE + PLAYER_RADIUS) &&
+          fence.posY >= (minCellY * FOUNDATION_SIZE - PLAYER_RADIUS) && 
+          fence.posY <= ((maxCellY + 1) * FOUNDATION_SIZE + PLAYER_RADIUS)) {
+        fencesToCheck.push({ posX: fence.posX, posY: fence.posY, edge: fence.edge });
+      }
+    }
+  }
+  
+  if (wallsToCheck.length === 0 && fencesToCheck.length === 0) {
     return { blocked: false, safeX: toX, safeY: toY, collidedWith: [] };
   }
   
@@ -1237,6 +1297,51 @@ function checkWallDoorLineTunneling(
           safeX: fromX + dx * safeT,
           safeY: fromY + dy * safeT,
           collidedWith: [item.type]
+        };
+      }
+    }
+    
+    // Check fences for tunneling
+    // Fences now use 96px foundation cell grid (same as walls)
+    // Edge: 0=North, 1=East, 2=South, 3=West
+    const FENCE_COLLISION_THICKNESS_TUNNEL = 6;
+    const FENCE_FOUNDATION_SIZE_TUNNEL = 96; // Same as walls
+    for (const fence of fencesToCheck) {
+      let fenceMinX: number, fenceMaxX: number, fenceMinY: number, fenceMaxY: number;
+      
+      // Edge 0 (North) and 2 (South) are horizontal, Edge 1 (East) and 3 (West) are vertical
+      if (fence.edge === 0 || fence.edge === 2) {
+        // Horizontal fence (North/South edge): spans cell width, thin in Y
+        fenceMinX = fence.posX - FENCE_FOUNDATION_SIZE_TUNNEL / 2;
+        fenceMaxX = fence.posX + FENCE_FOUNDATION_SIZE_TUNNEL / 2;
+        fenceMinY = fence.posY - FENCE_COLLISION_THICKNESS_TUNNEL / 2;
+        fenceMaxY = fence.posY + FENCE_COLLISION_THICKNESS_TUNNEL / 2;
+      } else {
+        // Vertical fence (East/West edge): thin in X, spans cell height
+        fenceMinX = fence.posX - FENCE_COLLISION_THICKNESS_TUNNEL / 2;
+        fenceMaxX = fence.posX + FENCE_COLLISION_THICKNESS_TUNNEL / 2;
+        fenceMinY = fence.posY - FENCE_FOUNDATION_SIZE_TUNNEL / 2;
+        fenceMaxY = fence.posY + FENCE_FOUNDATION_SIZE_TUNNEL / 2;
+      }
+      
+      // Check circle-AABB collision
+      const closestX = Math.max(fenceMinX, Math.min(checkX, fenceMaxX));
+      const closestY = Math.max(fenceMinY, Math.min(checkY, fenceMaxY));
+      const distX = checkX - closestX;
+      const distY = checkY - closestY;
+      const distSq = distX * distX + distY * distY;
+      
+      if (distSq < PLAYER_RADIUS * PLAYER_RADIUS) {
+        // Collision found with fence!
+        if (step === 0) {
+          return { blocked: true, safeX: fromX, safeY: fromY, collidedWith: ['fence'] };
+        }
+        const safeT = Math.max(0, (step - 1) / numSteps);
+        return {
+          blocked: true,
+          safeX: fromX + dx * safeT,
+          safeY: fromY + dy * safeT,
+          collidedWith: ['fence']
         };
       }
     }
@@ -1466,7 +1571,29 @@ function checkAABBCollision(
   let normal: { x: number; y: number };
   let penetration: number;
   
-  if (distance < 0.001) {
+  // Special handling for thin shapes (like fences) - push perpendicular to surface
+  const isThinHorizontal = shape.width! > shape.height! * 3; // Horizontal fence
+  const isThinVertical = shape.height! > shape.width! * 3;   // Vertical fence
+  
+  if (isThinHorizontal) {
+    // Thin horizontal shape: always push in Y direction
+    if (to.y < shape.y) {
+      normal = { x: 0, y: -1 };
+      penetration = expandedMax.y - to.y + 1;
+    } else {
+      normal = { x: 0, y: 1 };
+      penetration = to.y - expandedMin.y + 1;
+    }
+  } else if (isThinVertical) {
+    // Thin vertical shape: always push in X direction
+    if (to.x < shape.x) {
+      normal = { x: -1, y: 0 };
+      penetration = expandedMax.x - to.x + 1;
+    } else {
+      normal = { x: 1, y: 0 };
+      penetration = to.x - expandedMin.x + 1;
+    }
+  } else if (distance < 0.001) {
     // Player center is inside AABB - push to nearest edge
     const distToLeft = to.x - aabbMin.x;
     const distToRight = aabbMax.x - to.x;

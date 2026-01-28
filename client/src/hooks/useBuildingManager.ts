@@ -21,6 +21,7 @@ export enum BuildingMode {
   Foundation = 'foundation',
   Wall = 'wall',
   Door = 'door',
+  Fence = 'fence',
 }
 
 // Foundation shapes (matching server-side FoundationShape enum)
@@ -58,6 +59,7 @@ export enum BuildingTier {
 }
 
 // Building placement state
+// Note: Fence edge is now determined dynamically by mouse position (same as walls)
 export interface BuildingPlacementState {
   isBuilding: boolean;
   mode: BuildingMode;
@@ -609,6 +611,8 @@ export const useBuildingManager = (
     } else if (newMode === BuildingMode.Wall) {
       setBuildingEdge(BuildingEdge.N);
       setBuildingFacing(BuildingFacing.Exterior);
+    } else if (newMode === BuildingMode.Fence) {
+      // Fences don't need special initialization
     }
   }, []);
 
@@ -823,6 +827,79 @@ export const useBuildingManager = (
           console.log('[BuildingManager] placeWall reducer called successfully');
         } catch (err) {
           console.error('[BuildingManager] Error calling placeWall reducer:', err);
+          setPlacementError(`Failed to call reducer: ${err}`);
+          playImmediateSound('construction_placement_error', 1.0);
+        }
+        
+        // Note: Don't cancel building mode - allow continuous placement
+      } else if (mode === BuildingMode.Fence) {
+        // Fence placement logic - now uses 96px foundation cell grid (same as walls)
+        // Convert world position to foundation cell coordinates (96px grid)
+        const { cellX, cellY } = worldPixelsToFoundationCell(worldX, worldY);
+        
+        // Determine edge based on mouse position relative to cell center (same as walls)
+        const cellCenterX = cellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+        const cellCenterY = cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
+        const edgeDx = worldX - cellCenterX;
+        const edgeDy = worldY - cellCenterY;
+        const absEdgeDx = Math.abs(edgeDx);
+        const absEdgeDy = Math.abs(edgeDy);
+        
+        // Determine edge: N=0, E=1, S=2, W=3
+        let edge: number;
+        if (absEdgeDy > absEdgeDx) {
+          edge = edgeDy < 0 ? 0 : 2; // North or South
+        } else {
+          edge = edgeDx < 0 ? 3 : 1; // West or East
+        }
+        
+        // Check placement distance from player (use edge position, not cell center)
+        let edgePosX: number, edgePosY: number;
+        switch (edge) {
+          case 0: edgePosX = cellCenterX; edgePosY = cellY * FOUNDATION_TILE_SIZE; break; // North
+          case 1: edgePosX = (cellX + 1) * FOUNDATION_TILE_SIZE; edgePosY = cellCenterY; break; // East
+          case 2: edgePosX = cellCenterX; edgePosY = (cellY + 1) * FOUNDATION_TILE_SIZE; break; // South
+          case 3: edgePosX = cellX * FOUNDATION_TILE_SIZE; edgePosY = cellCenterY; break; // West
+          default: edgePosX = cellCenterX; edgePosY = cellCenterY;
+        }
+        
+        const dx = edgePosX - localPlayerX;
+        const dy = edgePosY - localPlayerY;
+        const distSq = dx * dx + dy * dy;
+        const MAX_DISTANCE_SQ = 128 * 128; // Same as other building pieces
+        
+        if (distSq > MAX_DISTANCE_SQ) {
+          setPlacementError('Too far away');
+          playImmediateSound('construction_placement_error', 1.0);
+          return;
+        }
+        
+        // Check if there's already a fence at this edge
+        let hasExistingFence = false;
+        for (const fence of connection.db.fence.iter()) {
+          if (fence.cellX === cellX && fence.cellY === cellY && fence.edge === edge && !fence.isDestroyed) {
+            hasExistingFence = true;
+            break;
+          }
+        }
+        
+        if (hasExistingFence) {
+          setPlacementError('A fence already exists at this edge');
+          playImmediateSound('construction_placement_error', 1.0);
+          return;
+        }
+        
+        // Call server reducer
+        console.log('[BuildingManager] Calling placeFence reducer:', { cellX, cellY, edge });
+        try {
+          connection.reducers.placeFence(
+            BigInt(cellX),
+            BigInt(cellY),
+            edge
+          );
+          console.log('[BuildingManager] placeFence reducer called successfully');
+        } catch (err) {
+          console.error('[BuildingManager] Error calling placeFence reducer:', err);
           setPlacementError(`Failed to call reducer: ${err}`);
           playImmediateSound('construction_placement_error', 1.0);
         }

@@ -36,9 +36,10 @@ pub mod clearance {
     /// Whale bone graveyard parts - clear an 11-tile radius (550px)
     pub const WHALE_BONE_GRAVEYARD: f32 = 600.0;
     
-    /// Hunting village parts - clear a 12-tile radius (600px)
-    /// Trees around the village are spawned separately, not blocked by this
-    pub const HUNTING_VILLAGE: f32 = 600.0;
+    /// Hunting village parts - clear a 16-tile radius (800px)
+    /// Clearance is measured from lodge center. Village spans ~660px from center
+    /// (huts at ±580px X and -320px Y), so 800px gives a comfortable buffer.
+    pub const HUNTING_VILLAGE: f32 = 800.0;
     
     /// Crashed research drone - clear a 12-tile radius (600px)
     /// Smaller monument, single piece with surrounding loot
@@ -91,10 +92,11 @@ pub fn is_position_near_monument(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -
         return true;
     }
     
-    // Hunting village check temporarily disabled - trees blocked everywhere bug
-    // if is_near_hunting_village(ctx, pos_x, pos_y) {
-    //     return true;
-    // }
+    // Check hunting village monument (lodge center only)
+    // Clears trees/stones in a 750px radius around the lodge center
+    if is_near_hunting_village(ctx, pos_x, pos_y) {
+        return true;
+    }
     
     // Check crashed research drone monuments
     if is_near_crashed_research_drone(ctx, pos_x, pos_y) {
@@ -1047,40 +1049,40 @@ pub fn generate_hunting_village(
                    center_x, center_y, center_world_x, center_world_y);
         
         // =============================================================================
-        // HUNTING VILLAGE LAYOUT
+        // HUNTING VILLAGE LAYOUT (Improved spacing for visual clarity)
         // =============================================================================
-        // The campfire is in the CENTER courtyard, surrounded by the 4 buildings.
+        // The campfire is in the CENTER courtyard, surrounded by buildings.
         // The lodge is the center piece (for zone calculations), with huts forming
-        // a protective semi-circle to the north. Drying rack next to campfire.
+        // a protective semi-circle to the north. Drying rack placed with good separation.
         //
-        // Layout (in local coords):
+        // Layout (in local coords, negative Y = north):
         //
-        //                    HUT3 (0, -500)                        <- FAR NORTH
-        //     HUT1 (-520, -280)               HUT2 (+520, -280)    <- NW/NE flanks
+        //                    HUT3 (0, -550)                        <- FAR NORTH
+        //     HUT1 (-580, -320)               HUT2 (+580, -320)    <- NW/NE flanks (spread wider)
         //                                    
-        //          DRYING_RACK (-120, -180)  CAMPFIRE (0, -180)    <- CENTRAL COURTYARD
+        //     DRYING_RACK (-200, -250)        CAMPFIRE (+100, -250) <- CENTRAL COURTYARD (more separation)
         //                                    
         //                    LODGE (0, 0)                          <- SOUTH (zone anchor)
         //
-        // The campfire sits in the middle courtyard between all 4 buildings,
-        // creating a cozy gathering space. Tree ring spawned during world generation.
+        // Structures are well-spaced to avoid visual overlap.
+        // Tree ring cleared via 750px monument clearance check.
         // =============================================================================
         
         // Structure definitions: (part_type, image_name, offset_x, offset_y)
         let structure_configs: [(&str, &str, f32, f32); 6] = [
             // Main lodge - CENTER PIECE - the heart of the hunting village (zone anchor)
-            ("lodge", "hv_lodge.png", 0.0, 0.0),
+            ("lodge", "hv_lodge.png", -250.0, 0.0),
             
-            // Hunting huts - arranged in a semi-circle to the north (spread out more)
-            ("hut", "hv_hut1.png", -520.0, -280.0),  // Northwest flank
-            ("hut", "hv_hut2.png", 520.0, -280.0),   // Northeast flank
-            ("hut", "hv_hut3.png", 0.0, -500.0),     // Far north (back of semi-circle)
+            // Hunting huts - arranged in a wider semi-circle to the north
+            ("hut", "hv_hut1.png", -580.0, -320.0),  // Northwest flank (moved out)
+            ("hut", "hv_hut2.png", 480.0, -320.0),   // Northeast flank (moved out)
+            ("hut", "hv_hut3.png", 0.0, -550.0),     // Far north (pushed back for more space)
             
-            // Campfire - in the central courtyard between all 4 buildings
-            ("campfire", "fv_campfire.png", 0.0, -180.0),
+            // Campfire - in the central courtyard, offset to the east
+            ("campfire", "fv_campfire.png", 100.0, -250.0),
             
-            // Drying rack for pelts and meat - right next to the campfire
-            ("drying_rack", "hv_drying_rack.png", -120.0, -180.0),
+            // Drying rack for pelts and meat - west side of courtyard, good separation from campfire
+            ("drying_rack", "hv_drying_rack.png", -200.0, -250.0),
         ];
         
         for (part_type, image_name, offset_x, offset_y) in structure_configs.iter() {

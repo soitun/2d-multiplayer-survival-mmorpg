@@ -21,9 +21,127 @@ const SHAKE_DURATION_MS = 500;
 const SHAKE_INTENSITY_PX = 14; // Increased from 8 for more intense shaking
 const VERTEX_SHAKE_SEGMENTS = 8; // Number of vertical segments for vertex-based shaking
 
+// Circular canopy shadow constants (ambient occlusion under foliage)
+const CANOPY_SHADOW_BASE_RADIUS_X = 120; // Base horizontal radius for canopy shadow (much larger)
+const CANOPY_SHADOW_BASE_RADIUS_Y = 55; // Base vertical radius (elliptical, flattened for ground plane)
+const CANOPY_SHADOW_BASE_ALPHA = 0.5; // Base opacity - matches dynamic ground shadow maxShadowAlpha
+const CANOPY_SHADOW_VERTICAL_OFFSET = -25; // Offset up from base to cover lower trunk area
+const CANOPY_SHADOW_BLUR_RADIUS = 8; // Blur radius for soft shadow edges (similar to ground shadow)
+
 // --- Client-side animation tracking for tree shakes ---
 const clientTreeShakeStartTimes = new Map<string, number>(); // treeId -> client timestamp when shake started
 const lastKnownServerTreeShakeTimes = new Map<string, number>(); // treeId -> last known server timestamp
+
+/**
+ * Draws a circular/elliptical canopy shadow directly under the tree.
+ * This creates an ambient occlusion effect that darkens the trunk area and ground
+ * directly beneath the tree's foliage, adding visual depth independent of sun position.
+ * 
+ * NOTE: This matches the dynamic ground shadow approach - solid black fill with globalAlpha + blur.
+ */
+function drawCanopyShadow(
+    ctx: CanvasRenderingContext2D,
+    centerX: number,
+    baseY: number,
+    treeTargetWidth: number,
+    shakeOffsetX: number = 0,
+    shakeOffsetY: number = 0,
+    applyBlur: boolean = true
+): void {
+    // Scale shadow size based on tree size (larger trees = larger canopy shadows)
+    const sizeScale = treeTargetWidth / TARGET_TREE_WIDTH_PX;
+    const radiusX = CANOPY_SHADOW_BASE_RADIUS_X * sizeScale;
+    const radiusY = CANOPY_SHADOW_BASE_RADIUS_Y * sizeScale;
+    
+    // Apply shake offsets to shadow position for consistency with tree movement
+    const shadowX = centerX + shakeOffsetX;
+    const shadowY = baseY + CANOPY_SHADOW_VERTICAL_OFFSET + shakeOffsetY;
+    
+    ctx.save();
+    
+    // Match dynamic ground shadow approach: blur filter + globalAlpha + solid black fill
+    if (applyBlur) {
+        ctx.filter = `blur(${CANOPY_SHADOW_BLUR_RADIUS}px)`;
+    }
+    
+    // Use globalAlpha exactly like dynamic ground shadow (0.5)
+    ctx.globalAlpha = CANOPY_SHADOW_BASE_ALPHA;
+    
+    // Solid black fill - the blur will create soft edges
+    ctx.fillStyle = 'rgb(0, 0, 0)';
+    
+    // Draw ellipse for ground-plane perspective
+    ctx.beginPath();
+    ctx.ellipse(shadowX, shadowY, radiusX, radiusY, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+}
+
+/**
+ * Renders canopy shadow overlays for all visible trees.
+ * This should be called AFTER all Y-sorted entities are rendered,
+ * so the shadows appear ON TOP of trees and players, creating a realistic
+ * canopy shade effect.
+ * 
+ * @param ctx - Canvas rendering context
+ * @param trees - Array of visible trees to render shadows for
+ * @param nowMs - Current timestamp for shake animation sync
+ * @param isTreeFalling - Optional function to check if a tree is currently falling
+ */
+export function renderTreeCanopyShadowsOverlay(
+    ctx: CanvasRenderingContext2D,
+    trees: Tree[],
+    nowMs: number,
+    isTreeFalling?: (treeId: string) => boolean
+): void {
+    if (!trees || trees.length === 0) return;
+    
+    ctx.save();
+    
+    // Use normal blending - multiply mode reduces darkness too much with the blur effect
+    // The semi-transparent black will overlay naturally on entities below
+    
+    for (const tree of trees) {
+        const treeId = tree.id.toString();
+        
+        // Skip trees with no health (destroyed) unless they have respawn time
+        if (tree.health === 0 && !tree.respawnAt) continue;
+        
+        // Skip falling trees - canopy is no longer overhead when the tree is falling
+        if (isTreeFalling && isTreeFalling(treeId)) continue;
+        
+        const { targetWidth } = getCachedTreeTypeInfo(tree);
+        
+        // Calculate shake offsets for shadow synchronization
+        let shakeOffsetX = 0;
+        let shakeOffsetY = 0;
+        
+        if (tree.lastHitTime) {
+            const clientStartTime = clientTreeShakeStartTimes.get(treeId);
+            if (clientStartTime) {
+                const elapsedSinceShake = nowMs - clientStartTime;
+                
+                if (elapsedSinceShake >= 0 && elapsedSinceShake < SHAKE_DURATION_MS) {
+                    const shakeFactor = 1.0 - (elapsedSinceShake / SHAKE_DURATION_MS);
+                    const baseShakeIntensity = SHAKE_INTENSITY_PX * shakeFactor;
+                    
+                    // Generate smooth shake direction
+                    const timePhase = elapsedSinceShake / 50;
+                    const treeSeed = treeId.charCodeAt(0) % 100;
+                    
+                    shakeOffsetX = Math.sin(timePhase + treeSeed) * baseShakeIntensity * 0.3;
+                    shakeOffsetY = Math.cos(timePhase + treeSeed) * baseShakeIntensity * 0.15;
+                }
+            }
+        }
+        
+        // Draw the canopy shadow overlay with blur
+        drawCanopyShadow(ctx, tree.posX, tree.posY, targetWidth, shakeOffsetX, shakeOffsetY, true);
+    }
+    
+    ctx.restore();
+}
 
 // ============================================================================
 // TREE HIT PARTICLES - Bark/leaf chips on each axe swing
@@ -714,6 +832,11 @@ const treeConfig: GroundEntityConfig<Tree> = {
             () => triggerTreeHitEffect(treeId, entity.posX, entity.posY)
         );
 
+        // NOTE: Canopy shadow is now rendered as an OVERLAY pass after all Y-sorted entities
+        // This allows it to appear ON TOP of trees and players for a realistic shade effect.
+        // See renderTreeCanopyShadowsOverlay() which is called in GameCanvas after entity rendering.
+
+        // Draw dynamic directional ground shadow (sun-based)
         drawDynamicGroundShadow({
             ctx,
             entityImage,
@@ -1009,9 +1132,16 @@ function renderFallingTree(
     // Calculate fall rotation (0 to 90 degrees, falling to the right)
     const fallAngle = fallProgress * (Math.PI / 2); // 0 to 90 degrees
     
-    // Draw realistic collapsing shadow BEFORE rotation (using actual tree shadow)
+    // Draw shadows BEFORE rotation
     // Skip shadow entirely when tree is nearly flat (>90% fallen)
+    // NOTE: Canopy shadow overlay is handled separately in renderTreeCanopyShadowsOverlay
+    // and is skipped for falling trees since the canopy is no longer overhead
     if (!skipShadow && fallProgress < 0.9) {
+        // Calculate aggressive fade-out: fades to 0 at 90% progress
+        const shadowFadeProgress = Math.min(fallProgress / 0.9, 1.0);
+        const shadowAlpha = 0.35 * (1 - Math.pow(shadowFadeProgress, 1.5));
+        
+        // Draw dynamic directional shadow (squashed as tree falls)
         ctx.save();
         
         // Shadow stays at tree base (doesn't rotate with tree)
@@ -1027,11 +1157,6 @@ function renderFallingTree(
         // Translate to tree base and apply vertical squash
         ctx.translate(tree.posX + shadowOffsetX, tree.posY);
         ctx.scale(1.0, shadowHeightScale); // Only squash vertically
-        
-        // Calculate aggressive fade-out: fades to 0 at 90% progress
-        // At 0%: alpha = 1.0, At 50%: alpha = 0.5, At 90%: alpha = 0
-        const shadowFadeProgress = Math.min(fallProgress / 0.9, 1.0); // Normalize to 0-1 by 90%
-        const shadowAlpha = 0.35 * (1 - Math.pow(shadowFadeProgress, 1.5)); // Exponential fade-out
         
         // Use the actual tree shadow rendering (same as upright trees)
         drawDynamicGroundShadow({

@@ -23,6 +23,7 @@ use crate::shelter::shelter as ShelterTableTrait;
 use crate::rain_collector::rain_collector as RainCollectorTableTrait;
 use crate::furnace::furnace as FurnaceTableTrait;
 use crate::active_equipment::active_equipment as ActiveEquipmentTableTrait;
+use crate::fence::fence as FenceTableTrait;
 
 // Combat cooldown constants for PvP balance
 const REPAIR_COMBAT_COOLDOWN_SECONDS: u64 = 300; // 5 minutes - structures can't be repaired if damaged recently
@@ -736,6 +737,106 @@ pub fn repair_wall(
         "Player {:?} repaired Wall {} (tier {:?}) for {:.1} health. Health: {:.1} -> {:.1} (Max: {:.1}). Cost: {} wood, {} stone, {} metal",
         repairer_id, wall_id, wall_tier, actual_repair_amount, old_health, new_health, wall_max_health,
         wood_needed, stone_needed, metal_needed
+    );
+
+    Ok(AttackResult {
+        hit: true,
+        target_type: Some(TargetType::Wall),
+        resource_granted: None,
+    })
+}
+
+/// Repair a fence using a repair hammer
+/// Follows same pattern as repair_wall
+pub fn repair_fence(
+    ctx: &ReducerContext,
+    repairer_id: Identity,
+    fence_id: u64,
+    _weapon_damage: f32, // Ignore weapon damage, use proper repair amount
+    timestamp: Timestamp,
+) -> Result<AttackResult, String> {
+    use crate::fence::{fence, Fence};
+    use crate::models::BuildingTier;
+    use crate::repair::{can_structure_be_repaired, get_base_repair_amount, consume_repair_resources};
+    use crate::sound_events;
+    use crate::TILE_SIZE_PX;
+    
+    let mut fences_table = ctx.db.fence();
+    let mut fence = fences_table.id().find(&fence_id)
+        .ok_or_else(|| format!("Target fence {} not found", fence_id))?;
+
+    if fence.is_destroyed {
+        return Err("Cannot repair destroyed fence".to_string());
+    }
+
+    // Calculate fence position for validation
+    let fence_pos_x = fence.pos_x;
+    let fence_pos_y = fence.pos_y;
+
+    // Check combat cooldown and health status (but don't calculate resources yet - we'll do that based on tier)
+    let base_repair_amount = get_base_repair_amount();
+    let actual_repair_amount = (fence.max_health - fence.health).min(base_repair_amount);
+    
+    // Check if structure is already at full health
+    if fence.health >= fence.max_health {
+        // 🔧 Emit repair fail sound - structure already at full health
+        sound_events::emit_repair_fail_sound(ctx, fence_pos_x, fence_pos_y, repairer_id);
+        // Still return success so health bar shows, but don't actually repair
+        return Ok(AttackResult {
+            hit: true,
+            target_type: Some(TargetType::Wall), // Use Wall target type for consistency
+            resource_granted: None,
+        });
+    }
+    
+    // Check combat cooldown for PvP balance
+    if let Err(_) = can_structure_be_repaired(fence.last_hit_time, fence.last_damaged_by, repairer_id, fence.owner_id, timestamp) {
+        // 🔧 Emit repair fail sound for cooldown/permission errors
+        sound_events::emit_repair_fail_sound(ctx, fence_pos_x, fence_pos_y, repairer_id);
+        // Still return success so health bar shows, but don't actually repair
+        return Ok(AttackResult {
+            hit: true,
+            target_type: Some(TargetType::Wall),
+            resource_granted: None,
+        });
+    }
+    
+    // Fences use wood tier (same as wood walls)
+    // Calculate repair costs based on tier and repair amount
+    let repair_fraction = actual_repair_amount / fence.max_health;
+    // Fences cost 15 wood to build, so repair costs proportional amount
+    let base_cost = 15u32;
+    let wood_needed = (base_cost as f32 * repair_fraction).ceil() as u32;
+    let stone_needed = 0;
+    let metal_needed = 0;
+    
+    // Try to consume resources
+    if let Err(e) = consume_repair_resources(ctx, repairer_id, wood_needed, stone_needed, metal_needed) {
+        // 🔧 Emit repair fail sound for resource shortage
+        sound_events::emit_repair_fail_sound(ctx, fence_pos_x, fence_pos_y, repairer_id);
+        // Still return success so health bar shows, but don't actually repair
+        return Ok(AttackResult {
+            hit: true,
+            target_type: Some(TargetType::Wall),
+            resource_granted: None,
+        });
+    }
+    
+    let old_health = fence.health;
+    let fence_max_health = fence.max_health;
+    fence.health = (fence.health + actual_repair_amount).min(fence_max_health);
+    fence.last_hit_time = Some(timestamp);
+    fence.last_damaged_by = Some(repairer_id);
+    
+    // Save new health before update
+    let new_health = fence.health;
+
+    fences_table.id().update(fence);
+
+    log::info!(
+        "Player {:?} repaired Fence {} for {:.1} health. Health: {:.1} -> {:.1} (Max: {:.1}). Cost: {} wood",
+        repairer_id, fence_id, actual_repair_amount, old_health, new_health, fence_max_health,
+        wood_needed
     );
 
     Ok(AttackResult {
