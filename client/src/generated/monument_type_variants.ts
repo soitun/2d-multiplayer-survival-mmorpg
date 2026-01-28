@@ -34,4 +34,6 @@ export type WhaleBoneGraveyard = { tag: "WhaleBoneGraveyard" };
 export type HuntingVillage = { tag: "HuntingVillage" };
 export type CrashedResearchDrone = { tag: "CrashedResearchDrone" };
 export type HotSpring = { tag: "HotSpring" };
+export type WeatherStation = { tag: "WeatherStation" };
+export type WolfDen = { tag: "WolfDen" };
 

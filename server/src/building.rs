@@ -648,6 +648,8 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
     const CRASHED_RESEARCH_DRONE_RESTRICTION_RADIUS_SQ: f32 = CRASHED_RESEARCH_DRONE_RESTRICTION_RADIUS * CRASHED_RESEARCH_DRONE_RESTRICTION_RADIUS;
     const WEATHER_STATION_RESTRICTION_RADIUS: f32 = 480.0; // Alpine radar dish monument
     const WEATHER_STATION_RESTRICTION_RADIUS_SQ: f32 = WEATHER_STATION_RESTRICTION_RADIUS * WEATHER_STATION_RESTRICTION_RADIUS;
+    const WOLF_DEN_RESTRICTION_RADIUS: f32 = 384.0; // Wolf den mound monument
+    const WOLF_DEN_RESTRICTION_RADIUS_SQ: f32 = WOLF_DEN_RESTRICTION_RADIUS * WOLF_DEN_RESTRICTION_RADIUS;
     
     for part in ctx.db.monument_part().iter() {
         // Only check against center pieces for simplicity
@@ -693,6 +695,11 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
             MonumentType::WeatherStation => {
                 if distance_sq <= WEATHER_STATION_RESTRICTION_RADIUS_SQ {
                     return Err("Cannot place items within the Weather Station. This monument must remain unobstructed.".to_string());
+                }
+            }
+            MonumentType::WolfDen => {
+                if distance_sq <= WOLF_DEN_RESTRICTION_RADIUS_SQ {
+                    return Err("Cannot place items within the Wolf Den. This monument must remain unobstructed.".to_string());
                 }
             }
         }

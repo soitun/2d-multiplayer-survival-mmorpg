@@ -106,6 +106,9 @@ export function preloadMonumentImages(): void {
     
     // Weather Station monument images (alpine radar dish)
     loadImage('ws_radar.png', import('../../assets/doodads/ws_radar.png?url'));
+    
+    // Wolf Den monument images (tundra wolf mound)
+    loadImage('wd_mound.png', import('../../assets/doodads/wd_mound.png?url'));
 }
 
 /**
@@ -174,6 +177,9 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             
             // Weather Station monument images (alpine radar dish)
             'ws_radar.png': () => import('../../assets/doodads/ws_radar.png?url'),
+            
+            // Wolf Den monument images (tundra wolf mound)
+            'wd_mound.png': () => import('../../assets/doodads/wd_mound.png?url'),
         };
     
         const loader = imageMap[imagePath];

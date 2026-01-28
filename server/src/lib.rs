@@ -2284,6 +2284,7 @@ pub enum MonumentType {
     CrashedResearchDrone,
     HotSpring,
     WeatherStation,
+    WolfDen,
 }
 
 /// Unified monument part table for all monument types
