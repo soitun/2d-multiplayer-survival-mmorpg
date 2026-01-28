@@ -121,6 +121,11 @@ pub fn is_position_near_monument(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -
         return true;
     }
     
+    // Check ALK substations (clearance for trees/stones)
+    if is_near_alk_substation(ctx, pos_x, pos_y) {
+        return true;
+    }
+    
     false // Not near any monument
 }
 
@@ -260,6 +265,33 @@ fn is_near_wolf_den(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
         let dist_sq = dx * dx + dy * dy;
         
         if dist_sq < clearance_sq {
+            return true;
+        }
+    }
+    
+    false
+}
+
+/// Clearance radius for ALK substations (trees/stones should not spawn on them)
+const ALK_SUBSTATION_CLEARANCE: f32 = 300.0; // 6 tile radius clearance for substations
+const ALK_SUBSTATION_CLEARANCE_SQ: f32 = ALK_SUBSTATION_CLEARANCE * ALK_SUBSTATION_CLEARANCE;
+
+/// Checks if position is near any ALK substation
+/// This prevents trees and stones from spawning on top of substations
+fn is_near_alk_substation(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    use crate::alk::alk_station as AlkStationTableTrait;
+    
+    for station in ctx.db.alk_station().iter() {
+        // Skip the central compound (station_id == 0), only check substations
+        if station.station_id == 0 {
+            continue;
+        }
+        
+        let dx = pos_x - station.world_pos_x;
+        let dy = pos_y - station.world_pos_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq < ALK_SUBSTATION_CLEARANCE_SQ {
             return true;
         }
     }
@@ -1204,6 +1236,7 @@ pub fn generate_crashed_research_drone(
     fishing_village_center: Option<(f32, f32)>,
     whale_bone_graveyard_center: Option<(f32, f32)>,
     hunting_village_center: Option<(f32, f32)>,
+    large_quarry_centers: &[(f32, f32, i32)], // ADDED: Large quarry centers (x_tile, y_tile, radius)
     width: usize,
     height: usize,
 ) -> (Option<(f32, f32)>, Vec<(f32, f32, String, String)>) {
@@ -1220,6 +1253,7 @@ pub fn generate_crashed_research_drone(
     let min_distance_from_whale_graveyard = 80.0; // Minimum tiles away from whale graveyard
     let min_distance_from_hunting_village = 80.0; // Minimum tiles away from hunting village
     let min_distance_from_hot_spring = 50.0; // Minimum tiles away from hot springs
+    let min_distance_from_large_quarry = 60.0; // ADDED: Minimum tiles away from large quarries
     let min_distance_from_river = 5; // Minimum tiles away from rivers
     
     let mut candidate_positions = Vec::new();
@@ -1320,6 +1354,22 @@ pub fn generate_crashed_research_drone(
                         let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
                         if dist_tiles < min_distance_from_hunting_village {
                             too_close = true;
+                        }
+                    }
+                }
+                
+                // ADDED: Check distance from large quarries (Stone/Sulfur/Metal)
+                if !too_close {
+                    for &(quarry_tile_x, quarry_tile_y, quarry_radius) in large_quarry_centers {
+                        let quarry_world_x = (quarry_tile_x + 0.5) * crate::TILE_SIZE_PX as f32;
+                        let quarry_world_y = (quarry_tile_y + 0.5) * crate::TILE_SIZE_PX as f32;
+                        let dx = tile_world_x - quarry_world_x;
+                        let dy = tile_world_y - quarry_world_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        let min_dist = min_distance_from_large_quarry + quarry_radius as f32;
+                        if dist_tiles < min_dist {
+                            too_close = true;
+                            break;
                         }
                     }
                 }
@@ -1622,10 +1672,11 @@ pub fn generate_weather_station(
     (station_center, station_parts)
 }
 
-/// Generate wolf den monument in tundra biome (wolf pack spawn point)
-/// Returns (center_position, monument_parts) where:
-/// - center_position: Option<(x, y)> in world pixels for the wolf mound
-/// - monument_parts: Vec of (x, y, image_path, part_type) for the single wolf mound structure
+/// Generate wolf den monuments in tundra biome (wolf pack spawn points)
+/// Returns (center_positions, monument_parts) where:
+/// - center_positions: Vec of (x, y) in world pixels for each wolf mound
+/// - monument_parts: Vec of (x, y, image_path, part_type) for all wolf mound structures
+/// NOTE: Spawns up to 2 wolf dens in the tundra, with minimum distance between them
 pub fn generate_wolf_den(
     noise: &Perlin,
     shore_distance: &[Vec<f64>],
@@ -1641,11 +1692,14 @@ pub fn generate_wolf_den(
     weather_station_center: Option<(f32, f32)>,
     width: usize,
     height: usize,
-) -> (Option<(f32, f32)>, Vec<(f32, f32, String, String)>) {
-    let mut den_center: Option<(f32, f32)> = None;
+) -> (Vec<(f32, f32)>, Vec<(f32, f32, String, String)>) {
+    let mut den_centers: Vec<(f32, f32)> = Vec::new();
     let mut den_parts: Vec<(f32, f32, String, String)> = Vec::new();
     
-    log::info!("🐺 Generating wolf den monument in tundra biome...");
+    const MAX_WOLF_DENS: usize = 2; // Allow up to 2 wolf dens
+    const MIN_DISTANCE_BETWEEN_DENS: f32 = 80.0; // Minimum 80 tiles between wolf dens
+    
+    log::info!("🐺 Generating wolf den monuments in tundra biome (up to {})...", MAX_WOLF_DENS);
     
     // Find suitable tundra tiles - must be in TUNDRA biome, away from water and rivers
     let min_shore_dist = 12.0;  // At least 12 tiles from water
@@ -1790,38 +1844,58 @@ pub fn generate_wolf_den(
     }
     
     if candidate_positions.is_empty() {
-        log::warn!("🐺 No valid tundra positions found for wolf den");
-        return (den_center, den_parts);
+        log::warn!("🐺 No valid tundra positions found for wolf dens");
+        return (den_centers, den_parts);
     }
     
-    log::info!("🐺 Found {} candidate positions for wolf den in tundra biome", 
+    log::info!("🐺 Found {} candidate positions for wolf dens in tundra biome", 
                candidate_positions.len());
     
-    // Select position using noise - prefer positions deeper in tundra
-    let mut best_score = f64::NEG_INFINITY;
-    let mut best_position: Option<(usize, usize)> = None;
+    // Score all candidate positions using noise - prefer positions deeper in tundra
+    let mut scored_positions: Vec<((usize, usize), f64)> = candidate_positions.iter()
+        .map(|&(x, y, shore_dist)| {
+            let noise_val = noise.get([x as f64 * 0.01, y as f64 * 0.01, 70000.0]); // Unique seed for wolf den
+            let inland_bonus = (shore_dist - min_shore_dist).min(20.0) / 20.0 * 0.3;
+            let score = noise_val + inland_bonus;
+            ((x, y), score)
+        })
+        .collect();
     
-    for &(x, y, shore_dist) in &candidate_positions {
-        // Score: noise value + bonus for being deeper inland
-        let noise_val = noise.get([x as f64 * 0.01, y as f64 * 0.01, 70000.0]); // Unique seed for wolf den
-        let inland_bonus = (shore_dist - min_shore_dist).min(20.0) / 20.0 * 0.3;
-        let score = noise_val + inland_bonus;
-        
-        if score > best_score {
-            best_score = score;
-            best_position = Some((x, y));
+    // Sort by score (best first)
+    scored_positions.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    
+    let tile_size_px = crate::TILE_SIZE_PX as f32;
+    
+    // Select up to MAX_WOLF_DENS positions with minimum distance between them
+    for ((center_x, center_y), _score) in scored_positions {
+        if den_centers.len() >= MAX_WOLF_DENS {
+            break;
         }
-    }
-    
-    if let Some((center_x, center_y)) = best_position {
-        let tile_size_px = crate::TILE_SIZE_PX as f32;
+        
         let center_world_x = (center_x as f32 + 0.5) * tile_size_px;
         let center_world_y = (center_y as f32 + 0.5) * tile_size_px;
         
-        den_center = Some((center_world_x, center_world_y));
+        // Check distance from already placed wolf dens
+        let mut too_close_to_existing = false;
+        for &(existing_x, existing_y) in &den_centers {
+            let dx = center_world_x - existing_x;
+            let dy = center_world_y - existing_y;
+            let dist_tiles = (dx * dx + dy * dy).sqrt() / tile_size_px;
+            if dist_tiles < MIN_DISTANCE_BETWEEN_DENS {
+                too_close_to_existing = true;
+                break;
+            }
+        }
         
-        log::info!("🐺✨ PLACED WOLF DEN at tile ({}, {}) = 📍 World Position: ({:.0}, {:.0}) ✨",
-                   center_x, center_y, center_world_x, center_world_y);
+        if too_close_to_existing {
+            continue;
+        }
+        
+        // Place this wolf den
+        den_centers.push((center_world_x, center_world_y));
+        
+        log::info!("🐺✨ PLACED WOLF DEN #{} at tile ({}, {}) = 📍 World Position: ({:.0}, {:.0}) ✨",
+                   den_centers.len(), center_x, center_y, center_world_x, center_world_y);
         
         // =============================================================================
         // WOLF DEN LAYOUT
@@ -1836,24 +1910,24 @@ pub fn generate_wolf_den(
         // Single structure: the wolf mound
         let part_type = "mound";
         let image_name = "wd_mound.png";
-        let offset_x = 0.0;
-        let offset_y = 0.0;
         
-        let part_world_x = center_world_x + offset_x;
-        let part_world_y = center_world_y + offset_y;
+        let part_world_x = center_world_x;
+        let part_world_y = center_world_y;
         
         // Place the structure
         den_parts.push((part_world_x, part_world_y, image_name.to_string(), part_type.to_string()));
         
         log::info!("🐺✨ PLACED {} ({}) at ({:.0}, {:.0}) ✨",
                    part_type.to_uppercase(), image_name, part_world_x, part_world_y);
-        
-        log::info!("🐺 Wolf den generation complete: {} structure", den_parts.len());
-    } else {
-        log::warn!("🐺 Failed to select wolf den position");
     }
     
-    (den_center, den_parts)
+    if den_centers.is_empty() {
+        log::warn!("🐺 Failed to place any wolf dens");
+    } else {
+        log::info!("🐺 Wolf den generation complete: {} dens, {} structures", den_centers.len(), den_parts.len());
+    }
+    
+    (den_centers, den_parts)
 }
 
 // =============================================================================
@@ -2743,9 +2817,10 @@ pub fn spawn_weather_station_barrels(
             
             // Generate position in a ring around the radar dish
             // Space barrels evenly with some randomness
+            // NOTE: Radar is 768x768 pixels (2x scale), so barrels must be at least ~400px from center
             let base_angle = (barrel_idx as f32) * (2.0 * std::f32::consts::PI / barrel_count as f32);
             let angle = base_angle + ctx.rng().gen_range(-0.4..0.4);
-            let distance = ctx.rng().gen_range(100.0..200.0); // Ring distance from center
+            let distance = ctx.rng().gen_range(420.0..520.0); // Ring distance outside the radar (768/2 = 384 + buffer)
             let barrel_x = center_x + angle.cos() * distance;
             let barrel_y = center_y + angle.sin() * distance;
             

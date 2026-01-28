@@ -569,6 +569,18 @@ const MONUMENT_PART_SIZES: Record<string, { width: number; height: number }> = {
   'lodge': { width: 512, height: 512 },
   'drying_rack': { width: 320, height: 320 },
   
+  // Crashed Research Drone parts
+  'drone': { width: 512, height: 512 },
+  
+  // Weather Station parts (ALPINE - 2x scale for large radar dish)
+  'radar': { width: 768, height: 768 }, // 2x scale for visibility
+  
+  // Wolf Den parts (TUNDRA - wolf pack spawn point)
+  'mound': { width: 384, height: 384 },
+  
+  // Hot Spring parts
+  'shack': { width: 384, height: 384 },
+  
   // Default fallback
   'default': { width: 512, height: 512 },
 };

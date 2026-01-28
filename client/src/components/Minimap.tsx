@@ -94,9 +94,7 @@ const CRASHED_DRONE_GLOW_COLOR = '#FF4500'; // Orange-red glow (dangerous/explos
 const WEATHER_STATION_COLOR = '#87CEEB'; // Sky blue for weather equipment
 const WEATHER_STATION_GLOW_COLOR = '#4169E1'; // Royal blue glow (scientific/cold)
 
-// Wolf Den constants - WOLF PACK TERRITORY
-const WOLF_DEN_COLOR = '#8B4513'; // Saddle brown for the earthy mound
-const WOLF_DEN_GLOW_COLOR = '#CD853F'; // Peru/tan glow (earthy/wild)
+// NOTE: Wolf Den removed from minimap - minor monument (wolf spawn point)
 
 // Memory Beacon Event constants - SERVER EVENT MARKERS (airdrop-style)
 const BEACON_EVENT_ICON_SIZE = 24; // Large for high visibility as major event
@@ -1600,62 +1598,8 @@ export function drawMinimapOntoCanvas({
     }
   }
 
-  // --- Draw Wolf Den Parts (WOLF PACK TERRITORY) ---
-  // Show ONE representative "WOLF DEN" label for the entire structure
-  // Filter wolf den parts from unified monument parts
-  // NOTE: MonumentType is a tagged union with a `tag` property (e.g., { tag: 'WolfDen' })
-  const wolfDenPartsFiltered = monumentParts ? Array.from(monumentParts.values())
-    .filter((part: any) => part.monumentType?.tag === 'WolfDen') : [];
-  
-  if (wolfDenPartsFiltered.length > 0 && showNames === true) {
-    // Find ONE representative wolf den part (prefer center part, otherwise use first part)
-    let representativePart: any | null = null;
-    
-    // First, try to find a center part (mound)
-    wolfDenPartsFiltered.forEach((part: any) => {
-      if (part.isCenter || part.partType === 'mound') {
-        representativePart = part;
-      }
-    });
-    
-    // If no center part found, just use the first part
-    if (!representativePart && wolfDenPartsFiltered.length > 0) {
-      representativePart = wolfDenPartsFiltered[0];
-    }
-    
-    // Draw the label for the representative part
-    if (representativePart) {
-      const screenCoords = worldToMinimap(representativePart.worldX, representativePart.worldY);
-      if (screenCoords) {
-        const x = screenCoords.x;
-        const y = screenCoords.y;
-        
-        ctx.save();
-        
-        // Draw "WOLF DEN" text with cyberpunk styling - same size as other landmarks
-        ctx.font = 'bold 14px "Courier New", monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        // Add glow effect for visibility (earthy tan glow)
-        ctx.shadowColor = WOLF_DEN_GLOW_COLOR;
-        ctx.shadowBlur = 10;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-        
-        // Draw text with black outline for contrast
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 4;
-        ctx.strokeText('WOLF DEN', x, y);
-        
-        // Fill with wolf den color (saddle brown for earthy mound)
-        ctx.fillStyle = WOLF_DEN_COLOR;
-        ctx.fillText('WOLF DEN', x, y);
-        
-        ctx.restore();
-      }
-    }
-  }
+  // NOTE: Wolf Den label intentionally removed - it's a minor monument (wolf spawn point)
+  // Players will discover wolf dens naturally through gameplay, not the minimap
 
   // --- Draw Large Quarries (RESOURCE LANDMARKS) ---
   // Show labels for each large quarry: "STONE QUARRY", "SULFUR QUARRY", "METAL QUARRY"

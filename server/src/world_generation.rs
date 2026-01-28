@@ -386,9 +386,10 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     }
     
     // Store wolf den positions in database table for client access
-    // This is a wolf pack spawn point in the tundra biome - NOT a safe zone
-    if let Some((center_x, center_y)) = world_features.wolf_den_center {
-        // Store the single wolf mound part (center piece)
+    // These are wolf pack spawn points in the tundra biome - NOT safe zones
+    // Can have up to 2 wolf dens
+    if !world_features.wolf_den_centers.is_empty() {
+        // Store all wolf mound parts (center pieces)
         for (part_x, part_y, image_path, part_type) in &world_features.wolf_den_parts {
             ctx.db.monument_part().insert(MonumentPart {
                 id: 0, // auto_inc
@@ -397,39 +398,46 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 world_y: *part_y,
                 image_path: image_path.clone(),
                 part_type: part_type.clone(),
-                is_center: true, // Single part is always center
+                is_center: true, // Single part per den is always center
                 collision_radius: 0.0, // NO collision for walkability
             });
         }
         
-        log::info!("🐺 Stored {} wolf den parts in database - client reads once, then treats as static config",
-                   world_features.wolf_den_parts.len());
+        log::info!("🐺 Stored {} wolf den parts ({} dens) in database - client reads once, then treats as static config",
+                   world_features.wolf_den_parts.len(), world_features.wolf_den_centers.len());
         
-        // Spawn a pack of wolves around the wolf den (3-4 wolves)
+        // Spawn a pack of wolves around each wolf den (3-4 wolves per den)
         use crate::wild_animal_npc::AnimalSpecies;
-        let wolf_count = 3 + (ctx.rng().gen::<u32>() % 2); // 3-4 wolves
-        let mut wolves_spawned = 0u32;
+        let mut total_wolves_spawned = 0u32;
         
-        for i in 0..wolf_count {
-            // Spawn wolves in a ring around the den
-            let angle = (i as f32) * (2.0 * std::f32::consts::PI / wolf_count as f32) 
-                       + ctx.rng().gen_range(-0.3..0.3);
-            let distance = ctx.rng().gen_range(80.0..180.0);
-            let wolf_x = center_x + angle.cos() * distance;
-            let wolf_y = center_y + angle.sin() * distance;
+        for (den_idx, (center_x, center_y)) in world_features.wolf_den_centers.iter().enumerate() {
+            let wolf_count = 3 + (ctx.rng().gen::<u32>() % 2); // 3-4 wolves per den
+            let mut wolves_spawned = 0u32;
             
-            // Spawn the wolf
-            match crate::wild_animal_npc::spawn_wild_animal(ctx, AnimalSpecies::TundraWolf, wolf_x, wolf_y) {
-                Ok(_) => {
-                    wolves_spawned += 1;
-                }
-                Err(e) => {
-                    log::warn!("Failed to spawn wolf at wolf den: {}", e);
+            for i in 0..wolf_count {
+                // Spawn wolves in a ring around the den
+                let angle = (i as f32) * (2.0 * std::f32::consts::PI / wolf_count as f32) 
+                           + ctx.rng().gen_range(-0.3..0.3);
+                let distance = ctx.rng().gen_range(80.0..180.0);
+                let wolf_x = center_x + angle.cos() * distance;
+                let wolf_y = center_y + angle.sin() * distance;
+                
+                // Spawn the wolf
+                match crate::wild_animal_npc::spawn_wild_animal(ctx, AnimalSpecies::TundraWolf, wolf_x, wolf_y) {
+                    Ok(_) => {
+                        wolves_spawned += 1;
+                        total_wolves_spawned += 1;
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to spawn wolf at wolf den #{}: {}", den_idx + 1, e);
+                    }
                 }
             }
+            
+            log::info!("🐺 Wolf Den #{} spawned: {} wolves in pack", den_idx + 1, wolves_spawned);
         }
         
-        log::info!("🐺 Wolf Den spawned: {} wolves in pack", wolves_spawned);
+        log::info!("🐺 Total wolves spawned at {} wolf dens: {}", world_features.wolf_den_centers.len(), total_wolves_spawned);
     }
     
     // Store large quarry positions and types in database for client minimap display
@@ -511,7 +519,7 @@ struct WorldFeatures {
     crashed_research_drone_parts: Vec<(f32, f32, String, String)>, // Crashed research drone parts (x, y, image_path, part_type) in world pixels
     weather_station_center: Option<(f32, f32)>, // Weather station center position in world pixels (alpine biome)
     weather_station_parts: Vec<(f32, f32, String, String)>, // Weather station parts (x, y, image_path, part_type) in world pixels
-    wolf_den_center: Option<(f32, f32)>, // Wolf den center position in world pixels (tundra biome)
+    wolf_den_centers: Vec<(f32, f32)>, // Wolf den center positions in world pixels (tundra biome) - up to 2 dens
     wolf_den_parts: Vec<(f32, f32, String, String)>, // Wolf den parts (x, y, image_path, part_type) in world pixels
     coral_reef_zones: Vec<Vec<bool>>, // Coral reef zones (deep sea areas for living coral)
     reed_marsh_centers: Vec<(f32, f32)>, // Reed marsh center positions (x, y) in world pixels
@@ -596,11 +604,17 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         &shipwreck_centers, fishing_village_center, whale_bone_graveyard_center, width, height
     );
     
+    // Extract large quarry positions for monument distance checks (without type info)
+    let large_quarry_positions: Vec<(f32, f32, i32)> = large_quarry_centers.iter()
+        .map(|(x, y, r, _)| (*x, *y, *r))
+        .collect();
+    
     // Generate crashed research drone monument in tundra biome (dangerous crash site)
     // Spawns barrels, memory shards, sulfur piles, and metal ore piles - NOT a safe zone
     let (crashed_research_drone_center, crashed_research_drone_parts) = crate::monument::generate_crashed_research_drone(
         noise, &shore_distance, &river_network, &lake_map, &tundra_areas, &hot_spring_centers,
-        &shipwreck_centers, fishing_village_center, whale_bone_graveyard_center, hunting_village_center, width, height
+        &shipwreck_centers, fishing_village_center, whale_bone_graveyard_center, hunting_village_center, 
+        &large_quarry_positions, width, height
     );
     
     // Generate weather station monument in alpine biome (far north)
@@ -611,9 +625,10 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         crashed_research_drone_center, width, height
     );
     
-    // Generate wolf den monument in tundra biome (wolf pack spawn point)
-    // Single wolf mound structure - spawns a pack of wolves - NOT a safe zone
-    let (wolf_den_center, wolf_den_parts) = crate::monument::generate_wolf_den(
+    // Generate wolf den monuments in tundra biome (wolf pack spawn points)
+    // Single wolf mound structures - spawns a pack of wolves each - NOT safe zones
+    // Can spawn up to 2 wolf dens in the tundra
+    let (wolf_den_centers, wolf_den_parts) = crate::monument::generate_wolf_den(
         noise, &shore_distance, &river_network, &lake_map, &tundra_areas, &hot_spring_centers,
         &shipwreck_centers, fishing_village_center, whale_bone_graveyard_center, hunting_village_center,
         crashed_research_drone_center, weather_station_center, width, height
@@ -656,7 +671,7 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         crashed_research_drone_parts,
         weather_station_center,
         weather_station_parts,
-        wolf_den_center,
+        wolf_den_centers,
         wolf_den_parts,
         coral_reef_zones,
         reed_marsh_centers,
