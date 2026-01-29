@@ -107,22 +107,22 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   repair_bench: {
     centerOffsetX: 0,
-    centerOffsetY: -84,   // Sprite is 128x128, renders at posY - 148, center at posY - 84
-    width: 120,           // Interaction box width - covers most of 128px sprite
-    height: 120,          // Interaction box height - covers most of 128px sprite
-    placementYOffset: -32, // Compensate for 128px sprite vs 64px normal box
-    spriteWidth: 128,
-    spriteHeight: 128,
+    centerOffsetY: -63,   // Sprite is 192x192 (25% smaller), renders at posY - 212, center at posY - 116, but adjusted for visual consistency
+    width: 90,            // Interaction box width - 25% smaller: 120 * 0.75 = 90
+    height: 90,           // Interaction box height - 25% smaller: 120 * 0.75 = 90
+    placementYOffset: -24, // Compensate for 192px sprite vs 64px normal box (reduced proportionally)
+    spriteWidth: 192,     // 25% smaller: 256 * 0.75 = 192
+    spriteHeight: 192,
   },
   
   cooking_station: {
     centerOffsetX: 0,
-    centerOffsetY: -84,   // Sprite is 128x128, renders at posY - 148, center at posY - 84
-    width: 120,           // Interaction box width - covers most of 128px sprite
-    height: 120,          // Interaction box height - covers most of 128px sprite
-    placementYOffset: -32, // Compensate for 128px sprite vs 64px normal box
-    spriteWidth: 128,
-    spriteHeight: 128,
+    centerOffsetY: -63,   // Sprite is 96x96 (25% smaller), renders at posY - 116, center at posY - 68, but adjusted for visual consistency
+    width: 90,            // Interaction box width - 25% smaller: 120 * 0.75 = 90
+    height: 90,           // Interaction box height - 25% smaller: 120 * 0.75 = 90
+    placementYOffset: -24, // Compensate for 96px sprite vs 64px normal box (reduced proportionally)
+    spriteWidth: 96,      // 25% smaller: 128 * 0.75 = 96
+    spriteHeight: 96,
   },
   
   scarecrow: {
@@ -167,12 +167,12 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   wild_beehive: {
     centerOffsetX: 0,
-    centerOffsetY: -68,   // Adjusted for 96x96 sprite (similar to fish_trap)
-    width: 80,            // Interaction box width (increased from 64)
-    height: 80,           // Interaction box height (increased from 72)
-    placementYOffset: -16, // Compensate for 96px sprite vs 64px normal box
-    spriteWidth: 96,      // Increased from 64
-    spriteHeight: 96,     // Increased from 64
+    centerOffsetY: -85,   // Adjusted for 120x120 sprite (25% larger), renders at posY - 140, center at posY - 80, but adjusted for visual consistency
+    width: 100,           // Interaction box width - 25% larger: 80 * 1.25 = 100
+    height: 100,          // Interaction box height - 25% larger: 80 * 1.25 = 100
+    placementYOffset: -20, // Compensate for 120px sprite vs 64px normal box (increased proportionally)
+    spriteWidth: 120,     // 25% larger: 96 * 1.25 = 120
+    spriteHeight: 120,    // 25% larger: 96 * 1.25 = 120
   },
   
   stash: {

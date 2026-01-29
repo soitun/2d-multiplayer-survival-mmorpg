@@ -29,10 +29,10 @@ export const COMPOST_WIDTH = 128;  // Compost box dimensions (larger than normal
 export const COMPOST_HEIGHT = 128;
 export const BACKPACK_WIDTH = 64;
 export const BACKPACK_HEIGHT = 64;
-export const REPAIR_BENCH_WIDTH = 256;
-export const REPAIR_BENCH_HEIGHT = 256;
-export const COOKING_STATION_WIDTH = 128;
-export const COOKING_STATION_HEIGHT = 128;
+export const REPAIR_BENCH_WIDTH = 192;  // 25% smaller: 256 * 0.75 = 192
+export const REPAIR_BENCH_HEIGHT = 192;
+export const COOKING_STATION_WIDTH = 96;  // 25% smaller: 128 * 0.75 = 96
+export const COOKING_STATION_HEIGHT = 96;
 export const SCARECROW_WIDTH = 128;  // Scarecrow dimensions - tall figure
 export const SCARECROW_HEIGHT = 128;
 export const MILITARY_RATION_WIDTH = 64;  // Military ration dimensions
@@ -41,8 +41,8 @@ export const MINE_CART_WIDTH = 144;  // Mine cart dimensions (quarry-exclusive) 
 export const MINE_CART_HEIGHT = 144;
 export const FISH_TRAP_WIDTH = 96;  // Fish trap dimensions
 export const FISH_TRAP_HEIGHT = 96;
-export const WILD_BEEHIVE_WIDTH = 96;  // Wild beehive dimensions (forest-only) - increased from 64x64
-export const WILD_BEEHIVE_HEIGHT = 96;
+export const WILD_BEEHIVE_WIDTH = 120;  // Wild beehive dimensions (forest-only) - 25% larger: 96 * 1.25 = 120
+export const WILD_BEEHIVE_HEIGHT = 120;
 export const PLAYER_BEEHIVE_WIDTH = 256;  // Player beehive dimensions - larger for multi-hive structure
 export const PLAYER_BEEHIVE_HEIGHT = 256;
 

@@ -1090,8 +1090,12 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
             // Execute movement based on current state
             execute_animal_movement(ctx, &mut animal, &behavior, &stats, current_time, &mut rng)?;
             
-            // Update the animal in database
-            ctx.db.wild_animal().id().update(animal);
+            // Update the animal in database, BUT only if it wasn't deleted during processing
+            // (e.g., bees die from fire in check_and_apply_fire_death and get deleted there)
+            // Without this check, the update() would RE-INSERT the deleted animal!
+            if ctx.db.wild_animal().id().find(&animal.id).is_some() {
+                ctx.db.wild_animal().id().update(animal);
+            }
             
             Ok(())
         })();
