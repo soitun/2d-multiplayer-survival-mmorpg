@@ -1086,6 +1086,9 @@ fn update_walrus_rut_state(ctx: &ReducerContext, current_day: u32) -> Result<(),
 }
 
 /// Process age progression for all walruses
+/// NOTE: Only ages UP (Pup → Juvenile → Adult), never DOWN.
+/// This prevents spawned adults from being incorrectly downgraded when birth_day
+/// underflows due to saturating_sub during early game days.
 fn process_walrus_age_progression(ctx: &ReducerContext, current_day: u32) -> Result<(), String> {
     let mut updates = Vec::new();
     
@@ -1097,8 +1100,8 @@ fn process_walrus_age_progression(ctx: &ReducerContext, current_day: u32) -> Res
             continue;
         }
         
-        // Determine new age stage
-        let new_stage = if new_age < WALRUS_PUP_STAGE_DAYS {
+        // Determine new age stage based on calculated age
+        let calculated_stage = if new_age < WALRUS_PUP_STAGE_DAYS {
             WalrusAgeStage::Pup
         } else if new_age < WALRUS_DAYS_TO_ADULT {
             WalrusAgeStage::Juvenile
@@ -1106,13 +1109,31 @@ fn process_walrus_age_progression(ctx: &ReducerContext, current_day: u32) -> Res
             WalrusAgeStage::Adult
         };
         
-        // Log stage transitions
-        if new_stage != breeding_data.age_stage {
-            log::info!("🦭 Walrus {} grows from {:?} to {:?} (age: {} days)", 
-                      breeding_data.animal_id, breeding_data.age_stage, new_stage, new_age);
+        // CRITICAL: Only allow aging UP, never DOWN
+        // This prevents spawned adults from being incorrectly downgraded to pups
+        // when birth_day underflows (e.g., day 1 - 18 = 0 via saturating_sub)
+        let current_stage_rank = match breeding_data.age_stage {
+            WalrusAgeStage::Pup => 0,
+            WalrusAgeStage::Juvenile => 1,
+            WalrusAgeStage::Adult => 2,
+        };
+        let new_stage_rank = match calculated_stage {
+            WalrusAgeStage::Pup => 0,
+            WalrusAgeStage::Juvenile => 1,
+            WalrusAgeStage::Adult => 2,
+        };
+        
+        // Only update if new stage is more mature (higher rank)
+        if new_stage_rank <= current_stage_rank {
+            // Skip - don't age animals backwards
+            continue;
         }
         
-        updates.push((breeding_data.animal_id, new_age, new_stage));
+        // Log stage transitions (only logs actual aging UP)
+        log::info!("🦭 Walrus {} grows from {:?} to {:?} (age: {} days)", 
+                  breeding_data.animal_id, breeding_data.age_stage, calculated_stage, new_age);
+        
+        updates.push((breeding_data.animal_id, new_age, calculated_stage));
     }
     
     // Apply updates

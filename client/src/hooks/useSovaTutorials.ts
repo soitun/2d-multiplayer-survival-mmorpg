@@ -58,12 +58,22 @@ interface UseSovaTutorialsProps {
     localPlayerId: string | null | undefined;
     showSovaSoundBoxRef: MutableRefObject<ShowSovaSoundBoxFn | null | undefined>;
     sovaMessageAdderRef: MutableRefObject<SovaMessageAdderFn | null | undefined>;
-    // SERVER-SIDE tutorial flags from Player table (source of truth)
-    // These prevent tutorials from replaying when browser cache is cleared
+    // SERVER-SIDE tutorial flags from Player table (ALL tutorials now server-validated)
+    // No localStorage - survives browser cache clears
     hasSeenSovaIntro?: boolean;
     hasSeenMemoryShardTutorial?: boolean;
-    // Callback to mark SOVA intro as seen on the server
+    hasSeenTutorialHint?: boolean;
+    hasSeenHostileEncounterTutorial?: boolean;
+    hasSeenRuneStoneTutorial?: boolean;
+    hasSeenAlkStationTutorial?: boolean;
+    hasSeenCrashedDroneTutorial?: boolean;
+    // Callbacks to mark tutorials as seen on the server
     onMarkSovaIntroSeen?: () => void;
+    onMarkTutorialHintSeen?: () => void;
+    onMarkHostileEncounterTutorialSeen?: () => void;
+    onMarkRuneStoneTutorialSeen?: () => void;
+    onMarkAlkStationTutorialSeen?: () => void;
+    onMarkCrashedDroneTutorialSeen?: () => void;
     // Optional entity data for proximity-based tutorials
     localPlayerPosition?: { x: number; y: number } | null;
     runeStones?: Map<string, RuneStoneData>;
@@ -75,57 +85,99 @@ interface UseSovaTutorialsProps {
 // Constants - Tutorial Definitions
 // ============================================================================
 
-const TUTORIALS = {
+// Exported tutorial definition type for external use
+export interface TutorialDefinition {
+    id: string;
+    storageKey: string;
+    audioFile: string;
+    soundBoxLabel: string;
+    message: string;
+    displayName: string;
+    emoji: string;
+    description: string;
+    delayMs?: number;
+    eventName?: string;
+}
+
+export const TUTORIALS: Record<string, TutorialDefinition> = {
     crashIntro: {
+        id: 'crashIntro',
         storageKey: 'broth_sova_intro_crash_played',
         delayMs: 2.5 * 1000, // 2.5 seconds
         audioFile: '/sounds/sova_intro_crash.mp3',
         soundBoxLabel: 'SOVA: Neural Link Established',
+        displayName: 'Neural Link Established',
+        emoji: '🚢',
+        description: 'The opening broadcast when you first wake up on the island.',
         message: `Neural link established. This is SOVA — Sentient Ocular Virtual Assistant — your tactical AI implant from Gred Naval Intelligence. I've been offline since the Sovereign Tide went down. Based on your biometrics, you've been unconscious for... a while. The icebreaker's gone. Most of the crew... didn't make it. You're stranded on an uncharted island somewhere in the Aleutians — no comms, no extraction, no backup. Your survival is now my primary directive. The wreckage scattered supplies across the shoreline, but they won't last. You're going to need to learn how to live off this place. I'll walk you through it — press J anytime to check your current objectives. I've loaded an introductory sequence to get you started, and once you're stable, I'll push daily assignments to keep your skills sharp. For now, head to the beach and start gathering plant fibers from the tall grass along the shoreline. You'll need them for rope, bandages, the basics. One step at a time, agent. Just stay alive.`,
     },
     tutorialHint: {
+        id: 'tutorialHint',
         storageKey: 'broth_sova_tutorial_hint_played',
         delayMs: 3.5 * 60 * 1000, // 3.5 minutes
         audioFile: '/sounds/sova_tutorial_hint.mp3',
         soundBoxLabel: 'SOVA: Press V to Talk',
+        displayName: 'Voice Command Tutorial',
+        emoji: '🎤',
+        description: 'Learn how to communicate with SOVA using your voice.',
         message: `Hey, you... Yeah, you. I can hear you breathing out there. Look, if you're feeling lost or confused—and trust me, everyone is at first—just press V and talk to me. I'll walk you through everything. Fair warning though, the first time we chat I might take a moment to... wake up. Cold starts and all that. Think of it as me shaking off the cosmic dust. I'll be quicker after that, I promise. Otherwise, you can text with me here.`,
     },
     memoryShard: {
+        id: 'memoryShard',
         storageKey: 'broth_memory_shard_tutorial_played',
         audioFile: '/sounds/sova_tutorial_memory_shard.mp3',
         soundBoxLabel: 'SOVA: Memory Shard Warning',
         eventName: 'sova-memory-shard-tutorial',
+        displayName: 'Memory Shard Warning',
+        emoji: '🔮',
+        description: 'Important warning about the effects of carrying memory shards.',
         message: `Agent, you've acquired a Memory Shard. These things keep appearing on this island — I don't know where they come from, but I can integrate them to upgrade your loadout and unlock new blueprints. Be warned though: the longer you carry them, the more they mess with your head. You'll notice your vision turning purple — that's the insanity building up. It's not dangerous immediately, but don't hoard them for too long. Drop them on the ground for a bit if you need a break, or stash them at your base once you build one. The purple fades once you're not carrying them.`,
     },
     firstHostileEncounter: {
+        id: 'firstHostileEncounter',
         storageKey: 'broth_first_hostile_encounter_played',
         audioFile: '/sounds/sova_first_hostile_encounter.mp3',
         soundBoxLabel: 'SOVA: Neural Resonance Detected',
         eventName: 'sova-first-hostile-encounter',
+        displayName: 'Neural Resonance Detected',
+        emoji: '👹',
+        description: 'Warning about the apparitions that appear at night.',
         message: `Wait... I'm picking up something strange. Neural resonance patterns—fragmented, hostile. They're not quite... real. More like echoes. Apparitions formed from collective fear and fractured memories. They sense vulnerable minds—yours is lit up like a beacon right now. Shelter can block their attacks, but don't get comfortable. Stay too long in one place and the larger ones will start tearing through your walls. Your best options? Keep moving until dawn, or stand your ground and fight. They can be killed. They're not invincible—just relentless.`,
     },
     runeStone: {
+        id: 'runeStone',
         storageKey: 'broth_rune_stone_tutorial_played',
         audioFile: '/sounds/sova_tutorial_rune_stone.mp3',
         soundBoxLabel: 'SOVA: Anomalous Structure Detected',
         eventName: 'sova-rune-stone-tutorial',
+        displayName: 'Rune Stone Discovery',
+        emoji: '🪨',
+        description: 'Analysis of the mysterious rune stones and their powers.',
         message: `Hold on — I'm picking up some unusual readings from that structure. Scanning now. It's old. Pre-industrial, possibly ancient. These markings... they're some kind of resonance pattern. I'm detecting three distinct signatures across the island — green ones seem to accelerate biological growth, red ones affect material synthesis, and blue ones... those give off the same frequency as Memory Shards. Interesting. They also emit a faint light field at night. Approach the stone and read the inscription — it should tell you exactly what this one does.`,
     },
     alkStation: {
+        id: 'alkStation',
         storageKey: 'broth_alk_station_tutorial_played',
         audioFile: '/sounds/sova_tutorial_alk_station.mp3',
         soundBoxLabel: 'SOVA: Military Frequency Detected',
         eventName: 'sova-alk-station-tutorial',
+        displayName: 'ALK Station Briefing',
+        emoji: '🏭',
+        description: 'Explanation of the Automated Logistics Kompound contract system.',
         message: `That structure is broadcasting on a military frequency. Analyzing... Decoding the header now. A-L-K — Automated Logistics Kompound. Pre-collapse infrastructure, still operational. There's a central compound somewhere on the island and several substations scattered around. They all connect to the same contract system — bring them resources, they pay you in shards. Press E at a station to deliver contracts you've accepted. To browse and accept new contracts remotely, press G and select the ALK Board from my interface. Could be useful for converting surplus materials into something more valuable.`,
     },
     crashedDrone: {
+        id: 'crashedDrone',
         storageKey: 'broth_crashed_drone_tutorial_played',
         audioFile: '/sounds/sova_tutorial_crashed_drone.mp3',
         soundBoxLabel: 'SOVA: Wreckage Analysis',
         eventName: 'sova-crashed-drone-tutorial',
+        displayName: 'Crashed Drone Analysis',
+        emoji: '🛸',
+        description: 'Investigation of the crashed research drone and abandoned camp.',
         message: `Hold up — I'm detecting residual electromagnetic signatures from that wreckage. Scanning... It's a research drone. Pre-collapse tech, military-grade sensors. Someone already tried to salvage it — there's an abandoned camp nearby. Furnace, rain collector, repair station... whoever set this up knew what they were doing. They were probably trying to extract the drone's memory cores. The good news? They left their equipment behind. The bad news? They left everything behind. No body, no trail. Just... gone. Be careful out here, agent. Grab what you can — Memory Shards, sulfur, metal fragments — the wreckage is rich with salvage. But don't linger. Whatever happened to that survivor... I don't think they saw it coming.`,
     },
-} as const;
+};
 
 // Intro audio duration check (for skipping overlapping audio)
 const INTRO_AUDIO_DURATION_MS = 45 * 1000; // 45 seconds - generous estimate
@@ -138,8 +190,24 @@ const INTRO_STARTED_KEY = 'broth_sova_intro_started_at';
 /**
  * Check if a tutorial has already been played (persisted in localStorage)
  */
-function hasBeenPlayed(storageKey: string): boolean {
+export function hasBeenPlayed(storageKey: string): boolean {
     return localStorage.getItem(storageKey) === 'true';
+}
+
+/**
+ * Check if a specific tutorial by ID has been unlocked/played
+ */
+export function isTutorialUnlocked(tutorialId: string): boolean {
+    const tutorial = TUTORIALS[tutorialId];
+    if (!tutorial) return false;
+    return hasBeenPlayed(tutorial.storageKey);
+}
+
+/**
+ * Get list of all unlocked tutorials
+ */
+export function getUnlockedTutorials(): TutorialDefinition[] {
+    return Object.values(TUTORIALS).filter(tutorial => hasBeenPlayed(tutorial.storageKey));
 }
 
 /**
@@ -156,6 +224,37 @@ function isIntroStillPlaying(): boolean {
     const introStartedAt = localStorage.getItem(INTRO_STARTED_KEY);
     if (!introStartedAt) return false;
     return (Date.now() - parseInt(introStartedAt, 10)) < INTRO_AUDIO_DURATION_MS;
+}
+
+/**
+ * Replay a tutorial by ID - for use from the Audio Tutorials panel
+ * Returns true if the tutorial was found and played
+ */
+export function replayTutorial(
+    tutorialId: string,
+    showSovaSoundBox: ShowSovaSoundBoxFn | null | undefined,
+    sovaMessageAdder: SovaMessageAdderFn | null | undefined
+): boolean {
+    const tutorial = TUTORIALS[tutorialId];
+    if (!tutorial) {
+        console.warn(`[SovaTutorials] Tutorial not found: ${tutorialId}`);
+        return false;
+    }
+
+    console.log(`[SovaTutorials] 🔄 Replaying tutorial: ${tutorial.displayName}`);
+
+    playSovaTutorial(
+        {
+            audioFile: tutorial.audioFile,
+            soundBoxLabel: tutorial.soundBoxLabel,
+            message: tutorial.message,
+            messageId: `sova-replay-${tutorialId}-${Date.now()}`,
+        },
+        showSovaSoundBox,
+        sovaMessageAdder
+    );
+
+    return true;
 }
 
 /**
@@ -260,9 +359,22 @@ export function useSovaTutorials({
     localPlayerId,
     showSovaSoundBoxRef,
     sovaMessageAdderRef,
+    // Server-side tutorial flags (ALL tutorials now server-validated)
     hasSeenSovaIntro,
     hasSeenMemoryShardTutorial,
+    hasSeenTutorialHint,
+    hasSeenHostileEncounterTutorial,
+    hasSeenRuneStoneTutorial,
+    hasSeenAlkStationTutorial,
+    hasSeenCrashedDroneTutorial,
+    // Server-side marking callbacks
     onMarkSovaIntroSeen,
+    onMarkTutorialHintSeen,
+    onMarkHostileEncounterTutorialSeen,
+    onMarkRuneStoneTutorialSeen,
+    onMarkAlkStationTutorialSeen,
+    onMarkCrashedDroneTutorialSeen,
+    // Entity data for proximity detection
     localPlayerPosition,
     runeStones,
     alkStations,
@@ -353,25 +465,28 @@ export function useSovaTutorials({
 
     // ========================================================================
     // Part 2: SOVA Tutorial Hint (3.5 minutes after spawn)
+    // Now uses SERVER-SIDE flag instead of localStorage
     // ========================================================================
     useEffect(() => {
-        const { storageKey, delayMs, audioFile, soundBoxLabel, message } = TUTORIALS.tutorialHint;
+        const { delayMs, audioFile, soundBoxLabel, message } = TUTORIALS.tutorialHint;
         
-        // Skip if already played or no player yet
-        if (hasBeenPlayed(storageKey) || !localPlayerId) {
+        // Skip if no player yet or waiting for server data
+        if (!localPlayerId || hasSeenTutorialHint === undefined) {
+            return;
+        }
+        
+        // Skip if server says already seen
+        if (hasSeenTutorialHint === true) {
             return;
         }
 
         console.log('[SovaTutorials] 🎓 Scheduling tutorial hint in 3.5 minutes...');
         
         const timer = setTimeout(() => {
-            // Double-check (race condition protection)
-            if (hasBeenPlayed(storageKey) || !isMountedRef.current) {
+            // Double-check mount status
+            if (!isMountedRef.current) {
                 return;
             }
-
-            // Mark as played FIRST
-            markAsPlayed(storageKey);
             
             console.log('[SovaTutorials] 🎓 Playing tutorial hint NOW');
             
@@ -383,12 +498,21 @@ export function useSovaTutorials({
                     messageId: `sova-tutorial-hint-${Date.now()}`,
                 },
                 showSovaSoundBoxRef.current,
-                sovaMessageAdderRef.current
+                sovaMessageAdderRef.current,
+                {
+                    onAudioStart: () => {
+                        // Mark as seen on server AFTER audio starts
+                        if (onMarkTutorialHintSeen) {
+                            console.log('[SovaTutorials] 🎓 Marking tutorial hint as seen on server');
+                            onMarkTutorialHintSeen();
+                        }
+                    }
+                }
             );
         }, delayMs);
 
         return () => clearTimeout(timer);
-    }, [localPlayerId, showSovaSoundBoxRef, sovaMessageAdderRef]);
+    }, [localPlayerId, hasSeenTutorialHint, showSovaSoundBoxRef, sovaMessageAdderRef, onMarkTutorialHintSeen]);
 
     // ========================================================================
     // Part 3: Memory Shard Tutorial (Event-driven)
@@ -425,36 +549,33 @@ export function useSovaTutorials({
             );
         };
 
-        window.addEventListener(eventName, handleEvent as EventListener);
-        return () => window.removeEventListener(eventName, handleEvent as EventListener);
+        window.addEventListener(eventName!, handleEvent as EventListener);
+        return () => window.removeEventListener(eventName!, handleEvent as EventListener);
     }, [showSovaSoundBoxRef, sovaMessageAdderRef]);
 
     // ========================================================================
     // Part 4: First Hostile Encounter Tutorial (Event-driven)
     // Plays the first time the player encounters hostile NPCs at night.
-    // Warns about the neural resonance apparitions and suggests shelter/fighting.
+    // Now uses SERVER-SIDE flag instead of localStorage
     // ========================================================================
     useEffect(() => {
-        const { storageKey, audioFile, soundBoxLabel, eventName, message } = TUTORIALS.firstHostileEncounter;
+        const { audioFile, soundBoxLabel, eventName, message } = TUTORIALS.firstHostileEncounter;
         
         const handleEvent = () => {
             console.log('[SovaTutorials] 👹 First hostile encounter event received');
             
-            // Already played before? Skip entirely
-            if (hasBeenPlayed(storageKey)) {
-                console.log('[SovaTutorials] 👹 First hostile encounter tutorial already played, skipping');
+            // Server says already seen? Skip
+            if (hasSeenHostileEncounterTutorial === true) {
+                console.log('[SovaTutorials] 👹 First hostile encounter tutorial already seen (server), skipping');
                 return;
             }
             
-            // Intro still playing? Skip this time, but DON'T mark as played
-            // So it will play next time player encounters hostiles
+            // Intro still playing? Skip this time (will replay next encounter)
             if (isIntroStillPlaying()) {
                 console.log('[SovaTutorials] 👹 Intro still playing - skipping hostile encounter tutorial (will play next time)');
                 return;
             }
             
-            // Mark as played FIRST to prevent duplicate plays
-            markAsPlayed(storageKey);
             console.log('[SovaTutorials] 👹 Playing first hostile encounter tutorial NOW');
             
             playSovaTutorial(
@@ -465,39 +586,45 @@ export function useSovaTutorials({
                     messageId: `sova-first-hostile-encounter-${Date.now()}`,
                 },
                 showSovaSoundBoxRef.current,
-                sovaMessageAdderRef.current
+                sovaMessageAdderRef.current,
+                {
+                    onAudioStart: () => {
+                        // Mark as seen on server AFTER audio starts
+                        if (onMarkHostileEncounterTutorialSeen) {
+                            console.log('[SovaTutorials] 👹 Marking hostile encounter tutorial as seen on server');
+                            onMarkHostileEncounterTutorialSeen();
+                        }
+                    }
+                }
             );
         };
 
-        window.addEventListener(eventName, handleEvent as EventListener);
-        return () => window.removeEventListener(eventName, handleEvent as EventListener);
-    }, [showSovaSoundBoxRef, sovaMessageAdderRef]);
+        window.addEventListener(eventName!, handleEvent as EventListener);
+        return () => window.removeEventListener(eventName!, handleEvent as EventListener);
+    }, [hasSeenHostileEncounterTutorial, onMarkHostileEncounterTutorialSeen, showSovaSoundBoxRef, sovaMessageAdderRef]);
 
     // ========================================================================
     // Part 5: Rune Stone Tutorial (Event-driven)
-    // Plays the first time the player approaches a rune stone.
-    // Explains the three rune stone types and their effects.
+    // Now uses SERVER-SIDE flag instead of localStorage
     // ========================================================================
     useEffect(() => {
-        const { storageKey, audioFile, soundBoxLabel, eventName, message } = TUTORIALS.runeStone;
+        const { audioFile, soundBoxLabel, eventName, message } = TUTORIALS.runeStone;
         
         const handleEvent = () => {
             console.log('[SovaTutorials] 🪨 Rune stone tutorial event received');
             
-            // Already played before? Skip entirely
-            if (hasBeenPlayed(storageKey)) {
-                console.log('[SovaTutorials] 🪨 Rune stone tutorial already played, skipping');
+            // Server says already seen? Skip
+            if (hasSeenRuneStoneTutorial === true) {
+                console.log('[SovaTutorials] 🪨 Rune stone tutorial already seen (server), skipping');
                 return;
             }
             
-            // Intro still playing? Skip this time, but DON'T mark as played
+            // Intro still playing? Skip this time
             if (isIntroStillPlaying()) {
                 console.log('[SovaTutorials] 🪨 Intro still playing - skipping rune stone tutorial (will play next time)');
                 return;
             }
             
-            // Mark as played FIRST to prevent duplicate plays
-            markAsPlayed(storageKey);
             console.log('[SovaTutorials] 🪨 Playing rune stone tutorial NOW');
             
             playSovaTutorial(
@@ -508,39 +635,44 @@ export function useSovaTutorials({
                     messageId: `sova-rune-stone-tutorial-${Date.now()}`,
                 },
                 showSovaSoundBoxRef.current,
-                sovaMessageAdderRef.current
+                sovaMessageAdderRef.current,
+                {
+                    onAudioStart: () => {
+                        if (onMarkRuneStoneTutorialSeen) {
+                            console.log('[SovaTutorials] 🪨 Marking rune stone tutorial as seen on server');
+                            onMarkRuneStoneTutorialSeen();
+                        }
+                    }
+                }
             );
         };
 
-        window.addEventListener(eventName, handleEvent as EventListener);
-        return () => window.removeEventListener(eventName, handleEvent as EventListener);
-    }, [showSovaSoundBoxRef, sovaMessageAdderRef]);
+        window.addEventListener(eventName!, handleEvent as EventListener);
+        return () => window.removeEventListener(eventName!, handleEvent as EventListener);
+    }, [hasSeenRuneStoneTutorial, onMarkRuneStoneTutorialSeen, showSovaSoundBoxRef, sovaMessageAdderRef]);
 
     // ========================================================================
     // Part 6: ALK Station Tutorial (Event-driven)
-    // Plays the first time the player approaches an ALK station.
-    // Explains the contract system and how to use stations.
+    // Now uses SERVER-SIDE flag instead of localStorage
     // ========================================================================
     useEffect(() => {
-        const { storageKey, audioFile, soundBoxLabel, eventName, message } = TUTORIALS.alkStation;
+        const { audioFile, soundBoxLabel, eventName, message } = TUTORIALS.alkStation;
         
         const handleEvent = () => {
             console.log('[SovaTutorials] 🏭 ALK station tutorial event received');
             
-            // Already played before? Skip entirely
-            if (hasBeenPlayed(storageKey)) {
-                console.log('[SovaTutorials] 🏭 ALK station tutorial already played, skipping');
+            // Server says already seen? Skip
+            if (hasSeenAlkStationTutorial === true) {
+                console.log('[SovaTutorials] 🏭 ALK station tutorial already seen (server), skipping');
                 return;
             }
             
-            // Intro still playing? Skip this time, but DON'T mark as played
+            // Intro still playing? Skip this time
             if (isIntroStillPlaying()) {
                 console.log('[SovaTutorials] 🏭 Intro still playing - skipping ALK station tutorial (will play next time)');
                 return;
             }
             
-            // Mark as played FIRST to prevent duplicate plays
-            markAsPlayed(storageKey);
             console.log('[SovaTutorials] 🏭 Playing ALK station tutorial NOW');
             
             playSovaTutorial(
@@ -551,39 +683,44 @@ export function useSovaTutorials({
                     messageId: `sova-alk-station-tutorial-${Date.now()}`,
                 },
                 showSovaSoundBoxRef.current,
-                sovaMessageAdderRef.current
+                sovaMessageAdderRef.current,
+                {
+                    onAudioStart: () => {
+                        if (onMarkAlkStationTutorialSeen) {
+                            console.log('[SovaTutorials] 🏭 Marking ALK station tutorial as seen on server');
+                            onMarkAlkStationTutorialSeen();
+                        }
+                    }
+                }
             );
         };
 
-        window.addEventListener(eventName, handleEvent as EventListener);
-        return () => window.removeEventListener(eventName, handleEvent as EventListener);
-    }, [showSovaSoundBoxRef, sovaMessageAdderRef]);
+        window.addEventListener(eventName!, handleEvent as EventListener);
+        return () => window.removeEventListener(eventName!, handleEvent as EventListener);
+    }, [hasSeenAlkStationTutorial, onMarkAlkStationTutorialSeen, showSovaSoundBoxRef, sovaMessageAdderRef]);
 
     // ========================================================================
     // Part 6b: Crashed Research Drone Tutorial (Event-driven)
-    // Plays the first time the player approaches the crashed drone in tundra.
-    // Explains the abandoned survivor camp and dangerous loot opportunity.
+    // Now uses SERVER-SIDE flag instead of localStorage
     // ========================================================================
     useEffect(() => {
-        const { storageKey, audioFile, soundBoxLabel, eventName, message } = TUTORIALS.crashedDrone;
+        const { audioFile, soundBoxLabel, eventName, message } = TUTORIALS.crashedDrone;
         
         const handleEvent = () => {
             console.log('[SovaTutorials] 🛸 Crashed drone tutorial event received');
             
-            // Already played before? Skip entirely
-            if (hasBeenPlayed(storageKey)) {
-                console.log('[SovaTutorials] 🛸 Crashed drone tutorial already played, skipping');
+            // Server says already seen? Skip
+            if (hasSeenCrashedDroneTutorial === true) {
+                console.log('[SovaTutorials] 🛸 Crashed drone tutorial already seen (server), skipping');
                 return;
             }
             
-            // Intro still playing? Skip this time, but DON'T mark as played
+            // Intro still playing? Skip this time
             if (isIntroStillPlaying()) {
                 console.log('[SovaTutorials] 🛸 Intro still playing - skipping crashed drone tutorial (will play next time)');
                 return;
             }
             
-            // Mark as played FIRST to prevent duplicate plays
-            markAsPlayed(storageKey);
             console.log('[SovaTutorials] 🛸 Playing crashed drone tutorial NOW');
             
             playSovaTutorial(
@@ -594,17 +731,26 @@ export function useSovaTutorials({
                     messageId: `sova-crashed-drone-tutorial-${Date.now()}`,
                 },
                 showSovaSoundBoxRef.current,
-                sovaMessageAdderRef.current
+                sovaMessageAdderRef.current,
+                {
+                    onAudioStart: () => {
+                        if (onMarkCrashedDroneTutorialSeen) {
+                            console.log('[SovaTutorials] 🛸 Marking crashed drone tutorial as seen on server');
+                            onMarkCrashedDroneTutorialSeen();
+                        }
+                    }
+                }
             );
         };
 
-        window.addEventListener(eventName, handleEvent as EventListener);
-        return () => window.removeEventListener(eventName, handleEvent as EventListener);
-    }, [showSovaSoundBoxRef, sovaMessageAdderRef]);
+        window.addEventListener(eventName!, handleEvent as EventListener);
+        return () => window.removeEventListener(eventName!, handleEvent as EventListener);
+    }, [hasSeenCrashedDroneTutorial, onMarkCrashedDroneTutorialSeen, showSovaSoundBoxRef, sovaMessageAdderRef]);
 
     // ========================================================================
     // Part 7: Proximity Detection for Rune Stones, ALK Stations, and Monuments
     // Fires tutorial events when player first approaches these structures.
+    // Now uses SERVER-SIDE flags instead of localStorage
     // ========================================================================
     useEffect(() => {
         // Skip if no player position or no entity data
@@ -613,10 +759,10 @@ export function useSovaTutorials({
         const playerX = localPlayerPosition.x;
         const playerY = localPlayerPosition.y;
         
-        // Check rune stone proximity
+        // Check rune stone proximity - use server flag
         if (runeStones && runeStones.size > 0 && !hasFiredRuneStoneEvent.current) {
-            // Don't fire if already played
-            if (!hasBeenPlayed(TUTORIALS.runeStone.storageKey)) {
+            // Don't fire if server says already seen
+            if (hasSeenRuneStoneTutorial !== true) {
                 for (const runeStone of runeStones.values()) {
                     const dx = playerX - runeStone.posX;
                     const dy = playerY - runeStone.posY;
@@ -625,17 +771,17 @@ export function useSovaTutorials({
                     if (distSq < TUTORIAL_PROXIMITY_DISTANCE_SQ) {
                         console.log('[SovaTutorials] 🪨 Player approached rune stone - firing tutorial event');
                         hasFiredRuneStoneEvent.current = true;
-                        window.dispatchEvent(new Event(TUTORIALS.runeStone.eventName));
+                        window.dispatchEvent(new Event(TUTORIALS.runeStone.eventName!));
                         break;
                     }
                 }
             }
         }
         
-        // Check ALK station proximity
+        // Check ALK station proximity - use server flag
         if (alkStations && alkStations.size > 0 && !hasFiredAlkStationEvent.current) {
-            // Don't fire if already played
-            if (!hasBeenPlayed(TUTORIALS.alkStation.storageKey)) {
+            // Don't fire if server says already seen
+            if (hasSeenAlkStationTutorial !== true) {
                 for (const alkStation of alkStations.values()) {
                     const dx = playerX - alkStation.worldPosX;
                     const dy = playerY - alkStation.worldPosY;
@@ -644,17 +790,17 @@ export function useSovaTutorials({
                     if (distSq < TUTORIAL_PROXIMITY_DISTANCE_SQ) {
                         console.log('[SovaTutorials] 🏭 Player approached ALK station - firing tutorial event');
                         hasFiredAlkStationEvent.current = true;
-                        window.dispatchEvent(new Event(TUTORIALS.alkStation.eventName));
+                        window.dispatchEvent(new Event(TUTORIALS.alkStation.eventName!));
                         break;
                     }
                 }
             }
         }
         
-        // Check crashed research drone proximity (filter monument parts by type)
+        // Check crashed research drone proximity - use server flag
         if (monumentParts && monumentParts.size > 0 && !hasFiredCrashedDroneEvent.current) {
-            // Don't fire if already played
-            if (!hasBeenPlayed(TUTORIALS.crashedDrone.storageKey)) {
+            // Don't fire if server says already seen
+            if (hasSeenCrashedDroneTutorial !== true) {
                 for (const part of monumentParts.values()) {
                     // Only check crashed research drone parts
                     if (part.monumentType?.tag !== 'CrashedResearchDrone') continue;
@@ -666,13 +812,13 @@ export function useSovaTutorials({
                     if (distSq < TUTORIAL_PROXIMITY_DISTANCE_SQ) {
                         console.log('[SovaTutorials] 🛸 Player approached crashed research drone - firing tutorial event');
                         hasFiredCrashedDroneEvent.current = true;
-                        window.dispatchEvent(new Event(TUTORIALS.crashedDrone.eventName));
+                        window.dispatchEvent(new Event(TUTORIALS.crashedDrone.eventName!));
                         break;
                     }
                 }
             }
         }
-    }, [localPlayerPosition, localPlayerId, runeStones, alkStations, monumentParts]);
+    }, [localPlayerPosition, localPlayerId, runeStones, alkStations, monumentParts, hasSeenRuneStoneTutorial, hasSeenAlkStationTutorial, hasSeenCrashedDroneTutorial]);
 }
 
 export default useSovaTutorials;

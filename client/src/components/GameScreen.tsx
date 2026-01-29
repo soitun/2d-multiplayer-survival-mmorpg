@@ -548,12 +548,17 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         sovaMessageAdderRef.current = sovaMessageAdder;
     }, [sovaMessageAdder]);
     
-    // Get local player's server-side tutorial flags
+    // Get local player's server-side tutorial flags (ALL tutorials now server-validated)
     const localPlayerForTutorial = localPlayerId ? props.players.get(localPlayerId) : undefined;
     const hasSeenSovaIntro = localPlayerForTutorial?.hasSeenSovaIntro;
     const hasSeenMemoryShardTutorial = localPlayerForTutorial?.hasSeenMemoryShardTutorial;
+    const hasSeenTutorialHint = localPlayerForTutorial?.hasSeenTutorialHint;
+    const hasSeenHostileEncounterTutorial = localPlayerForTutorial?.hasSeenHostileEncounterTutorial;
+    const hasSeenRuneStoneTutorial = localPlayerForTutorial?.hasSeenRuneStoneTutorial;
+    const hasSeenAlkStationTutorial = localPlayerForTutorial?.hasSeenAlkStationTutorial;
+    const hasSeenCrashedDroneTutorial = localPlayerForTutorial?.hasSeenCrashedDroneTutorial;
     
-    // Callback to mark SOVA intro as seen on the server (prevents replay after cache clear)
+    // Callbacks to mark tutorials as seen on the server (all tutorials now server-side)
     const handleMarkSovaIntroSeen = useCallback(() => {
         if (props.connection?.reducers) {
             try {
@@ -564,17 +569,85 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             }
         }
     }, [props.connection]);
+
+    const handleMarkTutorialHintSeen = useCallback(() => {
+        if (props.connection?.reducers) {
+            try {
+                props.connection.reducers.markTutorialHintSeen();
+                console.log('[GameScreen] Called markTutorialHintSeen reducer');
+            } catch (error) {
+                console.error('[GameScreen] Failed to mark tutorial hint as seen:', error);
+            }
+        }
+    }, [props.connection]);
+
+    const handleMarkHostileEncounterTutorialSeen = useCallback(() => {
+        if (props.connection?.reducers) {
+            try {
+                props.connection.reducers.markHostileEncounterTutorialSeen();
+                console.log('[GameScreen] Called markHostileEncounterTutorialSeen reducer');
+            } catch (error) {
+                console.error('[GameScreen] Failed to mark hostile encounter tutorial as seen:', error);
+            }
+        }
+    }, [props.connection]);
+
+    const handleMarkRuneStoneTutorialSeen = useCallback(() => {
+        if (props.connection?.reducers) {
+            try {
+                props.connection.reducers.markRuneStoneTutorialSeen();
+                console.log('[GameScreen] Called markRuneStoneTutorialSeen reducer');
+            } catch (error) {
+                console.error('[GameScreen] Failed to mark rune stone tutorial as seen:', error);
+            }
+        }
+    }, [props.connection]);
+
+    const handleMarkAlkStationTutorialSeen = useCallback(() => {
+        if (props.connection?.reducers) {
+            try {
+                props.connection.reducers.markAlkStationTutorialSeen();
+                console.log('[GameScreen] Called markAlkStationTutorialSeen reducer');
+            } catch (error) {
+                console.error('[GameScreen] Failed to mark ALK station tutorial as seen:', error);
+            }
+        }
+    }, [props.connection]);
+
+    const handleMarkCrashedDroneTutorialSeen = useCallback(() => {
+        if (props.connection?.reducers) {
+            try {
+                props.connection.reducers.markCrashedDroneTutorialSeen();
+                console.log('[GameScreen] Called markCrashedDroneTutorialSeen reducer');
+            } catch (error) {
+                console.error('[GameScreen] Failed to mark crashed drone tutorial as seen:', error);
+            }
+        }
+    }, [props.connection]);
     
     // === SOVA Tutorial Sounds (abstracted to useSovaTutorials hook) ===
     // Handles: crash intro (2.5s), tutorial hint (3.5min), memory shard, rune stone, alk station tutorials
-    // Now uses SERVER-SIDE flags to prevent replaying tutorials after browser cache is cleared
+    // ALL tutorials now use SERVER-SIDE flags (no localStorage) - survives browser cache clears
     useSovaTutorials({
         localPlayerId,
         showSovaSoundBoxRef,
         sovaMessageAdderRef,
+        // Server-side tutorial flags
         hasSeenSovaIntro,
         hasSeenMemoryShardTutorial,
+        hasSeenTutorialHint,
+        hasSeenHostileEncounterTutorial,
+        hasSeenRuneStoneTutorial,
+        hasSeenAlkStationTutorial,
+        hasSeenCrashedDroneTutorial,
+        // Callbacks to mark tutorials as seen on server
         onMarkSovaIntroSeen: handleMarkSovaIntroSeen,
+        onMarkTutorialHintSeen: handleMarkTutorialHintSeen,
+        onMarkHostileEncounterTutorialSeen: handleMarkHostileEncounterTutorialSeen,
+        onMarkRuneStoneTutorialSeen: handleMarkRuneStoneTutorialSeen,
+        onMarkAlkStationTutorialSeen: handleMarkAlkStationTutorialSeen,
+        onMarkCrashedDroneTutorialSeen: handleMarkCrashedDroneTutorialSeen,
+        // Entity data for proximity detection
         localPlayerPosition: predictedPosition,
         runeStones: props.runeStones,
         alkStations: props.alkStations,
@@ -1271,6 +1344,16 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 playerDailyQuests={props.playerDailyQuests || new Map()}
                 localPlayerId={props.playerIdentity || undefined}
                 isMobile={props.isMobile}
+                showSovaSoundBox={showSovaSoundBox}
+                addSOVAMessage={sovaMessageAdder || undefined}
+                // Server-side tutorial flags for Audio Logs tab (ALL tutorials now server-validated)
+                hasSeenSovaIntro={hasSeenSovaIntro}
+                hasSeenMemoryShardTutorial={hasSeenMemoryShardTutorial}
+                hasSeenTutorialHint={hasSeenTutorialHint}
+                hasSeenHostileEncounterTutorial={hasSeenHostileEncounterTutorial}
+                hasSeenRuneStoneTutorial={hasSeenRuneStoneTutorial}
+                hasSeenAlkStationTutorial={hasSeenAlkStationTutorial}
+                hasSeenCrashedDroneTutorial={hasSeenCrashedDroneTutorial}
             />
             {/* MusicControlPanel - Hidden on mobile */}
             {!props.isMobile && (

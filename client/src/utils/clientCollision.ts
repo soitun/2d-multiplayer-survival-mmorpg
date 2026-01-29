@@ -1063,7 +1063,7 @@ export const COLLISION_OFFSETS = {
   RUNE_STONE: { x: 0, y: -24 }, // Y offset for 48x48 AABB collision center (matches server-side)
   CAIRN: { x: 0, y: -24 },     // Y offset for 96x48 AABB collision center (matches server-side CAIRN_COLLISION_Y_OFFSET)
   STORAGE_BOX: { x: 0, y: -70 }, // Small circle positioned at visual box base
-  RAIN_COLLECTOR: { x: 0, y: 0 }, // Pushed down to align with visual base
+  RAIN_COLLECTOR: { x: 0, y: 30 }, // Pushed down to align with visual base (offset down from top)
   FURNACE: { x: 0, y: -50 }, // Adjusted center to extend collision below while keeping top boundary
   BARBECUE: { x: 0, y: 0 }, // Collision at posY (matches server-side BARBECUE_COLLISION_Y_OFFSET: 0.0)
   SHELTER: { x: 0, y: -200 },  // Shelter offset unchanged

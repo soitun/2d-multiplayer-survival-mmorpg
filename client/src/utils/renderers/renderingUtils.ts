@@ -1059,7 +1059,10 @@ export const renderYSortedEntities = ({
               return; // Skip this tree - it's destroyed and animation is done
           }
           
-          renderTree(ctx, tree, nowMs, cycleProgress, false, false, localPlayerPosition, treeShadowsEnabled, isFalling, fallProgress);
+          // Render tree with canopy shadow (renderCanopyShadow=true for correct Y-sorting)
+          // The canopy shadow is drawn AFTER the tree sprite, so shadows from trees
+          // behind won't incorrectly appear on top of tree canopies in front
+          renderTree(ctx, tree, nowMs, cycleProgress, false, false, localPlayerPosition, treeShadowsEnabled, isFalling, fallProgress, true);
       } else if (type === 'stone') {
           // Render stone with its shadow in the normal order (shadow first, then stone)
           renderStone(ctx, entity as SpacetimeDBStone, nowMs, cycleProgress, false, false);

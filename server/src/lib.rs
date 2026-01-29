@@ -688,6 +688,12 @@ pub struct Player {
     pub is_aiming_throw: bool, // NEW: Tracks if player is in throw-aiming state (right mouse held)
     pub has_seen_memory_shard_tutorial: bool, // Tracks if player has seen SOVA's memory shard explanation
     pub has_seen_sova_intro: bool, // Tracks if player has seen SOVA's crash intro
+    // Additional SOVA tutorial flags (for Audio Logs replay feature)
+    pub has_seen_tutorial_hint: bool, // "Press V to Talk" hint after 3.5 minutes
+    pub has_seen_hostile_encounter_tutorial: bool, // First night apparition warning
+    pub has_seen_rune_stone_tutorial: bool, // Rune stone discovery explanation
+    pub has_seen_alk_station_tutorial: bool, // ALK contract station explanation
+    pub has_seen_crashed_drone_tutorial: bool, // Crashed research drone monument explanation
     pub pvp_enabled: bool, // Whether PvP mode is currently active
     pub pvp_enabled_until: Option<Timestamp>, // When PvP will auto-disable (minimum 30min)
     pub last_pvp_combat_time: Option<Timestamp>, // Last time player dealt/received PvP damage (for combat extension)
@@ -1837,6 +1843,11 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         offline_corpse_id: None, // No offline corpse for new players
         has_seen_memory_shard_tutorial: false, // Player hasn't seen SOVA's memory shard explanation yet
         has_seen_sova_intro: false, // Player hasn't seen SOVA's crash intro yet
+        has_seen_tutorial_hint: false, // Player hasn't seen "Press V" hint yet
+        has_seen_hostile_encounter_tutorial: false, // Player hasn't seen night apparition warning yet
+        has_seen_rune_stone_tutorial: false, // Player hasn't seen rune stone explanation yet
+        has_seen_alk_station_tutorial: false, // Player hasn't seen ALK station explanation yet
+        has_seen_crashed_drone_tutorial: false, // Player hasn't seen crashed drone explanation yet
         pvp_enabled: false, // PvP disabled by default
         pvp_enabled_until: None, // No PvP timer initially
         last_pvp_combat_time: None, // No PvP combat history initially
@@ -2478,6 +2489,96 @@ pub fn mark_sova_intro_seen(ctx: &ReducerContext) -> Result<(), String> {
             player.has_seen_sova_intro = true;
             players.identity().update(player);
             log::info!("[SOVA] Player {:?} marked intro as seen", player_id);
+        }
+        Ok(())
+    } else {
+        Err("Player not found".to_string())
+    }
+}
+
+/// Mark SOVA tutorial hint ("Press V to Talk") as seen
+#[spacetimedb::reducer]
+pub fn mark_tutorial_hint_seen(ctx: &ReducerContext) -> Result<(), String> {
+    let player_id = ctx.sender;
+    let players = ctx.db.player();
+    
+    if let Some(mut player) = players.identity().find(&player_id) {
+        if !player.has_seen_tutorial_hint {
+            player.has_seen_tutorial_hint = true;
+            players.identity().update(player);
+            log::info!("[SOVA] Player {:?} marked tutorial hint as seen", player_id);
+        }
+        Ok(())
+    } else {
+        Err("Player not found".to_string())
+    }
+}
+
+/// Mark hostile encounter tutorial (night apparitions) as seen
+#[spacetimedb::reducer]
+pub fn mark_hostile_encounter_tutorial_seen(ctx: &ReducerContext) -> Result<(), String> {
+    let player_id = ctx.sender;
+    let players = ctx.db.player();
+    
+    if let Some(mut player) = players.identity().find(&player_id) {
+        if !player.has_seen_hostile_encounter_tutorial {
+            player.has_seen_hostile_encounter_tutorial = true;
+            players.identity().update(player);
+            log::info!("[SOVA] Player {:?} marked hostile encounter tutorial as seen", player_id);
+        }
+        Ok(())
+    } else {
+        Err("Player not found".to_string())
+    }
+}
+
+/// Mark rune stone tutorial as seen
+#[spacetimedb::reducer]
+pub fn mark_rune_stone_tutorial_seen(ctx: &ReducerContext) -> Result<(), String> {
+    let player_id = ctx.sender;
+    let players = ctx.db.player();
+    
+    if let Some(mut player) = players.identity().find(&player_id) {
+        if !player.has_seen_rune_stone_tutorial {
+            player.has_seen_rune_stone_tutorial = true;
+            players.identity().update(player);
+            log::info!("[SOVA] Player {:?} marked rune stone tutorial as seen", player_id);
+        }
+        Ok(())
+    } else {
+        Err("Player not found".to_string())
+    }
+}
+
+/// Mark ALK station tutorial as seen
+#[spacetimedb::reducer]
+pub fn mark_alk_station_tutorial_seen(ctx: &ReducerContext) -> Result<(), String> {
+    let player_id = ctx.sender;
+    let players = ctx.db.player();
+    
+    if let Some(mut player) = players.identity().find(&player_id) {
+        if !player.has_seen_alk_station_tutorial {
+            player.has_seen_alk_station_tutorial = true;
+            players.identity().update(player);
+            log::info!("[SOVA] Player {:?} marked ALK station tutorial as seen", player_id);
+        }
+        Ok(())
+    } else {
+        Err("Player not found".to_string())
+    }
+}
+
+/// Mark crashed drone tutorial as seen
+#[spacetimedb::reducer]
+pub fn mark_crashed_drone_tutorial_seen(ctx: &ReducerContext) -> Result<(), String> {
+    let player_id = ctx.sender;
+    let players = ctx.db.player();
+    
+    if let Some(mut player) = players.identity().find(&player_id) {
+        if !player.has_seen_crashed_drone_tutorial {
+            player.has_seen_crashed_drone_tutorial = true;
+            players.identity().update(player);
+            log::info!("[SOVA] Player {:?} marked crashed drone tutorial as seen", player_id);
         }
         Ok(())
     } else {

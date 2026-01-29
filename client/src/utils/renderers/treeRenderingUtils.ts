@@ -82,6 +82,64 @@ function drawCanopyShadow(
 }
 
 /**
+ * Renders a single tree's canopy shadow overlay.
+ * This should be called AFTER rendering the tree sprite within the Y-sorted pass,
+ * so the shadow respects Y-sorting - shadows from trees behind won't appear
+ * on top of tree canopies that are in front.
+ * 
+ * @param ctx - Canvas rendering context
+ * @param tree - The tree to render canopy shadow for
+ * @param nowMs - Current timestamp for shake animation sync
+ * @param isFalling - Whether this tree is currently falling
+ */
+export function renderSingleTreeCanopyShadow(
+    ctx: CanvasRenderingContext2D,
+    tree: Tree,
+    nowMs: number,
+    isFalling: boolean = false
+): void {
+    const treeId = tree.id.toString();
+    
+    // Skip trees with no health (destroyed) unless they have respawn time
+    if (tree.health === 0 && !tree.respawnAt) return;
+    
+    // Skip falling trees - canopy is no longer overhead when the tree is falling
+    if (isFalling) return;
+    
+    const { targetWidth } = getCachedTreeTypeInfo(tree);
+    
+    // Calculate shake offsets for shadow synchronization
+    let shakeOffsetX = 0;
+    let shakeOffsetY = 0;
+    
+    if (tree.lastHitTime) {
+        const clientStartTime = clientTreeShakeStartTimes.get(treeId);
+        if (clientStartTime) {
+            const elapsedSinceShake = nowMs - clientStartTime;
+            
+            if (elapsedSinceShake >= 0 && elapsedSinceShake < SHAKE_DURATION_MS) {
+                const shakeFactor = 1.0 - (elapsedSinceShake / SHAKE_DURATION_MS);
+                const baseShakeIntensity = SHAKE_INTENSITY_PX * shakeFactor;
+                
+                // Generate smooth shake direction
+                const timePhase = elapsedSinceShake / 50;
+                const treeSeed = treeId.charCodeAt(0) % 100;
+                
+                shakeOffsetX = Math.sin(timePhase + treeSeed) * baseShakeIntensity * 0.3;
+                shakeOffsetY = Math.cos(timePhase + treeSeed) * baseShakeIntensity * 0.15;
+            }
+        }
+    }
+    
+    // Draw the canopy shadow overlay with blur
+    drawCanopyShadow(ctx, tree.posX, tree.posY, targetWidth, shakeOffsetX, shakeOffsetY, true);
+}
+
+/**
+ * @deprecated Use renderSingleTreeCanopyShadow instead for correct Y-sorting.
+ * This function renders ALL canopy shadows after all entities, which causes
+ * shadows from trees behind to incorrectly appear on top of trees in front.
+ * 
  * Renders canopy shadow overlays for all visible trees.
  * This should be called AFTER all Y-sorted entities are rendered,
  * so the shadows appear ON TOP of trees and players, creating a realistic
@@ -98,6 +156,9 @@ export function renderTreeCanopyShadowsOverlay(
     nowMs: number,
     isTreeFalling?: (treeId: string) => boolean
 ): void {
+    // DEPRECATED: This approach doesn't respect Y-sorting.
+    // Shadows from behind trees appear on top of trees in front.
+    // Use renderSingleTreeCanopyShadow in the Y-sorted render pass instead.
     if (!trees || trees.length === 0) return;
     
     ctx.save();
@@ -107,40 +168,8 @@ export function renderTreeCanopyShadowsOverlay(
     
     for (const tree of trees) {
         const treeId = tree.id.toString();
-        
-        // Skip trees with no health (destroyed) unless they have respawn time
-        if (tree.health === 0 && !tree.respawnAt) continue;
-        
-        // Skip falling trees - canopy is no longer overhead when the tree is falling
-        if (isTreeFalling && isTreeFalling(treeId)) continue;
-        
-        const { targetWidth } = getCachedTreeTypeInfo(tree);
-        
-        // Calculate shake offsets for shadow synchronization
-        let shakeOffsetX = 0;
-        let shakeOffsetY = 0;
-        
-        if (tree.lastHitTime) {
-            const clientStartTime = clientTreeShakeStartTimes.get(treeId);
-            if (clientStartTime) {
-                const elapsedSinceShake = nowMs - clientStartTime;
-                
-                if (elapsedSinceShake >= 0 && elapsedSinceShake < SHAKE_DURATION_MS) {
-                    const shakeFactor = 1.0 - (elapsedSinceShake / SHAKE_DURATION_MS);
-                    const baseShakeIntensity = SHAKE_INTENSITY_PX * shakeFactor;
-                    
-                    // Generate smooth shake direction
-                    const timePhase = elapsedSinceShake / 50;
-                    const treeSeed = treeId.charCodeAt(0) % 100;
-                    
-                    shakeOffsetX = Math.sin(timePhase + treeSeed) * baseShakeIntensity * 0.3;
-                    shakeOffsetY = Math.cos(timePhase + treeSeed) * baseShakeIntensity * 0.15;
-                }
-            }
-        }
-        
-        // Draw the canopy shadow overlay with blur
-        drawCanopyShadow(ctx, tree.posX, tree.posY, targetWidth, shakeOffsetX, shakeOffsetY, true);
+        const isFalling = isTreeFalling ? isTreeFalling(treeId) : false;
+        renderSingleTreeCanopyShadow(ctx, tree, nowMs, isFalling);
     }
     
     ctx.restore();
@@ -1014,7 +1043,8 @@ export function renderTree(
     localPlayerPosition?: { x: number; y: number } | null, // Player position for transparency logic
     treeShadowsEnabled: boolean = true, // NEW: Visual cortex module setting
     isFalling?: boolean, // NEW: Tree is currently falling
-    fallProgress?: number // NEW: Progress of fall animation (0.0 to 1.0)
+    fallProgress?: number, // NEW: Progress of fall animation (0.0 to 1.0)
+    renderCanopyShadow: boolean = false // NEW: Render canopy shadow after tree (for Y-sorted rendering)
 ) {
     // PERFORMANCE: Skip shadow rendering entirely if disabled in visual settings
     const shouldSkipShadows = !treeShadowsEnabled || skipDrawingShadow;
@@ -1115,6 +1145,12 @@ export function renderTree(
     // Restore context if transparency was applied
     if (needsTransparency) {
         ctx.restore();
+    }
+    
+    // Render canopy shadow AFTER the tree sprite (for Y-sorted rendering)
+    // This ensures shadows from trees behind don't appear on top of tree canopies in front
+    if (renderCanopyShadow && !onlyDrawShadow) {
+        renderSingleTreeCanopyShadow(ctx, tree, now_ms, isFalling || false);
     }
 }
 

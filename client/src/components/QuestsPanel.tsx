@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { 
     TutorialQuestDefinition, 
     DailyQuestDefinition,
@@ -7,6 +7,13 @@ import {
     QuestStatus 
 } from '../generated';
 import { Identity } from 'spacetimedb';
+import { 
+    TUTORIALS, 
+    TutorialDefinition, 
+    replayTutorial,
+    ShowSovaSoundBoxFn,
+    SovaMessageAdderFn
+} from '../hooks/useSovaTutorials';
 
 // Style constants - Cyberpunk theme
 const UI_BG_COLOR = 'linear-gradient(135deg, rgba(10, 5, 20, 0.98), rgba(15, 8, 30, 0.99))';
@@ -26,6 +33,17 @@ interface QuestsPanelProps {
     playerDailyQuests: Map<string, PlayerDailyQuest>;
     localPlayerId: Identity | undefined;
     isMobile?: boolean;
+    // Audio tutorials replay functionality
+    showSovaSoundBox?: ShowSovaSoundBoxFn;
+    addSOVAMessage?: SovaMessageAdderFn;
+    // Server-side tutorial flags (ALL tutorials now server-validated, survives browser cache clear)
+    hasSeenSovaIntro?: boolean;
+    hasSeenMemoryShardTutorial?: boolean;
+    hasSeenTutorialHint?: boolean;
+    hasSeenHostileEncounterTutorial?: boolean;
+    hasSeenRuneStoneTutorial?: boolean;
+    hasSeenAlkStationTutorial?: boolean;
+    hasSeenCrashedDroneTutorial?: boolean;
 }
 
 const QuestsPanel: React.FC<QuestsPanelProps> = ({
@@ -37,12 +55,58 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
     playerDailyQuests,
     localPlayerId,
     isMobile = false,
+    showSovaSoundBox,
+    addSOVAMessage,
+    // All server-side tutorial flags
+    hasSeenSovaIntro,
+    hasSeenMemoryShardTutorial,
+    hasSeenTutorialHint,
+    hasSeenHostileEncounterTutorial,
+    hasSeenRuneStoneTutorial,
+    hasSeenAlkStationTutorial,
+    hasSeenCrashedDroneTutorial,
 }) => {
     // Get tutorial progress
     const tutorialProgress = useMemo(() => {
         if (!localPlayerId) return null;
         return playerTutorialProgress.get(localPlayerId.toHexString()) || null;
     }, [localPlayerId, playerTutorialProgress]);
+
+    // Check if a tutorial is unlocked using SERVER-SIDE flags
+    // ALL tutorials now use server-side validation (no localStorage fallback)
+    const isTutorialUnlockedWithServer = useCallback((tutorialId: string): boolean => {
+        switch (tutorialId) {
+            case 'crashIntro':
+                return hasSeenSovaIntro === true;
+            case 'tutorialHint':
+                return hasSeenTutorialHint === true;
+            case 'memoryShard':
+                return hasSeenMemoryShardTutorial === true;
+            case 'firstHostileEncounter':
+                return hasSeenHostileEncounterTutorial === true;
+            case 'runeStone':
+                return hasSeenRuneStoneTutorial === true;
+            case 'alkStation':
+                return hasSeenAlkStationTutorial === true;
+            case 'crashedDrone':
+                return hasSeenCrashedDroneTutorial === true;
+            default:
+                return false;
+        }
+    }, [hasSeenSovaIntro, hasSeenTutorialHint, hasSeenMemoryShardTutorial, hasSeenHostileEncounterTutorial, hasSeenRuneStoneTutorial, hasSeenAlkStationTutorial, hasSeenCrashedDroneTutorial]);
+
+    // Get unlocked SOVA tutorials for the Audio Tutorials tab
+    // Uses server-side flags where available, localStorage as fallback
+    const unlockedTutorials = useMemo(() => {
+        return Object.values(TUTORIALS).filter(tutorial => 
+            isTutorialUnlockedWithServer(tutorial.id)
+        );
+    }, [isOpen, hasSeenSovaIntro, hasSeenMemoryShardTutorial, isTutorialUnlockedWithServer]);
+
+    // Handle replaying a tutorial
+    const handleReplayTutorial = useCallback((tutorialId: string) => {
+        replayTutorial(tutorialId, showSovaSoundBox, addSOVAMessage);
+    }, [showSovaSoundBox, addSOVAMessage]);
 
     // Get sorted tutorial quests
     const sortedTutorialQuests = useMemo(() => {
@@ -92,7 +156,7 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
     }, [isOpen, onClose]);
 
     // Tab state
-    const [activeTab, setActiveTab] = useState<'mission' | 'daily'>('mission');
+    const [activeTab, setActiveTab] = useState<'mission' | 'daily' | 'audio'>('mission');
 
     if (!isOpen) return null;
 
@@ -356,6 +420,60 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                             borderRadius: '3px',
                         }}>
                             {dailyQuestsWithDefs.filter(d => d.quest.status.tag === 'Completed').length}/{dailyQuestsWithDefs.length}
+                        </span>
+                    </button>
+
+                    {/* Audio Tutorials Tab */}
+                    <button
+                        onClick={() => setActiveTab('audio')}
+                        style={{
+                            flex: 1,
+                            padding: isMobile ? '14px 12px' : '16px 20px',
+                            background: activeTab === 'audio' 
+                                ? 'linear-gradient(180deg, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0.05))'
+                                : 'transparent',
+                            border: 'none',
+                            borderBottom: activeTab === 'audio' 
+                                ? '3px solid #fbbf24'
+                                : '3px solid transparent',
+                            color: activeTab === 'audio' ? '#fbbf24' : '#6b7280',
+                            fontSize: isMobile ? '11px' : '14px',
+                            fontWeight: 'bold',
+                            fontFamily: UI_FONT_FAMILY,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '10px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '1px',
+                            textShadow: activeTab === 'audio' ? '0 0 15px rgba(251, 191, 36, 0.5)' : 'none',
+                        }}
+                        onMouseEnter={(e) => {
+                            if (activeTab !== 'audio') {
+                                e.currentTarget.style.color = '#fbbf24';
+                                e.currentTarget.style.background = 'rgba(251, 191, 36, 0.1)';
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (activeTab !== 'audio') {
+                                e.currentTarget.style.color = '#6b7280';
+                                e.currentTarget.style.background = 'transparent';
+                            }
+                        }}
+                    >
+                        <span style={{ fontSize: isMobile ? '16px' : '18px' }}>🔊</span>
+                        <span style={{ display: isMobile ? 'none' : 'inline' }}>Audio Logs</span>
+                        <span style={{ display: isMobile ? 'inline' : 'none' }}>Audio</span>
+                        <span style={{ 
+                            color: unlockedTutorials.length > 0 ? '#4ade80' : '#9ca3af', 
+                            fontSize: isMobile ? '10px' : '12px',
+                            padding: '2px 8px',
+                            background: 'rgba(0, 0, 0, 0.4)',
+                            borderRadius: '3px',
+                        }}>
+                            {unlockedTutorials.length}/{Object.keys(TUTORIALS).length}
                         </span>
                     </button>
                 </div>
@@ -694,6 +812,144 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                                 lineHeight: 1.6,
                             }}>
                                 ⏳ Daily training assignments not yet initialized. Check back soon.
+                            </div>
+                        )}
+                        </>
+                    )}
+
+                    {/* Audio Tutorials Tab Content */}
+                    {activeTab === 'audio' && (
+                        <>
+                        {/* Header info */}
+                        <div style={{ 
+                            marginBottom: '20px', 
+                            padding: '16px 20px', 
+                            background: 'rgba(251, 191, 36, 0.08)', 
+                            borderRadius: '10px',
+                            border: '1px solid rgba(251, 191, 36, 0.25)',
+                        }}>
+                            <div style={{
+                                color: '#fbbf24',
+                                fontSize: isMobile ? '12px' : '14px',
+                                fontWeight: 'bold',
+                                marginBottom: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                            }}>
+                                <span>📡</span>
+                                <span>SOVA Audio Logs</span>
+                            </div>
+                            <div style={{
+                                color: '#9ca3af',
+                                fontSize: isMobile ? '10px' : '12px',
+                                lineHeight: 1.5,
+                            }}>
+                                Replay archived SOVA transmissions. Click any entry to listen again.
+                            </div>
+                        </div>
+
+                        {unlockedTutorials.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {Object.values(TUTORIALS).map((tutorial: TutorialDefinition) => {
+                                    // Use server-side flags where available (crashIntro, memoryShard)
+                                    const isUnlocked = isTutorialUnlockedWithServer(tutorial.id);
+                                    
+                                    return (
+                                        <div 
+                                            key={tutorial.id}
+                                            onClick={() => isUnlocked && handleReplayTutorial(tutorial.id)}
+                                            style={{
+                                                background: isUnlocked 
+                                                    ? 'rgba(20, 25, 40, 0.6)'
+                                                    : 'rgba(20, 25, 40, 0.3)',
+                                                border: `1px solid ${isUnlocked ? 'rgba(251, 191, 36, 0.3)' : 'rgba(107, 114, 128, 0.2)'}`,
+                                                borderRadius: '10px',
+                                                padding: '14px 18px',
+                                                cursor: isUnlocked ? 'pointer' : 'not-allowed',
+                                                transition: 'all 0.2s ease',
+                                                opacity: isUnlocked ? 1 : 0.5,
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                if (isUnlocked) {
+                                                    e.currentTarget.style.background = 'rgba(251, 191, 36, 0.1)';
+                                                    e.currentTarget.style.borderColor = 'rgba(251, 191, 36, 0.5)';
+                                                    e.currentTarget.style.boxShadow = '0 0 15px rgba(251, 191, 36, 0.2)';
+                                                }
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                if (isUnlocked) {
+                                                    e.currentTarget.style.background = 'rgba(20, 25, 40, 0.6)';
+                                                    e.currentTarget.style.borderColor = 'rgba(251, 191, 36, 0.3)';
+                                                    e.currentTarget.style.boxShadow = 'none';
+                                                }
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                {/* Icon */}
+                                                <div style={{
+                                                    width: '40px',
+                                                    height: '40px',
+                                                    borderRadius: '8px',
+                                                    background: isUnlocked 
+                                                        ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0.1))'
+                                                        : 'rgba(55, 65, 81, 0.3)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '20px',
+                                                    flexShrink: 0,
+                                                }}>
+                                                    {isUnlocked ? tutorial.emoji : '🔒'}
+                                                </div>
+                                                
+                                                {/* Content */}
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{
+                                                        color: isUnlocked ? '#e0e0e0' : '#6b7280',
+                                                        fontSize: isMobile ? '11px' : '13px',
+                                                        fontWeight: 'bold',
+                                                        marginBottom: '4px',
+                                                    }}>
+                                                        {tutorial.displayName}
+                                                    </div>
+                                                    <div style={{
+                                                        color: isUnlocked ? '#9ca3af' : '#4b5563',
+                                                        fontSize: isMobile ? '9px' : '11px',
+                                                        lineHeight: 1.4,
+                                                    }}>
+                                                        {isUnlocked ? tutorial.description : 'Not yet discovered'}
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Play indicator */}
+                                                {isUnlocked && (
+                                                    <div style={{
+                                                        color: '#fbbf24',
+                                                        fontSize: isMobile ? '16px' : '20px',
+                                                        flexShrink: 0,
+                                                    }}>
+                                                        ▶
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div style={{ 
+                                color: '#6b7280', 
+                                fontSize: isMobile ? '12px' : '14px', 
+                                fontStyle: 'italic',
+                                padding: '20px',
+                                background: 'rgba(55, 65, 81, 0.2)',
+                                borderRadius: '12px',
+                                border: '1px dashed rgba(107, 114, 128, 0.4)',
+                                lineHeight: 1.6,
+                                textAlign: 'center',
+                            }}>
+                                🔇 No audio logs recorded yet. Explore the island to unlock SOVA transmissions.
                             </div>
                         )}
                         </>

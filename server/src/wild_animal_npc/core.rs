@@ -1388,22 +1388,35 @@ fn update_animal_ai_state(
     
     // Normal AI logic - only process if not fleeing from fire
     // Filter out fire-afraid players for target selection
-    let mut fire_safe_players = Vec::new();
+    // 
+    // CRITICAL: Some animals should NEVER filter players due to fire:
+    // - Fearless hostile NPCs (Shorebound, Shardkin, DrownedWatch) charge through fire
+    // - Bees NEED to chase torch-wielding players to die from fire proximity
+    //   (if we filter out torch players, bees can't get close enough to burn)
+    let should_skip_fire_filtering = is_fearless_hostile || 
+        animal.species == AnimalSpecies::Bee;
     
-    for player in nearby_players {
-        let player_has_fire = is_fire_nearby(ctx, player.position_x, player.position_y);
-        let should_fear_this_player = player_has_fire && 
-            should_fear_fire(ctx, animal) && 
-            // Only fear if no override OR override is for a different player
-            animal.fire_fear_overridden_by.map_or(true, |override_id| override_id != player.identity);
+    let detected_player = if should_skip_fire_filtering {
+        // These species don't filter players based on fire - use all nearby players
+        find_detected_player(ctx, animal, stats, &nearby_players)
+    } else {
+        // Normal species: filter out players with fire if this animal fears it
+        let mut fire_safe_players = Vec::new();
         
-        if !should_fear_this_player {
-            fire_safe_players.push(player.clone());
+        for player in nearby_players {
+            let player_has_fire = is_fire_nearby(ctx, player.position_x, player.position_y);
+            let should_fear_this_player = player_has_fire && 
+                should_fear_fire(ctx, animal) && 
+                // Only fear if no override OR override is for a different player
+                animal.fire_fear_overridden_by.map_or(true, |override_id| override_id != player.identity);
+            
+            if !should_fear_this_player {
+                fire_safe_players.push(player.clone());
+            }
         }
-    }
-    
-    // Use fire-safe players for AI logic
-    let detected_player = find_detected_player(ctx, animal, stats, &fire_safe_players);
+        
+        find_detected_player(ctx, animal, stats, &fire_safe_players)
+    };
     behavior.update_ai_state_logic(ctx, animal, stats, detected_player.as_ref(), current_time, rng)?;
 
     Ok(())
@@ -3449,6 +3462,20 @@ pub fn find_closest_fire_position(ctx: &ReducerContext, animal_x: f32, animal_y:
 fn should_fear_fire(ctx: &ReducerContext, animal: &WildAnimal) -> bool {
     // Wolverines are completely fearless - they ignore fire entirely
     if animal.species == AnimalSpecies::Wolverine {
+        return false;
+    }
+    
+    // Fearless hostile NPCs (Shorebound, Shardkin, DrownedWatch) fear NOTHING
+    // They charge through fire without hesitation
+    if matches!(animal.species, 
+        AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch) {
+        return false;
+    }
+    
+    // Bees don't FEAR fire - they DIE from it!
+    // They need to chase torch-wielding players to get close enough to burn
+    // Fire death is handled separately in BeeBehavior::update_ai_state_logic
+    if animal.species == AnimalSpecies::Bee {
         return false;
     }
     

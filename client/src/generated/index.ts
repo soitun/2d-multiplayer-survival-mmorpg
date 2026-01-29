@@ -249,8 +249,18 @@ import { ManageSeasonalPlants } from "./manage_seasonal_plants_reducer.ts";
 export { ManageSeasonalPlants };
 import { ManualCleanupThunderEvents } from "./manual_cleanup_thunder_events_reducer.ts";
 export { ManualCleanupThunderEvents };
+import { MarkAlkStationTutorialSeen } from "./mark_alk_station_tutorial_seen_reducer.ts";
+export { MarkAlkStationTutorialSeen };
+import { MarkCrashedDroneTutorialSeen } from "./mark_crashed_drone_tutorial_seen_reducer.ts";
+export { MarkCrashedDroneTutorialSeen };
+import { MarkHostileEncounterTutorialSeen } from "./mark_hostile_encounter_tutorial_seen_reducer.ts";
+export { MarkHostileEncounterTutorialSeen };
+import { MarkRuneStoneTutorialSeen } from "./mark_rune_stone_tutorial_seen_reducer.ts";
+export { MarkRuneStoneTutorialSeen };
 import { MarkSovaIntroSeen } from "./mark_sova_intro_seen_reducer.ts";
 export { MarkSovaIntroSeen };
+import { MarkTutorialHintSeen } from "./mark_tutorial_hint_seen_reducer.ts";
+export { MarkTutorialHintSeen };
 import { MashBerries } from "./mash_berries_reducer.ts";
 export { MashBerries };
 import { MashStarch } from "./mash_starch_reducer.ts";
@@ -3584,9 +3594,29 @@ const REMOTE_MODULE = {
       reducerName: "manual_cleanup_thunder_events",
       argsType: ManualCleanupThunderEvents.getTypeScriptAlgebraicType(),
     },
+    mark_alk_station_tutorial_seen: {
+      reducerName: "mark_alk_station_tutorial_seen",
+      argsType: MarkAlkStationTutorialSeen.getTypeScriptAlgebraicType(),
+    },
+    mark_crashed_drone_tutorial_seen: {
+      reducerName: "mark_crashed_drone_tutorial_seen",
+      argsType: MarkCrashedDroneTutorialSeen.getTypeScriptAlgebraicType(),
+    },
+    mark_hostile_encounter_tutorial_seen: {
+      reducerName: "mark_hostile_encounter_tutorial_seen",
+      argsType: MarkHostileEncounterTutorialSeen.getTypeScriptAlgebraicType(),
+    },
+    mark_rune_stone_tutorial_seen: {
+      reducerName: "mark_rune_stone_tutorial_seen",
+      argsType: MarkRuneStoneTutorialSeen.getTypeScriptAlgebraicType(),
+    },
     mark_sova_intro_seen: {
       reducerName: "mark_sova_intro_seen",
       argsType: MarkSovaIntroSeen.getTypeScriptAlgebraicType(),
+    },
+    mark_tutorial_hint_seen: {
+      reducerName: "mark_tutorial_hint_seen",
+      argsType: MarkTutorialHintSeen.getTypeScriptAlgebraicType(),
     },
     mash_berries: {
       reducerName: "mash_berries",
@@ -4795,7 +4825,12 @@ export type Reducer = never
 | { name: "LoadRangedWeapon", args: LoadRangedWeapon }
 | { name: "ManageSeasonalPlants", args: ManageSeasonalPlants }
 | { name: "ManualCleanupThunderEvents", args: ManualCleanupThunderEvents }
+| { name: "MarkAlkStationTutorialSeen", args: MarkAlkStationTutorialSeen }
+| { name: "MarkCrashedDroneTutorialSeen", args: MarkCrashedDroneTutorialSeen }
+| { name: "MarkHostileEncounterTutorialSeen", args: MarkHostileEncounterTutorialSeen }
+| { name: "MarkRuneStoneTutorialSeen", args: MarkRuneStoneTutorialSeen }
 | { name: "MarkSovaIntroSeen", args: MarkSovaIntroSeen }
+| { name: "MarkTutorialHintSeen", args: MarkTutorialHintSeen }
 | { name: "MashBerries", args: MashBerries }
 | { name: "MashStarch", args: MashStarch }
 | { name: "MilkAnimal", args: MilkAnimal }
@@ -6712,6 +6747,54 @@ export class RemoteReducers {
     this.connection.offReducer("manual_cleanup_thunder_events", callback);
   }
 
+  markAlkStationTutorialSeen() {
+    this.connection.callReducer("mark_alk_station_tutorial_seen", new Uint8Array(0), this.setCallReducerFlags.markAlkStationTutorialSeenFlags);
+  }
+
+  onMarkAlkStationTutorialSeen(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("mark_alk_station_tutorial_seen", callback);
+  }
+
+  removeOnMarkAlkStationTutorialSeen(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("mark_alk_station_tutorial_seen", callback);
+  }
+
+  markCrashedDroneTutorialSeen() {
+    this.connection.callReducer("mark_crashed_drone_tutorial_seen", new Uint8Array(0), this.setCallReducerFlags.markCrashedDroneTutorialSeenFlags);
+  }
+
+  onMarkCrashedDroneTutorialSeen(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("mark_crashed_drone_tutorial_seen", callback);
+  }
+
+  removeOnMarkCrashedDroneTutorialSeen(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("mark_crashed_drone_tutorial_seen", callback);
+  }
+
+  markHostileEncounterTutorialSeen() {
+    this.connection.callReducer("mark_hostile_encounter_tutorial_seen", new Uint8Array(0), this.setCallReducerFlags.markHostileEncounterTutorialSeenFlags);
+  }
+
+  onMarkHostileEncounterTutorialSeen(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("mark_hostile_encounter_tutorial_seen", callback);
+  }
+
+  removeOnMarkHostileEncounterTutorialSeen(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("mark_hostile_encounter_tutorial_seen", callback);
+  }
+
+  markRuneStoneTutorialSeen() {
+    this.connection.callReducer("mark_rune_stone_tutorial_seen", new Uint8Array(0), this.setCallReducerFlags.markRuneStoneTutorialSeenFlags);
+  }
+
+  onMarkRuneStoneTutorialSeen(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("mark_rune_stone_tutorial_seen", callback);
+  }
+
+  removeOnMarkRuneStoneTutorialSeen(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("mark_rune_stone_tutorial_seen", callback);
+  }
+
   markSovaIntroSeen() {
     this.connection.callReducer("mark_sova_intro_seen", new Uint8Array(0), this.setCallReducerFlags.markSovaIntroSeenFlags);
   }
@@ -6722,6 +6805,18 @@ export class RemoteReducers {
 
   removeOnMarkSovaIntroSeen(callback: (ctx: ReducerEventContext) => void) {
     this.connection.offReducer("mark_sova_intro_seen", callback);
+  }
+
+  markTutorialHintSeen() {
+    this.connection.callReducer("mark_tutorial_hint_seen", new Uint8Array(0), this.setCallReducerFlags.markTutorialHintSeenFlags);
+  }
+
+  onMarkTutorialHintSeen(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("mark_tutorial_hint_seen", callback);
+  }
+
+  removeOnMarkTutorialHintSeen(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("mark_tutorial_hint_seen", callback);
   }
 
   mashBerries(itemInstanceId: bigint) {
@@ -11446,9 +11541,34 @@ export class SetReducerFlags {
     this.manualCleanupThunderEventsFlags = flags;
   }
 
+  markAlkStationTutorialSeenFlags: __CallReducerFlags = 'FullUpdate';
+  markAlkStationTutorialSeen(flags: __CallReducerFlags) {
+    this.markAlkStationTutorialSeenFlags = flags;
+  }
+
+  markCrashedDroneTutorialSeenFlags: __CallReducerFlags = 'FullUpdate';
+  markCrashedDroneTutorialSeen(flags: __CallReducerFlags) {
+    this.markCrashedDroneTutorialSeenFlags = flags;
+  }
+
+  markHostileEncounterTutorialSeenFlags: __CallReducerFlags = 'FullUpdate';
+  markHostileEncounterTutorialSeen(flags: __CallReducerFlags) {
+    this.markHostileEncounterTutorialSeenFlags = flags;
+  }
+
+  markRuneStoneTutorialSeenFlags: __CallReducerFlags = 'FullUpdate';
+  markRuneStoneTutorialSeen(flags: __CallReducerFlags) {
+    this.markRuneStoneTutorialSeenFlags = flags;
+  }
+
   markSovaIntroSeenFlags: __CallReducerFlags = 'FullUpdate';
   markSovaIntroSeen(flags: __CallReducerFlags) {
     this.markSovaIntroSeenFlags = flags;
+  }
+
+  markTutorialHintSeenFlags: __CallReducerFlags = 'FullUpdate';
+  markTutorialHintSeen(flags: __CallReducerFlags) {
+    this.markTutorialHintSeenFlags = flags;
   }
 
   mashBerriesFlags: __CallReducerFlags = 'FullUpdate';
