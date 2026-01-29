@@ -1366,10 +1366,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                     margin: '0 auto',
                                 }}>
                                     Where <strong>Rust's</strong> intense survival meets <strong>Blazing Beaks'</strong> quirky combat, all wrapped in <strong>Stardew Valley's&nbsp;</strong>
-                                    cozy farming vibes. Survive as a resourceful babushka in this top-down multiplayer experience where
-                                    every meal matters and every trade counts. Farm while the sun shines, but when the light fades... 
-                                    something stirs. Something that remembers. Build from simple shelters to thriving homesteads, work 
-                                    together to survive, and uncover what haunts this persistent world.
+                                    cozy farming vibes. You've washed ashore as a weathered babushka—resourceful, stubborn, and far from finished. 
+                                    Every meal you cook could save a life. Every trade could build a friendship. Farm while the sun shines, but when the light fades... 
+                                    something stirs. Something that remembers. Build from simple shelters to thriving homesteads, find neighbors who become family, 
+                                    and uncover what ancient force haunts this island.
                                 </p>
                             </div>
 
@@ -1689,7 +1689,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                     {[
                                         {
                                             question: "WHAT IS BROTH & BULLETS?",
-                                            answer: "A top-down multiplayer survival game where resourceful babushkas build thriving homesteads together. Master the art of cooking life-saving meals, collaborate with neighbors to weather harsh seasons, establish trade networks, and grow from a humble survivor into a respected community leader in one massive persistent world. It's intense survival, but you're in it together."
+                                            answer: "A strange island where you've washed ashore with nothing but grit and a lifetime of hard-won wisdom. Here, resourceful babushkas build thriving homesteads together—cooking life-saving meals, weathering harsh seasons side by side, trading what they grow for what they need. The world keeps turning whether you're there or not. Your crops keep growing. Your neighbors keep building. And when darkness falls, the island remembers things best left forgotten."
                                         },
                                         {
                                             question: "HOW DO I START SURVIVING?",
@@ -1709,7 +1709,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                         },
                                         {
                                             question: "HOW DOES TRADING WORK?",
-                                            answer: "A dynamic market system adjusts prices based on real supply and demand across the server. Sell your surplus crops when prices are high, stock up on materials when they're cheap. No player-run auction houses. Instead, prices shift naturally as the community produces and consumes resources. Seasonal harvests, weather events, and community needs create constantly shifting opportunities for clever traders."
+                                            answer: "The island's markets breathe with real supply and demand. Sell your surplus crops when prices climb, stock up on materials when they drop. No auction houses or middlemen—just honest trade between neighbors. Prices shift naturally as the community produces and consumes. A bountiful harvest drives prices down; a harsh winter sends them soaring. Seasonal changes, storms, and community needs create constantly shifting opportunities for those clever enough to read the winds."
                                         },
                                         {
                                             question: "WHERE ARE WE IN DEVELOPMENT?",
@@ -1723,7 +1723,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                                         textAlign: 'center',
                                                         margin: '0',
                                                     }}>
-                                                        We've progressed from primitive survival to firearms! Crossbows, fire arrows, and now guns help you survive not just the harsh elements, but what emerges when the sun sets. Something ancient stirs on this island—echoes of a corruption no one fully understands. Use daylight to farm, trade, and prepare. When darkness falls, you'll need every advantage. The persistent world is live and growing!
+                                                        We've progressed from primitive survival to firearms! Crossbows, fire arrows, and now guns help you survive not just the harsh elements, but what emerges when the sun sets. Something ancient stirs on this island—echoes of a corruption no one fully understands. Use daylight to farm, trade, and prepare. When darkness falls, you'll need every advantage. The island never sleeps, and neither does its hunger.
                                                     </p>
 
                                                     <div style={{
@@ -1877,12 +1877,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                             )
                                         },
                                         {
-                                            question: "IS THIS A PVP GAME?",
-                                            answer: "Broth & Bullets is a mutual survival experience. You're fighting the island, not each other. When night falls, the darkness brings things that hunger for the living—and you'll need every neighbor you have. Collaborate to survive harsh winters, defend against what lurks in the shadows, and build communities that can weather any storm. Optional PvP zones are planned for the future, but the core experience is about cooperation against an ancient, mysterious threat."
+                                            question: "WILL MY NEIGHBORS TRY TO KILL ME?",
+                                            answer: "This island has enough horrors without us turning on each other. You're fighting what lurks here, not your fellow survivors. When night falls, the darkness brings things that hunger for the living—you'll need every neighbor you have. Work together to survive harsh winters, defend against what emerges from the shadows, and build communities that can weather any storm. The island tests us enough. Why make enemies of the only friends you've got?"
                                         },
                                         {
-                                            question: "WHAT'S THE LONG-TERM VISION?",
-                                            answer: "A thriving community of persistent servers where players build lasting legacies together. Whether you prefer cozy daytime farming or braving what comes after dark, there's a place for you. We're committed to deep survival mechanics, complex brewing systems, dynamic seasons, and unraveling the mystery of what ancient force haunts this island."
+                                            question: "WHAT'S THE FUTURE HOLD?",
+                                            answer: "A thriving network of settlements where survivors build lasting legacies together. Whether you spend your days tending crops in the sunshine or braving what comes after dark, there's a place for you. The island holds deeper secrets yet to be uncovered—ancient recipes, forgotten techniques, seasons that test the hardiest souls, and perhaps answers to what corruption took root here long before any of us arrived."
                                         }
                                     ].map((faq, index) => (
                                         <div key={index} style={{

@@ -4645,6 +4645,11 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::cleanup_caribou_breeding_data(ctx, animal_corpse.animal_id);
         }
         
+        // Clean up walrus breeding data if this was a walrus (kept until corpse depleted for age-based drops)
+        if animal_corpse.animal_species == crate::wild_animal_npc::AnimalSpecies::ArcticWalrus {
+            crate::wild_animal_npc::cleanup_walrus_breeding_data(ctx, animal_corpse.animal_id);
+        }
+        
         // Delete the corpse entity
         animal_corpse_table.id().delete(&animal_corpse_id);
         log::info!("[DamageAnimalCorpse] AnimalCorpse {} entity deleted after being depleted.", animal_corpse_id);

@@ -41,6 +41,14 @@ pub use caribou::{
     is_caribou_pregnant, get_caribou_drop_multipliers, get_caribou_age_health_multiplier,
 };
 
+// Re-export walrus breeding system
+pub use walrus::{
+    WalrusSex, WalrusAgeStage, WalrusBreedingData, WalrusBreedingSchedule, WalrusRutState,
+    init_walrus_breeding_schedule, create_walrus_breeding_data, assign_walrus_sex_on_spawn,
+    assign_walrus_sex_forced, cleanup_walrus_breeding_data, get_walrus_age_stage, get_walrus_sex,
+    is_walrus_pregnant, get_walrus_drop_multipliers, get_walrus_age_health_multiplier,
+};
+
 // Re-export animal corpse functionality
 pub use animal_corpse::*;
 

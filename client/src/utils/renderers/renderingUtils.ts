@@ -70,7 +70,10 @@ import { renderShelter } from './shelterRenderingUtils';
 // Import rain collector renderer
 import { renderRainCollector } from './rainCollectorRenderingUtils';
 // Import wild animal renderer
-import { renderWildAnimal, renderTamingThoughtBubbles } from './wildAnimalRenderingUtils';
+import { renderWildAnimal, renderTamingThoughtBubbles, renderPregnancyIndicator } from './wildAnimalRenderingUtils';
+// Import breeding data types for rendering
+import { CaribouBreedingData } from '../../generated/caribou_breeding_data_type';
+import { WalrusBreedingData } from '../../generated/walrus_breeding_data_type';
 // Import animal corpse renderer
 import { renderAnimalCorpse } from './animalCorpseRenderingUtils';
 // Import player corpse renderer
@@ -452,6 +455,9 @@ foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADD
   detectedHotSprings?: Array<{ id: string; posX: number; posY: number; radius: number }>; // ADDED: Hot spring locations for building restriction zones
   detectedQuarries?: Array<{ id: string; posX: number; posY: number; radius: number }>; // ADDED: Small quarry locations for building restriction zones
   placementInfo?: { itemDefId?: bigint; itemName?: string } | null; // ADDED: Current placement info for showing restriction zones when placing items
+  // Animal breeding system data for age-based rendering and pregnancy indicators
+  caribouBreedingData?: Map<string, CaribouBreedingData>; // ADDED: Caribou breeding data (sex, age, pregnancy)
+  walrusBreedingData?: Map<string, WalrusBreedingData>; // ADDED: Walrus breeding data (sex, age, pregnancy)
 }
 
 
@@ -528,6 +534,8 @@ export const renderYSortedEntities = ({
   detectedHotSprings, // ADDED: Hot spring locations for building restriction zones
   detectedQuarries, // ADDED: Small quarry locations for building restriction zones
   placementInfo, // ADDED: Current placement info for showing restriction zones when placing items
+  caribouBreedingData, // ADDED: Caribou breeding data (sex, age, pregnancy)
+  walrusBreedingData, // ADDED: Walrus breeding data (sex, age, pregnancy)
 }: RenderYSortedEntitiesProps) => {
   // PERFORMANCE: Clean up memory caches periodically
   cleanupCaches();
@@ -1433,6 +1441,8 @@ export const renderYSortedEntities = ({
               animationFrame,
               localPlayerPosition: localPlayerPosition || { x: 0, y: 0 },
               isLocalPlayerSnorkeling, // Pass snorkeling state for underwater rendering (sharks)
+              caribouBreedingData, // Pass breeding data for age-based size scaling
+              walrusBreedingData, // Pass breeding data for age-based size scaling
           });
           
           // Render thought bubbles for tamed animals (hearts, crying, etc.)
@@ -1440,6 +1450,15 @@ export const renderYSortedEntities = ({
               ctx,
               animal: wildAnimal,
               nowMs,
+          });
+          
+          // Render pregnancy indicator thought bubble for pregnant caribou/walrus (both wild and tamed)
+          renderPregnancyIndicator({
+              ctx,
+              animal: wildAnimal,
+              nowMs,
+              caribouBreedingData,
+              walrusBreedingData,
           });
       } else if (type === 'animal_corpse') {
           const animalCorpse = entity as SpacetimeDBAnimalCorpse;

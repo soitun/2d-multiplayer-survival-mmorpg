@@ -6,6 +6,12 @@ import {
   ANIMAL_COLLISION_SIZES 
 } from '../animalCollisionUtils';
 
+// Import breeding data types for age-based rendering
+import { CaribouBreedingData } from '../../generated/caribou_breeding_data_type';
+import { WalrusBreedingData } from '../../generated/walrus_breeding_data_type';
+import { CaribouAgeStage } from '../../generated/caribou_age_stage_type';
+import { WalrusAgeStage } from '../../generated/walrus_age_stage_type';
+
 // Import sprite sheets (320x320, 3x3 grid, ~107x107 per frame)
 // These are the PRIMARY source for all animals
 import walrusWalkingSheet from '../../assets/walrus_walking.png';
@@ -459,6 +465,65 @@ interface WildAnimalRenderProps {
     animationFrame?: number;
     localPlayerPosition?: { x: number; y: number } | null;
     isLocalPlayerSnorkeling?: boolean; // For underwater rendering (sharks always underwater)
+    // Breeding data for age-based sizing and pregnancy indicators
+    caribouBreedingData?: Map<string, CaribouBreedingData>;
+    walrusBreedingData?: Map<string, WalrusBreedingData>;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AGE-BASED SIZE SCALING FOR BREEDING SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════
+// Pups/Calves: 50% size, Juveniles: 75% size, Adults: 100% size
+
+/**
+ * Get the size multiplier for a caribou based on its age stage
+ */
+function getCaribouAgeMultiplier(breedingData: CaribouBreedingData | undefined): number {
+    if (!breedingData) return 1.0; // Default to adult size if no data
+    
+    switch (breedingData.ageStage.tag) {
+        case 'Calf': return 0.5;      // 50% size for calves
+        case 'Juvenile': return 0.75; // 75% size for juveniles
+        case 'Adult': return 1.0;     // 100% size for adults
+        default: return 1.0;
+    }
+}
+
+/**
+ * Get the size multiplier for a walrus based on its age stage
+ */
+function getWalrusAgeMultiplier(breedingData: WalrusBreedingData | undefined): number {
+    if (!breedingData) return 1.0; // Default to adult size if no data
+    
+    switch (breedingData.ageStage.tag) {
+        case 'Pup': return 0.5;       // 50% size for pups
+        case 'Juvenile': return 0.75; // 75% size for juveniles
+        case 'Adult': return 1.0;     // 100% size for adults
+        default: return 1.0;
+    }
+}
+
+/**
+ * Check if an animal is pregnant (works for both caribou and walrus)
+ */
+function isAnimalPregnant(
+    animal: WildAnimal,
+    caribouBreedingData?: Map<string, CaribouBreedingData>,
+    walrusBreedingData?: Map<string, WalrusBreedingData>
+): boolean {
+    const animalId = animal.id.toString();
+    
+    if (animal.species.tag === 'Caribou' && caribouBreedingData) {
+        const data = caribouBreedingData.get(animalId);
+        return data?.isPregnant ?? false;
+    }
+    
+    if (animal.species.tag === 'ArcticWalrus' && walrusBreedingData) {
+        const data = walrusBreedingData.get(animalId);
+        return data?.isPregnant ?? false;
+    }
+    
+    return false;
 }
 
 // Get the sprite sheet for a species (considers flying state for birds)
@@ -619,7 +684,9 @@ export function renderWildAnimal({
     cycleProgress,
     animationFrame = 0,
     localPlayerPosition,
-    isLocalPlayerSnorkeling = false
+    isLocalPlayerSnorkeling = false,
+    caribouBreedingData,
+    walrusBreedingData
 }: WildAnimalRenderProps) {
     // Check for burrow effect BEFORE skipping burrowed animals
     // This allows us to detect when an animal JUST burrowed and create the particle effect
@@ -865,10 +932,25 @@ export function renderWildAnimal({
 
     const props = getSpeciesRenderingProps(animal.species);
     
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AGE-BASED SIZE SCALING FOR BREEDING ANIMALS
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Calves/Pups: 50% size, Juveniles: 75% size, Adults: 100% size
+    let ageBasedSizeMultiplier = 1.0;
+    const animalIdStr = animal.id.toString();
+    
+    if (animal.species.tag === 'Caribou' && caribouBreedingData) {
+        const breedingData = caribouBreedingData.get(animalIdStr);
+        ageBasedSizeMultiplier = getCaribouAgeMultiplier(breedingData);
+    } else if (animal.species.tag === 'ArcticWalrus' && walrusBreedingData) {
+        const breedingData = walrusBreedingData.get(animalIdStr);
+        ageBasedSizeMultiplier = getWalrusAgeMultiplier(breedingData);
+    }
+    
     // Flying terns appear slightly larger to account for wingspan
     const flyingSizeMultiplier = (animal.species.tag === 'Tern' && useFlying) ? 1.3 : 1.0;
-    const renderWidth = props.width * flyingSizeMultiplier;
-    const renderHeight = props.height * flyingSizeMultiplier;
+    const renderWidth = props.width * flyingSizeMultiplier * ageBasedSizeMultiplier;
+    const renderHeight = props.height * flyingSizeMultiplier * ageBasedSizeMultiplier;
     
     const renderX = renderPosX - renderWidth / 2 + shakeX; // Apply shake to X (using interpolated position)
     const renderY = renderPosY - renderHeight / 2 + shakeY; // Apply shake to Y (using interpolated position)
@@ -1359,4 +1441,83 @@ export function renderTamingThoughtBubbles({
     }
     
     // Additional thought bubbles can be added here for other emotions/states
+}
+
+/**
+ * Renders pregnancy indicator thought bubble for breeding animals
+ * Shows a small 🤰 indicator above pregnant caribou and walruses (both tamed and wild)
+ * The indicator gently pulses to draw attention without being intrusive
+ */
+export function renderPregnancyIndicator({
+    ctx,
+    animal,
+    nowMs,
+    caribouBreedingData,
+    walrusBreedingData,
+}: {
+    ctx: CanvasRenderingContext2D;
+    animal: WildAnimal;
+    nowMs: number;
+    caribouBreedingData?: Map<string, CaribouBreedingData>;
+    walrusBreedingData?: Map<string, WalrusBreedingData>;
+}) {
+    // Check if this animal is pregnant
+    const isPregnant = isAnimalPregnant(animal, caribouBreedingData, walrusBreedingData);
+    if (!isPregnant) return;
+    
+    // Position indicator above the animal (slightly offset from center)
+    const indicatorX = animal.posX + 20;
+    const indicatorY = animal.posY - 60;
+    
+    // Gentle pulsing animation (0.8 to 1.0 scale)
+    const pulsePhase = (nowMs / 1500) * Math.PI; // 1.5 second cycle
+    const pulseScale = 0.9 + 0.1 * Math.sin(pulsePhase);
+    
+    // Gentle bob animation (up/down 3px)
+    const bobOffset = Math.sin(nowMs / 800) * 3;
+    
+    ctx.save();
+    
+    // Draw small thought bubble with pregnancy emoji
+    const bubbleRadius = 16 * pulseScale;
+    const finalY = indicatorY + bobOffset;
+    
+    // Bubble background - soft pink tint for pregnancy
+    const gradient = ctx.createRadialGradient(indicatorX, finalY, 0, indicatorX, finalY, bubbleRadius);
+    gradient.addColorStop(0, 'rgba(255, 220, 230, 0.95)'); // Soft pink center
+    gradient.addColorStop(1, 'rgba(255, 200, 210, 0.85)'); // Slightly darker pink edge
+    
+    // Main bubble circle
+    ctx.fillStyle = gradient;
+    ctx.strokeStyle = 'rgba(200, 100, 130, 0.5)'; // Soft pink border
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(indicatorX, finalY, bubbleRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    
+    // Small tail circles pointing to animal
+    const tailPositions = [
+        { x: indicatorX - 8, y: finalY + bubbleRadius + 3, radius: 3 },
+        { x: indicatorX - 12, y: finalY + bubbleRadius + 8, radius: 2 },
+    ];
+    
+    tailPositions.forEach(pos => {
+        ctx.fillStyle = gradient;
+        ctx.strokeStyle = 'rgba(200, 100, 130, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, pos.radius * pulseScale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+    });
+    
+    // Draw pregnancy emoji (🤰 or simpler 💕 for visibility at small sizes)
+    ctx.fillStyle = 'black';
+    ctx.font = `${Math.round(18 * pulseScale)}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('💕', indicatorX, finalY); // Using hearts for better visibility at small sizes
+    
+    ctx.restore();
 }

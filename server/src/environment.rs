@@ -3560,6 +3560,11 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         let mut caribou_females_spawned = 0;
         let caribou_herd_size = group_positions.len();
         
+        // For walrus groups, track sex assignment to ensure breeding viability
+        let mut walrus_males_spawned = 0;
+        let mut walrus_females_spawned = 0;
+        let walrus_group_size = group_positions.len();
+        
         // Spawn all animals in the group
         let mut group_spawn_success = true;
         for (i, &(spawn_x, spawn_y)) in group_positions.iter().enumerate() {
@@ -3658,6 +3663,44 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                         
                         if let Err(e) = crate::wild_animal_npc::assign_caribou_sex_forced(ctx, inserted_animal.id, assigned_sex) {
                             log::warn!("Failed to assign sex to caribou {}: {}", inserted_animal.id, e);
+                        }
+                    }
+                    
+                    // For walrus groups, assign sex and create breeding data
+                    // Ensure at least one male and one female per group for breeding viability
+                    if matches!(chosen_species, AnimalSpecies::ArcticWalrus) {
+                        use crate::wild_animal_npc::WalrusSex;
+                        
+                        let assigned_sex = if walrus_group_size >= 2 {
+                            // Force at least one of each sex for breeding
+                            if walrus_males_spawned == 0 && i == walrus_group_size - 1 && walrus_females_spawned > 0 {
+                                // Last walrus, no males yet, force male
+                                WalrusSex::Male
+                            } else if walrus_females_spawned == 0 && i == walrus_group_size - 1 && walrus_males_spawned > 0 {
+                                // Last walrus, no females yet, force female
+                                WalrusSex::Female
+                            } else if walrus_males_spawned == 0 && i == 0 {
+                                // First walrus, assign male to guarantee one
+                                WalrusSex::Male
+                            } else if walrus_females_spawned == 0 && i == 1 {
+                                // Second walrus, assign female to guarantee one  
+                                WalrusSex::Female
+                            } else {
+                                // Random for others
+                                if rng.gen::<bool>() { WalrusSex::Male } else { WalrusSex::Female }
+                            }
+                        } else {
+                            // Single walrus, random sex
+                            if rng.gen::<bool>() { WalrusSex::Male } else { WalrusSex::Female }
+                        };
+                        
+                        match assigned_sex {
+                            WalrusSex::Male => walrus_males_spawned += 1,
+                            WalrusSex::Female => walrus_females_spawned += 1,
+                        }
+                        
+                        if let Err(e) = crate::wild_animal_npc::assign_walrus_sex_forced(ctx, inserted_animal.id, assigned_sex) {
+                            log::warn!("Failed to assign sex to walrus {}: {}", inserted_animal.id, e);
                         }
                     }
                     

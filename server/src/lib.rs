@@ -800,6 +800,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     // ADD: Initialize caribou breeding system (passive farming feature)
     crate::wild_animal_npc::init_caribou_breeding_schedule(ctx)?;
     
+    // ADD: Initialize walrus breeding system (passive farming feature)
+    crate::wild_animal_npc::init_walrus_breeding_schedule(ctx)?;
+    
     // ADD: Initialize building privilege distance check system
     crate::homestead_hearth::init_building_privilege_check_schedule(ctx)?;
     

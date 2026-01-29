@@ -332,6 +332,10 @@ interface GameCanvasProps {
   
   // Memory Beacon server events (airdrop-style)
   beaconDropEvents?: Map<string, any>;
+  
+  // Animal breeding system data for age-based rendering and pregnancy indicators
+  caribouBreedingData?: Map<string, any>; // Caribou sex, age stage, and pregnancy
+  walrusBreedingData?: Map<string, any>; // Walrus sex, age stage, and pregnancy
 }
 
 /**
@@ -463,6 +467,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   mobileInteractTrigger,
   // Memory Beacon server events (airdrop-style)
   beaconDropEvents,
+  // Animal breeding system data for age-based rendering and pregnancy indicators
+  caribouBreedingData,
+  walrusBreedingData,
 }) => {
   // console.log('[GameCanvas IS RUNNING] showInventory:', showInventory);
 
@@ -3134,6 +3141,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         detectedHotSprings, // ADDED: Pass hot spring locations for building restriction zones
         detectedQuarries, // ADDED: Pass small quarry locations for building restriction zones
         placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
+        caribouBreedingData, // ADDED: Pass caribou breeding data for age-based size scaling and pregnancy indicators
+        walrusBreedingData, // ADDED: Pass walrus breeding data for age-based size scaling and pregnancy indicators
       });
     } else {
     // --- Swimming players exist, need full merge/sort ---
@@ -3454,6 +3463,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           detectedHotSprings, // ADDED: Pass hot spring locations for building restriction zones
           detectedQuarries, // ADDED: Pass small quarry locations for building restriction zones
           placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
+          caribouBreedingData, // ADDED: Pass caribou breeding data for age-based size scaling and pregnancy indicators
+          walrusBreedingData, // ADDED: Pass walrus breeding data for age-based size scaling and pregnancy indicators
         });
         currentBatch = [];
       }

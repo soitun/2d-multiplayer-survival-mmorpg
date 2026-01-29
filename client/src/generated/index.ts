@@ -457,6 +457,8 @@ import { ProcessTorchDurability } from "./process_torch_durability_reducer.ts";
 export { ProcessTorchDurability };
 import { ProcessTurretLogicScheduled } from "./process_turret_logic_scheduled_reducer.ts";
 export { ProcessTurretLogicScheduled };
+import { ProcessWalrusBreeding } from "./process_walrus_breeding_reducer.ts";
+export { ProcessWalrusBreeding };
 import { ProcessWildAnimalAi } from "./process_wild_animal_ai_reducer.ts";
 export { ProcessWildAnimalAi };
 import { PromoteToPraMatron } from "./promote_to_pra_matron_reducer.ts";
@@ -1085,6 +1087,12 @@ import { TutorialQuestDefinitionTableHandle } from "./tutorial_quest_definition_
 export { TutorialQuestDefinitionTableHandle };
 import { WallCellTableHandle } from "./wall_cell_table.ts";
 export { WallCellTableHandle };
+import { WalrusBreedingDataTableHandle } from "./walrus_breeding_data_table.ts";
+export { WalrusBreedingDataTableHandle };
+import { WalrusBreedingScheduleTableHandle } from "./walrus_breeding_schedule_table.ts";
+export { WalrusBreedingScheduleTableHandle };
+import { WalrusRutStateTableHandle } from "./walrus_rut_state_table.ts";
+export { WalrusRutStateTableHandle };
 import { WaterContainerFillScheduleTableHandle } from "./water_container_fill_schedule_table.ts";
 export { WaterContainerFillScheduleTableHandle };
 import { WaterPatchTableHandle } from "./water_patch_table.ts";
@@ -1529,6 +1537,16 @@ import { TutorialQuestDefinition } from "./tutorial_quest_definition_type.ts";
 export { TutorialQuestDefinition };
 import { WallCell } from "./wall_cell_type.ts";
 export { WallCell };
+import { WalrusAgeStage } from "./walrus_age_stage_type.ts";
+export { WalrusAgeStage };
+import { WalrusBreedingData } from "./walrus_breeding_data_type.ts";
+export { WalrusBreedingData };
+import { WalrusBreedingSchedule } from "./walrus_breeding_schedule_type.ts";
+export { WalrusBreedingSchedule };
+import { WalrusRutState } from "./walrus_rut_state_type.ts";
+export { WalrusRutState };
+import { WalrusSex } from "./walrus_sex_type.ts";
+export { WalrusSex };
 import { WaterContainerFillSchedule } from "./water_container_fill_schedule_type.ts";
 export { WaterContainerFillSchedule };
 import { WaterPatch } from "./water_patch_type.ts";
@@ -2976,6 +2994,33 @@ const REMOTE_MODULE = {
         colType: (WallCell.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    walrus_breeding_data: {
+      tableName: "walrus_breeding_data" as const,
+      rowType: WalrusBreedingData.getTypeScriptAlgebraicType(),
+      primaryKey: "animalId",
+      primaryKeyInfo: {
+        colName: "animalId",
+        colType: (WalrusBreedingData.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    walrus_breeding_schedule: {
+      tableName: "walrus_breeding_schedule" as const,
+      rowType: WalrusBreedingSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "scheduleId",
+      primaryKeyInfo: {
+        colName: "scheduleId",
+        colType: (WalrusBreedingSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    walrus_rut_state: {
+      tableName: "walrus_rut_state" as const,
+      rowType: WalrusRutState.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (WalrusRutState.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     water_container_fill_schedule: {
       tableName: "water_container_fill_schedule" as const,
       rowType: WaterContainerFillSchedule.getTypeScriptAlgebraicType(),
@@ -3911,6 +3956,10 @@ const REMOTE_MODULE = {
       reducerName: "process_turret_logic_scheduled",
       argsType: ProcessTurretLogicScheduled.getTypeScriptAlgebraicType(),
     },
+    process_walrus_breeding: {
+      reducerName: "process_walrus_breeding",
+      argsType: ProcessWalrusBreeding.getTypeScriptAlgebraicType(),
+    },
     process_wild_animal_ai: {
       reducerName: "process_wild_animal_ai",
       argsType: ProcessWildAnimalAi.getTypeScriptAlgebraicType(),
@@ -4774,6 +4823,7 @@ export type Reducer = never
 | { name: "ProcessTilledTileReversions", args: ProcessTilledTileReversions }
 | { name: "ProcessTorchDurability", args: ProcessTorchDurability }
 | { name: "ProcessTurretLogicScheduled", args: ProcessTurretLogicScheduled }
+| { name: "ProcessWalrusBreeding", args: ProcessWalrusBreeding }
 | { name: "ProcessWildAnimalAi", args: ProcessWildAnimalAi }
 | { name: "PromoteToPraMatron", args: PromoteToPraMatron }
 | { name: "PulverizeItem", args: PulverizeItem }
@@ -8238,6 +8288,22 @@ export class RemoteReducers {
     this.connection.offReducer("process_turret_logic_scheduled", callback);
   }
 
+  processWalrusBreeding(schedule: WalrusBreedingSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    ProcessWalrusBreeding.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_walrus_breeding", __argsBuffer, this.setCallReducerFlags.processWalrusBreedingFlags);
+  }
+
+  onProcessWalrusBreeding(callback: (ctx: ReducerEventContext, schedule: WalrusBreedingSchedule) => void) {
+    this.connection.onReducer("process_walrus_breeding", callback);
+  }
+
+  removeOnProcessWalrusBreeding(callback: (ctx: ReducerEventContext, schedule: WalrusBreedingSchedule) => void) {
+    this.connection.offReducer("process_walrus_breeding", callback);
+  }
+
   processWildAnimalAi(schedule: WildAnimalAiSchedule) {
     const __args = { schedule };
     let __writer = new __BinaryWriter(1024);
@@ -11688,6 +11754,11 @@ export class SetReducerFlags {
     this.processTurretLogicScheduledFlags = flags;
   }
 
+  processWalrusBreedingFlags: __CallReducerFlags = 'FullUpdate';
+  processWalrusBreeding(flags: __CallReducerFlags) {
+    this.processWalrusBreedingFlags = flags;
+  }
+
   processWildAnimalAiFlags: __CallReducerFlags = 'FullUpdate';
   processWildAnimalAi(flags: __CallReducerFlags) {
     this.processWildAnimalAiFlags = flags;
@@ -13256,6 +13327,21 @@ export class RemoteTables {
   get wallCell(): WallCellTableHandle<'wall_cell'> {
     // clientCache is a private property
     return new WallCellTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<WallCell>(REMOTE_MODULE.tables.wall_cell));
+  }
+
+  get walrusBreedingData(): WalrusBreedingDataTableHandle<'walrus_breeding_data'> {
+    // clientCache is a private property
+    return new WalrusBreedingDataTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<WalrusBreedingData>(REMOTE_MODULE.tables.walrus_breeding_data));
+  }
+
+  get walrusBreedingSchedule(): WalrusBreedingScheduleTableHandle<'walrus_breeding_schedule'> {
+    // clientCache is a private property
+    return new WalrusBreedingScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<WalrusBreedingSchedule>(REMOTE_MODULE.tables.walrus_breeding_schedule));
+  }
+
+  get walrusRutState(): WalrusRutStateTableHandle<'walrus_rut_state'> {
+    // clientCache is a private property
+    return new WalrusRutStateTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<WalrusRutState>(REMOTE_MODULE.tables.walrus_rut_state));
   }
 
   get waterContainerFillSchedule(): WaterContainerFillScheduleTableHandle<'water_container_fill_schedule'> {

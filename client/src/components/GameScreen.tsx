@@ -352,6 +352,10 @@ interface GameScreenProps {
 
     // SOVA Sound Box callback (for deterministic voice notifications)
     showSovaSoundBox?: (audio: HTMLAudioElement, label: string) => void;
+    
+    // Animal breeding system data for age-based rendering and pregnancy indicators
+    caribouBreedingData?: Map<string, any>; // Caribou sex, age stage, and pregnancy
+    walrusBreedingData?: Map<string, any>; // Walrus sex, age stage, and pregnancy
 }
 
 const GameScreen: React.FC<GameScreenProps> = (props) => {
@@ -1166,6 +1170,9 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 playerStats={props.playerStats} // ADDED: For title display on player name labels
                 rangedWeaponStats={rangedWeaponStats} // ADDED: For auto-fire detection
                 beaconDropEvents={props.beaconDropEvents} // ADDED: Memory Beacon server events
+                // Animal breeding system data
+                caribouBreedingData={props.caribouBreedingData} // ADDED: Caribou breeding data
+                walrusBreedingData={props.walrusBreedingData} // ADDED: Walrus breeding data
                 // Mobile controls
                 isMobile={props.isMobile}
                 onMobileTap={props.onMobileTap}

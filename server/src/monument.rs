@@ -2816,11 +2816,11 @@ pub fn spawn_weather_station_barrels(
             attempts += 1;
             
             // Generate position in a ring around the radar dish
-            // Space barrels evenly with some randomness
-            // NOTE: Radar is 768x768 pixels (2x scale), so barrels must be at least ~400px from center
+            // Space barrels with natural scatter - not too uniform
+            // NOTE: Radar is 512x512 pixels, so barrels at ~350-500px from center
             let base_angle = (barrel_idx as f32) * (2.0 * std::f32::consts::PI / barrel_count as f32);
-            let angle = base_angle + ctx.rng().gen_range(-0.4..0.4);
-            let distance = ctx.rng().gen_range(420.0..520.0); // Ring distance outside the radar (768/2 = 384 + buffer)
+            let angle = base_angle + ctx.rng().gen_range(-0.7..0.7); // More angle variation for natural scatter
+            let distance = ctx.rng().gen_range(350.0..500.0); // Ring distance outside the radar (512/2 = 256 + generous buffer)
             let barrel_x = center_x + angle.cos() * distance;
             let barrel_y = center_y + angle.sin() * distance;
             

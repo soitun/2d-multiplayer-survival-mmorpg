@@ -316,6 +316,13 @@ fn spawn_animal(
         }
     }
     
+    // For walrus, assign sex and create breeding data
+    if matches!(species, AnimalSpecies::ArcticWalrus) {
+        if let Err(e) = super::walrus::assign_walrus_sex_on_spawn(ctx, inserted.id) {
+            log::warn!("Failed to assign sex to walrus {}: {}", inserted.id, e);
+        }
+    }
+    
     Ok(inserted)
 }
 

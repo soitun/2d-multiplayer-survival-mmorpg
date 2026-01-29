@@ -194,6 +194,9 @@ export interface SpacetimeTableStates {
     questProgressNotifications: Map<string, SpacetimeDB.QuestProgressNotification>; // ADDED: Quest progress notifications
     sovaQuestMessages: Map<string, SpacetimeDB.SovaQuestMessage>; // ADDED: SOVA quest messages
     beaconDropEvents: Map<string, SpacetimeDB.BeaconDropEvent>; // ADDED: Memory Beacon server events (airdrop-style)
+    // Animal breeding system data
+    caribouBreedingData: Map<string, SpacetimeDB.CaribouBreedingData>; // ADDED: Caribou breeding (sex, age, pregnancy)
+    walrusBreedingData: Map<string, SpacetimeDB.WalrusBreedingData>; // ADDED: Walrus breeding (sex, age, pregnancy)
 }
 
 // Define the props the hook accepts
@@ -317,6 +320,9 @@ export const useSpacetimeTables = ({
     const [questProgressNotifications, setQuestProgressNotifications] = useState<Map<string, SpacetimeDB.QuestProgressNotification>>(() => new Map());
     const [sovaQuestMessages, setSovaQuestMessages] = useState<Map<string, SpacetimeDB.SovaQuestMessage>>(() => new Map());
     const [beaconDropEvents, setBeaconDropEvents] = useState<Map<string, SpacetimeDB.BeaconDropEvent>>(() => new Map());
+    // Animal breeding system state
+    const [caribouBreedingData, setCaribouBreedingData] = useState<Map<string, SpacetimeDB.CaribouBreedingData>>(() => new Map());
+    const [walrusBreedingData, setWalrusBreedingData] = useState<Map<string, SpacetimeDB.WalrusBreedingData>>(() => new Map());
 
     // OPTIMIZATION: Ref for batched weather updates
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
@@ -1787,6 +1793,28 @@ export const useSpacetimeTables = ({
                 setAnimalCorpses(prev => { const newMap = new Map(prev); newMap.delete(corpse.id.toString()); return newMap; });
             };
 
+            // CaribouBreedingData handlers - for age/sex/pregnancy tracking
+            const handleCaribouBreedingDataInsert = (ctx: any, data: SpacetimeDB.CaribouBreedingData) => {
+                setCaribouBreedingData(prev => new Map(prev).set(data.animalId.toString(), data));
+            };
+            const handleCaribouBreedingDataUpdate = (ctx: any, oldData: SpacetimeDB.CaribouBreedingData, newData: SpacetimeDB.CaribouBreedingData) => {
+                setCaribouBreedingData(prev => new Map(prev).set(newData.animalId.toString(), newData));
+            };
+            const handleCaribouBreedingDataDelete = (ctx: any, data: SpacetimeDB.CaribouBreedingData) => {
+                setCaribouBreedingData(prev => { const newMap = new Map(prev); newMap.delete(data.animalId.toString()); return newMap; });
+            };
+
+            // WalrusBreedingData handlers - for age/sex/pregnancy tracking
+            const handleWalrusBreedingDataInsert = (ctx: any, data: SpacetimeDB.WalrusBreedingData) => {
+                setWalrusBreedingData(prev => new Map(prev).set(data.animalId.toString(), data));
+            };
+            const handleWalrusBreedingDataUpdate = (ctx: any, oldData: SpacetimeDB.WalrusBreedingData, newData: SpacetimeDB.WalrusBreedingData) => {
+                setWalrusBreedingData(prev => new Map(prev).set(newData.animalId.toString(), newData));
+            };
+            const handleWalrusBreedingDataDelete = (ctx: any, data: SpacetimeDB.WalrusBreedingData) => {
+                setWalrusBreedingData(prev => { const newMap = new Map(prev); newMap.delete(data.animalId.toString()); return newMap; });
+            };
+
             // Barrel handlers
             const handleBarrelInsert = (ctx: any, barrel: SpacetimeDB.Barrel) => setBarrels(prev => new Map(prev).set(barrel.id.toString(), barrel));
             const handleBarrelUpdate = (ctx: any, oldBarrel: SpacetimeDB.Barrel, newBarrel: SpacetimeDB.Barrel) => {
@@ -2327,6 +2355,16 @@ export const useSpacetimeTables = ({
             connection.db.animalCorpse.onUpdate(handleAnimalCorpseUpdate);
             connection.db.animalCorpse.onDelete(handleAnimalCorpseDelete);
 
+            // Register CaribouBreedingData callbacks - NON-SPATIAL (for age-based rendering and pregnancy indicators)
+            connection.db.caribouBreedingData.onInsert(handleCaribouBreedingDataInsert);
+            connection.db.caribouBreedingData.onUpdate(handleCaribouBreedingDataUpdate);
+            connection.db.caribouBreedingData.onDelete(handleCaribouBreedingDataDelete);
+
+            // Register WalrusBreedingData callbacks - NON-SPATIAL (for age-based rendering and pregnancy indicators)
+            connection.db.walrusBreedingData.onInsert(handleWalrusBreedingDataInsert);
+            connection.db.walrusBreedingData.onUpdate(handleWalrusBreedingDataUpdate);
+            connection.db.walrusBreedingData.onDelete(handleWalrusBreedingDataDelete);
+
             // Register Barrel callbacks - SPATIAL
             connection.db.barrel.onInsert(handleBarrelInsert);
             connection.db.barrel.onUpdate(handleBarrelUpdate);
@@ -2588,6 +2626,13 @@ export const useSpacetimeTables = ({
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[MATRONAGE_OWED_SHARDS Sub Error]:", err))
                     .subscribe('SELECT * FROM matronage_owed_shards'),
+                // Animal breeding system subscriptions - NON-SPATIAL (for age/pregnancy rendering)
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[CARIBOU_BREEDING_DATA Sub Error]:", err))
+                    .subscribe('SELECT * FROM caribou_breeding_data'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[WALRUS_BREEDING_DATA Sub Error]:", err))
+                    .subscribe('SELECT * FROM walrus_breeding_data'),
                 // Player progression system subscriptions
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[PLAYER_STATS Sub Error]:", err))
@@ -3079,5 +3124,8 @@ export const useSpacetimeTables = ({
         questProgressNotifications, // ADDED: Quest progress notifications
         sovaQuestMessages, // ADDED: SOVA quest messages
         beaconDropEvents, // ADDED: Memory Beacon server events (airdrop-style)
+        // Animal breeding system data
+        caribouBreedingData, // ADDED: Caribou breeding (sex, age, pregnancy) for rendering
+        walrusBreedingData, // ADDED: Walrus breeding (sex, age, pregnancy) for rendering
     };
 }; 

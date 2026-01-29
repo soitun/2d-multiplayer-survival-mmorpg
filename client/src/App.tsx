@@ -345,6 +345,9 @@ function AppContent() {
       questProgressNotifications,
       sovaQuestMessages,
       beaconDropEvents, // ADDED: Memory Beacon server events
+      // Animal breeding system data
+      caribouBreedingData, // ADDED: Caribou breeding data (sex, age, pregnancy)
+      walrusBreedingData, // ADDED: Walrus breeding data (sex, age, pregnancy)
     } = useSpacetimeTables({ 
         connection, 
         cancelPlacement: placementActions.cancelPlacement,
@@ -1403,6 +1406,9 @@ function AppContent() {
                             questProgressNotifications={questProgressNotifications}
                             sovaQuestMessages={sovaQuestMessages}
                             beaconDropEvents={beaconDropEvents} // ADDED: Memory Beacon server events
+                            // Animal breeding system data
+                            caribouBreedingData={caribouBreedingData} // ADDED: Caribou breeding data for rendering
+                            walrusBreedingData={walrusBreedingData} // ADDED: Walrus breeding data for rendering
                             monumentParts={monumentParts} // ADDED: Unified monument parts (all monument types)
                             largeQuarries={largeQuarries} // ADDED: Large quarry locations with types for minimap labels
                             // Matronage system

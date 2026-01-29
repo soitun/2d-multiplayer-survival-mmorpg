@@ -190,6 +190,11 @@ pub fn cleanup_expired_animal_corpses(ctx: &ReducerContext) -> Result<(), String
             super::caribou::cleanup_caribou_breeding_data(ctx, animal_id);
         }
         
+        // Clean up walrus breeding data if this was a walrus corpse
+        if matches!(species, AnimalSpecies::ArcticWalrus) {
+            super::walrus::cleanup_walrus_breeding_data(ctx, animal_id);
+        }
+        
         if animal_corpse_table.id().delete(&corpse_id) {
             cleaned_count += 1;
             log::debug!("Cleaned up expired animal corpse {}", corpse_id);
