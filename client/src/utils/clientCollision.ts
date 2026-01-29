@@ -1039,7 +1039,7 @@ export const COLLISION_RADII = {
   RUNE_STONE: 24,  // Half-width for 48x48 AABB collision (matches server-side RUNE_STONE_AABB_HALF_WIDTH)
   CAIRN: 48,       // Half-width for 96x48 AABB collision (matches server-side CAIRN_AABB_HALF_WIDTH)
   STORAGE_BOX: 25, // Much tighter radius for boxes
-  RAIN_COLLECTOR: 30, // Increased to match server-side for easier targeting
+  RAIN_COLLECTOR: 30, // 256x256 sprite with stone base ~160px wide (matches server)
   FURNACE: 20, // Adjusted radius for easier bottom approach while keeping top collision
   BARBECUE: 20, // Same as furnace (similar size appliance)
   PLAYER: PLAYER_RADIUS,
@@ -1063,7 +1063,7 @@ export const COLLISION_OFFSETS = {
   RUNE_STONE: { x: 0, y: -24 }, // Y offset for 48x48 AABB collision center (matches server-side)
   CAIRN: { x: 0, y: -24 },     // Y offset for 96x48 AABB collision center (matches server-side CAIRN_COLLISION_Y_OFFSET)
   STORAGE_BOX: { x: 0, y: -70 }, // Small circle positioned at visual box base
-  RAIN_COLLECTOR: { x: 0, y: 30 }, // Pushed down to align with visual base (offset down from top)
+  RAIN_COLLECTOR: { x: 0, y: -30 }, // Pushed up to align with stone base (matches server offset of 0.0)
   FURNACE: { x: 0, y: -50 }, // Adjusted center to extend collision below while keeping top boundary
   BARBECUE: { x: 0, y: 0 }, // Collision at posY (matches server-side BARBECUE_COLLISION_Y_OFFSET: 0.0)
   SHELTER: { x: 0, y: -200 },  // Shelter offset unchanged

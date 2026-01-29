@@ -31,7 +31,7 @@ const rainCollectorConfig: GroundEntityConfig<RainCollector> = {
 
     calculateDrawPosition: (entity, drawWidth, drawHeight) => ({
         drawX: entity.posX - drawWidth / 2,
-        drawY: entity.posY - drawHeight - 20, // Bottom-anchored positioning (matches beehive)
+        drawY: entity.posY - drawHeight + 36, // Bottom-anchored, adjusted so stone base is at ground level
     }),
 
     getShadowParams: undefined,
@@ -118,8 +118,8 @@ export function renderRainCollector(
     });
     
     // Render health bar using unified system (bottom-anchored positioning)
-    // The yAnchorOffset of (RAIN_COLLECTOR_HEIGHT + 20) matches the calculateDrawPosition offset
+    // The yAnchorOffset of (RAIN_COLLECTOR_HEIGHT - 36) matches the calculateDrawPosition offset
     if (playerX !== undefined && playerY !== undefined) {
-        renderEntityHealthBar(ctx, rainCollector, RAIN_COLLECTOR_WIDTH, RAIN_COLLECTOR_HEIGHT, nowMs, playerX, playerY, RAIN_COLLECTOR_HEIGHT + 20);
+        renderEntityHealthBar(ctx, rainCollector, RAIN_COLLECTOR_WIDTH, RAIN_COLLECTOR_HEIGHT, nowMs, playerX, playerY, RAIN_COLLECTOR_HEIGHT - 36);
     }
 } 

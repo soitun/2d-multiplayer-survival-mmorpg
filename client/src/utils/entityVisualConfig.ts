@@ -272,10 +272,10 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   rain_collector: {
     centerOffsetX: 0,
-    centerOffsetY: -148,  // 256x256 sprite at posY - 276, visual center at posY - 148 (matches beehive pattern)
+    centerOffsetY: -62,   // 256x256 sprite at posY - 220, visual center at posY - 92
     width: 200,           // Interaction box width for 256x256 sprite
-    height: 200,          // Interaction box height for 256x256 sprite
-    placementYOffset: -100, // Compensate for 256px sprite vs 64px normal box
+    height: 260,          // Interaction box height for 256x256 sprite
+    placementYOffset: -92, // Offset to center placement preview on stone base
     spriteWidth: 256,
     spriteHeight: 256,
   },

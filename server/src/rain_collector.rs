@@ -10,8 +10,8 @@ use spacetimedb::{Identity, ReducerContext, SpacetimeType, Table, Timestamp};
 use log;
 
 // --- Constants --- 
-pub(crate) const RAIN_COLLECTOR_COLLISION_RADIUS: f32 = 100.0; // 256x256 sprite -> radius ~100 (matches beehive)
-pub(crate) const RAIN_COLLECTOR_COLLISION_Y_OFFSET: f32 = 152.0; // Bottom-anchored + 20px draw offset + 100 for tall structure (matches beehive)
+pub(crate) const RAIN_COLLECTOR_COLLISION_RADIUS: f32 = 80.0; // 256x256 sprite with stone base ~160px wide
+pub(crate) const RAIN_COLLECTOR_COLLISION_Y_OFFSET: f32 = 0.0; // Collision centered at posY (stone base area)
 pub(crate) const PLAYER_RAIN_COLLECTOR_COLLISION_DISTANCE_SQUARED: f32 = (super::PLAYER_RADIUS + RAIN_COLLECTOR_COLLISION_RADIUS) * (super::PLAYER_RADIUS + RAIN_COLLECTOR_COLLISION_RADIUS);
 const RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED: f32 = 96.0 * 96.0; // Same as storage box
 pub(crate) const RAIN_COLLECTOR_RAIN_COLLECTOR_COLLISION_DISTANCE_SQUARED: f32 = (RAIN_COLLECTOR_COLLISION_RADIUS * 2.0) * (RAIN_COLLECTOR_COLLISION_RADIUS * 2.0);

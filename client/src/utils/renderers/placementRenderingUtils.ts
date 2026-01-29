@@ -1882,6 +1882,9 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'beehive_wooden.png') {
         // For Wooden Beehive, use the beehive_wooden.png from doodads folder for placement preview
         previewImg = doodadImagesRef.current?.get('beehive_wooden.png');
+    } else if (placementInfo.iconAssetName === 'reed_rain_collector.png') {
+        // For Reed Rain Collector, use the doodad sprite for placement preview
+        previewImg = doodadImagesRef.current?.get('reed_rain_collector.png');
     } else {
         // For other items, use the item images (including hearth.png)
         previewImg = itemImagesRef.current?.get(placementInfo.iconAssetName);
