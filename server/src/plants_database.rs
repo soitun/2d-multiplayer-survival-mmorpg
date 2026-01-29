@@ -97,8 +97,10 @@ pub enum PlantType {
     BonePile,           // Pile of bone fragments - whale bone graveyard monument only
     
     // === TREE SAPLINGS (Planted trees that grow into actual Tree entities) ===
-    ConiferSapling,   // Planted from Pinecone - grows into a conifer tree
-    DeciduousSapling, // Planted from Birch Catkin - grows into a deciduous tree
+    ConiferSapling,     // Planted from Pinecone - grows into a conifer tree
+    DeciduousSapling,   // Planted from Birch Catkin - grows into a deciduous tree
+    CrabAppleSapling,   // Planted from Crab Apple Seeds - grows into a crab apple tree
+    HazelnutSapling,    // Planted from Hazelnut - grows into a hazelnut tree
 }
 
 // --- Plant Configuration System ---
@@ -1298,8 +1300,8 @@ lazy_static! {
         
         // === TREE SAPLINGS ===
         // These are special plants that grow into Tree entities when mature.
-        // Longer growth time balances the renewable wood source.
-        // Player-planted trees yield less wood than wild trees.
+        // Growth time: 5-8 minutes - FASTER than wild tree respawn (10-20 min) to incentivize farming
+        // Player-planted trees yield less wood than wild trees (60% yield).
         
         configs.insert(PlantType::ConiferSapling, PlantConfig {
             entity_name: "Conifer Sapling".to_string(),
@@ -1312,11 +1314,9 @@ lazy_static! {
             secondary_yield: None,
             seed_type: "Pinecone".to_string(),
             seed_drop_chance: 0.0, // No seed drops - harvesting mature tree gives seeds
-            // Growth time: 45-60 minutes - significant investment for renewable wood
-            // Balanced for wood economy: faster than wild tree respawn (10-20 min)
-            // but requires active farming and yields less wood
-            min_respawn_time_secs: 2700, // 45 minutes to grow
-            max_respawn_time_secs: 3600, // 60 minutes to grow
+            // Growth time: 5-8 minutes - faster than wild tree respawn (10-20 min)
+            min_respawn_time_secs: 300,  // 5 minutes to grow
+            max_respawn_time_secs: 480,  // 8 minutes to grow
             spawn_condition: SpawnCondition::Plains, // Can plant anywhere (not water)
             growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn], // No winter growth
         });
@@ -1332,11 +1332,50 @@ lazy_static! {
             secondary_yield: None,
             seed_type: "Birch Catkin".to_string(),
             seed_drop_chance: 0.0, // No seed drops - harvesting mature tree gives seeds
-            // Growth time: 40-55 minutes - slightly faster than conifers
-            // Deciduous trees grow faster in real life
-            min_respawn_time_secs: 2400, // 40 minutes to grow
-            max_respawn_time_secs: 3300, // 55 minutes to grow
+            // Growth time: 5-8 minutes - faster than wild tree respawn (10-20 min)
+            min_respawn_time_secs: 300,  // 5 minutes to grow
+            max_respawn_time_secs: 480,  // 8 minutes to grow
             spawn_condition: SpawnCondition::Plains, // Can plant anywhere (not water)
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn], // No winter growth
+        });
+        
+        // Crab Apple Sapling - Fruit tree from Crab Apple Seeds
+        // Temperate climate only. Drops valuable fruit when chopped.
+        configs.insert(PlantType::CrabAppleSapling, PlantConfig {
+            entity_name: "Crab Apple Sapling".to_string(),
+            density_percent: 0.0, // Never spawns naturally - planted only
+            min_distance_sq: 200.0 * 200.0, // Trees need lots of space
+            min_tree_distance_sq: 150.0 * 150.0, // Keep away from existing trees
+            min_stone_distance_sq: 100.0 * 100.0,
+            noise_threshold: 1.0, // Never spawns naturally
+            primary_yield: ("Wood".to_string(), 0, 0), // No direct yield - becomes a Tree
+            secondary_yield: None,
+            seed_type: "Crab Apple Seeds".to_string(),
+            seed_drop_chance: 0.0, // No seed drops - harvesting mature tree gives fruit
+            // Growth time: 5-8 minutes - faster than wild tree respawn (10-20 min)
+            min_respawn_time_secs: 300,  // 5 minutes to grow
+            max_respawn_time_secs: 480,  // 8 minutes to grow
+            spawn_condition: SpawnCondition::Plains, // Temperate only (restrictions in planted_seeds.rs)
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn], // No winter growth
+        });
+        
+        // Hazelnut Sapling - Nut tree from Hazelnuts
+        // Temperate climate only. The nut itself is the seed.
+        configs.insert(PlantType::HazelnutSapling, PlantConfig {
+            entity_name: "Hazelnut Sapling".to_string(),
+            density_percent: 0.0, // Never spawns naturally - planted only
+            min_distance_sq: 200.0 * 200.0, // Trees need lots of space
+            min_tree_distance_sq: 150.0 * 150.0, // Keep away from existing trees
+            min_stone_distance_sq: 100.0 * 100.0,
+            noise_threshold: 1.0, // Never spawns naturally
+            primary_yield: ("Wood".to_string(), 0, 0), // No direct yield - becomes a Tree
+            secondary_yield: None,
+            seed_type: "Hazelnut".to_string(),
+            seed_drop_chance: 0.0, // No seed drops - harvesting mature tree gives nuts
+            // Growth time: 5-8 minutes - faster than wild tree respawn (10-20 min)
+            min_respawn_time_secs: 300,  // 5 minutes to grow
+            max_respawn_time_secs: 480,  // 8 minutes to grow
+            spawn_condition: SpawnCondition::Plains, // Temperate only (restrictions in planted_seeds.rs)
             growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn], // No winter growth
         });
         
@@ -1448,7 +1487,8 @@ fn get_plant_category(plant_type: &PlantType) -> PlantCategory {
         
         // Special (includes tree saplings which become Tree entities when mature)
         PlantType::MemoryShard | PlantType::SeaweedBed |
-        PlantType::ConiferSapling | PlantType::DeciduousSapling => PlantCategory::Special,
+        PlantType::ConiferSapling | PlantType::DeciduousSapling |
+        PlantType::CrabAppleSapling | PlantType::HazelnutSapling => PlantCategory::Special,
     }
 }
 
@@ -1684,6 +1724,7 @@ pub fn get_plant_bit_index(plant_type: &PlantType) -> Option<u32> {
         PlantType::LeavesPile | PlantType::MetalOrePile | PlantType::SulfurPile |
         PlantType::CharcoalPile | PlantType::SoggyPlantFiberPile | PlantType::BonePile |
         PlantType::MemoryShard | PlantType::SeaweedBed | 
-        PlantType::ConiferSapling | PlantType::DeciduousSapling => None,
+        PlantType::ConiferSapling | PlantType::DeciduousSapling |
+        PlantType::CrabAppleSapling | PlantType::HazelnutSapling => None,
     }
 } 

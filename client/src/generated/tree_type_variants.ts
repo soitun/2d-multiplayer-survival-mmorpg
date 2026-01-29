@@ -38,4 +38,6 @@ export type MountainHemlock2 = { tag: "MountainHemlock2" };
 export type DwarfPine = { tag: "DwarfPine" };
 export type MountainHemlockSnow = { tag: "MountainHemlockSnow" };
 export type KrummholzSpruce = { tag: "KrummholzSpruce" };
+export type CrabAppleTree = { tag: "CrabAppleTree" };
+export type HazelnutTree = { tag: "HazelnutTree" };
 

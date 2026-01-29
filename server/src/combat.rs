@@ -1619,6 +1619,13 @@ pub fn damage_tree(
         // Determine tree category based on tree type
         // Conifer trees (Pine Bark + Pinecone): spruce, hemlock, pine variants
         // Deciduous trees (Birch Bark + Birch Catkin): birch, alder, willow
+        // Fruit/Nut trees: CrabAppleTree, HazelnutTree - special drops
+        let is_fruit_tree = matches!(
+            tree.tree_type,
+            tree::TreeType::CrabAppleTree |
+            tree::TreeType::HazelnutTree
+        );
+        
         let is_conifer = matches!(
             tree.tree_type,
             tree::TreeType::SitkaSpruce |        // Classic tall spruce
@@ -1630,29 +1637,74 @@ pub fn damage_tree(
         );
         // Deciduous: SiberianBirch, SitkaAlder/SitkaAlder2, ArcticWillow
         
-        let (bark_name, seed_name) = if is_conifer {
-            ("Pine Bark", "Pinecone")
-        } else {
-            ("Birch Bark", "Birch Catkin")
-        };
-        
-        // Roll for secondary yield (bark)
-        let bark_roll: f32 = rng.gen_range(0.0..1.0);
-        if bark_roll < bark_chance {
-            let bark_amount = rng.gen_range(1..=3);
-            if let Ok(_) = grant_resource(ctx, attacker_id, bark_name, bark_amount) {
-                log::info!("🌲 Tree secondary yield: Player {:?} received {} {} (roll: {:.3} < {:.3})", 
-                    attacker_id, bark_amount, bark_name, bark_roll, bark_chance);
+        if is_fruit_tree {
+            // Fruit/Nut trees have special drops - fruits/nuts fall as dropped items
+            let fruit_name = match tree.tree_type {
+                tree::TreeType::CrabAppleTree => "Crab Apples",
+                tree::TreeType::HazelnutTree => "Hazelnuts",
+                _ => unreachable!(),
+            };
+            
+            // Higher chance for fruit drops (30-50% based on tool)
+            let fruit_chance = bark_chance * 2.0; // Double the bark chance
+            let fruit_roll: f32 = rng.gen_range(0.0..1.0);
+            
+            if fruit_roll < fruit_chance {
+                // Drop 1-3 fruits/nuts as dropped items near the tree
+                let fruit_amount = rng.gen_range(1..=3) as u32;
+                
+                // Find the fruit item definition
+                if let Some(fruit_def) = ctx.db.item_definition().iter().find(|def| def.name == fruit_name) {
+                    // Calculate drop position near the tree (slight random offset)
+                    let drop_offset_x: f32 = rng.gen_range(-30.0..30.0);
+                    let drop_offset_y: f32 = rng.gen_range(-30.0..30.0);
+                    let drop_x = tree.pos_x + drop_offset_x;
+                    let drop_y = tree.pos_y + drop_offset_y;
+                    
+                    // Create dropped item entity
+                    match crate::dropped_item::create_dropped_item_entity(ctx, fruit_def.id, fruit_amount, drop_x, drop_y) {
+                        Ok(_) => {
+                            log::info!("🍎 Fruit tree drop: {} {} fell from {} at ({:.0}, {:.0}) (roll: {:.3} < {:.3})", 
+                                fruit_amount, fruit_name, 
+                                match tree.tree_type {
+                                    tree::TreeType::CrabAppleTree => "Crab Apple Tree",
+                                    tree::TreeType::HazelnutTree => "Hazelnut Tree",
+                                    _ => "Fruit Tree",
+                                },
+                                drop_x, drop_y, fruit_roll, fruit_chance);
+                        }
+                        Err(e) => {
+                            log::error!("Failed to drop {} from fruit tree: {}", fruit_name, e);
+                        }
+                    }
+                }
             }
-        }
-        
-        // Roll for tertiary yield (seeds/cones) - rarer than bark
-        let seed_roll: f32 = rng.gen_range(0.0..1.0);
-        if seed_roll < seed_chance {
-            let seed_amount = 1; // Seeds are always 1 at a time
-            if let Ok(_) = grant_resource(ctx, attacker_id, seed_name, seed_amount) {
-                log::info!("🌰 Tree tertiary yield: Player {:?} received {} {} (roll: {:.3} < {:.3})", 
-                    attacker_id, seed_amount, seed_name, seed_roll, seed_chance);
+        } else {
+            // Standard trees: bark and seed drops go to inventory
+            let (bark_name, seed_name) = if is_conifer {
+                ("Pine Bark", "Pinecone")
+            } else {
+                ("Birch Bark", "Birch Catkin")
+            };
+            
+            // Roll for secondary yield (bark)
+            let bark_roll: f32 = rng.gen_range(0.0..1.0);
+            if bark_roll < bark_chance {
+                let bark_amount = rng.gen_range(1..=3);
+                if let Ok(_) = grant_resource(ctx, attacker_id, bark_name, bark_amount) {
+                    log::info!("🌲 Tree secondary yield: Player {:?} received {} {} (roll: {:.3} < {:.3})", 
+                        attacker_id, bark_amount, bark_name, bark_roll, bark_chance);
+                }
+            }
+            
+            // Roll for tertiary yield (seeds/cones) - rarer than bark
+            let seed_roll: f32 = rng.gen_range(0.0..1.0);
+            if seed_roll < seed_chance {
+                let seed_amount = 1; // Seeds are always 1 at a time
+                if let Ok(_) = grant_resource(ctx, attacker_id, seed_name, seed_amount) {
+                    log::info!("🌰 Tree tertiary yield: Player {:?} received {} {} (roll: {:.3} < {:.3})", 
+                        attacker_id, seed_amount, seed_name, seed_roll, seed_chance);
+                }
             }
         }
     }

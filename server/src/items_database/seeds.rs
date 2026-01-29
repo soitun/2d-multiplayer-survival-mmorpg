@@ -579,13 +579,14 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
 
         // Pinecone - Plantable conifer seed (from chopping conifer trees)
         // Grows into spruce, hemlock, or pine depending on biome
-        ItemBuilder::new("Pinecone", "A mature pinecone containing viable seeds. Can be planted to grow a conifer tree (spruce, hemlock, or pine depending on terrain). Also usable as fuel.", ItemCategory::Placeable)
+        // NOTE: Pine nuts inside are very nutritious when roasted properly!
+        ItemBuilder::new("Pinecone", "A mature pinecone containing viable seeds. Can be planted to grow a conifer tree (spruce, hemlock, or pine depending on terrain). The pine nuts inside are edible and very nutritious when roasted.", ItemCategory::Placeable)
             .icon("pinecone.png")
             .stackable(20)
             .respawn_time(300)
             .fuel(2.0) // Light fuel value
-            .consumable(1.0, 3.0, -1.0) // health, hunger, thirst - pine nuts are edible and nutritious
-            .cookable(25.0, "Charcoal") // Overcooking burns them
+            .consumable(1.0, 3.0, -1.0) // health, hunger, thirst - raw pine nuts are edible but mild
+            .cookable(35.0, "Cooked Pinecone") // Roasting releases the nutritious pine nuts
             .build(),
 
         // Birch Catkin - Plantable deciduous seed (from chopping deciduous trees)
@@ -596,6 +597,26 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .respawn_time(300)
             .consumable(2.0, 1.0, 0.5) // health, hunger, thirst - mild medicinal properties
             .cookable(20.0, "Charcoal") // Overcooking burns them
+            .build(),
+
+        // Crab Apple Seeds - Plantable fruit tree seeds
+        // Obtained by eating or processing crab apples
+        ItemBuilder::new("Crab Apple Seeds", "Tiny seeds extracted from crab apples. Can be planted to grow a crab apple tree - a hardy small tree that thrives in temperate areas.", ItemCategory::Placeable)
+            .icon("crab_apple_seeds.png")
+            .stackable(40)
+            .respawn_time(360)
+            .consumable(0.0, 0.5, -0.5) // health, hunger, thirst - minimal nutrition
+            .cookable(18.0, "Charcoal") // Tiny seeds just char
+            .build(),
+
+        // Hazelnut - Plantable nut (the nut itself is the seed!)
+        // Dropped from Hazelnut Trees when chopped
+        ItemBuilder::new("Hazelnust", "Small, round nuts with hard shells. Can be planted to grow a hazelnut tree, or eaten for nutrition. Better when roasted.", ItemCategory::Placeable)
+            .icon("hazelnuts.png")
+            .stackable(30)
+            .respawn_time(220)
+            .consumable(8.0, 15.0, -2.0) // health, hunger, thirst - good raw, slightly dry
+            .cookable(35.0, "Cooked Hazelnut") // Roasts into enhanced snack
             .build(),
     ]
 }

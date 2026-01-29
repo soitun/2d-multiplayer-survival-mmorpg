@@ -142,6 +142,19 @@ fn get_military_ration_loot_table() -> Vec<MilitaryRationLootEntry> {
             max_quantity: 2,
             spawn_chance: 0.12, // 12% chance - edible seeds, common Soviet ration item
         },
+        // Foraged nuts and fruits (rare finds in rations)
+        MilitaryRationLootEntry {
+            item_def_name: "Crab Apples".to_string(),
+            min_quantity: 1,
+            max_quantity: 3,
+            spawn_chance: 0.08, // 8% chance - foraged wild fruit
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Hazelnut".to_string(),
+            min_quantity: 1,
+            max_quantity: 4,
+            spawn_chance: 0.10, // 10% chance - foraged wild nuts
+        },
     ]
 }
 

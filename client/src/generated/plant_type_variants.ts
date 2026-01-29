@@ -96,4 +96,6 @@ export type SoggyPlantFiberPile = { tag: "SoggyPlantFiberPile" };
 export type BonePile = { tag: "BonePile" };
 export type ConiferSapling = { tag: "ConiferSapling" };
 export type DeciduousSapling = { tag: "DeciduousSapling" };
+export type CrabAppleSapling = { tag: "CrabAppleSapling" };
+export type HazelnutSapling = { tag: "HazelnutSapling" };
 

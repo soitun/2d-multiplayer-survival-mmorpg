@@ -171,12 +171,12 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
             });
         }
 
-        // Check if item can have queen bee extracted (honeycomb)
+        // Check if item can be extracted (honeycomb -> queen bee or yeast)
         if (itemName === "Honeycomb") {
             actions.push({
-                label: 'Extract Queen',
-                action: 'extract_queen_bee',
-                description: 'Extract the Queen Bee',
+                label: 'Extract',
+                action: 'extract_from_honeycomb',
+                description: 'Extract Queen Bee (15%) or Yeast (85%)',
                 buttonStyle: 'crushButton'
             });
         }
@@ -239,12 +239,8 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
                     connection.reducers.mashStarch(itemInstanceId);
                     playImmediateSound('crush_bones'); // Mashing sound
                     break;
-                case 'extract_yeast':
-                    connection.reducers.extractYeast(itemInstanceId);
-                    playImmediateSound('crush_bones'); // Extraction sound
-                    break;
-                case 'extract_queen_bee':
-                    connection.reducers.extractQueenBee(itemInstanceId);
+                case 'extract_from_honeycomb':
+                    connection.reducers.extractFromHoneycomb(itemInstanceId);
                     playImmediateSound('crush_bones'); // Extraction sound
                     break;
                 case 'consume':

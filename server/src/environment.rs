@@ -1967,11 +1967,16 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     }
                 } else {
                     // Temperate biome: standard tree types with weighted probability
-                    if tree_type_roll < 0.6 { // 60% chance for SitkaSpruce (conifer)
+                    // Includes rare fruit/nut trees (CrabAppleTree, HazelnutTree)
+                    if tree_type_roll < 0.02 { // 2% chance for CrabAppleTree (rare fruit tree)
+                        crate::tree::TreeType::CrabAppleTree
+                    } else if tree_type_roll < 0.04 { // 2% chance for HazelnutTree (rare nut tree)
+                        crate::tree::TreeType::HazelnutTree
+                    } else if tree_type_roll < 0.60 { // 56% chance for SitkaSpruce (conifer)
                         crate::tree::TreeType::SitkaSpruce
-                    } else if tree_type_roll < 0.8 { // 20% chance for SiberianBirch (deciduous)
+                    } else if tree_type_roll < 0.78 { // 18% chance for SiberianBirch (deciduous)
                         crate::tree::TreeType::SiberianBirch
-                    } else if tree_type_roll < 0.86 { // 6% chance for MountainHemlock (conifer - variant c)
+                    } else if tree_type_roll < 0.86 { // 8% chance for MountainHemlock (conifer - variant c)
                         crate::tree::TreeType::MountainHemlock
                     } else { // 14% chance for MountainHemlock2 (conifer - variant d)
                         crate::tree::TreeType::MountainHemlock2

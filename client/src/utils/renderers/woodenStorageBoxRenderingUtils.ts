@@ -11,6 +11,7 @@ import militaryRationImage from '../../assets/doodads/military_ration.png'; // M
 import mineCartImage from '../../assets/doodads/mine_cart.png'; // Mine cart image (quarry-exclusive)
 import fishTrapImage from '../../assets/doodads/fish_trap.png'; // Fish trap image (shore-only)
 import wildBeehiveImage from '../../assets/doodads/pile_honeycomb.png'; // Wild beehive image (forest-only)
+import playerBeehiveImage from '../../assets/doodads/beehive_wooden.png'; // Player-made beehive (produces honeycomb)
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';
@@ -41,6 +42,8 @@ export const FISH_TRAP_WIDTH = 96;  // Fish trap dimensions
 export const FISH_TRAP_HEIGHT = 96;
 export const WILD_BEEHIVE_WIDTH = 96;  // Wild beehive dimensions (forest-only) - increased from 64x64
 export const WILD_BEEHIVE_HEIGHT = 96;
+export const PLAYER_BEEHIVE_WIDTH = 256;  // Player beehive dimensions - larger for multi-hive structure
+export const PLAYER_BEEHIVE_HEIGHT = 256;
 
 // Box type constants (must match server)
 export const BOX_TYPE_NORMAL = 0;
@@ -55,6 +58,7 @@ export const BOX_TYPE_MILITARY_RATION = 8;
 export const BOX_TYPE_MINE_CART = 9;
 export const BOX_TYPE_FISH_TRAP = 10;
 export const BOX_TYPE_WILD_BEEHIVE = 11;
+export const BOX_TYPE_PLAYER_BEEHIVE = 12;
 export const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Added interaction distance
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 10; // Make boxes shake a bit more
@@ -94,6 +98,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return fishTrapImage;
             case BOX_TYPE_WILD_BEEHIVE:
                 return wildBeehiveImage;
+            case BOX_TYPE_PLAYER_BEEHIVE:
+                return playerBeehiveImage;
             default:
                 return boxImage;
         }
@@ -124,6 +130,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return { width: FISH_TRAP_WIDTH, height: FISH_TRAP_HEIGHT };
             case BOX_TYPE_WILD_BEEHIVE:
                 return { width: WILD_BEEHIVE_WIDTH, height: WILD_BEEHIVE_HEIGHT };
+            case BOX_TYPE_PLAYER_BEEHIVE:
+                return { width: PLAYER_BEEHIVE_WIDTH, height: PLAYER_BEEHIVE_HEIGHT };
             default:
                 return { width: BOX_WIDTH, height: BOX_HEIGHT };
         }
@@ -228,6 +236,10 @@ function getBoxDimensions(boxType: number): { width: number; height: number } {
             return { width: MINE_CART_WIDTH, height: MINE_CART_HEIGHT };
         case BOX_TYPE_FISH_TRAP:
             return { width: FISH_TRAP_WIDTH, height: FISH_TRAP_HEIGHT };
+        case BOX_TYPE_WILD_BEEHIVE:
+            return { width: WILD_BEEHIVE_WIDTH, height: WILD_BEEHIVE_HEIGHT };
+        case BOX_TYPE_PLAYER_BEEHIVE:
+            return { width: PLAYER_BEEHIVE_WIDTH, height: PLAYER_BEEHIVE_HEIGHT };
         default:
             return { width: BOX_WIDTH, height: BOX_HEIGHT };
     }
@@ -244,6 +256,8 @@ imageManager.preloadImage(cookingStationImage);
 imageManager.preloadImage(scarecrowImage);
 imageManager.preloadImage(militaryRationImage);
 imageManager.preloadImage(fishTrapImage);
+imageManager.preloadImage(wildBeehiveImage);
+imageManager.preloadImage(playerBeehiveImage);
 
 // === FISH TRAP WATER EFFECTS CONFIGURATION ===
 const FISH_TRAP_WATER_CONFIG = {

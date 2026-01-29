@@ -123,7 +123,7 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
 
         // Wooden Beehive - Bee housing structure
         ItemBuilder::new("Wooden Beehive", "A wooden structure designed to house bees. Crafted with care to provide a safe home for wild bees to produce honey.", ItemCategory::Placeable)
-            .icon("wooden_beehive.png")
+            .icon("beehive_wooden.png")
             .crafting_cost(vec![
                 CostIngredient { item_name: "Wood".to_string(), quantity: 100 },
                 CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 20 },

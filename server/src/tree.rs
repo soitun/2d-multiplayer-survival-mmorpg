@@ -53,6 +53,10 @@ pub enum TreeType {
     DwarfPine,          // dwarf_pine.png - stunted alpine tree
     MountainHemlockSnow, // mountain_hemlock_snow.png - snow-covered alpine
     KrummholzSpruce,    // krummholz_spruce.png - twisted wind-sculpted spruce
+    
+    // Fruit/Nut trees (Wood + special drops) - RARE, temperate biome only
+    CrabAppleTree,      // crab_apple_tree.png - small fruit tree, drops Crab Apples
+    HazelnutTree,       // hazelnut_tree.png - nut-bearing shrub-tree, drops Hazelnuts
 }
 
 #[spacetimedb::table(name = tree, public)]

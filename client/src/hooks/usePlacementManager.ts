@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { DbConnection, ItemDefinition } from '../generated'; // Import connection type and ItemDefinition
 import { TILE_SIZE } from '../config/gameConfig';
-import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement, isPineconeBlockedOnBeach, isBirchCatkinBlockedOnAlpine } from '../utils/plantsUtils';
+import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement, isPineconeBlockedOnBeach, isBirchCatkinBlockedOnAlpine, requiresTemperateOnlyPlacement } from '../utils/plantsUtils';
 import { HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from '../utils/renderers/hearthRenderingUtils'; // For Matron's Chest placement adjustment
 import { playImmediateSound } from './useSoundSystem';
 
@@ -423,6 +423,26 @@ function isBirchCatkinPlacementBlocked(connection: DbConnection | null, worldX: 
 }
 
 /**
+ * Checks if temperate-only tree seed placement is blocked.
+ * Crab Apple Seeds and Hazelnuts can only be planted on temperate tiles (grass/forest).
+ * Returns true if placement should be blocked (on beach, alpine, or tundra).
+ */
+function isTemperatePlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+  if (!connection) return false;
+  
+  // Temperate-only plants cannot be on beach, alpine, or tundra tiles
+  const isBeach = isPositionOnBeach(connection, worldX, worldY);
+  const isAlpine = isPositionOnAlpine(connection, worldX, worldY);
+  const isTundra = isPositionOnTundra(connection, worldX, worldY);
+  
+  if (isBeach || isAlpine || isTundra) {
+    return true; // Block if on non-temperate tiles
+  }
+  
+  return false; // Valid placement on temperate tiles (grass/forest)
+}
+
+/**
  * Checks if placement should be blocked due to water tiles or terrain restrictions.
  * This applies to shelters, camp fires, lanterns, stashes, wooden storage boxes, sleeping bags, and most seeds.
  * Reed Rhizomes have special handling and require water near shore.
@@ -482,6 +502,14 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
   if (isBirchCatkinBlockedOnAlpine(placementInfo.itemName)) {
     if (isBirchCatkinPlacementBlocked(connection, worldX, worldY)) {
       console.log('[WaterPlacement] Birch Catkin blocked: Cannot plant on alpine tiles');
+      return true;
+    }
+  }
+
+  // Special case: Crab Apple Seeds and Hazelnuts - temperate only (grass/forest)
+  if (requiresTemperateOnlyPlacement(placementInfo.itemName)) {
+    if (isTemperatePlacementBlocked(connection, worldX, worldY)) {
+      console.log('[WaterPlacement] Temperate seed blocked: Cannot plant on beach, alpine, or tundra tiles');
       return true;
     }
   }
@@ -970,6 +998,7 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
         case 'Pantry':
         case 'Compost':
         case 'Fish Trap':
+        case 'Wooden Beehive':
           // console.log(`[PlacementManager] Calling placeWoodenStorageBox reducer with instance ID: ${placementInfo.instanceId}`);
           connection.reducers.placeWoodenStorageBox(placementInfo.instanceId, worldX, worldY);
           // Assume App.tsx will have a handleWoodenStorageBoxInsert similar to campfire

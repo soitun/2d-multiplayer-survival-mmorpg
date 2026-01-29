@@ -9,6 +9,9 @@ import dwarfPineImage from '../../assets/doodads/dwarf_pine.png';
 import arcticWillowImage from '../../assets/doodads/arctic_willow.png';
 import mountainHemlockSnowImage from '../../assets/doodads/mountain_hemlock_snow.png';
 import krummholzSpruceImage from '../../assets/doodads/krummholz_spruce.png';
+// Fruit/Nut trees
+import crabAppleTreeImage from '../../assets/doodads/crab_apple_tree.png';
+import hazelnutTreeImage from '../../assets/doodads/hazelnut_tree.png';
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils'; // Import shadow utils
 import { applyStandardDropShadow } from './shadowUtils'; // Import new shadow util
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
@@ -778,6 +781,15 @@ function getCachedTreeTypeInfo(entity: Tree): { imageSource: string; targetWidth
             case 'KrummholzSpruce':
                 imageSource = krummholzSpruceImage;
                 targetWidth = 300; // Twisted wind-sculpted spruce, medium size
+                break;
+            // Fruit/Nut trees (rare, temperate biome only)
+            case 'CrabAppleTree':
+                imageSource = crabAppleTreeImage;
+                targetWidth = 300; // Small fruit tree
+                break;
+            case 'HazelnutTree':
+                imageSource = hazelnutTreeImage;
+                targetWidth = 300; // Small shrub-tree for nuts
                 break;
             default:
                 imageSource = sitkaSpruceImage;

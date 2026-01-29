@@ -990,6 +990,30 @@ fn reduce_headlamp_durability(
     Ok(headlamp_burned_out)
 }
 
+/// Checks if an item is a Queen Bee stored in a player beehive (skips spoilage)
+/// Queen Bees don't spoil while providing for their hive
+fn is_queen_bee_in_beehive(ctx: &ReducerContext, item: &InventoryItem, item_def: &ItemDefinition) -> bool {
+    use crate::models::{ItemLocation, ContainerType};
+    use crate::wooden_storage_box::{wooden_storage_box as WoodenStorageBoxTableTrait, BOX_TYPE_PLAYER_BEEHIVE};
+    
+    // Only applies to Queen Bee items
+    if item_def.name != "Queen Bee" {
+        return false;
+    }
+    
+    // Check if item is in a container
+    if let ItemLocation::Container(container_data) = &item.location {
+        if container_data.container_type == ContainerType::WoodenStorageBox {
+            // Find the storage box
+            if let Some(storage_box) = ctx.db.wooden_storage_box().id().find(&(container_data.container_id as u32)) {
+                // Check if it's a player beehive and item is in slot 0 (input slot)
+                return storage_box.box_type == BOX_TYPE_PLAYER_BEEHIVE && container_data.slot_index == 0;
+            }
+        }
+    }
+    false
+}
+
 /// Checks if an item is stored in a refrigerator (skips spoilage)
 fn is_item_in_refrigerator(ctx: &ReducerContext, item: &InventoryItem) -> bool {
     use crate::models::{ItemLocation, ContainerType};
@@ -1273,6 +1297,12 @@ pub fn process_food_spoilage(ctx: &ReducerContext, _args: FoodSpoilageSchedule) 
         // Skip items stored in refrigerators - they don't spoil!
         if is_item_in_refrigerator(ctx, &item) {
             food_refrigerated_count += 1;
+            continue;
+        }
+        
+        // Skip Queen Bee in player beehive - she's kept alive by her hive!
+        if is_queen_bee_in_beehive(ctx, &item, &item_def) {
+            food_refrigerated_count += 1; // Count as "protected"
             continue;
         }
         

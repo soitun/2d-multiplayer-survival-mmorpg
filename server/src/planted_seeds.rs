@@ -1044,10 +1044,12 @@ pub fn plant_seed(
     }
     
     // === TREE SEED VALIDATION ===
-    // Tree seeds (Pinecone, Birch Catkin) have special planting restrictions
+    // Tree seeds (Pinecone, Birch Catkin, Crab Apple Seeds, Hazelnut) have special planting restrictions
     let is_pinecone = item_def.name == "Pinecone";
     let is_birch_catkin = item_def.name == "Birch Catkin";
-    let is_tree_seed = is_pinecone || is_birch_catkin;
+    let is_crab_apple_seeds = item_def.name == "Crab Apple Seeds";
+    let is_hazelnut = item_def.name == "Hazelnut";
+    let is_tree_seed = is_pinecone || is_birch_catkin || is_crab_apple_seeds || is_hazelnut;
     
     if is_tree_seed {
         // === BIOME RESTRICTIONS ===
@@ -1061,6 +1063,29 @@ pub fn plant_seed(
         if is_birch_catkin && crate::environment::is_position_on_alpine_tile(ctx, plant_pos_x, plant_pos_y) {
             log::error!("PLANT_SEED: Birch Catkin cannot be planted on alpine tiles - too rocky for deciduous trees");
             return Err("Cannot plant Birch Catkin on alpine terrain - the rocky soil can't support deciduous trees.".to_string());
+        }
+        
+        // Crab Apple Seeds and Hazelnuts: Temperate only (Grass/Forest) - not too cold, not too salty
+        if (is_crab_apple_seeds || is_hazelnut) {
+            let is_beach = crate::environment::is_position_on_beach_tile(ctx, plant_pos_x, plant_pos_y);
+            let is_alpine = crate::environment::is_position_on_alpine_tile(ctx, plant_pos_x, plant_pos_y);
+            let is_tundra = crate::environment::is_position_on_tundra_tile(ctx, plant_pos_x, plant_pos_y);
+            
+            if is_beach {
+                let seed_name = if is_crab_apple_seeds { "Crab Apple Seeds" } else { "Hazelnuts" };
+                log::error!("PLANT_SEED: {} cannot be planted on beach tiles - fruit/nut trees don't survive salt spray", seed_name);
+                return Err(format!("Cannot plant {} on beach - fruit and nut trees don't survive in salty coastal environments.", seed_name));
+            }
+            if is_alpine {
+                let seed_name = if is_crab_apple_seeds { "Crab Apple Seeds" } else { "Hazelnuts" };
+                log::error!("PLANT_SEED: {} cannot be planted on alpine tiles - too cold and rocky", seed_name);
+                return Err(format!("Cannot plant {} on alpine terrain - fruit and nut trees need milder conditions.", seed_name));
+            }
+            if is_tundra {
+                let seed_name = if is_crab_apple_seeds { "Crab Apple Seeds" } else { "Hazelnuts" };
+                log::error!("PLANT_SEED: {} cannot be planted on tundra tiles - too cold", seed_name);
+                return Err(format!("Cannot plant {} on tundra - fruit and nut trees need warmer conditions.", seed_name));
+            }
         }
         
         // Tree seeds need clearance from other planted seeds
@@ -1090,7 +1115,7 @@ pub fn plant_seed(
     }
     
     // === DETERMINE TARGET TREE TYPE FOR TREE SEEDS ===
-    // For tree seeds (Pinecone, Birch Catkin), determine the exact tree type NOW based on biome
+    // For tree seeds (Pinecone, Birch Catkin, Crab Apple Seeds, Hazelnut), determine the exact tree type NOW based on biome
     // This is stored in the PlantedSeed so the client can render the correct sprite during growth
     let target_tree_type: Option<crate::tree::TreeType> = if is_tree_seed {
         use crate::tree::TreeType;
@@ -1127,6 +1152,12 @@ pub fn plant_seed(
                     TreeType::MountainHemlock   // 20% - Less common hemlock
                 }
             }
+        } else if is_crab_apple_seeds {
+            // Crab Apple Seeds -> CrabAppleTree (temperate only - biome restrictions already validated)
+            TreeType::CrabAppleTree // 100% - Crab apple tree
+        } else if is_hazelnut {
+            // Hazelnut -> HazelnutTree (temperate only - biome restrictions already validated)
+            TreeType::HazelnutTree // 100% - Hazelnut tree
         } else {
             // Deciduous (Birch Catkin) - note: alpine is blocked at planting time
             if is_beach {
@@ -1638,7 +1669,8 @@ fn grow_plant_to_resource(ctx: &ReducerContext, plant: &PlantedSeed) -> Result<(
     // Check if this is a tree sapling (becomes a Tree entity, not HarvestableResource)
     let is_tree_sapling = matches!(
         plant_type,
-        PlantType::ConiferSapling | PlantType::DeciduousSapling
+        PlantType::ConiferSapling | PlantType::DeciduousSapling |
+        PlantType::CrabAppleSapling | PlantType::HazelnutSapling
     );
     
     if is_tree_sapling {

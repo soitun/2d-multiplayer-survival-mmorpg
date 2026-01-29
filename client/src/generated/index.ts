@@ -35,6 +35,8 @@ import { AcceptAlkContract } from "./accept_alk_contract_reducer.ts";
 export { AcceptAlkContract };
 import { AcceptMatronageInvitation } from "./accept_matronage_invitation_reducer.ts";
 export { AcceptMatronageInvitation };
+import { AddItemToBeehiveSlot } from "./add_item_to_beehive_slot_reducer.ts";
+export { AddItemToBeehiveSlot };
 import { ApplyFertilizer } from "./apply_fertilizer_reducer.ts";
 export { ApplyFertilizer };
 import { CancelAlkContract } from "./cancel_alk_contract_reducer.ts";
@@ -167,8 +169,8 @@ import { EquipArmorFromInventory } from "./equip_armor_from_inventory_reducer.ts
 export { EquipArmorFromInventory };
 import { ExtinguishLantern } from "./extinguish_lantern_reducer.ts";
 export { ExtinguishLantern };
-import { ExtractQueenBee } from "./extract_queen_bee_reducer.ts";
-export { ExtractQueenBee };
+import { ExtractFromHoneycomb } from "./extract_from_honeycomb_reducer.ts";
+export { ExtractFromHoneycomb };
 import { ExtractYeast } from "./extract_yeast_reducer.ts";
 export { ExtractYeast };
 import { FillEquippedWaterContainers } from "./fill_equipped_water_containers_reducer.ts";
@@ -419,6 +421,8 @@ import { ProcessAlkContractRefresh } from "./process_alk_contract_refresh_reduce
 export { ProcessAlkContractRefresh };
 import { ProcessBarbecueLogicScheduled } from "./process_barbecue_logic_scheduled_reducer.ts";
 export { ProcessBarbecueLogicScheduled };
+import { ProcessBeehiveProduction } from "./process_beehive_production_reducer.ts";
+export { ProcessBeehiveProduction };
 import { ProcessBrothPotLogicScheduled } from "./process_broth_pot_logic_scheduled_reducer.ts";
 export { ProcessBrothPotLogicScheduled };
 import { ProcessBuildingDecay } from "./process_building_decay_reducer.ts";
@@ -821,6 +825,8 @@ import { BasaltColumnTableHandle } from "./basalt_column_table.ts";
 export { BasaltColumnTableHandle };
 import { BeaconDropEventTableHandle } from "./beacon_drop_event_table.ts";
 export { BeaconDropEventTableHandle };
+import { BeehiveProcessScheduleTableHandle } from "./beehive_process_schedule_table.ts";
+export { BeehiveProcessScheduleTableHandle };
 import { BrewRecipeCacheTableHandle } from "./brew_recipe_cache_table.ts";
 export { BrewRecipeCacheTableHandle };
 import { BrothPotTableHandle } from "./broth_pot_table.ts";
@@ -1187,6 +1193,8 @@ import { BasaltColumnType } from "./basalt_column_type_type.ts";
 export { BasaltColumnType };
 import { BeaconDropEvent } from "./beacon_drop_event_type.ts";
 export { BeaconDropEvent };
+import { BeehiveProcessSchedule } from "./beehive_process_schedule_type.ts";
+export { BeehiveProcessSchedule };
 import { BrewRecipeCache } from "./brew_recipe_cache_type.ts";
 export { BrewRecipeCache };
 import { BrothPot } from "./broth_pot_type.ts";
@@ -1759,6 +1767,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (BeaconDropEvent.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    beehive_process_schedule: {
+      tableName: "beehive_process_schedule" as const,
+      rowType: BeehiveProcessSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (BeehiveProcessSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     brew_recipe_cache: {
@@ -3139,6 +3156,10 @@ const REMOTE_MODULE = {
       reducerName: "accept_matronage_invitation",
       argsType: AcceptMatronageInvitation.getTypeScriptAlgebraicType(),
     },
+    add_item_to_beehive_slot: {
+      reducerName: "add_item_to_beehive_slot",
+      argsType: AddItemToBeehiveSlot.getTypeScriptAlgebraicType(),
+    },
     apply_fertilizer: {
       reducerName: "apply_fertilizer",
       argsType: ApplyFertilizer.getTypeScriptAlgebraicType(),
@@ -3403,9 +3424,9 @@ const REMOTE_MODULE = {
       reducerName: "extinguish_lantern",
       argsType: ExtinguishLantern.getTypeScriptAlgebraicType(),
     },
-    extract_queen_bee: {
-      reducerName: "extract_queen_bee",
-      argsType: ExtractQueenBee.getTypeScriptAlgebraicType(),
+    extract_from_honeycomb: {
+      reducerName: "extract_from_honeycomb",
+      argsType: ExtractFromHoneycomb.getTypeScriptAlgebraicType(),
     },
     extract_yeast: {
       reducerName: "extract_yeast",
@@ -3906,6 +3927,10 @@ const REMOTE_MODULE = {
     process_barbecue_logic_scheduled: {
       reducerName: "process_barbecue_logic_scheduled",
       argsType: ProcessBarbecueLogicScheduled.getTypeScriptAlgebraicType(),
+    },
+    process_beehive_production: {
+      reducerName: "process_beehive_production",
+      argsType: ProcessBeehiveProduction.getTypeScriptAlgebraicType(),
     },
     process_broth_pot_logic_scheduled: {
       reducerName: "process_broth_pot_logic_scheduled",
@@ -4663,6 +4688,7 @@ const REMOTE_MODULE = {
 export type Reducer = never
 | { name: "AcceptAlkContract", args: AcceptAlkContract }
 | { name: "AcceptMatronageInvitation", args: AcceptMatronageInvitation }
+| { name: "AddItemToBeehiveSlot", args: AddItemToBeehiveSlot }
 | { name: "ApplyFertilizer", args: ApplyFertilizer }
 | { name: "CancelAlkContract", args: CancelAlkContract }
 | { name: "CancelAllCrafting", args: CancelAllCrafting }
@@ -4729,7 +4755,7 @@ export type Reducer = never
 | { name: "EquipArmorFromDrag", args: EquipArmorFromDrag }
 | { name: "EquipArmorFromInventory", args: EquipArmorFromInventory }
 | { name: "ExtinguishLantern", args: ExtinguishLantern }
-| { name: "ExtractQueenBee", args: ExtractQueenBee }
+| { name: "ExtractFromHoneycomb", args: ExtractFromHoneycomb }
 | { name: "ExtractYeast", args: ExtractYeast }
 | { name: "FillEquippedWaterContainers", args: FillEquippedWaterContainers }
 | { name: "FillWaterContainer", args: FillWaterContainer }
@@ -4855,6 +4881,7 @@ export type Reducer = never
 | { name: "ProcessActiveConsumableEffectsTick", args: ProcessActiveConsumableEffectsTick }
 | { name: "ProcessAlkContractRefresh", args: ProcessAlkContractRefresh }
 | { name: "ProcessBarbecueLogicScheduled", args: ProcessBarbecueLogicScheduled }
+| { name: "ProcessBeehiveProduction", args: ProcessBeehiveProduction }
 | { name: "ProcessBrothPotLogicScheduled", args: ProcessBrothPotLogicScheduled }
 | { name: "ProcessBuildingDecay", args: ProcessBuildingDecay }
 | { name: "ProcessCampfireLogicScheduled", args: ProcessCampfireLogicScheduled }
@@ -5071,6 +5098,22 @@ export class RemoteReducers {
 
   removeOnAcceptMatronageInvitation(callback: (ctx: ReducerEventContext, invitationId: bigint) => void) {
     this.connection.offReducer("accept_matronage_invitation", callback);
+  }
+
+  addItemToBeehiveSlot(boxId: number, itemInstanceId: bigint, targetSlot: number) {
+    const __args = { boxId, itemInstanceId, targetSlot };
+    let __writer = new __BinaryWriter(1024);
+    AddItemToBeehiveSlot.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("add_item_to_beehive_slot", __argsBuffer, this.setCallReducerFlags.addItemToBeehiveSlotFlags);
+  }
+
+  onAddItemToBeehiveSlot(callback: (ctx: ReducerEventContext, boxId: number, itemInstanceId: bigint, targetSlot: number) => void) {
+    this.connection.onReducer("add_item_to_beehive_slot", callback);
+  }
+
+  removeOnAddItemToBeehiveSlot(callback: (ctx: ReducerEventContext, boxId: number, itemInstanceId: bigint, targetSlot: number) => void) {
+    this.connection.offReducer("add_item_to_beehive_slot", callback);
   }
 
   applyFertilizer(fertilizerInstanceId: bigint) {
@@ -6093,20 +6136,20 @@ export class RemoteReducers {
     this.connection.offReducer("extinguish_lantern", callback);
   }
 
-  extractQueenBee(itemInstanceId: bigint) {
+  extractFromHoneycomb(itemInstanceId: bigint) {
     const __args = { itemInstanceId };
     let __writer = new __BinaryWriter(1024);
-    ExtractQueenBee.serialize(__writer, __args);
+    ExtractFromHoneycomb.serialize(__writer, __args);
     let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("extract_queen_bee", __argsBuffer, this.setCallReducerFlags.extractQueenBeeFlags);
+    this.connection.callReducer("extract_from_honeycomb", __argsBuffer, this.setCallReducerFlags.extractFromHoneycombFlags);
   }
 
-  onExtractQueenBee(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.onReducer("extract_queen_bee", callback);
+  onExtractFromHoneycomb(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("extract_from_honeycomb", callback);
   }
 
-  removeOnExtractQueenBee(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.offReducer("extract_queen_bee", callback);
+  removeOnExtractFromHoneycomb(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("extract_from_honeycomb", callback);
   }
 
   extractYeast(itemInstanceId: bigint) {
@@ -8039,6 +8082,22 @@ export class RemoteReducers {
 
   removeOnProcessBarbecueLogicScheduled(callback: (ctx: ReducerEventContext, schedule: BarbecueProcessingSchedule) => void) {
     this.connection.offReducer("process_barbecue_logic_scheduled", callback);
+  }
+
+  processBeehiveProduction(schedule: BeehiveProcessSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    ProcessBeehiveProduction.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_beehive_production", __argsBuffer, this.setCallReducerFlags.processBeehiveProductionFlags);
+  }
+
+  onProcessBeehiveProduction(callback: (ctx: ReducerEventContext, schedule: BeehiveProcessSchedule) => void) {
+    this.connection.onReducer("process_beehive_production", callback);
+  }
+
+  removeOnProcessBeehiveProduction(callback: (ctx: ReducerEventContext, schedule: BeehiveProcessSchedule) => void) {
+    this.connection.offReducer("process_beehive_production", callback);
   }
 
   processBrothPotLogicScheduled(scheduleArgs: BrothPotProcessingSchedule) {
@@ -10862,6 +10921,11 @@ export class SetReducerFlags {
     this.acceptMatronageInvitationFlags = flags;
   }
 
+  addItemToBeehiveSlotFlags: __CallReducerFlags = 'FullUpdate';
+  addItemToBeehiveSlot(flags: __CallReducerFlags) {
+    this.addItemToBeehiveSlotFlags = flags;
+  }
+
   applyFertilizerFlags: __CallReducerFlags = 'FullUpdate';
   applyFertilizer(flags: __CallReducerFlags) {
     this.applyFertilizerFlags = flags;
@@ -11192,9 +11256,9 @@ export class SetReducerFlags {
     this.extinguishLanternFlags = flags;
   }
 
-  extractQueenBeeFlags: __CallReducerFlags = 'FullUpdate';
-  extractQueenBee(flags: __CallReducerFlags) {
-    this.extractQueenBeeFlags = flags;
+  extractFromHoneycombFlags: __CallReducerFlags = 'FullUpdate';
+  extractFromHoneycomb(flags: __CallReducerFlags) {
+    this.extractFromHoneycombFlags = flags;
   }
 
   extractYeastFlags: __CallReducerFlags = 'FullUpdate';
@@ -11810,6 +11874,11 @@ export class SetReducerFlags {
   processBarbecueLogicScheduledFlags: __CallReducerFlags = 'FullUpdate';
   processBarbecueLogicScheduled(flags: __CallReducerFlags) {
     this.processBarbecueLogicScheduledFlags = flags;
+  }
+
+  processBeehiveProductionFlags: __CallReducerFlags = 'FullUpdate';
+  processBeehiveProduction(flags: __CallReducerFlags) {
+    this.processBeehiveProductionFlags = flags;
   }
 
   processBrothPotLogicScheduledFlags: __CallReducerFlags = 'FullUpdate';
@@ -12815,6 +12884,11 @@ export class RemoteTables {
   get beaconDropEvent(): BeaconDropEventTableHandle<'beacon_drop_event'> {
     // clientCache is a private property
     return new BeaconDropEventTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<BeaconDropEvent>(REMOTE_MODULE.tables.beacon_drop_event));
+  }
+
+  get beehiveProcessSchedule(): BeehiveProcessScheduleTableHandle<'beehive_process_schedule'> {
+    // clientCache is a private property
+    return new BeehiveProcessScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<BeehiveProcessSchedule>(REMOTE_MODULE.tables.beehive_process_schedule));
   }
 
   get brewRecipeCache(): BrewRecipeCacheTableHandle<'brew_recipe_cache'> {

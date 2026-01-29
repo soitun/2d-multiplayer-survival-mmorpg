@@ -28,37 +28,37 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type ExtractQueenBee = {
+export type ExtractFromHoneycomb = {
   itemInstanceId: bigint,
 };
-let _cached_ExtractQueenBee_type_value: __AlgebraicTypeType | null = null;
+let _cached_ExtractFromHoneycomb_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const ExtractQueenBee = {
+export const ExtractFromHoneycomb = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_ExtractQueenBee_type_value) return _cached_ExtractQueenBee_type_value;
-    _cached_ExtractQueenBee_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_ExtractQueenBee_type_value.value.elements.push(
+    if (_cached_ExtractFromHoneycomb_type_value) return _cached_ExtractFromHoneycomb_type_value;
+    _cached_ExtractFromHoneycomb_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_ExtractFromHoneycomb_type_value.value.elements.push(
       { name: "itemInstanceId", algebraicType: __AlgebraicTypeValue.U64 },
     );
-    return _cached_ExtractQueenBee_type_value;
+    return _cached_ExtractFromHoneycomb_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: ExtractQueenBee): void {
-    __AlgebraicTypeValue.serializeValue(writer, ExtractQueenBee.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: ExtractFromHoneycomb): void {
+    __AlgebraicTypeValue.serializeValue(writer, ExtractFromHoneycomb.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): ExtractQueenBee {
-    return __AlgebraicTypeValue.deserializeValue(reader, ExtractQueenBee.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): ExtractFromHoneycomb {
+    return __AlgebraicTypeValue.deserializeValue(reader, ExtractFromHoneycomb.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default ExtractQueenBee;
+export default ExtractFromHoneycomb;
 

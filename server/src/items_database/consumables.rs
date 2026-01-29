@@ -2200,5 +2200,73 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .requires_station("Cooking Station")
             .build(),
 
+        // === PINE NUTS & PINECONE PRODUCTS ===
+        // Raw Pinecone is in seeds.rs (Placeable + Consumable)
+        
+        ItemBuilder::new("Cooked Pinecone", "Roasted pinecone with exposed pine nuts. The heat releases the nutritious, oily pine nuts - a valuable source of fat and protein in the subarctic wilderness.", ItemCategory::Consumable)
+            .icon("cooked_pinecone.png")
+            .stackable(20)
+            .consumable(35.0, 50.0, 5.0) // Excellent nutrition - pine nuts are protein and fat rich
+            .cookable(45.0, "Burnt Pinecone")
+            .respawn_time(300)
+            .build(),
+
+        ItemBuilder::new("Burnt Pinecone", "Overcooked pinecone - the pine nuts are charred and bitter. Can be processed into charcoal.", ItemCategory::Consumable)
+            .icon("burnt_pinecone.png")
+            .stackable(20)
+            .consumable(-3.0, 8.0, -5.0)
+            .crafting_output(10, 0)
+            .cookable(50.0, "Charcoal")
+            .respawn_time(60)
+            .build(),
+
+        // === CRAB APPLES ===
+        // Small, tart wild apples found in coastal areas - you get a handful at a time
+        
+        ItemBuilder::new("Crab Apples", "A handful of small, tart wild apples. Quite sour when raw but become sweeter when cooked. Common in coastal thickets.", ItemCategory::Consumable)
+            .icon("crab_apples.png")
+            .stackable(20)
+            .consumable(5.0, 10.0, 12.0) // Low hunger, decent thirst due to tartness
+            .cookable(30.0, "Cooked Crab Apples")
+            .respawn_time(200)
+            .build(),
+
+        ItemBuilder::new("Cooked Crab Apples", "Baked crab apples - the heat caramelizes the sugars and mellows the tartness. Sweet and tender.", ItemCategory::Consumable)
+            .icon("cooked_crab_apples.png")
+            .stackable(20)
+            .consumable(25.0, 35.0, 20.0) // Good nutrition when cooked
+            .cookable(40.0, "Burnt Crab Apples")
+            .respawn_time(260)
+            .build(),
+
+        ItemBuilder::new("Burnt Crab Apples", "Overcooked crab apples - blackened and bitter. Can be processed into charcoal.", ItemCategory::Consumable)
+            .icon("burnt_crab_apples.png")
+            .stackable(20)
+            .consumable(-2.0, 6.0, -8.0)
+            .crafting_output(10, 0)
+            .cookable(50.0, "Charcoal")
+            .respawn_time(60)
+            .build(),
+
+        // === HAZELNUTS ===
+        // NOTE: Raw Hazelnut moved to seeds.rs - it's now Placeable + Consumable (plant hazelnuts to grow hazelnut trees)
+        
+        ItemBuilder::new("Cooked Hazelnuts", "Roasted hazelnuts with an irresistible aroma. The heat enhances the nutty flavor and makes them easier to digest.", ItemCategory::Consumable)
+            .icon("cooked_hazelnuts.png")
+            .stackable(30)
+            .consumable(30.0, 45.0, 2.0) // Excellent nutrition - nuts are calorie-dense
+            .cookable(45.0, "Burnt Hazelnut")
+            .respawn_time(280)
+            .build(),
+
+        ItemBuilder::new("Burnt Hazelnuts", "Overcooked hazelnuts - charred and bitter. Can be processed into charcoal.", ItemCategory::Consumable)
+            .icon("burnt_hazelnuts.png")
+            .stackable(30)
+            .consumable(-2.0, 8.0, -5.0)
+            .crafting_output(8, 0)
+            .cookable(50.0, "Charcoal")
+            .respawn_time(60)
+            .build(),
+
     ]
 }

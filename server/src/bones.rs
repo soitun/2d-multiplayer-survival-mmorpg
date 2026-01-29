@@ -492,10 +492,10 @@ pub fn extract_yeast(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), 
 
 /// Extracts a Queen Bee from Honeycomb.
 /// Destructive process - consumes the honeycomb to retrieve the queen.
-/// Has a chance to yield a queen bee (not guaranteed - queens are rare).
-/// If inventory is full, queen bee will be dropped near the player.
+/// Extracts from Honeycomb - chance to yield Queen Bee (rare, 15%) or Yeast (common, 85%).
+/// If inventory is full, the item will be dropped near the player.
 #[spacetimedb::reducer]
-pub fn extract_queen_bee(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
+pub fn extract_from_honeycomb(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
     let sender_id = ctx.sender;
     let inventory_table = ctx.db.inventory_item();
     let item_def_table = ctx.db.item_definition();
@@ -509,7 +509,7 @@ pub fn extract_queen_bee(ctx: &ReducerContext, item_instance_id: u64) -> Result<
 
     // 2. Validate item is Honeycomb
     if item_def.name != "Honeycomb" {
-        return Err(format!("Cannot extract queen bee from '{}'. Only Honeycomb may contain a queen.", item_def.name));
+        return Err(format!("Cannot extract from '{}'. Only Honeycomb can be extracted.", item_def.name));
     }
 
     // Validate ownership through location
@@ -517,18 +517,23 @@ pub fn extract_queen_bee(ctx: &ReducerContext, item_instance_id: u64) -> Result<
         crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
         crate::models::ItemLocation::Hotbar(data) if data.owner_id == sender_id => (),
         crate::models::ItemLocation::Equipped(data) if data.owner_id == sender_id => (),
-        _ => return Err("Item must be in your inventory, hotbar, or equipped to extract queen bee.".to_string()),
+        _ => return Err("Item must be in your inventory, hotbar, or equipped to extract.".to_string()),
     }
 
-    // Find the Queen Bee item definition
+    // Find the Queen Bee and Yeast item definitions
     let queen_bee_def = item_def_table.iter()
         .find(|def| def.name == "Queen Bee")
         .ok_or_else(|| "Queen Bee item definition not found".to_string())?;
+    
+    let yeast_def = item_def_table.iter()
+        .find(|def| def.name == "Yeast")
+        .ok_or_else(|| "Yeast item definition not found".to_string())?;
 
-    // 3. Calculate if queen bee is found (25% chance - queens are rare!)
-    let found_queen = ctx.rng().gen_range(0..100) < 25;
+    // 3. Roll for what we find: 15% Queen Bee, 85% Yeast
+    let roll = ctx.rng().gen_range(0..100);
+    let found_queen = roll < 15;
 
-    log::info!("[ExtractQueenBee] Player {} searching honeycomb for queen bee - Found: {}", sender_id, found_queen);
+    log::info!("[Extract] Player {} extracting from honeycomb - Roll: {}, Found Queen: {}", sender_id, roll, found_queen);
 
     // 4. Update item quantity or delete if last one (honeycomb is consumed either way)
     if item_to_extract.quantity > 1 {
@@ -539,22 +544,31 @@ pub fn extract_queen_bee(ctx: &ReducerContext, item_instance_id: u64) -> Result<
         inventory_table.instance_id().delete(item_instance_id);
     }
 
-    // 5. Give queen bee to player if found
+    // 5. Give the extracted item to player
     if found_queen {
         match try_give_item_to_player(ctx, sender_id, queen_bee_def.id, 1) {
             Ok(added_to_inventory) => {
                 if added_to_inventory {
-                    log::info!("[ExtractQueenBee] Added 1 Queen Bee to inventory for player {}", sender_id);
+                    log::info!("[Extract] Added 1 Queen Bee to inventory for player {}", sender_id);
                 } else {
-                    log::info!("[ExtractQueenBee] Inventory full, dropped 1 Queen Bee near player {}", sender_id);
+                    log::info!("[Extract] Inventory full, dropped 1 Queen Bee near player {}", sender_id);
                 }
             },
             Err(e) => return Err(format!("Failed to give Queen Bee to player: {}", e))
         }
-        Ok(())
     } else {
-        // No queen found, but honeycomb is still consumed
-        log::info!("[ExtractQueenBee] No queen bee found in this honeycomb for player {}", sender_id);
-        Ok(())
+        // Found yeast (85% chance)
+        match try_give_item_to_player(ctx, sender_id, yeast_def.id, 1) {
+            Ok(added_to_inventory) => {
+                if added_to_inventory {
+                    log::info!("[Extract] Added 1 Yeast to inventory for player {}", sender_id);
+                } else {
+                    log::info!("[Extract] Inventory full, dropped 1 Yeast near player {}", sender_id);
+                }
+            },
+            Err(e) => return Err(format!("Failed to give Yeast to player: {}", e))
+        }
     }
+    
+    Ok(())
 }

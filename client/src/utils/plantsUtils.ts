@@ -157,6 +157,32 @@ export function isBirchCatkinBlockedOnAlpine(itemName: string): boolean {
 }
 
 /**
+ * Determines if a fruit/nut tree seed requires temperate-only placement
+ * Crab Apple Seeds and Hazelnuts can only be planted on temperate tiles (grass/forest)
+ * They cannot survive beach (salt), alpine (cold/rocky), or tundra (cold) conditions
+ */
+export function requiresTemperateOnlyPlacement(itemName: string): boolean {
+  const name = itemName.toLowerCase();
+  return name.includes('crab apple seed') || name === 'hazelnut' || name === 'hazelnuts';
+}
+
+/**
+ * Determines if a fruit/nut tree seed is a Crab Apple Seed
+ */
+export function isCrabAppleSeed(itemName: string): boolean {
+  const name = itemName.toLowerCase();
+  return name.includes('crab apple seed');
+}
+
+/**
+ * Determines if a seed is a Hazelnut (plantable nut)
+ */
+export function isHazelnutSeed(itemName: string): boolean {
+  const name = itemName.toLowerCase();
+  return name === 'hazelnut' || name === 'hazelnuts';
+}
+
+/**
  * Determines if a seed is a conifer tree seed (Pinecone)
  * These grow into spruce, hemlock, or pine trees
  */
@@ -175,10 +201,10 @@ export function isDeciduousSeed(itemName: string): boolean {
 }
 
 /**
- * Determines if a seed is any tree seed (Pinecone or Birch Catkin)
+ * Determines if a seed is any tree seed (Pinecone, Birch Catkin, Crab Apple Seeds, or Hazelnut)
  */
 export function isTreeSeed(itemName: string): boolean {
-  return isConiferSeed(itemName) || isDeciduousSeed(itemName);
+  return isConiferSeed(itemName) || isDeciduousSeed(itemName) || isCrabAppleSeed(itemName) || isHazelnutSeed(itemName);
 }
 
 /**

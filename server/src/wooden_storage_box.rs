@@ -78,6 +78,12 @@ pub const NUM_WILD_BEEHIVE_SLOTS: usize = 3; // Small container - 1-4 honeycomb
 pub const WILD_BEEHIVE_INITIAL_HEALTH: f32 = 100.0; // Low health, not meant to be attacked
 pub const WILD_BEEHIVE_MAX_HEALTH: f32 = 100.0;
 
+// --- Player Beehive ---
+pub const BOX_TYPE_PLAYER_BEEHIVE: u8 = 12;
+pub const NUM_PLAYER_BEEHIVE_SLOTS: usize = 7; // Slot 0 = Queen Bee input, Slots 1-6 = Honeycomb output
+pub const PLAYER_BEEHIVE_INITIAL_HEALTH: f32 = 400.0;
+pub const PLAYER_BEEHIVE_MAX_HEALTH: f32 = 400.0;
+
 // Re-export refrigerator constants for backward compatibility
 pub use crate::refrigerator::{NUM_REFRIGERATOR_SLOTS, REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH};
 
@@ -626,6 +632,8 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
             return Err("Fish trap must be placed on shore (land adjacent to water).".to_string());
         }
         BOX_TYPE_FISH_TRAP
+    } else if item_def.name == "Wooden Beehive" {
+        BOX_TYPE_PLAYER_BEEHIVE
     } else {
         return Err("Item is not a storage container.".to_string());
     };
@@ -677,6 +685,7 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         BOX_TYPE_BACKPACK => (BACKPACK_INITIAL_HEALTH, BACKPACK_MAX_HEALTH),
         BOX_TYPE_SCARECROW => (SCARECROW_INITIAL_HEALTH, SCARECROW_MAX_HEALTH),
         BOX_TYPE_FISH_TRAP => (FISH_TRAP_INITIAL_HEALTH, FISH_TRAP_MAX_HEALTH),
+        BOX_TYPE_PLAYER_BEEHIVE => (PLAYER_BEEHIVE_INITIAL_HEALTH, PLAYER_BEEHIVE_MAX_HEALTH),
         _ => (WOODEN_STORAGE_BOX_INITIAL_HEALTH, WOODEN_STORAGE_BOX_MAX_HEALTH),
     };
     
@@ -757,6 +766,7 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         BOX_TYPE_BACKPACK => "Backpack",
         BOX_TYPE_SCARECROW => "Scarecrow",
         BOX_TYPE_FISH_TRAP => "Fish Trap",
+        BOX_TYPE_PLAYER_BEEHIVE => "Wooden Beehive",
         _ => "Wooden Storage Box",
     };
     log::info!("Player {:?} placed new {} with ID {}.\nLocation: {:?}", sender_id, box_type_name, inserted_box.id, item_to_place.location);
@@ -830,6 +840,7 @@ pub fn pickup_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<(), Strin
         BOX_TYPE_COOKING_STATION => "Cooking Station",
         BOX_TYPE_SCARECROW => "Scarecrow",
         BOX_TYPE_FISH_TRAP => "Fish Trap",
+        BOX_TYPE_PLAYER_BEEHIVE => "Wooden Beehive",
         _ => "Wooden Storage Box",
     };
     let box_item_def = item_defs_table.iter()
@@ -1001,6 +1012,7 @@ impl ItemContainer for WoodenStorageBox {
             BOX_TYPE_MINE_CART => NUM_MINE_CART_SLOTS,
             BOX_TYPE_FISH_TRAP => NUM_FISH_TRAP_SLOTS,
             BOX_TYPE_WILD_BEEHIVE => NUM_WILD_BEEHIVE_SLOTS,
+            BOX_TYPE_PLAYER_BEEHIVE => NUM_PLAYER_BEEHIVE_SLOTS,
             _ => NUM_BOX_SLOTS,
         }
     }

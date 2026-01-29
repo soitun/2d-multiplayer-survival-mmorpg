@@ -19,7 +19,7 @@ import { HEARTH_WIDTH, HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from './hearthRen
 import { COMPOST_WIDTH, COMPOST_HEIGHT, REFRIGERATOR_WIDTH, REFRIGERATOR_HEIGHT, LARGE_BOX_WIDTH, LARGE_BOX_HEIGHT, REPAIR_BENCH_WIDTH, REPAIR_BENCH_HEIGHT, COOKING_STATION_WIDTH, COOKING_STATION_HEIGHT } from './woodenStorageBoxRenderingUtils'; // ADDED: Compost, Refrigerator, Large Box, Repair Bench, and Cooking Station dimensions
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, worldPixelsToFoundationCell, foundationCellToWorldCenter } from '../../config/gameConfig';
 import { DbConnection } from '../../generated';
-import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement, isPineconeBlockedOnBeach, isBirchCatkinBlockedOnAlpine } from '../plantsUtils';
+import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement, isPineconeBlockedOnBeach, isBirchCatkinBlockedOnAlpine, requiresTemperateOnlyPlacement } from '../plantsUtils';
 import { renderFoundationPreview, renderWallPreview, renderFencePreview } from './foundationRenderingUtils';
 
 // Import interaction distance constants
@@ -458,6 +458,25 @@ function isTundraPlacementBlocked(connection: DbConnection | null, worldX: numbe
 }
 
 /**
+ * Checks if a temperate-only plant placement is blocked (on beach, alpine, or tundra tiles)
+ * Used for: Crab Apple Seeds, Hazelnuts (fruit/nut trees that only grow in temperate climates)
+ */
+function isTemperatePlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+    if (!connection) return false;
+    
+    // Temperate-only plants cannot be on beach, alpine, or tundra tiles
+    const isBeach = isPositionOnBeach(connection, worldX, worldY);
+    const isAlpine = isPositionOnAlpine(connection, worldX, worldY);
+    const isTundra = isPositionOnTundra(connection, worldX, worldY);
+    
+    if (isBeach || isAlpine || isTundra) {
+        return true; // Block if on non-temperate tiles
+    }
+    
+    return false; // Valid placement on temperate tiles (grass/forest)
+}
+
+/**
  * Checks if placement should be blocked due to water tiles or terrain restrictions.
  * This applies to shelters, camp fires, lanterns, stashes, wooden storage boxes, sleeping bags, and most seeds.
  * Reed Rhizomes have special handling and require water near shore.
@@ -512,6 +531,13 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
     if (isBirchCatkinBlockedOnAlpine(placementInfo.itemName)) {
         if (isPositionOnAlpine(connection, worldX, worldY)) {
             return true; // Block Birch Catkin on alpine
+        }
+    }
+
+    // Special case: Crab Apple Seeds and Hazelnuts - temperate only (not beach, alpine, or tundra)
+    if (requiresTemperateOnlyPlacement(placementInfo.itemName)) {
+        if (isTemperatePlacementBlocked(connection, worldX, worldY)) {
+            return true; // Block fruit/nut tree seeds on non-temperate tiles
         }
     }
 
