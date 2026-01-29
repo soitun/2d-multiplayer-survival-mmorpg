@@ -107,6 +107,10 @@ pub const TAMING_FOLLOW_DISTANCE: f32 = 100.0; // How close tamed animals follow
 pub const TAMING_FOLLOW_DISTANCE_SQUARED: f32 = TAMING_FOLLOW_DISTANCE * TAMING_FOLLOW_DISTANCE;
 pub const TAMING_PROTECT_RADIUS: f32 = 300.0; // How far tamed animals will go to protect owner
 pub const TAMING_PROTECT_RADIUS_SQUARED: f32 = TAMING_PROTECT_RADIUS * TAMING_PROTECT_RADIUS;
+// When owner is beyond this distance, tamed animals stay in place instead of following
+// This allows penning animals - they won't chase the player across the map
+pub const TAMING_STAY_DISTANCE: f32 = 400.0; // Beyond this, animal stays put
+pub const TAMING_STAY_DISTANCE_SQUARED: f32 = TAMING_STAY_DISTANCE * TAMING_STAY_DISTANCE;
 
 // --- Constants ---
 // Animal AI tick interval - determines how often animals update their position/behavior
@@ -5164,6 +5168,11 @@ pub fn process_taming_behavior(
 }
 
 /// Handle following behavior for tamed animals
+/// TAMING IS PERMANENT - animals never become wild again once tamed
+/// Behavior:
+/// - If owner is nearby (within TAMING_STAY_DISTANCE), follow them
+/// - If owner is far away (beyond TAMING_STAY_DISTANCE), stay in place (allows penning)
+/// - If owner is dead/offline/not found, stay in place and wait
 pub fn handle_tamed_following(
     ctx: &ReducerContext,
     animal: &mut WildAnimal,
@@ -5174,17 +5183,10 @@ pub fn handle_tamed_following(
 ) {
     if let Some(owner_id) = animal.tamed_by {
         if let Some(owner) = ctx.db.player().identity().find(&owner_id) {
-            if owner.is_dead {
-                // Owner is dead - animal becomes wild again after some time
-                if let Some(tamed_time) = animal.tamed_at {
-                    let time_since_taming = (current_time.to_micros_since_unix_epoch() - tamed_time.to_micros_since_unix_epoch()) / 1000;
-                    if time_since_taming > 60000 { // 60 seconds after owner death
-                        animal.tamed_by = None;
-                        animal.tamed_at = None;
-                        transition_to_state(animal, AnimalState::Idle, current_time, None, "owner died - becoming wild");
-                        log::info!("{:?} {} became wild again after owner death - going idle", animal.species, animal.id);
-                    }
-                }
+            // If owner is dead or offline, just stay in place and wait
+            // TAMING IS PERMANENT - we don't untame, we just wait
+            if owner.is_dead || !owner.is_online {
+                // Stay in place - do nothing, just wait for owner to return/respawn
                 return;
             }
             
@@ -5192,6 +5194,23 @@ pub fn handle_tamed_following(
                 animal.pos_x, animal.pos_y,
                 owner.position_x, owner.position_y
             );
+            
+            // If owner is beyond the stay distance, animal stays in place (penning behavior)
+            // This allows players to pen animals without them following across the map
+            if distance_to_owner > TAMING_STAY_DISTANCE_SQUARED {
+                // Stay in place - don't follow, just idle nearby
+                // Small chance to wander within a tiny area to look alive
+                if rng.gen::<f32>() < 0.02 { // 2% chance to shift slightly
+                    let angle = rng.gen::<f32>() * 2.0 * PI;
+                    let wander_distance = 15.0;
+                    let target_x = animal.pos_x + angle.cos() * wander_distance;
+                    let target_y = animal.pos_y + angle.sin() * wander_distance;
+                    move_towards_target(ctx, animal, target_x, target_y, stats.movement_speed * 0.3, dt);
+                }
+                return;
+            }
+            
+            // Owner is within follow range - check for threats and follow
             
             // Check if anyone is attacking the owner
             let mut attacker: Option<Player> = None;
@@ -5223,7 +5242,7 @@ pub fn handle_tamed_following(
                               animal.species, animal.id, owner_id, threat.identity);
                 }
             } else if distance_to_owner > TAMING_FOLLOW_DISTANCE_SQUARED {
-                // Too far from owner - move closer
+                // Within stay distance but beyond follow distance - move closer
                 move_towards_target(ctx, animal, owner.position_x, owner.position_y, stats.movement_speed * 1.2, dt);
             } else {
                 // Close enough to owner - just chill nearby
@@ -5237,11 +5256,10 @@ pub fn handle_tamed_following(
                 }
             }
         } else {
-            // Owner not found - become wild again (go idle, not wander)
-            animal.tamed_by = None;
-            animal.tamed_at = None;
-            transition_to_state(animal, AnimalState::Idle, current_time, None, "owner not found - becoming wild");
-            log::info!("{:?} {} became wild again - owner not found, going idle", animal.species, animal.id);
+            // Owner not found in database (possibly deleted account) - stay in place
+            // TAMING IS PERMANENT - we don't untame, we just wait
+            // Animal will idle in place indefinitely
+            return;
         }
     }
 }
@@ -5265,14 +5283,14 @@ pub fn handle_tamed_protecting(
     let owner = match ctx.db.player().identity().find(&owner_id) {
         Some(player) => player,
         None => {
-            log::warn!("Tamed animal {} owner {} not found - reverting to wild", animal.id, owner_id);
-            animal.tamed_by = None;
-            animal.state = AnimalState::Patrolling;
+            // Owner not found - TAMING IS PERMANENT, just stop protecting and go back to following (waiting)
+            log::debug!("Tamed animal {} owner {} not found - returning to following state", animal.id, owner_id);
+            transition_to_state(animal, AnimalState::Following, current_time, Some(owner_id), "owner not found - return to waiting");
             return;
         }
     };
     
-    // If owner is dead or offline, stop protecting
+    // If owner is dead or offline, stop protecting and wait
     if owner.is_dead || !owner.is_online {
         transition_to_state(animal, AnimalState::Following, current_time, Some(owner_id), "owner dead/offline - stop protecting");
         return;

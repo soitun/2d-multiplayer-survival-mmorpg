@@ -348,6 +348,9 @@ function AppContent() {
       // Animal breeding system data
       caribouBreedingData, // ADDED: Caribou breeding data (sex, age, pregnancy)
       walrusBreedingData, // ADDED: Walrus breeding data (sex, age, pregnancy)
+      // Animal rut state (breeding season)
+      caribouRutState, // ADDED: Global caribou rut state
+      walrusRutState, // ADDED: Global walrus rut state
     } = useSpacetimeTables({ 
         connection, 
         cancelPlacement: placementActions.cancelPlacement,
@@ -1409,6 +1412,8 @@ function AppContent() {
                             // Animal breeding system data
                             caribouBreedingData={caribouBreedingData} // ADDED: Caribou breeding data for rendering
                             walrusBreedingData={walrusBreedingData} // ADDED: Walrus breeding data for rendering
+                            caribouRutState={caribouRutState} // ADDED: Global caribou rut state for tooltip
+                            walrusRutState={walrusRutState} // ADDED: Global walrus rut state for tooltip
                             monumentParts={monumentParts} // ADDED: Unified monument parts (all monument types)
                             largeQuarries={largeQuarries} // ADDED: Large quarry locations with types for minimap labels
                             // Matronage system

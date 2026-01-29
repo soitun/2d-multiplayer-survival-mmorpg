@@ -67,6 +67,7 @@ import { useGameLoop } from '../hooks/useGameLoop';
 import type { FrameInfo } from '../hooks/useGameLoop';
 import { usePlayerHover } from '../hooks/usePlayerHover';
 import { usePlantedSeedHover } from '../hooks/usePlantedSeedHover';
+import { useTamedAnimalHover } from '../hooks/useTamedAnimalHover';
 import { useRuneStoneHover } from '../hooks/useRuneStoneHover';
 import { useMinimapInteraction } from '../hooks/useMinimapInteraction';
 import { useEntityFiltering, YSortedEntityType } from '../hooks/useEntityFiltering';
@@ -159,6 +160,7 @@ import { renderBasaltColumn, preloadBasaltColumnImages } from '../utils/renderer
 import DeathScreen from './DeathScreen.tsx';
 import InterfaceContainer from './InterfaceContainer';
 import PlantedSeedTooltip from './PlantedSeedTooltip';
+import TamedAnimalTooltip from './TamedAnimalTooltip';
 import { itemIcons } from '../utils/itemIconUtils';
 import { PlacementItemInfo, PlacementActions } from '../hooks/usePlacementManager';
 import { gameConfig, HOLD_INTERACTION_DURATION_MS, REVIVE_HOLD_DURATION_MS } from '../config/gameConfig';
@@ -336,6 +338,9 @@ interface GameCanvasProps {
   // Animal breeding system data for age-based rendering and pregnancy indicators
   caribouBreedingData?: Map<string, any>; // Caribou sex, age stage, and pregnancy
   walrusBreedingData?: Map<string, any>; // Walrus sex, age stage, and pregnancy
+  // Animal rut state (breeding season) for tooltip
+  caribouRutState?: any; // Global caribou rut state
+  walrusRutState?: any; // Global walrus rut state
 }
 
 /**
@@ -470,6 +475,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Animal breeding system data for age-based rendering and pregnancy indicators
   caribouBreedingData,
   walrusBreedingData,
+  // Animal rut state (breeding season) for tooltip
+  caribouRutState,
+  walrusRutState,
 }) => {
   // console.log('[GameCanvas IS RUNNING] showInventory:', showInventory);
 
@@ -925,6 +933,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // --- Planted Seed Hover Detection ---
   const { hoveredSeed, hoveredSeedId } = usePlantedSeedHover(
     plantedSeeds,
+    worldMousePos.x,
+    worldMousePos.y
+  );
+
+  // --- Tamed Animal Hover Detection ---
+  const { hoveredTamedAnimal, hoveredAnimalId } = useTamedAnimalHover(
+    wildAnimals,
     worldMousePos.x,
     worldMousePos.y
   );
@@ -5040,6 +5055,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           runeStones={runeStones}
           fertilizerPatches={fertilizerPatches}
           worldChunkData={worldChunkDataMap}
+        />
+      )}
+
+      {/* Tamed Animal Tooltip - shows info when hovering over tamed animals */}
+      {hoveredTamedAnimal && canvasMousePos && canvasMousePos.x !== null && canvasMousePos.y !== null && !isGameMenuOpen && !showInventory && (
+        <TamedAnimalTooltip
+          animal={hoveredTamedAnimal}
+          visible={true}
+          position={{ x: canvasMousePos.x, y: canvasMousePos.y }}
+          currentTime={Date.now()}
+          caribouBreedingData={caribouBreedingData}
+          walrusBreedingData={walrusBreedingData}
+          caribouRutState={caribouRutState}
+          walrusRutState={walrusRutState}
+          players={players}
         />
       )}
     </div>

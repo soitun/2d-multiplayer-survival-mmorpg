@@ -197,6 +197,9 @@ export interface SpacetimeTableStates {
     // Animal breeding system data
     caribouBreedingData: Map<string, SpacetimeDB.CaribouBreedingData>; // ADDED: Caribou breeding (sex, age, pregnancy)
     walrusBreedingData: Map<string, SpacetimeDB.WalrusBreedingData>; // ADDED: Walrus breeding (sex, age, pregnancy)
+    // Animal rut state (breeding season) - global state
+    caribouRutState: SpacetimeDB.CaribouRutState | null; // ADDED: Global caribou rut state
+    walrusRutState: SpacetimeDB.WalrusRutState | null; // ADDED: Global walrus rut state
 }
 
 // Define the props the hook accepts
@@ -323,6 +326,9 @@ export const useSpacetimeTables = ({
     // Animal breeding system state
     const [caribouBreedingData, setCaribouBreedingData] = useState<Map<string, SpacetimeDB.CaribouBreedingData>>(() => new Map());
     const [walrusBreedingData, setWalrusBreedingData] = useState<Map<string, SpacetimeDB.WalrusBreedingData>>(() => new Map());
+    // Animal rut state (breeding season) - global single-row tables
+    const [caribouRutState, setCaribouRutState] = useState<SpacetimeDB.CaribouRutState | null>(null);
+    const [walrusRutState, setWalrusRutState] = useState<SpacetimeDB.WalrusRutState | null>(null);
 
     // OPTIMIZATION: Ref for batched weather updates
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
@@ -1815,6 +1821,28 @@ export const useSpacetimeTables = ({
                 setWalrusBreedingData(prev => { const newMap = new Map(prev); newMap.delete(data.animalId.toString()); return newMap; });
             };
 
+            // CaribouRutState handlers - global single-row table for breeding season
+            const handleCaribouRutStateInsert = (ctx: any, data: SpacetimeDB.CaribouRutState) => {
+                setCaribouRutState(data);
+            };
+            const handleCaribouRutStateUpdate = (ctx: any, oldData: SpacetimeDB.CaribouRutState, newData: SpacetimeDB.CaribouRutState) => {
+                setCaribouRutState(newData);
+            };
+            const handleCaribouRutStateDelete = (ctx: any, data: SpacetimeDB.CaribouRutState) => {
+                setCaribouRutState(null);
+            };
+
+            // WalrusRutState handlers - global single-row table for breeding season
+            const handleWalrusRutStateInsert = (ctx: any, data: SpacetimeDB.WalrusRutState) => {
+                setWalrusRutState(data);
+            };
+            const handleWalrusRutStateUpdate = (ctx: any, oldData: SpacetimeDB.WalrusRutState, newData: SpacetimeDB.WalrusRutState) => {
+                setWalrusRutState(newData);
+            };
+            const handleWalrusRutStateDelete = (ctx: any, data: SpacetimeDB.WalrusRutState) => {
+                setWalrusRutState(null);
+            };
+
             // Barrel handlers
             const handleBarrelInsert = (ctx: any, barrel: SpacetimeDB.Barrel) => setBarrels(prev => new Map(prev).set(barrel.id.toString(), barrel));
             const handleBarrelUpdate = (ctx: any, oldBarrel: SpacetimeDB.Barrel, newBarrel: SpacetimeDB.Barrel) => {
@@ -2365,6 +2393,16 @@ export const useSpacetimeTables = ({
             connection.db.walrusBreedingData.onUpdate(handleWalrusBreedingDataUpdate);
             connection.db.walrusBreedingData.onDelete(handleWalrusBreedingDataDelete);
 
+            // Register CaribouRutState callbacks - GLOBAL single-row table
+            connection.db.caribouRutState.onInsert(handleCaribouRutStateInsert);
+            connection.db.caribouRutState.onUpdate(handleCaribouRutStateUpdate);
+            connection.db.caribouRutState.onDelete(handleCaribouRutStateDelete);
+
+            // Register WalrusRutState callbacks - GLOBAL single-row table
+            connection.db.walrusRutState.onInsert(handleWalrusRutStateInsert);
+            connection.db.walrusRutState.onUpdate(handleWalrusRutStateUpdate);
+            connection.db.walrusRutState.onDelete(handleWalrusRutStateDelete);
+
             // Register Barrel callbacks - SPATIAL
             connection.db.barrel.onInsert(handleBarrelInsert);
             connection.db.barrel.onUpdate(handleBarrelUpdate);
@@ -2633,6 +2671,13 @@ export const useSpacetimeTables = ({
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[WALRUS_BREEDING_DATA Sub Error]:", err))
                     .subscribe('SELECT * FROM walrus_breeding_data'),
+                // Animal rut state subscriptions (breeding season) - single-row global tables
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[CARIBOU_RUT_STATE Sub Error]:", err))
+                    .subscribe('SELECT * FROM caribou_rut_state'),
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[WALRUS_RUT_STATE Sub Error]:", err))
+                    .subscribe('SELECT * FROM walrus_rut_state'),
                 // Player progression system subscriptions
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[PLAYER_STATS Sub Error]:", err))
@@ -3127,5 +3172,8 @@ export const useSpacetimeTables = ({
         // Animal breeding system data
         caribouBreedingData, // ADDED: Caribou breeding (sex, age, pregnancy) for rendering
         walrusBreedingData, // ADDED: Walrus breeding (sex, age, pregnancy) for rendering
+        // Animal rut state (breeding season) - global state
+        caribouRutState, // ADDED: Global caribou rut state
+        walrusRutState, // ADDED: Global walrus rut state
     };
 }; 

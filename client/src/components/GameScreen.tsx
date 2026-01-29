@@ -356,6 +356,9 @@ interface GameScreenProps {
     // Animal breeding system data for age-based rendering and pregnancy indicators
     caribouBreedingData?: Map<string, any>; // Caribou sex, age stage, and pregnancy
     walrusBreedingData?: Map<string, any>; // Walrus sex, age stage, and pregnancy
+    // Animal rut state (breeding season) for tooltip
+    caribouRutState?: any; // Global caribou rut state
+    walrusRutState?: any; // Global walrus rut state
 }
 
 const GameScreen: React.FC<GameScreenProps> = (props) => {
@@ -1173,6 +1176,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 // Animal breeding system data
                 caribouBreedingData={props.caribouBreedingData} // ADDED: Caribou breeding data
                 walrusBreedingData={props.walrusBreedingData} // ADDED: Walrus breeding data
+                caribouRutState={props.caribouRutState} // ADDED: Global caribou rut state
+                walrusRutState={props.walrusRutState} // ADDED: Global walrus rut state
                 // Mobile controls
                 isMobile={props.isMobile}
                 onMobileTap={props.onMobileTap}
