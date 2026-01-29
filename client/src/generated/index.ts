@@ -293,6 +293,8 @@ import { MoveItemFromRainCollector } from "./move_item_from_rain_collector_reduc
 export { MoveItemFromRainCollector };
 import { MoveItemFromStash } from "./move_item_from_stash_reducer.ts";
 export { MoveItemFromStash };
+import { MoveItemFromTurretToPlayerSlot } from "./move_item_from_turret_to_player_slot_reducer.ts";
+export { MoveItemFromTurretToPlayerSlot };
 import { MoveItemToBarbecue } from "./move_item_to_barbecue_reducer.ts";
 export { MoveItemToBarbecue };
 import { MoveItemToBox } from "./move_item_to_box_reducer.ts";
@@ -551,6 +553,8 @@ import { QuickMoveToRepairBench } from "./quick_move_to_repair_bench_reducer.ts"
 export { QuickMoveToRepairBench };
 import { QuickMoveToStash } from "./quick_move_to_stash_reducer.ts";
 export { QuickMoveToStash };
+import { QuickMoveToTurret } from "./quick_move_to_turret_reducer.ts";
+export { QuickMoveToTurret };
 import { RefreshMyDailyQuests } from "./refresh_my_daily_quests_reducer.ts";
 export { RefreshMyDailyQuests };
 import { RegenerateCompressedChunks } from "./regenerate_compressed_chunks_reducer.ts";
@@ -3682,6 +3686,10 @@ const REMOTE_MODULE = {
       reducerName: "move_item_from_stash",
       argsType: MoveItemFromStash.getTypeScriptAlgebraicType(),
     },
+    move_item_from_turret_to_player_slot: {
+      reducerName: "move_item_from_turret_to_player_slot",
+      argsType: MoveItemFromTurretToPlayerSlot.getTypeScriptAlgebraicType(),
+    },
     move_item_to_barbecue: {
       reducerName: "move_item_to_barbecue",
       argsType: MoveItemToBarbecue.getTypeScriptAlgebraicType(),
@@ -4197,6 +4205,10 @@ const REMOTE_MODULE = {
     quick_move_to_stash: {
       reducerName: "quick_move_to_stash",
       argsType: QuickMoveToStash.getTypeScriptAlgebraicType(),
+    },
+    quick_move_to_turret: {
+      reducerName: "quick_move_to_turret",
+      argsType: QuickMoveToTurret.getTypeScriptAlgebraicType(),
     },
     refresh_my_daily_quests: {
       reducerName: "refresh_my_daily_quests",
@@ -4847,6 +4859,7 @@ export type Reducer = never
 | { name: "MoveItemFromLanternToPlayerSlot", args: MoveItemFromLanternToPlayerSlot }
 | { name: "MoveItemFromRainCollector", args: MoveItemFromRainCollector }
 | { name: "MoveItemFromStash", args: MoveItemFromStash }
+| { name: "MoveItemFromTurretToPlayerSlot", args: MoveItemFromTurretToPlayerSlot }
 | { name: "MoveItemToBarbecue", args: MoveItemToBarbecue }
 | { name: "MoveItemToBox", args: MoveItemToBox }
 | { name: "MoveItemToBrothPot", args: MoveItemToBrothPot }
@@ -4976,6 +4989,7 @@ export type Reducer = never
 | { name: "QuickMoveToRefrigerator", args: QuickMoveToRefrigerator }
 | { name: "QuickMoveToRepairBench", args: QuickMoveToRepairBench }
 | { name: "QuickMoveToStash", args: QuickMoveToStash }
+| { name: "QuickMoveToTurret", args: QuickMoveToTurret }
 | { name: "RefreshMyDailyQuests", args: RefreshMyDailyQuests }
 | { name: "RegenerateCompressedChunks", args: RegenerateCompressedChunks }
 | { name: "RegisterPlayer", args: RegisterPlayer }
@@ -7075,6 +7089,22 @@ export class RemoteReducers {
     this.connection.offReducer("move_item_from_stash", callback);
   }
 
+  moveItemFromTurretToPlayerSlot(turretId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) {
+    const __args = { turretId, sourceSlotIndex, targetSlotType, targetSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    MoveItemFromTurretToPlayerSlot.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("move_item_from_turret_to_player_slot", __argsBuffer, this.setCallReducerFlags.moveItemFromTurretToPlayerSlotFlags);
+  }
+
+  onMoveItemFromTurretToPlayerSlot(callback: (ctx: ReducerEventContext, turretId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.onReducer("move_item_from_turret_to_player_slot", callback);
+  }
+
+  removeOnMoveItemFromTurretToPlayerSlot(callback: (ctx: ReducerEventContext, turretId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.offReducer("move_item_from_turret_to_player_slot", callback);
+  }
+
   moveItemToBarbecue(barbecueId: number, targetSlotIndex: number, itemInstanceId: bigint) {
     const __args = { barbecueId, targetSlotIndex, itemInstanceId };
     let __writer = new __BinaryWriter(1024);
@@ -9137,6 +9167,22 @@ export class RemoteReducers {
 
   removeOnQuickMoveToStash(callback: (ctx: ReducerEventContext, stashId: number, itemInstanceId: bigint) => void) {
     this.connection.offReducer("quick_move_to_stash", callback);
+  }
+
+  quickMoveToTurret(turretId: number, itemInstanceId: bigint) {
+    const __args = { turretId, itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    QuickMoveToTurret.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("quick_move_to_turret", __argsBuffer, this.setCallReducerFlags.quickMoveToTurretFlags);
+  }
+
+  onQuickMoveToTurret(callback: (ctx: ReducerEventContext, turretId: number, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("quick_move_to_turret", callback);
+  }
+
+  removeOnQuickMoveToTurret(callback: (ctx: ReducerEventContext, turretId: number, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("quick_move_to_turret", callback);
   }
 
   refreshMyDailyQuests() {
@@ -11651,6 +11697,11 @@ export class SetReducerFlags {
     this.moveItemFromStashFlags = flags;
   }
 
+  moveItemFromTurretToPlayerSlotFlags: __CallReducerFlags = 'FullUpdate';
+  moveItemFromTurretToPlayerSlot(flags: __CallReducerFlags) {
+    this.moveItemFromTurretToPlayerSlotFlags = flags;
+  }
+
   moveItemToBarbecueFlags: __CallReducerFlags = 'FullUpdate';
   moveItemToBarbecue(flags: __CallReducerFlags) {
     this.moveItemToBarbecueFlags = flags;
@@ -12294,6 +12345,11 @@ export class SetReducerFlags {
   quickMoveToStashFlags: __CallReducerFlags = 'FullUpdate';
   quickMoveToStash(flags: __CallReducerFlags) {
     this.quickMoveToStashFlags = flags;
+  }
+
+  quickMoveToTurretFlags: __CallReducerFlags = 'FullUpdate';
+  quickMoveToTurret(flags: __CallReducerFlags) {
+    this.quickMoveToTurretFlags = flags;
   }
 
   refreshMyDailyQuestsFlags: __CallReducerFlags = 'FullUpdate';

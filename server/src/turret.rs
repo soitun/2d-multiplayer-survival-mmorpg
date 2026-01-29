@@ -395,6 +395,48 @@ pub fn quick_move_from_turret(ctx: &ReducerContext, turret_id: u32, slot_index: 
     Ok(())
 }
 
+/// Quick move item from player inventory/hotbar TO turret
+#[spacetimedb::reducer]
+pub fn quick_move_to_turret(
+    ctx: &ReducerContext,
+    turret_id: u32,
+    item_instance_id: u64,
+) -> Result<(), String> {
+    let (_player, mut turret) = validate_turret_interaction(ctx, turret_id)?;
+    
+    // Validate ammo type based on turret_type
+    let item = ctx.db.inventory_item().instance_id().find(&item_instance_id)
+        .ok_or_else(|| "Item not found.".to_string())?;
+    let item_def = ctx.db.item_definition().id().find(&item.item_def_id)
+        .ok_or_else(|| "Item definition not found.".to_string())?;
+    
+    // Tallow Steam Turret only accepts Tallow
+    if turret.turret_type == TURRET_TYPE_TALLOW_STEAM {
+        if item_def.name != "Tallow" {
+            return Err("Tallow Steam Turret only accepts Tallow as ammo.".to_string());
+        }
+    }
+    
+    handle_quick_move_to_container(ctx, &mut turret, item_instance_id)?;
+    ctx.db.turret().id().update(turret);
+    Ok(())
+}
+
+/// Move item FROM turret slot TO a specific player inventory/hotbar slot
+#[spacetimedb::reducer]
+pub fn move_item_from_turret_to_player_slot(
+    ctx: &ReducerContext,
+    turret_id: u32,
+    source_slot_index: u8,
+    target_slot_type: String,
+    target_slot_index: u32,
+) -> Result<(), String> {
+    let (_player, mut turret) = validate_turret_interaction(ctx, turret_id)?;
+    handle_move_from_container_slot(ctx, &mut turret, source_slot_index, target_slot_type, target_slot_index)?;
+    ctx.db.turret().id().update(turret);
+    Ok(())
+}
+
 /// Pickup turret (must be empty and not destroyed)
 #[spacetimedb::reducer]
 pub fn pickup_turret(ctx: &ReducerContext, turret_id: u32) -> Result<(), String> {

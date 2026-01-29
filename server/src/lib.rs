@@ -332,6 +332,7 @@ pub use lantern::{
 // Re-export turret reducers for client bindings
 pub use turret::{
     place_turret, move_item_to_turret, quick_move_from_turret,
+    quick_move_to_turret, move_item_from_turret_to_player_slot,
     pickup_turret, interact_with_turret
 };
 

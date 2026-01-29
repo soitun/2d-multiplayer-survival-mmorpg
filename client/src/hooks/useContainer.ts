@@ -151,6 +151,7 @@ export function useContainer(props: UseContainerProps): UseContainerResult {
             barbecues,
             fumaroles,
             lanterns,
+            turrets,
             woodenStorageBoxes,
             playerCorpses,
             stashes,

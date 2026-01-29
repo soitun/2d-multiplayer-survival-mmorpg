@@ -110,7 +110,8 @@ export function getDragDropReducerNames(containerType: ContainerType, entity?: C
     
     // Determine if this is a fuel container (different naming pattern)
     // Note: Fumarole is HYBRID - uses storage pattern for moveFromPlayer, fuel pattern for moveToPlayer
-    const isFuelContainer = ['campfire', 'furnace', 'barbecue', 'lantern'].includes(containerType);
+    // Note: Turret uses same pattern as fuel containers for moveToPlayer (move_item_from_turret_to_player_slot)
+    const isFuelContainer = ['campfire', 'furnace', 'barbecue', 'lantern', 'turret'].includes(containerType);
     const isFumarole = containerType === 'fumarole';
     
     return {
@@ -144,7 +145,7 @@ export function getContainerTypeFromSlotType(slotType: string): ContainerType | 
         'barbecue_fuel': 'barbecue',
         'fumarole': 'fumarole',
         'lantern_fuel': 'lantern',
-        'turret_fuel': 'turret',
+        'turret_ammo': 'turret', // Fixed: was 'turret_fuel' but config uses 'turret_ammo'
         'wooden_storage_box': 'wooden_storage_box',
         'player_corpse': 'player_corpse',
         'stash': 'stash',

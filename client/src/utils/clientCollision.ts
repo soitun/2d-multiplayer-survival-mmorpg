@@ -1074,7 +1074,7 @@ export const COLLISION_OFFSETS = {
   HOMESTEAD_HEARTH: { x: 0, y: -72.5 }, // Homestead hearth collision offset (matches server-side HEARTH_COLLISION_Y_OFFSET)
   BASALT_COLUMN: { x: 0, y: -40 }, // Basalt column collision offset
   WARD: { x: 0, y: -80 }, // Ward collision offset (matches server-side WARD_COLLISION_Y_OFFSET)
-  TURRET: { x: 0, y: -80 }, // Turret collision offset (matches server-side TURRET_COLLISION_Y_OFFSET)
+  TURRET: { x: 0, y: -60 }, // Turret collision offset (matches server-side TURRET_COLLISION_Y_OFFSET)
   // STORM_PILE removed - storms now spawn HarvestableResources and DroppedItems directly
   LIVING_CORAL: { x: 0, y: -60 }, // Living coral collision offset (doubled to match visual size)
 } as const;
