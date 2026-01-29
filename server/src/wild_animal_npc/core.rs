@@ -1280,10 +1280,15 @@ fn update_animal_ai_state(
         }
     }
     
-    // FIRE FEAR LOGIC - Only applies to non-walruses, non-crows, and non-hostile NPCs, and can be ignored by groups
+    // FIRE FEAR LOGIC - Only applies to non-walruses, non-crows, non-bees, and non-hostile NPCs
     // Walruses are curious about fire, crows are bold thieves that don't fear flames
     // Night hostile NPCs (Shorebound, Shardkin, DrownedWatch) are fearless and charge through fire
-    if !is_fearless_hostile && animal.species != AnimalSpecies::ArcticWalrus && animal.species != AnimalSpecies::Crow && should_fear_fire(ctx, animal) {
+    // BEES: Handled separately in BeeBehavior::update_ai_state_logic - they DIE from fire, not flee!
+    if !is_fearless_hostile && 
+       animal.species != AnimalSpecies::ArcticWalrus && 
+       animal.species != AnimalSpecies::Crow && 
+       animal.species != AnimalSpecies::Bee &&  // Bees die from fire, handled in their AI
+       should_fear_fire(ctx, animal) {
         // Check for fire from players with torches
         for player in nearby_players {
             let player_has_fire = is_fire_nearby(ctx, player.position_x, player.position_y);

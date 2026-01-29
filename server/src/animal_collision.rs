@@ -85,122 +85,144 @@ pub fn resolve_animal_collision(
     // PERFORMANCE: Use cached spatial grid instead of creating new one
     let grid = spatial_grid::get_cached_spatial_grid(&ctx.db, ctx.timestamp);
     
+    // Look up the animal's species for special handling (bees, walruses, etc.)
+    let animal_species = ctx.db.wild_animal().id().find(&animal_id)
+        .map(|a| a.species);
+    
+    // BEES: No collision with players - they fly through everything
+    let is_bee = matches!(animal_species, Some(crate::wild_animal_npc::AnimalSpecies::Bee));
+    
     // Check water collision - but allow walruses to swim!
     if is_water_tile(ctx, proposed_x, proposed_y) {
-        // Look up the animal to check its species
-        if let Some(animal) = ctx.db.wild_animal().id().find(&animal_id) {
-            // Walruses can swim - they're not blocked by water
-            if !matches!(animal.species, crate::wild_animal_npc::AnimalSpecies::ArcticWalrus) {
-                log::debug!("[AnimalCollision] Animal {} movement blocked by water at ({:.1}, {:.1})", 
-                           animal_id, proposed_x, proposed_y);
-                return (current_x, current_y); // Block non-walrus animals
-            }
-            // Walruses can continue moving through water
-            log::debug!("[AnimalCollision] Walrus {} swimming through water at ({:.1}, {:.1})", 
+        // Walruses can swim - they're not blocked by water
+        // Bees fly over water too
+        let can_traverse_water = matches!(
+            animal_species,
+            Some(crate::wild_animal_npc::AnimalSpecies::ArcticWalrus) | 
+            Some(crate::wild_animal_npc::AnimalSpecies::Bee)
+        );
+        
+        if !can_traverse_water {
+            log::debug!("[AnimalCollision] Animal {} movement blocked by water at ({:.1}, {:.1})", 
                        animal_id, proposed_x, proposed_y);
+            return (current_x, current_y); // Block non-walrus/non-bee animals
         }
+        log::debug!("[AnimalCollision] Animal {} can traverse water at ({:.1}, {:.1})", 
+                   animal_id, proposed_x, proposed_y);
     }
     
-    // Check shelter collision (absolute blocker)
-    if check_shelter_collision(ctx, proposed_x, proposed_y) {
+    // Check shelter collision (absolute blocker) - but bees can fly through
+    if !is_bee && check_shelter_collision(ctx, proposed_x, proposed_y) {
         log::debug!("[AnimalCollision] Animal {} movement blocked by shelter at ({:.1}, {:.1})", 
                    animal_id, proposed_x, proposed_y);
         return (current_x, current_y); // Don't move if target is inside shelter
     }
     
     // ==========================================================================
-    // CRITICAL: ANTI-TUNNELING WALL CHECK
+    // CRITICAL: ANTI-TUNNELING WALL/DOOR/FENCE CHECK
     // NPCs can move 100+ pixels per tick and tunnel through thin walls.
     // Check for wall collisions along the ENTIRE movement path, not just destination.
+    // EXCEPTION: Bees fly through everything - no structure collision!
     // ==========================================================================
-    if let Some(blocked_pos) = check_wall_line_collision(&ctx.db, current_x, current_y, proposed_x, proposed_y) {
-        log::info!("[AnimalCollision] Animal {} BLOCKED by wall during movement from ({:.1},{:.1}) to ({:.1},{:.1}) - stopped at ({:.1},{:.1})", 
-                   animal_id, current_x, current_y, proposed_x, proposed_y, blocked_pos.0, blocked_pos.1);
-        return blocked_pos; // Return position before hitting wall
-    }
-    
-    // Also check doors along the movement path (anti-tunneling)
-    if let Some(blocked_pos) = check_door_line_collision(ctx, current_x, current_y, proposed_x, proposed_y) {
-        log::info!("[AnimalCollision] Animal {} BLOCKED by door during movement from ({:.1},{:.1}) to ({:.1},{:.1}) - stopped at ({:.1},{:.1})", 
-                   animal_id, current_x, current_y, proposed_x, proposed_y, blocked_pos.0, blocked_pos.1);
-        return blocked_pos; // Return position before hitting door
-    }
-    
-    // Also check fences along the movement path (anti-tunneling)
-    if let Some(blocked_pos) = check_fence_line_collision(ctx, current_x, current_y, proposed_x, proposed_y) {
-        log::info!("[AnimalCollision] Animal {} BLOCKED by fence during movement from ({:.1},{:.1}) to ({:.1},{:.1}) - stopped at ({:.1},{:.1})", 
-                   animal_id, current_x, current_y, proposed_x, proposed_y, blocked_pos.0, blocked_pos.1);
-        return blocked_pos; // Return position before hitting fence
+    if !is_bee {
+        if let Some(blocked_pos) = check_wall_line_collision(&ctx.db, current_x, current_y, proposed_x, proposed_y) {
+            log::info!("[AnimalCollision] Animal {} BLOCKED by wall during movement from ({:.1},{:.1}) to ({:.1},{:.1}) - stopped at ({:.1},{:.1})", 
+                       animal_id, current_x, current_y, proposed_x, proposed_y, blocked_pos.0, blocked_pos.1);
+            return blocked_pos; // Return position before hitting wall
+        }
+        
+        // Also check doors along the movement path (anti-tunneling)
+        if let Some(blocked_pos) = check_door_line_collision(ctx, current_x, current_y, proposed_x, proposed_y) {
+            log::info!("[AnimalCollision] Animal {} BLOCKED by door during movement from ({:.1},{:.1}) to ({:.1},{:.1}) - stopped at ({:.1},{:.1})", 
+                       animal_id, current_x, current_y, proposed_x, proposed_y, blocked_pos.0, blocked_pos.1);
+            return blocked_pos; // Return position before hitting door
+        }
+        
+        // Also check fences along the movement path (anti-tunneling)
+        if let Some(blocked_pos) = check_fence_line_collision(ctx, current_x, current_y, proposed_x, proposed_y) {
+            log::info!("[AnimalCollision] Animal {} BLOCKED by fence during movement from ({:.1},{:.1}) to ({:.1},{:.1}) - stopped at ({:.1},{:.1})", 
+                       animal_id, current_x, current_y, proposed_x, proposed_y, blocked_pos.0, blocked_pos.1);
+            return blocked_pos; // Return position before hitting fence
+        }
     }
     
     // Check and resolve pushback collisions
     let mut collision_detected = false;
     
     // Animal-to-animal collision
-    if let Some((pushback_x, pushback_y)) = check_animal_collision(ctx, animal_id, final_x, final_y) {
-        final_x = current_x + pushback_x;
-        final_y = current_y + pushback_y;
-        collision_detected = true;
-        log::debug!("[AnimalCollision] Animal {} pushed back by other animal: ({:.1}, {:.1})", 
-                   animal_id, pushback_x, pushback_y);
-    }
-    
-    // Animal-to-player collision (different radius based on attacking state)
-    if let Some((pushback_x, pushback_y)) = check_player_collision(ctx, final_x, final_y, is_attacking) {
-        final_x = current_x + pushback_x;
-        final_y = current_y + pushback_y;
-        collision_detected = true;
-        log::debug!("[AnimalCollision] Animal {} pushed back by player: ({:.1}, {:.1})", 
-                   animal_id, pushback_x, pushback_y);
-    }
-    
-    // Environmental collision checks
-    if let Some((pushback_x, pushback_y)) = check_environmental_collision_with_grid(grid, &ctx.db, final_x, final_y) {
-        final_x = current_x + pushback_x;
-        final_y = current_y + pushback_y;
-        collision_detected = true;
-        log::debug!("[AnimalCollision] Animal {} pushed back by environment: ({:.1}, {:.1})", 
-                   animal_id, pushback_x, pushback_y);
-    }
-    
-    // Check wall collisions at destination (backup check)
-    if let Some((pushback_x, pushback_y)) = check_wall_collision(&ctx.db, final_x, final_y) {
-        final_x = current_x + pushback_x;
-        final_y = current_y + pushback_y;
-        collision_detected = true;
-        log::debug!("[AnimalCollision] Animal {} pushed back by wall: ({:.1}, {:.1})", 
-                   animal_id, pushback_x, pushback_y);
-    }
-    
-    // Check door collisions at destination (backup check)
-    if let Some((pushback_x, pushback_y)) = crate::door::check_door_collision(ctx, final_x, final_y, ANIMAL_COLLISION_RADIUS) {
-        final_x = current_x + pushback_x;
-        final_y = current_y + pushback_y;
-        collision_detected = true;
-        log::debug!("[AnimalCollision] Animal {} pushed back by door: ({:.1}, {:.1})", 
-                   animal_id, pushback_x, pushback_y);
-    }
-    
-    // Check fence collisions at destination (backup check)
-    if check_fence_collision(ctx, final_x, final_y, ANIMAL_COLLISION_RADIUS) {
-        // Calculate pushback from fence collision
-        if let Some((pushback_x, pushback_y)) = check_fence_collision_pushback(ctx, final_x, final_y, ANIMAL_COLLISION_RADIUS) {
+    // EXCEPTION: Bees have NO collision - they fly through everything!
+    if !is_bee {
+        if let Some((pushback_x, pushback_y)) = check_animal_collision(ctx, animal_id, final_x, final_y) {
             final_x = current_x + pushback_x;
             final_y = current_y + pushback_y;
             collision_detected = true;
-            log::debug!("[AnimalCollision] Animal {} pushed back by fence: ({:.1}, {:.1})", 
+            log::debug!("[AnimalCollision] Animal {} pushed back by other animal: ({:.1}, {:.1})", 
                        animal_id, pushback_x, pushback_y);
         }
     }
     
-    // Check foundation triangle hypotenuse collisions
-    if let Some((pushback_x, pushback_y)) = check_foundation_collision(&ctx.db, final_x, final_y) {
-        final_x = current_x + pushback_x;
-        final_y = current_y + pushback_y;
-        collision_detected = true;
-        log::debug!("[AnimalCollision] Animal {} pushed back by foundation: ({:.1}, {:.1})", 
-                   animal_id, pushback_x, pushback_y);
+    // Animal-to-player collision (different radius based on attacking state)
+    // EXCEPTION: Bees have NO collision - they fly through players!
+    if !is_bee {
+        if let Some((pushback_x, pushback_y)) = check_player_collision(ctx, final_x, final_y, is_attacking) {
+            final_x = current_x + pushback_x;
+            final_y = current_y + pushback_y;
+            collision_detected = true;
+            log::debug!("[AnimalCollision] Animal {} pushed back by player: ({:.1}, {:.1})", 
+                       animal_id, pushback_x, pushback_y);
+        }
     }
+    
+    // Environmental and structure collision checks - bees skip all of these (they fly)
+    if !is_bee {
+        // Environmental collision checks
+        if let Some((pushback_x, pushback_y)) = check_environmental_collision_with_grid(grid, &ctx.db, final_x, final_y) {
+            final_x = current_x + pushback_x;
+            final_y = current_y + pushback_y;
+            collision_detected = true;
+            log::debug!("[AnimalCollision] Animal {} pushed back by environment: ({:.1}, {:.1})", 
+                       animal_id, pushback_x, pushback_y);
+        }
+        
+        // Check wall collisions at destination (backup check)
+        if let Some((pushback_x, pushback_y)) = check_wall_collision(&ctx.db, final_x, final_y) {
+            final_x = current_x + pushback_x;
+            final_y = current_y + pushback_y;
+            collision_detected = true;
+            log::debug!("[AnimalCollision] Animal {} pushed back by wall: ({:.1}, {:.1})", 
+                       animal_id, pushback_x, pushback_y);
+        }
+        
+        // Check door collisions at destination (backup check)
+        if let Some((pushback_x, pushback_y)) = crate::door::check_door_collision(ctx, final_x, final_y, ANIMAL_COLLISION_RADIUS) {
+            final_x = current_x + pushback_x;
+            final_y = current_y + pushback_y;
+            collision_detected = true;
+            log::debug!("[AnimalCollision] Animal {} pushed back by door: ({:.1}, {:.1})", 
+                       animal_id, pushback_x, pushback_y);
+        }
+        
+        // Check fence collisions at destination (backup check)
+        if check_fence_collision(ctx, final_x, final_y, ANIMAL_COLLISION_RADIUS) {
+            // Calculate pushback from fence collision
+            if let Some((pushback_x, pushback_y)) = check_fence_collision_pushback(ctx, final_x, final_y, ANIMAL_COLLISION_RADIUS) {
+                final_x = current_x + pushback_x;
+                final_y = current_y + pushback_y;
+                collision_detected = true;
+                log::debug!("[AnimalCollision] Animal {} pushed back by fence: ({:.1}, {:.1})", 
+                           animal_id, pushback_x, pushback_y);
+            }
+        }
+        
+        // Check foundation triangle hypotenuse collisions
+        if let Some((pushback_x, pushback_y)) = check_foundation_collision(&ctx.db, final_x, final_y) {
+            final_x = current_x + pushback_x;
+            final_y = current_y + pushback_y;
+            collision_detected = true;
+            log::debug!("[AnimalCollision] Animal {} pushed back by foundation: ({:.1}, {:.1})", 
+                       animal_id, pushback_x, pushback_y);
+        }
+    } // End of !is_bee block
     
     // Clamp to world bounds
     final_x = final_x.max(ANIMAL_COLLISION_RADIUS).min(WORLD_WIDTH_PX - ANIMAL_COLLISION_RADIUS);
