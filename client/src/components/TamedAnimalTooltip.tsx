@@ -136,7 +136,7 @@ const TamedAnimalTooltip: React.FC<TamedAnimalTooltipProps> = ({
     if (!animal.tamedBy || !players) return 'Unknown';
     const ownerHex = animal.tamedBy.toHexString();
     const owner = players.get(ownerHex);
-    return owner?.displayName || ownerHex.substring(0, 8) + '...';
+    return owner?.username || ownerHex.substring(0, 8) + '...';
   };
 
   const genderDisplay = getGenderDisplay();

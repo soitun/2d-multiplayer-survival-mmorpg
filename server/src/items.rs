@@ -58,6 +58,15 @@ pub struct CostIngredient {
     pub quantity: u32,
 }
 
+/// Flexible ingredient group - allows any combination of valid items totaling the required quantity
+/// Example: "Any 2 berries" where berries = ["Lingonberries", "Cloudberries", "Bilberries", ...]
+#[derive(SpacetimeType, Clone, Debug, Serialize, Deserialize)]
+pub struct FlexibleIngredient {
+    pub valid_items: Vec<String>,  // List of item names that can satisfy this requirement
+    pub total_required: u32,       // Total quantity needed (can mix different valid items)
+    pub group_name: String,        // Display name like "Any Berry" or "Any Cooked Root"
+}
+
 #[spacetimedb::table(name = item_definition, public)]
 #[derive(Clone, Debug)] // Removed SpacetimeType, Serialize, Deserialize here as it's a table
                        // It will get them from the #[table] macro automatically.
@@ -91,6 +100,8 @@ pub struct ItemDefinition {
     pub bleed_tick_interval_seconds: Option<f32>, // ADDED
 
     pub crafting_cost: Option<Vec<CostIngredient>>, // MODIFIED HERE
+    pub alternative_crafting_costs: Option<Vec<Vec<CostIngredient>>>, // Alternative recipes that can also produce this item
+    pub flexible_ingredients: Option<Vec<FlexibleIngredient>>, // Flexible ingredient groups (e.g., "any 2 berries")
     pub crafting_output_quantity: Option<u32>,      // How many items this recipe produces
     pub crafting_time_secs: Option<u32>,            // Time in seconds to craft
     pub requires_station: Option<String>,           // Name of station required for crafting (e.g., "Cooking Station")

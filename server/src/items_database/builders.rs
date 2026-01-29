@@ -1,4 +1,4 @@
-use crate::items::{ItemDefinition, ItemCategory, CostIngredient};
+use crate::items::{ItemDefinition, ItemCategory, CostIngredient, FlexibleIngredient};
 use crate::models::{EquipmentSlotType, TargetType, DamageType, ArmorResistances, AmmoType};
 
 pub struct ItemBuilder {
@@ -31,6 +31,8 @@ impl ItemBuilder {
                 bleed_duration_seconds: None,
                 bleed_tick_interval_seconds: None,
                 crafting_cost: None,
+                alternative_crafting_costs: None,
+                flexible_ingredients: None,
                 crafting_output_quantity: None,
                 crafting_time_secs: None,
                 requires_station: None,
@@ -133,6 +135,35 @@ impl ItemBuilder {
     
     pub fn crafting_cost(mut self, ingredients: Vec<CostIngredient>) -> Self {
         self.inner.crafting_cost = Some(ingredients);
+        self
+    }
+    
+    /// Add an alternative crafting recipe that can also produce this item.
+    /// Call this multiple times to add multiple alternative recipes.
+    pub fn alternative_recipe(mut self, ingredients: Vec<CostIngredient>) -> Self {
+        if self.inner.alternative_crafting_costs.is_none() {
+            self.inner.alternative_crafting_costs = Some(Vec::new());
+        }
+        if let Some(ref mut alternatives) = self.inner.alternative_crafting_costs {
+            alternatives.push(ingredients);
+        }
+        self
+    }
+    
+    /// Add a flexible ingredient group that allows any combination of valid items.
+    /// Example: flexible_ingredient("Any Berry", 2, vec!["Lingonberries", "Cloudberries", ...])
+    /// Player can use 2 Lingonberries, or 1 Lingonberry + 1 Cloudberry, etc.
+    pub fn flexible_ingredient(mut self, group_name: &str, total_required: u32, valid_items: Vec<&str>) -> Self {
+        if self.inner.flexible_ingredients.is_none() {
+            self.inner.flexible_ingredients = Some(Vec::new());
+        }
+        if let Some(ref mut flex) = self.inner.flexible_ingredients {
+            flex.push(FlexibleIngredient {
+                valid_items: valid_items.into_iter().map(|s| s.to_string()).collect(),
+                total_required,
+                group_name: group_name.to_string(),
+            });
+        }
         self
     }
     

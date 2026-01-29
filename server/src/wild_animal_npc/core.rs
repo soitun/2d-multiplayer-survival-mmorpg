@@ -5769,10 +5769,10 @@ fn milk_walrus(ctx: &ReducerContext, animal: &mut WildAnimal, current_day: u32, 
 
 /// Helper to give milk item to player
 fn give_milk_to_player(ctx: &ReducerContext, player_id: Identity) -> Result<(), String> {
-    // Find the Milk item definition
+    // Find the Raw Milk item definition
     let milk_def = ctx.db.item_definition().iter()
-        .find(|def| def.name == "Milk")
-        .ok_or_else(|| "Milk item definition not found".to_string())?;
+        .find(|def| def.name == "Raw Milk")
+        .ok_or_else(|| "Raw Milk item definition not found".to_string())?;
     
     // Add milk to player's inventory (1 milk per milking)
     crate::items::add_item_to_player_inventory(ctx, player_id, milk_def.id, 1)?;

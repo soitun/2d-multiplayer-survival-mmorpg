@@ -382,7 +382,7 @@ import soupStoneSoupIcon from '../assets/items/soup_stone_soup.png';
 // === COOKING STATION RECIPES ===
 // Advanced gourmet meals that require a Cooking Station
 import vegetableStewIcon from '../assets/items/vegetable_stew.png';
-import rootMashIcon from '../assets/items/root_mash.png';
+import rootMedleyIcon from '../assets/items/root_medley.png';
 import stuffedPumpkinIcon from '../assets/items/stuffed_pumpkin.png';
 import fishPieIcon from '../assets/items/fish_pie.png';
 import seafoodPlatterIcon from '../assets/items/seafood_platter.png';
@@ -395,6 +395,25 @@ import mushroomMedleyIcon from '../assets/items/mushroom_medley.png';
 import stuffedMushroomsIcon from '../assets/items/stuffed_mushrooms.png';
 import berryTartIcon from '../assets/items/berry_tart.png';
 import mixedBerryBowlIcon from '../assets/items/mixed_berry_bowl.png';
+
+// === DAIRY & FERMENTATION ===
+// Milk products and fermented goods
+import milkIcon from '../assets/items/milk.png';
+import warmMilkIcon from '../assets/items/warm_milk.png';
+import cheeseIcon from '../assets/items/cheese.png';
+import yogurtIcon from '../assets/items/yogurt.png';
+import yeastIcon from '../assets/items/yeast.png';
+
+// Mashes and fermented bases
+import berryMashIcon from '../assets/items/berry_mash.png';
+import grainMashIcon from '../assets/items/grain_mash.png';
+import rootMashIcon from '../assets/items/root_mash.png';
+
+// Alcoholic beverages
+import grainBeerIcon from '../assets/items/grain_beer.png';
+import berryWineIcon from '../assets/items/berry_wine.png';
+import rootWineIcon from '../assets/items/root_wine.png';
+import vinegarIcon from '../assets/items/vinegar.png';
 
 // === SEEDS ===
 // All plantable items
@@ -964,7 +983,7 @@ const iconMap: { [key: string]: string | undefined } = {
   // === COOKING STATION RECIPES ===
   // Advanced gourmet meals
   'vegetable_stew.png': vegetableStewIcon,
-  'root_mash.png': rootMashIcon,
+  'root_medley.png': rootMedleyIcon,
   'stuffed_pumpkin.png': stuffedPumpkinIcon,
   'fish_pie.png': fishPieIcon,
   'seafood_platter.png': seafoodPlatterIcon,
@@ -977,6 +996,20 @@ const iconMap: { [key: string]: string | undefined } = {
   'stuffed_mushrooms.png': stuffedMushroomsIcon,
   'berry_tart.png': berryTartIcon,
   'mixed_berry_bowl.png': mixedBerryBowlIcon,
+  
+  // === DAIRY & FERMENTATION ===
+  'milk.png': milkIcon,
+  'warm_milk.png': warmMilkIcon,
+  'cheese.png': cheeseIcon,
+  'yogurt.png': yogurtIcon,
+  'yeast.png': yeastIcon,
+  'berry_mash.png': berryMashIcon,
+  'grain_mash.png': grainMashIcon,
+  'root_mash.png': rootMashIcon,
+  'grain_beer.png': grainBeerIcon,
+  'berry_wine.png': berryWineIcon,
+  'root_wine.png': rootWineIcon,
+  'vinegar.png': vinegarIcon,
 };
 
 /**

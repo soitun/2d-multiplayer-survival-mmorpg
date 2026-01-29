@@ -1283,7 +1283,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // === ANIMAL MILK ===
-        ItemBuilder::new("Milk", "Fresh milk from a tamed caribou or walrus. Rich and creamy, providing excellent nutrition and hydration. Can be used to make cheese with culture starter.", ItemCategory::Consumable)
+        ItemBuilder::new("Raw Milk", "Fresh milk from a tamed caribou or walrus. Rich and creamy, providing excellent nutrition and hydration. Can be used to make cheese with yeast. Can also be warmed up to make Warm Milk.", ItemCategory::Consumable)
             .icon("milk.png")
             .stackable(10)
             .consumable(15.0, 25.0, 35.0) // health, hunger, thirst - good nutrition and very hydrating
@@ -1294,8 +1294,145 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
         ItemBuilder::new("Warm Milk", "Gently heated milk. Comforting and soothing, perfect for cold nights. More nutritious and easier to digest than cold milk.", ItemCategory::Consumable)
             .icon("warm_milk.png")
             .stackable(10)
-            .consumable(20.0, 30.0, 40.0) // health, hunger, thirst - better than raw milk
+            .consumable(30.0, 50.0, 70.0) // health, hunger, thirst - better than raw milk
             .respawn_time(60)
+            .build(),
+
+        // === DAIRY PRODUCTS ===
+        ItemBuilder::new("Cheese", "Aged cheese made from raw milk and yeast. Rich, savory, and highly nutritious. A valuable food source.", ItemCategory::Consumable)
+            .icon("cheese.png")
+            .stackable(10)
+            .consumable(40.0, 60.0, -10.0) // Very filling but makes you thirsty
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Raw Milk".to_string(), quantity: 3 },
+                CostIngredient { item_name: "Yeast".to_string(), quantity: 1 },
+            ])
+            .crafting_output(2, 10) // Makes 2 cheese, takes 10 seconds
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Yogurt", "Thick, tangy fermented milk. Refreshing and probiotic-rich. Good for digestion and provides balanced nutrition.", ItemCategory::Consumable)
+            .icon("yogurt.png")
+            .stackable(10)
+            .consumable(25.0, 40.0, 45.0) // Balanced nutrition
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Raw Milk".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Yeast".to_string(), quantity: 1 },
+            ])
+            .crafting_output(2, 8) // Makes 2 yogurt, takes 8 seconds
+            .requires_station("Cooking Station")
+            .build(),
+
+        // === FERMENTATION BASE INGREDIENTS ===
+        ItemBuilder::new("Yeast", "Active yeast culture for fermentation. Essential for making bread, beer, and wine. Can be created from berry mash or raw milk.", ItemCategory::Consumable)
+            .icon("yeast.png")
+            .stackable(20)
+            .consumable(2.0, 2.0, 2.0) // Barely edible on its own
+            .flexible_ingredient("Fermentable Base", 1, vec![
+                "Berry Mash",
+                "Raw Milk",
+            ])
+            .crafting_output(2, 5) // Makes 2 yeast, takes 5 seconds
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Berry Mash", "Crushed and mashed berries ready for fermentation. The base for berry wine and yeast production.", ItemCategory::Consumable)
+            .icon("berry_mash.png")
+            .stackable(10)
+            .consumable(10.0, 15.0, 25.0) // Sweet and hydrating
+            .flexible_ingredient("Any Berry", 2, vec![
+                "Lingonberries",
+                "Cloudberries",
+                "Crowberries",
+                "Bilberries",
+                "Wild Strawberries",
+                "Rowan Berries",
+                "Cranberries",
+                "Nagoonberries",
+            ])
+            .crafting_output(1, 3)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Grain Mash", "Ground flour mixed with water to create a fermentable grain base. Essential for brewing grain beer.", ItemCategory::Consumable)
+            .icon("grain_mash.png")
+            .stackable(10)
+            .consumable(5.0, 20.0, 15.0) // Starchy but bland
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Flour".to_string(), quantity: 1 },
+            ])
+            .crafting_output(1, 3)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Root Mash", "Mashed cooked starchy roots ready for fermentation. The base for root wine.", ItemCategory::Consumable)
+            .icon("root_mash.png")
+            .stackable(10)
+            .consumable(15.0, 25.0, 10.0) // Starchy and filling
+            .flexible_ingredient("Any Cooked Root", 2, vec![
+                "Cooked Potato",
+                "Cooked Beet",
+                "Cooked Pumpkin",
+                "Cooked Kamchatka Lily Bulb",
+                "Cooked Silverweed Root",
+                "Cooked Bistort Bulbils",
+                "Cooked Salsify Root",
+            ])
+            .crafting_output(1, 3)
+            .requires_station("Cooking Station")
+            .build(),
+
+        // === ALCOHOLIC BEVERAGES ===
+        ItemBuilder::new("Grain Beer", "Hearty beer brewed from grain mash and yeast. Provides warmth and courage, but may impair judgment.", ItemCategory::Consumable)
+            .icon("grain_beer.png")
+            .stackable(10)
+            .consumable(20.0, 30.0, 40.0) // Hydrating and filling
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Grain Mash".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Yeast".to_string(), quantity: 1 },
+            ])
+            .crafting_output(2, 8)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Berry Wine", "Sweet and fruity wine made from fermented berry mash. A civilized drink for harsh times.", ItemCategory::Consumable)
+            .icon("berry_wine.png")
+            .stackable(10)
+            .consumable(25.0, 20.0, 50.0) // More hydrating, less filling
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Berry Mash".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Yeast".to_string(), quantity: 1 },
+            ])
+            .crafting_output(2, 8)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Root Wine", "Earthy wine made from fermented root vegetables. An acquired taste with surprising depth.", ItemCategory::Consumable)
+            .icon("root_wine.png")
+            .stackable(10)
+            .consumable(20.0, 25.0, 45.0) // Balanced
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Root Mash".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Yeast".to_string(), quantity: 1 },
+            ])
+            .crafting_output(2, 8)
+            .requires_station("Cooking Station")
+            .build(),
+
+        // === VINEGAR ===
+        ItemBuilder::new("Vinegar", "Sharp, acidic liquid from further fermentation. Essential for pickling and preserving foods.", ItemCategory::Consumable)
+            .icon("vinegar.png")
+            .stackable(10)
+            .consumable(-5.0, 5.0, 10.0) // Not great to drink straight
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Berry Mash".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Yeast".to_string(), quantity: 1 },
+            ])
+            .alternative_recipe(vec![
+                CostIngredient { item_name: "Berry Wine".to_string(), quantity: 1 },
+            ])
+            .crafting_output(1, 5)
+            .requires_station("Cooking Station")
             .build(),
 
         ItemBuilder::new("Tin of Sprats in Oil", "Small oily fish preserved in a tin. Provides good nutrition and a slight health boost from the omega oils.", ItemCategory::Consumable)
@@ -1725,8 +1862,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .requires_station("Cooking Station")
             .build(),
 
-        ItemBuilder::new("Root Vegetable Mash", "A comforting mash of root vegetables with roasted garlic. Filling and delicious.", ItemCategory::Consumable)
-            .icon("root_mash.png")
+        ItemBuilder::new("Root Vegetable Medley", "A comforting medley of root vegetables with roasted garlic. Filling and delicious.", ItemCategory::Consumable)
+            .icon("root_medley.png")
             .stackable(5)
             .consumable(50.0, 85.0, 30.0)
             .crafting_cost(vec![
@@ -1899,13 +2036,14 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // === ALEUTIAN BREAD - Premium Traditional Food ===
-        // One of the best consumables in the game - requires traditional flour sources
-        ItemBuilder::new("Aleutian Bread", "Traditional flatbread made from Aleut flour sources. Dense, nutritious, and incredibly satisfying. A testament to the ingenuity of island survival.", ItemCategory::Consumable)
+        // One of the best consumables in the game - requires traditional flour sources and yeast
+        ItemBuilder::new("Aleutian Bread", "Traditional leavened bread made from Aleut flour sources. Dense, nutritious, and incredibly satisfying. A testament to the ingenuity of island survival.", ItemCategory::Consumable)
             .icon("aleutian_bread.png")
             .stackable(10)
             .consumable(80.0, 100.0, 25.0) // One of the best - high health and hunger restoration
             .crafting_cost(vec![
                 CostIngredient { item_name: "Flour".to_string(), quantity: 4 },
+                CostIngredient { item_name: "Yeast".to_string(), quantity: 1 },
             ])
             .crafting_output(2, 0) // Makes 2 loaves
             .requires_station("Cooking Station")
@@ -1918,6 +2056,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(95.0, 110.0, 40.0) // THE BEST consumable - excellent across all stats
             .crafting_cost(vec![
                 CostIngredient { item_name: "Flour".to_string(), quantity: 4 },
+                CostIngredient { item_name: "Yeast".to_string(), quantity: 1 },
                 CostIngredient { item_name: "Cloudberries".to_string(), quantity: 3 },
             ])
             .crafting_output(2, 0) // Makes 2 loaves
