@@ -301,6 +301,11 @@ function getCollisionCandidates(
       continue; // Flying birds have no collision - they can pass through everything
     }
     
+    // BEES: No collision - they fly through everything and players can walk through them
+    if (animal.species.tag === 'Bee') {
+      continue; // Bees have no collision at all
+    }
+    
     shapes.push({
       id: animal.id.toString(),
       type: `animal-${animal.id.toString()}`,

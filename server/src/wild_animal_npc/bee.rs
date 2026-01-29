@@ -41,11 +41,11 @@ pub struct BeeBehavior;
 // Bee-specific constants
 const BEE_HOME_RETURN_DISTANCE: f32 = 400.0; // Return to hive if player is this far
 const BEE_AGGRO_RANGE: f32 = 250.0; // Bees aggro when player is within this range of hive
-const BEE_FIRE_KILL_RADIUS: f32 = 100.0; // Instant death within this range of campfire
+const BEE_FIRE_KILL_RADIUS: f32 = 150.0; // Instant death within this range of campfire (increased from 100)
 const BEE_FIRE_KILL_RADIUS_SQ: f32 = BEE_FIRE_KILL_RADIUS * BEE_FIRE_KILL_RADIUS;
-const BEE_TORCH_KILL_RADIUS: f32 = 80.0; // Slightly smaller for torches (player-held)
+const BEE_TORCH_KILL_RADIUS: f32 = 180.0; // Larger kill radius for torches - bees die when player is nearby (increased from 80)
 const BEE_TORCH_KILL_RADIUS_SQ: f32 = BEE_TORCH_KILL_RADIUS * BEE_TORCH_KILL_RADIUS;
-const BEE_FIRE_PATCH_KILL_RADIUS: f32 = 50.0; // Fire patches (from fire arrows) - slightly larger than visual radius
+const BEE_FIRE_PATCH_KILL_RADIUS: f32 = 80.0; // Fire patches (from fire arrows) - increased from 50
 const BEE_FIRE_PATCH_KILL_RADIUS_SQ: f32 = BEE_FIRE_PATCH_KILL_RADIUS * BEE_FIRE_PATCH_KILL_RADIUS;
 
 impl AnimalBehavior for BeeBehavior {
@@ -280,6 +280,10 @@ impl AnimalBehavior for BeeBehavior {
 /// Check if bee is near fire and should die instantly
 /// Returns true if the bee died
 fn check_and_apply_fire_death(ctx: &ReducerContext, animal: &mut WildAnimal) -> bool {
+    // DEBUG: Log every time this is called to confirm bees are reaching this function
+    log::trace!("🐝 check_and_apply_fire_death called for bee {} at ({:.1}, {:.1})", 
+               animal.id, animal.pos_x, animal.pos_y);
+    
     // Check for burning campfires
     for campfire in ctx.db.campfire().iter() {
         if !campfire.is_burning || campfire.is_destroyed {
@@ -321,17 +325,26 @@ fn check_and_apply_fire_death(ctx: &ReducerContext, animal: &mut WildAnimal) -> 
         }
         
         // Check if player has a lit torch equipped
-        if !player_has_lit_torch(ctx, &player) {
-            continue;
-        }
+        let has_torch = player_has_lit_torch(ctx, &player);
         
         let dx = player.position_x - animal.pos_x;
         let dy = player.position_y - animal.pos_y;
         let dist_sq = dx * dx + dy * dy;
+        let dist = dist_sq.sqrt();
+        
+        // Debug log for torch checking (only for close players)
+        if dist < 300.0 {
+            log::debug!("🐝 Bee {} checking player {} - distance: {:.1}px, torch_lit: {}, kill_radius: {:.1}", 
+                       animal.id, player.identity, dist, has_torch, BEE_TORCH_KILL_RADIUS);
+        }
+        
+        if !has_torch {
+            continue;
+        }
         
         if dist_sq < BEE_TORCH_KILL_RADIUS_SQ {
             // Bee caught near torch - instant death!
-            log::info!("🐝🔥 Bee {} burned to death near player {}'s torch!", animal.id, player.identity);
+            log::info!("🐝🔥 Bee {} burned to death near player {}'s torch! (dist: {:.1}px)", animal.id, player.identity, dist);
             emit_bee_death_and_delete(ctx, animal);
             return true;
         }
