@@ -176,7 +176,7 @@ export function isFoodItem(itemDef: ItemDefinition): boolean {
 
 /**
  * Check if an item definition supports the durability system
- * Returns true for weapons, tools, ranged weapons, torches, flashlights, and food items
+ * Returns true for weapons, tools, ranged weapons, torches, flashlights, food items, and items with explicit spoilage time
  * Excludes items that don't lose durability: Fertilizer, Reed Water Bottle, Plastic Water Jug
  */
 export function hasDurabilitySystem(itemDef: ItemDefinition): boolean {
@@ -200,6 +200,11 @@ export function hasDurabilitySystem(itemDef: ItemDefinition): boolean {
     
     // Check special items by name (light sources with durability)
     if (itemDef.name === 'Torch' || itemDef.name === 'Flashlight' || itemDef.name === 'Headlamp') {
+        return true;
+    }
+    
+    // Check for items with explicit spoilage time (like Queen Bee, bait, etc.)
+    if (itemDef.spoilsAfterHours !== null && itemDef.spoilsAfterHours !== undefined && itemDef.spoilsAfterHours > 0) {
         return true;
     }
     
@@ -368,23 +373,60 @@ function isItemInRefrigerator(item: InventoryItem, connection: DbConnection | nu
 }
 
 /**
+ * Calculate spoilage time remaining for items with explicit spoilage time (like Queen Bee)
+ * Returns hours remaining or null if spoiled
+ */
+function calculateExplicitSpoilageTimeRemaining(item: InventoryItem, itemDef: ItemDefinition): number | null {
+    if (!itemDef.spoilsAfterHours || itemDef.spoilsAfterHours <= 0) {
+        return null;
+    }
+    
+    const durability = getDurability(item);
+    const totalSpoilageHours = itemDef.spoilsAfterHours;
+    
+    // If no durability data, treat as fresh (full time remaining)
+    if (durability === null) {
+        return totalSpoilageHours;
+    }
+    
+    // If already spoiled, return null
+    if (durability <= 0) {
+        return null;
+    }
+    
+    // Calculate time remaining based on durability percentage
+    const durabilityPercentage = durability / MAX_DURABILITY;
+    return totalSpoilageHours * durabilityPercentage;
+}
+
+/**
  * Format time remaining until spoilage for display
  * Returns formatted string like "12h 30m" or "2d 5h" or "Spoiled" or "Preserved"
+ * Works for both food items and items with explicit spoilage time (like Queen Bee)
  * @param item - The inventory item
  * @param itemDef - The item definition
  * @param connection - Optional database connection to check if item is in a pantry
  */
 export function formatFoodSpoilageTimeRemaining(item: InventoryItem, itemDef: ItemDefinition, connection?: DbConnection | null): string {
-    if (!isFoodItem(itemDef)) {
-        return '';
-    }
-    
-    // Check if item is in a pantry - if so, show "Preserved"
+    // Check if item is in a pantry/refrigerator - if so, show "Preserved"
     if (connection && isItemInRefrigerator(item, connection)) {
         return 'Preserved';
     }
     
-    const timeRemainingHours = calculateFoodSpoilageTimeRemaining(item, itemDef);
+    let timeRemainingHours: number | null = null;
+    
+    // Check if it's a food item
+    if (isFoodItem(itemDef)) {
+        timeRemainingHours = calculateFoodSpoilageTimeRemaining(item, itemDef);
+    } 
+    // Check if it has explicit spoilage time (like Queen Bee)
+    else if (itemDef.spoilsAfterHours && itemDef.spoilsAfterHours > 0) {
+        timeRemainingHours = calculateExplicitSpoilageTimeRemaining(item, itemDef);
+    }
+    // Neither food nor explicit spoilage time
+    else {
+        return '';
+    }
     
     if (timeRemainingHours === null) {
         return 'Spoiled';

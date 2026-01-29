@@ -840,6 +840,10 @@ export function isPlacementTooFar(
         // and players need to place them further away to avoid collision overlap
         const WARD_PLACEMENT_MAX_DISTANCE = 160.0;
         clientPlacementRangeSq = WARD_PLACEMENT_MAX_DISTANCE * WARD_PLACEMENT_MAX_DISTANCE;
+    } else if (placementInfo.iconAssetName === 'beehive_wooden.png') {
+        // Player-made beehives are larger objects and need increased placement range (200px)
+        const BEEHIVE_PLACEMENT_MAX_DISTANCE = 200.0;
+        clientPlacementRangeSq = BEEHIVE_PLACEMENT_MAX_DISTANCE * BEEHIVE_PLACEMENT_MAX_DISTANCE;
     } else {
         // Use standard interaction distance for other items (campfires, lanterns, boxes, etc.)
         clientPlacementRangeSq = PLAYER_BOX_INTERACTION_DISTANCE_SQUARED * 1.1;

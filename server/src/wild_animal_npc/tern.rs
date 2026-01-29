@@ -120,30 +120,21 @@ impl AnimalBehavior for TernBehavior {
                         transition_to_state(animal, AnimalState::Fleeing, current_time, None, "flee from nearby player");
                         log::debug!("Tern {} fleeing from nearby player", animal.id);
                     } else {
-                        // Alert with cooldown - don't spam every tick, but allow periodic alerts
-                        // Use scent_ping_timer as a general "last alert time" tracker (repurposed for non-wolves)
-                        let alert_cooldown_ms: u64 = 8000; // 8 seconds between alerts
-                        let current_ms_i64 = current_time.to_micros_since_unix_epoch() / 1000;
-                        let current_ms = current_ms_i64.max(0) as u64; // Convert to u64, handle negative timestamps
-                        let time_since_last_alert = current_ms.saturating_sub(animal.scent_ping_timer);
+                        // Screech when first detecting a player (or a different player)
+                        let is_new_detection = animal.target_player_id != Some(player.identity);
                         
-                        let is_new_player = animal.target_player_id != Some(player.identity);
-                        let cooldown_expired = time_since_last_alert >= alert_cooldown_ms;
-                        
-                        if is_new_player || cooldown_expired {
-                            // Track this player and update alert timer
+                        if is_new_detection {
+                            // Track this player
                             animal.target_player_id = Some(player.identity);
-                            animal.scent_ping_timer = current_ms;
                             
                             // Emit alert screech to warn other animals
                             emit_species_sound(ctx, animal, player.identity, "alert");
                             alert_nearby_animals(ctx, animal, player, current_time);
-                            log::debug!("Tern {} alerting about player {} (new={}, cooldown_expired={})", 
-                                       animal.id, player.identity, is_new_player, cooldown_expired);
+                            log::debug!("Tern {} alerting about player {}", animal.id, player.identity);
                         }
                     }
                 } else {
-                    // No player detected - clear target so we can alert immediately when player returns
+                    // No player detected - clear target so tern will screech again when player returns
                     if animal.target_player_id.is_some() {
                         animal.target_player_id = None;
                     }

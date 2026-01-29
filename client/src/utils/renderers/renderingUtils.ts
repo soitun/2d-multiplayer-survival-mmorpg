@@ -1257,7 +1257,7 @@ export const renderYSortedEntities = ({
       } else if (type === 'wooden_storage_box') {
           const box = entity as SpacetimeDBWoodenStorageBox;
           const isTheClosestTarget = closestInteractableTarget?.type === 'box' && closestInteractableTarget?.id === box.id;
-          renderWoodenStorageBox(ctx, box, nowMs, cycleProgress);
+          renderWoodenStorageBox(ctx, box, nowMs, cycleProgress, undefined, undefined, inventoryItems, itemDefinitions);
           
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');

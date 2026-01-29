@@ -16,6 +16,7 @@ import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';
 import { renderEntityHealthBar } from './healthBarUtils';
+import { renderDecorativeBees } from './decorativeBeeRenderingUtils';
 
 // --- Constants --- (Keep exportable if used elsewhere)
 export const BOX_WIDTH = 64; 
@@ -469,7 +470,9 @@ export function renderWoodenStorageBox(
     nowMs: number, 
     cycleProgress: number,
     playerX?: number,
-    playerY?: number
+    playerY?: number,
+    inventoryItems?: Map<string, any>,
+    itemDefinitions?: Map<string, any>
 ) {
     // Fish traps get special water effects rendering (always on shore/in water)
     if (box.boxType === BOX_TYPE_FISH_TRAP && !box.isDestroyed) {
@@ -486,6 +489,11 @@ export function renderWoodenStorageBox(
         entityPosY: box.posY,
         cycleProgress,
     });
+    
+    // Render decorative bees around player-made beehives (only when Queen Bee is present)
+    if (box.boxType === BOX_TYPE_PLAYER_BEEHIVE && inventoryItems && itemDefinitions) {
+        renderDecorativeBees(ctx, box, nowMs, inventoryItems, itemDefinitions);
+    }
     
     // Render health bar using unified system (with type-specific dimensions)
     if (playerX !== undefined && playerY !== undefined) {

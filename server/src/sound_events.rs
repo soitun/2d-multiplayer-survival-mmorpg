@@ -1211,6 +1211,8 @@ fn create_unique_object_id(object_type: &str, object_id: u64) -> u64 {
         "lantern" => 2_000_000_000_u64,  // Lanterns start at 2 billion
         "broth_pot" => 3_000_000_000_u64, // Broth pots start at 3 billion
         "barbecue" => 4_000_000_000_u64, // Barbecues start at 4 billion
+        "beehive" => 5_000_000_000_u64,  // Beehives start at 5 billion
+        "explosive" => 6_000_000_000_u64, // Explosives start at 6 billion
         _ => 0_u64, // Default for unknown types
     };
     type_hash + object_id

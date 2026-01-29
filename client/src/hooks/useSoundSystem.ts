@@ -142,69 +142,6 @@ const NO_PITCH_VARIATION_SOUNDS: Set<SoundType> = new Set([
 // Track active error sounds to prevent multiple from playing simultaneously
 const activeErrorSounds = new Set<HTMLAudioElement>();
 
-// ============================================================================
-// GROWL SOUND RATE LIMITING - Prevent animal growl spam
-// ============================================================================
-// Track last play time for growl sounds per source location to prevent spam
-// Key format: "{soundType}_{roundedPosX}_{roundedPosY}" - groups sounds from same area
-const growlSoundCooldowns = new Map<string, number>();
-const GROWL_COOLDOWN_MS = 3000; // 3 seconds between growl sounds from same animal/area
-
-// List of growl sound types that should be rate limited
-const GROWL_SOUND_TYPES = new Set([
-    'growl_wolf',
-    'growl_fox', 
-    'growl_snake',
-    'growl_walrus',
-    'growl_crab',
-    'growl_crow',
-    'growl_tern',
-    'growl_vole',
-    'growl_wolverine',
-    'growl_caribou',
-    'growl_shorebound',
-    'growl_shardkin',
-    'growl_drowned_watch',
-]);
-
-// Check if a growl sound should be allowed (not in cooldown)
-const shouldAllowGrowlSound = (soundType: string, posX: number, posY: number): boolean => {
-    // Extract base sound type (remove variation number like growl_tern1 -> growl_tern)
-    const baseSoundType = soundType.replace(/\d+$/, '');
-    
-    if (!GROWL_SOUND_TYPES.has(baseSoundType)) {
-        return true; // Not a growl sound, always allow
-    }
-    
-    // Round position to group sounds from the same animal (within ~50px)
-    const roundedX = Math.round(posX / 50) * 50;
-    const roundedY = Math.round(posY / 50) * 50;
-    const key = `${baseSoundType}_${roundedX}_${roundedY}`;
-    
-    const now = Date.now();
-    const lastPlayTime = growlSoundCooldowns.get(key);
-    
-    if (lastPlayTime && (now - lastPlayTime) < GROWL_COOLDOWN_MS) {
-        // Still in cooldown, don't play
-        return false;
-    }
-    
-    // Update last play time and allow sound
-    growlSoundCooldowns.set(key, now);
-    
-    // Cleanup old entries periodically (remove entries older than 10 seconds)
-    if (growlSoundCooldowns.size > 100) {
-        const cutoff = now - 10000;
-        for (const [entryKey, time] of growlSoundCooldowns.entries()) {
-            if (time < cutoff) {
-                growlSoundCooldowns.delete(entryKey);
-            }
-        }
-    }
-    
-    return true;
-};
-
 // Sound configuration
 const SOUND_CONFIG = {
     MAX_SOUND_DISTANCE: 500,
@@ -1317,13 +1254,7 @@ export const useSoundSystem = ({
             }
             
             // All remaining sounds are SERVER_ONLY, so play all server sounds
-            
-            // Rate limit growl sounds to prevent spam from the same animal
-            const baseSoundName = soundEvent.filename.replace(/\d*\.mp3$/, '');
-            if (!shouldAllowGrowlSound(baseSoundName, soundEvent.posX, soundEvent.posY)) {
-                // Skip this growl sound - still in cooldown from same location
-                return;
-            }
+            // Server handles rate limiting for growl sounds via cooldown logic
             
             // Play spatial sound for other players or server-only sounds
             // Use pitch multiplier from server (defaults to 1.0 if not present for backward compatibility)

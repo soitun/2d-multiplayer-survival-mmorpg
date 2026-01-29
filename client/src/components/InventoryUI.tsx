@@ -505,9 +505,10 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                 const durabilityDisplay = formatDurability(item.instance);
                 const durabilityColor = getDurabilityColor(item.instance, def);
                 const isFood = isFoodItem(def);
+                const hasExplicitSpoilage = def.spoilsAfterHours !== null && def.spoilsAfterHours !== undefined && def.spoilsAfterHours > 0;
                 
-                if (isFood) {
-                    // For food items, show spoilage time prominently
+                if (isFood || hasExplicitSpoilage) {
+                    // For food items and items with explicit spoilage time (like Queen Bee), show spoilage time prominently
                     let spoilageTime: string | null = null;
                     try {
                         spoilageTime = formatFoodSpoilageTimeRemaining(item.instance, def, connection);
@@ -515,7 +516,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                         console.error('[Tooltip] Error calculating spoilage time:', error);
                     }
                     
-                    // For food: show spoilage time directly (not "Full (time)")
+                    // For food/explicit spoilage: show spoilage time directly (not "Full (time)")
                     // "Preserved" means spoilage is paused (item is in a pantry)
                     // Otherwise show time remaining
                     const spoilageValue = spoilageTime || durabilityDisplay;
@@ -525,7 +526,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                         color: durabilityColor.replace('0.8)', '1)')
                     });
                 } else {
-                    // For non-food items (weapons, tools), show durability
+                    // For non-food items without explicit spoilage (weapons, tools), show durability
                     stats.push({ 
                         label: 'Durability', 
                         value: durabilityDisplay, 
@@ -954,9 +955,10 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                 const durabilityDisplay = formatDurability(item.instance);
                 const durabilityColor = getDurabilityColor(item.instance, def);
                 const isFood = isFoodItem(def);
+                const hasExplicitSpoilage = def.spoilsAfterHours !== null && def.spoilsAfterHours !== undefined && def.spoilsAfterHours > 0;
                 
-                if (isFood) {
-                    // For food items, show spoilage time prominently
+                if (isFood || hasExplicitSpoilage) {
+                    // For food items and items with explicit spoilage time (like Queen Bee), show spoilage time prominently
                     let spoilageTime: string | null = null;
                     try {
                         spoilageTime = formatFoodSpoilageTimeRemaining(item.instance, def, connection);
@@ -964,7 +966,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                         console.error('[Tooltip] Error calculating spoilage time:', error);
                     }
                     
-                    // For food: show spoilage time directly (not "Full (time)")
+                    // For food/explicit spoilage: show spoilage time directly (not "Full (time)")
                     // "Preserved" means spoilage is paused (item is in a pantry)
                     // Otherwise show time remaining
                     const spoilageValue = spoilageTime || durabilityDisplay;
@@ -974,7 +976,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                         color: durabilityColor.replace('0.8)', '1)')
                     });
                 } else {
-                    // For non-food items (weapons, tools), show durability
+                    // For non-food items without explicit spoilage (weapons, tools), show durability
                     stats.push({ 
                         label: 'Durability', 
                         value: durabilityDisplay, 
