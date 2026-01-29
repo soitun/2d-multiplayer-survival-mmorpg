@@ -1282,6 +1282,22 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(300)
             .build(),
 
+        // === ANIMAL MILK ===
+        ItemBuilder::new("Milk", "Fresh milk from a tamed caribou or walrus. Rich and creamy, providing excellent nutrition and hydration. Can be used to make cheese with culture starter.", ItemCategory::Consumable)
+            .icon("milk.png")
+            .stackable(10)
+            .consumable(15.0, 25.0, 35.0) // health, hunger, thirst - good nutrition and very hydrating
+            .cookable(40.0, "Warm Milk") // Overcooking ruins it
+            .respawn_time(300)
+            .build(),
+
+        ItemBuilder::new("Warm Milk", "Gently heated milk. Comforting and soothing, perfect for cold nights. More nutritious and easier to digest than cold milk.", ItemCategory::Consumable)
+            .icon("warm_milk.png")
+            .stackable(10)
+            .consumable(20.0, 30.0, 40.0) // health, hunger, thirst - better than raw milk
+            .respawn_time(60)
+            .build(),
+
         ItemBuilder::new("Tin of Sprats in Oil", "Small oily fish preserved in a tin. Provides good nutrition and a slight health boost from the omega oils.", ItemCategory::Consumable)
             .icon("tin_of_sprats.png")
             .stackable(10)

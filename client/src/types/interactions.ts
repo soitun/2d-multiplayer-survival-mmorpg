@@ -50,7 +50,8 @@ export type InteractionTargetType =
     | 'broth_pot'
     | 'door'  // ADDED: Building doors
     | 'alk_station'  // ADDED: ALK delivery stations
-    | 'cairn';  // ADDED: Cairn lore monuments
+    | 'cairn'  // ADDED: Cairn lore monuments
+    | 'milkable_animal';  // ADDED: Milkable tamed animals (caribou, walrus)
 
 // Interaction behaviors - determines how the interaction works
 export enum InteractionBehavior {
@@ -185,6 +186,13 @@ export const INTERACTION_CONFIGS: Record<InteractionTargetType, InteractionConfi
         behavior: InteractionBehavior.TAP,
         priority: 70,
         actionType: 'interact_cairn'
+    },
+    
+    // Milkable animal - tap to milk tamed female caribou/walrus
+    milkable_animal: {
+        behavior: InteractionBehavior.TAP,
+        priority: 88, // Higher than water (85) but below harvestable resources (100)
+        actionType: 'milk_animal'
     }
 };
 

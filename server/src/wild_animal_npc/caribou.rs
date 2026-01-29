@@ -163,6 +163,9 @@ pub struct CaribouBreedingData {
     pub consecutive_mating_nights: u32,    // Nights spent near partner
     pub last_mating_check_day: Option<u32>, // Last game day mating was checked
     pub last_mating_attempt_day: Option<u32>, // Last day conception was attempted
+    
+    // Milking (for tamed females only)
+    pub last_milked_day: Option<u32>,      // Game day (cycle_count) when last milked - milkable again at dawn
 }
 
 /// Schedule table for caribou breeding system updates
@@ -786,6 +789,7 @@ pub fn create_caribou_breeding_data(
         consecutive_mating_nights: 0,
         last_mating_check_day: None,
         last_mating_attempt_day: None,
+        last_milked_day: None, // Never milked yet
     };
     
     ctx.db.caribou_breeding_data().try_insert(breeding_data.clone())

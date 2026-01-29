@@ -1053,6 +1053,20 @@ export const useInputHandler = ({
                                     }
                                 }
                                 break;
+                            case 'milkable_animal':
+                                // Milk a tamed animal (caribou or walrus)
+                                if (typeof currentTarget.id === 'bigint') {
+                                    const animalId = currentTarget.id;
+                                    console.log(`[Milk] Attempting to milk animal: ${animalId}`);
+                                    try {
+                                        // Cast to any until bindings are regenerated after server build
+                                        (currentConnection.reducers as any).milkAnimal(animalId);
+                                        console.log(`[Milk] Reducer called for animal ${animalId}`);
+                                    } catch (error) {
+                                        console.error('[Milk] Error milking animal:', error);
+                                    }
+                                }
+                                break;
                         }
                     }
                 } else {

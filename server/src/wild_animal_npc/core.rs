@@ -34,6 +34,9 @@ use crate::animal_collision::{
 use crate::player as PlayerTableTrait;
 use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait;
 use crate::wild_animal_npc::wild_animal_ai_schedule as WildAnimalAiScheduleTableTrait;
+// Breeding data table traits for milking
+use crate::wild_animal_npc::caribou::caribou_breeding_data as CaribouBreedingDataTableTrait;
+use crate::wild_animal_npc::walrus::walrus_breeding_data as WalrusBreedingDataTableTrait;
 use crate::death_marker::death_marker as DeathMarkerTableTrait;
 use crate::shelter::shelter as ShelterTableTrait;
 use crate::active_equipment::active_equipment as ActiveEquipmentTableTrait;
@@ -5627,4 +5630,206 @@ pub fn handle_water_unstuck(
         }
     }
     false // No water collision detected
+}
+
+// =============================================================================
+// MILKING SYSTEM - Milk tamed female caribou and walruses once per game day
+// =============================================================================
+
+/// Milk a tamed animal (caribou or walrus)
+/// Requirements:
+/// - Animal must be tamed by the caller
+/// - Animal must be female
+/// - Animal must be adult age
+/// - Animal must not have been milked today (resets at dawn each day)
+/// - Player must be close enough to the animal
+#[spacetimedb::reducer]
+pub fn milk_animal(ctx: &ReducerContext, animal_id: u64) -> Result<(), String> {
+    // Get the player
+    let player = ctx.db.player().identity().find(&ctx.sender)
+        .ok_or_else(|| "Player not found".to_string())?;
+    
+    if player.is_dead {
+        return Err("Cannot milk while dead".to_string());
+    }
+    
+    // Get the animal
+    let mut animal = ctx.db.wild_animal().id().find(animal_id)
+        .ok_or_else(|| "Animal not found".to_string())?;
+    
+    // Check if animal is tamed by this player
+    let tamed_by = animal.tamed_by.ok_or_else(|| "Animal is not tamed".to_string())?;
+    if tamed_by != ctx.sender {
+        return Err("You don't own this animal".to_string());
+    }
+    
+    // Check proximity (must be within 100 pixels)
+    let distance_sq = get_distance_squared(player.position_x, player.position_y, animal.pos_x, animal.pos_y);
+    if distance_sq > 10000.0 { // 100^2
+        return Err("Too far from animal to milk".to_string());
+    }
+    
+    // Get current game day from world state
+    let world_state = ctx.db.world_state().iter().next()
+        .ok_or_else(|| "World state not found".to_string())?;
+    let current_day = world_state.cycle_count;
+    
+    // Handle milking based on species
+    match animal.species {
+        AnimalSpecies::Caribou => {
+            milk_caribou(ctx, &mut animal, current_day, ctx.sender)?;
+        }
+        AnimalSpecies::ArcticWalrus => {
+            milk_walrus(ctx, &mut animal, current_day, ctx.sender)?;
+        }
+        _ => {
+            return Err(format!("{:?} cannot be milked", animal.species));
+        }
+    }
+    
+    // Update the animal (in case any state changed)
+    ctx.db.wild_animal().id().update(animal);
+    
+    Ok(())
+}
+
+/// Internal function to milk a caribou
+fn milk_caribou(ctx: &ReducerContext, animal: &mut WildAnimal, current_day: u32, player_id: Identity) -> Result<(), String> {
+    use crate::wild_animal_npc::caribou::{CaribouSex, CaribouAgeStage};
+    
+    // Get breeding data
+    let mut breeding_data = ctx.db.caribou_breeding_data().animal_id().find(animal.id)
+        .ok_or_else(|| "Caribou breeding data not found".to_string())?;
+    
+    // Check if female
+    if breeding_data.sex != CaribouSex::Female {
+        return Err("Only female caribou can be milked".to_string());
+    }
+    
+    // Check if adult
+    if breeding_data.age_stage != CaribouAgeStage::Adult {
+        return Err("Only adult caribou can be milked".to_string());
+    }
+    
+    // Check if already milked today
+    if let Some(last_milked) = breeding_data.last_milked_day {
+        if last_milked >= current_day {
+            return Err("This caribou has already been milked today".to_string());
+        }
+    }
+    
+    // Update last milked day
+    breeding_data.last_milked_day = Some(current_day);
+    ctx.db.caribou_breeding_data().animal_id().update(breeding_data);
+    
+    // Give player milk
+    give_milk_to_player(ctx, player_id)?;
+    
+    log::info!("🥛 Player {} milked caribou {} (day {})", player_id, animal.id, current_day);
+    
+    Ok(())
+}
+
+/// Internal function to milk a walrus
+fn milk_walrus(ctx: &ReducerContext, animal: &mut WildAnimal, current_day: u32, player_id: Identity) -> Result<(), String> {
+    use crate::wild_animal_npc::walrus::{WalrusSex, WalrusAgeStage};
+    
+    // Get breeding data
+    let mut breeding_data = ctx.db.walrus_breeding_data().animal_id().find(animal.id)
+        .ok_or_else(|| "Walrus breeding data not found".to_string())?;
+    
+    // Check if female
+    if breeding_data.sex != WalrusSex::Female {
+        return Err("Only female walruses can be milked".to_string());
+    }
+    
+    // Check if adult
+    if breeding_data.age_stage != WalrusAgeStage::Adult {
+        return Err("Only adult walruses can be milked".to_string());
+    }
+    
+    // Check if already milked today
+    if let Some(last_milked) = breeding_data.last_milked_day {
+        if last_milked >= current_day {
+            return Err("This walrus has already been milked today".to_string());
+        }
+    }
+    
+    // Update last milked day
+    breeding_data.last_milked_day = Some(current_day);
+    ctx.db.walrus_breeding_data().animal_id().update(breeding_data);
+    
+    // Give player milk
+    give_milk_to_player(ctx, player_id)?;
+    
+    log::info!("🥛 Player {} milked walrus {} (day {})", player_id, animal.id, current_day);
+    
+    Ok(())
+}
+
+/// Helper to give milk item to player
+fn give_milk_to_player(ctx: &ReducerContext, player_id: Identity) -> Result<(), String> {
+    // Find the Milk item definition
+    let milk_def = ctx.db.item_definition().iter()
+        .find(|def| def.name == "Milk")
+        .ok_or_else(|| "Milk item definition not found".to_string())?;
+    
+    // Add milk to player's inventory (1 milk per milking)
+    crate::items::add_item_to_player_inventory(ctx, player_id, milk_def.id, 1)?;
+    
+    Ok(())
+}
+
+/// Check if an animal is milkable right now
+/// Used by client to determine if milking indicator should be shown
+pub fn is_animal_milkable(
+    animal: &WildAnimal,
+    caribou_breeding: Option<&super::caribou::CaribouBreedingData>,
+    walrus_breeding: Option<&super::walrus::WalrusBreedingData>,
+    current_day: u32,
+) -> bool {
+    // Must be tamed
+    if animal.tamed_by.is_none() {
+        return false;
+    }
+    
+    match animal.species {
+        AnimalSpecies::Caribou => {
+            if let Some(breeding) = caribou_breeding {
+                // Must be female adult
+                if breeding.sex != super::caribou::CaribouSex::Female {
+                    return false;
+                }
+                if breeding.age_stage != super::caribou::CaribouAgeStage::Adult {
+                    return false;
+                }
+                // Check if not milked today
+                match breeding.last_milked_day {
+                    None => true, // Never milked
+                    Some(last_day) => last_day < current_day, // Milked on a previous day
+                }
+            } else {
+                false
+            }
+        }
+        AnimalSpecies::ArcticWalrus => {
+            if let Some(breeding) = walrus_breeding {
+                // Must be female adult
+                if breeding.sex != super::walrus::WalrusSex::Female {
+                    return false;
+                }
+                if breeding.age_stage != super::walrus::WalrusAgeStage::Adult {
+                    return false;
+                }
+                // Check if not milked today
+                match breeding.last_milked_day {
+                    None => true, // Never milked
+                    Some(last_day) => last_day < current_day, // Milked on a previous day
+                }
+            } else {
+                false
+            }
+        }
+        _ => false, // Other species cannot be milked
+    }
 }

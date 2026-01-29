@@ -21,7 +21,7 @@ import { ENTITY_VISUAL_CONFIG, getLabelPosition } from '../entityVisualConfig';
 
 // Define the single target type for labels
 interface InteractableTarget {
-    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'barbecue' | 'fumarole' | 'lantern' | 'turret' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth' | 'broth_pot' | 'door' | 'alk_station' | 'cairn';
+    type: 'harvestable_resource' | 'campfire' | 'furnace' | 'barbecue' | 'fumarole' | 'lantern' | 'turret' | 'dropped_item' | 'box' | 'corpse' | 'stash' | 'sleeping_bag' | 'knocked_out_player' | 'water' | 'rain_collector' | 'homestead_hearth' | 'broth_pot' | 'door' | 'alk_station' | 'cairn' | 'milkable_animal';
     id: bigint | number | string;
     position: { x: number; y: number };
     distance: number;
@@ -55,6 +55,7 @@ interface RenderLabelsParams {
     alkStations: Map<string, SpacetimeDBAlkStation>; // ADDED: ALK Stations
     players: Map<string, SpacetimeDBPlayer>;
     itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
+    wildAnimals?: Map<string, any>; // ADDED: Wild animals for milking interaction
     // Single unified target - replaces individual harvestable resource IDs
     closestInteractableTarget: InteractableTarget | null;
     // Individual entity IDs for consistency and backward compatibility
@@ -498,6 +499,17 @@ export function renderInteractionLabels({
         }
         case 'cairn': {
             const config = ENTITY_VISUAL_CONFIG.cairn;
+            const labelPos = getLabelPosition(
+                closestInteractableTarget.position.x,
+                closestInteractableTarget.position.y,
+                config
+            );
+            renderStyledInteractionLabel(ctx, text, labelPos.x, labelPos.y);
+            break;
+        }
+        case 'milkable_animal': {
+            // Render E label for milkable tamed animals
+            const config = ENTITY_VISUAL_CONFIG.milkable_animal;
             const labelPos = getLabelPosition(
                 closestInteractableTarget.position.x,
                 closestInteractableTarget.position.y,

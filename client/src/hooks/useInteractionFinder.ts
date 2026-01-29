@@ -20,6 +20,10 @@ import {
     Door as SpacetimeDBDoor, // ADDED: Door import
     AlkStation as SpacetimeDBAlkStation, // ADDED: ALK station import
     Cairn as SpacetimeDBCairn, // ADDED: Cairn import
+    WildAnimal as SpacetimeDBWildAnimal, // ADDED: Wild animal import for milking
+    CaribouBreedingData as SpacetimeDBCaribouBreedingData, // ADDED: Caribou breeding data for milking check
+    WalrusBreedingData as SpacetimeDBWalrusBreedingData, // ADDED: Walrus breeding data for milking check
+    WorldState as SpacetimeDBWorldState, // ADDED: World state for current game day
     DbConnection,
     InventoryItem as SpacetimeDBInventoryItem,
     ItemDefinition as SpacetimeDBItemDefinition,
@@ -105,6 +109,11 @@ interface UseInteractionFinderProps {
     connection: DbConnection | null; // NEW: Connection for water tile access
     playerDrinkingCooldowns: Map<string, SpacetimeDBPlayerDrinkingCooldown>; // NEW: Player drinking cooldowns
     worldTiles?: Map<string, any>; // NEW: World tiles for water detection
+    // ADDED: Milkable animal support
+    wildAnimals?: Map<string, SpacetimeDBWildAnimal>;
+    caribouBreedingData?: Map<string, SpacetimeDBCaribouBreedingData>;
+    walrusBreedingData?: Map<string, SpacetimeDBWalrusBreedingData>;
+    worldState?: SpacetimeDBWorldState | null;
 }
 
 // Define the hook's return type
@@ -135,6 +144,7 @@ interface UseInteractionFinderResult {
     closestInteractableDoorId: bigint | null; // ADDED: Door support
     closestInteractableAlkStationId: number | null; // ADDED: ALK station support
     closestInteractableCairnId: bigint | null; // ADDED: Cairn support
+    closestInteractableMilkableAnimalId: bigint | null; // ADDED: Milkable animal support
 }
 
 // Constants for box slots (should match server)
@@ -238,6 +248,11 @@ export function useInteractionFinder({
     connection,
     playerDrinkingCooldowns,
     worldTiles,
+    // ADDED: Milkable animal support
+    wildAnimals,
+    caribouBreedingData,
+    walrusBreedingData,
+    worldState,
 }: UseInteractionFinderProps): UseInteractionFinderResult {
 
     // State for closest interactable IDs
@@ -262,6 +277,7 @@ export function useInteractionFinder({
     const [closestInteractableSleepingBagId, setClosestInteractableSleepingBagId] = useState<number | null>(null);
     const [closestInteractableKnockedOutPlayerId, setClosestInteractableKnockedOutPlayerId] = useState<string | null>(null);
     const [closestInteractableWaterPosition, setClosestInteractableWaterPosition] = useState<{ x: number; y: number } | null>(null);
+    const [closestInteractableMilkableAnimalId, setClosestInteractableMilkableAnimalId] = useState<bigint | null>(null); // ADDED: Milkable animal state
 
     const resultRef = useRef<UseInteractionFinderResult>({
         closestInteractableTarget: null,
@@ -286,6 +302,7 @@ export function useInteractionFinder({
         closestInteractableDoorId: null, // ADDED: Door support
         closestInteractableAlkStationId: null, // ADDED: ALK station support
         closestInteractableCairnId: null, // ADDED: Cairn support
+        closestInteractableMilkableAnimalId: null, // ADDED: Milkable animal support
     });
 
     const updateInteractionResult = useCallback(() => {
@@ -344,6 +361,9 @@ export function useInteractionFinder({
 
         let closestCairnId: bigint | null = null;
         let closestCairnDistSq = PLAYER_CAIRN_INTERACTION_DISTANCE_SQUARED; // Cairn interaction distance
+
+        let closestMilkableAnimalId: bigint | null = null; // ADDED: Milkable animal tracking
+        let closestMilkableAnimalDistSq = 100.0 * 100.0; // 100px interaction distance for milking
 
         let closestSleepingBagId: number | null = null;
         let closestSleepingBagDistSq = PLAYER_SLEEPING_BAG_INTERACTION_DISTANCE_SQUARED;
@@ -770,6 +790,60 @@ export function useInteractionFinder({
                 });
             }
 
+            // ADDED: Find closest milkable animal (tamed female adult caribou/walrus)
+            if (wildAnimals && localPlayer) {
+                const currentDay = worldState?.cycleCount ?? 0;
+                
+                wildAnimals.forEach((animal) => {
+                    // Skip dead animals
+                    if (animal.health <= 0) return;
+                    
+                    // Must be tamed by the local player
+                    if (!animal.tamedBy || !animal.tamedBy.isEqual(localPlayer.identity)) return;
+                    
+                    // Check if it's a milkable species (Caribou or ArcticWalrus)
+                    const speciesTag = animal.species?.tag;
+                    if (speciesTag !== 'Caribou' && speciesTag !== 'ArcticWalrus') return;
+                    
+                    // Get breeding data and check milkability
+                    let isMilkable = false;
+                    
+                    if (speciesTag === 'Caribou' && caribouBreedingData) {
+                        const breedingData = caribouBreedingData.get(animal.id.toString());
+                        if (breedingData) {
+                            // Must be female adult
+                            if (breedingData.sex?.tag === 'Female' && breedingData.ageStage?.tag === 'Adult') {
+                                // Check if not milked today (use any cast for lastMilkedDay until bindings regenerated)
+                                const lastMilkedDay = (breedingData as any).lastMilkedDay;
+                                isMilkable = lastMilkedDay === null || lastMilkedDay === undefined || lastMilkedDay < currentDay;
+                            }
+                        }
+                    } else if (speciesTag === 'ArcticWalrus' && walrusBreedingData) {
+                        const breedingData = walrusBreedingData.get(animal.id.toString());
+                        if (breedingData) {
+                            // Must be female adult
+                            if (breedingData.sex?.tag === 'Female' && breedingData.ageStage?.tag === 'Adult') {
+                                // Check if not milked today (use any cast for lastMilkedDay until bindings regenerated)
+                                const lastMilkedDay = (breedingData as any).lastMilkedDay;
+                                isMilkable = lastMilkedDay === null || lastMilkedDay === undefined || lastMilkedDay < currentDay;
+                            }
+                        }
+                    }
+                    
+                    if (!isMilkable) return;
+                    
+                    // Calculate distance
+                    const dx = playerX - animal.posX;
+                    const dy = playerY - animal.posY;
+                    const distSq = dx * dx + dy * dy;
+                    
+                    if (distSq < closestMilkableAnimalDistSq) {
+                        closestMilkableAnimalDistSq = distSq;
+                        closestMilkableAnimalId = animal.id;
+                    }
+                });
+            }
+
             // Find closest knocked out player (excluding local player)
             if (players) {
                 players.forEach((player) => {
@@ -1064,6 +1138,18 @@ export function useInteractionFinder({
                     });
                 }
             }
+            // ADDED: Add milkable animal to candidates
+            if (closestMilkableAnimalId !== null) {
+                const animal = wildAnimals?.get(String(closestMilkableAnimalId));
+                if (animal) {
+                    candidates.push({
+                        type: 'milkable_animal',
+                        id: closestMilkableAnimalId,
+                        position: { x: animal.posX, y: animal.posY },
+                        distance: Math.sqrt(closestMilkableAnimalDistSq)
+                    });
+                }
+            }
             // Broth pot removed from candidates - it now works through campfire interaction
 
             // Find the closest target using priority selection
@@ -1095,6 +1181,7 @@ export function useInteractionFinder({
             closestInteractableDoorId: closestDoorId, // ADDED: Door support
             closestInteractableAlkStationId: closestAlkStationId, // ADDED: ALK station support
             closestInteractableCairnId: closestCairnId, // ADDED: Cairn support
+            closestInteractableMilkableAnimalId: closestMilkableAnimalId, // ADDED: Milkable animal support
         };
 
         resultRef.current = calculatedResult;
@@ -1155,6 +1242,9 @@ export function useInteractionFinder({
         if (calculatedResult.closestInteractableCairnId !== closestInteractableCairnId) {
             setClosestInteractableCairnId(calculatedResult.closestInteractableCairnId);
         }
+        if (calculatedResult.closestInteractableMilkableAnimalId !== closestInteractableMilkableAnimalId) {
+            setClosestInteractableMilkableAnimalId(calculatedResult.closestInteractableMilkableAnimalId);
+        }
         if (calculatedResult.closestInteractableSleepingBagId !== closestInteractableSleepingBagId) {
             setClosestInteractableSleepingBagId(calculatedResult.closestInteractableSleepingBagId);
         }
@@ -1206,6 +1296,7 @@ export function useInteractionFinder({
         closestInteractableDoorId, // ADDED: Door support
         closestInteractableAlkStationId, // ADDED: ALK station support
         closestInteractableCairnId, // ADDED: Cairn support
+        closestInteractableMilkableAnimalId, // ADDED: Milkable animal support
         closestInteractableSleepingBagId,
         closestInteractableKnockedOutPlayerId,
         closestInteractableWaterPosition,

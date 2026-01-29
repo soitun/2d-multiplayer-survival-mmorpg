@@ -382,6 +382,17 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     spriteWidth: 300,    // Visual sprite width (doubled)
     spriteHeight: 300,   // Visual sprite height (doubled)
   },
+  
+  // Animals
+  milkable_animal: {
+    centerOffsetX: 0,
+    centerOffsetY: -32,  // Visual center for animals (similar to harvestable_resource)
+    width: 80,           // Interaction box covers animal sprite
+    height: 64,
+    placementYOffset: 0,
+    spriteWidth: 64,
+    spriteHeight: 64,
+  },
 };
 
 /**

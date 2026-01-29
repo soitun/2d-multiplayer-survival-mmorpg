@@ -1460,6 +1460,17 @@ export const renderYSortedEntities = ({
               caribouBreedingData,
               walrusBreedingData,
           });
+          
+          // ADDED: Draw interaction outline for milkable animals
+          // Check if this animal is the closest milkable target
+          const isMilkableTarget = closestInteractableTarget?.type === 'milkable_animal' && 
+                                   closestInteractableTarget?.id === wildAnimal.id;
+          if (isMilkableTarget) {
+              const outlineColor = getInteractionOutlineColor('open');
+              const config = ENTITY_VISUAL_CONFIG.milkable_animal;
+              const outline = getInteractionOutlineParams(wildAnimal.posX, wildAnimal.posY, config);
+              drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
+          }
       } else if (type === 'animal_corpse') {
           const animalCorpse = entity as SpacetimeDBAnimalCorpse;
           renderAnimalCorpse(ctx, animalCorpse, nowMs);

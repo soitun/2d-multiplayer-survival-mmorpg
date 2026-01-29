@@ -1156,6 +1156,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     closestInteractableCairnId, // ADDED: Cairn support
     closestInteractableKnockedOutPlayerId,
     closestInteractableWaterPosition,
+    closestInteractableMilkableAnimalId, // ADDED: Milkable animal support
   } = useInteractionFinder({
     localPlayer,
     campfires,
@@ -1183,6 +1184,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     cairns, // ADDED: Cairns to useInteractionFinder
     harvestableResources,
     worldTiles: visibleWorldTiles,
+    // ADDED: Milkable animal support
+    wildAnimals,
+    caribouBreedingData,
+    walrusBreedingData,
+    worldState,
   });
 
   // Synthesize unified target including water when no other target exists
