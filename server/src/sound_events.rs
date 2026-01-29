@@ -16,6 +16,7 @@ pub enum SoundType {
     PickupItem,   // item_pickup.mp3 (1 variation - for item pickup)
     CampfireLooping, // campfire_looping.mp3 (1 variation - continuous looping sound)
     LanternLooping,  // lantern_looping.mp3 (1 variation - continuous looping sound)
+    BeehiveLooping,  // bees_buzzing.mp3 (1 variation - continuous looping sound when Queen Bee is present)
     Repair,       // repair.mp3 (1 variation - for successful repairs)
     RepairFail,   // repair_fail.mp3 (1 variation - for failed repair attempts)
     HeavyStormRain, // rain_heavy_storm.mp3 (1 variation - continuous heavy rain sound during storms)
@@ -107,6 +108,7 @@ pub enum SoundType {
     DeathVole,               // death_vole.mp3 (1 variation - when voles die)
     DeathWolverine,          // death_wolverine.mp3 (1 variation - when wolverines die)
     DeathCaribou,            // death_caribou.mp3 (1 variation - when caribou die)
+    DeathBee,                // death_bee.mp3 (1 variation - when bees die from fire)
     DeathPlayer,             // death_player.mp3 (2 variations - when players die/get knocked out)
     AnimalBurrow,            // animal_burrow.mp3 (1 variation - when animals burrow underground)
     // Player feedback sounds
@@ -131,6 +133,7 @@ impl SoundType {
             SoundType::PickupItem => "item_pickup",
             SoundType::CampfireLooping => "campfire_looping",
             SoundType::LanternLooping => "lantern_looping",
+            SoundType::BeehiveLooping => "bees_buzzing",
             SoundType::Repair => "repair",
             SoundType::RepairFail => "repair_fail",
             SoundType::HeavyStormRain => "rain_heavy_storm",
@@ -220,6 +223,7 @@ impl SoundType {
             SoundType::DeathVole => "death_vole",
             SoundType::DeathWolverine => "death_wolverine",
             SoundType::DeathCaribou => "death_caribou",
+            SoundType::DeathBee => "death_bee",
             SoundType::DeathPlayer => "death_player",
             SoundType::AnimalBurrow => "animal_burrow",
             // Player feedback sounds
@@ -243,6 +247,7 @@ impl SoundType {
             SoundType::PickupItem => 1, // item_pickup.ogg (single variation)
             SoundType::CampfireLooping => 1, // campfire_looping.ogg (single variation)
             SoundType::LanternLooping => 1, // lantern_looping.ogg (single variation)
+            SoundType::BeehiveLooping => 1, // bees_buzzing.mp3 (single variation)
             SoundType::Repair => 1, // repair.ogg (single variation)
             SoundType::RepairFail => 1, // repair_fail.ogg (single variation)
             SoundType::HeavyStormRain => 1,
@@ -332,6 +337,7 @@ impl SoundType {
             SoundType::DeathVole => 1, // death_vole.mp3 (tiny squeak)
             SoundType::DeathWolverine => 1, // death_wolverine.mp3 (fierce snarl)
             SoundType::DeathCaribou => 1, // death_caribou.mp3 (caribou death bellow)
+            SoundType::DeathBee => 1, // death_bee.mp3 (small sizzle/poof when bee dies from fire)
             SoundType::DeathPlayer => 2, // death_player.mp3, death_player1.mp3 (2 variations)
             SoundType::AnimalBurrow => 1, // animal_burrow.mp3 (digging/burrowing sound)
             // Player feedback sounds
@@ -1264,6 +1270,25 @@ pub fn stop_lantern_sound(ctx: &ReducerContext, lantern_id: u64) {
     log::info!("🏮 STOPPING LANTERN SOUND for lantern {} (unique_id: {})", lantern_id, unique_id);
     if let Err(e) = stop_continuous_sound(ctx, unique_id) {
         log::error!("Failed to stop lantern sound: {}", e);
+    }
+}
+
+/// Start beehive buzzing sound (when Queen Bee is present)
+pub fn start_beehive_sound(ctx: &ReducerContext, beehive_id: u64, pos_x: f32, pos_y: f32) {
+    let unique_id = create_unique_object_id("beehive", beehive_id);
+    log::info!("🐝 STARTING BEEHIVE SOUND for beehive {} (unique_id: {}) at ({:.1}, {:.1})", 
+              beehive_id, unique_id, pos_x, pos_y);
+    if let Err(e) = start_continuous_sound(ctx, unique_id, SoundType::BeehiveLooping, pos_x, pos_y, 1.0, 525.0) {
+        log::error!("Failed to start beehive sound: {}", e);
+    }
+}
+
+/// Stop beehive buzzing sound (when Queen Bee is removed)
+pub fn stop_beehive_sound(ctx: &ReducerContext, beehive_id: u64) {
+    let unique_id = create_unique_object_id("beehive", beehive_id);
+    log::info!("🐝 STOPPING BEEHIVE SOUND for beehive {} (unique_id: {})", beehive_id, unique_id);
+    if let Err(e) = stop_continuous_sound(ctx, unique_id) {
+        log::error!("Failed to stop beehive sound: {}", e);
     }
 }
 

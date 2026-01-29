@@ -59,6 +59,7 @@ import {
 // --- Core Hooks ---
 import { useWalkingAnimationCycle, useSprintAnimationCycle, useIdleAnimationCycle, walkingAnimationFrameRef, sprintAnimationFrameRef, idleAnimationFrameRef } from '../hooks/useAnimationCycle';
 import { useAssetLoader } from '../hooks/useAssetLoader';
+import { useDoodadImages } from '../hooks/useDoodadImages';
 import { useGameViewport } from '../hooks/useGameViewport';
 import { useMousePosition } from '../hooks/useMousePosition';
 import { useDayNightCycle } from '../hooks/useDayNightCycle';
@@ -256,7 +257,7 @@ interface GameCanvasProps {
   plantedSeeds: Map<string, SpacetimeDBPlantedSeed>;
   playerDrinkingCooldowns: Map<string, SpacetimeDBPlayerDrinkingCooldown>; // Add player drinking cooldowns
   wildAnimals: Map<string, SpacetimeDBWildAnimal>; // Includes hostile NPCs with is_hostile_npc = true
-  hostileDeathEvents: Array<{id: string, x: number, y: number, species: string, timestamp: number}>; // Client-side death events for particles
+  hostileDeathEvents: Array<{ id: string, x: number, y: number, species: string, timestamp: number }>; // Client-side death events for particles
   animalCorpses: Map<string, SpacetimeDBAnimalCorpse>;
   barrels: Map<string, SpacetimeDBBarrel>; // Add barrels
   fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles
@@ -315,13 +316,13 @@ interface GameCanvasProps {
   plantConfigs?: Map<string, any>;
   // Plants discovered by current player (for encyclopedia filtering)
   discoveredPlants?: Map<string, any>;
-  
+
   // Always show player names above heads
   alwaysShowPlayerNames?: boolean;
-  
+
   // Player stats for title display on name labels
   playerStats?: Map<string, any>;
-  
+
   // Ranged weapon stats for auto-fire detection
   rangedWeaponStats?: Map<string, any>;
 
@@ -331,10 +332,10 @@ interface GameCanvasProps {
   tapAnimation?: { x: number; y: number; startTime: number } | null;
   onMobileInteractInfoChange?: (info: { hasTarget: boolean; label?: string } | null) => void;
   mobileInteractTrigger?: number;
-  
+
   // Memory Beacon server events (airdrop-style)
   beaconDropEvents?: Map<string, any>;
-  
+
   // Animal breeding system data for age-based rendering and pregnancy indicators
   caribouBreedingData?: Map<string, any>; // Caribou sex, age stage, and pregnancy
   walrusBreedingData?: Map<string, any>; // Walrus sex, age stage, and pregnancy
@@ -490,7 +491,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const prevPlayerHealthRef = useRef<number | undefined>(undefined);
   const [damagingCampfireIds, setDamagingCampfireIds] = useState<Set<string>>(new Set());
   const burnSoundPlayedRef = useRef<Set<string>>(new Set()); // Track which burn effects we've played sounds for
-  
+
   // Minimap canvas ref for the InterfaceContainer
   const minimapCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -550,27 +551,27 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const remotePlayerInterpolation = useRemotePlayerInterpolation();
 
   const { canvasSize, cameraOffsetX: baseCameraOffsetX, cameraOffsetY: baseCameraOffsetY } = useGameViewport(localPlayer, predictedPosition);
-  
+
   // === AAA Combat Effects: Screen shake, vignette, heartbeat ===
-  const { 
-    shakeOffsetX, 
-    shakeOffsetY, 
-    vignetteOpacity, 
-    isLowHealth, 
+  const {
+    shakeOffsetX,
+    shakeOffsetY,
+    vignetteOpacity,
+    isLowHealth,
     isCriticalHealth,
-    heartbeatPulse 
+    heartbeatPulse
   } = useDamageEffects(localPlayer, 100); // 100 = max health
-  
+
   // Apply screen shake to camera offset
   const cameraOffsetX = baseCameraOffsetX + shakeOffsetX;
   const cameraOffsetY = baseCameraOffsetY + shakeOffsetY;
   // console.log('[GameCanvas DEBUG] Camera offsets:', cameraOffsetX, cameraOffsetY, 'canvas size:', canvasSize);
-  
+
   const { heroImageRef, heroSprintImageRef, heroIdleImageRef, heroWaterImageRef, heroCrouchImageRef, heroDodgeImageRef, itemImagesRef, cloudImagesRef, shelterImageRef } = useAssetLoader();
-  const doodadImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const doodadImagesRef = useDoodadImages(); // Extracted to dedicated hook
   const foundationTileImagesRef = useRef<Map<string, HTMLImageElement>>(new Map()); // ADDED: Foundation tile images
   const { worldMousePos, canvasMousePos } = useMousePosition({ canvasRef: gameCanvasRef, cameraOffsetX, cameraOffsetY, canvasSize });
-  
+
   // ADDED: Building manager hook (after worldMousePos is available)
   const localPlayerX = predictedPosition?.x ?? localPlayer?.positionX ?? 0;
   const localPlayerY = predictedPosition?.y ?? localPlayer?.positionY ?? 0;
@@ -705,7 +706,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const animationFrame = useWalkingAnimationCycle(); // Faster, smoother walking animation
   const sprintAnimationFrame = useSprintAnimationCycle(); // Even faster animation for sprinting
   const idleAnimationFrame = useIdleAnimationCycle(); // Slower, relaxed animation for idle state
-  
+
   // Track falling tree animations
   const { isTreeFalling, getFallProgress, TREE_FALL_DURATION_MS } = useFallingTreeAnimations(trees);
 
@@ -721,46 +722,46 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const interpolatedClouds = useCloudInterpolation({ serverClouds: clouds, deltaTime: deltaTimeRef.current });
   useEffect(() => { interpolatedCloudsRef.current = interpolatedClouds; }, [interpolatedClouds]);
   useEffect(() => { cycleProgressRef.current = worldState?.cycleProgress ?? 0.375; }, [worldState?.cycleProgress]);
-  
+
   // Set up non-passive touch event listeners to allow preventDefault
   useEffect(() => {
     const canvas = gameCanvasRef.current;
     if (!canvas || !isMobile) return;
-    
+
     const handleTouchStart = (e: TouchEvent) => {
       if (!onMobileTap) return;
-      
+
       // Only handle single touch for tap-to-walk
       if (e.touches.length !== 1) return;
-      
+
       const touch = e.touches[0];
       const rect = canvas.getBoundingClientRect();
       const screenX = touch.clientX - rect.left;
       const screenY = touch.clientY - rect.top;
-      
+
       // Convert screen position to world position (subtract camera offset)
       const worldX = screenX - cameraOffsetX;
       const worldY = screenY - cameraOffsetY;
-      
+
       onMobileTap(worldX, worldY);
       e.preventDefault();
     };
-    
+
     const handleTouchMove = (e: TouchEvent) => {
       // Prevent scrolling while touching the canvas
       e.preventDefault();
     };
-    
+
     // Add event listeners with { passive: false } to allow preventDefault
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-    
+
     return () => {
       canvas.removeEventListener('touchstart', handleTouchStart);
       canvas.removeEventListener('touchmove', handleTouchMove);
     };
   }, [isMobile, onMobileTap, cameraOffsetX, cameraOffsetY]);
-  
+
   // Note: ySortedEntities sync is done after useEntityFiltering hook below
   const interpolatedGrass = useGrassInterpolation({ serverGrass: grass, deltaTime: deltaTimeRef.current });
 
@@ -769,7 +770,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const chunkCacheRef = useRef<Map<string, SpacetimeDBWorldChunkData>>(new Map());
   const chunkSizeRef = useRef<number>(8);
   const [chunkCacheVersion, setChunkCacheVersion] = useState(0);
-  
+
   // PERFORMANCE FIX: Memoize worldChunkData Map to avoid creating new Map on every render
   // This was previously created inline in useEntityFiltering and TillerPreview, causing GC pressure
   // The map only recalculates when chunkCacheVersion changes (on insert/update/delete)
@@ -929,7 +930,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // --- UI State ---
   const { hoveredPlayerIds, handlePlayerHover } = usePlayerHover();
-  
+
   // --- Planted Seed Hover Detection ---
   const { hoveredSeed, hoveredSeedId } = usePlantedSeedHover(
     plantedSeeds,
@@ -1002,7 +1003,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       .subscribe('SELECT * FROM world_chunk_data');
 
     return () => {
-      try { handle?.unsubscribe?.(); } catch {}
+      try { handle?.unsubscribe?.(); } catch { }
     };
   }, [connection]);
 
@@ -1022,7 +1023,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     localPlayerBurnEffects.forEach(effect => {
       const effectKey = `${effect.effectId}_${effect.endsAt.microsSinceUnixEpoch}`;
-      
+
       // Play sound if this is a new effect or if the end time changed (effect was extended)
       if (!burnSoundPlayedRef.current!.has(effectKey)) {
         console.log('[BURN_SOUND] Playing burn sound for effect', effect.effectId, 'ending at', effect.endsAt.microsSinceUnixEpoch);
@@ -1058,7 +1059,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Add a buffer of 2 tiles to ensure smooth rendering at edges
   const bufferedViewTileX = viewTileX - 2;
   const bufferedViewTileY = viewTileY - 2;
-  
+
   // Only recalculate when the set of visible TILES changes, not pixel offsets
   const visibleWorldTiles = useMemo(() => {
     const map = new Map<string, any>();
@@ -1146,16 +1147,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Also throttled - only recalculates when player moves significantly (every ~2 tiles)
   const lastShoreCheckPosRef = React.useRef({ x: 0, y: 0 });
   const cachedDistanceToShoreRef = React.useRef(9999);
-  
+
   const distanceToShore = useMemo(() => {
     if (!localPlayer || waterTileLookup.size === 0) {
       return 9999; // Far from shore if no data
     }
-    
+
     const playerX = localPlayer.positionX;
     const playerY = localPlayer.positionY;
     const TILE_SIZE = 48;
-    
+
     // THROTTLE: Only recalculate if player moved more than 2 tiles (~96px)
     const dx = playerX - lastShoreCheckPosRef.current.x;
     const dy = playerY - lastShoreCheckPosRef.current.y;
@@ -1163,14 +1164,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (movedDistSq < 96 * 96) {
       return cachedDistanceToShoreRef.current; // Return cached value
     }
-    
+
     // Update last check position
     lastShoreCheckPosRef.current = { x: playerX, y: playerY };
-    
+
     const playerTileX = Math.floor(playerX / TILE_SIZE);
     const playerTileY = Math.floor(playerY / TILE_SIZE);
     const MAX_SEARCH_RADIUS = 17; // ~800px / 48px per tile
-    
+
     // Spiral search outward from player - check expanding rings
     // This is O(k) where k = tiles checked, exits early when water found
     for (let radius = 0; radius <= MAX_SEARCH_RADIUS; radius++) {
@@ -1179,7 +1180,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         for (let offsetY = -radius; offsetY <= radius; offsetY++) {
           // Only check tiles on the current ring edge (not interior - already checked)
           if (Math.abs(offsetX) !== radius && Math.abs(offsetY) !== radius) continue;
-          
+
           const tileKey = `${playerTileX + offsetX},${playerTileY + offsetY}`;
           if (waterTileLookup.get(tileKey)) {
             // Found water! Calculate exact distance to tile center
@@ -1194,7 +1195,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         }
       }
     }
-    
+
     // No water found within search radius
     cachedDistanceToShoreRef.current = 9999;
     return 9999;
@@ -1255,7 +1256,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const unifiedInteractableTarget = useMemo(() => {
     // If we have a regular target, use it
     if (closestInteractableTarget) return closestInteractableTarget;
-    
+
     // If no regular target but we have water position, create water target
     if (closestInteractableWaterPosition) {
       return {
@@ -1266,7 +1267,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         data: undefined,
       };
     }
-    
+
     return null;
   }, [closestInteractableTarget, closestInteractableWaterPosition]);
 
@@ -1360,7 +1361,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     if (onMobileInteractInfoChange && isMobile) {
       onMobileInteractInfoChange(
-        unifiedInteractableTarget 
+        unifiedInteractableTarget
           ? { hasTarget: true, label: getInteractableLabel(unifiedInteractableTarget) }
           : null
       );
@@ -1372,7 +1373,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     if (!isMobile || !mobileInteractTrigger || mobileInteractTrigger === lastMobileInteractTriggerRef.current) return;
     lastMobileInteractTriggerRef.current = mobileInteractTrigger;
-    
+
     // Trigger interaction with current target
     if (unifiedInteractableTarget && connection?.reducers) {
       const target = unifiedInteractableTarget;
@@ -1439,12 +1440,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const upgradeMenuWallRef = useRef<any | null>(null); // WallCell type
   const upgradeMenuFenceRef = useRef<any | null>(null); // Fence type
   const prevShowUpgradeRadialMenuRef = useRef(false);
-  
+
   // Update stored foundation/wall/fence when menu opens (only when menu state changes from false to true)
   useEffect(() => {
     const wasOpen = prevShowUpgradeRadialMenuRef.current;
     const isOpen = showUpgradeRadialMenu;
-    
+
     if (!wasOpen && isOpen) {
       // Menu just opened - store the foundation, wall, or fence (priority: wall > fence > foundation)
       if (targetedWall) {
@@ -1466,7 +1467,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       upgradeMenuWallRef.current = null;
       upgradeMenuFenceRef.current = null;
     }
-    
+
     prevShowUpgradeRadialMenuRef.current = isOpen;
   }, [showUpgradeRadialMenu, targetedFoundation, targetedWall, targetedFence]);
 
@@ -1506,31 +1507,31 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // });
 
   // --- Effects ---
-  
+
   // Sync flashlight aim angle to server when flashlight is on
   const lastSentFlashlightAngleRef = useRef<number>(0);
   const lastFlashlightSyncTimeRef = useRef<number>(0);
-  
+
   useEffect(() => {
     if (!connection || !localPlayer?.isFlashlightOn) return;
     if (worldMousePos.x === null || worldMousePos.y === null) return;
-    
+
     // Calculate aim angle from player to mouse
     const playerX = predictedPosition?.x ?? localPlayer.positionX;
     const playerY = predictedPosition?.y ?? localPlayer.positionY;
     const dx = worldMousePos.x - playerX;
     const dy = worldMousePos.y - playerY;
     const aimAngle = Math.atan2(dy, dx);
-    
+
     // Only send update if angle changed significantly (>5 degrees) or enough time passed (100ms)
     const angleDiff = Math.abs(aimAngle - lastSentFlashlightAngleRef.current);
     const timeSinceLastSync = Date.now() - lastFlashlightSyncTimeRef.current;
     const angleThreshold = 0.087; // ~5 degrees in radians
-    
+
     if (angleDiff > angleThreshold || timeSinceLastSync > 100) {
       lastSentFlashlightAngleRef.current = aimAngle;
       lastFlashlightSyncTimeRef.current = Date.now();
-      
+
       try {
         connection.reducers.updateFlashlightAim(aimAngle);
       } catch (e) {
@@ -1538,7 +1539,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     }
   }, [connection, localPlayer?.isFlashlightOn, worldMousePos.x, worldMousePos.y, predictedPosition, localPlayer?.positionX, localPlayer?.positionY]);
-  
+
   // Register error handlers for consumeItem reducer
   useEffect(() => {
     if (!connection) return;
@@ -1546,14 +1547,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const handleConsumeItemResult = (ctx: any, itemInstanceId: bigint) => {
       console.log(`[GameCanvas] consumeItem reducer callback triggered for instance ${itemInstanceId.toString()}`);
       console.log(`[GameCanvas] Event status:`, ctx.event?.status);
-      
+
       if (ctx.event?.status?.tag === 'Failed') {
         const errorMsg = ctx.event.status.value || 'Unknown error';
-        
+
         // Check for brew cooldown error - play SOVA voice feedback instead of showing error
         if (errorMsg === 'BREW_COOLDOWN') {
           console.log(`[GameCanvas] 🍲 Brew cooldown active - playing SOVA feedback`);
-          
+
           // Play random SOVA brew cooldown voice line
           const brewCooldownSounds = [
             '/sounds/sova_brew_cooldown.mp3',
@@ -1562,7 +1563,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             '/sounds/sova_brew_cooldown3.mp3'
           ];
           const randomSound = brewCooldownSounds[Math.floor(Math.random() * brewCooldownSounds.length)];
-          
+
           try {
             const audio = new Audio(randomSound);
             audio.volume = 0.7;
@@ -1596,7 +1597,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const handleApplyFertilizerResult = (ctx: any, fertilizerInstanceId: bigint) => {
       console.log(`[GameCanvas] applyFertilizer reducer callback triggered for instance ${fertilizerInstanceId.toString()}`);
       console.log(`[GameCanvas] Event status:`, ctx.event?.status);
-      
+
       if (ctx.event?.status?.tag === 'Failed') {
         const errorMsg = ctx.event.status.value || 'Unknown error';
         console.error(`[GameCanvas] ❌ applyFertilizer failed for instance ${fertilizerInstanceId.toString()}:`, errorMsg);
@@ -1646,7 +1647,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const handleFireProjectileResult = (ctx: any, targetWorldX: number, targetWorldY: number) => {
       if (ctx.event?.status?.tag === 'Failed') {
         const errorMsg = ctx.event.status.value || '';
-        
+
         // CRITICAL: The client only calls fireProjectile if isReadyToFire was true.
         // If we get here, it means the client thought the weapon was ready when it called fireProjectile.
         // ANY error from fireProjectile is a sync issue, not a user error.
@@ -1682,18 +1683,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           playImmediateSound('error_building_privilege', 1.0);
         }
         // Check if error is about tier upgrade (cannot downgrade or already at tier)
-        else if (errorMsg.includes('Cannot downgrade') || 
-                 errorMsg.includes('Current tier') || 
-                 errorMsg.includes('Target tier')) {
+        else if (errorMsg.includes('Cannot downgrade') ||
+          errorMsg.includes('Current tier') ||
+          errorMsg.includes('Target tier')) {
           // Play tier upgrade error sound for instant feedback
           playImmediateSound('error_tier_upgrade', 1.0);
         }
         // Check if error is about insufficient resources
-        else if (errorMsg.includes('Not enough') || 
-            errorMsg.includes('wood') || 
-            errorMsg.includes('stone') ||
-            errorMsg.includes('metal fragments') ||
-            errorMsg.includes('Required:')) {
+        else if (errorMsg.includes('Not enough') ||
+          errorMsg.includes('wood') ||
+          errorMsg.includes('stone') ||
+          errorMsg.includes('metal fragments') ||
+          errorMsg.includes('Required:')) {
           // Play error sound for instant feedback
           playImmediateSound('error_resources', 1.0);
         }
@@ -1744,7 +1745,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     connection.reducers.onFireProjectile(handleFireProjectileResult);
     connection.reducers.onLoadRangedWeapon(handleLoadRangedWeaponResult);
     connection.reducers.onUpgradeFoundation(handleUpgradeFoundationResult);
-    
+
     // Register placement error handlers
     connection.reducers.onPlaceCampfire(handlePlaceCampfireResult);
     connection.reducers.onPlaceFurnace(handlePlaceFurnaceResult);
@@ -1762,7 +1763,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       connection.reducers.removeOnFireProjectile(handleFireProjectileResult);
       connection.reducers.removeOnLoadRangedWeapon(handleLoadRangedWeaponResult);
       connection.reducers.removeOnUpgradeFoundation(handleUpgradeFoundationResult);
-      
+
       // Cleanup placement error handlers
       connection.reducers.removeOnPlaceCampfire(handlePlaceCampfireResult);
       connection.reducers.removeOnPlaceFurnace(handlePlaceFurnaceResult);
@@ -1793,215 +1794,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Load compound building images
   useEffect(() => {
-        preloadMonumentImages();
-        preloadCairnImages(); // ADDED: Preload cairn images
+    preloadMonumentImages();
+    preloadCairnImages(); // ADDED: Preload cairn images
   }, []);
 
-  // Load doodad images
+  // Load foundation and wall tile images
   useEffect(() => {
-    import('../assets/doodads/planted_seed.png').then((module) => {
-      const img = new Image();
-      img.onload = () => {
-        doodadImagesRef.current.set('planted_seed.png', img);
-      };
-      img.onerror = () => console.error('Failed to load planted_seed.png');
-      img.src = module.default;
-    });
-
-    import('../assets/doodads/reed_rain_collector.png').then((module) => {
-      const img = new Image();
-      img.onload = () => {
-        doodadImagesRef.current.set('reed_rain_collector.png', img);
-      };
-      img.onerror = () => console.error('Failed to load reed_rain_collector.png');
-      img.src = module.default;
-    });
-
-    // Load door images (south-facing)
-    import('../assets/doodads/wood_door.png').then((module) => {
-      const img = new Image();
-      img.onload = () => {
-        doodadImagesRef.current.set('wood_door.png', img);
-      };
-      img.onerror = () => console.error('Failed to load wood_door.png');
-      img.src = module.default;
-    });
-
-    import('../assets/doodads/metal_door.png').then((module) => {
-      const img = new Image();
-      img.onload = () => {
-        doodadImagesRef.current.set('metal_door.png', img);
-      };
-      img.onerror = () => console.error('Failed to load metal_door.png');
-      img.src = module.default;
-    });
-
-    // Load door images (north-facing)
-    import('../assets/doodads/wood_door_north.png').then((module) => {
-      const img = new Image();
-      img.onload = () => {
-        doodadImagesRef.current.set('wood_door_north.png', img);
-      };
-      img.onerror = () => console.error('Failed to load wood_door_north.png');
-      img.src = module.default;
-    });
-
-    import('../assets/doodads/metal_door_north.png').then((module) => {
-      const img = new Image();
-      img.onload = () => {
-        doodadImagesRef.current.set('metal_door_north.png', img);
-      };
-      img.onerror = () => console.error('Failed to load metal_door_north.png');
-      img.src = module.default;
-    });
-
-    // Load fence sprite images for smart fence rendering (ends, centers)
-    // Vertical fence pieces
-    import('../assets/doodads/wood_fence_vertical_top.png').then((module) => {
-      const img = new Image();
-      img.onload = () => { doodadImagesRef.current.set('wood_fence_vertical_top.png', img); };
-      img.onerror = () => console.error('Failed to load wood_fence_vertical_top.png');
-      img.src = module.default;
-    });
-    import('../assets/doodads/wood_fence_vertical_center.png').then((module) => {
-      const img = new Image();
-      img.onload = () => { doodadImagesRef.current.set('wood_fence_vertical_center.png', img); };
-      img.onerror = () => console.error('Failed to load wood_fence_vertical_center.png');
-      img.src = module.default;
-    });
-    import('../assets/doodads/wood_fence_vertical_bottom.png').then((module) => {
-      const img = new Image();
-      img.onload = () => { doodadImagesRef.current.set('wood_fence_vertical_bottom.png', img); };
-      img.onerror = () => console.error('Failed to load wood_fence_vertical_bottom.png');
-      img.src = module.default;
-    });
-    import('../assets/doodads/wood_fence_vertical_single.png').then((module) => {
-      const img = new Image();
-      img.onload = () => { doodadImagesRef.current.set('wood_fence_vertical_single.png', img); };
-      img.onerror = () => console.error('Failed to load wood_fence_vertical_single.png');
-      img.src = module.default;
-    });
-    // Horizontal fence pieces
-    import('../assets/doodads/wood_fence_horizontal_left.png').then((module) => {
-      const img = new Image();
-      img.onload = () => { doodadImagesRef.current.set('wood_fence_horizontal_left.png', img); };
-      img.onerror = () => console.error('Failed to load wood_fence_horizontal_left.png');
-      img.src = module.default;
-    });
-    import('../assets/doodads/wood_fence_horizontal_center.png').then((module) => {
-      const img = new Image();
-      img.onload = () => { doodadImagesRef.current.set('wood_fence_horizontal_center.png', img); };
-      img.onerror = () => console.error('Failed to load wood_fence_horizontal_center.png');
-      img.src = module.default;
-    });
-    import('../assets/doodads/wood_fence_horizontal_right.png').then((module) => {
-      const img = new Image();
-      img.onload = () => { doodadImagesRef.current.set('wood_fence_horizontal_right.png', img); };
-      img.onerror = () => console.error('Failed to load wood_fence_horizontal_right.png');
-      img.src = module.default;
-    });
-    import('../assets/doodads/wood_fence_horizontal_single.png').then((module) => {
-      const img = new Image();
-      img.onload = () => { doodadImagesRef.current.set('wood_fence_horizontal_single.png', img); };
-      img.onerror = () => console.error('Failed to load wood_fence_horizontal_single.png');
-      img.src = module.default;
-    });
-    // Corner fence pieces - TODO: Add corner sprites later
-    // For now, corners render as brown placeholder squares
-
-    // Load compost image
-    import('../assets/doodads/compost.png').then((module) => {
-      const img = new Image();
-      img.onload = () => {
-        doodadImagesRef.current.set('compost.png', img);
-      };
-      img.onerror = () => console.error('Failed to load compost.png');
-      img.src = module.default;
-    });
-
-    // Load barbecue image
-    import('../assets/doodads/barbecue.png').then((module) => {
-      const img = new Image();
-      img.onload = () => {
-        doodadImagesRef.current.set('barbecue.png', img);
-      };
-      img.onerror = () => console.error('Failed to load barbecue.png');
-      img.src = module.default;
-    });
-
-    // Load refrigerator image
-    import('../assets/doodads/refrigerator.png').then((module) => {
-      const img = new Image();
-      img.onload = () => {
-        doodadImagesRef.current.set('refrigerator.png', img);
-      };
-      img.onerror = () => console.error('Failed to load refrigerator.png');
-      img.src = module.default;
-    });
-
-    // Load large wooden box image
-    import('../assets/doodads/large_wood_box.png').then((module) => {
-      const img = new Image();
-      img.onload = () => {
-        doodadImagesRef.current.set('large_wood_box.png', img);
-      };
-      img.onerror = () => console.error('Failed to load large_wood_box.png');
-      img.src = module.default;
-    });
-
-    // Load repair bench image
-    import('../assets/doodads/repair_bench.png').then((module) => {
-      const img = new Image();
-      img.onload = () => {
-        doodadImagesRef.current.set('repair_bench.png', img);
-      };
-      img.onerror = () => console.error('Failed to load repair_bench.png');
-      img.src = module.default;
-    });
-
-    // Load cooking station image
-    import('../assets/doodads/cooking_station.png').then((module) => {
-      const img = new Image();
-      img.onload = () => {
-        doodadImagesRef.current.set('cooking_station.png', img);
-      };
-      img.onerror = () => console.error('Failed to load cooking_station.png');
-      img.src = module.default;
-    });
-
-    // Load ward off images for placement previews
-    import('../assets/doodads/ancestral_ward_off.png').then((module) => {
-      const img = new Image();
-      img.onload = () => {
-        doodadImagesRef.current.set('ancestral_ward_off.png', img);
-      };
-      img.onerror = () => console.error('Failed to load ancestral_ward_off.png');
-      img.src = module.default;
-    });
-
-    import('../assets/doodads/signal_disruptor_off.png').then((module) => {
-      const img = new Image();
-      img.onload = () => {
-        doodadImagesRef.current.set('signal_disruptor_off.png', img);
-      };
-      img.onerror = () => console.error('Failed to load signal_disruptor_off.png');
-      img.src = module.default;
-    });
-
-    import('../assets/doodads/memory_beacon.png').then((module) => {
-      const img = new Image();
-      img.onload = () => {
-        doodadImagesRef.current.set('memory_beacon.png', img);
-      };
-      img.onerror = () => console.error('Failed to load memory_beacon.png');
-      img.src = module.default;
-    });
-
-    // Monument images are now loaded via static imports in monumentRenderingUtils.ts
-    // (same pattern as treeRenderingUtils.ts - uses imageManager for preloading)
-    // Includes both static monuments (compound buildings) and dynamic monuments (shipwrecks)
-
-    // Load foundation tile images
     import('../assets/tiles/foundation_wood.png').then((module) => {
       const img = new Image();
       img.onload = () => {
@@ -2107,18 +1905,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           playImmediateSound('error_building_privilege', 1.0);
         }
         // Check if error is about tier upgrade (cannot downgrade or already at tier)
-        else if (errorMsg.includes('Cannot downgrade') || 
-                 errorMsg.includes('Current tier') || 
-                 errorMsg.includes('Target tier')) {
+        else if (errorMsg.includes('Cannot downgrade') ||
+          errorMsg.includes('Current tier') ||
+          errorMsg.includes('Target tier')) {
           // Play tier upgrade error sound for instant feedback
           playImmediateSound('error_tier_upgrade', 1.0);
         }
         // Check if error is about insufficient resources
-        else if (errorMsg.includes('Not enough') || 
-            errorMsg.includes('wood') || 
-            errorMsg.includes('stone') ||
-            errorMsg.includes('metal fragments') ||
-            errorMsg.includes('Required:')) {
+        else if (errorMsg.includes('Not enough') ||
+          errorMsg.includes('wood') ||
+          errorMsg.includes('stone') ||
+          errorMsg.includes('metal fragments') ||
+          errorMsg.includes('Required:')) {
           // Play error sound for instant feedback
           playImmediateSound('error_resources', 1.0);
         }
@@ -2229,7 +2027,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     minY: -cameraOffsetY,
     maxY: -cameraOffsetY + canvasSize.height,
   }), [cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height]);
-  
+
   const shoreWaveParticles = useShoreWaveParticles({
     worldTiles: visibleWorldTiles,
     viewBounds: shoreWaveViewBounds,
@@ -2247,7 +2045,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const hostileDeathParticles = useHostileDeathEffects({
     hostileDeathEvents,
   });
-  
+
   // Impact particle effects - blood splatter for animals, ethereal wisps for apparitions
   const impactParticles = useImpactParticles({
     wildAnimals,
@@ -2292,13 +2090,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Optimized particle renderer - batches particles by type to minimize ctx state changes
   const renderParticlesToCanvas = (ctx: CanvasRenderingContext2D, particles: any[]) => {
     if (particles.length === 0) return;
-    
+
     // Separate particles by type for batched rendering
     const fireParticlesLocal: any[] = [];
     const emberParticles: any[] = [];
     const sparkParticles: any[] = [];
     const otherParticles: any[] = [];
-    
+
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
       if (p.type === 'fire') {
@@ -2311,7 +2109,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         otherParticles.push(p);
       }
     }
-    
+
     // Render fire particles with AAA pixel art style (Sea of Stars inspired)
     // Use square pixels instead of circles for crisp pixel art look
     if (fireParticlesLocal.length > 0) {
@@ -2321,10 +2119,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       for (let i = 0; i < fireParticlesLocal.length; i++) {
         const particle = fireParticlesLocal[i];
         const isStaticCampfire = particle.id && particle.id.startsWith('fire_static_');
-        
+
         ctx.globalAlpha = particle.alpha || 1;
         ctx.fillStyle = particle.color || '#ff4500';
-        
+
         if (isStaticCampfire) {
           // AAA pixel art style: larger square pixels with subtle glow for fishing village fire
           ctx.shadowColor = particle.color || '#ff4500';
@@ -2334,7 +2132,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           ctx.shadowColor = particle.color || '#ff4500';
           ctx.shadowBlur = particle.size * 0.5;
         }
-        
+
         // Use square pixels for pixel art style (Sea of Stars)
         const pixelSize = Math.max(1, Math.floor(particle.size));
         const pixelX = Math.floor(particle.x - pixelSize / 2);
@@ -2343,20 +2141,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
       ctx.restore();
     }
-    
+
     // Render ember particles - glowing floating embers with warm glow
     if (emberParticles.length > 0) {
       ctx.save();
       ctx.imageSmoothingEnabled = false;
       for (let i = 0; i < emberParticles.length; i++) {
         const particle = emberParticles[i];
-        
+
         ctx.globalAlpha = particle.alpha || 1;
         ctx.fillStyle = particle.color || '#FFE066';
         // Embers have a warm, pulsing glow
         ctx.shadowColor = particle.color || '#FFE066';
         ctx.shadowBlur = particle.size * 2 + Math.sin(Date.now() * 0.01 + i) * 2;
-        
+
         // Small square pixels for embers
         const pixelSize = Math.max(1, Math.floor(particle.size));
         const pixelX = Math.floor(particle.x - pixelSize / 2);
@@ -2365,20 +2163,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
       ctx.restore();
     }
-    
+
     // Render spark particles - bright, fast-moving sparks
     if (sparkParticles.length > 0) {
       ctx.save();
       ctx.imageSmoothingEnabled = false;
       for (let i = 0; i < sparkParticles.length; i++) {
         const particle = sparkParticles[i];
-        
+
         ctx.globalAlpha = particle.alpha || 1;
         ctx.fillStyle = particle.color || '#FFFFFF';
         // Sparks have a bright, intense glow
         ctx.shadowColor = '#FFFFFF';
         ctx.shadowBlur = particle.size * 4;
-        
+
         // Tiny square pixels for sparks
         const pixelSize = Math.max(1, Math.floor(particle.size));
         const pixelX = Math.floor(particle.x - pixelSize / 2);
@@ -2387,15 +2185,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
       ctx.restore();
     }
-    
+
     // Render other particles (smoke, smoke_burst) with AAA pixel art style
     if (otherParticles.length > 0) {
       ctx.save();
-      
+
       // Separate memory particles from regular smoke for different rendering
       const memoryParticles: any[] = [];
       const regularSmokeParticles: any[] = [];
-      
+
       for (let i = 0; i < otherParticles.length; i++) {
         const p = otherParticles[i];
         if (p.id && (p.id.startsWith('memory_') || p.id.startsWith('memoryfrag_'))) {
@@ -2404,34 +2202,34 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           regularSmokeParticles.push(p);
         }
       }
-      
+
       // Render MEMORY BEACON particles as soft glowing circles (ethereal effect)
       if (memoryParticles.length > 0) {
         ctx.imageSmoothingEnabled = true; // Enable smoothing for soft glow effect
         for (let i = 0; i < memoryParticles.length; i++) {
           const particle = memoryParticles[i];
           const isFragment = particle.id && particle.id.startsWith('memoryfrag_');
-          
+
           ctx.globalAlpha = particle.alpha || 1;
-          
+
           // Create soft glowing circle with radial gradient
           const radius = Math.max(2, particle.size * (isFragment ? 1.5 : 1.2));
           const gradient = ctx.createRadialGradient(
             particle.x, particle.y, 0,
             particle.x, particle.y, radius
           );
-          
+
           // Parse the color and create gradient from center (bright) to edge (transparent)
           const baseColor = particle.color || '#9966FF';
           gradient.addColorStop(0, baseColor);
           gradient.addColorStop(0.4, baseColor);
           gradient.addColorStop(1, 'transparent');
-          
+
           ctx.fillStyle = gradient;
           ctx.beginPath();
           ctx.arc(particle.x, particle.y, radius, 0, Math.PI * 2);
           ctx.fill();
-          
+
           // Add inner glow for fragments (larger memory particles)
           if (isFragment) {
             ctx.globalAlpha = (particle.alpha || 1) * 0.5;
@@ -2448,17 +2246,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           }
         }
       }
-      
+
       // Render regular smoke particles with pixel art style
       if (regularSmokeParticles.length > 0) {
         ctx.imageSmoothingEnabled = false;
         ctx.shadowBlur = 0; // No shadow for smoke particles
         for (let i = 0; i < regularSmokeParticles.length; i++) {
           const particle = regularSmokeParticles[i];
-          
+
           ctx.globalAlpha = particle.alpha || 1;
           ctx.fillStyle = particle.color || '#888888';
-          
+
           // Use square pixels for pixel art style (Sea of Stars)
           const pixelSize = Math.max(1, Math.floor(particle.size));
           const pixelX = Math.floor(particle.x - pixelSize / 2);
@@ -2466,7 +2264,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
         }
       }
-      
+
       ctx.restore();
     }
   };
@@ -2474,19 +2272,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Used to trigger cloud fetching and updating -- keep this logic at the top level
   // THROTTLED: Only send updates to server periodically or when moving significant distance
   const lastViewportUpdateRef = useRef<number>(0);
-  const lastViewportPosRef = useRef<{x: number, y: number} | null>(null);
-  
+  const lastViewportPosRef = useRef<{ x: number, y: number } | null>(null);
+
   useEffect(() => {
     if (connection) {
       const now = Date.now();
       const timeDiff = now - lastViewportUpdateRef.current;
-      
+
       // Check distance moved since last update
       let distSq = 0;
       if (lastViewportPosRef.current) {
         const dx = camera.x - lastViewportPosRef.current.x;
         const dy = camera.y - lastViewportPosRef.current.y;
-        distSq = dx*dx + dy*dy;
+        distSq = dx * dx + dy * dy;
       } else {
         distSq = Infinity; // Always update first time
       }
@@ -2548,7 +2346,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   const renderGame = useCallback(() => {
     const frameStartTime = performance.now();
-    
+
     // Track frame count for periodic logging
     perfProfilingRef.current.frameCount++;
     const canvas = gameCanvasRef.current;
@@ -2556,7 +2354,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (!canvas || !maskCanvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    
+
     // Emergency performance mode removed
 
     const now_ms = Date.now();
@@ -2588,7 +2386,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // --- Rendering ---
     ctx.clearRect(0, 0, currentCanvasWidth, currentCanvasHeight);
-    
+
     // 🎯 CYBERPUNK: Render SOVA simulation grid background instead of plain black
     // This creates the lore-consistent illusion that the game world exists within a cyberpunk simulation
     renderCyberpunkGridBackground(
@@ -2601,10 +2399,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     ctx.save();
     ctx.translate(currentCameraOffsetX, currentCameraOffsetY);
-    
+
     // Set shelter clipping data for shadow rendering
     setShelterClippingData(shelterClippingData);
-    
+
     // Pass the necessary viewport parameters to the optimized background renderer
     // When snorkeling, render underwater view mode (land as dark blue, sea as normal)
     const isSnorkeling = localPlayer?.isSnorkeling ?? false;
@@ -2740,7 +2538,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       visibleSeaStacks.forEach(seaStack => {
         renderSeaStackUnderwaterSilhouette(ctx, seaStack, currentCycleProgress);
       });
-      
+
       // Also render sea barrels (floating barrels) as underwater silhouettes
       // Only sea barrel variants (3, 4, 5) will be rendered - the function filters internally
       // Pass nowMs for sway/bob animation sync with above-water barrels
@@ -2780,7 +2578,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         canvasSize.width,
         canvasSize.height
       );
-      
+
       // Render caustics below players
       renderUnderwaterEffectsUnder(
         ctx,
@@ -2836,14 +2634,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       // EXACT same movement detection logic as renderYSortedEntities  
       const lastPos = lastPositionsRef.current?.get(playerId);
       let isPlayerMoving = false;
-      
+
       if (lastPos) {
         const positionThreshold = 0.1;
         const dx = Math.abs(playerForRendering.positionX - lastPos.x);
         const dy = Math.abs(playerForRendering.positionY - lastPos.y);
         isPlayerMoving = dx > positionThreshold || dy > positionThreshold;
       }
-      
+
       // EXACT same animation frame logic as renderYSortedEntities
       let currentAnimFrame: number;
       if (playerForRendering.isOnWater) {
@@ -2869,7 +2667,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (heroImg) {
         const isOnline = activeConnections ? activeConnections.has(playerId) : false;
         const isHovered = worldMousePos ? isPlayerHovered(worldMousePos.x, worldMousePos.y, playerForRendering) : false;
-        
+
         renderPlayer(
           ctx,
           playerForRendering,
@@ -2919,8 +2717,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
       // Determine which sprite image to use for shadow shape
       let heroImg: HTMLImageElement | null = null;
-      const effectiveIsCrouching = isLocalPlayer && localPlayerIsCrouching !== undefined 
-        ? localPlayerIsCrouching 
+      const effectiveIsCrouching = isLocalPlayer && localPlayerIsCrouching !== undefined
+        ? localPlayerIsCrouching
         : player.isCrouching;
 
       // Choose sprite based on priority: water > crouching > default
@@ -3005,7 +2803,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (isSnorkeling && localPlayer && currentPredictedPosition) {
       // Use underwater sprite for snorkeling shadow shape
       const heroImg = heroWaterImageRef.current;
-      
+
       if (heroImg) {
         const drawWidth = gameConfig.spriteWidth * 2;
         const drawHeight = gameConfig.spriteHeight * 2;
@@ -3160,7 +2958,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // --- STEP 2.5 & 3 COMBINED: Render Y-sorted entities AND swimming player top halves together ---
     // This ensures swimming player tops are properly Y-sorted with sea stacks and other tall entities
-    
+
     // PERFORMANCE OPTIMIZATION: Skip complex merging when no swimming players
     // This is the common case and saves significant object creation/sorting overhead
     if (swimmingPlayersForBottomHalf.length === 0) {
@@ -3231,346 +3029,346 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         walrusBreedingData, // ADDED: Pass walrus breeding data for age-based size scaling and pregnancy indicators
       });
     } else {
-    // --- Swimming players exist, need full merge/sort ---
-    
-    // Filter out swimming players from Y-sorted entities (their bottom halves were rendered earlier)
-    // EXCEPTION: Keep snorkeling players (local OR remote) - they render as a full sprite with teal tint, not split
-    const nonSwimmingEntities = currentYSortedEntities.filter(entity => {
-      // Keep non-swimming entities
-      if (!(entity.type === 'player' && entity.entity.isOnWater && !entity.entity.isDead && !entity.entity.isKnockedOut)) {
-        return true;
-      }
-      // Keep snorkeling local player - they render as full sprite underwater
-      if (isSnorkeling && entity.type === 'player' && entity.entity.identity.toHexString() === localPlayerId) {
-        return true;
-      }
-      // Keep ANY snorkeling player (remote players who are underwater) - they render as full sprite
-      if (entity.type === 'player' && entity.entity.isSnorkeling) {
-        return true;
-      }
-      return false;
-    });
-    
-    // Create swimming player top half entries with Y position for sorting
-    // Reuse swimmingPlayersForBottomHalf array instead of filtering again
-    const swimmingPlayerTopHalves = swimmingPlayersForBottomHalf
-      .map(player => {
-        const playerId = player.identity.toHexString();
-        const isLocalPlayer = localPlayerId === playerId;
-        
-        let playerForRendering = player;
-        if (isLocalPlayer && currentPredictedPosition) {
-          playerForRendering = {
-            ...player,
-            positionX: currentPredictedPosition.x,
-            positionY: currentPredictedPosition.y
-          };
-        } else if (!isLocalPlayer && remotePlayerInterpolation) {
-          const interpolatedPosition = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
-          playerForRendering = {
-            ...player,
-            positionX: interpolatedPosition.x,
-            positionY: interpolatedPosition.y
-          };
-        }
-        
-        return {
-          type: 'swimmingPlayerTopHalf' as const,
-          entity: playerForRendering,
-          // Use foot position for Y-sorting (same as other players)
-          yPosition: playerForRendering.positionY + 48,
-          playerId
-        };
-      });
-    
-    // Helper function to get Y sort position from an entity
-    const getEntityYSort = (entity: typeof nonSwimmingEntities[number]): number => {
-      if ('positionY' in entity.entity && entity.entity.positionY !== undefined) {
-        return entity.entity.positionY + 48; // Player foot position
-      } else if ('worldPosY' in entity.entity && (entity.entity as any).worldPosY !== undefined) {
-        // ALK stations use worldPosY for their base position
-        return (entity.entity as any).worldPosY;
-      } else if ('worldY' in entity.entity && (entity.entity as any).worldY !== undefined) {
-        // Compound buildings use worldY for their anchor/foot position
-        return (entity.entity as any).worldY;
-      } else if ('posY' in entity.entity && entity.entity.posY !== undefined) {
-        return entity.entity.posY;
-      }
-      return 0;
-    };
-    
-    // Merge and sort all entities together
-    type MergedEntityType = 
-      | (typeof nonSwimmingEntities[number] & { _ySort: number; _isSwimmingTop: false })
-      | (typeof swimmingPlayerTopHalves[number] & { _ySort: number; _isSwimmingTop: true });
-    
-    const mergedEntities: MergedEntityType[] = [
-      ...nonSwimmingEntities.map(e => ({ ...e, _ySort: getEntityYSort(e), _isSwimmingTop: false as const })),
-      ...swimmingPlayerTopHalves.map(e => ({ ...e, _ySort: e.yPosition, _isSwimmingTop: true as const }))
-    ].sort((a, b) => {
-      // CRITICAL: This sort can undo the useEntityFiltering sort, so we must duplicate key checks here
-      const aType = !a._isSwimmingTop && 'type' in a ? a.type : null;
-      const bType = !b._isSwimmingTop && 'type' in b ? b.type : null;
-      const aEntity = !a._isSwimmingTop && 'entity' in a ? a.entity : null;
-      const bEntity = !b._isSwimmingTop && 'entity' in b ? b.entity : null;
-      
-      // CRITICAL: Player vs ALK Station - tall structure Y-sorting
-      // The ALK station sprite has ~24% transparent space at top. The visual "foot level"
-      // (where players walk) is about 170px ABOVE worldPosY. Must use offset for correct sorting.
-      if (aType === 'player' && bType === 'alk_station') {
-        const playerY = (aEntity as any)?.positionY ?? 0;
-        const stationY = (bEntity as any)?.worldPosY ?? 0;
-        const ALK_VISUAL_FOOT_OFFSET = 170; // Match collision Y offset - where building visually sits
-        // Player renders in front if at or south of the building's visual foot level
-        if (playerY >= stationY - ALK_VISUAL_FOOT_OFFSET) {
-          return 1; // Player at/near/south of building's visual base - player in front
-        }
-        return -1; // Player clearly north of building - player behind (station on top)
-      }
-      if (aType === 'alk_station' && bType === 'player') {
-        const playerY = (bEntity as any)?.positionY ?? 0;
-        const stationY = (aEntity as any)?.worldPosY ?? 0;
-        const ALK_VISUAL_FOOT_OFFSET = 170;
-        if (playerY >= stationY - ALK_VISUAL_FOOT_OFFSET) {
-          return -1; // Player at/near/south of building's visual base - player in front (inverted)
-        }
-        return 1; // Player clearly north of building - player behind (inverted)
-      }
-      
-      // CRITICAL: Player vs Compound Building - tall structure Y-sorting (same pattern as ALK station)
-      // Compound buildings use worldY as their visual foot/anchor point (no offset needed)
-      if (aType === 'player' && bType === 'compound_building') {
-        const playerY = (aEntity as any)?.positionY ?? 0;
-        const buildingY = (bEntity as any)?.worldY ?? 0;
-        // Player renders in front if at or south of the building's visual foot level
-        if (playerY >= buildingY) {
-          return 1; // Player at/south of building's visual base - player in front
-        }
-        return -1; // Player north of building - player behind (building on top)
-      }
-      if (aType === 'compound_building' && bType === 'player') {
-        const playerY = (bEntity as any)?.positionY ?? 0;
-        const buildingY = (aEntity as any)?.worldY ?? 0;
-        if (playerY >= buildingY) {
-          return -1; // Player at/south of building's visual base - player in front (inverted)
-        }
-        return 1; // Player north of building - player behind (inverted)
-      }
-      
-      // Flying birds MUST render above everything (trees, stones, players, etc.)
-      const aIsFlyingBird = aType === 'wild_animal' && aEntity && 
-        'species' in aEntity && 'isFlying' in aEntity &&
-        (aEntity.species?.tag === 'Tern' || aEntity.species?.tag === 'Crow') &&
-        aEntity.isFlying === true;
-      const bIsFlyingBird = bType === 'wild_animal' && bEntity && 
-        'species' in bEntity && 'isFlying' in bEntity &&
-        (bEntity.species?.tag === 'Tern' || bEntity.species?.tag === 'Crow') &&
-        bEntity.isFlying === true;
-      
-      // Flying bird vs any non-flying entity
-      if (aIsFlyingBird && !bIsFlyingBird) {
-        return 1; // Flying bird renders after (above) non-flying entities
-      }
-      if (bIsFlyingBird && !aIsFlyingBird) {
-        return -1; // Flying bird renders after (above) non-flying entities
-      }
-      
-      // Broth pot MUST render above campfires and fumaroles
-      if (aType === 'broth_pot' && (bType === 'campfire' || bType === 'fumarole')) {
-        return 1; // Broth pot renders after (above) campfire/fumarole
-      }
-      if (bType === 'broth_pot' && (aType === 'campfire' || aType === 'fumarole')) {
-        return -1; // Broth pot renders after (above) campfire/fumarole
-      }
-      
-      return a._ySort - b._ySort;
-    });
-    
-    // Helper to render a swimming player top half
-    const renderSwimmingPlayerTopHalf = (item: typeof swimmingPlayerTopHalves[number]) => {
-      const player = item.entity;
-      const playerId = item.playerId;
-      
-      const lastPos = lastPositionsRef.current?.get(playerId);
-      let isPlayerMoving = false;
-      
-      if (lastPos) {
-        const positionThreshold = 0.1;
-        const dx = Math.abs(player.positionX - lastPos.x);
-        const dy = Math.abs(player.positionY - lastPos.y);
-        isPlayerMoving = dx > positionThreshold || dy > positionThreshold;
-      }
-      
-      let currentAnimFrame: number;
-      if (player.isOnWater) {
-        if (!isPlayerMoving) {
-          currentAnimFrame = currentIdleAnimationFrame;
-        } else if (player.isSprinting) {
-          currentAnimFrame = currentSprintAnimationFrame;
-        } else {
-          currentAnimFrame = currentAnimationFrame;
-        }
-      } else {
-        if (!isPlayerMoving) {
-          currentAnimFrame = currentIdleAnimationFrame;
-        } else if (player.isSprinting) {
-          currentAnimFrame = currentSprintAnimationFrame;
-        } else {
-          currentAnimFrame = currentAnimationFrame;
-        }
-      }
-      
-      let heroImg: HTMLImageElement | null;
-      if (player.isOnWater) {
-        heroImg = heroWaterImageRef.current;
-      } else if (player.isCrouching) {
-        heroImg = heroCrouchImageRef.current;
-      } else {
-        heroImg = heroImageRef.current;
-      }
-      
-      if (heroImg) {
-        const isOnline = activeConnections ? activeConnections.has(playerId) : false;
-        const isHovered = worldMousePos ? isPlayerHovered(worldMousePos.x, worldMousePos.y, player) : false;
-        
-        renderPlayer(
-          ctx,
-          player,
-          heroImg,
-          heroSprintImageRef.current || heroImg,
-          heroIdleImageRef.current || heroImg,
-          heroCrouchImageRef.current || heroImg,
-          heroWaterImageRef.current || heroImg,
-          heroDodgeImageRef.current || heroImg,
-          isOnline,
-          isPlayerMoving,
-          isHovered,
-          currentAnimFrame,
-          now_ms,
-          0,
-          alwaysShowPlayerNames || isHovered, // show label if setting enabled or hovered
-          activeConsumableEffects,
-          localPlayerId,
-          false,
-          currentCycleProgress,
-          localPlayerIsCrouching,
-          'top',
-          false, // isDodgeRolling - swimming players don't dodge roll
-          0, // dodgeRollProgress
-          false, // isSnorkeling - these are regular swimming players (snorkeling ones are excluded)
-          isSnorkeling // isViewerUnderwater - pass local player's snorkeling state
-        );
-        
-        // Render equipped items for swimming players
-        const equipment = activeEquipments.get(playerId);
-        let itemDef: SpacetimeDBItemDefinition | null = null;
-        let itemImg: HTMLImageElement | null = null;
+      // --- Swimming players exist, need full merge/sort ---
 
-        if (equipment && equipment.equippedItemDefId && equipment.equippedItemInstanceId) {
-          const equippedItemInstance = inventoryItems.get(equipment.equippedItemInstanceId.toString());
-          if (equippedItemInstance && equippedItemInstance.quantity > 0) {
-            itemDef = itemDefinitions.get(equipment.equippedItemDefId.toString()) || null;
-            itemImg = (itemDef ? itemImagesRef.current.get(itemDef.iconAssetName) : null) || null;
+      // Filter out swimming players from Y-sorted entities (their bottom halves were rendered earlier)
+      // EXCEPTION: Keep snorkeling players (local OR remote) - they render as a full sprite with teal tint, not split
+      const nonSwimmingEntities = currentYSortedEntities.filter(entity => {
+        // Keep non-swimming entities
+        if (!(entity.type === 'player' && entity.entity.isOnWater && !entity.entity.isDead && !entity.entity.isKnockedOut)) {
+          return true;
+        }
+        // Keep snorkeling local player - they render as full sprite underwater
+        if (isSnorkeling && entity.type === 'player' && entity.entity.identity.toHexString() === localPlayerId) {
+          return true;
+        }
+        // Keep ANY snorkeling player (remote players who are underwater) - they render as full sprite
+        if (entity.type === 'player' && entity.entity.isSnorkeling) {
+          return true;
+        }
+        return false;
+      });
+
+      // Create swimming player top half entries with Y position for sorting
+      // Reuse swimmingPlayersForBottomHalf array instead of filtering again
+      const swimmingPlayerTopHalves = swimmingPlayersForBottomHalf
+        .map(player => {
+          const playerId = player.identity.toHexString();
+          const isLocalPlayer = localPlayerId === playerId;
+
+          let playerForRendering = player;
+          if (isLocalPlayer && currentPredictedPosition) {
+            playerForRendering = {
+              ...player,
+              positionX: currentPredictedPosition.x,
+              positionY: currentPredictedPosition.y
+            };
+          } else if (!isLocalPlayer && remotePlayerInterpolation) {
+            const interpolatedPosition = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
+            playerForRendering = {
+              ...player,
+              positionX: interpolatedPosition.x,
+              positionY: interpolatedPosition.y
+            };
+          }
+
+          return {
+            type: 'swimmingPlayerTopHalf' as const,
+            entity: playerForRendering,
+            // Use foot position for Y-sorting (same as other players)
+            yPosition: playerForRendering.positionY + 48,
+            playerId
+          };
+        });
+
+      // Helper function to get Y sort position from an entity
+      const getEntityYSort = (entity: typeof nonSwimmingEntities[number]): number => {
+        if ('positionY' in entity.entity && entity.entity.positionY !== undefined) {
+          return entity.entity.positionY + 48; // Player foot position
+        } else if ('worldPosY' in entity.entity && (entity.entity as any).worldPosY !== undefined) {
+          // ALK stations use worldPosY for their base position
+          return (entity.entity as any).worldPosY;
+        } else if ('worldY' in entity.entity && (entity.entity as any).worldY !== undefined) {
+          // Compound buildings use worldY for their anchor/foot position
+          return (entity.entity as any).worldY;
+        } else if ('posY' in entity.entity && entity.entity.posY !== undefined) {
+          return entity.entity.posY;
+        }
+        return 0;
+      };
+
+      // Merge and sort all entities together
+      type MergedEntityType =
+        | (typeof nonSwimmingEntities[number] & { _ySort: number; _isSwimmingTop: false })
+        | (typeof swimmingPlayerTopHalves[number] & { _ySort: number; _isSwimmingTop: true });
+
+      const mergedEntities: MergedEntityType[] = [
+        ...nonSwimmingEntities.map(e => ({ ...e, _ySort: getEntityYSort(e), _isSwimmingTop: false as const })),
+        ...swimmingPlayerTopHalves.map(e => ({ ...e, _ySort: e.yPosition, _isSwimmingTop: true as const }))
+      ].sort((a, b) => {
+        // CRITICAL: This sort can undo the useEntityFiltering sort, so we must duplicate key checks here
+        const aType = !a._isSwimmingTop && 'type' in a ? a.type : null;
+        const bType = !b._isSwimmingTop && 'type' in b ? b.type : null;
+        const aEntity = !a._isSwimmingTop && 'entity' in a ? a.entity : null;
+        const bEntity = !b._isSwimmingTop && 'entity' in b ? b.entity : null;
+
+        // CRITICAL: Player vs ALK Station - tall structure Y-sorting
+        // The ALK station sprite has ~24% transparent space at top. The visual "foot level"
+        // (where players walk) is about 170px ABOVE worldPosY. Must use offset for correct sorting.
+        if (aType === 'player' && bType === 'alk_station') {
+          const playerY = (aEntity as any)?.positionY ?? 0;
+          const stationY = (bEntity as any)?.worldPosY ?? 0;
+          const ALK_VISUAL_FOOT_OFFSET = 170; // Match collision Y offset - where building visually sits
+          // Player renders in front if at or south of the building's visual foot level
+          if (playerY >= stationY - ALK_VISUAL_FOOT_OFFSET) {
+            return 1; // Player at/near/south of building's visual base - player in front
+          }
+          return -1; // Player clearly north of building - player behind (station on top)
+        }
+        if (aType === 'alk_station' && bType === 'player') {
+          const playerY = (bEntity as any)?.positionY ?? 0;
+          const stationY = (aEntity as any)?.worldPosY ?? 0;
+          const ALK_VISUAL_FOOT_OFFSET = 170;
+          if (playerY >= stationY - ALK_VISUAL_FOOT_OFFSET) {
+            return -1; // Player at/near/south of building's visual base - player in front (inverted)
+          }
+          return 1; // Player clearly north of building - player behind (inverted)
+        }
+
+        // CRITICAL: Player vs Compound Building - tall structure Y-sorting (same pattern as ALK station)
+        // Compound buildings use worldY as their visual foot/anchor point (no offset needed)
+        if (aType === 'player' && bType === 'compound_building') {
+          const playerY = (aEntity as any)?.positionY ?? 0;
+          const buildingY = (bEntity as any)?.worldY ?? 0;
+          // Player renders in front if at or south of the building's visual foot level
+          if (playerY >= buildingY) {
+            return 1; // Player at/south of building's visual base - player in front
+          }
+          return -1; // Player north of building - player behind (building on top)
+        }
+        if (aType === 'compound_building' && bType === 'player') {
+          const playerY = (bEntity as any)?.positionY ?? 0;
+          const buildingY = (aEntity as any)?.worldY ?? 0;
+          if (playerY >= buildingY) {
+            return -1; // Player at/south of building's visual base - player in front (inverted)
+          }
+          return 1; // Player north of building - player behind (inverted)
+        }
+
+        // Flying birds MUST render above everything (trees, stones, players, etc.)
+        const aIsFlyingBird = aType === 'wild_animal' && aEntity &&
+          'species' in aEntity && 'isFlying' in aEntity &&
+          (aEntity.species?.tag === 'Tern' || aEntity.species?.tag === 'Crow') &&
+          aEntity.isFlying === true;
+        const bIsFlyingBird = bType === 'wild_animal' && bEntity &&
+          'species' in bEntity && 'isFlying' in bEntity &&
+          (bEntity.species?.tag === 'Tern' || bEntity.species?.tag === 'Crow') &&
+          bEntity.isFlying === true;
+
+        // Flying bird vs any non-flying entity
+        if (aIsFlyingBird && !bIsFlyingBird) {
+          return 1; // Flying bird renders after (above) non-flying entities
+        }
+        if (bIsFlyingBird && !aIsFlyingBird) {
+          return -1; // Flying bird renders after (above) non-flying entities
+        }
+
+        // Broth pot MUST render above campfires and fumaroles
+        if (aType === 'broth_pot' && (bType === 'campfire' || bType === 'fumarole')) {
+          return 1; // Broth pot renders after (above) campfire/fumarole
+        }
+        if (bType === 'broth_pot' && (aType === 'campfire' || aType === 'fumarole')) {
+          return -1; // Broth pot renders after (above) campfire/fumarole
+        }
+
+        return a._ySort - b._ySort;
+      });
+
+      // Helper to render a swimming player top half
+      const renderSwimmingPlayerTopHalf = (item: typeof swimmingPlayerTopHalves[number]) => {
+        const player = item.entity;
+        const playerId = item.playerId;
+
+        const lastPos = lastPositionsRef.current?.get(playerId);
+        let isPlayerMoving = false;
+
+        if (lastPos) {
+          const positionThreshold = 0.1;
+          const dx = Math.abs(player.positionX - lastPos.x);
+          const dy = Math.abs(player.positionY - lastPos.y);
+          isPlayerMoving = dx > positionThreshold || dy > positionThreshold;
+        }
+
+        let currentAnimFrame: number;
+        if (player.isOnWater) {
+          if (!isPlayerMoving) {
+            currentAnimFrame = currentIdleAnimationFrame;
+          } else if (player.isSprinting) {
+            currentAnimFrame = currentSprintAnimationFrame;
+          } else {
+            currentAnimFrame = currentAnimationFrame;
+          }
+        } else {
+          if (!isPlayerMoving) {
+            currentAnimFrame = currentIdleAnimationFrame;
+          } else if (player.isSprinting) {
+            currentAnimFrame = currentSprintAnimationFrame;
+          } else {
+            currentAnimFrame = currentAnimationFrame;
           }
         }
-        
-        const canRenderItem = itemDef && itemImg && itemImg.complete && itemImg.naturalHeight !== 0;
-        if (canRenderItem && equipment) {
-          // player.direction is already server-synced in this context
-          renderEquippedItem(ctx, player, equipment, itemDef!, itemDefinitions, itemImg!, now_ms, 0, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction);
+
+        let heroImg: HTMLImageElement | null;
+        if (player.isOnWater) {
+          heroImg = heroWaterImageRef.current;
+        } else if (player.isCrouching) {
+          heroImg = heroCrouchImageRef.current;
+        } else {
+          heroImg = heroImageRef.current;
+        }
+
+        if (heroImg) {
+          const isOnline = activeConnections ? activeConnections.has(playerId) : false;
+          const isHovered = worldMousePos ? isPlayerHovered(worldMousePos.x, worldMousePos.y, player) : false;
+
+          renderPlayer(
+            ctx,
+            player,
+            heroImg,
+            heroSprintImageRef.current || heroImg,
+            heroIdleImageRef.current || heroImg,
+            heroCrouchImageRef.current || heroImg,
+            heroWaterImageRef.current || heroImg,
+            heroDodgeImageRef.current || heroImg,
+            isOnline,
+            isPlayerMoving,
+            isHovered,
+            currentAnimFrame,
+            now_ms,
+            0,
+            alwaysShowPlayerNames || isHovered, // show label if setting enabled or hovered
+            activeConsumableEffects,
+            localPlayerId,
+            false,
+            currentCycleProgress,
+            localPlayerIsCrouching,
+            'top',
+            false, // isDodgeRolling - swimming players don't dodge roll
+            0, // dodgeRollProgress
+            false, // isSnorkeling - these are regular swimming players (snorkeling ones are excluded)
+            isSnorkeling // isViewerUnderwater - pass local player's snorkeling state
+          );
+
+          // Render equipped items for swimming players
+          const equipment = activeEquipments.get(playerId);
+          let itemDef: SpacetimeDBItemDefinition | null = null;
+          let itemImg: HTMLImageElement | null = null;
+
+          if (equipment && equipment.equippedItemDefId && equipment.equippedItemInstanceId) {
+            const equippedItemInstance = inventoryItems.get(equipment.equippedItemInstanceId.toString());
+            if (equippedItemInstance && equippedItemInstance.quantity > 0) {
+              itemDef = itemDefinitions.get(equipment.equippedItemDefId.toString()) || null;
+              itemImg = (itemDef ? itemImagesRef.current.get(itemDef.iconAssetName) : null) || null;
+            }
+          }
+
+          const canRenderItem = itemDef && itemImg && itemImg.complete && itemImg.naturalHeight !== 0;
+          if (canRenderItem && equipment) {
+            // player.direction is already server-synced in this context
+            renderEquippedItem(ctx, player, equipment, itemDef!, itemDefinitions, itemImg!, now_ms, 0, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction);
+          }
+        }
+      };
+
+      // Render entities in Y-sorted order, batching non-swimming entities for performance
+      let currentBatch: typeof nonSwimmingEntities = [];
+
+      const flushBatch = () => {
+        if (currentBatch.length > 0) {
+          renderYSortedEntities({
+            ctx,
+            ySortedEntities: currentBatch,
+            heroImageRef,
+            heroSprintImageRef,
+            heroIdleImageRef,
+            heroWaterImageRef,
+            heroCrouchImageRef,
+            heroDodgeImageRef,
+            lastPositionsRef,
+            activeConnections,
+            activeEquipments,
+            activeConsumableEffects,
+            itemDefinitions,
+            inventoryItems,
+            itemImagesRef,
+            doodadImagesRef,
+            shelterImage: shelterImageRef.current,
+            worldMouseX: currentWorldMouseX,
+            worldMouseY: currentWorldMouseY,
+            localPlayerId: localPlayerId,
+            animationFrame: currentAnimationFrame,
+            sprintAnimationFrame: currentSprintAnimationFrame,
+            idleAnimationFrame: currentIdleAnimationFrame,
+            nowMs: now_ms,
+            hoveredPlayerIds,
+            onPlayerHover: handlePlayerHover,
+            cycleProgress: currentCycleProgress,
+            renderPlayerCorpse: (props) => renderPlayerCorpse({ ...props, cycleProgress: currentCycleProgress, heroImageRef: heroImageRef, heroWaterImageRef: heroWaterImageRef, heroCrouchImageRef: heroCrouchImageRef }),
+            localPlayerPosition: currentPredictedPosition ?? { x: localPlayer?.positionX ?? 0, y: localPlayer?.positionY ?? 0 },
+            playerDodgeRollStates,
+            remotePlayerInterpolation,
+            localPlayerIsCrouching,
+            closestInteractableCampfireId,
+            closestInteractableBoxId,
+            closestInteractableStashId,
+            closestInteractableSleepingBagId,
+            closestInteractableHarvestableResourceId,
+            closestInteractableDroppedItemId,
+            closestInteractableDoorId,
+            closestInteractableTarget,
+            shelterClippingData,
+            localFacingDirection,
+            treeShadowsEnabled,
+            isTreeFalling,
+            getFallProgress,
+            cameraOffsetX: currentCameraOffsetX,
+            cameraOffsetY: currentCameraOffsetY,
+            foundationTileImagesRef,
+            allWalls: wallCells,
+            allFoundations: foundationCells,
+            allFences: visibleFences, // ADDED: All fences for smart sprite selection based on neighbors
+            buildingClusters,
+            playerBuildingClusterId,
+            connection, // ADDED: Pass connection for cairn biome lookup
+            isLocalPlayerSnorkeling: isSnorkeling, // ADDED: Pass snorkeling state for underwater rendering
+            alwaysShowPlayerNames, // ADDED: Pass setting for always showing player names
+            playerStats, // ADDED: Pass player stats for title display on name labels
+            largeQuarries, // ADDED: Pass large quarry locations for building restriction zones
+            detectedHotSprings, // ADDED: Pass hot spring locations for building restriction zones
+            detectedQuarries, // ADDED: Pass small quarry locations for building restriction zones
+            placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
+            caribouBreedingData, // ADDED: Pass caribou breeding data for age-based size scaling and pregnancy indicators
+            walrusBreedingData, // ADDED: Pass walrus breeding data for age-based size scaling and pregnancy indicators
+          });
+          currentBatch = [];
+        }
+      };
+
+      // Process merged entities in Y-sorted order
+      for (const item of mergedEntities) {
+        if (item._isSwimmingTop) {
+          // Flush batch before rendering swimming player
+          flushBatch();
+          // Render swimming player top half at correct Y position
+          renderSwimmingPlayerTopHalf(item as typeof swimmingPlayerTopHalves[number] & { _ySort: number; _isSwimmingTop: true });
+        } else {
+          // Add to batch
+          const { _ySort, _isSwimmingTop, ...entityWithoutMeta } = item;
+          currentBatch.push(entityWithoutMeta as typeof nonSwimmingEntities[number]);
         }
       }
-    };
-    
-    // Render entities in Y-sorted order, batching non-swimming entities for performance
-    let currentBatch: typeof nonSwimmingEntities = [];
-    
-    const flushBatch = () => {
-      if (currentBatch.length > 0) {
-        renderYSortedEntities({
-          ctx,
-          ySortedEntities: currentBatch,
-          heroImageRef,
-          heroSprintImageRef,
-          heroIdleImageRef,
-          heroWaterImageRef,
-          heroCrouchImageRef,
-          heroDodgeImageRef,
-          lastPositionsRef,
-          activeConnections,
-          activeEquipments,
-          activeConsumableEffects,
-          itemDefinitions,
-          inventoryItems,
-          itemImagesRef,
-          doodadImagesRef,
-          shelterImage: shelterImageRef.current,
-          worldMouseX: currentWorldMouseX,
-          worldMouseY: currentWorldMouseY,
-          localPlayerId: localPlayerId,
-          animationFrame: currentAnimationFrame,
-          sprintAnimationFrame: currentSprintAnimationFrame,
-          idleAnimationFrame: currentIdleAnimationFrame,
-          nowMs: now_ms,
-          hoveredPlayerIds,
-          onPlayerHover: handlePlayerHover,
-          cycleProgress: currentCycleProgress,
-          renderPlayerCorpse: (props) => renderPlayerCorpse({ ...props, cycleProgress: currentCycleProgress, heroImageRef: heroImageRef, heroWaterImageRef: heroWaterImageRef, heroCrouchImageRef: heroCrouchImageRef }),
-          localPlayerPosition: currentPredictedPosition ?? { x: localPlayer?.positionX ?? 0, y: localPlayer?.positionY ?? 0 },
-          playerDodgeRollStates,
-          remotePlayerInterpolation,
-          localPlayerIsCrouching,
-          closestInteractableCampfireId,
-          closestInteractableBoxId,
-          closestInteractableStashId,
-          closestInteractableSleepingBagId,
-          closestInteractableHarvestableResourceId,
-          closestInteractableDroppedItemId,
-          closestInteractableDoorId,
-          closestInteractableTarget,
-          shelterClippingData,
-          localFacingDirection,
-          treeShadowsEnabled,
-          isTreeFalling,
-          getFallProgress,
-          cameraOffsetX: currentCameraOffsetX,
-          cameraOffsetY: currentCameraOffsetY,
-          foundationTileImagesRef,
-          allWalls: wallCells,
-          allFoundations: foundationCells,
-          allFences: visibleFences, // ADDED: All fences for smart sprite selection based on neighbors
-          buildingClusters,
-          playerBuildingClusterId,
-          connection, // ADDED: Pass connection for cairn biome lookup
-          isLocalPlayerSnorkeling: isSnorkeling, // ADDED: Pass snorkeling state for underwater rendering
-          alwaysShowPlayerNames, // ADDED: Pass setting for always showing player names
-          playerStats, // ADDED: Pass player stats for title display on name labels
-          largeQuarries, // ADDED: Pass large quarry locations for building restriction zones
-          detectedHotSprings, // ADDED: Pass hot spring locations for building restriction zones
-          detectedQuarries, // ADDED: Pass small quarry locations for building restriction zones
-          placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
-          caribouBreedingData, // ADDED: Pass caribou breeding data for age-based size scaling and pregnancy indicators
-          walrusBreedingData, // ADDED: Pass walrus breeding data for age-based size scaling and pregnancy indicators
-        });
-        currentBatch = [];
-      }
-    };
-    
-    // Process merged entities in Y-sorted order
-    for (const item of mergedEntities) {
-      if (item._isSwimmingTop) {
-        // Flush batch before rendering swimming player
-        flushBatch();
-        // Render swimming player top half at correct Y position
-        renderSwimmingPlayerTopHalf(item as typeof swimmingPlayerTopHalves[number] & { _ySort: number; _isSwimmingTop: true });
-      } else {
-        // Add to batch
-        const { _ySort, _isSwimmingTop, ...entityWithoutMeta } = item;
-        currentBatch.push(entityWithoutMeta as typeof nonSwimmingEntities[number]);
-      }
-    }
-    // Flush remaining batch
-    flushBatch();
+      // Flush remaining batch
+      flushBatch();
     } // End of else block for swimming players exist
     // --- END Y-SORTED ENTITIES AND SWIMMING PLAYER TOP HALVES ---
 
@@ -3621,7 +3419,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         const key = `${tileX},${tileY}`;
         return waterTileLookup.get(key) ?? false;
       };
-      
+
       renderUnderwaterEffectsOver(
         ctx,
         -currentCameraOffsetX,
@@ -3692,7 +3490,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (!isSnorkeling) {
         renderShoreWaves(ctx, shoreWaveParticles, 0, 0);
       }
-      
+
       // Call without camera offsets, as ctx is already translated
       renderParticlesToCanvas(ctx, campfireParticles);
       renderParticlesToCanvas(ctx, torchParticles);
@@ -3741,14 +3539,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       doors: visibleDoorsMap, // ADDED: Doors
       alkStations: alkStations || new Map(), // ADDED: ALK Stations for E label rendering
     });
-    
+
     // Render local player status tags (AUTO ATTACK, AUTO WALK indicators)
     // These are LOCAL ONLY - not visible to other players
     if (localPlayer && !localPlayer.isDead) {
       // Get local player's screen position (use predicted position if available)
       const localPlayerScreenX = currentPredictedPosition?.x ?? localPlayer.positionX;
       const localPlayerScreenY = currentPredictedPosition?.y ?? localPlayer.positionY;
-      
+
       renderLocalPlayerStatusTags({
         ctx,
         playerX: localPlayerScreenX,
@@ -3757,7 +3555,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         isAutoWalking,
       });
     }
-    
+
     renderPlacementPreview({
       ctx, placementInfo, buildingState, itemImagesRef, shelterImageRef, worldMouseX: currentWorldMouseX,
       worldMouseY: currentWorldMouseY, isPlacementTooFar: isPlacementTooFarValue, placementError, connection,
@@ -3813,7 +3611,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (showCollisionDebug && localPlayer) {
       const playerX = currentPredictedPosition?.x ?? localPlayer.positionX;
       const playerY = currentPredictedPosition?.y ?? localPlayer.positionY;
-      
+
       // Build the game entities map for collision debug
       const gameEntitiesForDebug = {
         trees: trees || new Map(),
@@ -3838,7 +3636,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         lanterns: lanterns || new Map(), // Add lanterns for ward collision
         turrets: turrets || new Map(), // ADDED: Turrets for collision
       };
-      
+
       // Get collision shapes from the client collision system
       const collisionShapes = getCollisionShapesForDebug(
         gameEntitiesForDebug,
@@ -3846,7 +3644,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         playerY,
         localPlayer.identity.toHexString()
       );
-      
+
       renderCollisionDebug(ctx, {
         playerX,
         playerY,
@@ -3876,7 +3674,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const playerX = currentPredictedPosition?.x ?? localPlayer.positionX;
       const playerY = currentPredictedPosition?.y ?? localPlayer.positionY;
       const facingDir = localFacingDirection || localPlayer.direction;
-      
+
       renderTillerPreview({
         ctx,
         connection,
@@ -3892,7 +3690,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const playerX = currentPredictedPosition?.x ?? localPlayer.positionX;
       const playerY = currentPredictedPosition?.y ?? localPlayer.positionY;
       const facingDir = localFacingDirection || localPlayer.direction;
-      
+
       // Get the equipped item definition for weapon-specific range display
       const playerId = localPlayer.identity.toHexString();
       const equipment = activeEquipments.get(playerId);
@@ -3900,7 +3698,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (equipment?.equippedItemDefId) {
         equippedItemDef = itemDefinitions.get(equipment.equippedItemDefId.toString()) || null;
       }
-      
+
       renderAttackRangeDebug(ctx, {
         playerX,
         playerY,
@@ -3932,18 +3730,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const playerY = currentPredictedPosition?.y ?? localPlayer.positionY;
       const currentChunkIndex = calculateChunkIndex(playerX, playerY);
       const chunkWeatherData = chunkWeather.get(currentChunkIndex.toString());
-      
+
       if (chunkWeatherData && chunkWeatherData.currentWeather?.tag !== 'Clear') {
         // Use rain intensity from chunk weather (0.0 to 1.0)
         rainIntensity = chunkWeatherData.rainIntensity ?? 0.0;
       }
     }
-    
+
     // Fallback to global weather if chunk weather not available (backward compatibility)
     if (rainIntensity === 0.0 && worldState?.rainIntensity) {
       rainIntensity = worldState.rainIntensity;
     }
-    
+
     // Only render rain/snow if weather overlay is enabled (performance toggle)
     // Don't render rain when snorkeling - player is underwater!
     // In winter, render snow instead of rain (same server mechanics, different visuals)
@@ -3962,20 +3760,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
     // --- End Rain Rendering ---
 
-        // --- Render Weather Atmosphere Overlay ---
-        // Darkens and desaturates the scene based on storm intensity
-        // Renders BEFORE day/night overlay so both effects layer naturally
-        // Smoothly fades in/out when moving between chunks with different weather
-        // Always render atmospheric overlay - it's lightweight and provides visual feedback
-        renderWeatherOverlay(
-          ctx,
-          currentCanvasWidth,
-          currentCanvasHeight,
-          rainIntensity, // Target intensity (will smoothly transition)
-          currentCycleProgress, // Time of day progress (read from ref)
-          Date.now() // Current time for transition timing
-        );
-        // --- End Weather Atmosphere Overlay ---
+    // --- Render Weather Atmosphere Overlay ---
+    // Darkens and desaturates the scene based on storm intensity
+    // Renders BEFORE day/night overlay so both effects layer naturally
+    // Smoothly fades in/out when moving between chunks with different weather
+    // Always render atmospheric overlay - it's lightweight and provides visual feedback
+    renderWeatherOverlay(
+      ctx,
+      currentCanvasWidth,
+      currentCanvasHeight,
+      rainIntensity, // Target intensity (will smoothly transition)
+      currentCycleProgress, // Time of day progress (read from ref)
+      Date.now() // Current time for transition timing
+    );
+    // --- End Weather Atmosphere Overlay ---
 
     // --- Post-Processing (Day/Night, Indicators, Lights, Minimap) ---
     // Day/Night mask overlay
@@ -4025,7 +3823,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       ctx.restore();
     }
     // --- End Structure Impact Particles ---
-    
+
     // --- Render Hostile Death Particles (Above Day/Night Overlay for visibility) ---
     // Hostile death particles (blue/purple sparks) render AFTER day/night overlay so they glow dramatically at night
     if (hostileDeathParticles.length > 0) {
@@ -4048,7 +3846,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (showStatusOverlays && localPlayer && !localPlayer.isDead && !localPlayer.isKnockedOut) {
       const healthPercent = localPlayer.health / 100.0; // Health is 0-100
       const warmthPercent = localPlayer.warmth / 100.0; // Warmth is 0-100
-      
+
       // Use combined rendering function that handles blending when both conditions are met
       renderCombinedHealthOverlays(
         ctx,
@@ -4081,15 +3879,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (localPlayer && !localPlayer.isDead && !localPlayer.isKnockedOut) {
       // Calculate insanity intensity (0.0-1.0) from player insanity / max (100.0)
       const insanityIntensity = (localPlayer.insanity ?? 0) / 100.0;
-      
+
       // Check if player has Entrainment effect (max insanity death sentence)
       const hasEntrainment = localPlayerId && activeConsumableEffects
         ? Array.from(activeConsumableEffects.values()).some(
-            effect => effect.playerId.toHexString() === localPlayerId && 
-                      effect.effectType.tag === 'Entrainment'
-          )
+          effect => effect.playerId.toHexString() === localPlayerId &&
+            effect.effectType.tag === 'Entrainment'
+        )
         : false;
-      
+
       // Always render (even at 0 intensity for smooth transitions)
       renderInsanityOverlay(
         ctx,
@@ -4131,7 +3929,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           // Use appropriate duration based on interaction type
           const interactionDuration = entityType === 'knocked_out_player' ? REVIVE_HOLD_DURATION_MS : HOLD_INTERACTION_DURATION_MS;
           const currentProgress = Math.min(Math.max((Date.now() - holdInteractionProgress.startTime) / interactionDuration, 0), 1);
-          
+
           // Map entity type to config key - use appropriate config for each box type
           let configKey: string;
           if (entityType === 'box') {
@@ -4146,7 +3944,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             configKey = entityType;
           }
           const config = ENTITY_VISUAL_CONFIG[configKey];
-          
+
           // Use centralized config for indicator position (center of blue box)
           // Fallback to old calculation if config not found
           let indicatorX: number;
@@ -4159,7 +3957,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             indicatorX = entityPosX + currentCameraOffsetX;
             indicatorY = entityPosY + currentCameraOffsetY - (entityHeight / 2) - 15;
           }
-          
+
           drawInteractionIndicator(ctx, indicatorX, indicatorY, currentProgress);
         }
       }
@@ -4337,7 +4135,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         -currentCameraOffsetY + currentCanvasHeight, // viewMaxY
         now_ms
       );
-      
+
       // DEBUG: Visible protection zone circles for shipwreck parts
       // Shows purple circle (protection zone), green crosshair (visual center), red dot (anchor point)
       // Toggle via Debug Panel -> SHIPWRECK button
@@ -4355,12 +4153,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     }
 
-     // Homestead hearth interaction indicators (for hold actions like grant building privilege)
-     // Hearth visual is 125x125, so use 125 for height to match the visual
-     // Offset moved up by ~20% (15px) for better alignment
-     visibleHomesteadHearthsMap.forEach((hearth: SpacetimeDBHomesteadHearth) => {
-       drawIndicatorIfNeeded('homestead_hearth', hearth.id, hearth.posX, hearth.posY - 15, 125, true);
-     });
+    // Homestead hearth interaction indicators (for hold actions like grant building privilege)
+    // Hearth visual is 125x125, so use 125 for height to match the visual
+    // Offset moved up by ~20% (15px) for better alignment
+    visibleHomesteadHearthsMap.forEach((hearth: SpacetimeDBHomesteadHearth) => {
+      drawIndicatorIfNeeded('homestead_hearth', hearth.id, hearth.posX, hearth.posY - 15, 125, true);
+    });
 
     // --- Player Lights (Torch, Flashlight, Headlamp) ---
     // Unified rendering of all player light sources in a single pass
@@ -4419,7 +4217,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (frameTime > 16) {
       perfProfilingRef.current.slowFrames++;
     }
-    
+
     // PERFORMANCE DEBUG: Uncomment to enable periodic frame time logging
     // Log every 5 seconds (disabled by default to reduce console overhead)
     /*
@@ -4433,7 +4231,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       perfProfilingRef.current = { lastLogTime: Date.now(), frameCount: 0, totalFrameTime: 0, maxFrameTime: 0, slowFrames: 0 };
     }
     */
-    
+
     // === END PERFORMANCE PROFILING ===
 
     // Performance monitoring - check frame time at end
@@ -4496,7 +4294,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // PERFORMANCE FIX: Process inputs in the same RAF cycle as rendering
     // Previously this was a separate useGameLoop call, effectively running 2 RAF loops
     processInputsAndActions();
-    
+
     renderGame();
   }, [renderGame, processInputsAndActions]);
 
@@ -4525,14 +4323,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (canvasSize.width === 0 || canvasSize.height === 0) {
       return null;
     }
-    
+
     // 🚨 FIX: Cap viewport size to prevent subscription overload
     // Max viewport should cover ~1920x1080 pixels to keep chunk subscriptions reasonable
     const maxViewportWidth = 1920;
     const maxViewportHeight = 1080;
     const effectiveWidth = Math.min(canvasSize.width, maxViewportWidth);
     const effectiveHeight = Math.min(canvasSize.height, maxViewportHeight);
-    
+
     return {
       minX: -cameraOffsetX,
       minY: -cameraOffsetY,
@@ -4777,7 +4575,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // This eliminates running 2 separate RAF cycles
 
   // Performance tracking (emergency mode removed)
-  const performanceMode = useRef({ 
+  const performanceMode = useRef({
     lastFrameTime: 0
   });
 
@@ -4788,10 +4586,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         id="game-canvas"
         width={canvasSize.width}
         height={canvasSize.height}
-        style={{ 
-          position: 'absolute', 
-          left: 0, 
-          top: 0, 
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
           cursor: cursorStyle,
           pointerEvents: isGameMenuOpen ? 'none' : 'auto', // Don't capture events when menu is open
           touchAction: isMobile ? 'none' : 'auto', // Prevent default touch behaviors on mobile
@@ -4802,7 +4600,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           }
         }}
       />
-      
+
       {/* === AAA Damage Vignette Effect === */}
       {/* Red flash overlay when player takes damage */}
       {vignetteOpacity > 0 && (
@@ -4819,7 +4617,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           }}
         />
       )}
-      
+
       {/* === Low Health Warning Effect === */}
       {/* Pulsing red border when health is critically low */}
       {isLowHealth && !localPlayer?.isDead && (
@@ -4883,7 +4681,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       {isMinimapOpen && (
         <>
           {/* Subtle overlay to indicate interface is blocking interaction */}
-          <div 
+          <div
             style={{
               position: 'absolute',
               top: 0,
@@ -4955,7 +4753,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           </InterfaceContainer>
         </>
       )}
-      
+
       {/* Building Radial Menu */}
       {showBuildingRadialMenu && (
         <BuildingRadialMenu
@@ -5021,7 +4819,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           }}
         />
       )}
-      
+
       {/* Upgrade Radial Menu - for walls */}
       {showUpgradeRadialMenu && upgradeMenuWallRef.current && (
         <UpgradeRadialMenu
@@ -5064,7 +4862,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           }}
         />
       )}
-      
+
       {/* Upgrade Radial Menu - for fences (destroy only - fences don't have tiers) */}
       {showUpgradeRadialMenu && upgradeMenuFenceRef.current && (
         <UpgradeRadialMenu
@@ -5107,7 +4905,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           }}
         />
       )}
-      
+
       {/* Planted Seed Tooltip - shows info when hovering over seeds */}
       {hoveredSeed && canvasMousePos && canvasMousePos.x !== null && canvasMousePos.y !== null && !isGameMenuOpen && !showInventory && (
         <PlantedSeedTooltip

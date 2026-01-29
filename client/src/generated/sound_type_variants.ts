@@ -38,6 +38,7 @@ export type PlantSeed = { tag: "PlantSeed" };
 export type PickupItem = { tag: "PickupItem" };
 export type CampfireLooping = { tag: "CampfireLooping" };
 export type LanternLooping = { tag: "LanternLooping" };
+export type BeehiveLooping = { tag: "BeehiveLooping" };
 export type Repair = { tag: "Repair" };
 export type RepairFail = { tag: "RepairFail" };
 export type HeavyStormRain = { tag: "HeavyStormRain" };

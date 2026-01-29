@@ -35,8 +35,8 @@ use serde_json;
 // --- Beehive Constants ---
 pub const NUM_BEEHIVE_SLOTS: usize = 7; // 1 input + 6 output
 pub const BEEHIVE_INPUT_SLOT: usize = 0; // Slot 0 is for Queen Bee
-pub const BEEHIVE_OUTPUT_START_SLOT: usize = 1; // Slots 1-6 are for output
-pub const BEEHIVE_OUTPUT_END_SLOT: usize = 6; // Inclusive
+pub const BEEHIVE_OUTPUT_START_SLOT: usize = 1; // Slots 1-4 are for output
+pub const BEEHIVE_OUTPUT_END_SLOT: usize = 4; // Inclusive
 
 // Beehive timing constants
 pub const BEEHIVE_PROCESS_INTERVAL_SECS: u64 = 60; // Check every minute
@@ -70,6 +70,24 @@ pub fn init_beehive_system(ctx: &ReducerContext) -> Result<(), String> {
     } else {
         log::debug!("Beehive processing schedule already exists.");
     }
+    
+    // Start buzzing sounds for any existing beehives that have a Queen Bee
+    let storage_boxes = ctx.db.wooden_storage_box();
+    let item_defs = ctx.db.item_definition();
+    
+    for beehive in storage_boxes.iter().filter(|b| b.box_type == BOX_TYPE_PLAYER_BEEHIVE && !b.is_destroyed) {
+        // Check if slot 0 has a Queen Bee
+        if let Some(def_id) = beehive.slot_def_id_0 {
+            if let Some(item_def) = item_defs.id().find(def_id) {
+                if is_queen_bee(&item_def) {
+                    // Start the buzzing sound for this beehive
+                    crate::sound_events::start_beehive_sound(ctx, beehive.id as u64, beehive.pos_x, beehive.pos_y);
+                    log::info!("[Beehive] Restored buzzing sound for beehive {} with Queen Bee", beehive.id);
+                }
+            }
+        }
+    }
+    
     Ok(())
 }
 
@@ -180,13 +198,16 @@ pub fn add_item_to_beehive_slot(
     // The generic add_item_to_box_slot reducer can handle the actual placement
     // We just needed to validate the beehive-specific rules here
     
-    // If placing a Queen Bee, initialize the production timestamp
+    // If placing a Queen Bee, initialize the production timestamp and start buzzing sound
     if target_slot == 0 && is_queen_bee(&item_def) {
         let mut inventory_items = ctx.db.inventory_item();
         if let Some(mut item) = inventory_items.instance_id().find(item_instance_id) {
             set_beehive_production_timestamp(&mut item, ctx.timestamp);
             inventory_items.instance_id().update(item);
             log::info!("[Beehive] Queen Bee placed in beehive {}, production timer started", box_id);
+            
+            // Start beehive buzzing sound
+            crate::sound_events::start_beehive_sound(ctx, box_id as u64, storage_box.pos_x, storage_box.pos_y);
         }
     }
     
@@ -257,15 +278,13 @@ pub fn process_beehive_production(ctx: &ReducerContext, _schedule: BeehiveProces
         let mut honeycomb_placed = false;
         let mut updated_beehive = beehive.clone();
         
-        // Check slots 1-6 for empty space or stacking
+        // Check slots 1-4 for empty space or stacking
         for slot_idx in BEEHIVE_OUTPUT_START_SLOT..=BEEHIVE_OUTPUT_END_SLOT {
             let (slot_instance, slot_def) = match slot_idx {
                 1 => (updated_beehive.slot_instance_id_1, updated_beehive.slot_def_id_1),
                 2 => (updated_beehive.slot_instance_id_2, updated_beehive.slot_def_id_2),
                 3 => (updated_beehive.slot_instance_id_3, updated_beehive.slot_def_id_3),
                 4 => (updated_beehive.slot_instance_id_4, updated_beehive.slot_def_id_4),
-                5 => (updated_beehive.slot_instance_id_5, updated_beehive.slot_def_id_5),
-                6 => (updated_beehive.slot_instance_id_6, updated_beehive.slot_def_id_6),
                 _ => continue,
             };
             
@@ -291,8 +310,6 @@ pub fn process_beehive_production(ctx: &ReducerContext, _schedule: BeehiveProces
                     2 => { updated_beehive.slot_instance_id_2 = Some(inserted.instance_id); updated_beehive.slot_def_id_2 = Some(honeycomb_def.id); }
                     3 => { updated_beehive.slot_instance_id_3 = Some(inserted.instance_id); updated_beehive.slot_def_id_3 = Some(honeycomb_def.id); }
                     4 => { updated_beehive.slot_instance_id_4 = Some(inserted.instance_id); updated_beehive.slot_def_id_4 = Some(honeycomb_def.id); }
-                    5 => { updated_beehive.slot_instance_id_5 = Some(inserted.instance_id); updated_beehive.slot_def_id_5 = Some(honeycomb_def.id); }
-                    6 => { updated_beehive.slot_instance_id_6 = Some(inserted.instance_id); updated_beehive.slot_def_id_6 = Some(honeycomb_def.id); }
                     _ => {}
                 }
                 

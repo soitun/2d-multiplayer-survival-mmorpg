@@ -2175,33 +2175,38 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
         // CRITICAL ANTI-OVERLAP ENFORCEMENT: After all collision resolution,
         // do a final check to ensure we're not inside any player.
         // This is the absolute last line of defense against overlap bugs.
+        // EXCEPTION: Bees have no collision and fly through players!
         const ABSOLUTE_MIN_PLAYER_DISTANCE: f32 = 50.0; // Never closer than 50px to any player
         
-        for player in ctx.db.player().iter() {
-            if player.is_dead {
-                continue;
-            }
-            
-            let pdx = final_x - player.position_x;
-            let pdy = final_y - player.position_y;
-            let player_dist_sq = pdx * pdx + pdy * pdy;
-            let player_dist = player_dist_sq.sqrt();
-            
-            if player_dist < ABSOLUTE_MIN_PLAYER_DISTANCE {
-                // Too close! Push away from player
-                if player_dist > 1.0 {
-                    let push_dist = ABSOLUTE_MIN_PLAYER_DISTANCE - player_dist + 15.0;
-                    final_x = player.position_x + (pdx / player_dist) * (ABSOLUTE_MIN_PLAYER_DISTANCE + 15.0);
-                    final_y = player.position_y + (pdy / player_dist) * (ABSOLUTE_MIN_PLAYER_DISTANCE + 15.0);
-                } else {
-                    // Almost exactly on player - push in direction we were moving
-                    let push_angle = (animal.id as f32 * 2.39996) % (2.0 * std::f32::consts::PI);
-                    final_x = player.position_x + push_angle.cos() * (ABSOLUTE_MIN_PLAYER_DISTANCE + 20.0);
-                    final_y = player.position_y + push_angle.sin() * (ABSOLUTE_MIN_PLAYER_DISTANCE + 20.0);
+        let skip_player_collision = matches!(animal.species, AnimalSpecies::Bee);
+        
+        if !skip_player_collision {
+            for player in ctx.db.player().iter() {
+                if player.is_dead {
+                    continue;
                 }
-                log::debug!("[AntiOverlap] Animal {} was too close to player, pushed to ({:.1}, {:.1})", 
-                           animal.id, final_x, final_y);
-                break; // Only need to push away from one player
+                
+                let pdx = final_x - player.position_x;
+                let pdy = final_y - player.position_y;
+                let player_dist_sq = pdx * pdx + pdy * pdy;
+                let player_dist = player_dist_sq.sqrt();
+                
+                if player_dist < ABSOLUTE_MIN_PLAYER_DISTANCE {
+                    // Too close! Push away from player
+                    if player_dist > 1.0 {
+                        let push_dist = ABSOLUTE_MIN_PLAYER_DISTANCE - player_dist + 15.0;
+                        final_x = player.position_x + (pdx / player_dist) * (ABSOLUTE_MIN_PLAYER_DISTANCE + 15.0);
+                        final_y = player.position_y + (pdy / player_dist) * (ABSOLUTE_MIN_PLAYER_DISTANCE + 15.0);
+                    } else {
+                        // Almost exactly on player - push in direction we were moving
+                        let push_angle = (animal.id as f32 * 2.39996) % (2.0 * std::f32::consts::PI);
+                        final_x = player.position_x + push_angle.cos() * (ABSOLUTE_MIN_PLAYER_DISTANCE + 20.0);
+                        final_y = player.position_y + push_angle.sin() * (ABSOLUTE_MIN_PLAYER_DISTANCE + 20.0);
+                    }
+                    log::debug!("[AntiOverlap] Animal {} was too close to player, pushed to ({:.1}, {:.1})", 
+                               animal.id, final_x, final_y);
+                    break; // Only need to push away from one player
+                }
             }
         }
         
@@ -2251,6 +2256,12 @@ fn clamp_to_world_bounds(animal: &mut WildAnimal) {
 /// This is critical for fast-moving hostile NPCs that can overshoot during chase
 /// IMPORTANT: Animals must be pushed to a distance that's WITHIN their attack range!
 fn enforce_minimum_player_distance(animal: &mut WildAnimal, player: &Player, stats: &AnimalStats) {
+    // Bees have NO collision - they fly around and through players
+    // Skip all collision enforcement for bees
+    if matches!(animal.species, AnimalSpecies::Bee) {
+        return;
+    }
+    
     let dx = animal.pos_x - player.position_x;
     let dy = animal.pos_y - player.position_y;
     let distance_sq = dx * dx + dy * dy;
@@ -2568,6 +2579,20 @@ pub fn damage_wild_animal_with_weapon(
         if animal.state == AnimalState::Burrowed {
             log::debug!("Cannot attack burrowed {:?} {} - it's underground!", animal.species, animal.id);
             return Ok(()); // Silently ignore the attack - animal is safely hidden
+        }
+        
+        // BEE IMMUNITY: Bees cannot be killed by weapons - only fire kills them!
+        // They become more aggressive when attacked but take no damage
+        if matches!(animal.species, AnimalSpecies::Bee) {
+            log::debug!("🐝 Bee {} is immune to weapon damage! Only fire can kill bees.", animal.id);
+            // Trigger the damage response (makes them aggressive) but don't apply damage
+            if let Some(attacker) = ctx.db.player().identity().find(&attacker_id) {
+                let behavior = animal.species.get_behavior();
+                let stats = behavior.get_stats();
+                behavior.handle_damage_response(ctx, &mut animal, &attacker, &stats, ctx.timestamp, &mut rng)?;
+                ctx.db.wild_animal().id().update(animal);
+            }
+            return Ok(()); // No damage applied to bees from weapons
         }
         
         let old_health = animal.health;
@@ -4023,9 +4048,10 @@ pub fn emit_death_sound(
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => {
             return; // These use HostileDeath sound via hostile_spawning.rs
         },
-        // Bees don't have a death sound (they're tiny)
+        // Bees have their own death handling in bee.rs (emit_bee_death_and_delete)
+        // This function shouldn't be called for bees, but just in case:
         AnimalSpecies::Bee => {
-            return;
+            SoundType::DeathBee
         },
     };
     

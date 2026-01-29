@@ -707,7 +707,7 @@ export const NUM_MILITARY_RATION_SLOTS = 3;
 export const NUM_MINE_CART_SLOTS = 3;
 export const NUM_FISH_TRAP_SLOTS = 12;
 export const NUM_WILD_BEEHIVE_SLOTS = 3;
-export const NUM_PLAYER_BEEHIVE_SLOTS = 7; // 1 input (Queen Bee) + 6 output (Honeycomb)
+export const NUM_PLAYER_BEEHIVE_SLOTS = 5; // 1 input (Queen Bee) + 4 output (Honeycomb)
 
 /**
  * Get container configuration
@@ -758,7 +758,7 @@ export function getContainerConfig(containerType: ContainerType, entity?: Contai
                 break;
             case BOX_TYPE_PLAYER_BEEHIVE:
                 slots = NUM_PLAYER_BEEHIVE_SLOTS;
-                gridCols = 7; // 7 columns: 1 input + 6 output in a row
+                gridCols = 5; // 5 columns: 1 input + 4 output in a row
                 break;
             default:
                 slots = NUM_BOX_SLOTS;
@@ -802,6 +802,8 @@ export function getContainerDisplayName(containerType: ContainerType, entity?: C
                 return 'FISH TRAP';
             case BOX_TYPE_WILD_BEEHIVE:
                 return 'WILD BEEHIVE';
+            case BOX_TYPE_PLAYER_BEEHIVE:
+                return 'WOODEN BEEHIVE';
             default:
                 return 'WOODEN STORAGE BOX';
         }

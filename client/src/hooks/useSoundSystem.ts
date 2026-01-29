@@ -39,6 +39,7 @@ const SOUND_DEFINITIONS = {
     // Continuous/looping sounds - server managed
     campfire_looping: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 525, isLooping: true },
     lantern_looping: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 525, isLooping: true },
+    bees_buzzing: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.8, maxDistance: 525, isLooping: true },
     // Repair sounds - server only (triggered by repair actions)
     repair: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.2, maxDistance: 525 },
     repair_fail: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 525 },
@@ -315,6 +316,7 @@ const PRELOAD_SOUNDS = [
     'filling_container.mp3',                               // 1 filling container variation
     'campfire_looping.mp3',                                // 1 campfire looping variation
     'lantern_looping.mp3',                                 // 1 lantern looping variation
+    'bees_buzzing.mp3',                                    // 1 beehive buzzing variation
     'repair.mp3',                                          // 1 repair variation
     'repair_fail.mp3',                                     // 1 repair fail variation
     'rain_normal.mp3',                                     // 1 normal rain variation
@@ -589,6 +591,8 @@ const playLocalSound = async (
                 variationCount = 1; // drinking_water.mp3
             } else if (soundType === 'lantern_looping') {
                 variationCount = 1; // lantern_looping.mp3
+            } else if (soundType === 'bees_buzzing') {
+                variationCount = 1; // bees_buzzing.mp3
             } else if (soundType === 'repair') {
                 variationCount = 1; // repair.mp3
             } else if (soundType === 'repair_fail') {
@@ -1041,6 +1045,7 @@ const shouldUseSeamlessLooping = (filename: string): boolean => {
     const seamlessFilenames = [
         'campfire_looping.mp3',
         'lantern_looping.mp3',
+        'bees_buzzing.mp3', // Beehive buzzing needs seamless crossfade
         'rain_normal.mp3',
         'rain_heavy_storm.mp3',
         'soup_boiling.mp3' // Soup boiling needs seamless crossfade to prevent gaps

@@ -103,6 +103,10 @@ function getCorpseRenderSize(species: any): { width: number; height: number } {
             return { width: 96, height: 96 };
         case 'BeachCrab':
             return { width: 64, height: 64 };
+        case 'Bee':
+            // Bees don't produce corpses (they just poof when killed by fire)
+            // Return 0 size to skip rendering
+            return { width: 0, height: 0 };
         case 'Tern':
             return { width: 96, height: 96 }; // Medium-sized coastal bird
         case 'Crow':
@@ -144,6 +148,12 @@ export const renderAnimalCorpse = (
   corpse: SpacetimeDBAnimalCorpse,
   currentTime: number
 ) => {
+  // Bees don't produce corpses - they just disappear when killed by fire
+  // Skip rendering entirely for bees (shouldn't happen, but just in case)
+  if (corpse.animalSpecies.tag === 'Bee') {
+    return;
+  }
+
   // Canvas is already translated, so we use world coordinates directly
   const screenX = corpse.posX;
   const screenY = corpse.posY;

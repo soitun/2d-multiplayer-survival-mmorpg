@@ -1117,33 +1117,56 @@ export function renderWildAnimal({
     }
 
     if (useImageFallback) {
-        // Draw fallback colored circle with shake applied
+        // Draw fallback colored shape with shake applied
         const centerX = renderPosX + shakeX; // Use interpolated position
         const centerY = renderPosY + shakeY; // Use interpolated position
-        const radius = Math.min(renderWidth, renderHeight) / 3;
         
-        // Apply white flash to fallback color
-        let fillColor = getFallbackColor(animal.species);
-        if (isFlashing) {
-            fillColor = '#FFFFFF'; // Flash white
+        // Special rendering for bees - tiny black/yellow pixel-like dot
+        if (isBee) {
+            ctx.save();
+            ctx.imageSmoothingEnabled = false; // Crisp pixel look
+            
+            // Main bee body - small black dot
+            const beeSize = isFlashing ? 8 : 6;
+            ctx.fillStyle = isFlashing ? '#FFFFFF' : '#1A1A1A';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, beeSize / 2, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Yellow stripe through middle (when not flashing)
+            if (!isFlashing) {
+                ctx.fillStyle = '#FFD700'; // Gold/yellow
+                ctx.fillRect(centerX - 2, centerY - 1, 4, 2);
+            }
+            
+            ctx.restore();
+        } else {
+            // Normal fallback for other animals
+            const radius = Math.min(renderWidth, renderHeight) / 3;
+            
+            // Apply white flash to fallback color
+            let fillColor = getFallbackColor(animal.species);
+            if (isFlashing) {
+                fillColor = '#FFFFFF'; // Flash white
+            }
+            
+            ctx.fillStyle = fillColor;
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+            
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Add a simple indicator for the species (letter)
+            ctx.fillStyle = isFlashing ? '#000000' : '#FFFFFF'; // Invert letter color when flashing
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const letter = animal.species.tag.charAt(0);
+            ctx.fillText(letter, centerX, centerY);
         }
-        
-        ctx.fillStyle = fillColor;
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.stroke();
-        
-        // Add a simple indicator for the species (letter)
-        ctx.fillStyle = isFlashing ? '#000000' : '#FFFFFF'; // Invert letter color when flashing
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const letter = animal.species.tag.charAt(0); // C, T, or C
-        ctx.fillText(letter, centerX, centerY);
     } else {
         // --- Prepare sprite on offscreen canvas (for white flash tinting and sprite sheet extraction) ---
         if (offscreenCtx && animalImage) {

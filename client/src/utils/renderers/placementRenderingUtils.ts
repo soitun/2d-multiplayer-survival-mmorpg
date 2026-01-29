@@ -16,7 +16,7 @@ import { SLEEPING_BAG_WIDTH, SLEEPING_BAG_HEIGHT } from './sleepingBagRenderingU
 import { STASH_WIDTH, STASH_HEIGHT } from './stashRenderingUtils';
 import { SHELTER_RENDER_WIDTH, SHELTER_RENDER_HEIGHT } from './shelterRenderingUtils';
 import { HEARTH_WIDTH, HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from './hearthRenderingUtils'; // ADDED: Hearth dimensions
-import { COMPOST_WIDTH, COMPOST_HEIGHT, REFRIGERATOR_WIDTH, REFRIGERATOR_HEIGHT, LARGE_BOX_WIDTH, LARGE_BOX_HEIGHT, REPAIR_BENCH_WIDTH, REPAIR_BENCH_HEIGHT, COOKING_STATION_WIDTH, COOKING_STATION_HEIGHT } from './woodenStorageBoxRenderingUtils'; // ADDED: Compost, Refrigerator, Large Box, Repair Bench, and Cooking Station dimensions
+import { COMPOST_WIDTH, COMPOST_HEIGHT, REFRIGERATOR_WIDTH, REFRIGERATOR_HEIGHT, LARGE_BOX_WIDTH, LARGE_BOX_HEIGHT, REPAIR_BENCH_WIDTH, REPAIR_BENCH_HEIGHT, COOKING_STATION_WIDTH, COOKING_STATION_HEIGHT, PLAYER_BEEHIVE_WIDTH, PLAYER_BEEHIVE_HEIGHT } from './woodenStorageBoxRenderingUtils'; // ADDED: Compost, Refrigerator, Large Box, Repair Bench, Cooking Station, and Beehive dimensions
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, worldPixelsToFoundationCell, foundationCellToWorldCenter } from '../../config/gameConfig';
 import { DbConnection } from '../../generated';
 import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement, isPineconeBlockedOnBeach, isBirchCatkinBlockedOnAlpine, requiresTemperateOnlyPlacement } from '../plantsUtils';
@@ -547,7 +547,7 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
     }
 
     // List of items that cannot be placed on water
-    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Ancestral Ward', 'Signal Disruptor', 'Memory Resonance Beacon', 'Tallow Steam Turret', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath"];
+    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Ancestral Ward', 'Signal Disruptor', 'Memory Resonance Beacon', 'Tallow Steam Turret', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath", 'Wooden Beehive'];
     
     // Seeds that don't require water or beach (most seeds) cannot be planted on water
     const isSeedButNotSpecialSeed = isSeedItemValid(placementInfo.itemName) && 
@@ -1792,6 +1792,9 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'turret_tallow.png') {
         // For Tallow Steam Turret, use the sprite from doodads folder for placement preview
         previewImg = doodadImagesRef.current?.get('turret_tallow.png');
+    } else if (placementInfo.iconAssetName === 'beehive_wooden.png') {
+        // For Wooden Beehive, use the beehive_wooden.png from doodads folder for placement preview
+        previewImg = doodadImagesRef.current?.get('beehive_wooden.png');
     } else {
         // For other items, use the item images (including hearth.png)
         previewImg = itemImagesRef.current?.get(placementInfo.iconAssetName);
@@ -1846,6 +1849,10 @@ export function renderPlacementPreview({
         // Cooking Station preview dimensions (matches actual rendering - 128x128)
         drawWidth = COOKING_STATION_WIDTH; // 128px
         drawHeight = COOKING_STATION_HEIGHT; // 128px
+    } else if (placementInfo.iconAssetName === 'beehive_wooden.png') {
+        // Wooden Beehive preview dimensions (matches actual rendering - 256x256)
+        drawWidth = PLAYER_BEEHIVE_WIDTH; // 256px
+        drawHeight = PLAYER_BEEHIVE_HEIGHT; // 256px
     } else if (placementInfo.iconAssetName === 'scarecrow.png') {
         // Scarecrow preview dimensions (matches actual rendering - 96x128)
         drawWidth = 96; // SCARECROW_WIDTH

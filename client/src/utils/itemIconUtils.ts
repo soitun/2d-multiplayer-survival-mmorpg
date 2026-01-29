@@ -50,7 +50,12 @@ import animalFatIcon from '../assets/items/animal_fat.png';
 import pineBarkIcon from '../assets/items/tree_bark.png';
 import birchBarkIcon from '../assets/items/tree_bark_birch.png';
 import pineconeIcon from '../assets/items/pinecone.png';
+import cookedPineconeIcon from '../assets/items/cooked_pinecone.png';
 import birchCatkinIcon from '../assets/items/birch_catkin.png';
+import crabApplesIcon from '../assets/items/crab_apples.png';
+import cookedCrabApplesIcon from '../assets/items/cooked_crab_apples.png';
+import hazelnutIcon from '../assets/items/hazelnut.png';
+import cookedHazelnutIcon from '../assets/items/cooked_hazelnut.png';
 
 // Animal materials
 import animalLeatherIcon from '../assets/items/animal_leather.png';
@@ -504,6 +509,7 @@ import shelterIcon from '../assets/items/shelter.png';
 import tallowLampIcon from '../assets/items/lantern_off.png';
 import reedRainCollectorIcon from '../assets/items/reed_rain_collector.png';
 import hearthIcon from '../assets/items/hearth.png'; // ADDED: Homestead Hearth icon
+import woodenBeehiveIcon from '../assets/items/beehive_wooden.png'; // Player-made beehive icon
 
 // Trophy decorations
 import wolfPeltIcon from '../assets/items/wolf_pelt.png';
@@ -576,7 +582,12 @@ const iconMap: { [key: string]: string | undefined } = {
   'tree_bark.png': pineBarkIcon,
   'tree_bark_birch.png': birchBarkIcon,
   'pinecone.png': pineconeIcon,
+  'cooked_pinecone.png': cookedPineconeIcon,
   'birch_catkin.png': birchCatkinIcon,
+  'crab_apples.png': crabApplesIcon,
+  'cooked_crab_apples.png': cookedCrabApplesIcon,
+  'hazelnut.png': hazelnutIcon,
+  'cooked_hazelnut.png': cookedHazelnutIcon,
   
   // Animal materials
   'animal_leather.png': animalLeatherIcon,
@@ -968,6 +979,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'lantern_off.png': tallowLampIcon,
   'reed_rain_collector.png': reedRainCollectorIcon,
   'hearth.png': hearthIcon, // ADDED: Homestead Hearth icon
+  'beehive_wooden.png': woodenBeehiveIcon, // Player-made beehive
   
   // Trophy decorations
   'wolf_pelt.png': wolfPeltIcon,

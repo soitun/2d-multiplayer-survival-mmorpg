@@ -80,7 +80,7 @@ pub const WILD_BEEHIVE_MAX_HEALTH: f32 = 100.0;
 
 // --- Player Beehive ---
 pub const BOX_TYPE_PLAYER_BEEHIVE: u8 = 12;
-pub const NUM_PLAYER_BEEHIVE_SLOTS: usize = 7; // Slot 0 = Queen Bee input, Slots 1-6 = Honeycomb output
+pub const NUM_PLAYER_BEEHIVE_SLOTS: usize = 5; // Slot 0 = Queen Bee input, Slots 1-4 = Honeycomb output
 pub const PLAYER_BEEHIVE_INITIAL_HEALTH: f32 = 400.0;
 pub const PLAYER_BEEHIVE_MAX_HEALTH: f32 = 400.0;
 
@@ -320,10 +320,16 @@ pub fn move_item_from_box(
     let is_military_ration = storage_box.box_type == BOX_TYPE_MILITARY_RATION;
     let is_mine_cart = storage_box.box_type == BOX_TYPE_MINE_CART;
     let is_wild_beehive = storage_box.box_type == BOX_TYPE_WILD_BEEHIVE;
+    let is_player_beehive = storage_box.box_type == BOX_TYPE_PLAYER_BEEHIVE;
 
     // --- Commit Box Update --- 
     // The handler modified storage_box (cleared the slot) if the move was successful.
     boxes.id().update(storage_box);
+    
+    // Stop beehive buzzing sound if Queen Bee was removed from slot 0
+    if is_player_beehive && source_slot_index == 0 {
+        crate::sound_events::stop_beehive_sound(ctx, box_id as u64);
+    }
 
     // Auto-despawn empty backpacks
     if is_backpack {
@@ -527,9 +533,16 @@ pub fn quick_move_from_box(
     let is_military_ration = storage_box.box_type == BOX_TYPE_MILITARY_RATION;
     let is_mine_cart = storage_box.box_type == BOX_TYPE_MINE_CART;
     let is_wild_beehive = storage_box.box_type == BOX_TYPE_WILD_BEEHIVE;
+    let is_player_beehive = storage_box.box_type == BOX_TYPE_PLAYER_BEEHIVE;
 
     // --- Commit Box Update --- 
     boxes.id().update(storage_box);
+    
+    // Stop beehive buzzing sound if Queen Bee was removed from slot 0
+    if is_player_beehive && source_slot_index == 0 {
+        // Queen Bee was removed from the beehive - stop the buzzing sound
+        crate::sound_events::stop_beehive_sound(ctx, box_id as u64);
+    }
 
     // Auto-despawn empty backpacks
     if is_backpack {
@@ -857,7 +870,12 @@ pub fn pickup_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<(), Strin
         }
     }
 
-    // 5. Delete the WoodenStorageBox entity from the world
+    // 5. Stop beehive sound if this was a player beehive (sound should already be stopped since box must be empty, but just in case)
+    if storage_box_to_pickup.box_type == BOX_TYPE_PLAYER_BEEHIVE {
+        crate::sound_events::stop_beehive_sound(ctx, box_id as u64);
+    }
+    
+    // 6. Delete the WoodenStorageBox entity from the world
     boxes_table.id().delete(box_id);
     log::info!("Storage box {} picked up and removed from world by player {:?}.", box_id, sender_id);
 
@@ -897,10 +915,16 @@ pub fn drop_item_from_box_slot_to_world(
     let is_military_ration = wooden_box.box_type == BOX_TYPE_MILITARY_RATION;
     let is_mine_cart = wooden_box.box_type == BOX_TYPE_MINE_CART;
     let is_wild_beehive = wooden_box.box_type == BOX_TYPE_WILD_BEEHIVE;
+    let is_player_beehive = wooden_box.box_type == BOX_TYPE_PLAYER_BEEHIVE;
 
     // 4. Persist changes to the WoodenStorageBox
     wooden_box_table.id().update(wooden_box);
     log::info!("[DropFromBoxToWorld] Successfully dropped item from box {}, slot {}. Box updated.", box_id, slot_index);
+    
+    // Stop beehive buzzing sound if Queen Bee was dropped from slot 0
+    if is_player_beehive && slot_index == 0 {
+        crate::sound_events::stop_beehive_sound(ctx, box_id as u64);
+    }
 
     // Auto-despawn empty backpacks
     if is_backpack {

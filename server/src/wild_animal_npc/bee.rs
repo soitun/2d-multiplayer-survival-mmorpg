@@ -53,10 +53,10 @@ impl AnimalBehavior for BeeBehavior {
         AnimalStats {
             max_health: 1.0, // Effectively invincible to weapons, but dies to fire
             attack_damage: 3.0, // Low damage per hit
-            attack_range: 40.0, // Very close range (basically touching)
-            attack_speed_ms: 400, // Fast attacks - every 0.4 seconds
+            attack_range: 65.0, // Wider range - bees swarm and sting from close range
+            attack_speed_ms: 500, // Fast attacks - every 0.5 seconds
             movement_speed: 180.0, // Fast patrol near hive
-            sprint_speed: 350.0, // Very fast chase - hard to outrun
+            sprint_speed: 320.0, // Fast chase - can catch walking players but not sprinters
             perception_range: 300.0, // Detects players near hive
             perception_angle_degrees: 360.0, // Full awareness (swarm behavior)
             patrol_radius: 100.0, // Stays close to hive
@@ -292,8 +292,9 @@ fn check_and_apply_fire_death(ctx: &ReducerContext, animal: &mut WildAnimal) -> 
         
         if dist_sq < BEE_FIRE_KILL_RADIUS_SQ {
             // Bee caught in campfire - instant death!
-            animal.health = 0.0;
-            log::info!("Bee {} burned to death near campfire!", animal.id);
+            log::info!("🐝🔥 Bee {} burned to death near campfire!", animal.id);
+            // Emit death sound and delete bee (no corpse for bees)
+            emit_bee_death_and_delete(ctx, animal);
             return true;
         }
     }
@@ -307,8 +308,8 @@ fn check_and_apply_fire_death(ctx: &ReducerContext, animal: &mut WildAnimal) -> 
         
         if dist_sq < BEE_FIRE_PATCH_KILL_RADIUS_SQ {
             // Bee flew into fire patch - instant death!
-            animal.health = 0.0;
-            log::info!("Bee {} burned to death in fire patch!", animal.id);
+            log::info!("🐝🔥 Bee {} burned to death in fire patch!", animal.id);
+            emit_bee_death_and_delete(ctx, animal);
             return true;
         }
     }
@@ -330,13 +331,36 @@ fn check_and_apply_fire_death(ctx: &ReducerContext, animal: &mut WildAnimal) -> 
         
         if dist_sq < BEE_TORCH_KILL_RADIUS_SQ {
             // Bee caught near torch - instant death!
-            animal.health = 0.0;
-            log::info!("Bee {} burned to death near player {}'s torch!", animal.id, player.identity);
+            log::info!("🐝🔥 Bee {} burned to death near player {}'s torch!", animal.id, player.identity);
+            emit_bee_death_and_delete(ctx, animal);
             return true;
         }
     }
     
     false
+}
+
+/// Emit bee death sound and delete the bee from the database
+/// Bees don't create corpses - they just poof when killed by fire
+fn emit_bee_death_and_delete(ctx: &ReducerContext, animal: &WildAnimal) {
+    use crate::sound_events::{self, SoundType};
+    use super::core::wild_animal as WildAnimalTableTrait;
+    
+    // Emit death sound at bee's position
+    if let Err(e) = sound_events::emit_sound_at_position(
+        ctx, 
+        SoundType::DeathBee, 
+        animal.pos_x, 
+        animal.pos_y, 
+        0.6,  // Lower volume - bees are small
+        ctx.identity()
+    ) {
+        log::error!("Failed to emit bee death sound: {}", e);
+    }
+    
+    // Delete the bee - no corpse for bees
+    ctx.db.wild_animal().id().delete(&animal.id);
+    log::debug!("🐝 Bee {} removed after fire death (no corpse)", animal.id);
 }
 
 /// Check if a player has a lit torch equipped

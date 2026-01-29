@@ -40,6 +40,7 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.PickupItem |
   SoundTypeVariants.CampfireLooping |
   SoundTypeVariants.LanternLooping |
+  SoundTypeVariants.BeehiveLooping |
   SoundTypeVariants.Repair |
   SoundTypeVariants.RepairFail |
   SoundTypeVariants.HeavyStormRain |
@@ -155,6 +156,7 @@ export const SoundType = {
   PickupItem: { tag: "PickupItem" } as const,
   CampfireLooping: { tag: "CampfireLooping" } as const,
   LanternLooping: { tag: "LanternLooping" } as const,
+  BeehiveLooping: { tag: "BeehiveLooping" } as const,
   Repair: { tag: "Repair" } as const,
   RepairFail: { tag: "RepairFail" } as const,
   HeavyStormRain: { tag: "HeavyStormRain" } as const,
@@ -264,6 +266,7 @@ export const SoundType = {
       { name: "PickupItem", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "CampfireLooping", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "LanternLooping", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "BeehiveLooping", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Repair", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "RepairFail", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HeavyStormRain", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

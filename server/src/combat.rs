@@ -3222,6 +3222,11 @@ pub fn damage_wooden_storage_box(
         sound_events::emit_barrel_destroyed_sound(ctx, wooden_box.pos_x, wooden_box.pos_y, attacker_id);
         wooden_box.is_destroyed = true;
         wooden_box.destroyed_at = Some(timestamp);
+        
+        // Stop beehive buzzing sound if this was a player beehive
+        if wooden_box.box_type == crate::wooden_storage_box::BOX_TYPE_PLAYER_BEEHIVE {
+            sound_events::stop_beehive_sound(ctx, box_id as u64);
+        }
 
         let mut items_to_drop: Vec<(u64, u32)> = Vec::new();
         for i in 0..crate::wooden_storage_box::NUM_BOX_SLOTS {

@@ -47,7 +47,7 @@ import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
 import { PopulatedItem } from './InventoryUI';
 import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPercentage, isSaltWater } from '../utils/waterContainerHelpers';
 import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining, formatDurability, getDurability, getMaxDurability, getRepairCount, canItemBeRepaired, getRepairBlockedReason, calculateRepairCost, formatRepairCost, MAX_REPAIR_COUNT, MAX_DURABILITY } from '../utils/durabilityHelpers';
-import { BOX_TYPE_REPAIR_BENCH } from '../utils/renderers/woodenStorageBoxRenderingUtils';
+import { BOX_TYPE_REPAIR_BENCH, BOX_TYPE_PLAYER_BEEHIVE } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { getItemIcon } from '../utils/itemIconUtils';
 import { playImmediateSound } from '../hooks/useSoundSystem';
 
@@ -2532,6 +2532,85 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             </div>
                         </div>
                     </>
+                )}
+
+                {/* Player Beehive UI - special layout with input/output slots */}
+                {container.containerType === 'wooden_storage_box' && 
+                 (container.containerEntity as SpacetimeDBWoodenStorageBox).boxType === BOX_TYPE_PLAYER_BEEHIVE && (
+                    <div style={{ 
+                        marginTop: '12px', 
+                        padding: '10px', 
+                        backgroundColor: 'rgba(0, 0, 0, 0.3)', 
+                        borderRadius: '4px', 
+                        border: '1px solid rgba(255, 200, 50, 0.3)' 
+                    }}>
+                        <div style={{ 
+                            fontSize: '13px', 
+                            fontWeight: 'bold', 
+                            color: '#ffc832', 
+                            marginBottom: '8px', 
+                            textAlign: 'center' 
+                        }}>
+                            🐝 Beehive Production
+                        </div>
+                        
+                        {/* Slot 0: Queen Bee Input */}
+                        <div style={{ marginBottom: '10px' }}>
+                            <div style={{ 
+                                fontSize: '11px', 
+                                color: '#ffcc00', 
+                                marginBottom: '4px',
+                                textAlign: 'center'
+                            }}>
+                                Queen Bee Input (Slot 0)
+                            </div>
+                            <div style={{
+                                fontSize: '12px',
+                                color: container.items[0] ? '#66d966' : '#888',
+                                textAlign: 'center'
+                            }}>
+                                {container.items[0] 
+                                    ? `✓ ${container.items[0].definition.name} (produces honeycomb)` 
+                                    : '○ Place a Queen Bee here to start production'}
+                            </div>
+                        </div>
+                        
+                        {/* Slots 1-4: Honeycomb Output */}
+                        <div style={{ marginBottom: '6px' }}>
+                            <div style={{ 
+                                fontSize: '11px', 
+                                color: '#ffcc00', 
+                                marginBottom: '4px',
+                                textAlign: 'center'
+                            }}>
+                                Honeycomb Output (Slots 1-4)
+                            </div>
+                            <div style={{
+                                fontSize: '12px',
+                                color: '#aaa',
+                                textAlign: 'center'
+                            }}>
+                                {(() => {
+                                    const outputItems = [container.items[1], container.items[2], container.items[3], container.items[4]];
+                                    const filledSlots = outputItems.filter(item => item !== null).length;
+                                    return `${filledSlots}/4 slots filled`;
+                                })()}
+                            </div>
+                        </div>
+                        
+                        {/* Info text */}
+                        <div style={{
+                            fontSize: '11px',
+                            color: '#777',
+                            textAlign: 'center',
+                            marginTop: '8px',
+                            lineHeight: '1.3'
+                        }}>
+                            While a Queen Bee is present, honeycomb is produced continuously.
+                            <br/>
+                            Queen Bee won't spoil while in the hive.
+                        </div>
+                    </div>
                 )}
 
                 {/* Broth pot pickup button - show with warning if has contents */}
