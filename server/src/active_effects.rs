@@ -84,6 +84,7 @@ pub enum EffectType {
     
     // === INSANITY SYSTEM EFFECTS ===
     Entrainment,       // Permanent debuff from max insanity - slow damage until death (cannot be removed)
+    ValidolProtection, // Temporary protection from Entrainment damage (2-5 minutes from Validol Tablets)
     
     // === BREW CONSUMPTION COOLDOWN ===
     BrewCooldown,      // 60-second cooldown after consuming any broth pot brew (prevents spam)
@@ -265,7 +266,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         effect.target_player_id
                     },
                     // Other effect types shouldn't reach this code path, but we need to handle them
-                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::NearCookingStation | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment | EffectType::BrewCooldown | EffectType::Stun | EffectType::LagunovGhost | EffectType::MemoryBeaconSanity => {
+                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::NearCookingStation | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment | EffectType::ValidolProtection | EffectType::BrewCooldown | EffectType::Stun | EffectType::LagunovGhost | EffectType::MemoryBeaconSanity => {
                         log::warn!("[EffectTick] Unexpected effect type {:?} in bandage processing", effect.effect_type);
                         Some(effect.player_id)
                     }
@@ -376,7 +377,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
             EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance |
             EffectType::PoisonCoating | EffectType::HarvestBoost | EffectType::BrewCooldown);
         
-        if effect.effect_type == EffectType::Wet || effect.effect_type == EffectType::WaterDrinking || effect.effect_type == EffectType::Stun || is_broth_buff_effect {
+        if effect.effect_type == EffectType::Wet || effect.effect_type == EffectType::WaterDrinking || effect.effect_type == EffectType::Stun || effect.effect_type == EffectType::ValidolProtection || is_broth_buff_effect {
             // These effects are purely time-based, no per-tick processing needed
             // They just exist until they expire or are removed
             // Check for time-based expiration (this was missing, causing effects to persist indefinitely!)
@@ -451,9 +452,15 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                                 
                                 // Special handling for Entrainment: permanent debuff from max insanity (3x faster than venom)
                                 if effect.effect_type == EffectType::Entrainment {
-                                    amount_this_tick = 3.0; // Fixed 3 damage per tick (3x venom rate for urgency)
-                                    // Entrainment cannot be reduced or removed - it's a permanent death sentence
-                                    log::trace!("Player {:?} taking Entrainment damage: {:.1} HP", effect.player_id, amount_this_tick);
+                                    // Check if player has ValidolProtection - pauses Entrainment damage
+                                    if player_has_validol_protection(ctx, effect.player_id) {
+                                        amount_this_tick = 0.0; // Validol pauses Entrainment damage
+                                        log::info!("Player {:?} has ValidolProtection - Entrainment damage paused", effect.player_id);
+                                    } else {
+                                        amount_this_tick = 3.0; // Fixed 3 damage per tick (3x venom rate for urgency)
+                                        // Entrainment cannot be reduced or removed - it's a permanent death sentence
+                                        log::trace!("Player {:?} taking Entrainment damage: {:.1} HP", effect.player_id, amount_this_tick);
+                                    }
                                 }
                                 
                                 // <<< APPLY FIRE DAMAGE MULTIPLIER FOR BURN EFFECTS (WOODEN ARMOR VULNERABILITY) >>>
@@ -787,7 +794,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
         
         if effect.effect_type == EffectType::SeawaterPoisoning || effect.effect_type == EffectType::Venom || effect.effect_type == EffectType::Entrainment || 
            effect.effect_type == EffectType::Wet || effect.effect_type == EffectType::WaterDrinking || effect.effect_type == EffectType::Stun ||
-           is_broth_buff_effect_end_check {
+           effect.effect_type == EffectType::ValidolProtection || is_broth_buff_effect_end_check {
             if current_time >= effect.ends_at {
                 effect_ended = true;
             }
@@ -3509,6 +3516,84 @@ pub fn apply_entrainment_effect(ctx: &ReducerContext, player_id: Identity) -> Re
             Err("Failed to apply Entrainment effect".to_string())
         }
     }
+}
+
+// ============================================================================
+// VALIDOL PROTECTION (Insanity/Entrainment Countermeasure)
+// ============================================================================
+
+/// Checks if a player currently has ValidolProtection active (pauses Entrainment damage)
+pub fn player_has_validol_protection(ctx: &ReducerContext, player_id: Identity) -> bool {
+    ctx.db.active_consumable_effect().iter()
+        .any(|e| e.player_id == player_id && e.effect_type == EffectType::ValidolProtection)
+}
+
+/// Applies ValidolProtection effect - pauses Entrainment damage for 2-5 minutes
+/// This effect is applied when consuming Validol Tablets while at max insanity (Entrainment)
+/// Duration is random between 120-300 seconds (2-5 minutes)
+pub fn apply_validol_protection(ctx: &ReducerContext, player_id: Identity) -> Result<u64, String> {
+    // Remove any existing ValidolProtection (refresh timer instead of stacking)
+    let existing_effects: Vec<u64> = ctx.db.active_consumable_effect().iter()
+        .filter(|e| e.player_id == player_id && e.effect_type == EffectType::ValidolProtection)
+        .map(|e| e.effect_id)
+        .collect();
+    
+    for effect_id in existing_effects {
+        ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
+        log::info!("[Validol] Cancelled existing ValidolProtection effect {} for player {:?} (refreshing)", effect_id, player_id);
+    }
+    
+    let current_time = ctx.timestamp;
+    
+    // Random duration between 2-5 minutes (120-300 seconds)
+    let duration_secs = ctx.rng().gen_range(120..=300);
+    let duration_micros = (duration_secs as i64) * 1_000_000;
+    
+    let validol_effect = ActiveConsumableEffect {
+        effect_id: 0, // auto_inc
+        player_id,
+        target_player_id: None,
+        item_def_id: 0, // Not associated with a specific item def
+        associated_item_instance_id: None,
+        started_at: current_time,
+        ends_at: current_time + TimeDuration::from_micros(duration_micros),
+        total_amount: None, // No damage/healing amount - this is a status effect
+        amount_applied_so_far: None,
+        effect_type: EffectType::ValidolProtection,
+        tick_interval_micros: 0, // No ticks - just a duration flag
+        next_tick_at: current_time + TimeDuration::from_micros(duration_micros), // Set to end time
+    };
+    
+    match ctx.db.active_consumable_effect().try_insert(validol_effect) {
+        Ok(inserted_effect) => {
+            log::info!("Applied ValidolProtection effect {} to player {:?} - Entrainment damage paused for {} seconds (~{} minutes)", 
+                inserted_effect.effect_id, player_id, duration_secs, duration_secs / 60);
+            Ok(duration_secs)
+        }
+        Err(e) => {
+            log::error!("Failed to apply ValidolProtection effect to player {:?}: {:?}", player_id, e);
+            Err("Failed to apply ValidolProtection effect".to_string())
+        }
+    }
+}
+
+/// Reduces player's insanity by a percentage of maximum
+/// Used when consuming Validol Tablets while NOT at Entrainment
+pub fn reduce_player_insanity(ctx: &ReducerContext, player_id: Identity, reduction_percent: f32) -> Result<f32, String> {
+    let mut player = ctx.db.player().identity().find(&player_id)
+        .ok_or_else(|| "Player not found".to_string())?;
+    
+    let max_insanity = crate::player_stats::PLAYER_MAX_INSANITY;
+    let reduction_amount = max_insanity * reduction_percent;
+    let old_insanity = player.insanity;
+    player.insanity = (player.insanity - reduction_amount).max(0.0);
+    
+    ctx.db.player().identity().update(player);
+    
+    log::info!("Reduced player {:?} insanity by {:.1} ({:.0}% of max): {:.1}% -> {:.1}%", 
+        player_id, reduction_amount, reduction_percent * 100.0, old_insanity, player.insanity);
+    
+    Ok(reduction_amount)
 }
 
 // ============================================================================

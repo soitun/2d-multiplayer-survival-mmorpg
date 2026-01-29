@@ -1598,12 +1598,122 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(1200)
             .build(),
 
-        ItemBuilder::new("Mystery Can (Label Missing)", "A dented can with no readable label. Could be delicious stew, could be pet food. Only one way to find out...", ItemCategory::Consumable)
-            .icon("mystery_can.png")
+
+        // === RUSSIAN MILITARY IRP (Individual Ration Pack) ITEMS ===
+        // Core food items found in military rations
+
+        ItemBuilder::new("Canned Meat", "Soviet-era canned beef in gravy. Heavy, filling, and surprisingly tasty despite the age.", ItemCategory::Consumable)
+            .icon("canned_meat.png")
             .stackable(5)
-            .consumable(0.0, 50.0, 0.0)
-            .preserved() // Canned food never spoils
+            .consumable(30.0, 65.0, -10.0) // Good nutrition, slightly dehydrating
+            .preserved()
+            .respawn_time(900)
+            .build(),
+
+        ItemBuilder::new("Canned Kasha", "Buckwheat porridge mixed with meat in a tin. A Russian military staple that provides excellent sustenance.", ItemCategory::Consumable)
+            .icon("canned_kasha.png")
+            .stackable(5)
+            .consumable(25.0, 70.0, 5.0) // Very filling
+            .preserved()
+            .respawn_time(850)
+            .build(),
+
+        ItemBuilder::new("Canned Pate", "Smooth liver pâté in a small tin. Rich and savory, meant to be spread on crackers or bread.", ItemCategory::Consumable)
+            .icon("canned_pate.png")
+            .stackable(8)
+            .consumable(20.0, 40.0, -8.0) // Moderate nutrition, salty
+            .preserved()
+            .respawn_time(750)
+            .build(),
+
+        ItemBuilder::new("Condensed Milk", "Sgushchyonka - the beloved sweet condensed milk. A morale booster and energy source.", ItemCategory::Consumable)
+            .icon("condensed_milk.png")
+            .stackable(6)
+            .consumable(15.0, 45.0, 10.0) // Sweet and satisfying
+            .preserved()
+            .respawn_time(950)
+            .build(),
+
+        ItemBuilder::new("Sugar Packets", "Small paper packets of granulated sugar. Quick energy but not very filling.", ItemCategory::Consumable)
+            .icon("sugar_packets.png")
+            .stackable(20)
+            .consumable(5.0, 15.0, -5.0) // Quick energy, dehydrating
+            .preserved()
+            .respawn_time(400)
+            .build(),
+
+        // Drinks
+        ItemBuilder::new("Black Tea Tin", "A small tin of strong black tea. Brew it for a warming, comforting drink.", ItemCategory::Consumable)
+            .icon("black_tea_tin.png")
+            .stackable(10)
+            .consumable(5.0, 8.0, 15.0) // Mild thirst quenching, comforting
+            .preserved()
+            .respawn_time(600)
+            .build(),
+
+        ItemBuilder::new("Instant Coffee Tin", "A tin of instant coffee granules. Strong, bitter, and energizing.", ItemCategory::Consumable)
+            .icon("instant_coffee_tin.png")
+            .stackable(8)
+            .consumable(3.0, 5.0, 8.0) // Mild effects, caffeine energy
+            .preserved()
+            .respawn_time(700)
+            .build(),
+
+        ItemBuilder::new("Vitamin Drink", "Bottled vitamin drink, ready to drink for a quick health and hydration boost.", ItemCategory::Consumable)
+            .icon("vitamin_drink.png")
+            .stackable(12)
+            .consumable(20.0, 10.0, 25.0) // Health boost, good hydration
+            .preserved()
             .respawn_time(800)
+            .build(),
+
+        ItemBuilder::new("Chewing Gum", "A pack of Soviet-era chewing gum. Stale but still minty. Barely satisfies hunger.", ItemCategory::Consumable)
+            .icon("chewing_gum.png")
+            .stackable(20)
+            .consumable(1.0, 3.0, 2.0) // Minimal benefits
+            .preserved()
+            .respawn_time(350)
+            .build(),
+
+        ItemBuilder::new("Validol Tablets", "Soviet-era heart medication tablets. Calms the mind and reduces insanity by 25%. If you're already entrained, it pauses the damage for 2-5 minutes.", ItemCategory::Consumable)
+            .icon("validol_tablets.png")
+            .stackable(10)
+            .consumable(5.0, 0.0, 0.0) // Minimal health boost - main effect is insanity reduction (handled specially in consumables.rs)
+            .preserved()
+            .respawn_time(800)
+            .build(),
+
+        // Junk items - minimal or no effects, can be composted or discarded
+        ItemBuilder::new("Broken Lighter", "A rusted, non-functional lighter. The flint is worn out. Junk.", ItemCategory::Material)
+            .icon("broken_lighter.png")
+            .stackable(10)
+            .respawn_time(300)
+            .build(),
+
+        ItemBuilder::new("Wet Wipes Pack", "A small pack of military-issue wet wipes. Useful for hygiene, worthless for survival.", ItemCategory::Material)
+            .icon("wet_wipes.png")
+            .stackable(15)
+            .respawn_time(250)
+            .build(),
+
+        ItemBuilder::new("Paper Napkins", "A bundle of paper napkins from a ration pack. Good for starting fires or... nothing else.", ItemCategory::Material)
+            .icon("paper_napkins.png")
+            .stackable(20)
+            .respawn_time(200)
+            .build(),
+
+        ItemBuilder::new("Plastic Spoon", "A flimsy plastic spoon. Technically reusable, practically useless.", ItemCategory::Material)
+            .icon("plastic_spoon.png")
+            .stackable(15)
+            .respawn_time(200)
+            .build(),
+
+        ItemBuilder::new("Salt and Pepper Pack", "Tiny packets of salt and pepper. Adds flavor to food but provides no nutrition alone.", ItemCategory::Consumable)
+            .icon("salt_pepper_pack.png")
+            .stackable(25)
+            .consumable(0.0, 1.0, -3.0) // Nearly nothing, slightly dehydrating
+            .preserved()
+            .respawn_time(300)
             .build(),
 
         // === MEDICINE ===

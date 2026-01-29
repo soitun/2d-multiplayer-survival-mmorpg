@@ -127,6 +127,7 @@ export type DeathViper = { tag: "DeathViper" };
 export type DeathVole = { tag: "DeathVole" };
 export type DeathWolverine = { tag: "DeathWolverine" };
 export type DeathCaribou = { tag: "DeathCaribou" };
+export type DeathBee = { tag: "DeathBee" };
 export type DeathPlayer = { tag: "DeathPlayer" };
 export type AnimalBurrow = { tag: "AnimalBurrow" };
 export type PlayerHurt = { tag: "PlayerHurt" };

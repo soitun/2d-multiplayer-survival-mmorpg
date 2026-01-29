@@ -51,55 +51,127 @@ pub struct MilitaryRationLootEntry {
 // --- Food Loot Table ---
 
 /// Returns the loot table for military rations
-/// Focuses on raw tubers, preserved foods, and military rations that would realistically
-/// be stored in military ration containers (no cooked food)
+/// Focuses on Russian IRP (Individual Ration Pack) items - canned foods, preserved goods,
+/// drinks, and accessories that would realistically be found in military ration containers
 fn get_military_ration_loot_table() -> Vec<MilitaryRationLootEntry> {
     vec![
-        // Raw tubers (most common - realistic for stored rations)
+        // === CORE FOOD ITEMS (Common) ===
         MilitaryRationLootEntry {
-            item_def_name: "Potato".to_string(),
+            item_def_name: "Canned Meat".to_string(),
             min_quantity: 1,
-            max_quantity: 3,
-            spawn_chance: 0.45, // 45% chance - most common
+            max_quantity: 1,
+            spawn_chance: 0.35, // 35% - primary protein source
         },
         MilitaryRationLootEntry {
-            item_def_name: "Beet".to_string(),
+            item_def_name: "Canned Kasha".to_string(),
+            min_quantity: 1,
+            max_quantity: 1,
+            spawn_chance: 0.40, // 40% - extremely common in Russian rations
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Canned Pate".to_string(),
+            min_quantity: 1,
+            max_quantity: 1,
+            spawn_chance: 0.30, // 30% - common spread
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Condensed Milk".to_string(),
+            min_quantity: 1,
+            max_quantity: 1,
+            spawn_chance: 0.35, // 35% - beloved morale booster
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Fruit Jam".to_string(),
             min_quantity: 1,
             max_quantity: 2,
-            spawn_chance: 0.30, // 30% chance
+            spawn_chance: 0.28, // 28% - common sweet
         },
-        MilitaryRationLootEntry {
-            item_def_name: "Carrot".to_string(),
-            min_quantity: 1,
-            max_quantity: 2,
-            spawn_chance: 0.25, // 25% chance
-        },
-        MilitaryRationLootEntry {
-            item_def_name: "Raw Corn".to_string(),
-            min_quantity: 1,
-            max_quantity: 2,
-            spawn_chance: 0.20, // 20% chance - dried/preserved corn
-        },
-        // Military preserved foods (thematic for rations)
         MilitaryRationLootEntry {
             item_def_name: "Old Hardtack Biscuits".to_string(),
             min_quantity: 1,
             max_quantity: 2,
-            spawn_chance: 0.35, // 35% chance - very common in military rations
+            spawn_chance: 0.38, // 38% - very common in military rations
         },
         MilitaryRationLootEntry {
             item_def_name: "Expired Soviet Chocolate".to_string(),
             min_quantity: 1,
             max_quantity: 1,
-            spawn_chance: 0.25, // 25% chance - common morale boost item
+            spawn_chance: 0.22, // 22% - common morale boost item
+        },
+        
+        // === DRINKS (Moderate) ===
+        MilitaryRationLootEntry {
+            item_def_name: "Black Tea Tin".to_string(),
+            min_quantity: 1,
+            max_quantity: 1,
+            spawn_chance: 0.32, // 32% - common drink
         },
         MilitaryRationLootEntry {
-            item_def_name: "Aleutian Bread".to_string(),
+            item_def_name: "Instant Coffee Tin".to_string(),
+            min_quantity: 1,
+            max_quantity: 1,
+            spawn_chance: 0.25, // 25% - common alternative drink
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Vitamin Drink".to_string(),
+            min_quantity: 1,
+            max_quantity: 1,
+            spawn_chance: 0.18, // 18% - newer IRPs only
+        },
+        
+        // === SMALL ITEMS (Common) ===
+        MilitaryRationLootEntry {
+            item_def_name: "Sugar Packets".to_string(),
+            min_quantity: 2,
+            max_quantity: 4,
+            spawn_chance: 0.45, // 45% - always included
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Salt and Pepper Pack".to_string(),
             min_quantity: 1,
             max_quantity: 2,
-            spawn_chance: 0.20, // 20% chance - stale bread ration
+            spawn_chance: 0.40, // 40% - common accessory
         },
-        // Canned/preserved foods (realistic for barrels and storage)
+        MilitaryRationLootEntry {
+            item_def_name: "Validol Tablets".to_string(),
+            min_quantity: 1,
+            max_quantity: 2,
+            spawn_chance: 0.18, // 18% - insanity countermeasure (valuable but not common)
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Chewing Gum".to_string(),
+            min_quantity: 1,
+            max_quantity: 3,
+            spawn_chance: 0.30, // 30% - common morale item
+        },
+        
+        // === JUNK ITEMS (Very Common) ===
+        MilitaryRationLootEntry {
+            item_def_name: "Broken Lighter".to_string(),
+            min_quantity: 1,
+            max_quantity: 1,
+            spawn_chance: 0.20, // 20% - broken accessory
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Wet Wipes Pack".to_string(),
+            min_quantity: 1,
+            max_quantity: 1,
+            spawn_chance: 0.35, // 35% - hygiene item
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Paper Napkins".to_string(),
+            min_quantity: 1,
+            max_quantity: 2,
+            spawn_chance: 0.42, // 42% - always included
+        },
+        MilitaryRationLootEntry {
+            item_def_name: "Plastic Spoon".to_string(),
+            min_quantity: 1,
+            max_quantity: 1,
+            spawn_chance: 0.48, // 48% - very common utensil
+        },
+        
+        // === LEGACY ITEMS (Keep existing variety) ===
         MilitaryRationLootEntry {
             item_def_name: "Tin of Sprats in Oil".to_string(),
             min_quantity: 1,
@@ -107,53 +179,10 @@ fn get_military_ration_loot_table() -> Vec<MilitaryRationLootEntry> {
             spawn_chance: 0.15, // 15% chance
         },
         MilitaryRationLootEntry {
-            item_def_name: "Mystery Can (Label Missing)".to_string(),
-            min_quantity: 1,
-            max_quantity: 1,
-            spawn_chance: 0.12, // 12% chance
-        },
-        MilitaryRationLootEntry {
             item_def_name: "Fermented Cabbage Jar".to_string(),
             min_quantity: 1,
             max_quantity: 1,
-            spawn_chance: 0.10, // 10% chance
-        },
-        MilitaryRationLootEntry {
-            item_def_name: "Dried Seaweed".to_string(),
-            min_quantity: 1,
-            max_quantity: 3,
-            spawn_chance: 0.18, // 18% chance - explicitly dried/preserved snack
-        },
-        MilitaryRationLootEntry {
-            item_def_name: "Tallow".to_string(),
-            min_quantity: 1,
-            max_quantity: 2,
-            spawn_chance: 0.08, // 8% chance - emergency ration food (rendered fat)
-        },
-        MilitaryRationLootEntry {
-            item_def_name: "Cabbage".to_string(),
-            min_quantity: 1,
-            max_quantity: 1,
-            spawn_chance: 0.15, // 15% chance - whole cabbages store for months
-        },
-        MilitaryRationLootEntry {
-            item_def_name: "Sunflower".to_string(),
-            min_quantity: 1,
-            max_quantity: 2,
-            spawn_chance: 0.12, // 12% chance - edible seeds, common Soviet ration item
-        },
-        // Foraged nuts and fruits (rare finds in rations)
-        MilitaryRationLootEntry {
-            item_def_name: "Crab Apples".to_string(),
-            min_quantity: 1,
-            max_quantity: 3,
-            spawn_chance: 0.08, // 8% chance - foraged wild fruit
-        },
-        MilitaryRationLootEntry {
-            item_def_name: "Hazelnut".to_string(),
-            min_quantity: 1,
-            max_quantity: 4,
-            spawn_chance: 0.10, // 10% chance - foraged wild nuts
+            spawn_chance: 0.08, // 8% chance
         },
     ]
 }

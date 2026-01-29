@@ -300,6 +300,42 @@ pub fn apply_item_effects_and_consume(
         apply_instant_effects_for_helper(ctx, item_def, player_id, player_to_update, &mut stat_changed_instantly);
         
         log::info!("[EffectsHelper] Player {:?} has been cured of all venom effects by Anti-Venom!", player_id);
+    } 
+    // SPECIAL HANDLING: Validol Tablets - insanity countermeasure (like RAD pills in Rust)
+    // If player has Entrainment: pauses damage for 2-5 minutes
+    // If player doesn't have Entrainment: reduces insanity by 25%
+    else if item_def.name == "Validol Tablets" {
+        log::info!("[EffectsHelper] Player {:?} using Validol Tablets. Checking insanity state...", player_id);
+        
+        // Check if player has the Entrainment effect (max insanity reached)
+        if crate::active_effects::player_has_entrainment_effect(ctx, player_id) {
+            // Player is at max insanity with Entrainment - apply ValidolProtection to pause damage
+            match crate::active_effects::apply_validol_protection(ctx, player_id) {
+                Ok(duration_secs) => {
+                    log::info!("[EffectsHelper] Player {:?} has Entrainment - Validol applied protection for {} seconds!", 
+                        player_id, duration_secs);
+                }
+                Err(e) => {
+                    log::error!("[EffectsHelper] Failed to apply ValidolProtection to player {:?}: {}", player_id, e);
+                }
+            }
+        } else {
+            // Player doesn't have Entrainment - reduce insanity by 25% of max
+            match crate::active_effects::reduce_player_insanity(ctx, player_id, 0.25) {
+                Ok(reduction) => {
+                    log::info!("[EffectsHelper] Player {:?} - Validol reduced insanity by {:.1}!", 
+                        player_id, reduction);
+                }
+                Err(e) => {
+                    log::error!("[EffectsHelper] Failed to reduce insanity for player {:?}: {}", player_id, e);
+                }
+            }
+        }
+        
+        // Apply the small instant health effect as well
+        apply_instant_effects_for_helper(ctx, item_def, player_id, player_to_update, &mut stat_changed_instantly);
+        
+        log::info!("[EffectsHelper] Player {:?} consumed Validol Tablets!", player_id);
     } else if let Some(duration_secs) = item_def.consumable_duration_secs {
         if duration_secs > 0.0 { // This branch handles timed effects
             if item_def.name == "Bandage" {

@@ -54,8 +54,8 @@ import cookedPineconeIcon from '../assets/items/cooked_pinecone.png';
 import birchCatkinIcon from '../assets/items/birch_catkin.png';
 import crabApplesIcon from '../assets/items/crab_apples.png';
 import cookedCrabApplesIcon from '../assets/items/cooked_crab_apples.png';
-import hazelnutIcon from '../assets/items/hazelnut.png';
-import cookedHazelnutIcon from '../assets/items/cooked_hazelnut.png';
+import hazelnutIcon from '../assets/items/hazelnuts.png';
+import cookedHazelnutIcon from '../assets/items/cooked_hazelnuts.png';
 
 // Animal materials
 import animalLeatherIcon from '../assets/items/animal_leather.png';
@@ -381,6 +381,23 @@ import oldHardtackBiscuitsIcon from '../assets/items/old_hardtack_biscuits.png';
 import expiredSovietChocolateIcon from '../assets/items/expired_soviet_chocolate.png';
 import mysteryCanIcon from '../assets/items/mystery_can.png';
 
+// Russian Military IRP (Individual Ration Pack) items
+import cannedMeatIcon from '../assets/items/canned_meat.png';
+import cannedKashaIcon from '../assets/items/canned_kasha.png';
+import cannedPateIcon from '../assets/items/canned_pate.png';
+import condensedMilkIcon from '../assets/items/condensed_milk.png';
+import sugarPacketsIcon from '../assets/items/sugar_packets.png';
+import blackTeaTinIcon from '../assets/items/black_tea_tin.png';
+import instantCoffeeTinIcon from '../assets/items/instant_coffee_tin.png';
+import vitaminDrinkIcon from '../assets/items/vitamin_drink.png';
+import validolTabletsIcon from '../assets/items/validol_tablets.png';
+import chewingGumIcon from '../assets/items/chewing_gum.png';
+import brokenLighterIcon from '../assets/items/broken_lighter.png';
+import wetWipesIcon from '../assets/items/wet_wipes.png';
+import paperNapkinsIcon from '../assets/items/paper_napkins.png';
+import plasticSpoonIcon from '../assets/items/plastic_spoon.png';
+import saltPepperPackIcon from '../assets/items/salt_pepper_pack.png';
+
 // Brewed soups
 import soupStoneSoupIcon from '../assets/items/soup_stone_soup.png';
 
@@ -586,8 +603,8 @@ const iconMap: { [key: string]: string | undefined } = {
   'birch_catkin.png': birchCatkinIcon,
   'crab_apples.png': crabApplesIcon,
   'cooked_crab_apples.png': cookedCrabApplesIcon,
-  'hazelnut.png': hazelnutIcon,
-  'cooked_hazelnut.png': cookedHazelnutIcon,
+  'hazelnuts.png': hazelnutIcon,
+  'cooked_hazelnuts.png': cookedHazelnutIcon,
   
   // Animal materials
   'animal_leather.png': animalLeatherIcon,
@@ -908,6 +925,23 @@ const iconMap: { [key: string]: string | undefined } = {
   'old_hardtack_biscuits.png': oldHardtackBiscuitsIcon,
   'expired_soviet_chocolate.png': expiredSovietChocolateIcon,
   'mystery_can.png': mysteryCanIcon,
+
+  // Russian Military IRP (Individual Ration Pack) items
+  'canned_meat.png': cannedMeatIcon,
+  'canned_kasha.png': cannedKashaIcon,
+  'canned_pate.png': cannedPateIcon,
+  'condensed_milk.png': condensedMilkIcon,
+  'sugar_packets.png': sugarPacketsIcon,
+  'black_tea_tin.png': blackTeaTinIcon,
+  'instant_coffee_tin.png': instantCoffeeTinIcon,
+  'vitamin_drink.png': vitaminDrinkIcon,
+  'validol_tablets.png': validolTabletsIcon,
+  'chewing_gum.png': chewingGumIcon,
+  'broken_lighter.png': brokenLighterIcon,
+  'wet_wipes.png': wetWipesIcon,
+  'paper_napkins.png': paperNapkinsIcon,
+  'plastic_spoon.png': plasticSpoonIcon,
+  'salt_pepper_pack.png': saltPepperPackIcon,
 
   // === SEEDS ===
   'seed_potato.png': seedPotatoIcon,
