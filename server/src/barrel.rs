@@ -130,7 +130,6 @@ pub fn get_barrel_loot_table(ctx: &ReducerContext) -> Vec<BarrelLootEntry> {
         ("Metal Fragments", 1, 3, 0.45),       // Crafting material - reduced quantity
         ("Wooden Arrow", 2, 5, 0.50),          // Basic ammunition - reduced quantity
         ("Bandage", 1, 2, 0.45),               // Healing consumable
-        ("Tallow", 1, 3, 0.48),                // High-calorie consumable - reduced quantity
         ("Wood", 15, 30, 0.42),                // Basic crafting material - reduced quantity
         
         // --- UNCOMMON TIER (20-35% drop rates) - Useful items ---
@@ -139,10 +138,7 @@ pub fn get_barrel_loot_table(ctx: &ReducerContext) -> Vec<BarrelLootEntry> {
         ("Stone Hatchet", 1, 1, 0.22),         // Useful tool - reduced from 35%
         ("Torch", 1, 1, 0.20),                 // Utility item - reduced from 30%
         ("Reed Water Bottle", 1, 1, 0.25),     // Water container - reduced from 35%
-        ("Tin of Sprats in Oil", 1, 2, 0.30),  // Quality preserved food - reduced from 40%
         ("Tin Can", 1, 2, 0.28),               // Metal source - moved from rare tier
-        ("Fermented Cabbage Jar", 1, 1, 0.25), // Specialty preserved food - reduced from 20%
-        ("Old Hardtack Biscuits", 1, 2, 0.32), // Military biscuits - solid sustenance, common in barrels
         
         // --- RARE TIER (8-18% drop rates) - Valuable items ---
         ("AK74 Bayonet", 1, 1, 0.12),          // Fast military melee weapon - reduced from 18%
@@ -150,8 +146,6 @@ pub fn get_barrel_loot_table(ctx: &ReducerContext) -> Vec<BarrelLootEntry> {
         ("Fire Arrow", 1, 2, 0.10),            // Special ammunition - reduced quantity
         ("Bush Knife", 1, 1, 0.09),            // Military clearing blade - reduced from 12%
         ("Engineers Maul", 1, 1, 0.08),        // Military engineering tool - reduced from 10%
-        ("Expired Soviet Chocolate", 1, 1, 0.12), // Morale boost treat - reduced from 18%
-        ("Mystery Can (Label Missing)", 1, 1, 0.10), // Mysterious find - reduced from 15%
         ("Plastic Water Jug", 1, 1, 0.09),     // Large water storage - reduced from 12%
         ("Anti-Venom", 1, 1, 0.10),            // Antidote - reduced from 15%
         ("Reed Diver's Helm", 1, 1, 0.06),     // Underwater breathing helmet - moderate low drop

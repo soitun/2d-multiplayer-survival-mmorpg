@@ -369,6 +369,8 @@ pub fn create_generated_brew(
             
             // Not craftable through normal crafting menu
             crafting_cost: None,
+            alternative_crafting_costs: None,
+            flexible_ingredients: None,
             crafting_output_quantity: None,
             crafting_time_secs: None,
             
@@ -417,6 +419,10 @@ pub fn create_generated_brew(
             
             // Water speed bonus (not applicable for consumables)
             water_speed_bonus: None,
+            
+            // Food preservation (brewed items are fresh, not preserved)
+            is_preserved: false,
+            spoils_after_hours: None, // AI brews use default food spoilage calculation
         };
         
         let inserted = item_defs.insert(new_item_def);

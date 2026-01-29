@@ -21,6 +21,7 @@ pub mod shorebound;
 pub mod shardkin;
 pub mod drowned_watch;
 pub mod hostile_spawning;
+pub mod bee;
 
 // Re-export core types and functionality
 pub use core::*;

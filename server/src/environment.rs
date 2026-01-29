@@ -1189,6 +1189,11 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
             // They spawn relative to player position at night only
             false
         }
+        
+        AnimalSpecies::Bee => {
+            // Bees don't spawn in the wild - they spawn at beehives
+            false
+        }
     }
 }
 
@@ -3555,6 +3560,11 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         log::info!("Spawning {} {:?} at position ({:.1}, {:.1})", 
                   group_positions.len(), chosen_species, pos_x, pos_y);
         
+        // BREEDING SYSTEM: Caribou and walruses spawn as ADULTS ONLY during world generation
+        // Youth (calves/pups) are ONLY created through births from pregnant females.
+        // This ensures youth are NEVER alone - they're always born near their mother and herd.
+        // We track sex assignment to guarantee at least 1 male + 1 female per group for breeding.
+        
         // For caribou herds, track sex assignment to ensure breeding viability
         let mut caribou_males_spawned = 0;
         let mut caribou_females_spawned = 0;
@@ -4404,6 +4414,11 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         }
     }
 
+    // --- Spawn Wild Beehives in Forest Areas ---
+    log::info!("Seeding Wild Beehives in forest areas near trees...");
+    let spawned_beehive_count = crate::wild_beehive::spawn_wild_beehives_in_forests(ctx, &spawned_tree_positions);
+    log::info!("Successfully spawned {} wild beehives", spawned_beehive_count);
+
     // Generate summary for harvestable resources
     let mut harvestable_summary = String::new();
     for (plant_type, count) in &plant_spawned_counts {
@@ -4414,9 +4429,9 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     }
     
     log::info!(
-        "Environment seeding complete! Summary: Trees: {}, Stones: {}, Sea Stacks: {}, Living Coral: {}, Hot Springs: [tile-based], Harvestable Resources: [{}], Clouds: {}, Wild Animals: {}, Grass: {}, Tundra Grass: {}, Barrels: {}",
+        "Environment seeding complete! Summary: Trees: {}, Stones: {}, Sea Stacks: {}, Living Coral: {}, Hot Springs: [tile-based], Harvestable Resources: [{}], Clouds: {}, Wild Animals: {}, Grass: {}, Tundra Grass: {}, Barrels: {}, Wild Beehives: {}",
         spawned_tree_count, spawned_stone_count, spawned_sea_stack_count, spawned_living_coral_count, harvestable_summary,
-        spawned_cloud_count, spawned_wild_animal_count, spawned_grass_count, spawned_tundra_grass_count, ctx.db.barrel().iter().count()
+        spawned_cloud_count, spawned_wild_animal_count, spawned_grass_count, spawned_tundra_grass_count, ctx.db.barrel().iter().count(), spawned_beehive_count
     );
 
     // --- Seed Rune Stones ---

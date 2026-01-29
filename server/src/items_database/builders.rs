@@ -66,6 +66,8 @@ impl ItemBuilder {
                 ammo_type: None,
                 attack_arc_degrees: None,
                 water_speed_bonus: None,
+                is_preserved: false,
+                spoils_after_hours: None,
             }
         }
     }
@@ -103,6 +105,21 @@ impl ItemBuilder {
     
     pub fn consumable_duration(mut self, duration: f32) -> Self {
         self.inner.consumable_duration_secs = Some(duration);
+        self
+    }
+    
+    /// Marks this food item as preserved - it will never spoil.
+    /// Use for jams, pickles, honey, mead, vinegar, and other preserved foods.
+    pub fn preserved(mut self) -> Self {
+        self.inner.is_preserved = true;
+        self
+    }
+    
+    /// Sets explicit spoilage time in hours for non-food items that should still spoil.
+    /// Use for live creatures (Queen Bee), fresh bait, etc.
+    /// This overrides the automatic food spoilage calculation.
+    pub fn spoils_after_hours(mut self, hours: f32) -> Self {
+        self.inner.spoils_after_hours = Some(hours);
         self
     }
     

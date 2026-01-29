@@ -255,4 +255,306 @@ pub fn pulverize_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(),
         },
         Err(e) => Err(format!("Failed to give flour to player: {}", e))
     }
-} 
+}
+
+// =============================================================================
+// FERMENTATION PREPARATION - Mashing & Yeast Extraction
+// =============================================================================
+// These reducers simplify the fermentation workflow by allowing direct conversion
+// of raw materials into fermentation bases via the ItemInteractionPanel.
+
+/// Berries that can be mashed into Berry Mash (1:1 conversion)
+const MASHABLE_BERRIES: &[&str] = &[
+    "Lingonberries",
+    "Cloudberries",
+    "Crowberries",
+    "Crowberry",  // Singular form
+    "Bilberries",
+    "Wild Strawberries",
+    "Rowan Berries",
+    "Cranberries",
+    "Nagoonberries",
+];
+
+/// Mashes berries into Berry Mash.
+/// Simple 1:1 conversion - one berry becomes one berry mash.
+/// If inventory is full, berry mash will be dropped near the player.
+#[spacetimedb::reducer]
+pub fn mash_berries(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
+    let sender_id = ctx.sender;
+    let inventory_table = ctx.db.inventory_item();
+    let item_def_table = ctx.db.item_definition();
+
+    // 1. Fetch and validate the item to mash
+    let item_to_mash = inventory_table.instance_id().find(item_instance_id)
+        .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
+
+    let item_def = item_def_table.id().find(item_to_mash.item_def_id)
+        .ok_or_else(|| format!("Item definition {} not found", item_to_mash.item_def_id))?;
+
+    // 2. Validate item is a mashable berry
+    let item_name = item_def.name.as_str();
+    if !MASHABLE_BERRIES.contains(&item_name) {
+        return Err(format!("Cannot mash '{}'. Only berries can be mashed into Berry Mash.", item_def.name));
+    }
+
+    // Validate ownership through location
+    match &item_to_mash.location {
+        crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
+        crate::models::ItemLocation::Hotbar(data) if data.owner_id == sender_id => (),
+        crate::models::ItemLocation::Equipped(data) if data.owner_id == sender_id => (),
+        _ => return Err("Item must be in your inventory, hotbar, or equipped to mash.".to_string()),
+    }
+
+    // Find the Berry Mash item definition
+    let berry_mash_def = item_def_table.iter()
+        .find(|def| def.name == "Berry Mash")
+        .ok_or_else(|| "Berry Mash item definition not found".to_string())?;
+
+    log::info!("[MashBerries] Player {} mashing {} into Berry Mash", sender_id, item_def.name);
+
+    // 3. Update item quantity or delete if last one
+    if item_to_mash.quantity > 1 {
+        let mut updated_item = item_to_mash.clone();
+        updated_item.quantity -= 1;
+        inventory_table.instance_id().update(updated_item);
+    } else {
+        inventory_table.instance_id().delete(item_instance_id);
+    }
+
+    // 4. Give berry mash to player (1:1 conversion)
+    match try_give_item_to_player(ctx, sender_id, berry_mash_def.id, 1) {
+        Ok(added_to_inventory) => {
+            if added_to_inventory {
+                log::info!("[MashBerries] Added 1 Berry Mash to inventory for player {}", sender_id);
+            } else {
+                log::info!("[MashBerries] Inventory full, dropped 1 Berry Mash near player {}", sender_id);
+            }
+            Ok(())
+        },
+        Err(e) => Err(format!("Failed to give Berry Mash to player: {}", e))
+    }
+}
+
+// NOTE: mash_flour reducer removed - flour is for baking bread, not brewing.
+// Cooked starchy items are mashed directly into Starchy Mash via mash_starch reducer below.
+
+/// Cooked starchy items that can be mashed into Starchy Mash (1:1 conversion)
+/// Includes roots, bulbs, and other starchy foods once cooked
+const MASHABLE_STARCH: &[&str] = &[
+    "Cooked Potato",
+    "Cooked Beet",
+    "Cooked Pumpkin",
+    "Cooked Kamchatka Lily Bulb",
+    "Cooked Silverweed Root",
+    "Cooked Bistort Bulbils",
+    "Cooked Salsify Root",
+];
+
+/// Mashes cooked starchy items into Starchy Mash.
+/// Simple 1:1 conversion - one cooked starchy item becomes one starchy mash.
+/// If inventory is full, starchy mash will be dropped near the player.
+#[spacetimedb::reducer]
+pub fn mash_starch(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
+    let sender_id = ctx.sender;
+    let inventory_table = ctx.db.inventory_item();
+    let item_def_table = ctx.db.item_definition();
+
+    // 1. Fetch and validate the item to mash
+    let item_to_mash = inventory_table.instance_id().find(item_instance_id)
+        .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
+
+    let item_def = item_def_table.id().find(item_to_mash.item_def_id)
+        .ok_or_else(|| format!("Item definition {} not found", item_to_mash.item_def_id))?;
+
+    // 2. Validate item is a mashable cooked starchy item
+    let item_name = item_def.name.as_str();
+    if !MASHABLE_STARCH.contains(&item_name) {
+        return Err(format!("Cannot mash '{}'. Only cooked starchy roots and bulbs can be mashed into Starchy Mash.", item_def.name));
+    }
+
+    // Validate ownership through location
+    match &item_to_mash.location {
+        crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
+        crate::models::ItemLocation::Hotbar(data) if data.owner_id == sender_id => (),
+        crate::models::ItemLocation::Equipped(data) if data.owner_id == sender_id => (),
+        _ => return Err("Item must be in your inventory, hotbar, or equipped to mash.".to_string()),
+    }
+
+    // Find the Starchy Mash item definition
+    let starchy_mash_def = item_def_table.iter()
+        .find(|def| def.name == "Starchy Mash")
+        .ok_or_else(|| "Starchy Mash item definition not found".to_string())?;
+
+    log::info!("[MashStarch] Player {} mashing {} into Starchy Mash", sender_id, item_def.name);
+
+    // 3. Update item quantity or delete if last one
+    if item_to_mash.quantity > 1 {
+        let mut updated_item = item_to_mash.clone();
+        updated_item.quantity -= 1;
+        inventory_table.instance_id().update(updated_item);
+    } else {
+        inventory_table.instance_id().delete(item_instance_id);
+    }
+
+    // 4. Give starchy mash to player (1:1 conversion)
+    match try_give_item_to_player(ctx, sender_id, starchy_mash_def.id, 1) {
+        Ok(added_to_inventory) => {
+            if added_to_inventory {
+                log::info!("[MashStarch] Added 1 Starchy Mash to inventory for player {}", sender_id);
+            } else {
+                log::info!("[MashStarch] Inventory full, dropped 1 Starchy Mash near player {}", sender_id);
+            }
+            Ok(())
+        },
+        Err(e) => Err(format!("Failed to give Starchy Mash to player: {}", e))
+    }
+}
+
+/// Items from which yeast can be extracted (fermentable bases)
+const YEAST_EXTRACTABLE: &[&str] = &[
+    "Berry Mash",
+    "Starchy Mash",
+    "Raw Milk",
+];
+
+/// Extracts yeast from fermentable bases (mashes or raw milk).
+/// Yields 1-2 yeast per extraction - the natural yeasts in the ingredients.
+/// If inventory is full, yeast will be dropped near the player.
+#[spacetimedb::reducer]
+pub fn extract_yeast(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
+    let sender_id = ctx.sender;
+    let inventory_table = ctx.db.inventory_item();
+    let item_def_table = ctx.db.item_definition();
+
+    // 1. Fetch and validate the item to extract from
+    let item_to_extract = inventory_table.instance_id().find(item_instance_id)
+        .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
+
+    let item_def = item_def_table.id().find(item_to_extract.item_def_id)
+        .ok_or_else(|| format!("Item definition {} not found", item_to_extract.item_def_id))?;
+
+    // 2. Validate item is a yeast-extractable source
+    let item_name = item_def.name.as_str();
+    if !YEAST_EXTRACTABLE.contains(&item_name) {
+        return Err(format!("Cannot extract yeast from '{}'. Only mashes and raw milk contain natural yeasts.", item_def.name));
+    }
+
+    // Validate ownership through location
+    match &item_to_extract.location {
+        crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
+        crate::models::ItemLocation::Hotbar(data) if data.owner_id == sender_id => (),
+        crate::models::ItemLocation::Equipped(data) if data.owner_id == sender_id => (),
+        _ => return Err("Item must be in your inventory, hotbar, or equipped to extract yeast.".to_string()),
+    }
+
+    // Find the Yeast item definition
+    let yeast_def = item_def_table.iter()
+        .find(|def| def.name == "Yeast")
+        .ok_or_else(|| "Yeast item definition not found".to_string())?;
+
+    // 3. Calculate yeast yield (1-2 based on source richness)
+    let yeast_to_create = match item_name {
+        "Raw Milk" => ctx.rng().gen_range(1..=2),  // Milk is rich in lactobacillus
+        "Berry Mash" => ctx.rng().gen_range(1..=2), // Wild yeasts on berry skins
+        "Starchy Mash" => 1, // Less natural yeast than berry mash
+        _ => 1,
+    };
+
+    log::info!("[ExtractYeast] Player {} extracting {} yeast from {}", sender_id, yeast_to_create, item_def.name);
+
+    // 4. Update item quantity or delete if last one
+    if item_to_extract.quantity > 1 {
+        let mut updated_item = item_to_extract.clone();
+        updated_item.quantity -= 1;
+        inventory_table.instance_id().update(updated_item);
+    } else {
+        inventory_table.instance_id().delete(item_instance_id);
+    }
+
+    // 5. Give yeast to player
+    match try_give_item_to_player(ctx, sender_id, yeast_def.id, yeast_to_create) {
+        Ok(added_to_inventory) => {
+            if added_to_inventory {
+                log::info!("[ExtractYeast] Added {} Yeast to inventory for player {}", yeast_to_create, sender_id);
+            } else {
+                log::info!("[ExtractYeast] Inventory full, dropped {} Yeast near player {}", yeast_to_create, sender_id);
+            }
+            Ok(())
+        },
+        Err(e) => Err(format!("Failed to give Yeast to player: {}", e))
+    }
+}
+
+// =============================================================================
+// BEE PRODUCTS - Queen Bee Extraction
+// =============================================================================
+
+/// Extracts a Queen Bee from Honeycomb.
+/// Destructive process - consumes the honeycomb to retrieve the queen.
+/// Has a chance to yield a queen bee (not guaranteed - queens are rare).
+/// If inventory is full, queen bee will be dropped near the player.
+#[spacetimedb::reducer]
+pub fn extract_queen_bee(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
+    let sender_id = ctx.sender;
+    let inventory_table = ctx.db.inventory_item();
+    let item_def_table = ctx.db.item_definition();
+
+    // 1. Fetch and validate the item to extract from
+    let item_to_extract = inventory_table.instance_id().find(item_instance_id)
+        .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
+
+    let item_def = item_def_table.id().find(item_to_extract.item_def_id)
+        .ok_or_else(|| format!("Item definition {} not found", item_to_extract.item_def_id))?;
+
+    // 2. Validate item is Honeycomb
+    if item_def.name != "Honeycomb" {
+        return Err(format!("Cannot extract queen bee from '{}'. Only Honeycomb may contain a queen.", item_def.name));
+    }
+
+    // Validate ownership through location
+    match &item_to_extract.location {
+        crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
+        crate::models::ItemLocation::Hotbar(data) if data.owner_id == sender_id => (),
+        crate::models::ItemLocation::Equipped(data) if data.owner_id == sender_id => (),
+        _ => return Err("Item must be in your inventory, hotbar, or equipped to extract queen bee.".to_string()),
+    }
+
+    // Find the Queen Bee item definition
+    let queen_bee_def = item_def_table.iter()
+        .find(|def| def.name == "Queen Bee")
+        .ok_or_else(|| "Queen Bee item definition not found".to_string())?;
+
+    // 3. Calculate if queen bee is found (25% chance - queens are rare!)
+    let found_queen = ctx.rng().gen_range(0..100) < 25;
+
+    log::info!("[ExtractQueenBee] Player {} searching honeycomb for queen bee - Found: {}", sender_id, found_queen);
+
+    // 4. Update item quantity or delete if last one (honeycomb is consumed either way)
+    if item_to_extract.quantity > 1 {
+        let mut updated_item = item_to_extract.clone();
+        updated_item.quantity -= 1;
+        inventory_table.instance_id().update(updated_item);
+    } else {
+        inventory_table.instance_id().delete(item_instance_id);
+    }
+
+    // 5. Give queen bee to player if found
+    if found_queen {
+        match try_give_item_to_player(ctx, sender_id, queen_bee_def.id, 1) {
+            Ok(added_to_inventory) => {
+                if added_to_inventory {
+                    log::info!("[ExtractQueenBee] Added 1 Queen Bee to inventory for player {}", sender_id);
+                } else {
+                    log::info!("[ExtractQueenBee] Inventory full, dropped 1 Queen Bee near player {}", sender_id);
+                }
+            },
+            Err(e) => return Err(format!("Failed to give Queen Bee to player: {}", e))
+        }
+        Ok(())
+    } else {
+        // No queen found, but honeycomb is still consumed
+        log::info!("[ExtractQueenBee] No queen bee found in this honeycomb for player {}", sender_id);
+        Ok(())
+    }
+}

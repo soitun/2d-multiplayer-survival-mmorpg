@@ -146,6 +146,12 @@ pub struct ItemDefinition {
     
     // WATER SPEED BONUS (for flippers and similar aquatic gear)
     pub water_speed_bonus: Option<f32>, // 1.0 = +100% water speed (2x normal), 0.5 = +50% water speed
+    
+    // FOOD PRESERVATION (for items that never spoil)
+    pub is_preserved: bool, // If true, this food item never spoils (jams, pickles, honey, mead, vinegar)
+    
+    // EXPLICIT SPOILAGE (for non-food items that should spoil, like live creatures)
+    pub spoils_after_hours: Option<f32>, // If set, item spoils after this many hours regardless of category
 }
 
 // --- Inventory Table ---

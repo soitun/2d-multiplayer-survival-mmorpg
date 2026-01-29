@@ -57,6 +57,7 @@ use crate::rune_stone::{rune_stone as RuneStoneTableTrait, RUNE_STONE_DETERRENCE
 // Monument safe zone imports - hostile NPCs actively avoid these areas
 use crate::alk::alk_station as AlkStationTableTrait;
 use crate::monument_part as MonumentPartTableTrait;
+use crate::world_state::world_state as WorldStateTableTrait; // ADDED: For world_state table access
 use crate::MonumentType;
 
 // Collision detection constants
@@ -205,6 +206,8 @@ pub enum AnimalSpecies {
     Shorebound,    // Stalker: Fast, low health, circles and pressures players
     Shardkin,      // Swarmer: Small, fast, aggressive swarms that attack on contact
     DrownedWatch,  // Brute: Slow, high durability, primary structure attacker
+    // Special spawning animals
+    Bee,           // Spawns at beehives, tiny fast attackers, killed only by fire
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, spacetimedb::SpacetimeType)]
@@ -431,6 +434,8 @@ pub enum AnimalBehaviorEnum {
     Shorebound(crate::wild_animal_npc::shorebound::ShoreboundBehavior),
     Shardkin(crate::wild_animal_npc::shardkin::ShardkinBehavior),
     DrownedWatch(crate::wild_animal_npc::drowned_watch::DrownedWatchBehavior),
+    // Special spawning animals
+    Bee(crate::wild_animal_npc::bee::BeeBehavior),
 }
 
 impl AnimalBehavior for AnimalBehaviorEnum {
@@ -450,6 +455,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_stats(),
+            AnimalBehaviorEnum::Bee(behavior) => behavior.get_stats(),
         }
     }
 
@@ -469,6 +475,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_movement_pattern(),
+            AnimalBehaviorEnum::Bee(behavior) => behavior.get_movement_pattern(),
         }
     }
 
@@ -496,6 +503,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
+            AnimalBehaviorEnum::Bee(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
         }
     }
 
@@ -523,6 +531,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
+            AnimalBehaviorEnum::Bee(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
         }
     }
 
@@ -550,6 +559,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
+            AnimalBehaviorEnum::Bee(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
         }
     }
 
@@ -576,6 +586,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
+            AnimalBehaviorEnum::Bee(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
         }
     }
 
@@ -595,6 +606,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
+            AnimalBehaviorEnum::Bee(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
         }
     }
 
@@ -622,6 +634,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
+            AnimalBehaviorEnum::Bee(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
         }
     }
 
@@ -641,6 +654,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.can_be_tamed(),
+            AnimalBehaviorEnum::Bee(behavior) => behavior.can_be_tamed(),
         }
     }
 
@@ -660,6 +674,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_taming_foods(),
+            AnimalBehaviorEnum::Bee(behavior) => behavior.get_taming_foods(),
         }
     }
 
@@ -679,6 +694,7 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shorebound(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_chase_abandonment_multiplier(),
+            AnimalBehaviorEnum::Bee(behavior) => behavior.get_chase_abandonment_multiplier(),
         }
     }
 }
@@ -700,6 +716,7 @@ impl AnimalSpecies {
             AnimalSpecies::Shorebound => AnimalBehaviorEnum::Shorebound(crate::wild_animal_npc::shorebound::ShoreboundBehavior),
             AnimalSpecies::Shardkin => AnimalBehaviorEnum::Shardkin(crate::wild_animal_npc::shardkin::ShardkinBehavior),
             AnimalSpecies::DrownedWatch => AnimalBehaviorEnum::DrownedWatch(crate::wild_animal_npc::drowned_watch::DrownedWatchBehavior),
+            AnimalSpecies::Bee => AnimalBehaviorEnum::Bee(crate::wild_animal_npc::bee::BeeBehavior),
         }
     }
     
@@ -1248,6 +1265,8 @@ fn update_animal_ai_state(
                 AnimalSpecies::SalmonShark => 0.0, // Sharks don't flee from foundations (water-only)
                 // Night hostile NPCs don't flee from foundations
                 AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
+                // Bees don't flee from foundations
+                AnimalSpecies::Bee => 0.0,
             };
             
             set_flee_destination_away_from_threat(animal, foundation_x, foundation_y, flee_distance, rng);
@@ -1292,6 +1311,8 @@ fn update_animal_ai_state(
                         AnimalSpecies::SalmonShark => 0.0,    // Sharks don't flee from fire (water-only)
                         // Night hostile NPCs don't flee from fire
                         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
+                        // Bees don't flee - they die from fire instead
+                        AnimalSpecies::Bee => 0.0,
                     };
                     
                     set_flee_destination_away_from_threat(animal, player.position_x, player.position_y, flee_distance, rng);
@@ -1344,6 +1365,8 @@ fn update_animal_ai_state(
                     AnimalSpecies::SalmonShark => 0.0, // Sharks don't flee from campfires (water-only)
                     // Night hostile NPCs don't flee from campfires
                     AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
+                    // Bees die from fire instead of fleeing
+                    AnimalSpecies::Bee => 0.0,
                 };
                 
                 set_flee_destination_away_from_threat(animal, fire_x, fire_y, flee_distance, rng);
@@ -2305,6 +2328,8 @@ fn apply_knockback_to_player(animal: &WildAnimal, target: &mut Player, current_t
             AnimalSpecies::Shorebound => 36.0, // Fast stalker - moderate knockback
             AnimalSpecies::Shardkin => 20.0, // Small swarmer - light knockback
             AnimalSpecies::DrownedWatch => 72.0, // Heavy brute - strong knockback
+            // Bees - tiny knockback
+            AnimalSpecies::Bee => 8.0, // Tiny insect - minimal knockback
         };
         
         let knockback_dx = (dx_target_from_animal / distance) * knockback_distance;
@@ -2364,6 +2389,8 @@ fn handle_player_death(ctx: &ReducerContext, target: &mut Player, animal: &WildA
         AnimalSpecies::Shorebound => "The Shorebound",
         AnimalSpecies::Shardkin => "The Shardkin",
         AnimalSpecies::DrownedWatch => "The Drowned Watch",
+        // Bees
+        AnimalSpecies::Bee => "A Bee",
     };
     
     let new_death_marker = crate::death_marker::DeathMarker {
@@ -3868,6 +3895,10 @@ pub fn handle_fire_detection_and_flee(
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => {
             return false; // Hostile NPCs ignore fire
         }
+        // Bees don't flee from fire - they die from it
+        AnimalSpecies::Bee => {
+            return false; // Bees die from fire, don't flee
+        }
     };
     
     // Special handling for cornered foxes (don't flee if too close)
@@ -3961,6 +3992,10 @@ pub fn emit_species_sound(
         AnimalSpecies::DrownedWatch => {
             crate::sound_events::emit_drowned_watch_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
         },
+        AnimalSpecies::Bee => {
+            // Bees use a continuous buzzing sound, handled client-side
+            // No individual attack/growl sounds
+        },
     }
     
     log::debug!("{:?} {} emitting {} sound", animal.species, animal.id, sound_context);
@@ -3987,6 +4022,10 @@ pub fn emit_death_sound(
         // Hostile NPCs use their own death sound (already handled separately)
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => {
             return; // These use HostileDeath sound via hostile_spawning.rs
+        },
+        // Bees don't have a death sound (they're tiny)
+        AnimalSpecies::Bee => {
+            return;
         },
     };
     
@@ -4159,6 +4198,8 @@ pub fn maybe_change_patrol_direction(
         AnimalSpecies::Shorebound => 0.15,    // Stalker - moderate direction changes while circling
         AnimalSpecies::Shardkin => 0.20,      // Swarmer - erratic movements
         AnimalSpecies::DrownedWatch => 0.04,  // Brute - very deliberate, rarely changes direction
+        // Bees have very erratic buzzing movements
+        AnimalSpecies::Bee => 0.25,           // Bees buzz around erratically
     };
     
     // Adjust for pack wolves (alphas change direction less frequently)
@@ -4238,6 +4279,8 @@ pub fn execute_standard_flee(
             AnimalSpecies::SalmonShark => 0.0, // Sharks NEVER flee
             // Night hostile NPCs don't flee
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
+            // Bees don't flee
+            AnimalSpecies::Bee => 0.0,
         };
         
         animal.investigation_x = Some(animal.pos_x + flee_distance * flee_angle.cos());
@@ -4277,6 +4320,8 @@ pub fn execute_standard_flee(
             AnimalSpecies::SalmonShark => 500_000, // 0.5 seconds - sharks don't flee, recover fast
             // Hostile NPCs don't flee - but if they somehow enter flee state, recover quickly
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 500_000, // 0.5 seconds
+            // Bees never flee
+            AnimalSpecies::Bee => 500_000, // 0.5 seconds - bees don't flee
         };
         
         if distance_to_target <= 50.0 || time_fleeing > max_flee_time {
@@ -4709,6 +4754,11 @@ pub fn handle_attack_aftermath(
             transition_to_state(animal, AnimalState::Chasing, current_time, Some(target_player.identity), "brute assault");
             log::info!("Drowned Watch {} delivered heavy blow - continuing assault", animal.id);
         },
+        AnimalSpecies::Bee => {
+            // Bees keep stinging relentlessly
+            transition_to_state(animal, AnimalState::Chasing, current_time, Some(target_player.identity), "bee swarm attack");
+            log::debug!("Bee {} stung - continuing attack", animal.id);
+        },
     }
 }
 
@@ -4866,6 +4916,12 @@ pub fn handle_standard_damage_response(
                 // Drowned Watch brutes are unfazed by damage
                 transition_to_state(animal, AnimalState::Chasing, current_time, Some(attacker.identity), "brute retaliation");
                 log::info!("Drowned Watch {} unfazed by damage - continuing assault", animal.id);
+            },
+            AnimalSpecies::Bee => {
+                // Bees are immune to normal damage - handled in BeeBehavior
+                // If this somehow gets called, they just keep attacking
+                transition_to_state(animal, AnimalState::Chasing, current_time, Some(attacker.identity), "bee enraged");
+                log::debug!("Bee {} enraged by attack attempt", animal.id);
             },
         }
     }
@@ -5520,6 +5576,8 @@ pub fn handle_fire_trap_escape(
                 AnimalSpecies::SalmonShark => 0.0,    // Sharks don't flee from fire traps (water-only)
                 // Night hostile NPCs don't flee from fire traps
                 AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
+                // Bees die from fire instead of fleeing
+                AnimalSpecies::Bee => 0.0,
             };
             
             animal.investigation_x = Some(animal.pos_x + flee_distance * flee_angle.cos());

@@ -255,10 +255,16 @@ pub fn has_durability_system(item_def: &ItemDefinition) -> bool {
     }
 }
 
-/// Checks if an item is a food item (can spoil)
-/// Returns true if the item has consumable stats (hunger/thirst/health gain)
+/// Checks if an item is a food item or has explicit spoilage (can spoil)
+/// Returns true if the item has consumable stats (hunger/thirst)
+/// or has explicit spoils_after_hours set (for live creatures, bait, etc.)
 /// This makes the system smart - it doesn't hardcode food names
 pub fn is_food_item(item_def: &ItemDefinition) -> bool {
+    // Check if item has explicit spoilage time (for non-food spoilables like Queen Bee)
+    if item_def.spoils_after_hours.is_some() {
+        return true;
+    }
+    
     // Food items have consumable stats (hunger or thirst)
     // This excludes non-food consumables like bandages, anti-venom, etc. that only have health gain
     // Items with hunger/thirst are food, regardless of health gain
@@ -269,10 +275,16 @@ pub fn is_food_item(item_def: &ItemDefinition) -> bool {
 /// Calculates the spoilage duration in hours for a food item based on its properties
 /// Returns a value between FOOD_MIN_SPOILAGE_HOURS and FOOD_MAX_SPOILAGE_HOURS
 /// Smart calculation based on item properties:
+/// - Items with explicit spoils_after_hours use that value directly
 /// - Cooked foods last longer (2x multiplier)
 /// - Foods with higher nutrition value last slightly longer
 /// - Raw/perishable foods spoil faster
 pub fn calculate_food_spoilage_hours(item_def: &ItemDefinition) -> f32 {
+    // If item has explicit spoilage time set, use that directly (for Queen Bee, bait, etc.)
+    if let Some(explicit_hours) = item_def.spoils_after_hours {
+        return explicit_hours.clamp(FOOD_MIN_SPOILAGE_HOURS, FOOD_MAX_SPOILAGE_HOURS * 2.0);
+    }
+    
     let mut base_hours = 12.0; // Base 12 hours
     
     // Check if food is cooked (has cooked_item_def_name or name suggests cooking)
@@ -312,7 +324,13 @@ pub fn calculate_food_spoilage_hours(item_def: &ItemDefinition) -> f32 {
 
 /// Calculates durability loss per tick for a food item
 /// Based on the food's spoilage duration
+/// Returns 0.0 for preserved foods (they never spoil)
 pub fn calculate_food_spoilage_loss_per_tick(item_def: &ItemDefinition) -> f32 {
+    // Preserved foods never spoil (jams, pickles, honey, mead, vinegar, etc.)
+    if item_def.is_preserved {
+        return 0.0;
+    }
+    
     let spoilage_hours = calculate_food_spoilage_hours(item_def);
     let spoilage_seconds = spoilage_hours * 3600.0;
     let num_ticks = spoilage_seconds / FOOD_SPOILAGE_TICK_INTERVAL_SECS as f32;

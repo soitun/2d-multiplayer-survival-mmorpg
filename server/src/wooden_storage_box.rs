@@ -72,6 +72,12 @@ pub const NUM_FISH_TRAP_SLOTS: usize = 12; // Reasonable size for bait + catches
 pub const FISH_TRAP_INITIAL_HEALTH: f32 = 300.0;
 pub const FISH_TRAP_MAX_HEALTH: f32 = 300.0;
 
+// --- Wild Beehive ---
+pub const BOX_TYPE_WILD_BEEHIVE: u8 = 11;
+pub const NUM_WILD_BEEHIVE_SLOTS: usize = 3; // Small container - 1-4 honeycomb
+pub const WILD_BEEHIVE_INITIAL_HEALTH: f32 = 100.0; // Low health, not meant to be attacked
+pub const WILD_BEEHIVE_MAX_HEALTH: f32 = 100.0;
+
 // Re-export refrigerator constants for backward compatibility
 pub use crate::refrigerator::{NUM_REFRIGERATOR_SLOTS, REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH};
 
@@ -307,6 +313,7 @@ pub fn move_item_from_box(
     let is_backpack = storage_box.box_type == BOX_TYPE_BACKPACK;
     let is_military_ration = storage_box.box_type == BOX_TYPE_MILITARY_RATION;
     let is_mine_cart = storage_box.box_type == BOX_TYPE_MINE_CART;
+    let is_wild_beehive = storage_box.box_type == BOX_TYPE_WILD_BEEHIVE;
 
     // --- Commit Box Update --- 
     // The handler modified storage_box (cleared the slot) if the move was successful.
@@ -325,6 +332,11 @@ pub fn move_item_from_box(
     // Auto-despawn empty mine carts
     if is_mine_cart {
         let _ = crate::mine_cart::check_and_despawn_mine_cart_if_empty(ctx, box_id);
+    }
+    
+    // Auto-despawn empty wild beehives
+    if is_wild_beehive {
+        let _ = crate::wild_beehive::check_and_despawn_wild_beehive_if_empty(ctx, box_id);
     }
 
     Ok(())
@@ -508,6 +520,7 @@ pub fn quick_move_from_box(
     let is_backpack = storage_box.box_type == BOX_TYPE_BACKPACK;
     let is_military_ration = storage_box.box_type == BOX_TYPE_MILITARY_RATION;
     let is_mine_cart = storage_box.box_type == BOX_TYPE_MINE_CART;
+    let is_wild_beehive = storage_box.box_type == BOX_TYPE_WILD_BEEHIVE;
 
     // --- Commit Box Update --- 
     boxes.id().update(storage_box);
@@ -525,6 +538,11 @@ pub fn quick_move_from_box(
     // Auto-despawn empty mine carts
     if is_mine_cart {
         let _ = crate::mine_cart::check_and_despawn_mine_cart_if_empty(ctx, box_id);
+    }
+    
+    // Auto-despawn empty wild beehives
+    if is_wild_beehive {
+        let _ = crate::wild_beehive::check_and_despawn_wild_beehive_if_empty(ctx, box_id);
     }
 
     Ok(())
@@ -867,6 +885,7 @@ pub fn drop_item_from_box_slot_to_world(
     let is_backpack = wooden_box.box_type == BOX_TYPE_BACKPACK;
     let is_military_ration = wooden_box.box_type == BOX_TYPE_MILITARY_RATION;
     let is_mine_cart = wooden_box.box_type == BOX_TYPE_MINE_CART;
+    let is_wild_beehive = wooden_box.box_type == BOX_TYPE_WILD_BEEHIVE;
 
     // 4. Persist changes to the WoodenStorageBox
     wooden_box_table.id().update(wooden_box);
@@ -885,6 +904,11 @@ pub fn drop_item_from_box_slot_to_world(
     // Auto-despawn empty mine carts
     if is_mine_cart {
         let _ = crate::mine_cart::check_and_despawn_mine_cart_if_empty(ctx, box_id);
+    }
+    
+    // Auto-despawn empty wild beehives
+    if is_wild_beehive {
+        let _ = crate::wild_beehive::check_and_despawn_wild_beehive_if_empty(ctx, box_id);
     }
 
     Ok(())
@@ -919,6 +943,7 @@ pub fn split_and_drop_item_from_box_slot_to_world(
     let is_backpack = wooden_box.box_type == BOX_TYPE_BACKPACK;
     let is_military_ration = wooden_box.box_type == BOX_TYPE_MILITARY_RATION;
     let is_mine_cart = wooden_box.box_type == BOX_TYPE_MINE_CART;
+    let is_wild_beehive = wooden_box.box_type == BOX_TYPE_WILD_BEEHIVE;
 
     // 4. Persist changes to the WoodenStorageBox (if its slot was cleared because the whole stack was dropped)
     wooden_box_table.id().update(wooden_box); 
@@ -938,6 +963,11 @@ pub fn split_and_drop_item_from_box_slot_to_world(
     // Auto-despawn empty mine carts
     if is_mine_cart {
         let _ = crate::mine_cart::check_and_despawn_mine_cart_if_empty(ctx, box_id);
+    }
+    
+    // Auto-despawn empty wild beehives
+    if is_wild_beehive {
+        let _ = crate::wild_beehive::check_and_despawn_wild_beehive_if_empty(ctx, box_id);
     }
     
     Ok(())
@@ -970,6 +1000,7 @@ impl ItemContainer for WoodenStorageBox {
             BOX_TYPE_MILITARY_RATION => NUM_MILITARY_RATION_SLOTS,
             BOX_TYPE_MINE_CART => NUM_MINE_CART_SLOTS,
             BOX_TYPE_FISH_TRAP => NUM_FISH_TRAP_SLOTS,
+            BOX_TYPE_WILD_BEEHIVE => NUM_WILD_BEEHIVE_SLOTS,
             _ => NUM_BOX_SLOTS,
         }
     }

@@ -121,6 +121,17 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(300)
             .build(),
 
+        // Wooden Beehive - Bee housing structure
+        ItemBuilder::new("Wooden Beehive", "A wooden structure designed to house bees. Crafted with care to provide a safe home for wild bees to produce honey.", ItemCategory::Placeable)
+            .icon("wooden_beehive.png")
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 100 },
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 20 },
+            ])
+            .crafting_output(1, 7)
+            .respawn_time(300)
+            .build(),
+
         // Barbecue - Cooking appliance with 12 slots (functions like campfire)
         ItemBuilder::new("Barbecue", "A large cooking appliance with 12 slots for cooking food. Functions like a campfire but with more capacity.", ItemCategory::Placeable)
             .icon("barbecue.png")

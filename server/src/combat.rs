@@ -4509,6 +4509,8 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::Shorebound | 
             crate::wild_animal_npc::AnimalSpecies::Shardkin | 
             crate::wild_animal_npc::AnimalSpecies::DrownedWatch => None,
+            // Bees don't drop cloth - they're tiny insects
+            crate::wild_animal_npc::AnimalSpecies::Bee => None,
         };
         
         if let Some(cloth_name) = cloth_type {
@@ -4569,6 +4571,8 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::Shorebound | 
             crate::wild_animal_npc::AnimalSpecies::Shardkin | 
             crate::wild_animal_npc::AnimalSpecies::DrownedWatch => None,
+            // Bees don't drop meat - they're tiny insects
+            crate::wild_animal_npc::AnimalSpecies::Bee => None,
         };
         if let Some(meat_name) = meat_type {
             // Apply caribou age multiplier for meat
@@ -4605,6 +4609,8 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::Shorebound | 
             crate::wild_animal_npc::AnimalSpecies::Shardkin | 
             crate::wild_animal_npc::AnimalSpecies::DrownedWatch => None,
+            // Bees don't drop skulls - they're tiny insects
+            crate::wild_animal_npc::AnimalSpecies::Bee => None,
         };
         
         if let Some(skull_name) = skull_type {

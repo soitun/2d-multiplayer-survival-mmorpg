@@ -870,6 +870,8 @@ pub fn emit_animal_walking_sound(
         AnimalSpecies::Shorebound => 0.95,   // Fast stalker - slightly deeper
         AnimalSpecies::Shardkin => 1.15,     // Small swarmer - higher pitch
         AnimalSpecies::DrownedWatch => 0.6,  // Heavy brute - very deep
+        // Bees - tiny insects, very high pitch
+        AnimalSpecies::Bee => 1.6,           // Very high pitch - tiny buzzing insect
     };
     
     let mut rng = ctx.rng();

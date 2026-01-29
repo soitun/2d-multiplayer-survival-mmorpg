@@ -1198,6 +1198,12 @@ fn process_births(ctx: &ReducerContext, current_day: u32) -> Result<(), String> 
 }
 
 /// Spawn a new caribou calf
+/// 
+/// IMPORTANT: Calves can ONLY be spawned through this birth function, which is called
+/// when a pregnant female gives birth. This ensures calves are NEVER alone - they are
+/// always born near their mother (and typically near other herd adults).
+/// 
+/// Do NOT create any other code path that spawns calves without ensuring adults are nearby!
 fn spawn_caribou_calf(
     ctx: &ReducerContext,
     pos_x: f32,

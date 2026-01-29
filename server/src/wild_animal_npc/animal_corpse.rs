@@ -140,8 +140,10 @@ pub fn get_animal_loot_chances(animal_species: AnimalSpecies) -> (f64, f64, f64,
         AnimalSpecies::Caribou => (0.75, 0.85, 0.70, 0.95), // High fat, excellent hide, good bone, nearly guaranteed meat - large animal
         // SalmonShark - no loot (no underwater harvesting tools, can't use knives underwater)
         AnimalSpecies::SalmonShark => (0.0, 0.0, 0.0, 0.0),
-        // Hostile NPCs don't drop regular loot - they despawn and grant memory shards
+        // Hostile NPCs don't create corpses - they despawn at dawn and grant memory shards instead
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => (0.0, 0.0, 0.0, 0.0),
+        // Bees don't create corpses - they die instantly from fire and don't leave bodies
+        AnimalSpecies::Bee => (0.0, 0.0, 0.0, 0.0),
     }
 }
 
@@ -160,8 +162,10 @@ fn get_meat_type(animal_species: AnimalSpecies) -> &'static str {
         AnimalSpecies::Caribou => "Raw Caribou Meat", // Lean, tender venison-like meat
         // SalmonShark - no meat drops (no underwater harvesting)
         AnimalSpecies::SalmonShark => "Raw Shark Meat", // Never actually dropped - no underwater harvesting
-        // Hostile NPCs don't drop meat - they dissolve/despawn
-        AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => "Rotten Meat",
+        // Hostile NPCs don't create corpses - they despawn at dawn
+        AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => unreachable!("Hostile NPCs don't create corpses"),
+        // Bees don't create corpses - they die instantly from fire and don't leave bodies
+        AnimalSpecies::Bee => unreachable!("Bees don't create corpses"),
     }
 }
 
@@ -297,6 +301,8 @@ pub fn get_harvest_loot(
             AnimalSpecies::SalmonShark => None,
             // Hostile NPCs don't drop cloth resources
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => None,
+            // Bees don't drop cloth - they're tiny insects
+            AnimalSpecies::Bee => None,
         };
         
         if let Some(cloth_name) = cloth_type {
@@ -305,8 +311,8 @@ pub fn get_harvest_loot(
     }
     
     // NEW: Universal Animal Leather drop for most animals (like Animal Fat/Bone)
-    // This gives animals a chance to drop the universal leather resource (except crabs, birds, and voles which are too small)
-    if !matches!(animal_species, AnimalSpecies::BeachCrab | AnimalSpecies::Tern | AnimalSpecies::Crow | AnimalSpecies::Vole) {
+    // This gives animals a chance to drop the universal leather resource (except crabs, birds, voles, and bees which are too small)
+    if !matches!(animal_species, AnimalSpecies::BeachCrab | AnimalSpecies::Tern | AnimalSpecies::Crow | AnimalSpecies::Vole | AnimalSpecies::Bee) {
         // Wolverines have higher leather chance since they don't drop special fur
         let base_leather_chance = if animal_species == AnimalSpecies::Wolverine { 0.70 } else { 0.40 };
         let mut animal_leather_chance = (base_leather_chance * effectiveness_multiplier).clamp(0.0, 0.70);
@@ -336,6 +342,8 @@ pub fn get_harvest_loot(
             AnimalSpecies::SalmonShark => 0.0,
             // Hostile NPCs don't drop rare trophies
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
+            // Bees don't drop rare trophies - they're tiny insects
+            AnimalSpecies::Bee => 0.0,
         };
         
         if rare_trophy_chance > 0.0 && rng.gen_bool(rare_trophy_chance) {
@@ -354,6 +362,8 @@ pub fn get_harvest_loot(
                 AnimalSpecies::SalmonShark => unreachable!(),
                 // Hostile NPCs never reach here (chance is 0)
                 AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => unreachable!(),
+                // Bees never reach here (chance is 0)
+                AnimalSpecies::Bee => unreachable!(),
             };
             loot.push((rare_trophy.to_string(), 1)); // Rare trophies always drop just 1
         }

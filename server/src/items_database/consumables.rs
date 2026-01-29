@@ -1273,6 +1273,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("tallow.png")
             .stackable(1000)
             .consumable(0.0, 20.0, -7.0)
+            .preserved() // Rendered fat is shelf-stable
             .fuel(300.0) // 5 minutes burn time - 2 tallow lasts a full night (10 min)
             .crafting_cost(vec![
                 CostIngredient { item_name: "Animal Fat".to_string(), quantity: 3 },
@@ -1303,6 +1304,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("cheese.png")
             .stackable(10)
             .consumable(40.0, 60.0, -10.0) // Very filling but makes you thirsty
+            .preserved() // Aged cheese lasts a very long time
             .crafting_cost(vec![
                 CostIngredient { item_name: "Raw Milk".to_string(), quantity: 3 },
                 CostIngredient { item_name: "Yeast".to_string(), quantity: 1 },
@@ -1324,71 +1326,43 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // === FERMENTATION BASE INGREDIENTS ===
-        ItemBuilder::new("Yeast", "Active yeast culture for fermentation. Essential for making bread, beer, and wine. Can be created from berry mash or raw milk.", ItemCategory::Consumable)
+        // NOTE: These items are created via ItemInteractionPanel commands (mash_berries, mash_starch,
+        // extract_yeast in bones.rs), NOT through the crafting menu.
+        // The flexible_ingredient definitions are preserved for reference/future use.
+        
+        ItemBuilder::new("Yeast", "Active yeast culture for fermentation. Essential for making bread, beer, and wine. Extract from berry mash, grain mash, root mash, or raw milk.", ItemCategory::Consumable)
             .icon("yeast.png")
             .stackable(20)
             .consumable(2.0, 2.0, 2.0) // Barely edible on its own
-            .flexible_ingredient("Fermentable Base", 1, vec![
-                "Berry Mash",
-                "Raw Milk",
-            ])
-            .crafting_output(2, 5) // Makes 2 yeast, takes 5 seconds
-            .requires_station("Cooking Station")
+            .preserved() // Dried yeast lasts indefinitely
+            // Created via extract_yeast reducer - no crafting recipe
             .build(),
 
         ItemBuilder::new("Berry Mash", "Crushed and mashed berries ready for fermentation. The base for berry wine and yeast production.", ItemCategory::Consumable)
             .icon("berry_mash.png")
             .stackable(10)
             .consumable(10.0, 15.0, 25.0) // Sweet and hydrating
-            .flexible_ingredient("Any Berry", 2, vec![
-                "Lingonberries",
-                "Cloudberries",
-                "Crowberries",
-                "Bilberries",
-                "Wild Strawberries",
-                "Rowan Berries",
-                "Cranberries",
-                "Nagoonberries",
-            ])
-            .crafting_output(1, 3)
-            .requires_station("Cooking Station")
+            // Created via mash_berries reducer - no crafting recipe
             .build(),
 
-        ItemBuilder::new("Grain Mash", "Ground flour mixed with water to create a fermentable grain base. Essential for brewing grain beer.", ItemCategory::Consumable)
-            .icon("grain_mash.png")
-            .stackable(10)
-            .consumable(5.0, 20.0, 15.0) // Starchy but bland
-            .crafting_cost(vec![
-                CostIngredient { item_name: "Flour".to_string(), quantity: 1 },
-            ])
-            .crafting_output(1, 3)
-            .requires_station("Cooking Station")
-            .build(),
+        // NOTE: "Grain Mash" removed - flour is for baking bread, not brewing.
+        // Cooked starchy items are mashed directly into Starchy Mash via mash_starch reducer.
 
-        ItemBuilder::new("Root Mash", "Mashed cooked starchy roots ready for fermentation. The base for root wine.", ItemCategory::Consumable)
-            .icon("root_mash.png")
+        ItemBuilder::new("Starchy Mash", "Mashed cooked starchy roots and bulbs ready for fermentation. The base for beer and other brews.", ItemCategory::Consumable)
+            .icon("root_mash.png") // Reuse root_mash icon
             .stackable(10)
             .consumable(15.0, 25.0, 10.0) // Starchy and filling
-            .flexible_ingredient("Any Cooked Root", 2, vec![
-                "Cooked Potato",
-                "Cooked Beet",
-                "Cooked Pumpkin",
-                "Cooked Kamchatka Lily Bulb",
-                "Cooked Silverweed Root",
-                "Cooked Bistort Bulbils",
-                "Cooked Salsify Root",
-            ])
-            .crafting_output(1, 3)
-            .requires_station("Cooking Station")
+            // Created via mash_starch reducer - no crafting recipe
             .build(),
 
         // === ALCOHOLIC BEVERAGES ===
-        ItemBuilder::new("Grain Beer", "Hearty beer brewed from grain mash and yeast. Provides warmth and courage, but may impair judgment.", ItemCategory::Consumable)
-            .icon("grain_beer.png")
+        ItemBuilder::new("Beer", "Hearty beer brewed from starchy mash and yeast. Provides warmth and courage, but may impair judgment.", ItemCategory::Consumable)
+            .icon("grain_beer.png") // Reuse existing icon
             .stackable(10)
             .consumable(20.0, 30.0, 40.0) // Hydrating and filling
+            .preserved() // Alcohol is a preservative
             .crafting_cost(vec![
-                CostIngredient { item_name: "Grain Mash".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Starchy Mash".to_string(), quantity: 2 },
                 CostIngredient { item_name: "Yeast".to_string(), quantity: 1 },
             ])
             .crafting_output(2, 8)
@@ -1399,6 +1373,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("berry_wine.png")
             .stackable(10)
             .consumable(25.0, 20.0, 50.0) // More hydrating, less filling
+            .preserved() // Alcohol is a preservative
             .crafting_cost(vec![
                 CostIngredient { item_name: "Berry Mash".to_string(), quantity: 2 },
                 CostIngredient { item_name: "Yeast".to_string(), quantity: 1 },
@@ -1407,15 +1382,29 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .requires_station("Cooking Station")
             .build(),
 
-        ItemBuilder::new("Root Wine", "Earthy wine made from fermented root vegetables. An acquired taste with surprising depth.", ItemCategory::Consumable)
+        ItemBuilder::new("Root Wine", "Earthy wine made from fermented starchy roots and bulbs. An acquired taste with surprising depth.", ItemCategory::Consumable)
             .icon("root_wine.png")
             .stackable(10)
             .consumable(20.0, 25.0, 45.0) // Balanced
+            .preserved() // Alcohol is a preservative
             .crafting_cost(vec![
-                CostIngredient { item_name: "Root Mash".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Starchy Mash".to_string(), quantity: 2 },
                 CostIngredient { item_name: "Yeast".to_string(), quantity: 1 },
             ])
             .crafting_output(2, 8)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Mead", "Golden honey wine fermented with yeast. A traditional drink that warms the body and lifts the spirits. Never spoils.", ItemCategory::Consumable)
+            .icon("mead.png")
+            .stackable(10)
+            .consumable(30.0, 15.0, 55.0) // Very hydrating, warming, less filling than beer
+            .preserved() // Never spoils - fermented with honey
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Honey".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Yeast".to_string(), quantity: 1 },
+            ])
+            .crafting_output(2, 10) // Takes longer to ferment
             .requires_station("Cooking Station")
             .build(),
 
@@ -1424,6 +1413,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("vinegar.png")
             .stackable(10)
             .consumable(-5.0, 5.0, 10.0) // Not great to drink straight
+            .preserved() // Never spoils - it's a preservative itself
             .crafting_cost(vec![
                 CostIngredient { item_name: "Berry Mash".to_string(), quantity: 1 },
                 CostIngredient { item_name: "Yeast".to_string(), quantity: 1 },
@@ -1435,10 +1425,152 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .requires_station("Cooking Station")
             .build(),
 
+        // === PRESERVES ===
+        // Long-lasting preserved foods - perfect for winter survival without a pantry
+        ItemBuilder::new("Berry Jam", "Sweet preserved berries cooked with honey. Never spoils and provides excellent nutrition. A taste of summer in the darkest winter.", ItemCategory::Consumable)
+            .icon("berry_jam.png")
+            .stackable(15)
+            .consumable(20.0, 30.0, 15.0) // Good nutrition, slightly sweet
+            .preserved() // Never spoils - honey acts as preservative
+            .flexible_ingredient("Any Berry", 3, vec![
+                "Lingonberries",
+                "Cloudberries",
+                "Crowberries",
+                "Bilberries",
+                "Wild Strawberries",
+                "Rowan Berries",
+                "Cranberries",
+                "Nagoonberries",
+            ])
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Honey".to_string(), quantity: 1 },
+            ])
+            .crafting_output(2, 8)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Pickled Vegetables", "Vegetables preserved in vinegar. Tangy, crunchy, and will never spoil. Essential for surviving long winters without refrigeration.", ItemCategory::Consumable)
+            .icon("pickled_vegetables.png")
+            .stackable(20)
+            .consumable(10.0, 25.0, -10.0) // Filling but salty, makes you thirsty
+            .preserved() // Never spoils - vinegar acts as preservative
+            .flexible_ingredient("Any Vegetable", 2, vec![
+                "Carrot",
+                "Beet",
+                "Cabbage",
+                "Potato",
+                "Pumpkin",
+                "Corn",
+                "Fennel",
+                "Horseradish",
+                "Salsify",
+                "Chicory",
+            ])
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Vinegar".to_string(), quantity: 1 },
+            ])
+            .crafting_output(2, 6)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Pickled Fish", "Fish preserved in vinegar. Tangy and acidic, but will last indefinitely. A traditional way to store the catch.", ItemCategory::Consumable)
+            .icon("pickled_fish.png")
+            .stackable(15)
+            .consumable(15.0, 35.0, -15.0) // Good protein, but sour and salty
+            .preserved() // Never spoils - vinegar preservation
+            .flexible_ingredient("Any Raw Fish", 2, vec![
+                "Raw Herring",
+                "Raw Smelt",
+                "Raw Greenling",
+                "Raw Sculpin",
+                "Raw Pacific Cod",
+                "Raw Dolly Varden",
+                "Raw Rockfish",
+                "Raw Steelhead",
+                "Raw Pink Salmon",
+                "Raw Sockeye Salmon",
+                "Raw King Salmon",
+                "Raw Halibut",
+            ])
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Vinegar".to_string(), quantity: 1 },
+            ])
+            .crafting_output(2, 8)
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Meat Jerky", "Dried and cured meat strips. Lightweight, protein-rich, and never spoils. Perfect for long expeditions.", ItemCategory::Consumable)
+            .icon("meat_jerky.png")
+            .stackable(30)
+            .consumable(25.0, 45.0, -20.0) // High protein, very dry
+            .preserved() // Never spoils - dried and cured
+            .flexible_ingredient("Any Cooked Meat", 2, vec![
+                "Cooked Wolf Meat",
+                "Cooked Fox Meat",
+                "Cooked Viper Meat",
+                "Cooked Crow Meat",
+                "Cooked Tern Meat",
+                "Cooked Vole Meat",
+                "Cooked Wolverine Meat",
+                "Cooked Caribou Meat",
+            ])
+            .crafting_output(3, 10) // Takes time to dry, yields 3
+            .requires_station("Cooking Station")
+            .build(),
+
+        ItemBuilder::new("Dried Fish", "Sun-dried fish fillets. A staple of Aleutian survival, light to carry and lasts forever. The backbone of winter food stores.", ItemCategory::Consumable)
+            .icon("dried_fish.png")
+            .stackable(30)
+            .consumable(20.0, 40.0, -15.0) // Good protein, dry
+            .preserved() // Never spoils - traditional drying
+            .flexible_ingredient("Any Raw Fish", 2, vec![
+                "Raw Herring",
+                "Raw Smelt",
+                "Raw Greenling",
+                "Raw Sculpin",
+                "Raw Pacific Cod",
+                "Raw Dolly Varden",
+                "Raw Rockfish",
+                "Raw Steelhead",
+                "Raw Pink Salmon",
+                "Raw Sockeye Salmon",
+                "Raw King Salmon",
+                "Raw Halibut",
+            ])
+            .crafting_output(3, 10) // Takes time to dry, yields 3
+            .requires_station("Cooking Station")
+            .build(),
+
+        // === BEE PRODUCTS ===
+        // Honeycomb is found in the wild or from beekeeping. Cook it to get honey, or extract the queen bee.
+        ItemBuilder::new("Honeycomb", "A waxy structure filled with golden honey. Can be cooked to extract pure honey, or carefully searched for a queen bee.", ItemCategory::Consumable)
+            .icon("honeycomb.png")
+            .stackable(10)
+            .consumable(10.0, 15.0, 5.0) // Edible raw but messy
+            .cookable(8.0, "Honey") // Cook in campfire/furnace to get honey
+            .respawn_time(600) // Found in wild
+            .build(),
+
+        ItemBuilder::new("Honey", "Pure golden honey extracted from honeycomb. A natural sweetener with medicinal properties that never spoils.", ItemCategory::Consumable)
+            .icon("honey.png")
+            .stackable(20)
+            .consumable(15.0, 25.0, 10.0) // Nutritious and slightly medicinal
+            .preserved() // Never spoils - honey is naturally antibacterial
+            // Created by cooking honeycomb - no direct crafting recipe
+            .build(),
+
+        ItemBuilder::new("Queen Bee", "A rare queen bee carefully extracted from honeycomb. Essential for starting new bee colonies. Keep her alive - she won't survive long without a hive!", ItemCategory::Material)
+            .icon("queen_bee.png")
+            .stackable(1) // Very rare, don't stack much
+            .spoils_after_hours(18.0) // Queen bee dies after 18 hours without proper hive - use quickly!
+            // Created via extract_queen_bee reducer from Honeycomb
+            .build(),
+
         ItemBuilder::new("Tin of Sprats in Oil", "Small oily fish preserved in a tin. Provides good nutrition and a slight health boost from the omega oils.", ItemCategory::Consumable)
             .icon("tin_of_sprats.png")
             .stackable(10)
             .consumable(25.0, 35.0, -15.0)
+            .preserved() // Canned food never spoils
             .respawn_time(900)
             .build(),
 
@@ -1446,6 +1578,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("fermented_cabbage_jar.png")
             .stackable(5)
             .consumable(25.0, 20.0, -25.0)
+            .preserved() // Fermentation is preservation
             .respawn_time(720)
             .build(),
 
@@ -1453,6 +1586,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("old_hardtack_biscuits.png")
             .stackable(15)
             .consumable(25.0, 45.0, -10.0)
+            .preserved() // Hardtack literally lasts decades
             .respawn_time(600)
             .build(),
 
@@ -1460,6 +1594,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("expired_soviet_chocolate.png")
             .stackable(8)
             .consumable(25.0, 15.0, 5.0)
+            .preserved() // Chocolate lasts years even "expired"
             .respawn_time(1200)
             .build(),
 
@@ -1467,6 +1602,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("mystery_can.png")
             .stackable(5)
             .consumable(0.0, 50.0, 0.0)
+            .preserved() // Canned food never spoils
             .respawn_time(800)
             .build(),
 
@@ -1837,6 +1973,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("dried_seaweed.png")
             .stackable(20)
             .consumable(8.0, 18.0, -5.0) // Better nutrition, but salty so reduces thirst
+            .preserved() // Dried foods are shelf-stable
             .cookable(40.0, "Charcoal") // Burns to charcoal if overcooked
             .respawn_time(180)
             .build(),

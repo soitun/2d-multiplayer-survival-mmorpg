@@ -1395,6 +1395,12 @@ fn process_walrus_births(ctx: &ReducerContext, current_day: u32) -> Result<(), S
 }
 
 /// Spawn a new walrus pup
+/// 
+/// IMPORTANT: Pups can ONLY be spawned through this birth function, which is called
+/// when a pregnant female gives birth. This ensures pups are NEVER alone - they are
+/// always born near their mother (and typically near other group adults).
+/// 
+/// Do NOT create any other code path that spawns pups without ensuring adults are nearby!
 fn spawn_walrus_pup(
     ctx: &ReducerContext,
     pos_x: f32,

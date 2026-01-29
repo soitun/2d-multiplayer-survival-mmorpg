@@ -242,6 +242,162 @@ fn spawn_animal(
     pos_y: f32,
     chunk_idx: u32,
 ) -> Result<WildAnimal, String> {
+    // For herd animals (caribou, walrus), spawn in groups to ensure breeding viability
+    // Youth should NEVER spawn alone - only through births from pregnant females
+    if matches!(species, AnimalSpecies::Caribou | AnimalSpecies::ArcticWalrus) {
+        return spawn_herd_animal_group(ctx, species, pos_x, pos_y, chunk_idx);
+    }
+    
+    spawn_single_animal(ctx, species, pos_x, pos_y, chunk_idx)
+}
+
+/// Spawn herd animals (caribou, walrus) in breeding-viable groups
+/// Ensures at least one male and one female adult per group
+fn spawn_herd_animal_group(
+    ctx: &ReducerContext,
+    species: AnimalSpecies,
+    pos_x: f32,
+    pos_y: f32,
+    chunk_idx: u32,
+) -> Result<WildAnimal, String> {
+    use super::caribou::CaribouSex;
+    use super::walrus::WalrusSex;
+    
+    let mut rng = ctx.rng();
+    
+    // Group size: minimum 3 (1 male + 1 female + 1 random) for breeding viability
+    let group_size = match species {
+        AnimalSpecies::ArcticWalrus => rng.gen_range(3..=4), // 3-4 walruses
+        AnimalSpecies::Caribou => rng.gen_range(3..=4),      // 3-4 caribou
+        _ => 1,
+    };
+    
+    // Group spacing
+    let (min_dist, max_dist) = match species {
+        AnimalSpecies::ArcticWalrus => (30.0, 60.0),
+        AnimalSpecies::Caribou => (40.0, 80.0),
+        _ => (30.0, 60.0),
+    };
+    
+    // Generate group positions
+    let mut group_positions = vec![(pos_x, pos_y)];
+    for _ in 1..group_size {
+        let mut attempts = 0;
+        while attempts < 15 {
+            attempts += 1;
+            let angle = rng.gen::<f32>() * 2.0 * std::f32::consts::PI;
+            let distance = rng.gen_range(min_dist..max_dist);
+            let group_pos_x = pos_x + angle.cos() * distance;
+            let group_pos_y = pos_y + angle.sin() * distance;
+            
+            // Basic bounds check
+            let margin = 50.0;
+            let world_width = (crate::WORLD_WIDTH_TILES * crate::TILE_SIZE_PX) as f32;
+            let world_height = (crate::WORLD_HEIGHT_TILES * crate::TILE_SIZE_PX) as f32;
+            if group_pos_x < margin || group_pos_x > world_width - margin ||
+               group_pos_y < margin || group_pos_y > world_height - margin {
+                continue;
+            }
+            
+            // Check not too close to other group members
+            let mut too_close = false;
+            for &(ox, oy) in &group_positions {
+                if (group_pos_x - ox).powi(2) + (group_pos_y - oy).powi(2) < 25.0 * 25.0 {
+                    too_close = true;
+                    break;
+                }
+            }
+            if too_close { continue; }
+            
+            group_positions.push((group_pos_x, group_pos_y));
+            break;
+        }
+    }
+    
+    let actual_group_size = group_positions.len();
+    log::info!("🦌🦭 Spawning {} {:?} in a breeding-viable group at ({:.1}, {:.1})", 
+              actual_group_size, species, pos_x, pos_y);
+    
+    // Track sexes to ensure at least one of each
+    let mut males_spawned = 0;
+    let mut females_spawned = 0;
+    let mut first_animal: Option<WildAnimal> = None;
+    
+    for (i, &(spawn_x, spawn_y)) in group_positions.iter().enumerate() {
+        let spawn_chunk = calculate_chunk_index(spawn_x, spawn_y);
+        
+        match spawn_single_animal(ctx, species, spawn_x, spawn_y, spawn_chunk) {
+            Ok(inserted) => {
+                // Assign sex with breeding viability guarantee
+                match species {
+                    AnimalSpecies::Caribou => {
+                        let sex = if actual_group_size >= 2 {
+                            if males_spawned == 0 && (i == 0 || (i == actual_group_size - 1 && females_spawned > 0)) {
+                                CaribouSex::Male
+                            } else if females_spawned == 0 && (i == 1 || (i == actual_group_size - 1 && males_spawned > 0)) {
+                                CaribouSex::Female
+                            } else {
+                                if rng.gen::<bool>() { CaribouSex::Male } else { CaribouSex::Female }
+                            }
+                        } else {
+                            if rng.gen::<bool>() { CaribouSex::Male } else { CaribouSex::Female }
+                        };
+                        
+                        match sex {
+                            CaribouSex::Male => males_spawned += 1,
+                            CaribouSex::Female => females_spawned += 1,
+                        }
+                        
+                        if let Err(e) = super::caribou::assign_caribou_sex_forced(ctx, inserted.id, sex) {
+                            log::warn!("Failed to assign sex to caribou {}: {}", inserted.id, e);
+                        }
+                    }
+                    AnimalSpecies::ArcticWalrus => {
+                        let sex = if actual_group_size >= 2 {
+                            if males_spawned == 0 && (i == 0 || (i == actual_group_size - 1 && females_spawned > 0)) {
+                                WalrusSex::Male
+                            } else if females_spawned == 0 && (i == 1 || (i == actual_group_size - 1 && males_spawned > 0)) {
+                                WalrusSex::Female
+                            } else {
+                                if rng.gen::<bool>() { WalrusSex::Male } else { WalrusSex::Female }
+                            }
+                        } else {
+                            if rng.gen::<bool>() { WalrusSex::Male } else { WalrusSex::Female }
+                        };
+                        
+                        match sex {
+                            WalrusSex::Male => males_spawned += 1,
+                            WalrusSex::Female => females_spawned += 1,
+                        }
+                        
+                        if let Err(e) = super::walrus::assign_walrus_sex_forced(ctx, inserted.id, sex) {
+                            log::warn!("Failed to assign sex to walrus {}: {}", inserted.id, e);
+                        }
+                    }
+                    _ => {}
+                }
+                
+                if first_animal.is_none() {
+                    first_animal = Some(inserted);
+                }
+            }
+            Err(e) => {
+                log::warn!("Failed to spawn group member {} for {:?}: {}", i, species, e);
+            }
+        }
+    }
+    
+    first_animal.ok_or_else(|| "Failed to spawn any animals in group".to_string())
+}
+
+/// Spawn a single animal (non-herd species or called for each member of a herd)
+fn spawn_single_animal(
+    ctx: &ReducerContext,
+    species: AnimalSpecies,
+    pos_x: f32,
+    pos_y: f32,
+    chunk_idx: u32,
+) -> Result<WildAnimal, String> {
     // Get stats directly from the behavior system (single source of truth)
     let behavior = species.get_behavior();
     let stats = behavior.get_stats();
@@ -309,19 +465,8 @@ fn spawn_animal(
     let inserted = ctx.db.wild_animal().try_insert(new_animal)
         .map_err(|e| e.to_string())?;
     
-    // For caribou, assign sex and create breeding data
-    if matches!(species, AnimalSpecies::Caribou) {
-        if let Err(e) = super::caribou::assign_caribou_sex_on_spawn(ctx, inserted.id) {
-            log::warn!("Failed to assign sex to caribou {}: {}", inserted.id, e);
-        }
-    }
-    
-    // For walrus, assign sex and create breeding data
-    if matches!(species, AnimalSpecies::ArcticWalrus) {
-        if let Err(e) = super::walrus::assign_walrus_sex_on_spawn(ctx, inserted.id) {
-            log::warn!("Failed to assign sex to walrus {}: {}", inserted.id, e);
-        }
-    }
+    // NOTE: For herd animals (caribou, walrus), sex assignment is handled by spawn_herd_animal_group
+    // to ensure breeding viability. For individual spawns of non-herd animals, no sex assignment needed.
     
     Ok(inserted)
 }

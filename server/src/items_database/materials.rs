@@ -53,6 +53,7 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .icon("flour.png")
             .stackable(500)
             .consumable(3.0, 15.0, -10.0) // Can be eaten but very dry
+            .preserved() // Dry goods are shelf-stable
             .respawn_time(0) // Only from processing
             .build(),
 
