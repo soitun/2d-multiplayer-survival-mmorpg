@@ -258,6 +258,7 @@ export function isSeedItemValid(itemName: string, itemDefinitions?: Map<string, 
     name.includes('potato') || // "Seed Potato"
     name.includes('frond') || // "Seaweed Frond" - underwater plant propagation
     name.includes('pinecone') || // "Pinecone" - tree seed for conifers
-    name.includes('catkin') // "Birch Catkin" - tree seed for deciduous trees
+    name.includes('catkin') || // "Birch Catkin" - tree seed for deciduous trees
+    name === 'hazelnut' || name === 'hazelnuts' // "Hazelnut" - the nut itself is the seed for hazelnut trees
   );
 } 

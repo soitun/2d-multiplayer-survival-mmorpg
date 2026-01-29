@@ -1048,7 +1048,7 @@ pub fn plant_seed(
     let is_pinecone = item_def.name == "Pinecone";
     let is_birch_catkin = item_def.name == "Birch Catkin";
     let is_crab_apple_seeds = item_def.name == "Crab Apple Seeds";
-    let is_hazelnut = item_def.name == "Hazelnut";
+    let is_hazelnut = item_def.name == "Hazelnuts";
     let is_tree_seed = is_pinecone || is_birch_catkin || is_crab_apple_seeds || is_hazelnut;
     
     if is_tree_seed {

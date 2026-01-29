@@ -1370,8 +1370,8 @@ lazy_static! {
             noise_threshold: 1.0, // Never spawns naturally
             primary_yield: ("Wood".to_string(), 0, 0), // No direct yield - becomes a Tree
             secondary_yield: None,
-            seed_type: "Hazelnut".to_string(),
-            seed_drop_chance: 0.80, // 80% chance when EATING hazelnuts (which are also the seed)
+            seed_type: "Hazelnuts".to_string(),
+            seed_drop_chance: 0.0, // Hazelnuts ARE the seeds - eating them doesn't give more (would be infinite item exploit)
             // Growth time: 5-8 minutes - faster than wild tree respawn (10-20 min)
             min_respawn_time_secs: 300,  // 5 minutes to grow
             max_respawn_time_secs: 480,  // 8 minutes to grow

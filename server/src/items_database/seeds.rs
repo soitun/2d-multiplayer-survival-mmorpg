@@ -609,14 +609,14 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .cookable(18.0, "Charcoal") // Tiny seeds just char
             .build(),
 
-        // Hazelnut - Plantable nut (the nut itself is the seed!)
-        // Dropped from Hazelnut Trees when chopped
-        ItemBuilder::new("Hazelnust", "Small, round nuts with hard shells. Can be planted to grow a hazelnut tree, or eaten for nutrition. Better when roasted.", ItemCategory::Placeable)
+        // Hazelnuts - Plantable nut (the nut itself is the seed!)
+        // Dropped from Hazelnut Trees when chopped (plural to match what trees drop)
+        ItemBuilder::new("Hazelnuts", "Small, round nuts with hard shells. Can be planted to grow a hazelnut tree, or eaten for nutrition. Better when roasted.", ItemCategory::Placeable)
             .icon("hazelnuts.png")
             .stackable(30)
             .respawn_time(220)
             .consumable(8.0, 15.0, -2.0) // health, hunger, thirst - good raw, slightly dry
-            .cookable(35.0, "Cooked Hazelnut") // Roasts into enhanced snack
+            .cookable(35.0, "Cooked Hazelnuts") // Roasts into enhanced snack
             .build(),
     ]
 }

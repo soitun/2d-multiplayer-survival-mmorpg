@@ -635,14 +635,14 @@ fn normalize_item_name_for_plant_match(item_name: &str) -> String {
 /// Returns Some(PlantType) if the item is produced by a plant, None otherwise
 /// Checks both primary and secondary yields (e.g., Nettle Leaves is a secondary yield from Boreal Nettle)
 /// Also matches cooked/burnt versions of food items (e.g., "Cooked Carrot" -> PlantType::Carrot)
-/// Special handling for tree products (Crab Apples, Hazelnuts) that come from chopping trees, not harvesting plants
+/// Special handling for tree products (Crab Apples) that come from chopping trees, not harvesting plants
 fn get_plant_type_from_item_name(item_name: &str) -> Option<PlantType> {
     // Special handling for tree products - these items come from chopping trees, not harvesting plants
     // Map them to their respective sapling plant types for seed drop purposes
+    // NOTE: Hazelnuts are NOT included here because the nut IS the seed - eating it shouldn't give more
     let normalized = normalize_item_name_for_plant_match(item_name);
     match normalized.as_str() {
         "Crab Apples" => return Some(PlantType::CrabAppleSapling),
-        "Hazelnuts" | "Hazelnut" => return Some(PlantType::HazelnutSapling),
         _ => {}
     }
     
