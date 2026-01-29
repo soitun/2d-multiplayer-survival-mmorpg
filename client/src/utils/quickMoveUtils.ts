@@ -156,6 +156,10 @@ export function quickMoveToContainer(
                 connection.reducers.quickMoveToLantern(containerId, itemInstanceId);
                 return true;
 
+            case 'turret':
+                connection.reducers.quickMoveToTurret(containerId, itemInstanceId);
+                return true;
+
             case 'homestead_hearth':
                 connection.reducers.quickMoveToHearth(containerId, itemInstanceId);
                 return true;
@@ -231,6 +235,10 @@ export function quickMoveToPlayer(
 
             case 'lantern':
                 connection.reducers.quickMoveFromLantern(containerIdNum, slotIndex);
+                return true;
+
+            case 'turret':
+                connection.reducers.quickMoveFromTurret(containerIdNum, slotIndex);
                 return true;
 
             case 'homestead_hearth':

@@ -739,6 +739,9 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                     case 'lantern':
                         connection.reducers.quickMoveToLantern(containerId, itemInstanceId);
                         break;
+                    case 'turret':
+                        connection.reducers.quickMoveToTurret(containerId, itemInstanceId);
+                        break;
                     case 'homestead_hearth':
                         connection.reducers.quickMoveToHearth(containerId, itemInstanceId);
                         break;

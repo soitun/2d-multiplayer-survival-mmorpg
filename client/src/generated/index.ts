@@ -675,6 +675,8 @@ import { SplitStackFromLantern } from "./split_stack_from_lantern_reducer.ts";
 export { SplitStackFromLantern };
 import { SplitStackFromStash } from "./split_stack_from_stash_reducer.ts";
 export { SplitStackFromStash };
+import { SplitStackFromTurret } from "./split_stack_from_turret_reducer.ts";
+export { SplitStackFromTurret };
 import { SplitStackIntoBarbecue } from "./split_stack_into_barbecue_reducer.ts";
 export { SplitStackIntoBarbecue };
 import { SplitStackIntoBox } from "./split_stack_into_box_reducer.ts";
@@ -701,6 +703,8 @@ import { SplitStackIntoRefrigerator } from "./split_stack_into_refrigerator_redu
 export { SplitStackIntoRefrigerator };
 import { SplitStackIntoStash } from "./split_stack_into_stash_reducer.ts";
 export { SplitStackIntoStash };
+import { SplitStackIntoTurret } from "./split_stack_into_turret_reducer.ts";
+export { SplitStackIntoTurret };
 import { SplitStackWithinBarbecue } from "./split_stack_within_barbecue_reducer.ts";
 export { SplitStackWithinBarbecue };
 import { SplitStackWithinBox } from "./split_stack_within_box_reducer.ts";
@@ -721,6 +725,8 @@ import { SplitStackWithinLantern } from "./split_stack_within_lantern_reducer.ts
 export { SplitStackWithinLantern };
 import { SplitStackWithinStash } from "./split_stack_within_stash_reducer.ts";
 export { SplitStackWithinStash };
+import { SplitStackWithinTurret } from "./split_stack_within_turret_reducer.ts";
+export { SplitStackWithinTurret };
 import { StartCrafting } from "./start_crafting_reducer.ts";
 export { StartCrafting };
 import { StartCraftingMultiple } from "./start_crafting_multiple_reducer.ts";
@@ -4450,6 +4456,10 @@ const REMOTE_MODULE = {
       reducerName: "split_stack_from_stash",
       argsType: SplitStackFromStash.getTypeScriptAlgebraicType(),
     },
+    split_stack_from_turret: {
+      reducerName: "split_stack_from_turret",
+      argsType: SplitStackFromTurret.getTypeScriptAlgebraicType(),
+    },
     split_stack_into_barbecue: {
       reducerName: "split_stack_into_barbecue",
       argsType: SplitStackIntoBarbecue.getTypeScriptAlgebraicType(),
@@ -4502,6 +4512,10 @@ const REMOTE_MODULE = {
       reducerName: "split_stack_into_stash",
       argsType: SplitStackIntoStash.getTypeScriptAlgebraicType(),
     },
+    split_stack_into_turret: {
+      reducerName: "split_stack_into_turret",
+      argsType: SplitStackIntoTurret.getTypeScriptAlgebraicType(),
+    },
     split_stack_within_barbecue: {
       reducerName: "split_stack_within_barbecue",
       argsType: SplitStackWithinBarbecue.getTypeScriptAlgebraicType(),
@@ -4541,6 +4555,10 @@ const REMOTE_MODULE = {
     split_stack_within_stash: {
       reducerName: "split_stack_within_stash",
       argsType: SplitStackWithinStash.getTypeScriptAlgebraicType(),
+    },
+    split_stack_within_turret: {
+      reducerName: "split_stack_within_turret",
+      argsType: SplitStackWithinTurret.getTypeScriptAlgebraicType(),
     },
     start_crafting: {
       reducerName: "start_crafting",
@@ -5050,6 +5068,7 @@ export type Reducer = never
 | { name: "SplitStackFromHearth", args: SplitStackFromHearth }
 | { name: "SplitStackFromLantern", args: SplitStackFromLantern }
 | { name: "SplitStackFromStash", args: SplitStackFromStash }
+| { name: "SplitStackFromTurret", args: SplitStackFromTurret }
 | { name: "SplitStackIntoBarbecue", args: SplitStackIntoBarbecue }
 | { name: "SplitStackIntoBox", args: SplitStackIntoBox }
 | { name: "SplitStackIntoBrothPot", args: SplitStackIntoBrothPot }
@@ -5063,6 +5082,7 @@ export type Reducer = never
 | { name: "SplitStackIntoLantern", args: SplitStackIntoLantern }
 | { name: "SplitStackIntoRefrigerator", args: SplitStackIntoRefrigerator }
 | { name: "SplitStackIntoStash", args: SplitStackIntoStash }
+| { name: "SplitStackIntoTurret", args: SplitStackIntoTurret }
 | { name: "SplitStackWithinBarbecue", args: SplitStackWithinBarbecue }
 | { name: "SplitStackWithinBox", args: SplitStackWithinBox }
 | { name: "SplitStackWithinBrothPot", args: SplitStackWithinBrothPot }
@@ -5073,6 +5093,7 @@ export type Reducer = never
 | { name: "SplitStackWithinHearth", args: SplitStackWithinHearth }
 | { name: "SplitStackWithinLantern", args: SplitStackWithinLantern }
 | { name: "SplitStackWithinStash", args: SplitStackWithinStash }
+| { name: "SplitStackWithinTurret", args: SplitStackWithinTurret }
 | { name: "StartCrafting", args: StartCrafting }
 | { name: "StartCraftingMultiple", args: StartCraftingMultiple }
 | { name: "StartHeavyStormRainSoundReducer", args: StartHeavyStormRainSoundReducer }
@@ -10101,6 +10122,22 @@ export class RemoteReducers {
     this.connection.offReducer("split_stack_from_stash", callback);
   }
 
+  splitStackFromTurret(turretId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) {
+    const __args = { turretId, sourceSlotIndex, quantityToSplit, targetSlotType, targetSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    SplitStackFromTurret.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_stack_from_turret", __argsBuffer, this.setCallReducerFlags.splitStackFromTurretFlags);
+  }
+
+  onSplitStackFromTurret(callback: (ctx: ReducerEventContext, turretId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.onReducer("split_stack_from_turret", callback);
+  }
+
+  removeOnSplitStackFromTurret(callback: (ctx: ReducerEventContext, turretId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) => void) {
+    this.connection.offReducer("split_stack_from_turret", callback);
+  }
+
   splitStackIntoBarbecue(sourceItemInstanceId: bigint, quantityToSplit: number, targetBarbecueId: number, targetSlotIndex: number) {
     const __args = { sourceItemInstanceId, quantityToSplit, targetBarbecueId, targetSlotIndex };
     let __writer = new __BinaryWriter(1024);
@@ -10309,6 +10346,22 @@ export class RemoteReducers {
     this.connection.offReducer("split_stack_into_stash", callback);
   }
 
+  splitStackIntoTurret(sourceItemInstanceId: bigint, quantityToSplit: number, targetTurretId: number, targetSlotIndex: number) {
+    const __args = { sourceItemInstanceId, quantityToSplit, targetTurretId, targetSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    SplitStackIntoTurret.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_stack_into_turret", __argsBuffer, this.setCallReducerFlags.splitStackIntoTurretFlags);
+  }
+
+  onSplitStackIntoTurret(callback: (ctx: ReducerEventContext, sourceItemInstanceId: bigint, quantityToSplit: number, targetTurretId: number, targetSlotIndex: number) => void) {
+    this.connection.onReducer("split_stack_into_turret", callback);
+  }
+
+  removeOnSplitStackIntoTurret(callback: (ctx: ReducerEventContext, sourceItemInstanceId: bigint, quantityToSplit: number, targetTurretId: number, targetSlotIndex: number) => void) {
+    this.connection.offReducer("split_stack_into_turret", callback);
+  }
+
   splitStackWithinBarbecue(barbecueId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) {
     const __args = { barbecueId, sourceSlotIndex, quantityToSplit, targetSlotIndex };
     let __writer = new __BinaryWriter(1024);
@@ -10467,6 +10520,22 @@ export class RemoteReducers {
 
   removeOnSplitStackWithinStash(callback: (ctx: ReducerEventContext, stashId: number, sourceSlotIndex: number, targetSlotIndex: number, quantityToSplit: number) => void) {
     this.connection.offReducer("split_stack_within_stash", callback);
+  }
+
+  splitStackWithinTurret(turretId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) {
+    const __args = { turretId, sourceSlotIndex, quantityToSplit, targetSlotIndex };
+    let __writer = new __BinaryWriter(1024);
+    SplitStackWithinTurret.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_stack_within_turret", __argsBuffer, this.setCallReducerFlags.splitStackWithinTurretFlags);
+  }
+
+  onSplitStackWithinTurret(callback: (ctx: ReducerEventContext, turretId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) => void) {
+    this.connection.onReducer("split_stack_within_turret", callback);
+  }
+
+  removeOnSplitStackWithinTurret(callback: (ctx: ReducerEventContext, turretId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) => void) {
+    this.connection.offReducer("split_stack_within_turret", callback);
   }
 
   startCrafting(recipeId: bigint) {
@@ -12652,6 +12721,11 @@ export class SetReducerFlags {
     this.splitStackFromStashFlags = flags;
   }
 
+  splitStackFromTurretFlags: __CallReducerFlags = 'FullUpdate';
+  splitStackFromTurret(flags: __CallReducerFlags) {
+    this.splitStackFromTurretFlags = flags;
+  }
+
   splitStackIntoBarbecueFlags: __CallReducerFlags = 'FullUpdate';
   splitStackIntoBarbecue(flags: __CallReducerFlags) {
     this.splitStackIntoBarbecueFlags = flags;
@@ -12717,6 +12791,11 @@ export class SetReducerFlags {
     this.splitStackIntoStashFlags = flags;
   }
 
+  splitStackIntoTurretFlags: __CallReducerFlags = 'FullUpdate';
+  splitStackIntoTurret(flags: __CallReducerFlags) {
+    this.splitStackIntoTurretFlags = flags;
+  }
+
   splitStackWithinBarbecueFlags: __CallReducerFlags = 'FullUpdate';
   splitStackWithinBarbecue(flags: __CallReducerFlags) {
     this.splitStackWithinBarbecueFlags = flags;
@@ -12765,6 +12844,11 @@ export class SetReducerFlags {
   splitStackWithinStashFlags: __CallReducerFlags = 'FullUpdate';
   splitStackWithinStash(flags: __CallReducerFlags) {
     this.splitStackWithinStashFlags = flags;
+  }
+
+  splitStackWithinTurretFlags: __CallReducerFlags = 'FullUpdate';
+  splitStackWithinTurret(flags: __CallReducerFlags) {
+    this.splitStackWithinTurretFlags = flags;
   }
 
   startCraftingFlags: __CallReducerFlags = 'FullUpdate';

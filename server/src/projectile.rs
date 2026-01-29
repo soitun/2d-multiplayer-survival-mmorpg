@@ -44,7 +44,7 @@ use crate::basalt_column::{BasaltColumn, basalt_column as BasaltColumnTableTrait
 
 // Import wild animal module for collision detection
 use crate::wild_animal_npc::{wild_animal as WildAnimalTableTrait};
-use crate::turret;
+use crate::turret::{self, TALLOW_PROJECTILE_DAMAGE};
 
 const GRAVITY: f32 = 600.0; // Adjust this value to change the arc. Positive values pull downwards.
 
@@ -762,6 +762,11 @@ fn calculate_projectile_damage(
     projectile: &Projectile,
     rng: &mut rand::rngs::StdRng,
 ) -> f32 {
+    // Turret tallow projectiles explode on impact and deal fixed high damage
+    if projectile.source_type == PROJECTILE_SOURCE_TURRET {
+        return TALLOW_PROJECTILE_DAMAGE;
+    }
+    
     // Calculate base weapon damage
     let weapon_damage_min = weapon_item_def.pvp_damage_min.unwrap_or(0) as f32;
     let weapon_damage_max = weapon_item_def.pvp_damage_max.unwrap_or(weapon_damage_min as u32) as f32;
@@ -2138,8 +2143,11 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 // Create fire patch if this is a turret tallow projectile (25% chance)
                 create_fire_patch_if_turret_tallow(ctx, &projectile, current_x, current_y);
 
+                // Turret tallow projectiles explode on impact and don't become dropped items
                 // Add projectile to dropped item system (with break chance) like other hits
-                missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
+                if projectile.source_type != PROJECTILE_SOURCE_TURRET {
+                    missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
+                }
                 projectiles_to_delete.push(projectile.id);
                 hit_wild_animal_this_tick = true;
                 break; // Projectile hits one animal and is consumed
@@ -2295,8 +2303,11 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 }
                 // --- End Improved Combined Damage System ---
 
+                // Turret tallow projectiles explode on impact and don't become dropped items
                 // Add projectile to dropped item system (with break chance) like other hits
-                missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
+                if projectile.source_type != PROJECTILE_SOURCE_TURRET {
+                    missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
+                }
                 projectiles_to_delete.push(projectile.id);
                 hit_player_this_tick = true;
                 break; // Projectile hits one player and is consumed

@@ -36,7 +36,7 @@ pub const TURRET_TYPE_TALLOW_STEAM: u8 = 0;
 pub const TURRET_RANGE: f32 = 400.0;
 pub const TURRET_RANGE_SQUARED: f32 = TURRET_RANGE * TURRET_RANGE;
 pub const TURRET_FIRE_INTERVAL_MS: u64 = 4000;  // 4 seconds (15 shots/min)
-pub const TALLOW_PROJECTILE_DAMAGE: f32 = 15.0;
+pub const TALLOW_PROJECTILE_DAMAGE: f32 = 75.0; // Increased from 15.0 - tallow explodes on impact
 pub const TALLOW_PROJECTILE_SPEED: f32 = 600.0; // Slower than arrows (molten glob)
 pub const FIRE_PATCH_CHANCE_PERCENT: u32 = 25; // 25% chance to create fire patch on hit
 
@@ -433,6 +433,98 @@ pub fn move_item_from_turret_to_player_slot(
 ) -> Result<(), String> {
     let (_player, mut turret) = validate_turret_interaction(ctx, turret_id)?;
     handle_move_from_container_slot(ctx, &mut turret, source_slot_index, target_slot_type, target_slot_index)?;
+    ctx.db.turret().id().update(turret);
+    Ok(())
+}
+
+/// Split stack FROM player inventory/hotbar INTO turret ammo slot
+#[spacetimedb::reducer]
+pub fn split_stack_into_turret(
+    ctx: &ReducerContext,
+    source_item_instance_id: u64,
+    quantity_to_split: u32,
+    target_turret_id: u32,
+    target_slot_index: u8,
+) -> Result<(), String> {
+    let (_player, mut turret) = validate_turret_interaction(ctx, target_turret_id)?;
+    
+    // Validate ammo type based on turret_type
+    let item = ctx.db.inventory_item().instance_id().find(&source_item_instance_id)
+        .ok_or_else(|| "Item not found.".to_string())?;
+    let item_def = ctx.db.item_definition().id().find(&item.item_def_id)
+        .ok_or_else(|| "Item definition not found.".to_string())?;
+    
+    // Tallow Steam Turret only accepts Tallow
+    if turret.turret_type == TURRET_TYPE_TALLOW_STEAM {
+        if item_def.name != "Tallow" {
+            return Err("Tallow Steam Turret only accepts Tallow.".to_string());
+        }
+    }
+    
+    let mut source_item = get_player_item(ctx, source_item_instance_id)?;
+    let new_item_target_location = ItemLocation::Container(ContainerLocationData {
+        container_type: ContainerType::Turret,
+        container_id: turret.id as u64,
+        slot_index: target_slot_index,
+    });
+    let new_item_instance_id = split_stack_helper(ctx, &mut source_item, quantity_to_split, new_item_target_location)?;
+    
+    // Fetch the newly created item and its definition to pass to merge_or_place
+    let mut new_item = ctx.db.inventory_item().instance_id().find(new_item_instance_id)
+        .ok_or_else(|| format!("Failed to find newly split item instance {}", new_item_instance_id))?;
+    let new_item_def = ctx.db.item_definition().id().find(new_item.item_def_id)
+        .ok_or_else(|| format!("Failed to find definition for new item {}", new_item.item_def_id))?;
+
+    merge_or_place_into_container_slot(ctx, &mut turret, target_slot_index, &mut new_item, &new_item_def)?;
+    
+    // Update the source item (quantity changed by split_stack_helper)
+    ctx.db.inventory_item().instance_id().update(source_item);
+    ctx.db.turret().id().update(turret);
+    Ok(())
+}
+
+/// Split stack FROM turret ammo slot TO player inventory/hotbar slot
+#[spacetimedb::reducer]
+pub fn split_stack_from_turret(
+    ctx: &ReducerContext,
+    turret_id: u32,
+    source_slot_index: u8,
+    quantity_to_split: u32,
+    target_slot_type: String,
+    target_slot_index: u32,
+) -> Result<(), String> {
+    let (_player, mut turret) = validate_turret_interaction(ctx, turret_id)?;
+    
+    log::info!(
+        "[SplitFromTurret] Player {:?} splitting {} from turret {} slot {} to {} slot {}",
+        ctx.sender, quantity_to_split, turret_id, source_slot_index, target_slot_type, target_slot_index
+    );
+
+    // Call generic handler
+    handle_split_from_container(
+        ctx,
+        &mut turret,
+        source_slot_index,
+        quantity_to_split,
+        target_slot_type,
+        target_slot_index,
+    )?;
+    
+    ctx.db.turret().id().update(turret);
+    Ok(())
+}
+
+/// Split stack WITHIN turret (between slots - though turret only has 1 slot, this is for consistency)
+#[spacetimedb::reducer]
+pub fn split_stack_within_turret(
+    ctx: &ReducerContext,
+    turret_id: u32,
+    source_slot_index: u8,
+    quantity_to_split: u32,
+    target_slot_index: u8,
+) -> Result<(), String> {
+    let (_player, mut turret) = validate_turret_interaction(ctx, turret_id)?;
+    handle_split_within_container(ctx, &mut turret, source_slot_index, target_slot_index, quantity_to_split)?;
     ctx.db.turret().id().update(turret);
     Ok(())
 }

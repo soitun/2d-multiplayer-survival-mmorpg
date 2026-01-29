@@ -333,6 +333,7 @@ pub use lantern::{
 pub use turret::{
     place_turret, move_item_to_turret, quick_move_from_turret,
     quick_move_to_turret, move_item_from_turret_to_player_slot,
+    split_stack_into_turret, split_stack_from_turret, split_stack_within_turret,
     pickup_turret, interact_with_turret
 };
 
