@@ -3373,9 +3373,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- END Y-SORTED ENTITIES AND SWIMMING PLAYER TOP HALVES ---
 
     // --- Render Tree Canopy Shadow Overlays ---
-    // These render AFTER all Y-sorted entities so shadows appear ON TOP of players (shade effect)
-    // The overlay uses Y-sorted compositing to ensure shadows from trees behind
-    // don't appear on tree canopies that are in front (higher Y = closer to camera)
+    // These render AFTER all Y-sorted entities so shadows appear ON TOP of all entities under tree canopies.
+    // The overlay uses tree-to-tree Y-sorted compositing to ensure shadows from trees behind
+    // don't appear on tree canopies that are in front (higher Y = closer to camera).
+    // Players walking under a tree (whether in front of or behind the trunk) will be in shade.
     // NOTE: Canopy shadows are skipped at night (no sunlight to cast shadows)
     if (visibleTrees && visibleTrees.length > 0) {
       renderTreeCanopyShadowsOverlay(ctx, visibleTrees, now_ms, isTreeFalling, worldState?.timeOfDay);

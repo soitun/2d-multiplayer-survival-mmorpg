@@ -6,11 +6,11 @@ import { imageManager } from './imageManager';
 import { renderEntityHealthBar } from './healthBarUtils';
 
 // --- Constants ---
-export const RAIN_COLLECTOR_WIDTH = 96;
-export const RAIN_COLLECTOR_HEIGHT = 128;
+export const RAIN_COLLECTOR_WIDTH = 256;  // 256x256 sprite (matches beehive)
+export const RAIN_COLLECTOR_HEIGHT = 256;
 export const PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0;
 const SHAKE_DURATION_MS = 150;
-const SHAKE_INTENSITY_PX = 6;
+const SHAKE_INTENSITY_PX = 10; // Match box shake intensity
 
 // --- Client-side animation tracking for rain collector shakes ---
 const clientRainCollectorShakeStartTimes = new Map<string, number>(); // rainCollectorId -> client timestamp when shake started
@@ -31,7 +31,7 @@ const rainCollectorConfig: GroundEntityConfig<RainCollector> = {
 
     calculateDrawPosition: (entity, drawWidth, drawHeight) => ({
         drawX: entity.posX - drawWidth / 2,
-        drawY: entity.posY - drawHeight / 2, // Center the rain collector
+        drawY: entity.posY - drawHeight - 20, // Bottom-anchored positioning (matches beehive)
     }),
 
     getShadowParams: undefined,
@@ -54,17 +54,17 @@ const rainCollectorConfig: GroundEntityConfig<RainCollector> = {
                 ctx,
                 entityImage,
                 entityCenterX: entityPosX,
-                entityBaseY: entityPosY + imageDrawHeight / 2, // Base at bottom of sprite
+                entityBaseY: entityPosY, // Bottom-anchored (same as beehive)
                 imageDrawWidth,
                 imageDrawHeight,
                 cycleProgress,
                 baseShadowColor: '0,0,0',
                 maxShadowAlpha: 0.4,
-                shadowBlur: 1,
+                shadowBlur: 2,
                 maxStretchFactor: 1.2,
-                minStretchFactor: 0.2,
-                pivotYOffset: 20,
-                // NEW: Pass shake offsets so shadow moves with the rain collector
+                minStretchFactor: 0.1,
+                pivotYOffset: 35, // Adjusted for taller 256x256 sprite
+                // Pass shake offsets so shadow moves with the rain collector
                 shakeOffsetX,
                 shakeOffsetY
             });
@@ -117,8 +117,9 @@ export function renderRainCollector(
         cycleProgress,
     });
     
-    // Render health bar using unified system (centered on posY)
+    // Render health bar using unified system (bottom-anchored positioning)
+    // The yAnchorOffset of (RAIN_COLLECTOR_HEIGHT + 20) matches the calculateDrawPosition offset
     if (playerX !== undefined && playerY !== undefined) {
-        renderEntityHealthBar(ctx, rainCollector, RAIN_COLLECTOR_WIDTH, RAIN_COLLECTOR_HEIGHT, nowMs, playerX, playerY, RAIN_COLLECTOR_HEIGHT / 2);
+        renderEntityHealthBar(ctx, rainCollector, RAIN_COLLECTOR_WIDTH, RAIN_COLLECTOR_HEIGHT, nowMs, playerX, playerY, RAIN_COLLECTOR_HEIGHT + 20);
     }
 } 

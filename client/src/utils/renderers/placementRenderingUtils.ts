@@ -1958,9 +1958,9 @@ export function renderPlacementPreview({
         drawWidth = SHELTER_RENDER_WIDTH; 
         drawHeight = SHELTER_RENDER_HEIGHT;
     } else if (placementInfo.iconAssetName === 'reed_rain_collector.png') {
-        // Rain collector should match the actual sprite dimensions
-        drawWidth = 96;  // Doubled from 48
-        drawHeight = 128; // Doubled from 64
+        // Rain collector uses 256x256 sprite (matches beehive)
+        drawWidth = 256;
+        drawHeight = 256;
     } else if (placementInfo.iconAssetName === 'hearth.png') {
         // Matron's Chest preview dimensions (matches actual rendering: 125px, 30% larger than base 96px)
         drawWidth = HEARTH_WIDTH;  // 125px

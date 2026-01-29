@@ -155,16 +155,16 @@ function cutOutCanopyRegion(
 }
 
 /**
- * Renders canopy shadow overlays for all visible trees with proper Y-sorting.
+ * Renders canopy shadow overlays for all visible trees.
  * 
- * This approach uses an OFFSCREEN CANVAS for shadow compositing:
- * 1. Creates/reuses an offscreen canvas the same size as the main canvas
- * 2. Sorts trees by Y (front to back, highest Y first)
- * 3. For each tree, draws its shadow, then cuts out its canopy region
- * 4. Composites the final shadow layer onto the main canvas
+ * This creates an ambient occlusion/shade effect under tree canopies that:
+ * - Appears on ALL entities (players, ground, items) under tree canopies
+ * - Uses semi-transparent shadows (0.5 alpha) so underlying content remains visible
+ * - Creates natural overlapping shade in dense forests
  * 
- * The result: shadows appear on players walking under trees, but NOT on
- * tree canopies that are in front (higher Y = closer to camera).
+ * The shadows are rendered AFTER all Y-sorted entities, so they appear on top of
+ * everything including players and the ground. The semi-transparency ensures
+ * tree canopies remain visible through the shadow overlay.
  * 
  * NOTE: Canopy shadows are NOT rendered during Night, Midnight, or TwilightMorning
  * since there is no direct sunlight to cast shadows through the canopy.
@@ -200,7 +200,7 @@ export function renderTreeCanopyShadowsOverlay(
     // Get or create offscreen canvas for shadow compositing
     const offscreen = getShadowOffscreenCanvas(canvasWidth, canvasHeight);
     if (!offscreen) {
-        // Fallback: render shadows without Y-sorting (old behavior)
+        // Fallback: render shadows without tree-to-tree Y-sorting (simple approach)
         for (const tree of trees) {
             const treeId = tree.id.toString();
             if (tree.health === 0 && !tree.respawnAt) continue;
@@ -221,12 +221,10 @@ export function renderTreeCanopyShadowsOverlay(
     offCtx.save();
     offCtx.setTransform(ctx.getTransform());
     
-    // Sort trees by Y position: BACK to FRONT (lowest Y first)
-    // Process back trees first, so when we cut out front tree canopy regions,
-    // we remove shadows from behind trees that were already drawn
-    const sortedTrees = [...trees].sort((a, b) => a.posY - b.posY);
-    
-    for (const tree of sortedTrees) {
+    // Draw all tree canopy shadows without any masking/cutouts
+    // The shadows are semi-transparent (0.5 alpha) so tree canopies remain visible
+    // This creates a natural overlapping shade effect in dense forests
+    for (const tree of trees) {
         const treeId = tree.id.toString();
         
         // Skip trees with no health (destroyed) unless they have respawn time
@@ -261,13 +259,8 @@ export function renderTreeCanopyShadowsOverlay(
             }
         }
         
-        // First, cut out this tree's canopy region from ALL previously drawn shadows
-        // Since we process back-to-front, previously drawn shadows are from trees BEHIND this one
-        // This prevents those behind-shadows from appearing in this tree's canopy
-        cutOutCanopyRegion(offCtx, tree, shakeOffsetX, shakeOffsetY);
-        
-        // Then draw this tree's shadow to the offscreen canvas
-        // Trees in front (processed later) will cut their canopy regions from this shadow
+        // Draw this tree's canopy shadow
+        // No cutouts needed - shadows naturally overlap creating realistic dappled shade
         drawCanopyShadow(offCtx, tree.posX, tree.posY, targetWidth, shakeOffsetX, shakeOffsetY, true);
     }
     

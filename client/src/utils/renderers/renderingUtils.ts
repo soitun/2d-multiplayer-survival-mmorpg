@@ -1059,9 +1059,11 @@ export const renderYSortedEntities = ({
               return; // Skip this tree - it's destroyed and animation is done
           }
           
+          // Render tree with its shadow in the normal order (shadow first, then tree)
           // NOTE: Canopy shadows are rendered via a separate overlay pass (renderTreeCanopyShadowsOverlay)
-          // which runs AFTER all Y-sorted entities. This allows shadows to appear ON TOP of players
-          // while respecting tree Y-sorting (shadows from behind trees don't appear on front tree canopies)
+          // which runs AFTER all Y-sorted entities. This allows shadows to appear ON TOP of all entities
+          // walking under trees, while respecting tree-to-tree Y-sorting (shadows from behind trees
+          // don't appear on front tree canopies)
           renderTree(ctx, tree, nowMs, cycleProgress, false, false, localPlayerPosition, treeShadowsEnabled, isFalling, fallProgress);
       } else if (type === 'stone') {
           // Render stone with its shadow in the normal order (shadow first, then stone)

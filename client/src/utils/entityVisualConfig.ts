@@ -272,12 +272,12 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   rain_collector: {
     centerOffsetX: 0,
-    centerOffsetY: 0,
-    width: 116,   // 96 + 20
-    height: 148,  // 128 + 20
-    placementYOffset: 0,
-    spriteWidth: 96,
-    spriteHeight: 128,
+    centerOffsetY: -148,  // 256x256 sprite at posY - 276, visual center at posY - 148 (matches beehive pattern)
+    width: 200,           // Interaction box width for 256x256 sprite
+    height: 200,          // Interaction box height for 256x256 sprite
+    placementYOffset: -100, // Compensate for 256px sprite vs 64px normal box
+    spriteWidth: 256,
+    spriteHeight: 256,
   },
   
   homestead_hearth: {
