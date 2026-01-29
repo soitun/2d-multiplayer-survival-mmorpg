@@ -7,6 +7,7 @@
  */
 
 import { WoodenStorageBox, InventoryItem, ItemDefinition } from '../../generated';
+import { BOX_TYPE_PLAYER_BEEHIVE } from './woodenStorageBoxRenderingUtils';
 
 // Bee configuration
 const NUM_DECORATIVE_BEES = 3; // Number of decorative bees per beehive
@@ -34,14 +35,41 @@ export function hasQueenBee(
         return false;
     }
     
-    // Find the item
-    const item = inventoryItems.get(slot0InstanceId.toString());
+    // Convert bigint to string for map lookup
+    const slot0Key = slot0InstanceId.toString();
+    
+    // Find the item - try both the exact key and iterate if needed
+    let item = inventoryItems.get(slot0Key);
+    
+    // If not found, try iterating through all items (fallback for edge cases)
+    if (!item && inventoryItems.size > 0) {
+        for (const [key, invItem] of inventoryItems.entries()) {
+            // Compare as strings to handle bigint comparison
+            if (key === slot0Key || invItem.instanceId?.toString() === slot0Key) {
+                item = invItem;
+                break;
+            }
+        }
+    }
+    
     if (!item) {
         return false;
     }
     
     // Check if it's a Queen Bee
-    const itemDef = itemDefinitions.get(item.itemDefId.toString());
+    const itemDefIdKey = item.itemDefId.toString();
+    const itemDef = itemDefinitions.get(itemDefIdKey);
+    
+    // Fallback: iterate if not found
+    if (!itemDef && itemDefinitions.size > 0) {
+        for (const [key, def] of itemDefinitions.entries()) {
+            if (key === itemDefIdKey || def.id?.toString() === itemDefIdKey) {
+                return def.name === 'Queen Bee';
+            }
+        }
+        return false;
+    }
+    
     if (!itemDef) {
         return false;
     }
@@ -61,7 +89,7 @@ export function renderDecorativeBees(
     itemDefinitions: Map<string, ItemDefinition>
 ): void {
     // Only render for player-made beehives
-    if (beehive.boxType !== 12) { // BOX_TYPE_PLAYER_BEEHIVE = 12
+    if (beehive.boxType !== BOX_TYPE_PLAYER_BEEHIVE) {
         return;
     }
     
@@ -75,8 +103,16 @@ export function renderDecorativeBees(
         return;
     }
     
+    // Calculate visual center of beehive (accounting for Y offset)
+    // Beehives are placed with BOX_COLLISION_Y_OFFSET (52px) added to posY
+    // The visual center is at posY - BOX_COLLISION_Y_OFFSET
+    // Since beehives are 256px tall, we want bees to orbit around the top portion
+    const BOX_COLLISION_Y_OFFSET = 52.0;
+    const PLAYER_BEEHIVE_HEIGHT = 256.0;
+    const visualCenterY = beehive.posY - BOX_COLLISION_Y_OFFSET;
+    // Bees should orbit around the top of the beehive (about 40px above visual center)
+    const beeOrbitCenterY = visualCenterY - (PLAYER_BEEHIVE_HEIGHT / 2) + 40;
     const hiveX = beehive.posX;
-    const hiveY = beehive.posY;
     
     ctx.save();
     ctx.imageSmoothingEnabled = false; // Crisp pixel look for tiny bees
@@ -94,9 +130,9 @@ export function renderDecorativeBees(
         // Add vertical bobbing (gentle up/down movement)
         const bobOffset = Math.sin(nowMs * BEE_BOB_SPEED + phaseOffset) * BEE_BOB_AMPLITUDE;
         
-        // Final bee position
+        // Final bee position (orbit around the top of the beehive)
         const beeX = hiveX + orbitX;
-        const beeY = hiveY + orbitY + bobOffset;
+        const beeY = beeOrbitCenterY + orbitY + bobOffset;
         
         // Draw bee body (black dot)
         ctx.fillStyle = BEE_BODY_COLOR;

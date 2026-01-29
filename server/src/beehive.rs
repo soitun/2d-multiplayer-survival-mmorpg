@@ -81,7 +81,11 @@ pub fn init_beehive_system(ctx: &ReducerContext) -> Result<(), String> {
             if let Some(item_def) = item_defs.id().find(def_id) {
                 if is_queen_bee(&item_def) {
                     // Start the buzzing sound for this beehive
-                    crate::sound_events::start_beehive_sound(ctx, beehive.id as u64, beehive.pos_x, beehive.pos_y);
+                    // Use visual center position (pos_y includes offset, so subtract it for sound position)
+                    use crate::wooden_storage_box::BOX_COLLISION_Y_OFFSET;
+                    let beehive_y_offset = BOX_COLLISION_Y_OFFSET + 100.0; // Beehives use larger offset
+                    let visual_center_y = beehive.pos_y - beehive_y_offset;
+                    crate::sound_events::start_beehive_sound(ctx, beehive.id as u64, beehive.pos_x, visual_center_y);
                     log::info!("[Beehive] Restored buzzing sound for beehive {} with Queen Bee", beehive.id);
                 }
             }
@@ -207,7 +211,11 @@ pub fn add_item_to_beehive_slot(
             log::info!("[Beehive] Queen Bee placed in beehive {}, production timer started", box_id);
             
             // Start beehive buzzing sound
-            crate::sound_events::start_beehive_sound(ctx, box_id as u64, storage_box.pos_x, storage_box.pos_y);
+            // Use visual center position (pos_y includes offset, so subtract it for sound position)
+            use crate::wooden_storage_box::BOX_COLLISION_Y_OFFSET;
+            let beehive_y_offset = BOX_COLLISION_Y_OFFSET + 100.0; // Beehives use larger offset
+            let visual_center_y = storage_box.pos_y - beehive_y_offset;
+            crate::sound_events::start_beehive_sound(ctx, box_id as u64, storage_box.pos_x, visual_center_y);
         }
     }
     

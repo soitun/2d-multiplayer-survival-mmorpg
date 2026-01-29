@@ -674,8 +674,14 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
     }
     
     // Check collision with existing boxes - account for visual center offset
+    // Beehives use a larger Y offset, so we need to account for that
     if boxes.iter().any(|b| {
-        let existing_visual_y = b.pos_y - BOX_COLLISION_Y_OFFSET;
+        let existing_y_offset = if b.box_type == BOX_TYPE_PLAYER_BEEHIVE {
+            BOX_COLLISION_Y_OFFSET + 100.0 // Match the placement offset for beehives
+        } else {
+            BOX_COLLISION_Y_OFFSET
+        };
+        let existing_visual_y = b.pos_y - existing_y_offset;
         let dist_sq = (b.pos_x - world_x).powi(2) + (existing_visual_y - world_y).powi(2);
         dist_sq < BOX_BOX_COLLISION_DISTANCE_SQUARED
     }) {
@@ -702,10 +708,17 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         _ => (WOODEN_STORAGE_BOX_INITIAL_HEALTH, WOODEN_STORAGE_BOX_MAX_HEALTH),
     };
     
+    // Beehives are taller (256px) and need a larger Y offset to place them lower
+    let y_offset = if box_type == BOX_TYPE_PLAYER_BEEHIVE {
+        BOX_COLLISION_Y_OFFSET + 100.0 // Additional 100px offset for beehives (taller structure)
+    } else {
+        BOX_COLLISION_Y_OFFSET
+    };
+    
     let new_box = WoodenStorageBox {
         id: 0, // Auto-incremented
         pos_x: world_x,
-        pos_y: world_y + BOX_COLLISION_Y_OFFSET, // Compensate for bottom-anchoring + render offset
+        pos_y: world_y + y_offset, // Compensate for bottom-anchoring + render offset (larger for beehives)
         chunk_index: new_chunk_index,
         placed_by: sender_id,
         box_type,
