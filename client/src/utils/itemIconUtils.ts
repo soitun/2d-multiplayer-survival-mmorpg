@@ -54,6 +54,7 @@ import cookedPineconeIcon from '../assets/items/cooked_pinecone.png';
 import birchCatkinIcon from '../assets/items/birch_catkin.png';
 import crabApplesIcon from '../assets/items/crab_apples.png';
 import cookedCrabApplesIcon from '../assets/items/cooked_crab_apples.png';
+import crabAppleSeedsIcon from '../assets/items/crab_apple_seeds.png';
 import hazelnutIcon from '../assets/items/hazelnuts.png';
 import cookedHazelnutIcon from '../assets/items/cooked_hazelnuts.png';
 
@@ -603,6 +604,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'birch_catkin.png': birchCatkinIcon,
   'crab_apples.png': crabApplesIcon,
   'cooked_crab_apples.png': cookedCrabApplesIcon,
+  'crab_apple_seeds.png': crabAppleSeedsIcon,
   'hazelnuts.png': hazelnutIcon,
   'cooked_hazelnuts.png': cookedHazelnutIcon,
   
