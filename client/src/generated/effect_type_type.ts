@@ -65,6 +65,7 @@ export type EffectType = EffectTypeVariants.HealthRegen |
   EffectTypeVariants.PassiveHealthRegen |
   EffectTypeVariants.HarvestBoost |
   EffectTypeVariants.Entrainment |
+  EffectTypeVariants.ValidolProtection |
   EffectTypeVariants.BrewCooldown |
   EffectTypeVariants.Stun |
   EffectTypeVariants.LagunovGhost |
@@ -115,6 +116,7 @@ export const EffectType = {
   PassiveHealthRegen: { tag: "PassiveHealthRegen" } as const,
   HarvestBoost: { tag: "HarvestBoost" } as const,
   Entrainment: { tag: "Entrainment" } as const,
+  ValidolProtection: { tag: "ValidolProtection" } as const,
   BrewCooldown: { tag: "BrewCooldown" } as const,
   Stun: { tag: "Stun" } as const,
   LagunovGhost: { tag: "LagunovGhost" } as const,
@@ -159,6 +161,7 @@ export const EffectType = {
       { name: "PassiveHealthRegen", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HarvestBoost", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Entrainment", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ValidolProtection", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "BrewCooldown", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Stun", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "LagunovGhost", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

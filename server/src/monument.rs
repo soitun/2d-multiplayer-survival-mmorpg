@@ -568,6 +568,46 @@ pub fn generate_fishing_village(
                     continue;
                 }
                 
+                // CRITICAL: Verify this is actual OCEAN coast, not near an inland lake!
+                // Follow the gradient towards water and confirm we reach deep ocean (shore_distance < -10)
+                // within a reasonable distance. This prevents spawning near inland lakes.
+                let mut is_ocean_coast = false;
+                let check_distance = 25; // Check up to 25 tiles towards water
+                let deep_ocean_threshold = -10.0; // Deep enough to confirm it's ocean, not a lake edge
+                
+                // Sample in 8 directions to find direction of decreasing shore_distance
+                let directions: [(i32, i32); 8] = [
+                    (1, 0), (1, 1), (0, 1), (-1, 1),  // E, SE, S, SW
+                    (-1, 0), (-1, -1), (0, -1), (1, -1), // W, NW, N, NE
+                ];
+                
+                for &(dx, dy) in &directions {
+                    // Walk in this direction and check if we reach deep ocean
+                    for step in 1..=check_distance {
+                        let check_x = (x as i32 + dx * step).clamp(0, width as i32 - 1) as usize;
+                        let check_y = (y as i32 + dy * step).clamp(0, height as i32 - 1) as usize;
+                        
+                        // Skip if we hit a lake - that's NOT ocean
+                        if lake_map[check_y][check_x] {
+                            break; // This direction leads to a lake, not ocean
+                        }
+                        
+                        // Check if we've reached deep ocean
+                        if shore_distance[check_y][check_x] < deep_ocean_threshold {
+                            is_ocean_coast = true;
+                            break;
+                        }
+                    }
+                    
+                    if is_ocean_coast {
+                        break; // Found ocean access, this position is valid
+                    }
+                }
+                
+                if !is_ocean_coast {
+                    continue; // Skip positions that don't have clear access to ocean
+                }
+                
                 // Check distance from shipwreck - must be far away
                 let tile_world_x = (x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
                 let tile_world_y = (y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;

@@ -751,6 +751,11 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                             // No per-tick processing needed - managed by proximity system
                             amount_this_tick = 0.0;
                         },
+                        EffectType::ValidolProtection => {
+                            // ValidolProtection pauses Entrainment damage - no per-tick processing needed
+                            // The effect is checked in player_stats.rs when calculating Entrainment damage
+                            amount_this_tick = 0.0;
+                        },
                     }
 
                     if (player_to_update.health - old_health).abs() > f32::EPSILON {
@@ -3554,7 +3559,7 @@ pub fn apply_validol_protection(ctx: &ReducerContext, player_id: Identity) -> Re
         player_id,
         target_player_id: None,
         item_def_id: 0, // Not associated with a specific item def
-        associated_item_instance_id: None,
+        consuming_item_instance_id: None,
         started_at: current_time,
         ends_at: current_time + TimeDuration::from_micros(duration_micros),
         total_amount: None, // No damage/healing amount - this is a status effect
@@ -3586,12 +3591,13 @@ pub fn reduce_player_insanity(ctx: &ReducerContext, player_id: Identity, reducti
     let max_insanity = crate::player_stats::PLAYER_MAX_INSANITY;
     let reduction_amount = max_insanity * reduction_percent;
     let old_insanity = player.insanity;
-    player.insanity = (player.insanity - reduction_amount).max(0.0);
+    let new_insanity = (player.insanity - reduction_amount).max(0.0);
+    player.insanity = new_insanity;
     
     ctx.db.player().identity().update(player);
     
     log::info!("Reduced player {:?} insanity by {:.1} ({:.0}% of max): {:.1}% -> {:.1}%", 
-        player_id, reduction_amount, reduction_percent * 100.0, old_insanity, player.insanity);
+        player_id, reduction_amount, reduction_percent * 100.0, old_insanity, new_insanity);
     
     Ok(reduction_amount)
 }
