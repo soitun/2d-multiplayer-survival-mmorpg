@@ -47,7 +47,7 @@ import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
 import { PopulatedItem } from './InventoryUI';
 import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPercentage, isSaltWater } from '../utils/waterContainerHelpers';
 import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining, formatDurability, getDurability, getMaxDurability, getRepairCount, canItemBeRepaired, getRepairBlockedReason, calculateRepairCost, formatRepairCost, MAX_REPAIR_COUNT, MAX_DURABILITY } from '../utils/durabilityHelpers';
-import { BOX_TYPE_REPAIR_BENCH, BOX_TYPE_PLAYER_BEEHIVE } from '../utils/renderers/woodenStorageBoxRenderingUtils';
+import { BOX_TYPE_REPAIR_BENCH, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_COOKING_STATION } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { getItemIcon } from '../utils/itemIconUtils';
 import { playImmediateSound } from '../hooks/useSoundSystem';
 
@@ -2534,6 +2534,42 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                     </>
                 )}
 
+                {/* Cooking Station UI - proximity crafting only, no inventory slots */}
+                {container.containerType === 'wooden_storage_box' && 
+                 (container.containerEntity as SpacetimeDBWoodenStorageBox).boxType === BOX_TYPE_COOKING_STATION && (
+                    <div style={{ 
+                        marginTop: '12px', 
+                        padding: '10px', 
+                        backgroundColor: 'rgba(0, 0, 0, 0.3)', 
+                        borderRadius: '4px', 
+                        border: '1px solid rgba(139, 69, 19, 0.5)' 
+                    }}>
+                        <div style={{ 
+                            fontSize: '13px', 
+                            fontWeight: 'bold', 
+                            color: '#cd853f', 
+                            marginBottom: '8px', 
+                            textAlign: 'center' 
+                        }}>
+                            🍳 Cooking Station
+                        </div>
+                        
+                        <div style={{
+                            fontSize: '12px',
+                            color: '#ccc',
+                            textAlign: 'center',
+                            lineHeight: '1.6'
+                        }}>
+                            <p style={{ margin: '0 0 8px 0' }}>
+                                This workstation unlocks advanced cooking recipes when you're nearby.
+                            </p>
+                            <p style={{ margin: '0', color: '#888' }}>
+                                📋 Open your crafting menu by pressing <b>B</b> and navigate to the Consumables tab to see available recipes
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Player Beehive UI - special layout with input/output slots */}
                 {container.containerType === 'wooden_storage_box' && 
                  (container.containerEntity as SpacetimeDBWoodenStorageBox).boxType === BOX_TYPE_PLAYER_BEEHIVE && (
@@ -2562,7 +2598,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                 marginBottom: '4px',
                                 textAlign: 'center'
                             }}>
-                                Queen Bee Input (Slot 0)
+                                Queen Bee Input (Slot 1)
                             </div>
                             <div style={{
                                 fontSize: '12px',
@@ -2574,6 +2610,104 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                     : '○ Place a Queen Bee here to start production'}
                             </div>
                         </div>
+
+                        {/* Honeycomb Production Progress - shown when Queen Bee is present */}
+                        {container.items[0] && container.items[0].definition.name === 'Queen Bee' && (
+                            <div style={{
+                                marginBottom: '12px',
+                                padding: '8px 12px',
+                                backgroundColor: 'rgba(255, 200, 50, 0.1)',
+                                border: '1px solid rgba(255, 200, 50, 0.4)',
+                                borderRadius: '4px',
+                                textAlign: 'center',
+                            }}>
+                                {(() => {
+                                    const BEEHIVE_PRODUCTION_TIME_SECS = 300; // 5 minutes
+                                    const queenBeeItem = container.items[0]!;
+                                    let elapsedSecs = -1; // -1 means no timestamp found
+                                    
+                                    // Parse the beehive_last_production timestamp from itemData
+                                    if (queenBeeItem.instance.itemData) {
+                                        try {
+                                            const itemData = JSON.parse(queenBeeItem.instance.itemData);
+                                            if (itemData.beehive_last_production) {
+                                                const lastProductionMicros = itemData.beehive_last_production;
+                                                const nowMicros = currentTime * 1000; // Convert ms to microseconds (currentTime updates every second)
+                                                elapsedSecs = Math.floor((nowMicros - lastProductionMicros) / 1_000_000);
+                                            }
+                                        } catch (e) {
+                                            // If parsing fails, no timestamp
+                                        }
+                                    }
+                                    
+                                    // If no timestamp yet, show "Starting..." message
+                                    if (elapsedSecs < 0) {
+                                        return (
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '8px',
+                                            }}>
+                                                <span style={{ fontSize: '11px', color: '#ffcc44' }}>
+                                                    🍯 Production starting...
+                                                </span>
+                                            </div>
+                                        );
+                                    }
+                                    
+                                    const progressSecs = Math.min(elapsedSecs, BEEHIVE_PRODUCTION_TIME_SECS);
+                                    const remainingSecs = Math.max(0, BEEHIVE_PRODUCTION_TIME_SECS - elapsedSecs);
+                                    const progressPercent = Math.min(100, (progressSecs / BEEHIVE_PRODUCTION_TIME_SECS) * 100);
+                                    
+                                    const minutes = Math.floor(remainingSecs / 60);
+                                    const seconds = Math.floor(remainingSecs % 60);
+                                    
+                                    return (
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '10px',
+                                            flexWrap: 'wrap',
+                                        }}>
+                                            <span style={{ fontSize: '11px', color: '#ffcc44' }}>
+                                                🍯 Next honeycomb:
+                                            </span>
+                                            <span style={{ 
+                                                fontSize: '12px', 
+                                                fontWeight: 'bold', 
+                                                color: remainingSecs <= 60 ? '#66d966' : '#ffcc44',
+                                                minWidth: '40px',
+                                            }}>
+                                                {remainingSecs <= 0 ? 'Ready!' : `${minutes}:${seconds.toString().padStart(2, '0')}`}
+                                            </span>
+                                            {/* Progress bar */}
+                                            <div style={{
+                                                width: '80px',
+                                                height: '8px',
+                                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                                borderRadius: '4px',
+                                                overflow: 'hidden',
+                                                border: '1px solid rgba(255, 200, 50, 0.4)',
+                                            }}>
+                                                <div style={{
+                                                    width: `${progressPercent}%`,
+                                                    height: '100%',
+                                                    background: remainingSecs <= 0 
+                                                        ? 'linear-gradient(90deg, #66d966 0%, #44bb44 100%)'
+                                                        : 'linear-gradient(90deg, #ffcc44 0%, #ff9900 100%)',
+                                                    transition: 'width 1s linear',
+                                                    boxShadow: remainingSecs <= 0 
+                                                        ? '0 0 6px rgba(100, 220, 100, 0.8)'
+                                                        : '0 0 4px rgba(255, 200, 50, 0.6)',
+                                                }} />
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        )}
                         
                         {/* Slots 1-4: Honeycomb Output */}
                         <div style={{ marginBottom: '6px' }}>
@@ -2583,7 +2717,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                 marginBottom: '4px',
                                 textAlign: 'center'
                             }}>
-                                Honeycomb Output (Slots 1-4)
+                                Honeycomb Output (Slots 2-4)
                             </div>
                             <div style={{
                                 fontSize: '12px',

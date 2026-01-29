@@ -160,28 +160,103 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
         return counts;
     }, [recipes, itemDefinitions, getEffectiveCategory]);
 
+    // --- Helper to get flexible ingredient info for a recipe ---
+    // Returns a map of item_def_id (first option) -> { groupName, validItemDefIds[], totalRequired }
+    const getFlexibleIngredientInfo = useCallback((recipe: Recipe): Map<string, { groupName: string; validItemDefIds: string[]; totalRequired: number }> => {
+        const flexMap = new Map<string, { groupName: string; validItemDefIds: string[]; totalRequired: number }>();
+        
+        const outputDef = itemDefinitions.get(recipe.outputItemDefId.toString());
+        if (!outputDef?.flexibleIngredients) return flexMap;
+        
+        for (const flexIng of outputDef.flexibleIngredients) {
+            // Find the item_def_id for each valid item name
+            const validIds: string[] = [];
+            for (const itemName of flexIng.validItems) {
+                for (const [id, def] of itemDefinitions) {
+                    if (def.name === itemName) {
+                        validIds.push(id);
+                        break;
+                    }
+                }
+            }
+            
+            // The first valid ID is what's stored in recipe.ingredients
+            if (validIds.length > 0) {
+                flexMap.set(validIds[0], {
+                    groupName: flexIng.groupName,
+                    validItemDefIds: validIds,
+                    totalRequired: flexIng.totalRequired
+                });
+            }
+        }
+        
+        return flexMap;
+    }, [itemDefinitions]);
+
     // --- Helper functions (defined before useMemo that needs them) ---
     const calculateMaxCraftable = useCallback((recipe: Recipe): number => {
         if (!recipe.ingredients || recipe.ingredients.length === 0) return 0;
 
+        const flexInfo = getFlexibleIngredientInfo(recipe);
         let maxPossible = Infinity;
+        
         for (const ingredient of recipe.ingredients) {
-            const available = playerInventoryResources.get(ingredient.itemDefId.toString()) || 0;
-            if (ingredient.quantity === 0) continue;
-            maxPossible = Math.min(maxPossible, Math.floor(available / ingredient.quantity));
+            const ingIdStr = ingredient.itemDefId.toString();
+            const flex = flexInfo.get(ingIdStr);
+            
+            let available: number;
+            let required: number;
+            
+            if (flex) {
+                // Flexible ingredient - sum up all valid items
+                available = flex.validItemDefIds.reduce((sum, id) => {
+                    return sum + (playerInventoryResources.get(id) || 0);
+                }, 0);
+                required = flex.totalRequired;
+            } else {
+                // Fixed ingredient
+                available = playerInventoryResources.get(ingIdStr) || 0;
+                required = ingredient.quantity;
+            }
+            
+            if (required === 0) continue;
+            maxPossible = Math.min(maxPossible, Math.floor(available / required));
         }
+        
         return maxPossible === Infinity ? 0 : maxPossible;
-    }, [playerInventoryResources]);
+    }, [playerInventoryResources, getFlexibleIngredientInfo]);
 
     const canCraft = useCallback((recipe: Recipe, quantity: number = 1): boolean => {
+        if (!recipe.ingredients || recipe.ingredients.length === 0) return false;
+        
+        const flexInfo = getFlexibleIngredientInfo(recipe);
+        
         for (const ingredient of recipe.ingredients) {
-            const available = playerInventoryResources.get(ingredient.itemDefId.toString()) || 0;
-            if (available < ingredient.quantity * quantity) {
+            const ingIdStr = ingredient.itemDefId.toString();
+            const flex = flexInfo.get(ingIdStr);
+            
+            let available: number;
+            let required: number;
+            
+            if (flex) {
+                // Flexible ingredient - sum up all valid items
+                available = flex.validItemDefIds.reduce((sum, id) => {
+                    return sum + (playerInventoryResources.get(id) || 0);
+                }, 0);
+                required = flex.totalRequired * quantity;
+            } else {
+                // Fixed ingredient
+                available = playerInventoryResources.get(ingIdStr) || 0;
+                required = ingredient.quantity * quantity;
+            }
+            
+            if (available < required) {
                 return false;
             }
         }
-        return recipe.ingredients.length > 0;
-    }, [playerInventoryResources]);
+        
+        return true;
+    }, [playerInventoryResources, getFlexibleIngredientInfo]);
 
     const isRecipeUnlockedByMemoryGrid = useCallback((recipe: Recipe): boolean => {
         const outputDef = itemDefinitions.get(recipe.outputItemDefId.toString());
@@ -551,31 +626,48 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
                                                 )}
 
                                                 <div className={styles.ingredientsList}>
-                                                    {recipe.ingredients.map((ing, index) => {
-                                                        const ingDef = itemDefinitions.get(ing.itemDefId.toString());
-                                                        const available = playerInventoryResources.get(ing.itemDefId.toString()) || 0;
-                                                        const neededTotal = ing.quantity * currentQuantity;
-                                                        const hasEnough = available >= neededTotal;
+                                                    {(() => {
+                                                        const flexInfo = getFlexibleIngredientInfo(recipe);
+                                                        return recipe.ingredients.map((ing, index) => {
+                                                            const ingIdStr = ing.itemDefId.toString();
+                                                            const ingDef = itemDefinitions.get(ingIdStr);
+                                                            const flex = flexInfo.get(ingIdStr);
+                                                            
+                                                            // For flexible ingredients, sum all valid items
+                                                            const available = flex 
+                                                                ? flex.validItemDefIds.reduce((sum, id) => sum + (playerInventoryResources.get(id) || 0), 0)
+                                                                : (playerInventoryResources.get(ingIdStr) || 0);
+                                                            
+                                                            const neededQty = flex ? flex.totalRequired : ing.quantity;
+                                                            const neededTotal = neededQty * currentQuantity;
+                                                            const hasEnough = available >= neededTotal;
+                                                            
+                                                            // Display name: group name for flexible, item name for fixed
+                                                            const displayName = flex ? flex.groupName : (ingDef?.name || 'Unknown');
+                                                            const isFlexible = !!flex;
 
-                                                        return (
-                                                            <div
-                                                                key={index}
-                                                                className={`${styles.ingredient} ${hasEnough ? styles.ingredientHasEnough : styles.ingredientNotEnough}`}
-                                                                onMouseEnter={(e) => ingDef && handleItemMouseEnter(ingDef, e)}
-                                                                onMouseLeave={handleItemMouseLeave}
-                                                                onMouseMove={handleItemMouseMove}
-                                                            >
-                                                                <div className={styles.ingredientIcon}>
-                                                                    <img
-                                                                        src={getItemIcon(ingDef?.iconAssetName || '')}
-                                                                        alt={ingDef?.name || 'Unknown'}
-                                                                    />
+                                                            return (
+                                                                <div
+                                                                    key={index}
+                                                                    className={`${styles.ingredient} ${hasEnough ? styles.ingredientHasEnough : styles.ingredientNotEnough}`}
+                                                                    onMouseEnter={(e) => ingDef && handleItemMouseEnter(ingDef, e)}
+                                                                    onMouseLeave={handleItemMouseLeave}
+                                                                    onMouseMove={handleItemMouseMove}
+                                                                    title={isFlexible ? `Accepts: ${flex.validItemDefIds.map(id => itemDefinitions.get(id)?.name).filter(Boolean).join(', ')}` : undefined}
+                                                                >
+                                                                    <div className={styles.ingredientIcon} style={isFlexible ? { border: '1px solid rgba(255, 200, 0, 0.5)', borderRadius: '4px' } : undefined}>
+                                                                        <img
+                                                                            src={getItemIcon(ingDef?.iconAssetName || '')}
+                                                                            alt={displayName}
+                                                                        />
+                                                                        {isFlexible && <span style={{ position: 'absolute', top: '-2px', right: '-2px', fontSize: '8px' }}>⚡</span>}
+                                                                    </div>
+                                                                    <span className={styles.ingredientQuantity}>{neededQty}</span>
+                                                                    <span className={styles.ingredientAvailable}>({available})</span>
                                                                 </div>
-                                                                <span className={styles.ingredientQuantity}>{ing.quantity}</span>
-                                                                <span className={styles.ingredientAvailable}>({available})</span>
-                                                            </div>
-                                                        );
-                                                    })}
+                                                            );
+                                                        });
+                                                    })()}
                                                 </div>
                                             </div>
 

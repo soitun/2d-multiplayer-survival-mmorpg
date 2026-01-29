@@ -243,6 +243,10 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
                     connection.reducers.extractFromHoneycomb(itemInstanceId);
                     playImmediateSound('crush_bones'); // Extraction sound
                     break;
+                case 'extract_yeast':
+                    connection.reducers.extractYeast(itemInstanceId);
+                    playImmediateSound('crush_bones'); // Extraction sound
+                    break;
                 case 'consume':
                     // console.log(`Consuming item ${itemInstanceId}: ${selectedItem.definition.name}`);
                     connection.reducers.consumeItem(itemInstanceId);

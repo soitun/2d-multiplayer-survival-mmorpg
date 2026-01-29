@@ -373,6 +373,51 @@ function isItemInRefrigerator(item: InventoryItem, connection: DbConnection | nu
 }
 
 /**
+ * Check if a Queen Bee item is stored in a player beehive's input slot (slot 0)
+ * Queen Bees don't spoil while in a beehive - they are kept alive by their colony
+ * Returns true if the item is a Queen Bee in beehive slot 0
+ */
+function isQueenBeeInBeehive(item: InventoryItem, itemDef: ItemDefinition, connection: DbConnection | null): boolean {
+    // Only applies to Queen Bee items
+    if (itemDef.name !== 'Queen Bee') {
+        return false;
+    }
+    
+    if (!connection) {
+        return false;
+    }
+    
+    // Check if item is in a container
+    if (item.location.tag !== 'Container') {
+        return false;
+    }
+    
+    const containerData = item.location.value;
+    
+    // Check if it's a WoodenStorageBox container
+    if (containerData.containerType.tag !== 'WoodenStorageBox') {
+        return false;
+    }
+    
+    // Must be in slot 0 (the Queen Bee input slot)
+    if (containerData.slotIndex !== 0) {
+        return false;
+    }
+    
+    // Look up the box to check if it's a player beehive
+    const boxId = Number(containerData.containerId);
+    const storageBox = connection.db.woodenStorageBox.id.find(boxId);
+    
+    if (!storageBox) {
+        return false;
+    }
+    
+    // BOX_TYPE_PLAYER_BEEHIVE = 12 (from containerUtils.ts)
+    const BOX_TYPE_PLAYER_BEEHIVE = 12;
+    return storageBox.boxType === BOX_TYPE_PLAYER_BEEHIVE;
+}
+
+/**
  * Calculate spoilage time remaining for items with explicit spoilage time (like Queen Bee)
  * Returns hours remaining or null if spoiled
  */
@@ -405,11 +450,16 @@ function calculateExplicitSpoilageTimeRemaining(item: InventoryItem, itemDef: It
  * Works for both food items and items with explicit spoilage time (like Queen Bee)
  * @param item - The inventory item
  * @param itemDef - The item definition
- * @param connection - Optional database connection to check if item is in a pantry
+ * @param connection - Optional database connection to check if item is in a pantry/beehive
  */
 export function formatFoodSpoilageTimeRemaining(item: InventoryItem, itemDef: ItemDefinition, connection?: DbConnection | null): string {
     // Check if item is in a pantry/refrigerator - if so, show "Preserved"
     if (connection && isItemInRefrigerator(item, connection)) {
+        return 'Preserved';
+    }
+    
+    // Check if Queen Bee is in a player beehive (slot 0) - she doesn't spoil there
+    if (connection && isQueenBeeInBeehive(item, itemDef, connection)) {
         return 'Preserved';
     }
     

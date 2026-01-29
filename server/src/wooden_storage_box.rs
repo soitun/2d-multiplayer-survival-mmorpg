@@ -11,13 +11,46 @@ use spacetimedb::{Identity, ReducerContext, SpacetimeType, Table, Timestamp};
 use log;
 
 // --- Constants --- 
-pub(crate) const BOX_COLLISION_RADIUS: f32 = 18.0; // Similar to campfire
+pub(crate) const BOX_COLLISION_RADIUS: f32 = 18.0; // Default collision radius for small boxes
 pub(crate) const BOX_COLLISION_Y_OFFSET: f32 = 52.0; // Match the placement offset for proper collision detection
 pub(crate) const PLAYER_BOX_COLLISION_DISTANCE_SQUARED: f32 = (super::PLAYER_RADIUS + BOX_COLLISION_RADIUS) * (super::PLAYER_RADIUS + BOX_COLLISION_RADIUS);
 const BOX_INTERACTION_DISTANCE_SQUARED: f32 = 96.0 * 96.0; // Increased from 64.0 * 64.0 for more lenient interaction
 pub const NUM_BOX_SLOTS: usize = 18;
 pub const NUM_LARGE_BOX_SLOTS: usize = 48;
 pub(crate) const BOX_BOX_COLLISION_DISTANCE_SQUARED: f32 = (BOX_COLLISION_RADIUS * 2.0) * (BOX_COLLISION_RADIUS * 2.0);
+
+// Collision radii for different box types (based on visual dimensions)
+// These prevent boxes from overlapping visually
+pub(crate) const LARGE_BOX_COLLISION_RADIUS: f32 = 48.0;      // 96x96 visual -> radius ~48
+pub(crate) const COMPOST_COLLISION_RADIUS: f32 = 64.0;        // 128x128 visual -> radius ~64
+pub(crate) const REPAIR_BENCH_COLLISION_RADIUS: f32 = 96.0;   // 192x192 visual -> radius ~96
+pub(crate) const COOKING_STATION_COLLISION_RADIUS: f32 = 48.0; // 96x96 visual -> radius ~48
+pub(crate) const SCARECROW_COLLISION_RADIUS: f32 = 64.0;      // 128x128 visual -> radius ~64
+pub(crate) const FISH_TRAP_COLLISION_RADIUS: f32 = 48.0;      // 96x96 visual -> radius ~48
+pub(crate) const WILD_BEEHIVE_COLLISION_RADIUS: f32 = 60.0;   // 120x120 visual -> radius ~60
+pub(crate) const PLAYER_BEEHIVE_COLLISION_RADIUS: f32 = 100.0; // 256x256 visual -> radius ~100 (allows some overlap for placement flexibility)
+pub(crate) const MINE_CART_COLLISION_RADIUS: f32 = 72.0;      // 144x144 visual -> radius ~72
+pub(crate) const REFRIGERATOR_COLLISION_RADIUS: f32 = 48.0;   // 96x96 visual -> radius ~48
+
+/// Get the collision radius for a specific box type
+pub(crate) fn get_box_collision_radius(box_type: u8) -> f32 {
+    match box_type {
+        BOX_TYPE_NORMAL => BOX_COLLISION_RADIUS,
+        BOX_TYPE_LARGE => LARGE_BOX_COLLISION_RADIUS,
+        BOX_TYPE_REFRIGERATOR => REFRIGERATOR_COLLISION_RADIUS,
+        BOX_TYPE_COMPOST => COMPOST_COLLISION_RADIUS,
+        BOX_TYPE_BACKPACK => BOX_COLLISION_RADIUS,
+        BOX_TYPE_REPAIR_BENCH => REPAIR_BENCH_COLLISION_RADIUS,
+        BOX_TYPE_COOKING_STATION => COOKING_STATION_COLLISION_RADIUS,
+        BOX_TYPE_SCARECROW => SCARECROW_COLLISION_RADIUS,
+        BOX_TYPE_MILITARY_RATION => BOX_COLLISION_RADIUS,
+        BOX_TYPE_MINE_CART => MINE_CART_COLLISION_RADIUS,
+        BOX_TYPE_FISH_TRAP => FISH_TRAP_COLLISION_RADIUS,
+        BOX_TYPE_WILD_BEEHIVE => WILD_BEEHIVE_COLLISION_RADIUS,
+        BOX_TYPE_PLAYER_BEEHIVE => PLAYER_BEEHIVE_COLLISION_RADIUS,
+        _ => BOX_COLLISION_RADIUS,
+    }
+}
 
 // --- Health constants ---
 pub const WOODEN_STORAGE_BOX_INITIAL_HEALTH: f32 = 750.0;
@@ -271,6 +304,20 @@ pub fn move_item_to_box(
     // REMOVED: Target slot index validation moved to handler (using container.num_slots())
     // NOTE: Refrigerator-specific validation is now handled by refrigerator.rs reducers
 
+    // Check if we're placing a Queen Bee in slot 0 of a player beehive (for sound)
+    let is_player_beehive = storage_box.box_type == BOX_TYPE_PLAYER_BEEHIVE;
+    let mut should_start_beehive_sound = false;
+    if is_player_beehive && target_slot_index == 0 {
+        // Check if the item being moved is a Queen Bee
+        if let Some(item) = inventory_items.instance_id().find(item_instance_id) {
+            if let Some(item_def) = item_defs.id().find(item.item_def_id) {
+                if item_def.name == "Queen Bee" {
+                    should_start_beehive_sound = true;
+                }
+            }
+        }
+    }
+
     // --- Call GENERIC Handler --- 
     inventory_management::handle_move_to_container_slot(
         ctx, 
@@ -281,7 +328,16 @@ pub fn move_item_to_box(
     )?;
 
     // --- Commit Box Update --- 
-    boxes.id().update(storage_box);
+    boxes.id().update(storage_box.clone());
+    
+    // Start beehive buzzing sound if Queen Bee was placed in slot 0
+    if should_start_beehive_sound {
+        let beehive_y_offset = BOX_COLLISION_Y_OFFSET + 100.0; // Beehives use larger offset
+        let visual_center_y = storage_box.pos_y - beehive_y_offset;
+        crate::sound_events::start_beehive_sound(ctx, box_id as u64, storage_box.pos_x, visual_center_y);
+        log::info!("[Beehive] Started buzzing sound - Queen Bee placed in beehive {} slot 0", box_id);
+    }
+    
     Ok(())
 }
 
@@ -364,12 +420,26 @@ pub fn move_item_within_box(
 ) -> Result<(), String> {
     // Get mutable box table handle
     let mut boxes = ctx.db.wooden_storage_box();
+    let item_defs = ctx.db.item_definition();
     // NOTE: Other tables accessed in handler via ctx
 
     // --- Basic Validations --- 
     let (_player, mut storage_box) = validate_box_interaction(ctx, box_id)?;
     // REMOVED: Item fetching/validation moved to handler
     // NOTE: Slot index validation moved to handler
+
+    // Check if this is a player beehive - we need to handle sound for Queen Bee in slot 0
+    let is_player_beehive = storage_box.box_type == BOX_TYPE_PLAYER_BEEHIVE;
+    let mut had_queen_bee_in_slot_0 = false;
+    
+    if is_player_beehive {
+        // Check if slot 0 currently has a Queen Bee
+        if let Some(def_id) = storage_box.slot_def_id_0 {
+            if let Some(item_def) = item_defs.id().find(def_id) {
+                had_queen_bee_in_slot_0 = item_def.name == "Queen Bee";
+            }
+        }
+    }
 
     // --- Call GENERIC Handler --- 
     inventory_management::handle_move_within_container(
@@ -381,7 +451,32 @@ pub fn move_item_within_box(
     )?;
 
     // --- Commit Box Update --- 
-    boxes.id().update(storage_box);
+    boxes.id().update(storage_box.clone());
+    
+    // Handle beehive sound based on Queen Bee presence in slot 0
+    if is_player_beehive {
+        // Check if slot 0 now has a Queen Bee
+        let mut has_queen_bee_in_slot_0 = false;
+        if let Some(def_id) = storage_box.slot_def_id_0 {
+            if let Some(item_def) = item_defs.id().find(def_id) {
+                has_queen_bee_in_slot_0 = item_def.name == "Queen Bee";
+            }
+        }
+        
+        // Start/stop sound based on change
+        if !had_queen_bee_in_slot_0 && has_queen_bee_in_slot_0 {
+            // Queen Bee was placed in slot 0 - start sound
+            let beehive_y_offset = BOX_COLLISION_Y_OFFSET + 100.0;
+            let visual_center_y = storage_box.pos_y - beehive_y_offset;
+            crate::sound_events::start_beehive_sound(ctx, box_id as u64, storage_box.pos_x, visual_center_y);
+            log::info!("[Beehive] Started buzzing sound - Queen Bee moved to slot 0 in beehive {}", box_id);
+        } else if had_queen_bee_in_slot_0 && !has_queen_bee_in_slot_0 {
+            // Queen Bee was removed from slot 0 - stop sound
+            crate::sound_events::stop_beehive_sound(ctx, box_id as u64);
+            log::info!("[Beehive] Stopped buzzing sound - Queen Bee moved from slot 0 in beehive {}", box_id);
+        }
+    }
+    
     Ok(())
 }
 
@@ -576,11 +671,26 @@ pub fn quick_move_to_box(
 ) -> Result<(), String> {
     // Get tables
     let mut boxes = ctx.db.wooden_storage_box();
+    let inventory_items = ctx.db.inventory_item();
+    let item_defs = ctx.db.item_definition();
     // NOTE: Other tables accessed in handler via ctx
 
     // --- Validations --- 
     let (_player, mut storage_box) = validate_box_interaction(ctx, box_id)?;
     // REMOVED: Item fetching/validation moved to handler
+
+    // Check if this is a player beehive and if we're moving a Queen Bee
+    let is_player_beehive = storage_box.box_type == BOX_TYPE_PLAYER_BEEHIVE;
+    let mut had_queen_bee_in_slot_0 = false;
+    
+    if is_player_beehive {
+        // Check if slot 0 currently has a Queen Bee
+        if let Some(def_id) = storage_box.slot_def_id_0 {
+            if let Some(item_def) = item_defs.id().find(def_id) {
+                had_queen_bee_in_slot_0 = item_def.name == "Queen Bee";
+            }
+        }
+    }
 
     // --- Call Handler --- 
     inventory_management::handle_quick_move_to_container(
@@ -591,7 +701,23 @@ pub fn quick_move_to_box(
     )?;
 
     // --- Commit Box Update --- 
-    boxes.id().update(storage_box);
+    boxes.id().update(storage_box.clone());
+    
+    // Handle beehive sound if a Queen Bee was placed in slot 0
+    if is_player_beehive && !had_queen_bee_in_slot_0 {
+        // Check if slot 0 now has a Queen Bee
+        if let Some(def_id) = storage_box.slot_def_id_0 {
+            if let Some(item_def) = item_defs.id().find(def_id) {
+                if item_def.name == "Queen Bee" {
+                    let beehive_y_offset = BOX_COLLISION_Y_OFFSET + 100.0;
+                    let visual_center_y = storage_box.pos_y - beehive_y_offset;
+                    crate::sound_events::start_beehive_sound(ctx, box_id as u64, storage_box.pos_x, visual_center_y);
+                    log::info!("[Beehive] Started buzzing sound - Queen Bee quick-moved to slot 0 in beehive {}", box_id);
+                }
+            }
+        }
+    }
+    
     Ok(())
 }
 
@@ -673,19 +799,33 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         return Err("Cannot place storage box on water.".to_string());
     }
     
-    // Check collision with existing boxes - account for visual center offset
-    // Beehives use a larger Y offset, so we need to account for that
+    // Check collision with existing boxes - use type-specific collision radii
+    // This prevents boxes from overlapping visually
+    let new_box_radius = get_box_collision_radius(box_type);
     if boxes.iter().any(|b| {
+        if b.is_destroyed { return false; } // Skip destroyed boxes
+        
+        // Get the collision radius for the existing box
+        let existing_radius = get_box_collision_radius(b.box_type);
+        
+        // Account for visual center offset - beehives use a larger Y offset
         let existing_y_offset = if b.box_type == BOX_TYPE_PLAYER_BEEHIVE {
             BOX_COLLISION_Y_OFFSET + 100.0 // Match the placement offset for beehives
         } else {
             BOX_COLLISION_Y_OFFSET
         };
         let existing_visual_y = b.pos_y - existing_y_offset;
+        
+        // Calculate distance between centers
         let dist_sq = (b.pos_x - world_x).powi(2) + (existing_visual_y - world_y).powi(2);
-        dist_sq < BOX_BOX_COLLISION_DISTANCE_SQUARED
+        
+        // Minimum distance = sum of both radii (with a small buffer)
+        let min_distance = new_box_radius + existing_radius;
+        let min_distance_sq = min_distance * min_distance;
+        
+        dist_sq < min_distance_sq
     }) {
-        return Err("Too close to another storage box.".to_string());
+        return Err("Too close to another structure.".to_string());
     }
     // Add other collision checks as needed (e.g., with players, other entities)
 

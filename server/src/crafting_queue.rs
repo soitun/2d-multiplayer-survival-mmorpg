@@ -86,13 +86,45 @@ pub fn start_crafting(ctx: &ReducerContext, recipe_id: u64) -> Result<(), String
     }
 
     // 2. Check Resources
+    // Build a map of valid item IDs for each flexible ingredient group
+    // Map: group_index -> (required_qty, Vec<valid_item_def_ids>)
+    let mut flexible_ingredient_groups: Vec<(u32, Vec<u64>)> = Vec::new();
+    
+    if let Some(ref flex_ingredients) = output_item_def.flexible_ingredients {
+        for flex_ing in flex_ingredients {
+            let mut valid_ids: Vec<u64> = Vec::new();
+            for item_name in &flex_ing.valid_items {
+                if let Some(def) = item_def_table.iter().find(|d| &d.name == item_name) {
+                    valid_ids.push(def.id);
+                }
+            }
+            if !valid_ids.is_empty() {
+                flexible_ingredient_groups.push((flex_ing.total_required, valid_ids));
+            }
+        }
+    }
+    
+    // Build map of fixed (non-flexible) required resources
     let mut required_resources_map: HashMap<u64, u32> = HashMap::new();
+    
+    // Only add recipe ingredients that are NOT part of a flexible ingredient group
     for ingredient in &recipe.ingredients {
-        *required_resources_map.entry(ingredient.item_def_id).or_insert(0) += ingredient.quantity;
+        // Check if this ingredient is the "first option" from a flexible group
+        let is_flexible_first_option = flexible_ingredient_groups.iter()
+            .any(|(_, valid_ids)| valid_ids.first() == Some(&ingredient.item_def_id));
+        
+        if !is_flexible_first_option {
+            // This is a fixed ingredient (not a flexible ingredient placeholder)
+            *required_resources_map.entry(ingredient.item_def_id).or_insert(0) += ingredient.quantity;
+        }
     }
 
     let mut available_resources_check: HashMap<u64, u32> = HashMap::new();
     let mut items_to_consume_map: HashMap<u64, u32> = HashMap::new(); // Map<instance_id, quantity_to_consume>
+    
+    // Track items available for flexible ingredient groups
+    // Vec of (instance_id, item_def_id, available_quantity)
+    let mut player_items: Vec<(u64, u64, u32)> = Vec::new();
 
     // Iterate over player's inventory and hotbar items to find materials
     for item in inventory_table.iter() {
@@ -105,10 +137,13 @@ pub fn start_crafting(ctx: &ReducerContext, recipe_id: u64) -> Result<(), String
         if is_in_player_possession {
             // Track total available for this item definition
             *available_resources_check.entry(item.item_def_id).or_insert(0) += item.quantity;
+            
+            // Store item info for flexible ingredient checking
+            player_items.push((item.instance_id, item.item_def_id, item.quantity));
 
-            // If this item definition is required for the recipe, determine how much of this stack to consume
+            // If this item definition is required for fixed ingredients, determine how much to consume
             if let Some(needed_qty_for_def) = required_resources_map.get_mut(&item.item_def_id) {
-                if *needed_qty_for_def > 0 { // Still need some of this item definition
+                if *needed_qty_for_def > 0 {
                     let can_take_from_stack = std::cmp::min(item.quantity, *needed_qty_for_def);
                     *items_to_consume_map.entry(item.instance_id).or_insert(0) += can_take_from_stack;
                     *needed_qty_for_def -= can_take_from_stack;
@@ -116,9 +151,56 @@ pub fn start_crafting(ctx: &ReducerContext, recipe_id: u64) -> Result<(), String
             }
         }
     }
+    
+    // Check flexible ingredient requirements
+    for (group_idx, (required_qty, valid_ids)) in flexible_ingredient_groups.iter().enumerate() {
+        let mut total_available: u32 = 0;
+        for valid_id in valid_ids {
+            total_available += available_resources_check.get(valid_id).copied().unwrap_or(0);
+        }
+        
+        if total_available < *required_qty {
+            // Get the group name from the output item def
+            let group_name = output_item_def.flexible_ingredients
+                .as_ref()
+                .and_then(|f| f.get(group_idx))
+                .map(|f| f.group_name.clone())
+                .unwrap_or_else(|| "required items".to_string());
+            return Err(format!("Missing {} {} to craft. You have {}.", required_qty - total_available, group_name, total_available));
+        }
+        
+        // Consume items for this flexible group
+        let mut still_need = *required_qty;
+        for (instance_id, item_def_id, available) in &player_items {
+            if still_need == 0 { break; }
+            if valid_ids.contains(item_def_id) {
+                // Check how much of this stack we can take (accounting for already consumed)
+                let already_consuming = items_to_consume_map.get(instance_id).copied().unwrap_or(0);
+                let actually_available = available.saturating_sub(already_consuming);
+                
+                if actually_available > 0 {
+                    let take_amount = std::cmp::min(actually_available, still_need);
+                    *items_to_consume_map.entry(*instance_id).or_insert(0) += take_amount;
+                    still_need -= take_amount;
+                }
+            }
+        }
+        
+        if still_need > 0 {
+            let group_name = output_item_def.flexible_ingredients
+                .as_ref()
+                .and_then(|f| f.get(group_idx))
+                .map(|f| f.group_name.clone())
+                .unwrap_or_else(|| "required items".to_string());
+            return Err(format!("Internal error: Could not allocate {} for {}.", still_need, group_name));
+        }
+    }
 
-    // Verify all requirements met by checking the initial required_resources_map against available_resources_check
-    for (def_id, initial_needed) in recipe.ingredients.iter().map(|ing| (ing.item_def_id, ing.quantity)) {
+    // Verify all fixed requirements met
+    for (def_id, initial_needed) in recipe.ingredients.iter()
+        .filter(|ing| !flexible_ingredient_groups.iter().any(|(_, valid_ids)| valid_ids.first() == Some(&ing.item_def_id)))
+        .map(|ing| (ing.item_def_id, ing.quantity)) 
+    {
         let total_available_for_def = available_resources_check.get(&def_id).copied().unwrap_or(0);
         if total_available_for_def < initial_needed {
             let item_name = ctx.db.item_definition().id().find(def_id).map(|d| d.name.clone()).unwrap_or_else(|| format!("ID {}", def_id));
@@ -126,8 +208,7 @@ pub fn start_crafting(ctx: &ReducerContext, recipe_id: u64) -> Result<(), String
         }
     }
     
-    // Double check that all entries in required_resources_map are now zero (or less, if over-provided)
-    // This check might be redundant if the above available_resources_check is correct
+    // Verify fixed required resources are satisfied
     for (def_id, still_needed) in required_resources_map.iter() {
         if *still_needed > 0 {
              let item_name = ctx.db.item_definition().id().find(*def_id).map(|d| d.name.clone()).unwrap_or_else(|| format!("ID {}", def_id));
@@ -240,14 +321,39 @@ pub fn start_crafting_multiple(ctx: &ReducerContext, recipe_id: u64, quantity_to
     }
 
     // 2. Check Resources for the total quantity
+    // Build a map of valid item IDs for each flexible ingredient group
+    let mut flexible_ingredient_groups: Vec<(u32, Vec<u64>)> = Vec::new();
+    
+    if let Some(ref flex_ingredients) = output_item_def.flexible_ingredients {
+        for flex_ing in flex_ingredients {
+            let mut valid_ids: Vec<u64> = Vec::new();
+            for item_name in &flex_ing.valid_items {
+                if let Some(def) = item_def_table.iter().find(|d| &d.name == item_name) {
+                    valid_ids.push(def.id);
+                }
+            }
+            if !valid_ids.is_empty() {
+                // Multiply by quantity_to_craft for total needed
+                flexible_ingredient_groups.push((flex_ing.total_required * quantity_to_craft, valid_ids));
+            }
+        }
+    }
+    
     let mut total_required_resources_map: HashMap<u64, u32> = HashMap::new();
+    
+    // Only add recipe ingredients that are NOT part of a flexible ingredient group
     for ingredient in &recipe.ingredients {
-        *total_required_resources_map.entry(ingredient.item_def_id).or_insert(0) += ingredient.quantity * quantity_to_craft;
+        let is_flexible_first_option = flexible_ingredient_groups.iter()
+            .any(|(_, valid_ids)| valid_ids.first() == Some(&ingredient.item_def_id));
+        
+        if !is_flexible_first_option {
+            *total_required_resources_map.entry(ingredient.item_def_id).or_insert(0) += ingredient.quantity * quantity_to_craft;
+        }
     }
 
     let mut available_resources_check: HashMap<u64, u32> = HashMap::new();
-    // This map will store {item_instance_id, quantity_to_consume_from_this_stack}
     let mut items_to_consume_map: HashMap<u64, u32> = HashMap::new();
+    let mut player_items: Vec<(u64, u64, u32)> = Vec::new();
 
     // Iterate over player's inventory and hotbar items
     for item_instance in inventory_table.iter() {
@@ -259,27 +365,71 @@ pub fn start_crafting_multiple(ctx: &ReducerContext, recipe_id: u64, quantity_to
 
         if is_in_player_possession {
             *available_resources_check.entry(item_instance.item_def_id).or_insert(0) += item_instance.quantity;
+            player_items.push((item_instance.instance_id, item_instance.item_def_id, item_instance.quantity));
 
+            // Handle fixed ingredients
             if let Some(total_needed_for_def) = total_required_resources_map.get_mut(&item_instance.item_def_id) {
-                if *total_needed_for_def > 0 { // Still need some of this item definition
-                    let already_marked_to_consume_from_this_def = items_to_consume_map.iter()
+                if *total_needed_for_def > 0 {
+                    let already_marked = items_to_consume_map.iter()
                         .filter(|(id, _)| inventory_table.instance_id().find(**id).map_or(false, |i| i.item_def_id == item_instance.item_def_id))
                         .map(|(_, qty)| qty)
                         .sum::<u32>();
                     
-                    let remaining_needed_for_def = (*total_needed_for_def).saturating_sub(already_marked_to_consume_from_this_def);
-                    let can_take_from_stack = std::cmp::min(item_instance.quantity, remaining_needed_for_def);
+                    let remaining_needed = (*total_needed_for_def).saturating_sub(already_marked);
+                    let can_take = std::cmp::min(item_instance.quantity, remaining_needed);
                     
-                    if can_take_from_stack > 0 {
-                        *items_to_consume_map.entry(item_instance.instance_id).or_insert(0) += can_take_from_stack;
-                        // No, don't decrement total_needed_for_def here. We verify it at the end.
+                    if can_take > 0 {
+                        *items_to_consume_map.entry(item_instance.instance_id).or_insert(0) += can_take;
                     }
                 }
             }
         }
     }
     
-    // Verify all requirements met
+    // Check flexible ingredient requirements
+    for (group_idx, (required_qty, valid_ids)) in flexible_ingredient_groups.iter().enumerate() {
+        let mut total_available: u32 = 0;
+        for valid_id in valid_ids {
+            total_available += available_resources_check.get(valid_id).copied().unwrap_or(0);
+        }
+        
+        if total_available < *required_qty {
+            let group_name = output_item_def.flexible_ingredients
+                .as_ref()
+                .and_then(|f| f.get(group_idx))
+                .map(|f| f.group_name.clone())
+                .unwrap_or_else(|| "required items".to_string());
+            return Err(format!("Missing {} {} to craft {}x. You have {}.", 
+                required_qty - total_available, group_name, quantity_to_craft, total_available));
+        }
+        
+        // Consume items for this flexible group
+        let mut still_need = *required_qty;
+        for (instance_id, item_def_id, available) in &player_items {
+            if still_need == 0 { break; }
+            if valid_ids.contains(item_def_id) {
+                let already_consuming = items_to_consume_map.get(instance_id).copied().unwrap_or(0);
+                let actually_available = available.saturating_sub(already_consuming);
+                
+                if actually_available > 0 {
+                    let take_amount = std::cmp::min(actually_available, still_need);
+                    *items_to_consume_map.entry(*instance_id).or_insert(0) += take_amount;
+                    still_need -= take_amount;
+                }
+            }
+        }
+        
+        if still_need > 0 {
+            let group_name = output_item_def.flexible_ingredients
+                .as_ref()
+                .and_then(|f| f.get(group_idx))
+                .map(|f| f.group_name.clone())
+                .unwrap_or_else(|| "required items".to_string());
+            return Err(format!("Internal error: Could not allocate {} for {}.", still_need, group_name));
+        }
+    }
+    
+    // Verify all fixed requirements met
     for (def_id, total_required) in total_required_resources_map.iter() {
         let total_available_for_def = available_resources_check.get(def_id).copied().unwrap_or(0);
         if total_available_for_def < *total_required {

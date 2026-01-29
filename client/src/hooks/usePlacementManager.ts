@@ -565,6 +565,89 @@ function isSeedPlacementOnOccupiedTile(connection: DbConnection | null, placemen
   return false; // Tile is free
 }
 
+// Collision radii for different storage box types (must match server wooden_storage_box.rs)
+const STORAGE_BOX_COLLISION_RADII: { [key: number]: number } = {
+  0: 18,   // BOX_TYPE_NORMAL
+  1: 48,   // BOX_TYPE_LARGE
+  2: 48,   // BOX_TYPE_REFRIGERATOR
+  3: 64,   // BOX_TYPE_COMPOST
+  4: 18,   // BOX_TYPE_BACKPACK
+  5: 96,   // BOX_TYPE_REPAIR_BENCH
+  6: 48,   // BOX_TYPE_COOKING_STATION
+  7: 64,   // BOX_TYPE_SCARECROW
+  8: 18,   // BOX_TYPE_MILITARY_RATION
+  9: 72,   // BOX_TYPE_MINE_CART
+  10: 48,  // BOX_TYPE_FISH_TRAP
+  11: 60,  // BOX_TYPE_WILD_BEEHIVE
+  12: 100, // BOX_TYPE_PLAYER_BEEHIVE
+};
+
+// Map item names to box types for collision radius lookup
+const ITEM_NAME_TO_BOX_TYPE: { [key: string]: number } = {
+  'Wooden Storage Box': 0,
+  'Large Wooden Storage Box': 1,
+  'Pantry': 2,
+  'Compost': 3,
+  'Repair Bench': 5,
+  'Cooking Station': 6,
+  'Scarecrow': 7,
+  'Fish Trap': 10,
+  'Wooden Beehive': 12,
+};
+
+// Storage box Y offset for visual center calculation (must match server)
+const BOX_COLLISION_Y_OFFSET = 52.0;
+const BEEHIVE_EXTRA_Y_OFFSET = 100.0; // Additional offset for beehives
+
+/**
+ * Checks if a storage box placement would collide with existing storage boxes.
+ * Returns true if placement should be blocked due to collision.
+ */
+function isStorageBoxCollision(
+  connection: DbConnection | null,
+  placementInfo: PlacementItemInfo | null,
+  worldX: number,
+  worldY: number
+): boolean {
+  if (!connection || !placementInfo) return false;
+  
+  // Check if this item is a storage box type
+  const boxType = ITEM_NAME_TO_BOX_TYPE[placementInfo.itemName];
+  if (boxType === undefined) return false; // Not a storage box
+  
+  // Get collision radius for the new box
+  const newBoxRadius = STORAGE_BOX_COLLISION_RADII[boxType] || 18;
+  
+  // Check against all existing storage boxes
+  for (const box of connection.db.woodenStorageBox.iter()) {
+    if (box.isDestroyed) continue;
+    
+    // Get collision radius for the existing box
+    const existingRadius = STORAGE_BOX_COLLISION_RADII[box.boxType] || 18;
+    
+    // Account for visual center offset
+    const existingYOffset = box.boxType === 12 // BOX_TYPE_PLAYER_BEEHIVE
+      ? BOX_COLLISION_Y_OFFSET + BEEHIVE_EXTRA_Y_OFFSET
+      : BOX_COLLISION_Y_OFFSET;
+    const existingVisualY = box.posY - existingYOffset;
+    
+    // Calculate distance between centers
+    const dx = box.posX - worldX;
+    const dy = existingVisualY - worldY;
+    const distSq = dx * dx + dy * dy;
+    
+    // Minimum distance = sum of both radii
+    const minDistance = newBoxRadius + existingRadius;
+    const minDistanceSq = minDistance * minDistance;
+    
+    if (distSq < minDistanceSq) {
+      return true; // Collision detected
+    }
+  }
+  
+  return false; // No collision
+}
+
 /**
  * Checks if placement is blocked due to monument zones (ALK stations, rune stones, hot springs, quarries).
  * Returns true if placement should be blocked.
@@ -945,6 +1028,13 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
     if (isSeedPlacementOnOccupiedTile(connection, placementInfo, worldX, worldY)) {
       console.log('[PlacementManager] Client-side validation: Tile already has a seed, playing error sound');
       playImmediateSound('error_seed_occupied', 1.0);
+      return; // Don't proceed with placement
+    }
+
+    // Check for storage box collision (prevents placing boxes on top of each other)
+    if (isStorageBoxCollision(connection, placementInfo, worldX, worldY)) {
+      console.log('[PlacementManager] Client-side validation: Storage box collision detected, playing error sound');
+      playImmediateSound('construction_placement_error', 1.0);
       return; // Don't proceed with placement
     }
 

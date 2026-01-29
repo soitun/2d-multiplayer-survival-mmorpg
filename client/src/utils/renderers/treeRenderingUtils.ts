@@ -1,4 +1,4 @@
-import { Tree } from '../../generated'; // Import generated types
+import { Tree, TimeOfDay } from '../../generated'; // Import generated types
 import birchImage from '../../assets/doodads/siberian_birch_c.png';
 import mountainHemlockImage from '../../assets/doodads/mountain_hemlock_c.png';
 import mountainHemlockImage2 from '../../assets/doodads/mountain_hemlock_d.png';
@@ -43,7 +43,7 @@ const lastKnownServerTreeShakeTimes = new Map<string, number>(); // treeId -> la
  * NOTE: This matches the dynamic ground shadow approach - solid black fill with globalAlpha + blur.
  */
 function drawCanopyShadow(
-    ctx: CanvasRenderingContext2D,
+    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
     centerX: number,
     baseY: number,
     treeTargetWidth: number,
@@ -81,97 +81,202 @@ function drawCanopyShadow(
     ctx.restore();
 }
 
+// Constants for canopy mask (used to cut out tree canopy regions from shadows)
+// These define an elliptical region representing the visual canopy area
+const CANOPY_MASK_RADIUS_X_FACTOR = 0.35; // Horizontal radius as fraction of tree width
+const CANOPY_MASK_RADIUS_Y_FACTOR = 0.45; // Vertical radius as fraction of tree height
+const CANOPY_MASK_CENTER_Y_OFFSET_FACTOR = 0.35; // How far up from base (as fraction of height) the canopy center is
+
+// Offscreen canvas for shadow compositing (reused to avoid allocation)
+let shadowOffscreenCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
+let shadowOffscreenCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
+
 /**
- * Renders a single tree's canopy shadow overlay.
- * This should be called AFTER rendering the tree sprite within the Y-sorted pass,
- * so the shadow respects Y-sorting - shadows from trees behind won't appear
- * on top of tree canopies that are in front.
- * 
- * @param ctx - Canvas rendering context
- * @param tree - The tree to render canopy shadow for
- * @param nowMs - Current timestamp for shake animation sync
- * @param isFalling - Whether this tree is currently falling
+ * Gets or creates the offscreen canvas for shadow compositing.
+ * The canvas is reused across frames to avoid allocation overhead.
  */
-export function renderSingleTreeCanopyShadow(
-    ctx: CanvasRenderingContext2D,
-    tree: Tree,
-    nowMs: number,
-    isFalling: boolean = false
-): void {
-    const treeId = tree.id.toString();
-    
-    // Skip trees with no health (destroyed) unless they have respawn time
-    if (tree.health === 0 && !tree.respawnAt) return;
-    
-    // Skip falling trees - canopy is no longer overhead when the tree is falling
-    if (isFalling) return;
-    
-    const { targetWidth } = getCachedTreeTypeInfo(tree);
-    
-    // Calculate shake offsets for shadow synchronization
-    let shakeOffsetX = 0;
-    let shakeOffsetY = 0;
-    
-    if (tree.lastHitTime) {
-        const clientStartTime = clientTreeShakeStartTimes.get(treeId);
-        if (clientStartTime) {
-            const elapsedSinceShake = nowMs - clientStartTime;
-            
-            if (elapsedSinceShake >= 0 && elapsedSinceShake < SHAKE_DURATION_MS) {
-                const shakeFactor = 1.0 - (elapsedSinceShake / SHAKE_DURATION_MS);
-                const baseShakeIntensity = SHAKE_INTENSITY_PX * shakeFactor;
-                
-                // Generate smooth shake direction
-                const timePhase = elapsedSinceShake / 50;
-                const treeSeed = treeId.charCodeAt(0) % 100;
-                
-                shakeOffsetX = Math.sin(timePhase + treeSeed) * baseShakeIntensity * 0.3;
-                shakeOffsetY = Math.cos(timePhase + treeSeed) * baseShakeIntensity * 0.15;
-            }
+function getShadowOffscreenCanvas(width: number, height: number): { canvas: OffscreenCanvas | HTMLCanvasElement, ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } | null {
+    // Create canvas if needed or resize if dimensions changed
+    if (!shadowOffscreenCanvas || shadowOffscreenCanvas.width !== width || shadowOffscreenCanvas.height !== height) {
+        try {
+            // Prefer OffscreenCanvas for better performance
+            shadowOffscreenCanvas = new OffscreenCanvas(width, height);
+        } catch {
+            // Fallback to regular canvas if OffscreenCanvas not supported
+            shadowOffscreenCanvas = document.createElement('canvas');
+            shadowOffscreenCanvas.width = width;
+            shadowOffscreenCanvas.height = height;
         }
+        shadowOffscreenCtx = shadowOffscreenCanvas.getContext('2d');
     }
     
-    // Draw the canopy shadow overlay with blur
-    drawCanopyShadow(ctx, tree.posX, tree.posY, targetWidth, shakeOffsetX, shakeOffsetY, true);
+    if (!shadowOffscreenCtx) return null;
+    
+    return { canvas: shadowOffscreenCanvas, ctx: shadowOffscreenCtx };
 }
 
 /**
- * @deprecated Use renderSingleTreeCanopyShadow instead for correct Y-sorting.
- * This function renders ALL canopy shadows after all entities, which causes
- * shadows from trees behind to incorrectly appear on top of trees in front.
+ * Cuts out a tree's canopy region from the shadow canvas.
+ * This prevents shadows from trees behind from appearing on this tree's canopy.
+ */
+function cutOutCanopyRegion(
+    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+    tree: Tree,
+    shakeOffsetX: number = 0,
+    shakeOffsetY: number = 0
+): void {
+    const { imageSource, targetWidth } = getCachedTreeTypeInfo(tree);
+    const img = imageManager.getImage(imageSource);
+    
+    if (!img || img.naturalWidth === 0) return;
+    
+    const scaleFactor = targetWidth / img.naturalWidth;
+    const treeHeight = img.naturalHeight * scaleFactor;
+    
+    // Calculate canopy ellipse dimensions based on tree size
+    const canopyRadiusX = targetWidth * CANOPY_MASK_RADIUS_X_FACTOR;
+    const canopyRadiusY = treeHeight * CANOPY_MASK_RADIUS_Y_FACTOR;
+    
+    // Canopy center is above the tree base (posY)
+    // The tree sprite is drawn with bottom at posY, extending upward
+    const canopyCenterX = tree.posX + shakeOffsetX;
+    const canopyCenterY = tree.posY - (treeHeight * CANOPY_MASK_CENTER_Y_OFFSET_FACTOR) + shakeOffsetY;
+    
+    // Use destination-out to cut this region from whatever was drawn before
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+    
+    ctx.beginPath();
+    ctx.ellipse(canopyCenterX, canopyCenterY, canopyRadiusX, canopyRadiusY, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+}
+
+/**
+ * Renders canopy shadow overlays for all visible trees with proper Y-sorting.
  * 
- * Renders canopy shadow overlays for all visible trees.
- * This should be called AFTER all Y-sorted entities are rendered,
- * so the shadows appear ON TOP of trees and players, creating a realistic
- * canopy shade effect.
+ * This approach uses an OFFSCREEN CANVAS for shadow compositing:
+ * 1. Creates/reuses an offscreen canvas the same size as the main canvas
+ * 2. Sorts trees by Y (front to back, highest Y first)
+ * 3. For each tree, draws its shadow, then cuts out its canopy region
+ * 4. Composites the final shadow layer onto the main canvas
+ * 
+ * The result: shadows appear on players walking under trees, but NOT on
+ * tree canopies that are in front (higher Y = closer to camera).
+ * 
+ * NOTE: Canopy shadows are NOT rendered during Night, Midnight, or TwilightMorning
+ * since there is no direct sunlight to cast shadows through the canopy.
  * 
  * @param ctx - Canvas rendering context
  * @param trees - Array of visible trees to render shadows for
  * @param nowMs - Current timestamp for shake animation sync
  * @param isTreeFalling - Optional function to check if a tree is currently falling
+ * @param timeOfDay - Current time of day (shadows are skipped at night)
  */
 export function renderTreeCanopyShadowsOverlay(
     ctx: CanvasRenderingContext2D,
     trees: Tree[],
     nowMs: number,
-    isTreeFalling?: (treeId: string) => boolean
+    isTreeFalling?: (treeId: string) => boolean,
+    timeOfDay?: TimeOfDay
 ): void {
-    // DEPRECATED: This approach doesn't respect Y-sorting.
-    // Shadows from behind trees appear on top of trees in front.
-    // Use renderSingleTreeCanopyShadow in the Y-sorted render pass instead.
     if (!trees || trees.length === 0) return;
     
-    ctx.save();
-    
-    // Use normal blending - multiply mode reduces darkness too much with the blur effect
-    // The semi-transparent black will overlay naturally on entities below
-    
-    for (const tree of trees) {
-        const treeId = tree.id.toString();
-        const isFalling = isTreeFalling ? isTreeFalling(treeId) : false;
-        renderSingleTreeCanopyShadow(ctx, tree, nowMs, isFalling);
+    // Skip canopy shadows during nighttime - no direct sunlight to cast shadows
+    // Night, Midnight, and TwilightMorning (pre-dawn darkness) have no canopy shadows
+    if (timeOfDay) {
+        const tag = timeOfDay.tag;
+        if (tag === 'Night' || tag === 'Midnight' || tag === 'TwilightMorning') {
+            return;
+        }
     }
     
+    // Get the main canvas dimensions
+    const canvasWidth = ctx.canvas.width;
+    const canvasHeight = ctx.canvas.height;
+    
+    // Get or create offscreen canvas for shadow compositing
+    const offscreen = getShadowOffscreenCanvas(canvasWidth, canvasHeight);
+    if (!offscreen) {
+        // Fallback: render shadows without Y-sorting (old behavior)
+        for (const tree of trees) {
+            const treeId = tree.id.toString();
+            if (tree.health === 0 && !tree.respawnAt) continue;
+            const isFalling = isTreeFalling ? isTreeFalling(treeId) : false;
+            if (isFalling) continue;
+            const { targetWidth } = getCachedTreeTypeInfo(tree);
+            drawCanopyShadow(ctx, tree.posX, tree.posY, targetWidth, 0, 0, true);
+        }
+        return;
+    }
+    
+    const { ctx: offCtx } = offscreen;
+    
+    // Clear the offscreen canvas
+    offCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+    
+    // Apply the same transform as the main canvas (camera offset)
+    offCtx.save();
+    offCtx.setTransform(ctx.getTransform());
+    
+    // Sort trees by Y position: BACK to FRONT (lowest Y first)
+    // Process back trees first, so when we cut out front tree canopy regions,
+    // we remove shadows from behind trees that were already drawn
+    const sortedTrees = [...trees].sort((a, b) => a.posY - b.posY);
+    
+    for (const tree of sortedTrees) {
+        const treeId = tree.id.toString();
+        
+        // Skip trees with no health (destroyed) unless they have respawn time
+        if (tree.health === 0 && !tree.respawnAt) continue;
+        
+        // Skip falling trees - canopy is no longer overhead when the tree is falling
+        const isFalling = isTreeFalling ? isTreeFalling(treeId) : false;
+        if (isFalling) continue;
+        
+        const { targetWidth } = getCachedTreeTypeInfo(tree);
+        
+        // Calculate shake offsets for shadow synchronization
+        let shakeOffsetX = 0;
+        let shakeOffsetY = 0;
+        
+        if (tree.lastHitTime) {
+            const clientStartTime = clientTreeShakeStartTimes.get(treeId);
+            if (clientStartTime) {
+                const elapsedSinceShake = nowMs - clientStartTime;
+                
+                if (elapsedSinceShake >= 0 && elapsedSinceShake < SHAKE_DURATION_MS) {
+                    const shakeFactor = 1.0 - (elapsedSinceShake / SHAKE_DURATION_MS);
+                    const baseShakeIntensity = SHAKE_INTENSITY_PX * shakeFactor;
+                    
+                    // Generate smooth shake direction
+                    const timePhase = elapsedSinceShake / 50;
+                    const treeSeed = treeId.charCodeAt(0) % 100;
+                    
+                    shakeOffsetX = Math.sin(timePhase + treeSeed) * baseShakeIntensity * 0.3;
+                    shakeOffsetY = Math.cos(timePhase + treeSeed) * baseShakeIntensity * 0.15;
+                }
+            }
+        }
+        
+        // First, cut out this tree's canopy region from ALL previously drawn shadows
+        // Since we process back-to-front, previously drawn shadows are from trees BEHIND this one
+        // This prevents those behind-shadows from appearing in this tree's canopy
+        cutOutCanopyRegion(offCtx, tree, shakeOffsetX, shakeOffsetY);
+        
+        // Then draw this tree's shadow to the offscreen canvas
+        // Trees in front (processed later) will cut their canopy regions from this shadow
+        drawCanopyShadow(offCtx, tree.posX, tree.posY, targetWidth, shakeOffsetX, shakeOffsetY, true);
+    }
+    
+    offCtx.restore();
+    
+    // Composite the shadow layer onto the main canvas
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform for direct pixel copy
+    ctx.drawImage(offscreen.canvas, 0, 0);
     ctx.restore();
 }
 
@@ -1043,8 +1148,7 @@ export function renderTree(
     localPlayerPosition?: { x: number; y: number } | null, // Player position for transparency logic
     treeShadowsEnabled: boolean = true, // NEW: Visual cortex module setting
     isFalling?: boolean, // NEW: Tree is currently falling
-    fallProgress?: number, // NEW: Progress of fall animation (0.0 to 1.0)
-    renderCanopyShadow: boolean = false // NEW: Render canopy shadow after tree (for Y-sorted rendering)
+    fallProgress?: number // NEW: Progress of fall animation (0.0 to 1.0)
 ) {
     // PERFORMANCE: Skip shadow rendering entirely if disabled in visual settings
     const shouldSkipShadows = !treeShadowsEnabled || skipDrawingShadow;
@@ -1147,11 +1251,9 @@ export function renderTree(
         ctx.restore();
     }
     
-    // Render canopy shadow AFTER the tree sprite (for Y-sorted rendering)
-    // This ensures shadows from trees behind don't appear on top of tree canopies in front
-    if (renderCanopyShadow && !onlyDrawShadow) {
-        renderSingleTreeCanopyShadow(ctx, tree, now_ms, isFalling || false);
-    }
+    // NOTE: Canopy shadows are rendered as a separate overlay pass via renderTreeCanopyShadowsOverlay()
+    // This allows shadows to appear ON TOP of players (shade effect) while respecting tree Y-sorting
+    // (shadows from trees behind don't appear on tree canopies in front)
 }
 
 /**

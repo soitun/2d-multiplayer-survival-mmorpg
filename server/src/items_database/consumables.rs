@@ -1427,11 +1427,11 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
 
         // === PRESERVES ===
         // Long-lasting preserved foods - perfect for winter survival without a pantry
-        ItemBuilder::new("Berry Jam", "Sweet preserved berries cooked with honey. Never spoils and provides excellent nutrition. A taste of summer in the darkest winter.", ItemCategory::Consumable)
+        ItemBuilder::new("Berry Jam", "Sweet preserved berries cooked with honey or sugar. Never spoils and provides excellent nutrition. A taste of summer in the darkest winter.", ItemCategory::Consumable)
             .icon("berry_jam.png")
             .stackable(15)
             .consumable(20.0, 30.0, 15.0) // Good nutrition, slightly sweet
-            .preserved() // Never spoils - honey acts as preservative
+            .preserved() // Never spoils - sugar acts as preservative
             .flexible_ingredient("Any Berry", 3, vec![
                 "Lingonberries",
                 "Cloudberries",
@@ -1442,8 +1442,9 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
                 "Cranberries",
                 "Nagoonberries",
             ])
-            .crafting_cost(vec![
-                CostIngredient { item_name: "Honey".to_string(), quantity: 1 },
+            .flexible_ingredient("Any Sweetener", 1, vec![
+                "Honey",
+                "Sugar Packets",
             ])
             .crafting_output(2, 8)
             .requires_station("Cooking Station")

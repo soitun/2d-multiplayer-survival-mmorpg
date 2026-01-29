@@ -128,7 +128,7 @@ import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarb
 import { renderRuneStoneNightLight } from '../utils/renderers/runeStoneRenderingUtils';
 import { renderAllShipwreckNightLights, renderAllShipwreckDebugZones } from '../utils/renderers/shipwreckRenderingUtils';
 import { preloadCairnImages } from '../utils/renderers/cairnRenderingUtils';
-import { renderTree } from '../utils/renderers/treeRenderingUtils';
+import { renderTree, renderTreeCanopyShadowsOverlay } from '../utils/renderers/treeRenderingUtils';
 import { renderTillerPreview } from '../utils/renderers/tillerPreviewRenderingUtils';
 import { renderCloudsDirectly } from '../utils/renderers/cloudRenderingUtils';
 import { useFallingTreeAnimations } from '../hooks/useFallingTreeAnimations';
@@ -3372,11 +3372,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     } // End of else block for swimming players exist
     // --- END Y-SORTED ENTITIES AND SWIMMING PLAYER TOP HALVES ---
 
-    // --- Tree Canopy Shadows ---
-    // REMOVED: renderTreeCanopyShadowsOverlay call
-    // Canopy shadows are now rendered as part of each tree's Y-sorted rendering pass
-    // This ensures shadows from trees behind don't appear on top of tree canopies in front
-    // See renderTree() with renderCanopyShadow=true in renderYSortedEntities
+    // --- Render Tree Canopy Shadow Overlays ---
+    // These render AFTER all Y-sorted entities so shadows appear ON TOP of players (shade effect)
+    // The overlay uses Y-sorted compositing to ensure shadows from trees behind
+    // don't appear on tree canopies that are in front (higher Y = closer to camera)
+    // NOTE: Canopy shadows are skipped at night (no sunlight to cast shadows)
+    if (visibleTrees && visibleTrees.length > 0) {
+      renderTreeCanopyShadowsOverlay(ctx, visibleTrees, now_ms, isTreeFalling, worldState?.timeOfDay);
+    }
     // --- END TREE CANOPY SHADOWS ---
 
     // --- Render animal burrow effects (dirt particles when animals burrow underground) ---

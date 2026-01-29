@@ -270,9 +270,19 @@ pub fn process_beehive_production(ctx: &ReducerContext, _schedule: BeehiveProces
             continue; // Not a Queen Bee, skip
         }
         
-        // Check production timer
-        let last_production = get_beehive_production_timestamp(&queen_bee)
-            .unwrap_or(current_time); // Default to now if no timestamp
+        // Check production timer - initialize if missing
+        let last_production = match get_beehive_production_timestamp(&queen_bee) {
+            Some(ts) => ts,
+            None => {
+                // No timestamp exists - initialize it now so client can show progress
+                if let Some(mut queen) = inventory_items.instance_id().find(queen_bee_instance_id) {
+                    set_beehive_production_timestamp(&mut queen, current_time);
+                    inventory_items.instance_id().update(queen);
+                    log::info!("[Beehive] Initialized production timer for Queen Bee in beehive {}", beehive.id);
+                }
+                current_time
+            }
+        };
         
         let elapsed_micros = current_time.to_micros_since_unix_epoch() - last_production.to_micros_since_unix_epoch();
         let elapsed_secs = elapsed_micros / 1_000_000;

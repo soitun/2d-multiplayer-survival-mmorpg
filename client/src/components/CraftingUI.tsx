@@ -203,28 +203,70 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
         }
     };
 
-    // --- Helper to calculate max craftable quantity ---
-    const calculateMaxCraftable = (recipe: Recipe): number => {
-        if (!recipe.ingredients || recipe.ingredients.length === 0) return 0; // Cannot craft if no ingredients
-
-        let maxPossible = Infinity;
-        for (const ingredient of recipe.ingredients) {
-            const available = playerInventoryResources.get(ingredient.itemDefId.toString()) || 0;
-            if (ingredient.quantity === 0) continue; // Should not happen, but avoid division by zero
-            maxPossible = Math.min(maxPossible, Math.floor(available / ingredient.quantity));
+    // --- Helper to get flexible ingredient info for a recipe ---
+    // Returns a map of item_def_id (first option) -> { groupName, validItemDefIds[], totalRequired }
+    const getFlexibleIngredientInfo = useCallback((recipe: Recipe): Map<string, { groupName: string; validItemDefIds: string[]; totalRequired: number }> => {
+        const flexMap = new Map<string, { groupName: string; validItemDefIds: string[]; totalRequired: number }>();
+        
+        const outputDef = itemDefinitions.get(recipe.outputItemDefId.toString());
+        if (!outputDef?.flexibleIngredients) return flexMap;
+        
+        for (const flexIng of outputDef.flexibleIngredients) {
+            // Find the item_def_id for each valid item name
+            const validIds: string[] = [];
+            for (const itemName of flexIng.validItems) {
+                for (const [id, def] of itemDefinitions) {
+                    if (def.name === itemName) {
+                        validIds.push(id);
+                        break;
+                    }
+                }
+            }
+            
+            // The first valid ID is what's stored in recipe.ingredients
+            if (validIds.length > 0) {
+                flexMap.set(validIds[0], {
+                    groupName: flexIng.groupName,
+                    validItemDefIds: validIds,
+                    totalRequired: flexIng.totalRequired
+                });
+            }
         }
-        return maxPossible === Infinity ? 0 : maxPossible; // If loop didn't run (e.g. no ingredients with quantity > 0), return 0
-    };
+        
+        return flexMap;
+    }, [itemDefinitions]);
 
     // --- Helper to check craftability ---
     const canCraft = (recipe: Recipe, quantity: number = 1): boolean => {
+        if (!recipe.ingredients || recipe.ingredients.length === 0) return false;
+        
+        const flexInfo = getFlexibleIngredientInfo(recipe);
+        
         for (const ingredient of recipe.ingredients) {
-            const available = playerInventoryResources.get(ingredient.itemDefId.toString()) || 0;
-            if (available < ingredient.quantity * quantity) { // Check against total needed
+            const ingIdStr = ingredient.itemDefId.toString();
+            const flex = flexInfo.get(ingIdStr);
+            
+            let available: number;
+            let required: number;
+            
+            if (flex) {
+                // Flexible ingredient - sum up all valid items
+                available = flex.validItemDefIds.reduce((sum, id) => {
+                    return sum + (playerInventoryResources.get(id) || 0);
+                }, 0);
+                required = flex.totalRequired * quantity;
+            } else {
+                // Fixed ingredient
+                available = playerInventoryResources.get(ingIdStr) || 0;
+                required = ingredient.quantity * quantity;
+            }
+            
+            if (available < required) {
                 return false;
             }
         }
-        return recipe.ingredients.length > 0; // Also ensure there are ingredients
+        
+        return true;
     };
 
     // --- Helper to check Memory Grid unlock status ---

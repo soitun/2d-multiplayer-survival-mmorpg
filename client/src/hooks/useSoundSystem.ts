@@ -1053,6 +1053,22 @@ const shouldUseSeamlessLooping = (filename: string): boolean => {
     return seamlessFilenames.includes(filename);
 };
 
+// 🎯 VIEWPORT CAP: Certain looping sounds should only have ONE instance playing in the entire viewport
+// regardless of how many objects are making that sound. This prevents audio overload.
+// The single instance uses the closest object for volume calculation.
+const VIEWPORT_CAPPED_SOUNDS: Set<string> = new Set([
+    'bees_buzzing.mp3',      // Beehive buzzing - one instance for all beehives in viewport
+    'campfire_looping.mp3',  // Campfire crackling - one instance for all campfires in viewport
+    'lantern_looping.mp3',   // Lantern flickering - one instance for all lanterns in viewport
+]);
+
+// Track which viewport-capped sounds are currently playing (by filename)
+const activeViewportCappedSounds = new Map<string, {
+    objectId: string;
+    audioInstance: HTMLAudioElement | null;
+    seamlessSound: boolean;
+}>();
+
 // Main sound system hook
 export const useSoundSystem = ({ 
     soundEvents,
@@ -1307,27 +1323,215 @@ export const useSoundSystem = ({
 
         // console.log(`🔊 Processing ${continuousSounds.size} continuous sounds... Player at (${localPlayerPosition.x.toFixed(1)}, ${localPlayerPosition.y.toFixed(1)})`);
         const currentActiveSounds = new Set<string>();
+        
+        // 🎯 VIEWPORT CAP: Group viewport-capped sounds and find closest for each type
+        const viewportCappedGroups = new Map<string, { 
+            closestObjectId: string;
+            closestDistance: number;
+            closestSound: SpacetimeDB.ContinuousSound;
+            allObjectIds: Set<string>;
+        }>();
 
-        // First pass: Handle inactive sounds and build active sounds set
+        // First pass: Handle inactive sounds, build active sounds set, and group viewport-capped sounds
         continuousSounds.forEach((continuousSound, soundId) => {
             const objectId = continuousSound.objectId.toString();
             
             // console.log(`🔊 Processing sound for object ${objectId}: isActive=${continuousSound.isActive}, filename=${continuousSound.filename}, pos=(${continuousSound.posX}, ${continuousSound.posY}), volume=${continuousSound.volume}, maxDistance=${continuousSound.maxDistance}`);
             
             if (continuousSound.isActive) {
-                currentActiveSounds.add(objectId);
+                // Check if this is a viewport-capped sound
+                if (VIEWPORT_CAPPED_SOUNDS.has(continuousSound.filename)) {
+                    // Group by filename for viewport-capped sounds
+                    const filename = continuousSound.filename;
+                    const distance = calculateDistance(
+                        continuousSound.posX,
+                        continuousSound.posY,
+                        localPlayerPosition.x,
+                        localPlayerPosition.y
+                    );
+                    
+                    if (!viewportCappedGroups.has(filename)) {
+                        viewportCappedGroups.set(filename, {
+                            closestObjectId: objectId,
+                            closestDistance: distance,
+                            closestSound: continuousSound,
+                            allObjectIds: new Set([objectId]),
+                        });
+                    } else {
+                        const group = viewportCappedGroups.get(filename)!;
+                        group.allObjectIds.add(objectId);
+                        // Track the closest object for volume calculation
+                        if (distance < group.closestDistance) {
+                            group.closestObjectId = objectId;
+                            group.closestDistance = distance;
+                            group.closestSound = continuousSound;
+                        }
+                    }
+                    // Don't add individual object IDs to currentActiveSounds for viewport-capped sounds
+                    // We'll add a synthetic "master" ID later
+                } else {
+                    currentActiveSounds.add(objectId);
+                }
             } else {
                 // Handle inactive sounds - stop them immediately with proper cleanup
-                cleanupLoopingSound(objectId, "marked inactive");
+                // For viewport-capped sounds, we need special handling
+                if (VIEWPORT_CAPPED_SOUNDS.has(continuousSound.filename)) {
+                    // Don't cleanup individual object IDs for viewport-capped sounds
+                    // They share a master sound instance
+                } else {
+                    cleanupLoopingSound(objectId, "marked inactive");
+                }
+            }
+        });
+        
+        // 🎯 Process viewport-capped sound groups - only ONE sound instance per type
+        viewportCappedGroups.forEach((group, filename) => {
+            // Use a synthetic "master" ID for this sound type (based on filename)
+            const masterObjectId = `viewport_cap_${filename}`;
+            currentActiveSounds.add(masterObjectId);
+            
+            // Track which viewport-capped sounds are currently active
+            const existingCap = activeViewportCappedSounds.get(filename);
+            if (!existingCap) {
+                activeViewportCappedSounds.set(filename, {
+                    objectId: masterObjectId,
+                    audioInstance: null,
+                    seamlessSound: shouldUseSeamlessLooping(filename),
+                });
+            }
+        });
+        
+        // Clean up viewport-capped sounds that no longer have any active objects
+        activeViewportCappedSounds.forEach((cap, filename) => {
+            if (!viewportCappedGroups.has(filename)) {
+                // No more active objects for this sound type - clean up
+                cleanupLoopingSound(cap.objectId, "no active viewport-capped objects");
+                activeViewportCappedSounds.delete(filename);
             }
         });
 
-        // Second pass: Process active sounds
+        // 🎯 Second pass: Process viewport-capped sound groups FIRST (before individual sounds)
+        viewportCappedGroups.forEach((group, filename) => {
+            const masterObjectId = `viewport_cap_${filename}`;
+            const closestSound = group.closestSound;
+            
+            // Check if we're already playing this viewport-capped sound OR if it's being created
+            const existingSound = activeLoopingSounds.get(masterObjectId);
+            const existingSeamlessSound = activeSeamlessLoopingSounds.get(masterObjectId);
+            const isBeingCreated = pendingSoundCreationRef.current.has(masterObjectId);
+            
+            if (isBeingCreated) {
+                return;
+            }
+            
+            // Calculate volume based on closest object
+            const distance = group.closestDistance;
+            const volume = calculateSpatialVolume(
+                distance,
+                closestSound.volume,
+                closestSound.maxDistance
+            ) * masterVolume;
+            
+            if (existingSeamlessSound) {
+                // Update existing seamless sound volume
+                existingSeamlessSound.volume = volume;
+                if (volume <= 0.01) {
+                    if (!existingSeamlessSound.primary.paused) existingSeamlessSound.primary.pause();
+                    if (!existingSeamlessSound.secondary.paused) existingSeamlessSound.secondary.pause();
+                } else {
+                    const activeAudio = existingSeamlessSound.isPrimaryActive ? 
+                                       existingSeamlessSound.primary : existingSeamlessSound.secondary;
+                    existingSeamlessSound.primary.volume = Math.min(1.0, volume);
+                    existingSeamlessSound.secondary.volume = Math.min(1.0, volume);
+                    if (activeAudio.paused) {
+                        activeAudio.play().catch(err => {
+                            console.warn(`🎯 Failed to resume viewport-capped seamless sound ${filename}:`, err);
+                        });
+                    }
+                }
+                return;
+            }
+            
+            if (existingSound) {
+                // Update existing traditional looping sound volume
+                existingSound.volume = Math.min(1.0, volume);
+                if (volume <= 0.01) {
+                    if (!existingSound.paused) existingSound.pause();
+                } else if (existingSound.paused) {
+                    existingSound.play().catch(err => {
+                        console.warn(`🎯 Failed to resume viewport-capped sound ${filename}:`, err);
+                    });
+                }
+                return;
+            }
+            
+            // Need to start a new viewport-capped sound
+            if (volume <= 0.01) return; // Too far from all objects
+            
+            pendingSoundCreationRef.current.add(masterObjectId);
+            
+            const startViewportCappedSound = async () => {
+                try {
+                    if (activeLoopingSounds.has(masterObjectId) || activeSeamlessLoopingSounds.has(masterObjectId)) {
+                        pendingSoundCreationRef.current.delete(masterObjectId);
+                        return;
+                    }
+                    
+                    const useSeamless = shouldUseSeamlessLooping(filename);
+                    
+                    if (useSeamless) {
+                        const pitchVariation = 0.95 + Math.random() * 0.1;
+                        const success = await createSeamlessLoopingSound(masterObjectId, filename, volume, pitchVariation);
+                        if (success) {
+                            console.log(`🎯 Started viewport-capped seamless sound: ${filename} (${group.allObjectIds.size} objects in range)`);
+                        }
+                    } else {
+                        const audio = await getAudio(filename);
+                        if (!audio) {
+                            pendingSoundCreationRef.current.delete(masterObjectId);
+                            return;
+                        }
+                        
+                        const audioClone = audio.cloneNode() as HTMLAudioElement;
+                        audioClone.loop = true;
+                        audioClone.volume = Math.min(1.0, Math.max(0.0, volume));
+                        audioClone.currentTime = 0;
+                        audioClone.playbackRate = 0.9 + Math.random() * 0.2;
+                        
+                        activeLoopingSounds.set(masterObjectId, audioClone);
+                        
+                        try {
+                            await audioClone.play();
+                            console.log(`🎯 Started viewport-capped sound: ${filename} (${group.allObjectIds.size} objects in range)`);
+                        } catch (playError: any) {
+                            activeLoopingSounds.delete(masterObjectId);
+                            if (playError.name !== 'NotAllowedError' && playError.name !== 'NotSupportedError') {
+                                console.warn(`🎯 Failed to start viewport-capped sound ${filename}:`, playError);
+                            }
+                        }
+                    }
+                    
+                    pendingSoundCreationRef.current.delete(masterObjectId);
+                } catch (error) {
+                    console.warn(`🎯 Failed to start viewport-capped sound ${filename}:`, error);
+                    pendingSoundCreationRef.current.delete(masterObjectId);
+                }
+            };
+            
+            startViewportCappedSound();
+        });
+
+        // Third pass: Process regular active sounds (skip viewport-capped sounds)
         continuousSounds.forEach((continuousSound, soundId) => {
             const objectId = continuousSound.objectId.toString();
             
             // Skip inactive sounds - already handled above
             if (!continuousSound.isActive) {
+                return;
+            }
+            
+            // 🎯 Skip viewport-capped sounds - they're handled in the viewport-capped pass above
+            if (VIEWPORT_CAPPED_SOUNDS.has(continuousSound.filename)) {
                 return;
             }
             
@@ -1671,7 +1875,7 @@ export const useSoundSystem = ({
             startLoopingSound();
         });
 
-        // Third pass: Stop sounds for objects that are no longer active
+        // Fourth pass: Stop sounds for objects that are no longer active
         for (const [objectId] of activeLoopingSounds.entries()) {
             if (!currentActiveSounds.has(objectId)) {
                 cleanupLoopingSound(objectId, "removed/inactive object");
