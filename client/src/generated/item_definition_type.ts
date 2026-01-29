@@ -39,6 +39,9 @@ declare type __keep_TargetType = TargetType;
 import { CostIngredient } from "./cost_ingredient_type";
 // Mark import as potentially unused
 declare type __keep_CostIngredient = CostIngredient;
+import { FlexibleIngredient } from "./flexible_ingredient_type";
+// Mark import as potentially unused
+declare type __keep_FlexibleIngredient = FlexibleIngredient;
 import { DamageType } from "./damage_type_type";
 // Mark import as potentially unused
 declare type __keep_DamageType = DamageType;
@@ -73,6 +76,8 @@ export type ItemDefinition = {
   bleedDurationSeconds: number | undefined,
   bleedTickIntervalSeconds: number | undefined,
   craftingCost: CostIngredient[] | undefined,
+  alternativeCraftingCosts: CostIngredient[][] | undefined,
+  flexibleIngredients: FlexibleIngredient[] | undefined,
   craftingOutputQuantity: number | undefined,
   craftingTimeSecs: number | undefined,
   requiresStation: string | undefined,
@@ -105,6 +110,8 @@ export type ItemDefinition = {
   ammoType: AmmoType | undefined,
   attackArcDegrees: number | undefined,
   waterSpeedBonus: number | undefined,
+  isPreserved: boolean,
+  spoilsAfterHours: number | undefined,
 };
 let _cached_ItemDefinition_type_value: __AlgebraicTypeType | null = null;
 
@@ -142,6 +149,8 @@ export const ItemDefinition = {
       { name: "bleedDurationSeconds", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
       { name: "bleedTickIntervalSeconds", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
       { name: "craftingCost", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.Array(CostIngredient.getTypeScriptAlgebraicType())) },
+      { name: "alternativeCraftingCosts", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.Array(__AlgebraicTypeValue.Array(CostIngredient.getTypeScriptAlgebraicType()))) },
+      { name: "flexibleIngredients", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.Array(FlexibleIngredient.getTypeScriptAlgebraicType())) },
       { name: "craftingOutputQuantity", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
       { name: "craftingTimeSecs", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
       { name: "requiresStation", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
@@ -174,6 +183,8 @@ export const ItemDefinition = {
       { name: "ammoType", algebraicType: __AlgebraicTypeValue.createOptionType(AmmoType.getTypeScriptAlgebraicType()) },
       { name: "attackArcDegrees", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
       { name: "waterSpeedBonus", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
+      { name: "isPreserved", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "spoilsAfterHours", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
     );
     return _cached_ItemDefinition_type_value;
   },

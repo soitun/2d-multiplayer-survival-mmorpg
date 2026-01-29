@@ -43,7 +43,8 @@ export type AnimalSpecies = AnimalSpeciesVariants.CinderFox |
   AnimalSpeciesVariants.SalmonShark |
   AnimalSpeciesVariants.Shorebound |
   AnimalSpeciesVariants.Shardkin |
-  AnimalSpeciesVariants.DrownedWatch;
+  AnimalSpeciesVariants.DrownedWatch |
+  AnimalSpeciesVariants.Bee;
 
 let _cached_AnimalSpecies_type_value: __AlgebraicTypeType | null = null;
 
@@ -69,6 +70,7 @@ export const AnimalSpecies = {
   Shorebound: { tag: "Shorebound" } as const,
   Shardkin: { tag: "Shardkin" } as const,
   DrownedWatch: { tag: "DrownedWatch" } as const,
+  Bee: { tag: "Bee" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_AnimalSpecies_type_value) return _cached_AnimalSpecies_type_value;
@@ -88,6 +90,7 @@ export const AnimalSpecies = {
       { name: "Shorebound", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Shardkin", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DrownedWatch", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Bee", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_AnimalSpecies_type_value;
   },

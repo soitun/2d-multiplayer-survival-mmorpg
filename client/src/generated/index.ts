@@ -167,6 +167,10 @@ import { EquipArmorFromInventory } from "./equip_armor_from_inventory_reducer.ts
 export { EquipArmorFromInventory };
 import { ExtinguishLantern } from "./extinguish_lantern_reducer.ts";
 export { ExtinguishLantern };
+import { ExtractQueenBee } from "./extract_queen_bee_reducer.ts";
+export { ExtractQueenBee };
+import { ExtractYeast } from "./extract_yeast_reducer.ts";
+export { ExtractYeast };
 import { FillEquippedWaterContainers } from "./fill_equipped_water_containers_reducer.ts";
 export { FillEquippedWaterContainers };
 import { FillWaterContainer } from "./fill_water_container_reducer.ts";
@@ -245,6 +249,12 @@ import { ManualCleanupThunderEvents } from "./manual_cleanup_thunder_events_redu
 export { ManualCleanupThunderEvents };
 import { MarkSovaIntroSeen } from "./mark_sova_intro_seen_reducer.ts";
 export { MarkSovaIntroSeen };
+import { MashBerries } from "./mash_berries_reducer.ts";
+export { MashBerries };
+import { MashStarch } from "./mash_starch_reducer.ts";
+export { MashStarch };
+import { MilkAnimal } from "./milk_animal_reducer.ts";
+export { MilkAnimal };
 import { MoveItemFromBarbecueToPlayerSlot } from "./move_item_from_barbecue_to_player_slot_reducer.ts";
 export { MoveItemFromBarbecueToPlayerSlot };
 import { MoveItemFromBox } from "./move_item_from_box_reducer.ts";
@@ -555,6 +565,8 @@ import { RespawnMineCarts } from "./respawn_mine_carts_reducer.ts";
 export { RespawnMineCarts };
 import { RespawnRandomly } from "./respawn_randomly_reducer.ts";
 export { RespawnRandomly };
+import { RespawnWildBeehives } from "./respawn_wild_beehives_reducer.ts";
+export { RespawnWildBeehives };
 import { ReviveKnockedOutPlayer } from "./revive_knocked_out_player_reducer.ts";
 export { ReviveKnockedOutPlayer };
 import { RevokePlayerBuildingPrivilege } from "./revoke_player_building_privilege_reducer.ts";
@@ -1103,6 +1115,8 @@ import { WildAnimalTableHandle } from "./wild_animal_table.ts";
 export { WildAnimalTableHandle };
 import { WildAnimalAiScheduleTableHandle } from "./wild_animal_ai_schedule_table.ts";
 export { WildAnimalAiScheduleTableHandle };
+import { WildBeehiveRespawnScheduleTableHandle } from "./wild_beehive_respawn_schedule_table.ts";
+export { WildBeehiveRespawnScheduleTableHandle };
 import { WoodenStorageBoxTableHandle } from "./wooden_storage_box_table.ts";
 export { WoodenStorageBoxTableHandle };
 import { WorldChunkDataTableHandle } from "./world_chunk_data_table.ts";
@@ -1279,6 +1293,8 @@ import { FishTrapProcessSchedule } from "./fish_trap_process_schedule_type.ts";
 export { FishTrapProcessSchedule };
 import { FishingSession } from "./fishing_session_type.ts";
 export { FishingSession };
+import { FlexibleIngredient } from "./flexible_ingredient_type.ts";
+export { FlexibleIngredient };
 import { FoodPoisoningRisk } from "./food_poisoning_risk_type.ts";
 export { FoodPoisoningRisk };
 import { FoodSpoilageSchedule } from "./food_spoilage_schedule_type.ts";
@@ -1559,6 +1575,8 @@ import { WildAnimal } from "./wild_animal_type.ts";
 export { WildAnimal };
 import { WildAnimalAiSchedule } from "./wild_animal_ai_schedule_type.ts";
 export { WildAnimalAiSchedule };
+import { WildBeehiveRespawnSchedule } from "./wild_beehive_respawn_schedule_type.ts";
+export { WildBeehiveRespawnSchedule };
 import { WoodenStorageBox } from "./wooden_storage_box_type.ts";
 export { WoodenStorageBox };
 import { WorldChunkData } from "./world_chunk_data_type.ts";
@@ -3066,6 +3084,15 @@ const REMOTE_MODULE = {
         colType: (WildAnimalAiSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    wild_beehive_respawn_schedule: {
+      tableName: "wild_beehive_respawn_schedule" as const,
+      rowType: WildBeehiveRespawnSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "scheduledId",
+      primaryKeyInfo: {
+        colName: "scheduledId",
+        colType: (WildBeehiveRespawnSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     wooden_storage_box: {
       tableName: "wooden_storage_box" as const,
       rowType: WoodenStorageBox.getTypeScriptAlgebraicType(),
@@ -3376,6 +3403,14 @@ const REMOTE_MODULE = {
       reducerName: "extinguish_lantern",
       argsType: ExtinguishLantern.getTypeScriptAlgebraicType(),
     },
+    extract_queen_bee: {
+      reducerName: "extract_queen_bee",
+      argsType: ExtractQueenBee.getTypeScriptAlgebraicType(),
+    },
+    extract_yeast: {
+      reducerName: "extract_yeast",
+      argsType: ExtractYeast.getTypeScriptAlgebraicType(),
+    },
     fill_equipped_water_containers: {
       reducerName: "fill_equipped_water_containers",
       argsType: FillEquippedWaterContainers.getTypeScriptAlgebraicType(),
@@ -3531,6 +3566,18 @@ const REMOTE_MODULE = {
     mark_sova_intro_seen: {
       reducerName: "mark_sova_intro_seen",
       argsType: MarkSovaIntroSeen.getTypeScriptAlgebraicType(),
+    },
+    mash_berries: {
+      reducerName: "mash_berries",
+      argsType: MashBerries.getTypeScriptAlgebraicType(),
+    },
+    mash_starch: {
+      reducerName: "mash_starch",
+      argsType: MashStarch.getTypeScriptAlgebraicType(),
+    },
+    milk_animal: {
+      reducerName: "milk_animal",
+      argsType: MilkAnimal.getTypeScriptAlgebraicType(),
     },
     move_item_from_barbecue_to_player_slot: {
       reducerName: "move_item_from_barbecue_to_player_slot",
@@ -4152,6 +4199,10 @@ const REMOTE_MODULE = {
       reducerName: "respawn_randomly",
       argsType: RespawnRandomly.getTypeScriptAlgebraicType(),
     },
+    respawn_wild_beehives: {
+      reducerName: "respawn_wild_beehives",
+      argsType: RespawnWildBeehives.getTypeScriptAlgebraicType(),
+    },
     revive_knocked_out_player: {
       reducerName: "revive_knocked_out_player",
       argsType: ReviveKnockedOutPlayer.getTypeScriptAlgebraicType(),
@@ -4678,6 +4729,8 @@ export type Reducer = never
 | { name: "EquipArmorFromDrag", args: EquipArmorFromDrag }
 | { name: "EquipArmorFromInventory", args: EquipArmorFromInventory }
 | { name: "ExtinguishLantern", args: ExtinguishLantern }
+| { name: "ExtractQueenBee", args: ExtractQueenBee }
+| { name: "ExtractYeast", args: ExtractYeast }
 | { name: "FillEquippedWaterContainers", args: FillEquippedWaterContainers }
 | { name: "FillWaterContainer", args: FillWaterContainer }
 | { name: "FillWaterContainerFromNaturalSource", args: FillWaterContainerFromNaturalSource }
@@ -4717,6 +4770,9 @@ export type Reducer = never
 | { name: "ManageSeasonalPlants", args: ManageSeasonalPlants }
 | { name: "ManualCleanupThunderEvents", args: ManualCleanupThunderEvents }
 | { name: "MarkSovaIntroSeen", args: MarkSovaIntroSeen }
+| { name: "MashBerries", args: MashBerries }
+| { name: "MashStarch", args: MashStarch }
+| { name: "MilkAnimal", args: MilkAnimal }
 | { name: "MoveItemFromBarbecueToPlayerSlot", args: MoveItemFromBarbecueToPlayerSlot }
 | { name: "MoveItemFromBox", args: MoveItemFromBox }
 | { name: "MoveItemFromBrothPot", args: MoveItemFromBrothPot }
@@ -4872,6 +4928,7 @@ export type Reducer = never
 | { name: "RespawnMilitaryRations", args: RespawnMilitaryRations }
 | { name: "RespawnMineCarts", args: RespawnMineCarts }
 | { name: "RespawnRandomly", args: RespawnRandomly }
+| { name: "RespawnWildBeehives", args: RespawnWildBeehives }
 | { name: "ReviveKnockedOutPlayer", args: ReviveKnockedOutPlayer }
 | { name: "RevokePlayerBuildingPrivilege", args: RevokePlayerBuildingPrivilege }
 | { name: "ScheduleNextBarbecueProcessing", args: ScheduleNextBarbecueProcessing }
@@ -6036,6 +6093,38 @@ export class RemoteReducers {
     this.connection.offReducer("extinguish_lantern", callback);
   }
 
+  extractQueenBee(itemInstanceId: bigint) {
+    const __args = { itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    ExtractQueenBee.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("extract_queen_bee", __argsBuffer, this.setCallReducerFlags.extractQueenBeeFlags);
+  }
+
+  onExtractQueenBee(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("extract_queen_bee", callback);
+  }
+
+  removeOnExtractQueenBee(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("extract_queen_bee", callback);
+  }
+
+  extractYeast(itemInstanceId: bigint) {
+    const __args = { itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    ExtractYeast.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("extract_yeast", __argsBuffer, this.setCallReducerFlags.extractYeastFlags);
+  }
+
+  onExtractYeast(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("extract_yeast", callback);
+  }
+
+  removeOnExtractYeast(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("extract_yeast", callback);
+  }
+
   fillEquippedWaterContainers(args: WaterContainerFillSchedule) {
     const __args = { args };
     let __writer = new __BinaryWriter(1024);
@@ -6590,6 +6679,54 @@ export class RemoteReducers {
 
   removeOnMarkSovaIntroSeen(callback: (ctx: ReducerEventContext) => void) {
     this.connection.offReducer("mark_sova_intro_seen", callback);
+  }
+
+  mashBerries(itemInstanceId: bigint) {
+    const __args = { itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    MashBerries.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("mash_berries", __argsBuffer, this.setCallReducerFlags.mashBerriesFlags);
+  }
+
+  onMashBerries(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("mash_berries", callback);
+  }
+
+  removeOnMashBerries(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("mash_berries", callback);
+  }
+
+  mashStarch(itemInstanceId: bigint) {
+    const __args = { itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    MashStarch.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("mash_starch", __argsBuffer, this.setCallReducerFlags.mashStarchFlags);
+  }
+
+  onMashStarch(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("mash_starch", callback);
+  }
+
+  removeOnMashStarch(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("mash_starch", callback);
+  }
+
+  milkAnimal(animalId: bigint) {
+    const __args = { animalId };
+    let __writer = new __BinaryWriter(1024);
+    MilkAnimal.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("milk_animal", __argsBuffer, this.setCallReducerFlags.milkAnimalFlags);
+  }
+
+  onMilkAnimal(callback: (ctx: ReducerEventContext, animalId: bigint) => void) {
+    this.connection.onReducer("milk_animal", callback);
+  }
+
+  removeOnMilkAnimal(callback: (ctx: ReducerEventContext, animalId: bigint) => void) {
+    this.connection.offReducer("milk_animal", callback);
   }
 
   moveItemFromBarbecueToPlayerSlot(barbecueId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) {
@@ -9052,6 +9189,22 @@ export class RemoteReducers {
     this.connection.offReducer("respawn_randomly", callback);
   }
 
+  respawnWildBeehives(schedule: WildBeehiveRespawnSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    RespawnWildBeehives.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("respawn_wild_beehives", __argsBuffer, this.setCallReducerFlags.respawnWildBeehivesFlags);
+  }
+
+  onRespawnWildBeehives(callback: (ctx: ReducerEventContext, schedule: WildBeehiveRespawnSchedule) => void) {
+    this.connection.onReducer("respawn_wild_beehives", callback);
+  }
+
+  removeOnRespawnWildBeehives(callback: (ctx: ReducerEventContext, schedule: WildBeehiveRespawnSchedule) => void) {
+    this.connection.offReducer("respawn_wild_beehives", callback);
+  }
+
   reviveKnockedOutPlayer(targetPlayerId: __Identity) {
     const __args = { targetPlayerId };
     let __writer = new __BinaryWriter(1024);
@@ -11039,6 +11192,16 @@ export class SetReducerFlags {
     this.extinguishLanternFlags = flags;
   }
 
+  extractQueenBeeFlags: __CallReducerFlags = 'FullUpdate';
+  extractQueenBee(flags: __CallReducerFlags) {
+    this.extractQueenBeeFlags = flags;
+  }
+
+  extractYeastFlags: __CallReducerFlags = 'FullUpdate';
+  extractYeast(flags: __CallReducerFlags) {
+    this.extractYeastFlags = flags;
+  }
+
   fillEquippedWaterContainersFlags: __CallReducerFlags = 'FullUpdate';
   fillEquippedWaterContainers(flags: __CallReducerFlags) {
     this.fillEquippedWaterContainersFlags = flags;
@@ -11222,6 +11385,21 @@ export class SetReducerFlags {
   markSovaIntroSeenFlags: __CallReducerFlags = 'FullUpdate';
   markSovaIntroSeen(flags: __CallReducerFlags) {
     this.markSovaIntroSeenFlags = flags;
+  }
+
+  mashBerriesFlags: __CallReducerFlags = 'FullUpdate';
+  mashBerries(flags: __CallReducerFlags) {
+    this.mashBerriesFlags = flags;
+  }
+
+  mashStarchFlags: __CallReducerFlags = 'FullUpdate';
+  mashStarch(flags: __CallReducerFlags) {
+    this.mashStarchFlags = flags;
+  }
+
+  milkAnimalFlags: __CallReducerFlags = 'FullUpdate';
+  milkAnimal(flags: __CallReducerFlags) {
+    this.milkAnimalFlags = flags;
   }
 
   moveItemFromBarbecueToPlayerSlotFlags: __CallReducerFlags = 'FullUpdate';
@@ -11997,6 +12175,11 @@ export class SetReducerFlags {
   respawnRandomlyFlags: __CallReducerFlags = 'FullUpdate';
   respawnRandomly(flags: __CallReducerFlags) {
     this.respawnRandomlyFlags = flags;
+  }
+
+  respawnWildBeehivesFlags: __CallReducerFlags = 'FullUpdate';
+  respawnWildBeehives(flags: __CallReducerFlags) {
+    this.respawnWildBeehivesFlags = flags;
   }
 
   reviveKnockedOutPlayerFlags: __CallReducerFlags = 'FullUpdate';
@@ -13367,6 +13550,11 @@ export class RemoteTables {
   get wildAnimalAiSchedule(): WildAnimalAiScheduleTableHandle<'wild_animal_ai_schedule'> {
     // clientCache is a private property
     return new WildAnimalAiScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<WildAnimalAiSchedule>(REMOTE_MODULE.tables.wild_animal_ai_schedule));
+  }
+
+  get wildBeehiveRespawnSchedule(): WildBeehiveRespawnScheduleTableHandle<'wild_beehive_respawn_schedule'> {
+    // clientCache is a private property
+    return new WildBeehiveRespawnScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<WildBeehiveRespawnSchedule>(REMOTE_MODULE.tables.wild_beehive_respawn_schedule));
   }
 
   get woodenStorageBox(): WoodenStorageBoxTableHandle<'wooden_storage_box'> {

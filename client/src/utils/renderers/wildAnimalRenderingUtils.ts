@@ -671,6 +671,10 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
             // Brute - massive, heavy boss-type (96x96 sprite × 2 = 192x192)
             // 2x player size (player is 96x96 render) - the "oh crap" moment
             return { width: 192, height: 192, shadowRadius: 64 };
+        case 'Bee':
+            // Tiny insect - just a small black dot, no shadow
+            // Rendered as a simple circle, not a spritesheet
+            return { width: 6, height: 6, shadowRadius: 0 };
         default:
             return { width: 96, height: 96, shadowRadius: 32 };
     }
@@ -924,11 +928,14 @@ export function renderWildAnimal({
             case 'Shorebound': return '#2C5F2D'; // Dark forest green
             case 'Shardkin': return '#4A0E4E'; // Dark purple
             case 'DrownedWatch': return '#1B3A4B'; // Deep ocean blue
+            case 'Bee': return '#1A1A1A'; // Black (for the tiny bee dot)
             default: return '#9013FE'; // Purple
         }
     };
     
-    const useImageFallback = !animalImage || !animalImage.complete;
+    // Bees are rendered as simple black dots - no spritesheet
+    const isBee = animal.species.tag === 'Bee';
+    const useImageFallback = isBee || !animalImage || !animalImage.complete;
 
     const props = getSpeciesRenderingProps(animal.species);
     
@@ -976,7 +983,8 @@ export function renderWildAnimal({
     }
 
     // Render shadow - flying birds get special detached oval shadows
-    {
+    // Skip shadow for entities with shadowRadius 0 (bees, sharks)
+    if (props.shadowRadius > 0) {
         ctx.save();
         
         // Flying birds (Tern, Crow) get a special detached shadow
@@ -1088,7 +1096,7 @@ export function renderWildAnimal({
             ctx.fill();
         }
         ctx.restore();
-    }
+    } // End shadow rendering for entities with shadowRadius > 0
 
     // 🦈 SALMON SHARK UNDERWATER RENDERING
     // Sharks are always underwater - apply visual effects based on viewer perspective

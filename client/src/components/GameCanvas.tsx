@@ -1140,6 +1140,66 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     return lookup;
   }, [visibleWorldTiles]);
 
+  // 🌊 AMBIENT SOUND: Calculate distance to nearest water tile for ocean ambience proximity
+  // OPTIMIZED: Uses waterTileLookup (O(1) per check) with spiral search pattern
+  // Exits early when water found, max search radius limited to ~17 tiles (800px)
+  // Also throttled - only recalculates when player moves significantly (every ~2 tiles)
+  const lastShoreCheckPosRef = React.useRef({ x: 0, y: 0 });
+  const cachedDistanceToShoreRef = React.useRef(9999);
+  
+  const distanceToShore = useMemo(() => {
+    if (!localPlayer || waterTileLookup.size === 0) {
+      return 9999; // Far from shore if no data
+    }
+    
+    const playerX = localPlayer.positionX;
+    const playerY = localPlayer.positionY;
+    const TILE_SIZE = 48;
+    
+    // THROTTLE: Only recalculate if player moved more than 2 tiles (~96px)
+    const dx = playerX - lastShoreCheckPosRef.current.x;
+    const dy = playerY - lastShoreCheckPosRef.current.y;
+    const movedDistSq = dx * dx + dy * dy;
+    if (movedDistSq < 96 * 96) {
+      return cachedDistanceToShoreRef.current; // Return cached value
+    }
+    
+    // Update last check position
+    lastShoreCheckPosRef.current = { x: playerX, y: playerY };
+    
+    const playerTileX = Math.floor(playerX / TILE_SIZE);
+    const playerTileY = Math.floor(playerY / TILE_SIZE);
+    const MAX_SEARCH_RADIUS = 17; // ~800px / 48px per tile
+    
+    // Spiral search outward from player - check expanding rings
+    // This is O(k) where k = tiles checked, exits early when water found
+    for (let radius = 0; radius <= MAX_SEARCH_RADIUS; radius++) {
+      // Check all tiles at this radius (ring around player)
+      for (let offsetX = -radius; offsetX <= radius; offsetX++) {
+        for (let offsetY = -radius; offsetY <= radius; offsetY++) {
+          // Only check tiles on the current ring edge (not interior - already checked)
+          if (Math.abs(offsetX) !== radius && Math.abs(offsetY) !== radius) continue;
+          
+          const tileKey = `${playerTileX + offsetX},${playerTileY + offsetY}`;
+          if (waterTileLookup.get(tileKey)) {
+            // Found water! Calculate exact distance to tile center
+            const tileWorldX = (playerTileX + offsetX) * TILE_SIZE + TILE_SIZE / 2;
+            const tileWorldY = (playerTileY + offsetY) * TILE_SIZE + TILE_SIZE / 2;
+            const distX = playerX - tileWorldX;
+            const distY = playerY - tileWorldY;
+            const distance = Math.sqrt(distX * distX + distY * distY);
+            cachedDistanceToShoreRef.current = distance;
+            return distance;
+          }
+        }
+      }
+    }
+    
+    // No water found within search radius
+    cachedDistanceToShoreRef.current = 9999;
+    return 9999;
+  }, [localPlayer, waterTileLookup]);
+
   // --- Interaction Finding System ---
   const {
     closestInteractableTarget,
@@ -2204,6 +2264,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // 🌊 AMBIENT SOUND SYSTEM - Seamless atmospheric audio for the Aleutian island
   // Wind sounds use regional weather (checks nearby chunks for stability)
   // When underwater (snorkeling), applies lowpass filter to muffle surface sounds
+  // When indoors, applies mild muffling to outdoor sounds (walls block sound)
   const ambientSoundSystem = useAmbientSounds({
     masterVolume: 1.0, // Master volume (could be made configurable later)
     environmentalVolume: environmentalVolume ?? 0.7, // Use environmental volume from settings or default
@@ -2214,6 +2275,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     activeConsumableEffects, // For detecting Entrainment effect
     localPlayerId, // For detecting Entrainment effect
     isUnderwater: localPlayer?.isSnorkeling ?? false, // Apply muffled audio when underwater
+    currentSeason: worldState?.currentSeason, // Season affects crickets (silent in winter)
+    isIndoors: localPlayer?.isInsideBuilding ?? false, // Muffle outdoor sounds when inside buildings
+    distanceToShore, // Distance to water for ocean sound proximity fading
+    wildAnimals: visibleWildAnimalsMap, // Pass wild animals for bee buzzing proximity
   });
 
   // 🧪 DEBUG: Expose ambient sound test function to window for debugging

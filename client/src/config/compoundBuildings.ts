@@ -579,7 +579,7 @@ const MONUMENT_PART_SIZES: Record<string, { width: number; height: number }> = {
   'mound': { width: 384, height: 384 },
   
   // Hot Spring parts
-  'shack': { width: 384, height: 384 },
+  'shack': { width: 512, height: 512 }, // Increased from 384x384 to match huts/lodges
   
   // Default fallback
   'default': { width: 512, height: 512 },

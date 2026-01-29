@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { TimeOfDay, WeatherType, ActiveConsumableEffect } from '../generated'; // Import actual types
+import { TimeOfDay, WeatherType, ActiveConsumableEffect, Season } from '../generated'; // Import actual types
 import { calculateChunkIndex } from '../utils/chunkUtils'; // Import chunk calculation helper
 import { gameConfig } from '../config/gameConfig'; // Import game config for chunk dimensions
 
@@ -23,6 +23,10 @@ interface AmbientSoundProps {
     activeConsumableEffects?: Map<string, ActiveConsumableEffect>; // For detecting Entrainment effect
     localPlayerId?: string; // For detecting Entrainment effect
     isUnderwater?: boolean; // Whether the player is snorkeling/underwater - affects audio filtering
+    currentSeason?: Season; // Current game season - affects ambient sounds (no crickets in winter)
+    isIndoors?: boolean; // Whether player is inside a building - muffles outdoor sounds
+    distanceToShore?: number; // Distance in pixels to nearest shore/water - fades ocean sounds
+    wildAnimals?: Map<string, any>; // Wild animals for bee buzzing proximity sound
 }
 
 // Ambient sound definitions for Aleutian island atmosphere
@@ -55,10 +59,13 @@ const AMBIENT_SOUND_DEFINITIONS = {
     ocean_ambience: { 
         type: 'continuous', 
         filename: 'ambient_ocean.mp3', 
-        baseVolume: 0.04, // Reduced from 0.3 for subtle background
+        baseVolume: 0.25, // Loud when at shore, fades with distance
         isLooping: true,
         useSeamlessLooping: true,
-        description: 'General ocean waves and surf for island atmosphere'
+        proximityBased: true, // Volume fades based on distance to shore
+        maxProximityDistance: 800, // Pixels - beyond this, volume is 0
+        minProximityDistance: 50, // Pixels - at this distance or closer, full volume
+        description: 'Ocean waves and surf - louder near shore, fades inland'
     },
     nature_general: { 
         type: 'continuous', 
@@ -85,17 +92,50 @@ const AMBIENT_SOUND_DEFINITIONS = {
         underwaterOnly: true, // Only plays when player is underwater
         description: 'Muffled underwater ambience with bubbles and deep water sounds'
     },
+    night_crickets: {
+        type: 'continuous',
+        filename: 'ambient_night_crickets.mp3',
+        baseVolume: 0.15, // Subtle nighttime ambience - not overpowering
+        isLooping: true,
+        useSeamlessLooping: true,
+        nightOnly: true, // Only plays at night/midnight
+        skipInWinter: true, // Crickets are dormant in winter - no sound
+        description: 'Nighttime cricket and insect chorus'
+    },
+    dawn_chorus: {
+        type: 'continuous',
+        filename: 'ambient_dawn_chorus.mp3',
+        baseVolume: 0.18, // Pleasant morning birds - not too loud
+        isLooping: true,
+        useSeamlessLooping: true,
+        dawnOnly: true, // Only plays during dawn period
+        description: 'Morning bird chorus at dawn - fades out when dawn ends'
+    },
+    bee_buzzing: {
+        type: 'continuous',
+        filename: 'bees_buzzing.mp3', // In /sounds/ not /sounds/ambient/
+        baseVolume: 0.35, // Noticeable warning sound
+        isLooping: true,
+        useSeamlessLooping: true,
+        beeProximityBased: true, // Special: volume based on distance to nearest bee
+        maxProximityDistance: 350, // Can hear buzzing from 350px away
+        minProximityDistance: 50, // Full volume within 50px of bee
+        description: 'Bee buzzing - plays ONE loop for all nearby bees, louder when closer'
+    },
     
     // === RANDOM/PERIODIC AMBIENCE ===
     seagull_cry: { 
         type: 'random', 
         filename: 'ambient_seagull_cry.mp3', 
-        baseVolume: 0.125, // Halved from 0.25 for more subtle ambient feel
-        minInterval: 15000, // 15 seconds minimum
-        maxInterval: 45000, // 45 seconds maximum
+        baseVolume: 0.15, // Slightly louder base since proximity will reduce it inland
+        minInterval: 12000, // 12 seconds minimum (more frequent near shore)
+        maxInterval: 40000, // 40 seconds maximum
         variations: 3, // seagull_cry1.mp3, seagull_cry2.mp3, etc.
         dayOnly: true, // Only play during day/dawn/dusk, not night
-        description: 'Seagulls crying in the distance'
+        proximityBased: true, // Volume based on distance to shore
+        maxProximityDistance: 600, // Seagulls heard up to 600px from shore (closer than ocean)
+        minProximityDistance: 50, // Full volume within 50px of shore
+        description: 'Seagulls crying near the shore - louder at coast, silent inland'
     },
     wolf_howl: { 
         type: 'random', 
@@ -189,6 +229,10 @@ const AMBIENT_CONFIG = {
     UNDERWATER_VOLUME_MULTIPLIER: 0.15, // Surface sounds reduced to 15% when underwater
     UNDERWATER_LOWPASS_FREQUENCY: 400, // Hz - cuts high frequencies (water muffles sound)
     UNDERWATER_TRANSITION_DURATION: 300, // ms - fast transition when entering/exiting water
+    // Indoor audio effect configuration (muffled outdoor sounds when inside buildings)
+    INDOOR_VOLUME_MULTIPLIER: 0.35, // Outdoor sounds reduced to 35% when indoors (less extreme than underwater)
+    INDOOR_LOWPASS_FREQUENCY: 800, // Hz - mild muffling (walls block high frequencies)
+    INDOOR_TRANSITION_DURATION: 400, // ms - smooth transition when entering/exiting buildings
 } as const;
 
 // 🎵 SEAMLESS LOOPING SYSTEM - Based on useSoundSystem.ts logic
@@ -487,6 +531,7 @@ interface UnderwaterAudioNode {
 let audioContext: AudioContext | null = null;
 const underwaterAudioNodes = new Map<HTMLAudioElement, UnderwaterAudioNode>();
 let isCurrentlyUnderwater = false;
+let isCurrentlyIndoors = false; // Track indoor state for muffling outdoor sounds
 
 /**
  * Initialize or get the shared AudioContext
@@ -626,6 +671,95 @@ const setGlobalUnderwaterState = (isUnderwater: boolean) => {
     // Apply to any currently playing random sounds (all random sounds get muffled)
     activeRandomSounds.forEach((audio) => {
         applyUnderwaterEffect(audio, isUnderwater);
+    });
+};
+
+/**
+ * Apply indoor muffling effect to a specific audio element
+ * Indoor muffling is less extreme than underwater - walls muffle but don't fully block sound
+ */
+const applyIndoorEffect = (audio: HTMLAudioElement, shouldBeIndoors: boolean) => {
+    const node = underwaterAudioNodes.get(audio); // Reuse same audio node structure
+    if (!node) return;
+
+    const ctx = getAudioContext();
+    const currentTime = ctx.currentTime;
+    const transitionDuration = AMBIENT_CONFIG.INDOOR_TRANSITION_DURATION / 1000;
+
+    if (shouldBeIndoors) {
+        // Apply mild lowpass filter and reduce volume (less extreme than underwater)
+        node.filter.frequency.cancelScheduledValues(currentTime);
+        node.filter.frequency.setValueAtTime(node.filter.frequency.value, currentTime);
+        node.filter.frequency.linearRampToValueAtTime(
+            AMBIENT_CONFIG.INDOOR_LOWPASS_FREQUENCY, 
+            currentTime + transitionDuration
+        );
+
+        node.gainNode.gain.cancelScheduledValues(currentTime);
+        node.gainNode.gain.setValueAtTime(node.gainNode.gain.value, currentTime);
+        node.gainNode.gain.linearRampToValueAtTime(
+            AMBIENT_CONFIG.INDOOR_VOLUME_MULTIPLIER, 
+            currentTime + transitionDuration
+        );
+    } else {
+        // Remove filter and restore volume
+        node.filter.frequency.cancelScheduledValues(currentTime);
+        node.filter.frequency.setValueAtTime(node.filter.frequency.value, currentTime);
+        node.filter.frequency.linearRampToValueAtTime(22050, currentTime + transitionDuration);
+
+        node.gainNode.gain.cancelScheduledValues(currentTime);
+        node.gainNode.gain.setValueAtTime(node.gainNode.gain.value, currentTime);
+        node.gainNode.gain.linearRampToValueAtTime(1.0, currentTime + transitionDuration);
+    }
+};
+
+/**
+ * Check if a sound type should be muffled indoors
+ * Underwater and entrainment sounds don't get indoor muffling
+ */
+const shouldMuffleIndoors = (soundType: AmbientSoundType): boolean => {
+    const definition = AMBIENT_SOUND_DEFINITIONS[soundType];
+    // Don't muffle underwater-specific or entrainment sounds
+    if ('underwaterOnly' in definition && definition.underwaterOnly) return false;
+    if (soundType === 'entrainment_ambient') return false;
+    return true;
+};
+
+/**
+ * Apply indoor muffling to ALL currently playing outdoor sounds
+ */
+const setGlobalIndoorState = (indoors: boolean) => {
+    if (isCurrentlyIndoors === indoors) return; // No change
+    
+    isCurrentlyIndoors = indoors;
+    console.log(`🏠 [INDOOR] ${indoors ? 'Entering building - muffling outdoor sounds' : 'Exiting building - restoring outdoor sounds'}`);
+
+    // Apply to all seamless looping sounds (except underwater-specific and entrainment)
+    activeSeamlessLoopingSounds.forEach((seamlessSound, soundType) => {
+        if (!shouldMuffleIndoors(soundType)) return;
+        // Only apply indoor effect if not already underwater (underwater takes precedence)
+        if (!isCurrentlyUnderwater) {
+            applyIndoorEffect(seamlessSound.primary, indoors);
+            applyIndoorEffect(seamlessSound.secondary, indoors);
+        }
+    });
+
+    // Apply to all simple looping sounds
+    const simpleLoopingSounds = (window as any).simpleLoopingSounds;
+    if (simpleLoopingSounds instanceof Map) {
+        simpleLoopingSounds.forEach((audio: HTMLAudioElement, soundType: AmbientSoundType) => {
+            if (!shouldMuffleIndoors(soundType)) return;
+            if (!isCurrentlyUnderwater) {
+                applyIndoorEffect(audio, indoors);
+            }
+        });
+    }
+
+    // Apply to any currently playing random sounds
+    activeRandomSounds.forEach((audio) => {
+        if (!isCurrentlyUnderwater) {
+            applyIndoorEffect(audio, indoors);
+        }
     });
 };
 
@@ -1090,6 +1224,10 @@ export const useAmbientSounds = ({
     activeConsumableEffects,
     localPlayerId,
     isUnderwater = false, // Whether player is snorkeling/underwater
+    currentSeason, // Season affects ambient sounds (no crickets in winter)
+    isIndoors = false, // Whether player is inside a building - muffles outdoor sounds
+    distanceToShore = 0, // Distance in pixels to nearest water - affects ocean sound volume
+    wildAnimals, // Wild animals for bee buzzing proximity
 }: AmbientSoundProps = {}) => {
     // Use a fallback only if environmentalVolume is completely undefined, but allow 0
     const effectiveEnvironmentalVolume = environmentalVolume !== undefined ? environmentalVolume : 0.7;
@@ -1098,6 +1236,36 @@ export const useAmbientSounds = ({
     const lastWeatherRef = useRef(weatherCondition);
     const updateIntervalRef = useRef<number | undefined>(undefined);
     const lastUnderwaterStateRef = useRef(false);
+    const lastIndoorStateRef = useRef(false);
+    const lastDistanceToShoreRef = useRef(distanceToShore);
+    const lastDistanceToBeeRef = useRef<number>(Infinity);
+
+    // 🐝 Calculate distance to nearest bee (for single buzzing loop for all bees)
+    const getDistanceToNearestBee = useCallback((): number => {
+        if (!localPlayer || !wildAnimals || wildAnimals.size === 0) {
+            return Infinity;
+        }
+
+        const playerX = localPlayer.positionX ?? localPlayer.position_x ?? 0;
+        const playerY = localPlayer.positionY ?? localPlayer.position_y ?? 0;
+        
+        let nearestDistance = Infinity;
+        
+        wildAnimals.forEach((animal) => {
+            // Check if this is a bee (species.tag === 'Bee')
+            if (animal.species?.tag !== 'Bee') return;
+            
+            const dx = (animal.posX ?? animal.pos_x ?? 0) - playerX;
+            const dy = (animal.posY ?? animal.pos_y ?? 0) - playerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+            }
+        });
+        
+        return nearestDistance;
+    }, [localPlayer, wildAnimals]);
 
     // console.log(`🌊 [VOLUME DEBUG] useAmbientSounds called with environmentalVolume=${environmentalVolume}, effective=${effectiveEnvironmentalVolume}`);
 
@@ -1167,16 +1335,85 @@ export const useAmbientSounds = ({
             sounds.push('wind_light');
         }
         
-        // Ocean sounds (always present for island atmosphere)
-        // When underwater, this gets muffled but the underwater_ambient provides immersion
-        sounds.push('ocean_ambience');
+        // 🌊 Ocean sounds - only play when near shore (proximity-based)
+        // If distanceToShore is provided and within range, include ocean ambience
+        const oceanDef = AMBIENT_SOUND_DEFINITIONS.ocean_ambience;
+        const maxDist = 'maxProximityDistance' in oceanDef ? oceanDef.maxProximityDistance : 800;
+        if (distanceToShore < maxDist) {
+            sounds.push('ocean_ambience');
+        }
+        
+        // 🦗 Night crickets - only at night, not in winter (insects are dormant)
+        const isNightTime = timeOfDay?.tag === 'Night' || timeOfDay?.tag === 'Midnight';
+        const isWinter = currentSeason?.tag === 'Winter';
+        if (isNightTime && !isWinter) {
+            sounds.push('night_crickets');
+        }
+        
+        // 🐦 Dawn chorus - morning birds during dawn period
+        const isDawn = timeOfDay?.tag === 'Dawn';
+        if (isDawn) {
+            sounds.push('dawn_chorus');
+        }
         
         // General nature ambience (always present but quiet)
         // When underwater, this gets heavily muffled (birds, insects become very faint)
         sounds.push('nature_general');
         
+        // 🐝 Bee buzzing - proximity-based, only plays ONE loop even for multiple bees
+        const distanceToBee = getDistanceToNearestBee();
+        const beeDef = AMBIENT_SOUND_DEFINITIONS.bee_buzzing;
+        const beeMaxDist = 'maxProximityDistance' in beeDef ? beeDef.maxProximityDistance : 350;
+        if (distanceToBee < beeMaxDist && !isUnderwater) {
+            sounds.push('bee_buzzing');
+        }
+        
         return sounds;
-    }, [getCurrentWindIntensity, hasEntrainmentEffect, isUnderwater]);
+    }, [getCurrentWindIntensity, hasEntrainmentEffect, isUnderwater, distanceToShore, timeOfDay, currentSeason, getDistanceToNearestBee]);
+
+    // Calculate volume modifier for proximity-based sounds (ocean, bee buzzing)
+    const getProximityVolumeModifier = useCallback((soundType: AmbientSoundType): number => {
+        const definition = AMBIENT_SOUND_DEFINITIONS[soundType];
+        
+        // 🐝 Bee buzzing uses distance to nearest bee (single loop for all bees)
+        if ('beeProximityBased' in definition && (definition as any).beeProximityBased) {
+            const distanceToBee = getDistanceToNearestBee();
+            const maxDist = 'maxProximityDistance' in definition ? (definition as any).maxProximityDistance : 350;
+            const minDist = 'minProximityDistance' in definition ? (definition as any).minProximityDistance : 50;
+            
+            if (distanceToBee <= minDist) {
+                return 1.0; // Full volume when very close to a bee
+            }
+            if (distanceToBee >= maxDist) {
+                return 0.0; // Silent when far from all bees
+            }
+            
+            // Linear fade between minDist and maxDist
+            const fadeRange = maxDist - minDist;
+            const fadeProgress = (distanceToBee - minDist) / fadeRange;
+            return 1.0 - fadeProgress;
+        }
+        
+        // Shore-based proximity (ocean, seagulls)
+        if (!('proximityBased' in definition) || !definition.proximityBased) {
+            return 1.0; // Full volume for non-proximity sounds
+        }
+        
+        const maxDist = 'maxProximityDistance' in definition ? definition.maxProximityDistance : 800;
+        const minDist = 'minProximityDistance' in definition ? definition.minProximityDistance : 50;
+        
+        if (distanceToShore <= minDist) {
+            return 1.0; // Full volume at/near shore
+        }
+        if (distanceToShore >= maxDist) {
+            return 0.0; // Silent far from shore
+        }
+        
+        // Linear fade between minDist and maxDist
+        const fadeRange = maxDist - minDist;
+        const fadeProgress = (distanceToShore - minDist) / fadeRange;
+        return 1.0 - fadeProgress;
+    }, [distanceToShore, getDistanceToNearestBee]);
 
     // Start a seamless continuous ambient sound
     const startContinuousSound = useCallback(async (soundType: AmbientSoundType) => {
@@ -1193,8 +1430,10 @@ export const useAmbientSounds = ({
             // console.log(`🌊 Starting continuous ambient sound: ${soundType} with environmentalVolume=${effectiveEnvironmentalVolume}`);
             loadingSeamlessSounds.add(soundType);
 
-            const finalVolume = definition.baseVolume * effectiveEnvironmentalVolume;
-            // console.log(`🌊 [VOLUME] ${soundType}: baseVolume=${definition.baseVolume} * environmentalVolume=${effectiveEnvironmentalVolume} = finalVolume=${finalVolume}`);
+            // Apply proximity modifier for sounds like ocean
+            const proximityModifier = getProximityVolumeModifier(soundType);
+            const finalVolume = definition.baseVolume * effectiveEnvironmentalVolume * proximityModifier;
+            // console.log(`🌊 [VOLUME] ${soundType}: baseVolume=${definition.baseVolume} * env=${effectiveEnvironmentalVolume} * proximity=${proximityModifier.toFixed(2)} = ${finalVolume.toFixed(3)}`);
             
             const pitchVariation = 0.95 + Math.random() * 0.1; // Tighter pitch range for seamless sounds
             
@@ -1214,7 +1453,7 @@ export const useAmbientSounds = ({
         } finally {
             loadingSeamlessSounds.delete(soundType);
         }
-    }, [effectiveEnvironmentalVolume]);
+    }, [effectiveEnvironmentalVolume, getProximityVolumeModifier]);
 
     // Stop a continuous ambient sound
     const stopContinuousSound = useCallback(async (soundType: AmbientSoundType) => {
@@ -1267,6 +1506,14 @@ export const useAmbientSounds = ({
                 if (activeRandomSounds.size >= AMBIENT_CONFIG.MAX_CONCURRENT_RANDOM) {
                     return;
                 }
+                
+                // 🌊 Proximity-based sounds: skip entirely if too far from shore
+                if ('proximityBased' in definition && definition.proximityBased) {
+                    const maxDist = definition.maxProximityDistance || 800;
+                    if (distanceToShore > maxDist) {
+                        return; // Too far inland - don't play this sound
+                    }
+                }
 
                 // Choose random variation
                 const variation = definition.variations ? Math.floor(Math.random() * definition.variations) : 0;
@@ -1301,7 +1548,20 @@ export const useAmbientSounds = ({
                     return; // Skip playing this variant - loadAudio already logged the error
                 }
                 
-                const finalVolume = definition.baseVolume * effectiveEnvironmentalVolume;
+                // Calculate volume with proximity modifier for shore-based sounds
+                let proximityModifier = 1.0;
+                if ('proximityBased' in definition && definition.proximityBased) {
+                    const maxDist = definition.maxProximityDistance || 800;
+                    const minDist = definition.minProximityDistance || 50;
+                    if (distanceToShore <= minDist) {
+                        proximityModifier = 1.0; // Full volume when very close
+                    } else {
+                        // Linear falloff from minDist to maxDist
+                        proximityModifier = Math.max(0, 1 - (distanceToShore - minDist) / (maxDist - minDist));
+                    }
+                }
+                
+                const finalVolume = definition.baseVolume * effectiveEnvironmentalVolume * proximityModifier;
 
                 // Start at 0 volume for fade-in
                 audio.volume = 0;
@@ -1350,7 +1610,7 @@ export const useAmbientSounds = ({
         };
 
         scheduleNext();
-    }, [masterVolume, effectiveEnvironmentalVolume, timeOfDay, chunkWeather, localPlayer]);
+    }, [masterVolume, effectiveEnvironmentalVolume, timeOfDay, chunkWeather, localPlayer, distanceToShore]);
 
     // Initialize ambient sound system - ALWAYS ensure update loop is running
     useEffect(() => {
@@ -1467,26 +1727,56 @@ export const useAmbientSounds = ({
         };
     }, []); // No dependencies - always restart the update loop
 
+    // Fade out a seamless sound smoothly before stopping (for time-of-day transitions)
+    const fadeOutAndStopSound = useCallback(async (soundType: AmbientSoundType, fadeMs: number = 2000) => {
+        const seamlessSound = activeSeamlessLoopingSounds.get(soundType);
+        if (!seamlessSound) return;
+        
+        const { primary, secondary } = seamlessSound;
+        const activeAudio = seamlessSound.isPrimaryActive ? primary : secondary;
+        const initialVolume = activeAudio.volume;
+        
+        // Gradual fade out
+        const steps = 40;
+        const stepMs = fadeMs / steps;
+        
+        for (let i = 1; i <= steps; i++) {
+            await new Promise(resolve => setTimeout(resolve, stepMs));
+            const newVolume = initialVolume * (1 - i / steps);
+            primary.volume = Math.max(0, newVolume);
+            secondary.volume = Math.max(0, newVolume);
+        }
+        
+        // Now fully stop
+        await stopContinuousSound(soundType);
+    }, [stopContinuousSound]);
+
     // Manage continuous sounds based on environment
     useEffect(() => {
         const updateContinuousSounds = async () => {
             const targetSounds = getActiveContinuousSounds();
             const currentSounds = Array.from(activeSeamlessLoopingSounds.keys());
 
-            // For wind sounds, do crossfade (start new before stopping old)
+            // Determine which sounds need to start/stop
             const soundsToStop = currentSounds.filter(soundType => !targetSounds.includes(soundType));
             const soundsToStart = targetSounds.filter(soundType => !activeSeamlessLoopingSounds.has(soundType));
             
-            // Check if we're transitioning between wind types
+            // Identify different transition types for appropriate handling
             const isWindTransition = soundsToStop.some(s => s.startsWith('wind_')) && 
                                     soundsToStart.some(s => s.startsWith('wind_'));
+            
+            // Time-of-day sounds that need smooth fade out (dawn_chorus, night_crickets)
+            const timeOfDaySounds = ['dawn_chorus', 'night_crickets'];
+            const timeOfDaySoundsToStop = soundsToStop.filter(s => timeOfDaySounds.includes(s));
+            const otherSoundsToStop = soundsToStop.filter(s => !timeOfDaySounds.includes(s) && 
+                                                                !(isWindTransition && s.startsWith('wind_')));
             
             if (isWindTransition) {
                 // Start new wind sound immediately (with fade-in)
                 const startPromises = soundsToStart.map(soundType => startContinuousSound(soundType));
                 await Promise.all(startPromises);
                 
-                // Wait 1 second for crossfade, then stop old wind sound (with fade-out)
+                // Wait 1 second for crossfade, then stop old wind sound
                 setTimeout(() => {
                     soundsToStop.forEach(soundType => {
                         if (soundType.startsWith('wind_')) {
@@ -1495,13 +1785,20 @@ export const useAmbientSounds = ({
                     });
                 }, 1000);
             } else {
-                // Normal transition: stop old sounds first, then start new ones
-                const stopPromises = soundsToStop.map(soundType => stopContinuousSound(soundType));
+                // Stop other sounds immediately (not time-of-day based)
+                const stopPromises = otherSoundsToStop.map(soundType => stopContinuousSound(soundType));
                 await Promise.all(stopPromises);
 
+                // Start new sounds
                 const startPromises = soundsToStart.map(soundType => startContinuousSound(soundType));
                 await Promise.all(startPromises);
             }
+            
+            // 🌅 Smooth fade out for time-of-day sounds (dawn_chorus fading when dawn ends, etc.)
+            // Do this in background so it doesn't block other sound transitions
+            timeOfDaySoundsToStop.forEach(soundType => {
+                fadeOutAndStopSound(soundType, 3000); // 3 second fade for natural transition
+            });
 
             // Update references
             lastWeatherRef.current = weatherCondition;
@@ -1512,7 +1809,7 @@ export const useAmbientSounds = ({
             console.warn("🌊 Error updating continuous ambient sounds:", error);
         });
 
-    }, [weatherCondition, getActiveContinuousSounds, startContinuousSound, stopContinuousSound]);
+    }, [weatherCondition, getActiveContinuousSounds, startContinuousSound, stopContinuousSound, fadeOutAndStopSound]);
 
     // Add periodic health check for continuous sounds
     useEffect(() => {
@@ -1629,6 +1926,95 @@ export const useAmbientSounds = ({
             setGlobalUnderwaterState(isUnderwater);
         }
     }, [isUnderwater]);
+
+    // 🏠 Handle indoor state changes - apply/remove muffled audio effect
+    useEffect(() => {
+        if (lastIndoorStateRef.current !== isIndoors) {
+            lastIndoorStateRef.current = isIndoors;
+            // Only apply indoor effect if not underwater (underwater takes precedence)
+            if (!isUnderwater) {
+                setGlobalIndoorState(isIndoors);
+            }
+        }
+    }, [isIndoors, isUnderwater]);
+
+    // 🌊 Handle ocean proximity changes - update volume dynamically
+    useEffect(() => {
+        if (lastDistanceToShoreRef.current !== distanceToShore) {
+            lastDistanceToShoreRef.current = distanceToShore;
+            
+            // Update ocean_ambience volume based on proximity
+            const seamlessSound = activeSeamlessLoopingSounds.get('ocean_ambience');
+            if (seamlessSound) {
+                const definition = AMBIENT_SOUND_DEFINITIONS.ocean_ambience;
+                const proximityModifier = getProximityVolumeModifier('ocean_ambience');
+                const targetVolume = definition.baseVolume * effectiveEnvironmentalVolume * masterVolume * proximityModifier;
+                const clampedVolume = Math.max(0, Math.min(1.0, targetVolume));
+                
+                seamlessSound.primary.volume = clampedVolume;
+                seamlessSound.secondary.volume = clampedVolume;
+                seamlessSound.volume = clampedVolume;
+            }
+            
+            // Also update simple looping sound if fallback is in use
+            const simpleLoopingSounds = (window as any).simpleLoopingSounds;
+            if (simpleLoopingSounds instanceof Map) {
+                const simpleOcean = simpleLoopingSounds.get('ocean_ambience');
+                if (simpleOcean) {
+                    const definition = AMBIENT_SOUND_DEFINITIONS.ocean_ambience;
+                    const proximityModifier = getProximityVolumeModifier('ocean_ambience');
+                    const targetVolume = definition.baseVolume * effectiveEnvironmentalVolume * masterVolume * proximityModifier;
+                    simpleOcean.volume = Math.max(0, Math.min(1.0, targetVolume));
+                }
+            }
+        }
+    }, [distanceToShore, effectiveEnvironmentalVolume, masterVolume, getProximityVolumeModifier]);
+
+    // 🐝 Handle bee proximity changes - update buzzing volume dynamically (single loop for all bees)
+    useEffect(() => {
+        const distanceToBee = getDistanceToNearestBee();
+        
+        if (lastDistanceToBeeRef.current !== distanceToBee) {
+            lastDistanceToBeeRef.current = distanceToBee;
+            
+            const beeDef = AMBIENT_SOUND_DEFINITIONS.bee_buzzing;
+            const maxDist = 'maxProximityDistance' in beeDef ? (beeDef as any).maxProximityDistance : 350;
+            
+            // Update bee_buzzing volume based on proximity to nearest bee
+            const seamlessSound = activeSeamlessLoopingSounds.get('bee_buzzing');
+            if (seamlessSound) {
+                if (distanceToBee >= maxDist) {
+                    // Too far from all bees - stop the sound
+                    seamlessSound.primary.volume = 0;
+                    seamlessSound.secondary.volume = 0;
+                    seamlessSound.volume = 0;
+                } else {
+                    const proximityModifier = getProximityVolumeModifier('bee_buzzing');
+                    const targetVolume = beeDef.baseVolume * effectiveEnvironmentalVolume * masterVolume * proximityModifier;
+                    const clampedVolume = Math.max(0, Math.min(1.0, targetVolume));
+                    
+                    seamlessSound.primary.volume = clampedVolume;
+                    seamlessSound.secondary.volume = clampedVolume;
+                    seamlessSound.volume = clampedVolume;
+                }
+            }
+            
+            // Also update simple looping sound if fallback is in use
+            const simpleLoopingSounds = (window as any).simpleLoopingSounds;
+            if (simpleLoopingSounds instanceof Map) {
+                const simpleBee = simpleLoopingSounds.get('bee_buzzing');
+                if (simpleBee) {
+                    if (distanceToBee >= maxDist) {
+                        simpleBee.volume = 0;
+                    } else {
+                        const proximityModifier = getProximityVolumeModifier('bee_buzzing');
+                        const targetVolume = beeDef.baseVolume * effectiveEnvironmentalVolume * masterVolume * proximityModifier;
+                        simpleBee.volume = Math.max(0, Math.min(1.0, targetVolume));
+                    }
+                }
+            }
+        }
+    }, [wildAnimals, localPlayer, effectiveEnvironmentalVolume, masterVolume, getProximityVolumeModifier, getDistanceToNearestBee]);
 
     // Public API
     const playManualAmbientSound = useCallback((soundType: AmbientSoundType) => {

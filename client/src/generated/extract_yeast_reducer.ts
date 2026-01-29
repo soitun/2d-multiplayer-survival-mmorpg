@@ -28,19 +28,37 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type CinderFox = { tag: "CinderFox" };
-export type TundraWolf = { tag: "TundraWolf" };
-export type CableViper = { tag: "CableViper" };
-export type ArcticWalrus = { tag: "ArcticWalrus" };
-export type BeachCrab = { tag: "BeachCrab" };
-export type Tern = { tag: "Tern" };
-export type Crow = { tag: "Crow" };
-export type Vole = { tag: "Vole" };
-export type Wolverine = { tag: "Wolverine" };
-export type Caribou = { tag: "Caribou" };
-export type SalmonShark = { tag: "SalmonShark" };
-export type Shorebound = { tag: "Shorebound" };
-export type Shardkin = { tag: "Shardkin" };
-export type DrownedWatch = { tag: "DrownedWatch" };
-export type Bee = { tag: "Bee" };
+export type ExtractYeast = {
+  itemInstanceId: bigint,
+};
+let _cached_ExtractYeast_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const ExtractYeast = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_ExtractYeast_type_value) return _cached_ExtractYeast_type_value;
+    _cached_ExtractYeast_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_ExtractYeast_type_value.value.elements.push(
+      { name: "itemInstanceId", algebraicType: __AlgebraicTypeValue.U64 },
+    );
+    return _cached_ExtractYeast_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: ExtractYeast): void {
+    __AlgebraicTypeValue.serializeValue(writer, ExtractYeast.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): ExtractYeast {
+    return __AlgebraicTypeValue.deserializeValue(reader, ExtractYeast.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default ExtractYeast;
 

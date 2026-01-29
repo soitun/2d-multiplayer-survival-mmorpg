@@ -393,6 +393,8 @@ export function renderInteractionLabels({
                     config = ENTITY_VISUAL_CONFIG.mine_cart;
                 } else if (box.boxType === 10) { // BOX_TYPE_FISH_TRAP
                     config = ENTITY_VISUAL_CONFIG.fish_trap;
+                } else if (box.boxType === 11) { // BOX_TYPE_WILD_BEEHIVE
+                    config = ENTITY_VISUAL_CONFIG.wild_beehive;
                 } else {
                     config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
                 }

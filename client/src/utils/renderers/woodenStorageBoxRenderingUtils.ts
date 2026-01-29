@@ -10,6 +10,7 @@ import scarecrowImage from '../../assets/doodads/scarecrow.png'; // Scarecrow im
 import militaryRationImage from '../../assets/doodads/military_ration.png'; // Military ration image
 import mineCartImage from '../../assets/doodads/mine_cart.png'; // Mine cart image (quarry-exclusive)
 import fishTrapImage from '../../assets/doodads/fish_trap.png'; // Fish trap image (shore-only)
+import wildBeehiveImage from '../../assets/doodads/pile_honeycomb.png'; // Wild beehive image (forest-only)
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';
@@ -38,6 +39,8 @@ export const MINE_CART_WIDTH = 192;  // Mine cart dimensions (quarry-exclusive) 
 export const MINE_CART_HEIGHT = 192;
 export const FISH_TRAP_WIDTH = 96;  // Fish trap dimensions
 export const FISH_TRAP_HEIGHT = 96;
+export const WILD_BEEHIVE_WIDTH = 96;  // Wild beehive dimensions (forest-only) - increased from 64x64
+export const WILD_BEEHIVE_HEIGHT = 96;
 
 // Box type constants (must match server)
 export const BOX_TYPE_NORMAL = 0;
@@ -51,6 +54,7 @@ export const BOX_TYPE_SCARECROW = 7;
 export const BOX_TYPE_MILITARY_RATION = 8;
 export const BOX_TYPE_MINE_CART = 9;
 export const BOX_TYPE_FISH_TRAP = 10;
+export const BOX_TYPE_WILD_BEEHIVE = 11;
 export const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Added interaction distance
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 10; // Make boxes shake a bit more
@@ -88,6 +92,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return mineCartImage;
             case BOX_TYPE_FISH_TRAP:
                 return fishTrapImage;
+            case BOX_TYPE_WILD_BEEHIVE:
+                return wildBeehiveImage;
             default:
                 return boxImage;
         }
@@ -116,6 +122,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return { width: MINE_CART_WIDTH, height: MINE_CART_HEIGHT };
             case BOX_TYPE_FISH_TRAP:
                 return { width: FISH_TRAP_WIDTH, height: FISH_TRAP_HEIGHT };
+            case BOX_TYPE_WILD_BEEHIVE:
+                return { width: WILD_BEEHIVE_WIDTH, height: WILD_BEEHIVE_HEIGHT };
             default:
                 return { width: BOX_WIDTH, height: BOX_HEIGHT };
         }

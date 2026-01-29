@@ -124,6 +124,63 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
             });
         }
 
+        // Check if item can be mashed into Berry Mash
+        if (itemName === "Lingonberries" ||
+            itemName === "Cloudberries" ||
+            itemName === "Crowberries" ||
+            itemName === "Crowberry" ||
+            itemName === "Bilberries" ||
+            itemName === "Wild Strawberries" ||
+            itemName === "Rowan Berries" ||
+            itemName === "Cranberries" ||
+            itemName === "Nagoonberries") {
+            actions.push({
+                label: 'Mash',
+                action: 'mash_berries',
+                description: 'Mash into Berry Mash',
+                buttonStyle: 'crushButton'
+            });
+        }
+
+        // Check if item can be mashed into Starchy Mash (cooked starchy items)
+        // Note: Flour is for baking bread, not brewing - no mash option for flour
+        if (itemName === "Cooked Potato" ||
+            itemName === "Cooked Beet" ||
+            itemName === "Cooked Pumpkin" ||
+            itemName === "Cooked Kamchatka Lily Bulb" ||
+            itemName === "Cooked Silverweed Root" ||
+            itemName === "Cooked Bistort Bulbils" ||
+            itemName === "Cooked Salsify Root") {
+            actions.push({
+                label: 'Mash',
+                action: 'mash_starch',
+                description: 'Mash into Starchy Mash',
+                buttonStyle: 'crushButton'
+            });
+        }
+
+        // Check if item can have yeast extracted (fermentable bases)
+        if (itemName === "Berry Mash" ||
+            itemName === "Starchy Mash" ||
+            itemName === "Raw Milk") {
+            actions.push({
+                label: 'Extract Yeast',
+                action: 'extract_yeast',
+                description: 'Extract natural yeasts',
+                buttonStyle: 'crushButton'
+            });
+        }
+
+        // Check if item can have queen bee extracted (honeycomb)
+        if (itemName === "Honeycomb") {
+            actions.push({
+                label: 'Extract Queen',
+                action: 'extract_queen_bee',
+                description: 'Extract the Queen Bee',
+                buttonStyle: 'crushButton'
+            });
+        }
+
         // Check if item is a water container with water content
         if (isWaterContainer(itemName) && hasWaterContent(item.instance)) {
             actions.push({
@@ -173,6 +230,22 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
                     // console.log(`Pulverizing item ${itemInstanceId}: ${selectedItem.definition.name}`);
                     connection.reducers.pulverizeItem(itemInstanceId);
                     playImmediateSound('crush_bones'); // Reuse crushing sound for grinding
+                    break;
+                case 'mash_berries':
+                    connection.reducers.mashBerries(itemInstanceId);
+                    playImmediateSound('crush_bones'); // Mashing sound
+                    break;
+                case 'mash_starch':
+                    connection.reducers.mashStarch(itemInstanceId);
+                    playImmediateSound('crush_bones'); // Mashing sound
+                    break;
+                case 'extract_yeast':
+                    connection.reducers.extractYeast(itemInstanceId);
+                    playImmediateSound('crush_bones'); // Extraction sound
+                    break;
+                case 'extract_queen_bee':
+                    connection.reducers.extractQueenBee(itemInstanceId);
+                    playImmediateSound('crush_bones'); // Extraction sound
                     break;
                 case 'consume':
                     // console.log(`Consuming item ${itemInstanceId}: ${selectedItem.definition.name}`);

@@ -695,6 +695,7 @@ export const BOX_TYPE_SCARECROW = 7;
 export const BOX_TYPE_MILITARY_RATION = 8;
 export const BOX_TYPE_MINE_CART = 9;
 export const BOX_TYPE_FISH_TRAP = 10;
+export const BOX_TYPE_WILD_BEEHIVE = 11;
 export const NUM_BOX_SLOTS = 18;
 export const NUM_REPAIR_BENCH_SLOTS = 1;
 export const NUM_LARGE_BOX_SLOTS = 48;
@@ -704,6 +705,7 @@ export const NUM_BACKPACK_SLOTS = 35; // Matches NUM_CORPSE_SLOTS (30 + 5 = 35 s
 export const NUM_MILITARY_RATION_SLOTS = 3;
 export const NUM_MINE_CART_SLOTS = 3;
 export const NUM_FISH_TRAP_SLOTS = 12;
+export const NUM_WILD_BEEHIVE_SLOTS = 3;
 
 /**
  * Get container configuration
@@ -748,6 +750,10 @@ export function getContainerConfig(containerType: ContainerType, entity?: Contai
                 slots = NUM_FISH_TRAP_SLOTS;
                 gridCols = 4; // 4 columns for 12 slots (3 rows of 4)
                 break;
+            case BOX_TYPE_WILD_BEEHIVE:
+                slots = NUM_WILD_BEEHIVE_SLOTS;
+                gridCols = 3; // 3 columns for 3 slots
+                break;
             default:
                 slots = NUM_BOX_SLOTS;
         }
@@ -788,6 +794,8 @@ export function getContainerDisplayName(containerType: ContainerType, entity?: C
                 return 'MINE CART';
             case BOX_TYPE_FISH_TRAP:
                 return 'FISH TRAP';
+            case BOX_TYPE_WILD_BEEHIVE:
+                return 'WILD BEEHIVE';
             default:
                 return 'WOODEN STORAGE BOX';
         }

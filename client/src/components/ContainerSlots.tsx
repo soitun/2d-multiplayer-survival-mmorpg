@@ -11,7 +11,7 @@ import DroppableSlot from './DroppableSlot';
 import DraggableItem from './DraggableItem';
 import { PopulatedItem } from './InventoryUI';
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
-import { ContainerType, ContainerEntity, getContainerConfig, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MINE_CART, BOX_TYPE_COMPOST, BOX_TYPE_FISH_TRAP } from '../utils/containerUtils';
+import { ContainerType, ContainerEntity, getContainerConfig, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MINE_CART, BOX_TYPE_COMPOST, BOX_TYPE_FISH_TRAP, BOX_TYPE_WILD_BEEHIVE } from '../utils/containerUtils';
 import { WoodenStorageBox, RangedWeaponStats } from '../generated';
 import { isWaterContainer, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
 import { hasDurabilitySystem, isItemBroken, isFoodItem } from '../utils/durabilityHelpers';
@@ -118,11 +118,12 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
     // Determine if this should render as a grid
     const isGridLayout = config.gridCols && config.gridCols > 1;
     
-    // Check if this is a military ration or mine cart (3 slots, should be close together and centered)
+    // Check if this is a military ration, mine cart, or wild beehive (3 slots, should be close together and centered)
     const isCompactContainer = containerType === 'wooden_storage_box' && 
                                containerEntity && 
                                ((containerEntity as WoodenStorageBox).boxType === BOX_TYPE_MILITARY_RATION ||
-                                (containerEntity as WoodenStorageBox).boxType === BOX_TYPE_MINE_CART);
+                                (containerEntity as WoodenStorageBox).boxType === BOX_TYPE_MINE_CART ||
+                                (containerEntity as WoodenStorageBox).boxType === BOX_TYPE_WILD_BEEHIVE);
     
     // Container styles
     const containerStyle: React.CSSProperties = {

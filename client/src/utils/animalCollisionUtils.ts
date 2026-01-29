@@ -24,6 +24,7 @@ export const ANIMAL_COLLISION_SIZES = {
   Shorebound: { width: 128, height: 96 }, // Lean stalker
   Shardkin: { width: 56, height: 48 }, // Small swarmer
   DrownedWatch: { width: 160, height: 128 }, // Massive brute
+  Bee: { width: 0, height: 0 }, // No collision - tiny flying insect
 } as const;
 
 // Default collision size for unknown species

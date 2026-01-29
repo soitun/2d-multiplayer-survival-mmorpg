@@ -406,7 +406,7 @@ import yeastIcon from '../assets/items/yeast.png';
 
 // Mashes and fermented bases
 import berryMashIcon from '../assets/items/berry_mash.png';
-import grainMashIcon from '../assets/items/grain_mash.png';
+
 import rootMashIcon from '../assets/items/root_mash.png';
 
 // Alcoholic beverages
@@ -414,6 +414,19 @@ import grainBeerIcon from '../assets/items/grain_beer.png';
 import berryWineIcon from '../assets/items/berry_wine.png';
 import rootWineIcon from '../assets/items/root_wine.png';
 import vinegarIcon from '../assets/items/vinegar.png';
+
+// Bee products
+import honeyIcon from '../assets/items/honey.png';
+import honeycombIcon from '../assets/items/honeycomb.png';
+import queenBeeIcon from '../assets/items/queen_bee.png';
+
+// Preserves (long-lasting foods)
+import meadIcon from '../assets/items/mead.png';
+import berryJamIcon from '../assets/items/berry_jam.png';
+import pickledVegetablesIcon from '../assets/items/pickled_vegetables.png';
+import pickledFishIcon from '../assets/items/pickled_fish.png';
+import meatJerkyIcon from '../assets/items/meat_jerky.png';
+import driedFishIcon from '../assets/items/dried_fish.png';
 
 // === SEEDS ===
 // All plantable items
@@ -1004,12 +1017,24 @@ const iconMap: { [key: string]: string | undefined } = {
   'yogurt.png': yogurtIcon,
   'yeast.png': yeastIcon,
   'berry_mash.png': berryMashIcon,
-  'grain_mash.png': grainMashIcon,
   'root_mash.png': rootMashIcon,
   'grain_beer.png': grainBeerIcon,
   'berry_wine.png': berryWineIcon,
   'root_wine.png': rootWineIcon,
   'vinegar.png': vinegarIcon,
+  
+  // === BEE PRODUCTS ===
+  'honey.png': honeyIcon,
+  'honeycomb.png': honeycombIcon,
+  'queen_bee.png': queenBeeIcon,
+  
+  // === PRESERVES ===
+  'mead.png': meadIcon,
+  'berry_jam.png': berryJamIcon,
+  'pickled_vegetables.png': pickledVegetablesIcon,
+  'pickled_fish.png': pickledFishIcon,
+  'meat_jerky.png': meatJerkyIcon,
+  'dried_fish.png': driedFishIcon,
 };
 
 /**

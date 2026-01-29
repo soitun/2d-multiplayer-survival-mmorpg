@@ -165,6 +165,16 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     spriteHeight: 96,
   },
   
+  wild_beehive: {
+    centerOffsetX: 0,
+    centerOffsetY: -68,   // Adjusted for 96x96 sprite (similar to fish_trap)
+    width: 80,            // Interaction box width (increased from 64)
+    height: 80,           // Interaction box height (increased from 72)
+    placementYOffset: -16, // Compensate for 96px sprite vs 64px normal box
+    spriteWidth: 96,      // Increased from 64
+    spriteHeight: 96,     // Increased from 64
+  },
+  
   stash: {
     centerOffsetX: 0,
     centerOffsetY: -24,

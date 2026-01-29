@@ -27,6 +27,7 @@ use crate::wooden_storage_box::BOX_TYPE_WILD_BEEHIVE;
 use crate::player as PlayerTableTrait;
 use crate::wooden_storage_box::wooden_storage_box as WoodenStorageBoxTableTrait;
 use crate::campfire::campfire as CampfireTableTrait;
+use crate::fire_patch::fire_patch as FirePatchTableTrait;
 
 use super::core::{
     AnimalBehavior, AnimalStats, AnimalState, MovementPattern, WildAnimal,
@@ -40,10 +41,12 @@ pub struct BeeBehavior;
 // Bee-specific constants
 const BEE_HOME_RETURN_DISTANCE: f32 = 400.0; // Return to hive if player is this far
 const BEE_AGGRO_RANGE: f32 = 250.0; // Bees aggro when player is within this range of hive
-const BEE_FIRE_KILL_RADIUS: f32 = 100.0; // Instant death within this range of fire
+const BEE_FIRE_KILL_RADIUS: f32 = 100.0; // Instant death within this range of campfire
 const BEE_FIRE_KILL_RADIUS_SQ: f32 = BEE_FIRE_KILL_RADIUS * BEE_FIRE_KILL_RADIUS;
 const BEE_TORCH_KILL_RADIUS: f32 = 80.0; // Slightly smaller for torches (player-held)
 const BEE_TORCH_KILL_RADIUS_SQ: f32 = BEE_TORCH_KILL_RADIUS * BEE_TORCH_KILL_RADIUS;
+const BEE_FIRE_PATCH_KILL_RADIUS: f32 = 50.0; // Fire patches (from fire arrows) - slightly larger than visual radius
+const BEE_FIRE_PATCH_KILL_RADIUS_SQ: f32 = BEE_FIRE_PATCH_KILL_RADIUS * BEE_FIRE_PATCH_KILL_RADIUS;
 
 impl AnimalBehavior for BeeBehavior {
     fn get_stats(&self) -> AnimalStats {
@@ -291,6 +294,21 @@ fn check_and_apply_fire_death(ctx: &ReducerContext, animal: &mut WildAnimal) -> 
             // Bee caught in campfire - instant death!
             animal.health = 0.0;
             log::info!("Bee {} burned to death near campfire!", animal.id);
+            return true;
+        }
+    }
+    
+    // Check for fire patches (from fire arrows)
+    for fire_patch in ctx.db.fire_patch().iter() {
+        // Fire patches are always "burning" until they expire (handled by cleanup schedule)
+        let dx = fire_patch.pos_x - animal.pos_x;
+        let dy = fire_patch.pos_y - animal.pos_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq < BEE_FIRE_PATCH_KILL_RADIUS_SQ {
+            // Bee flew into fire patch - instant death!
+            animal.health = 0.0;
+            log::info!("Bee {} burned to death in fire patch!", animal.id);
             return true;
         }
     }

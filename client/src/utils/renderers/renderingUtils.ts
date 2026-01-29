@@ -44,7 +44,7 @@ import { renderTree, renderTreeImpactEffects, renderTreeHitEffects } from './tre
 import { renderStone, renderStoneDestructionEffects, renderStoneHitEffects } from './stoneRenderingUtils';
 import { renderRuneStone } from './runeStoneRenderingUtils';
 import { renderCairn } from './cairnRenderingUtils';
-import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MINE_CART, BOX_TYPE_FISH_TRAP } from './woodenStorageBoxRenderingUtils';
+import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MINE_CART, BOX_TYPE_FISH_TRAP, BOX_TYPE_WILD_BEEHIVE } from './woodenStorageBoxRenderingUtils';
 import { renderEquippedItem } from './equippedItemRenderingUtils';
 // Import the extracted player renderer
 import { renderPlayer, isPlayerHovered } from './playerRenderingUtils';
@@ -1279,6 +1279,8 @@ export const renderYSortedEntities = ({
                   config = ENTITY_VISUAL_CONFIG.mine_cart;
               } else if (box.boxType === BOX_TYPE_FISH_TRAP) {
                   config = ENTITY_VISUAL_CONFIG.fish_trap;
+              } else if (box.boxType === BOX_TYPE_WILD_BEEHIVE) {
+                  config = ENTITY_VISUAL_CONFIG.wild_beehive;
               } else {
                   config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
               }
