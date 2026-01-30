@@ -170,19 +170,26 @@ function cutOutCanopyRegion(
  * NOTE: Canopy shadows are NOT rendered during Night, Midnight, or TwilightMorning
  * since there is no direct sunlight to cast shadows through the canopy.
  * 
+ * NOTE: Canopy shadows are also skipped when treeShadowsEnabled is false (visual settings).
+ * 
  * @param ctx - Canvas rendering context
  * @param trees - Array of visible trees to render shadows for
  * @param nowMs - Current timestamp for shake animation sync
  * @param isTreeFalling - Optional function to check if a tree is currently falling
  * @param timeOfDay - Current time of day (shadows are skipped at night)
+ * @param treeShadowsEnabled - Visual setting to enable/disable tree shadows (default: true)
  */
 export function renderTreeCanopyShadowsOverlay(
     ctx: CanvasRenderingContext2D,
     trees: Tree[],
     nowMs: number,
     isTreeFalling?: (treeId: string) => boolean,
-    timeOfDay?: TimeOfDay
+    timeOfDay?: TimeOfDay,
+    treeShadowsEnabled: boolean = true
 ): void {
+    // Skip canopy shadows entirely if disabled in visual settings
+    if (!treeShadowsEnabled) return;
+    
     if (!trees || trees.length === 0) return;
     
     // Skip canopy shadows during nighttime - no direct sunlight to cast shadows

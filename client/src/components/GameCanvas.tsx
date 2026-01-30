@@ -3386,8 +3386,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // don't appear on tree canopies that are in front (higher Y = closer to camera).
     // Players walking under a tree (whether in front of or behind the trunk) will be in shade.
     // NOTE: Canopy shadows are skipped at night (no sunlight to cast shadows)
-    if (visibleTrees && visibleTrees.length > 0) {
-      renderTreeCanopyShadowsOverlay(ctx, visibleTrees, now_ms, isTreeFalling, worldState?.timeOfDay);
+    // NOTE: Canopy shadows respect the treeShadowsEnabled visual setting
+    if (visibleTrees && visibleTrees.length > 0 && treeShadowsEnabled) {
+      renderTreeCanopyShadowsOverlay(ctx, visibleTrees, now_ms, isTreeFalling, worldState?.timeOfDay, treeShadowsEnabled);
     }
     // --- END TREE CANOPY SHADOWS ---
 
