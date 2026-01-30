@@ -37,7 +37,7 @@ pub const TURRET_RANGE: f32 = 400.0;
 pub const TURRET_RANGE_SQUARED: f32 = TURRET_RANGE * TURRET_RANGE;
 pub const TURRET_FIRE_INTERVAL_MS: u64 = 2000;  // 2 seconds (30 shots/min) - doubled attack speed
 pub const TALLOW_PROJECTILE_DAMAGE: f32 = 75.0; // Increased from 15.0 - tallow explodes on impact
-pub const TALLOW_PROJECTILE_SPEED: f32 = 600.0; // Slower than arrows (molten glob)
+pub const TALLOW_PROJECTILE_SPEED: f32 = 350.0; // Slow molten glob - visible in flight
 pub const FIRE_PATCH_CHANCE_PERCENT: u32 = 25; // 25% chance to create fire patch on hit
 
 // --- Turret Table ---
