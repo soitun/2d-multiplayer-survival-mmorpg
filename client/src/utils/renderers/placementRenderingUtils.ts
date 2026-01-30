@@ -318,15 +318,81 @@ function isPositionOnShore(connection: DbConnection | null, worldX: number, worl
 }
 
 /**
- * Check if fish trap placement is blocked (not on shore)
- * Fish traps must be placed on land adjacent to water.
+ * Check if a position is within a certain distance of shore (land adjacent to water)
+ * Used for fish trap placement which can be placed in water near shore.
+ * OPTIMIZED: Early exits when shore found, expands outward in rings.
+ */
+function isPositionNearShore(connection: DbConnection | null, worldX: number, worldY: number, maxDistancePx: number): boolean {
+    if (!connection) return false;
+    
+    // Fast path: Check if directly on shore
+    if (isPositionOnShore(connection, worldX, worldY)) {
+        return true;
+    }
+    
+    const TILE_SIZE_LOCAL = 48;
+    const { tileX: centerTileX, tileY: centerTileY } = worldPosToTileCoords(worldX, worldY);
+    const onWater = isPositionOnWater(connection, worldX, worldY);
+    
+    // Max search radius in tiles
+    const maxRadiusTiles = Math.ceil(maxDistancePx / TILE_SIZE_LOCAL) + 1;
+    const maxDistSq = maxDistancePx * maxDistancePx;
+    
+    // Expand outward in rings - find nearest tile of opposite type (water/land boundary = shore)
+    for (let ring = 1; ring <= maxRadiusTiles; ring++) {
+        for (let i = -ring; i <= ring; i++) {
+            // Check 4 edges of the ring
+            const checks = [
+                { x: centerTileX + i, y: centerTileY - ring }, // Top edge
+                { x: centerTileX + i, y: centerTileY + ring }, // Bottom edge
+                { x: centerTileX - ring, y: centerTileY + i }, // Left edge
+                { x: centerTileX + ring, y: centerTileY + i }, // Right edge
+            ];
+            
+            for (const check of checks) {
+                const tileType = getTileTypeFromChunkData(connection, check.x, check.y);
+                if (tileType === null) continue;
+                
+                const tileIsWater = tileType === 'Sea' || tileType === 'HotSpringWater';
+                
+                // Found boundary (water/land transition) = shore nearby
+                if (tileIsWater !== onWater) {
+                    // Calculate distance to this tile
+                    const tileCenterX = (check.x + 0.5) * TILE_SIZE_LOCAL;
+                    const tileCenterY = (check.y + 0.5) * TILE_SIZE_LOCAL;
+                    const dx = worldX - tileCenterX;
+                    const dy = worldY - tileCenterY;
+                    const distSq = dx * dx + dy * dy;
+                    
+                    if (distSq <= maxDistSq) {
+                        return true; // Found shore within range
+                    }
+                }
+            }
+        }
+        
+        // Early exit if ring is beyond max distance
+        const minRingDist = (ring - 1) * TILE_SIZE_LOCAL;
+        if (minRingDist * minRingDist > maxDistSq) {
+            break;
+        }
+    }
+    
+    return false; // No shore found within range
+}
+
+/**
+ * Check if fish trap placement is blocked (not within 600px of shore)
+ * Fish traps can be placed in water within 600px of shore.
  */
 function isFishTrapPlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
     if (!connection) return false;
     
-    // Fish traps must be on shore (land adjacent to water)
-    if (!isPositionOnShore(connection, worldX, worldY)) {
-        return true; // Block if not on shore
+    const FISH_TRAP_MAX_DISTANCE_FROM_SHORE = 600.0;
+    
+    // Fish traps can be placed within 600px of shore
+    if (!isPositionNearShore(connection, worldX, worldY, FISH_TRAP_MAX_DISTANCE_FROM_SHORE)) {
+        return true; // Block if not near shore
     }
     
     return false; // Valid placement
@@ -551,7 +617,7 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
     }
 
     // List of items that cannot be placed on water
-    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Ancestral Ward', 'Signal Disruptor', 'Memory Resonance Beacon', 'Tallow Steam Turret', 'Wooden Storage Box', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath", 'Wooden Beehive'];
+    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Ancestral Ward', 'Signal Disruptor', 'Memory Resonance Beacon', 'Tallow Steam Turret', 'Wooden Storage Box', 'Scarecrow', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath", 'Wooden Beehive'];
     
     // Seeds that don't require water or beach (most seeds) cannot be planted on water
     const isSeedButNotSpecialSeed = isSeedItemValid(placementInfo.itemName) && 
@@ -592,88 +658,9 @@ function isSeedPlacementOnOccupiedTile(connection: DbConnection | null, placemen
     return false; // Tile is free
 }
 
-// Collision radii for different storage box types (must match server wooden_storage_box.rs)
-const STORAGE_BOX_COLLISION_RADII: { [key: number]: number } = {
-    0: 18,   // BOX_TYPE_NORMAL
-    1: 48,   // BOX_TYPE_LARGE
-    2: 48,   // BOX_TYPE_REFRIGERATOR
-    3: 64,   // BOX_TYPE_COMPOST
-    4: 18,   // BOX_TYPE_BACKPACK
-    5: 96,   // BOX_TYPE_REPAIR_BENCH
-    6: 48,   // BOX_TYPE_COOKING_STATION
-    7: 64,   // BOX_TYPE_SCARECROW
-    8: 18,   // BOX_TYPE_MILITARY_RATION
-    9: 72,   // BOX_TYPE_MINE_CART
-    10: 48,  // BOX_TYPE_FISH_TRAP
-    11: 60,  // BOX_TYPE_WILD_BEEHIVE
-    12: 100, // BOX_TYPE_PLAYER_BEEHIVE
-};
-
-// Map item names to box types for collision radius lookup
-const ITEM_NAME_TO_BOX_TYPE: { [key: string]: number } = {
-    'Wooden Storage Box': 0,
-    'Large Wooden Storage Box': 1,
-    'Pantry': 2,
-    'Compost': 3,
-    'Repair Bench': 5,
-    'Cooking Station': 6,
-    'Scarecrow': 7,
-    'Fish Trap': 10,
-    'Wooden Beehive': 12,
-};
-
-// Storage box Y offset for visual center calculation (must match server)
-const BOX_COLLISION_Y_OFFSET = 52.0;
-const BEEHIVE_EXTRA_Y_OFFSET = 100.0; // Additional offset for beehives
-
-/**
- * Checks if a storage box placement would collide with existing storage boxes.
- * Returns true if placement should be blocked due to collision.
- */
-function isStorageBoxCollision(
-    connection: DbConnection | null,
-    placementInfo: PlacementItemInfo | null,
-    worldX: number,
-    worldY: number
-): boolean {
-    if (!connection || !placementInfo) return false;
-    
-    // Check if this item is a storage box type
-    const boxType = ITEM_NAME_TO_BOX_TYPE[placementInfo.itemName];
-    if (boxType === undefined) return false; // Not a storage box
-    
-    // Get collision radius for the new box
-    const newBoxRadius = STORAGE_BOX_COLLISION_RADII[boxType] || 18;
-    
-    // Check against all existing storage boxes
-    for (const box of connection.db.woodenStorageBox.iter()) {
-        if (box.isDestroyed) continue;
-        
-        // Get collision radius for the existing box
-        const existingRadius = STORAGE_BOX_COLLISION_RADII[box.boxType] || 18;
-        
-        // Account for visual center offset
-        const existingYOffset = box.boxType === 12 // BOX_TYPE_PLAYER_BEEHIVE
-            ? BOX_COLLISION_Y_OFFSET + BEEHIVE_EXTRA_Y_OFFSET
-            : BOX_COLLISION_Y_OFFSET;
-        const existingVisualY = box.posY - existingYOffset;
-        
-        // Calculate distance between centers
-        const dx = box.posX - worldX;
-        const dy = existingVisualY - worldY;
-        const distSq = dx * dx + dy * dy;
-        
-        // Minimum distance = sum of both radii
-        const minDistance = newBoxRadius + existingRadius;
-        const minDistanceSq = minDistance * minDistance;
-        
-        if (distSq < minDistanceSq) {
-            return true; // Collision detected
-        }
-    }
-    
-    return false; // No collision
-}
+// NOTE: Client-side storage box collision validation removed
+// Server handles all collision validation consistently for all placeable items (furnaces, beehives, etc.)
+// This ensures players can place items as close as the server's collision radii allow
 
 /**
  * Checks if a world position is within a monument zone (ALK stations, rune stones, hot springs, quarries)
@@ -928,7 +915,8 @@ export function isPlacementTooFar(
         const WARD_PLACEMENT_MAX_DISTANCE = 160.0;
         clientPlacementRangeSq = WARD_PLACEMENT_MAX_DISTANCE * WARD_PLACEMENT_MAX_DISTANCE;
     } else if (placementInfo.iconAssetName === 'beehive_wooden.png' ||
-               placementInfo.iconAssetName === 'reed_rain_collector.png') {
+               placementInfo.iconAssetName === 'reed_rain_collector.png' ||
+               placementInfo.iconAssetName === 'fish_trap.png') {
         // Large 256x256 objects need increased placement range (200px)
         const LARGE_OBJECT_PLACEMENT_MAX_DISTANCE = 200.0;
         clientPlacementRangeSq = LARGE_OBJECT_PLACEMENT_MAX_DISTANCE * LARGE_OBJECT_PLACEMENT_MAX_DISTANCE;
@@ -1894,8 +1882,32 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'reed_rain_collector.png') {
         // For Reed Rain Collector, use the doodad sprite for placement preview
         previewImg = doodadImagesRef.current?.get('reed_rain_collector.png');
+    } else if (placementInfo.iconAssetName === 'furnace_simple.png') {
+        // For Furnace, use the furnace_simple.png from doodads folder (matches actual placement rendering)
+        previewImg = doodadImagesRef.current?.get('furnace_simple.png');
+    } else if (placementInfo.iconAssetName === 'campfire.png') {
+        // For Campfire, use the campfire_off.png from doodads folder (matches actual placement rendering)
+        previewImg = doodadImagesRef.current?.get('campfire_off.png');
+    } else if (placementInfo.iconAssetName === 'lantern_off.png') {
+        // For Lantern, use the lantern_off.png from doodads folder (matches actual placement rendering)
+        previewImg = doodadImagesRef.current?.get('lantern_off.png');
+    } else if (placementInfo.iconAssetName === 'hearth.png') {
+        // For Hearth, use the hearth.png from doodads folder (matches actual placement rendering)
+        previewImg = doodadImagesRef.current?.get('hearth.png');
+    } else if (placementInfo.iconAssetName === 'sleeping_bag.png') {
+        // For Sleeping Bag, use the sleeping_bag.png from doodads folder (matches actual placement rendering)
+        previewImg = doodadImagesRef.current?.get('sleeping_bag.png');
+    } else if (placementInfo.iconAssetName === 'stash.png') {
+        // For Stash, use the stash.png from doodads folder (matches actual placement rendering)
+        previewImg = doodadImagesRef.current?.get('stash.png');
+    } else if (placementInfo.iconAssetName === 'wooden_storage_box.png') {
+        // For Wooden Storage Box, use the wooden_storage_box.png from doodads folder (matches actual placement rendering)
+        previewImg = doodadImagesRef.current?.get('wooden_storage_box.png');
+    } else if (placementInfo.iconAssetName === 'fish_trap.png') {
+        // For Fish Trap, use the fish_trap.png from doodads folder (matches actual placement rendering)
+        previewImg = doodadImagesRef.current?.get('fish_trap.png');
     } else {
-        // For other items, use the item images (including hearth.png)
+        // For other items, use the item images
         previewImg = itemImagesRef.current?.get(placementInfo.iconAssetName);
     }
 
@@ -1952,6 +1964,10 @@ export function renderPlacementPreview({
         // Wooden Beehive preview dimensions (matches actual rendering - 256x256)
         drawWidth = PLAYER_BEEHIVE_WIDTH; // 256px
         drawHeight = PLAYER_BEEHIVE_HEIGHT; // 256px
+    } else if (placementInfo.iconAssetName === 'fish_trap.png') {
+        // Fish Trap preview dimensions (matches actual rendering - 132x132)
+        drawWidth = 132;
+        drawHeight = 132;
     } else if (placementInfo.iconAssetName === 'scarecrow.png') {
         // Scarecrow preview dimensions (matches actual rendering - 96x128)
         drawWidth = 96; // SCARECROW_WIDTH
@@ -2138,8 +2154,7 @@ export function renderPlacementPreview({
     // Check for one-seed-per-tile restriction
     const isTileOccupiedBySeed = isSeedPlacementOnOccupiedTile(connection, placementInfo, snappedX, snappedY);
     
-    // Check for storage box collision (prevents placing boxes on top of each other)
-    const hasStorageBoxCollision = isStorageBoxCollision(connection, placementInfo, snappedX, snappedY);
+    // NOTE: Storage box collision check removed - server handles all collision validation
     
     // Check if shelter is being placed on a foundation (not allowed)
     // Shelter is 384x384px, which covers 4x4 foundation cells (96px each)
@@ -2241,7 +2256,8 @@ export function renderPlacementPreview({
     } else if (isDoorPlacement) {
         isInvalidPlacement = isDoorInvalid || isInMonumentZone; // Check both foundation edge validity and monument zone
     } else {
-        isInvalidPlacement = isPlacementTooFar || isOnWater || isTileOccupiedBySeed || isOnFoundation || isNotOnFoundation || isOnWall || isInMonumentZone || hasStorageBoxCollision || !!placementError;
+        isInvalidPlacement = isPlacementTooFar || isOnWater || isTileOccupiedBySeed || isOnFoundation || isNotOnFoundation || isOnWall || isInMonumentZone || !!placementError;
+        // NOTE: Removed hasStorageBoxCollision - let server handle collision validation consistently for all items (like furnaces)
     }
     
     if (isInvalidPlacement) {

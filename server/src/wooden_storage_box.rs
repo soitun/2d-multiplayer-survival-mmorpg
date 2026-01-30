@@ -28,7 +28,7 @@ pub(crate) const COOKING_STATION_COLLISION_RADIUS: f32 = 48.0; // 96x96 visual -
 pub(crate) const SCARECROW_COLLISION_RADIUS: f32 = 64.0;      // 128x128 visual -> radius ~64
 pub(crate) const FISH_TRAP_COLLISION_RADIUS: f32 = 48.0;      // 96x96 visual -> radius ~48
 pub(crate) const WILD_BEEHIVE_COLLISION_RADIUS: f32 = 60.0;   // 120x120 visual -> radius ~60
-pub(crate) const PLAYER_BEEHIVE_COLLISION_RADIUS: f32 = 100.0; // 256x256 visual -> radius ~100 (allows some overlap for placement flexibility)
+pub(crate) const PLAYER_BEEHIVE_COLLISION_RADIUS: f32 = 48.0; // Reduced to allow closer placement - actual hive structure is ~96px wide
 pub(crate) const MINE_CART_COLLISION_RADIUS: f32 = 72.0;      // 144x144 visual -> radius ~72
 pub(crate) const REFRIGERATOR_COLLISION_RADIUS: f32 = 48.0;   // 96x96 visual -> radius ~48
 
@@ -766,9 +766,10 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
     } else if item_def.name == "Scarecrow" {
         BOX_TYPE_SCARECROW
     } else if item_def.name == "Fish Trap" {
-        // Fish traps must be placed on shore (land adjacent to water)
-        if !crate::environment::is_position_on_shore(ctx, world_x, world_y) {
-            return Err("Fish trap must be placed on shore (land adjacent to water).".to_string());
+        // Fish traps can be placed in water within 600px of shore
+        const FISH_TRAP_MAX_DISTANCE_FROM_SHORE: f32 = 600.0;
+        if !crate::environment::is_position_near_shore(ctx, world_x, world_y, FISH_TRAP_MAX_DISTANCE_FROM_SHORE) {
+            return Err("Fish trap must be placed within 600px of shore.".to_string());
         }
         BOX_TYPE_FISH_TRAP
     } else if item_def.name == "Wooden Beehive" {
@@ -795,7 +796,8 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
     let new_chunk_index = calculate_chunk_index(world_x, world_y);
     
     // Check if placement position is on water (including hot springs)
-    if crate::environment::is_position_on_water(ctx, world_x, world_y) {
+    // Fish traps are exempt - they're allowed on water near shore (validated above)
+    if box_type != BOX_TYPE_FISH_TRAP && crate::environment::is_position_on_water(ctx, world_x, world_y) {
         return Err("Cannot place storage box on water.".to_string());
     }
     

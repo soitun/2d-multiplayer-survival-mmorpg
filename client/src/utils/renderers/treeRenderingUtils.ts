@@ -108,7 +108,7 @@ function getShadowOffscreenCanvas(width: number, height: number): { canvas: Offs
             shadowOffscreenCanvas.width = width;
             shadowOffscreenCanvas.height = height;
         }
-        shadowOffscreenCtx = shadowOffscreenCanvas.getContext('2d');
+        shadowOffscreenCtx = shadowOffscreenCanvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
     }
     
     if (!shadowOffscreenCtx) return null;

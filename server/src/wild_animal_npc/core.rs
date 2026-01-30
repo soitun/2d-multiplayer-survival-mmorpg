@@ -836,7 +836,68 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
             // Process taming behavior (food detection and consumption)
             process_taming_behavior(ctx, &mut animal, current_time)?;
             
-            // Check for and execute attacks
+            // ====================================================================
+            // PROACTIVE RANGED ATTACKS (any NPC with ranged capability)
+            // ====================================================================
+            // NPCs with ranged capabilities can fire projectiles during combat states:
+            // - Chasing state: All attacking NPCs
+            // - Stalking state: Shorebound circling behavior  
+            // NOTE: We check species capability, NOT is_hostile_npc, because CableViper
+            // is regular wildlife (not hostile) but still has ranged attacks!
+            if animal.state == AnimalState::Chasing || animal.state == AnimalState::Stalking {
+                // First check if this species even HAS ranged attacks
+                if let Some(ranged_config) = get_npc_ranged_attack_config(animal.species) {
+                    // LOG: Confirm NPC with ranged capability is in combat state
+                    log::info!("🎯 [NPC RANGED CHECK] {:?} {} is in {:?} state with target {:?}", 
+                              animal.species, animal.id, animal.state, animal.target_player_id);
+                    
+                    if let Some(target_id) = animal.target_player_id {
+                        if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
+                            if !target_player.is_dead && target_player.health > 0.0 {
+                                let distance_sq = get_distance_squared(
+                                    animal.pos_x, animal.pos_y,
+                                    target_player.position_x, target_player.position_y
+                                );
+                                let distance = distance_sq.sqrt();
+                                
+                                // Debug: Log ranged attack check status
+                                let in_range = distance <= ranged_config.range;
+                                let outside_min = distance >= ranged_config.min_range;
+                                
+                                log::info!("🎯 [NPC RANGED DIST] {:?} {} dist={:.1}px (range={:.1}-{:.1}) in_range={} outside_min={}", 
+                                          animal.species, animal.id, distance, ranged_config.min_range, ranged_config.range, in_range, outside_min);
+                                
+                                if in_range && outside_min {
+                                    // Try to fire ranged attack
+                                    match try_npc_proactive_ranged_attack(ctx, &mut animal, &target_player, current_time) {
+                                        Ok(fired) => {
+                                            if fired {
+                                                log::info!("🎯 [NPC RANGED] {:?} {} in {:?} state FIRED at player {} at distance {:.1}px", 
+                                                           animal.species, animal.id, animal.state, target_id, distance);
+                                            } else {
+                                                // Log why it didn't fire (cooldown, LOS, etc.)
+                                                log::info!("🎯 [NPC RANGED] {:?} {} in range but didn't fire (cooldown/LOS/building)", 
+                                                           animal.species, animal.id);
+                                            }
+                                        }
+                                        Err(e) => {
+                                            log::error!("Error in proactive ranged attack: {}", e);
+                                        }
+                                    }
+                                }
+                            } else {
+                                log::info!("🎯 [NPC RANGED SKIP] {:?} {} - target player is dead", animal.species, animal.id);
+                            }
+                        } else {
+                            log::info!("🎯 [NPC RANGED SKIP] {:?} {} - target player not found", animal.species, animal.id);
+                        }
+                    } else {
+                        log::info!("🎯 [NPC RANGED SKIP] {:?} {} - no target_player_id set", animal.species, animal.id);
+                    }
+                }
+            }
+            
+            // Check for and execute MELEE attacks (Chasing state only)
             if animal.state == AnimalState::Chasing {
                 if let Some(target_id) = animal.target_player_id {
                     if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
@@ -852,10 +913,11 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                 target_player.position_x, target_player.position_y
                             );
                             
-                            // Check if in attack range and can attack
+                            // MELEE ATTACKS - Only when in melee range
+                            // (Ranged attacks are handled in the separate block above for both Chasing and Stalking)
                             if distance_sq <= (stats.attack_range * stats.attack_range) && 
                                can_attack(&animal, current_time, &stats) {
-                                // Execute the attack
+                                // Execute the melee attack
                                 execute_attack(ctx, &mut animal, &target_player, &behavior, &stats, current_time, &mut rng)?;
                             }
                             
@@ -2855,7 +2917,6 @@ pub fn try_npc_ranged_counter_attack(
         SHARDKIN_PROJECTILE_DAMAGE, SHARDKIN_PROJECTILE_SPEED,
         SHOREBOUND_PROJECTILE_DAMAGE, SHOREBOUND_PROJECTILE_SPEED,
         VIPER_PROJECTILE_DAMAGE, VIPER_PROJECTILE_SPEED,
-        NPC_RANGED_COUNTER_COOLDOWN_MS,
     };
     
     // Find the animal
@@ -2866,16 +2927,14 @@ pub fn try_npc_ranged_counter_attack(
     
     // Skip if animal is dead or burrowed
     if animal.health <= 0.0 || animal.state == AnimalState::Burrowed {
+        log::debug!("🎯 [COUNTER BLOCK] {:?} {} - dead or burrowed", animal.species, animal.id);
         return Ok(false);
     }
     
-    // Check cooldown - use last_attack_time for ranged counter-attack cooldown
-    if let Some(last_attack) = animal.last_attack_time {
-        let time_since_last_ms = (ctx.timestamp.to_micros_since_unix_epoch() - last_attack.to_micros_since_unix_epoch()) / 1000;
-        if time_since_last_ms < NPC_RANGED_COUNTER_COOLDOWN_MS {
-            return Ok(false); // Still on cooldown
-        }
-    }
+    // NOTE: We intentionally DO NOT check last_attack_time here!
+    // The melee attack system also uses last_attack_time, so counter-attacks
+    // would be blocked by melee attack cooldowns if we checked it.
+    // Counter-attacks fire immediately when hit by projectiles as a reaction.
     
     // Determine if this species has ranged counter-attacks
     let (projectile_type, damage, speed, max_range) = match animal.species {
@@ -2941,6 +3000,173 @@ pub fn try_npc_ranged_counter_attack(
         }
         Err(e) => {
             log::error!("Failed to fire NPC counter-attack projectile: {}", e);
+            Ok(false)
+        }
+    }
+}
+
+// ============================================================================
+// PROACTIVE NPC RANGED ATTACKS
+// ============================================================================
+// Unlike counter-attacks (which fire when NPCs get hit by player projectiles),
+// proactive ranged attacks are fired by NPCs during normal chase/combat when
+// they are within their ranged attack range of a player.
+
+/// Configuration for NPC proactive ranged attacks
+#[derive(Debug, Clone)]
+pub struct NpcRangedAttackConfig {
+    pub projectile_type: u8,
+    pub damage: f32,
+    pub speed: f32,
+    pub range: f32,       // Maximum range for ranged attack
+    pub min_range: f32,   // Minimum range (don't shoot if too close - use melee)
+    pub cooldown_ms: i64, // Cooldown between ranged attacks
+}
+
+/// Get ranged attack configuration for a species, if it has ranged attacks
+pub fn get_npc_ranged_attack_config(species: AnimalSpecies) -> Option<NpcRangedAttackConfig> {
+    use crate::projectile::{
+        NPC_PROJECTILE_SPECTRAL_SHARD, NPC_PROJECTILE_SPECTRAL_BOLT, NPC_PROJECTILE_VENOM_SPITTLE,
+        SHARDKIN_PROJECTILE_DAMAGE, SHARDKIN_PROJECTILE_SPEED,
+        SHOREBOUND_PROJECTILE_DAMAGE, SHOREBOUND_PROJECTILE_SPEED,
+        VIPER_PROJECTILE_DAMAGE, VIPER_PROJECTILE_SPEED,
+    };
+    
+    match species {
+        // Shardkin: Fast shard projectiles, fires from medium range
+        AnimalSpecies::Shardkin => Some(NpcRangedAttackConfig {
+            projectile_type: NPC_PROJECTILE_SPECTRAL_SHARD,
+            damage: SHARDKIN_PROJECTILE_DAMAGE,
+            speed: SHARDKIN_PROJECTILE_SPEED,
+            range: 350.0,        // Can fire from 350px away
+            min_range: 100.0,    // Use melee when closer than 100px
+            cooldown_ms: 1500,   // 1.5 second cooldown
+        }),
+        
+        // Shorebound: Medium-speed ghostly bolts, fires from longer range
+        AnimalSpecies::Shorebound => Some(NpcRangedAttackConfig {
+            projectile_type: NPC_PROJECTILE_SPECTRAL_BOLT,
+            damage: SHOREBOUND_PROJECTILE_DAMAGE,
+            speed: SHOREBOUND_PROJECTILE_SPEED,
+            range: 400.0,        // Can fire from 400px away
+            min_range: 120.0,    // Use melee when closer than 120px
+            cooldown_ms: 2000,   // 2 second cooldown
+        }),
+        
+        // CableViper: Slow venom spittle, medium range
+        AnimalSpecies::CableViper => Some(NpcRangedAttackConfig {
+            projectile_type: NPC_PROJECTILE_VENOM_SPITTLE,
+            damage: VIPER_PROJECTILE_DAMAGE,
+            speed: VIPER_PROJECTILE_SPEED,
+            range: 280.0,        // Can spit from 280px away
+            min_range: 130.0,    // Use melee bite when closer
+            cooldown_ms: 2500,   // 2.5 second cooldown (venom is powerful)
+        }),
+        
+        // DrownedWatch: NO ranged attacks - melee brute only
+        // Other species: No ranged attacks
+        _ => None,
+    }
+}
+
+/// Try to fire a proactive ranged attack from an NPC at their target player.
+/// This is called during the chase state when the NPC is within ranged attack range.
+/// Returns Ok(true) if a projectile was fired, Ok(false) if not (cooldown, out of range, etc.)
+pub fn try_npc_proactive_ranged_attack(
+    ctx: &ReducerContext,
+    animal: &mut WildAnimal,
+    target_player: &Player,
+    current_time: Timestamp,
+) -> Result<bool, String> {
+    use crate::projectile::fire_npc_projectile;
+    
+    // Get ranged attack config for this species
+    let config = match get_npc_ranged_attack_config(animal.species) {
+        Some(c) => c,
+        None => return Ok(false), // This species doesn't have ranged attacks
+    };
+    
+    // Skip if animal is dead or burrowed
+    if animal.health <= 0.0 || animal.state == AnimalState::Burrowed {
+        log::debug!("🎯 [RANGED BLOCK] {:?} {} - dead or burrowed", animal.species, animal.id);
+        return Ok(false);
+    }
+    
+    // Skip if player is dead
+    if target_player.is_dead {
+        log::debug!("🎯 [RANGED BLOCK] {:?} {} - player is dead", animal.species, animal.id);
+        return Ok(false);
+    }
+    
+    // Check if player is inside a building - don't fire ranged into buildings
+    if target_player.is_inside_building {
+        log::debug!("🎯 [RANGED BLOCK] {:?} {} - player is inside building", animal.species, animal.id);
+        return Ok(false);
+    }
+    
+    // Calculate distance to target
+    let dx = target_player.position_x - animal.pos_x;
+    let dy = target_player.position_y - animal.pos_y;
+    let distance = (dx * dx + dy * dy).sqrt();
+    
+    // Check if target is within ranged attack range (but not too close for melee)
+    if distance > config.range || distance < config.min_range {
+        log::debug!("🎯 [RANGED BLOCK] {:?} {} - out of range (dist={:.1}, range={:.1}-{:.1})", 
+                   animal.species, animal.id, distance, config.min_range, config.range);
+        return Ok(false); // Out of range or too close (use melee instead)
+    }
+    
+    // Check line of sight - don't shoot through walls
+    if !crate::animal_collision::has_clear_line_of_sight(
+        ctx, animal.pos_x, animal.pos_y, target_player.position_x, target_player.position_y
+    ) {
+        log::debug!("🎯 [RANGED BLOCK] {:?} {} - no line of sight", animal.species, animal.id);
+        return Ok(false); // No clear shot
+    }
+    
+    // RATE LIMITING: Use a simple check based on when we entered combat
+    // We don't use last_attack_time because melee attacks also set it, creating conflicts.
+    // Instead, use state_change_time to ensure NPC has been in combat state for at least 500ms
+    let time_in_state_ms = (current_time.to_micros_since_unix_epoch() - animal.state_change_time.to_micros_since_unix_epoch()) / 1000;
+    if time_in_state_ms < 500 {
+        log::debug!("🎯 [RANGED BLOCK] {:?} {} - too soon after state change ({}ms)", 
+                   animal.species, animal.id, time_in_state_ms);
+        return Ok(false); // Give player a moment to react
+    }
+    
+    // Use a deterministic "cooldown" based on animal ID and timestamp to prevent spam
+    // This creates a roughly 1-2 second window between shots without conflicting with melee
+    let pseudo_random = ((current_time.to_micros_since_unix_epoch() / 1_000_000) + animal.id as i64) % 3;
+    if pseudo_random != 0 {
+        return Ok(false); // Only fire ~33% of qualifying ticks
+    }
+    
+    // Fire the projectile!
+    match fire_npc_projectile(
+        ctx,
+        animal.id,
+        animal.pos_x,
+        animal.pos_y,
+        target_player.position_x,
+        target_player.position_y,
+        config.projectile_type,
+        config.damage,
+        config.speed,
+        config.range,
+    ) {
+        Ok(projectile_id) => {
+            log::info!(
+                "🎯 [NPC RANGED] {:?} {} fired ranged attack (projectile {}) at player {} at distance {:.1}px",
+                animal.species, animal.id, projectile_id, target_player.identity, distance
+            );
+            
+            // Update the animal's last_attack_time to track cooldown
+            animal.last_attack_time = Some(current_time);
+            
+            Ok(true)
+        }
+        Err(e) => {
+            log::error!("Failed to fire NPC proactive ranged attack: {}", e);
             Ok(false)
         }
     }

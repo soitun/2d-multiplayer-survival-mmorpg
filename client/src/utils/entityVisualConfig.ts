@@ -345,12 +345,12 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   sleeping_bag: {
     centerOffsetX: 0,
-    centerOffsetY: -32,
-    width: 64,
-    height: 64,
+    centerOffsetY: 0,
+    width: 128,
+    height: 128,
     placementYOffset: 0,
-    spriteWidth: 64,
-    spriteHeight: 64,
+    spriteWidth: 128,
+    spriteHeight: 128,
   },
   
   knocked_out_player: {

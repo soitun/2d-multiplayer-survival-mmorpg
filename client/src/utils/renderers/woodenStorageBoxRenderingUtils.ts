@@ -25,24 +25,24 @@ export const LARGE_BOX_WIDTH = 96;  // Larger dimensions for large box
 export const LARGE_BOX_HEIGHT = 96;
 export const REFRIGERATOR_WIDTH = 96;  // Refrigerator dimensions (squared)
 export const REFRIGERATOR_HEIGHT = 96;
-export const COMPOST_WIDTH = 128;  // Compost box dimensions (larger than normal box)
-export const COMPOST_HEIGHT = 128;
+export const COMPOST_WIDTH = 256;  // Compost box dimensions (larger than normal box)
+export const COMPOST_HEIGHT = 256;
 export const BACKPACK_WIDTH = 64;
 export const BACKPACK_HEIGHT = 64;
 export const REPAIR_BENCH_WIDTH = 192;  // 25% smaller: 256 * 0.75 = 192
 export const REPAIR_BENCH_HEIGHT = 192;
-export const COOKING_STATION_WIDTH = 96;  // 25% smaller: 128 * 0.75 = 96
-export const COOKING_STATION_HEIGHT = 96;
-export const SCARECROW_WIDTH = 128;  // Scarecrow dimensions - tall figure
-export const SCARECROW_HEIGHT = 128;
+export const COOKING_STATION_WIDTH = 192;  // 25% smaller: 128 * 0.75 = 96
+export const COOKING_STATION_HEIGHT = 192;
+export const SCARECROW_WIDTH = 256;  // Scarecrow dimensions - tall figure
+export const SCARECROW_HEIGHT = 256;
 export const MILITARY_RATION_WIDTH = 64;  // Military ration dimensions
 export const MILITARY_RATION_HEIGHT = 64;
 export const MINE_CART_WIDTH = 144;  // Mine cart dimensions (quarry-exclusive) - 25% smaller than original 192
 export const MINE_CART_HEIGHT = 144;
-export const FISH_TRAP_WIDTH = 96;  // Fish trap dimensions
-export const FISH_TRAP_HEIGHT = 96;
-export const WILD_BEEHIVE_WIDTH = 120;  // Wild beehive dimensions (forest-only) - 25% larger: 96 * 1.25 = 120
-export const WILD_BEEHIVE_HEIGHT = 120;
+export const FISH_TRAP_WIDTH = 200;  // Fish trap dimensions
+export const FISH_TRAP_HEIGHT = 200;
+export const WILD_BEEHIVE_WIDTH = 112;  // Wild beehive dimensions (forest-only) - 25% larger: 96 * 1.25 = 120
+export const WILD_BEEHIVE_HEIGHT = 112;
 export const PLAYER_BEEHIVE_WIDTH = 256;  // Player beehive dimensions - larger for multi-hive structure
 export const PLAYER_BEEHIVE_HEIGHT = 256;
 

@@ -748,6 +748,83 @@ pub fn is_position_on_shore(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> boo
     false // No adjacent water tiles found
 }
 
+/// Checks if a position is within a certain distance of shore (land adjacent to water)
+/// Returns true if the position is within max_distance_px pixels of any shore tile.
+/// Used for placing fish traps which can be placed in water near shore.
+/// 
+/// OPTIMIZED: O(1) average case - early exits when shore found.
+/// Instead of checking every tile for "is shore", we:
+/// 1. Check if current position is directly on shore (common case) → O(8) neighbor checks
+/// 2. Find nearest water/land boundary by checking if we're on water or land,
+///    then searching outward in expanding rings until we find the opposite type
+pub fn is_position_near_shore(ctx: &ReducerContext, pos_x: f32, pos_y: f32, max_distance_px: f32) -> bool {
+    // Fast path: Check if we're directly on shore (most common valid placement)
+    if is_position_on_shore(ctx, pos_x, pos_y) {
+        return true;
+    }
+    
+    // Determine if we're on water or land
+    let on_water = is_position_on_water(ctx, pos_x, pos_y);
+    
+    // Convert to tile coordinates
+    let center_tile_x = (pos_x / TILE_SIZE_PX as f32).floor() as i32;
+    let center_tile_y = (pos_y / TILE_SIZE_PX as f32).floor() as i32;
+    
+    // Max search radius in tiles
+    let max_radius_tiles = ((max_distance_px / TILE_SIZE_PX as f32).ceil() as i32) + 1;
+    let max_dist_sq = max_distance_px * max_distance_px;
+    
+    // Expand outward in rings - find the nearest tile of opposite type
+    // This is efficient because shore is at the boundary, so we'll find it quickly
+    for ring in 1..=max_radius_tiles {
+        // Check tiles on the perimeter of this ring
+        for i in -ring..=ring {
+            // Check 4 edges of the ring
+            let checks = [
+                (center_tile_x + i, center_tile_y - ring), // Top edge
+                (center_tile_x + i, center_tile_y + ring), // Bottom edge
+                (center_tile_x - ring, center_tile_y + i), // Left edge
+                (center_tile_x + ring, center_tile_y + i), // Right edge
+            ];
+            
+            for (check_x, check_y) in checks {
+                // Skip if out of bounds
+                if check_x < 0 || check_y < 0 || 
+                   check_x >= WORLD_WIDTH_TILES as i32 || check_y >= WORLD_HEIGHT_TILES as i32 {
+                    continue;
+                }
+                
+                // Check tile type at this position
+                if let Some(tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
+                    let tile_is_water = tile_type.is_water();
+                    
+                    // We found a boundary (water/land transition) = shore nearby
+                    if tile_is_water != on_water {
+                        // Calculate actual pixel distance to this tile
+                        let tile_center_x = (check_x as f32 + 0.5) * TILE_SIZE_PX as f32;
+                        let tile_center_y = (check_y as f32 + 0.5) * TILE_SIZE_PX as f32;
+                        let dx = pos_x - tile_center_x;
+                        let dy = pos_y - tile_center_y;
+                        let dist_sq = dx * dx + dy * dy;
+                        
+                        if dist_sq <= max_dist_sq {
+                            return true; // Found shore within range
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Early exit: if the minimum distance of this ring exceeds max_distance, stop
+        let min_ring_dist = (ring - 1) as f32 * TILE_SIZE_PX as f32;
+        if min_ring_dist * min_ring_dist > max_dist_sq {
+            break;
+        }
+    }
+    
+    false // No shore found within range
+}
+
 /// Detects if a position is in a lake-like area (larger contiguous water body) vs a river
 /// Checks if the given world position is in deep sea (far from shore)
 /// Returns true if position is on Sea tile and at least min_distance_tiles from shore

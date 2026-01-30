@@ -81,6 +81,30 @@ export function useDoodadImages() {
     // Turret
     loadDoodadImage(import('../assets/doodads/turret_tallow.png'), 'turret_tallow.png');
 
+    // Furnace
+    loadDoodadImage(import('../assets/doodads/furnace_simple.png'), 'furnace_simple.png');
+
+    // Campfire (off state for placement preview)
+    loadDoodadImage(import('../assets/doodads/campfire_off.png'), 'campfire_off.png');
+
+    // Lantern (off state for placement preview)
+    loadDoodadImage(import('../assets/doodads/lantern_off.png'), 'lantern_off.png');
+
+    // Hearth
+    loadDoodadImage(import('../assets/doodads/hearth.png'), 'hearth.png');
+
+    // Sleeping bag
+    loadDoodadImage(import('../assets/doodads/sleeping_bag.png'), 'sleeping_bag.png');
+
+    // Stash
+    loadDoodadImage(import('../assets/doodads/stash.png'), 'stash.png');
+
+    // Wooden storage box
+    loadDoodadImage(import('../assets/doodads/wooden_storage_box.png'), 'wooden_storage_box.png');
+
+    // Fish trap
+    loadDoodadImage(import('../assets/doodads/fish_trap.png'), 'fish_trap.png');
+
   }, []);
 
   return doodadImagesRef;

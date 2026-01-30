@@ -216,15 +216,81 @@ function isPositionOnShore(connection: DbConnection | null, worldX: number, worl
 }
 
 /**
- * Check if fish trap placement is blocked (not on shore)
- * Fish traps must be placed on land adjacent to water.
+ * Check if a position is within a certain distance of shore (land adjacent to water)
+ * Used for fish trap placement which can be placed in water near shore.
+ * OPTIMIZED: Early exits when shore found, expands outward in rings.
+ */
+function isPositionNearShore(connection: DbConnection | null, worldX: number, worldY: number, maxDistancePx: number): boolean {
+  if (!connection) return false;
+  
+  // Fast path: Check if directly on shore
+  if (isPositionOnShore(connection, worldX, worldY)) {
+    return true;
+  }
+  
+  const TILE_SIZE_LOCAL = 48;
+  const { tileX: centerTileX, tileY: centerTileY } = worldPosToTileCoords(worldX, worldY);
+  const onWater = isPositionOnWater(connection, worldX, worldY);
+  
+  // Max search radius in tiles
+  const maxRadiusTiles = Math.ceil(maxDistancePx / TILE_SIZE_LOCAL) + 1;
+  const maxDistSq = maxDistancePx * maxDistancePx;
+  
+  // Expand outward in rings - find nearest tile of opposite type (water/land boundary = shore)
+  for (let ring = 1; ring <= maxRadiusTiles; ring++) {
+    for (let i = -ring; i <= ring; i++) {
+      // Check 4 edges of the ring
+      const checks = [
+        { x: centerTileX + i, y: centerTileY - ring }, // Top edge
+        { x: centerTileX + i, y: centerTileY + ring }, // Bottom edge
+        { x: centerTileX - ring, y: centerTileY + i }, // Left edge
+        { x: centerTileX + ring, y: centerTileY + i }, // Right edge
+      ];
+      
+      for (const check of checks) {
+        const tileType = getTileTypeFromChunkData(connection, check.x, check.y);
+        if (tileType === null) continue;
+        
+        const tileIsWater = tileType === 'Sea' || tileType === 'HotSpringWater';
+        
+        // Found boundary (water/land transition) = shore nearby
+        if (tileIsWater !== onWater) {
+          // Calculate distance to this tile
+          const tileCenterX = (check.x + 0.5) * TILE_SIZE_LOCAL;
+          const tileCenterY = (check.y + 0.5) * TILE_SIZE_LOCAL;
+          const dx = worldX - tileCenterX;
+          const dy = worldY - tileCenterY;
+          const distSq = dx * dx + dy * dy;
+          
+          if (distSq <= maxDistSq) {
+            return true; // Found shore within range
+          }
+        }
+      }
+    }
+    
+    // Early exit if ring is beyond max distance
+    const minRingDist = (ring - 1) * TILE_SIZE_LOCAL;
+    if (minRingDist * minRingDist > maxDistSq) {
+      break;
+    }
+  }
+  
+  return false; // No shore found within range
+}
+
+/**
+ * Check if fish trap placement is blocked (not within 600px of shore)
+ * Fish traps can be placed in water within 600px of shore.
  */
 function isFishTrapPlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
   if (!connection) return false;
   
-  // Fish traps must be on shore (land adjacent to water)
-  if (!isPositionOnShore(connection, worldX, worldY)) {
-    return true; // Block if not on shore
+  const FISH_TRAP_MAX_DISTANCE_FROM_SHORE = 600.0;
+  
+  // Fish traps can be placed within 600px of shore
+  if (!isPositionNearShore(connection, worldX, worldY, FISH_TRAP_MAX_DISTANCE_FROM_SHORE)) {
+    return true; // Block if not near shore
   }
   
   return false; // Valid placement
@@ -524,7 +590,7 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
   }
 
   // List of items that cannot be placed on water
-  const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Ancestral Ward', 'Signal Disruptor', 'Memory Resonance Beacon', 'Wooden Storage Box', 'Large Wooden Storage Box', 'Pantry', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', "Matron's Chest", 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath"];
+  const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Ancestral Ward', 'Signal Disruptor', 'Memory Resonance Beacon', 'Wooden Storage Box', 'Large Wooden Storage Box', 'Pantry', 'Scarecrow', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', "Matron's Chest", 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath"];
   
   // Seeds that don't require water or beach (most seeds) cannot be planted on water
   const isSeedButNotSpecialSeed = isSeedItemValid(placementInfo.itemName) && 
@@ -565,88 +631,12 @@ function isSeedPlacementOnOccupiedTile(connection: DbConnection | null, placemen
   return false; // Tile is free
 }
 
-// Collision radii for different storage box types (must match server wooden_storage_box.rs)
-const STORAGE_BOX_COLLISION_RADII: { [key: number]: number } = {
-  0: 18,   // BOX_TYPE_NORMAL
-  1: 48,   // BOX_TYPE_LARGE
-  2: 48,   // BOX_TYPE_REFRIGERATOR
-  3: 64,   // BOX_TYPE_COMPOST
-  4: 18,   // BOX_TYPE_BACKPACK
-  5: 96,   // BOX_TYPE_REPAIR_BENCH
-  6: 48,   // BOX_TYPE_COOKING_STATION
-  7: 64,   // BOX_TYPE_SCARECROW
-  8: 18,   // BOX_TYPE_MILITARY_RATION
-  9: 72,   // BOX_TYPE_MINE_CART
-  10: 48,  // BOX_TYPE_FISH_TRAP
-  11: 60,  // BOX_TYPE_WILD_BEEHIVE
-  12: 100, // BOX_TYPE_PLAYER_BEEHIVE
-};
+// NOTE: Storage box collision validation is now handled server-side only
+// This allows consistent behavior with other placeable items like furnaces
+// The server's wooden_storage_box.rs handles all collision validation
 
-// Map item names to box types for collision radius lookup
-const ITEM_NAME_TO_BOX_TYPE: { [key: string]: number } = {
-  'Wooden Storage Box': 0,
-  'Large Wooden Storage Box': 1,
-  'Pantry': 2,
-  'Compost': 3,
-  'Repair Bench': 5,
-  'Cooking Station': 6,
-  'Scarecrow': 7,
-  'Fish Trap': 10,
-  'Wooden Beehive': 12,
-};
-
-// Storage box Y offset for visual center calculation (must match server)
-const BOX_COLLISION_Y_OFFSET = 52.0;
-const BEEHIVE_EXTRA_Y_OFFSET = 100.0; // Additional offset for beehives
-
-/**
- * Checks if a storage box placement would collide with existing storage boxes.
- * Returns true if placement should be blocked due to collision.
- */
-function isStorageBoxCollision(
-  connection: DbConnection | null,
-  placementInfo: PlacementItemInfo | null,
-  worldX: number,
-  worldY: number
-): boolean {
-  if (!connection || !placementInfo) return false;
-  
-  // Check if this item is a storage box type
-  const boxType = ITEM_NAME_TO_BOX_TYPE[placementInfo.itemName];
-  if (boxType === undefined) return false; // Not a storage box
-  
-  // Get collision radius for the new box
-  const newBoxRadius = STORAGE_BOX_COLLISION_RADII[boxType] || 18;
-  
-  // Check against all existing storage boxes
-  for (const box of connection.db.woodenStorageBox.iter()) {
-    if (box.isDestroyed) continue;
-    
-    // Get collision radius for the existing box
-    const existingRadius = STORAGE_BOX_COLLISION_RADII[box.boxType] || 18;
-    
-    // Account for visual center offset
-    const existingYOffset = box.boxType === 12 // BOX_TYPE_PLAYER_BEEHIVE
-      ? BOX_COLLISION_Y_OFFSET + BEEHIVE_EXTRA_Y_OFFSET
-      : BOX_COLLISION_Y_OFFSET;
-    const existingVisualY = box.posY - existingYOffset;
-    
-    // Calculate distance between centers
-    const dx = box.posX - worldX;
-    const dy = existingVisualY - worldY;
-    const distSq = dx * dx + dy * dy;
-    
-    // Minimum distance = sum of both radii
-    const minDistance = newBoxRadius + existingRadius;
-    const minDistanceSq = minDistance * minDistance;
-    
-    if (distSq < minDistanceSq) {
-      return true; // Collision detected
-    }
-  }
-  
-  return false; // No collision
-}
+// NOTE: isStorageBoxCollision function removed - server handles all collision validation
+// This ensures consistent behavior with furnaces and other placeable items
 
 /**
  * Checks if placement is blocked due to monument zones (ALK stations, rune stones, hot springs, quarries).
@@ -1031,12 +1021,8 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
       return; // Don't proceed with placement
     }
 
-    // Check for storage box collision (prevents placing boxes on top of each other)
-    if (isStorageBoxCollision(connection, placementInfo, worldX, worldY)) {
-      console.log('[PlacementManager] Client-side validation: Storage box collision detected, playing error sound');
-      playImmediateSound('construction_placement_error', 1.0);
-      return; // Don't proceed with placement
-    }
+    // NOTE: Storage box collision check removed - server handles all collision validation
+    // This ensures consistent behavior with furnaces and other placeable items
 
     try {
       // --- Reducer Mapping Logic --- 
@@ -1086,6 +1072,7 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
         case 'Large Wooden Storage Box':
         case 'Pantry':
         case 'Compost':
+        case 'Scarecrow':
         case 'Fish Trap':
         case 'Wooden Beehive':
           // console.log(`[PlacementManager] Calling placeWoodenStorageBox reducer with instance ID: ${placementInfo.instanceId}`);
