@@ -10,6 +10,7 @@
  */
 
 import { Player, WoodenStorageBox, Barbecue, Furnace, Tree, Stone, WildAnimal, Barrel, Grass, ItemDefinition as SpacetimeDBItemDefinition } from '../../generated';
+import { InterpolatedGrassData } from '../../hooks/useGrassInterpolation'; // Merged grass+grassState data
 import { PLAYER_RADIUS } from '../clientCollision';
 
 // ===== CONSTANTS =====
@@ -39,7 +40,7 @@ export interface AttackRangeDebugEntities {
   wildAnimals?: Map<string, WildAnimal>;
   players?: Map<string, Player>;
   barrels?: Map<string, Barrel>;
-  grass?: Map<string, Grass>;
+  grass?: Map<string, InterpolatedGrassData>; // Merged grass+grassState data
 }
 
 export interface AttackRangeDebugOptions {
@@ -350,12 +351,12 @@ export function renderAttackRangeDebug(
     });
   }
 
-  // Draw attack lines to grass
+  // Draw attack lines to grass (uses merged InterpolatedGrassData)
   if (grass) {
     grass.forEach((grassEntity) => {
-      if (grassEntity.respawnAt && grassEntity.respawnAt.microsSinceUnixEpoch !== 0n) return; // Skip respawning grass
-      // Raw grass entities from SpacetimeDB use posX/posY (not serverPosX/serverPosY)
-      // serverPosX/serverPosY are only added by the interpolation hook for rendering
+      // Skip respawning grass (respawnAt !== null && microsSinceUnixEpoch !== 0)
+      if (grassEntity.respawnAt && (grassEntity.respawnAt as any).microsSinceUnixEpoch !== 0n) return;
+      // InterpolatedGrassData has posX/posY from merged data
       const grassX = grassEntity.posX;
       const grassY = grassEntity.posY;
       drawAttackLine(ctx, playerX, playerY, grassX, grassY, equippedRange, facingAngle, equippedHalfArc);

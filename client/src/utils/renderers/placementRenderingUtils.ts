@@ -106,9 +106,13 @@ function rebuildGrassSpatialHash(connection: DbConnection): void {
     grassSpatialHash.clear();
     let count = 0;
     const FOUNDATION_SIZE = 96;
+    // With split tables: grass (static pos) + grassState (health)
     for (const grass of connection.db.grass.iter()) {
         count++;
-        if (grass.health > 0) {
+        // Look up health from grassState table
+        const grassState = connection.db.grassState.grassId.find(grass.id);
+        const isAlive = grassState && grassState.health > 0;
+        if (isAlive) {
             // Hash to foundation cell coordinates
             const cellX = Math.floor(grass.posX / FOUNDATION_SIZE);
             const cellY = Math.floor(grass.posY / FOUNDATION_SIZE);
@@ -1004,6 +1008,7 @@ function isFoundationPlacementValid(
     // The hash already includes adjacent cells for edge cases
     if (grassSpatialHash.has(`${cellX},${cellY}`)) {
         // Double-check with actual grass entities only if hash says there might be grass
+        // With split tables: grass (static pos) + grassState (health)
         const FOUNDATION_SIZE = 96;
         const foundationMinX = worldX - FOUNDATION_SIZE / 2;
         const foundationMaxX = worldX + FOUNDATION_SIZE / 2;
@@ -1011,7 +1016,10 @@ function isFoundationPlacementValid(
         const foundationMaxY = worldY + FOUNDATION_SIZE / 2;
         
         for (const grass of connection.db.grass.iter()) {
-            if (grass.health > 0 &&
+            // Look up health from grassState table
+            const grassState = connection.db.grassState.grassId.find(grass.id);
+            const isAlive = grassState && grassState.health > 0;
+            if (isAlive &&
                 grass.posX >= foundationMinX && grass.posX <= foundationMaxX &&
                 grass.posY >= foundationMinY && grass.posY <= foundationMaxY) {
                 placementValidationCache.set(cacheKey, { isValid: false, timestamp: now });

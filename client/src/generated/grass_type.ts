@@ -36,16 +36,10 @@ export type Grass = {
   id: bigint,
   posX: number,
   posY: number,
-  health: number,
   appearanceType: GrassAppearanceType,
   chunkIndex: number,
-  lastHitTime: __Timestamp | undefined,
-  respawnAt: __Timestamp,
   swayOffsetSeed: number,
   swaySpeed: number,
-  disturbedAt: __Timestamp | undefined,
-  disturbanceDirectionX: number,
-  disturbanceDirectionY: number,
 };
 let _cached_Grass_type_value: __AlgebraicTypeType | null = null;
 
@@ -64,16 +58,10 @@ export const Grass = {
       { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
       { name: "posX", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "posY", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "health", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "appearanceType", algebraicType: GrassAppearanceType.getTypeScriptAlgebraicType() },
       { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-      { name: "respawnAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
       { name: "swayOffsetSeed", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "swaySpeed", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "disturbedAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-      { name: "disturbanceDirectionX", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "disturbanceDirectionY", algebraicType: __AlgebraicTypeValue.F32 },
     );
     return _cached_Grass_type_value;
   },

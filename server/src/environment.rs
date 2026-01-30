@@ -3844,28 +3844,21 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
 
         let chunk_idx = calculate_chunk_index(pos_x, pos_y);
         
-        let new_grass = Grass {
-            id: 0,
+        // Use helper to spawn both Grass (static) and GrassState (dynamic) tables
+        match crate::grass::spawn_grass_entity(
+            ctx,
             pos_x,
             pos_y,
-            health: crate::grass::GRASS_INITIAL_HEALTH,
             appearance_type,
-            chunk_index: chunk_idx,
-            last_hit_time: None,
-            respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
+            chunk_idx,
             sway_offset_seed,
             sway_speed,
-            disturbed_at: None,
-            disturbance_direction_x: 0.0,
-            disturbance_direction_y: 0.0,
-        };
-
-        match grasses.try_insert(new_grass) {
+        ) {
             Ok(_) => {
                 spawned_grass_count += 1;
             }
             Err(e) => {
-                log::warn!("Failed to insert grass at ({}, {}): {}", pos_x, pos_y, e);
+                log::warn!("Failed to spawn grass at ({}, {}): {}", pos_x, pos_y, e);
             }
         }
     }
@@ -3976,28 +3969,21 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         
         let chunk_idx = calculate_chunk_index(pos_x, pos_y);
         
-        let new_tundra_grass = Grass {
-            id: 0,
+        // Use helper to spawn both Grass (static) and GrassState (dynamic) tables
+        match crate::grass::spawn_grass_entity(
+            ctx,
             pos_x,
             pos_y,
-            health: crate::grass::GRASS_INITIAL_HEALTH,
             appearance_type,
-            chunk_index: chunk_idx,
-            last_hit_time: None,
-            respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
+            chunk_idx,
             sway_offset_seed,
             sway_speed,
-            disturbed_at: None,
-            disturbance_direction_x: 0.0,
-            disturbance_direction_y: 0.0,
-        };
-        
-        match grasses.try_insert(new_tundra_grass) {
+        ) {
             Ok(_) => {
                 spawned_tundra_grass_count += 1;
             }
             Err(e) => {
-                log::warn!("Failed to insert tundra grass at ({}, {}): {}", pos_x, pos_y, e);
+                log::warn!("Failed to spawn tundra grass at ({}, {}): {}", pos_x, pos_y, e);
             }
         }
     }
@@ -4108,28 +4094,21 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         
         let chunk_idx = calculate_chunk_index(pos_x, pos_y);
         
-        let new_alpine_grass = Grass {
-            id: 0,
+        // Use helper to spawn both Grass (static) and GrassState (dynamic) tables
+        match crate::grass::spawn_grass_entity(
+            ctx,
             pos_x,
             pos_y,
-            health: crate::grass::GRASS_INITIAL_HEALTH,
             appearance_type,
-            chunk_index: chunk_idx,
-            last_hit_time: None,
-            respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
+            chunk_idx,
             sway_offset_seed,
             sway_speed,
-            disturbed_at: None,
-            disturbance_direction_x: 0.0,
-            disturbance_direction_y: 0.0,
-        };
-        
-        match grasses.try_insert(new_alpine_grass) {
+        ) {
             Ok(_) => {
                 spawned_alpine_grass_count += 1;
             }
             Err(e) => {
-                log::warn!("Failed to insert alpine grass at ({}, {}): {}", pos_x, pos_y, e);
+                log::warn!("Failed to spawn alpine grass at ({}, {}): {}", pos_x, pos_y, e);
             }
         }
     }
@@ -4227,28 +4206,21 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         
         let chunk_idx = calculate_chunk_index(pos_x, pos_y);
         
-        let new_beach_grass = Grass {
-            id: 0,
+        // Use helper to spawn both Grass (static) and GrassState (dynamic) tables
+        match crate::grass::spawn_grass_entity(
+            ctx,
             pos_x,
             pos_y,
-            health: crate::grass::GRASS_INITIAL_HEALTH,
             appearance_type,
-            chunk_index: chunk_idx,
-            last_hit_time: None,
-            respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
+            chunk_idx,
             sway_offset_seed,
             sway_speed,
-            disturbed_at: None,
-            disturbance_direction_x: 0.0,
-            disturbance_direction_y: 0.0,
-        };
-        
-        match grasses.try_insert(new_beach_grass) {
+        ) {
             Ok(_) => {
                 spawned_beach_grass_count += 1;
             }
             Err(e) => {
-                log::warn!("Failed to insert beach grass at ({}, {}): {}", pos_x, pos_y, e);
+                log::warn!("Failed to spawn beach grass at ({}, {}): {}", pos_x, pos_y, e);
             }
         }
     }

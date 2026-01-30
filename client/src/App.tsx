@@ -281,7 +281,8 @@ function AppContent() {
       placedExplosives, // <<< ADD placedExplosives destructuring
       hotSprings, // <<< ADD hotSprings destructuring
       activeConsumableEffects, // <<< ADD activeConsumableEffects destructuring
-      grass, // <<< ADD grass destructuring
+      grass, // Static grass geometry
+      grassState, // Dynamic grass state (health, respawn) - split tables optimization
       knockedOutStatus, // <<< ADD knockedOutStatus destructuring
       rangedWeaponStats, // Ensure this is destructured
       projectiles, // Ensure this is destructured
@@ -1348,6 +1349,7 @@ function AppContent() {
                             messages={messages}
                             activeConsumableEffects={activeConsumableEffects}
                             grass={grass}
+                            grassState={grassState}
                             knockedOutStatus={knockedOutStatus}
                             rangedWeaponStats={rangedWeaponStats}
                             projectiles={projectiles}

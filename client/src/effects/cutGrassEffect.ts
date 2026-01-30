@@ -1,10 +1,14 @@
-import { Grass, DbConnection } from '../generated';
+import { Grass, GrassState, DbConnection } from '../generated';
 
 // ============================================================================
 // AAA PIXEL ART CUT GRASS ANIMATION EFFECT
 // ============================================================================
 // Creates animated grass blade particles that fly outward when grass is cut
 // Features: Physics-based movement, rotation, color variation, procedural rendering
+//
+// NOTE: With table normalization (Grass + GrassState split), we listen to 
+// GrassState.onDelete since that's what gets removed when grass is destroyed
+// (the static Grass table is never deleted, only GrassState)
 // ============================================================================
 
 const PARTICLE_LIFETIME_MS = 800; // 0.8 seconds for longer, more visible animation
@@ -57,22 +61,39 @@ interface CutGrassParticle {
 const activeParticles: CutGrassParticle[] = [];
 let dbConn: DbConnection | null = null;
 
-// Function to be called when a grass entity is deleted
-function handleGrassDestroyed(context: any, grass: Grass) {
-    spawnCutGrassParticles(grass.posX, grass.posY, grass.id);
+// Function to be called when a GrassState entity is deleted (grass destroyed)
+// With table split, GrassState is deleted when grass health becomes 0
+function handleGrassStateDestroyed(context: any, grassState: GrassState) {
+    // Look up the static Grass table to get the position
+    if (!dbConn?.db?.grass) {
+        console.warn("[CutGrassEffect] Cannot spawn particles - grass table not available");
+        return;
+    }
+        
+    // Find the static grass data by ID (Grass.id matches GrassState.grassId)
+    const grass = dbConn.db.grass.id.find(grassState.grassId);
+    if (grass) {
+        spawnCutGrassParticles(grass.posX, grass.posY, grassState.grassId);
+    } else {
+        // Fallback: if we can't find the grass (rare edge case), skip the effect
+        console.warn(`[CutGrassEffect] Could not find grass position for grassId ${grassState.grassId}`);
+    }
 }
 
 export function initCutGrassEffectSystem(connection: DbConnection) {
     dbConn = connection;
-    if (dbConn.db && dbConn.db.grass) {
-        dbConn.db.grass.onDelete(handleGrassDestroyed);
+    // Subscribe to GrassState deletions (not Grass - static table is never deleted)
+    if (dbConn.db && dbConn.db.grassState) {
+        dbConn.db.grassState.onDelete(handleGrassStateDestroyed);
+        // console.log("[CutGrassEffect] Successfully subscribed to grassState.onDelete");
     } else {
-        console.warn("[CutGrassEffect] Grass table not available on DB connection at init time. Retrying subscription shortly...");
+        console.warn("[CutGrassEffect] GrassState table not available on DB connection at init time. Retrying subscription shortly...");
         setTimeout(() => {
-            if (dbConn && dbConn.db && dbConn.db.grass) {
-                dbConn.db.grass.onDelete(handleGrassDestroyed);
+            if (dbConn && dbConn.db && dbConn.db.grassState) {
+                dbConn.db.grassState.onDelete(handleGrassStateDestroyed);
+                // console.log("[CutGrassEffect] Successfully subscribed to grassState.onDelete (retry)");
             } else {
-                console.error("[CutGrassEffect] Failed to subscribe to grass.onDelete even after retry. Cut grass effect will not work.");
+                console.error("[CutGrassEffect] Failed to subscribe to grassState.onDelete even after retry. Cut grass effect will not work.");
             }
         }, 2000);
     }
@@ -258,7 +279,7 @@ export function renderCutGrassEffects(ctx: CanvasRenderingContext2D, nowMs: numb
 
 // Cleanup function
 export function cleanupCutGrassEffectSystem() {
-    if (dbConn && dbConn.db && dbConn.db.grass) {
+    if (dbConn && dbConn.db && dbConn.db.grassState) {
         // Clear subscription (if SDK supports it)
     }
     activeParticles.length = 0;

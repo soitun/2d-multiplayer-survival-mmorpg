@@ -37,6 +37,7 @@ use crate::stone::{MIN_STONE_RESPAWN_TIME_SECS, MAX_STONE_RESPAWN_TIME_SECS, STO
 use crate::rune_stone::{RUNE_STONE_AABB_HALF_WIDTH, RUNE_STONE_AABB_HALF_HEIGHT, RUNE_STONE_COLLISION_Y_OFFSET};
 use crate::wooden_storage_box::{WoodenStorageBox, BOX_COLLISION_RADIUS, BOX_COLLISION_Y_OFFSET, wooden_storage_box as WoodenStorageBoxTableTrait};
 use crate::grass::grass as GrassTableTrait; // RE-ADDED: grass table trait for destroyable grass
+use crate::grass::grass_state as GrassStateTableTrait; // Split tables: GrassState has health
 
 // Table trait imports for database access
 use crate::tree::tree as TreeTableTrait;
@@ -719,10 +720,26 @@ pub fn find_targets_in_cone(
     let grass_attack_range_sq = grass_attack_range * grass_attack_range;
     let grass_half_attack_angle_rad = half_attack_angle_rad * 1.8; // 80% wider arc for grass
     
+    // Use split tables: GrassState has health, Grass has position/appearance
+    let grass_table = ctx.db.grass();
+    let grass_state_table = ctx.db.grass_state();
+    
     for chunk_idx in chunk_indices_to_check {
-        for grass_entity in ctx.db.grass().chunk_index().filter(chunk_idx) {
-            // Skip dead grass or brambles (indestructible)
-            if grass_entity.health == 0 || grass_entity.appearance_type.is_bramble() {
+        // Query GrassState for alive grass in this chunk
+        for grass_state in grass_state_table.chunk_index().filter(chunk_idx) {
+            // Skip dead grass
+            if grass_state.health == 0 {
+                continue;
+            }
+            
+            // Look up static grass data for position and appearance
+            let grass_entity = match grass_table.id().find(grass_state.grass_id) {
+                Some(g) => g,
+                None => continue, // No matching grass entity
+            };
+            
+            // Skip brambles (indestructible)
+            if grass_entity.appearance_type.is_bramble() {
                 continue;
             }
             

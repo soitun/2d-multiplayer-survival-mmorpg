@@ -26,7 +26,7 @@ use crate::building::foundation_cell;
 // Additional table traits for explosion damage
 use crate::tree::tree;
 use crate::stone::stone;
-use crate::grass::{grass, MIN_GRASS_RESPAWN_TIME_SECS, MAX_GRASS_RESPAWN_TIME_SECS};
+use crate::grass::{grass, grass_state, MIN_GRASS_RESPAWN_TIME_SECS, MAX_GRASS_RESPAWN_TIME_SECS};
 use crate::barrel::barrel;
 use crate::lantern::lantern;
 use crate::stash::stash;
@@ -597,33 +597,46 @@ fn damage_resources_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32
     }
     
     // Damage grass blades (instant destroy - grass has 1 HP)
-    // PERFORMANCE: With the batch scheduler, grass entities stay in the table with health=0 and respawn_at set
-    let grass_to_destroy: Vec<u64> = ctx.db.grass().iter()
-        .filter(|grass| {
-            // Skip brambles (indestructible)
-            if grass.appearance_type.is_bramble() {
+    // PERFORMANCE: With split tables, only update GrassState (smaller payload)
+    // Grass entities stay in the table with health=0 and respawn_at set in GrassState
+    let grass_state_table = ctx.db.grass_state();
+    let grass_table = ctx.db.grass();
+    
+    // Find grass states to destroy (need to check position from Grass table)
+    let grass_to_destroy: Vec<u64> = grass_state_table.iter()
+        .filter(|state| {
+            if state.health == 0 {
                 return false;
             }
-            let dx = grass.pos_x - center_x;
-            let dy = grass.pos_y - center_y;
-            let dist_sq = dx * dx + dy * dy;
-            dist_sq <= radius_sq && grass.health > 0
+            // Look up static grass data for position and appearance
+            if let Some(grass) = grass_table.id().find(state.grass_id) {
+                // Skip brambles (indestructible)
+                if grass.appearance_type.is_bramble() {
+                    return false;
+                }
+                let dx = grass.pos_x - center_x;
+                let dy = grass.pos_y - center_y;
+                let dist_sq = dx * dx + dy * dy;
+                dist_sq <= radius_sq
+            } else {
+                false
+            }
         })
-        .map(|grass| grass.id)
+        .map(|state| state.grass_id)
         .collect();
     
     for grass_id in grass_to_destroy {
-        if let Some(mut grass) = ctx.db.grass().id().find(grass_id) {
+        if let Some(mut state) = grass_state_table.grass_id().find(grass_id) {
             // Set respawn time (batch scheduler will handle respawn)
             let respawn_secs = rng.gen_range(MIN_GRASS_RESPAWN_TIME_SECS..=MAX_GRASS_RESPAWN_TIME_SECS);
             let respawn_time = current_time + spacetimedb::TimeDuration::from_micros(respawn_secs as i64 * 1_000_000);
             
-            grass.health = 0;
-            grass.respawn_at = respawn_time;
-            grass.last_hit_time = Some(current_time);
+            state.health = 0;
+            state.respawn_at = respawn_time;
+            state.last_hit_time = Some(current_time);
             
-            // Update instead of delete - grass stays in table for batch respawn processing
-            ctx.db.grass().id().update(grass);
+            // Update only GrassState (smaller payload than old full Grass row)
+            grass_state_table.grass_id().update(state);
         }
     }
     

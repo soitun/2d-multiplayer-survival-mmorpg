@@ -449,6 +449,7 @@ use crate::chat::message as MessageTableTrait; // Import the trait for Message t
 use crate::sleeping_bag::sleeping_bag as SleepingBagTableTrait; // ADD Sleeping Bag trait import
 use crate::player_stats::stat_thresholds_config as StatThresholdsConfigTableTrait; // <<< UPDATED: Import StatThresholdsConfig table trait
 use crate::grass::grass as GrassTableTrait; // <<< ADDED: Import Grass table trait
+use crate::grass::grass_state as GrassStateTableTrait; // <<< ADDED: Import GrassState table trait (split from Grass)
 use crate::knocked_out::knocked_out_status as KnockedOutStatusTableTrait; // <<< ADDED: Import KnockedOutStatus table trait
 use crate::world_tile as WorldTileTableTrait; // <<< ADDED: Import WorldTile table trait
 use crate::minimap_cache as MinimapCacheTableTrait; // <<< ADDED: Import MinimapCache table trait

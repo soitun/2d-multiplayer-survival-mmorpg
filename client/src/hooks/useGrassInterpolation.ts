@@ -1,19 +1,22 @@
-import { useState, useEffect, useRef } from 'react';
-import { Grass as SpacetimeDBGrass, GrassAppearanceType } from '../generated'; // Assuming generated types
-import { Timestamp as SpacetimeDBTimestamp } from 'spacetimedb'; // For Timestamp type
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Grass as SpacetimeDBGrass, GrassState as SpacetimeDBGrassState, GrassAppearanceType } from '../generated';
+import { Timestamp as SpacetimeDBTimestamp } from 'spacetimedb';
 
-// Define a server update interval, though grass position is static,
-// this can be relevant if other properties change frequently or for consistency.
-// For grass, this might represent how long we consider its state "fresh"
-// or how often we expect non-positional updates.
-// Given grass is mostly static, this value is less critical than for clouds.
-const GRASS_DATA_REFRESH_INTERVAL_MS = 5000; // Arbitrary, adjust if needed
+// ============================================================================
+// GRASS INTERPOLATION HOOK - Updated for Split Tables
+// ============================================================================
+// With table normalization, grass data is split into:
+// - Grass: Static geometry (position, appearance, sway params) - rarely changes
+// - GrassState: Dynamic state (health, respawn, disturbance) - updates on damage
+//
+// This hook merges both tables into InterpolatedGrassData for rendering.
+// ============================================================================
 
 interface GrassInterpolationState {
   id: string; // Keep id as string (from map key)
-  originalId: bigint; // Store original u64 ID from SpacetimeDBGrass if needed
+  originalId: bigint; // Store original u64 ID from Grass table
 
-  // Server data - base position
+  // Server data - base position (from static Grass table)
   serverPosX: number;
   serverPosY: number;
 
@@ -30,16 +33,16 @@ interface GrassInterpolationState {
   // Animation timing (when this state was last updated from server data)
   lastServerUpdateTimeMs: number;
 
-  // Pass-through properties from SpacetimeDBGrass
-  health: number;
+  // Static properties from Grass table
   appearanceType: GrassAppearanceType;
   chunkIndex: number;
   swayOffsetSeed: number;
   swaySpeed: number;
+  
+  // Dynamic properties from GrassState table
+  health: number;
   lastHitTime: SpacetimeDBTimestamp | null;
   respawnAt: SpacetimeDBTimestamp | null;
-  
-  // NEW: Disturbance tracking fields
   disturbedAt: SpacetimeDBTimestamp | null;
   disturbanceDirectionX: number;
   disturbanceDirectionY: number;
@@ -49,22 +52,28 @@ interface GrassInterpolationState {
 export interface InterpolatedGrassData extends GrassInterpolationState {
   currentRenderPosX: number;
   currentRenderPosY: number;
-  // posX and posY will be inherited from GrassInterpolationState
 }
 
 interface UseGrassInterpolationProps {
-  serverGrass: Map<string, SpacetimeDBGrass>; // Key is string representation of u64 ID
+  serverGrass: Map<string, SpacetimeDBGrass>; // Static geometry - key is grass.id.toString()
+  serverGrassState: Map<string, SpacetimeDBGrassState>; // Dynamic state - key is grassState.grassId.toString()
   deltaTime: number; // Milliseconds since last frame (currently unused for grass pos)
 }
 
 export const useGrassInterpolation = ({
   serverGrass,
+  serverGrassState,
   deltaTime, // deltaTime is currently unused as grass position is static.
 }: UseGrassInterpolationProps): Map<string, InterpolatedGrassData> => {
   const [interpolatedGrassStates, setInterpolatedGrassStates] = useState<Map<string, GrassInterpolationState>>(() => new Map());
   const [renderableGrass, setRenderableGrass] = useState<Map<string, InterpolatedGrassData>>(() => new Map());
 
   const prevServerGrassRef = useRef<Map<string, SpacetimeDBGrass>>(new Map());
+  const prevServerGrassStateRef = useRef<Map<string, SpacetimeDBGrassState>>(new Map());
+  
+  // Track which grass IDs we've ever seen grassState for
+  // This helps distinguish "still loading" (never seen) vs "destroyed" (seen before, now missing)
+  const seenGrassStateIdsRef = useRef<Set<string>>(new Set());
 
   // Effect to update interpolation states when server data changes
   useEffect(() => {
@@ -72,53 +81,98 @@ export const useGrassInterpolation = ({
     const now = performance.now();
     let changed = false;
 
-    // Update existing or add new grass entities
-    serverGrass.forEach((currentServerGrass, id) => {
+    // Update the "seen" set with any new grassState entries
+    serverGrassState.forEach((_, id) => {
+      seenGrassStateIdsRef.current.add(id);
+    });
+
+    // Merge grass (static) with grass_state (dynamic) by ID
+    serverGrass.forEach((grass, id) => {
       const prevState = newStates.get(id);
-      const prevServerGrassInstance = prevServerGrassRef.current.get(id);
+      const prevGrass = prevServerGrassRef.current.get(id);
+      const grassState = serverGrassState.get(id); // Same ID as grass
+      const prevGrassState = prevServerGrassStateRef.current.get(id);
 
-      // Check if any relevant property of the grass has changed or if it's a new grass entity.
-      // For grass, posX/posY are static. We care about existence, health, appearance, etc.
-      const grassDataChanged = !prevServerGrassInstance ||
-                                prevServerGrassInstance.health !== currentServerGrass.health ||
-                                prevServerGrassInstance.appearanceType !== currentServerGrass.appearanceType ||
-                                prevServerGrassInstance.chunkIndex !== currentServerGrass.chunkIndex ||
-                                prevServerGrassInstance.swayOffsetSeed !== currentServerGrass.swayOffsetSeed ||
-                                prevServerGrassInstance.swaySpeed !== currentServerGrass.swaySpeed ||
-                                !Object.is(prevServerGrassInstance.lastHitTime, currentServerGrass.lastHitTime) ||
-                                !Object.is(prevServerGrassInstance.respawnAt, currentServerGrass.respawnAt) ||
-                                !Object.is((prevServerGrassInstance as any).disturbedAt, (currentServerGrass as any).disturbedAt) ||
-                                (prevServerGrassInstance as any).disturbanceDirectionX !== (currentServerGrass as any).disturbanceDirectionX ||
-                                (prevServerGrassInstance as any).disturbanceDirectionY !== (currentServerGrass as any).disturbanceDirectionY;
+      // Check if static data changed (rarely happens)
+      const staticDataChanged = !prevGrass ||
+        prevGrass.appearanceType !== grass.appearanceType ||
+        prevGrass.chunkIndex !== grass.chunkIndex ||
+        prevGrass.swayOffsetSeed !== grass.swayOffsetSeed ||
+        prevGrass.swaySpeed !== grass.swaySpeed;
 
+      // Check if dynamic state changed (common during gameplay)
+      const dynamicDataChanged = !grassState || !prevGrassState ||
+        prevGrassState.health !== grassState.health ||
+        !Object.is(prevGrassState.lastHitTime, grassState.lastHitTime) ||
+        !Object.is(prevGrassState.respawnAt, grassState.respawnAt) ||
+        !Object.is(prevGrassState.disturbedAt, grassState.disturbedAt) ||
+        prevGrassState.disturbanceDirectionX !== grassState.disturbanceDirectionX ||
+        prevGrassState.disturbanceDirectionY !== grassState.disturbanceDirectionY;
 
-      if (!prevState || grassDataChanged) { // New grass or its data has been updated
+      // Determine effective health:
+      // - If grassState exists: use its health
+      // - If grassState is missing: don't render (could be dead or still loading)
+      // 
+      // NOTE: We can't distinguish "still loading" from "dead grass" because:
+      // - Dead grass has health=0, which doesn't match subscription `health > 0`
+      // - On page refresh, seenGrassStateIdsRef is reset, so we can't track previous session
+      // - Defaulting to health=1 would incorrectly render dead grass
+      // 
+      // The tradeoff: grass won't render until grassState loads (brief delay on chunk load)
+      // This is acceptable and prevents dead grass from erroneously appearing.
+      let effectiveHealth: number;
+      if (grassState) {
+        // Grass is confirmed alive by subscription (health > 0)
+        effectiveHealth = grassState.health;
+      } else if (seenGrassStateIdsRef.current.has(id)) {
+        // We've seen this grass's state THIS SESSION but it's now missing = destroyed mid-session
+        effectiveHealth = 0;
+      } else {
+        // Never seen this grass's state this session = don't render
+        // Could be: still loading OR dead from previous session
+        // Either way, wait for grassState to confirm it's alive
+        effectiveHealth = 0;
+      }
+      
+      // Don't add grass that's currently dead/respawning
+      if (effectiveHealth <= 0) {
+        // If we had this grass before, remove it
+        if (prevState) {
+          changed = true;
+          newStates.delete(id);
+        }
+        return; // Skip this grass (using return since we're in forEach)
+      }
+      
+      if (!prevState || staticDataChanged || dynamicDataChanged) {
         changed = true;
         
+        // Merge static Grass data with dynamic GrassState data
         newStates.set(id, {
           id,
-          originalId: currentServerGrass.id, // Store original u64 id
-          serverPosX: currentServerGrass.posX,
-          serverPosY: currentServerGrass.posY,
-          posX: currentServerGrass.posX, // For BaseEntity compatibility
-          posY: currentServerGrass.posY, // For BaseEntity compatibility
-          // For static grass, lastKnown and target are the same as server position
-          lastKnownPosX: currentServerGrass.posX,
-          lastKnownPosY: currentServerGrass.posY,
-          targetPosX: currentServerGrass.posX,
-          targetPosY: currentServerGrass.posY,
+          originalId: grass.id,
+          // Position from static Grass table
+          serverPosX: grass.posX,
+          serverPosY: grass.posY,
+          posX: grass.posX,
+          posY: grass.posY,
+          lastKnownPosX: grass.posX,
+          lastKnownPosY: grass.posY,
+          targetPosX: grass.posX,
+          targetPosY: grass.posY,
           lastServerUpdateTimeMs: now,
-          // Pass through other rendering properties
-          health: currentServerGrass.health,
-          appearanceType: currentServerGrass.appearanceType,
-          chunkIndex: currentServerGrass.chunkIndex,
-          swayOffsetSeed: currentServerGrass.swayOffsetSeed,
-          swaySpeed: currentServerGrass.swaySpeed,
-          lastHitTime: currentServerGrass.lastHitTime ?? null,
-          respawnAt: currentServerGrass.respawnAt ?? null,
-          disturbedAt: (currentServerGrass as any).disturbedAt ?? null,
-          disturbanceDirectionX: (currentServerGrass as any).disturbanceDirectionX ?? 0,
-          disturbanceDirectionY: (currentServerGrass as any).disturbanceDirectionY ?? 0,
+          // Static properties from Grass table
+          appearanceType: grass.appearanceType,
+          chunkIndex: grass.chunkIndex,
+          swayOffsetSeed: grass.swayOffsetSeed,
+          swaySpeed: grass.swaySpeed,
+          // Dynamic properties from GrassState table (with defaults if not found)
+          health: effectiveHealth,
+          lastHitTime: grassState?.lastHitTime ?? null,
+          respawnAt: grassState?.respawnAt ?? null,
+          disturbedAt: grassState?.disturbedAt ?? null,
+          disturbanceDirectionX: grassState?.disturbanceDirectionX ?? 0,
+          disturbanceDirectionY: grassState?.disturbanceDirectionY ?? 0,
         });
       }
     });
@@ -128,33 +182,34 @@ export const useGrassInterpolation = ({
       if (!serverGrass.has(id)) {
         changed = true;
         newStates.delete(id);
+        // Also remove from seen set when grass entity itself is gone (chunk unloaded)
+        seenGrassStateIdsRef.current.delete(id);
       }
     });
 
     if (changed) {
       setInterpolatedGrassStates(newStates);
     }
-    // Update the ref for the next comparison
-    prevServerGrassRef.current = new Map(Array.from(serverGrass.entries()).map(([id, grass]) => [id, { ...grass }]));
 
-  }, [serverGrass]); // Only re-run when serverGrass prop itself changes identity
+    // Update refs for next comparison
+    prevServerGrassRef.current = new Map(Array.from(serverGrass.entries()).map(([id, g]) => [id, { ...g }]));
+    prevServerGrassStateRef.current = new Map(Array.from(serverGrassState.entries()).map(([id, s]) => [id, { ...s }]));
+
+  }, [serverGrass, serverGrassState]);
 
   // Effect to prepare renderable grass data from interpolated states
-  // For grass, this is straightforward as currentRenderPos is targetPos.
   useEffect(() => {
-    // deltaTime is not used here for grass as its base position is static.
-    // The "sway" animation is handled during the rendering phase using swayOffsetSeed and time.
     const newRenderables = new Map<string, InterpolatedGrassData>();
 
     interpolatedGrassStates.forEach((state, id) => {
       newRenderables.set(id, {
         ...state,
-        currentRenderPosX: state.targetPosX, // Static position
-        currentRenderPosY: state.targetPosY, // Static position
+        currentRenderPosX: state.targetPosX,
+        currentRenderPosY: state.targetPosY,
       });
     });
     setRenderableGrass(newRenderables);
-  }, [interpolatedGrassStates]); // Re-run when interpolatedGrassStates change
+  }, [interpolatedGrassStates]);
 
   return renderableGrass;
-}; 
+};

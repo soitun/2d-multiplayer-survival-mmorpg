@@ -10,6 +10,10 @@ use crate::building::foundation_cell as FoundationCellTableTrait;
 use crate::fence::fence as FenceTableTrait;
 use crate::sound_events::{emit_sound_at_position, SoundType};
 
+// Self table traits for split tables
+use crate::grass::grass as GrassTableTrait;
+use crate::grass::grass_state as GrassStateTableTrait;
+
 // --- Grass-Specific Constants ---
 
 // Plant Fiber Drop Constants
@@ -106,7 +110,19 @@ pub fn is_grass_type_bramble(appearance_type: &GrassAppearanceType) -> bool {
     appearance_type.is_bramble()
 }
 
-#[spacetimedb::table(name = grass, public, index(name = idx_chunk_health, btree(columns = [chunk_index, health])))]
+// ============================================================================
+// TABLE NORMALIZATION: Split into static geometry + dynamic state
+// ============================================================================
+// SpacetimeDB sends entire rows on any field change. By splitting:
+// - Grass (static): ~28 bytes, written ONCE at spawn, never updated
+// - GrassState (dynamic): ~40 bytes, updated on damage/disturbance
+// 
+// This reduces network traffic by ~40% when grass state changes frequently.
+// ============================================================================
+
+/// Static grass geometry - NEVER updated after spawn
+/// Contains all visual/positional data that doesn't change
+#[spacetimedb::table(name = grass, public)]
 #[derive(Clone, Debug)]
 pub struct Grass {
     #[primary_key]
@@ -114,23 +130,34 @@ pub struct Grass {
     pub id: u64,
     pub pos_x: f32,
     pub pos_y: f32,
-    #[index(btree)]
-    pub health: u32,
     pub appearance_type: GrassAppearanceType, // For different sprites/sway
     #[index(btree)]
     pub chunk_index: u32,
+    // For client-side sway animation, to give each patch a unique offset
+    pub sway_offset_seed: u32, 
+    pub sway_speed: f32,
+}
+
+/// Dynamic grass state - updated when damaged, disturbed, or respawning
+/// Linked to Grass via grass_id (1:1 relationship)
+#[spacetimedb::table(name = grass_state, public, index(name = idx_chunk_health, btree(columns = [chunk_index, health])))]
+#[derive(Clone, Debug)]
+pub struct GrassState {
+    #[primary_key]
+    pub grass_id: u64,  // References Grass.id (NOT auto_inc - must match grass.id)
+    #[index(btree)]
+    pub health: u32,
+    #[index(btree)]
+    pub chunk_index: u32,  // Denormalized for efficient chunk-based queries
     pub last_hit_time: Option<Timestamp>, // When it was last "chopped"
     /// When this grass should respawn. Use Timestamp::UNIX_EPOCH (0) for "not respawning".
     /// This allows efficient btree index range queries: .respawn_at().filter(1..=now)
     #[index(btree)]
     pub respawn_at: Timestamp,
-    // For client-side sway animation, to give each patch a unique offset
-    pub sway_offset_seed: u32, 
-    pub sway_speed: f32, // RENAMED: Was sway_speed_multiplier. This is now the actual speed.
-    // NEW: Player disturbance tracking
+    // Player disturbance tracking
     pub disturbed_at: Option<Timestamp>, // When grass was last disturbed by player movement
-    pub disturbance_direction_x: f32,    // X component of disturbance direction (opposite to player movement)
-    pub disturbance_direction_y: f32,    // Y component of disturbance direction (opposite to player movement)
+    pub disturbance_direction_x: f32,    // X component of disturbance direction
+    pub disturbance_direction_y: f32,    // Y component of disturbance direction
 } 
 
 // --- GRASS RESPAWN: BATCH SCHEDULER ---
@@ -178,6 +205,7 @@ pub fn init_grass_respawn_scheduler(ctx: &spacetimedb::ReducerContext) {
 }
 
 /// Batch reducer: Process all grass due for respawn
+/// Now works with split tables: reads GrassState for respawn logic, joins with Grass for position
 #[spacetimedb::reducer]
 pub fn process_grass_respawn_batch(ctx: &spacetimedb::ReducerContext, _schedule: GrassRespawnBatchSchedule) -> Result<(), String> {
     // Security check
@@ -199,19 +227,29 @@ pub fn process_grass_respawn_batch(ctx: &spacetimedb::ReducerContext, _schedule:
 
     let now = ctx.timestamp;
     let grass_table = ctx.db.grass();
+    let grass_state_table = ctx.db.grass_state();
     let trees = ctx.db.tree();
     let stones = ctx.db.stone();
     let foundations = ctx.db.foundation_cell();
     
     let mut respawned_count = 0;
     
-    // Find all grass entities due for respawn
+    // Find all grass states due for respawn
     // health == 0 means destroyed, respawn_at > UNIX_EPOCH means scheduled
-    for mut grass in grass_table.iter() {
+    for mut state in grass_state_table.iter() {
         // Skip grass not due for respawn
-        if grass.health > 0 || grass.respawn_at == Timestamp::UNIX_EPOCH || grass.respawn_at > now {
+        if state.health > 0 || state.respawn_at == Timestamp::UNIX_EPOCH || state.respawn_at > now {
             continue;
         }
+        
+        // Get the static grass data for position info
+        let grass = match grass_table.id().find(state.grass_id) {
+            Some(g) => g,
+            None => {
+                log::warn!("GrassState {} has no matching Grass entity, skipping", state.grass_id);
+                continue;
+            }
+        };
         
         // Spatial gating: only process grass near players
         let near_player = player_positions.iter().any(|(px, py)| {
@@ -318,19 +356,19 @@ pub fn process_grass_respawn_batch(ctx: &spacetimedb::ReducerContext, _schedule:
         if blocked {
             // Blocked by something - delay respawn by another respawn cycle
             let new_respawn = now + TimeDuration::from_micros((MIN_GRASS_RESPAWN_TIME_SECS * 1_000_000) as i64);
-            grass.respawn_at = new_respawn;
-            grass_table.id().update(grass);
+            state.respawn_at = new_respawn;
+            grass_state_table.grass_id().update(state);
             continue;
         }
         
-        // Respawn the grass!
-        grass.health = GRASS_INITIAL_HEALTH;
-        grass.respawn_at = Timestamp::UNIX_EPOCH;
-        grass.last_hit_time = None;
-        grass.disturbed_at = None;
-        grass.disturbance_direction_x = 0.0;
-        grass.disturbance_direction_y = 0.0;
-        grass_table.id().update(grass);
+        // Respawn the grass! Only update GrassState (dynamic data)
+        state.health = GRASS_INITIAL_HEALTH;
+        state.respawn_at = Timestamp::UNIX_EPOCH;
+        state.last_hit_time = None;
+        state.disturbed_at = None;
+        state.disturbance_direction_x = 0.0;
+        state.disturbance_direction_y = 0.0;
+        grass_state_table.grass_id().update(state);
         respawned_count += 1;
     }
     
@@ -342,11 +380,13 @@ pub fn process_grass_respawn_batch(ctx: &spacetimedb::ReducerContext, _schedule:
 }
 
 /// Damage grass entity - called when player attacks grass
-/// Destroys grass (1 HP), schedules respawn, and has 4% chance to drop 8-12 Plant Fiber
+/// Destroys grass (1 HP), schedules respawn, and has 8% chance to drop 12-18 Plant Fiber
+/// Now uses split tables: reads Grass for static data, updates GrassState for dynamic data
 #[spacetimedb::reducer]
 pub fn damage_grass(ctx: &ReducerContext, grass_id: u64) -> Result<(), String> {
     let sender_id = ctx.sender;
     let grass_table = ctx.db.grass();
+    let grass_state_table = ctx.db.grass_state();
     let players = ctx.db.player();
     
     // 1. Validate player
@@ -361,58 +401,58 @@ pub fn damage_grass(ctx: &ReducerContext, grass_id: u64) -> Result<(), String> {
         return Err("Cannot interact with grass while knocked out.".to_string());
     }
     
-    // 2. Find the grass entity
-    let mut grass = grass_table.id().find(grass_id)
+    // 2. Find the grass entity (static data for position and appearance)
+    let grass = grass_table.id().find(grass_id)
         .ok_or_else(|| format!("Grass entity {} not found", grass_id))?;
     
-    // 3. Check if grass is alive
-    if grass.health == 0 {
+    // 3. Find the grass state (dynamic data for health)
+    let mut state = grass_state_table.grass_id().find(grass_id)
+        .ok_or_else(|| format!("GrassState for grass {} not found", grass_id))?;
+    
+    // 4. Check if grass is alive
+    if state.health == 0 {
         return Err("Grass is already destroyed.".to_string());
     }
     
-    // 4. Check if grass is a bramble (indestructible)
+    // 5. Check if grass is a bramble (indestructible)
     if grass.appearance_type.is_bramble() {
         return Err("Brambles cannot be destroyed.".to_string());
     }
     
     // NOTE: Distance check removed - combat system already validates attack range
     // with the weapon's actual attack_range (which varies by weapon type).
-    // The old hardcoded 80px check was causing a mismatch with the visual attack cone
-    // and preventing weapons with extended range (spears, scythes) from hitting grass.
     
-    // 5. Damage the grass (1 HP = instant destroy)
-    grass.health = 0;
-    grass.last_hit_time = Some(ctx.timestamp);
+    // 6. Damage the grass (1 HP = instant destroy) - only update GrassState
+    state.health = 0;
+    state.last_hit_time = Some(ctx.timestamp);
     
-    // 6. Set respawn time (batch scheduler will handle actual respawn)
-    // PERFORMANCE: We no longer create individual schedule entries per grass.
-    // The grass entity stays in the table with health=0 and respawn_at set.
-    // The batch scheduler (process_grass_respawn_batch) runs every 5s and respawns due grass.
+    // 7. Set respawn time (batch scheduler will handle actual respawn)
+    // PERFORMANCE: Only GrassState is updated, not the static Grass table
     let respawn_secs = ctx.rng().gen_range(MIN_GRASS_RESPAWN_TIME_SECS..=MAX_GRASS_RESPAWN_TIME_SECS);
     let respawn_time = ctx.timestamp + TimeDuration::from_micros(respawn_secs as i64 * 1_000_000);
-    grass.respawn_at = respawn_time;
+    state.respawn_at = respawn_time;
     
-    // 7. Store grass position before update
+    // 8. Store grass position (from static table)
     let grass_pos_x = grass.pos_x;
     let grass_pos_y = grass.pos_y;
     
-    // Update the grass entity (keep it in table with health=0)
-    grass_table.id().update(grass);
+    // Update only the GrassState entity (smaller payload than full Grass row)
+    grass_state_table.grass_id().update(state);
     
     log::info!("Player {:?} destroyed grass {} at ({:.1}, {:.1})", sender_id, grass_id, grass_pos_x, grass_pos_y);
     
-    // 7b. Play grass cutting sound
+    // 9. Play grass cutting sound
     if let Err(e) = emit_sound_at_position(ctx, SoundType::GrassCut, grass_pos_x, grass_pos_y, 0.6, sender_id) {
         log::warn!("Failed to emit grass cut sound: {}", e);
     }
     
-    // 8. Roll for Plant Fiber drop (8% chance)
+    // 10. Roll for Plant Fiber drop (8% chance)
     let drop_roll: f32 = ctx.rng().gen();
     if drop_roll < PLANT_FIBER_DROP_CHANCE {
         // Find Plant Fiber item definition
         let item_defs = ctx.db.item_definition();
         if let Some(fiber_def) = item_defs.iter().find(|def| def.name == "Plant Fiber") {
-            // Random quantity between 10-15
+            // Random quantity between 12-18
             let fiber_quantity = ctx.rng().gen_range(PLANT_FIBER_MIN_DROP..=PLANT_FIBER_MAX_DROP);
             
             // Drop the fiber at grass position
@@ -437,4 +477,63 @@ pub fn damage_grass(ctx: &ReducerContext, grass_id: u64) -> Result<(), String> {
     }
     
     Ok(())
+}
+
+// ============================================================================
+// GRASS SPAWNING HELPER
+// ============================================================================
+// Creates both Grass (static) and GrassState (dynamic) entries atomically.
+// Used by environment.rs during world seeding.
+// ============================================================================
+
+/// Spawn a new grass entity with both static geometry and dynamic state.
+/// Returns the grass ID on success, or an error message on failure.
+/// 
+/// This function creates entries in both tables:
+/// - `Grass`: Static data (position, appearance, sway params) - never updated
+/// - `GrassState`: Dynamic data (health, respawn) - updated on damage/respawn
+pub fn spawn_grass_entity(
+    ctx: &ReducerContext,
+    pos_x: f32,
+    pos_y: f32,
+    appearance_type: GrassAppearanceType,
+    chunk_index: u32,
+    sway_offset_seed: u32,
+    sway_speed: f32,
+) -> Result<u64, String> {
+    let grass_table = ctx.db.grass();
+    let grass_state_table = ctx.db.grass_state();
+    
+    // 1. Insert static Grass entity (with auto_inc id)
+    let new_grass = Grass {
+        id: 0, // auto_inc will assign
+        pos_x,
+        pos_y,
+        appearance_type,
+        chunk_index,
+        sway_offset_seed,
+        sway_speed,
+    };
+    
+    let inserted_grass = grass_table.try_insert(new_grass)
+        .map_err(|e| format!("Failed to insert Grass at ({}, {}): {}", pos_x, pos_y, e))?;
+    
+    let grass_id = inserted_grass.id;
+    
+    // 2. Insert corresponding GrassState entity (using the assigned grass_id)
+    let new_state = GrassState {
+        grass_id,
+        health: GRASS_INITIAL_HEALTH,
+        chunk_index, // Denormalized for efficient chunk queries
+        last_hit_time: None,
+        respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
+        disturbed_at: None,
+        disturbance_direction_x: 0.0,
+        disturbance_direction_y: 0.0,
+    };
+    
+    grass_state_table.try_insert(new_state)
+        .map_err(|e| format!("Failed to insert GrassState for grass {}: {}", grass_id, e))?;
+    
+    Ok(grass_id)
 } 

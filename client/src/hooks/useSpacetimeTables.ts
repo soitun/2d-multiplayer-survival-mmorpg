@@ -131,6 +131,7 @@ export interface SpacetimeTableStates {
     localPlayerRegistered: boolean;
     clouds: Map<string, SpacetimeDB.Cloud>;
     grass: Map<string, SpacetimeDB.Grass>;
+    grassState: Map<string, SpacetimeDB.GrassState>; // Split tables: GrassState has health/respawn data
     knockedOutStatus: Map<string, SpacetimeDB.KnockedOutStatus>;
     rangedWeaponStats: Map<string, SpacetimeDBRangedWeaponStats>;
     projectiles: Map<string, SpacetimeDBProjectile>;
@@ -259,7 +260,8 @@ export const useSpacetimeTables = ({
     const [hotSprings, setHotSprings] = useState<Map<string, any>>(() => new Map()); // HotSpring - placeholder (hot springs are tile-based, not entities)
     const [activeConsumableEffects, setActiveConsumableEffects] = useState<Map<string, SpacetimeDB.ActiveConsumableEffect>>(() => new Map());
     const [clouds, setClouds] = useState<Map<string, SpacetimeDB.Cloud>>(() => new Map());
-    const [grass, setGrass] = useState<Map<string, SpacetimeDB.Grass>>(() => new Map()); // DISABLED: Always empty for performance
+    const [grass, setGrass] = useState<Map<string, SpacetimeDB.Grass>>(() => new Map()); // Split tables: static geometry
+    const [grassState, setGrassState] = useState<Map<string, SpacetimeDB.GrassState>>(() => new Map()); // Split tables: dynamic state (health, respawn)
     const [knockedOutStatus, setKnockedOutStatus] = useState<Map<string, SpacetimeDB.KnockedOutStatus>>(() => new Map());
     const [rangedWeaponStats, setRangedWeaponStats] = useState<Map<string, SpacetimeDBRangedWeaponStats>>(() => new Map());
     const [projectiles, setProjectiles] = useState<Map<string, SpacetimeDBProjectile>>(() => new Map());
@@ -486,10 +488,12 @@ export const useSpacetimeTables = ({
                     environmentalQueries.push(`SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`);
                 }
                 if (grassEnabled) {
+                    // Split tables: grass (static) + grass_state (dynamic)
+                    environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`);
                     if (GRASS_PERFORMANCE_MODE) {
-                        environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex} AND health > 0`);
+                        environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND health > 0`);
                     } else {
-                        environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`);
+                        environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`);
                     }
                 }
                 // ENABLE_WORLD_TILES deprecated block removed
@@ -536,10 +540,12 @@ export const useSpacetimeTables = ({
                     newHandlesForChunk.push(timedSubscribe('Cloud', `SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`));
                 }
                 if (grassEnabled) {
+                    // Split tables: grass (static) + grass_state (dynamic)
+                    newHandlesForChunk.push(timedSubscribe('Grass', `SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`));
                     if (GRASS_PERFORMANCE_MODE) {
-                        newHandlesForChunk.push(timedSubscribe('Grass(Perf)', `SELECT * FROM grass WHERE chunk_index = ${chunkIndex} AND health > 0`));
+                        newHandlesForChunk.push(timedSubscribe('GrassState(Perf)', `SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND health > 0`));
                     } else {
-                        newHandlesForChunk.push(timedSubscribe('Grass(Full)', `SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`));
+                        newHandlesForChunk.push(timedSubscribe('GrassState(Full)', `SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`));
                     }
                 }
                 // ENABLE_WORLD_TILES deprecated block removed
@@ -1420,11 +1426,33 @@ export const useSpacetimeTables = ({
                 setClouds(prev => { const newMap = new Map(prev); newMap.delete(cloud.id.toString()); return newMap; });
             };
 
-            // --- Grass Subscriptions (DISABLED for Performance) ---
-            // Grass subscriptions cause massive lag due to spatial churn - use procedural rendering instead
+            // --- Grass Subscriptions (Split Tables) ---
+            // Grass (static): position, appearance - rarely changes
+            // GrassState (dynamic): health, respawn - updates on damage
             const handleGrassInsert = (ctx: any, item: SpacetimeDB.Grass) => setGrass(prev => new Map(prev).set(item.id.toString(), item));
             const handleGrassUpdate = (ctx: any, oldItem: SpacetimeDB.Grass, newItem: SpacetimeDB.Grass) => setGrass(prev => new Map(prev).set(newItem.id.toString(), newItem));
             const handleGrassDelete = (ctx: any, item: SpacetimeDB.Grass) => setGrass(prev => { const newMap = new Map(prev); newMap.delete(item.id.toString()); return newMap; });
+            
+            // --- GrassState Subscriptions (Split Tables) ---
+            // This table updates when grass is damaged/respawned - much smaller payload than old combined table
+            const handleGrassStateInsert = (ctx: any, item: SpacetimeDB.GrassState) => {
+                console.log(`[GrassState] INSERT: grassId=${item.grassId}, health=${item.health}`);
+                setGrassState(prev => new Map(prev).set(item.grassId.toString(), item));
+            };
+            const handleGrassStateUpdate = (ctx: any, oldItem: SpacetimeDB.GrassState, newItem: SpacetimeDB.GrassState) => {
+                console.log(`[GrassState] UPDATE: grassId=${newItem.grassId}, health: ${oldItem.health} -> ${newItem.health}`);
+                // Only update if relevant fields changed (health, respawn)
+                const hasChanges = oldItem.health !== newItem.health || 
+                                   oldItem.respawnAt !== newItem.respawnAt ||
+                                   oldItem.disturbedAt !== newItem.disturbedAt;
+                if (hasChanges) {
+                    setGrassState(prev => new Map(prev).set(newItem.grassId.toString(), newItem));
+                }
+            };
+            const handleGrassStateDelete = (ctx: any, item: SpacetimeDB.GrassState) => {
+                console.log(`[GrassState] DELETE: grassId=${item.grassId}`);
+                setGrassState(prev => { const newMap = new Map(prev); newMap.delete(item.grassId.toString()); return newMap; });
+            };
 
             // --- KnockedOutStatus Subscriptions ---
             const handleKnockedOutStatusInsert = (ctx: any, status: SpacetimeDB.KnockedOutStatus) => {
@@ -2262,10 +2290,15 @@ export const useSpacetimeTables = ({
             connection.db.cloud.onUpdate(handleCloudUpdate);
             connection.db.cloud.onDelete(handleCloudDelete);
 
-            // Register Grass callbacks - DISABLED for performance
+            // Register Grass callbacks (split tables)
             connection.db.grass.onInsert(handleGrassInsert);
             connection.db.grass.onUpdate(handleGrassUpdate);
             connection.db.grass.onDelete(handleGrassDelete);
+            
+            // Register GrassState callbacks (split tables - dynamic state)
+            connection.db.grassState.onInsert(handleGrassStateInsert);
+            connection.db.grassState.onUpdate(handleGrassStateUpdate);
+            connection.db.grassState.onDelete(handleGrassStateDelete);
 
             // Register KnockedOutStatus callbacks
             connection.db.knockedOutStatus.onInsert(handleKnockedOutStatusInsert);
@@ -2871,10 +2904,12 @@ export const useSpacetimeTables = ({
                                 const environmentalQueries = [];
                                 if (ENABLE_CLOUDS) environmentalQueries.push(`SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`);
                                 if (grassEnabled) {
+                                    // Split tables: grass (static) + grass_state (dynamic)
+                                    environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`);
                                     if (GRASS_PERFORMANCE_MODE) {
-                                        environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex} AND health > 0`);
+                                        environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND health > 0`);
                                     } else {
-                                        environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`);
+                                        environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`);
                                     }
                                 }
                                 // ENABLE_WORLD_TILES deprecated block removed
@@ -2979,7 +3014,8 @@ export const useSpacetimeTables = ({
                 setHotSprings(new Map());
                 setActiveConsumableEffects(new Map());
                 setClouds(new Map());
-                setGrass(new Map()); // Always keep grass empty for performance
+                setGrass(new Map()); // Split tables: clear static grass data
+                setGrassState(new Map()); // Split tables: clear dynamic grass state
                 setKnockedOutStatus(new Map());
                 setRangedWeaponStats(new Map());
                 setProjectiles(new Map());
@@ -3027,9 +3063,10 @@ export const useSpacetimeTables = ({
         const isNowEnabled = grassEnabled;
         
         if (!grassEnabled) {
-            // Grass disabled - clear the grass map
-            console.log('[useSpacetimeTables] Grass disabled - clearing grass map');
+            // Grass disabled - clear both grass maps (split tables)
+            console.log('[useSpacetimeTables] Grass disabled - clearing grass/grassState maps');
             setGrass(new Map());
+            setGrassState(new Map());
         } else if (wasDisabled && isNowEnabled && connection) {
             // Grass was just re-enabled - force re-subscription of current chunks
             // Use currentChunksRef (the actively tracked chunks) rather than subscribedChunksRef
@@ -3040,18 +3077,22 @@ export const useSpacetimeTables = ({
                 console.warn('[useSpacetimeTables] No current chunks found for grass re-subscription!');
             }
             
-            // Subscribe to grass for all current chunks
+            // Subscribe to grass + grass_state for all current chunks (split tables)
             currentChunks.forEach(chunkIndex => {
                 try {
-                    const grassQuery = GRASS_PERFORMANCE_MODE 
-                        ? `SELECT * FROM grass WHERE chunk_index = ${chunkIndex} AND health > 0`
-                        : `SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`;
+                    // Split tables: subscribe to both static (grass) and dynamic (grass_state)
+                    const grassQueries = [`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`];
+                    if (GRASS_PERFORMANCE_MODE) {
+                        grassQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND health > 0`);
+                    } else {
+                        grassQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`);
+                    }
                     
-                    console.log(`[GRASS_RESUB] Subscribing to grass for chunk ${chunkIndex}`);
+                    console.log(`[GRASS_RESUB] Subscribing to grass/grass_state for chunk ${chunkIndex}`);
                     
                     const handle = connection.subscriptionBuilder()
                         .onError((err) => console.error(`Grass Re-sub Error (Chunk ${chunkIndex}):`, err))
-                        .subscribe([grassQuery]);
+                        .subscribe(grassQueries);
                     
                     // Add to existing chunk handles
                     const existingHandles = spatialSubsRef.current.get(chunkIndex) || [];
@@ -3104,6 +3145,7 @@ export const useSpacetimeTables = ({
         activeConsumableEffects,
         clouds,
         grass,
+        grassState, // Split tables: dynamic state (health, respawn)
         knockedOutStatus,
         rangedWeaponStats,
         projectiles,

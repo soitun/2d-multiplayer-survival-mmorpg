@@ -30,6 +30,7 @@ import {
   Cloud as SpacetimeDBCloud,
   ActiveConsumableEffect as SpacetimeDBActiveConsumableEffect,
   Grass as SpacetimeDBGrass,
+  GrassState as SpacetimeDBGrassState, // Split tables: dynamic state
   Projectile as SpacetimeDBProjectile,
   DeathMarker as SpacetimeDBDeathMarker,
   Shelter as SpacetimeDBShelter,
@@ -221,6 +222,7 @@ interface GameCanvasProps {
   getCurrentPositionNow: () => { x: number; y: number } | null; // ADDED: Function for exact position at firing time
   activeEquipments: Map<string, SpacetimeDBActiveEquipment>;
   grass: Map<string, SpacetimeDBGrass>;
+  grassState: Map<string, SpacetimeDBGrassState>; // Split tables: dynamic state
   placementInfo: PlacementItemInfo | null;
   placementActions: PlacementActions;
   placementError: string | null;
@@ -401,6 +403,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   onSearchFocusChange,
   showInventory,
   grass,
+  grassState,
   gameCanvasRef,
   projectiles,
   deathMarkers,
@@ -763,7 +766,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [isMobile, onMobileTap, cameraOffsetX, cameraOffsetY]);
 
   // Note: ySortedEntities sync is done after useEntityFiltering hook below
-  const interpolatedGrass = useGrassInterpolation({ serverGrass: grass, deltaTime: deltaTimeRef.current });
+  // Split tables: merge Grass (static) + GrassState (dynamic) for rendering
+  const interpolatedGrass = useGrassInterpolation({ 
+    serverGrass: grass, 
+    serverGrassState: grassState, 
+    deltaTime: deltaTimeRef.current 
+  });
 
   // PERFORMANCE FIX: Chunk cache refs moved here (before useEntityFiltering) to enable memoized worldChunkDataMap
   // This avoids creating a new Map on every render, reducing GC pressure
@@ -3717,7 +3725,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         wildAnimals,
         players,
         barrels,
-        grass,
+        grass: interpolatedGrass, // Use merged grass data with health/respawnAt
       });
     }
     // --- End Render Attack Range Debug Overlay ---

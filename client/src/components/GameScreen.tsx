@@ -171,6 +171,7 @@ interface GameScreenProps {
     activeConnections: Map<string, ActiveConnection> | undefined;
     activeConsumableEffects: Map<string, SpacetimeDBActiveConsumableEffect>;
     grass: Map<string, SpacetimeDBGrass>;
+    grassState: Map<string, SpacetimeDB.GrassState>; // Split tables: dynamic state
     knockedOutStatus: Map<string, SpacetimeDBKnockedOutStatus>;
     rangedWeaponStats: Map<string, RangedWeaponStats>;
 
@@ -455,6 +456,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         activeConsumableEffects,
         clouds,
         grass,
+        grassState,
         knockedOutStatus,
         rangedWeaponStats,
         projectiles,
@@ -1191,6 +1193,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 activeConsumableEffects={activeConsumableEffects}
                 showInventory={showInventoryState || showCraftingScreenState}
                 grass={grass}
+                grassState={grassState}
                 gameCanvasRef={canvasRef}
                 projectiles={projectiles}
                 deathMarkers={deathMarkers}

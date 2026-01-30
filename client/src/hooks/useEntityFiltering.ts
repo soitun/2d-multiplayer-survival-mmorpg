@@ -1126,10 +1126,24 @@ export function useEntityFiltering(
   // PERFORMANCE: More aggressive grass culling
   // ALSO: Filter out grass on water tiles (Sea, HotSpringWater)
   let visibleGrass = useMemo(() => {
-    if (!grass || !playerPos) return [];
+    if (!grass || !playerPos) {
+      return [];
+    }
     
-    return Array.from(grass.values()).filter(e => {
-      if (e.health <= 0 || !isEntityInView(e, viewBounds, stableTimestamp)) {
+    const allGrass = Array.from(grass.values());
+    // Removed excessive logging
+    
+    let filteredByHealth = 0;
+    let filteredByView = 0;
+    let filteredByWater = 0;
+    
+    const result = allGrass.filter(e => {
+      if (e.health <= 0) {
+        filteredByHealth++;
+        return false;
+      }
+      if (!isEntityInView(e, viewBounds, stableTimestamp)) {
+        filteredByView++;
         return false;
       }
       
@@ -1155,6 +1169,7 @@ export function useEntityFiltering(
             const tileTypeU8 = chunk.tileTypes[tileIndex];
             // Filter out grass on Sea (3) and HotSpringWater (6) tiles
             if (tileTypeU8 === 3 || tileTypeU8 === 6) {
+              filteredByWater++;
               return false;
             }
           }
@@ -1164,6 +1179,13 @@ export function useEntityFiltering(
       
       return true;
     });
+    
+    // Only log occasionally to reduce spam
+    if (allGrass.length > 0 && (filteredByHealth > 0 || Math.random() < 0.01)) {
+      console.log(`[EntityFiltering] Grass filtering: ${allGrass.length} total -> ${result.length} visible (health: ${filteredByHealth}, view: ${filteredByView}, water: ${filteredByWater})`);
+    }
+    
+    return result;
   }, [grass, playerPos, viewBounds, stableTimestamp, frameCounter, worldChunkData]);
 
   // ADDED: Filter visible shelters

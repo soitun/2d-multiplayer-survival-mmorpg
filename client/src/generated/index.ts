@@ -945,6 +945,8 @@ import { GrassTableHandle } from "./grass_table.ts";
 export { GrassTableHandle };
 import { GrassRespawnBatchScheduleTableHandle } from "./grass_respawn_batch_schedule_table.ts";
 export { GrassRespawnBatchScheduleTableHandle };
+import { GrassStateTableHandle } from "./grass_state_table.ts";
+export { GrassStateTableHandle };
 import { HarvestableResourceTableHandle } from "./harvestable_resource_table.ts";
 export { HarvestableResourceTableHandle };
 import { HearthUpkeepQueryResultTableHandle } from "./hearth_upkeep_query_result_table.ts";
@@ -1345,6 +1347,8 @@ import { GrassAppearanceType } from "./grass_appearance_type_type.ts";
 export { GrassAppearanceType };
 import { GrassRespawnBatchSchedule } from "./grass_respawn_batch_schedule_type.ts";
 export { GrassRespawnBatchSchedule };
+import { GrassState } from "./grass_state_type.ts";
+export { GrassState };
 import { HarvestableResource } from "./harvestable_resource_type.ts";
 export { HarvestableResource };
 import { HearthUpkeepQueryResult } from "./hearth_upkeep_query_result_type.ts";
@@ -2237,6 +2241,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "scheduleId",
         colType: (GrassRespawnBatchSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    grass_state: {
+      tableName: "grass_state" as const,
+      rowType: GrassState.getTypeScriptAlgebraicType(),
+      primaryKey: "grassId",
+      primaryKeyInfo: {
+        colName: "grassId",
+        colType: (GrassState.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     harvestable_resource: {
@@ -13394,6 +13407,11 @@ export class RemoteTables {
   get grassRespawnBatchSchedule(): GrassRespawnBatchScheduleTableHandle<'grass_respawn_batch_schedule'> {
     // clientCache is a private property
     return new GrassRespawnBatchScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<GrassRespawnBatchSchedule>(REMOTE_MODULE.tables.grass_respawn_batch_schedule));
+  }
+
+  get grassState(): GrassStateTableHandle<'grass_state'> {
+    // clientCache is a private property
+    return new GrassStateTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<GrassState>(REMOTE_MODULE.tables.grass_state));
   }
 
   get harvestableResource(): HarvestableResourceTableHandle<'harvestable_resource'> {

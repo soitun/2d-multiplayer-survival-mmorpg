@@ -20,6 +20,7 @@ use crate::homestead_hearth::homestead_hearth as HomesteadHearthTableTrait;
 use crate::rune_stone::{rune_stone as RuneStoneTableTrait, RUNE_STONE_LIGHT_RADIUS};
 use crate::world_tile as WorldTileTableTrait;
 use crate::grass::grass as GrassTableTrait;
+use crate::grass::grass_state as GrassStateTableTrait;
 use crate::alk::alk_station as AlkStationTableTrait;
 use crate::monument_part as MonumentPartTableTrait;
 use crate::MonumentType;
@@ -811,7 +812,9 @@ pub fn place_foundation(
     
     // 5.25. Check if position has grass (cannot place foundation on grass - must clear first)
     // Foundation is 96x96 pixels, check if any alive grass is within the foundation bounds
+    // Uses split tables: GrassState (health) + Grass (position)
     let grass_table = ctx.db.grass();
+    let grass_state_table = ctx.db.grass_state();
     let foundation_half_size = FOUNDATION_TILE_SIZE_PX as f32 / 2.0;
     let foundation_min_x = world_x - foundation_half_size;
     let foundation_max_x = world_x + foundation_half_size;
@@ -821,14 +824,26 @@ pub fn place_foundation(
     // Calculate chunk index for efficient grass lookup
     let center_chunk_index = calculate_chunk_index(world_x, world_y);
     
-    // Check grass in this chunk and adjacent chunks (9 chunks total for edge cases)
-    // Foundation is 96px, chunks are typically 768px (16 tiles * 48px), so we only need to check nearby chunks
-    for grass in grass_table.chunk_index().filter(center_chunk_index) {
-        if grass.health > 0 && 
-           grass.pos_x >= foundation_min_x && grass.pos_x <= foundation_max_x &&
-           grass.pos_y >= foundation_min_y && grass.pos_y <= foundation_max_y {
-            return Err("Cannot place foundation on grass. Clear the grass first.".to_string());
+    // Helper closure to check grass collision using split tables
+    let check_grass_in_chunk = |chunk_idx: u32| -> bool {
+        // Query GrassState for alive grass in this chunk
+        for state in grass_state_table.chunk_index().filter(chunk_idx) {
+            if state.health > 0 {
+                // Look up static grass data for position
+                if let Some(grass) = grass_table.id().find(state.grass_id) {
+                    if grass.pos_x >= foundation_min_x && grass.pos_x <= foundation_max_x &&
+                       grass.pos_y >= foundation_min_y && grass.pos_y <= foundation_max_y {
+                        return true; // Found blocking grass
+                    }
+                }
+            }
         }
+        false
+    };
+    
+    // Check grass in this chunk
+    if check_grass_in_chunk(center_chunk_index) {
+        return Err("Cannot place foundation on grass. Clear the grass first.".to_string());
     }
     
     // Also check adjacent chunks in case grass is near chunk boundary
@@ -841,45 +856,29 @@ pub fn place_foundation(
     
     // Check left chunk if near left boundary
     if local_x < foundation_half_size && center_chunk_index % chunks_per_row > 0 {
-        for grass in grass_table.chunk_index().filter(center_chunk_index - 1) {
-            if grass.health > 0 && 
-               grass.pos_x >= foundation_min_x && grass.pos_x <= foundation_max_x &&
-               grass.pos_y >= foundation_min_y && grass.pos_y <= foundation_max_y {
-                return Err("Cannot place foundation on grass. Clear the grass first.".to_string());
-            }
+        if check_grass_in_chunk(center_chunk_index - 1) {
+            return Err("Cannot place foundation on grass. Clear the grass first.".to_string());
         }
     }
     
     // Check right chunk if near right boundary
     if local_x > chunk_size_px - foundation_half_size && (center_chunk_index + 1) % chunks_per_row > 0 {
-        for grass in grass_table.chunk_index().filter(center_chunk_index + 1) {
-            if grass.health > 0 && 
-               grass.pos_x >= foundation_min_x && grass.pos_x <= foundation_max_x &&
-               grass.pos_y >= foundation_min_y && grass.pos_y <= foundation_max_y {
-                return Err("Cannot place foundation on grass. Clear the grass first.".to_string());
-            }
+        if check_grass_in_chunk(center_chunk_index + 1) {
+            return Err("Cannot place foundation on grass. Clear the grass first.".to_string());
         }
     }
     
     // Check top chunk if near top boundary
     if local_y < foundation_half_size && center_chunk_index >= chunks_per_row {
-        for grass in grass_table.chunk_index().filter(center_chunk_index - chunks_per_row) {
-            if grass.health > 0 && 
-               grass.pos_x >= foundation_min_x && grass.pos_x <= foundation_max_x &&
-               grass.pos_y >= foundation_min_y && grass.pos_y <= foundation_max_y {
-                return Err("Cannot place foundation on grass. Clear the grass first.".to_string());
-            }
+        if check_grass_in_chunk(center_chunk_index - chunks_per_row) {
+            return Err("Cannot place foundation on grass. Clear the grass first.".to_string());
         }
     }
     
     // Check bottom chunk if near bottom boundary  
     if local_y > chunk_size_px - foundation_half_size {
-        for grass in grass_table.chunk_index().filter(center_chunk_index + chunks_per_row) {
-            if grass.health > 0 && 
-               grass.pos_x >= foundation_min_x && grass.pos_x <= foundation_max_x &&
-               grass.pos_y >= foundation_min_y && grass.pos_y <= foundation_max_y {
-                return Err("Cannot place foundation on grass. Clear the grass first.".to_string());
-            }
+        if check_grass_in_chunk(center_chunk_index + chunks_per_row) {
+            return Err("Cannot place foundation on grass. Clear the grass first.".to_string());
         }
     }
     
