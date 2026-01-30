@@ -1050,7 +1050,7 @@ export const COLLISION_RADII = {
   BASALT_COLUMN: 35, // Basalt column collision radius
   ALK_STATION: 120, // ALK delivery station collision radius (reduced for easier navigation and Y-sorting)
   WARD: 40, // Ward collision radius (for ancestral ward, signal disruptor, memory beacon - NOT regular lanterns)
-  TURRET: 80, // Turret collision radius (same as rain_collector - 256x256 bottom-anchored sprites)
+  TURRET: 30, // Turret collision radius for player movement (smaller for easier navigation, matches rain_collector client pattern)
   // STORM_PILE removed - storms now spawn HarvestableResources and DroppedItems directly
   LIVING_CORAL: 80, // Living coral collision radius (underwater coral reef, doubled for better underwater presence)
 } as const;

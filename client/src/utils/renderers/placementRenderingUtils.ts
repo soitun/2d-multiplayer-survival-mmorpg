@@ -919,8 +919,8 @@ export function isPlacementTooFar(
                placementInfo.iconAssetName === 'signal_disruptor.png' || 
                placementInfo.iconAssetName === 'memory_beacon.png' ||
                placementInfo.iconAssetName === 'turret_tallow.png') {
-        // Wards and turrets have larger placement range (160px) because they have collision (radius 40)
-        // and players need to place them further away to avoid collision overlap
+        // Wards and turrets have larger placement range (160px) because they have collision
+        // (wards: radius 40, turret: radius 80) - players need to place them further away
         const WARD_PLACEMENT_MAX_DISTANCE = 160.0;
         clientPlacementRangeSq = WARD_PLACEMENT_MAX_DISTANCE * WARD_PLACEMENT_MAX_DISTANCE;
     } else if (placementInfo.iconAssetName === 'beehive_wooden.png') {

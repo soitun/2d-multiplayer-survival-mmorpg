@@ -1038,6 +1038,14 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                             ) {
                                 Ok(destroyed) => {
                                     animal.last_attack_time = Some(current_time);
+                                    
+                                    // Emit blunt attack sound when hostile NPCs hit structures
+                                    // Use animal position since they're close to the structure
+                                    if let Some(target_id) = animal.target_player_id {
+                                        crate::sound_events::emit_melee_hit_blunt_sound(
+                                            ctx, animal.pos_x, animal.pos_y, target_id
+                                        );
+                                    }
                                     if destroyed {
                                         // Structure destroyed - look for another or chase player
                                         animal.target_structure_id = None;
