@@ -920,13 +920,14 @@ export function isPlacementTooFar(
                placementInfo.iconAssetName === 'memory_beacon.png' ||
                placementInfo.iconAssetName === 'turret_tallow.png') {
         // Wards and turrets have larger placement range (160px) because they have collision
-        // (wards: radius 40, turret: radius 80) - players need to place them further away
+        // (wards: radius 40, turret: radius 50) - players need to place them further away
         const WARD_PLACEMENT_MAX_DISTANCE = 160.0;
         clientPlacementRangeSq = WARD_PLACEMENT_MAX_DISTANCE * WARD_PLACEMENT_MAX_DISTANCE;
-    } else if (placementInfo.iconAssetName === 'beehive_wooden.png') {
-        // Player-made beehives are larger objects and need increased placement range (200px)
-        const BEEHIVE_PLACEMENT_MAX_DISTANCE = 200.0;
-        clientPlacementRangeSq = BEEHIVE_PLACEMENT_MAX_DISTANCE * BEEHIVE_PLACEMENT_MAX_DISTANCE;
+    } else if (placementInfo.iconAssetName === 'beehive_wooden.png' ||
+               placementInfo.iconAssetName === 'reed_rain_collector.png') {
+        // Large 256x256 objects need increased placement range (200px)
+        const LARGE_OBJECT_PLACEMENT_MAX_DISTANCE = 200.0;
+        clientPlacementRangeSq = LARGE_OBJECT_PLACEMENT_MAX_DISTANCE * LARGE_OBJECT_PLACEMENT_MAX_DISTANCE;
     } else {
         // Use standard interaction distance for other items (campfires, lanterns, boxes, etc.)
         clientPlacementRangeSq = PLAYER_BOX_INTERACTION_DISTANCE_SQUARED * 1.1;
@@ -2334,6 +2335,14 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'turret_tallow.png') {
         // Use centralized visual config for Tallow Steam Turret
         const config = ENTITY_VISUAL_CONFIG.turret;
+        const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
+        adjustedX = preview.x;
+        adjustedY = preview.y;
+        drawWidth = preview.width;
+        drawHeight = preview.height;
+    } else if (placementInfo.iconAssetName === 'reed_rain_collector.png') {
+        // Use centralized visual config for Reed Rain Collector
+        const config = ENTITY_VISUAL_CONFIG.rain_collector;
         const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
         adjustedX = preview.x;
         adjustedY = preview.y;

@@ -62,6 +62,7 @@ import {
     HEARTH_RENDER_Y_OFFSET
 } from '../utils/renderers/hearthRenderingUtils'; // ADDED: Hearth interaction constants
 import { PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/playerCorpseRenderingUtils';
+import { PLAYER_TURRET_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/turretRenderingUtils';
 import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { PLAYER_DOOR_INTERACTION_DISTANCE_SQUARED, DOOR_RENDER_Y_OFFSET } from '../utils/renderers/doorRenderingUtils'; // ADDED: Door interaction distance and render offset
 import { PLAYER_ALK_STATION_INTERACTION_DISTANCE_SQUARED, ALK_STATION_Y_OFFSET } from '../utils/renderers/alkStationRenderingUtils'; // ADDED: ALK station interaction distance
@@ -161,7 +162,7 @@ export const PLAYER_DROPPED_ITEM_INTERACTION_DISTANCE_SQUARED = 120.0 * 120.0; /
 export const PLAYER_STASH_INTERACTION_DISTANCE_SQUARED = 64.0 * 64.0;
 export const PLAYER_CAIRN_INTERACTION_DISTANCE_SQUARED = 200.0 * 200.0; // Cairn interaction distance (increased for larger visual)
 export const PLAYER_STASH_SURFACE_INTERACTION_DISTANCE_SQUARED = 32.0 * 32.0;
-export const PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0;
+export const PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED = 140.0 * 140.0; // Larger range for big 256x256 sprite
 
 // --- Shelter Access Control Constants ---
 const SHELTER_COLLISION_WIDTH = 300.0;
@@ -330,7 +331,7 @@ export function useInteractionFinder({
         let closestLanternDistSq = PLAYER_LANTERN_INTERACTION_DISTANCE_SQUARED;
 
         let closestTurretId: number | null = null; // ADDED: Turret tracking
-        let closestTurretDistSq = PLAYER_LANTERN_INTERACTION_DISTANCE_SQUARED; // Use same distance as lanterns
+        let closestTurretDistSq = PLAYER_TURRET_INTERACTION_DISTANCE_SQUARED; // Larger distance for big turret
 
         let closestHearthId: number | null = null; // ADDED: HomesteadHearth tracking
         let closestHearthDistSq = PLAYER_HEARTH_INTERACTION_DISTANCE_SQUARED;
@@ -534,11 +535,9 @@ export function useInteractionFinder({
                 turrets.forEach((turret: SpacetimeDBTurret) => {
                     if (turret.isDestroyed) return;
                     
-                    // Use entityVisualConfig for turret visual center
-                    const visualCenterY = turret.posY - 134; // From entityVisualConfig centerOffsetY
-                    
+                    // Turret sprite is centered on posX/posY - use posY directly
                     const dx = playerX - turret.posX;
-                    const dy = playerY - visualCenterY;
+                    const dy = playerY - turret.posY;
                     const distSq = dx * dx + dy * dy;
                     if (distSq < closestTurretDistSq) {
                         // Check shelter access control

@@ -252,7 +252,6 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
     case 'furnace':
     case 'barbecue': // ADDED: Barbecue (same as campfire)
     case 'lantern':
-    case 'turret': // ADDED: Turret (same as lantern/ward - 256x256 sprite)
     case 'homestead_hearth': // ADDED: Homestead Hearth (same as campfire)
     case 'planted_seed':
     case 'dropped_item':
@@ -271,6 +270,10 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       // The +10000 offset was causing everything to always render above players
       // Now placeables sort correctly based on their actual world Y position
       return entity.posY;
+    case 'turret':
+      // Turret: 256x256 sprite centered on posY, visual base (wooden platform) is ~80px below center
+      // Y-sort by the visual base so players in front render correctly
+      return entity.posY + 80;
     case 'broth_pot':
       // CRITICAL: Broth pot sits ON TOP of campfires/fumaroles (same posY position).
       // Adding a significant offset (10) ensures broth_pot ALWAYS sorts AFTER its heat source

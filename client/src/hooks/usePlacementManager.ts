@@ -1079,9 +1079,8 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
           connection.reducers.placeLantern(placementInfo.instanceId, worldX, worldY + 134, 3);
           break;
         case 'Tallow Steam Turret':
-          // Turrets: 256px tall sprites, rendered at posY - 256 - 6
-          // For cursor at center: server needs posY = cursorY + 134 (256/2 + 6)
-          connection.reducers.placeTurret(placementInfo.instanceId, worldX, worldY + 134);
+          // Turret sprite centered on posX/posY - no offset needed
+          connection.reducers.placeTurret(placementInfo.instanceId, worldX, worldY);
           break;
         case 'Wooden Storage Box':
         case 'Large Wooden Storage Box':

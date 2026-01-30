@@ -24,9 +24,9 @@ pub const PLAYER_TURRET_INTERACTION_DISTANCE: f32 = 200.0;
 pub const PLAYER_TURRET_INTERACTION_DISTANCE_SQUARED: f32 = PLAYER_TURRET_INTERACTION_DISTANCE * PLAYER_TURRET_INTERACTION_DISTANCE;
 
 // === TURRET COLLISION CONSTANTS ===
-// Turrets are 256x256 sprites (bottom-anchored like rain_collector)
-pub const TURRET_COLLISION_RADIUS: f32 = 80.0; // Same as rain_collector (large sprite with wide base)
-pub const TURRET_COLLISION_Y_OFFSET: f32 = 0.0; // Collision centered at posY (same as rain_collector)
+// Turrets are 256x256 sprites centered on posX/posY
+pub const TURRET_COLLISION_RADIUS: f32 = 50.0; // Collision radius for centered 256x256 sprite
+pub const TURRET_COLLISION_Y_OFFSET: f32 = 0.0; // Collision centered at posY
 
 // === TURRET TYPE CONSTANTS ===
 pub const TURRET_TYPE_TALLOW_STEAM: u8 = 0;

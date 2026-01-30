@@ -8,7 +8,7 @@ import { renderEntityHealthBar } from './healthBarUtils';
 // --- Constants ---
 export const RAIN_COLLECTOR_WIDTH = 256;  // 256x256 sprite (matches beehive)
 export const RAIN_COLLECTOR_HEIGHT = 256;
-export const PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0;
+export const PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED = 200.0 * 200.0; // Larger range for big 256x256 sprite
 const SHAKE_DURATION_MS = 150;
 const SHAKE_INTENSITY_PX = 10; // Match box shake intensity
 

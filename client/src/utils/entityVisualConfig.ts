@@ -262,20 +262,20 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   turret: {
     centerOffsetX: 0,
-    centerOffsetY: -62,   // Same as rain_collector (256x256 sprite at posY - 220)
-    width: 200,           // Interaction box width for 256x256 sprite
-    height: 260,          // Interaction box height for 256x256 sprite
-    placementYOffset: -92, // Same as rain_collector - offset to center placement preview
+    centerOffsetY: 50,     // Sprite centered on posY - interaction box centered too
+    width: 200,           // Interaction box width
+    height: 200,          // Interaction box height
+    placementYOffset: 0,  // Preview centered on cursor - placed exactly there
     spriteWidth: 256,
     spriteHeight: 256,
   },
   
   rain_collector: {
     centerOffsetX: 0,
-    centerOffsetY: -62,   // 256x256 sprite at posY - 220, visual center at posY - 92
+    centerOffsetY: -68,   // 256x256 sprite at posY - 220, visual center at posY - 92
     width: 200,           // Interaction box width for 256x256 sprite
     height: 260,          // Interaction box height for 256x256 sprite
-    placementYOffset: -92, // Offset to center placement preview on stone base
+    placementYOffset: -92, // Match visual center (posY - 92) for preview alignment
     spriteWidth: 256,
     spriteHeight: 256,
   },
