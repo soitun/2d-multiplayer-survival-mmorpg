@@ -37,6 +37,8 @@ export type DroppedItem = {
   chunkIndex: number,
   createdAt: __Timestamp,
   itemData: string | undefined,
+  spawnX: number | undefined,
+  spawnY: number | undefined,
 };
 let _cached_DroppedItem_type_value: __AlgebraicTypeType | null = null;
 
@@ -60,6 +62,8 @@ export const DroppedItem = {
       { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
       { name: "createdAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
       { name: "itemData", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
+      { name: "spawnX", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
+      { name: "spawnY", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
     );
     return _cached_DroppedItem_type_value;
   },

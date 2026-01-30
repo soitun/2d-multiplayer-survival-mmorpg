@@ -41,7 +41,8 @@ export type TreeType = TreeTypeVariants.SiberianBirch |
   TreeTypeVariants.MountainHemlockSnow |
   TreeTypeVariants.KrummholzSpruce |
   TreeTypeVariants.CrabAppleTree |
-  TreeTypeVariants.HazelnutTree;
+  TreeTypeVariants.HazelnutTree |
+  TreeTypeVariants.RowanberryTree;
 
 let _cached_TreeType_type_value: __AlgebraicTypeType | null = null;
 
@@ -65,6 +66,7 @@ export const TreeType = {
   KrummholzSpruce: { tag: "KrummholzSpruce" } as const,
   CrabAppleTree: { tag: "CrabAppleTree" } as const,
   HazelnutTree: { tag: "HazelnutTree" } as const,
+  RowanberryTree: { tag: "RowanberryTree" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_TreeType_type_value) return _cached_TreeType_type_value;
@@ -82,6 +84,7 @@ export const TreeType = {
       { name: "KrummholzSpruce", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "CrabAppleTree", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HazelnutTree", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "RowanberryTree", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_TreeType_type_value;
   },

@@ -8,7 +8,7 @@ use crate::{Player, player as PlayerTableTrait};
 use crate::environment::calculate_chunk_index;
 use crate::player_inventory::{get_player_item, find_first_empty_player_slot, move_item_to_inventory, move_item_to_hotbar};
 use crate::dropped_item::create_dropped_item_entity_with_data;
-use crate::projectile::{Projectile, PROJECTILE_SOURCE_TURRET};
+use crate::projectile::{Projectile, PROJECTILE_SOURCE_TURRET, NPC_PROJECTILE_NONE};
 use crate::projectile::projectile as ProjectileTableTrait;
 use crate::world_state::world_state as WorldStateTableTrait;
 use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait;
@@ -665,6 +665,7 @@ pub fn process_turret_logic_scheduled(ctx: &ReducerContext, _schedule: TurretPro
                             item_def_id: tallow_def_id, // Tallow is both item and ammo
                             ammo_def_id: tallow_def_id,
                             source_type: PROJECTILE_SOURCE_TURRET,
+                            npc_projectile_type: NPC_PROJECTILE_NONE, // Turret, not NPC
                             start_time: current_time,
                             start_pos_x: turret.pos_x,
                             start_pos_y: turret.pos_y,

@@ -643,6 +643,7 @@ fn get_plant_type_from_item_name(item_name: &str) -> Option<PlantType> {
     let normalized = normalize_item_name_for_plant_match(item_name);
     match normalized.as_str() {
         "Crab Apples" => return Some(PlantType::CrabAppleSapling),
+        "Rowan Berries" => return Some(PlantType::RowanberrySapling),
         _ => {}
     }
     

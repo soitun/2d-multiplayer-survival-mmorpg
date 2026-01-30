@@ -1,9 +1,9 @@
 import { drawDynamicGroundShadow } from './shadowUtils';
 import { imageManager } from './imageManager';
 import * as SpacetimeDB from '../../generated';
-import { 
-  getAnimalCollisionBounds,
-  ANIMAL_COLLISION_SIZES 
+import {
+    getAnimalCollisionBounds,
+    ANIMAL_COLLISION_SIZES
 } from '../animalCollisionUtils';
 
 // Import breeding data types for age-based rendering
@@ -36,6 +36,7 @@ import ternFlyingAnimatedSheet from '../../assets/tern_flying_release.png'; // N
 import crowFlyingSheet from '../../assets/crow_flying.png';
 // Night hostile NPC sprite sheets
 import shoreboundWalkingSheet from '../../assets/shorebound_walking.png';
+import shoreboundWalkingAnimatedSheet from '../../assets/shorebound_walking_release.png'; // NEW: 6x4 animated spritesheet
 import shardkinWalkingSheet from '../../assets/shardkin_walking.png';
 import shardkinWalkingAnimatedSheet from '../../assets/shardkin_walking_release.png'; // NEW: 6x4 animated spritesheet
 import drownedWatchWalkingSheet from '../../assets/drowned_watch_walking.png';
@@ -55,9 +56,9 @@ const SPRITE_SHEET_CONFIG = {
     sheetRows: 3,
     // Direction to sprite position mapping (row, col) - just 4 static sprites
     directionMap: {
-        'down':  { row: 0, col: 1 },  // Top middle
-        'up':    { row: 2, col: 1 },  // Bottom middle
-        'left':  { row: 1, col: 2 },  // Middle right (sprite faces left)
+        'down': { row: 0, col: 1 },  // Top middle
+        'up': { row: 2, col: 1 },  // Bottom middle
+        'left': { row: 1, col: 2 },  // Middle right (sprite faces left)
         'right': { row: 1, col: 0 },  // Middle left (sprite faces right)
     } as Record<string, { row: number; col: number }>,
 };
@@ -95,7 +96,7 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
     // WILDLIFE ANIMATED SPRITESHEETS
     // Row order: Down, Right, Left, Up (same as player)
     // ═══════════════════════════════════════════════════════════════════════════
-    
+
     // CINDERFOX - Passive wildlife (4x4 layout: 4 frames × 4 directions)
     // Artist spec: 80x80 per frame → 320x320 total sheet
     // Renders at: 128x128 (1.6x scale)
@@ -107,7 +108,7 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
-    
+
     // ARCTICWALRUS - Large passive wildlife (4x4 layout: 4 frames × 4 directions)
     // Artist spec: 80x80 per frame → 320x320 total sheet
     // Renders at: 128x128 (1.6x scale)
@@ -119,7 +120,7 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
-    
+
     // TUNDRAWOLF - Large predator wildlife (4x4 layout: 4 frames × 4 directions)
     // Artist spec: 80x80 per frame → 320x320 total sheet
     // Renders at: 128x128 (1.6x scale)
@@ -131,7 +132,7 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
-    
+
     // TERN - Coastal seabird (4x4 layout: 4 frames × 4 directions)
     // Artist spec: 80x80 per frame → 320x320 total sheet
     // Renders at: 96x96 (1.2x scale) - medium-sized bird
@@ -143,7 +144,7 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
-    
+
     // CARIBOU - Large herd herbivore (4x4 layout: 4 frames × 4 directions)
     // Artist spec: 80x80 per frame → 320x320 total sheet
     // Renders at: 128x128 (1.6x scale) - large animal
@@ -155,7 +156,7 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
-    
+
     // SALMONSHARK - Aquatic apex predator (4x4 layout: 4 frames × 4 directions)
     // Artist spec: 256x256 per frame → 1024x1024 total sheet
     // Renders at: 160x160 - large aquatic predator
@@ -168,7 +169,7 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
-    
+
     // WOLVERINE - Medium-sized but stocky and muscular predator (4x4 layout: 4 frames × 4 directions)
     // Artist spec: Check actual frame size - if clipped, may need adjustment
     // If image is 320x320, frames should be 80x80, but sprites may overflow cells
@@ -181,12 +182,12 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
-    
+
     // ═══════════════════════════════════════════════════════════════════════════
     // HOSTILE NPC ANIMATED SPRITESHEETS (6x4 layout: 6 frames × 4 directions)
     // Row order: Down, Right, Left, Up (same as player)
     // ═══════════════════════════════════════════════════════════════════════════
-    
+
     // SHARDKIN - Small swarmer creature
     // Artist spec: 48x48 per frame → 288x192 total sheet
     // Renders at: 72x72 (1.5x scale)
@@ -198,19 +199,19 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         cols: 6,           // 6 animation frames
         rows: 4,           // 4 directions
     },
-    
-    // SHOREBOUND - Lean stalker, fast predator (uncomment when asset is added)
+
+    // SHOREBOUND - Lean stalker, fast predator
     // Artist spec: 64x64 per frame → 384x256 total sheet (artist's 64-bit tier)
-    // Renders at: 160x160 (2.5x scale) - ~1.67x player size
-    // 'Shorebound': {
-    //     sheetWidth: 384,   // 64px × 6 frames
-    //     sheetHeight: 256,  // 64px × 4 rows
-    //     frameWidth: 64,
-    //     frameHeight: 64,
-    //     cols: 6,
-    //     rows: 4,
-    // },
-    
+    // Renders at: 96x96 (1.5x scale) - same size as player
+    'Shorebound': {
+        sheetWidth: 384,   // 64px × 6 frames
+        sheetHeight: 256,  // 64px × 4 rows
+        frameWidth: 64,
+        frameHeight: 64,
+        cols: 6,
+        rows: 4,
+    },
+
     // DROWNED WATCH - Massive brute, heavy boss-type (uncomment when asset is added)
     // Artist spec: 96x96 per frame → 576x384 total sheet (artist's 96-bit tier)
     // Renders at: 192x192 (2x scale) - 2x player size, imposing "oh crap" moment
@@ -230,10 +231,10 @@ const ANIMATED_SHEET_ROWS = 4;
 
 // Direction to row mapping (matches player format - same for all species)
 const ANIMATED_DIRECTION_ROW_MAP: Record<string, number> = {
-    'down':  0,  // Row 0: facing down
+    'down': 0,  // Row 0: facing down
     'right': 1,  // Row 1: facing right
-    'left':  2,  // Row 2: facing left
-    'up':    3,  // Row 3: facing up
+    'left': 2,  // Row 2: facing left
+    'up': 3,  // Row 3: facing up
 };
 
 // Animation timing for walking cycle
@@ -269,7 +270,7 @@ const speciesSpriteSheets: Record<string, string> = {
     'Caribou': caribouWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'SalmonShark': salmonSharkWalkingAnimatedSheet, // Use animated 4x4 spritesheet (aquatic)
     // Night hostile NPCs have custom sprites
-    'Shorebound': shoreboundWalkingSheet,
+    'Shorebound': shoreboundWalkingAnimatedSheet, // NEW: Use animated 6x4 spritesheet
     'Shardkin': shardkinWalkingAnimatedSheet, // NEW: Use animated 6x4 spritesheet
     'DrownedWatch': drownedWatchWalkingSheet,
 };
@@ -323,15 +324,15 @@ const processedBurrowAnimals = new Map<string, bigint>(); // animalId -> stateCh
 function checkAndCreateBurrowEffect(animal: WildAnimal, nowMs: number) {
     const animalId = animal.id.toString();
     const stateChangeTime = animal.stateChangeTime?.microsSinceUnixEpoch ?? 0n;
-    
+
     // Check if this animal is burrowed and we haven't already processed this burrow
     if (animal.state.tag === 'Burrowed') {
         const lastProcessed = processedBurrowAnimals.get(animalId);
-        
+
         if (lastProcessed !== stateChangeTime) {
             // New burrow! Create the effect
             processedBurrowAnimals.set(animalId, stateChangeTime);
-            
+
             // Generate random particles
             const particles: BurrowEffectState['particles'] = [];
             for (let i = 0; i < BURROW_PARTICLE_COUNT; i++) {
@@ -346,7 +347,7 @@ function checkAndCreateBurrowEffect(animal: WildAnimal, nowMs: number) {
                     color: Math.random() > 0.5 ? '#8B7355' : '#6B5344', // Brown/dirt colors
                 });
             }
-            
+
             activeBurrowEffects.set(animalId, {
                 posX: animal.posX,
                 posY: animal.posY,
@@ -372,40 +373,40 @@ export function processWildAnimalsForBurrowEffects(wildAnimals: Map<string, Wild
  */
 export function renderBurrowEffects(ctx: CanvasRenderingContext2D, nowMs: number) {
     const effectsToRemove: string[] = [];
-    
+
     activeBurrowEffects.forEach((effect, animalId) => {
         const elapsed = nowMs - effect.startTime;
-        
+
         if (elapsed >= BURROW_EFFECT_DURATION_MS) {
             effectsToRemove.push(animalId);
             return;
         }
-        
+
         const progress = elapsed / BURROW_EFFECT_DURATION_MS;
         const alpha = 1 - progress; // Fade out over time
-        
+
         ctx.save();
         ctx.globalAlpha = alpha;
-        
+
         // Render each particle
         effect.particles.forEach(particle => {
             const t = elapsed / 1000; // Time in seconds
             const gravity = 150; // Gravity acceleration
-            
+
             // Calculate particle position with gravity
             const px = effect.posX + particle.offsetX + particle.velocityX * t;
             const py = effect.posY + particle.offsetY + particle.velocityY * t + 0.5 * gravity * t * t;
-            
+
             // Draw particle as a small dirt clump
             ctx.fillStyle = particle.color;
             ctx.beginPath();
             ctx.arc(px, py, particle.size * (1 - progress * 0.5), 0, Math.PI * 2);
             ctx.fill();
         });
-        
+
         ctx.restore();
     });
-    
+
     // Clean up finished effects
     effectsToRemove.forEach(id => {
         activeBurrowEffects.delete(id);
@@ -480,7 +481,7 @@ interface WildAnimalRenderProps {
  */
 function getCaribouAgeMultiplier(breedingData: CaribouBreedingData | undefined): number {
     if (!breedingData) return 1.0; // Default to adult size if no data
-    
+
     switch (breedingData.ageStage.tag) {
         case 'Calf': return 0.5;      // 50% size for calves
         case 'Juvenile': return 0.75; // 75% size for juveniles
@@ -494,7 +495,7 @@ function getCaribouAgeMultiplier(breedingData: CaribouBreedingData | undefined):
  */
 function getWalrusAgeMultiplier(breedingData: WalrusBreedingData | undefined): number {
     if (!breedingData) return 1.0; // Default to adult size if no data
-    
+
     switch (breedingData.ageStage.tag) {
         case 'Pup': return 0.5;       // 50% size for pups
         case 'Juvenile': return 0.75; // 75% size for juveniles
@@ -512,17 +513,17 @@ function isAnimalPregnant(
     walrusBreedingData?: Map<string, WalrusBreedingData>
 ): boolean {
     const animalId = animal.id.toString();
-    
+
     if (animal.species.tag === 'Caribou' && caribouBreedingData) {
         const data = caribouBreedingData.get(animalId);
         return data?.isPregnant ?? false;
     }
-    
+
     if (animal.species.tag === 'ArcticWalrus' && walrusBreedingData) {
         const data = walrusBreedingData.get(animalId);
         return data?.isPregnant ?? false;
     }
-    
+
     return false;
 }
 
@@ -547,12 +548,12 @@ function getAnimatedSpriteSourceRect(
         // Fallback - shouldn't happen if usesAnimatedSpritesheet is checked first
         return { sx: 0, sy: 0, sw: 48, sh: 48 };
     }
-    
+
     const { frameWidth, frameHeight, cols } = config;
-    
+
     // Normalize direction to 4-way
     let normalizedDir = direction.toLowerCase();
-    
+
     // Map diagonal directions to closest cardinal direction
     if (normalizedDir === 'up_left' || normalizedDir === 'up-left' || normalizedDir === 'upleft') {
         normalizedDir = 'left';
@@ -563,15 +564,15 @@ function getAnimatedSpriteSourceRect(
     } else if (normalizedDir === 'down_right' || normalizedDir === 'down-right' || normalizedDir === 'downright') {
         normalizedDir = 'right';
     }
-    
+
     // Default to 'down' if direction not found
     if (ANIMATED_DIRECTION_ROW_MAP[normalizedDir] === undefined) {
         normalizedDir = 'down';
     }
-    
+
     const row = ANIMATED_DIRECTION_ROW_MAP[normalizedDir];
     const col = animationFrame % cols; // Cycle through animation frames (using species-specific col count)
-    
+
     return {
         sx: col * frameWidth,
         sy: row * frameHeight,
@@ -589,10 +590,10 @@ function getSpriteSourceRect(
     const frameWidth = isFlying ? FLYING_FRAME_WIDTH : FRAME_WIDTH;
     const frameHeight = isFlying ? FLYING_FRAME_HEIGHT : FRAME_HEIGHT;
     const { directionMap } = config;
-    
+
     // Normalize direction to 4-way (map 8-way to 4-way)
     let normalizedDir = direction.toLowerCase();
-    
+
     // Map diagonal directions to closest cardinal direction
     if (normalizedDir === 'up_left' || normalizedDir === 'up-left' || normalizedDir === 'upleft') {
         normalizedDir = 'left';
@@ -603,14 +604,14 @@ function getSpriteSourceRect(
     } else if (normalizedDir === 'down_right' || normalizedDir === 'down-right' || normalizedDir === 'downright') {
         normalizedDir = 'right';
     }
-    
+
     // Default to 'down' if direction not found
     if (!directionMap[normalizedDir]) {
         normalizedDir = 'down';
     }
-    
+
     const { row, col } = directionMap[normalizedDir];
-    
+
     return {
         sx: col * frameWidth,
         sy: row * frameHeight,
@@ -664,9 +665,9 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
             // 0.75x player size (player is 96x96 render) - small but dangerous in groups
             return { width: 72, height: 72, shadowRadius: 24 };
         case 'Shorebound':
-            // Stalker - lean, fast predator (64x64 sprite × 2.5 = 160x160)
-            // ~1.67x player size (player is 96x96 render)
-            return { width: 160, height: 160, shadowRadius: 52 };
+            // Stalker - lean, fast predator (64x64 sprite × 1.5 = 96x96)
+            // Same size as player (player is 96x96 render)
+            return { width: 128, height: 128, shadowRadius: 32 };
         case 'DrownedWatch':
             // Brute - massive, heavy boss-type (96x96 sprite × 2 = 192x192)
             // 2x player size (player is 96x96 render) - the "oh crap" moment
@@ -695,7 +696,7 @@ export function renderWildAnimal({
     // Check for burrow effect BEFORE skipping burrowed animals
     // This allows us to detect when an animal JUST burrowed and create the particle effect
     checkAndCreateBurrowEffect(animal, nowMs);
-    
+
     // BURROWED STATE: Animals that are burrowed underground are completely invisible
     // This is used by voles to hide from predators and players
     if (animal.state.tag === 'Burrowed') {
@@ -703,11 +704,11 @@ export function renderWildAnimal({
     }
 
     const animalId = animal.id.toString();
-    
+
     // --- Movement interpolation with velocity-based prediction for smoother movement ---
     let renderPosX = animal.posX;
     let renderPosY = animal.posY;
-    
+
     let movementState = animalMovementStates.get(animalId);
     if (!movementState) {
         // Initialize movement state
@@ -728,10 +729,10 @@ export function renderWildAnimal({
         const dx = animal.posX - movementState.lastServerX;
         const dy = animal.posY - movementState.lastServerY;
         const distanceMoved = Math.sqrt(dx * dx + dy * dy);
-        
+
         if (distanceMoved > 1.0) { // Server position update detected
             const timeSinceLastUpdate = nowMs - movementState.lastUpdateTime;
-            
+
             // Check for teleportation (too far to interpolate)
             if (distanceMoved > MAX_INTERPOLATION_DISTANCE) {
                 // Teleportation detected - snap to new position and reset velocity
@@ -743,12 +744,12 @@ export function renderWildAnimal({
                 // Calculate velocity based on actual movement (pixels per millisecond)
                 const newVelocityX = dx / timeSinceLastUpdate;
                 const newVelocityY = dy / timeSinceLastUpdate;
-                
+
                 // Smooth velocity changes to avoid jitter
                 movementState.velocityX = movementState.velocityX * VELOCITY_SMOOTHING + newVelocityX * (1 - VELOCITY_SMOOTHING);
                 movementState.velocityY = movementState.velocityY * VELOCITY_SMOOTHING + newVelocityY * (1 - VELOCITY_SMOOTHING);
             }
-            
+
             // Update target and tracking
             movementState.targetX = animal.posX;
             movementState.targetY = animal.posY;
@@ -756,39 +757,39 @@ export function renderWildAnimal({
             movementState.lastServerY = animal.posY;
             movementState.lastUpdateTime = nowMs;
         }
-        
+
         // Calculate time since last server update
         const timeSinceUpdate = nowMs - movementState.lastUpdateTime;
-        
+
         // Use velocity prediction for the first portion of the tick, then blend to target
         // This creates smooth movement that arrives at the target position naturally
         const tickProgress = Math.min(timeSinceUpdate / SERVER_TICK_MS, 1.5); // Cap at 1.5x tick time
-        
+
         // Distance remaining to target
         const distToTargetX = movementState.targetX - movementState.interpolatedX;
         const distToTargetY = movementState.targetY - movementState.interpolatedY;
         const distToTarget = Math.sqrt(distToTargetX * distToTargetX + distToTargetY * distToTargetY);
-        
+
         if (distToTarget > 0.5) {
             // Blend between velocity prediction and direct interpolation based on tick progress
             // Early in tick: use velocity prediction
             // Late in tick: blend toward target to ensure we arrive
-            
+
             if (tickProgress < 0.8) {
                 // Early/mid tick: Use velocity prediction with correction toward target
                 // This makes movement feel continuous rather than jerky
                 const predictionWeight = 0.7 * (1 - tickProgress); // Fade out prediction over time
                 const correctionWeight = 1 - predictionWeight;
-                
+
                 // Velocity-based prediction (where we'd be if velocity continued)
                 const predictedX = movementState.interpolatedX + movementState.velocityX * 16; // 16ms = ~60fps frame
                 const predictedY = movementState.interpolatedY + movementState.velocityY * 16;
-                
+
                 // Target-seeking interpolation (move toward target at appropriate speed)
                 const seekSpeed = Math.min(0.15 + tickProgress * 0.2, 0.35); // Speed up as we approach tick end
                 const seekX = movementState.interpolatedX + distToTargetX * seekSpeed;
                 const seekY = movementState.interpolatedY + distToTargetY * seekSpeed;
-                
+
                 // Blend prediction and seeking
                 movementState.interpolatedX = predictedX * predictionWeight + seekX * correctionWeight;
                 movementState.interpolatedY = predictedY * predictionWeight + seekY * correctionWeight;
@@ -799,7 +800,7 @@ export function renderWildAnimal({
                 movementState.interpolatedX += distToTargetX * catchupSpeed;
                 movementState.interpolatedY += distToTargetY * catchupSpeed;
             }
-            
+
             // Ensure we don't overshoot target
             if (Math.abs(movementState.interpolatedX - movementState.targetX) < 1) {
                 movementState.interpolatedX = movementState.targetX;
@@ -808,18 +809,18 @@ export function renderWildAnimal({
                 movementState.interpolatedY = movementState.targetY;
             }
         }
-        
+
         // Use interpolated position for rendering
         renderPosX = movementState.interpolatedX;
         renderPosY = movementState.interpolatedY;
     }
-    
+
     // --- Hit detection and effect timing (similar to player system) ---
     const serverLastHitTimePropMicros = animal.lastHitTime?.microsSinceUnixEpoch ?? 0n;
     let hitState = animalHitStates.get(animalId);
     let isCurrentlyHit = false;
     let hitEffectElapsed = 0;
-    
+
     if (serverLastHitTimePropMicros > 0n) {
         if (!hitState || serverLastHitTimePropMicros > hitState.lastProcessedHitTime) {
             // NEW HIT DETECTED! Set up effect timing based on client time
@@ -830,7 +831,7 @@ export function renderWildAnimal({
             };
             animalHitStates.set(animalId, hitState);
         }
-        
+
         // Calculate effect timing based on when WE detected the hit
         if (hitState) {
             hitEffectElapsed = nowMs - hitState.effectStartTime;
@@ -846,7 +847,7 @@ export function renderWildAnimal({
     // Legacy calculation for fallback
     const serverLastHitTimeMs = serverLastHitTimePropMicros > 0n ? Number(serverLastHitTimePropMicros / 1000n) : 0;
     const elapsedSinceServerHitMs = serverLastHitTimeMs > 0 ? (nowMs - serverLastHitTimeMs) : Infinity;
-    
+
     // Use new hit detection if available, otherwise fall back to old system
     const effectiveHitElapsed = isCurrentlyHit ? hitEffectElapsed : elapsedSinceServerHitMs;
     const shouldShowCombatEffects = isCurrentlyHit || elapsedSinceServerHitMs < ANIMAL_SHAKE_DURATION_MS;
@@ -870,7 +871,7 @@ export function renderWildAnimal({
     const useAnimated = usesAnimatedSpritesheet(animal.species);
     const spriteSheetSrc = getSpriteSheet(animal.species, useFlying);
     const spriteSheetImage = imageManager.getImage(spriteSheetSrc);
-    
+
     // Get the appropriate frame dimensions based on sprite type
     const animatedConfig = useAnimated ? getAnimatedConfig(animal.species) : undefined;
     let currentFrameWidth: number;
@@ -885,14 +886,14 @@ export function renderWildAnimal({
         currentFrameWidth = FRAME_WIDTH;
         currentFrameHeight = FRAME_HEIGHT;
     }
-    
+
     // Calculate animation frame for animated sprites based on movement
     let calculatedAnimFrame = 0;
     if (useAnimated && movementState && animatedConfig) {
         // Check if animal is moving (has significant velocity)
         const velocityMagnitude = Math.sqrt(movementState.velocityX * movementState.velocityX + movementState.velocityY * movementState.velocityY);
         const isMoving = velocityMagnitude > 0.02; // Threshold for "moving"
-        
+
         if (isMoving) {
             // Calculate animation frame based on time for smooth walking cycle
             // Use species-specific column count for proper animation cycling
@@ -902,16 +903,16 @@ export function renderWildAnimal({
             calculatedAnimFrame = 0;
         }
     }
-    
+
     // Debug logging for bird sprite selection (enable to debug)
     // if (isBird && Math.random() < 0.001) { // Log 0.1% of frames to avoid spam
     //     console.log(`🐦 ${animal.species.tag} #${animal.id}: isFlying=${animal.isFlying}, state=${animal.state.tag}, sprite=${useFlying ? 'FLYING' : 'WALKING'}`);
     // }
-    
+
     // Check if sprite sheet is loaded
     const useSpriteSheet = spriteSheetImage && spriteSheetImage.complete;
     const animalImage = spriteSheetImage;
-    
+
     // Get fallback color for each species
     const getFallbackColor = (species: AnimalSpecies): string => {
         switch (species.tag) {
@@ -932,20 +933,20 @@ export function renderWildAnimal({
             default: return '#9013FE'; // Purple
         }
     };
-    
+
     // Bees are rendered as simple black dots - no spritesheet
     const isBee = animal.species.tag === 'Bee';
     const useImageFallback = isBee || !animalImage || !animalImage.complete;
 
     const props = getSpeciesRenderingProps(animal.species);
-    
+
     // ═══════════════════════════════════════════════════════════════════════════
     // AGE-BASED SIZE SCALING FOR BREEDING ANIMALS
     // ═══════════════════════════════════════════════════════════════════════════
     // Calves/Pups: 50% size, Juveniles: 75% size, Adults: 100% size
     let ageBasedSizeMultiplier = 1.0;
     const animalIdStr = animal.id.toString();
-    
+
     if (animal.species.tag === 'Caribou' && caribouBreedingData) {
         const breedingData = caribouBreedingData.get(animalIdStr);
         ageBasedSizeMultiplier = getCaribouAgeMultiplier(breedingData);
@@ -953,27 +954,27 @@ export function renderWildAnimal({
         const breedingData = walrusBreedingData.get(animalIdStr);
         ageBasedSizeMultiplier = getWalrusAgeMultiplier(breedingData);
     }
-    
+
     // Flying terns appear slightly larger to account for wingspan
     const flyingSizeMultiplier = (animal.species.tag === 'Tern' && useFlying) ? 1.3 : 1.0;
     const renderWidth = props.width * flyingSizeMultiplier * ageBasedSizeMultiplier;
     const renderHeight = props.height * flyingSizeMultiplier * ageBasedSizeMultiplier;
-    
+
     const renderX = renderPosX - renderWidth / 2 + shakeX; // Apply shake to X (using interpolated position)
     const renderY = renderPosY - renderHeight / 2 + shakeY; // Apply shake to Y (using interpolated position)
 
     // No animals hide anymore - always fully visible
     const alpha = 1.0;
-    
+
     ctx.save();
     ctx.globalAlpha = alpha;
-    
+
     // Enable crisp pixel scaling for animated sprites (nearest-neighbor instead of bilinear)
     // This keeps pixel art sharp when scaling up (e.g., 48x48 sprite rendered at 72x72)
     if (useAnimated) {
         ctx.imageSmoothingEnabled = false;
     }
-    
+
     // Note: No horizontal flipping needed - sprite sheets have all 4 directions
     // Legacy flipping is only used for static images that don't have sprite sheets
     const shouldFlip = !useSpriteSheet && animal.facingDirection === "right";
@@ -986,7 +987,7 @@ export function renderWildAnimal({
     // Skip shadow for entities with shadowRadius 0 (bees, sharks)
     if (props.shadowRadius > 0) {
         ctx.save();
-        
+
         // Flying birds (Tern, Crow) get a special detached shadow
         if (isBird && useFlying) {
             // ═══════════════════════════════════════════════════════════════════════
@@ -998,22 +999,22 @@ export function renderWildAnimal({
             // 3. Shadow is MORE TRANSPARENT (softer, lower contrast)
             // 4. Shadow is a SIMPLE OVAL (not sprite silhouette)
             // 5. Shadow does NOT animate with wing flaps
-            
+
             // Global light direction: coming from upper-left, so shadow goes down-right
             const shadowOffsetX = 25;  // Offset to the right
             const shadowOffsetY = 45;  // Offset downward (shows height separation)
-            
+
             // Shadow is smaller than the bird (shows altitude)
             const baseShadowWidth = props.width * 0.5;  // 50% of grounded size
             const baseShadowHeight = props.width * 0.15; // Flat oval
-            
+
             // Shadow is more transparent when flying (softer, less contrast)
             const flyingShadowAlpha = 0.25;
-            
+
             // Shadow position: below and to the right of the bird
             const shadowX = renderPosX + shadowOffsetX;
             const shadowY = renderPosY + renderHeight / 2 + shadowOffsetY;
-            
+
             // Draw simple oval shadow with soft edges
             ctx.fillStyle = `rgba(0, 0, 0, ${flyingShadowAlpha})`;
             ctx.beginPath();
@@ -1025,17 +1026,17 @@ export function renderWildAnimal({
                 0, 0, Math.PI * 2
             );
             ctx.fill();
-            
+
         } else if (useSpriteSheet && animalImage) {
             // GROUNDED SHADOW - Use sprite silhouette for dynamic shadow
             const shadowCanvas = document.createElement('canvas');
             shadowCanvas.width = currentFrameWidth;
             shadowCanvas.height = currentFrameHeight;
             const shadowCtx = shadowCanvas.getContext('2d');
-            
+
             if (shadowCtx) {
                 // Use animated sprite rect for animated species, standard for others
-                const spriteRect = useAnimated 
+                const spriteRect = useAnimated
                     ? getAnimatedSpriteSourceRect(animal.species, animal.facingDirection, calculatedAnimFrame)
                     : getSpriteSourceRect(animal.facingDirection, useFlying);
                 shadowCtx.drawImage(
@@ -1043,7 +1044,7 @@ export function renderWildAnimal({
                     spriteRect.sx, spriteRect.sy, spriteRect.sw, spriteRect.sh,
                     0, 0, currentFrameWidth, currentFrameHeight
                 );
-                
+
                 // Use the extracted frame for dynamic shadow
                 drawDynamicGroundShadow({
                     ctx,
@@ -1087,7 +1088,7 @@ export function renderWildAnimal({
             ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
             ctx.beginPath();
             ctx.ellipse(
-                renderPosX + shakeX, 
+                renderPosX + shakeX,
                 renderPosY + renderHeight / 2 - 5 + shakeY,
                 renderWidth / 2.5,
                 renderHeight / 8,
@@ -1103,7 +1104,7 @@ export function renderWildAnimal({
     const isShark = animal.species.tag === 'SalmonShark';
     const viewingSharkFromAbove = isShark && !isLocalPlayerSnorkeling;
     const viewingSharkFromUnderwater = isShark && isLocalPlayerSnorkeling;
-    
+
     // Save filter state if we need to apply underwater blur
     const savedFilter = ctx.filter;
     if (viewingSharkFromAbove) {
@@ -1120,45 +1121,45 @@ export function renderWildAnimal({
         // Draw fallback colored shape with shake applied
         const centerX = renderPosX + shakeX; // Use interpolated position
         const centerY = renderPosY + shakeY; // Use interpolated position
-        
+
         // Special rendering for bees - tiny black/yellow pixel-like dot
         if (isBee) {
             ctx.save();
             ctx.imageSmoothingEnabled = false; // Crisp pixel look
-            
+
             // Main bee body - small black dot
             const beeSize = isFlashing ? 8 : 6;
             ctx.fillStyle = isFlashing ? '#FFFFFF' : '#1A1A1A';
             ctx.beginPath();
             ctx.arc(centerX, centerY, beeSize / 2, 0, 2 * Math.PI);
             ctx.fill();
-            
+
             // Yellow stripe through middle (when not flashing)
             if (!isFlashing) {
                 ctx.fillStyle = '#FFD700'; // Gold/yellow
                 ctx.fillRect(centerX - 2, centerY - 1, 4, 2);
             }
-            
+
             ctx.restore();
         } else {
             // Normal fallback for other animals
             const radius = Math.min(renderWidth, renderHeight) / 3;
-            
+
             // Apply white flash to fallback color
             let fillColor = getFallbackColor(animal.species);
             if (isFlashing) {
                 fillColor = '#FFFFFF'; // Flash white
             }
-            
+
             ctx.fillStyle = fillColor;
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 2;
-            
+
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
             ctx.fill();
             ctx.stroke();
-            
+
             // Add a simple indicator for the species (letter)
             ctx.fillStyle = isFlashing ? '#000000' : '#FFFFFF'; // Invert letter color when flashing
             ctx.font = '12px Arial';
@@ -1172,28 +1173,28 @@ export function renderWildAnimal({
         if (offscreenCtx && animalImage) {
             // Get sprite frame info for sprite sheets
             // Use animated sprite rect for animated species, standard for others
-            const spriteRect = useSpriteSheet 
-                ? (useAnimated 
+            const spriteRect = useSpriteSheet
+                ? (useAnimated
                     ? getAnimatedSpriteSourceRect(animal.species, animal.facingDirection, calculatedAnimFrame)
                     : getSpriteSourceRect(animal.facingDirection, useFlying))
                 : null;
-            
+
             if (useSpriteSheet && spriteRect) {
                 // Sprite sheet mode - extract and render specific frame
                 const { sx, sy, sw, sh } = spriteRect;
-                
+
                 // Size offscreen canvas to single frame
                 offscreenCanvas.width = sw;
                 offscreenCanvas.height = sh;
                 offscreenCtx.clearRect(0, 0, sw, sh);
-                
+
                 // Draw the specific frame from sprite sheet
                 offscreenCtx.drawImage(
                     animalImage,
                     sx, sy, sw, sh,  // Source rectangle (frame from sheet)
                     0, 0, sw, sh      // Destination on offscreen canvas
                 );
-                
+
                 // Apply white flash if needed
                 if (isFlashing) {
                     offscreenCtx.globalCompositeOperation = 'source-in';
@@ -1201,7 +1202,7 @@ export function renderWildAnimal({
                     offscreenCtx.fillRect(0, 0, sw, sh);
                     offscreenCtx.globalCompositeOperation = 'source-over';
                 }
-                
+
                 // Draw the frame to main canvas (scaled to animal size)
                 ctx.drawImage(
                     offscreenCanvas,
@@ -1215,7 +1216,7 @@ export function renderWildAnimal({
                 offscreenCanvas.width = animalImage.width;
                 offscreenCanvas.height = animalImage.height;
                 offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-                
+
                 // Draw the original image to the offscreen canvas
                 offscreenCtx.drawImage(animalImage, 0, 0);
 
@@ -1240,7 +1241,7 @@ export function renderWildAnimal({
             // Fallback: draw image directly without flash effect
             if (useSpriteSheet) {
                 // Use animated sprite rect for animated species, standard for others
-                const spriteRect = useAnimated 
+                const spriteRect = useAnimated
                     ? getAnimatedSpriteSourceRect(animal.species, animal.facingDirection, calculatedAnimFrame)
                     : getSpriteSourceRect(animal.facingDirection, useFlying);
                 ctx.drawImage(
@@ -1262,7 +1263,7 @@ export function renderWildAnimal({
             }
         }
     }
-    
+
     // 🦈 Apply underwater teal tint overlay for sharks when viewer is underwater
     if (viewingSharkFromUnderwater && !useImageFallback) {
         ctx.save();
@@ -1271,7 +1272,7 @@ export function renderWildAnimal({
         ctx.fillRect(renderX, renderY, renderWidth, renderHeight);
         ctx.restore();
     }
-    
+
     // Restore filter if we applied underwater blur
     if (viewingSharkFromAbove) {
         ctx.filter = savedFilter;
@@ -1302,18 +1303,18 @@ export function preloadWildAnimalImages(): void {
         caribouWalkingAnimatedSheet, // Animated caribou spritesheet
         salmonSharkWalkingAnimatedSheet, // Animated salmon shark spritesheet (aquatic)
         // Night hostile NPCs
-        shoreboundWalkingSheet,
+        shoreboundWalkingAnimatedSheet, // Use animated spritesheet for Shorebound
         shardkinWalkingAnimatedSheet, // Use animated spritesheet for Shardkin
         drownedWatchWalkingSheet,
     ];
-    
+
     // Flying sprite sheets for birds
     const flyingSpriteSheets = [
         ternFlyingSheet,
         ternFlyingAnimatedSheet, // NEW: Animated 4x4 tern flying spritesheet
         crowFlyingSheet,
     ];
-    
+
     // Preload all sprite sheets
     [...spriteSheets, ...flyingSpriteSheets].forEach(imageSrc => {
         imageManager.preloadImage(imageSrc);
@@ -1328,9 +1329,9 @@ export function isPointInAnimal(
 ): boolean {
     // Use the collision bounds system for consistent sizing
     const bounds = getAnimalCollisionBounds(animal);
-    
-    return x >= bounds.x && x <= bounds.x + bounds.width && 
-           y >= bounds.y && y <= bounds.y + bounds.height;
+
+    return x >= bounds.x && x <= bounds.x + bounds.width &&
+        y >= bounds.y && y <= bounds.y + bounds.height;
 }
 
 // --- THOUGHT BUBBLE RENDERING ---
@@ -1356,39 +1357,39 @@ export function renderAnimalThoughtBubble({
     startTime,
 }: ThoughtBubbleProps) {
     const elapsed = nowMs - startTime;
-    
+
     // Don't render if effect has expired
     if (elapsed >= duration) {
         return;
     }
-    
+
     // Calculate bubble position above the animal
     const bubbleX = animal.posX;
     const bubbleY = animal.posY - 80; // Position above the animal
-    
+
     // Calculate fade effect for the last 500ms
     const fadeStartTime = duration - 500;
     let alpha = 1.0;
     if (elapsed > fadeStartTime) {
         alpha = 1.0 - ((elapsed - fadeStartTime) / 500);
     }
-    
+
     // Add slight bob animation
     const bobOffset = Math.sin((elapsed * 0.008)) * 3; // Gentle bobbing motion
     const finalY = bubbleY + bobOffset;
-    
+
     ctx.save();
     ctx.globalAlpha = alpha;
-    
+
     // Draw thought bubble background
     const bubbleRadius = 25;
     const tailHeight = 8;
-    
+
     // Bubble gradient
     const gradient = ctx.createRadialGradient(bubbleX, finalY, 0, bubbleX, finalY, bubbleRadius);
     gradient.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
     gradient.addColorStop(1, 'rgba(240, 240, 240, 0.85)');
-    
+
     // Main bubble circle
     ctx.fillStyle = gradient;
     ctx.strokeStyle = 'rgba(100, 100, 100, 0.6)';
@@ -1397,14 +1398,14 @@ export function renderAnimalThoughtBubble({
     ctx.arc(bubbleX, finalY, bubbleRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    
+
     // Thought bubble tail (small circles)
     const tailPositions = [
         { x: bubbleX - 10, y: finalY + bubbleRadius + 5, radius: 4 },
         { x: bubbleX - 18, y: finalY + bubbleRadius + 12, radius: 3 },
         { x: bubbleX - 24, y: finalY + bubbleRadius + 18, radius: 2 },
     ];
-    
+
     tailPositions.forEach(pos => {
         ctx.fillStyle = gradient;
         ctx.strokeStyle = 'rgba(100, 100, 100, 0.4)';
@@ -1414,14 +1415,14 @@ export function renderAnimalThoughtBubble({
         ctx.fill();
         ctx.stroke();
     });
-    
+
     // Draw emoji
     ctx.fillStyle = 'black';
     ctx.font = '24px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(emoji, bubbleX, finalY);
-    
+
     ctx.restore();
 }
 
@@ -1441,7 +1442,7 @@ export function renderTamingThoughtBubbles({
     if (animal.heartEffectUntil) {
         const heartEffectEndTime = Number(animal.heartEffectUntil.microsSinceUnixEpoch) / 1000; // Convert to milliseconds
         const heartEffectStartTime = heartEffectEndTime - 3000; // 3 second duration
-        
+
         if (nowMs >= heartEffectStartTime && nowMs <= heartEffectEndTime) {
             renderAnimalThoughtBubble({
                 ctx,
@@ -1453,12 +1454,12 @@ export function renderTamingThoughtBubbles({
             });
         }
     }
-    
+
     // Check for crying effect (when tamed animal is hit by owner)
     if (animal.cryingEffectUntil) {
         const cryingEffectEndTime = Number(animal.cryingEffectUntil.microsSinceUnixEpoch) / 1000; // Convert to milliseconds
         const cryingEffectStartTime = cryingEffectEndTime - 3000; // 3 second duration
-        
+
         if (nowMs >= cryingEffectStartTime && nowMs <= cryingEffectEndTime) {
             renderAnimalThoughtBubble({
                 ctx,
@@ -1470,7 +1471,7 @@ export function renderTamingThoughtBubbles({
             });
         }
     }
-    
+
     // Additional thought bubbles can be added here for other emotions/states
 }
 
@@ -1495,29 +1496,29 @@ export function renderPregnancyIndicator({
     // Check if this animal is pregnant
     const isPregnant = isAnimalPregnant(animal, caribouBreedingData, walrusBreedingData);
     if (!isPregnant) return;
-    
+
     // Position indicator above the animal (slightly offset from center)
     const indicatorX = animal.posX + 20;
     const indicatorY = animal.posY - 60;
-    
+
     // Gentle pulsing animation (0.8 to 1.0 scale)
     const pulsePhase = (nowMs / 1500) * Math.PI; // 1.5 second cycle
     const pulseScale = 0.9 + 0.1 * Math.sin(pulsePhase);
-    
+
     // Gentle bob animation (up/down 3px)
     const bobOffset = Math.sin(nowMs / 800) * 3;
-    
+
     ctx.save();
-    
+
     // Draw small thought bubble with pregnancy emoji
     const bubbleRadius = 16 * pulseScale;
     const finalY = indicatorY + bobOffset;
-    
+
     // Bubble background - soft pink tint for pregnancy
     const gradient = ctx.createRadialGradient(indicatorX, finalY, 0, indicatorX, finalY, bubbleRadius);
     gradient.addColorStop(0, 'rgba(255, 220, 230, 0.95)'); // Soft pink center
     gradient.addColorStop(1, 'rgba(255, 200, 210, 0.85)'); // Slightly darker pink edge
-    
+
     // Main bubble circle
     ctx.fillStyle = gradient;
     ctx.strokeStyle = 'rgba(200, 100, 130, 0.5)'; // Soft pink border
@@ -1526,13 +1527,13 @@ export function renderPregnancyIndicator({
     ctx.arc(indicatorX, finalY, bubbleRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    
+
     // Small tail circles pointing to animal
     const tailPositions = [
         { x: indicatorX - 8, y: finalY + bubbleRadius + 3, radius: 3 },
         { x: indicatorX - 12, y: finalY + bubbleRadius + 8, radius: 2 },
     ];
-    
+
     tailPositions.forEach(pos => {
         ctx.fillStyle = gradient;
         ctx.strokeStyle = 'rgba(200, 100, 130, 0.4)';
@@ -1542,13 +1543,13 @@ export function renderPregnancyIndicator({
         ctx.fill();
         ctx.stroke();
     });
-    
+
     // Draw pregnancy emoji (🤰 or simpler 💕 for visibility at small sizes)
     ctx.fillStyle = 'black';
     ctx.font = `${Math.round(18 * pulseScale)}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('💕', indicatorX, finalY); // Using hearts for better visibility at small sizes
-    
+
     ctx.restore();
 }

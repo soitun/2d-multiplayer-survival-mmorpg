@@ -97,7 +97,8 @@ mod repair; // ADD: Repair module for structure repair functionality
 mod collectible_resources; // Add the new collectible resources system
 mod plants_database; // NEW: Plant configuration database
 mod harvestable_resource; // NEW: Unified harvestable resource system
-mod coral; // NEW: Coral reef system (Storm Piles and Living Coral)
+mod coral; // Living Coral resource system (underwater harvestable corals)
+mod storm_debris; // Storm debris spawning on beaches (seaweed, shells, driftwood, etc.)
 mod sleeping_bag; // ADD Sleeping Bag module
 mod player_corpse; // <<< ADDED: Declare Player Corpse module
 mod models; // <<< ADDED

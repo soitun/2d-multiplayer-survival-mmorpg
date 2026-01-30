@@ -167,7 +167,7 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   wild_beehive: {
     centerOffsetX: 0,
-    centerOffsetY: -85,   // Adjusted for 120x120 sprite (25% larger), renders at posY - 140, center at posY - 80, but adjusted for visual consistency
+    centerOffsetY: -55,   // Adjusted for 120x120 sprite (25% larger), renders at posY - 140, center at posY - 80, but adjusted for visual consistency
     width: 100,           // Interaction box width - 25% larger: 80 * 1.25 = 100
     height: 100,          // Interaction box height - 25% larger: 80 * 1.25 = 100
     placementYOffset: -20, // Compensate for 120px sprite vs 64px normal box (increased proportionally)

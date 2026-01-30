@@ -1619,11 +1619,12 @@ pub fn damage_tree(
         // Determine tree category based on tree type
         // Conifer trees (Pine Bark + Pinecone): spruce, hemlock, pine variants
         // Deciduous trees (Birch Bark + Birch Catkin): birch, alder, willow
-        // Fruit/Nut trees: CrabAppleTree, HazelnutTree - special drops
+        // Fruit/Nut trees: CrabAppleTree, HazelnutTree, RowanberryTree - special drops
         let is_fruit_tree = matches!(
             tree.tree_type,
             tree::TreeType::CrabAppleTree |
-            tree::TreeType::HazelnutTree
+            tree::TreeType::HazelnutTree |
+            tree::TreeType::RowanberryTree
         );
         
         let is_conifer = matches!(
@@ -1642,6 +1643,7 @@ pub fn damage_tree(
             let fruit_name = match tree.tree_type {
                 tree::TreeType::CrabAppleTree => "Crab Apples",
                 tree::TreeType::HazelnutTree => "Hazelnuts",
+                tree::TreeType::RowanberryTree => "Rowan Berries",
                 _ => unreachable!(),
             };
             
@@ -1650,28 +1652,38 @@ pub fn damage_tree(
             let fruit_roll: f32 = rng.gen_range(0.0..1.0);
             
             if fruit_roll < fruit_chance {
-                // Drop 1-3 fruits/nuts as dropped items near the tree
+                // Drop 1-3 fruits/nuts as dropped items near the tree with arc animation
                 let fruit_amount = rng.gen_range(1..=3) as u32;
                 
                 // Find the fruit item definition
                 if let Some(fruit_def) = ctx.db.item_definition().iter().find(|def| def.name == fruit_name) {
-                    // Calculate drop position near the tree (slight random offset)
-                    let drop_offset_x: f32 = rng.gen_range(-30.0..30.0);
-                    let drop_offset_y: f32 = rng.gen_range(-30.0..30.0);
-                    let drop_x = tree.pos_x + drop_offset_x;
-                    let drop_y = tree.pos_y + drop_offset_y;
+                    // Calculate spawn position (halfway up the tree canopy)
+                    // Tree heights are roughly 300-400px, so spawn ~150px above tree base
+                    let tree_height_offset: f32 = 180.0; // Spawn from upper part of tree
+                    let spawn_x = tree.pos_x + rng.gen_range(-20.0..20.0); // Slight X variation
+                    let spawn_y = tree.pos_y - tree_height_offset; // Above tree base
                     
-                    // Create dropped item entity
-                    match crate::dropped_item::create_dropped_item_entity(ctx, fruit_def.id, fruit_amount, drop_x, drop_y) {
+                    // Calculate landing position in a circle around the tree base
+                    // Use random angle and distance for natural-looking spread
+                    let angle: f32 = rng.gen_range(0.0..std::f32::consts::TAU);
+                    let drop_distance: f32 = rng.gen_range(40.0..100.0); // Land 40-100px from tree center
+                    let drop_x = tree.pos_x + angle.cos() * drop_distance;
+                    let drop_y = tree.pos_y + angle.sin() * drop_distance;
+                    
+                    // Create dropped item with arc animation
+                    match crate::dropped_item::create_dropped_item_with_arc(
+                        ctx, fruit_def.id, fruit_amount, drop_x, drop_y, spawn_x, spawn_y
+                    ) {
                         Ok(_) => {
-                            log::info!("🍎 Fruit tree drop: {} {} fell from {} at ({:.0}, {:.0}) (roll: {:.3} < {:.3})", 
+                            log::info!("🍎 Fruit tree drop: {} {} fell from {} - spawn ({:.0}, {:.0}) -> land ({:.0}, {:.0}) (roll: {:.3} < {:.3})", 
                                 fruit_amount, fruit_name, 
                                 match tree.tree_type {
                                     tree::TreeType::CrabAppleTree => "Crab Apple Tree",
                                     tree::TreeType::HazelnutTree => "Hazelnut Tree",
+                                    tree::TreeType::RowanberryTree => "Rowanberry Tree",
                                     _ => "Fruit Tree",
                                 },
-                                drop_x, drop_y, fruit_roll, fruit_chance);
+                                spawn_x, spawn_y, drop_x, drop_y, fruit_roll, fruit_chance);
                         }
                         Err(e) => {
                             log::error!("Failed to drop {} from fruit tree: {}", fruit_name, e);

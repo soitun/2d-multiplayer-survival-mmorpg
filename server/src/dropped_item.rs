@@ -41,12 +41,15 @@ pub struct DroppedItem {
     pub id: u64,               // Unique ID for this dropped item instance
     pub item_def_id: u64,      // Links to ItemDefinition table
     pub quantity: u32,         // How many of this item are in the sack
-    pub pos_x: f32,            // World X position
-    pub pos_y: f32,            // World Y position
+    pub pos_x: f32,            // World X position (final landing position)
+    pub pos_y: f32,            // World Y position (final landing position)
     #[index(btree)]
     pub chunk_index: u32,      // <<< ADDED chunk_index
     pub created_at: Timestamp, // When the item was dropped (for potential cleanup)
     pub item_data: Option<String>, // <<< ADDED: JSON data from original item (preserves water content, etc.)
+    // Arc animation fields - for items that fall from a height (e.g., fruits from trees)
+    pub spawn_x: Option<f32>,  // Starting X position for arc animation (None = no animation)
+    pub spawn_y: Option<f32>,  // Starting Y position for arc animation (None = no animation)
 }
 
 // --- Schedule Table --- 
@@ -320,7 +323,21 @@ pub(crate) fn create_dropped_item_entity_no_consolidation(
     create_dropped_item_entity_internal(ctx, item_def_id, quantity, pos_x, pos_y, None, false)
 }
 
-/// Internal function that creates a DroppedItem with optional consolidation trigger.
+/// Creates a DroppedItem entity with arc animation (for fruits falling from trees).
+/// The item will animate from (spawn_x, spawn_y) to (pos_x, pos_y) on the client.
+pub(crate) fn create_dropped_item_with_arc(
+    ctx: &ReducerContext,
+    item_def_id: u64,
+    quantity: u32,
+    pos_x: f32,
+    pos_y: f32,
+    spawn_x: f32,
+    spawn_y: f32,
+) -> Result<(), String> {
+    create_dropped_item_entity_internal_v2(ctx, item_def_id, quantity, pos_x, pos_y, None, true, Some(spawn_x), Some(spawn_y))
+}
+
+/// Internal function that creates a DroppedItem with optional consolidation trigger and arc animation.
 fn create_dropped_item_entity_internal(
     ctx: &ReducerContext,
     item_def_id: u64,
@@ -329,6 +346,21 @@ fn create_dropped_item_entity_internal(
     pos_y: f32,
     item_data: Option<String>,
     trigger_consolidation: bool,
+) -> Result<(), String> {
+    create_dropped_item_entity_internal_v2(ctx, item_def_id, quantity, pos_x, pos_y, item_data, trigger_consolidation, None, None)
+}
+
+/// Internal function that creates a DroppedItem with all options.
+fn create_dropped_item_entity_internal_v2(
+    ctx: &ReducerContext,
+    item_def_id: u64,
+    quantity: u32,
+    pos_x: f32,
+    pos_y: f32,
+    item_data: Option<String>,
+    trigger_consolidation: bool,
+    spawn_x: Option<f32>,
+    spawn_y: Option<f32>,
 ) -> Result<(), String> {
     // --- ADD: Calculate chunk index ---
     let chunk_idx = calculate_chunk_index(pos_x, pos_y);
@@ -342,6 +374,8 @@ fn create_dropped_item_entity_internal(
         chunk_index: chunk_idx, // <<< SET chunk_index
         created_at: ctx.timestamp,
         item_data, // <<< ADDED: Store the item data
+        spawn_x,   // Arc animation start X (None = no animation)
+        spawn_y,   // Arc animation start Y (None = no animation)
     };
 
     match ctx.db.dropped_item().try_insert(new_dropped_item) {

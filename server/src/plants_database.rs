@@ -101,6 +101,7 @@ pub enum PlantType {
     DeciduousSapling,   // Planted from Birch Catkin - grows into a deciduous tree
     CrabAppleSapling,   // Planted from Crab Apple Seeds - grows into a crab apple tree
     HazelnutSapling,    // Planted from Hazelnut - grows into a hazelnut tree
+    RowanberrySapling,  // Planted from Rowan Seeds - grows into a rowanberry tree
 }
 
 // --- Plant Configuration System ---
@@ -946,22 +947,8 @@ lazy_static! {
             growing_seasons: vec![Season::Summer],
         });
         
-        configs.insert(PlantType::RowanBerries, PlantConfig {
-            entity_name: "Rowan Berries".to_string(),
-            density_percent: 0.0006,
-            min_distance_sq: 50.0 * 50.0,
-            min_tree_distance_sq: 40.0 * 40.0,
-            min_stone_distance_sq: 35.0 * 35.0,
-            noise_threshold: 0.72,
-            primary_yield: ("Rowan Berries".to_string(), 5, 10),
-            secondary_yield: None,
-            seed_type: "Rowan Seeds".to_string(),
-            seed_drop_chance: 0.80, // 80% chance - important food crop must be sustainable
-            min_respawn_time_secs: 2400, // 40 minutes
-            max_respawn_time_secs: 3600, // 60 minutes
-            spawn_condition: SpawnCondition::Forest,
-            growing_seasons: vec![Season::Summer, Season::Autumn, Season::Winter],
-        });
+        // NOTE: RowanBerries removed - Rowan berries now come from RowanberryTree (like CrabAppleTree/HazelnutTree)
+        // Use RowanberrySapling to plant rowan trees from Rowan Seeds
         
         configs.insert(PlantType::Cranberries, PlantConfig {
             entity_name: "Cranberries".to_string(),
@@ -1379,6 +1366,26 @@ lazy_static! {
             growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn], // No winter growth
         });
         
+        // Rowanberry Sapling - Fruit tree from Rowan Seeds
+        // Temperate climate only. Mountain ash tree that drops rowan berries when chopped.
+        configs.insert(PlantType::RowanberrySapling, PlantConfig {
+            entity_name: "Rowanberry Sapling".to_string(),
+            density_percent: 0.0, // Never spawns naturally - planted only
+            min_distance_sq: 200.0 * 200.0, // Trees need lots of space
+            min_tree_distance_sq: 150.0 * 150.0, // Keep away from existing trees
+            min_stone_distance_sq: 100.0 * 100.0,
+            noise_threshold: 1.0, // Never spawns naturally
+            primary_yield: ("Wood".to_string(), 0, 0), // No direct yield - becomes a Tree
+            secondary_yield: None,
+            seed_type: "Rowan Seeds".to_string(),
+            seed_drop_chance: 0.80, // 80% chance when EATING rowan berries to get seeds
+            // Growth time: 5-8 minutes - faster than wild tree respawn (10-20 min)
+            min_respawn_time_secs: 300,  // 5 minutes to grow
+            max_respawn_time_secs: 480,  // 8 minutes to grow
+            spawn_condition: SpawnCondition::Plains, // Temperate only (restrictions in planted_seeds.rs)
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn], // No winter growth
+        });
+        
         configs
     };
 }
@@ -1453,9 +1460,9 @@ fn get_plant_category(plant_type: &PlantType) -> PlantCategory {
         // Nagoonberry is a berry
         PlantType::Nagoonberry => PlantCategory::Berry,
         
-        // Berries
+        // Berries (RowanBerries can still exist as a plant type, though typically comes from RowanberryTree)
         PlantType::Lingonberries | PlantType::Cloudberries | PlantType::Bilberries |
-        PlantType::WildStrawberries | PlantType::RowanBerries | PlantType::Cranberries |
+        PlantType::WildStrawberries | PlantType::Cranberries | PlantType::RowanBerries |
         PlantType::Crowberry => PlantCategory::Berry,
         
         // Mushrooms
@@ -1488,7 +1495,8 @@ fn get_plant_category(plant_type: &PlantType) -> PlantCategory {
         // Special (includes tree saplings which become Tree entities when mature)
         PlantType::MemoryShard | PlantType::SeaweedBed |
         PlantType::ConiferSapling | PlantType::DeciduousSapling |
-        PlantType::CrabAppleSapling | PlantType::HazelnutSapling => PlantCategory::Special,
+        PlantType::CrabAppleSapling | PlantType::HazelnutSapling |
+        PlantType::RowanberrySapling => PlantCategory::Special,
     }
 }
 
@@ -1650,12 +1658,12 @@ pub fn get_seasonal_plants(season: &Season) -> Vec<(PlantType, &PlantConfig)> {
 /// Not tracked: Resource piles (WoodPile, etc.), MemoryShard, SeaweedBed
 pub fn get_plant_bit_index(plant_type: &PlantType) -> Option<u32> {
     match plant_type {
-        // ===== BERRIES (Bits 0-6) =====
+        // ===== BERRIES (Bits 0-5) - RowanBerries removed (now from tree) =====
         PlantType::Lingonberries => Some(0),
         PlantType::Cloudberries => Some(1),
         PlantType::Bilberries => Some(2),
         PlantType::WildStrawberries => Some(3),
-        PlantType::RowanBerries => Some(4),
+        // Bit 4 unused (was RowanBerries - now comes from RowanberryTree)
         PlantType::Cranberries => Some(5),
         PlantType::Crowberry => Some(6),
         
@@ -1725,6 +1733,7 @@ pub fn get_plant_bit_index(plant_type: &PlantType) -> Option<u32> {
         PlantType::CharcoalPile | PlantType::SoggyPlantFiberPile | PlantType::BonePile |
         PlantType::MemoryShard | PlantType::SeaweedBed | 
         PlantType::ConiferSapling | PlantType::DeciduousSapling |
-        PlantType::CrabAppleSapling | PlantType::HazelnutSapling => None,
+        PlantType::CrabAppleSapling | PlantType::HazelnutSapling |
+        PlantType::RowanberrySapling | PlantType::RowanBerries => None,
     }
 } 

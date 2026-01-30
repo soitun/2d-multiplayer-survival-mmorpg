@@ -98,4 +98,5 @@ export type ConiferSapling = { tag: "ConiferSapling" };
 export type DeciduousSapling = { tag: "DeciduousSapling" };
 export type CrabAppleSapling = { tag: "CrabAppleSapling" };
 export type HazelnutSapling = { tag: "HazelnutSapling" };
+export type RowanberrySapling = { tag: "RowanberrySapling" };
 

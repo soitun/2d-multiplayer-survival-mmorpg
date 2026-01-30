@@ -862,7 +862,7 @@ fn propagate_weather_to_nearby_chunks(
             
             // Spawn storm debris on beaches when HeavyStorm ends
             if was_heavy_storm && !matches!(new_weather, WeatherType::HeavyStorm) {
-                if let Err(e) = crate::coral::spawn_storm_debris_on_beaches(ctx, nearby_index) {
+                if let Err(e) = crate::storm_debris::spawn_storm_debris_on_beaches(ctx, nearby_index) {
                     log::error!("Failed to spawn storm debris after HeavyStorm ended in chunk {}: {}", nearby_index, e);
                 }
             }
@@ -1636,7 +1636,7 @@ fn update_single_chunk_weather(
     // === STEP 5: PERIODIC STORM DEBRIS SPAWNING (HeavyStorm only) ===
     // Instead of ONLY waiting for storm to end, also spawn debris periodically DURING the storm.
     // This rewards players who build in storm zones - long-lasting fronts = more debris opportunities.
-    // The spawn_storm_debris_on_beaches() function already checks if chunk is "picked clean"
+    // The storm_debris::spawn_storm_debris_on_beaches() function already checks if chunk is "picked clean"
     // so this won't spam debris - it only spawns if no existing debris is present.
     if matches!(chunk_weather.current_weather, WeatherType::HeavyStorm) {
         // ~0.8% chance per tick = roughly 1 spawn attempt every ~125 ticks
@@ -1645,7 +1645,7 @@ fn update_single_chunk_weather(
         const STORM_DEBRIS_PER_TICK_CHANCE: f32 = 0.008;
         
         if rng.gen::<f32>() < STORM_DEBRIS_PER_TICK_CHANCE {
-            if let Err(e) = crate::coral::spawn_storm_debris_on_beaches(ctx, chunk_index) {
+            if let Err(e) = crate::storm_debris::spawn_storm_debris_on_beaches(ctx, chunk_index) {
                 log::debug!("Periodic storm debris spawn failed for chunk {}: {}", chunk_index, e);
             }
         }

@@ -12,6 +12,7 @@ import krummholzSpruceImage from '../../assets/doodads/krummholz_spruce.png';
 // Fruit/Nut trees
 import crabAppleTreeImage from '../../assets/doodads/crab_apple_tree.png';
 import hazelnutTreeImage from '../../assets/doodads/hazelnut_tree.png';
+import rowanberryTreeImage from '../../assets/doodads/rowanberry_tree.png';
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils'; // Import shadow utils
 import { applyStandardDropShadow } from './shadowUtils'; // Import new shadow util
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
@@ -918,6 +919,10 @@ function getCachedTreeTypeInfo(entity: Tree): { imageSource: string; targetWidth
                 imageSource = hazelnutTreeImage;
                 targetWidth = 300; // Small shrub-tree for nuts
                 break;
+            case 'RowanberryTree':
+                imageSource = rowanberryTreeImage;
+                targetWidth = 340; // Large mountain ash tree
+                break;
             default:
                 imageSource = sitkaSpruceImage;
                 targetWidth = TARGET_TREE_WIDTH_PX; // Fallback to Sitka Spruce size
@@ -1129,6 +1134,10 @@ imageManager.preloadImage(dwarfPineImage);
 imageManager.preloadImage(arcticWillowImage);
 imageManager.preloadImage(mountainHemlockSnowImage);
 imageManager.preloadImage(krummholzSpruceImage);
+// Fruit/Nut trees
+imageManager.preloadImage(crabAppleTreeImage);
+imageManager.preloadImage(hazelnutTreeImage);
+imageManager.preloadImage(rowanberryTreeImage);
 
 // Refactored rendering function
 export function renderTree(

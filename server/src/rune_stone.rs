@@ -520,6 +520,8 @@ pub fn spawn_memory_shards_at_night(
                     chunk_index: chunk_idx,
                     created_at: current_time,
                     item_data: None,
+                    spawn_x: None,
+                    spawn_y: None,
                 });
                 
                 spawned_count += 1;
@@ -721,6 +723,8 @@ pub fn spawn_items_at_night(
                     chunk_index: chunk_idx,
                     created_at: current_time,
                     item_data: None,
+                    spawn_x: None,
+                    spawn_y: None,
                 });
                 
                 spawned_count += 1;
@@ -946,6 +950,8 @@ pub fn spawn_seeds_at_night(
                     chunk_index: chunk_idx,
                     created_at: current_time,
                     item_data: None,
+                    spawn_x: None,
+                    spawn_y: None,
                 });
                 
                 spawned_count += 1;

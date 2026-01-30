@@ -1044,12 +1044,13 @@ pub fn plant_seed(
     }
     
     // === TREE SEED VALIDATION ===
-    // Tree seeds (Pinecone, Birch Catkin, Crab Apple Seeds, Hazelnut) have special planting restrictions
+    // Tree seeds (Pinecone, Birch Catkin, Crab Apple Seeds, Hazelnut, Rowan Seeds) have special planting restrictions
     let is_pinecone = item_def.name == "Pinecone";
     let is_birch_catkin = item_def.name == "Birch Catkin";
     let is_crab_apple_seeds = item_def.name == "Crab Apple Seeds";
     let is_hazelnut = item_def.name == "Hazelnuts";
-    let is_tree_seed = is_pinecone || is_birch_catkin || is_crab_apple_seeds || is_hazelnut;
+    let is_rowan_seeds = item_def.name == "Rowan Seeds";
+    let is_tree_seed = is_pinecone || is_birch_catkin || is_crab_apple_seeds || is_hazelnut || is_rowan_seeds;
     
     if is_tree_seed {
         // === BIOME RESTRICTIONS ===
@@ -1065,24 +1066,25 @@ pub fn plant_seed(
             return Err("Cannot plant Birch Catkin on alpine terrain - the rocky soil can't support deciduous trees.".to_string());
         }
         
-        // Crab Apple Seeds and Hazelnuts: Temperate only (Grass/Forest) - not too cold, not too salty
-        if (is_crab_apple_seeds || is_hazelnut) {
+        // Crab Apple Seeds, Hazelnuts, and Rowan Seeds: Temperate only (Grass/Forest) - not too cold, not too salty
+        if is_crab_apple_seeds || is_hazelnut || is_rowan_seeds {
             let is_beach = crate::environment::is_position_on_beach_tile(ctx, plant_pos_x, plant_pos_y);
             let is_alpine = crate::environment::is_position_on_alpine_tile(ctx, plant_pos_x, plant_pos_y);
             let is_tundra = crate::environment::is_position_on_tundra_tile(ctx, plant_pos_x, plant_pos_y);
             
+            let seed_name = if is_crab_apple_seeds { "Crab Apple Seeds" } 
+                else if is_hazelnut { "Hazelnuts" } 
+                else { "Rowan Seeds" };
+            
             if is_beach {
-                let seed_name = if is_crab_apple_seeds { "Crab Apple Seeds" } else { "Hazelnuts" };
                 log::error!("PLANT_SEED: {} cannot be planted on beach tiles - fruit/nut trees don't survive salt spray", seed_name);
                 return Err(format!("Cannot plant {} on beach - fruit and nut trees don't survive in salty coastal environments.", seed_name));
             }
             if is_alpine {
-                let seed_name = if is_crab_apple_seeds { "Crab Apple Seeds" } else { "Hazelnuts" };
                 log::error!("PLANT_SEED: {} cannot be planted on alpine tiles - too cold and rocky", seed_name);
                 return Err(format!("Cannot plant {} on alpine terrain - fruit and nut trees need milder conditions.", seed_name));
             }
             if is_tundra {
-                let seed_name = if is_crab_apple_seeds { "Crab Apple Seeds" } else { "Hazelnuts" };
                 log::error!("PLANT_SEED: {} cannot be planted on tundra tiles - too cold", seed_name);
                 return Err(format!("Cannot plant {} on tundra - fruit and nut trees need warmer conditions.", seed_name));
             }
@@ -1158,6 +1160,9 @@ pub fn plant_seed(
         } else if is_hazelnut {
             // Hazelnut -> HazelnutTree (temperate only - biome restrictions already validated)
             TreeType::HazelnutTree // 100% - Hazelnut tree
+        } else if is_rowan_seeds {
+            // Rowan Seeds -> RowanberryTree (temperate only - biome restrictions already validated)
+            TreeType::RowanberryTree // 100% - Rowanberry tree (mountain ash)
         } else {
             // Deciduous (Birch Catkin) - note: alpine is blocked at planting time
             if is_beach {
@@ -1670,7 +1675,8 @@ fn grow_plant_to_resource(ctx: &ReducerContext, plant: &PlantedSeed) -> Result<(
     let is_tree_sapling = matches!(
         plant_type,
         PlantType::ConiferSapling | PlantType::DeciduousSapling |
-        PlantType::CrabAppleSapling | PlantType::HazelnutSapling
+        PlantType::CrabAppleSapling | PlantType::HazelnutSapling |
+        PlantType::RowanberrySapling
     );
     
     if is_tree_sapling {

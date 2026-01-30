@@ -73,7 +73,7 @@ export function useFurnaceParticles({ visibleFurnacesMap }: { visibleFurnacesMap
         if (Math.random() < 0.08) {
           currentParticles.push({
             x: centerX + (Math.random() - 0.5) * 6,
-            y: centerY + FURNACE_HEIGHT * 0.28,
+            y: centerY + FURNACE_HEIGHT * 0.55,
             vx: (Math.random() - 0.5) * 0.3,
             vy: -Math.random() * 0.8 - 0.3,
             life: 600 + Math.random() * 400,
@@ -89,7 +89,7 @@ export function useFurnaceParticles({ visibleFurnacesMap }: { visibleFurnacesMap
         if (Math.random() < 0.05) {
           currentParticles.push({
             x: centerX + (Math.random() - 0.5) * 8,
-            y: centerY + FURNACE_HEIGHT * 0.25,
+            y: centerY + FURNACE_HEIGHT * 0.40,
             vx: (Math.random() - 0.5) * 1.5,
             vy: -Math.random() * 1.0 - 0.2,
             life: 300 + Math.random() * 400,
@@ -102,8 +102,8 @@ export function useFurnaceParticles({ visibleFurnacesMap }: { visibleFurnacesMap
         }
 
         // SEPARATE LAZY SMOKE CHIMNEY
-        const smokeChimneyCenterX = centerX + 8;
-        const smokeChimneyCenterY = centerY - 25;
+        const smokeChimneyCenterX = centerX + 10;
+        const smokeChimneyCenterY = centerY + 25;
 
         // Add natural furnace chimney smoke
         if (Math.random() < 0.25) {

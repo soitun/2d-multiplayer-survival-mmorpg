@@ -15,7 +15,6 @@ const ITEM_ICON_MAPPINGS: Record<string, string> = {
   'Headlamp': 'tallow_head_lamp.png',
   'Lantern': 'lantern_off.png',
   // Plant items with compound names
-  'Rowan Berries': 'rowanberries.png',
   'Rowan Seeds': 'rowanberry_seeds.png',
   'Corn': 'corn.png',
   'Corn Seeds': 'corn_seeds.png',

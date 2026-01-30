@@ -14,6 +14,13 @@ const GRAVITY: number = 600.0; // Same as server-side
 // Projectile source type constants (must match server)
 const PROJECTILE_SOURCE_PLAYER = 0;
 const PROJECTILE_SOURCE_TURRET = 1;
+const PROJECTILE_SOURCE_NPC = 2;
+
+// NPC projectile type constants (must match server)
+const NPC_PROJECTILE_NONE = 0;
+const NPC_PROJECTILE_SPECTRAL_SHARD = 1;  // Shardkin: blue/purple ice shard
+const NPC_PROJECTILE_SPECTRAL_BOLT = 2;   // Shorebound: ghostly white bolt
+const NPC_PROJECTILE_VENOM_SPITTLE = 3;   // Viper: green toxic glob
 
 // Client-side projectile lifetime limits for cleanup (in case server is slow)
 const MAX_PROJECTILE_LIFETIME_MS = 12000; // 12 seconds max
@@ -175,6 +182,208 @@ export const renderProjectile = ({
   const drawHeight = arrowImage.naturalHeight * scale;
 
   ctx.save();
+  
+  // Check if this is an NPC projectile (source_type = 2)
+  const isNpcProjectile = projectile.sourceType === PROJECTILE_SOURCE_NPC;
+  
+  if (isNpcProjectile) {
+    // NPC projectiles use no gravity - they travel in straight lines
+    // Render based on npc_projectile_type
+    const npcType = projectile.npcProjectileType;
+    
+    if (npcType === NPC_PROJECTILE_SPECTRAL_SHARD) {
+      // === SHARDKIN SPECTRAL SHARD ===
+      // Blue/purple ice shard with crystalline trail
+      const shardLength = 12;
+      const shardWidth = 4;
+      const rotation = Math.atan2(projectile.velocityY, projectile.velocityX);
+      
+      // Draw trailing particles
+      const trailLength = 6;
+      for (let i = 1; i < trailLength; i++) {
+        const trailTime = elapsedTimeSeconds - (i * 0.03);
+        if (trailTime < 0) continue;
+        
+        const trailX = projectile.startPosX + (projectile.velocityX * trailTime);
+        const trailY = projectile.startPosY + (projectile.velocityY * trailTime);
+        const alpha = 0.5 * (1 - i / trailLength);
+        
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = `rgba(100, 180, 255, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(trailX, trailY, shardWidth * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      
+      // Draw main shard (diamond shape)
+      ctx.save();
+      ctx.translate(currentX, currentY);
+      ctx.rotate(rotation);
+      
+      // Outer glow
+      const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, shardLength);
+      glowGradient.addColorStop(0, 'rgba(150, 200, 255, 0.8)');
+      glowGradient.addColorStop(0.5, 'rgba(100, 150, 255, 0.4)');
+      glowGradient.addColorStop(1, 'rgba(80, 100, 200, 0)');
+      ctx.fillStyle = glowGradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, shardLength, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Main shard body (elongated diamond)
+      ctx.fillStyle = 'rgba(180, 220, 255, 0.9)';
+      ctx.beginPath();
+      ctx.moveTo(shardLength, 0);
+      ctx.lineTo(0, shardWidth);
+      ctx.lineTo(-shardLength * 0.4, 0);
+      ctx.lineTo(0, -shardWidth);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Inner bright core
+      ctx.fillStyle = 'rgba(220, 240, 255, 1)';
+      ctx.beginPath();
+      ctx.moveTo(shardLength * 0.6, 0);
+      ctx.lineTo(0, shardWidth * 0.5);
+      ctx.lineTo(-shardLength * 0.2, 0);
+      ctx.lineTo(0, -shardWidth * 0.5);
+      ctx.closePath();
+      ctx.fill();
+      
+      ctx.restore();
+      
+    } else if (npcType === NPC_PROJECTILE_SPECTRAL_BOLT) {
+      // === SHOREBOUND SPECTRAL BOLT ===
+      // Ghostly white/cyan ethereal projectile with wispy trail
+      const boltLength = 16;
+      const boltWidth = 6;
+      const rotation = Math.atan2(projectile.velocityY, projectile.velocityX);
+      
+      // Draw wispy trailing particles
+      const trailLength = 8;
+      for (let i = 1; i < trailLength; i++) {
+        const trailTime = elapsedTimeSeconds - (i * 0.04);
+        if (trailTime < 0) continue;
+        
+        const trailX = projectile.startPosX + (projectile.velocityX * trailTime);
+        const trailY = projectile.startPosY + (projectile.velocityY * trailTime);
+        const alpha = 0.6 * (1 - i / trailLength);
+        
+        // Wispy effect with slight random offset
+        const wobble = Math.sin(trailTime * 20 + i) * 3;
+        
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = `rgba(200, 230, 255, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(trailX, trailY + wobble, boltWidth * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      
+      // Draw main bolt
+      ctx.save();
+      ctx.translate(currentX, currentY);
+      ctx.rotate(rotation);
+      
+      // Outer ghostly glow
+      const ghostGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, boltLength * 1.2);
+      ghostGlow.addColorStop(0, 'rgba(220, 240, 255, 0.7)');
+      ghostGlow.addColorStop(0.4, 'rgba(180, 220, 255, 0.3)');
+      ghostGlow.addColorStop(1, 'rgba(150, 200, 255, 0)');
+      ctx.fillStyle = ghostGlow;
+      ctx.beginPath();
+      ctx.arc(0, 0, boltLength * 1.2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Main spectral body (elongated oval)
+      ctx.fillStyle = 'rgba(230, 245, 255, 0.8)';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, boltLength, boltWidth, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Inner bright core
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.beginPath();
+      ctx.ellipse(boltLength * 0.2, 0, boltLength * 0.5, boltWidth * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.restore();
+      
+    } else if (npcType === NPC_PROJECTILE_VENOM_SPITTLE) {
+      // === VIPER VENOM SPITTLE ===
+      // Green toxic glob with dripping trail
+      const globRadius = 7;
+      const rotation = Math.atan2(projectile.velocityY, projectile.velocityX);
+      
+      // Draw dripping trail
+      const trailLength = 7;
+      for (let i = 1; i < trailLength; i++) {
+        const trailTime = elapsedTimeSeconds - (i * 0.045);
+        if (trailTime < 0) continue;
+        
+        const trailX = projectile.startPosX + (projectile.velocityX * trailTime);
+        const trailY = projectile.startPosY + (projectile.velocityY * trailTime);
+        const alpha = 0.5 * (1 - i / trailLength);
+        
+        // Dripping effect - trail particles fall slightly
+        const drip = i * 2;
+        
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = `rgba(100, 200, 50, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(trailX, trailY + drip, globRadius * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      
+      // Draw outer toxic glow
+      const toxicGlow = ctx.createRadialGradient(
+        currentX, currentY, globRadius * 0.5,
+        currentX, currentY, globRadius * 2
+      );
+      toxicGlow.addColorStop(0, 'rgba(150, 255, 50, 0.6)');
+      toxicGlow.addColorStop(0.5, 'rgba(100, 200, 30, 0.3)');
+      toxicGlow.addColorStop(1, 'rgba(50, 150, 20, 0)');
+      ctx.fillStyle = toxicGlow;
+      ctx.beginPath();
+      ctx.arc(currentX, currentY, globRadius * 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Draw main venom glob
+      const venomGradient = ctx.createRadialGradient(
+        currentX, currentY, 0,
+        currentX, currentY, globRadius
+      );
+      venomGradient.addColorStop(0, '#90EE90'); // Light green center
+      venomGradient.addColorStop(0.5, '#32CD32'); // Lime green
+      venomGradient.addColorStop(0.8, '#228B22'); // Forest green
+      venomGradient.addColorStop(1, '#006400'); // Dark green edge
+      
+      ctx.fillStyle = venomGradient;
+      ctx.beginPath();
+      ctx.arc(currentX, currentY, globRadius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Add bubble/highlight for liquid effect
+      ctx.fillStyle = 'rgba(200, 255, 150, 0.7)';
+      ctx.beginPath();
+      ctx.arc(currentX - globRadius * 0.3, currentY - globRadius * 0.3, globRadius * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Small secondary bubble
+      ctx.fillStyle = 'rgba(180, 255, 130, 0.5)';
+      ctx.beginPath();
+      ctx.arc(currentX + globRadius * 0.4, currentY - globRadius * 0.1, globRadius * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    ctx.restore();
+    return; // NPC projectile rendered, exit early
+  }
   
   // Check if this is a turret tallow projectile (source_type = 1)
   const isTurretTallow = projectile.sourceType === PROJECTILE_SOURCE_TURRET;

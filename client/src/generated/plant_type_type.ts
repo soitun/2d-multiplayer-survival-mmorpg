@@ -99,7 +99,8 @@ export type PlantType = PlantTypeVariants.BorealNettle |
   PlantTypeVariants.ConiferSapling |
   PlantTypeVariants.DeciduousSapling |
   PlantTypeVariants.CrabAppleSapling |
-  PlantTypeVariants.HazelnutSapling;
+  PlantTypeVariants.HazelnutSapling |
+  PlantTypeVariants.RowanberrySapling;
 
 let _cached_PlantType_type_value: __AlgebraicTypeType | null = null;
 
@@ -181,6 +182,7 @@ export const PlantType = {
   DeciduousSapling: { tag: "DeciduousSapling" } as const,
   CrabAppleSapling: { tag: "CrabAppleSapling" } as const,
   HazelnutSapling: { tag: "HazelnutSapling" } as const,
+  RowanberrySapling: { tag: "RowanberrySapling" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_PlantType_type_value) return _cached_PlantType_type_value;
@@ -256,6 +258,7 @@ export const PlantType = {
       { name: "DeciduousSapling", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "CrabAppleSapling", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HazelnutSapling", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "RowanberrySapling", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_PlantType_type_value;
   },

@@ -51,6 +51,22 @@ const GRAVITY: f32 = 600.0; // Adjust this value to change the arc. Positive val
 // Projectile source type constants
 pub const PROJECTILE_SOURCE_PLAYER: u8 = 0;
 pub const PROJECTILE_SOURCE_TURRET: u8 = 1;
+pub const PROJECTILE_SOURCE_NPC: u8 = 2;
+
+// NPC projectile type constants (used for client-side rendering)
+pub const NPC_PROJECTILE_NONE: u8 = 0;        // Standard/not NPC
+pub const NPC_PROJECTILE_SPECTRAL_SHARD: u8 = 1;  // Shardkin: blue/purple ice shard
+pub const NPC_PROJECTILE_SPECTRAL_BOLT: u8 = 2;   // Shorebound: ghostly white bolt
+pub const NPC_PROJECTILE_VENOM_SPITTLE: u8 = 3;   // Viper: green toxic glob
+
+// NPC ranged attack constants
+pub const NPC_RANGED_COUNTER_COOLDOWN_MS: i64 = 2000; // 2 second cooldown between ranged counter-attacks
+pub const SHARDKIN_PROJECTILE_DAMAGE: f32 = 8.0;   // Low damage, but swarm multiple shards
+pub const SHARDKIN_PROJECTILE_SPEED: f32 = 350.0;  // Fast shards
+pub const SHOREBOUND_PROJECTILE_DAMAGE: f32 = 15.0; // Moderate damage
+pub const SHOREBOUND_PROJECTILE_SPEED: f32 = 300.0; // Medium speed ghostly bolt
+pub const VIPER_PROJECTILE_DAMAGE: f32 = 5.0;       // Low impact, but applies venom
+pub const VIPER_PROJECTILE_SPEED: f32 = 280.0;      // Slower venom spittle
 
 /// Helper function to check if a line segment intersects with a circle
 /// Returns true if the line from (x1,y1) to (x2,y2) intersects with circle at (cx,cy) with radius r
@@ -99,7 +115,8 @@ pub struct Projectile {
     pub owner_id: Identity,
     pub item_def_id: u64,
     pub ammo_def_id: u64, // NEW: The ammunition type that was fired (e.g., Wooden Arrow)
-    pub source_type: u8,  // 0 = player weapon, 1 = turret
+    pub source_type: u8,  // 0 = player weapon, 1 = turret, 2 = NPC
+    pub npc_projectile_type: u8, // 0 = none, 1 = spectral shard, 2 = spectral bolt, 3 = venom spittle
     pub start_time: Timestamp,
     pub start_pos_x: f32,
     pub start_pos_y: f32,
@@ -127,6 +144,67 @@ pub struct ArrowBreakEvent {
     pub pos_x: f32,
     pub pos_y: f32,
     pub timestamp: Timestamp,
+}
+
+/// Create a projectile fired by an NPC (hostile apparitions, vipers, etc.)
+/// This is called from NPC behavior code when they counter-attack ranged players
+pub fn fire_npc_projectile(
+    ctx: &ReducerContext,
+    npc_id: u64,
+    npc_pos_x: f32,
+    npc_pos_y: f32,
+    target_player_x: f32,
+    target_player_y: f32,
+    projectile_type: u8,
+    damage: f32,
+    speed: f32,
+    max_range: f32,
+) -> Result<u64, String> {
+    // Calculate direction to target
+    let dx = target_player_x - npc_pos_x;
+    let dy = target_player_y - npc_pos_y;
+    let distance = (dx * dx + dy * dy).sqrt();
+    
+    if distance < 1.0 {
+        return Err("Target too close to fire projectile".to_string());
+    }
+    
+    // Normalize and apply speed
+    let velocity_x = (dx / distance) * speed;
+    let velocity_y = (dy / distance) * speed;
+    
+    // Use a dummy item_def_id (0) since NPC projectiles don't use items
+    // The damage is determined by projectile_type, not weapon definitions
+    let projectile = Projectile {
+        id: 0, // auto_inc
+        owner_id: ctx.identity(), // Module identity for NPC projectiles
+        item_def_id: npc_id, // Store NPC ID for tracking (not an actual item)
+        ammo_def_id: (damage * 100.0) as u64, // Encode damage * 100 for retrieval (e.g., 8.0 -> 800)
+        source_type: PROJECTILE_SOURCE_NPC,
+        npc_projectile_type: projectile_type,
+        start_time: ctx.timestamp,
+        start_pos_x: npc_pos_x,
+        start_pos_y: npc_pos_y,
+        velocity_x,
+        velocity_y,
+        max_range,
+    };
+    
+    let inserted = ctx.db.projectile().insert(projectile);
+    log::info!("[NPC Projectile] NPC {} fired type {} projectile toward ({:.1}, {:.1}) with speed {:.1}", 
+              npc_id, projectile_type, target_player_x, target_player_y, speed);
+    
+    Ok(inserted.id)
+}
+
+/// Get the damage amount from an NPC projectile's encoded ammo_def_id
+pub fn get_npc_projectile_damage(projectile: &Projectile) -> f32 {
+    if projectile.source_type == PROJECTILE_SOURCE_NPC {
+        // Damage is encoded as ammo_def_id * 100
+        (projectile.ammo_def_id as f32) / 100.0
+    } else {
+        0.0
+    }
 }
 
 #[reducer]
@@ -587,6 +665,7 @@ pub fn fire_projectile(
         item_def_id: equipped_item_def_id,
         ammo_def_id: loaded_ammo_def_id,
         source_type: PROJECTILE_SOURCE_PLAYER, // Player weapon
+        npc_projectile_type: NPC_PROJECTILE_NONE, // Not an NPC projectile
         start_time: ctx.timestamp,
         start_pos_x: spawn_x,  // Use client-predicted position (with anti-cheat)
         start_pos_y: spawn_y,
@@ -2131,6 +2210,19 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                         
                         // Play arrow hit sound for wild animal hits
                         sound_events::emit_arrow_hit_sound(ctx, wild_animal.pos_x, wild_animal.pos_y, projectile.owner_id);
+                        
+                        // NPC RANGED COUNTER-ATTACK: Certain hostile NPCs fire back when hit by ranged weapons
+                        // This prevents players from safely griefing them from range
+                        if let Some(attacker) = ctx.db.player().identity().find(&projectile.owner_id) {
+                            if let Err(e) = crate::wild_animal_npc::try_npc_ranged_counter_attack(
+                                ctx,
+                                wild_animal.id,
+                                attacker.position_x,
+                                attacker.position_y,
+                            ) {
+                                log::error!("Error in NPC ranged counter-attack: {}", e);
+                            }
+                        }
                     }
                     Err(e) => {
                         log::error!("Error applying projectile damage to wild animal {}: {}", wild_animal.id, e);
@@ -2181,6 +2273,73 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             }
             
             if collision_detected {
+                // === NPC PROJECTILE HANDLING ===
+                // NPC projectiles use a different damage system - damage is encoded in ammo_def_id
+                if projectile.source_type == PROJECTILE_SOURCE_NPC {
+                    log::info!("[NPC Projectile] Hit player {:?} at ({:.1}, {:.1})", 
+                             player_to_check.identity, current_x, current_y);
+                    
+                    // <<< SAFE ZONE CHECK - Players in safe zones are immune to NPC projectile damage >>>
+                    if crate::active_effects::player_has_safe_zone_effect(ctx, player_to_check.identity) {
+                        log::info!("[NPC Projectile] Blocked - Target player {:?} is in a safe zone", 
+                            player_to_check.identity);
+                        projectiles_to_delete.push(projectile.id);
+                        hit_player_this_tick = true;
+                        break;
+                    }
+                    // <<< END SAFE ZONE CHECK >>>
+                    
+                    // Get damage from encoded ammo_def_id
+                    let npc_damage = get_npc_projectile_damage(&projectile);
+                    
+                    // Apply damage directly (NPC projectiles bypass armor for simplicity)
+                    if let Some(mut target_player) = ctx.db.player().identity().find(&player_to_check.identity) {
+                        if !target_player.is_dead {
+                            target_player.health = (target_player.health - npc_damage).max(0.0);
+                            target_player.last_hit_time = Some(current_time);
+                            
+                            // Check for death
+                            if target_player.health <= 0.0 {
+                                target_player.is_dead = true;
+                                // Handle death in combat system
+                                // Note: Using module identity as "attacker" for NPC kills
+                                log::info!("[NPC Projectile] Player {:?} killed by NPC projectile type {}", 
+                                         player_to_check.identity, projectile.npc_projectile_type);
+                            }
+                            
+                            ctx.db.player().identity().update(target_player);
+                            
+                            // Play hit sound
+                            sound_events::emit_arrow_hit_sound(ctx, player_to_check.position_x, player_to_check.position_y, ctx.identity());
+                            
+                            log::info!("[NPC Projectile] Dealt {:.1} damage to player {:?} (type: {})", 
+                                     npc_damage, player_to_check.identity, projectile.npc_projectile_type);
+                            
+                            // VENOM SPITTLE: Apply venom effect if this is a viper projectile
+                            if projectile.npc_projectile_type == NPC_PROJECTILE_VENOM_SPITTLE {
+                                if let Err(e) = crate::active_effects::apply_venom_effect(
+                                    ctx,
+                                    player_to_check.identity,
+                                    f32::MAX, // Infinite damage pool - only cured by Anti-Venom
+                                    86400.0 * 365.0, // 1 year (effectively permanent)
+                                    5.0, // Tick every 5 seconds
+                                ) {
+                                    log::error!("Failed to apply venom from NPC projectile: {}", e);
+                                } else {
+                                    log::info!("[NPC Projectile] Applied venom effect to player {:?} from viper spit", 
+                                             player_to_check.identity);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // NPC projectiles don't become dropped items
+                    projectiles_to_delete.push(projectile.id);
+                    hit_player_this_tick = true;
+                    break;
+                }
+                // === END NPC PROJECTILE HANDLING ===
+                
                 // === PROJECTILE DIAGNOSTIC LOGGING ===
                 // Calculate distance from shooter to target for fairness analysis
                 if let Some(shooter) = ctx.db.player().identity().find(&projectile.owner_id) {
@@ -2328,11 +2487,23 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             .map(|p| p.source_type == PROJECTILE_SOURCE_TURRET)
             .unwrap_or(false);
         
+        let is_npc_projectile = projectile_record
+            .as_ref()
+            .map(|p| p.source_type == PROJECTILE_SOURCE_NPC)
+            .unwrap_or(false);
+        
         if is_turret_projectile {
             // Turret tallow projectiles explode on impact - no dropped item created
             log::debug!("[ProjectileMiss] Turret projectile {} exploded on impact at ({:.1}, {:.1})", 
                 projectile_id, pos_x, pos_y);
             continue; // Skip creating dropped item - tallow explodes
+        }
+        
+        if is_npc_projectile {
+            // NPC projectiles (spectral shards, venom, etc.) dissipate - no dropped item
+            log::debug!("[ProjectileMiss] NPC projectile {} dissipated at ({:.1}, {:.1})", 
+                projectile_id, pos_x, pos_y);
+            continue; // Skip creating dropped item - NPC projectiles are magical/ethereal
         }
         
         // Get the ammunition definition for break chance calculation
@@ -2651,6 +2822,7 @@ pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32
         item_def_id: equipped_item_def_id,
         ammo_def_id: equipped_item_def_id, // For thrown items, ammo_def_id is the same as item_def_id
         source_type: PROJECTILE_SOURCE_PLAYER,
+        npc_projectile_type: NPC_PROJECTILE_NONE, // Not an NPC projectile
         start_time: ctx.timestamp,
         start_pos_x: player.position_x,
         start_pos_y: player.position_y,

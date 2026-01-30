@@ -323,7 +323,7 @@ import lingonberriesIcon from '../assets/items/lingonberries.png';
 import cloudberriesIcon from '../assets/items/cloudberries.png';
 import bilberriesIcon from '../assets/items/bilberries.png';
 import wildStrawberriesIcon from '../assets/items/wild_strawberries.png';
-import rowanberriesIcon from '../assets/items/rowanberries.png';
+import rowanBerriesIcon from '../assets/items/rowan_berries.png';
 import cranberriesIcon from '../assets/items/cranberries.png';
 
 // Animal meat
@@ -869,7 +869,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'cloudberries.png': cloudberriesIcon,
   'bilberries.png': bilberriesIcon,
   'wild_strawberries.png': wildStrawberriesIcon,
-  'rowanberries.png': rowanberriesIcon,
+  'rowan_berries.png': rowanBerriesIcon,
   'cranberries.png': cranberriesIcon,
   
   // Animal meat

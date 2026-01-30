@@ -134,6 +134,100 @@ const droppedItemConfig: GroundEntityConfig<SpacetimeDBDroppedItem & { itemDef?:
 // Preload the burlap sack fallback image
 imageManager.preloadImage(burlapSackImage);
 
+// --- Arc Animation Constants ---
+const ARC_ANIMATION_DURATION_MS = 1200; // Duration of falling arc animation (longer for visibility)
+const ARC_HEIGHT_FACTOR = 0.5; // How high the arc peaks (as fraction of horizontal distance)
+
+// Track when items with arc animation were first seen client-side
+// This avoids clock sync issues between client and server
+const itemFirstSeenTimeMap = new Map<string, number>();
+
+// Clean up old entries periodically to prevent memory leaks
+let lastCleanupTime = 0;
+const CLEANUP_INTERVAL_MS = 30000; // Clean every 30 seconds
+const MAX_TRACKING_AGE_MS = 10000; // Remove entries older than 10 seconds
+
+function cleanupOldTrackingEntries(nowMs: number): void {
+    if (nowMs - lastCleanupTime < CLEANUP_INTERVAL_MS) return;
+    lastCleanupTime = nowMs;
+    
+    const cutoffTime = nowMs - MAX_TRACKING_AGE_MS;
+    for (const [key, firstSeen] of itemFirstSeenTimeMap.entries()) {
+        if (firstSeen < cutoffTime) {
+            itemFirstSeenTimeMap.delete(key);
+        }
+    }
+}
+
+/**
+ * Calculate the current position for an item with arc animation.
+ * Uses a parabolic trajectory from spawn point to landing point.
+ * Uses client-side first-seen time to avoid clock sync issues.
+ */
+function calculateArcPosition(
+    item: SpacetimeDBDroppedItem,
+    nowMs: number
+): { x: number; y: number; isAnimating: boolean; scale: number } {
+    // Periodic cleanup
+    cleanupOldTrackingEntries(nowMs);
+    
+    // Check if this item has arc animation data
+    if (item.spawnX === null || item.spawnX === undefined || 
+        item.spawnY === null || item.spawnY === undefined) {
+        // No arc animation - use final position
+        return { x: item.posX, y: item.posY, isAnimating: false, scale: 1.0 };
+    }
+    
+    // Store spawn coordinates in local variables (TypeScript now knows these are defined)
+    const spawnX = item.spawnX;
+    const spawnY = item.spawnY;
+
+    // Get or set the first-seen time for this item (client-side tracking)
+    const itemKey = item.id.toString();
+    let firstSeenMs = itemFirstSeenTimeMap.get(itemKey);
+    if (firstSeenMs === undefined) {
+        // First time seeing this item - start animation now
+        firstSeenMs = nowMs;
+        itemFirstSeenTimeMap.set(itemKey, firstSeenMs);
+    }
+
+    // Calculate elapsed time since we first saw this item
+    const elapsedMs = nowMs - firstSeenMs;
+
+    // If animation is complete, return final position
+    if (elapsedMs >= ARC_ANIMATION_DURATION_MS) {
+        return { x: item.posX, y: item.posY, isAnimating: false, scale: 1.0 };
+    }
+
+    // Calculate animation progress (0 to 1)
+    const progress = elapsedMs / ARC_ANIMATION_DURATION_MS;
+    
+    // Use easeOutQuad for smoother landing: progress * (2 - progress)
+    const easedProgress = progress * (2 - progress);
+    
+    // Linear interpolation for X position
+    const currentX = spawnX + (item.posX - spawnX) * easedProgress;
+    
+    // Calculate Y position with parabolic arc
+    // The arc peaks at progress = 0.5
+    // parabola: -4 * (progress - 0.5)^2 + 1, which goes from 0 to 1 (at 0.5) back to 0
+    const arcProgress = -4 * Math.pow(progress - 0.5, 2) + 1; // 0 at start/end, 1 at middle
+    
+    // Calculate how high the arc should go based on distance
+    const horizontalDist = Math.abs(item.posX - spawnX);
+    const verticalDist = Math.abs(item.posY - spawnY);
+    const arcHeight = Math.max(horizontalDist, verticalDist) * ARC_HEIGHT_FACTOR;
+    
+    // Y position: linear from spawn to final, with arc offset (negative = up)
+    const linearY = spawnY + (item.posY - spawnY) * easedProgress;
+    const currentY = linearY - arcHeight * arcProgress;
+    
+    // Scale effect: start slightly smaller, grow to full size
+    const scale = 0.7 + 0.3 * easedProgress;
+
+    return { x: currentX, y: currentY, isAnimating: true, scale };
+}
+
 // --- Interface for new renderer function ---
 interface RenderDroppedItemParamsNew {
     ctx: CanvasRenderingContext2D;
@@ -151,16 +245,40 @@ export function renderDroppedItem({
     nowMs,
     cycleProgress, // Added
 }: RenderDroppedItemParamsNew): void {
-    // Combine item and itemDef for the generic renderer config
-    const entityWithDef = { ...item, itemDef };
+    // Calculate current position (handles arc animation if present)
+    const { x: renderX, y: renderY, isAnimating, scale } = calculateArcPosition(item, nowMs);
+    
+    // Create entity with animated position - this is crucial because
+    // calculateDrawPosition in the config reads entity.posX/posY directly
+    const entityWithDef = { 
+        ...item, 
+        itemDef,
+        // Override position with animated position for arc animation
+        posX: renderX,
+        posY: renderY,
+    };
+
+    // If animating, apply scale transform
+    if (isAnimating && scale !== 1.0) {
+        ctx.save();
+        // Scale from the item's current position
+        ctx.translate(renderX, renderY);
+        ctx.scale(scale, scale);
+        ctx.translate(-renderX, -renderY);
+    }
 
     renderConfiguredGroundEntity({
         ctx,
-        entity: entityWithDef, // Pass combined object
+        entity: entityWithDef,
         config: droppedItemConfig,
         nowMs, 
-        entityPosX: item.posX,
-        entityPosY: item.posY,
-        cycleProgress, // Added
+        entityPosX: renderX,
+        entityPosY: renderY,
+        cycleProgress,
     });
+    
+    // Restore context if we applied scale
+    if (isAnimating && scale !== 1.0) {
+        ctx.restore();
+    }
 } 

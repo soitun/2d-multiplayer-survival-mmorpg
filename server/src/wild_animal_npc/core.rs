@@ -2834,6 +2834,118 @@ pub fn damage_wild_animal_with_weapon(
     Ok(())
 }
 
+/// Try to fire a ranged counter-attack from an NPC when hit by a player's ranged weapon.
+/// This is called from projectile.rs when a player projectile hits certain NPCs.
+/// Returns true if a counter-attack projectile was fired.
+/// 
+/// NPCs with ranged counter-attacks:
+/// - Shardkin: Fires spectral shards (fast, low damage)
+/// - Shorebound: Fires spectral bolts (medium speed, medium damage)
+/// - CableViper: Spits venom (slow, applies venom effect)
+/// - DrownedWatch: NO ranged attacks (melee brute only)
+pub fn try_npc_ranged_counter_attack(
+    ctx: &ReducerContext,
+    animal_id: u64,
+    attacker_player_x: f32,
+    attacker_player_y: f32,
+) -> Result<bool, String> {
+    use crate::projectile::{
+        fire_npc_projectile,
+        NPC_PROJECTILE_SPECTRAL_SHARD, NPC_PROJECTILE_SPECTRAL_BOLT, NPC_PROJECTILE_VENOM_SPITTLE,
+        SHARDKIN_PROJECTILE_DAMAGE, SHARDKIN_PROJECTILE_SPEED,
+        SHOREBOUND_PROJECTILE_DAMAGE, SHOREBOUND_PROJECTILE_SPEED,
+        VIPER_PROJECTILE_DAMAGE, VIPER_PROJECTILE_SPEED,
+        NPC_RANGED_COUNTER_COOLDOWN_MS,
+    };
+    
+    // Find the animal
+    let animal = match ctx.db.wild_animal().id().find(&animal_id) {
+        Some(a) => a,
+        None => return Ok(false), // Animal doesn't exist (might be dead)
+    };
+    
+    // Skip if animal is dead or burrowed
+    if animal.health <= 0.0 || animal.state == AnimalState::Burrowed {
+        return Ok(false);
+    }
+    
+    // Check cooldown - use last_attack_time for ranged counter-attack cooldown
+    if let Some(last_attack) = animal.last_attack_time {
+        let time_since_last_ms = (ctx.timestamp.to_micros_since_unix_epoch() - last_attack.to_micros_since_unix_epoch()) / 1000;
+        if time_since_last_ms < NPC_RANGED_COUNTER_COOLDOWN_MS {
+            return Ok(false); // Still on cooldown
+        }
+    }
+    
+    // Determine if this species has ranged counter-attacks
+    let (projectile_type, damage, speed, max_range) = match animal.species {
+        AnimalSpecies::Shardkin => (
+            NPC_PROJECTILE_SPECTRAL_SHARD,
+            SHARDKIN_PROJECTILE_DAMAGE,
+            SHARDKIN_PROJECTILE_SPEED,
+            400.0, // Shardkin projectile range
+        ),
+        AnimalSpecies::Shorebound => (
+            NPC_PROJECTILE_SPECTRAL_BOLT,
+            SHOREBOUND_PROJECTILE_DAMAGE,
+            SHOREBOUND_PROJECTILE_SPEED,
+            500.0, // Shorebound projectile range
+        ),
+        AnimalSpecies::CableViper => (
+            NPC_PROJECTILE_VENOM_SPITTLE,
+            VIPER_PROJECTILE_DAMAGE,
+            VIPER_PROJECTILE_SPEED,
+            300.0, // Viper spit range (shorter)
+        ),
+        // DrownedWatch does NOT have ranged attacks
+        // Other species don't counter-attack with ranged
+        _ => return Ok(false),
+    };
+    
+    // Calculate distance to target
+    let dx = attacker_player_x - animal.pos_x;
+    let dy = attacker_player_y - animal.pos_y;
+    let distance = (dx * dx + dy * dy).sqrt();
+    
+    // Only fire if target is within range
+    if distance > max_range || distance < 50.0 {
+        return Ok(false); // Too far or too close
+    }
+    
+    // Fire the projectile
+    match fire_npc_projectile(
+        ctx,
+        animal.id,
+        animal.pos_x,
+        animal.pos_y,
+        attacker_player_x,
+        attacker_player_y,
+        projectile_type,
+        damage,
+        speed,
+        max_range,
+    ) {
+        Ok(projectile_id) => {
+            log::info!(
+                "🎯 [NPC COUNTER] {:?} {} fired ranged counter-attack (projectile {}) at player position ({:.1}, {:.1})",
+                animal.species, animal.id, projectile_id, attacker_player_x, attacker_player_y
+            );
+            
+            // Update the animal's last_attack_time to track cooldown
+            if let Some(mut updated_animal) = ctx.db.wild_animal().id().find(&animal_id) {
+                updated_animal.last_attack_time = Some(ctx.timestamp);
+                ctx.db.wild_animal().id().update(updated_animal);
+            }
+            
+            Ok(true)
+        }
+        Err(e) => {
+            log::error!("Failed to fire NPC counter-attack projectile: {}", e);
+            Ok(false)
+        }
+    }
+}
+
 /// Categorize weapon name into achievement stat category
 fn categorize_weapon_for_achievement(weapon_name: &str) -> &'static str {
     let name_lower = weapon_name.to_lowercase();

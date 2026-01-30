@@ -57,6 +57,7 @@ pub enum TreeType {
     // Fruit/Nut trees (Wood + special drops) - RARE, temperate biome only
     CrabAppleTree,      // crab_apple_tree.png - small fruit tree, drops Crab Apples
     HazelnutTree,       // hazelnut_tree.png - nut-bearing shrub-tree, drops Hazelnuts
+    RowanberryTree,     // rowanberry_tree.png - mountain ash tree, drops Rowan Berries
 }
 
 #[spacetimedb::table(name = tree, public)]
