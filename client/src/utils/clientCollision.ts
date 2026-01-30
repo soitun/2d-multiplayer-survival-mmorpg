@@ -1050,7 +1050,7 @@ export const COLLISION_RADII = {
   BASALT_COLUMN: 35, // Basalt column collision radius
   ALK_STATION: 120, // ALK delivery station collision radius (reduced for easier navigation and Y-sorting)
   WARD: 40, // Ward collision radius (for ancestral ward, signal disruptor, memory beacon - NOT regular lanterns)
-  TURRET: 40, // Turret collision radius (same as wards - 256x256 sprites)
+  TURRET: 80, // Turret collision radius (same as rain_collector - 256x256 bottom-anchored sprites)
   // STORM_PILE removed - storms now spawn HarvestableResources and DroppedItems directly
   LIVING_CORAL: 80, // Living coral collision radius (underwater coral reef, doubled for better underwater presence)
 } as const;
@@ -1074,7 +1074,7 @@ export const COLLISION_OFFSETS = {
   HOMESTEAD_HEARTH: { x: 0, y: -72.5 }, // Homestead hearth collision offset (matches server-side HEARTH_COLLISION_Y_OFFSET)
   BASALT_COLUMN: { x: 0, y: -40 }, // Basalt column collision offset
   WARD: { x: 0, y: -80 }, // Ward collision offset (matches server-side WARD_COLLISION_Y_OFFSET)
-  TURRET: { x: 0, y: -60 }, // Turret collision offset (matches server-side TURRET_COLLISION_Y_OFFSET)
+  TURRET: { x: 0, y: -30 }, // Turret collision offset (same as rain_collector - bottom-anchored)
   // STORM_PILE removed - storms now spawn HarvestableResources and DroppedItems directly
   LIVING_CORAL: { x: 0, y: -60 }, // Living coral collision offset (doubled to match visual size)
 } as const;

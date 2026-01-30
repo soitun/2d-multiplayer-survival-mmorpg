@@ -16,7 +16,8 @@ export const TURRET_WIDTH_PREVIEW = 256;
 export const TURRET_HEIGHT_PREVIEW = 256;
 
 // Offset for rendering to align with server-side collision/interaction zones
-export const TURRET_RENDER_Y_OFFSET = 6; // Visual offset from entity's base Y
+// Changed from -6 (drawn higher) to +36 (bottom-anchored like rain_collector)
+export const TURRET_RENDER_Y_OFFSET = 36; // Visual offset - bottom-anchored like rain collector
 
 // Turret interaction distance (player <-> turret)
 export const PLAYER_TURRET_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Same as lanterns
@@ -53,7 +54,7 @@ const turretConfig: GroundEntityConfig<Turret> = {
 
     calculateDrawPosition: (entity, drawWidth, drawHeight) => ({
         drawX: entity.posX - drawWidth / 2,
-        drawY: entity.posY - drawHeight - TURRET_RENDER_Y_OFFSET,
+        drawY: entity.posY - drawHeight + TURRET_RENDER_Y_OFFSET, // Bottom-anchored like rain_collector
     }),
 
     getShadowParams: undefined,
@@ -71,14 +72,21 @@ const turretConfig: GroundEntityConfig<Turret> = {
                 SHAKE_INTENSITY_PX
             );
             
+            // Match rain_collector shadow parameters (bottom-anchored)
             drawDynamicGroundShadow({
                 ctx,
                 entityImage,
-                entityCenterX: entityPosX + shakeOffsetX,
-                entityBaseY: entityPosY + shakeOffsetY,
+                entityCenterX: entityPosX,
+                entityBaseY: entityPosY, // Bottom-anchored (same as rain_collector)
                 imageDrawWidth,
                 imageDrawHeight,
                 cycleProgress,
+                baseShadowColor: '0,0,0',
+                maxShadowAlpha: 0.4,
+                shadowBlur: 2,
+                maxStretchFactor: 1.2,
+                minStretchFactor: 0.1,
+                pivotYOffset: 35, // Same as rain_collector for 256x256 sprite
                 shakeOffsetX,
                 shakeOffsetY
             });
@@ -89,6 +97,7 @@ const turretConfig: GroundEntityConfig<Turret> = {
         // Render health bar if turret is damaged (only when PvP is enabled)
         if (entity.health && entity.maxHealth && entity.health < entity.maxHealth) {
             // Use entity position as player position fallback (health bar uses it for distance-based visibility)
+            // yAnchorOffset matches rain collector: TURRET_HEIGHT - TURRET_RENDER_Y_OFFSET = 256 - 36 = 220
             renderEntityHealthBar(
                 ctx,
                 entity,
@@ -97,7 +106,7 @@ const turretConfig: GroundEntityConfig<Turret> = {
                 nowMs,
                 entity.posX,
                 entity.posY,
-                -TURRET_RENDER_Y_OFFSET
+                TURRET_HEIGHT - TURRET_RENDER_Y_OFFSET
             );
         }
     },
