@@ -2321,6 +2321,20 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
 
     // Create dropped items for missed projectiles (with different break chances)
     for (projectile_id, ammo_def_id, pos_x, pos_y) in missed_projectiles_for_drops {
+        // Check if this is a turret projectile - they explode on impact and never become dropped items
+        let projectile_record = ctx.db.projectile().id().find(&projectile_id);
+        let is_turret_projectile = projectile_record
+            .as_ref()
+            .map(|p| p.source_type == PROJECTILE_SOURCE_TURRET)
+            .unwrap_or(false);
+        
+        if is_turret_projectile {
+            // Turret tallow projectiles explode on impact - no dropped item created
+            log::debug!("[ProjectileMiss] Turret projectile {} exploded on impact at ({:.1}, {:.1})", 
+                projectile_id, pos_x, pos_y);
+            continue; // Skip creating dropped item - tallow explodes
+        }
+        
         // Get the ammunition definition for break chance calculation
         let ammo_item_def = item_defs_table.id().find(ammo_def_id);
         let ammo_name = ammo_item_def
