@@ -447,23 +447,12 @@ pub fn fire_projectile(
             return Err(error_msg);
         }
 
-        // Single-shot weapon behavior varies by type
+        // Single-shot weapon - unload after firing (requires right-click to reload)
+        // Same behavior for bow and crossbow - manual reload required
+        equipment.is_ready_to_fire = false;
+        equipment.loaded_ammo_def_id = None;
+        equipment.loaded_ammo_count = 0;
         equipment.swing_start_time_ms = (ctx.timestamp.to_micros_since_unix_epoch() / 1000) as u64;
-        
-        if item_def.name == "Crossbow" {
-            // CROSSBOW: Auto-reload system - stays "loaded", reload timer controls firing
-            // This allows pressing attack immediately after reload completes (no manual R required)
-            // Ammo is consumed from inventory on each shot (already done above)
-            equipment.reload_start_time_ms = (ctx.timestamp.to_micros_since_unix_epoch() / 1000) as u64;
-            // Keep is_ready_to_fire = true and loaded_ammo_def_id so player can fire again after timer
-            log::info!("[Crossbow] Auto-reload started for player {:?} - 2.0s to crank string", player_id);
-        } else {
-            // BOW and other single-shot: Traditional unload after firing (requires R to reload)
-            equipment.is_ready_to_fire = false;
-            equipment.loaded_ammo_def_id = None;
-            equipment.loaded_ammo_count = 0;
-        }
-        
         ctx.db.active_equipment().player_identity().update(equipment.clone());
     }
  

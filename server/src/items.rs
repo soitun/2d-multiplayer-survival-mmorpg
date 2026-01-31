@@ -242,17 +242,17 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
         // - Mechanical precision (highest accuracy)
         // - Slow reload creates risk/reward tension
         // - Best for ambushes and calculated shots
-        // - MECHANICAL RELOAD - automatically cranks string after each shot
-        // - NO FIRE RATE COOLDOWN - can press attack anytime, but must wait for reload
+        // - MANUAL RELOAD - right-click to crank string and load bolt (same as bow)
+        // - NO FIRE RATE COOLDOWN - can press attack anytime, but must reload first
         RangedWeaponStats {
             item_name: "Crossbow".to_string(),
             weapon_range: 680.0,       // Good range - can engage from cover
             projectile_speed: 920.0,   // Fast bolts, flat trajectory
             accuracy: 0.95,            // 95% accuracy - mechanical precision
-            reload_time_secs: 0.0,     // NO fire rate cooldown - reload handles timing
+            reload_time_secs: 0.0,     // NO fire rate cooldown - manual reload is the only delay
             magazine_capacity: 0,      // Single-shot (bolts loaded one at a time)
             is_automatic: false,       // Semi-auto - must click for each shot
-            magazine_reload_time_secs: 2.0, // 2 seconds to crank crossbow string after firing
+            magazine_reload_time_secs: 2.0, // 2 seconds to crank crossbow string (right-click)
         },
         
         // TIER 3: Makarov PM (Late Game)
