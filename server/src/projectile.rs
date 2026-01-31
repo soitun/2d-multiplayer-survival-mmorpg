@@ -2323,16 +2323,31 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                             target_player.health = (target_player.health - npc_damage).max(0.0);
                             target_player.last_hit_time = Some(current_time);
                             
-                            // Check for death
+                            // Check for death - use centralized death handler
                             if target_player.health <= 0.0 {
-                                target_player.is_dead = true;
-                                // Handle death in combat system
-                                // Note: Using module identity as "attacker" for NPC kills
-                                log::info!("[NPC Projectile] Player {:?} killed by NPC projectile type {}", 
-                                         player_to_check.identity, projectile.npc_projectile_type);
+                                // Determine death cause from projectile type
+                                let death_cause = match projectile.npc_projectile_type {
+                                    NPC_PROJECTILE_SPECTRAL_SHARD => "The Shardkin",
+                                    NPC_PROJECTILE_SPECTRAL_BOLT => "The Shorebound", 
+                                    NPC_PROJECTILE_VENOM_SPITTLE => "Cable Viper",
+                                    _ => "Unknown Creature",
+                                };
+                                
+                                // Update health first (handle_player_death will set is_dead)
+                                ctx.db.player().identity().update(target_player);
+                                
+                                // Use centralized death handler - handles everything
+                                if let Err(e) = crate::player_corpse::handle_player_death(
+                                    ctx,
+                                    player_to_check.identity,
+                                    death_cause,
+                                    None, // No killer identity for NPC kills
+                                ) {
+                                    log::error!("[NPC Projectile] Death handling failed for player {:?}: {}", player_to_check.identity, e);
+                                }
+                            } else {
+                                ctx.db.player().identity().update(target_player);
                             }
-                            
-                            ctx.db.player().identity().update(target_player);
                             
                             // Play hit sound
                             sound_events::emit_arrow_hit_sound(ctx, player_to_check.position_x, player_to_check.position_y, ctx.identity());

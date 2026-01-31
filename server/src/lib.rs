@@ -372,7 +372,7 @@ pub use stash::{
 
 // Re-export player corpse reducers for client bindings
 pub use player_corpse::{
-    create_player_corpse, move_item_to_corpse, quick_move_from_corpse,
+    create_player_corpse, handle_player_death, move_item_to_corpse, quick_move_from_corpse,
     split_stack_into_corpse, move_item_within_corpse, split_stack_within_corpse,
     quick_move_to_corpse, move_item_from_corpse, split_stack_from_corpse,
     drop_item_from_corpse_slot_to_world, split_and_drop_item_from_corpse_slot_to_world

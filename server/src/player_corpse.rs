@@ -773,8 +773,96 @@ fn transfer_inventory_to_corpse(ctx: &ReducerContext, dead_player: &Player) -> R
     Ok(inserted_corpse.id)
 }
 
+/// --- CENTRALIZED DEATH HANDLER ---
+/// Call this from ANY code that kills a player. It handles all death logic:
+/// 1. Sets player state (is_dead, death_timestamp)
+/// 2. Drops active weapon
+/// 3. Clears active equipment reference
+/// 4. Clears all active effects (bleed, venom, burns, etc.)
+/// 5. Creates death marker
+/// 6. Creates corpse with all inventory
+/// 
+/// This ensures consistent death handling regardless of death source (NPCs, PvP, environment, etc.)
+pub fn handle_player_death(
+    ctx: &ReducerContext,
+    player_id: Identity,
+    death_cause: &str,
+    killer_id: Option<Identity>,
+) -> Result<(), String> {
+    let current_time = ctx.timestamp;
+    
+    // Get and update player
+    let mut player = ctx.db.player().identity().find(&player_id)
+        .ok_or_else(|| format!("Player {:?} not found for death handling", player_id))?;
+    
+    // Skip if already dead (prevent double-death processing)
+    if player.is_dead {
+        log::warn!("[PlayerDeath] Player {:?} is already dead, skipping death handling", player_id);
+        return Ok(());
+    }
+    
+    // 1. Set player death state
+    player.is_dead = true;
+    player.death_timestamp = Some(current_time);
+    player.health = 0.0;
+    
+    let death_x = player.position_x;
+    let death_y = player.position_y;
+    let username = player.username.clone();
+    
+    log::info!("[PlayerDeath] Player {} ({:?}) killed by '{}' at ({:.1}, {:.1})", 
+              username, player_id, death_cause, death_x, death_y);
+    
+    // Update player state first
+    ctx.db.player().identity().update(player);
+    
+    // 2. Drop active weapon on death
+    match crate::dropped_item::drop_active_weapon_on_death(ctx, player_id, death_x, death_y) {
+        Ok(Some(item_name)) => log::info!("[PlayerDeath] Dropped active weapon '{}' for player {:?}", item_name, player_id),
+        Ok(None) => log::debug!("[PlayerDeath] No active weapon to drop for player {:?}", player_id),
+        Err(e) => log::error!("[PlayerDeath] Failed to drop active weapon for player {:?}: {}", player_id, e),
+    }
+    
+    // 3. Clear active equipment reference
+    if let Err(e) = crate::active_equipment::clear_active_item_reducer(ctx, player_id) {
+        log::error!("[PlayerDeath] Failed to clear active item for player {:?}: {}", player_id, e);
+    }
+    
+    // 4. Clear all active effects (bleed, venom, burns, healing, etc.)
+    crate::active_effects::clear_all_effects_on_death(ctx, player_id);
+    log::info!("[PlayerDeath] Cleared all active effects for player {:?}", player_id);
+    
+    // 5. Create death marker
+    let new_death_marker = crate::death_marker::DeathMarker {
+        player_id,
+        pos_x: death_x,
+        pos_y: death_y,
+        death_timestamp: current_time,
+        killed_by: killer_id,
+        death_cause: death_cause.to_string(),
+    };
+    
+    let death_marker_table = ctx.db.death_marker();
+    if death_marker_table.player_id().find(&player_id).is_some() {
+        death_marker_table.player_id().update(new_death_marker);
+    } else {
+        death_marker_table.insert(new_death_marker);
+    }
+    log::info!("[PlayerDeath] Created death marker for player {:?} - cause: '{}'", player_id, death_cause);
+    
+    // 6. Create corpse (transfers all inventory)
+    if let Err(e) = create_player_corpse(ctx, player_id, death_x, death_y, &username) {
+        log::error!("[PlayerDeath] Failed to create corpse for player {:?}: {}", player_id, e);
+        return Err(e);
+    }
+    
+    log::info!("[PlayerDeath] Death handling complete for player {:?}", player_id);
+    Ok(())
+}
+
 /// --- Main public function to create a corpse and transfer items ---
 /// This is intended to be called when a player dies.
+/// NOTE: Prefer calling handle_player_death() instead, which handles ALL death logic.
 pub fn create_player_corpse(ctx: &ReducerContext, dead_player_id: Identity, death_x: f32, death_y: f32, dead_player_username: &str) -> Result<(), String> {
     // --- TARGETED DUPLICATE PREVENTION: Prevent corpses from the same death event ---
     // Check for corpses at the same location within a short time window (same death event)
