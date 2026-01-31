@@ -345,6 +345,6 @@ impl AnimalBehavior for ShoreboundBehavior {
     }
 
     fn get_chase_abandonment_multiplier(&self) -> f32 {
-        1.5 // Gives up chase at 1.5x chase range (fairly persistent)
+        4.0 // Very persistent - maintains ranged combat at 400-600px without giving up
     }
 }

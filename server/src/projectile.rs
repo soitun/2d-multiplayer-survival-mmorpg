@@ -447,11 +447,23 @@ pub fn fire_projectile(
             return Err(error_msg);
         }
 
-        // Single-shot weapon - unload after firing
-        equipment.is_ready_to_fire = false;
-        equipment.loaded_ammo_def_id = None;
-        equipment.loaded_ammo_count = 0;
+        // Single-shot weapon behavior varies by type
         equipment.swing_start_time_ms = (ctx.timestamp.to_micros_since_unix_epoch() / 1000) as u64;
+        
+        if item_def.name == "Crossbow" {
+            // CROSSBOW: Auto-reload system - stays "loaded", reload timer controls firing
+            // This allows pressing attack immediately after reload completes (no manual R required)
+            // Ammo is consumed from inventory on each shot (already done above)
+            equipment.reload_start_time_ms = (ctx.timestamp.to_micros_since_unix_epoch() / 1000) as u64;
+            // Keep is_ready_to_fire = true and loaded_ammo_def_id so player can fire again after timer
+            log::info!("[Crossbow] Auto-reload started for player {:?} - 2.0s to crank string", player_id);
+        } else {
+            // BOW and other single-shot: Traditional unload after firing (requires R to reload)
+            equipment.is_ready_to_fire = false;
+            equipment.loaded_ammo_def_id = None;
+            equipment.loaded_ammo_count = 0;
+        }
+        
         ctx.db.active_equipment().player_identity().update(equipment.clone());
     }
  
@@ -2278,7 +2290,13 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             }
             
             // Use line segment collision detection for players
-            let player_radius = crate::PLAYER_RADIUS;
+            // NPC projectiles use a larger collision radius (96px) for more forgiving hits
+            // Player projectiles use standard PLAYER_RADIUS (32px)
+            let player_radius = if projectile.source_type == PROJECTILE_SOURCE_NPC {
+                96.0  // Larger radius for NPC projectiles - they need to actually hit!
+            } else {
+                crate::PLAYER_RADIUS
+            };
             let collision_detected = line_intersects_circle(prev_x, prev_y, current_x, current_y, player_to_check.position_x, player_to_check.position_y, player_radius);
             
             // Debug logging for nearby collisions

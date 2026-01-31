@@ -316,6 +316,6 @@ impl AnimalBehavior for CableViperBehavior {
     }
     
     fn get_chase_abandonment_multiplier(&self) -> f32 {
-        2.0 // Vipers are least persistent - give up at 2.0x chase trigger range
+        4.0 // Persistent in ranged mode - maintains distance at 400-600px without giving up
     }
 }

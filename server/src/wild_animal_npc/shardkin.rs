@@ -292,7 +292,7 @@ impl AnimalBehavior for ShardkinBehavior {
     }
 
     fn get_chase_abandonment_multiplier(&self) -> f32 {
-        1.2 // Gives up relatively easily (swarms scatter)
+        4.0 // Very persistent - maintains ranged combat at 400-600px without giving up
     }
 }
 
