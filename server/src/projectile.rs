@@ -2279,10 +2279,10 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             }
             
             // Use line segment collision detection for players
-            // NPC projectiles use a larger collision radius (96px) for more forgiving hits
+            // NPC projectiles use a larger collision radius (64px) for more forgiving hits
             // Player projectiles use standard PLAYER_RADIUS (32px)
             let player_radius = if projectile.source_type == PROJECTILE_SOURCE_NPC {
-                96.0  // Larger radius for NPC projectiles - they need to actually hit!
+                64.0  // Larger radius for NPC projectiles - they need to actually hit!
             } else {
                 crate::PLAYER_RADIUS
             };
