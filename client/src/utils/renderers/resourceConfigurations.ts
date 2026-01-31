@@ -109,30 +109,30 @@ RESOURCE_CONFIGS.MemoryShard = {
   targetWidth: 64
 };
 
-// Resource piles - slightly larger for visibility
+// Resource piles - 2x larger for better visibility as gathering targets
 RESOURCE_CONFIGS.WoodPile = {
   ...RESOURCE_CONFIGS.WoodPile,
-  targetWidth: 80
+  targetWidth: 160 // 2x size for visibility
 };
 
 RESOURCE_CONFIGS.BeachWoodPile = {
   ...RESOURCE_CONFIGS.BeachWoodPile,
-  targetWidth: 75
+  targetWidth: 150 // 2x size for visibility
 };
 
 RESOURCE_CONFIGS.StonePile = {
   ...RESOURCE_CONFIGS.StonePile,
-  targetWidth: 80
+  targetWidth: 160 // 2x size for visibility
 };
 
 RESOURCE_CONFIGS.SoggyPlantFiberPile = {
   ...RESOURCE_CONFIGS.SoggyPlantFiberPile,
-  targetWidth: 80 // Match other resource piles for visibility
+  targetWidth: 160 // 2x size for visibility
 };
 
 RESOURCE_CONFIGS.BonePile = {
   ...RESOURCE_CONFIGS.BonePile,
-  targetWidth: 80 // Match other resource piles for visibility
+  targetWidth: 160 // 2x size for visibility
 };
 
 // === UNDERWATER PLANTS ===

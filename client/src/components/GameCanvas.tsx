@@ -2057,6 +2057,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Impact particle effects - blood splatter for animals, ethereal wisps for apparitions
   const impactParticles = useImpactParticles({
     wildAnimals,
+    animalCorpses,
     localPlayer,
   });
 
@@ -2964,6 +2965,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
     // --- END WATER OVERLAY ---
 
+    // --- Render shore wave particles (BELOW sea stacks, ABOVE water overlay) ---
+    // Skip shore waves when snorkeling - player is underwater, can't see surface effects
+    if (!isSnorkeling) {
+      renderShoreWaves(ctx, shoreWaveParticles, currentCameraOffsetX, currentCameraOffsetY);
+    }
+    // --- END SHORE WAVES ---
+
     // --- STEP 2.5 & 3 COMBINED: Render Y-sorted entities AND swimming player top halves together ---
     // This ensures swimming player tops are properly Y-sorted with sea stacks and other tall entities
 
@@ -3496,12 +3504,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // Render particle systems
     if (ctx) {
-      // Render shore wave particles (below fire/smoke particles, on ground level)
-      // Pass 0,0 for camera offsets since ctx is already translated
-      // Skip shore waves when snorkeling - player is underwater, can't see surface effects
-      if (!isSnorkeling) {
-        renderShoreWaves(ctx, shoreWaveParticles, 0, 0);
-      }
+      // REMOVED: Shore wave particles now render earlier (after water overlay, before sea stack tops)
+      // This ensures they appear below sea stacks for proper depth layering
 
       // Call without camera offsets, as ctx is already translated
       renderParticlesToCanvas(ctx, campfireParticles);

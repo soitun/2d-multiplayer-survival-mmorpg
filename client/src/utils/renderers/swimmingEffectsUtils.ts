@@ -27,6 +27,7 @@ interface WakeEffect {
   originY: number;
   createdAt: number;
   directionAngle: number;
+  thickness: number; // Line thickness - thicker when moving
 }
 
 // Global wake tracking
@@ -38,11 +39,14 @@ interface PlayerWakeState {
   lastPosition: { x: number; y: number } | null;
   movementCounter: number;
   nextWakeThreshold: number;
+  lastIdleWakeTime: number; // Track when we last created an idle wake
 }
 const playerWakeStates = new Map<string, PlayerWakeState>();
 
 const WAKE_SKIP_MOVEMENTS_BASE = 12; // Base movements to skip - increased for less frequent wakes
 const WAKE_SKIP_RANDOMNESS = 6; // Random additional movements (0-6) - increased
+const IDLE_WAKE_INTERVAL_MS = 600; // Create idle wake every 600ms when standing still in water
+const WAKE_THICKNESS = 3.0; // Thick wake lines for both moving and idle
 
 /**
  * Generates next random wake threshold
@@ -92,9 +96,9 @@ function drawWaterLine(
   
   ctx.save();
   
-  // Draw the animated water line with complex deformation - muted grey
-  ctx.strokeStyle = 'rgba(130, 130, 130, 0.7)'; // Less bright grey, more subtle
-  ctx.lineWidth = 1.25; // Half as thin
+  // Draw the animated water line with complex deformation - matches water disturbance color
+  ctx.strokeStyle = 'rgba(160, 200, 220, 0.7)'; // Pale blue/cyan matching wake effects
+  ctx.lineWidth = 2.5; // Thicker line for better visibility
   ctx.lineCap = 'round';
   
   ctx.beginPath();
@@ -171,9 +175,9 @@ function darkenSpriteBottomHalf(
   const tertiaryWave = Math.sin(time * SWIMMING_EFFECTS_CONFIG.WAVE_TERTIARY_FREQUENCY + centerX * 0.03 + Math.PI * 0.7) * SWIMMING_EFFECTS_CONFIG.WAVE_TERTIARY_AMPLITUDE;
   const shimmerIntensity = (Math.sin(time * SWIMMING_EFFECTS_CONFIG.SHIMMER_FREQUENCY * 2) + 1) * 0.5;
   
-  // Draw the deformed water line only on sprite pixels - thin, muted grey
-  ctx.strokeStyle = 'rgba(130, 130, 130, 0.7)'; // Less bright grey, more subtle
-  ctx.lineWidth = 1.25; // Half as thin
+  // Draw the deformed water line only on sprite pixels - matches water disturbance color
+  ctx.strokeStyle = 'rgba(160, 200, 220, 0.7)'; // Pale blue/cyan matching wake effects
+  ctx.lineWidth = 2.5; // Thicker line for better visibility
   ctx.lineCap = 'round';
   
   ctx.beginPath();
@@ -218,20 +222,21 @@ function darkenSpriteBottomHalf(
 
 
 /**
- * Creates a new wake effect when player moves
+ * Creates a new wake effect when player moves or idles in water
  */
-function createWakeEffect(centerX: number, centerY: number, directionAngle: number, currentTimeMs: number): void {
+function createWakeEffect(centerX: number, centerY: number, directionAngle: number, currentTimeMs: number, thickness: number = WAKE_THICKNESS): void {
   wakeEffects.push({
     id: nextWakeId++,
     originX: centerX,
     originY: centerY,
     createdAt: currentTimeMs,
-    directionAngle: directionAngle
+    directionAngle: directionAngle,
+    thickness: thickness
   });
 }
 
 /**
- * Manages wake creation based on player movement
+ * Manages wake creation based on player movement AND idle state
  * Uses per-player state tracking to prevent cross-player position contamination
  */
 function manageWakeCreation(
@@ -250,7 +255,8 @@ function manageWakeCreation(
     playerState = {
       lastPosition: null,
       movementCounter: 0,
-      nextWakeThreshold: generateNextWakeThreshold()
+      nextWakeThreshold: generateNextWakeThreshold(),
+      lastIdleWakeTime: 0
     };
     playerWakeStates.set(playerId, playerState);
   }
@@ -263,12 +269,13 @@ function manageWakeCreation(
     );
     
     if (distance >= SWIMMING_EFFECTS_CONFIG.WAKE_MOVEMENT_THRESHOLD) {
+      // MOVING - create movement wakes
       playerState.movementCounter++;
       
       // Only create wake when we reach the randomized threshold
       if (playerState.movementCounter >= playerState.nextWakeThreshold) {
         const directionAngle = getDirectionAngle(player.direction);
-        createWakeEffect(currentPos.x, currentPos.y, directionAngle, currentTimeMs);
+        createWakeEffect(currentPos.x, currentPos.y, directionAngle, currentTimeMs, WAKE_THICKNESS);
         
         // 25% chance to create a second wake immediately for dopamine burst
         if (Math.random() < 0.25) {
@@ -277,7 +284,7 @@ function manageWakeCreation(
           const offsetY = (Math.random() - 0.5) * 20;
           const secondWakeDelay = 300 + Math.random() * 200; // 300-500ms delay - longer pause
           setTimeout(() => {
-            createWakeEffect(currentPos.x + offsetX, currentPos.y + offsetY, directionAngle, currentTimeMs + secondWakeDelay);
+            createWakeEffect(currentPos.x + offsetX, currentPos.y + offsetY, directionAngle, currentTimeMs + secondWakeDelay, WAKE_THICKNESS);
           }, secondWakeDelay);
         }
         
@@ -286,14 +293,27 @@ function manageWakeCreation(
       }
       
       playerState.lastPosition = currentPos;
+      playerState.lastIdleWakeTime = currentTimeMs; // Reset idle timer when moving
+    } else {
+      // IDLE - create idle wakes periodically
+      const timeSinceLastIdleWake = currentTimeMs - playerState.lastIdleWakeTime;
+      
+      if (timeSinceLastIdleWake >= IDLE_WAKE_INTERVAL_MS) {
+        // Create a gentle idle wake with random direction (treading water effect)
+        const idleAngle = Math.random() * Math.PI * 2; // Random direction for idle
+        createWakeEffect(currentPos.x, currentPos.y, idleAngle, currentTimeMs, WAKE_THICKNESS);
+        
+        playerState.lastIdleWakeTime = currentTimeMs;
+      }
     }
   } else {
     // First time seeing this player - initialize position and create initial wake
     const directionAngle = getDirectionAngle(player.direction);
-    createWakeEffect(currentPos.x, currentPos.y, directionAngle, currentTimeMs);
+    createWakeEffect(currentPos.x, currentPos.y, directionAngle, currentTimeMs, WAKE_THICKNESS);
     playerState.lastPosition = currentPos;
     playerState.movementCounter = 0;
     playerState.nextWakeThreshold = generateNextWakeThreshold();
+    playerState.lastIdleWakeTime = currentTimeMs;
   }
 }
 
@@ -324,7 +344,7 @@ function drawExpandingWakes(
     
     // Draw semi-circle wake with opening facing the player (toward direction of movement)
     ctx.strokeStyle = `rgba(160, 200, 220, ${alpha * 0.6})`; // More muted, less bright water color
-    ctx.lineWidth = 1.5 * (1 - ageProgress * 0.2); // Thinner line, stays thin longer
+    ctx.lineWidth = wake.thickness * (1 - ageProgress * 0.2); // Use wake's thickness, fade slightly over time
     ctx.lineCap = 'round';
     
     ctx.beginPath();

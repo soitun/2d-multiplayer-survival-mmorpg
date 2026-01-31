@@ -847,12 +847,18 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
             if animal.state == AnimalState::Chasing || animal.state == AnimalState::Stalking {
                 // First check if this species even HAS ranged attacks
                 if let Some(ranged_config) = get_npc_ranged_attack_config(animal.species) {
-                    // LOG: Confirm NPC with ranged capability is in combat state
-                    log::info!("🎯 [NPC RANGED CHECK] {:?} {} is in {:?} state with target {:?}", 
-                              animal.species, animal.id, animal.state, animal.target_player_id);
-                    
                     if let Some(target_id) = animal.target_player_id {
-                        if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
+                        // CRITICAL: Only use ranged attacks if PLAYER has ranged weapon equipped
+                        // This mirrors the player's combat style - melee vs melee, ranged vs ranged
+                        if !player_has_ranged_weapon(ctx, target_id) {
+                            // Player using melee - NPC should also use melee, skip ranged
+                            log::debug!("🎯 [NPC RANGED SKIP] {:?} {} - player doesn't have ranged weapon", 
+                                       animal.species, animal.id);
+                        } else if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
+                            // LOG: Confirm NPC with ranged capability is in combat state vs ranged player
+                            log::info!("🎯 [NPC RANGED CHECK] {:?} {} is in {:?} state vs ranged player {:?}", 
+                                      animal.species, animal.id, animal.state, target_id);
+                            
                             if !target_player.is_dead && target_player.health > 0.0 {
                                 let distance_sq = get_distance_squared(
                                     animal.pos_x, animal.pos_y,
@@ -914,8 +920,14 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                             );
                             
                             // MELEE ATTACKS - Only when in melee range
-                            // (Ranged attacks are handled in the separate block above for both Chasing and Stalking)
-                            if distance_sq <= (stats.attack_range * stats.attack_range) && 
+                            // If NPC has ranged capability AND player has ranged weapon, skip melee (use ranged instead)
+                            // Otherwise use normal melee attacks
+                            let npc_has_ranged = get_npc_ranged_attack_config(animal.species).is_some();
+                            let player_using_ranged = player_has_ranged_weapon(ctx, target_id);
+                            let should_use_ranged_instead = npc_has_ranged && player_using_ranged;
+                            
+                            if !should_use_ranged_instead && 
+                               distance_sq <= (stats.attack_range * stats.attack_range) && 
                                can_attack(&animal, current_time, &stats) {
                                 // Execute the melee attack
                                 execute_attack(ctx, &mut animal, &target_player, &behavior, &stats, current_time, &mut rng)?;
@@ -2936,25 +2948,25 @@ pub fn try_npc_ranged_counter_attack(
     // would be blocked by melee attack cooldowns if we checked it.
     // Counter-attacks fire immediately when hit by projectiles as a reaction.
     
-    // Determine if this species has ranged counter-attacks
+    // Determine if this species has ranged counter-attacks - use 900px range for all
     let (projectile_type, damage, speed, max_range) = match animal.species {
         AnimalSpecies::Shardkin => (
             NPC_PROJECTILE_SPECTRAL_SHARD,
             SHARDKIN_PROJECTILE_DAMAGE,
             SHARDKIN_PROJECTILE_SPEED,
-            400.0, // Shardkin projectile range
+            900.0, // Large range - can't be griefed from distance
         ),
         AnimalSpecies::Shorebound => (
             NPC_PROJECTILE_SPECTRAL_BOLT,
             SHOREBOUND_PROJECTILE_DAMAGE,
             SHOREBOUND_PROJECTILE_SPEED,
-            500.0, // Shorebound projectile range
+            900.0, // Large range - can't be griefed from distance
         ),
         AnimalSpecies::CableViper => (
             NPC_PROJECTILE_VENOM_SPITTLE,
             VIPER_PROJECTILE_DAMAGE,
             VIPER_PROJECTILE_SPEED,
-            300.0, // Viper spit range (shorter)
+            900.0, // Large range - can't be griefed from distance
         ),
         // DrownedWatch does NOT have ranged attacks
         // Other species don't counter-attack with ranged
@@ -2966,9 +2978,9 @@ pub fn try_npc_ranged_counter_attack(
     let dy = attacker_player_y - animal.pos_y;
     let distance = (dx * dx + dy * dy).sqrt();
     
-    // Only fire if target is within range
-    if distance > max_range || distance < 50.0 {
-        return Ok(false); // Too far or too close
+    // Only fire if target is within range - NO min distance, they can shoot point blank
+    if distance > max_range {
+        return Ok(false); // Too far
     }
     
     // Fire the projectile
@@ -3033,34 +3045,34 @@ pub fn get_npc_ranged_attack_config(species: AnimalSpecies) -> Option<NpcRangedA
     };
     
     match species {
-        // Shardkin: Fast shard projectiles, fires from medium range
+        // Shardkin: Fast shard projectiles - ALWAYS uses ranged, 900px range
         AnimalSpecies::Shardkin => Some(NpcRangedAttackConfig {
             projectile_type: NPC_PROJECTILE_SPECTRAL_SHARD,
             damage: SHARDKIN_PROJECTILE_DAMAGE,
             speed: SHARDKIN_PROJECTILE_SPEED,
-            range: 350.0,        // Can fire from 350px away
-            min_range: 100.0,    // Use melee when closer than 100px
-            cooldown_ms: 1500,   // 1.5 second cooldown
+            range: 900.0,        // Large range - can't be griefed from distance
+            min_range: 0.0,      // NO min range - always use ranged, even point blank
+            cooldown_ms: 1000,   // 1 second between shots
         }),
         
-        // Shorebound: Medium-speed ghostly bolts, fires from longer range
+        // Shorebound: Medium-speed ghostly bolts - ALWAYS uses ranged, 900px range
         AnimalSpecies::Shorebound => Some(NpcRangedAttackConfig {
             projectile_type: NPC_PROJECTILE_SPECTRAL_BOLT,
             damage: SHOREBOUND_PROJECTILE_DAMAGE,
             speed: SHOREBOUND_PROJECTILE_SPEED,
-            range: 400.0,        // Can fire from 400px away
-            min_range: 120.0,    // Use melee when closer than 120px
-            cooldown_ms: 2000,   // 2 second cooldown
+            range: 900.0,        // Large range - can't be griefed from distance
+            min_range: 0.0,      // NO min range - always use ranged, even point blank
+            cooldown_ms: 1200,   // 1.2 seconds between shots
         }),
         
-        // CableViper: Slow venom spittle, medium range
+        // CableViper: Venom spittle - ALWAYS uses ranged, 900px range
         AnimalSpecies::CableViper => Some(NpcRangedAttackConfig {
             projectile_type: NPC_PROJECTILE_VENOM_SPITTLE,
             damage: VIPER_PROJECTILE_DAMAGE,
             speed: VIPER_PROJECTILE_SPEED,
-            range: 280.0,        // Can spit from 280px away
-            min_range: 130.0,    // Use melee bite when closer
-            cooldown_ms: 2500,   // 2.5 second cooldown (venom is powerful)
+            range: 900.0,        // Large range - can't be griefed from distance
+            min_range: 0.0,      // NO min range - always use ranged, even point blank
+            cooldown_ms: 1500,   // 1.5 seconds (venom is powerful)
         }),
         
         // DrownedWatch: NO ranged attacks - melee brute only
@@ -3124,21 +3136,15 @@ pub fn try_npc_proactive_ranged_attack(
         return Ok(false); // No clear shot
     }
     
-    // RATE LIMITING: Use a simple check based on when we entered combat
-    // We don't use last_attack_time because melee attacks also set it, creating conflicts.
-    // Instead, use state_change_time to ensure NPC has been in combat state for at least 500ms
-    let time_in_state_ms = (current_time.to_micros_since_unix_epoch() - animal.state_change_time.to_micros_since_unix_epoch()) / 1000;
-    if time_in_state_ms < 500 {
-        log::debug!("🎯 [RANGED BLOCK] {:?} {} - too soon after state change ({}ms)", 
-                   animal.species, animal.id, time_in_state_ms);
-        return Ok(false); // Give player a moment to react
-    }
-    
-    // Use a deterministic "cooldown" based on animal ID and timestamp to prevent spam
-    // This creates a roughly 1-2 second window between shots without conflicting with melee
-    let pseudo_random = ((current_time.to_micros_since_unix_epoch() / 1_000_000) + animal.id as i64) % 3;
-    if pseudo_random != 0 {
-        return Ok(false); // Only fire ~33% of qualifying ticks
+    // COOLDOWN CHECK: These NPCs ONLY use ranged attacks (no melee), so we can use last_attack_time
+    // for ranged cooldown without conflict
+    if let Some(last_attack) = animal.last_attack_time {
+        let time_since_last_ms = (current_time.to_micros_since_unix_epoch() - last_attack.to_micros_since_unix_epoch()) / 1000;
+        if time_since_last_ms < config.cooldown_ms {
+            log::debug!("🎯 [RANGED BLOCK] {:?} {} - on cooldown ({}/{}ms)", 
+                       animal.species, animal.id, time_since_last_ms, config.cooldown_ms);
+            return Ok(false); // Still on cooldown
+        }
     }
     
     // Fire the projectile!
@@ -5933,14 +5939,23 @@ pub fn calculate_escape_angle_from_threats(
     combined_y.atan2(combined_x)
 }
 
-/// **COMMON RANGED WEAPON DETECTION** - Check if player has bow/crossbow/pistol equipped
+/// **COMMON RANGED WEAPON DETECTION** - Check if player has any ranged weapon equipped
+/// This is used to determine if NPCs should use ranged attacks (mirror player's combat style)
 pub fn player_has_ranged_weapon(ctx: &ReducerContext, player_id: Identity) -> bool {
     if let Some(equipment) = ctx.db.active_equipment().player_identity().find(&player_id) {
         if let Some(item_def_id) = equipment.equipped_item_def_id {
             if let Some(item_def) = ctx.db.item_definition().id().find(item_def_id) {
-                let has_ranged = item_def.name == "Hunting Bow" || item_def.name == "Crossbow" || item_def.name == "Makarov PM" || item_def.name == "PP-91 KEDR";
+                // Check if item is in RangedWeapon category OR is a known ranged weapon
+                let is_ranged_category = item_def.category == crate::items::ItemCategory::RangedWeapon;
+                let is_known_ranged = matches!(item_def.name.as_str(), 
+                    "Hunting Bow" | "Crossbow" | 
+                    "Makarov PM" | "PP-91 KEDR" | 
+                    "AKS-74U" | "SKS" |
+                    "Slingshot" | "Blowgun"
+                );
+                let has_ranged = is_ranged_category || is_known_ranged;
                 if has_ranged {
-                    log::debug!("Player {:?} has ranged weapon: {}", player_id, item_def.name);
+                    log::debug!("Player {:?} has ranged weapon: {} (category: {:?})", player_id, item_def.name, item_def.category);
                 }
                 return has_ranged;
             }

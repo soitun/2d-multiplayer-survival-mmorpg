@@ -2,11 +2,8 @@ import { Player as SpacetimeDBPlayer, ActiveEquipment as SpacetimeDBActiveEquipm
 import { gameConfig } from '../../config/gameConfig';
 import { PLAYER_RADIUS } from '../clientCollision';
 
-// --- Constants (copied from GameCanvas for now, consider moving to config) ---
+// --- Constants ---
 const SWING_DURATION_MS = 150;
-const DEFAULT_SWING_ANGLE_MAX_RAD = Math.PI / 4; // 45 degrees default swing visual (90° total arc)
-const SLASH_COLOR = 'rgba(255, 255, 255, 0.4)';
-const SLASH_LINE_WIDTH = 4;
 
 // === ATTACK RANGE CONSTANTS (must match server/src/active_equipment.rs) ===
 const MELEE_ATTACK_RANGE = PLAYER_RADIUS * 4.5;   // ~144px - default melee range
@@ -18,9 +15,11 @@ const DEFAULT_ATTACK_ARC_DEGREES = 90;   // Standard 90° arc
 const SCYTHE_ATTACK_ARC_DEGREES = 150;   // Scythe's massive 150° arc
 
 // Attack range arc visual settings
-const ARC_EFFECT_COLOR = 'rgba(255, 200, 100, 0.35)';  // Golden semi-transparent
-const ARC_EFFECT_EDGE_COLOR = 'rgba(255, 180, 80, 0.6)'; // Brighter edge
-const ARC_EFFECT_LINE_WIDTH = 3;
+const ARC_EDGE_COLOR = 'rgba(255, 255, 255, 0.85)';  // Crisp white edge for pixel-perfect visibility
+const ARC_EDGE_GLOW_COLOR = 'rgba(255, 200, 100, 0.4)';  // Subtle golden glow behind edge
+const ARC_FILL_COLOR = 'rgba(255, 200, 100, 0.08)';  // Very subtle fill
+const ARC_SWEEP_COLOR = 'rgba(255, 255, 200, 0.9)';  // Bright sweep line
+const ARC_EDGE_LINE_WIDTH = 2;  // Crisp edge line
 
 // Helper to get swing angle from item definition
 // Items with attackArcDegrees defined use that, otherwise default to 90°
@@ -961,9 +960,21 @@ export const renderEquippedItem = (
   // of this function. This approach is consistent with other underwater entities (coral, fumaroles,
   // seaweed, dropped items) and avoids the visual artifacts that the old offscreen canvas approach caused.
 
-  // --- Draw Attack Visual Effect --- 
-  // Attack cone disabled - too distracting visually
-  if (false && isSwinging) { 
+  // --- Draw Attack Visual Effect (Pixel-Perfect Swing Arc or Thrust Line) --- 
+  // Ranged weapons that shoot projectiles - no melee visual
+  const isRangedWeapon = itemDef.name === "Hunting Bow" || itemDef.name === "Crossbow" || 
+    itemDef.name === "Makarov PM" || itemDef.name === "PP-91 KEDR" || 
+    itemDef.name === "Reed Harpoon Gun";
+  
+  // Thrust/jab weapons show a straight line instead of arc
+  const isThrustWeapon = itemDef.name === "Wooden Spear" || itemDef.name === "Stone Spear" || 
+    itemDef.name === "Reed Harpoon";
+  
+  // Show attack visual for any swinging item that isn't a ranged weapon
+  // This includes: melee weapons, tools (torch, combat ladle, hatchets, pickaxes, etc.)
+  const showAttackVisual = isSwinging && !isRangedWeapon;
+    
+  if (showAttackVisual) { 
     // Get the weapon's actual attack range and arc for the range indicator
     const weaponParams = getWeaponAttackParams(itemDef);
     const attackRange = weaponParams.range;
@@ -974,7 +985,7 @@ export const renderEquippedItem = (
     // This prevents visual mismatch when player turns quickly before/during attack
     const attackDirection = serverSyncedDirection || player.direction;
     
-    // Calculate the base facing angle for the attack arc
+    // Calculate the base facing angle for the attack
     let facingAngle = 0;
     switch(attackDirection) {
       case 'up':    facingAngle = -Math.PI / 2; break;
@@ -983,124 +994,144 @@ export const renderEquippedItem = (
       case 'right': facingAngle = 0;            break;
     }
     
-    // Calculate swing progress for arc animation (0 to 1 to 0)
+    // Calculate swing progress for animation (0 to 1)
     const swingProgress = elapsedSwingTime / SWING_DURATION_MS;
-    const arcOpacity = Math.sin(swingProgress * Math.PI); // Fade in then out
+    // Smooth easing for opacity - quick fade in, hold, quick fade out
+    const fadeInOut = swingProgress < 0.15 ? swingProgress / 0.15 : 
+                      swingProgress > 0.85 ? (1 - swingProgress) / 0.15 : 1;
+    const visualOpacity = Math.min(1, fadeInOut);
     
-    // === DRAW ATTACK RANGE ARC (the actual hit zone) ===
-    ctx.save();
-    try {
-      // Arc sweeps from one side to the other during swing
+    if (isThrustWeapon) {
+      // === THRUST/JAB VISUAL - Straight line extending forward ===
+      ctx.save();
+      try {
+        // Calculate thrust extension based on swing progress (extends then retracts)
+        const thrustExtension = Math.sin(swingProgress * Math.PI) * attackRange;
+        
+        // Calculate endpoint of thrust line
+        const thrustEndX = player.positionX + Math.cos(facingAngle) * thrustExtension;
+        const thrustEndY = player.positionY + Math.sin(facingAngle) * thrustExtension;
+        
+        // Draw glow behind the thrust line
+        ctx.beginPath();
+        ctx.moveTo(player.positionX, player.positionY);
+        ctx.lineTo(thrustEndX, thrustEndY);
+        ctx.strokeStyle = ARC_EDGE_GLOW_COLOR.replace('0.4', String(0.5 * visualOpacity));
+        ctx.lineWidth = 6;
+        ctx.stroke();
+        
+        // Draw crisp thrust line
+        ctx.beginPath();
+        ctx.moveTo(player.positionX, player.positionY);
+        ctx.lineTo(thrustEndX, thrustEndY);
+        ctx.strokeStyle = ARC_EDGE_COLOR.replace('0.85', String(0.9 * visualOpacity));
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Draw endpoint marker (spear tip)
+        ctx.beginPath();
+        ctx.arc(thrustEndX, thrustEndY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = ARC_SWEEP_COLOR.replace('0.9', String(0.9 * visualOpacity));
+        ctx.fill();
+        
+        // Draw max range indicator (faint line showing full reach)
+        const maxRangeEndX = player.positionX + Math.cos(facingAngle) * attackRange;
+        const maxRangeEndY = player.positionY + Math.sin(facingAngle) * attackRange;
+        ctx.beginPath();
+        ctx.moveTo(player.positionX, player.positionY);
+        ctx.lineTo(maxRangeEndX, maxRangeEndY);
+        ctx.strokeStyle = ARC_EDGE_COLOR.replace('0.85', String(0.2 * visualOpacity));
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+      } finally {
+        ctx.restore();
+      }
+      // === END THRUST VISUAL ===
+      
+    } else {
+      // === SWING ARC VISUAL - For swords, axes, torches, tools, etc. ===
       const arcStartAngle = facingAngle - attackArcRad;
       const arcEndAngle = facingAngle + attackArcRad;
       
-      // Draw filled arc (hit zone visualization)
-      ctx.beginPath();
-      ctx.moveTo(player.positionX, player.positionY);
-      ctx.arc(player.positionX, player.positionY, attackRange, arcStartAngle, arcEndAngle);
-      ctx.closePath();
-      
-      // Fill with gradient from center to edge
-      const gradient = ctx.createRadialGradient(
-        player.positionX, player.positionY, attackRange * 0.3,
-        player.positionX, player.positionY, attackRange
-      );
-      gradient.addColorStop(0, `rgba(255, 200, 100, ${0.05 * arcOpacity})`);
-      gradient.addColorStop(0.7, `rgba(255, 180, 80, ${0.15 * arcOpacity})`);
-      gradient.addColorStop(1, `rgba(255, 150, 50, ${0.25 * arcOpacity})`);
-      ctx.fillStyle = gradient;
-      ctx.fill();
-      
-      // Draw arc outline at the attack range edge
-      ctx.beginPath();
-      ctx.arc(player.positionX, player.positionY, attackRange, arcStartAngle, arcEndAngle);
-      ctx.strokeStyle = `rgba(255, 200, 100, ${0.6 * arcOpacity})`;
-      ctx.lineWidth = ARC_EFFECT_LINE_WIDTH;
-      ctx.stroke();
-      
-      // Draw the arc edge lines (from player to arc endpoints)
-      ctx.beginPath();
-      ctx.moveTo(player.positionX, player.positionY);
-      ctx.lineTo(
-        player.positionX + Math.cos(arcStartAngle) * attackRange,
-        player.positionY + Math.sin(arcStartAngle) * attackRange
-      );
-      ctx.moveTo(player.positionX, player.positionY);
-      ctx.lineTo(
-        player.positionX + Math.cos(arcEndAngle) * attackRange,
-        player.positionY + Math.sin(arcEndAngle) * attackRange
-      );
-      ctx.strokeStyle = `rgba(255, 180, 80, ${0.4 * arcOpacity})`;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      
-      // Draw a "sweep line" that moves through the arc during swing
-      const sweepAngle = facingAngle + (attackArcRad * 2 * (swingProgress - 0.5)); // Sweep from left to right
-      ctx.beginPath();
-      ctx.moveTo(player.positionX, player.positionY);
-      ctx.lineTo(
-        player.positionX + Math.cos(sweepAngle) * attackRange,
-        player.positionY + Math.sin(sweepAngle) * attackRange
-      );
-      ctx.strokeStyle = `rgba(255, 255, 200, ${0.7 * arcOpacity})`;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      
-    } finally {
-      ctx.restore();
-    }
-    // === END ATTACK RANGE ARC ===
-    
-    if (itemDef.name === "Wooden Spear" || itemDef.name === "Stone Spear" || itemDef.name === "Reed Harpoon") {
-        // Draw a "thrust line" effect for the spear
-        ctx.save();
-        try {
-            ctx.beginPath();
-            const spearLength = Math.max(displayItemWidth, displayItemHeight); 
-            
-            const lineStartX = preAnimationPivotX; // Start from the hand position
-            const lineStartY = preAnimationPivotY;
-
-            // Endpoint calculation needs to use the final spearRotation and the current thrusted pivot
-            // The line should go from the hand to the spear's current (thrusted) base.
-            const lineEndX = pivotX; // Current base of the spear after thrust
-            const lineEndY = pivotY;
-            
-            ctx.moveTo(lineStartX, lineStartY);
-            ctx.lineTo(lineEndX, lineEndY);
-            
-            ctx.strokeStyle = 'rgba(220, 220, 255, 0.65)'; 
-            ctx.lineWidth = SLASH_LINE_WIDTH - 1.5; 
-            ctx.stroke();
-        } finally {
-            ctx.restore();
-        }
-    } else if (itemDef.name?.toLowerCase() !== "hunting bow" && itemDef.category?.tag !== "RangedWeapon") {
-      // Original slash arc effect for non-spear, non-ranged weapons (small arc around weapon)
       ctx.save();
       try {
-          const slashRadius = Math.max(displayItemWidth, displayItemHeight) * 0.5; 
-          let slashStartAngle = 0;
-          
-          switch(player.direction) {
-              case 'up':    slashStartAngle = -Math.PI / 2; break;
-              case 'down':  slashStartAngle = Math.PI / 2;  break;
-              case 'left':  slashStartAngle = Math.PI;      break;
-              case 'right': slashStartAngle = 0;            break;
-          }
-          // `rotation` here is the dynamic currentAngle of the swing for non-spears
-          const slashEndAngle = slashStartAngle + rotation; 
-          const counterClockwise = rotation < 0;
-
+        // 1. Draw subtle fill for the entire arc area (shows the full hit zone)
+        ctx.beginPath();
+        ctx.moveTo(player.positionX, player.positionY);
+        ctx.arc(player.positionX, player.positionY, attackRange, arcStartAngle, arcEndAngle);
+        ctx.closePath();
+        ctx.fillStyle = ARC_FILL_COLOR.replace('0.08', String(0.08 * visualOpacity));
+        ctx.fill();
+        
+        // 2. Draw the outer arc edge - THE PIXEL-PERFECT HIT BOUNDARY
+        ctx.beginPath();
+        ctx.arc(player.positionX, player.positionY, attackRange, arcStartAngle, arcEndAngle);
+        
+        // Glow effect behind the edge for visibility
+        ctx.strokeStyle = ARC_EDGE_GLOW_COLOR.replace('0.4', String(0.4 * visualOpacity));
+        ctx.lineWidth = ARC_EDGE_LINE_WIDTH + 4;
+        ctx.stroke();
+        
+        // Crisp white edge line - pixel perfect attack range boundary
+        ctx.strokeStyle = ARC_EDGE_COLOR.replace('0.85', String(0.85 * visualOpacity));
+        ctx.lineWidth = ARC_EDGE_LINE_WIDTH;
+        ctx.stroke();
+        
+        // 3. Draw side boundary lines (from player to arc endpoints)
+        ctx.beginPath();
+        ctx.moveTo(player.positionX, player.positionY);
+        ctx.lineTo(
+          player.positionX + Math.cos(arcStartAngle) * attackRange,
+          player.positionY + Math.sin(arcStartAngle) * attackRange
+        );
+        ctx.moveTo(player.positionX, player.positionY);
+        ctx.lineTo(
+          player.positionX + Math.cos(arcEndAngle) * attackRange,
+          player.positionY + Math.sin(arcEndAngle) * attackRange
+        );
+        ctx.strokeStyle = ARC_EDGE_COLOR.replace('0.85', String(0.5 * visualOpacity));
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        // 4. Draw animated sweep line that follows the weapon swing
+        const sweepAngle = arcStartAngle + (attackArcRad * 2 * swingProgress);
+        
+        ctx.beginPath();
+        ctx.moveTo(player.positionX, player.positionY);
+        ctx.lineTo(
+          player.positionX + Math.cos(sweepAngle) * attackRange,
+          player.positionY + Math.sin(sweepAngle) * attackRange
+        );
+        ctx.strokeStyle = ARC_SWEEP_COLOR.replace('0.9', String(0.9 * visualOpacity));
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // 5. Draw a small arc "trail" behind the sweep for visual impact
+        const trailLength = attackArcRad * 0.3;
+        const trailStartAngle = Math.max(arcStartAngle, sweepAngle - trailLength);
+        if (swingProgress > 0.05) {
           ctx.beginPath();
-          // Draw arc centered on the item's pre-swing pivot point (hand position)
-          ctx.arc(preAnimationPivotX, preAnimationPivotY, slashRadius, slashStartAngle, slashEndAngle, counterClockwise);
-          ctx.strokeStyle = SLASH_COLOR;
-          ctx.lineWidth = SLASH_LINE_WIDTH;
+          ctx.arc(player.positionX, player.positionY, attackRange, trailStartAngle, sweepAngle);
+          ctx.strokeStyle = ARC_SWEEP_COLOR.replace('0.9', String(0.5 * visualOpacity));
+          ctx.lineWidth = 3;
           ctx.stroke();
+        }
+        
+        // 6. Draw endpoint marker at the current sweep position (the "blade tip")
+        const tipX = player.positionX + Math.cos(sweepAngle) * attackRange;
+        const tipY = player.positionY + Math.sin(sweepAngle) * attackRange;
+        ctx.beginPath();
+        ctx.arc(tipX, tipY, 4, 0, Math.PI * 2);
+        ctx.fillStyle = ARC_SWEEP_COLOR.replace('0.9', String(0.9 * visualOpacity));
+        ctx.fill();
+        
       } finally {
-          ctx.restore();
+        ctx.restore();
       }
+      // === END SWING ARC VISUAL ===
     }
   }
   // --- End Attack Visual Effect ---

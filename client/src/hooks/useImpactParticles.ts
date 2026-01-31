@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Particle } from './useCampfireParticles';
-import { WildAnimal as SpacetimeDBWildAnimal, Player as SpacetimeDBPlayer } from '../generated';
+import { WildAnimal as SpacetimeDBWildAnimal, Player as SpacetimeDBPlayer, AnimalCorpse as SpacetimeDBAnimalCorpse } from '../generated';
 
 // --- Blood Particle Constants ---
 const BLOOD_PARTICLE_LIFETIME_MIN = 200;
@@ -73,11 +73,13 @@ interface HitRecord {
 
 interface UseImpactParticlesProps {
     wildAnimals: Map<string, SpacetimeDBWildAnimal>;
+    animalCorpses: Map<string, SpacetimeDBAnimalCorpse>;
     localPlayer: SpacetimeDBPlayer | null | undefined;
 }
 
 export function useImpactParticles({
     wildAnimals,
+    animalCorpses,
     localPlayer,
 }: UseImpactParticlesProps): Particle[] {
     const particlesRef = useRef<Particle[]>([]);
@@ -86,6 +88,7 @@ export function useImpactParticles({
     
     // Track last known hit times to detect new hits
     const animalHitRecordsRef = useRef<Map<string, HitRecord>>(new Map());
+    const corpseHitRecordsRef = useRef<Map<string, HitRecord>>(new Map());
     const playerHitRecordRef = useRef<bigint>(0n);
     
     // Generate blood particles
@@ -281,6 +284,39 @@ export function useImpactParticles({
                 }
             }
             
+            // Check for animal CORPSE hits - same blood effect as live animals
+            animalCorpses.forEach((corpse, id) => {
+                const hitTimeMicros = corpse.lastHitTime?.microsSinceUnixEpoch ?? 0n;
+                const prevRecord = corpseHitRecordsRef.current.get(id);
+                
+                if (hitTimeMicros > 0n && (!prevRecord || hitTimeMicros > prevRecord.lastHitTimeMicros)) {
+                    // Corpse got hit! Generate blood splatter (corpses are always regular blood)
+                    const particleCount = Math.min(
+                        MAX_PARTICLES_PER_HIT,
+                        BASE_PARTICLE_COUNT + Math.floor(Math.random() * 8)
+                    );
+                    
+                    const newParticles = generateBloodParticles(corpse.posX, corpse.posY, particleCount);
+                    particlesRef.current.push(...newParticles);
+                    
+                    // Update record
+                    corpseHitRecordsRef.current.set(id, {
+                        entityId: id,
+                        lastHitTimeMicros: hitTimeMicros,
+                    });
+                }
+            });
+            
+            // Cleanup old corpse records
+            if (corpseHitRecordsRef.current.size > animalCorpses.size * 2) {
+                const currentIds = new Set(animalCorpses.keys());
+                for (const id of Array.from(corpseHitRecordsRef.current.keys())) {
+                    if (!currentIds.has(id)) {
+                        corpseHitRecordsRef.current.delete(id);
+                    }
+                }
+            }
+            
             // Check for player hits
             if (localPlayer && !localPlayer.isDead) {
                 const playerHitTimeMicros = localPlayer.lastHitTime?.microsSinceUnixEpoch ?? 0n;
@@ -308,7 +344,7 @@ export function useImpactParticles({
                 cancelAnimationFrame(animationFrameRef.current);
             }
         };
-    }, [wildAnimals, localPlayer, generateBloodParticles, generateEtherealParticles]);
+    }, [wildAnimals, animalCorpses, localPlayer, generateBloodParticles, generateEtherealParticles]);
     
     return particlesRef.current;
 }

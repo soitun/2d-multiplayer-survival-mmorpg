@@ -23,6 +23,8 @@ interface WaterLine {
   age: number;
   baseOpacity: number;
   isGrowing: boolean;
+  isFadingOut: boolean; // Track if line is shrinking back toward center
+  fadeOutPhase: number; // Phase of fade-out animation (0 to 1)
   wavePhase: number;
   visualType: LineVisualType; // Different line styles for visual depth
   colorShift: number; // Subtle hue variation along line
@@ -57,20 +59,20 @@ const WATER_CONFIG = {
   MAX_LENGTH: 32,
   MIN_OPACITY: 0.5,
   MAX_OPACITY: 0.85,
-  LINE_THICKNESS: 1, // Crisp 1px lines for pixel art
+  LINE_THICKNESS: 2.5, // Slightly thinner to match player wake line width
   
-  // Growth animation - smooth and deliberate
-  MIN_GROWTH_SPEED: 2.0,
-  MAX_GROWTH_SPEED: 3.5,
+  // Growth animation - faster and more dynamic with wider variation
+  MIN_GROWTH_SPEED: 4.0,  // Doubled for faster appearance
+  MAX_GROWTH_SPEED: 8.0,  // More than doubled for wider variation and faster feel
   
-  // Line lifetime - longer for a calmer feel
-  MIN_LIFETIME: 2.5,
-  MAX_LIFETIME: 5.0,
-  FADE_DURATION: 0.8,
+  // Line lifetime - shorter for faster, more dynamic feel
+  MIN_LIFETIME: 1.8,  // Reduced for faster turnover
+  MAX_LIFETIME: 3.5,  // Reduced for more frequent appearance/disappearance
+  FADE_DURATION: 0.5,  // Faster fade-out to match increased growth speed
   
   // Wave movement - subtle and organic
   WAVE_AMPLITUDE: 1.0, // Subtle vertical movement
-  WAVE_FREQUENCY: 0.0006, // Slow, deliberate waves
+  WAVE_FREQUENCY: 0.00449, // Matches wake expansion speed (2π/1400ms for one cycle per wake lifetime)
   
   // Sparkle settings for that AAA polish
   SPARKLE_DENSITY: 0.12, // Increased from 0.08 for better coverage
@@ -95,7 +97,7 @@ const WATER_CONFIG = {
   RENDER_MARGIN: 400, // Margin for rendering (keep effects visible longer)
   
   // Global timing
-  GLOBAL_WAVE_SPEED: 0.0006,
+  GLOBAL_WAVE_SPEED: 4.49, // Matches wake expansion speed (2π/1.4s for synchronized movement with deltaTime in seconds)
   BREATHING_SPEED: 0.001, // Subtle opacity breathing
 };
 
@@ -231,8 +233,16 @@ function createWaterLine(
     if (targetLength < WATER_CONFIG.MIN_LENGTH) return null;
   }
   
+  // More variation: use exponential distribution for wider speed range
+  // Some lines grow very fast, some slower, creating more dynamic feel
+  const speedRandom = Math.random();
+  const speedVariation = speedRandom * speedRandom; // Square for exponential distribution (more fast lines)
   const growthSpeed = WATER_CONFIG.MIN_GROWTH_SPEED + 
-    Math.random() * (WATER_CONFIG.MAX_GROWTH_SPEED - WATER_CONFIG.MIN_GROWTH_SPEED);
+    speedVariation * (WATER_CONFIG.MAX_GROWTH_SPEED - WATER_CONFIG.MIN_GROWTH_SPEED);
+  
+  // Add occasional burst of extra speed (10% chance for very fast lines)
+  const burstMultiplier = Math.random() < 0.1 ? 1.5 : 1.0;
+  const finalGrowthSpeed = growthSpeed * burstMultiplier;
   
   const lifetime = WATER_CONFIG.MIN_LIFETIME + 
     Math.random() * (WATER_CONFIG.MAX_LIFETIME - WATER_CONFIG.MIN_LIFETIME);
@@ -244,12 +254,14 @@ function createWaterLine(
     currentLength: 0,
     opacity: baseOpacity,
     thickness: WATER_CONFIG.LINE_THICKNESS,
-    growthSpeed,
+    growthSpeed: finalGrowthSpeed,
     growthPhase: 0,
     lifetime,
     age: 0,
     baseOpacity,
     isGrowing: true,
+    isFadingOut: false,
+    fadeOutPhase: 0,
     wavePhase: Math.random() * Math.PI * 2,
     visualType,
     colorShift: Math.random() * 0.15 - 0.075, // -7.5% to +7.5% hue shift
@@ -324,14 +336,33 @@ function updateWaterSystem(
       line.currentLength = line.targetLength * easedGrowth;
     }
     
-    // Fade out at end of lifetime
+    // Fade out at end of lifetime - reverse of appearance (shrink back toward center)
     if (line.age > line.lifetime) {
+      // Start fade-out animation if not already started
+      if (!line.isFadingOut) {
+        line.isFadingOut = true;
+        line.fadeOutPhase = 0;
+      }
+      
       const fadeProgress = (line.age - line.lifetime) / WATER_CONFIG.FADE_DURATION;
       if (fadeProgress >= 1.0) {
         waterSystem.lines.splice(i, 1);
         continue;
       }
-      // Smooth fade with cubic ease
+      
+      // Update fade-out phase (same speed as growth)
+      line.fadeOutPhase += line.growthSpeed * deltaTime;
+      if (line.fadeOutPhase > 1.0) {
+        line.fadeOutPhase = 1.0;
+      }
+      
+      // Reverse of growth: shrink from full length back to 0
+      // Use cubic ease-in (reverse of cubic ease-out) for symmetric motion
+      const t = line.fadeOutPhase;
+      const easedShrink = t * t * t; // Cubic ease-in (slow start, fast end - opposite of ease-out)
+      line.currentLength = line.targetLength * (1.0 - easedShrink);
+      
+      // Also fade opacity
       const easedFade = fadeProgress * fadeProgress * (3.0 - 2.0 * fadeProgress);
       line.opacity = line.baseOpacity * (1.0 - easedFade);
     }
@@ -478,8 +509,15 @@ function renderWaterEffects(
     
     // Calculate line position with wave
     const y = line.y + waveOffset;
-    const startX = line.startX;
-    const endX = line.startX + line.currentLength;
+    
+    // Calculate center point of the full-length line
+    const centerX = line.startX + line.targetLength * 0.5;
+    
+    // Always render from center outward (during growth) or shrinking toward center (during fade-out)
+    // This creates symmetric motion: grows outward, shrinks inward
+    const halfLength = line.currentLength * 0.5;
+    const startX = centerX - halfLength;
+    const endX = centerX + halfLength;
     
     // For pixel art: Draw main crisp line
     ctx.globalAlpha = finalOpacity;
