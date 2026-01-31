@@ -40,6 +40,7 @@ use crate::player_corpse::player_corpse as PlayerCorpseTableTrait; // Self trait
 use crate::player;
 use crate::player_inventory::{move_item_to_inventory, move_item_to_hotbar, NUM_PLAYER_INVENTORY_SLOTS, NUM_PLAYER_HOTBAR_SLOTS};
 use crate::items::add_item_to_player_inventory;
+use crate::death_marker::death_marker as DeathMarkerTableTrait; // For ctx.db.death_marker()
 
 /// --- Player Corpse Data Structure ---
 /// Represents a lootable backpack dropped when a player dies.
