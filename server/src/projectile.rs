@@ -62,11 +62,11 @@ pub const NPC_PROJECTILE_VENOM_SPITTLE: u8 = 3;   // Viper: green toxic glob
 // NPC ranged attack constants
 pub const NPC_RANGED_COUNTER_COOLDOWN_MS: i64 = 2000; // 2 second cooldown between ranged counter-attacks
 pub const SHARDKIN_PROJECTILE_DAMAGE: f32 = 8.0;   // Low damage, but swarm multiple shards
-pub const SHARDKIN_PROJECTILE_SPEED: f32 = 350.0;  // Fast shards
+pub const SHARDKIN_PROJECTILE_SPEED: f32 = 550.0;  // Fast shards - hard to dodge
 pub const SHOREBOUND_PROJECTILE_DAMAGE: f32 = 15.0; // Moderate damage
-pub const SHOREBOUND_PROJECTILE_SPEED: f32 = 300.0; // Medium speed ghostly bolt
+pub const SHOREBOUND_PROJECTILE_SPEED: f32 = 500.0; // Medium-fast ghostly bolt
 pub const VIPER_PROJECTILE_DAMAGE: f32 = 5.0;       // Low impact, but applies venom
-pub const VIPER_PROJECTILE_SPEED: f32 = 280.0;      // Slower venom spittle
+pub const VIPER_PROJECTILE_SPEED: f32 = 450.0;      // Fast venom spittle
 
 /// Helper function to check if a line segment intersects with a circle
 /// Returns true if the line from (x1,y1) to (x2,y2) intersects with circle at (cx,cy) with radius r
@@ -169,9 +169,22 @@ pub fn fire_npc_projectile(
         return Err("Target too close to fire projectile".to_string());
     }
     
-    // Normalize and apply speed
-    let velocity_x = (dx / distance) * speed;
-    let velocity_y = (dy / distance) * speed;
+    // Normalize direction
+    let norm_x = dx / distance;
+    let norm_y = dy / distance;
+    
+    // SPAWN OFFSET: Start projectile 48 pixels in front of the NPC (outside collision range)
+    // This prevents projectiles from spawning inside or behind the player when NPC is close
+    const NPC_PROJECTILE_SPAWN_OFFSET: f32 = 48.0;
+    let spawn_x = npc_pos_x + norm_x * NPC_PROJECTILE_SPAWN_OFFSET;
+    let spawn_y = npc_pos_y + norm_y * NPC_PROJECTILE_SPAWN_OFFSET;
+    
+    // Apply speed to normalized direction
+    let velocity_x = norm_x * speed;
+    let velocity_y = norm_y * speed;
+    
+    // Adjust max_range to account for spawn offset
+    let adjusted_max_range = (max_range - NPC_PROJECTILE_SPAWN_OFFSET).max(100.0);
     
     // Use a dummy item_def_id (0) since NPC projectiles don't use items
     // The damage is determined by projectile_type, not weapon definitions
@@ -183,16 +196,16 @@ pub fn fire_npc_projectile(
         source_type: PROJECTILE_SOURCE_NPC,
         npc_projectile_type: projectile_type,
         start_time: ctx.timestamp,
-        start_pos_x: npc_pos_x,
-        start_pos_y: npc_pos_y,
+        start_pos_x: spawn_x,
+        start_pos_y: spawn_y,
         velocity_x,
         velocity_y,
-        max_range,
+        max_range: adjusted_max_range,
     };
     
     let inserted = ctx.db.projectile().insert(projectile);
-    log::info!("[NPC Projectile] NPC {} fired type {} projectile toward ({:.1}, {:.1}) with speed {:.1}", 
-              npc_id, projectile_type, target_player_x, target_player_y, speed);
+    log::info!("[NPC Projectile] NPC {} fired type {} projectile from ({:.1}, {:.1}) toward ({:.1}, {:.1}) with speed {:.1}", 
+              npc_id, projectile_type, spawn_x, spawn_y, target_player_x, target_player_y, speed);
     
     Ok(inserted.id)
 }
@@ -2147,6 +2160,10 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
 
         // Check wild animal collisions first
         let mut hit_wild_animal_this_tick = false;
+        
+        // NPC projectiles should NOT hit wild animals at all - they're meant for players only
+        // This prevents self-collision and friendly fire issues
+        if projectile.source_type != PROJECTILE_SOURCE_NPC {
         for wild_animal in ctx.db.wild_animal().iter() {
             // Skip dead animals or animals that are burrowed
             if wild_animal.health <= 0.0 || wild_animal.state == crate::wild_animal_npc::AnimalState::Burrowed {
@@ -2245,6 +2262,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 break; // Projectile hits one animal and is consumed
             }
         }
+        } // End of NPC projectile exclusion block
         
         if hit_wild_animal_this_tick {
             continue; // Move to the next projectile if this one hit a wild animal

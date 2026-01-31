@@ -47,7 +47,12 @@ export const renderProjectile = ({
   itemDefinitions, // NEW: Add itemDefinitions parameter
   applyUnderwaterTint = false, // Apply teal underwater tint when projectile is underwater
 }: RenderProjectileProps) => {
-  if (!arrowImage || !arrowImage.complete || arrowImage.naturalHeight === 0) {
+  // IMPORTANT: Check for NPC/turret projectiles FIRST - they use primitive rendering, not images
+  const isNpcOrTurretProjectile = projectile.sourceType === PROJECTILE_SOURCE_NPC || 
+                                   projectile.sourceType === PROJECTILE_SOURCE_TURRET;
+  
+  // Only validate arrow image for regular (player) projectiles
+  if (!isNpcOrTurretProjectile && (!arrowImage || !arrowImage.complete || arrowImage.naturalHeight === 0)) {
     console.warn('[DEBUG] Arrow image not loaded or invalid for projectile:', projectile.id);
     return;
   }
@@ -96,9 +101,8 @@ export const renderProjectile = ({
   // Check if this is a thrown item (ammo_def_id == item_def_id)
   const isThrown = projectile.ammoDefId === projectile.itemDefId;
   
-  // Check if this is an NPC or turret projectile (they don't use item definitions)
-  const isNpcOrTurretProjectile = projectile.sourceType === PROJECTILE_SOURCE_NPC || 
-                                   projectile.sourceType === PROJECTILE_SOURCE_TURRET;
+  // NOTE: isNpcOrTurretProjectile is already declared at the top of this function
+  // (moved there to skip image validation for NPC/turret projectiles)
   
   // FIXED: Determine gravity multiplier based on weapon type (matching server physics)
   let gravityMultiplier = 1.0; // Default for bows

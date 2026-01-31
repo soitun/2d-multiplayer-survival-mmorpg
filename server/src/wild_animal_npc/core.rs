@@ -855,10 +855,6 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                             log::debug!("🎯 [NPC RANGED SKIP] {:?} {} - player doesn't have ranged weapon", 
                                        animal.species, animal.id);
                         } else if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
-                            // LOG: Confirm NPC with ranged capability is in combat state vs ranged player
-                            log::info!("🎯 [NPC RANGED CHECK] {:?} {} is in {:?} state vs ranged player {:?}", 
-                                      animal.species, animal.id, animal.state, target_id);
-                            
                             if !target_player.is_dead && target_player.health > 0.0 {
                                 let distance_sq = get_distance_squared(
                                     animal.pos_x, animal.pos_y,
@@ -870,7 +866,7 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                 let in_range = distance <= ranged_config.range;
                                 let outside_min = distance >= ranged_config.min_range;
                                 
-                                log::info!("🎯 [NPC RANGED DIST] {:?} {} dist={:.1}px (range={:.1}-{:.1}) in_range={} outside_min={}", 
+                                log::debug!("🎯 [NPC RANGED DIST] {:?} {} dist={:.1}px (range={:.1}-{:.1}) in_range={} outside_min={}", 
                                           animal.species, animal.id, distance, ranged_config.min_range, ranged_config.range, in_range, outside_min);
                                 
                                 if in_range && outside_min {
@@ -880,10 +876,6 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                             if fired {
                                                 log::info!("🎯 [NPC RANGED] {:?} {} in {:?} state FIRED at player {} at distance {:.1}px", 
                                                            animal.species, animal.id, animal.state, target_id, distance);
-                                            } else {
-                                                // Log why it didn't fire (cooldown, LOS, etc.)
-                                                log::info!("🎯 [NPC RANGED] {:?} {} in range but didn't fire (cooldown/LOS/building)", 
-                                                           animal.species, animal.id);
                                             }
                                         }
                                         Err(e) => {
@@ -892,13 +884,13 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                     }
                                 }
                             } else {
-                                log::info!("🎯 [NPC RANGED SKIP] {:?} {} - target player is dead", animal.species, animal.id);
+                                log::debug!("🎯 [NPC RANGED SKIP] {:?} {} - target player is dead", animal.species, animal.id);
                             }
                         } else {
-                            log::info!("🎯 [NPC RANGED SKIP] {:?} {} - target player not found", animal.species, animal.id);
+                            log::debug!("🎯 [NPC RANGED SKIP] {:?} {} - target player not found", animal.species, animal.id);
                         }
                     } else {
-                        log::info!("🎯 [NPC RANGED SKIP] {:?} {} - no target_player_id set", animal.species, animal.id);
+                        log::debug!("🎯 [NPC RANGED SKIP] {:?} {} - no target_player_id set", animal.species, animal.id);
                     }
                 }
             }
@@ -1629,16 +1621,47 @@ fn execute_animal_movement(
                     // This applies during chasing movement to give players a tactical advantage
                     let hesitation_multiplier = get_flashlight_hesitation_multiplier(ctx, animal);
                     
-                    // Normal chase behavior - fire fear logic handled above
-                    // 🐺 NOTE: Once an animal is chasing (e.g., you attacked it), wolf fur won't stop it!
-                    // Intimidation only prevents initial detection/aggro
-                    if new_distance > stats.attack_range * 0.9 { // Start moving when slightly outside attack range
-                        // Move directly toward player - no stopping short
-                        is_sprinting = hesitation_multiplier >= 1.0; // Only sprint if not hesitating
-                        let effective_speed = stats.sprint_speed * hesitation_multiplier;
-                        move_towards_target(ctx, animal, target_player.position_x, target_player.position_y, effective_speed, dt);
+                    // Check if NPC should use ranged combat (has ranged capability AND player has ranged weapon)
+                    let npc_has_ranged = get_npc_ranged_attack_config(animal.species).is_some();
+                    let player_using_ranged = player_has_ranged_weapon(ctx, target_id);
+                    let should_use_ranged_mode = npc_has_ranged && player_using_ranged;
+                    
+                    if should_use_ranged_mode {
+                        // RANGED MODE: Player has ranged weapon, NPC maintains optimal firing distance
+                        // Don't close in - instead, maintain range and fire projectiles
+                        const RANGED_OPTIMAL_MIN: f32 = 400.0;  // Don't get closer than this
+                        const RANGED_OPTIMAL_MAX: f32 = 600.0;  // Move in if farther than this
+                        
+                        if new_distance < RANGED_OPTIMAL_MIN {
+                            // Too close! Back up to maintain distance
+                            let dx = animal.pos_x - target_player.position_x;
+                            let dy = animal.pos_y - target_player.position_y;
+                            let dist = (dx * dx + dy * dy).sqrt().max(1.0);
+                            
+                            // Move away from player
+                            let retreat_target_x = animal.pos_x + (dx / dist) * 100.0;
+                            let retreat_target_y = animal.pos_y + (dy / dist) * 100.0;
+                            let effective_speed = stats.movement_speed * hesitation_multiplier;
+                            move_towards_target(ctx, animal, retreat_target_x, retreat_target_y, effective_speed, dt);
+                        } else if new_distance > RANGED_OPTIMAL_MAX {
+                            // Too far - close in until at optimal range
+                            is_sprinting = hesitation_multiplier >= 1.0;
+                            let effective_speed = stats.sprint_speed * hesitation_multiplier;
+                            move_towards_target(ctx, animal, target_player.position_x, target_player.position_y, effective_speed, dt);
+                        }
+                        // If in optimal range (200-400px), stay put and fire projectiles (handled elsewhere)
+                    } else {
+                        // MELEE MODE: Normal chase behavior - close the distance
+                        // 🐺 NOTE: Once an animal is chasing (e.g., you attacked it), wolf fur won't stop it!
+                        // Intimidation only prevents initial detection/aggro
+                        if new_distance > stats.attack_range * 0.9 { // Start moving when slightly outside attack range
+                            // Move directly toward player - no stopping short
+                            is_sprinting = hesitation_multiplier >= 1.0; // Only sprint if not hesitating
+                            let effective_speed = stats.sprint_speed * hesitation_multiplier;
+                            move_towards_target(ctx, animal, target_player.position_x, target_player.position_y, effective_speed, dt);
+                        }
+                        // If within 90% of attack range, stop moving and let attack system handle it
                     }
-                    // If within 90% of attack range, stop moving and let attack system handle it
                 }
             }
         },
@@ -5942,26 +5965,47 @@ pub fn calculate_escape_angle_from_threats(
 /// **COMMON RANGED WEAPON DETECTION** - Check if player has any ranged weapon equipped
 /// This is used to determine if NPCs should use ranged attacks (mirror player's combat style)
 pub fn player_has_ranged_weapon(ctx: &ReducerContext, player_id: Identity) -> bool {
-    if let Some(equipment) = ctx.db.active_equipment().player_identity().find(&player_id) {
-        if let Some(item_def_id) = equipment.equipped_item_def_id {
-            if let Some(item_def) = ctx.db.item_definition().id().find(item_def_id) {
-                // Check if item is in RangedWeapon category OR is a known ranged weapon
-                let is_ranged_category = item_def.category == crate::items::ItemCategory::RangedWeapon;
-                let is_known_ranged = matches!(item_def.name.as_str(), 
-                    "Hunting Bow" | "Crossbow" | 
-                    "Makarov PM" | "PP-91 KEDR" | 
-                    "AKS-74U" | "SKS" |
-                    "Slingshot" | "Blowgun"
-                );
-                let has_ranged = is_ranged_category || is_known_ranged;
-                if has_ranged {
-                    log::debug!("Player {:?} has ranged weapon: {} (category: {:?})", player_id, item_def.name, item_def.category);
-                }
-                return has_ranged;
-            }
+    // Find the player's active equipment
+    let equipment = match ctx.db.active_equipment().player_identity().find(&player_id) {
+        Some(eq) => eq,
+        None => {
+            log::debug!("[RANGED CHECK] No active_equipment found for player {:?}", player_id);
+            return false;
         }
-    }
-    false
+    };
+    
+    // Check if they have an item equipped
+    let item_def_id = match equipment.equipped_item_def_id {
+        Some(id) => id,
+        None => {
+            log::debug!("[RANGED CHECK] Player {:?} has no equipped_item_def_id", player_id);
+            return false;
+        }
+    };
+    
+    // Look up the item definition
+    let item_def = match ctx.db.item_definition().id().find(item_def_id) {
+        Some(def) => def,
+        None => {
+            log::debug!("[RANGED CHECK] Item def {} not found for player {:?}", item_def_id, player_id);
+            return false;
+        }
+    };
+    
+    // Check if it's a ranged weapon by category OR by name
+    let is_ranged_category = item_def.category == crate::items::ItemCategory::RangedWeapon;
+    let is_known_ranged = matches!(item_def.name.as_str(), 
+        "Hunting Bow" | "Crossbow" | 
+        "Makarov PM" | "PP-91 KEDR" | 
+        "AKS-74U" | "SKS" |
+        "Slingshot" | "Blowgun"
+    );
+    let has_ranged = is_ranged_category || is_known_ranged;
+    
+    log::info!("[RANGED CHECK] Player {:?} equipped '{}' (id={}, category={:?}) -> is_ranged={}", 
+              player_id, item_def.name, item_def_id, item_def.category, has_ranged);
+    
+    has_ranged
 }
 
 /// **COMMON FIRE TRAP ESCAPE HANDLER** - Generic escape logic for animals trapped by fire + ranged
