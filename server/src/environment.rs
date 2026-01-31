@@ -3087,6 +3087,11 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 }
             }
             
+            // Check collision with monument buildings
+            if !too_close && crate::monument::is_position_inside_monument_building(ctx, world_x_px, world_y_px) {
+                too_close = true;
+            }
+            
             if !too_close {
                 let chunk_idx = calculate_chunk_index(world_x_px, world_y_px);
                 match crate::military_ration::spawn_military_ration_with_loot(ctx, world_x_px, world_y_px, chunk_idx) {
@@ -3167,6 +3172,11 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 }
             }
             
+            // Check collision with monument buildings
+            if !too_close && crate::monument::is_position_inside_monument_building(ctx, world_x_px, world_y_px) {
+                too_close = true;
+            }
+            
             if !too_close {
                 let chunk_idx = calculate_chunk_index(world_x_px, world_y_px);
                 match crate::mine_cart::spawn_mine_cart_with_loot(ctx, world_x_px, world_y_px, chunk_idx) {
@@ -3240,6 +3250,11 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                         }
                     }
                 }
+            }
+            
+            // Check collision with monument buildings
+            if !too_close && crate::monument::is_position_inside_monument_building(ctx, world_x_px, world_y_px) {
+                too_close = true;
             }
             
             if !too_close {

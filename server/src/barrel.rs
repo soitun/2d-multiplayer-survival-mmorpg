@@ -630,6 +630,11 @@ pub fn spawn_barrel_clusters_scaled(
                         }
                     }
                     
+                    // Check collision with monument buildings
+                    if !too_close && crate::monument::is_position_inside_monument_building(ctx, ration_x, ration_y) {
+                        too_close = true;
+                    }
+                    
                     if !too_close {
                         let chunk_idx = crate::environment::calculate_chunk_index(ration_x, ration_y);
                         match crate::military_ration::spawn_military_ration_with_loot(ctx, ration_x, ration_y, chunk_idx) {
@@ -776,6 +781,11 @@ pub fn spawn_barrel_clusters(
                         }
                     }
                     
+                    // Check collision with monument buildings
+                    if !too_close && crate::monument::is_position_inside_monument_building(ctx, ration_x, ration_y) {
+                        too_close = true;
+                    }
+                    
                     if !too_close {
                         let chunk_idx = crate::environment::calculate_chunk_index(ration_x, ration_y);
                         match crate::military_ration::spawn_military_ration_with_loot(ctx, ration_x, ration_y, chunk_idx) {
@@ -811,9 +821,10 @@ fn spawn_barrel_cluster_at_position(
     
     // For single barrel, place at center
     if cluster_size == 1 {
-        // Check for collisions
+        // Check for collisions (including monument buildings)
         if has_barrel_collision(ctx, center_x, center_y, None) ||
-           has_player_barrel_collision(ctx, center_x, center_y) {
+           has_player_barrel_collision(ctx, center_x, center_y) ||
+           crate::monument::is_position_inside_monument_building(ctx, center_x, center_y) {
             return Ok(false); // Failed to spawn cluster
         }
         
@@ -830,9 +841,10 @@ fn spawn_barrel_cluster_at_position(
             let barrel_x = center_x + offset_x;
             let barrel_y = center_y + offset_y;
             
-            // Check for collisions
+            // Check for collisions (including monument buildings)
             if has_barrel_collision(ctx, barrel_x, barrel_y, None) ||
-               has_player_barrel_collision(ctx, barrel_x, barrel_y) {
+               has_player_barrel_collision(ctx, barrel_x, barrel_y) ||
+               crate::monument::is_position_inside_monument_building(ctx, barrel_x, barrel_y) {
                 return Ok(false); // Failed to spawn cluster
             }
             

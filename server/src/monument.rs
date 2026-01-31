@@ -300,6 +300,41 @@ fn is_near_alk_substation(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool 
 }
 
 // =============================================================================
+// MONUMENT BUILDING COLLISION - Prevents barrels/rations spawning inside buildings
+// =============================================================================
+
+/// Minimum distance from monument building centers to prevent resource spawns
+/// Simple radius check - keeps barrels/rations away from lodges, huts, etc.
+const MONUMENT_BUILDING_EXCLUSION_RADIUS: f32 = 450.0;
+const MONUMENT_BUILDING_EXCLUSION_RADIUS_SQ: f32 = MONUMENT_BUILDING_EXCLUSION_RADIUS * MONUMENT_BUILDING_EXCLUSION_RADIUS;
+
+/// Check if a part type is a "building" (structure that should block spawns)
+fn is_building_part_type(part_type: &str) -> bool {
+    matches!(part_type, "lodge" | "hut" | "hermit_hut" | "shack" | "radar" | "mound" | "drone" | "skeleton")
+}
+
+/// Checks if a position is too close to any monument building
+/// Simple distance check - prevents barrels/rations from spawning inside or near buildings
+/// 
+/// Returns true if the position is within 450px of any monument building center
+pub fn is_position_inside_monument_building(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    for part in ctx.db.monument_part().iter() {
+        // Only check building-type parts
+        if is_building_part_type(&part.part_type) {
+            let dx = pos_x - part.world_x;
+            let dy = pos_y - part.world_y;
+            let dist_sq = dx * dx + dy * dy;
+            
+            if dist_sq < MONUMENT_BUILDING_EXCLUSION_RADIUS_SQ {
+                return true;
+            }
+        }
+    }
+    
+    false
+}
+
+// =============================================================================
 // MONUMENT GENERATION
 // =============================================================================
 
@@ -1460,30 +1495,35 @@ pub fn generate_crashed_research_drone(
         // =============================================================================
         // CRASHED RESEARCH DRONE LAYOUT
         // =============================================================================
-        // Single crashed drone structure - the main wreckage
+        // Crashed drone structure with nearby researcher skeleton
         // Surrounded by loot (barrels, memory shards, sulfur piles, metal fragments)
         // spawned via separate functions after placement
         //
         // Layout (in local coords):
         //                    DRONE (0, 0) <- Center piece
+        //        SKELETON (-180, 120) <- Dead researcher nearby
         // =============================================================================
         
-        // Single structure: the crashed drone
-        let part_type = "drone";
-        let image_name = "hv_storage.png";
-        let offset_x = 0.0;
-        let offset_y = 0.0;
+        // Structure definitions: (part_type, image_name, offset_x, offset_y)
+        let structure_configs: [(&str, &str, f32, f32); 2] = [
+            // Crashed drone - CENTER PIECE
+            ("drone", "cd_drone.png", 0.0, 0.0),
+            // Dead researcher skeleton - southwest of drone
+            ("skeleton", "cd_skeleton.png", -180.0, 120.0),
+        ];
         
-        let part_world_x = center_world_x + offset_x;
-        let part_world_y = center_world_y + offset_y;
+        for (part_type, image_name, offset_x, offset_y) in structure_configs.iter() {
+            let part_world_x = center_world_x + offset_x;
+            let part_world_y = center_world_y + offset_y;
+            
+            // Place the structure
+            drone_parts.push((part_world_x, part_world_y, image_name.to_string(), part_type.to_string()));
+            
+            log::info!("🛸✨ PLACED {} ({}) at ({:.0}, {:.0}) ✨",
+                       part_type.to_uppercase(), image_name, part_world_x, part_world_y);
+        }
         
-        // Place the structure
-        drone_parts.push((part_world_x, part_world_y, image_name.to_string(), part_type.to_string()));
-        
-        log::info!("🛸✨ PLACED {} ({}) at ({:.0}, {:.0}) ✨",
-                   part_type.to_uppercase(), image_name, part_world_x, part_world_y);
-        
-        log::info!("🛸 Crashed research drone generation complete: {} structure", drone_parts.len());
+        log::info!("🛸 Crashed research drone generation complete: {} structures", drone_parts.len());
     } else {
         log::warn!("🛸 Failed to select crashed research drone position");
     }
