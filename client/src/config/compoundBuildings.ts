@@ -571,6 +571,7 @@ const MONUMENT_PART_SIZES: Record<string, { width: number; height: number }> = {
   
   // Crashed Research Drone parts
   'drone': { width: 512, height: 512 },
+  'skeleton': { width: 192, height: 192 }, // Tiny skeleton - dead researcher
   
   // Weather Station parts (ALPINE - radar dish)
   'radar': { width: 512, height: 512 }, // Standard scale

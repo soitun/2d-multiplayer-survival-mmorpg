@@ -1331,10 +1331,12 @@ export const renderYSortedEntities = ({
           // Check if this is a turret tallow projectile (source_type = 1)
           // Turret projectiles are rendered as primitives (glowing orange circles), not sprites
           const PROJECTILE_SOURCE_TURRET = 1;
+          const PROJECTILE_SOURCE_NPC = 2;
           const isTurretTallow = projectile.sourceType === PROJECTILE_SOURCE_TURRET;
+          const isNpcProjectile = projectile.sourceType === PROJECTILE_SOURCE_NPC;
           
-          if (isTurretTallow) {
-              // Turret tallow globs are rendered as primitives - no image needed
+          if (isTurretTallow || isNpcProjectile) {
+              // Turret and NPC projectiles are rendered as primitives - no image needed
               // Create a dummy image object for the renderProjectile function
               // (it will detect source_type and render as primitive instead)
               const dummyImage = new Image();

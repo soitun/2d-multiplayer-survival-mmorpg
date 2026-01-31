@@ -96,10 +96,18 @@ export const renderProjectile = ({
   // Check if this is a thrown item (ammo_def_id == item_def_id)
   const isThrown = projectile.ammoDefId === projectile.itemDefId;
   
+  // Check if this is an NPC or turret projectile (they don't use item definitions)
+  const isNpcOrTurretProjectile = projectile.sourceType === PROJECTILE_SOURCE_NPC || 
+                                   projectile.sourceType === PROJECTILE_SOURCE_TURRET;
+  
   // FIXED: Determine gravity multiplier based on weapon type (matching server physics)
   let gravityMultiplier = 1.0; // Default for bows
   let isBullet = false; // Track if this is a bullet for smaller rendering
-  if (itemDefinitions) {
+  
+  // NPC and turret projectiles use no gravity - they travel in straight lines
+  if (isNpcOrTurretProjectile) {
+    gravityMultiplier = 0.0;
+  } else if (itemDefinitions) {
     const weaponDef = itemDefinitions.get(projectile.itemDefId.toString());
     if (weaponDef) {
       if (weaponDef.name === "Crossbow") {
@@ -187,6 +195,9 @@ export const renderProjectile = ({
   const isNpcProjectile = projectile.sourceType === PROJECTILE_SOURCE_NPC;
   
   if (isNpcProjectile) {
+    // DEBUG: Log NPC projectile data to diagnose movement issues
+    console.log(`🎯 [NPC PROJ ${projectile.id}] pos=(${currentX.toFixed(1)}, ${currentY.toFixed(1)}) start=(${projectile.startPosX.toFixed(1)}, ${projectile.startPosY.toFixed(1)}) vel=(${projectile.velocityX.toFixed(1)}, ${projectile.velocityY.toFixed(1)}) elapsed=${elapsedTimeSeconds.toFixed(2)}s type=${projectile.npcProjectileType}`);
+    
     // NPC projectiles use no gravity - they travel in straight lines
     // Render based on npc_projectile_type
     const npcType = projectile.npcProjectileType;

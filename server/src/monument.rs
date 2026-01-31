@@ -1505,11 +1505,9 @@ pub fn generate_crashed_research_drone(
         // =============================================================================
         
         // Structure definitions: (part_type, image_name, offset_x, offset_y)
-        let structure_configs: [(&str, &str, f32, f32); 2] = [
+        let structure_configs: [(&str, &str, f32, f32); 1] = [
             // Crashed drone - CENTER PIECE
             ("drone", "cd_drone.png", 0.0, 0.0),
-            // Dead researcher skeleton - southwest of drone
-            ("skeleton", "cd_skeleton.png", -180.0, 120.0),
         ];
         
         for (part_type, image_name, offset_x, offset_y) in structure_configs.iter() {
