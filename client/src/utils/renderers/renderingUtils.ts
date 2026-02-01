@@ -112,6 +112,8 @@ import { renderPlayerTorchLight, renderCampfireLight } from './lightRenderingUti
 import { drawInteractionOutline, drawCircularInteractionOutline, getInteractionOutlineColor } from './outlineUtils';
 import { drawDynamicGroundShadow } from './shadowUtils';
 import { getTileTypeFromChunkData, worldPosToTileCoords } from './placementRenderingUtils';
+// Import snow footprint system for alpine terrain
+import { updatePlayerFootprints, renderAllFootprints } from './snowFootprintUtils';
 
 // Type alias for Y-sortable entities
 import { YSortedEntityType } from '../../hooks/useEntityFiltering';
@@ -458,6 +460,8 @@ foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADD
   // Animal breeding system data for age-based rendering and pregnancy indicators
   caribouBreedingData?: Map<string, CaribouBreedingData>; // ADDED: Caribou breeding data (sex, age, pregnancy)
   walrusBreedingData?: Map<string, WalrusBreedingData>; // ADDED: Walrus breeding data (sex, age, pregnancy)
+  // View bounds for viewport culling (used by effects like snow footprints)
+  viewBounds?: { minX: number; maxX: number; minY: number; maxY: number };
 }
 
 
@@ -536,6 +540,7 @@ export const renderYSortedEntities = ({
   placementInfo, // ADDED: Current placement info for showing restriction zones when placing items
   caribouBreedingData, // ADDED: Caribou breeding data (sex, age, pregnancy)
   walrusBreedingData, // ADDED: Walrus breeding data (sex, age, pregnancy)
+  viewBounds, // ADDED: View bounds for snow footprint rendering
 }: RenderYSortedEntitiesProps) => {
   // PERFORMANCE: Clean up memory caches periodically
   cleanupCaches();
@@ -597,6 +602,12 @@ export const renderYSortedEntities = ({
           }
       }
   });
+  
+  // Pre-Pass 2: Render snow footprints on alpine terrain
+  // Footprints are rendered as ground decals before Y-sorted entities
+  if (viewBounds) {
+      renderAllFootprints(ctx, viewBounds, nowMs);
+  }
   
   // First Pass: Render all Y-sorted entities including ALL walls
   // ALL walls now render in Pass 1 for correct Y-sorting with players/placeables/trees
@@ -766,6 +777,10 @@ export const renderYSortedEntities = ({
               isPlayerMoving = true;
               movementReason = 'sprinting';
           }
+          
+          // Update snow footprints for players walking on alpine terrain
+          // This creates footprint trails that fade out over time
+          updatePlayerFootprints(connection ?? null, playerForRendering, isPlayerMoving, nowMs);
          
           lastPositionsRef.current.set(playerId, { x: playerForRendering.positionX, y: playerForRendering.positionY });
 

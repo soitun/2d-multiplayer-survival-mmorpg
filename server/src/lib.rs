@@ -154,7 +154,7 @@ mod fire_patch; // <<< ADDED: Fire patch system for fire arrows
 mod turret; // <<< ADDED: Turret system for automated defense
 mod explosive; // <<< ADDED: Explosive system for raiding
 mod ai_brewing; // <<< ADDED: AI-generated brew recipes system
-mod alk; // <<< ADDED: ALK (Automated Logistics Kompound) provisioning system
+mod alk; // <<< ADDED: ALK (Automated Logistics Kernel) provisioning system
 mod matronage; // <<< ADDED: Matronage pooled rewards system
 pub mod compound_buildings; // <<< ADDED: Static compound building collision system
 mod shipwreck; // <<< ADDED: Shipwreck monument collision system
@@ -395,7 +395,7 @@ pub use broth_pot::{
 // Re-export AI brewing reducers for client bindings
 pub use ai_brewing::{check_brew_cache, create_generated_brew};  
 
-// Re-export ALK (Automated Logistics Kompound) reducers for client bindings
+// Re-export ALK (Automated Logistics Kernel) reducers for client bindings
 pub use alk::{
     get_available_contracts, accept_alk_contract, cancel_alk_contract,
     deliver_alk_contract, deliver_alk_contract_to_matronage, get_shard_balance, check_alk_station_proximity,

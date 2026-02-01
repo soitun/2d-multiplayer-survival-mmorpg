@@ -163,8 +163,8 @@ export const TUTORIALS: Record<string, TutorialDefinition> = {
         eventName: 'sova-alk-station-tutorial',
         displayName: 'ALK Station Briefing',
         emoji: '🏭',
-        description: 'Explanation of the Automated Logistics Kompound contract system.',
-        message: `That structure is broadcasting on a military frequency. Analyzing... Decoding the header now. A-L-K — Automated Logistics Kompound. Pre-collapse infrastructure, still operational. There's a central compound somewhere on the island and several substations scattered around. They all connect to the same contract system — bring them resources, they pay you in shards. Press E at a station to deliver contracts you've accepted. To browse and accept new contracts remotely, press G and select the ALK Board from my interface. Could be useful for converting surplus materials into something more valuable.`,
+        description: 'Explanation of the Automated Logistics Kernel contract system.',
+        message: `That structure is broadcasting on a military frequency. Analyzing... Decoding the header now. A-L-K — Automated Logistics Kernel. Pre-collapse infrastructure, still operational. There's a central compound somewhere on the island and several substations scattered around. They all connect to the same contract system — bring them resources, they pay you in shards. Press E at a station to deliver contracts you've accepted. To browse and accept new contracts remotely, press G and select the ALK Board from my interface. Could be useful for converting surplus materials into something more valuable.`,
     },
     crashedDrone: {
         id: 'crashedDrone',

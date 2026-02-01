@@ -1,7 +1,7 @@
 /**
  * AlkPanel.tsx
  * 
- * ALK (Automated Logistics Kompound) Provisioning Board Panel
+ * ALK (Automated Logistics Kernel) Provisioning Board Panel
  * 
  * Displays:
  * - Available contracts grouped by type (Base Food, Base Industrial, Daily Bonus)

@@ -1,7 +1,7 @@
 /**
  * useAlkData.ts
  * 
- * Hook for subscribing to and managing ALK (Automated Logistics Kompound) data.
+ * Hook for subscribing to and managing ALK (Automated Logistics Kernel) data.
  * Handles subscriptions to:
  * - ALK State (singleton)
  * - ALK Stations

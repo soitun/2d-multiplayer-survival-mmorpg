@@ -100,7 +100,6 @@ export function preloadMonumentImages(): void {
     
     // Crashed Research Drone monument images (tundra crash site)
     loadImage('cd_drone.png', import('../../assets/doodads/cd_drone.png?url'));
-    loadImage('cd_skeleton.png', import('../../assets/doodads/cd_skeleton.png?url'));
     
     // Hot Spring monument images (abandoned bath house shack)
     loadImage('hs_shack.png', import('../../assets/doodads/hs_shack.png?url'));
@@ -172,7 +171,6 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             
             // Crashed Research Drone monument images (tundra crash site)
             'cd_drone.png': () => import('../../assets/doodads/cd_drone.png?url'),
-            'cd_skeleton.png': () => import('../../assets/doodads/cd_skeleton.png?url'),
             
             // Hot Spring monument images (abandoned bath house shack)
             'hs_shack.png': () => import('../../assets/doodads/hs_shack.png?url'),

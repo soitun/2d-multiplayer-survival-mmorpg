@@ -3043,6 +3043,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
         caribouBreedingData, // ADDED: Pass caribou breeding data for age-based size scaling and pregnancy indicators
         walrusBreedingData, // ADDED: Pass walrus breeding data for age-based size scaling and pregnancy indicators
+        viewBounds: shoreWaveViewBounds, // ADDED: Pass view bounds for snow footprint rendering
       });
     } else {
       // --- Swimming players exist, need full merge/sort ---
@@ -3365,6 +3366,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
             caribouBreedingData, // ADDED: Pass caribou breeding data for age-based size scaling and pregnancy indicators
             walrusBreedingData, // ADDED: Pass walrus breeding data for age-based size scaling and pregnancy indicators
+            viewBounds: shoreWaveViewBounds, // ADDED: Pass view bounds for snow footprint rendering
           });
           currentBatch = [];
         }

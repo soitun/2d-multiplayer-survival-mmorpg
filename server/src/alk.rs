@@ -1,5 +1,5 @@
 // ============================================================================
-// ALK (Automated Logistics Kompound) MODULE
+// ALK (Automated Logistics Kernel) MODULE
 // ============================================================================
 // The ALK system is a contract-based provisioning system where players can:
 // - View available contracts for various resources (food, industrial)
@@ -377,7 +377,7 @@ pub struct AlkContractRefreshSchedule {
 
 /// Initialize ALK system - called once during module init
 pub fn init_alk_system(ctx: &ReducerContext) -> Result<(), String> {
-    log::info!("🏭 Initializing ALK (Automated Logistics Kompound) system...");
+    log::info!("🏭 Initializing ALK (Automated Logistics Kernel) system...");
     
     // Initialize ALK state singleton
     seed_alk_state(ctx)?;

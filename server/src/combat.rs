@@ -1517,9 +1517,17 @@ pub fn damage_tree(
     let mut tree = ctx.db.tree().id().find(tree_id)
         .ok_or_else(|| "Target tree disappeared".to_string())?;
     
+    // Check if this is the first hit on this tree (virgin tree)
+    let is_first_hit = tree.last_hit_time.is_none();
+    
     let old_health = tree.health;
     tree.health = tree.health.saturating_sub(damage as u32);
     tree.last_hit_time = Some(timestamp);
+    
+    // Play birds flapping sound on first hit to indicate virgin tree
+    if is_first_hit {
+        sound_events::emit_birds_flapping_sound(ctx, tree.pos_x, tree.pos_y, attacker_id);
+    }
     
     // NEW: Resource depletion system - limit yield to remaining resources
     let mut actual_yield = std::cmp::min(yield_amount, tree.resource_remaining);

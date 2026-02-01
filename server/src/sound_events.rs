@@ -9,6 +9,7 @@ pub enum SoundType {
     TreeChop,     // tree_chop.mp3 (1 variation)
     TreeCreaking, // tree_creaking.mp3 (1 variation - plays when tree is about to fall)
     TreeFalling,  // tree_falling.mp3 (1 variation - plays when tree reaches 0 health)
+    BirdsFlapping, // birds_flapping.mp3 (1 variation - plays on first tree hit to indicate virgin tree)
     StoneHit,     // stone_hit.mp3 (1 variation)
     StoneDestroyed, // stone_destroyed.mp3 (1 variation - plays when stone reaches 0 health)
     HarvestPlant, // harvest_plant.mp3 (1 variation - for picking up resource nodes)
@@ -126,6 +127,7 @@ impl SoundType {
             SoundType::TreeChop => "tree_chop",
             SoundType::TreeCreaking => "tree_creaking",
             SoundType::TreeFalling => "tree_falling",
+            SoundType::BirdsFlapping => "birds_flapping",
             SoundType::StoneHit => "stone_hit",
             SoundType::StoneDestroyed => "stone_destroyed",
             SoundType::HarvestPlant => "harvest_plant", 
@@ -240,6 +242,7 @@ impl SoundType {
             SoundType::TreeChop => 1,    // tree_chop.ogg
             SoundType::TreeCreaking => 1, // tree_creaking.ogg
             SoundType::TreeFalling => 1,  // tree_falling.ogg
+            SoundType::BirdsFlapping => 1, // birds_flapping.mp3
             SoundType::StoneHit => 1,    // stone_hit.ogg
             SoundType::StoneDestroyed => 1, // stone_destroyed.ogg
             SoundType::HarvestPlant => 1, // harvest_plant.ogg (single variation)
@@ -559,6 +562,14 @@ pub fn emit_tree_falling_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, pla
     // log::info!("🔊 EMITTING TREE FALLING SOUND at ({:.1}, {:.1}) by player {:?}", pos_x, pos_y, player_id);
     if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::TreeFalling, pos_x, pos_y, 0.75, 1050.0, player_id) {
         log::error!("Failed to emit tree falling sound: {}", e);
+    }
+}
+
+/// Single line function to emit birds flapping sound (when tree is hit for the first time)
+/// This sound indicates to the player that this is a "virgin" tree that hasn't been chopped before
+pub fn emit_birds_flapping_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::BirdsFlapping, pos_x, pos_y, 1.0, 800.0, player_id) {
+        log::error!("Failed to emit birds flapping sound: {}", e);
     }
 }
 

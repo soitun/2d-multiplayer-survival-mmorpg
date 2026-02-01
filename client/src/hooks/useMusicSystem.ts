@@ -247,21 +247,67 @@ const createShuffledPlaylist = (trackCount: number): number[] => {
     return playlist;
 };
 
-const fadeAudio = async (audio: HTMLAudioElement, fromVolume: number, toVolume: number, duration: number): Promise<void> => {
+// Fade curve types for different situations
+type FadeCurve = 'linear' | 'exponential' | 'equal-power';
+
+const fadeAudio = async (
+    audio: HTMLAudioElement, 
+    fromVolume: number, 
+    toVolume: number, 
+    duration: number,
+    curve: FadeCurve = 'exponential'
+): Promise<void> => {
     return new Promise((resolve) => {
         const steps = 60; // 60 steps for smooth fade
         const stepDuration = duration / steps;
-        const volumeStep = (toVolume - fromVolume) / steps;
         let currentStep = 0;
+        const isFadingOut = toVolume < fromVolume;
+
+        const calculateVolume = (progress: number): number => {
+            // progress goes from 0 to 1
+            switch (curve) {
+                case 'linear':
+                    return fromVolume + (toVolume - fromVolume) * progress;
+                
+                case 'exponential':
+                    // Exponential curve sounds more natural to human ears
+                    // For fade out: slow start, fast end (volume drops gradually then quickly)
+                    // For fade in: fast start, slow end (volume rises quickly then gradually)
+                    if (isFadingOut) {
+                        // Use a power curve that keeps volume higher longer, then drops
+                        // This makes the fade-out feel more gradual
+                        const curvedProgress = Math.pow(progress, 2.5);
+                        return fromVolume * (1 - curvedProgress);
+                    } else {
+                        // Fade in: rise quickly at first, then settle
+                        const curvedProgress = 1 - Math.pow(1 - progress, 2.5);
+                        return fromVolume + (toVolume - fromVolume) * curvedProgress;
+                    }
+                
+                case 'equal-power':
+                    // Equal-power crossfade prevents volume dips in the middle
+                    // Uses sine/cosine curves
+                    if (isFadingOut) {
+                        return fromVolume * Math.cos(progress * Math.PI / 2);
+                    } else {
+                        return toVolume * Math.sin(progress * Math.PI / 2);
+                    }
+                
+                default:
+                    return fromVolume + (toVolume - fromVolume) * progress;
+            }
+        };
 
         const fade = () => {
             if (currentStep >= steps) {
-                audio.volume = toVolume;
+                audio.volume = Math.max(0, Math.min(1, toVolume));
                 resolve();
                 return;
             }
 
-            audio.volume = fromVolume + (volumeStep * currentStep);
+            const progress = currentStep / steps;
+            const newVolume = calculateVolume(progress);
+            audio.volume = Math.max(0, Math.min(1, newVolume));
             currentStep++;
             setTimeout(fade, stepDuration);
         };
@@ -526,18 +572,41 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
 
             // Crossfade if there's currently playing audio
             if (currentAudioRef.current && crossfade && configRef.current.crossfadeDuration > 0) {
+                const baseDuration = configRef.current.crossfadeDuration;
+                const currentZone = stateRef.current.currentZone;
+                const targetZone = zone ?? currentZone;
+                
+                // Detect if we're leaving a special zone to return to normal
+                // In this case, use a longer, more gradual fade-out
+                const isLeavingSpecialZone = currentZone !== 'normal' && targetZone === 'normal';
+                const isEnteringSpecialZone = currentZone === 'normal' && targetZone !== 'normal';
+                const isZoneTransition = currentZone !== targetZone;
+                
+                // Use longer fade for zone transitions, especially when leaving special zones
+                // This creates a more immersive, less jarring transition
+                const fadeOutDuration = isLeavingSpecialZone ? baseDuration * 2.0 : 
+                                       isZoneTransition ? baseDuration * 1.5 : 
+                                       baseDuration;
+                const fadeInDuration = isEnteringSpecialZone ? baseDuration * 1.5 : baseDuration;
+                
+                // Use equal-power crossfade for zone transitions (prevents volume dip)
+                // Use exponential for same-zone track changes (sounds more natural)
+                const fadeCurve: FadeCurve = isZoneTransition ? 'equal-power' : 'exponential';
+                
                 const fadeOutPromise = fadeAudio(
                     currentAudioRef.current, 
                     currentAudioRef.current.volume, 
                     0, 
-                    configRef.current.crossfadeDuration
+                    fadeOutDuration,
+                    fadeCurve
                 );
                 
                 const fadeInPromise = fadeAudio(
                     newAudio, 
                     0, 
                     configRef.current.volume, 
-                    configRef.current.crossfadeDuration
+                    fadeInDuration,
+                    fadeCurve
                 );
 
                 // Start new track
