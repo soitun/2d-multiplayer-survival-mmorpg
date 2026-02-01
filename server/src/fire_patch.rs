@@ -1,8 +1,11 @@
 /******************************************************************************
  *                                                                            *
  * Fire Patch System - Handles fire patches created by fire arrows that can  *
- * damage wooden structures and burn players who step on them. Fire patches  *
- * can be extinguished by water patches or naturally expire over time.       *
+ * damage wooden structures, destroy planted seeds (crop sabotage), and burn *
+ * players who step on them. Fire patches can spread to nearby wooden        *
+ * structures and crop fields unless it's heavily raining (HeavyRain or      *
+ * HeavyStorm). They can be extinguished by water patches or naturally       *
+ * expire over time. Consistent with campfire rain rules.                    *
  *                                                                            *
  ******************************************************************************/
 
@@ -27,6 +30,8 @@ pub const FIRE_PATCH_PLAYER_BURN_DURATION: f32 = 5.0; // 5 seconds of burn effec
 pub const FIRE_PATCH_STRUCTURE_DAMAGE_PER_TICK: f32 = 2.0; // Damage per tick to structures
 pub const FIRE_PATCH_NPC_DAMAGE: f32 = 5.0; // Damage per tick to hostile NPCs
 pub const FIRE_PROPAGATION_CHANCE: f32 = 0.10; // 10% chance to spread to nearby wooden structures (reduced from 15% to prevent chain reactions)
+pub const FIRE_PATCH_SEED_DAMAGE_RADIUS: f32 = 40.0; // Radius for damaging planted seeds (smaller than structures)
+pub const FIRE_PROPAGATION_TO_SEED_CHANCE: f32 = 0.15; // 15% chance to spread to nearby planted seeds (crop fields are dry and flammable)
 
 // --- Fire Patch Table ---
 #[table(name = fire_patch, public)]
@@ -264,8 +269,10 @@ pub fn process_fire_patch_damage(ctx: &ReducerContext, _args: FirePatchDamageSch
 }
 
 /// Applies fire damage to wooden structures near fire patches
+/// Fire can spread to nearby wooden structures (unless it's raining)
 pub fn apply_fire_damage_to_structures(ctx: &ReducerContext) -> Result<(), String> {
     use crate::building::{wall_cell, foundation_cell, FOUNDATION_TILE_SIZE_PX};
+    use crate::world_state::WeatherType;
     use rand::{Rng, SeedableRng};
     
     let current_time = ctx.timestamp;
@@ -284,6 +291,15 @@ pub fn apply_fire_damage_to_structures(ctx: &ReducerContext) -> Result<(), Strin
         // Update last damage tick
         fire_patch.last_damage_tick = current_time;
         ctx.db.fire_patch().id().update(fire_patch.clone());
+        
+        // Check if it's raining HEAVILY at this fire patch's location (affects spread, not damage)
+        // Consistent with campfires: only HeavyRain and HeavyStorm suppress fire spread
+        // Light and Moderate rain don't affect fire spread
+        let chunk_weather = crate::world_state::get_weather_for_position(ctx, fire_patch.pos_x, fire_patch.pos_y);
+        let is_heavy_rain = matches!(
+            chunk_weather.current_weather,
+            WeatherType::HeavyRain | WeatherType::HeavyStorm
+        );
         
         let radius_sq = FIRE_PATCH_STRUCTURE_DAMAGE_RADIUS * FIRE_PATCH_STRUCTURE_DAMAGE_RADIUS;
         
@@ -327,8 +343,8 @@ pub fn apply_fire_damage_to_structures(ctx: &ReducerContext) -> Result<(), Strin
                 let wall_id = wall.id; // Save ID before moving wall
                 ctx.db.wall_cell().id().update(wall);
                 
-                // Chance to propagate fire to adjacent wooden structures
-                if rng.gen::<f32>() < FIRE_PROPAGATION_CHANCE {
+                // Chance to propagate fire to adjacent wooden structures (only if not heavy rain)
+                if !is_heavy_rain && rng.gen::<f32>() < FIRE_PROPAGATION_CHANCE {
                     // Try to create a new fire patch near this wall
                     let offset_x = rng.gen_range(-30.0..30.0);
                     let offset_y = rng.gen_range(-30.0..30.0);
@@ -385,8 +401,8 @@ pub fn apply_fire_damage_to_structures(ctx: &ReducerContext) -> Result<(), Strin
                 let foundation_id = foundation.id; // Save ID before moving foundation
                 ctx.db.foundation_cell().id().update(foundation);
                 
-                // Chance to propagate fire (only to other wooden structures)
-                if rng.gen::<f32>() < FIRE_PROPAGATION_CHANCE {
+                // Chance to propagate fire (only to other wooden structures, only if not heavy rain)
+                if !is_heavy_rain && rng.gen::<f32>() < FIRE_PROPAGATION_CHANCE {
                     let offset_x = rng.gen_range(-30.0..30.0);
                     let offset_y = rng.gen_range(-30.0..30.0);
                     let _ = create_fire_patch(
@@ -399,6 +415,80 @@ pub fn apply_fire_damage_to_structures(ctx: &ReducerContext) -> Result<(), Strin
                         Some(foundation_id),
                     );
                 }
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+/// Applies fire damage to planted seeds near fire patches (destroys crops)
+/// Fire can spread from burned seeds to nearby seeds (crop field fires)
+/// Fire does NOT spread in heavy rain - consistent with campfire rules
+pub fn apply_fire_damage_to_planted_seeds(ctx: &ReducerContext) -> Result<(), String> {
+    use crate::planted_seeds::planted_seed as PlantedSeedTableTrait;
+    use crate::world_state::WeatherType;
+    use rand::{Rng, SeedableRng};
+    
+    let current_time = ctx.timestamp;
+    let mut rng = rand::rngs::StdRng::seed_from_u64(current_time.to_micros_since_unix_epoch() as u64);
+    
+    let radius_sq = FIRE_PATCH_SEED_DAMAGE_RADIUS * FIRE_PATCH_SEED_DAMAGE_RADIUS;
+    let mut seeds_to_destroy: Vec<(u64, f32, f32, spacetimedb::Identity, bool)> = Vec::new(); // Added: is_heavy_rain flag
+    
+    // Check each fire patch against planted seeds
+    for fire_patch in ctx.db.fire_patch().iter() {
+        // Check if it's raining HEAVILY at this fire patch's location (affects spread, not damage)
+        // Consistent with campfires: only HeavyRain and HeavyStorm suppress fire spread
+        // Light and Moderate rain don't affect fire spread
+        let chunk_weather = crate::world_state::get_weather_for_position(ctx, fire_patch.pos_x, fire_patch.pos_y);
+        let is_heavy_rain = matches!(
+            chunk_weather.current_weather,
+            WeatherType::HeavyRain | WeatherType::HeavyStorm
+        );
+        
+        // Find planted seeds within the fire patch radius
+        for seed in ctx.db.planted_seed().iter() {
+            let dx = seed.pos_x - fire_patch.pos_x;
+            let dy = seed.pos_y - fire_patch.pos_y;
+            let dist_sq = dx * dx + dy * dy;
+            
+            if dist_sq < radius_sq {
+                // This seed is in the fire - mark for destruction
+                // Store position for potential fire spread and rain status
+                seeds_to_destroy.push((seed.id, seed.pos_x, seed.pos_y, fire_patch.created_by, is_heavy_rain));
+            }
+        }
+    }
+    
+    // Destroy the seeds and potentially spread fire (only if not heavy rain)
+    for (seed_id, seed_x, seed_y, fire_creator, is_heavy_rain) in seeds_to_destroy {
+        // Get the seed info before deleting
+        if let Some(seed) = ctx.db.planted_seed().id().find(seed_id) {
+            log::info!(
+                "[FirePatch] Fire destroyed planted seed {} ({}) at ({:.1}, {:.1}) - growth was {:.1}%{}",
+                seed_id, seed.seed_type, seed_x, seed_y, seed.growth_progress * 100.0,
+                if is_heavy_rain { " (heavy rain prevented spread)" } else { "" }
+            );
+            
+            // Delete the seed
+            ctx.db.planted_seed().id().delete(seed_id);
+            
+            // Chance to spread fire to nearby seeds (crop field fire spread)
+            // Fire does NOT spread in heavy rain - consistent with campfire rules
+            if !is_heavy_rain && rng.gen::<f32>() < FIRE_PROPAGATION_TO_SEED_CHANCE {
+                // Try to create a new fire patch near the burned seed
+                let offset_x = rng.gen_range(-50.0..50.0);
+                let offset_y = rng.gen_range(-50.0..50.0);
+                let _ = create_fire_patch(
+                    ctx,
+                    seed_x + offset_x,
+                    seed_y + offset_y,
+                    fire_creator,
+                    false, // Not on wooden structure
+                    None,
+                    None,
+                );
             }
         }
     }
@@ -474,6 +564,9 @@ pub fn cleanup_expired_fire_patches(ctx: &ReducerContext, _args: FirePatchCleanu
     
     // Apply fire damage to structures
     apply_fire_damage_to_structures(ctx)?;
+    
+    // Apply fire damage to planted seeds (crop sabotage)
+    apply_fire_damage_to_planted_seeds(ctx)?;
     
     // Check if water extinguishes fire
     check_water_extinguishes_fire(ctx)?;
