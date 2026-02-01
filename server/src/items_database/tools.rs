@@ -78,8 +78,10 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // Primary Gathering Tools
+        // Yield formula: For 100% resource extraction, yield = resources * damage / health
+        // Trees: 800 HP, 150-500 resources (avg 325). Stone Hatchet should get ~90%, Metal ~100%
         basic_tool("Stone Hatchet", "A simple hatchet for chopping wood.", 
-                  TargetType::Tree, 35, 50, 12, 18, "Wood")
+                  TargetType::Tree, 35, 50, 16, 22, "Wood") // Increased yield from 12-18 to 16-22 for ~90% extraction
             .icon("stone_hatchet.png")
             .pvp_damage(15, 20)
             .crafting_cost(vec![
@@ -92,7 +94,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         basic_tool("Metal Hatchet", "A robust metal hatchet that cuts through wood efficiently. Gathers significantly more wood than its stone counterpart.",
-                  TargetType::Tree, 60, 80, 25, 35, "Wood")
+                  TargetType::Tree, 60, 80, 30, 40, "Wood") // Increased yield from 25-35 to 30-40 for ~100% extraction
             .icon("metal_hatchet.png")
             .pvp_damage(22, 30)
             .crafting_cost(vec![
@@ -118,8 +120,11 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .attack_interval(0.7)
             .build(),
 
+        // Stones: 400 HP, 200-400 resources (avg 300). Yields need to be MUCH higher to extract before HP depletes.
+        // Stone Pickaxe: ~7 hits to kill (400/55), needs ~43 yield/hit for 300 resources
+        // Metal Pickaxe: ~4 hits to kill (400/90), needs ~75 yield/hit for 300 resources
         basic_tool("Stone Pickaxe", "A simple pickaxe for breaking rocks.",
-                  TargetType::Stone, 40, 70, 8, 14, "Stone")
+                  TargetType::Stone, 40, 70, 35, 50, "Stone") // Massively increased yield from 8-14 to 35-50 for ~90% extraction
             .icon("stone_pickaxe.png")
             .equippable(None)
             .pvp_damage(18, 25)
@@ -133,7 +138,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         basic_tool("Metal Pickaxe", "A sturdy metal pickaxe that breaks rocks efficiently. Gathers significantly more stone than its stone counterpart.",
-                  TargetType::Stone, 60, 120, 13, 22, "Stone")
+                  TargetType::Stone, 60, 120, 60, 85, "Stone") // Massively increased yield from 13-22 to 60-85 for ~100% extraction
             .icon("metal_pickaxe.png")
             .equippable(None)
             .pvp_damage(25, 35)
@@ -260,13 +265,14 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // Diving Pick - Specialized underwater harvesting tool for living coral
+        // Living Coral: 500 HP, 150-300 resources (avg 225). For 100% extraction: yield = 225 * 50 / 500 = 22.5
         ItemBuilder::new("Diving Pick", "A specialized pick designed for underwater harvesting. Required to harvest living coral reefs. Crafted from coral fragments, wood, and reed stalks.", ItemCategory::Tool)
             .icon("diving_pick.png")
             .equippable(None)
             // Primary target: Living Coral - yields Limestone
             .primary_target_type(TargetType::LivingCoral)
             .primary_target_damage(40, 60)  // Damage per hit to coral
-            .primary_target_yield(8, 15)    // Limestone per hit
+            .primary_target_yield(20, 28)   // Increased from 8-15 to 20-28 Limestone per hit for ~100% extraction
             .primary_yield_resource("Limestone")
             .pvp_damage(15, 20)
             .crafting_cost(vec![

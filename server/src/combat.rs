@@ -1475,15 +1475,17 @@ pub fn calculate_damage_and_yield(
         if !excluded_tools.contains(&item_def.name.as_str()) {
             match target_type {
                 TargetType::Tree => {
-                    // Tools can harvest wood, but at minimal efficiency
+                    // Tools can harvest wood, but at lower efficiency than proper hatchets
+                    // Target: ~40 hits to harvest an average tree (325 resources) for reasonable bootstrapping
+                    // Proper hatchets still get 2-4x more yield/hit AND kill faster, so strong upgrade incentive
                     let fallback_damage = item_def.primary_target_damage_min.unwrap_or(5) as f32 * 0.5; // 50% of normal damage
-                    let fallback_yield = rng.gen_range(5..=10); // Random 5-10 wood per hit
+                    let fallback_yield = rng.gen_range(7..=10); // 7-10 wood per hit (vs 16-22 for Stone Hatchet, 30-40 for Metal)
                     return (fallback_damage, fallback_yield, "Wood".to_string());
                 },
                 TargetType::Stone => {
-                    // Tools can harvest stone, but at minimal efficiency  
+                    // Tools can harvest stone, but at lower efficiency than proper pickaxes
                     let fallback_damage = item_def.primary_target_damage_min.unwrap_or(5) as f32 * 0.5; // 50% of normal damage
-                    let fallback_yield = rng.gen_range(5..=10); // Random 5-10 stone per hit
+                    let fallback_yield = rng.gen_range(7..=10); // 7-10 stone per hit (vs 35-50 for Stone Pickaxe, 60-85 for Metal)
                     return (fallback_damage, fallback_yield, "Stone".to_string());
                 },
                 _ => {

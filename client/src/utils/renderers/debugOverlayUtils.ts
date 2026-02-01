@@ -8,8 +8,25 @@
  */
 
 import { CollisionShape, COLLISION_OFFSETS, PLAYER_RADIUS } from '../clientCollision';
-import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, RainCollector, Furnace, Barbecue, Shelter, WildAnimal, Barrel, SeaStack, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, Campfire, Lantern, DroppedItem, HarvestableResource, PlayerCorpse, Stash, SleepingBag, PlantedSeed, BrothPot, AnimalCorpse, Fumarole, LivingCoral } from '../../generated';
+import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, RainCollector, Furnace, Barbecue, Shelter, WildAnimal, Barrel, SeaStack, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, Campfire, Lantern, DroppedItem, HarvestableResource, PlayerCorpse, Stash, SleepingBag, PlantedSeed, BrothPot, AnimalCorpse, Fumarole, LivingCoral, Projectile } from '../../generated';
 import { YSortedEntityType, CompoundBuildingEntity } from '../../hooks/useEntityFiltering';
+
+// Projectile constants for debug rendering (must match server values)
+const PROJECTILE_SOURCE_PLAYER = 0;
+const PROJECTILE_SOURCE_TURRET = 1;
+const PROJECTILE_SOURCE_NPC = 2;
+
+// NPC projectile types for rendering
+const NPC_PROJECTILE_SPECTRAL_SHARD = 1;  // Shardkin
+const NPC_PROJECTILE_SPECTRAL_BOLT = 2;   // Shorebound
+const NPC_PROJECTILE_VENOM_SPITTLE = 3;   // Viper
+
+// Collision radius constants (must match server)
+const NPC_PROJECTILE_PLAYER_HIT_RADIUS = 96.0;  // Large radius for NPC projectiles hitting players
+const PLAYER_PROJECTILE_HIT_RADIUS = 32.0;       // Standard player radius for player projectiles
+
+// Gravity constant for position calculation
+const PROJECTILE_GRAVITY = 600.0;
 
 // ===== TYPES =====
 
@@ -67,6 +84,13 @@ export interface YSortDebugOptions {
   ySortedEntities: YSortedEntityType[];
   viewMinX: number;
   viewMaxX: number;
+}
+
+export interface ProjectileCollisionDebugOptions {
+  projectiles: Map<string, Projectile>;
+  playerX: number;
+  playerY: number;
+  currentTimeMs: number;
 }
 
 // ===== CHUNK BOUNDARIES =====
@@ -677,4 +701,226 @@ export function renderYSortDebug(
   // Legend background (positioned in screen space, not world space)
   // This will be drawn relative to the current transform, which is world space
   // We need to temporarily reset transform or position it properly
+}
+
+// ===== PROJECTILE COLLISION DEBUG =====
+
+/**
+ * Gets the color for projectile debug rendering based on source type and NPC projectile type
+ */
+function getProjectileDebugColor(sourceType: number, npcProjectileType: number): { fillColor: string; strokeColor: string; hitRadiusColor: string } {
+  if (sourceType === PROJECTILE_SOURCE_NPC) {
+    // NPC projectiles - different colors for different types
+    switch (npcProjectileType) {
+      case NPC_PROJECTILE_SPECTRAL_SHARD:
+        // Shardkin - blue/ice
+        return {
+          fillColor: 'rgba(100, 180, 255, 0.6)',
+          strokeColor: 'rgba(100, 180, 255, 1)',
+          hitRadiusColor: 'rgba(100, 180, 255, 0.15)'
+        };
+      case NPC_PROJECTILE_SPECTRAL_BOLT:
+        // Shorebound - white/ghostly
+        return {
+          fillColor: 'rgba(200, 230, 255, 0.6)',
+          strokeColor: 'rgba(200, 230, 255, 1)',
+          hitRadiusColor: 'rgba(200, 230, 255, 0.15)'
+        };
+      case NPC_PROJECTILE_VENOM_SPITTLE:
+        // Viper - green/toxic
+        return {
+          fillColor: 'rgba(100, 200, 50, 0.6)',
+          strokeColor: 'rgba(100, 200, 50, 1)',
+          hitRadiusColor: 'rgba(100, 200, 50, 0.15)'
+        };
+      default:
+        // Unknown NPC projectile - red
+        return {
+          fillColor: 'rgba(255, 50, 50, 0.6)',
+          strokeColor: 'rgba(255, 50, 50, 1)',
+          hitRadiusColor: 'rgba(255, 50, 50, 0.15)'
+        };
+    }
+  } else if (sourceType === PROJECTILE_SOURCE_TURRET) {
+    // Turret - orange/molten
+    return {
+      fillColor: 'rgba(255, 140, 0, 0.6)',
+      strokeColor: 'rgba(255, 140, 0, 1)',
+      hitRadiusColor: 'rgba(255, 140, 0, 0.15)'
+    };
+  } else {
+    // Player projectile - yellow/gold
+    return {
+      fillColor: 'rgba(255, 215, 0, 0.6)',
+      strokeColor: 'rgba(255, 215, 0, 1)',
+      hitRadiusColor: 'rgba(255, 215, 0, 0.15)'
+    };
+  }
+}
+
+/**
+ * Gets the label text for a projectile type
+ */
+function getProjectileLabel(sourceType: number, npcProjectileType: number): string {
+  if (sourceType === PROJECTILE_SOURCE_NPC) {
+    switch (npcProjectileType) {
+      case NPC_PROJECTILE_SPECTRAL_SHARD:
+        return 'Shardkin Shard';
+      case NPC_PROJECTILE_SPECTRAL_BOLT:
+        return 'Shorebound Bolt';
+      case NPC_PROJECTILE_VENOM_SPITTLE:
+        return 'Viper Venom';
+      default:
+        return 'NPC Projectile';
+    }
+  } else if (sourceType === PROJECTILE_SOURCE_TURRET) {
+    return 'Turret Tallow';
+  } else {
+    return 'Player Projectile';
+  }
+}
+
+/**
+ * Renders projectile collision debug visualization
+ * Shows projectile positions with their hit radius for collision detection
+ */
+export function renderProjectileCollisionDebug(
+  ctx: CanvasRenderingContext2D,
+  options: ProjectileCollisionDebugOptions
+): void {
+  const { projectiles, playerX, playerY, currentTimeMs } = options;
+
+  // Render each projectile
+  for (const [projectileId, projectile] of projectiles) {
+    // Calculate elapsed time since projectile start
+    const serverStartTimeMicros = Number(projectile.startTime.microsSinceUnixEpoch);
+    const serverStartTimeMs = serverStartTimeMicros / 1000;
+    const elapsedTimeMs = currentTimeMs - serverStartTimeMs;
+    const elapsedTimeSeconds = Math.max(0, elapsedTimeMs / 1000);
+
+    // Skip projectiles that are too old (probably stale data)
+    if (elapsedTimeSeconds > 15) continue;
+
+    // Determine gravity multiplier based on projectile type
+    // NPC and turret projectiles have no gravity (fly straight)
+    // Turret tallow actually has gravity in the server
+    let gravityMultiplier = 0.0;
+    if (projectile.sourceType === PROJECTILE_SOURCE_TURRET) {
+      gravityMultiplier = 1.0; // Turret tallow has full gravity
+    } else if (projectile.sourceType === PROJECTILE_SOURCE_PLAYER) {
+      // Player projectiles: bows have gravity, crossbows/guns have less
+      gravityMultiplier = 1.0; // Default to full gravity for simplicity in debug
+    }
+
+    // Calculate current position
+    const currentX = projectile.startPosX + projectile.velocityX * elapsedTimeSeconds;
+    const currentY = projectile.startPosY + projectile.velocityY * elapsedTimeSeconds + 
+                     0.5 * PROJECTILE_GRAVITY * gravityMultiplier * elapsedTimeSeconds * elapsedTimeSeconds;
+
+    // Calculate distance from player for filtering (only show nearby projectiles)
+    const distFromPlayer = Math.sqrt((currentX - playerX) ** 2 + (currentY - playerY) ** 2);
+    if (distFromPlayer > 800) continue; // Skip projectiles too far from player
+
+    // Get colors based on projectile type
+    const colors = getProjectileDebugColor(projectile.sourceType, projectile.npcProjectileType);
+    
+    // Determine hit radius based on projectile source type
+    const hitRadius = projectile.sourceType === PROJECTILE_SOURCE_NPC 
+      ? NPC_PROJECTILE_PLAYER_HIT_RADIUS 
+      : PLAYER_PROJECTILE_HIT_RADIUS;
+
+    // Draw the hit radius circle (larger, faint circle showing collision area)
+    ctx.fillStyle = colors.hitRadiusColor;
+    ctx.strokeStyle = colors.strokeColor;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]); // Dashed line for hit radius
+    ctx.beginPath();
+    ctx.arc(currentX, currentY, hitRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw the actual projectile position (small solid circle)
+    ctx.fillStyle = colors.fillColor;
+    ctx.strokeStyle = colors.strokeColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(currentX, currentY, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Draw center crosshair
+    ctx.strokeStyle = colors.strokeColor;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(currentX - 12, currentY);
+    ctx.lineTo(currentX + 12, currentY);
+    ctx.moveTo(currentX, currentY - 12);
+    ctx.lineTo(currentX, currentY + 12);
+    ctx.stroke();
+
+    // Draw velocity vector (direction line)
+    const velocityMagnitude = Math.sqrt(projectile.velocityX ** 2 + projectile.velocityY ** 2);
+    if (velocityMagnitude > 0) {
+      const normalizedVx = projectile.velocityX / velocityMagnitude;
+      const normalizedVy = projectile.velocityY / velocityMagnitude;
+      const lineLength = 50;
+      
+      ctx.strokeStyle = colors.strokeColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(currentX, currentY);
+      ctx.lineTo(currentX + normalizedVx * lineLength, currentY + normalizedVy * lineLength);
+      ctx.stroke();
+      
+      // Draw arrowhead
+      const arrowSize = 8;
+      const endX = currentX + normalizedVx * lineLength;
+      const endY = currentY + normalizedVy * lineLength;
+      const angle = Math.atan2(normalizedVy, normalizedVx);
+      
+      ctx.beginPath();
+      ctx.moveTo(endX, endY);
+      ctx.lineTo(
+        endX - arrowSize * Math.cos(angle - Math.PI / 6),
+        endY - arrowSize * Math.sin(angle - Math.PI / 6)
+      );
+      ctx.lineTo(
+        endX - arrowSize * Math.cos(angle + Math.PI / 6),
+        endY - arrowSize * Math.sin(angle + Math.PI / 6)
+      );
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Draw label with type and hit radius info
+    const label = getProjectileLabel(projectile.sourceType, projectile.npcProjectileType);
+    const labelText = `${label} (r:${hitRadius})`;
+    
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    
+    // Measure text for background
+    const metrics = ctx.measureText(labelText);
+    const padding = 4;
+    const labelX = currentX;
+    const labelY = currentY + hitRadius + 8;
+    
+    // Draw black background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.fillRect(labelX - metrics.width / 2 - padding, labelY, metrics.width + padding * 2, 14);
+    
+    // Draw text with projectile color
+    ctx.fillStyle = colors.strokeColor;
+    ctx.fillText(labelText, labelX, labelY + 2);
+    
+    // Draw distance from player
+    const distText = `dist: ${Math.round(distFromPlayer)}px`;
+    const distMetrics = ctx.measureText(distText);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.fillRect(labelX - distMetrics.width / 2 - padding, labelY + 16, distMetrics.width + padding * 2, 14);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(distText, labelX, labelY + 18);
+  }
 }

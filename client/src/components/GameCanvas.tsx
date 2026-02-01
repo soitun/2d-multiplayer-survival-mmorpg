@@ -101,7 +101,7 @@ import { renderWorldBackground } from '../utils/renderers/worldRenderingUtils';
 import { renderCyberpunkGridBackground } from '../utils/renderers/cyberpunkGridBackground';
 import { getCollisionShapesForDebug, CollisionShape, PLAYER_RADIUS as CLIENT_PLAYER_RADIUS, COLLISION_OFFSETS } from '../utils/clientCollision'; // ADDED: Collision debug rendering
 import { renderAttackRangeDebug } from '../utils/renderers/attackRangeDebugUtils'; // Attack range debug visualization
-import { renderChunkBoundaries, renderInteriorDebug, renderCollisionDebug, renderYSortDebug } from '../utils/renderers/debugOverlayUtils'; // Consolidated debug overlays
+import { renderChunkBoundaries, renderInteriorDebug, renderCollisionDebug, renderYSortDebug, renderProjectileCollisionDebug } from '../utils/renderers/debugOverlayUtils'; // Consolidated debug overlays
 import { renderMobileTapAnimation } from '../utils/renderers/mobileRenderingUtils'; // Mobile-specific rendering
 import { renderYSortedEntities } from '../utils/renderers/renderingUtils.ts';
 import { renderWardRadius, LANTERN_TYPE_LANTERN } from '../utils/renderers/lanternRenderingUtils';
@@ -3666,6 +3666,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         playerY,
         localPlayerId: localPlayer.identity.toHexString(),
         collisionShapes,
+      });
+
+      // Render projectile collision debug (hit radii for projectiles)
+      renderProjectileCollisionDebug(ctx, {
+        projectiles,
+        playerX,
+        playerY,
+        currentTimeMs: performance.now(),
       });
     }
     // --- End Render Collision Debug Overlay ---

@@ -2279,10 +2279,14 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             }
             
             // Use line segment collision detection for players
-            // NPC projectiles use a larger collision radius (64px) for more forgiving hits
+            // NPC projectiles use a MUCH larger collision radius for reliable hits:
+            // - Fast projectiles (450-550 px/s) can travel far between ticks
+            // - Network latency means player positions may be slightly stale
+            // - 96px radius = 3x normal player radius for forgiving collision
             // Player projectiles use standard PLAYER_RADIUS (32px)
+            const NPC_PROJECTILE_PLAYER_HIT_RADIUS: f32 = 96.0;
             let player_radius = if projectile.source_type == PROJECTILE_SOURCE_NPC {
-                64.0  // Larger radius for NPC projectiles - they need to actually hit!
+                NPC_PROJECTILE_PLAYER_HIT_RADIUS  // Large radius for NPC projectiles - compensates for speed/latency
             } else {
                 crate::PLAYER_RADIUS
             };

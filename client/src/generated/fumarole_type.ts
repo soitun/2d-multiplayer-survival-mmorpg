@@ -27,6 +27,10 @@ import {
   type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
   type TableHandle as __TableHandle,
 } from "spacetimedb";
+import { CookingProgress } from "./cooking_progress_type";
+// Mark import as potentially unused
+declare type __keep_CookingProgress = CookingProgress;
+
 
 export type Fumarole = {
   id: number,
@@ -45,6 +49,12 @@ export type Fumarole = {
   slotDefId4: bigint | undefined,
   slotInstanceId5: bigint | undefined,
   slotDefId5: bigint | undefined,
+  slot0CookingProgress: CookingProgress | undefined,
+  slot1CookingProgress: CookingProgress | undefined,
+  slot2CookingProgress: CookingProgress | undefined,
+  slot3CookingProgress: CookingProgress | undefined,
+  slot4CookingProgress: CookingProgress | undefined,
+  slot5CookingProgress: CookingProgress | undefined,
   attachedBrothPotId: number | undefined,
   consumptionTickCounter: bigint,
   isSubmerged: boolean,
@@ -79,6 +89,12 @@ export const Fumarole = {
       { name: "slotDefId4", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
       { name: "slotInstanceId5", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
       { name: "slotDefId5", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
+      { name: "slot0CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
+      { name: "slot1CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
+      { name: "slot2CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
+      { name: "slot3CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
+      { name: "slot4CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
+      { name: "slot5CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
       { name: "attachedBrothPotId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
       { name: "consumptionTickCounter", algebraicType: __AlgebraicTypeValue.U64 },
       { name: "isSubmerged", algebraicType: __AlgebraicTypeValue.Bool },

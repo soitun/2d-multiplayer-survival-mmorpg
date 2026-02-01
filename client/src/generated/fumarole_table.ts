@@ -28,6 +28,10 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 import { Fumarole } from "./fumarole_type";
+import { CookingProgress } from "./cooking_progress_type";
+// Mark import as potentially unused
+declare type __keep_CookingProgress = CookingProgress;
+
 import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
 declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 

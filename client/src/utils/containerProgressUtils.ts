@@ -5,7 +5,7 @@
  * to display visual progress overlays similar to weapon cooldowns
  */
 
-import { Campfire, Furnace, Barbecue, WoodenStorageBox, Lantern, CookingProgress, InventoryItem } from '../generated';
+import { Campfire, Furnace, Barbecue, Fumarole, WoodenStorageBox, Lantern, CookingProgress, InventoryItem } from '../generated';
 import { ContainerType, ContainerEntity } from './containerUtils';
 
 const COMPOST_CONVERSION_TIME_SECS = 300; // 5 minutes (matching server constant)
@@ -69,6 +69,14 @@ export function getCookingProgress(
         const barbecue = containerEntity as Barbecue;
         const progressField = `slot${slotIndex}CookingProgress` as keyof Barbecue;
         const cookingProgress = barbecue[progressField] as CookingProgress | undefined;
+        
+        if (cookingProgress && cookingProgress.targetCookTimeSecs > 0) {
+            return Math.min(1.0, cookingProgress.currentCookTimeSecs / cookingProgress.targetCookTimeSecs);
+        }
+    } else if (containerType === 'fumarole') {
+        const fumarole = containerEntity as Fumarole;
+        const progressField = `slot${slotIndex}CookingProgress` as keyof Fumarole;
+        const cookingProgress = fumarole[progressField] as CookingProgress | undefined;
         
         if (cookingProgress && cookingProgress.targetCookTimeSecs > 0) {
             return Math.min(1.0, cookingProgress.currentCookTimeSecs / cookingProgress.targetCookTimeSecs);
@@ -169,8 +177,8 @@ export function getAllSlotProgress(
     
     if (!containerEntity) return progressMap;
     
-    // For campfire/furnace/barbecue, use cooking progress
-    if (containerType === 'campfire' || containerType === 'furnace' || containerType === 'barbecue') {
+    // For campfire/furnace/barbecue/fumarole, use cooking progress
+    if (containerType === 'campfire' || containerType === 'furnace' || containerType === 'barbecue' || containerType === 'fumarole') {
         items.forEach((item, index) => {
             if (item) { // Only calculate if there's an item in the slot
                 const progress = getCookingProgress(containerType, containerEntity, index);

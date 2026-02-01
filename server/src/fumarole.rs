@@ -83,6 +83,14 @@ pub struct Fumarole {
     pub slot_instance_id_5: Option<u64>,
     pub slot_def_id_5: Option<u64>,
     
+    // Cooking progress for each slot (for UI progress overlays)
+    pub slot_0_cooking_progress: Option<crate::cooking::CookingProgress>,
+    pub slot_1_cooking_progress: Option<crate::cooking::CookingProgress>,
+    pub slot_2_cooking_progress: Option<crate::cooking::CookingProgress>,
+    pub slot_3_cooking_progress: Option<crate::cooking::CookingProgress>,
+    pub slot_4_cooking_progress: Option<crate::cooking::CookingProgress>,
+    pub slot_5_cooking_progress: Option<crate::cooking::CookingProgress>,
+    
     pub attached_broth_pot_id: Option<u32>, // Broth pot placed on this fumarole
     pub consumption_tick_counter: u64, // Tracks ticks for item consumption (every 5 ticks = 1 item consumed)
     pub is_submerged: bool, // NEW: True if fumarole is underwater (in coral reef zones)
@@ -108,6 +116,12 @@ impl Fumarole {
             slot_def_id_4: None,
             slot_instance_id_5: None,
             slot_def_id_5: None,
+            slot_0_cooking_progress: None,
+            slot_1_cooking_progress: None,
+            slot_2_cooking_progress: None,
+            slot_3_cooking_progress: None,
+            slot_4_cooking_progress: None,
+            slot_5_cooking_progress: None,
             attached_broth_pot_id: None,
             consumption_tick_counter: 0,
             is_submerged: false, // Default to above-water fumaroles
@@ -133,9 +147,41 @@ impl Fumarole {
             slot_def_id_4: None,
             slot_instance_id_5: None,
             slot_def_id_5: None,
+            slot_0_cooking_progress: None,
+            slot_1_cooking_progress: None,
+            slot_2_cooking_progress: None,
+            slot_3_cooking_progress: None,
+            slot_4_cooking_progress: None,
+            slot_5_cooking_progress: None,
             attached_broth_pot_id: None,
             consumption_tick_counter: 0,
             is_submerged: true, // Mark as submerged
+        }
+    }
+    
+    /// Get cooking progress for a slot
+    pub fn get_cooking_progress(&self, slot_index: u8) -> Option<crate::cooking::CookingProgress> {
+        match slot_index {
+            0 => self.slot_0_cooking_progress.clone(),
+            1 => self.slot_1_cooking_progress.clone(),
+            2 => self.slot_2_cooking_progress.clone(),
+            3 => self.slot_3_cooking_progress.clone(),
+            4 => self.slot_4_cooking_progress.clone(),
+            5 => self.slot_5_cooking_progress.clone(),
+            _ => None,
+        }
+    }
+    
+    /// Set cooking progress for a slot
+    pub fn set_cooking_progress(&mut self, slot_index: u8, progress: Option<crate::cooking::CookingProgress>) {
+        match slot_index {
+            0 => self.slot_0_cooking_progress = progress,
+            1 => self.slot_1_cooking_progress = progress,
+            2 => self.slot_2_cooking_progress = progress,
+            3 => self.slot_3_cooking_progress = progress,
+            4 => self.slot_4_cooking_progress = progress,
+            5 => self.slot_5_cooking_progress = progress,
+            _ => {},
         }
     }
 }
@@ -546,6 +592,53 @@ pub fn process_fumarole_logic_scheduled(ctx: &ReducerContext, schedule_args: Fum
         fumarole.consumption_tick_counter = 0; // Reset counter
         log::info!("[ProcessFumarole] Consumption tick reached - processing items");
     }
+    
+    // Update cooking progress for each slot (every tick for smooth progress display)
+    let progress_per_tick = FUMAROLE_PROCESS_INTERVAL_SECS as f32; // 1 second per tick
+    let target_cook_time = (FUMAROLE_ITEM_CONSUMPTION_TICKS * FUMAROLE_PROCESS_INTERVAL_SECS) as f32; // Total time to consume
+    
+    for slot_idx in 0..NUM_FUMAROLE_SLOTS as u8 {
+        if let Some(instance_id) = fumarole.get_slot_instance_id(slot_idx) {
+            if let Some(item) = inventory_items_table.instance_id().find(instance_id) {
+                // Skip charcoal - don't show progress for output items
+                if charcoal_def_id == Some(item.item_def_id) {
+                    fumarole.set_cooking_progress(slot_idx, None);
+                    continue;
+                }
+                
+                // Get or create cooking progress for this slot
+                let current_progress = fumarole.get_cooking_progress(slot_idx);
+                let new_progress = match current_progress {
+                    Some(mut progress) => {
+                        progress.current_cook_time_secs += progress_per_tick;
+                        // Cap at target (will be reset when item is consumed)
+                        if progress.current_cook_time_secs > target_cook_time {
+                            progress.current_cook_time_secs = target_cook_time;
+                        }
+                        progress
+                    }
+                    None => {
+                        // Get item name for display
+                        let item_name = ctx.db.item_definition().id().find(item.item_def_id)
+                            .map(|def| def.name.clone())
+                            .unwrap_or_else(|| "Unknown".to_string());
+                        crate::cooking::CookingProgress {
+                            current_cook_time_secs: progress_per_tick,
+                            target_cook_time_secs: target_cook_time,
+                            target_item_def_name: format!("Charcoal (from {})", item_name),
+                        }
+                    }
+                };
+                fumarole.set_cooking_progress(slot_idx, Some(new_progress));
+            } else {
+                // Item not found, clear progress
+                fumarole.set_cooking_progress(slot_idx, None);
+            }
+        } else {
+            // No item in slot, clear progress
+            fumarole.set_cooking_progress(slot_idx, None);
+        }
+    }
 
     // Process each slot - incinerate items and produce charcoal (only on consumption ticks)
     if should_consume_items {
@@ -565,6 +658,9 @@ pub fn process_fumarole_logic_scheduled(ctx: &ReducerContext, schedule_args: Fum
                     item.quantity = item.quantity.saturating_sub(1);
                     made_changes = true;
                     let remaining_qty = item.quantity; // Capture before move
+                    
+                    // Reset cooking progress after consumption (will start fresh for next unit)
+                    fumarole.set_cooking_progress(slot_idx, None);
                     
                     if remaining_qty > 0 {
                         inventory_items_table.instance_id().update(item);
