@@ -446,13 +446,19 @@ function calculateExplicitSpoilageTimeRemaining(item: InventoryItem, itemDef: It
 
 /**
  * Format time remaining until spoilage for display
- * Returns formatted string like "12h 30m" or "2d 5h" or "Spoiled" or "Preserved"
+ * Returns formatted string like "12h 30m" or "2d 5h" or "Spoiled" or "Preserved" or "Never Spoils"
  * Works for both food items and items with explicit spoilage time (like Queen Bee)
  * @param item - The inventory item
  * @param itemDef - The item definition
  * @param connection - Optional database connection to check if item is in a pantry/beehive
  */
 export function formatFoodSpoilageTimeRemaining(item: InventoryItem, itemDef: ItemDefinition, connection?: DbConnection | null): string {
+    // Check if item is inherently preserved (like coffee, tea, honey, pickled foods, etc.)
+    // These items never spoil by definition
+    if (itemDef.isPreserved) {
+        return 'Never Spoils';
+    }
+    
     // Check if item is in a pantry/refrigerator - if so, show "Preserved"
     if (connection && isItemInRefrigerator(item, connection)) {
         return 'Preserved';

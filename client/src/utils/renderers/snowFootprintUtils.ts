@@ -1,18 +1,18 @@
 /**
- * Snow Trail System
- * =================
+ * Terrain Trail System
+ * ====================
  * 
- * A polished alpine snow trail effect system for pixel art aesthetics.
- * When players walk on alpine (snowy) tiles, they create disturbance
- * patches AHEAD of them, as if pushing through deep snow.
+ * A polished trail effect system for pixel art aesthetics.
+ * Creates seamless footprint trails on supported terrain types:
+ * - Alpine (snow): Blue-purple shadows, player pushes through snow
+ * - Beach (sand): Brown/tan shadows, footprints in sand
  * 
  * Visual Design Philosophy:
  * - Splotchy, irregular shapes (not perfect circles) for organic feel
- * - Each footprint uses the alpine tile texture as base for seamless blending
- * - Purple overlays create depth effect:
- *   - #A9B4EC dark purple (compressed snow shadow)
- *   - #D2DEF2 light purple (center highlight)
- * - Trails positioned AHEAD of player (pushing through snow effect)
+ * - Each footprint uses the actual terrain tile texture for seamless blending
+ * - Terrain-appropriate color overlays create depth effect
+ * - Combined path rendering ensures no overlapping edges between footprints
+ * - Trails positioned AHEAD of player (pushing through terrain effect)
  * - Random size/position variation for seamless blending
  * - Smooth alpha fade-out over 5 seconds (starts at 3.5s)
  */
@@ -21,58 +21,104 @@ import { Player as SpacetimeDBPlayer } from '../../generated';
 import { DbConnection } from '../../generated';
 import { getTileTypeFromChunkData, worldPosToTileCoords } from './placementRenderingUtils';
 
-// Import alpine texture directly - Vite will handle the asset URL
+// Import textures directly - Vite will handle the asset URLs
 import alpineTextureUrl from '../../assets/tiles/new/alpine.png';
+import beachTextureUrl from '../../assets/tiles/new/beach.png';
 
 // =============================================================================
-// ALPINE TEXTURE FOR INNER LAYER
+// TEXTURE MANAGEMENT - Supports multiple terrain types
 // =============================================================================
 
-let alpineTexture: HTMLImageElement | null = null;
-let alpinePattern: CanvasPattern | null = null;
-let textureLoaded = false;
+/** Scale factor for pattern to match ground tile rendering */
+const TILE_SCALE = 0.5;
 
-// Preload the alpine texture
-function loadAlpineTexture(): void {
-  if (alpineTexture) return; // Already loading/loaded
+/** Terrain types that support trail effects */
+type TrailTerrainType = 'Alpine' | 'Beach';
+
+interface TextureData {
+  image: HTMLImageElement | null;
+  pattern: CanvasPattern | null;
+  loaded: boolean;
+}
+
+const textures: Record<TrailTerrainType, TextureData> = {
+  Alpine: { image: null, pattern: null, loaded: false },
+  Beach: { image: null, pattern: null, loaded: false },
+};
+
+/** Trail color configuration per terrain type */
+const trailColors: Record<TrailTerrainType, { dark: [number, number, number]; light: [number, number, number] }> = {
+  Alpine: {
+    dark: [130, 145, 200],   // Blue-purple for snow shadow
+    light: [210, 222, 242],  // Light lavender for snow center
+  },
+  Beach: {
+    dark: [160, 140, 100],   // Darker sand/brown for wet sand
+    light: [210, 195, 160],  // Light tan for dry sand center
+  },
+};
+
+// Preload textures
+function loadTexture(type: TrailTerrainType, url: string): void {
+  if (textures[type].image) return;
   
-  alpineTexture = new Image();
-  alpineTexture.onload = () => {
-    textureLoaded = true;
-    console.log('[SnowTrail] Alpine texture loaded successfully');
+  const img = new Image();
+  img.onload = () => {
+    textures[type].loaded = true;
+    console.log(`[Trail] ${type} texture loaded successfully`);
   };
-  alpineTexture.onerror = (e) => {
-    console.warn('[SnowTrail] Failed to load alpine texture:', e);
-    alpineTexture = null;
+  img.onerror = (e) => {
+    console.warn(`[Trail] Failed to load ${type} texture:`, e);
+    textures[type].image = null;
   };
-  alpineTexture.src = alpineTextureUrl;
+  img.src = url;
+  textures[type].image = img;
 }
 
 // Initialize texture loading
-loadAlpineTexture();
-
-/** Scale factor for pattern to match ground tile rendering (2x for pixel art) */
-const TILE_SCALE = 0.5;
+loadTexture('Alpine', alpineTextureUrl);
+loadTexture('Beach', beachTextureUrl);
 
 /**
- * Creates or returns cached alpine pattern for a context
- * Pattern is scaled to match the ground tile rendering scale
+ * Creates or returns cached pattern for a terrain type
  */
-function getAlpinePattern(ctx: CanvasRenderingContext2D): CanvasPattern | null {
-  if (!textureLoaded || !alpineTexture) return null;
+function getTerrainPattern(ctx: CanvasRenderingContext2D, type: TrailTerrainType): CanvasPattern | null {
+  const tex = textures[type];
+  if (!tex.loaded || !tex.image) return null;
   
-  // Create pattern if not cached
-  if (!alpinePattern) {
-    alpinePattern = ctx.createPattern(alpineTexture, 'repeat');
-    
-    // Scale the pattern to match ground tile rendering
-    if (alpinePattern) {
+  if (!tex.pattern) {
+    tex.pattern = ctx.createPattern(tex.image, 'repeat');
+    if (tex.pattern) {
       const scaleMatrix = new DOMMatrix();
       scaleMatrix.scaleSelf(TILE_SCALE, TILE_SCALE);
-      alpinePattern.setTransform(scaleMatrix);
+      tex.pattern.setTransform(scaleMatrix);
     }
   }
-  return alpinePattern;
+  return tex.pattern;
+}
+
+/** Check if a tile type supports trail effects */
+function isTrailTerrain(tileType: string | null): tileType is TrailTerrainType {
+  return tileType === 'Alpine' || tileType === 'Beach';
+}
+
+/** 
+ * Check if a tile is adjacent to water (edge tile)
+ * Used to skip footprints on shoreline edges where they would overlap water
+ */
+function isTileAdjacentToWater(connection: DbConnection, tileX: number, tileY: number): boolean {
+  // Check all 8 adjacent tiles
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      
+      const neighborType = getTileTypeFromChunkData(connection, tileX + dx, tileY + dy);
+      if (neighborType === 'Sea' || neighborType === 'HotSpringWater') {
+        return true; // Has adjacent water tile
+      }
+    }
+  }
+  return false;
 }
 
 // =============================================================================
@@ -110,11 +156,12 @@ const MIN_MOVEMENT_DIST_SQ = 9; // 3 pixels - very tight for continuous trail
 // TYPES
 // =============================================================================
 
-interface SnowFootprint {
+interface TerrainFootprint {
   x: number;
   y: number;
   createdAt: number;
   angle: number; // Radians - direction player was facing
+  terrainType: TrailTerrainType; // Which terrain created this footprint
   // Random variation for organic patchy look
   sizeVariation: number; // 0.8 to 1.2 multiplier
   offsetX: number; // Small random offset for trail variation
@@ -123,7 +170,7 @@ interface SnowFootprint {
 }
 
 interface PlayerFootprintState {
-  footprints: SnowFootprint[];
+  footprints: TerrainFootprint[];
   lastFootprintTime: number;
   lastPosition: { x: number; y: number };
 }
@@ -190,7 +237,7 @@ function seededRandom(seed: number): number {
 }
 
 /**
- * Updates footprint state for a player if they're walking on alpine terrain
+ * Updates footprint state for a player if they're walking on trail-supporting terrain
  */
 export function updatePlayerFootprints(
   connection: DbConnection | null,
@@ -218,13 +265,18 @@ export function updatePlayerFootprints(
     nowMs - fp.createdAt < FOOTPRINT_DURATION_MS
   );
   
-  // Check if player is on alpine terrain
+  // Check if player is on trail-supporting terrain (Alpine or Beach)
   const { tileX, tileY } = worldPosToTileCoords(player.positionX, player.positionY);
   const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
-  const isOnAlpine = tileType === 'Alpine';
   
-  // Skip if not on alpine or not moving
-  if (!isOnAlpine || !isMoving) {
+  // Skip if not on trail terrain or not moving
+  if (!isTrailTerrain(tileType) || !isMoving) {
+    state.lastPosition = { x: player.positionX, y: player.positionY };
+    return;
+  }
+  
+  // Skip footprints on edge tiles (adjacent to water) to prevent overlapping onto water
+  if (isTileAdjacentToWater(connection, tileX, tileY)) {
     state.lastPosition = { x: player.positionX, y: player.positionY };
     return;
   }
@@ -241,7 +293,7 @@ export function updatePlayerFootprints(
   const distSq = dx * dx + dy * dy;
   
   if (timeSinceLastFootprint >= FOOTPRINT_INTERVAL_MS && distSq >= MIN_MOVEMENT_DIST_SQ) {
-    // Get movement direction to place trail behind player
+    // Get movement direction to place trail ahead of player
     const moveVec = getMovementVector(player.direction);
     const angle = directionToAngle(player.direction);
     
@@ -251,12 +303,13 @@ export function updatePlayerFootprints(
     const offsetX = (seededRandom(seed + 1) - 0.5) * TRAIL_LATERAL_VARIANCE * 2;
     const offsetY = (seededRandom(seed + 2) - 0.5) * TRAIL_LATERAL_VARIANCE * 2;
     
-    // Position trail AHEAD of player (in movement direction - pushing through snow)
-    const footprint: SnowFootprint = {
+    // Position trail AHEAD of player (pushing through snow/sand)
+    const footprint: TerrainFootprint = {
       x: player.positionX + moveVec.x * TRAIL_FORWARD_OFFSET + offsetX,
       y: player.positionY + moveVec.y * TRAIL_FORWARD_OFFSET + offsetY,
       createdAt: nowMs,
       angle,
+      terrainType: tileType, // Store which terrain type
       sizeVariation,
       offsetX,
       offsetY,
@@ -325,7 +378,7 @@ function drawSplotchyTexturedShape(
   seed: number,
   blobCount: number
 ): void {
-  const pattern = getAlpinePattern(ctx);
+  const pattern = getTerrainPattern(ctx, 'Alpine'); // Default to Alpine for legacy function
   
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -388,7 +441,7 @@ function drawSoftCircle(
  */
 function drawFootprint(
   ctx: CanvasRenderingContext2D,
-  footprint: SnowFootprint,
+  footprint: TerrainFootprint,
   alpha: number
 ): void {
   const size = FOOTPRINT_SIZE * footprint.sizeVariation;
@@ -430,7 +483,7 @@ function drawFootprint(
  * Calculates the alpha value for a footprint based on age
  * Uses smooth fade-out in the last portion of lifetime
  */
-function calculateFootprintAlpha(footprint: SnowFootprint, nowMs: number): number {
+function calculateFootprintAlpha(footprint: TerrainFootprint, nowMs: number): number {
   const age = nowMs - footprint.createdAt;
   
   if (age < FOOTPRINT_FADE_START_MS) {
@@ -475,22 +528,18 @@ function addSplotchyShapeToPath(
 
 /**
  * Renders all footprints for all players within the viewport
- * Uses combined path rendering for seamless texture:
- * 1. Build single combined path from all footprint shapes
- * 2. Fill once with alpine texture (no overlapping edges)
- * 3. Draw soft gradient overlays on top
+ * Simple gradient-only rendering:
+ * 1. Dark gradient border (terrain-appropriate color)
+ * 2. Light gradient center (terrain-appropriate color)
  */
 export function renderAllFootprints(
   ctx: CanvasRenderingContext2D,
   viewBounds: { minX: number; maxX: number; minY: number; maxY: number },
   nowMs: number
 ): void {
-  // Collect visible footprints
-  const visibleFootprints: Array<{ footprint: SnowFootprint; alpha: number }> = [];
-  
   for (const [_playerId, state] of playerFootprintStates) {
     for (const footprint of state.footprints) {
-      const margin = 60;
+      const margin = 100;
       if (footprint.x < viewBounds.minX - margin || footprint.x > viewBounds.maxX + margin ||
           footprint.y < viewBounds.minY - margin || footprint.y > viewBounds.maxY + margin) {
         continue;
@@ -499,63 +548,30 @@ export function renderAllFootprints(
       const alpha = calculateFootprintAlpha(footprint, nowMs);
       if (alpha <= 0) continue;
       
-      visibleFootprints.push({ footprint, alpha });
+      const size = FOOTPRINT_SIZE * footprint.sizeVariation;
+      const halfSize = size / 2;
+      const seed = footprint.patchSeed;
+      const wobbleX = (seededRandom(seed + 700) - 0.5) * 2;
+      const wobbleY = (seededRandom(seed + 800) - 0.5) * 2;
+      const worldX = footprint.x + wobbleX;
+      const worldY = footprint.y + wobbleY;
+      
+      // Get terrain-appropriate colors
+      const colors = trailColors[footprint.terrainType];
+      
+      // Dark gradient - visible border
+      drawSoftCircle(ctx, worldX, worldY, halfSize * 0.85, ...colors.dark, alpha * 0.55);
+      
+      // Light center
+      drawSoftCircle(ctx, worldX, worldY, halfSize * 0.5, ...colors.light, alpha * 0.45);
     }
-  }
-  
-  if (visibleFootprints.length === 0) return;
-  
-  // PASS 1: Build combined path and fill with texture ONCE (no overlapping edges)
-  const combinedTexturePath = new Path2D();
-  
-  for (const { footprint } of visibleFootprints) {
-    const size = FOOTPRINT_SIZE * footprint.sizeVariation;
-    const halfSize = size / 2;
-    const seed = footprint.patchSeed;
-    const wobbleX = (seededRandom(seed + 700) - 0.5) * 2;
-    const wobbleY = (seededRandom(seed + 800) - 0.5) * 2;
-    
-    addSplotchyShapeToPath(
-      combinedTexturePath,
-      footprint.x + wobbleX,
-      footprint.y + wobbleY,
-      halfSize,
-      seed,
-      5
-    );
-  }
-  
-  // Fill the combined path with texture once
-  const pattern = getAlpinePattern(ctx);
-  if (pattern) {
-    ctx.fillStyle = pattern;
-  } else {
-    ctx.fillStyle = 'rgba(200, 215, 235, 0.9)';
-  }
-  ctx.fill(combinedTexturePath);
-  
-  // PASS 2: Draw soft gradient overlays on top of each footprint
-  for (const { footprint, alpha } of visibleFootprints) {
-    const size = FOOTPRINT_SIZE * footprint.sizeVariation;
-    const halfSize = size / 2;
-    const seed = footprint.patchSeed;
-    const wobbleX = (seededRandom(seed + 700) - 0.5) * 2;
-    const wobbleY = (seededRandom(seed + 800) - 0.5) * 2;
-    const worldX = footprint.x + wobbleX;
-    const worldY = footprint.y + wobbleY;
-    
-    // Dark purple gradient - visible border
-    drawSoftCircle(ctx, worldX, worldY, halfSize * 0.85, 130, 145, 200, alpha * 0.55);
-    
-    // Light purple center
-    drawSoftCircle(ctx, worldX, worldY, halfSize * 0.5, 210, 222, 242, alpha * 0.45);
   }
 }
 
 /**
  * Gets footprints for a specific player (for debugging or special rendering)
  */
-export function getPlayerFootprints(playerId: string): SnowFootprint[] {
+export function getPlayerFootprints(playerId: string): TerrainFootprint[] {
   return playerFootprintStates.get(playerId)?.footprints || [];
 }
 

@@ -31,6 +31,7 @@ import {
 export type TreeChop = { tag: "TreeChop" };
 export type TreeCreaking = { tag: "TreeCreaking" };
 export type TreeFalling = { tag: "TreeFalling" };
+export type BirdsFlapping = { tag: "BirdsFlapping" };
 export type StoneHit = { tag: "StoneHit" };
 export type StoneDestroyed = { tag: "StoneDestroyed" };
 export type HarvestPlant = { tag: "HarvestPlant" };

@@ -33,6 +33,7 @@ import * as SoundTypeVariants from './sound_type_variants'
 export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.TreeCreaking |
   SoundTypeVariants.TreeFalling |
+  SoundTypeVariants.BirdsFlapping |
   SoundTypeVariants.StoneHit |
   SoundTypeVariants.StoneDestroyed |
   SoundTypeVariants.HarvestPlant |
@@ -150,6 +151,7 @@ export const SoundType = {
   TreeChop: { tag: "TreeChop" } as const,
   TreeCreaking: { tag: "TreeCreaking" } as const,
   TreeFalling: { tag: "TreeFalling" } as const,
+  BirdsFlapping: { tag: "BirdsFlapping" } as const,
   StoneHit: { tag: "StoneHit" } as const,
   StoneDestroyed: { tag: "StoneDestroyed" } as const,
   HarvestPlant: { tag: "HarvestPlant" } as const,
@@ -261,6 +263,7 @@ export const SoundType = {
       { name: "TreeChop", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "TreeCreaking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "TreeFalling", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "BirdsFlapping", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "StoneHit", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "StoneDestroyed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HarvestPlant", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

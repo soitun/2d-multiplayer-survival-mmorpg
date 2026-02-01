@@ -1652,7 +1652,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(600)
             .build(),
 
-        ItemBuilder::new("Instant Coffee Tin", "A tin of instant coffee granules. Strong, bitter, and energizing.", ItemCategory::Consumable)
+        ItemBuilder::new("image.png", "A tin of instant coffee granules. Strong, bitter, and energizing.", ItemCategory::Consumable)
             .icon("instant_coffee_tin.png")
             .stackable(8)
             .consumable(3.0, 5.0, 8.0) // Mild effects, caffeine energy
@@ -1721,6 +1721,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
         ItemBuilder::new("Anti-Venom", "A specialized medical serum that neutralizes Cable Viper venom. Instantly cures all venom effects. Essential for surviving in viper territory.", ItemCategory::Consumable)
             .icon("anti_venom.png")
             .stackable(5)
+            .preserved() // Medicine is shelf-stable
             .crafting_cost(vec![CostIngredient { item_name: "Cable Viper Gland".to_string(), quantity: 1 }])
             .crafting_output(1, 5)
             .build(),

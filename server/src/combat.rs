@@ -1525,9 +1525,9 @@ pub fn damage_tree(
     tree.last_hit_time = Some(timestamp);
     
     // Play birds flapping sound on first hit to indicate virgin tree
-    if is_first_hit {
-        sound_events::emit_birds_flapping_sound(ctx, tree.pos_x, tree.pos_y, attacker_id);
-    }
+    // if is_first_hit {
+    //     sound_events::emit_birds_flapping_sound(ctx, tree.pos_x, tree.pos_y, attacker_id);
+    // }
     
     // NEW: Resource depletion system - limit yield to remaining resources
     let mut actual_yield = std::cmp::min(yield_amount, tree.resource_remaining);
