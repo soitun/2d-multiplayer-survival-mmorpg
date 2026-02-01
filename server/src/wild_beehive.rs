@@ -276,6 +276,11 @@ pub fn spawn_wild_beehive_with_loot(
                 "[WildBeehive] Spawned {} bees to guard beehive {}",
                 bee_ids.len(), inserted_beehive.id
             );
+            
+            // Start buzzing sound since bees are present at wild beehives
+            // Visual center Y is slightly above the container position (similar to placed beehives)
+            let visual_center_y = pos_y - 20.0;
+            crate::sound_events::start_beehive_sound(ctx, inserted_beehive.id as u64, pos_x, visual_center_y);
         }
         Err(e) => {
             log::warn!(
@@ -336,6 +341,9 @@ pub fn check_and_despawn_wild_beehive_if_empty(
             log::info!("[WildBeehive] Scheduled respawn for wild beehive {} at ({:.1}, {:.1}) in {} seconds", 
                       beehive_id, beehive.pos_x, beehive.pos_y, respawn_delay_secs);
         }
+        
+        // Stop the buzzing sound before deleting
+        crate::sound_events::stop_beehive_sound(ctx, beehive_id as u64);
         
         ctx.db.wooden_storage_box().id().delete(beehive_id);
         log::info!("[WildBeehive] Auto-despawned empty wild beehive {}", beehive_id);
