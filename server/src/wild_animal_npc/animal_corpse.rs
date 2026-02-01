@@ -127,7 +127,7 @@ pub fn get_animal_loot_chances(animal_species: AnimalSpecies) -> (f64, f64, f64,
     match animal_species {
         AnimalSpecies::CinderFox => (0.60, 0.80, 0.30, 0.70), // High cloth (fur), good meat, some fat, low bone
         AnimalSpecies::TundraWolf => (0.70, 0.50, 0.60, 0.80), // Good fat and bone, decent cloth (pelt), good meat
-        AnimalSpecies::CableViper => (0.30, 0.20, 0.90, 0.40), // Low fat/cloth, very high bone (scales), some meat
+        AnimalSpecies::CableViper => (0.30, 0.20, 0.0, 0.40), // Low fat/cloth, no bones (snakes have no usable bones), some meat - scales drop via cloth
         AnimalSpecies::ArcticWalrus => (0.85, 0.95, 0.65, 0.75), // Very high fat (blubber), excellent hide, good bone, good meat
         AnimalSpecies::BeachCrab => (0.0, 0.0, 0.30, 1.0), // No fat/cloth, some bone (shell fragments), guaranteed meat
         AnimalSpecies::Tern => (0.15, 0.60, 0.20, 0.50), // Low fat, good feathers, some bone, decent meat

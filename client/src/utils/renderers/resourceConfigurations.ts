@@ -120,10 +120,7 @@ RESOURCE_CONFIGS.BeachWoodPile = {
   targetWidth: 150 // 2x size for visibility
 };
 
-RESOURCE_CONFIGS.StonePile = {
-  ...RESOURCE_CONFIGS.StonePile,
-  targetWidth: 160 // 2x size for visibility
-};
+// StonePile uses default size (90) to match SulfurPile and MetalOrePile
 
 RESOURCE_CONFIGS.SoggyPlantFiberPile = {
   ...RESOURCE_CONFIGS.SoggyPlantFiberPile,

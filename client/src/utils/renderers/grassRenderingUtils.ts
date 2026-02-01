@@ -239,8 +239,8 @@ const grassTargetWidths: Record<string, number> = {
     'TallGrassAlpineA': 128,
     'TallGrassAlpineB': 128,
 
-    // Beach grass variants
-    'BeachGrassA': 128,
+    // Beach grass variants - rendered larger for better visibility
+    'BeachGrassA': 256,
 };
 const DEFAULT_GRASS_WIDTH = 72; // Default for any unmapped types
 

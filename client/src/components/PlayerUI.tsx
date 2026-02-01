@@ -997,7 +997,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             name: 'Echoes Resonate',
                             emoji: '🔮',
                             type: 'neutral' as const,
-                            description: 'The azure runestone whispers forgotten truths. When darkness falls, fragments of lost memories crystallize from the aether, manifesting as ethereal memory shards.',
+                            description: 'The azure runestone whispers forgotten truths. When darkness falls, fragments of lost memories crystallize from the aether.',
                             // No duration - permanent while in zone
                         };
                         break;

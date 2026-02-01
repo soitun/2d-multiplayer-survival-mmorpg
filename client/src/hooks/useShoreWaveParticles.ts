@@ -460,9 +460,9 @@ export function renderShoreWaves(
     cameraOffsetY: number
 ) {
     // Debug: Log particle count every 60 frames (log even if 0 particles)
-    if (Math.random() < 0.016) {
-        console.log(`[ShoreWaves RENDER] particles.length=${particles.length} (canvas already translated, using world coords)`);
-    }
+    // if (Math.random() < 0.016) {
+    //     console.log(`[ShoreWaves RENDER] particles.length=${particles.length} (canvas already translated, using world coords)`);
+    // }
     if (particles.length === 0) return;
 
     ctx.save();

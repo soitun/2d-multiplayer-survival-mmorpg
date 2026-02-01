@@ -569,6 +569,23 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
     // Also block when quantity input or search input is focused (to prevent movement while typing)
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // If search input is focused, allow all typing keys (including spacebar) to pass through
+            const target = e.target as HTMLElement;
+            if (isSearchFocused && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+                // Allow all typing keys including spacebar, letters, numbers, etc.
+                // Only handle Escape key for clearing search
+                if (e.key === 'Escape') {
+                    if (searchQuery) {
+                        setSearchQuery('');
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        return;
+                    }
+                }
+                // Don't block any other keys when typing in search
+                return;
+            }
+            
             // Handle Escape to close (or clear search first)
             if (e.key === 'Escape') {
                 if (searchQuery && isSearchFocused) {
@@ -976,8 +993,20 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
                     placeholder="Search contracts by item name..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                        // Allow all keys including spacebar to work normally in search input
+                        // Only prevent default for Escape (handled by parent handler)
+                        if (e.key === 'Escape' && searchQuery) {
+                            setSearchQuery('');
+                            e.preventDefault();
+                        }
+                        // Stop propagation for all keys to prevent game input handler from interfering
+                        e.stopPropagation();
+                    }}
                     onFocus={() => setIsSearchFocused(true)}
                     onBlur={() => setIsSearchFocused(false)}
+                    data-allow-spacebar="true"
+                    data-is-chat-input="true"
                     style={{
                         flex: 1,
                         background: 'linear-gradient(135deg, rgba(20, 30, 60, 0.8), rgba(15, 25, 50, 0.9))',

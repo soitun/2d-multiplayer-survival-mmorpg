@@ -934,6 +934,7 @@ const BASE_MATERIALS: &[&str] = &[
     "Stone", 
     "Metal Fragments",
     "Sulfur",
+    "Plant Fiber",
     "Cloth",
     "Charcoal",
     "Bone Fragments",
@@ -1454,155 +1455,166 @@ fn generate_bonus_contracts(ctx: &ReducerContext, world_day: u32, _season_index:
 // - Dangerous/rare items pay premium
 
 /// Get bundle size and reward for material items
+/// REBALANCED: Materials are gathered in bulk, rewards should be worthwhile
 fn get_material_contract_params(item_name: &str) -> (u32, u32) {
     match item_name {
-        // === MINING (travel to nodes) ===
-        "Stone" => (200, 30),
-        "Metal Ore" => (80, 55),
-        "Metal Fragments" => (40, 75),
-        "Sulfur" | "Sulfur Ore" => (60, 65),
-        "Coal" => (80, 45),
+        // === MINING (requires travel to nodes, tool durability) ===
+        "Stone" => (150, 45),              // Common but needs pickaxe
+        "Metal Ore" => (60, 80),           // Valuable, harder to find
+        "Metal Fragments" => (30, 100),    // Processed metal - valuable
+        "Sulfur" | "Sulfur Ore" => (40, 90), // Used for explosives
+        "Coal" => (60, 60),                // Fuel source
         
-        // === WOOD (common) ===
-        "Wood" => (250, 25),
-        "Charcoal" => (80, 50),
+        // === WOOD (common but tedious to gather en masse) ===
+        "Wood" => (200, 40),               // Most common material
+        "Charcoal" => (50, 70),            // Processed wood
         
-        // === FIBER/TEXTILES ===
-        "Plant Fiber" => (300, 20),
-        "Cloth" => (35, 60),
-        "Rope" => (25, 45),
+        // === FIBER/TEXTILES (gathering + crafting) ===
+        "Plant Fiber" => (200, 35),        // Common, easy to gather
+        "Cloth" => (25, 85),               // Requires processing
+        "Rope" => (20, 65),                // Crafted item
         
-        // === BONE ===
-        "Bone" => (40, 40),
-        "Bone Fragments" => (60, 35),
+        // === BONE (requires hunting) ===
+        "Bone" => (30, 60),                // From animal kills
+        "Bone Fragments" => (40, 50),      // Processed bones
         
-        // === ANIMAL PRODUCTS ===
-        "Animal Leather" => (20, 80),
-        "Wolf Fur" => (12, 95),
-        "Fox Fur" => (15, 70),
+        // === ANIMAL PRODUCTS (hunting required - valuable) ===
+        "Animal Leather" => (15, 110),     // Requires tanning
+        "Animal Fat" => (20, 75),          // From butchering
+        "Wolf Fur" => (8, 130),            // Dangerous animal
+        "Fox Fur" => (10, 100),            // Medium difficulty hunt
+        "Bear Pelt" => (5, 180),           // Very dangerous
         
-        // === SCAVENGED ===
-        "Tin Can" => (40, 30),
-        "Scrap Batteries" => (20, 50),
-        "Gunpowder" => (30, 85),
+        // === SCAVENGED (exploration required) ===
+        "Tin Can" => (30, 45),             // Found in ruins
+        "Scrap Batteries" => (15, 70),     // Rare finds
+        "Gunpowder" => (20, 120),          // Valuable for ammo
         
         // === FARMING MATERIALS ===
-        "Fertilizer" => (50, 40),
+        "Fertilizer" => (40, 55),          // Crafted from compost
         
         // Skip items not suitable for material contracts
-        "Memory Shard" => (0, 0), // Currency, not a material
+        "Memory Shard" => (0, 0),          // Currency, not a material
         
-        _ => (75, 35), // Default
+        _ => (50, 50), // Default for unlisted materials
     }
 }
 
 /// Get bundle size and reward for arms (weapons AND ammunition)
+/// REBALANCED: Crafted weapons should have LOW bundle sizes, HIGH rewards
 fn get_arms_contract_params(item_name: &str) -> (u32, u32) {
     match item_name {
-        // === MELEE - BASIC ===
-        "Stone Knife" => (5, 40),
-        "Bone Club" => (5, 35),
-        "Wooden Spear" => (3, 45),
-        "Bone Dagger" => (4, 50),
+        // === MELEE - BASIC (stone/bone era) ===
+        "Stone Knife" => (3, 65),        // Easy to craft, low reward
+        "Bone Club" => (3, 55),          // Very basic
+        "Wooden Spear" => (2, 75),       // Common starting weapon
+        "Bone Dagger" => (2, 85),        // Requires hunting
         
-        // === MELEE - INTERMEDIATE ===
-        "Metal Knife" => (3, 80),
-        "Metal Spear" => (2, 100),
-        "Metal Sword" => (2, 120),
-        "Metal Axe" => (2, 110), // Combat variant
+        // === MELEE - INTERMEDIATE (metal weapons) ===
+        "Metal Knife" => (2, 120),       // Metal = valuable
+        "Metal Spear" => (1, 150),       // Good reach weapon
+        "Metal Sword" => (1, 180),       // Premium melee
+        "Metal Axe" => (1, 165),         // Combat variant
         
         // === RANGED - BASIC ===
-        "Wooden Bow" => (3, 60),
-        "Reed Harpoon" => (5, 50),
-        "Slingshot" => (4, 45),
+        "Wooden Bow" => (2, 90),         // Common ranged option
+        "Hunting Bow" => (1, 140),       // Better bow
+        "Reed Harpoon" => (3, 70),       // Fishing/combat hybrid
+        "Slingshot" => (3, 60),          // Very basic ranged
         
-        // === RANGED - ADVANCED ===
-        "Compound Bow" => (1, 150),
-        "Crossbow" => (1, 180),
-        "Improvised Pistol" => (1, 200),
-        "Hunting Rifle" => (1, 250),
+        // === RANGED - ADVANCED (high-end weapons) ===
+        "Compound Bow" => (1, 220),      // Advanced bow
+        "Crossbow" => (1, 280),          // Premium ranged
+        "Improvised Pistol" => (1, 320), // Rare firearm
+        "Hunting Rifle" => (1, 400),     // Top-tier ranged
         
-        // === AMMUNITION - ARROWS ===
-        "Wooden Arrow" => (50, 35),      // Basic arrows - common materials
-        "Bone Arrow" => (40, 50),        // Higher damage arrows
-        "Fire Arrow" => (30, 65),        // Special effect arrows - premium
-        "Hollow Reed Arrow" => (60, 30), // Fast but light arrows
+        // === AMMUNITION - ARROWS (consumable, stackable) ===
+        "Wooden Arrow" => (30, 50),      // Basic arrows - common
+        "Bone Arrow" => (25, 70),        // Better arrows
+        "Fire Arrow" => (15, 100),       // Special effect - premium
+        "Hollow Reed Arrow" => (35, 40), // Fast but weak
         
-        // === AMMUNITION - BULLETS ===
-        "9x18mm Round" => (25, 80),      // Premium ammo - requires gunpowder
+        // === AMMUNITION - BULLETS (rare, valuable) ===
+        "9x18mm Round" => (15, 120),     // Premium ammo - gunpowder needed
         
-        _ => (3, 60), // Default for unlisted weapons/ammo
+        _ => (2, 80), // Default for unlisted weapons
     }
 }
 
 /// Get bundle size and reward for armor
+/// REBALANCED: Armor is CRAFTED, should have LOW bundle sizes (1-3 max), decent rewards
 fn get_armor_contract_params(item_name: &str) -> (u32, u32) {
     match item_name {
-        // === CLOTH ARMOR ===
-        "Cloth Hood" => (3, 35),
-        "Cloth Shirt" => (3, 40),
-        "Cloth Pants" => (3, 40),
-        "Cloth Boots" => (4, 30),
+        // === CLOTH ARMOR (easiest to craft, lowest tier) ===
+        "Cloth Hood" => (2, 55),         // Basic head protection
+        "Cloth Shirt" => (2, 65),        // Basic torso
+        "Cloth Pants" => (2, 60),        // Basic legs
+        "Cloth Boots" => (3, 45),        // Basic feet
+        "Cloth Gloves" => (3, 40),       // Basic hands
         
-        // === LEATHER ARMOR ===
-        "Leather Hood" => (2, 60),
-        "Leather Vest" => (2, 75),
-        "Leather Pants" => (2, 70),
-        "Leather Boots" => (3, 55),
-        "Leather Gloves" => (3, 50),
+        // === LEATHER ARMOR (requires hunting + tanning) ===
+        "Leather Hood" => (2, 90),       // Mid-tier head
+        "Leather Vest" => (1, 120),      // Mid-tier torso - single item
+        "Leather Pants" => (2, 105),     // Mid-tier legs
+        "Leather Boots" => (2, 85),      // Mid-tier feet
+        "Leather Gloves" => (2, 75),     // Mid-tier hands
         
-        // === BONE ARMOR ===
-        "Bone Helmet" => (2, 85),
-        "Bone Chestplate" => (1, 120),
-        "Bone Leggings" => (2, 100),
+        // === BONE ARMOR (requires hunting dangerous animals) ===
+        "Bone Helmet" => (1, 140),       // Strong head protection
+        "Bone Chestplate" => (1, 180),   // Strong torso - single item
+        "Bone Leggings" => (1, 155),     // Strong legs
         
-        // === METAL ARMOR ===
-        "Metal Helmet" => (1, 150),
-        "Metal Chestplate" => (1, 200),
-        "Metal Leggings" => (1, 175),
-        "Metal Boots" => (2, 130),
-        "Metal Gauntlets" => (2, 120),
+        // === METAL ARMOR (requires mining + smelting - top tier) ===
+        "Metal Helmet" => (1, 220),      // Premium head
+        "Metal Chestplate" => (1, 300),  // Premium torso - best protection
+        "Metal Leggings" => (1, 260),    // Premium legs
+        "Metal Boots" => (1, 200),       // Premium feet
+        "Metal Gauntlets" => (1, 180),   // Premium hands
         
-        // === FUR/COLD WEATHER ===
-        "Fur Hood" => (2, 70),
-        "Fur Coat" => (1, 110),
-        "Fur Pants" => (2, 90),
-        "Fur Boots" => (2, 65),
+        // === FUR/COLD WEATHER (hunting wolves/foxes) ===
+        "Fur Hood" => (1, 110),          // Cold protection head
+        "Fur Coat" => (1, 160),          // Cold protection torso
+        "Fur Pants" => (1, 135),         // Cold protection legs
+        "Fur Boots" => (2, 95),          // Cold protection feet
         
-        _ => (2, 55), // Default
+        _ => (2, 80), // Default for unlisted armor
     }
 }
 
 /// Get bundle size and reward for tools
+/// REBALANCED: Tools are CRAFTED, should have LOW bundle sizes (1-3), decent rewards
 fn get_tools_contract_params(item_name: &str) -> (u32, u32) {
     match item_name {
-        // === GATHERING - BASIC ===
-        "Stone Pickaxe" => (4, 40),
-        "Stone Hatchet" => (4, 40),
-        "Wooden Fishing Rod" => (3, 35),
+        // === GATHERING - BASIC (stone era) ===
+        "Stone Pickaxe" => (2, 65),       // Basic mining
+        "Stone Hatchet" => (2, 65),       // Basic woodcutting
+        "Wooden Fishing Rod" => (2, 55),  // Basic fishing
         
-        // === GATHERING - METAL ===
-        "Metal Pickaxe" => (2, 90),
-        "Metal Hatchet" => (2, 90),
-        "Metal Fishing Rod" => (2, 70),
+        // === GATHERING - METAL (upgraded tools) ===
+        "Metal Pickaxe" => (1, 130),      // Premium mining
+        "Metal Hatchet" => (1, 130),      // Premium woodcutting
+        "Metal Fishing Rod" => (1, 110),  // Premium fishing
         
-        // === UTILITY ===
-        "Torch" => (10, 20),
-        "Lantern" => (2, 60),
-        "Compass" => (2, 75),
-        "Binoculars" => (1, 100),
+        // === UTILITY (helpful items) ===
+        "Torch" => (5, 35),               // Light source - easy to make
+        "Lantern" => (1, 95),             // Better light source
+        "Compass" => (1, 120),            // Navigation tool
+        "Binoculars" => (1, 150),         // Scouting tool
         
-        // === CRAFTING STATIONS ===
-        "Workbench" => (1, 80),
-        "Forge" => (1, 120),
-        "Tanning Rack" => (1, 65),
-        "Loom" => (1, 70),
+        // === CRAFTING STATIONS (major investment) ===
+        "Workbench" => (1, 140),          // Essential station
+        "Forge" => (1, 200),              // Metal processing
+        "Tanning Rack" => (1, 110),       // Leather processing
+        "Loom" => (1, 115),               // Cloth processing
+        "Cooking Station" => (1, 125),    // Food processing
+        "Campfire" => (2, 50),            // Basic cooking
         
-        _ => (3, 45), // Default
+        _ => (2, 75), // Default for unlisted tools
     }
 }
 
 /// Get bundle size and reward for provisions (consumables, non-plant)
+/// REBALANCED: Cooked food takes effort, rewards should reflect cooking time
 /// NOTE: Only COOKED foods are accepted - raw and burnt items are excluded
 fn get_provisions_contract_params(item_name: &str, item_def: &crate::items::ItemDefinition) -> (u32, u32) {
     // EXCLUDE: Burnt and raw foods - ALK only accepts properly cooked variants
@@ -1612,57 +1624,58 @@ fn get_provisions_contract_params(item_name: &str, item_def: &crate::items::Item
     
     // First check specific items
     match item_name {
-        // === COOKED FISH ===
-        "Cooked Salmon" => (20, 70),
-        "Cooked Herring" | "Cooked Cod" | "Cooked Mackerel" => (30, 45),
-        "Cooked Twigfish" => (50, 30),
+        // === COOKED FISH (fishing + cooking) ===
+        "Cooked Salmon" => (12, 95),          // Premium fish
+        "Cooked Herring" | "Cooked Cod" | "Cooked Mackerel" => (18, 65),
+        "Cooked Twigfish" => (25, 45),         // Common fish
         
-        // === COOKED MEAT ===
-        "Cooked Wolf Meat" => (15, 75),
-        "Cooked Fox Meat" => (20, 60),
-        "Cooked Crab Meat" => (25, 50),
-        "Cooked Crow Meat" | "Cooked Tern Meat" => (35, 40),
-        "Cooked Seal Meat" => (20, 65),
-        "Cooked Caribou Meat" => (18, 70),
-        "Cooked Moose Meat" => (15, 80),
-        "Cooked Hare Meat" => (25, 55),
+        // === COOKED MEAT (hunting + cooking - harder to get) ===
+        "Cooked Wolf Meat" => (10, 110),       // Dangerous hunt
+        "Cooked Fox Meat" => (12, 85),         // Medium hunt
+        "Cooked Crab Meat" => (15, 70),        // Easy but time-consuming
+        "Cooked Crow Meat" | "Cooked Tern Meat" => (20, 55),
+        "Cooked Seal Meat" => (12, 90),        // Coastal hunting
+        "Cooked Caribou Meat" => (10, 100),    // Large game
+        "Cooked Moose Meat" => (8, 120),       // Largest game
+        "Cooked Hare Meat" => (15, 75),        // Small game
+        "Cooked Bear Meat" => (6, 140),        // Dangerous predator
         
-        // === COOKED VEGETABLES ===
-        "Cooked Potato" => (50, 45),
-        "Cooked Pumpkin" => (35, 50),
-        "Cooked Corn" => (50, 45),
-        "Cooked Carrot" => (60, 40),
-        "Cooked Beet" => (50, 45),
+        // === COOKED VEGETABLES (farming + cooking) ===
+        "Cooked Potato" => (25, 60),           // Common crop
+        "Cooked Pumpkin" => (20, 70),          // Seasonal crop
+        "Cooked Corn" => (25, 60),             // Common crop
+        "Cooked Carrot" => (30, 55),           // Easy crop
+        "Cooked Beet" => (25, 60),             // Common crop
         
-        // === MEDICAL ===
-        "Bandage" => (20, 55),
-        "First Aid Kit" => (5, 100),
-        "Antidote" => (10, 70),
-        "Painkillers" => (15, 60),
+        // === MEDICAL (crafted - valuable) ===
+        "Bandage" => (10, 80),                 // Basic medical
+        "First Aid Kit" => (3, 150),           // Advanced medical
+        "Antidote" => (5, 110),                // Specialized
+        "Painkillers" => (8, 90),              // Common medical
         
         // === DRINKS ===
-        "Clean Water" => (30, 25),
-        "Herbal Tea" => (20, 40),
-        "Berry Juice" => (25, 35),
+        "Clean Water" => (20, 40),             // Basic necessity
+        "Herbal Tea" => (12, 60),              // Requires herbs
+        "Berry Juice" => (15, 50),             // Requires berries
         
-        // === BROTH/SOUPS ===
-        "Fish Broth" => (15, 65),
-        "Meat Stew" => (10, 80),
-        "Vegetable Soup" => (15, 55),
+        // === BROTH/SOUPS (multi-ingredient cooking) ===
+        "Fish Broth" => (8, 95),               // Complex recipe
+        "Meat Stew" => (5, 120),               // Complex recipe
+        "Vegetable Soup" => (8, 85),           // Complex recipe
         
         _ => {
             // Dynamic fallback based on item stats
-            // Note: Raw/Burnt already filtered above
             let hunger = item_def.consumable_hunger_satiated.unwrap_or(0.0) as u32;
             let thirst = item_def.consumable_thirst_quenched.unwrap_or(0.0) as u32;
             let health = item_def.consumable_health_gain.unwrap_or(0.0).max(0.0) as u32;
             
             // Calculate value based on stats
-            let value = hunger + thirst + (health * 2);
-            if value == 0 { return (0, 0); } // Skip items with no consumable value
+            let value = hunger + thirst + (health * 3); // Health more valuable
+            if value == 0 { return (0, 0); }
             
-            let bundle_size = (100 / value.max(1)).max(5).min(100);
-            let reward = (value / 2).max(20).min(100);
+            // Better formula: smaller bundles, higher rewards
+            let bundle_size = (60 / value.max(1)).max(3).min(25);
+            let reward = (value as f32 * 1.5).max(35.0).min(120.0) as u32;
             (bundle_size, reward)
         }
     }
@@ -1755,6 +1768,8 @@ fn calculate_harvest_contract_params(item_def: &crate::items::ItemDefinition) ->
 /// - respawn_time_seconds: Rarer items = higher value
 /// - pvp_damage: Combat effectiveness increases value
 /// - armor_resistances: Better protection = higher value
+/// Calculate bonus contract params - REBALANCED for better rewards
+/// Bonus contracts should have SMALL bundle sizes and HIGH rewards (premium contracts)
 fn calculate_bonus_contract_params(item_def: &crate::items::ItemDefinition) -> (u32, u32) {
     use crate::items::ItemCategory;
     
@@ -1775,26 +1790,50 @@ fn calculate_bonus_contract_params(item_def: &crate::items::ItemDefinition) -> (
         return (0, 0);
     }
     
-    // === Calculate crafting complexity value ===
-    let crafting_value: u32 = if let Some(ref cost) = item_def.crafting_cost {
-        // Sum of all ingredient quantities + 10 per unique ingredient
-        let ingredient_complexity: u32 = cost.iter()
-            .map(|c| c.quantity + 10)
-            .sum();
-        (ingredient_complexity / 5).min(100)
-    } else {
-        // Non-craftable items: value from rarity (drops, loot)
-        let respawn = item_def.respawn_time_seconds.unwrap_or(300);
-        (respawn / 10).min(80)
+    // === First check for specific item overrides (craftable items need sensible values) ===
+    // Weapons/Armor/Tools should use their regular params with a bonus multiplier
+    let (base_bundle, base_reward) = match &item_def.category {
+        ItemCategory::Weapon | ItemCategory::RangedWeapon => {
+            get_arms_contract_params(item_name)
+        },
+        ItemCategory::Armor => {
+            get_armor_contract_params(item_name)
+        },
+        ItemCategory::Tool => {
+            get_tools_contract_params(item_name)
+        },
+        ItemCategory::Ammunition => {
+            get_arms_contract_params(item_name)
+        },
+        _ => (0, 0), // Will use dynamic calculation below
     };
     
-    // === Calculate combat effectiveness value ===
+    // If we got specific params, apply bonus multiplier (50% higher rewards, same or lower bundle)
+    if base_reward > 0 {
+        let bonus_reward = (base_reward as f32 * 1.5) as u32; // 50% bonus
+        let bonus_bundle = base_bundle.max(1); // Keep bundle size same or use 1
+        return (bonus_bundle, bonus_reward.clamp(100, 500));
+    }
+    
+    // === Dynamic calculation for materials, consumables, etc. ===
+    
+    // Calculate crafting complexity value
+    let crafting_value: u32 = if let Some(ref cost) = item_def.crafting_cost {
+        let ingredient_complexity: u32 = cost.iter()
+            .map(|c| c.quantity + 15)
+            .sum();
+        (ingredient_complexity / 4).min(120)
+    } else {
+        let respawn = item_def.respawn_time_seconds.unwrap_or(300);
+        (respawn / 8).min(100)
+    };
+    
+    // Calculate combat effectiveness value
     let combat_value: u32 = {
         let pvp_min = item_def.pvp_damage_min.unwrap_or(0);
         let pvp_max = item_def.pvp_damage_max.unwrap_or(0);
         let avg_damage = (pvp_min + pvp_max) / 2;
         
-        // Check armor resistances
         let armor_value = if let Some(ref resistances) = item_def.armor_resistances {
             let total_resist = (resistances.melee_resistance + 
                                resistances.projectile_resistance + 
@@ -1808,53 +1847,75 @@ fn calculate_bonus_contract_params(item_def: &crate::items::ItemDefinition) -> (
         avg_damage + armor_value
     };
     
-    // === Calculate consumable value (for cooked foods, medicine) ===
+    // Calculate consumable value
     let consumable_value: u32 = {
         let hunger = item_def.consumable_hunger_satiated.unwrap_or(0.0).max(0.0);
         let thirst = item_def.consumable_thirst_quenched.unwrap_or(0.0).max(0.0);
         let health = item_def.consumable_health_gain.unwrap_or(0.0).max(0.0);
-        ((hunger + thirst + health * 2.0) / 3.0) as u32
+        ((hunger + thirst + health * 2.0) / 2.0) as u32
     };
     
-    // === Category multiplier (bonus contracts favor rare/valuable categories) ===
+    // Category multiplier (bonus contracts favor rare/valuable categories)
     let category_multiplier: f32 = match &item_def.category {
-        ItemCategory::RangedWeapon => 2.5,  // Guns/bows are premium
-        ItemCategory::Weapon => 2.0,         // Melee weapons
-        ItemCategory::Armor => 1.8,          // Armor pieces  
-        ItemCategory::Ammunition => 1.5,     // Ammo is valuable
-        ItemCategory::Tool => 1.4,           // Tools
-        ItemCategory::Material => 1.2,       // Raw materials (furs, glands)
-        ItemCategory::Consumable => 1.3,     // Cooked foods, medicine
-        ItemCategory::Placeable => 1.0,      // Structures (less common in bonus)
+        ItemCategory::RangedWeapon => 2.8,  // Guns/bows premium
+        ItemCategory::Weapon => 2.2,         // Melee weapons
+        ItemCategory::Armor => 2.0,          // Armor pieces  
+        ItemCategory::Ammunition => 1.6,     // Ammo valuable
+        ItemCategory::Tool => 1.5,           // Tools
+        ItemCategory::Material => 1.4,       // Raw materials (furs, glands)
+        ItemCategory::Consumable => 1.5,     // Cooked foods, medicine
+        ItemCategory::Placeable => 1.2,      // Structures
     };
     
-    // === Rarity multiplier from stack size ===
+    // Rarity multiplier from stack size (lower stack = rarer = more valuable)
     let stack_size = item_def.stack_size.max(1);
     let rarity_multiplier: f32 = match stack_size {
-        1 => 2.0,              // Non-stackable = unique/valuable
-        2..=5 => 1.5,          // Very low stack
-        6..=15 => 1.2,         // Low stack
-        16..=30 => 1.0,        // Normal
-        _ => 0.8,              // High stack = common
+        1 => 2.5,              // Non-stackable = unique/very valuable
+        2..=5 => 2.0,          // Very low stack
+        6..=15 => 1.5,         // Low stack
+        16..=30 => 1.2,        // Normal
+        _ => 1.0,              // High stack = common
     };
     
-    // === Combine all values into final reward ===
-    let raw_value = crafting_value + combat_value + consumable_value;
+    // Combine values - bonus contracts are PREMIUM
+    let raw_value = (crafting_value + combat_value + consumable_value).max(30);
     let adjusted_value = (raw_value as f32 * category_multiplier * rarity_multiplier) as u32;
     
-    // Bonus contracts have high rewards (100-450 range)
-    let base_reward = adjusted_value.clamp(100, 450);
+    // Bonus contracts have HIGH rewards (150-500 range) - 50% higher than base
+    let bonus_reward = adjusted_value.clamp(150, 500);
     
-    // Bundle size inversely proportional to value
-    let bundle_size = match base_reward {
-        100..=150 => (25.0 * rarity_multiplier) as u32,
-        151..=200 => (15.0 * rarity_multiplier) as u32,
-        201..=280 => (8.0 * rarity_multiplier) as u32,
-        281..=350 => (4.0 * rarity_multiplier) as u32,
-        _ => (2.0 * rarity_multiplier) as u32,
-    }.clamp(1, 50);
+    // Bundle size should be SMALL for bonus contracts (1-15 max, never 50)
+    // Crafted/rare items get even smaller bundles
+    let bundle_size = match &item_def.category {
+        ItemCategory::Weapon | ItemCategory::RangedWeapon | ItemCategory::Armor | ItemCategory::Tool => {
+            // Crafted items: 1-3 max
+            match bonus_reward {
+                150..=250 => 3,
+                251..=350 => 2,
+                _ => 1,
+            }
+        },
+        ItemCategory::Material => {
+            // Materials can have higher bundles but still reasonable
+            match bonus_reward {
+                150..=200 => 15,
+                201..=280 => 10,
+                281..=350 => 6,
+                _ => 3,
+            }
+        },
+        _ => {
+            // Consumables, ammo, etc.
+            match bonus_reward {
+                150..=200 => 12,
+                201..=280 => 8,
+                281..=350 => 5,
+                _ => 3,
+            }
+        }
+    };
     
-    (bundle_size, base_reward)
+    (bundle_size.clamp(1, 15), bonus_reward)
 }
 
 // ============================================================================

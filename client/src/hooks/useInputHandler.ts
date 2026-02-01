@@ -731,6 +731,13 @@ export const useInputHandler = ({
                 // Don't trigger actions when in menu components (to prevent interfering with scrolling)
                 const target = event.target as Element;
                 if (target) {
+                    // Check if target or active element has data-allow-spacebar attribute (for search inputs)
+                    const allowsSpacebar = target.getAttribute('data-allow-spacebar') === 'true' ||
+                        document.activeElement?.getAttribute('data-allow-spacebar') === 'true';
+                    if (allowsSpacebar) {
+                        return; // Let the input handle spacebar for typing
+                    }
+                    
                     const isInMenu = target.closest('[data-scrollable-region]') ||
                         target.closest('.menuContainer') ||
                         target.closest('[style*="zIndex: 2000"]') ||
@@ -958,10 +965,10 @@ export const useInputHandler = ({
                                     console.log(`[Cairn] KeyDown interaction - cairnId: ${cairnId}, cairn found: ${!!cairn}`);
                                     
                                     if (cairn) {
-                                        // Check if audio is already playing - don't interrupt
+                                        // If audio is already playing, stop it first so we can restart
                                         if (isCairnAudioPlaying()) {
-                                            console.log('[Cairn] Audio already playing, ignoring interaction');
-                                            break;
+                                            console.log('[Cairn] Audio already playing, stopping to restart');
+                                            stopCairnLoreAudio();
                                         }
                                         
                                         // Check if this is the first time THIS PLAYER is discovering this cairn

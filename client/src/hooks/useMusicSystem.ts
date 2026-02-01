@@ -37,10 +37,15 @@ const FISHING_VILLAGE_ZONE_RADIUS = 1400;
 // to ensure the ambient music plays throughout the entire village experience
 const HUNTING_VILLAGE_ZONE_RADIUS = 1400;
 
-// ALK zone radius - covers the interaction area plus some buffer
-// ALK stations have interaction_radius of 250px (compound) or 200px (substations)
-// Music zone should be larger to ensure ambient music plays throughout the area
-const ALK_ZONE_RADIUS = 400;
+// ALK zone radii - matches the building restriction zones
+// Central compound: interaction_radius (250px) × multiplier (7.0) = 1750px
+// Substations: interaction_radius (200px) × multiplier (3.0) = 600px
+
+// Central compound music zone radius - matches building restriction zone
+const ALK_CENTRAL_COMPOUND_ZONE_RADIUS = 1750;
+
+// Substation music zone radius - matches building restriction zone
+const ALK_SUBSTATION_ZONE_RADIUS = 1200;
 
 // Normal world music tracks (in /public/music/)
 const NORMAL_TRACKS: MusicTrack[] = [
@@ -335,12 +340,16 @@ const detectMusicZone = (
             const dx = playerPos.x - station.worldPosX;
             const dy = playerPos.y - station.worldPosY;
             const distSq = dx * dx + dy * dy;
-            const zoneRadiusSq = ALK_ZONE_RADIUS * ALK_ZONE_RADIUS;
+            
+            // Use larger radius for central compound (matches building restriction zone)
+            const isCentralCompound = station.stationId === 0;
+            const zoneRadius = isCentralCompound ? ALK_CENTRAL_COMPOUND_ZONE_RADIUS : ALK_SUBSTATION_ZONE_RADIUS;
+            const zoneRadiusSq = zoneRadius * zoneRadius;
             
             if (distSq < zoneRadiusSq) {
                 // Central compound (stationId 0) gets alk_compound zone
                 // Substations (stationId 1-4) get alk_substation zone
-                return station.stationId === 0 ? 'alk_compound' : 'alk_substation';
+                return isCentralCompound ? 'alk_compound' : 'alk_substation';
             }
         }
     }

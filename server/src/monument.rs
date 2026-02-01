@@ -1276,8 +1276,8 @@ pub fn generate_hunting_village(
         //
         //                    HUT3 (0, -550)                        <- FAR NORTH
         //     HUT1 (-580, -320)               HUT2 (+580, -320)    <- NW/NE flanks (spread wider)
-        //                                    
-        //     DRYING_RACK (-200, -250)        CAMPFIRE (+100, -250) <- CENTRAL COURTYARD (more separation)
+        //     DRYING_RACK (-200, -350)                             <- MOVED UP for better spacing
+        //                                     CAMPFIRE (+100, -250) <- CENTRAL COURTYARD
         //                                    
         //                    LODGE (0, 0)                          <- SOUTH (zone anchor)
         //
@@ -1286,20 +1286,19 @@ pub fn generate_hunting_village(
         // =============================================================================
         
         // Structure definitions: (part_type, image_name, offset_x, offset_y)
-        let structure_configs: [(&str, &str, f32, f32); 6] = [
+        let structure_configs: [(&str, &str, f32, f32); 5] = [
             // Main lodge - CENTER PIECE - the heart of the hunting village (zone anchor)
             ("lodge", "hv_lodge.png", -250.0, 0.0),
             
             // Hunting huts - arranged in a wider semi-circle to the north
-            ("hut", "hv_hut1.png", -580.0, -320.0),  // Northwest flank (moved out)
             ("hut", "hv_hut2.png", 480.0, -320.0),   // Northeast flank (moved out)
             ("hut", "hv_hut3.png", 0.0, -550.0),     // Far north (pushed back for more space)
             
             // Campfire - in the central courtyard, offset to the east
             ("campfire", "fv_campfire.png", 100.0, -250.0),
             
-            // Drying rack for pelts and meat - west side of courtyard, good separation from campfire
-            ("drying_rack", "hv_drying_rack.png", -200.0, -250.0),
+            // Drying rack for pelts and meat - west side of courtyard, moved up for better spacing
+            ("drying_rack", "hv_drying_rack.png", -200.0, -350.0),
         ];
         
         for (part_type, image_name, offset_x, offset_y) in structure_configs.iter() {
@@ -3366,11 +3365,11 @@ pub fn get_crashed_research_drone_placeables() -> Vec<MonumentPlaceableConfig> {
         // Furnace - the survivor was trying to smelt materials from the wreckage
         MonumentPlaceableConfig::furnace(140.0, 180.0),
         
-        // Rain collector - water collection for survival (moved further away)
-        MonumentPlaceableConfig::rain_collector(-220.0, -120.0),
+        // Rain collector - water collection for survival (positioned far left to avoid drone image)
+        MonumentPlaceableConfig::rain_collector(-320.0, -120.0),
         
-        // Repair bench - they were trying to repair something from the drone (moved further away)
-        MonumentPlaceableConfig::repair_bench(200.0, -140.0),
+        // Repair bench - they were trying to repair something from the drone (positioned far right to avoid drone image)
+        MonumentPlaceableConfig::repair_bench(300.0, -140.0),
     ]
 }
 

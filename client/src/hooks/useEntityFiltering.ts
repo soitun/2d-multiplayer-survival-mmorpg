@@ -1181,9 +1181,9 @@ export function useEntityFiltering(
     });
     
     // Only log occasionally to reduce spam
-    if (allGrass.length > 0 && (filteredByHealth > 0 || Math.random() < 0.01)) {
-      console.log(`[EntityFiltering] Grass filtering: ${allGrass.length} total -> ${result.length} visible (health: ${filteredByHealth}, view: ${filteredByView}, water: ${filteredByWater})`);
-    }
+    // if (allGrass.length > 0 && (filteredByHealth > 0 || Math.random() < 0.01)) {
+    //   console.log(`[EntityFiltering] Grass filtering: ${allGrass.length} total -> ${result.length} visible (health: ${filteredByHealth}, view: ${filteredByView}, water: ${filteredByWater})`);
+    // }
     
     return result;
   }, [grass, playerPos, viewBounds, stableTimestamp, frameCounter, worldChunkData]);

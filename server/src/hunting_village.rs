@@ -10,7 +10,6 @@
 //
 // PARTS:
 // - hv_lodge.png: Main lodge building (center piece, main landmark)
-// - hv_hut1.png: Small hunting hut
 // - hv_hut2.png: Small hunting hut (variant)
 // - hv_hut3.png: Small hunting hut (variant)
 // - fv_campfire.png: Campfire (reusing fishing village asset)

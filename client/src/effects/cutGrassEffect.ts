@@ -66,7 +66,7 @@ let dbConn: DbConnection | null = null;
 function handleGrassStateDestroyed(context: any, grassState: GrassState) {
     // Look up the static Grass table to get the position
     if (!dbConn?.db?.grass) {
-        console.warn("[CutGrassEffect] Cannot spawn particles - grass table not available");
+        // console.warn("[CutGrassEffect] Cannot spawn particles - grass table not available");
         return;
     }
         
@@ -76,7 +76,7 @@ function handleGrassStateDestroyed(context: any, grassState: GrassState) {
         spawnCutGrassParticles(grass.posX, grass.posY, grassState.grassId);
     } else {
         // Fallback: if we can't find the grass (rare edge case), skip the effect
-        console.warn(`[CutGrassEffect] Could not find grass position for grassId ${grassState.grassId}`);
+        // console.warn(`[CutGrassEffect] Could not find grass position for grassId ${grassState.grassId}`);
     }
 }
 
@@ -87,13 +87,13 @@ export function initCutGrassEffectSystem(connection: DbConnection) {
         dbConn.db.grassState.onDelete(handleGrassStateDestroyed);
         // console.log("[CutGrassEffect] Successfully subscribed to grassState.onDelete");
     } else {
-        console.warn("[CutGrassEffect] GrassState table not available on DB connection at init time. Retrying subscription shortly...");
+        // console.warn("[CutGrassEffect] GrassState table not available on DB connection at init time. Retrying subscription shortly...");
         setTimeout(() => {
             if (dbConn && dbConn.db && dbConn.db.grassState) {
                 dbConn.db.grassState.onDelete(handleGrassStateDestroyed);
                 // console.log("[CutGrassEffect] Successfully subscribed to grassState.onDelete (retry)");
             } else {
-                console.error("[CutGrassEffect] Failed to subscribe to grassState.onDelete even after retry. Cut grass effect will not work.");
+                // console.error("[CutGrassEffect] Failed to subscribe to grassState.onDelete even after retry. Cut grass effect will not work.");
             }
         }, 2000);
     }

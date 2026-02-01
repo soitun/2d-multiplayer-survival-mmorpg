@@ -2324,7 +2324,7 @@ pub struct MonumentPart {
     pub world_x: f32,
     /// World Y position in pixels
     pub world_y: f32,
-    /// Image filename (e.g., "hull1.png", "hv_hut1.png", "wbg_ribcage.png")
+    /// Image filename (e.g., "hull1.png", "hv_hut2.png", "wbg_ribcage.png")
     pub image_path: String,
     /// Part type for identification (e.g., "hull", "campfire", "ribcage", "hut")
     /// Can be empty string for shipwreck parts that don't need specific part types

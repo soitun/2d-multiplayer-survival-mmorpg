@@ -1436,11 +1436,11 @@ export const useSpacetimeTables = ({
             // --- GrassState Subscriptions (Split Tables) ---
             // This table updates when grass is damaged/respawned - much smaller payload than old combined table
             const handleGrassStateInsert = (ctx: any, item: SpacetimeDB.GrassState) => {
-                console.log(`[GrassState] INSERT: grassId=${item.grassId}, health=${item.health}`);
+                // console.log(`[GrassState] INSERT: grassId=${item.grassId}, health=${item.health}`);
                 setGrassState(prev => new Map(prev).set(item.grassId.toString(), item));
             };
             const handleGrassStateUpdate = (ctx: any, oldItem: SpacetimeDB.GrassState, newItem: SpacetimeDB.GrassState) => {
-                console.log(`[GrassState] UPDATE: grassId=${newItem.grassId}, health: ${oldItem.health} -> ${newItem.health}`);
+                // console.log(`[GrassState] UPDATE: grassId=${newItem.grassId}, health: ${oldItem.health} -> ${newItem.health}`);
                 // Only update if relevant fields changed (health, respawn)
                 const hasChanges = oldItem.health !== newItem.health || 
                                    oldItem.respawnAt !== newItem.respawnAt ||

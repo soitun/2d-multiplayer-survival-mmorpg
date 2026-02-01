@@ -93,7 +93,6 @@ export function preloadMonumentImages(): void {
     // Hunting Village monument images (boreal Aleutian-style hunting village in forest)
     // Uses fv_campfire.png for the campfire (shared with fishing village)
     loadImage('hv_lodge.png', import('../../assets/doodads/hv_lodge.png?url'));
-    loadImage('hv_hut1.png', import('../../assets/doodads/hv_hut1.png?url'));
     loadImage('hv_hut2.png', import('../../assets/doodads/hv_hut2.png?url'));
     loadImage('hv_hut3.png', import('../../assets/doodads/hv_hut3.png?url'));
     loadImage('hv_drying_rack.png', import('../../assets/doodads/hv_drying_rack.png?url'));
@@ -164,7 +163,6 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             // Hunting Village monument images (boreal Aleutian-style hunting village in forest)
             // Uses fv_campfire.png for the campfire (shared with fishing village)
             'hv_lodge.png': () => import('../../assets/doodads/hv_lodge.png?url'),
-            'hv_hut1.png': () => import('../../assets/doodads/hv_hut1.png?url'),
             'hv_hut2.png': () => import('../../assets/doodads/hv_hut2.png?url'),
             'hv_hut3.png': () => import('../../assets/doodads/hv_hut3.png?url'),
             'hv_drying_rack.png': () => import('../../assets/doodads/hv_drying_rack.png?url'),
