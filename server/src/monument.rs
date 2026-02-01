@@ -574,6 +574,7 @@ pub fn generate_fishing_village(
     river_network: &[Vec<bool>],
     lake_map: &[Vec<bool>],
     shipwreck_centers: &[(f32, f32)], // Avoid placing near shipwreck
+    hot_spring_centers: &[(f32, f32, i32)], // Avoid placing near hot springs (x, y, radius)
     width: usize,
     height: usize,
 ) -> (Option<(f32, f32)>, Vec<(f32, f32, String, String)>) {
@@ -588,6 +589,7 @@ pub fn generate_fishing_village(
     let max_shore_dist = 6.0;  // At most 6 tiles from water (right on the beach!)
     let min_distance_from_edge = 25;
     let min_distance_from_shipwreck = 80.0; // Minimum tiles away from shipwreck
+    let min_distance_from_hot_spring = 42.0; // Minimum tiles away from hot springs (~2000px)
     
     let mut candidate_positions = Vec::new();
     
@@ -647,18 +649,33 @@ pub fn generate_fishing_village(
                 let tile_world_x = (x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
                 let tile_world_y = (y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
                 
-                let mut too_close_to_shipwreck = false;
+                let mut too_close_to_monument = false;
                 for &(shipwreck_x, shipwreck_y) in shipwreck_centers {
                     let dx = tile_world_x - shipwreck_x;
                     let dy = tile_world_y - shipwreck_y;
                     let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
                     if dist_tiles < min_distance_from_shipwreck {
-                        too_close_to_shipwreck = true;
+                        too_close_to_monument = true;
                         break;
                     }
                 }
                 
-                if too_close_to_shipwreck {
+                // Check distance from hot springs - must be at least 2000px (~42 tiles) away
+                if !too_close_to_monument {
+                    for &(hs_x, hs_y, hs_radius) in hot_spring_centers {
+                        let dx = tile_world_x - hs_x;
+                        let dy = tile_world_y - hs_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        // Must be further than the hot spring radius + buffer
+                        let min_dist = min_distance_from_hot_spring + hs_radius as f32;
+                        if dist_tiles < min_dist {
+                            too_close_to_monument = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if too_close_to_monument {
                     continue;
                 }
                 
@@ -862,6 +879,7 @@ pub fn generate_whale_bone_graveyard(
     lake_map: &[Vec<bool>],
     shipwreck_centers: &[(f32, f32)], // Avoid placing near shipwreck
     fishing_village_center: Option<(f32, f32)>, // Avoid placing near fishing village
+    hot_spring_centers: &[(f32, f32, i32)], // Avoid placing near hot springs (x, y, radius)
     width: usize,
     height: usize,
 ) -> (Option<(f32, f32)>, Vec<(f32, f32, String, String)>) {
@@ -878,6 +896,7 @@ pub fn generate_whale_bone_graveyard(
     let min_distance_from_edge = 30;
     let min_distance_from_shipwreck = 100.0; // Minimum tiles away from shipwreck
     let min_distance_from_fishing_village = 80.0; // Minimum tiles away from fishing village
+    let min_distance_from_hot_spring = 42.0; // Minimum tiles away from hot springs (~2000px)
     
     let mut candidate_positions = Vec::new();
     
@@ -915,6 +934,21 @@ pub fn generate_whale_bone_graveyard(
                     let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
                     if dist_tiles < min_distance_from_fishing_village {
                         too_close_to_monument = true;
+                    }
+                }
+                
+                // Check distance from hot springs - must be at least 2000px (~42 tiles) away
+                if !too_close_to_monument {
+                    for &(hs_x, hs_y, hs_radius) in hot_spring_centers {
+                        let dx = tile_world_x - hs_x;
+                        let dy = tile_world_y - hs_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        // Must be further than the hot spring radius + buffer
+                        let min_dist = min_distance_from_hot_spring + hs_radius as f32;
+                        if dist_tiles < min_dist {
+                            too_close_to_monument = true;
+                            break;
+                        }
                     }
                 }
                 
@@ -1059,6 +1093,7 @@ pub fn generate_hunting_village(
     shipwreck_centers: &[(f32, f32)],
     fishing_village_center: Option<(f32, f32)>,
     whale_bone_graveyard_center: Option<(f32, f32)>,
+    large_quarry_centers: &[(f32, f32, i32)], // Large quarry centers (x_tile, y_tile, radius)
     width: usize,
     height: usize,
 ) -> (Option<(f32, f32)>, Vec<(f32, f32, String, String)>) {
@@ -1077,6 +1112,7 @@ pub fn generate_hunting_village(
     let min_distance_from_fishing_village = 80.0; // Minimum tiles away from fishing village
     let min_distance_from_whale_graveyard = 80.0; // Minimum tiles away from whale graveyard
     let min_distance_from_hot_spring = 60.0; // Minimum tiles away from hot springs
+    let min_distance_from_large_quarry = 50.0; // Minimum tiles away from large quarries (~2400px)
     let min_distance_from_river = 8; // Minimum tiles away from rivers
     
     let mut candidate_positions = Vec::new();
@@ -1166,6 +1202,22 @@ pub fn generate_hunting_village(
                         let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
                         if dist_tiles < min_distance_from_whale_graveyard {
                             too_close = true;
+                        }
+                    }
+                }
+                
+                // Check distance from large quarries (Stone/Sulfur/Metal)
+                if !too_close {
+                    for &(quarry_tile_x, quarry_tile_y, quarry_radius) in large_quarry_centers {
+                        let quarry_world_x = (quarry_tile_x + 0.5) * crate::TILE_SIZE_PX as f32;
+                        let quarry_world_y = (quarry_tile_y + 0.5) * crate::TILE_SIZE_PX as f32;
+                        let dx = tile_world_x - quarry_world_x;
+                        let dy = tile_world_y - quarry_world_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        let min_dist = min_distance_from_large_quarry + quarry_radius as f32;
+                        if dist_tiles < min_dist {
+                            too_close = true;
+                            break;
                         }
                     }
                 }
@@ -1545,6 +1597,7 @@ pub fn generate_weather_station(
     whale_bone_graveyard_center: Option<(f32, f32)>,
     hunting_village_center: Option<(f32, f32)>,
     crashed_research_drone_center: Option<(f32, f32)>,
+    large_quarry_centers: &[(f32, f32, i32)], // Large quarry centers (x_tile, y_tile, radius)
     width: usize,
     height: usize,
 ) -> (Option<(f32, f32)>, Vec<(f32, f32, String, String)>) {
@@ -1558,6 +1611,7 @@ pub fn generate_weather_station(
     let min_distance_from_edge = 35;
     let min_distance_from_other_monuments = 80.0; // Minimum tiles away from other monuments
     let min_distance_from_hot_spring = 50.0; // Minimum tiles away from hot springs
+    let min_distance_from_large_quarry = 50.0; // Minimum tiles away from large quarries (~2400px)
     let min_distance_from_river = 5; // Minimum tiles away from rivers
     
     let mut candidate_positions = Vec::new();
@@ -1674,6 +1728,22 @@ pub fn generate_weather_station(
                     }
                 }
                 
+                // Check distance from large quarries (Stone/Sulfur/Metal)
+                if !too_close {
+                    for &(quarry_tile_x, quarry_tile_y, quarry_radius) in large_quarry_centers {
+                        let quarry_world_x = (quarry_tile_x + 0.5) * crate::TILE_SIZE_PX as f32;
+                        let quarry_world_y = (quarry_tile_y + 0.5) * crate::TILE_SIZE_PX as f32;
+                        let dx = tile_world_x - quarry_world_x;
+                        let dy = tile_world_y - quarry_world_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        let min_dist = min_distance_from_large_quarry + quarry_radius as f32;
+                        if dist_tiles < min_dist {
+                            too_close = true;
+                            break;
+                        }
+                    }
+                }
+                
                 if too_close {
                     continue;
                 }
@@ -1768,6 +1838,7 @@ pub fn generate_wolf_den(
     hunting_village_center: Option<(f32, f32)>,
     crashed_research_drone_center: Option<(f32, f32)>,
     weather_station_center: Option<(f32, f32)>,
+    large_quarry_centers: &[(f32, f32, i32)], // Large quarry centers (x_tile, y_tile, radius)
     width: usize,
     height: usize,
 ) -> (Vec<(f32, f32)>, Vec<(f32, f32, String, String)>) {
@@ -1784,6 +1855,7 @@ pub fn generate_wolf_den(
     let min_distance_from_edge = 30;
     let min_distance_from_other_monuments = 60.0; // Minimum tiles away from other monuments
     let min_distance_from_hot_spring = 40.0; // Minimum tiles away from hot springs
+    let min_distance_from_large_quarry = 50.0; // Minimum tiles away from large quarries (~2400px)
     let min_distance_from_river = 5; // Minimum tiles away from rivers
     
     let mut candidate_positions = Vec::new();
@@ -1908,6 +1980,22 @@ pub fn generate_wolf_den(
                         let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
                         if dist_tiles < min_distance_from_other_monuments {
                             too_close = true;
+                        }
+                    }
+                }
+                
+                // Check distance from large quarries (Stone/Sulfur/Metal)
+                if !too_close {
+                    for &(quarry_tile_x, quarry_tile_y, quarry_radius) in large_quarry_centers {
+                        let quarry_world_x = (quarry_tile_x + 0.5) * crate::TILE_SIZE_PX as f32;
+                        let quarry_world_y = (quarry_tile_y + 0.5) * crate::TILE_SIZE_PX as f32;
+                        let dx = tile_world_x - quarry_world_x;
+                        let dy = tile_world_y - quarry_world_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        let min_dist = min_distance_from_large_quarry + quarry_radius as f32;
+                        if dist_tiles < min_dist {
+                            too_close = true;
+                            break;
                         }
                     }
                 }

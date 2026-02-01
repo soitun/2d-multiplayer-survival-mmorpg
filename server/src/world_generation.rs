@@ -588,26 +588,29 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     let (shipwreck_centers, shipwreck_parts) = crate::monument::generate_shipwreck(noise, &shore_distance, &river_network, &lake_map, width, height);
     
     // Generate fishing village monument on south beach (opposite side from shipwreck)
+    // Must be at least 2000px (~42 tiles) away from hot springs
     let (fishing_village_center, fishing_village_parts) = crate::monument::generate_fishing_village(
-        noise, &shore_distance, &river_network, &lake_map, &shipwreck_centers, width, height
+        noise, &shore_distance, &river_network, &lake_map, &shipwreck_centers, &hot_spring_centers, width, height
     );
     
     // Generate whale bone graveyard monument on beach (separate from shipwreck and fishing village)
+    // Must be at least 2000px (~42 tiles) away from hot springs
     let (whale_bone_graveyard_center, whale_bone_graveyard_parts) = crate::monument::generate_whale_bone_graveyard(
-        noise, &shore_distance, &river_network, &lake_map, &shipwreck_centers, fishing_village_center, width, height
-    );
-    
-    // Generate hunting village monument in forest biome (safe zone with tree ring)
-    // Must be in forest (not tundra), away from hot springs and other monuments
-    let (hunting_village_center, hunting_village_parts) = crate::monument::generate_hunting_village(
-        noise, &shore_distance, &river_network, &lake_map, &forest_areas, &tundra_areas, &hot_spring_centers,
-        &shipwreck_centers, fishing_village_center, whale_bone_graveyard_center, width, height
+        noise, &shore_distance, &river_network, &lake_map, &shipwreck_centers, fishing_village_center, &hot_spring_centers, width, height
     );
     
     // Extract large quarry positions for monument distance checks (without type info)
+    // MOVED BEFORE hunting village so all inland monuments can check against quarries
     let large_quarry_positions: Vec<(f32, f32, i32)> = large_quarry_centers.iter()
         .map(|(x, y, r, _)| (*x, *y, *r))
         .collect();
+    
+    // Generate hunting village monument in forest biome (safe zone with tree ring)
+    // Must be in forest (not tundra), away from hot springs, quarries, and other monuments
+    let (hunting_village_center, hunting_village_parts) = crate::monument::generate_hunting_village(
+        noise, &shore_distance, &river_network, &lake_map, &forest_areas, &tundra_areas, &hot_spring_centers,
+        &shipwreck_centers, fishing_village_center, whale_bone_graveyard_center, &large_quarry_positions, width, height
+    );
     
     // Generate crashed research drone monument in tundra biome (dangerous crash site)
     // Spawns barrels, memory shards, sulfur piles, and metal ore piles - NOT a safe zone
@@ -619,19 +622,21 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     
     // Generate weather station monument in alpine biome (far north)
     // Single radar dish structure with barrels - NOT a safe zone
+    // Must be away from hot springs, quarries, and other monuments
     let (weather_station_center, weather_station_parts) = crate::monument::generate_weather_station(
         noise, &shore_distance, &river_network, &lake_map, &alpine_areas, &hot_spring_centers,
         &shipwreck_centers, fishing_village_center, whale_bone_graveyard_center, hunting_village_center,
-        crashed_research_drone_center, width, height
+        crashed_research_drone_center, &large_quarry_positions, width, height
     );
     
     // Generate wolf den monuments in tundra biome (wolf pack spawn points)
     // Single wolf mound structures - spawns a pack of wolves each - NOT safe zones
     // Can spawn up to 2 wolf dens in the tundra
+    // Must be away from hot springs, quarries, and other monuments
     let (wolf_den_centers, wolf_den_parts) = crate::monument::generate_wolf_den(
         noise, &shore_distance, &river_network, &lake_map, &tundra_areas, &hot_spring_centers,
         &shipwreck_centers, fishing_village_center, whale_bone_graveyard_center, hunting_village_center,
-        crashed_research_drone_center, weather_station_center, width, height
+        crashed_research_drone_center, weather_station_center, &large_quarry_positions, width, height
     );
     
     // Generate coral reef zones (deep sea areas for living coral spawning)
