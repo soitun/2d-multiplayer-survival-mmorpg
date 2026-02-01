@@ -962,12 +962,64 @@ const createSeamlessLoopingSound = async (
     }
 };
 
-// Enhanced cleanup function for seamless sounds
+// Track sounds that are currently fading out to prevent double-cleanup
+const fadingOutAmbientSounds = new Set<AmbientSoundType>();
+
+// Fade-out duration for smooth audio transitions (ms) - slightly longer for ambient sounds
+const AMBIENT_SOUND_FADE_OUT_DURATION = 800; // 800ms smooth fade-out for ambient sounds
+
+// Helper function to fade out and cleanup an ambient audio element
+const fadeOutAndCleanupAmbientAudio = (audio: HTMLAudioElement, soundType: AmbientSoundType): Promise<void> => {
+    return new Promise((resolve) => {
+        const fadeOutTime = AMBIENT_SOUND_FADE_OUT_DURATION;
+        const fadeSteps = 32; // Extra smooth steps for ambient
+        const fadeInterval = fadeOutTime / fadeSteps;
+        const initialVolume = audio.volume;
+        
+        // Mark as being cleaned up to prevent error handling
+        (audio as any)._isBeingCleaned = true;
+        
+        let fadeStep = 0;
+        const fadeOutIntervalId = setInterval(() => {
+            fadeStep++;
+            const newVolume = initialVolume * (1 - fadeStep / fadeSteps);
+            try {
+                audio.volume = Math.max(0, newVolume);
+            } catch (e) {
+                // Volume setting failed, just continue
+            }
+            
+            if (fadeStep >= fadeSteps) {
+                clearInterval(fadeOutIntervalId);
+                try {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    audio.src = '';
+                    audio.load();
+                } catch (e) {
+                    // Cleanup errors are expected
+                }
+                resolve();
+            }
+        }, fadeInterval);
+    });
+};
+
+// Enhanced cleanup function for seamless sounds with smooth fade-out
 const cleanupSeamlessSound = async (soundType: AmbientSoundType, reason: string = "cleanup") => {
+    // Skip if already fading out
+    if (fadingOutAmbientSounds.has(soundType)) {
+        return;
+    }
+    
     const seamlessSound = activeSeamlessLoopingSounds.get(soundType);
     loadingSeamlessSounds.delete(soundType); // Clear loading state
     
     if (seamlessSound) {
+        // Remove from active sounds immediately to prevent re-processing
+        activeSeamlessLoopingSounds.delete(soundType);
+        fadingOutAmbientSounds.add(soundType);
+        
         // console.log(`🌊 Cleaning up seamless ambient sound for ${soundType} (${reason})`);
         
         // Mark both audio instances as being cleaned to prevent interference
@@ -975,26 +1027,20 @@ const cleanupSeamlessSound = async (soundType: AmbientSoundType, reason: string 
         (seamlessSound.secondary as any)._isBeingCleaned = true;
         
         try {
-            // Stop both audio instances immediately without fade for cleanup
-            [seamlessSound.primary, seamlessSound.secondary].forEach(audio => {
-                try {
-                    audio.pause();
-                    audio.currentTime = 0;
-                    audio.src = '';
-                    audio.load();
-                } catch (e) {
-                    // Ignore cleanup errors
-                }
-            });
+            // Fade out both audio instances smoothly in parallel
+            await Promise.all([
+                fadeOutAndCleanupAmbientAudio(seamlessSound.primary, soundType),
+                fadeOutAndCleanupAmbientAudio(seamlessSound.secondary, soundType)
+            ]);
             
         } catch (e) {
             if (e instanceof Error && !e.message.includes('load') && !e.message.includes('src')) {
                 console.warn(`🌊 Unexpected error during seamless ambient audio cleanup for ${soundType}:`, e);
             }
         }
-        activeSeamlessLoopingSounds.delete(soundType);
+        
+        fadingOutAmbientSounds.delete(soundType);
         // console.log(`🌊 ✅ Cleaned up seamless ambient sound for ${soundType} (${reason}). Map size now: ${activeSeamlessLoopingSounds.size}`);
-        // console.log(`🌊 Remaining seamless sounds: [${Array.from
     }
 };
 

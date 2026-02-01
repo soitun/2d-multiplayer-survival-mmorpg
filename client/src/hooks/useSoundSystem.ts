@@ -845,53 +845,111 @@ const activeSeamlessLoopingSounds = new Map<string, {
     pitchVariation: number;
 }>();
 
-// Enhanced cleanup function for looping sounds
+// Track sounds that are currently fading out to prevent double-cleanup
+const fadingOutSounds = new Set<string>();
+
+// Fade-out duration for smooth audio transitions (ms)
+const LOOPING_SOUND_FADE_OUT_DURATION = 600; // 600ms smooth fade-out
+
+// Helper function to fade out and cleanup an audio element
+const fadeOutAndCleanupAudio = (audio: HTMLAudioElement, objectId: string, onComplete: () => void) => {
+    const fadeOutTime = LOOPING_SOUND_FADE_OUT_DURATION;
+    const fadeSteps = 24; // Smooth steps
+    const fadeInterval = fadeOutTime / fadeSteps;
+    const initialVolume = audio.volume;
+    
+    // Mark as being cleaned up to prevent error handling
+    (audio as any)._isBeingCleaned = true;
+    
+    let fadeStep = 0;
+    const fadeOutInterval = setInterval(() => {
+        fadeStep++;
+        const newVolume = initialVolume * (1 - fadeStep / fadeSteps);
+        try {
+            audio.volume = Math.max(0, newVolume);
+        } catch (e) {
+            // Volume setting failed, just continue
+        }
+        
+        if (fadeStep >= fadeSteps) {
+            clearInterval(fadeOutInterval);
+            try {
+                audio.pause();
+                audio.currentTime = 0;
+                audio.src = '';
+                audio.load();
+            } catch (e) {
+                // Cleanup errors are expected
+            }
+            onComplete();
+        }
+    }, fadeInterval);
+};
+
+// Enhanced cleanup function for looping sounds with smooth fade-out
 const cleanupLoopingSound = (objectId: string, reason: string = "cleanup") => {
+    // Skip if already fading out
+    if (fadingOutSounds.has(objectId)) {
+        return;
+    }
+    
     // Clean up traditional looping sound
     const audio = activeLoopingSounds.get(objectId);
     if (audio) {
+        // Remove from active sounds immediately to prevent re-processing
+        activeLoopingSounds.delete(objectId);
+        fadingOutSounds.add(objectId);
+        
         try {
             // Remove event listeners FIRST to prevent error events during cleanup
             audio.removeEventListener('ended', () => {});
             audio.removeEventListener('error', () => {});
             
-            // Mark audio as being cleaned up to prevent error handling
-            (audio as any)._isBeingCleaned = true;
-            
-            audio.pause();
-            audio.currentTime = 0;
-            // Clear the src to fully release the audio resource
-            audio.src = '';
-            audio.load(); // Force cleanup
+            // Fade out smoothly, then cleanup
+            fadeOutAndCleanupAudio(audio, objectId, () => {
+                fadingOutSounds.delete(objectId);
+                // console.log(`🔊 Cleaned up looping sound for object ${objectId} (${reason})`);
+            });
         } catch (e) {
             // Only log unexpected errors, not cleanup-related ones
             if (e instanceof Error && !e.message.includes('load') && !e.message.includes('src')) {
                 console.warn(`🔊 Unexpected error during audio cleanup for ${objectId}:`, e);
             }
+            fadingOutSounds.delete(objectId);
         }
-        activeLoopingSounds.delete(objectId);
-        // console.log(`🔊 Cleaned up looping sound for object ${objectId} (${reason})`);
     }
     
     // Clean up seamless looping sound
     const seamlessSound = activeSeamlessLoopingSounds.get(objectId);
     if (seamlessSound) {
+        // Remove from active sounds immediately to prevent re-processing
+        activeSeamlessLoopingSounds.delete(objectId);
+        
+        // Add to fading set if not already (might be set from traditional cleanup above)
+        if (!fadingOutSounds.has(objectId)) {
+            fadingOutSounds.add(objectId);
+        }
+        
         try {
-            // Clean up both primary and secondary audio instances
-            [seamlessSound.primary, seamlessSound.secondary].forEach(audio => {
-                (audio as any)._isBeingCleaned = true;
-                audio.pause();
-                audio.currentTime = 0;
-                audio.src = '';
-                audio.load();
+            // Fade out both primary and secondary audio instances
+            let cleanedCount = 0;
+            const totalToClean = 2;
+            
+            [seamlessSound.primary, seamlessSound.secondary].forEach(audioInstance => {
+                fadeOutAndCleanupAudio(audioInstance, objectId, () => {
+                    cleanedCount++;
+                    if (cleanedCount >= totalToClean) {
+                        fadingOutSounds.delete(objectId);
+                        // console.log(`🔊 Cleaned up seamless looping sound for object ${objectId} (${reason})`);
+                    }
+                });
             });
         } catch (e) {
             if (e instanceof Error && !e.message.includes('load') && !e.message.includes('src')) {
                 console.warn(`🔊 Unexpected error during seamless audio cleanup for ${objectId}:`, e);
             }
+            fadingOutSounds.delete(objectId);
         }
-        activeSeamlessLoopingSounds.delete(objectId);
-        // console.log(`🔊 Cleaned up seamless looping sound for object ${objectId} (${reason})`);
     }
     
     // Clear any pending cleanup timeout
