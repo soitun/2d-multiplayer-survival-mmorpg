@@ -166,6 +166,12 @@ const MAX_COMBAT_MULTIPLIER: f32 = 1.2;  // Geared players get 20% more spawns
 const BASELINE_COMBAT_SCORE: f32 = 35.0; // Score for 1.0x multiplier
 const WEAPON_SCAN_INTERVAL_SECS: i64 = 60; // Only rescan weapons every 60 seconds (performance)
 
+// New player protection threshold - if peak weapon power has NEVER exceeded this,
+// no apparitions spawn around the player at all (protects true newbies)
+// Combat Ladle (10 damage) = 5.0 power, Torch (5 damage) = 2.5 power
+// Set to 6.0 to include Combat Ladle with a small buffer
+const NEW_PLAYER_WEAPON_POWER_THRESHOLD: f32 = 6.0;
+
 // Weapon power tiers (based on pvp_damage_max)
 // Tier 0: 0-10 damage → Power: 0-5 (Combat Ladle, Rock, Torch)
 // Tier 1: 11-25 damage → Power: 10-25 (Stone tools, Bone weapons)
@@ -812,6 +818,23 @@ pub fn calculate_combat_readiness(
     final_score
 }
 
+/// Check if player is a "true newbie" - has NEVER picked up a real weapon
+/// True newbies have only ever had Torch or Combat Ladle (peak_weapon_power <= threshold)
+/// Returns true if the player should be protected from ALL apparition spawns
+fn is_true_newbie_player(ctx: &ReducerContext, player_id: &spacetimedb::Identity) -> bool {
+    if let Some(state) = ctx.db.player_combat_readiness().player_identity().find(player_id) {
+        // Player has never acquired a weapon better than Combat Ladle or Torch
+        // Their peak_weapon_power reflects the best weapon they've EVER had
+        if state.peak_weapon_power <= NEW_PLAYER_WEAPON_POWER_THRESHOLD {
+            return true;
+        }
+    } else {
+        // No combat readiness state yet = brand new player, definitely a newbie
+        return true;
+    }
+    false
+}
+
 /// Calculate combat multiplier from combat readiness score
 /// Returns a multiplier from MIN_COMBAT_MULTIPLIER to MAX_COMBAT_MULTIPLIER
 fn calculate_combat_multiplier(combat_score: f32) -> f32 {
@@ -1016,6 +1039,26 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
     let mut rng = rand::rngs::StdRng::seed_from_u64(current_time.to_micros_since_unix_epoch() as u64);
     
     for player in &players {
+        // =========================================================================
+        // COMBAT READINESS UPDATE - Must happen FIRST to detect newly acquired weapons
+        // =========================================================================
+        // This scans the player's inventory for weapons and updates their peak_weapon_power.
+        // We need this BEFORE the newbie check so that picking up a weapon immediately
+        // starts spawning hostiles (not on the next tick).
+        let combat_score = calculate_combat_readiness(ctx, &player.identity, current_time);
+        
+        // =========================================================================
+        // TRUE NEWBIE PROTECTION - No spawns for players who have never had real weapons
+        // =========================================================================
+        // If the player has NEVER picked up a weapon better than Torch or Combat Ladle,
+        // skip ALL apparition spawns for them. This keeps the game friendly for new players
+        // until they acquire their first real weapon (Stone Spear, Bone Club, etc.)
+        // Note: We check AFTER updating combat readiness so new weapons are detected immediately.
+        if is_true_newbie_player(ctx, &player.identity) {
+            log::debug!("🛡️ [NewbieProtection] Skipping spawns for {:?} - no real weapons acquired yet", player.identity);
+            continue;
+        }
+        
         // Calculate Memory Beacon attraction multiplier - beacons ATTRACT hostiles!
         // This allows players to farm monsters by placing a Memory Beacon
         let beacon_attraction_multiplier = get_memory_beacon_attraction_multiplier(
@@ -1058,7 +1101,7 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
         // Use PeakNight phase for daytime beacon spawns (full spawn rates!)
         let effective_phase = if is_daytime { NightPhase::PeakNight } else { night_phase };
         
-        try_spawn_hostiles_for_player(ctx, player, current_time, is_camping, effective_phase, settlement_multiplier, beacon_attraction_multiplier, &mut rng);
+        try_spawn_hostiles_for_player(ctx, player, current_time, is_camping, effective_phase, settlement_multiplier, beacon_attraction_multiplier, combat_score, &mut rng);
     }
     
     Ok(())
@@ -1117,6 +1160,7 @@ fn try_spawn_hostiles_for_player(
     night_phase: NightPhase,
     settlement_multiplier: f32,
     beacon_attraction_multiplier: f32,
+    combat_score: f32,  // Pre-calculated combat score passed in from caller
     rng: &mut impl Rng,
 ) {
     let player_x = player.position_x;
@@ -1137,8 +1181,7 @@ fn try_spawn_hostiles_for_player(
         return;
     }
     
-    // Calculate combat readiness and multiplier
-    let combat_score = calculate_combat_readiness(ctx, &player.identity, current_time);
+    // Calculate combat multiplier from pre-calculated combat score
     let combat_multiplier = calculate_combat_multiplier(combat_score);
     
     // Get phase-based spawn multipliers for dynamic night tension
