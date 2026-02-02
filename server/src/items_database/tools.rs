@@ -227,6 +227,16 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .respawn_time(300)
             .build(),
 
+        // Med Kit - Military-grade first aid kit, better than bandage
+        ItemBuilder::new("Med Kit", "A compact military first aid kit containing sterile dressings, antiseptic, and compression bandages. Standard issue for Soviet troops.", ItemCategory::Tool)
+            .icon("med_kit.png")
+            .stackable(5)
+            .equippable(None)
+            .consumable(35.0, 0.0, 0.0) // Better than bandage (25), worse than jellyfish compress (45)
+            .consumable_duration(4.0) // Faster than bandage (5s), slower than jellyfish (3.5s)
+            .respawn_time(600) // Not craftable - loot only
+            .build(),
+
         // Jellyfish Compress - Advanced bandage with burn healing properties
         ItemBuilder::new("Jellyfish Compress", "A medical dressing infused with jellyfish gel and wrapped in translucent membrane. The cooling properties soothe burns while the collagen promotes rapid wound healing. More effective than a standard bandage.", ItemCategory::Tool)
             .icon("jellyfish_compress.png")

@@ -139,6 +139,12 @@ fn get_military_ration_loot_table() -> Vec<MilitaryRationLootEntry> {
             spawn_chance: 0.18, // 18% - insanity countermeasure (valuable but not common)
         },
         MilitaryRationLootEntry {
+            item_def_name: "Med Kit".to_string(),
+            min_quantity: 1,
+            max_quantity: 1,
+            spawn_chance: 0.12, // 12% - military first aid kit (rare but expected in military supplies)
+        },
+        MilitaryRationLootEntry {
             item_def_name: "Chewing Gum".to_string(),
             min_quantity: 1,
             max_quantity: 3,

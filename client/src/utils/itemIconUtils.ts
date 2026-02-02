@@ -99,6 +99,7 @@ import flashlightIcon from '../assets/items/flashlight.png';
 
 // Medical tools
 import bandageIcon from '../assets/items/bandage.png';
+import medKitIcon from '../assets/items/med_kit.png';
 import seloOliveOilIcon from '../assets/items/selo_olive_oil.png';
 import antiVenomIcon from '../assets/items/anti_venom.png';
 
@@ -676,6 +677,7 @@ const iconMap: { [key: string]: string | undefined } = {
   
   // Medical tools
   'bandage.png': bandageIcon,
+  'med_kit.png': medKitIcon,
   'selo_olive_oil.png': seloOliveOilIcon,
   'anti_venom.png': antiVenomIcon,
   

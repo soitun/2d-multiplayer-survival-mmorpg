@@ -338,7 +338,7 @@ pub fn apply_item_effects_and_consume(
         log::info!("[EffectsHelper] Player {:?} consumed Validol Tablets!", player_id);
     } else if let Some(duration_secs) = item_def.consumable_duration_secs {
         if duration_secs > 0.0 { // This branch handles timed effects
-            if item_def.name == "Bandage" || item_def.name == "Jellyfish Compress" {
+            if item_def.name == "Bandage" || item_def.name == "Med Kit" || item_def.name == "Jellyfish Compress" {
                 if let Some(total_bandage_heal) = item_def.consumable_health_gain {
                     if total_bandage_heal != 0.0 {
                         // Cancel any existing HealthRegen OR BandageBurst effects for this player to prevent stacking similar effects.
