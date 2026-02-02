@@ -491,6 +491,8 @@ import { PromoteToPraMatron } from "./promote_to_pra_matron_reducer.ts";
 export { PromoteToPraMatron };
 import { PulverizeItem } from "./pulverize_item_reducer.ts";
 export { PulverizeItem };
+import { PurchaseFromAlk } from "./purchase_from_alk_reducer.ts";
+export { PurchaseFromAlk };
 import { PurchaseMemoryGridNode } from "./purchase_memory_grid_node_reducer.ts";
 export { PurchaseMemoryGridNode };
 import { QueryHearthUpkeepCosts } from "./query_hearth_upkeep_costs_reducer.ts";
@@ -4101,6 +4103,10 @@ const REMOTE_MODULE = {
       reducerName: "pulverize_item",
       argsType: PulverizeItem.getTypeScriptAlgebraicType(),
     },
+    purchase_from_alk: {
+      reducerName: "purchase_from_alk",
+      argsType: PurchaseFromAlk.getTypeScriptAlgebraicType(),
+    },
     purchase_memory_grid_node: {
       reducerName: "purchase_memory_grid_node",
       argsType: PurchaseMemoryGridNode.getTypeScriptAlgebraicType(),
@@ -4989,6 +4995,7 @@ export type Reducer = never
 | { name: "ProcessWildAnimalAi", args: ProcessWildAnimalAi }
 | { name: "PromoteToPraMatron", args: PromoteToPraMatron }
 | { name: "PulverizeItem", args: PulverizeItem }
+| { name: "PurchaseFromAlk", args: PurchaseFromAlk }
 | { name: "PurchaseMemoryGridNode", args: PurchaseMemoryGridNode }
 | { name: "QueryHearthUpkeepCosts", args: QueryHearthUpkeepCosts }
 | { name: "QuickMoveFromBarbecue", args: QuickMoveFromBarbecue }
@@ -8707,6 +8714,22 @@ export class RemoteReducers {
     this.connection.offReducer("pulverize_item", callback);
   }
 
+  purchaseFromAlk(contractId: bigint, bundlesToBuy: number) {
+    const __args = { contractId, bundlesToBuy };
+    let __writer = new __BinaryWriter(1024);
+    PurchaseFromAlk.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("purchase_from_alk", __argsBuffer, this.setCallReducerFlags.purchaseFromAlkFlags);
+  }
+
+  onPurchaseFromAlk(callback: (ctx: ReducerEventContext, contractId: bigint, bundlesToBuy: number) => void) {
+    this.connection.onReducer("purchase_from_alk", callback);
+  }
+
+  removeOnPurchaseFromAlk(callback: (ctx: ReducerEventContext, contractId: bigint, bundlesToBuy: number) => void) {
+    this.connection.offReducer("purchase_from_alk", callback);
+  }
+
   purchaseMemoryGridNode(nodeId: string) {
     const __args = { nodeId };
     let __writer = new __BinaryWriter(1024);
@@ -12272,6 +12295,11 @@ export class SetReducerFlags {
   pulverizeItemFlags: __CallReducerFlags = 'FullUpdate';
   pulverizeItem(flags: __CallReducerFlags) {
     this.pulverizeItemFlags = flags;
+  }
+
+  purchaseFromAlkFlags: __CallReducerFlags = 'FullUpdate';
+  purchaseFromAlk(flags: __CallReducerFlags) {
+    this.purchaseFromAlkFlags = flags;
   }
 
   purchaseMemoryGridNodeFlags: __CallReducerFlags = 'FullUpdate';

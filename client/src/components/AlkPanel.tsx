@@ -56,7 +56,7 @@ interface AlkPanelProps {
 }
 
 // Tab types - expanded for all contract categories
-type AlkTab = 'seasonal' | 'materials' | 'arms' | 'armor' | 'tools' | 'provisions' | 'bonus' | 'my-contracts';
+type AlkTab = 'seasonal' | 'materials' | 'arms' | 'armor' | 'tools' | 'provisions' | 'bonus' | 'buy-orders' | 'my-contracts';
 
 // Helper function to get season name
 const getSeasonName = (seasonIndex: number): string => {
@@ -83,6 +83,7 @@ const getContractKindName = (kind: AlkContractKind | null | undefined): string =
         case 'Tools': return '🔧 Tools';
         case 'Provisions': return '🍖 Provisions';
         case 'DailyBonus': return '⭐ Bonus';
+        case 'BuyOrder': return '🛒 Buy Order';
         // Legacy
         case 'BaseFood': return '🌱 Harvest';
         case 'BaseIndustrial': return '📦 Materials';
@@ -416,6 +417,213 @@ const ContractCard: React.FC<ContractCardProps> = ({
     );
 };
 
+// Buy Order Card Component - For purchasing materials with shards
+interface BuyOrderCardProps {
+    contract: AlkContract;
+    itemDef: ItemDefinition | null;
+    onPurchase: (contractId: bigint, bundlesToBuy: number) => void;
+    playerShardCount: number;
+    isAtCentralCompound: boolean;
+    onQuantityInputFocusChange?: (isFocused: boolean) => void;
+}
+
+const BuyOrderCard: React.FC<BuyOrderCardProps> = ({
+    contract,
+    itemDef,
+    onPurchase,
+    playerShardCount,
+    isAtCentralCompound,
+    onQuantityInputFocusChange,
+}) => {
+    const [bundleCount, setBundleCount] = useState(1);
+    
+    // Get cost per bundle from the new field (regenerate bindings after server publish to remove cast)
+    const costPerBundle = (contract as any).shardCostPerBundle ?? 0;
+    const totalCost = bundleCount * costPerBundle;
+    const totalItems = bundleCount * contract.bundleSize;
+    
+    // Max bundles player can afford
+    const maxAffordable = costPerBundle > 0 ? Math.floor(playerShardCount / costPerBundle) : 0;
+    const maxBundles = Math.min(99, maxAffordable);
+    
+    const canAfford = playerShardCount >= totalCost;
+    const canPurchase = canAfford && isAtCentralCompound && costPerBundle > 0;
+    
+    // Get item icon
+    const itemIcon = useMemo(() => {
+        if (itemDef?.iconAssetName) {
+            return getItemIcon(itemDef.iconAssetName);
+        }
+        const itemName = (contract.itemName || '').trim().toLowerCase().replace(/\s+/g, '_');
+        return getItemIcon(`${itemName}.png`);
+    }, [itemDef, contract.itemName]);
+    
+    const cleanItemName = (contract.itemName || '').trim();
+    
+    const handleBundleCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = Math.max(1, Math.min(99, parseInt(e.target.value) || 1));
+        setBundleCount(value);
+    };
+    
+    return (
+        <div className={`alk-contract-card buy-order ${!canPurchase ? 'disabled' : ''}`}>
+            <div className="contract-header">
+                <div className="contract-item-info">
+                    <img 
+                        src={itemIcon} 
+                        alt={cleanItemName} 
+                        className="contract-item-icon"
+                    />
+                    <div className="contract-item-text">
+                        <span className="contract-item-name">{cleanItemName}</span>
+                        <span className="contract-kind" style={{ color: '#ffaa00' }}>🛒 Buy Order</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div className="contract-details">
+                <div className="contract-stat">
+                    <span className="stat-label">Bundle Size:</span>
+                    <span className="stat-value">{contract.bundleSize}</span>
+                </div>
+                <div className="contract-stat cost" style={{ background: 'rgba(255, 170, 0, 0.1)' }}>
+                    <span className="stat-label" style={{ color: '#ffaa00' }}>Cost/Bundle:</span>
+                    <span className="stat-value" style={{ color: '#ffaa00' }}>
+                        {costPerBundle}
+                        <img src={memoryShardIcon} alt="shards" className="shard-icon" />
+                    </span>
+                </div>
+                <div className="contract-stat">
+                    <span className="stat-label">Delivery:</span>
+                    <span className="stat-value">Central Compound Only</span>
+                </div>
+            </div>
+            
+            <div className="contract-actions">
+                <div className="quantity-selector" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ color: '#ffaa00', fontSize: '13px' }}>Bundles:</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        {/* Decrease Button */}
+                        <button 
+                            onClick={() => setBundleCount(Math.max(1, bundleCount - 1))}
+                            disabled={bundleCount <= 1}
+                            style={{
+                                width: '24px',
+                                height: '24px',
+                                padding: '0',
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                background: bundleCount > 1 ? 'linear-gradient(135deg, rgba(255, 170, 0, 0.3), rgba(200, 130, 0, 0.4))' : 'linear-gradient(135deg, rgba(40, 40, 60, 0.5), rgba(30, 30, 50, 0.6))',
+                                color: bundleCount > 1 ? '#ffaa00' : '#666',
+                                border: bundleCount > 1 ? '2px solid rgba(255, 170, 0, 0.4)' : '2px solid rgba(100, 100, 120, 0.3)',
+                                borderRadius: '3px 0 0 3px',
+                                cursor: bundleCount > 1 ? 'pointer' : 'not-allowed',
+                            }}
+                        >
+                            −
+                        </button>
+                        
+                        {/* Quantity Input */}
+                        <input
+                            type="number"
+                            value={bundleCount}
+                            onChange={handleBundleCountChange}
+                            onFocus={() => onQuantityInputFocusChange?.(true)}
+                            onBlur={() => onQuantityInputFocusChange?.(false)}
+                            min={1}
+                            max={99}
+                            step={1}
+                            style={{
+                                width: '40px',
+                                height: '24px',
+                                padding: '0',
+                                fontSize: '13px',
+                                textAlign: 'center',
+                                background: 'linear-gradient(135deg, rgba(20, 30, 60, 0.8), rgba(15, 25, 50, 0.9))',
+                                border: '2px solid rgba(255, 170, 0, 0.4)',
+                                borderLeft: 'none',
+                                borderRight: 'none',
+                                color: '#ffdd00',
+                                outline: 'none',
+                            }}
+                        />
+                        
+                        {/* Increase Button */}
+                        <button 
+                            onClick={() => setBundleCount(Math.min(99, bundleCount + 1))}
+                            disabled={bundleCount >= 99}
+                            style={{
+                                width: '24px',
+                                height: '24px',
+                                padding: '0',
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                background: bundleCount < 99 ? 'linear-gradient(135deg, rgba(255, 170, 0, 0.3), rgba(200, 130, 0, 0.4))' : 'linear-gradient(135deg, rgba(40, 40, 60, 0.5), rgba(30, 30, 50, 0.6))',
+                                color: bundleCount < 99 ? '#ffaa00' : '#666',
+                                border: bundleCount < 99 ? '2px solid rgba(255, 170, 0, 0.4)' : '2px solid rgba(100, 100, 120, 0.3)',
+                                borderRadius: '0',
+                                cursor: bundleCount < 99 ? 'pointer' : 'not-allowed',
+                            }}
+                        >
+                            +
+                        </button>
+                        
+                        {/* MAX Button */}
+                        <button 
+                            onClick={() => setBundleCount(Math.max(1, maxBundles))}
+                            disabled={maxBundles <= 0}
+                            title={maxBundles > 0 
+                                ? `Set to ${maxBundles} bundles (max you can afford)` 
+                                : 'Not enough shards'}
+                            style={{
+                                width: '36px',
+                                height: '24px',
+                                padding: '0 4px',
+                                fontSize: '10px',
+                                fontWeight: 'bold',
+                                background: maxBundles > 0 
+                                    ? 'linear-gradient(135deg, rgba(0, 255, 136, 0.3), rgba(0, 200, 100, 0.4))' 
+                                    : 'linear-gradient(135deg, rgba(40, 40, 60, 0.5), rgba(30, 30, 50, 0.6))',
+                                color: maxBundles > 0 ? '#00ff88' : '#666',
+                                border: maxBundles > 0 
+                                    ? '2px solid rgba(0, 255, 136, 0.4)' 
+                                    : '2px solid rgba(100, 100, 120, 0.3)',
+                                borderRadius: '0 3px 3px 0',
+                                cursor: maxBundles > 0 ? 'pointer' : 'not-allowed',
+                            }}
+                        >
+                            MAX
+                        </button>
+                    </div>
+                </div>
+                
+                <div style={{ fontSize: '12px', color: canAfford ? '#00ff88' : '#ff6666', marginTop: '4px' }}>
+                    Total: {totalItems} {cleanItemName} for {totalCost}
+                    <img src={memoryShardIcon} alt="shards" className="shard-icon-small" style={{ marginLeft: '2px' }} />
+                    {!canAfford && <span style={{ marginLeft: '8px' }}>⚠️ Not enough shards!</span>}
+                </div>
+                
+                <button 
+                    className="accept-button"
+                    onClick={() => onPurchase(contract.contractId, bundleCount)}
+                    disabled={!canPurchase}
+                    style={{
+                        marginTop: '8px',
+                        background: canPurchase 
+                            ? 'linear-gradient(135deg, rgba(255, 170, 0, 0.4), rgba(200, 130, 0, 0.5))' 
+                            : 'linear-gradient(135deg, rgba(60, 60, 80, 0.4), rgba(40, 40, 60, 0.5))',
+                        borderColor: canPurchase ? 'rgba(255, 170, 0, 0.6)' : 'rgba(100, 100, 120, 0.3)',
+                        color: canPurchase ? '#ffdd00' : '#666',
+                        cursor: canPurchase ? 'pointer' : 'not-allowed',
+                    }}
+                >
+                    {!isAtCentralCompound ? '⚠️ GO TO CENTRAL COMPOUND' : canAfford ? '🛒 PURCHASE' : '⚠️ NOT ENOUGH SHARDS'}
+                </button>
+            </div>
+        </div>
+    );
+};
+
 // Player Contract Card Component
 interface PlayerContractCardProps {
     playerContract: AlkPlayerContract;
@@ -720,6 +928,12 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
             .filter(c => getKindTag(c.kind) === 'DailyBonus' && c.isActive && isNotMemoryShard(c));
     }, [alkContracts]);
     
+    // Buy Order contracts - reverse contracts where players spend shards to buy materials
+    const buyOrderContracts = useMemo(() => {
+        return Array.from(alkContracts.values())
+            .filter(c => getKindTag(c.kind) === 'BuyOrder' && c.isActive && isNotMemoryShard(c));
+    }, [alkContracts]);
+    
     // Global search across all contracts
     const searchResults = useMemo(() => {
         if (!searchQuery.trim()) return [];
@@ -791,6 +1005,15 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
         connection.connection.reducers.deliverAlkContract(playerContractId, nearbyStationId);
     }, [connection, nearbyStationId]);
     
+    // Handler for purchasing materials from ALK (buy orders) (regenerate bindings after server publish to remove cast)
+    const handlePurchase = useCallback((contractId: bigint, bundlesToBuy: number) => {
+        if (!connection.connection) return;
+        (connection.connection.reducers as any).purchaseFromAlk(contractId, bundlesToBuy);
+    }, [connection]);
+    
+    // Check if player is at Central Compound (station_id = 0)
+    const isAtCentralCompound = nearbyStationId === 0;
+    
     // Render contracts for the active tab (or search results)
     const renderContracts = () => {
         // If search is active, show search results instead of tab content
@@ -861,6 +1084,48 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
             case 'bonus':
                 contracts = bonusContracts;
                 break;
+            case 'buy-orders':
+                // Special rendering for buy orders
+                if (buyOrderContracts.length === 0) {
+                    return (
+                        <div className="no-contracts">
+                            No buy orders available.
+                            <br />
+                            <span style={{ fontSize: '12px', opacity: 0.7 }}>
+                                Buy orders let you spend Memory Shards to purchase materials.
+                            </span>
+                        </div>
+                    );
+                }
+                return (
+                    <div className="contracts-list">
+                        <div style={{ 
+                            padding: '8px 12px', 
+                            marginBottom: '8px', 
+                            color: '#ffaa00',
+                            fontSize: '13px',
+                            borderBottom: '1px solid rgba(255, 170, 0, 0.3)',
+                            background: 'rgba(255, 170, 0, 0.1)'
+                        }}>
+                            🛒 <strong>BUY ORDERS</strong> - Spend Memory Shards to buy materials instantly
+                            <br />
+                            <span style={{ fontSize: '11px', opacity: 0.8 }}>
+                                Must be at Central Compound to purchase. Prices are ~2x sell value.
+                            </span>
+                        </div>
+                        {buyOrderContracts.map(contract => (
+                            <BuyOrderCard
+                                key={contract.contractId.toString()}
+                                contract={contract}
+                                itemDef={itemDefinitions.get(contract.itemDefId.toString()) || null}
+                                onPurchase={handlePurchase}
+                                playerShardCount={inventoryShardCount}
+                                isAtCentralCompound={isAtCentralCompound}
+                                onQuantityInputFocusChange={setIsQuantityInputFocused}
+                            />
+                        ))}
+                    </div>
+                );
             case 'my-contracts':
                 return (
                     <div className="my-contracts-list">
@@ -1064,6 +1329,24 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
                 >
                     ⭐ BONUS
                     <span className="tab-count bonus-count">{bonusContracts.length}</span>
+                </button>
+                <button 
+                    className={`alk-tab primary-tab buy-orders-tab ${activeTab === 'buy-orders' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('buy-orders')}
+                    title="Buy materials with Memory Shards (Central Compound only)"
+                    style={{
+                        background: activeTab === 'buy-orders' 
+                            ? 'linear-gradient(135deg, rgba(255, 170, 0, 0.4), rgba(200, 130, 0, 0.5))' 
+                            : 'linear-gradient(135deg, rgba(40, 40, 60, 0.6), rgba(30, 30, 50, 0.7))',
+                        borderColor: activeTab === 'buy-orders' ? 'rgba(255, 170, 0, 0.6)' : 'rgba(100, 100, 120, 0.3)',
+                        color: activeTab === 'buy-orders' ? '#ffdd00' : '#ffaa00',
+                    }}
+                >
+                    🛒 BUY
+                    <span className="tab-count" style={{ 
+                        background: 'rgba(255, 170, 0, 0.3)', 
+                        color: '#ffdd00' 
+                    }}>{buyOrderContracts.length}</span>
                 </button>
             </div>
             

@@ -114,6 +114,9 @@ pub enum AlkContractKind {
     // === ROTATING CONTRACTS ===
     DailyBonus,       // Time-limited bonus contracts with higher rewards
     
+    // === BUY ORDERS (Reverse contracts - spend shards to buy materials) ===
+    BuyOrder,         // Players can purchase materials using Memory Shards (central compound only)
+    
     // Legacy aliases for backwards compatibility
     BaseFood,         // Alias for SeasonalHarvest
     BaseIndustrial,   // Alias for Materials
@@ -241,7 +244,7 @@ pub struct AlkContract {
     #[auto_inc]
     pub contract_id: u64,
     
-    /// Type of contract (food, industrial, bonus)
+    /// Type of contract (food, industrial, bonus, buy_order)
     pub kind: AlkContractKind,
     
     /// Item definition ID from items_database
@@ -250,11 +253,15 @@ pub struct AlkContract {
     /// Item name (cached for convenience)
     pub item_name: String,
     
-    /// Number of items per delivery bundle
+    /// Number of items per delivery bundle (for sell) or purchase bundle (for buy)
     pub bundle_size: u32,
     
-    /// Shard reward per bundle delivered
+    /// Shard reward per bundle delivered (for sell contracts)
     pub shard_reward_per_bundle: u32,
+    
+    /// Shard cost per bundle purchased (for BuyOrder contracts)
+    /// Typically ~2x the sell price to act as a shard sink
+    pub shard_cost_per_bundle: Option<u32>,
     
     /// Maximum pool quantity (None/0 = infinite for base contracts)
     pub max_pool_quantity: Option<u32>,
@@ -893,6 +900,11 @@ fn generate_initial_contracts(ctx: &ReducerContext) -> Result<(), String> {
     // Daily bonus - high-value rotating items (furs, rare drops, premium goods)
     generate_bonus_contracts(ctx, world_day, season_index)?;
     
+    // === BUY ORDER CONTRACTS (Reverse contracts - spend shards to buy materials) ===
+    
+    // Buy orders - allow players to purchase materials with shards (shard sink)
+    generate_buyorder_contracts(ctx, world_day)?;
+    
     log::info!("✅ Generated initial ALK contracts for all categories");
     Ok(())
 }
@@ -941,6 +953,9 @@ const BASE_MATERIALS: &[&str] = &[
     "Animal Fat",
     "Animal Leather",
     "Fertilizer",
+    "Limestone",
+    "Gunpowder",
+    "Rope",
 ];
 
 /// Generate materials contracts - ONLY base resources (fixed list)
@@ -967,6 +982,7 @@ fn generate_materials_contracts(ctx: &ReducerContext, world_day: u32) -> Result<
                 item_name: item_def.name.clone(),
                 bundle_size,
                 shard_reward_per_bundle: reward,
+                shard_cost_per_bundle: None, // Sell contracts don't have a cost
                 max_pool_quantity: None, // Infinite
                 current_pool_remaining: None,
                 created_on_day: world_day,
@@ -1047,6 +1063,7 @@ fn generate_seasonal_arms_contracts(ctx: &ReducerContext, world_day: u32, season
                 item_name: item_def.name.clone(),
                 bundle_size,
                 shard_reward_per_bundle: reward,
+                shard_cost_per_bundle: None, // Sell contracts don't have a cost
                 max_pool_quantity: None,
                 current_pool_remaining: None,
                 created_on_day: world_day,
@@ -1120,6 +1137,7 @@ fn generate_seasonal_armor_contracts(ctx: &ReducerContext, world_day: u32, seaso
                 item_name: item_def.name.clone(),
                 bundle_size,
                 shard_reward_per_bundle: reward,
+                shard_cost_per_bundle: None, // Sell contracts don't have a cost
                 max_pool_quantity: None,
                 current_pool_remaining: None,
                 created_on_day: world_day,
@@ -1193,6 +1211,7 @@ fn generate_seasonal_tools_contracts(ctx: &ReducerContext, world_day: u32, seaso
                 item_name: item_def.name.clone(),
                 bundle_size,
                 shard_reward_per_bundle: reward,
+                shard_cost_per_bundle: None, // Sell contracts don't have a cost
                 max_pool_quantity: None,
                 current_pool_remaining: None,
                 created_on_day: world_day,
@@ -1273,6 +1292,7 @@ fn generate_seasonal_provisions_contracts(ctx: &ReducerContext, world_day: u32, 
                 item_name: item_def.name.clone(),
                 bundle_size,
                 shard_reward_per_bundle: reward,
+                shard_cost_per_bundle: None, // Sell contracts don't have a cost
                 max_pool_quantity: None,
                 current_pool_remaining: None,
                 created_on_day: world_day,
@@ -1352,6 +1372,7 @@ fn generate_seasonal_harvest_contracts(ctx: &ReducerContext, world_day: u32, sea
                 item_name: item_def.name.clone(),
                 bundle_size,
                 shard_reward_per_bundle: adjusted_reward,
+                shard_cost_per_bundle: None, // Sell contracts don't have a cost
                 max_pool_quantity: None,
                 current_pool_remaining: None,
                 created_on_day: world_day,
@@ -1426,6 +1447,7 @@ fn generate_bonus_contracts(ctx: &ReducerContext, world_day: u32, _season_index:
                 item_name: item_def.name.clone(),
                 bundle_size,
                 shard_reward_per_bundle: bonus_reward,
+                shard_cost_per_bundle: None, // Sell contracts don't have a cost
                 max_pool_quantity: Some(pool_quantity),
                 current_pool_remaining: Some(pool_quantity),
                 created_on_day: world_day,
@@ -1442,6 +1464,75 @@ fn generate_bonus_contracts(ctx: &ReducerContext, world_day: u32, _season_index:
     }
     
     log::info!("⭐ Generated {} bonus contracts", created);
+    Ok(())
+}
+
+/// Generate buy order contracts - reverse contracts where players can BUY materials using shards
+/// Available at Central Compound only, acts as a shard sink for wealthy players
+/// Buy price is ~2x sell price (ALK markup)
+fn generate_buyorder_contracts(ctx: &ReducerContext, world_day: u32) -> Result<(), String> {
+    let contracts_table = ctx.db.alk_contract();
+    let item_defs = ctx.db.item_definition();
+    
+    // Buy orders available for key crafting materials
+    // These are items players commonly need but might be short on
+    const BUYABLE_MATERIALS: &[&str] = &[
+        "Wood",
+        "Stone", 
+        "Metal Fragments",
+        "Sulfur",
+        "Plant Fiber",
+        "Cloth",
+        "Charcoal",
+        "Bone Fragments",
+        "Gunpowder",
+        "Rope",
+        "Animal Leather",
+        "Animal Fat",
+        "Limestone",
+        "Fertilizer",
+    ];
+    
+    let mut created = 0;
+    for material_name in BUYABLE_MATERIALS {
+        // Find item by name
+        let item_def = item_defs.iter().find(|d| d.name == *material_name);
+        
+        if let Some(item_def) = item_def {
+            // Get sell price, calculate buy price as ~2x markup
+            let (bundle_size, sell_reward) = get_material_contract_params(&item_def.name);
+            if sell_reward == 0 { continue; }
+            
+            // Buy price is 2x sell price (ALK markup for instant availability)
+            // This creates a shard sink - players pay premium for convenience
+            let buy_cost = sell_reward * 2;
+            
+            let contract = AlkContract {
+                contract_id: 0,
+                kind: AlkContractKind::BuyOrder,
+                item_def_id: item_def.id,
+                item_name: item_def.name.clone(),
+                bundle_size,
+                shard_reward_per_bundle: 0, // Buy orders don't give rewards
+                shard_cost_per_bundle: Some(buy_cost), // This is the cost to buy
+                max_pool_quantity: None, // Infinite supply
+                current_pool_remaining: None,
+                created_on_day: world_day,
+                expires_on_day: None, // Never expires
+                allowed_stations: AlkStationAllowance::CompoundOnly, // Only at central compound
+                is_active: true,
+                required_season: None,
+            };
+            
+            if contracts_table.try_insert(contract).is_ok() {
+                created += 1;
+            }
+        } else {
+            log::warn!("Buyable material not found: {}", material_name);
+        }
+    }
+    
+    log::info!("🛒 Generated {} buy order contracts", created);
     Ok(())
 }
 
@@ -1464,6 +1555,7 @@ fn get_material_contract_params(item_name: &str) -> (u32, u32) {
         "Metal Fragments" => (30, 100),    // Processed metal - valuable
         "Sulfur" | "Sulfur Ore" => (40, 90), // Used for explosives
         "Coal" => (60, 60),                // Fuel source
+        "Limestone" => (80, 55),           // From coral reefs, can smelt to stone
         
         // === WOOD (common but tedious to gather en masse) ===
         "Wood" => (200, 40),               // Most common material
@@ -2605,6 +2697,147 @@ pub fn get_shard_balance(ctx: &ReducerContext) -> Result<(), String> {
     Ok(())
 }
 
+/// Purchase materials from ALK using Memory Shards (reverse contract / buy order)
+/// This allows players with excess shards to buy materials they're short on
+/// Must be at Central Compound (station_id = 0) to purchase
+#[spacetimedb::reducer]
+pub fn purchase_from_alk(
+    ctx: &ReducerContext,
+    contract_id: u64,
+    bundles_to_buy: u32,
+) -> Result<(), String> {
+    let player_id = ctx.sender;
+    
+    if bundles_to_buy == 0 {
+        return Err("Must buy at least 1 bundle".to_string());
+    }
+    
+    // Get player
+    let player = ctx.db.player().identity().find(&player_id)
+        .ok_or("Player not found")?;
+    
+    // Get the buy order contract
+    let contracts_table = ctx.db.alk_contract();
+    let contract = contracts_table.contract_id().find(&contract_id)
+        .ok_or("Contract not found")?;
+    
+    // Validate this is a BuyOrder contract
+    if contract.kind != AlkContractKind::BuyOrder {
+        return Err("This is not a buy order contract".to_string());
+    }
+    
+    // Validate contract is active
+    if !contract.is_active {
+        return Err("Buy order is no longer active".to_string());
+    }
+    
+    // Get buy cost
+    let cost_per_bundle = contract.shard_cost_per_bundle
+        .ok_or("Buy order has no cost defined")?;
+    
+    let total_cost = cost_per_bundle * bundles_to_buy;
+    let items_to_receive = contract.bundle_size * bundles_to_buy;
+    
+    // Buy orders are Central Compound only
+    let stations_table = ctx.db.alk_station();
+    let central_compound = stations_table.station_id().find(&0)
+        .ok_or("Central Compound station not found")?;
+    
+    // Check player is at Central Compound
+    let dx = player.position_x - central_compound.world_pos_x;
+    let dy = player.position_y - central_compound.world_pos_y;
+    let distance_sq = dx * dx + dy * dy;
+    let interaction_radius_sq = central_compound.interaction_radius * central_compound.interaction_radius;
+    
+    if distance_sq > interaction_radius_sq {
+        return Err("You must be at the Central Compound to purchase materials".to_string());
+    }
+    
+    // Check player has enough Memory Shards in inventory
+    let items_table = ctx.db.inventory_item();
+    let memory_shard_def = ctx.db.item_definition().iter()
+        .find(|def| def.name == "Memory Shard")
+        .ok_or("Memory Shard item definition not found")?;
+    
+    // Find Memory Shards in player inventory
+    let player_shards: Vec<_> = items_table.iter()
+        .filter(|item| {
+            item.item_def_id == memory_shard_def.id &&
+            (matches!(&item.location, ItemLocation::Inventory(loc) if loc.owner_id == player_id) ||
+            matches!(&item.location, ItemLocation::Hotbar(loc) if loc.owner_id == player_id))
+        })
+        .collect();
+    
+    let total_shards: u32 = player_shards.iter().map(|i| i.quantity).sum();
+    
+    if total_shards < total_cost {
+        return Err(format!(
+            "Not enough Memory Shards. Need {} ({}x{} per bundle), have {}",
+            total_cost, bundles_to_buy, cost_per_bundle, total_shards
+        ));
+    }
+    
+    // Consume Memory Shards from player inventory
+    let mut shards_to_consume = total_cost;
+    for shard_stack in player_shards {
+        if shards_to_consume == 0 { break; }
+        
+        let consume_from_stack = shard_stack.quantity.min(shards_to_consume);
+        shards_to_consume -= consume_from_stack;
+        
+        if consume_from_stack >= shard_stack.quantity {
+            // Delete entire stack
+            items_table.instance_id().delete(shard_stack.instance_id);
+        } else {
+            // Reduce stack
+            let mut updated_item = shard_stack.clone();
+            updated_item.quantity -= consume_from_stack;
+            items_table.instance_id().update(updated_item);
+        }
+    }
+    
+    // Give purchased items to player
+    match give_item_to_player_or_drop(ctx, player_id, contract.item_def_id, items_to_receive) {
+        Ok(added_to_inv) => {
+            if added_to_inv {
+                log::info!("📦 Added {} {} to player {:?} inventory", items_to_receive, contract.item_name, player_id);
+            } else {
+                log::info!("📦 Dropped {} {} at player {:?} feet (inventory full)", items_to_receive, contract.item_name, player_id);
+            }
+        }
+        Err(e) => {
+            // This is bad - we already consumed shards but failed to give items
+            // Log error but continue (items dropped at feet as fallback)
+            log::error!("Failed to give purchased items to player: {}", e);
+        }
+    }
+    
+    // Update player shard balance for tracking/statistics
+    let balance_table = ctx.db.player_shard_balance();
+    let mut balance = balance_table.player_id().find(&player_id)
+        .unwrap_or(PlayerShardBalance {
+            player_id,
+            balance: 0,
+            total_earned: 0,
+            total_spent: 0,
+            last_transaction: ctx.timestamp,
+        });
+    
+    balance.total_spent += total_cost as u64;
+    balance.last_transaction = ctx.timestamp;
+    
+    if balance_table.player_id().find(&player_id).is_some() {
+        balance_table.player_id().update(balance);
+    } else {
+        let _ = balance_table.try_insert(balance);
+    }
+    
+    log::info!("🛒 Player {:?} purchased {} {} for {} Memory Shards at ALK Central Compound",
+              player_id, items_to_receive, contract.item_name, total_cost);
+    
+    Ok(())
+}
+
 /// Check if player is near any ALK station (for UI purposes)
 #[spacetimedb::reducer]
 pub fn check_alk_station_proximity(ctx: &ReducerContext) -> Result<(), String> {
@@ -2670,6 +2903,9 @@ pub fn debug_refresh_alk_contracts(ctx: &ReducerContext) -> Result<(), String> {
     
     // Bonus contracts (furs, rare drops, premium items)
     generate_bonus_contracts(ctx, world_day, season_index)?;
+    
+    // Buy order contracts (spend shards to buy materials - shard sink)
+    generate_buyorder_contracts(ctx, world_day)?;
     
     log::info!("✅ Debug: ALK contracts refreshed");
     Ok(())

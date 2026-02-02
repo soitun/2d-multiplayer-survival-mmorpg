@@ -37,6 +37,7 @@ export type AlkContractKind = AlkContractKindVariants.SeasonalHarvest |
   AlkContractKindVariants.Tools |
   AlkContractKindVariants.Provisions |
   AlkContractKindVariants.DailyBonus |
+  AlkContractKindVariants.BuyOrder |
   AlkContractKindVariants.BaseFood |
   AlkContractKindVariants.BaseIndustrial;
 
@@ -57,6 +58,7 @@ export const AlkContractKind = {
   Tools: { tag: "Tools" } as const,
   Provisions: { tag: "Provisions" } as const,
   DailyBonus: { tag: "DailyBonus" } as const,
+  BuyOrder: { tag: "BuyOrder" } as const,
   BaseFood: { tag: "BaseFood" } as const,
   BaseIndustrial: { tag: "BaseIndustrial" } as const,
 
@@ -71,6 +73,7 @@ export const AlkContractKind = {
       { name: "Tools", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Provisions", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DailyBonus", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "BuyOrder", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "BaseFood", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "BaseIndustrial", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );

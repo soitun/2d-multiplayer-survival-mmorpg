@@ -35,6 +35,7 @@ export type Armor = { tag: "Armor" };
 export type Tools = { tag: "Tools" };
 export type Provisions = { tag: "Provisions" };
 export type DailyBonus = { tag: "DailyBonus" };
+export type BuyOrder = { tag: "BuyOrder" };
 export type BaseFood = { tag: "BaseFood" };
 export type BaseIndustrial = { tag: "BaseIndustrial" };
 
