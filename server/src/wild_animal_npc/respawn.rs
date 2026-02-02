@@ -48,6 +48,10 @@ pub fn maintain_wild_animal_population(ctx: &ReducerContext) -> Result<(), Strin
         (AnimalSpecies::Tern, 12),           // 12% - Coastal scavenger bird (beaches)
         (AnimalSpecies::Crow, 10),           // 10% - Inland thief bird
         (AnimalSpecies::Caribou, 13),        // 13% - Tundra/alpine herd animal
+        // Alpine animals
+        (AnimalSpecies::PolarBear, 3),       // 3% - RARE alpine apex predator
+        (AnimalSpecies::Hare, 10),           // 10% - Common alpine prey animal
+        (AnimalSpecies::SnowyOwl, 5),        // 5% - Uncommon alpine flying predator
     ];
     let total_weight: u32 = species_weights.iter().map(|(_, weight)| weight).sum();
     

@@ -1271,6 +1271,39 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
             // Bees don't spawn in the wild - they spawn at beehives
             false
         }
+        
+        AnimalSpecies::PolarBear => {
+            // 🐻‍❄️ POLAR BEAR HABITAT: Alpine-only apex predator
+            // Polar bears are massive predators that live in the harshest alpine terrain
+            // They ONLY spawn in alpine biome - true high-altitude hunters
+            if matches!(tile_type, TileType::Alpine) {
+                return true; // Perfect habitat - alpine regions only
+            }
+            
+            false // Polar bears only spawn in alpine
+        }
+        
+        AnimalSpecies::Hare => {
+            // 🐰 HARE HABITAT: Alpine prey animal
+            // Hares are fast, fleeing prey animals found in alpine regions
+            // They prefer the cold alpine biome
+            if matches!(tile_type, TileType::Alpine) {
+                return true; // Perfect habitat - alpine regions
+            }
+            
+            false // Hares only spawn in alpine
+        }
+        
+        AnimalSpecies::SnowyOwl => {
+            // 🦉 SNOWY OWL HABITAT: Alpine flying predator
+            // Snowy owls are aggressive flying birds that hunt in alpine regions
+            // They prefer high-altitude terrain
+            if matches!(tile_type, TileType::Alpine) {
+                return true; // Perfect habitat - alpine regions
+            }
+            
+            false // Snowy owls only spawn in alpine
+        }
     }
 }
 
@@ -3460,6 +3493,10 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         (AnimalSpecies::Wolverine, 6),       // 6% - Uncommon aggressive predator (tundra/alpine)
         (AnimalSpecies::Caribou, 10),        // 10% - Herd herbivore (tundra/alpine/grassland)
         (AnimalSpecies::SalmonShark, 4),     // 4% - RARE aquatic apex predator (deep water only)
+        // Alpine animals
+        (AnimalSpecies::PolarBear, 3),       // 3% - RARE alpine apex predator
+        (AnimalSpecies::Hare, 10),           // 10% - Common alpine prey animal
+        (AnimalSpecies::SnowyOwl, 5),        // 5% - Uncommon alpine flying predator
     ];
     let total_weight: u32 = species_weights.iter().map(|(_, weight)| weight).sum();
     

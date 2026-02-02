@@ -4607,6 +4607,10 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::DrownedWatch => None,
             // Bees don't drop cloth - they're tiny insects
             crate::wild_animal_npc::AnimalSpecies::Bee => None,
+            // Alpine animals - no special cloth/fur per user request
+            crate::wild_animal_npc::AnimalSpecies::PolarBear => None,
+            crate::wild_animal_npc::AnimalSpecies::Hare => None,
+            crate::wild_animal_npc::AnimalSpecies::SnowyOwl => None,
         };
         
         if let Some(cloth_name) = cloth_type {
@@ -4669,6 +4673,10 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::DrownedWatch => None,
             // Bees don't drop meat - they're tiny insects
             crate::wild_animal_npc::AnimalSpecies::Bee => None,
+            // Alpine animals
+            crate::wild_animal_npc::AnimalSpecies::PolarBear => Some("Raw Bear Meat"),
+            crate::wild_animal_npc::AnimalSpecies::Hare => Some("Raw Hare Meat"),
+            crate::wild_animal_npc::AnimalSpecies::SnowyOwl => Some("Raw Owl Meat"),
         };
         if let Some(meat_name) = meat_type {
             // Apply caribou age multiplier for meat
@@ -4707,6 +4715,10 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::DrownedWatch => None,
             // Bees don't drop skulls - they're tiny insects
             crate::wild_animal_npc::AnimalSpecies::Bee => None,
+            // Alpine animals
+            crate::wild_animal_npc::AnimalSpecies::PolarBear => Some("Polar Bear Skull"), // Massive apex predator skull
+            crate::wild_animal_npc::AnimalSpecies::Hare => Some("Hare Skull"), // Small prey skull
+            crate::wild_animal_npc::AnimalSpecies::SnowyOwl => Some("Owl Skull"), // Flying predator skull
         };
         
         if let Some(skull_name) = skull_type {

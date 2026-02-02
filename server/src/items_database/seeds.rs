@@ -223,13 +223,13 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
 
         // === SPECIAL PLANTING MATERIALS ===
 
-        // Bear Garlic Bulbs - Wild garlic bulbs
-        ItemBuilder::new("Bear Garlic Bulbs", "Wild garlic bulbs for planting. Can be eaten raw but have a very strong flavor.", ItemCategory::Placeable)
-            .icon("bear_garlic_bulbs.png")
-            .stackable(30)
-            .respawn_time(720) // 12 minutes
-            .consumable(1.5, 1.0, -1.5) // health, hunger, thirst - strong medicinal
-            .cookable(30.0, "Charcoal") // Burns directly to charcoal - bulbs just char
+        // Bear Garlic - Wild garlic (food IS the seed, like potatoes)
+        ItemBuilder::new("Bear Garlic", "Wild garlic with a strong, pungent flavor. Can be eaten, cooked, or planted to grow more. Provides good nutrition and natural antimicrobial properties.", ItemCategory::Placeable)
+            .icon("bear_garlic.png")
+            .stackable(16)
+            .respawn_time(280)
+            .consumable(7.0, 10.0, 3.0) // health, hunger, thirst
+            .cookable(38.0, "Roasted Bear Garlic")
             .build(),
 
         // Mint Cuttings - Mint propagation material
@@ -366,13 +366,13 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .cookable(18.0, "Charcoal") // Burns directly to charcoal - tiny seeds just char
             .build(),
 
-        // Wild Strawberry Seeds - Small strawberry seeds
-        ItemBuilder::new("Wild Strawberry Seeds", "Seeds for growing wild strawberry plants. Can be eaten but are extremely small.", ItemCategory::Placeable)
-            .icon("wild_strawberry_seeds.png")
-            .stackable(120)
-            .respawn_time(480) // 8 minutes
-            .consumable(0.5, 0.5, 0.5) // health, hunger, thirst - very small
-            .cookable(18.0, "Charcoal") // Burns directly to charcoal - tiny seeds just char
+        // Wild Strawberries - Food IS the seed (like potatoes, berries contain seeds)
+        ItemBuilder::new("Wild Strawberries", "Tiny but intensely flavored wild strawberries. Can be eaten, cooked, or planted to grow more. Much more aromatic than cultivated varieties.", ItemCategory::Placeable)
+            .icon("wild_strawberries.png")
+            .stackable(35)
+            .respawn_time(180)
+            .consumable(5.0, 8.0, 5.0) // health, hunger, thirst
+            .cookable(15.0, "Charcoal")
             .build(),
 
         // Rowan Seeds - Mountain ash seeds

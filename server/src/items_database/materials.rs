@@ -302,13 +302,18 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
         // === BIRD MATERIALS ===
 
         // Tern Feathers - Lightweight feathers from coastal terns
-        basic_material("Tern Feathers", "Soft, waterproof feathers from a coastal tern. Useful for crafting fletching and lightweight insulation.", 50)
+        basic_material("Tern Feathers", "Soft, waterproof feathers from a coastal tern.", 50)
             .icon("tern_feathers.png")
             .build(),
 
         // Crow Feathers - Dark feathers from inland crows
-        basic_material("Crow Feathers", "Sleek black feathers from a crow. Valued for crafting arrow fletching and decorative items.", 50)
+        basic_material("Crow Feathers", "Sleek black feathers from a crow.", 50)
             .icon("crow_feathers.png")
+            .build(),
+
+        // Owl Feathers - Soft feathers from snowy owls
+        basic_material("Owl Feathers", "Pristine white feathers from a snowy owl.", 50)
+            .icon("owl_feathers.png")
             .build(),
 
         // NOTE: Animal skulls (Fox, Wolf, Viper) moved to weapons.rs as they are weapons like Human Skull

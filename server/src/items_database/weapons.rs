@@ -98,6 +98,30 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .damage_type(DamageType::Pierce) // Pierce weapon (teeth)
             .build(),
 
+        // Polar Bear Skull - Massive apex predator trophy
+        ItemBuilder::new("Polar Bear Skull", "A massive polar bear skull. An apex predator trophy showing mastery over the alpine's most dangerous hunter. The sheer size and weight make it devastating.", ItemCategory::Weapon)
+            .icon("polar_bear_skull.png")
+            .stackable(10)
+            .weapon(42, 42, 2.5) // Very high damage but very slow - largest skull
+            .damage_type(DamageType::Blunt) // Blunt weapon
+            .build(),
+
+        // Hare Skull - Small prey trophy
+        ItemBuilder::new("Hare Skull", "A small hare skull. A quick trophy from a fast prey. Lightweight and surprisingly fast to swing.", ItemCategory::Weapon)
+            .icon("hare_skull.png")
+            .stackable(20)
+            .weapon(10, 12, 1.4) // Weak but very fast - novelty weapon
+            .damage_type(DamageType::Blunt) // Blunt weapon
+            .build(),
+
+        // Owl Skull - Silent hunter trophy
+        ItemBuilder::new("Owl Skull", "An owl skull with large eye sockets. A trophy from a silent nocturnal hunter. The hollow bones make it lighter than expected.", ItemCategory::Weapon)
+            .icon("owl_skull.png")
+            .stackable(15)
+            .weapon(22, 24, 1.7) // Moderate damage, decent speed - bird skull
+            .damage_type(DamageType::Blunt) // Blunt weapon
+            .build(),
+
         // === CRAFTABLE CLUBS & MACES ===
         // Heavy blunt weapons - slow but powerful
 

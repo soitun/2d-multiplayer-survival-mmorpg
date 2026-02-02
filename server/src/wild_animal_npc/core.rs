@@ -208,6 +208,10 @@ pub enum AnimalSpecies {
     DrownedWatch,  // Brute: Slow, high durability, primary structure attacker
     // Special spawning animals
     Bee,           // Spawns at beehives, tiny fast attackers, killed only by fire
+    // Alpine animals
+    PolarBear,     // Alpine apex predator: Massive, high health, aggressive solitary hunter
+    Hare,          // Alpine prey: Fast fleeing animal that burrows when threatened
+    SnowyOwl,      // Alpine flying predator: Aggressive bird that attacks within 200px range
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, spacetimedb::SpacetimeType)]
@@ -436,6 +440,10 @@ pub enum AnimalBehaviorEnum {
     DrownedWatch(crate::wild_animal_npc::drowned_watch::DrownedWatchBehavior),
     // Special spawning animals
     Bee(crate::wild_animal_npc::bee::BeeBehavior),
+    // Alpine animals
+    PolarBear(crate::wild_animal_npc::polar_bear::PolarBearBehavior),
+    Hare(crate::wild_animal_npc::hare::HareBehavior),
+    SnowyOwl(crate::wild_animal_npc::snowy_owl::SnowyOwlBehavior),
 }
 
 impl AnimalBehavior for AnimalBehaviorEnum {
@@ -456,6 +464,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_stats(),
             AnimalBehaviorEnum::Bee(behavior) => behavior.get_stats(),
+            AnimalBehaviorEnum::PolarBear(behavior) => behavior.get_stats(),
+            AnimalBehaviorEnum::Hare(behavior) => behavior.get_stats(),
+            AnimalBehaviorEnum::SnowyOwl(behavior) => behavior.get_stats(),
         }
     }
 
@@ -476,6 +487,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_movement_pattern(),
             AnimalBehaviorEnum::Bee(behavior) => behavior.get_movement_pattern(),
+            AnimalBehaviorEnum::PolarBear(behavior) => behavior.get_movement_pattern(),
+            AnimalBehaviorEnum::Hare(behavior) => behavior.get_movement_pattern(),
+            AnimalBehaviorEnum::SnowyOwl(behavior) => behavior.get_movement_pattern(),
         }
     }
 
@@ -504,6 +518,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
             AnimalBehaviorEnum::Bee(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
+            AnimalBehaviorEnum::PolarBear(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
+            AnimalBehaviorEnum::Hare(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
+            AnimalBehaviorEnum::SnowyOwl(behavior) => behavior.execute_attack_effects(ctx, animal, target_player, stats, current_time, rng),
         }
     }
 
@@ -532,6 +549,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
             AnimalBehaviorEnum::Bee(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
+            AnimalBehaviorEnum::PolarBear(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
+            AnimalBehaviorEnum::Hare(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
+            AnimalBehaviorEnum::SnowyOwl(behavior) => behavior.update_ai_state_logic(ctx, animal, stats, detected_player, current_time, rng),
         }
     }
 
@@ -560,6 +580,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
             AnimalBehaviorEnum::Bee(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
+            AnimalBehaviorEnum::PolarBear(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
+            AnimalBehaviorEnum::Hare(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
+            AnimalBehaviorEnum::SnowyOwl(behavior) => behavior.execute_flee_logic(ctx, animal, stats, dt, current_time, rng),
         }
     }
 
@@ -587,6 +610,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
             AnimalBehaviorEnum::Bee(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
+            AnimalBehaviorEnum::PolarBear(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
+            AnimalBehaviorEnum::Hare(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
+            AnimalBehaviorEnum::SnowyOwl(behavior) => behavior.execute_patrol_logic(ctx, animal, stats, dt, rng),
         }
     }
 
@@ -607,6 +633,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
             AnimalBehaviorEnum::Bee(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
+            AnimalBehaviorEnum::PolarBear(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
+            AnimalBehaviorEnum::Hare(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
+            AnimalBehaviorEnum::SnowyOwl(behavior) => behavior.should_chase_player(ctx, animal, stats, player),
         }
     }
 
@@ -635,6 +664,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
             AnimalBehaviorEnum::Bee(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
+            AnimalBehaviorEnum::PolarBear(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
+            AnimalBehaviorEnum::Hare(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
+            AnimalBehaviorEnum::SnowyOwl(behavior) => behavior.handle_damage_response(ctx, animal, attacker, stats, current_time, rng),
         }
     }
 
@@ -655,6 +687,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.can_be_tamed(),
             AnimalBehaviorEnum::Bee(behavior) => behavior.can_be_tamed(),
+            AnimalBehaviorEnum::PolarBear(behavior) => behavior.can_be_tamed(),
+            AnimalBehaviorEnum::Hare(behavior) => behavior.can_be_tamed(),
+            AnimalBehaviorEnum::SnowyOwl(behavior) => behavior.can_be_tamed(),
         }
     }
 
@@ -675,6 +710,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_taming_foods(),
             AnimalBehaviorEnum::Bee(behavior) => behavior.get_taming_foods(),
+            AnimalBehaviorEnum::PolarBear(behavior) => behavior.get_taming_foods(),
+            AnimalBehaviorEnum::Hare(behavior) => behavior.get_taming_foods(),
+            AnimalBehaviorEnum::SnowyOwl(behavior) => behavior.get_taming_foods(),
         }
     }
 
@@ -695,6 +733,9 @@ impl AnimalBehavior for AnimalBehaviorEnum {
             AnimalBehaviorEnum::Shardkin(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::DrownedWatch(behavior) => behavior.get_chase_abandonment_multiplier(),
             AnimalBehaviorEnum::Bee(behavior) => behavior.get_chase_abandonment_multiplier(),
+            AnimalBehaviorEnum::PolarBear(behavior) => behavior.get_chase_abandonment_multiplier(),
+            AnimalBehaviorEnum::Hare(behavior) => behavior.get_chase_abandonment_multiplier(),
+            AnimalBehaviorEnum::SnowyOwl(behavior) => behavior.get_chase_abandonment_multiplier(),
         }
     }
 }
@@ -717,6 +758,9 @@ impl AnimalSpecies {
             AnimalSpecies::Shardkin => AnimalBehaviorEnum::Shardkin(crate::wild_animal_npc::shardkin::ShardkinBehavior),
             AnimalSpecies::DrownedWatch => AnimalBehaviorEnum::DrownedWatch(crate::wild_animal_npc::drowned_watch::DrownedWatchBehavior),
             AnimalSpecies::Bee => AnimalBehaviorEnum::Bee(crate::wild_animal_npc::bee::BeeBehavior),
+            AnimalSpecies::PolarBear => AnimalBehaviorEnum::PolarBear(crate::wild_animal_npc::polar_bear::PolarBearBehavior),
+            AnimalSpecies::Hare => AnimalBehaviorEnum::Hare(crate::wild_animal_npc::hare::HareBehavior),
+            AnimalSpecies::SnowyOwl => AnimalBehaviorEnum::SnowyOwl(crate::wild_animal_npc::snowy_owl::SnowyOwlBehavior),
         }
     }
     
@@ -1345,6 +1389,10 @@ fn update_animal_ai_state(
                 AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
                 // Bees don't flee from foundations
                 AnimalSpecies::Bee => 0.0,
+                // Alpine animals
+                AnimalSpecies::PolarBear => 0.0, // Polar bears are fearless - don't flee from foundations
+                AnimalSpecies::Hare => 400.0, // Hares flee quickly from buildings
+                AnimalSpecies::SnowyOwl => 350.0, // Owls fly away from foundations
             };
             
             set_flee_destination_away_from_threat(animal, foundation_x, foundation_y, flee_distance, rng);
@@ -1396,6 +1444,10 @@ fn update_animal_ai_state(
                         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
                         // Bees don't flee - they die from fire instead
                         AnimalSpecies::Bee => 0.0,
+                        // Alpine animals
+                        AnimalSpecies::PolarBear => 600.0, // Polar bears flee from fire (exception to fearlessness)
+                        AnimalSpecies::Hare => 500.0,      // Hares flee quickly from fire
+                        AnimalSpecies::SnowyOwl => 600.0,  // Owls fly away from fire
                     };
                     
                     set_flee_destination_away_from_threat(animal, player.position_x, player.position_y, flee_distance, rng);
@@ -1450,6 +1502,10 @@ fn update_animal_ai_state(
                     AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
                     // Bees die from fire instead of fleeing
                     AnimalSpecies::Bee => 0.0,
+                    // Alpine animals
+                    AnimalSpecies::PolarBear => 600.0, // Polar bears flee from fire
+                    AnimalSpecies::Hare => 500.0,      // Hares flee quickly from fire
+                    AnimalSpecies::SnowyOwl => 600.0,  // Owls fly away from fire
                 };
                 
                 set_flee_destination_away_from_threat(animal, fire_x, fire_y, flee_distance, rng);
@@ -2468,6 +2524,10 @@ fn apply_knockback_to_player(animal: &WildAnimal, target: &mut Player, current_t
             AnimalSpecies::DrownedWatch => 72.0, // Heavy brute - strong knockback
             // Bees - tiny knockback
             AnimalSpecies::Bee => 8.0, // Tiny insect - minimal knockback
+            // Alpine animals
+            AnimalSpecies::PolarBear => 72.0, // Massive apex predator - strongest knockback
+            AnimalSpecies::Hare => 4.0,       // Tiny prey - minimal knockback
+            AnimalSpecies::SnowyOwl => 12.0,  // Medium bird - light knockback
         };
         
         let knockback_dx = (dx_target_from_animal / distance) * knockback_distance;
@@ -2529,6 +2589,10 @@ fn handle_player_death(ctx: &ReducerContext, target: &mut Player, animal: &WildA
         AnimalSpecies::DrownedWatch => "The Drowned Watch",
         // Bees
         AnimalSpecies::Bee => "A Bee",
+        // Alpine animals
+        AnimalSpecies::PolarBear => "Polar Bear",
+        AnimalSpecies::Hare => "Hare",
+        AnimalSpecies::SnowyOwl => "Snowy Owl",
     };
     
     let new_death_marker = crate::death_marker::DeathMarker {
@@ -4335,6 +4399,10 @@ pub fn handle_fire_detection_and_flee(
         AnimalSpecies::Bee => {
             return false; // Bees die from fire, don't flee
         }
+        // Alpine animals
+        AnimalSpecies::PolarBear => 600.0,          // Polar bears flee far from fire
+        AnimalSpecies::Hare => 500.0,               // Hares flee quickly from fire
+        AnimalSpecies::SnowyOwl => 600.0,           // Owls fly away from fire
     };
     
     // Special handling for cornered foxes (don't flee if too close)
@@ -4432,6 +4500,16 @@ pub fn emit_species_sound(
             // Bees use a continuous buzzing sound, handled client-side
             // No individual attack/growl sounds
         },
+        // Alpine animals
+        AnimalSpecies::PolarBear => {
+            crate::sound_events::emit_polar_bear_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
+        },
+        AnimalSpecies::Hare => {
+            crate::sound_events::emit_hare_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
+        },
+        AnimalSpecies::SnowyOwl => {
+            crate::sound_events::emit_owl_growl_sound(ctx, animal.pos_x, animal.pos_y, player_identity);
+        },
     }
     
     log::debug!("{:?} {} emitting {} sound", animal.species, animal.id, sound_context);
@@ -4464,6 +4542,10 @@ pub fn emit_death_sound(
         AnimalSpecies::Bee => {
             SoundType::DeathBee
         },
+        // Alpine animals
+        AnimalSpecies::PolarBear => SoundType::DeathPolarBear,
+        AnimalSpecies::Hare => SoundType::DeathHare,
+        AnimalSpecies::SnowyOwl => SoundType::DeathOwl,
     };
     
     if let Err(e) = sound_events::emit_sound_at_position(ctx, sound_type, animal.pos_x, animal.pos_y, 1.0, killer_identity) {
@@ -4637,6 +4719,10 @@ pub fn maybe_change_patrol_direction(
         AnimalSpecies::DrownedWatch => 0.04,  // Brute - very deliberate, rarely changes direction
         // Bees have very erratic buzzing movements
         AnimalSpecies::Bee => 0.25,           // Bees buzz around erratically
+        // Alpine animals
+        AnimalSpecies::PolarBear => 0.08,     // Polar bears are deliberate predators
+        AnimalSpecies::Hare => 0.22,          // Hares are skittish and erratic
+        AnimalSpecies::SnowyOwl => 0.10,      // Owls fly with purpose
     };
     
     // Adjust for pack wolves (alphas change direction less frequently)
@@ -4718,6 +4804,10 @@ pub fn execute_standard_flee(
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
             // Bees don't flee
             AnimalSpecies::Bee => 0.0,
+            // Alpine animals
+            AnimalSpecies::PolarBear => 0.0, // Polar bears NEVER flee (apex predator)
+            AnimalSpecies::Hare => 500.0 + (rng.gen::<f32>() * 300.0), // 10-16m for hares - fast scurry
+            AnimalSpecies::SnowyOwl => 400.0 + (rng.gen::<f32>() * 300.0), // 8-14m for owls - fly away
         };
         
         animal.investigation_x = Some(animal.pos_x + flee_distance * flee_angle.cos());
@@ -4759,6 +4849,10 @@ pub fn execute_standard_flee(
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 500_000, // 0.5 seconds
             // Bees never flee
             AnimalSpecies::Bee => 500_000, // 0.5 seconds - bees don't flee
+            // Alpine animals
+            AnimalSpecies::PolarBear => 500_000, // 0.5 seconds - polar bears don't flee
+            AnimalSpecies::Hare => 3_000_000,    // 3 seconds - hares flee quickly
+            AnimalSpecies::SnowyOwl => 4_000_000, // 4 seconds - owls fly away
         };
         
         if distance_to_target <= 50.0 || time_fleeing > max_flee_time {
@@ -4998,7 +5092,7 @@ pub fn is_bird_flying(animal: &WildAnimal) -> bool {
 
 /// Check if a species is a bird that can fly
 pub fn is_flying_species(species: &AnimalSpecies) -> bool {
-    matches!(species, AnimalSpecies::Tern | AnimalSpecies::Crow)
+    matches!(species, AnimalSpecies::Tern | AnimalSpecies::Crow | AnimalSpecies::SnowyOwl)
 }
 
 /// Update the facing direction string based on direction vector
@@ -5196,6 +5290,25 @@ pub fn handle_attack_aftermath(
             transition_to_state(animal, AnimalState::Chasing, current_time, Some(target_player.identity), "bee swarm attack");
             log::debug!("Bee {} stung - continuing attack", animal.id);
         },
+        // Alpine animals
+        AnimalSpecies::PolarBear => {
+            // Polar bears are relentless apex predators - continue attacking
+            transition_to_state(animal, AnimalState::Chasing, current_time, Some(target_player.identity), "polar bear fury");
+            log::info!("Polar Bear {} continues ferocious assault", animal.id);
+        },
+        AnimalSpecies::Hare => {
+            // Hares immediately flee after any attack - they're tiny and skittish
+            set_flee_destination_away_from_threat(animal, target_player.position_x, target_player.position_y, 400.0, rng);
+            transition_to_state(animal, AnimalState::Fleeing, current_time, None, "hare flee after attack");
+            log::info!("Hare {} squeaked and fled after attack", animal.id);
+        },
+        AnimalSpecies::SnowyOwl => {
+            // Snowy owls are aggressive but tactical - they fly and swoop
+            set_flee_destination_away_from_threat(animal, target_player.position_x, target_player.position_y, 150.0, rng);
+            transition_to_state(animal, AnimalState::Flying, current_time, Some(target_player.identity), "owl swooping");
+            animal.is_flying = true;
+            log::info!("Snowy Owl {} swooped and repositioning", animal.id);
+        },
     }
 }
 
@@ -5359,6 +5472,25 @@ pub fn handle_standard_damage_response(
                 // If this somehow gets called, they just keep attacking
                 transition_to_state(animal, AnimalState::Chasing, current_time, Some(attacker.identity), "bee enraged");
                 log::debug!("Bee {} enraged by attack attempt", animal.id);
+            },
+            // Alpine animals
+            AnimalSpecies::PolarBear => {
+                // Polar bears NEVER flee - they become MORE aggressive when damaged
+                transition_to_state(animal, AnimalState::Chasing, current_time, Some(attacker.identity), "polar bear rage");
+                log::info!("Polar Bear {} enters rage mode after damage - attacking relentlessly!", animal.id);
+            },
+            AnimalSpecies::Hare => {
+                // Hares always flee when damaged - tiny and skittish
+                set_flee_destination_away_from_threat(animal, attacker.position_x, attacker.position_y, 400.0, rng);
+                transition_to_state(animal, AnimalState::Fleeing, current_time, None, "hare flee damage");
+                log::info!("Hare {} fleeing in panic after damage", animal.id);
+            },
+            AnimalSpecies::SnowyOwl => {
+                // Snowy owls fly away when damaged but remain aggressive
+                set_flee_destination_away_from_threat(animal, attacker.position_x, attacker.position_y, 300.0, rng);
+                transition_to_state(animal, AnimalState::Flying, current_time, Some(attacker.identity), "owl flee damage");
+                animal.is_flying = true;
+                log::info!("Snowy Owl {} flying away after damage", animal.id);
             },
         }
     }
@@ -6045,6 +6177,10 @@ pub fn handle_fire_trap_escape(
                 AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
                 // Bees die from fire instead of fleeing
                 AnimalSpecies::Bee => 0.0,
+                // Alpine animals
+                AnimalSpecies::PolarBear => 500.0, // Polar bears flee from fire traps (exception to their fearlessness)
+                AnimalSpecies::Hare => 550.0,      // Hares flee far from fire
+                AnimalSpecies::SnowyOwl => 600.0,  // Owls fly far from fire
             };
             
             animal.investigation_x = Some(animal.pos_x + flee_distance * flee_angle.cos());

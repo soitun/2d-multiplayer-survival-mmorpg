@@ -715,7 +715,7 @@ lazy_static! {
             noise_threshold: 0.58,
             primary_yield: ("Bear Garlic".to_string(), 2, 4),
             secondary_yield: None,
-            seed_type: "Bear Garlic Bulbs".to_string(),
+            seed_type: "Bear Garlic".to_string(), // Same item as yield - plant garlic to grow garlic (like potatoes)
             seed_drop_chance: 0.80, // 60% chance - important food crop must be sustainable
             min_respawn_time_secs: 600,  // 10 minutes
             max_respawn_time_secs: 900,  // 15 minutes
@@ -939,7 +939,7 @@ lazy_static! {
             noise_threshold: 0.58,
             primary_yield: ("Wild Strawberries".to_string(), 2, 5),
             secondary_yield: None,
-            seed_type: "Wild Strawberry Seeds".to_string(),
+            seed_type: "Wild Strawberries".to_string(), // Same item as yield - plant strawberries to grow strawberries (like potatoes)
             seed_drop_chance: 0.80, // 65% chance - important food crop must be sustainable
             min_respawn_time_secs: 800,  // 13 minutes
             max_respawn_time_secs: 1300, // 21 minutes

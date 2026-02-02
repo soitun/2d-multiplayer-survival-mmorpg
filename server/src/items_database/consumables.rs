@@ -377,17 +377,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("nagoonberries.png")
             .stackable(25)
             .consumable(15.0, 18.0, 15.0) // Excellent berry - high value
-            .cookable(20.0, "Burnt Nagoonberries")
+            .cookable(20.0, "Charcoal") // Berries just char when cooked
             .respawn_time(300)
-            .build(),
-
-        ItemBuilder::new("Burnt Nagoonberries", "Overcooked nagoonberries. A tragic waste of such prized berries.", ItemCategory::Consumable)
-            .icon("burnt_nagoonberries.png")
-            .stackable(25)
-            .consumable(-3.0, 3.0, -5.0)
-            .crafting_output(7, 0)
-            .cookable(25.0, "Charcoal")
-            .respawn_time(50)
             .build(),
 
         // Fireweed Shoots - Edible tundra plant shoots
@@ -424,79 +415,30 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(90)
             .build(),
 
-        ItemBuilder::new("Yarrow", "A flowering herb with feathery leaves and white flower clusters. Known for its medicinal properties and bitter taste.", ItemCategory::Consumable)
+        // === AROMATIC/TEA HERBS (cook directly to charcoal - not food items) ===
+        
+        ItemBuilder::new("Yarrow", "A flowering herb with feathery leaves and white flower clusters. Known for its medicinal properties. Used in recipes as a seasoning.", ItemCategory::Consumable)
             .icon("yarrow.png")
             .stackable(12)
             .consumable(2.0, 4.0, 1.0)
-            .cookable(40.0, "Cooked Yarrow")
+            .cookable(25.0, "Charcoal") // Medicinal herb, not a food - burns directly
             .respawn_time(180)
             .build(),
 
-        ItemBuilder::new("Cooked Yarrow", "Cooked yarrow with reduced bitterness. A medicinal herb that provides some nutrition and healing properties.", ItemCategory::Consumable)
-            .icon("cooked_yarrow.png")
-            .stackable(12)
-            .consumable(8.0, 12.0, 6.0)
-            .cookable(50.0, "Burnt Yarrow")
-            .respawn_time(240)
-            .build(),
-
-        ItemBuilder::new("Burnt Yarrow", "Overcooked yarrow that has lost its medicinal properties. Can be processed into charcoal.", ItemCategory::Consumable)
-            .icon("burnt_yarrow.png")
-            .stackable(12)
-            .consumable(-1.0, 2.0, -3.0)
-            .crafting_output(12, 0)
-            .cookable(55.0, "Charcoal")
-            .respawn_time(90)
-            .build(),
-
-        ItemBuilder::new("Chamomile", "A delicate herb with small white flowers and a sweet, apple-like fragrance. Known for its calming properties.", ItemCategory::Consumable)
+        ItemBuilder::new("Chamomile", "A delicate herb with small white flowers and a sweet, apple-like fragrance. Known for its calming properties. Used in recipes and teas.", ItemCategory::Consumable)
             .icon("chamomile.png")
             .stackable(12)
             .consumable(1.0, 3.0, 2.0)
-            .cookable(40.0, "Cooked Chamomile")
+            .cookable(20.0, "Charcoal") // Tea herb, not a food - burns directly
             .respawn_time(200)
             .build(),
 
-        ItemBuilder::new("Cooked Chamomile", "Cooked chamomile that releases its calming properties. A soothing herb that provides gentle nutrition.", ItemCategory::Consumable)
-            .icon("cooked_chamomile.png")
-            .stackable(12)
-            .consumable(6.0, 10.0, 8.0)
-            .cookable(50.0, "Burnt Chamomile")
-            .respawn_time(260)
-            .build(),
-
-        ItemBuilder::new("Burnt Chamomile", "Overcooked chamomile that has lost its beneficial properties. Can be processed into charcoal.", ItemCategory::Consumable)
-            .icon("burnt_chamomile.png")
-            .stackable(12)
-            .consumable(-1.0, 2.0, -2.0)
-            .crafting_output(12, 0)
-            .cookable(55.0, "Charcoal")
-            .respawn_time(90)
-            .build(),
-
-        ItemBuilder::new("Mint Leaves", "A refreshing herb with bright green leaves and a cool, menthol-like flavor. Known for its digestive properties.", ItemCategory::Consumable)
+        ItemBuilder::new("Mint Leaves", "A refreshing herb with bright green leaves and a cool, menthol-like flavor. Used as a seasoning in recipes.", ItemCategory::Consumable)
             .icon("mint.png")
             .stackable(12)
             .consumable(1.0, 3.0, 2.0)
-            .cookable(40.0, "Cooked Mint Leaves")
+            .cookable(20.0, "Charcoal") // Flavoring herb, not a food - burns directly
             .respawn_time(200)
-            .build(),
-
-        ItemBuilder::new("Cooked Mint Leaves", "Cooked mint that enhances its refreshing properties. A soothing herb that provides gentle nutrition and cooling effects.", ItemCategory::Consumable)
-            .icon("cooked_mint.png")
-            .stackable(12)
-            .consumable(6.0, 10.0, 8.0)
-            .cookable(50.0, "Burnt Mint Leaves")
-            .respawn_time(260)
-            .build(),
-
-        ItemBuilder::new("Burnt Mint Leaves", "Overcooked mint that has lost its refreshing properties. Can be processed into charcoal.", ItemCategory::Consumable)
-            .icon("burnt_mint.png")
-            .stackable(12)
-            .consumable(-1.0, 2.0, -2.0)
-            .crafting_output(12, 0)
-            .cookable(55.0, "Charcoal")
-            .respawn_time(90)
             .build(),
 
         // === MEDICINAL HERBS ===
@@ -517,37 +459,15 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(60)
             .build(),
 
-        ItemBuilder::new("Mugwort", "A bitter aromatic herb with digestive properties. Provides moderate hunger satisfaction and mild health benefits.", ItemCategory::Consumable)
+        ItemBuilder::new("Mugwort", "A bitter aromatic herb with digestive properties. Used as a seasoning in recipes.", ItemCategory::Consumable)
             .icon("mugwort.png")
             .stackable(12)
             .consumable(6.0, 12.0, 2.0)
-            .cookable(35.0, "Cooked Mugwort")
+            .cookable(25.0, "Charcoal") // Bitter herb, not a food - burns directly
             .respawn_time(200)
             .build(),
 
-        ItemBuilder::new("Cooked Mugwort", "Sautéed mugwort with mellowed bitterness. The cooking process enhances its digestive properties.", ItemCategory::Consumable)
-            .icon("cooked_mugwort.png")
-            .stackable(12)
-            .consumable(20.0, 28.0, 8.0) // Increased to compensate for removed 15 stamina
-            .cookable(25.0, "Burnt Mugwort")
-            .build(),
-
-        ItemBuilder::new("Burnt Mugwort", "Charred mugwort leaves. Bitter and unpalatable, but can be processed into charcoal.", ItemCategory::Consumable)
-            .icon("burnt_mugwort.png")
-            .stackable(12)
-            .consumable(-3.0, 2.0, -4.0)
-            .crafting_output(6, 0)
-            .cookable(50.0, "Charcoal")
-            .respawn_time(40)
-            .build(),
-
-        ItemBuilder::new("Bear Garlic", "Wild garlic with a strong, pungent flavor. Provides good nutrition and natural antimicrobial properties.", ItemCategory::Consumable)
-            .icon("bear_garlic.png")
-            .stackable(16)
-            .consumable(7.0, 10.0, 3.0)
-            .cookable(38.0, "Roasted Bear Garlic")
-            .respawn_time(280)
-            .build(),
+        // NOTE: "Bear Garlic" is defined in seeds.rs as a Placeable (like Potato) so it can be planted directly
 
         ItemBuilder::new("Roasted Bear Garlic", "Caramelized wild garlic with a sweet, mellow flavor. Roasting reduces the pungency and enhances the nutrition.", ItemCategory::Consumable)
             .icon("roasted_bear_garlic.png")
@@ -606,24 +526,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(40)
             .build(),
 
-        // === TEA HERBS (Raw → Burnt for future tea system) ===
-
-        ItemBuilder::new("Chamomile", "Delicate chamomile flowers and leaves. Traditional calming tea herb.", ItemCategory::Consumable)
-            .icon("chamomile.png")
-            .stackable(30)
-            .consumable(2.0, 4.0, 3.0)
-            .cookable(20.0, "Burnt Chamomile")
-            .respawn_time(140)
-            .build(),
-
-        ItemBuilder::new("Burnt Chamomile", "Overcooked chamomile. Calming properties destroyed by excess heat.", ItemCategory::Consumable)
-            .icon("burnt_chamomile.png")
-            .stackable(30)
-            .consumable(-1.0, 2.0, -2.0)
-            .crafting_output(3, 0)
-            .cookable(25.0, "Charcoal")
-            .respawn_time(30)
-            .build(),
+        // === TEA HERB LEAVES (secondary drops from medicinal plants) ===
+        // Note: Chamomile is defined above in AROMATIC/TEA HERBS section
 
         ItemBuilder::new("Valerian Leaves", "Leaves from valerian plants. Traditional tea herb with mild sedative properties.", ItemCategory::Consumable)
             .icon("valerian_leaves.png")
@@ -1268,6 +1172,98 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .cookable(40.0, "Charcoal")
             .build(),
 
+        // === WALRUS MEAT ===
+        ItemBuilder::new("Raw Walrus Meat", "Rich, fatty meat from an arctic walrus. The thick layer of blubber makes it extremely calorie-dense.", ItemCategory::Consumable)
+            .icon("walrus_meat.png")
+            .stackable(10)
+            .consumable(12.0, 30.0, -8.0) // Good raw nutrition but very fatty
+            .cookable(40.0, "Cooked Walrus Meat")
+            .build(),
+
+        ItemBuilder::new("Cooked Walrus Meat", "Properly prepared walrus meat. The fat renders into rich, savory flavors - a staple of arctic survival.", ItemCategory::Consumable)
+            .icon("cooked_walrus_meat.png")
+            .stackable(10)
+            .consumable(55.0, 75.0, 15.0) // Excellent nutrition - very filling fatty meat
+            .cookable(35.0, "Burnt Walrus Meat")
+            .build(),
+
+        ItemBuilder::new("Burnt Walrus Meat", "Overcooked walrus meat. The fatty meat has become greasy and unappetizing.", ItemCategory::Consumable)
+            .icon("burnt_walrus_meat.png")
+            .stackable(10)
+            .consumable(-8.0, 20.0, -20.0) // Penalty for burning fatty meat
+            .crafting_output(15, 0)
+            .cookable(45.0, "Charcoal")
+            .build(),
+
+        // === BEAR MEAT (Alpine) ===
+        ItemBuilder::new("Raw Bear Meat", "Dense, fatty meat from a polar bear. Rich in calories and protein, this apex predator provides substantial sustenance.", ItemCategory::Consumable)
+            .icon("bear_meat.png")
+            .stackable(10)
+            .consumable(14.0, 32.0, -10.0) // Very fatty, good raw nutrition
+            .cookable(45.0, "Cooked Bear Meat")
+            .build(),
+
+        ItemBuilder::new("Cooked Bear Meat", "Well-prepared polar bear meat. The rich, fatty flesh becomes tender and savory when cooked properly.", ItemCategory::Consumable)
+            .icon("cooked_bear_meat.png")
+            .stackable(10)
+            .consumable(60.0, 80.0, 18.0) // Best nutrition - apex predator
+            .cookable(35.0, "Burnt Bear Meat")
+            .build(),
+
+        ItemBuilder::new("Burnt Bear Meat", "Charred polar bear meat. The once-rich meat has become dry and bitter.", ItemCategory::Consumable)
+            .icon("burnt_bear_meat.png")
+            .stackable(10)
+            .consumable(-8.0, 22.0, -22.0) // Penalty for burning premium meat
+            .crafting_output(15, 0)
+            .cookable(45.0, "Charcoal")
+            .build(),
+
+        // === HARE MEAT (Alpine) ===
+        ItemBuilder::new("Raw Hare Meat", "Lean, tender meat from an alpine hare. Light and nutritious, similar to rabbit.", ItemCategory::Consumable)
+            .icon("hare_meat.png")
+            .stackable(10)
+            .consumable(10.0, 18.0, -3.0) // Light nutrition - small animal
+            .cookable(25.0, "Cooked Hare Meat")
+            .build(),
+
+        ItemBuilder::new("Cooked Hare Meat", "Delicately cooked hare meat. Tender, lean, and flavorful - a light but satisfying meal.", ItemCategory::Consumable)
+            .icon("cooked_hare_meat.png")
+            .stackable(10)
+            .consumable(35.0, 45.0, 12.0) // Good nutrition - lean meat
+            .cookable(25.0, "Burnt Hare Meat")
+            .build(),
+
+        ItemBuilder::new("Burnt Hare Meat", "Overcooked hare meat. The delicate flesh has dried out completely.", ItemCategory::Consumable)
+            .icon("burnt_hare_meat.png")
+            .stackable(10)
+            .consumable(-4.0, 12.0, -12.0) // Mild penalty - small portion
+            .crafting_output(15, 0)
+            .cookable(30.0, "Charcoal")
+            .build(),
+
+        // === OWL MEAT (Alpine) ===
+        ItemBuilder::new("Raw Owl Meat", "Gamey meat from a snowy owl. Lean and tough, but nutritious.", ItemCategory::Consumable)
+            .icon("owl_meat.png")
+            .stackable(10)
+            .consumable(8.0, 15.0, -4.0) // Light nutrition - bird meat
+            .cookable(28.0, "Cooked Owl Meat")
+            .build(),
+
+        ItemBuilder::new("Cooked Owl Meat", "Properly prepared owl meat. The gamey flavor mellows with cooking, becoming surprisingly tasty.", ItemCategory::Consumable)
+            .icon("cooked_owl_meat.png")
+            .stackable(10)
+            .consumable(32.0, 40.0, 10.0) // Decent nutrition - medium bird
+            .cookable(25.0, "Burnt Owl Meat")
+            .build(),
+
+        ItemBuilder::new("Burnt Owl Meat", "Charred owl meat. The lean bird meat has become tough and bitter.", ItemCategory::Consumable)
+            .icon("burnt_owl_meat.png")
+            .stackable(10)
+            .consumable(-5.0, 10.0, -14.0) // Penalty for burning
+            .crafting_output(15, 0)
+            .cookable(30.0, "Charcoal")
+            .build(),
+
         // === SPECIALTY FOODS & MISC ===
         ItemBuilder::new("Tallow", "Rendered animal fat. High in calories and can be used as a slow-burning fuel source for lanterns and Ancestral Wards. Can be eaten in a pinch to stave off hunger, but it's not very appetizing and will make you thirsty.", ItemCategory::Consumable)
             .icon("tallow.png")
@@ -1851,106 +1847,48 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // === BERRIES & NUTS ===
+        // === BERRIES (all cook directly to charcoal - berries just char when heated) ===
+        
         ItemBuilder::new("Lingonberries", "Tart red berries with a slightly bitter taste. Rich in vitamins and antioxidants. Common in northern regions.", ItemCategory::Consumable)
             .icon("lingonberries.png")
             .stackable(25)
             .consumable(8.0, 12.0, 8.0)
-            .cookable(20.0, "Burnt Lingonberries")
+            .cookable(20.0, "Charcoal") // Berries just char when cooked
             .respawn_time(240)
-            .build(),
-
-        ItemBuilder::new("Burnt Lingonberries", "Overcooked lingonberries. Vitamins destroyed and taste ruined, but can be processed into charcoal.", ItemCategory::Consumable)
-            .icon("burnt_lingonberries.png")
-            .stackable(25)
-            .consumable(-2.0, 2.0, -4.0)
-            .crafting_output(6, 0)
-            .cookable(25.0, "Charcoal")
-            .respawn_time(45)
             .build(),
 
         ItemBuilder::new("Cloudberries", "Rare orange berries with a complex sweet-tart flavor. Highly prized for their exceptional nutritional value.", ItemCategory::Consumable)
             .icon("cloudberries.png")
             .stackable(20)
             .consumable(12.0, 15.0, 12.0)
-            .cookable(22.0, "Burnt Cloudberries")
+            .cookable(22.0, "Charcoal") // Berries just char when cooked
             .respawn_time(360)
-            .build(),
-
-        ItemBuilder::new("Burnt Cloudberries", "Charred cloudberries. The exceptional nutrition is lost to overcooking, but can be processed into charcoal.", ItemCategory::Consumable)
-            .icon("burnt_cloudberries.png")
-            .stackable(20)
-            .consumable(-3.0, 3.0, -5.0)
-            .crafting_output(8, 0)
-            .cookable(28.0, "Charcoal")
-            .respawn_time(50)
             .build(),
 
         ItemBuilder::new("Bilberries", "Small dark blue berries with intense flavor. Excellent source of antioxidants and natural sugars.", ItemCategory::Consumable)
             .icon("bilberries.png")
             .stackable(30)
             .consumable(6.0, 10.0, 6.0)
-            .cookable(18.0, "Burnt Bilberries")
+            .cookable(18.0, "Charcoal") // Berries just char when cooked
             .respawn_time(200)
             .build(),
 
-        ItemBuilder::new("Burnt Bilberries", "Overcooked bilberries. Dark and bitter, antioxidants destroyed by heat.", ItemCategory::Consumable)
-            .icon("burnt_bilberries.png")
-            .stackable(30)
-            .consumable(-2.0, 2.0, -3.0)
-            .crafting_output(5, 0)
-            .cookable(22.0, "Charcoal")
-            .respawn_time(40)
-            .build(),
-
-        ItemBuilder::new("Wild Strawberries", "Tiny but intensely flavored wild strawberries. Much more aromatic than cultivated varieties.", ItemCategory::Consumable)
-            .icon("wild_strawberries.png")
-            .stackable(35)
-            .consumable(5.0, 8.0, 5.0)
-            .cookable(15.0, "Burnt Wild Strawberries")
-            .respawn_time(180)
-            .build(),
-
-        ItemBuilder::new("Burnt Wild Strawberries", "Charred wild strawberries. The delicate flavor is completely destroyed by overcooking.", ItemCategory::Consumable)
-            .icon("burnt_wild_strawberries.png")
-            .stackable(35)
-            .consumable(-1.0, 1.0, -2.0)
-            .crafting_output(4, 0)
-            .cookable(20.0, "Charcoal")
-            .respawn_time(35)
-            .build(),
+        // NOTE: "Wild Strawberries" is defined in seeds.rs as a Placeable (like Potato) so it can be planted directly
 
         ItemBuilder::new("Rowan Berries", "Bright red berries with a bitter, astringent taste. Traditionally used for jellies and preserves.", ItemCategory::Consumable)
             .icon("rowan_berries.png")
             .stackable(25)
             .consumable(4.0, 6.0, 3.0)
-            .cookable(18.0, "Burnt Rowan Berries")
+            .cookable(18.0, "Charcoal") // Berries just char when cooked
             .respawn_time(220)
-            .build(),
-
-        ItemBuilder::new("Burnt Rowan Berries", "Charred rowan berries. Already bitter when raw, they're nearly inedible when burnt.", ItemCategory::Consumable)
-            .icon("burnt_rowan_berries.png")
-            .stackable(25)
-            .consumable(-2.0, 1.0, -4.0)
-            .crafting_output(5, 0)
-            .cookable(22.0, "Charcoal")
-            .respawn_time(40)
             .build(),
 
         ItemBuilder::new("Cranberries", "Tart, sour red berries. Rich in vitamin C and natural preservatives. Excellent for long-term storage.", ItemCategory::Consumable)
             .icon("cranberries.png")
             .stackable(25)
             .consumable(6.0, 8.0, 6.0)
-            .cookable(20.0, "Burnt Cranberries")
+            .cookable(20.0, "Charcoal") // Berries just char when cooked
             .respawn_time(250)
-            .build(),
-
-        ItemBuilder::new("Burnt Cranberries", "Overcooked cranberries. The natural preservatives can't save them from being ruined by excess heat.", ItemCategory::Consumable)
-            .icon("burnt_cranberries.png")
-            .stackable(25)
-            .consumable(-2.0, 2.0, -3.0)
-            .crafting_output(6, 0)
-            .cookable(25.0, "Charcoal")
-            .respawn_time(45)
             .build(),
 
 
@@ -1977,17 +1915,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("belladonna.png")
             .stackable(8)
             .consumable(-20.0, 2.0, -25.0)
-            .cookable(35.0, "Burnt Belladonna")
+            .cookable(35.0, "Charcoal") // Berries just char when cooked
             .respawn_time(520)
-            .build(),
-
-        ItemBuilder::new("Burnt Belladonna", "Charred nightshade berries. Still toxic even when burnt. Can be processed into charcoal.", ItemCategory::Consumable)
-            .icon("burnt_belladonna.png")
-            .stackable(8)
-            .consumable(-10.0, 1.0, -12.0)
-            .crafting_output(12, 0)
-            .cookable(45.0, "Charcoal")
-            .respawn_time(95)
             .build(),
 
         ItemBuilder::new("Henbane", "Toxic plant with powerful psychoactive properties. Historically used in small doses for medicine, but dangerous.", ItemCategory::Consumable)

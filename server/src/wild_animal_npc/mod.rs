@@ -13,6 +13,9 @@ pub mod vole;
 pub mod wolverine;
 pub mod caribou;
 pub mod salmon_shark;
+pub mod polar_bear;
+pub mod hare;
+pub mod snowy_owl;
 pub mod respawn;
 pub mod animal_corpse;
 

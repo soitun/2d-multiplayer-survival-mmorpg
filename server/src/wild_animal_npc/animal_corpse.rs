@@ -144,6 +144,13 @@ pub fn get_animal_loot_chances(animal_species: AnimalSpecies) -> (f64, f64, f64,
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => (0.0, 0.0, 0.0, 0.0),
         // Bees don't create corpses - they die instantly from fire and don't leave bodies
         AnimalSpecies::Bee => (0.0, 0.0, 0.0, 0.0),
+        // Alpine animals
+        // PolarBear - massive apex predator, excellent drops
+        AnimalSpecies::PolarBear => (0.80, 0.0, 0.70, 0.90), // High fat (blubber), no special fur (user requested no special furs), good bone, excellent meat
+        // Hare - small alpine prey, modest drops
+        AnimalSpecies::Hare => (0.15, 0.0, 0.20, 0.85), // Low fat, no cloth (too small), some bone, high meat chance
+        // SnowyOwl - medium flying predator
+        AnimalSpecies::SnowyOwl => (0.10, 0.55, 0.15, 0.50), // Low fat, good feathers (like tern/crow), low bone, some meat
     }
 }
 
@@ -160,6 +167,10 @@ fn get_meat_type(animal_species: AnimalSpecies) -> &'static str {
         AnimalSpecies::Vole => "Raw Vole Meat", // Tiny, lean rodent meat
         AnimalSpecies::Wolverine => "Raw Wolverine Meat", // Dense, gamey predator meat
         AnimalSpecies::Caribou => "Raw Caribou Meat", // Lean, tender venison-like meat
+        // Alpine animals
+        AnimalSpecies::PolarBear => "Raw Bear Meat", // Rich, fatty predator meat
+        AnimalSpecies::Hare => "Raw Hare Meat", // Lean, tender rabbit-like meat
+        AnimalSpecies::SnowyOwl => "Raw Owl Meat", // Gamey bird meat
         // SalmonShark - no meat drops (no underwater harvesting)
         AnimalSpecies::SalmonShark => "Raw Shark Meat", // Never actually dropped - no underwater harvesting
         // Hostile NPCs don't create corpses - they despawn at dawn
@@ -303,6 +314,10 @@ pub fn get_harvest_loot(
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => None,
             // Bees don't drop cloth - they're tiny insects
             AnimalSpecies::Bee => None,
+            // Alpine animals - no special fur per user request (but owl has feathers)
+            AnimalSpecies::PolarBear => None,
+            AnimalSpecies::Hare => None,
+            AnimalSpecies::SnowyOwl => Some("Owl Feathers"), // Birds drop feathers
         };
         
         if let Some(cloth_name) = cloth_type {
@@ -344,6 +359,10 @@ pub fn get_harvest_loot(
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
             // Bees don't drop rare trophies - they're tiny insects
             AnimalSpecies::Bee => 0.0,
+            // Alpine animals don't drop rare trophies (skulls handled separately)
+            AnimalSpecies::PolarBear => 0.0,
+            AnimalSpecies::Hare => 0.0,
+            AnimalSpecies::SnowyOwl => 0.0,
         };
         
         if rare_trophy_chance > 0.0 && rng.gen_bool(rare_trophy_chance) {
@@ -364,6 +383,10 @@ pub fn get_harvest_loot(
                 AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => unreachable!(),
                 // Bees never reach here (chance is 0)
                 AnimalSpecies::Bee => unreachable!(),
+                // Alpine animals never reach here (chance is 0)
+                AnimalSpecies::PolarBear => unreachable!(),
+                AnimalSpecies::Hare => unreachable!(),
+                AnimalSpecies::SnowyOwl => unreachable!(),
             };
             loot.push((rare_trophy.to_string(), 1)); // Rare trophies always drop just 1
         }

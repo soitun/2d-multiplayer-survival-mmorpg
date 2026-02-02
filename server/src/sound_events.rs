@@ -59,6 +59,9 @@ pub enum SoundType {
     GrowlVole,      // growl_vole.mp3 (1 variation - tiny squeak when voles flee)
     GrowlWolverine, // growl_wolverine.mp3 (1 variation - fierce snarl when wolverines attack)
     GrowlCaribou,   // growl_caribou.mp3 (1 variation - snort/bellow when caribou are spooked or attack)
+    GrowlPolarBear, // growl_polar_bear.mp3 (1 variation - deep roar when polar bears attack)
+    GrowlHare,      // growl_hare.mp3 (1 variation - tiny squeak when hares are startled)
+    GrowlOwl,       // growl_owl.mp3 (1 variation - hoot/screech when snowy owls attack)
     // Night hostile NPC sounds
     GrowlShorebound,   // growl_shorebound.mp3 (7 variations - stalker growls)
     GrowlShardkin,     // growl_shardkin.mp3 (4 variations - swarmer chittering)
@@ -109,6 +112,9 @@ pub enum SoundType {
     DeathVole,               // death_vole.mp3 (1 variation - when voles die)
     DeathWolverine,          // death_wolverine.mp3 (1 variation - when wolverines die)
     DeathCaribou,            // death_caribou.mp3 (1 variation - when caribou die)
+    DeathPolarBear,          // death_polar_bear.mp3 (1 variation - when polar bears die)
+    DeathHare,               // death_hare.mp3 (1 variation - when hares die)
+    DeathOwl,                // death_owl.mp3 (1 variation - when snowy owls die)
     DeathBee,                // death_bee.mp3 (1 variation - when bees die from fire)
     DeathPlayer,             // death_player.mp3 (2 variations - when players die/get knocked out)
     AnimalBurrow,            // animal_burrow.mp3 (1 variation - when animals burrow underground)
@@ -176,6 +182,9 @@ impl SoundType {
             SoundType::GrowlVole => "growl_vole",
             SoundType::GrowlWolverine => "growl_wolverine",
             SoundType::GrowlCaribou => "growl_caribou",
+            SoundType::GrowlPolarBear => "growl_polar_bear",
+            SoundType::GrowlHare => "growl_hare",
+            SoundType::GrowlOwl => "growl_owl",
             SoundType::GrowlShorebound => "growl_shorebound",
             SoundType::GrowlShardkin => "growl_shardkin",
             SoundType::GrowlDrownedWatch => "growl_drowned_watch",
@@ -225,6 +234,9 @@ impl SoundType {
             SoundType::DeathVole => "death_vole",
             SoundType::DeathWolverine => "death_wolverine",
             SoundType::DeathCaribou => "death_caribou",
+            SoundType::DeathPolarBear => "death_polar_bear",
+            SoundType::DeathHare => "death_hare",
+            SoundType::DeathOwl => "death_owl",
             SoundType::DeathBee => "death_bee",
             SoundType::DeathPlayer => "death_player",
             SoundType::AnimalBurrow => "animal_burrow",
@@ -288,6 +300,9 @@ impl SoundType {
             SoundType::GrowlVole => 1, // growl_vole.mp3 (tiny squeak)
             SoundType::GrowlWolverine => 1, // growl_wolverine.mp3 (fierce snarl)
             SoundType::GrowlCaribou => 1, // growl_caribou.mp3 (snort/bellow when spooked or attacking)
+            SoundType::GrowlPolarBear => 1, // growl_polar_bear.mp3 (deep roar when polar bears attack)
+            SoundType::GrowlHare => 1, // growl_hare.mp3 (tiny squeak when hares are startled)
+            SoundType::GrowlOwl => 1, // growl_owl.mp3 (hoot/screech when snowy owls attack)
             SoundType::GrowlShorebound => 7, // growl_shorebound.mp3, growl_shorebound1-6.mp3
             SoundType::GrowlShardkin => 4, // growl_shardkin.mp3, growl_shardkin1-3.mp3
             SoundType::GrowlDrownedWatch => 5, // growl_drowned_watch.mp3, growl_drowned_watch1-4.mp3
@@ -340,6 +355,9 @@ impl SoundType {
             SoundType::DeathVole => 1, // death_vole.mp3 (tiny squeak)
             SoundType::DeathWolverine => 1, // death_wolverine.mp3 (fierce snarl)
             SoundType::DeathCaribou => 1, // death_caribou.mp3 (caribou death bellow)
+            SoundType::DeathPolarBear => 1, // death_polar_bear.mp3 (polar bear death roar)
+            SoundType::DeathHare => 1, // death_hare.mp3 (tiny squeak when hares die)
+            SoundType::DeathOwl => 1, // death_owl.mp3 (owl death screech)
             SoundType::DeathBee => 1, // death_bee.mp3 (small sizzle/poof when bee dies from fire)
             SoundType::DeathPlayer => 2, // death_player.mp3, death_player1.mp3 (2 variations)
             SoundType::AnimalBurrow => 1, // animal_burrow.mp3 (digging/burrowing sound)
@@ -836,6 +854,21 @@ pub fn emit_caribou_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, pl
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlCaribou, pos_x, pos_y, 1.0, 500.0, player_id);
 }
 
+/// Emit a polar bear roar sound (deep, powerful roar when attacking)
+pub fn emit_polar_bear_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlPolarBear, pos_x, pos_y, 1.5, 800.0, player_id);
+}
+
+/// Emit a hare squeak sound (tiny squeak when startled)
+pub fn emit_hare_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlHare, pos_x, pos_y, 0.5, 200.0, player_id);
+}
+
+/// Emit a snowy owl hoot/screech sound (when attacking)
+pub fn emit_owl_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlOwl, pos_x, pos_y, 1.0, 500.0, player_id);
+}
+
 /// Emit a shorebound growl sound (night stalker hostile NPC)
 pub fn emit_shorebound_growl_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::GrowlShorebound, pos_x, pos_y, 1.3, 900.0, player_id);
@@ -889,6 +922,10 @@ pub fn emit_animal_walking_sound(
         AnimalSpecies::DrownedWatch => 0.6,  // Heavy brute - very deep
         // Bees - tiny insects, very high pitch
         AnimalSpecies::Bee => 1.6,           // Very high pitch - tiny buzzing insect
+        // Alpine animals
+        AnimalSpecies::PolarBear => 0.65,    // Very low pitch - massive apex predator
+        AnimalSpecies::Hare => 1.4,          // High pitch - small prey animal
+        AnimalSpecies::SnowyOwl => 1.25,     // Medium-high pitch - medium bird
     };
     
     let mut rng = ctx.rng();
