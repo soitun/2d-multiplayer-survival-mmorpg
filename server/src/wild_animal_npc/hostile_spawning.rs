@@ -1484,6 +1484,8 @@ fn spawn_hostile_npc(
         stalk_angle: 0.0,
         stalk_distance: 200.0, // Initial stalk distance
         despawn_at: None,
+        shock_active_until: None,
+        last_shock_time: None,
     };
     
     ctx.db.wild_animal().insert(animal);

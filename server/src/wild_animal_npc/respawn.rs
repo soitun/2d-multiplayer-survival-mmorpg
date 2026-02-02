@@ -463,6 +463,8 @@ fn spawn_single_animal(
         stalk_angle: 0.0,
         stalk_distance: 0.0,
         despawn_at: None,
+        shock_active_until: None,
+        last_shock_time: None,
     };
     
     // Attempt to spawn the animal

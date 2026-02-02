@@ -31,6 +31,7 @@ import wolverineWalkingSheet from '../../assets/wolverine_walking.png';
 import wolverineWalkingAnimatedSheet from '../../assets/wolverine_walking_release.png'; // NEW: 4x4 animated spritesheet
 import caribouWalkingAnimatedSheet from '../../assets/caribou_walking_release.png'; // NEW: 4x4 animated spritesheet
 import salmonSharkWalkingAnimatedSheet from '../../assets/salmon_shark_walking_release.png'; // NEW: 4x4 animated spritesheet (aquatic predator)
+import jellyfishWalkingAnimatedSheet from '../../assets/jellyfish_walking_release.png'; // NEW: 4x4 animated spritesheet (aquatic passive)
 // Alpine animal sprite sheets
 import polarBearWalkingAnimatedSheet from '../../assets/polar_bear_walking_release.png'; // Alpine apex predator
 import hareWalkingAnimatedSheet from '../../assets/hare_walking_release.png'; // Alpine prey animal
@@ -189,6 +190,19 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         rows: 4,           // 4 directions
     },
 
+    // JELLYFISH - Aquatic passive hazard (4x4 layout: 4 frames × 4 directions)
+    // Artist spec: 256x256 per frame → 1024x1024 total sheet
+    // Renders at: 96x96 - medium aquatic creature
+    // Periodic electric shock effect (yellow glow when shock_active_until is set)
+    'Jellyfish': {
+        sheetWidth: 1024,  // 256px × 4 frames
+        sheetHeight: 1024, // 256px × 4 rows
+        frameWidth: 256,
+        frameHeight: 256,
+        cols: 4,           // 4 animation frames
+        rows: 4,           // 4 directions
+    },
+
     // WOLVERINE - Medium-sized but stocky and muscular predator (4x4 layout: 4 frames × 4 directions)
     // Artist spec: Check actual frame size - if clipped, may need adjustment
     // If image is 320x320, frames should be 80x80, but sprites may overflow cells
@@ -329,6 +343,7 @@ const speciesSpriteSheets: Record<string, string> = {
     'Wolverine': wolverineWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'Caribou': caribouWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'SalmonShark': salmonSharkWalkingAnimatedSheet, // Use animated 4x4 spritesheet (aquatic)
+    'Jellyfish': jellyfishWalkingAnimatedSheet, // Use animated 4x4 spritesheet (aquatic passive)
     // Night hostile NPCs have custom sprites
     'Shorebound': shoreboundWalkingAnimatedSheet, // NEW: Use animated 6x4 spritesheet
     'Shardkin': shardkinWalkingAnimatedSheet, // NEW: Use animated 6x4 spritesheet
@@ -721,6 +736,9 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
         case 'SalmonShark':
             // Salmon Sharks are large aquatic predators - always underwater
             return { width: 160, height: 160, shadowRadius: 0 }; // No ground shadow (underwater)
+        case 'Jellyfish':
+            // Jellyfish are medium-sized aquatic hazards - always underwater
+            return { width: 96, height: 96, shadowRadius: 0 }; // No ground shadow (underwater)
         // Night hostile NPCs (2x size for visibility and impact)
         // ═══════════════════════════════════════════════════════════════════════
         // HOSTILE NPCs - Sizes designed for clean 2x pixel scaling
@@ -1002,6 +1020,7 @@ export function renderWildAnimal({
             case 'Crow': return '#1A1A1A'; // Black
             case 'Caribou': return '#8B7355'; // Brown/tan (caribou fur color)
             case 'SalmonShark': return '#708090'; // Slate gray (shark skin color)
+            case 'Jellyfish': return '#E6B0FF'; // Light purple (jellyfish glow)
             // Night hostile NPCs
             case 'Shorebound': return '#2C5F2D'; // Dark forest green
             case 'Shardkin': return '#4A0E4E'; // Dark purple
@@ -1176,20 +1195,26 @@ export function renderWildAnimal({
         ctx.restore();
     } // End shadow rendering for entities with shadowRadius > 0
 
-    // 🦈 SALMON SHARK UNDERWATER RENDERING
-    // Sharks are always underwater - apply visual effects based on viewer perspective
+    // 🦈🎐 AQUATIC CREATURE UNDERWATER RENDERING
+    // Sharks and Jellyfish are always underwater - apply visual effects based on viewer perspective
     const isShark = animal.species.tag === 'SalmonShark';
+    const isJellyfishCreature = animal.species.tag === 'Jellyfish';
+    const isAquatic = isShark || isJellyfishCreature;
     const viewingSharkFromAbove = isShark && !isLocalPlayerSnorkeling;
     const viewingSharkFromUnderwater = isShark && isLocalPlayerSnorkeling;
+    const viewingJellyfishFromAbove = isJellyfishCreature && !isLocalPlayerSnorkeling;
+    const viewingJellyfishFromUnderwater = isJellyfishCreature && isLocalPlayerSnorkeling;
+    const viewingAquaticFromAbove = viewingSharkFromAbove || viewingJellyfishFromAbove;
+    const viewingAquaticFromUnderwater = viewingSharkFromUnderwater || viewingJellyfishFromUnderwater;
 
     // Save filter state if we need to apply underwater blur
     const savedFilter = ctx.filter;
-    if (viewingSharkFromAbove) {
-        // Viewing shark from above water - apply underwater blur effect (like coral)
+    if (viewingAquaticFromAbove) {
+        // Viewing aquatic creature from above water - apply underwater blur effect (like coral)
         ctx.filter = 'blur(2px)';
         ctx.globalAlpha = 0.7; // Slightly transparent when viewed through water
-    } else if (viewingSharkFromUnderwater) {
-        // Viewing shark from underwater - apply teal underwater tint
+    } else if (viewingAquaticFromUnderwater) {
+        // Viewing aquatic creature from underwater - apply teal underwater tint
         ctx.globalAlpha = 1.0;
         // Teal tint will be applied via composite operations after drawing
     }
@@ -1341,8 +1366,8 @@ export function renderWildAnimal({
         }
     }
 
-    // 🦈 Apply underwater teal tint overlay for sharks when viewer is underwater
-    if (viewingSharkFromUnderwater && !useImageFallback) {
+    // 🦈🎐 Apply underwater teal tint overlay for aquatic creatures when viewer is underwater
+    if (viewingAquaticFromUnderwater && !useImageFallback) {
         ctx.save();
         ctx.globalCompositeOperation = 'multiply';
         ctx.fillStyle = 'rgba(0, 180, 180, 0.15)'; // Subtle teal underwater tint
@@ -1351,9 +1376,81 @@ export function renderWildAnimal({
     }
 
     // Restore filter if we applied underwater blur
-    if (viewingSharkFromAbove) {
+    if (viewingAquaticFromAbove) {
         ctx.filter = savedFilter;
         ctx.globalAlpha = 1.0;
+    }
+
+    // 🎐⚡ JELLYFISH SHOCK GLOW EFFECT
+    // When jellyfish emits an electric shock, render a pulsing yellow glow
+    const isJellyfish = animal.species.tag === 'Jellyfish';
+    if (isJellyfish) {
+        const shockActiveUntilMicros = (animal as any).shockActiveUntil?.microsSinceUnixEpoch ?? 0n;
+        const nowMicros = BigInt(nowMs) * 1000n;
+        
+        if (shockActiveUntilMicros > 0n && nowMicros < shockActiveUntilMicros) {
+            // Shock is active - render yellow glow
+            ctx.save();
+            
+            // Calculate pulse intensity (0-1) based on remaining time
+            const remainingMicros = Number(shockActiveUntilMicros - nowMicros);
+            const totalDurationMicros = 500000; // 500ms total duration
+            const progress = Math.max(0, remainingMicros / totalDurationMicros);
+            
+            // Pulsing effect - starts bright, fades out
+            const glowIntensity = progress * (0.5 + 0.5 * Math.sin(nowMs * 0.02)); // Pulsing
+            
+            // Draw yellow glow overlay using additive blending
+            ctx.globalCompositeOperation = 'screen';
+            ctx.globalAlpha = glowIntensity * 0.8;
+            ctx.fillStyle = '#FFFF00'; // Bright yellow
+            
+            // Draw glow circle around jellyfish
+            const glowRadius = renderWidth * 1.2;
+            const gradient = ctx.createRadialGradient(
+                renderPosX + shakeX, renderPosY + shakeY, 0,
+                renderPosX + shakeX, renderPosY + shakeY, glowRadius
+            );
+            gradient.addColorStop(0, 'rgba(255, 255, 100, 0.9)');
+            gradient.addColorStop(0.3, 'rgba(255, 255, 0, 0.6)');
+            gradient.addColorStop(0.7, 'rgba(255, 200, 0, 0.3)');
+            gradient.addColorStop(1, 'rgba(255, 150, 0, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(renderPosX + shakeX, renderPosY + shakeY, glowRadius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Add electric crackle lines around the jellyfish
+            ctx.strokeStyle = `rgba(255, 255, 100, ${glowIntensity * 0.9})`;
+            ctx.lineWidth = 2;
+            const numBolts = 6;
+            for (let i = 0; i < numBolts; i++) {
+                const angle = (i / numBolts) * Math.PI * 2 + (nowMs * 0.01);
+                const boltLength = glowRadius * 0.8 * (0.7 + 0.3 * Math.random());
+                const startX = renderPosX + shakeX + Math.cos(angle) * (renderWidth * 0.3);
+                const startY = renderPosY + shakeY + Math.sin(angle) * (renderHeight * 0.3);
+                const endX = renderPosX + shakeX + Math.cos(angle) * boltLength;
+                const endY = renderPosY + shakeY + Math.sin(angle) * boltLength;
+                
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                // Add zigzag for electric bolt effect
+                const midX = (startX + endX) / 2 + (Math.random() - 0.5) * 15;
+                const midY = (startY + endY) / 2 + (Math.random() - 0.5) * 15;
+                ctx.lineTo(midX, midY);
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+            }
+            
+            ctx.restore();
+        }
+        
+        // Apply underwater blur for jellyfish when viewed from above (like shark)
+        const viewingJellyfishFromAbove = !isLocalPlayerSnorkeling;
+        if (viewingJellyfishFromAbove && !useImageFallback) {
+            // Already handled in the main rendering with the shark logic
+        }
     }
 
     ctx.restore();
@@ -1380,6 +1477,7 @@ export function preloadWildAnimalImages(): void {
         wolverineWalkingAnimatedSheet, // NEW: Animated 4x4 wolverine spritesheet
         caribouWalkingAnimatedSheet, // Animated caribou spritesheet
         salmonSharkWalkingAnimatedSheet, // Animated salmon shark spritesheet (aquatic)
+        jellyfishWalkingAnimatedSheet, // Animated jellyfish spritesheet (aquatic passive)
         // Night hostile NPCs
         shoreboundWalkingAnimatedSheet, // Use animated spritesheet for Shorebound
         shardkinWalkingAnimatedSheet, // Use animated spritesheet for Shardkin

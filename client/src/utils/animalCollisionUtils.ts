@@ -20,6 +20,7 @@ export const ANIMAL_COLLISION_SIZES = {
   Wolverine: { width: 88, height: 64 }, // Medium stocky predator
   Caribou: { width: 96, height: 80 }, // Large herd herbivore
   SalmonShark: { width: 128, height: 96 }, // Large aquatic predator
+  Jellyfish: { width: 64, height: 64 }, // Medium aquatic passive - smaller hitbox
   // Night hostile NPCs
   Shorebound: { width: 128, height: 96 }, // Lean stalker
   Shardkin: { width: 56, height: 48 }, // Small swarmer

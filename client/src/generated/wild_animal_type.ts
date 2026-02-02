@@ -83,6 +83,8 @@ export type WildAnimal = {
   stalkAngle: number,
   stalkDistance: number,
   despawnAt: __Timestamp | undefined,
+  shockActiveUntil: __Timestamp | undefined,
+  lastShockTime: __Timestamp | undefined,
 };
 let _cached_WildAnimal_type_value: __AlgebraicTypeType | null = null;
 
@@ -142,6 +144,8 @@ export const WildAnimal = {
       { name: "stalkAngle", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "stalkDistance", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "despawnAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "shockActiveUntil", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "lastShockTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
     );
     return _cached_WildAnimal_type_value;
   },

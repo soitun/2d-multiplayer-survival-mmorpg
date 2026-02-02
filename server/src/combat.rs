@@ -4601,6 +4601,8 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::Caribou => None, // Caribou drop warm hides
             // SalmonShark - no loot (no underwater harvesting tools)
             crate::wild_animal_npc::AnimalSpecies::SalmonShark => None,
+            // Jellyfish - no loot (dissolves when killed)
+            crate::wild_animal_npc::AnimalSpecies::Jellyfish => None,
             // Night hostile NPCs don't drop items - they grant memory shards instead
             crate::wild_animal_npc::AnimalSpecies::Shorebound | 
             crate::wild_animal_npc::AnimalSpecies::Shardkin | 
@@ -4667,6 +4669,8 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::Caribou => Some("Raw Caribou Meat"),
             // SalmonShark - no loot (no underwater harvesting tools)
             crate::wild_animal_npc::AnimalSpecies::SalmonShark => None,
+            // Jellyfish - no loot (dissolves when killed)
+            crate::wild_animal_npc::AnimalSpecies::Jellyfish => None,
             // Night hostile NPCs don't drop items
             crate::wild_animal_npc::AnimalSpecies::Shorebound | 
             crate::wild_animal_npc::AnimalSpecies::Shardkin | 
@@ -4709,6 +4713,8 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::Caribou => Some("Caribou Skull"), // Large herbivore skull
             // SalmonShark - no loot (no underwater harvesting tools)
             crate::wild_animal_npc::AnimalSpecies::SalmonShark => None,
+            // Jellyfish - no loot (dissolves when killed)
+            crate::wild_animal_npc::AnimalSpecies::Jellyfish => None,
             // Night hostile NPCs don't drop items
             crate::wild_animal_npc::AnimalSpecies::Shorebound | 
             crate::wild_animal_npc::AnimalSpecies::Shardkin | 

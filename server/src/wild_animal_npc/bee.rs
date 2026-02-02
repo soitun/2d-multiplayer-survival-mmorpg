@@ -449,6 +449,8 @@ pub fn spawn_bees_at_hive(
             stalk_angle: 0.0,
             stalk_distance: 0.0,
             despawn_at: None,
+            shock_active_until: None,
+            last_shock_time: None,
         };
         
         let inserted = ctx.db.wild_animal().insert(bee);

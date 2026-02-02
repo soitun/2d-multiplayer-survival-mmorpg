@@ -121,6 +121,10 @@ function getCorpseRenderSize(species: any): { width: number; height: number } {
             // Bees don't produce corpses (they just poof when killed by fire)
             // Return 0 size to skip rendering
             return { width: 0, height: 0 };
+        case 'Jellyfish':
+            // Jellyfish don't produce corpses - they dissolve when killed
+            // Return 0 size to skip rendering (can't be harvested)
+            return { width: 0, height: 0 };
         case 'Tern':
             return { width: 96, height: 96 }; // Medium-sized coastal bird
         case 'Crow':

@@ -1283,6 +1283,8 @@ fn spawn_caribou_calf(
         stalk_angle: 0.0,
         stalk_distance: 0.0,
         despawn_at: None,
+        shock_active_until: None,
+        last_shock_time: None,
     };
     
     let inserted = ctx.db.wild_animal().try_insert(new_calf)

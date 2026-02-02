@@ -46,6 +46,7 @@ export type Scavenging = { tag: "Scavenging" };
 export type Stealing = { tag: "Stealing" };
 export type Swimming = { tag: "Swimming" };
 export type SwimmingChase = { tag: "SwimmingChase" };
+export type Drifting = { tag: "Drifting" };
 export type Stalking = { tag: "Stalking" };
 export type AttackingStructure = { tag: "AttackingStructure" };
 export type Despawning = { tag: "Despawning" };

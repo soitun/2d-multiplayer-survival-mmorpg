@@ -48,6 +48,7 @@ export type AnimalState = AnimalStateVariants.Idle |
   AnimalStateVariants.Stealing |
   AnimalStateVariants.Swimming |
   AnimalStateVariants.SwimmingChase |
+  AnimalStateVariants.Drifting |
   AnimalStateVariants.Stalking |
   AnimalStateVariants.AttackingStructure |
   AnimalStateVariants.Despawning;
@@ -80,6 +81,7 @@ export const AnimalState = {
   Stealing: { tag: "Stealing" } as const,
   Swimming: { tag: "Swimming" } as const,
   SwimmingChase: { tag: "SwimmingChase" } as const,
+  Drifting: { tag: "Drifting" } as const,
   Stalking: { tag: "Stalking" } as const,
   AttackingStructure: { tag: "AttackingStructure" } as const,
   Despawning: { tag: "Despawning" } as const,
@@ -106,6 +108,7 @@ export const AnimalState = {
       { name: "Stealing", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Swimming", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "SwimmingChase", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Drifting", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Stalking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "AttackingStructure", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Despawning", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

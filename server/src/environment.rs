@@ -1259,6 +1259,17 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
             false // Sharks only spawn in Sea tiles
         }
         
+        AnimalSpecies::Jellyfish => {
+            // 🎐 JELLYFISH HABITAT: Deep water only (Sea tiles)
+            // Jellyfish are passive aquatic creatures that drift through open water
+            // They emit periodic electric shocks but don't actively chase players
+            if tile_type == TileType::Sea {
+                return true; // Perfect habitat - open water
+            }
+            
+            false // Jellyfish only spawn in Sea tiles
+        }
+        
         // Night hostile NPCs - they use a different spawn system (player-relative)
         // These species should never go through normal animal spawning
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => {
@@ -3493,6 +3504,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         (AnimalSpecies::Wolverine, 6),       // 6% - Uncommon aggressive predator (tundra/alpine)
         (AnimalSpecies::Caribou, 10),        // 10% - Herd herbivore (tundra/alpine/grassland)
         (AnimalSpecies::SalmonShark, 4),     // 4% - RARE aquatic apex predator (deep water only)
+        (AnimalSpecies::Jellyfish, 5),       // 5% - Uncommon aquatic hazard (deep water only)
         // Alpine animals
         (AnimalSpecies::PolarBear, 3),       // 3% - RARE alpine apex predator
         (AnimalSpecies::Hare, 10),           // 10% - Common alpine prey animal
@@ -3769,6 +3781,8 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 stalk_angle: 0.0,
                 stalk_distance: 0.0,
                 despawn_at: None,
+                shock_active_until: None,
+                last_shock_time: None,
             };
 
             match ctx.db.wild_animal().try_insert(new_animal) {
@@ -5181,6 +5195,8 @@ fn spawn_terns_near_reed_marshes(
                 stalk_angle: 0.0,
                 stalk_distance: 0.0,
                 despawn_at: None,
+                shock_active_until: None,
+                last_shock_time: None,
             };
             
             match ctx.db.wild_animal().try_insert(tern) {
@@ -5304,6 +5320,8 @@ fn spawn_wolverines_near_whale_bone_graveyard(
             stalk_angle: 0.0,
             stalk_distance: 0.0,
             despawn_at: None,
+            shock_active_until: None,
+            last_shock_time: None,
         };
         
         match ctx.db.wild_animal().try_insert(wolverine) {
