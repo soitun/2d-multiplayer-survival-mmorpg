@@ -429,7 +429,8 @@ function AppContent() {
     const [mobileSprintOverride, setMobileSprintOverride] = useState<boolean | undefined>(undefined);
     
     // Simplified movement input - no complex processing
-    const { inputState: keyboardInputState, isAutoWalking } = useMovementInput({ 
+    // PERFORMANCE FIX: Also get inputStateRef for immediate RAF loop reading
+    const { inputState: keyboardInputState, inputStateRef: keyboardInputStateRef, isAutoWalking } = useMovementInput({ 
         isUIFocused: isUIFocused || isDead, // Disable input when dead
         localPlayer,
         onToggleAutoAttack: toggleAutoAttack, // Keep auto-attack functionality
@@ -502,9 +503,11 @@ function AppContent() {
     }, [isMobile]);
     
     // Simplified predicted movement - minimal lag
+    // PERFORMANCE FIX: Pass inputStateRef for immediate input reading in RAF loop (bypasses React state delay)
     const { predictedPosition, getCurrentPositionNow, isAutoAttacking, facingDirection } = usePredictedMovement({
         localPlayer,
         inputState,
+        inputStateRef: isMobile ? undefined : keyboardInputStateRef, // Only use ref for desktop (mobile uses tap-to-walk via prop)
         connection,
         isUIFocused,
         playerDodgeRollStates, // Add dodge roll states for speed calculation

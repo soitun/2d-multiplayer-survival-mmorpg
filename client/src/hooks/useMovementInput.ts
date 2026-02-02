@@ -85,6 +85,14 @@ export const useMovementInput = ({
   onToggleAutoAttack,
   isFishing = false
 }: MovementInputProps) => {
+  // PERFORMANCE FIX: Use ref for immediate input reading (no React state delay)
+  // The RAF loop in usePredictedMovement reads this directly
+  const inputStateRef = useRef<MovementInputState>({
+    direction: { x: 0, y: 0 },
+    sprinting: false
+  });
+  
+  // React state is only for components that need to re-render on input changes (rare)
   const [inputState, setInputState] = useState<MovementInputState>({
     direction: { x: 0, y: 0 },
     sprinting: false
@@ -178,6 +186,12 @@ export const useMovementInput = ({
       
       if (hasStateChanged) {
         lastComputedStateRef.current = newState;
+        
+        // PERFORMANCE FIX: Update ref IMMEDIATELY (no React delay)
+        // This is what usePredictedMovement's RAF loop reads from
+        inputStateRef.current = newState;
+        
+        // React state update can be slightly delayed (for UI components that need it)
         setInputState(newState);
       } else {
         inputMonitor.logSkippedInput('No state change');
@@ -192,14 +206,10 @@ export const useMovementInput = ({
     }
   }, [isUIFocused, isAutoWalking]);
 
-  // Throttled version
+  // PERFORMANCE FIX: Removed 20ms throttle - was causing input lag
+  // The RAF loop in usePredictedMovement already runs at 60fps, so throttling here is unnecessary
+  // and only adds delay between key press and movement
   const throttledProcessKeys = useCallback(() => {
-    const now = performance.now();
-    if (now - lastInputTime.current < 20) {
-      inputMonitor.logSkippedInput('Throttled input');
-      return;
-    }
-    lastInputTime.current = now;
     processKeys();
   }, [processKeys]);
 
@@ -262,10 +272,13 @@ export const useMovementInput = ({
             console.log(`🚶 [AUTO-WALK ON] Stored direction: (${currentX}, ${currentY}), isDiagonal: ${currentX !== 0 && currentY !== 0}`);
 
             // Update state
-            setInputState({
+            const newState = {
               direction: { x: currentX, y: currentY },
               sprinting: keysPressed.current.has('ShiftLeft') || keysPressed.current.has('ShiftRight')
-            });
+            };
+            // PERFORMANCE FIX: Update ref immediately
+            inputStateRef.current = newState;
+            setInputState(newState);
           } else {
             console.log(`🚶 [AUTO-WALK] Cannot enable - no direction`);
           }
@@ -385,10 +398,15 @@ export const useMovementInput = ({
       setIsAutoWalking(false);
       autoWalkDirection.current = null;
       autoWalkSprinting.current = false;
-      setInputState({
+      
+      const clearedState = {
         direction: { x: 0, y: 0 },
         sprinting: false
-      });
+      };
+      
+      // PERFORMANCE FIX: Clear ref immediately too
+      inputStateRef.current = clearedState;
+      setInputState(clearedState);
       
       const clearTime = performance.now() - clearStartTime;
       if (clearTime > 5) {
@@ -398,7 +416,10 @@ export const useMovementInput = ({
   }, [isUIFocused]);
 
   return { 
-    inputState, 
+    inputState,
+    // PERFORMANCE FIX: Export ref for immediate input reading in RAF loops
+    // usePredictedMovement should read from this ref, not the React state prop
+    inputStateRef,
     processMovement: processKeys,
     isAutoWalking
   };

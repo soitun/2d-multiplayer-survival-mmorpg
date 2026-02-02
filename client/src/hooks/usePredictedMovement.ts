@@ -41,6 +41,9 @@ interface SimpleMovementProps {
   connection: DbConnection | null;
   localPlayer: Player | undefined | null;
   inputState: MovementInputState;
+  // PERFORMANCE FIX: Optional ref for immediate input reading (bypasses React state delay)
+  // When provided, RAF loop reads from this ref instead of inputState prop
+  inputStateRef?: React.RefObject<MovementInputState>;
   isUIFocused: boolean; // Added for key handling
   entities: GameEntities;
   playerDodgeRollStates?: Map<string, any>; // Add dodge roll states
@@ -97,7 +100,7 @@ const movementMonitor = new SimpleMovementMonitor();
 // REMOVED: Rubber band logging - proper prediction shouldn't need it
 
 // Simple client-authoritative movement hook with optimized rendering
-export const usePredictedMovement = ({ connection, localPlayer, inputState, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus = 0 }: SimpleMovementProps) => {
+export const usePredictedMovement = ({ connection, localPlayer, inputState, inputStateRef, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus = 0 }: SimpleMovementProps) => {
   // Use refs instead of state to avoid re-renders during movement
   const clientPositionRef = useRef<{ x: number; y: number } | null>(null);
   const serverPositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -229,7 +232,10 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
       const deltaTime = Math.min((now - lastUpdateTime.current) / 1000, 0.1); // Cap delta time
       lastUpdateTime.current = now;
 
-      let { direction, sprinting } = inputState;
+      // PERFORMANCE FIX: Read from ref when available (immediate, no React delay)
+      // Falls back to prop for mobile/tap-to-walk
+      const currentInput = inputStateRef?.current ?? inputState;
+      let { direction, sprinting } = currentInput;
       
       // MOBILE FIX: Use mobileSprintOverride when set (immediate, no server round-trip)
       // This allows mobile sprint toggle button to work correctly
@@ -565,7 +571,9 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, isUI
     }
     
     // For normal movement, extrapolate from last known position
-    const { direction, sprinting } = inputState;
+    // PERFORMANCE FIX: Read from ref when available (immediate, no React delay)
+    const currentInput = inputStateRef?.current ?? inputState;
+    const { direction, sprinting } = currentInput;
     const isActuallyMoving = direction.x !== 0 || direction.y !== 0;
     
     if (!isActuallyMoving || deltaTime <= 0 || deltaTime > 0.1) {
