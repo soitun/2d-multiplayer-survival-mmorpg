@@ -453,67 +453,83 @@ export function useShoreWaveParticles({
 }
 
 // === AAA PIXEL ART RENDERING ===
+// Pre-allocated sorted particles array to avoid allocation each frame
+let sortedParticlesPool: WaveParticle[] = [];
+
 export function renderShoreWaves(
     ctx: CanvasRenderingContext2D,
     particles: WaveParticle[],
     cameraOffsetX: number,
     cameraOffsetY: number
 ) {
-    // Debug: Log particle count every 60 frames (log even if 0 particles)
-    // if (Math.random() < 0.016) {
-    //     console.log(`[ShoreWaves RENDER] particles.length=${particles.length} (canvas already translated, using world coords)`);
-    // }
-    if (particles.length === 0) return;
+    const particleCount = particles.length;
+    if (particleCount === 0) return;
 
     ctx.save();
     
     // Pixel-perfect rendering (no anti-aliasing for crisp pixels)
     ctx.imageSmoothingEnabled = false;
-    ctx.lineCap = 'butt';  // Sharp line ends
+    ctx.lineCap = 'butt';
     ctx.lineJoin = 'miter';
 
+    // Reuse sorted array pool (avoid allocation)
+    if (sortedParticlesPool.length < particleCount) {
+        sortedParticlesPool = new Array(particleCount);
+    }
+    for (let i = 0; i < particleCount; i++) {
+        sortedParticlesPool[i] = particles[i];
+    }
     // Sort by layer for proper depth (back layers first)
-    const sortedParticles = [...particles].sort((a, b) => b.layer - a.layer);
+    sortedParticlesPool.length = particleCount;
+    sortedParticlesPool.sort((a, b) => b.layer - a.layer);
 
-    for (const wave of sortedParticles) {
+    for (let i = 0; i < particleCount; i++) {
+        const wave = sortedParticlesPool[i];
         if (wave.alpha <= 0.02) continue;
 
         const vec = DIRECTION_VECTORS[wave.direction];
+        const progress = wave.progress;
         
         // Smooth easing with slight acceleration at start (like real waves)
-        const easedProgress = wave.progress < 0.3 
-            ? wave.progress * wave.progress * 3.33  // Accelerate in
-            : 0.3 + (wave.progress - 0.3) * (1.4 - wave.progress);  // Slow down at end
+        const easedProgress = progress < 0.3 
+            ? progress * progress * 3.33
+            : 0.3 + (progress - 0.3) * (1.4 - progress);
         
         // Calculate travel distance based on particle type
         let travelDist: number;
-        if (wave.type === 'foam_dot') {
+        const waveType = wave.type;
+        if (waveType === 'foam_dot') {
             travelDist = easedProgress * FOAM_DOT_TRAVEL;
-        } else if (wave.type === 'trailing_foam' || wave.type === 'sparkle') {
-            travelDist = 0;  // Static particles - don't travel
+        } else if (waveType === 'trailing_foam' || waveType === 'sparkle') {
+            travelDist = 0;
         } else {
             travelDist = easedProgress * WAVE_TRAVEL_DISTANCE;
         }
 
-        // World coordinates - the canvas is already translated by cameraOffset in GameCanvas
-        // So we just use world positions directly (no need to add cameraOffset)
         const screenX = wave.x + vec.dx * travelDist;
         const screenY = wave.y + vec.dy * travelDist;
 
-        // Calculate spread factor - waves get wider as they reach shore
-        const spreadProgress = Math.min(1, wave.progress * 1.5);
+        // Calculate spread factor
+        const spreadProgress = Math.min(1, progress * 1.5);
         const currentSpread = 1 + (WAVE_SPREAD_FACTOR - 1) * spreadProgress;
 
-        if (wave.type === 'foam_line') {
-            renderFoamLine(ctx, wave, screenX, screenY, vec, currentSpread);
-        } else if (wave.type === 'water_edge') {
-            renderWaterEdge(ctx, wave, screenX, screenY, vec, currentSpread);
-        } else if (wave.type === 'foam_dot') {
-            renderFoamDot(ctx, wave, screenX, screenY, vec);
-        } else if (wave.type === 'trailing_foam') {
-            renderTrailingFoam(ctx, wave, screenX, screenY);
-        } else if (wave.type === 'sparkle') {
-            renderSparkle(ctx, wave, screenX, screenY);
+        // Direct type dispatch (avoid if-else chain when possible)
+        switch (waveType) {
+            case 'foam_line':
+                renderFoamLine(ctx, wave, screenX, screenY, vec, currentSpread);
+                break;
+            case 'water_edge':
+                renderWaterEdge(ctx, wave, screenX, screenY, vec, currentSpread);
+                break;
+            case 'foam_dot':
+                renderFoamDot(ctx, wave, screenX, screenY, vec);
+                break;
+            case 'trailing_foam':
+                renderTrailingFoam(ctx, wave, screenX, screenY);
+                break;
+            case 'sparkle':
+                renderSparkle(ctx, wave, screenX, screenY);
+                break;
         }
     }
 
@@ -521,6 +537,7 @@ export function renderShoreWaves(
 }
 
 // Main foam line - pixel art style with segments and gaps for organic look
+// OPTIMIZED: Removed Array.some() in hot path, use traditional loop
 function renderFoamLine(
     ctx: CanvasRenderingContext2D,
     wave: WaveParticle,
@@ -531,72 +548,82 @@ function renderFoamLine(
 ) {
     const perpX = -vec.dy;
     const perpY = vec.dx;
-    const halfWidth = (wave.width / 2) * spread;
+    const halfWidth = wave.width * 0.5 * spread;
 
     // Choppiness adds jagged variation to the line
     const choppyOffset = wave.choppiness * Math.sin(wave.progress * Math.PI * 8 + wave.phase) * 2;
     
-    const startX = Math.round(screenX - perpX * halfWidth);
-    const startY = Math.round(screenY - perpY * halfWidth);
-    const endX = Math.round(screenX + perpX * halfWidth);
-    const endY = Math.round(screenY + perpY * halfWidth);
+    const startX = (screenX - perpX * halfWidth) | 0;
+    const startY = (screenY - perpY * halfWidth) | 0;
+    const endX = (screenX + perpX * halfWidth) | 0;
+    const endY = (screenY + perpY * halfWidth) | 0;
 
     // Control point - curve bulges toward beach with choppiness variation
     const curveAmount = wave.amplitude * (1 - wave.progress * 0.5) + choppyOffset;
     const wobble = Math.sin(wave.progress * Math.PI * 2 + wave.phase) * (0.5 + wave.choppiness);
-    const ctrlX = Math.round(screenX + vec.dx * curveAmount + wobble);
-    const ctrlY = Math.round(screenY + vec.dy * curveAmount + wobble);
+    const ctrlX = (screenX + vec.dx * curveAmount + wobble) | 0;
+    const ctrlY = (screenY + vec.dy * curveAmount + wobble) | 0;
 
     // Apply brightness variation
-    const brightness = Math.round(255 * wave.brightness);
+    const brightness = (255 * wave.brightness) | 0;
     const finalAlpha = wave.alpha * wave.brightness;
     
     // Draw segmented line with gaps for broken foam effect
     const numSegments = wave.segments;
     const segmentLength = 1 / numSegments;
+    const gapPattern = wave.gapPattern;
+    const gapCount = gapPattern.length;
+    
+    // Set stroke style once (same for all segments)
+    ctx.strokeStyle = `rgba(${brightness}, ${brightness}, ${brightness}, ${finalAlpha})`;
+    ctx.lineWidth = 2.5;
     
     for (let seg = 0; seg < numSegments; seg++) {
-        // Check if this segment should have a gap before it
         const segmentStart = seg * segmentLength;
         const segmentEnd = (seg + 1) * segmentLength;
         
-        // Skip if this is a gap position
-        if (wave.gapPattern.some(gap => gap > segmentStart && gap < segmentEnd)) {
-            continue;
+        // Check if this is a gap position (replace Array.some with loop)
+        let isGap = false;
+        for (let g = 0; g < gapCount; g++) {
+            const gap = gapPattern[g];
+            if (gap > segmentStart && gap < segmentEnd) {
+                isGap = true;
+                break;
+            }
         }
+        if (isGap) continue;
         
         // Calculate segment positions along the curve
         const t1 = segmentStart;
         const t2 = segmentEnd;
+        const oneMinusT1 = 1 - t1;
+        const oneMinusT2 = 1 - t2;
         
         // Quadratic bezier interpolation
-        const x1 = Math.round((1-t1)*(1-t1)*startX + 2*(1-t1)*t1*ctrlX + t1*t1*endX);
-        const y1 = Math.round((1-t1)*(1-t1)*startY + 2*(1-t1)*t1*ctrlY + t1*t1*endY);
-        const x2 = Math.round((1-t2)*(1-t2)*startX + 2*(1-t2)*t2*ctrlX + t2*t2*endX);
-        const y2 = Math.round((1-t2)*(1-t2)*startY + 2*(1-t2)*t2*ctrlY + t2*t2*endY);
+        const x1 = (oneMinusT1 * oneMinusT1 * startX + 2 * oneMinusT1 * t1 * ctrlX + t1 * t1 * endX) | 0;
+        const y1 = (oneMinusT1 * oneMinusT1 * startY + 2 * oneMinusT1 * t1 * ctrlY + t1 * t1 * endY) | 0;
+        const x2 = (oneMinusT2 * oneMinusT2 * startX + 2 * oneMinusT2 * t2 * ctrlX + t2 * t2 * endX) | 0;
+        const y2 = (oneMinusT2 * oneMinusT2 * startY + 2 * oneMinusT2 * t2 * ctrlY + t2 * t2 * endY) | 0;
         
-        // Draw segment with pixel-perfect lines
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
-        
-        ctx.strokeStyle = `rgba(${brightness}, ${brightness}, ${brightness}, ${finalAlpha})`;
-        ctx.lineWidth = 2.5; // Slightly thinner to match player wake line width
         ctx.stroke();
     }
     
-    // Add subtle highlight on leading edge for fresh waves (varies with brightness)
+    // Add subtle highlight on leading edge for fresh waves
     if (wave.progress < 0.35 && wave.brightness > 0.85) {
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.quadraticCurveTo(ctrlX, ctrlY, endX, endY);
         ctx.strokeStyle = `rgba(255, 255, 255, ${wave.alpha * 0.25})`;
-        ctx.lineWidth = 3.0; // Slightly thicker highlight
+        ctx.lineWidth = 3.0;
         ctx.stroke();
     }
 }
 
 // Secondary water edge - pale cyan, slightly behind foam with varied tint
+// OPTIMIZED: Removed Math.random() in render, use deterministic pattern based on phase
 function renderWaterEdge(
     ctx: CanvasRenderingContext2D,
     wave: WaveParticle,
@@ -607,48 +634,57 @@ function renderWaterEdge(
 ) {
     const perpX = -vec.dy;
     const perpY = vec.dx;
-    const halfWidth = ((wave.width / 2) + 2 + wave.choppiness * 2) * spread;  // Wider and spreads more
+    const halfWidth = (wave.width * 0.5 + 2 + wave.choppiness * 2) * spread;
 
-    // Offset behind the foam line (varies with choppiness)
+    // Offset behind the foam line
     const offsetDist = 3 + wave.choppiness * 2;
     const offsetX = -vec.dx * offsetDist;
     const offsetY = -vec.dy * offsetDist;
 
-    const startX = Math.round(screenX - perpX * halfWidth + offsetX);
-    const startY = Math.round(screenY - perpY * halfWidth + offsetY);
-    const endX = Math.round(screenX + perpX * halfWidth + offsetX);
-    const endY = Math.round(screenY + perpY * halfWidth + offsetY);
+    const startX = (screenX - perpX * halfWidth + offsetX) | 0;
+    const startY = (screenY - perpY * halfWidth + offsetY) | 0;
+    const endX = (screenX + perpX * halfWidth + offsetX) | 0;
+    const endY = (screenY + perpY * halfWidth + offsetY) | 0;
 
     const curveAmount = wave.amplitude * 0.5 + wave.choppiness;
-    const ctrlX = Math.round(screenX + vec.dx * curveAmount + offsetX);
-    const ctrlY = Math.round(screenY + vec.dy * curveAmount + offsetY);
+    const ctrlX = (screenX + vec.dx * curveAmount + offsetX) | 0;
+    const ctrlY = (screenY + vec.dy * curveAmount + offsetY) | 0;
 
     // Varied water edge color based on brightness
-    const r = Math.round(150 + 30 * wave.brightness);
-    const g = Math.round(200 + 25 * wave.brightness);
-    const b = Math.round(235 + 15 * wave.brightness);
+    const r = (150 + 30 * wave.brightness) | 0;
+    const g = (200 + 25 * wave.brightness) | 0;
+    const b = (235 + 15 * wave.brightness) | 0;
+    const edgeAlpha = wave.alpha * 0.4 * wave.brightness;
+    
+    // Set stroke style once
+    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${edgeAlpha})`;
+    ctx.lineWidth = 2.5;
     
     // Draw segmented for consistency with foam line
     const numSegments = Math.max(2, wave.segments - 1);
     const segmentLength = 1 / numSegments;
+    const gapCount = wave.gapPattern.length;
+    
+    // Use deterministic pattern based on phase instead of Math.random()
+    const skipThreshold = wave.phase * 0.1;
     
     for (let seg = 0; seg < numSegments; seg++) {
+        // Skip some segments deterministically for broken water edge
+        if (gapCount > 0 && ((seg * 0.618 + skipThreshold) % 1) < 0.2) continue;
+        
         const t1 = seg * segmentLength;
         const t2 = (seg + 1) * segmentLength;
+        const oneMinusT1 = 1 - t1;
+        const oneMinusT2 = 1 - t2;
         
-        // Skip some segments randomly for broken water edge
-        if (wave.gapPattern.length > 0 && Math.random() < 0.2) continue;
-        
-        const x1 = Math.round((1-t1)*(1-t1)*startX + 2*(1-t1)*t1*ctrlX + t1*t1*endX);
-        const y1 = Math.round((1-t1)*(1-t1)*startY + 2*(1-t1)*t1*ctrlY + t1*t1*endY);
-        const x2 = Math.round((1-t2)*(1-t2)*startX + 2*(1-t2)*t2*ctrlX + t2*t2*endX);
-        const y2 = Math.round((1-t2)*(1-t2)*startY + 2*(1-t2)*t2*ctrlY + t2*t2*endY);
+        const x1 = (oneMinusT1 * oneMinusT1 * startX + 2 * oneMinusT1 * t1 * ctrlX + t1 * t1 * endX) | 0;
+        const y1 = (oneMinusT1 * oneMinusT1 * startY + 2 * oneMinusT1 * t1 * ctrlY + t1 * t1 * endY) | 0;
+        const x2 = (oneMinusT2 * oneMinusT2 * startX + 2 * oneMinusT2 * t2 * ctrlX + t2 * t2 * endX) | 0;
+        const y2 = (oneMinusT2 * oneMinusT2 * startY + 2 * oneMinusT2 * t2 * ctrlY + t2 * t2 * endY) | 0;
         
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
-        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${wave.alpha * 0.4 * wave.brightness})`;
-        ctx.lineWidth = 2.5; // Slightly thinner to match player wake line width
         ctx.stroke();
     }
 }

@@ -7,6 +7,10 @@ import { TILE_SIZE } from '../../config/gameConfig';
  * subtle color variations, and sparkle highlights. Optimized for high performance.
  */
 
+// Pre-computed constants
+const TWO_PI = Math.PI * 2;
+const HALF_TILE_SIZE = TILE_SIZE * 0.5;
+
 // Line visual type for varied aesthetics
 type LineVisualType = 'highlight' | 'reflection' | 'deep';
 
@@ -118,28 +122,41 @@ function worldPosToTileCoords(worldX: number, worldY: number): { tileX: number; 
   return { tileX, tileY };
 }
 
+// Cache for water tile lookup by coordinate key
+const waterTileCache = new Map<string, boolean>();
+let waterTileCacheWorldTiles: Map<string, any> | null = null;
+
 /**
  * Checks if a world position is on a water tile (Sea type) - same logic as placement system
+ * OPTIMIZED: Uses direct key lookup instead of iterating all tiles
  */
 function isPositionOnWaterTile(worldTiles: Map<string, any>, worldX: number, worldY: number): boolean {
   if (!worldTiles || worldTiles.size === 0) return false;
   
-  const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
-  
-  // Check all world tiles to find the one at this position (same as placement system)
-  for (const tile of worldTiles.values()) {
-    if (tile.worldX === tileX && tile.worldY === tileY) {
-      // Found the tile at this position, check if it's water
-      return tile.tileType && tile.tileType.tag === 'Sea';
-    }
+  // Rebuild cache if worldTiles changed
+  if (worldTiles !== waterTileCacheWorldTiles) {
+    waterTileCache.clear();
+    worldTiles.forEach((tile) => {
+      if (tile.tileType && tile.tileType.tag === 'Sea') {
+        waterTileCache.set(`${tile.worldX}_${tile.worldY}`, true);
+      }
+    });
+    waterTileCacheWorldTiles = worldTiles;
   }
   
-  // No tile found at this position, assume it's not water
-  return false;
+  const tileX = Math.floor(worldX / TILE_SIZE);
+  const tileY = Math.floor(worldY / TILE_SIZE);
+  
+  return waterTileCache.has(`${tileX}_${tileY}`);
 }
+
+// Pre-allocated array for visible water tiles (reused each frame)
+const visibleWaterTilesPool: Array<{x: number, y: number}> = [];
+let visibleWaterTilesCount = 0;
 
 /**
  * Get all water tiles in the visible camera area for efficient spawning
+ * OPTIMIZED: Uses pre-allocated array pool, reuses forEach
  */
 function getVisibleWaterTiles(
   worldTiles: Map<string, any>,
@@ -148,30 +165,41 @@ function getVisibleWaterTiles(
   canvasWidth: number,
   canvasHeight: number
 ): Array<{x: number, y: number}> {
-  const waterTiles: Array<{x: number, y: number}> = [];
+  // Reset pool count
+  visibleWaterTilesCount = 0;
   
   // Calculate visible tile bounds
-  const leftBound = cameraX - canvasWidth / 2 - WATER_CONFIG.SPAWN_MARGIN;
-  const rightBound = cameraX + canvasWidth / 2 + WATER_CONFIG.SPAWN_MARGIN;
-  const topBound = cameraY - canvasHeight / 2 - WATER_CONFIG.SPAWN_MARGIN;
-  const bottomBound = cameraY + canvasHeight / 2 + WATER_CONFIG.SPAWN_MARGIN;
+  const halfWidth = canvasWidth * 0.5;
+  const halfHeight = canvasHeight * 0.5;
+  const leftBound = cameraX - halfWidth - WATER_CONFIG.SPAWN_MARGIN;
+  const rightBound = cameraX + halfWidth + WATER_CONFIG.SPAWN_MARGIN;
+  const topBound = cameraY - halfHeight - WATER_CONFIG.SPAWN_MARGIN;
+  const bottomBound = cameraY + halfHeight + WATER_CONFIG.SPAWN_MARGIN;
   
   // Check all tiles in the area
-  for (const tile of worldTiles.values()) {
+  worldTiles.forEach((tile) => {
     if (tile.tileType && tile.tileType.tag === 'Sea') {
       // Convert tile coordinates to world pixels (center of tile)
-      const worldX = tile.worldX * TILE_SIZE + TILE_SIZE / 2;
-      const worldY = tile.worldY * TILE_SIZE + TILE_SIZE / 2;
+      const worldX = tile.worldX * TILE_SIZE + HALF_TILE_SIZE;
+      const worldY = tile.worldY * TILE_SIZE + HALF_TILE_SIZE;
       
       // Check if tile is in visible area
       if (worldX >= leftBound && worldX <= rightBound && 
           worldY >= topBound && worldY <= bottomBound) {
-        waterTiles.push({x: worldX, y: worldY});
+        // Reuse or extend pool
+        if (visibleWaterTilesCount >= visibleWaterTilesPool.length) {
+          visibleWaterTilesPool.push({x: worldX, y: worldY});
+        } else {
+          visibleWaterTilesPool[visibleWaterTilesCount].x = worldX;
+          visibleWaterTilesPool[visibleWaterTilesCount].y = worldY;
+        }
+        visibleWaterTilesCount++;
       }
     }
-  }
+  });
   
-  return waterTiles;
+  // Return a view of the pool (up to count)
+  return visibleWaterTilesPool.slice(0, visibleWaterTilesCount);
 }
 
 /**
@@ -318,10 +346,13 @@ function updateWaterSystem(
   const topBound = cameraY - canvasHeight / 2 - cullMargin;
   const bottomBound = cameraY + canvasHeight / 2 + cullMargin;
   
-  // Update lines (iterate backwards for safe removal)
-  for (let i = waterSystem.lines.length - 1; i >= 0; i--) {
-    const line = waterSystem.lines[i];
+  // Update lines using swap-and-pop for O(1) removal
+  const lines = waterSystem.lines;
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
     line.age += deltaTime;
+    let shouldRemove = false;
     
     // Growth animation with smooth ease-out
     if (line.isGrowing) {
@@ -332,7 +363,8 @@ function updateWaterSystem(
       }
       // Cubic ease-out for smooth appearance
       const t = line.growthPhase;
-      const easedGrowth = 1 - (1 - t) * (1 - t) * (1 - t);
+      const oneMinusT = 1 - t;
+      const easedGrowth = 1 - oneMinusT * oneMinusT * oneMinusT;
       line.currentLength = line.targetLength * easedGrowth;
     }
     
@@ -346,49 +378,59 @@ function updateWaterSystem(
       
       const fadeProgress = (line.age - line.lifetime) / WATER_CONFIG.FADE_DURATION;
       if (fadeProgress >= 1.0) {
-        waterSystem.lines.splice(i, 1);
-        continue;
+        shouldRemove = true;
+      } else {
+        // Update fade-out phase (same speed as growth)
+        line.fadeOutPhase += line.growthSpeed * deltaTime;
+        if (line.fadeOutPhase > 1.0) {
+          line.fadeOutPhase = 1.0;
+        }
+        
+        // Reverse of growth: shrink from full length back to 0
+        const t = line.fadeOutPhase;
+        const easedShrink = t * t * t;
+        line.currentLength = line.targetLength * (1.0 - easedShrink);
+        
+        // Also fade opacity
+        const easedFade = fadeProgress * fadeProgress * (3.0 - 2.0 * fadeProgress);
+        line.opacity = line.baseOpacity * (1.0 - easedFade);
       }
-      
-      // Update fade-out phase (same speed as growth)
-      line.fadeOutPhase += line.growthSpeed * deltaTime;
-      if (line.fadeOutPhase > 1.0) {
-        line.fadeOutPhase = 1.0;
-      }
-      
-      // Reverse of growth: shrink from full length back to 0
-      // Use cubic ease-in (reverse of cubic ease-out) for symmetric motion
-      const t = line.fadeOutPhase;
-      const easedShrink = t * t * t; // Cubic ease-in (slow start, fast end - opposite of ease-out)
-      line.currentLength = line.targetLength * (1.0 - easedShrink);
-      
-      // Also fade opacity
-      const easedFade = fadeProgress * fadeProgress * (3.0 - 2.0 * fadeProgress);
-      line.opacity = line.baseOpacity * (1.0 - easedFade);
     }
     
     // Cull off-screen lines
-    if (line.startX + line.currentLength < leftBound || 
+    if (!shouldRemove && (line.startX + line.currentLength < leftBound || 
         line.startX > rightBound ||
-        line.y < topBound || line.y > bottomBound) {
-      waterSystem.lines.splice(i, 1);
+        line.y < topBound || line.y > bottomBound)) {
+      shouldRemove = true;
+    }
+    
+    if (shouldRemove) {
+      // Swap-and-pop: O(1) removal
+      const lastIdx = lines.length - 1;
+      if (i < lastIdx) lines[i] = lines[lastIdx];
+      lines.pop();
+    } else {
+      i++;
     }
   }
   
-  // Update sparkles
-  for (let i = waterSystem.sparkles.length - 1; i >= 0; i--) {
-    const sparkle = waterSystem.sparkles[i];
+  // Update sparkles using swap-and-pop
+  const sparkles = waterSystem.sparkles;
+  let j = 0;
+  while (j < sparkles.length) {
+    const sparkle = sparkles[j];
     sparkle.age += deltaTime;
     
-    if (sparkle.age >= sparkle.lifetime) {
-      waterSystem.sparkles.splice(i, 1);
-      continue;
-    }
+    let removeSparkle = sparkle.age >= sparkle.lifetime ||
+        sparkle.x < leftBound || sparkle.x > rightBound ||
+        sparkle.y < topBound || sparkle.y > bottomBound;
     
-    // Cull off-screen sparkles
-    if (sparkle.x < leftBound || sparkle.x > rightBound ||
-        sparkle.y < topBound || sparkle.y > bottomBound) {
-      waterSystem.sparkles.splice(i, 1);
+    if (removeSparkle) {
+      const lastIdx = sparkles.length - 1;
+      if (j < lastIdx) sparkles[j] = sparkles[lastIdx];
+      sparkles.pop();
+    } else {
+      j++;
     }
   }
   
@@ -447,25 +489,31 @@ function getLineColor(line: WaterLine, breathingFactor: number): { r: number; g:
   };
 }
 
+// Cached sparkle color string
+const SPARKLE_COLOR_STR = `rgb(${WATER_CONFIG.SPARKLE_COLOR.r}, ${WATER_CONFIG.SPARKLE_COLOR.g}, ${WATER_CONFIG.SPARKLE_COLOR.b})`;
+
 /**
  * Renders water effects with AAA pixel art style - crisp lines and sparkles
+ * OPTIMIZED: Traditional loops, pre-computed values, reduced string creation
  */
 function renderWaterEffects(
   ctx: CanvasRenderingContext2D,
   cameraX: number,
   cameraY: number,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  currentTime: number
 ): void {
-  if (waterSystem.lines.length === 0 && waterSystem.sparkles.length === 0) return;
+  const lineCount = waterSystem.lines.length;
+  const sparkleCount = waterSystem.sparkles.length;
+  if (lineCount === 0 && sparkleCount === 0) return;
   
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
   
-  const currentTime = Date.now();
-  
   // Global breathing effect for subtle life
   const breathingFactor = (Math.sin(currentTime * WATER_CONFIG.BREATHING_SPEED) + 1) * 0.5;
+  const breathingMod = 0.85 + breathingFactor * 0.15;
   
   // Camera bounds for rendering - expanded margin to keep effects visible longer
   const renderMargin = WATER_CONFIG.RENDER_MARGIN;
@@ -474,34 +522,37 @@ function renderWaterEffects(
   const cameraTop = cameraY - canvasHeight - renderMargin;
   const cameraBottom = cameraY + canvasHeight + renderMargin;
   
+  // Pre-compute wave frequency factor
+  const waveFreqTime = currentTime * WATER_CONFIG.WAVE_FREQUENCY;
+  const waveAmplitude = WATER_CONFIG.WAVE_AMPLITUDE;
+  
   // === RENDER LINES ===
-  // Set up for crisp pixel art lines
-  ctx.lineCap = 'butt'; // Crisp ends for pixel art
+  ctx.lineCap = 'butt';
   ctx.lineJoin = 'miter';
   
-  for (const line of waterSystem.lines) {
+  const lines = waterSystem.lines;
+  const worldTiles = waterSystem.worldTiles;
+  
+  for (let i = 0; i < lineCount; i++) {
+    const line = lines[i];
+    const lineEnd = line.startX + line.currentLength;
+    
     // Quick culling check
-    if (line.startX + line.currentLength < cameraLeft || 
-        line.startX > cameraRight ||
+    if (lineEnd < cameraLeft || line.startX > cameraRight ||
         line.y < cameraTop || line.y > cameraBottom) {
       continue;
     }
     
     // Verify still on water
     const midX = line.startX + line.currentLength * 0.5;
-    if (waterSystem.worldTiles && !isPositionOnWaterTile(waterSystem.worldTiles, midX, line.y)) {
+    if (worldTiles && !isPositionOnWaterTile(worldTiles, midX, line.y)) {
       continue;
     }
     
-    // Calculate wave offset - subtle and smooth
-    const waveOffset = Math.sin(
-      currentTime * WATER_CONFIG.WAVE_FREQUENCY + 
-      line.wavePhase + 
-      line.startX * 0.005
-    ) * WATER_CONFIG.WAVE_AMPLITUDE;
+    // Calculate wave offset
+    const waveOffset = Math.sin(waveFreqTime + line.wavePhase + line.startX * 0.005) * waveAmplitude;
     
     // Calculate final opacity with breathing
-    const breathingMod = 0.85 + breathingFactor * 0.15;
     const finalOpacity = line.opacity * breathingMod;
     
     // Get color for this line type
@@ -510,40 +561,45 @@ function renderWaterEffects(
     // Calculate line position with wave
     const y = line.y + waveOffset;
     
-    // Calculate center point of the full-length line
+    // Calculate center and half-length
     const centerX = line.startX + line.targetLength * 0.5;
-    
-    // Always render from center outward (during growth) or shrinking toward center (during fade-out)
-    // This creates symmetric motion: grows outward, shrinks inward
     const halfLength = line.currentLength * 0.5;
     const startX = centerX - halfLength;
     const endX = centerX + halfLength;
     
-    // For pixel art: Draw main crisp line
+    // Draw main crisp line
     ctx.globalAlpha = finalOpacity;
-    ctx.strokeStyle = `rgb(${Math.round(color.r)}, ${Math.round(color.g)}, ${Math.round(color.b)})`;
+    ctx.strokeStyle = `rgb(${color.r | 0}, ${color.g | 0}, ${color.b | 0})`;
     ctx.lineWidth = line.thickness;
     
     ctx.beginPath();
-    ctx.moveTo(Math.round(startX), Math.round(y));
-    ctx.lineTo(Math.round(endX), Math.round(y));
+    ctx.moveTo(startX | 0, y | 0);
+    ctx.lineTo(endX | 0, y | 0);
     ctx.stroke();
     
-    // Add subtle highlight above for depth (only for highlight type)
+    // Add subtle highlight for highlight type
     if (line.visualType === 'highlight' && finalOpacity > 0.5) {
       ctx.globalAlpha = finalOpacity * 0.3;
-      ctx.strokeStyle = `rgb(${Math.min(255, color.r + 40)}, ${Math.min(255, color.g + 20)}, ${Math.min(255, color.b + 10)})`;
+      const rH = Math.min(255, color.r + 40) | 0;
+      const gH = Math.min(255, color.g + 20) | 0;
+      const bH = Math.min(255, color.b + 10) | 0;
+      ctx.strokeStyle = `rgb(${rH}, ${gH}, ${bH})`;
       ctx.lineWidth = 1;
       
       ctx.beginPath();
-      ctx.moveTo(Math.round(startX + 1), Math.round(y - 1));
-      ctx.lineTo(Math.round(endX - 1), Math.round(y - 1));
+      ctx.moveTo((startX + 1) | 0, (y - 1) | 0);
+      ctx.lineTo((endX - 1) | 0, (y - 1) | 0);
       ctx.stroke();
     }
   }
   
   // === RENDER SPARKLES ===
-  for (const sparkle of waterSystem.sparkles) {
+  const sparkles = waterSystem.sparkles;
+  const pulseSpeedTime = currentTime * WATER_CONFIG.SPARKLE_PULSE_SPEED;
+  
+  for (let i = 0; i < sparkleCount; i++) {
+    const sparkle = sparkles[i];
+    
     // Quick culling
     if (sparkle.x < cameraLeft || sparkle.x > cameraRight ||
         sparkle.y < cameraTop || sparkle.y > cameraBottom) {
@@ -551,47 +607,43 @@ function renderWaterEffects(
     }
     
     // Verify on water
-    if (waterSystem.worldTiles && !isPositionOnWaterTile(waterSystem.worldTiles, sparkle.x, sparkle.y)) {
+    if (worldTiles && !isPositionOnWaterTile(worldTiles, sparkle.x, sparkle.y)) {
       continue;
     }
     
-    // Calculate sparkle opacity with pulse and lifetime
+    // Calculate sparkle opacity
     const lifeProgress = sparkle.age / sparkle.lifetime;
-    // Quick fade in, hold, quick fade out
     let lifeFade: number;
     if (lifeProgress < 0.15) {
-      lifeFade = lifeProgress / 0.15; // Fade in
+      lifeFade = lifeProgress / 0.15;
     } else if (lifeProgress > 0.7) {
-      lifeFade = 1 - (lifeProgress - 0.7) / 0.3; // Fade out
+      lifeFade = 1 - (lifeProgress - 0.7) / 0.3;
     } else {
-      lifeFade = 1.0; // Full brightness
+      lifeFade = 1.0;
     }
     
     // Pulse effect
-    const pulseIntensity = (Math.sin(currentTime * WATER_CONFIG.SPARKLE_PULSE_SPEED + sparkle.pulsePhase) + 1) * 0.5;
+    const pulseIntensity = (Math.sin(pulseSpeedTime + sparkle.pulsePhase) + 1) * 0.5;
     const finalSparkleOpacity = sparkle.brightness * lifeFade * (0.7 + pulseIntensity * 0.3);
     
     if (finalSparkleOpacity < 0.1) continue;
     
-    const { SPARKLE_COLOR } = WATER_CONFIG;
-    const x = Math.round(sparkle.x);
-    const y = Math.round(sparkle.y);
-    const size = Math.round(sparkle.size);
+    const x = sparkle.x | 0;
+    const y = sparkle.y | 0;
+    const size = sparkle.size | 0;
     
-    // Draw sparkle as crisp pixel art cross/diamond
+    // Draw sparkle
     ctx.globalAlpha = finalSparkleOpacity;
-    ctx.fillStyle = `rgb(${SPARKLE_COLOR.r}, ${SPARKLE_COLOR.g}, ${SPARKLE_COLOR.b})`;
-    
-    // Center pixel (always)
+    ctx.fillStyle = SPARKLE_COLOR_STR;
     ctx.fillRect(x, y, 1, 1);
     
     // Extended sparkle for larger sizes
     if (size >= 2) {
       ctx.globalAlpha = finalSparkleOpacity * 0.6;
-      ctx.fillRect(x - 1, y, 1, 1); // Left
-      ctx.fillRect(x + 1, y, 1, 1); // Right
-      ctx.fillRect(x, y - 1, 1, 1); // Top
-      ctx.fillRect(x, y + 1, 1, 1); // Bottom
+      ctx.fillRect(x - 1, y, 1, 1);
+      ctx.fillRect(x + 1, y, 1, 1);
+      ctx.fillRect(x, y - 1, 1, 1);
+      ctx.fillRect(x, y + 1, 1, 1);
     }
   }
   
@@ -609,13 +661,15 @@ export function renderWaterOverlay(
   canvasWidth: number,
   canvasHeight: number,
   deltaTime: number,
-  worldTiles?: Map<string, any>
+  worldTiles?: Map<string, any>,
+  currentTime?: number
 ): void {
   // Update water system state
   updateWaterSystem(deltaTime, cameraX, cameraY, canvasWidth, canvasHeight, worldTiles || null);
   
-  // Render with AAA pixel art style
-  renderWaterEffects(ctx, cameraX, cameraY, canvasWidth, canvasHeight);
+  // Render with AAA pixel art style (use passed time or fallback)
+  const now = currentTime ?? performance.now();
+  renderWaterEffects(ctx, cameraX, cameraY, canvasWidth, canvasHeight, now);
 }
 
 /**
