@@ -89,14 +89,32 @@ const ENABLE_GRASS_PERF_LOGGING = false;
 // Frame counter for throttling (updated only in batch render)
 let frameCounter = 0;
 
-// Disturbance calculation cache
-const disturbanceCache = new Map<string, {
+// Disturbance calculation cache - uses numeric key for faster lookup
+const disturbanceCache = new Map<number, {
     lastCalculatedMs: number;
+    disturbedAtKey: number;
     result: { isDisturbed: boolean; disturbanceStrength: number; disturbanceDirectionX: number; disturbanceDirectionY: number; };
 }>();
 
 // LOD level type
 type LODLevel = 'near' | 'mid' | 'far' | 'cull';
+
+// Pre-allocated arrays for batch rendering (avoids GC every frame)
+interface GrassWithLOD {
+    grass: InterpolatedGrassData;
+    distanceSq: number;
+    lodLevel: LODLevel;
+}
+const MAX_GRASS_BATCH = 200;
+const grassBatchPool: GrassWithLOD[] = new Array(MAX_GRASS_BATCH);
+for (let i = 0; i < MAX_GRASS_BATCH; i++) {
+    grassBatchPool[i] = { grass: null as any, distanceSq: 0, lodLevel: 'near' };
+}
+let grassBatchCount = 0;
+
+// Pre-computed constants
+const DEG_TO_RAD = Math.PI / 180;
+const RAD_TO_DEG = 180 / Math.PI;
 
 // =============================================================================
 // GRASS TYPE CONFIGURATION
@@ -140,46 +158,64 @@ const shouldHaveStaticRotation = (tag: string): boolean => !NO_ROTATION_TYPES.ha
 
 const NO_DISTURBANCE = { isDisturbed: false, disturbanceStrength: 0, disturbanceDirectionX: 0, disturbanceDirectionY: 0 };
 
+// Reusable result object to avoid allocation in hot path
+const tempDisturbanceResult = { isDisturbed: true, disturbanceStrength: 0, disturbanceDirectionX: 0, disturbanceDirectionY: 0 };
+
 function calculateDisturbanceEffect(grass: InterpolatedGrassData, nowMs: number): typeof NO_DISTURBANCE {
     // Quick exit if disabled
     if (DISABLE_CLIENT_DISTURBANCE_EFFECTS || !grass.disturbedAt) {
         return NO_DISTURBANCE;
     }
     
-    // Check cache
-    const cacheKey = `${grass.id}_${(grass.disturbedAt as any)?.microsSinceUnixEpoch || 0}`;
-    const cached = disturbanceCache.get(cacheKey);
-    if (cached && (nowMs - cached.lastCalculatedMs) < DISTURBANCE_CACHE_DURATION_MS) {
+    // Use numeric ID as cache key (faster than string concatenation)
+    const grassId = typeof grass.id === 'bigint' ? Number(grass.id & BigInt(0x7FFFFFFF)) : Number(grass.id);
+    const disturbedAtMicros = (grass.disturbedAt as any)?.microsSinceUnixEpoch || 0;
+    const disturbedAtKey = typeof disturbedAtMicros === 'bigint' 
+        ? Number(disturbedAtMicros & BigInt(0x7FFFFFFF)) 
+        : Number(disturbedAtMicros);
+    
+    // Check cache using numeric key
+    const cached = disturbanceCache.get(grassId);
+    if (cached && cached.disturbedAtKey === disturbedAtKey && 
+        (nowMs - cached.lastCalculatedMs) < DISTURBANCE_CACHE_DURATION_MS) {
         return cached.result;
     }
     
     // Calculate disturbance time
-    const disturbedAtMs = (grass.disturbedAt as any)?.microsSinceUnixEpoch 
-        ? Number((grass.disturbedAt as any).microsSinceUnixEpoch) / 1000 
+    const disturbedAtMs = disturbedAtMicros 
+        ? (typeof disturbedAtMicros === 'bigint' ? Number(disturbedAtMicros) / 1000 : disturbedAtMicros / 1000)
         : 0;
     
     if (disturbedAtMs === 0) {
-        disturbanceCache.set(cacheKey, { lastCalculatedMs: nowMs, result: NO_DISTURBANCE });
+        disturbanceCache.set(grassId, { lastCalculatedMs: nowMs, disturbedAtKey, result: NO_DISTURBANCE });
         return NO_DISTURBANCE;
     }
     
     const timeSinceMs = nowMs - disturbedAtMs;
     if (timeSinceMs > DISTURBANCE_DURATION_MS) {
-        disturbanceCache.set(cacheKey, { lastCalculatedMs: nowMs, result: NO_DISTURBANCE });
+        disturbanceCache.set(grassId, { lastCalculatedMs: nowMs, disturbedAtKey, result: NO_DISTURBANCE });
         return NO_DISTURBANCE;
     }
     
     // Calculate fade-out strength
     const fadeProgress = timeSinceMs / DISTURBANCE_DURATION_MS;
+    const strength = Math.pow(1.0 - fadeProgress, DISTURBANCE_FADE_FACTOR);
+    
+    // Reuse temp object to avoid allocation
+    tempDisturbanceResult.disturbanceStrength = strength;
+    tempDisturbanceResult.disturbanceDirectionX = grass.disturbanceDirectionX;
+    tempDisturbanceResult.disturbanceDirectionY = grass.disturbanceDirectionY;
+    
+    // Store a copy in cache (cache needs its own object)
     const result = {
         isDisturbed: true,
-        disturbanceStrength: Math.pow(1.0 - fadeProgress, DISTURBANCE_FADE_FACTOR),
+        disturbanceStrength: strength,
         disturbanceDirectionX: grass.disturbanceDirectionX,
         disturbanceDirectionY: grass.disturbanceDirectionY,
     };
+    disturbanceCache.set(grassId, { lastCalculatedMs: nowMs, disturbedAtKey, result });
     
-    disturbanceCache.set(cacheKey, { lastCalculatedMs: nowMs, result });
-    return result;
+    return tempDisturbanceResult;
 }
 
 // =============================================================================
@@ -271,13 +307,12 @@ function isInViewport(
     camX: number, camY: number,
     vpWidth: number, vpHeight: number
 ): boolean {
-    const margin = VIEWPORT_MARGIN_PX;
-    const halfW = vpWidth / 2;
-    const halfH = vpHeight / 2;
-    return x >= camX - halfW - margin && 
-           x <= camX + halfW + margin && 
-           y >= camY - halfH - margin && 
-           y <= camY + halfH + margin;
+    const halfW = vpWidth * 0.5;
+    const halfH = vpHeight * 0.5;
+    return x >= camX - halfW - VIEWPORT_MARGIN_PX && 
+           x <= camX + halfW + VIEWPORT_MARGIN_PX && 
+           y >= camY - halfH - VIEWPORT_MARGIN_PX && 
+           y <= camY + halfH + VIEWPORT_MARGIN_PX;
 }
 
 // =============================================================================
@@ -318,7 +353,7 @@ export function renderGrass(
         const alpha = lodLevel === 'far' ? 0.3 : 0.7;
         const size = lodLevel === 'far' ? 16 : 32;
         ctx.fillStyle = `rgba(34, 139, 34, ${alpha})`;
-        ctx.fillRect(grass.serverPosX - size/2, grass.serverPosY - size, size, size);
+        ctx.fillRect(grass.serverPosX - size * 0.5, grass.serverPosY - size, size, size);
         return;
     }
 
@@ -337,7 +372,7 @@ export function renderGrass(
     if (lodLevel === 'far') {
         ctx.drawImage(
             img,
-            grass.serverPosX - targetWidth / 2 + offsetX,
+            grass.serverPosX - targetWidth * 0.5 + offsetX,
             grass.serverPosY - targetHeight + Y_SORT_OFFSET_GRASS + offsetY,
             targetWidth,
             targetHeight
@@ -352,7 +387,7 @@ export function renderGrass(
     // PERFORMANCE MODE: Skip all transforms for maximum performance
     if (!ENABLE_GRASS_SWAY_TRANSFORMS) {
         // Direct draw - fastest path, no transforms at all
-        ctx.drawImage(img, anchorX - targetWidth / 2, anchorY - targetHeight, targetWidth, targetHeight);
+        ctx.drawImage(img, anchorX - targetWidth * 0.5, anchorY - targetHeight, targetWidth, targetHeight);
         return;
     }
 
@@ -370,18 +405,19 @@ export function renderGrass(
         if (disturbance.isDisturbed) {
             // Strong sway in disturbance direction
             const swaySpeed = grass.swaySpeed ?? DEFAULT_FALLBACK_SWAY_SPEED;
-            const cycle = (nowMs / 1000) * swaySpeed * Math.PI * 6;
-            const dirAngle = Math.atan2(disturbance.disturbanceDirectionY, disturbance.disturbanceDirectionX) * (180 / Math.PI);
+            const cycle = (nowMs * 0.001) * swaySpeed * Math.PI * 6;
+            const dirAngle = Math.atan2(disturbance.disturbanceDirectionY, disturbance.disturbanceDirectionX) * RAD_TO_DEG;
             const oscillation = Math.sin(cycle) * 0.5 + 0.5;
             swayAngleDeg = dirAngle * (DISTURBANCE_SWAY_AMPLITUDE_DEG / 90) * disturbance.disturbanceStrength * oscillation;
         } else if (lodLevel === 'near') {
             // Full sway for near grass
             const swaySpeed = grass.swaySpeed ?? DEFAULT_FALLBACK_SWAY_SPEED;
-            const cycle = (nowMs / 1000) * swaySpeed * Math.PI * 2 + swayOffset * Math.PI * 2 * SWAY_VARIATION_FACTOR;
+            const PI2 = Math.PI * 2;
+            const cycle = (nowMs * 0.001) * swaySpeed * PI2 + swayOffset * PI2 * SWAY_VARIATION_FACTOR;
             swayAngleDeg = Math.sin(cycle) * SWAY_AMPLITUDE_DEG * (1 + (swayOffset - 0.5) * SWAY_VARIATION_FACTOR);
         } else {
             // Simplified sway for mid LOD
-            swayAngleDeg = Math.sin((nowMs / 2000) + swayOffset) * SWAY_AMPLITUDE_DEG * 0.5;
+            swayAngleDeg = Math.sin((nowMs * 0.0005) + swayOffset) * SWAY_AMPLITUDE_DEG * 0.5;
         }
     }
     
@@ -406,14 +442,14 @@ export function renderGrass(
     
     if (!needsTransform) {
         // Direct draw - most common fast path
-        ctx.drawImage(img, anchorX - targetWidth / 2, anchorY - targetHeight, targetWidth, targetHeight);
+        ctx.drawImage(img, anchorX - targetWidth * 0.5, anchorY - targetHeight, targetWidth, targetHeight);
     } else {
         // Full transform path
         ctx.save();
         ctx.translate(anchorX, anchorY);
-        if (totalRotationDeg !== 0) ctx.rotate(totalRotationDeg * (Math.PI / 180));
+        if (totalRotationDeg !== 0) ctx.rotate(totalRotationDeg * DEG_TO_RAD);
         if (scale !== 1) ctx.scale(scale, scale);
-        ctx.drawImage(img, -targetWidth / 2, -targetHeight, targetWidth, targetHeight);
+        ctx.drawImage(img, -targetWidth * 0.5, -targetHeight, targetWidth, targetHeight);
         ctx.restore();
     }
 }
@@ -422,15 +458,15 @@ export function renderGrass(
 // BATCH RENDERING - Optimized for many grass entities
 // =============================================================================
 
-interface GrassWithLOD {
-    grass: InterpolatedGrassData;
-    distanceSq: number;
-    lodLevel: LODLevel;
+// Inline comparison function for sorting (avoids function call overhead)
+function compareByDistanceSq(a: GrassWithLOD, b: GrassWithLOD): number {
+    return a.distanceSq - b.distanceSq;
 }
 
 /**
  * Batch renders multiple grass entities with LOD-based optimizations.
  * This is the primary function to use when rendering visible grass from the Y-sorted entities list.
+ * OPTIMIZED: Uses pre-allocated arrays, traditional for loops, and inline viewport checks.
  */
 export function renderGrassEntities(
     ctx: CanvasRenderingContext2D,
@@ -452,57 +488,123 @@ export function renderGrassEntities(
     
     const startTime = ENABLE_GRASS_PERF_LOGGING ? performance.now() : 0;
     
-    // Step 1: Filter visible grass and calculate LOD
-    const grassWithLOD: GrassWithLOD[] = [];
-    const lodCounts = { near: 0, mid: 0, far: 0 };
+    // Pre-compute viewport bounds once (inline culling)
+    const halfW = viewportWidth * 0.5;
+    const halfH = viewportHeight * 0.5;
+    const minX = cameraX - halfW - VIEWPORT_MARGIN_PX;
+    const maxX = cameraX + halfW + VIEWPORT_MARGIN_PX;
+    const minY = cameraY - halfH - VIEWPORT_MARGIN_PX;
+    const maxY = cameraY + halfH + VIEWPORT_MARGIN_PX;
     
-    for (const grass of grassEntities) {
+    // Reset batch count (reuse pre-allocated array)
+    grassBatchCount = 0;
+    
+    // LOD counts for density limiting
+    let nearCount = 0;
+    let midCount = 0;
+    let farCount = 0;
+    
+    const entityCount = grassEntities.length;
+    
+    // Step 1: Filter visible grass and calculate LOD using traditional for loop
+    for (let i = 0; i < entityCount; i++) {
+        const grass = grassEntities[i];
+        
         // Skip dead grass
         if (grass.health <= 0) continue;
         
-        // Viewport culling
-        if (ENABLE_AGGRESSIVE_CULLING && 
-            !isInViewport(grass.serverPosX, grass.serverPosY, cameraX, cameraY, viewportWidth, viewportHeight)) {
-            continue;
+        // Inline viewport culling (faster than function call)
+        const posX = grass.serverPosX;
+        const posY = grass.serverPosY;
+        
+        if (ENABLE_AGGRESSIVE_CULLING) {
+            if (posX < minX || posX > maxX || posY < minY || posY > maxY) {
+                continue;
+            }
         }
         
         // Calculate distance and LOD
-        const dx = grass.serverPosX - cameraX;
-        const dy = grass.serverPosY - cameraY;
+        const dx = posX - cameraX;
+        const dy = posY - cameraY;
         const distanceSq = dx * dx + dy * dy;
-        const lodLevel = getLODLevel(distanceSq);
         
-        // Skip culled grass
-        if (lodLevel === 'cull') continue;
+        // Inline LOD calculation (faster than function call)
+        let lodLevel: LODLevel;
+        if (distanceSq <= LOD_NEAR_DISTANCE_SQ) {
+            lodLevel = 'near';
+            if (nearCount >= MAX_GRASS_PER_LOD.NEAR) continue;
+        } else if (distanceSq <= LOD_MID_DISTANCE_SQ) {
+            lodLevel = 'mid';
+            if (midCount >= MAX_GRASS_PER_LOD.MID) continue;
+        } else if (distanceSq <= LOD_FAR_DISTANCE_SQ) {
+            lodLevel = 'far';
+            if (farCount >= MAX_GRASS_PER_LOD.FAR) continue;
+        } else {
+            continue; // Culled
+        }
         
-        // Apply LOD density limits
-        if (lodLevel === 'near' && lodCounts.near >= MAX_GRASS_PER_LOD.NEAR) continue;
-        if (lodLevel === 'mid' && lodCounts.mid >= MAX_GRASS_PER_LOD.MID) continue;
-        if (lodLevel === 'far' && lodCounts.far >= MAX_GRASS_PER_LOD.FAR) continue;
+        // Inline frame throttling
+        const throttleInterval = lodLevel === 'near' ? FRAME_THROTTLE.NEAR :
+                                 lodLevel === 'mid' ? FRAME_THROTTLE.MID :
+                                 FRAME_THROTTLE.FAR;
+        if (frameCounter % throttleInterval !== 0) continue;
         
-        // Frame throttling for distant grass
-        if (!shouldRenderThisFrame(lodLevel)) continue;
+        // Increment LOD count
+        if (lodLevel === 'near') nearCount++;
+        else if (lodLevel === 'mid') midCount++;
+        else farCount++;
         
-        grassWithLOD.push({ grass, distanceSq, lodLevel });
-        lodCounts[lodLevel]++;
+        // Add to batch (reuse pre-allocated object)
+        if (grassBatchCount < MAX_GRASS_BATCH) {
+            const slot = grassBatchPool[grassBatchCount];
+            slot.grass = grass;
+            slot.distanceSq = distanceSq;
+            slot.lodLevel = lodLevel;
+            grassBatchCount++;
+        }
     }
     
-    // Step 2: Sort by distance (nearest first for proper layering)
-    grassWithLOD.sort((a, b) => a.distanceSq - b.distanceSq);
+    // Step 2: Sort by distance (only the used portion)
+    // Use a simple insertion sort for small arrays (often faster than quicksort for n < 50)
+    if (grassBatchCount > 1) {
+        if (grassBatchCount <= 20) {
+            // Insertion sort for small batches
+            for (let i = 1; i < grassBatchCount; i++) {
+                const current = grassBatchPool[i];
+                const currentDist = current.distanceSq;
+                let j = i - 1;
+                while (j >= 0 && grassBatchPool[j].distanceSq > currentDist) {
+                    // Swap values instead of objects
+                    const temp = grassBatchPool[j + 1];
+                    grassBatchPool[j + 1] = grassBatchPool[j];
+                    grassBatchPool[j] = temp;
+                    j--;
+                }
+            }
+        } else {
+            // Use native sort for larger arrays (slice to avoid sorting unused slots)
+            const sortSlice = grassBatchPool.slice(0, grassBatchCount);
+            sortSlice.sort(compareByDistanceSq);
+            for (let i = 0; i < grassBatchCount; i++) {
+                grassBatchPool[i] = sortSlice[i];
+            }
+        }
+    }
     
-    // Step 3: Render all grass
-    let renderedCount = 0;
+    // Step 3: Render all grass using traditional for loop
     let currentLOD: LODLevel | null = null;
     
-    for (const { grass, lodLevel } of grassWithLOD) {
+    for (let i = 0; i < grassBatchCount; i++) {
+        const item = grassBatchPool[i];
+        const lodLevel = item.lodLevel;
+        
         // Update canvas settings when LOD changes
         if (currentLOD !== lodLevel) {
             currentLOD = lodLevel;
             ctx.imageSmoothingEnabled = lodLevel !== 'far';
         }
         
-        renderGrass(ctx, grass, nowMs, cycleProgress, false, false, lodLevel);
-        renderedCount++;
+        renderGrass(ctx, item.grass, nowMs, cycleProgress, false, false, lodLevel);
     }
     
     // Reset canvas state
@@ -512,7 +614,7 @@ export function renderGrassEntities(
     if (ENABLE_GRASS_PERF_LOGGING) {
         const renderTime = performance.now() - startTime;
         if (renderTime > 2.0 || frameCounter % 300 === 0) {
-            console.log(`🌱 [GRASS] Rendered ${renderedCount}/${grassEntities.length} in ${renderTime.toFixed(2)}ms`);
+            console.log(`🌱 [GRASS] Rendered ${grassBatchCount}/${entityCount} in ${renderTime.toFixed(2)}ms`);
         }
     }
 }
@@ -557,21 +659,26 @@ export function optimizeCanvasForGrassRendering(ctx: CanvasRenderingContext2D) {
 }
 
 // PERFORMANCE: Clean up after grass rendering session
+// Pre-allocated array for keys to delete (avoids allocation during iteration)
+const keysToDelete: number[] = [];
+
 export function cleanupGrassRenderingOptimizations() {
     // Clear old disturbance cache entries periodically
     const now = Date.now();
     const oldestAllowed = now - (DISTURBANCE_CACHE_DURATION_MS * 10);
     
-    let deletedCount = 0;
-    for (const [key, entry] of disturbanceCache.entries()) {
-        if (entry.lastCalculatedMs < oldestAllowed) {
-            disturbanceCache.delete(key);
-            deletedCount++;
-        }
-    }
+    // Collect keys to delete (can't modify Map during iteration)
+    keysToDelete.length = 0;
     
-    if (deletedCount > 0) {
-        // console.log(`[GrassRenderingUtils] Cleaned up ${deletedCount} old disturbance cache entries`);
+    disturbanceCache.forEach((entry, key) => {
+        if (entry.lastCalculatedMs < oldestAllowed) {
+            keysToDelete.push(key);
+        }
+    });
+    
+    // Delete collected keys
+    for (let i = 0; i < keysToDelete.length; i++) {
+        disturbanceCache.delete(keysToDelete[i]);
     }
 }
 

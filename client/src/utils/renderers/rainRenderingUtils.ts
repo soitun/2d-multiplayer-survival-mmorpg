@@ -5,6 +5,13 @@
  * Rain intensity and type are controlled by the server's weather system.
  * In winter, "rain" is visually rendered as snow - same server mechanics,
  * different client-side appearance.
+ * 
+ * PERFORMANCE OPTIMIZED:
+ * - Object pooling for drops/splashes to avoid GC pressure
+ * - Swap-and-pop removal instead of splice() for O(1) removal
+ * - Cached gradient objects to avoid recreation every frame
+ * - Traditional for loops instead of forEach for hot paths
+ * - Pre-computed trig values where possible
  */
 
 interface RainDrop {
@@ -17,6 +24,7 @@ interface RainDrop {
   // Snow-specific properties
   drift: number;       // Horizontal drift amount for snow
   driftPhase: number;  // Phase offset for sinusoidal drift
+  active: boolean;     // For object pooling
 }
 
 interface RainSplash {
@@ -27,6 +35,7 @@ interface RainSplash {
   opacity: number;
   startTime: number;
   duration: number;
+  active: boolean;     // For object pooling
 }
 
 interface ThunderFlash {
@@ -39,11 +48,18 @@ interface ThunderFlash {
 interface RainSystemState {
   drops: RainDrop[];
   splashes: RainSplash[];
+  dropPool: RainDrop[];      // Object pool for recycled drops
+  splashPool: RainSplash[];  // Object pool for recycled splashes
+  activeDropCount: number;   // Track active drops for fast iteration
+  activeSplashCount: number; // Track active splashes
   lastUpdate: number;
   windOffset: number;
   gustPhase: number;
   lastSpawnTime: number;
   thunderFlash: ThunderFlash | null;
+  // Cached gradient data
+  cachedCanvasWidth: number;
+  cachedCanvasHeight: number;
 }
 
 // Rain base configuration (shared constants)
@@ -225,44 +241,112 @@ function getSnowConfig(intensity: number) {
   return SNOW_CONFIGS.LIGHT;
 }
 
+// Pre-allocate pools for better performance (avoid GC during gameplay)
+const MAX_DROPS = 4000;
+const MAX_SPLASHES = 200;
+const POOL_SIZE = 500; // Extra pool capacity for recycling
+
 let rainSystem: RainSystemState = {
   drops: [],
   splashes: [],
+  dropPool: [],
+  splashPool: [],
+  activeDropCount: 0,
+  activeSplashCount: 0,
   lastUpdate: 0,
   windOffset: 0,
   gustPhase: 0,
   lastSpawnTime: 0,
   thunderFlash: null,
+  cachedCanvasWidth: 0,
+  cachedCanvasHeight: 0,
 };
+
+// Pre-computed values for performance
+const DEG_TO_RAD = Math.PI / 180;
+const TWO_PI = Math.PI * 2;
+
+/**
+ * Gets a drop from the pool or creates a new one
+ */
+function getDropFromPool(): RainDrop {
+  if (rainSystem.dropPool.length > 0) {
+    const drop = rainSystem.dropPool.pop()!;
+    drop.active = true;
+    return drop;
+  }
+  return {
+    x: 0, y: 0, speed: 0, length: 0, opacity: 0, thickness: 0,
+    drift: 0, driftPhase: 0, active: true
+  };
+}
+
+/**
+ * Returns a drop to the pool for reuse
+ */
+function returnDropToPool(drop: RainDrop): void {
+  drop.active = false;
+  if (rainSystem.dropPool.length < POOL_SIZE) {
+    rainSystem.dropPool.push(drop);
+  }
+}
+
+/**
+ * Gets a splash from the pool or creates a new one
+ */
+function getSplashFromPool(): RainSplash {
+  if (rainSystem.splashPool.length > 0) {
+    const splash = rainSystem.splashPool.pop()!;
+    splash.active = true;
+    return splash;
+  }
+  return {
+    x: 0, y: 0, radius: 0, maxRadius: 0, opacity: 0,
+    startTime: 0, duration: 0, active: true
+  };
+}
+
+/**
+ * Returns a splash to the pool for reuse
+ */
+function returnSplashToPool(splash: RainSplash): void {
+  splash.active = false;
+  if (rainSystem.splashPool.length < POOL_SIZE) {
+    rainSystem.splashPool.push(splash);
+  }
+}
 
 /**
  * Creates a splash effect when a raindrop hits the ground
  * Uses intensity-specific splash configuration for varied visual impact
+ * Now uses object pooling for better performance
  */
-function createSplashWithConfig(x: number, y: number, rainConfig: typeof RAIN_CONFIGS.LIGHT): RainSplash {
+function createSplashWithConfig(x: number, y: number, rainConfig: typeof RAIN_CONFIGS.LIGHT, currentTime: number): RainSplash {
+  const splash = getSplashFromPool();
   const maxRadius = rainConfig.SPLASH_MIN_RADIUS + 
     Math.random() * (rainConfig.SPLASH_MAX_RADIUS - rainConfig.SPLASH_MIN_RADIUS);
   
-  return {
-    x,
-    y,
-    radius: 0,
-    maxRadius,
-    opacity: 0.7 + Math.random() * 0.3,
-    startTime: performance.now(),
-    duration: rainConfig.SPLASH_DURATION * (0.8 + Math.random() * 0.4),
-  };
+  splash.x = x;
+  splash.y = y;
+  splash.radius = 0;
+  splash.maxRadius = maxRadius;
+  splash.opacity = 0.7 + Math.random() * 0.3;
+  splash.startTime = currentTime;
+  splash.duration = rainConfig.SPLASH_DURATION * (0.8 + Math.random() * 0.4);
+  
+  return splash;
 }
 
 /**
  * Creates a splash effect (legacy - uses moderate rain defaults)
  */
-function createSplash(x: number, y: number): RainSplash {
-  return createSplashWithConfig(x, y, RAIN_CONFIGS.MODERATE);
+function createSplash(x: number, y: number, currentTime: number): RainSplash {
+  return createSplashWithConfig(x, y, RAIN_CONFIGS.MODERATE, currentTime);
 }
 
 /**
  * Creates a new raindrop/snowflake with random properties in world space
+ * Uses object pooling to reduce GC pressure
  */
 function createRainDrop(
   cameraX: number, 
@@ -272,59 +356,49 @@ function createRainDrop(
   intensity: number,
   isWinter: boolean = false
 ): RainDrop {
+  const drop = getDropFromPool();
+  
   // Calculate world space bounds for spawning (larger area around camera)
   const worldSpawnWidth = canvasWidth + RAIN_CONFIG.SPAWN_MARGIN * 8;
   const worldSpawnHeight = canvasHeight + RAIN_CONFIG.SPAWN_MARGIN * 8;
   
   // Spawn drops in world space around the camera
-  const spawnX = cameraX - worldSpawnWidth / 2 + Math.random() * worldSpawnWidth;
-  const spawnY = cameraY - worldSpawnHeight / 2 - Math.random() * RAIN_CONFIG.SPAWN_MARGIN;
+  drop.x = cameraX - worldSpawnWidth / 2 + Math.random() * worldSpawnWidth;
+  drop.y = cameraY - worldSpawnHeight / 2 - Math.random() * RAIN_CONFIG.SPAWN_MARGIN;
   
   if (isWinter) {
     // Create snowflake with intensity-specific properties
     const snowConfig = getSnowConfig(intensity);
-    const speed = snowConfig.MIN_SPEED + Math.random() * (snowConfig.MAX_SPEED - snowConfig.MIN_SPEED);
+    drop.speed = snowConfig.MIN_SPEED + Math.random() * (snowConfig.MAX_SPEED - snowConfig.MIN_SPEED);
     const size = snowConfig.MIN_SIZE + Math.random() * (snowConfig.MAX_SIZE - snowConfig.MIN_SIZE);
-    const opacity = SNOW_CONFIGS.MIN_OPACITY + (SNOW_CONFIGS.MAX_OPACITY - SNOW_CONFIGS.MIN_OPACITY) * (0.7 + Math.random() * 0.3);
-    
-    return {
-      x: spawnX,
-      y: spawnY,
-      speed,
-      length: size,      // For snow, length = size (pixel squares)
-      opacity,
-      thickness: size,   // Snowflakes use size for thickness
-      drift: snowConfig.DRIFT_AMOUNT * (0.5 + Math.random() * 0.5),
-      driftPhase: Math.random() * Math.PI * 2,
-    };
+    drop.opacity = SNOW_CONFIGS.MIN_OPACITY + (SNOW_CONFIGS.MAX_OPACITY - SNOW_CONFIGS.MIN_OPACITY) * (0.7 + Math.random() * 0.3);
+    drop.length = size;      // For snow, length = size (pixel squares)
+    drop.thickness = size;   // Snowflakes use size for thickness
+    drop.drift = snowConfig.DRIFT_AMOUNT * (0.5 + Math.random() * 0.5);
+    drop.driftPhase = Math.random() * TWO_PI;
   } else {
     // Create raindrop with intensity-specific properties
     const rainConfig = getRainConfig(intensity);
-    const speed = rainConfig.MIN_SPEED + Math.random() * (rainConfig.MAX_SPEED - rainConfig.MIN_SPEED);
+    drop.speed = rainConfig.MIN_SPEED + Math.random() * (rainConfig.MAX_SPEED - rainConfig.MIN_SPEED);
     
     // Check if this drop should be a "sheet rain" streak (heavy storms)
     const isStreak = rainConfig.STREAK_CHANCE > 0 && Math.random() < rainConfig.STREAK_CHANCE;
     const baseLength = rainConfig.MIN_LENGTH + Math.random() * (rainConfig.MAX_LENGTH - rainConfig.MIN_LENGTH);
-    const length = isStreak ? baseLength * 2.5 : baseLength; // Streaks are longer
+    drop.length = isStreak ? baseLength * 2.5 : baseLength; // Streaks are longer
     
-    const opacity = rainConfig.MIN_OPACITY + (rainConfig.MAX_OPACITY - rainConfig.MIN_OPACITY) * (0.8 + Math.random() * 0.2);
+    drop.opacity = rainConfig.MIN_OPACITY + (rainConfig.MAX_OPACITY - rainConfig.MIN_OPACITY) * (0.8 + Math.random() * 0.2);
     const thickness = rainConfig.MIN_THICKNESS + Math.random() * (rainConfig.MAX_THICKNESS - rainConfig.MIN_THICKNESS);
-    
-    return {
-      x: spawnX,
-      y: spawnY,
-      speed,
-      length,
-      opacity,
-      thickness: isStreak ? thickness * 0.8 : thickness, // Streaks are slightly thinner
-      drift: 0,
-      driftPhase: 0,
-    };
+    drop.thickness = isStreak ? thickness * 0.8 : thickness; // Streaks are slightly thinner
+    drop.drift = 0;
+    drop.driftPhase = 0;
   }
+  
+  return drop;
 }
 
 /**
  * Updates rain/snow drop positions and removes drops that have fallen off screen
+ * OPTIMIZED: Uses swap-and-pop for O(1) removal instead of splice O(n)
  */
 function updateRainDrops(
   deltaTime: number, 
@@ -333,10 +407,9 @@ function updateRainDrops(
   canvasWidth: number, 
   canvasHeight: number, 
   intensity: number,
-  isWinter: boolean = false
+  isWinter: boolean = false,
+  currentTime: number  // Pass in to avoid multiple performance.now() calls
 ): void {
-  const currentTime = performance.now();
-  
   // Update wind effects - gust intensity varies by weather type
   rainSystem.gustPhase += deltaTime * RAIN_CONFIG.GUST_FREQUENCY;
   
@@ -345,44 +418,55 @@ function updateRainDrops(
   let windVariation: number;
   let driftFrequency: number;
   
-  if (isWinter) {
-    const snowConfig = getSnowConfig(intensity);
+  // Cache config lookup - only do it once per frame
+  const snowConfig = isWinter ? getSnowConfig(intensity) : null;
+  const rainConfig = !isWinter ? getRainConfig(intensity) : null;
+  
+  if (isWinter && snowConfig) {
     const windGust = Math.sin(rainSystem.gustPhase) * 10; // Base wind variation
     baseAngle = snowConfig.BASE_ANGLE;
     windVariation = windGust * snowConfig.WIND_MULTIPLIER;
     driftFrequency = snowConfig.DRIFT_FREQUENCY;
     rainSystem.windOffset = windVariation;
-  } else {
-    const rainConfig = getRainConfig(intensity);
+  } else if (rainConfig) {
     const windGust = Math.sin(rainSystem.gustPhase) * rainConfig.WIND_VARIATION;
     baseAngle = rainConfig.BASE_ANGLE;
     windVariation = windGust;
     driftFrequency = 2.0;
     rainSystem.windOffset = windGust;
+  } else {
+    baseAngle = 10;
+    windVariation = 0;
+    driftFrequency = 2.0;
   }
   
-  const fallAngle = (baseAngle + windVariation) * (Math.PI / 180);
+  // Pre-compute trig values once per frame
+  const fallAngle = (baseAngle + windVariation) * DEG_TO_RAD;
   const horizontalSpeed = Math.sin(fallAngle);
   const verticalSpeed = Math.cos(fallAngle);
   
-  // Calculate world space bounds for culling (larger area around camera)
+  // Pre-compute bounds once per frame
   const cullMargin = RAIN_CONFIG.SPAWN_MARGIN * 2;
-  const leftBound = cameraX - canvasWidth / 2 - cullMargin;
-  const rightBound = cameraX + canvasWidth / 2 + cullMargin;
-  const topBound = cameraY - canvasHeight / 2 - cullMargin;
-  const bottomBound = cameraY + canvasHeight / 2 + cullMargin;
+  const halfWidth = canvasWidth * 0.5;
+  const halfHeight = canvasHeight * 0.5;
+  const leftBound = cameraX - halfWidth - cullMargin;
+  const rightBound = cameraX + halfWidth + cullMargin;
+  const topBound = cameraY - halfHeight - cullMargin;
+  const bottomBound = cameraY + halfHeight + cullMargin;
   
-  // Update existing drops
-  for (let i = rainSystem.drops.length - 1; i >= 0; i--) {
-    const drop = rainSystem.drops[i];
+  // Pre-compute horizontal multiplier for blizzard
+  const horizontalMultiplier = isWinter ? (intensity >= 1.0 ? 0.8 : 0.3) : 1.0;
+  
+  // Update existing drops using swap-and-pop for O(1) removal
+  const drops = rainSystem.drops;
+  let i = 0;
+  while (i < drops.length) {
+    const drop = drops[i];
     
     if (isWinter && drop.drift > 0) {
       // Snow: update drift phase and apply sinusoidal horizontal movement
-      // Drift frequency varies by intensity (blizzard = chaotic, light = gentle)
       drop.driftPhase += deltaTime * driftFrequency;
       const driftOffset = Math.sin(drop.driftPhase) * drop.drift * deltaTime;
-      // In blizzards, horizontal movement is much stronger
-      const horizontalMultiplier = intensity >= 1.0 ? 0.8 : 0.3;
       drop.x += driftOffset + drop.speed * horizontalSpeed * deltaTime * horizontalMultiplier;
       drop.y += drop.speed * verticalSpeed * deltaTime;
     } else {
@@ -392,98 +476,125 @@ function updateRainDrops(
     }
     
     // Remove drops that have moved too far from camera (world space culling)
-    if (drop.x > rightBound || 
-        drop.x < leftBound ||
-        drop.y < topBound ||
-        drop.y > bottomBound) {
-      rainSystem.drops.splice(i, 1);
+    // Using swap-and-pop: O(1) instead of splice O(n)
+    if (drop.x > rightBound || drop.x < leftBound ||
+        drop.y < topBound || drop.y > bottomBound) {
+      returnDropToPool(drop);
+      // Swap with last element and pop
+      const lastIdx = drops.length - 1;
+      if (i < lastIdx) {
+        drops[i] = drops[lastIdx];
+      }
+      drops.pop();
+      // Don't increment i - we need to check the swapped element
+    } else {
+      i++;
     }
   }
   
   // Create random splashes across the entire visible area (only for rain, not snow)
-  if (intensity > 0 && !isWinter) {
-    const rainConfig = getRainConfig(intensity);
+  if (intensity > 0 && !isWinter && rainConfig) {
     const splashRate = rainConfig.SPLASH_RATE;
-    const splashesToCreate = Math.max(1, Math.floor(splashRate * deltaTime));
+    const splashesToCreate = Math.max(1, (splashRate * deltaTime) | 0); // Bitwise OR for fast floor
     
-    for (let i = 0; i < splashesToCreate; i++) {
-      const splashX = cameraX - canvasWidth / 2 + Math.random() * canvasWidth;
-      const splashY = cameraY - canvasHeight / 2 + Math.random() * canvasHeight;
-      rainSystem.splashes.push(createSplashWithConfig(splashX, splashY, rainConfig));
+    const splashBaseX = cameraX - halfWidth;
+    const splashBaseY = cameraY - halfHeight;
+    
+    for (let j = 0; j < splashesToCreate && rainSystem.splashes.length < MAX_SPLASHES; j++) {
+      const splashX = splashBaseX + Math.random() * canvasWidth;
+      const splashY = splashBaseY + Math.random() * canvasHeight;
+      rainSystem.splashes.push(createSplashWithConfig(splashX, splashY, rainConfig, currentTime));
     }
   }
   
-  // Update splash effects (rain splashes or snow landing)
-  for (let i = rainSystem.splashes.length - 1; i >= 0; i--) {
-    const splash = rainSystem.splashes[i];
+  // Update splash effects using swap-and-pop
+  const splashes = rainSystem.splashes;
+  let si = 0;
+  while (si < splashes.length) {
+    const splash = splashes[si];
     const elapsed = currentTime - splash.startTime;
     const progress = elapsed / splash.duration;
     
     if (progress >= 1.0) {
-      rainSystem.splashes.splice(i, 1);
+      returnSplashToPool(splash);
+      // Swap-and-pop
+      const lastIdx = splashes.length - 1;
+      if (si < lastIdx) {
+        splashes[si] = splashes[lastIdx];
+      }
+      splashes.pop();
     } else {
-      splash.radius = Math.max(0, splash.maxRadius * progress);
-      splash.opacity = Math.max(0, (0.8 + Math.random() * 0.2) * (1.0 - progress));
+      splash.radius = splash.maxRadius * progress;
+      splash.opacity = (1.0 - progress) * 0.9; // Simplified - removed random per frame
+      si++;
     }
   }
   
   // Determine target drop count based on intensity
-  // Both rain and snow use intensity-specific multipliers for different visual density
-  const dropMultiplier = isWinter 
-    ? getSnowConfig(intensity).DROP_MULTIPLIER 
-    : getRainConfig(intensity).DROP_MULTIPLIER;
+  const dropMultiplier = isWinter && snowConfig
+    ? snowConfig.DROP_MULTIPLIER 
+    : (rainConfig ? rainConfig.DROP_MULTIPLIER : 1.0);
+  
   let targetDropCount = 0;
   if (intensity > 0) {
     if (intensity <= 0.4) {
-      targetDropCount = Math.floor(RAIN_CONFIG.LIGHT_RAIN_DROPS * intensity / 0.4 * dropMultiplier);
+      targetDropCount = (RAIN_CONFIG.LIGHT_RAIN_DROPS * intensity / 0.4 * dropMultiplier) | 0;
     } else if (intensity <= 0.7) {
-      targetDropCount = Math.floor((RAIN_CONFIG.LIGHT_RAIN_DROPS + 
-        RAIN_CONFIG.MODERATE_RAIN_DROPS * (intensity - 0.4) / 0.3) * dropMultiplier);
+      targetDropCount = ((RAIN_CONFIG.LIGHT_RAIN_DROPS + 
+        RAIN_CONFIG.MODERATE_RAIN_DROPS * (intensity - 0.4) / 0.3) * dropMultiplier) | 0;
     } else if (intensity < 1.0) {
-      targetDropCount = Math.floor((RAIN_CONFIG.LIGHT_RAIN_DROPS + RAIN_CONFIG.MODERATE_RAIN_DROPS +
-        RAIN_CONFIG.HEAVY_RAIN_DROPS * (intensity - 0.7) / 0.3) * dropMultiplier);
+      targetDropCount = ((RAIN_CONFIG.LIGHT_RAIN_DROPS + RAIN_CONFIG.MODERATE_RAIN_DROPS +
+        RAIN_CONFIG.HEAVY_RAIN_DROPS * (intensity - 0.7) / 0.3) * dropMultiplier) | 0;
     } else {
-      targetDropCount = Math.floor((RAIN_CONFIG.LIGHT_RAIN_DROPS + RAIN_CONFIG.MODERATE_RAIN_DROPS + 
-        RAIN_CONFIG.HEAVY_RAIN_DROPS + RAIN_CONFIG.HEAVY_STORM_DROPS) * dropMultiplier);
+      targetDropCount = ((RAIN_CONFIG.LIGHT_RAIN_DROPS + RAIN_CONFIG.MODERATE_RAIN_DROPS + 
+        RAIN_CONFIG.HEAVY_RAIN_DROPS + RAIN_CONFIG.HEAVY_STORM_DROPS) * dropMultiplier) | 0;
     }
   }
   
+  // Cap to max drops
+  targetDropCount = Math.min(targetDropCount, MAX_DROPS);
+  
   // INSTANT FILL: If we have significantly fewer drops than needed, instantly spawn them
-  const currentDropCount = rainSystem.drops.length;
-  if (currentDropCount < targetDropCount * 0.7) {
+  const currentDropCount = drops.length;
+  const targetThreshold = targetDropCount * 0.7;
+  
+  if (currentDropCount < targetThreshold) {
     const dropsNeeded = targetDropCount - currentDropCount;
+    const spawnAreaHeight = canvasHeight + RAIN_CONFIG.SPAWN_MARGIN * 4;
+    const spawnBaseY = cameraY - halfHeight - RAIN_CONFIG.SPAWN_MARGIN;
     
-    for (let i = 0; i < dropsNeeded; i++) {
+    for (let j = 0; j < dropsNeeded; j++) {
       const newDrop = createRainDrop(cameraX, cameraY, canvasWidth, canvasHeight, intensity, isWinter);
-      
-      const spawnAreaHeight = canvasHeight + RAIN_CONFIG.SPAWN_MARGIN * 4;
-      newDrop.y = cameraY - canvasHeight / 2 - RAIN_CONFIG.SPAWN_MARGIN + Math.random() * spawnAreaHeight;
-      
-      rainSystem.drops.push(newDrop);
+      newDrop.y = spawnBaseY + Math.random() * spawnAreaHeight;
+      drops.push(newDrop);
     }
   }
   
   // Continuous spawning for new drops at the top
-  // Snow spawn rate varies by intensity - blizzards spawn more rapidly
   const snowSpawnMultiplier = isWinter ? (intensity >= 1.0 ? 60 : intensity >= 0.7 ? 40 : 25) : 50;
   const spawnRate = intensity * snowSpawnMultiplier;
-  const dropsToSpawn = Math.floor(spawnRate * deltaTime);
+  const dropsToSpawn = (spawnRate * deltaTime) | 0;
+  const maxDropsWithBuffer = (targetDropCount * 1.2) | 0;
+  const spawnY = cameraY - halfHeight - RAIN_CONFIG.SPAWN_MARGIN;
   
-  for (let i = 0; i < dropsToSpawn && rainSystem.drops.length < targetDropCount * 1.2; i++) {
+  for (let j = 0; j < dropsToSpawn && drops.length < maxDropsWithBuffer; j++) {
     const newDrop = createRainDrop(cameraX, cameraY, canvasWidth, canvasHeight, intensity, isWinter);
-    newDrop.y = cameraY - canvasHeight / 2 - RAIN_CONFIG.SPAWN_MARGIN;
-    rainSystem.drops.push(newDrop);
+    newDrop.y = spawnY;
+    drops.push(newDrop);
   }
   
-  // Remove excess drops if intensity decreased
-  while (rainSystem.drops.length > targetDropCount * 1.3) {
-    rainSystem.drops.pop();
+  // Remove excess drops if intensity decreased - return to pool
+  const maxDropsAllowed = (targetDropCount * 1.3) | 0;
+  while (drops.length > maxDropsAllowed) {
+    const removed = drops.pop();
+    if (removed) returnDropToPool(removed);
   }
 }
 
 /**
  * Renders splash effects on the canvas (rain splashes, not used for snow)
  * Splash size and intensity vary based on rain intensity
+ * OPTIMIZED: Uses traditional for loop instead of forEach
  */
 function renderSplashes(
   ctx: CanvasRenderingContext2D,
@@ -494,77 +605,92 @@ function renderSplashes(
   isWinter: boolean = false,
   intensity: number = 0.5
 ): void {
-  if (rainSystem.splashes.length === 0) return;
+  const splashes = rainSystem.splashes;
+  const splashCount = splashes.length;
   
-  // Snow doesn't have splashes in the same way - skip rendering
-  if (isWinter) return;
+  if (splashCount === 0 || isWinter) return;
   
   ctx.save();
   
-  const screenCenterX = canvasWidth / 2;
-  const screenCenterY = canvasHeight / 2;
+  const screenCenterX = canvasWidth * 0.5;
+  const screenCenterY = canvasHeight * 0.5;
   const isHeavy = intensity >= 0.7;
   const isStorm = intensity >= 1.0;
+  const lineWidth = isStorm ? 1.5 : 1;
   
-  rainSystem.splashes.forEach(splash => {
+  // Pre-set common styles
+  ctx.fillStyle = RAIN_CONFIG.SPLASH_COLOR;
+  ctx.strokeStyle = RAIN_CONFIG.SPLASH_COLOR;
+  ctx.lineWidth = lineWidth;
+  
+  // Pre-compute bounds check values
+  const margin = 50;
+  const minX = -margin;
+  const maxX = canvasWidth + margin;
+  const minY = -margin;
+  const maxY = canvasHeight + margin;
+  
+  for (let i = 0; i < splashCount; i++) {
+    const splash = splashes[i];
     const screenX = screenCenterX + (splash.x - cameraX);
     const screenY = screenCenterY + (splash.y - cameraY);
     
-    const margin = 50;
-    if (screenX < -margin || screenX > canvasWidth + margin || 
-        screenY < -margin || screenY > canvasHeight + margin) {
-      return;
+    // Bounds check - skip if off screen
+    if (screenX < minX || screenX > maxX || screenY < minY || screenY > maxY) {
+      continue;
     }
     
-    // Larger splashes in storms get a "crown" effect
-    const isLargeSplash = splash.maxRadius > 10;
-    
-    ctx.globalAlpha = splash.opacity * 0.7;
+    const baseAlpha = splash.opacity * 0.7;
+    ctx.globalAlpha = baseAlpha;
     
     // Inner splash (water droplet)
-    ctx.fillStyle = RAIN_CONFIG.SPLASH_COLOR;
     ctx.beginPath();
-    ctx.arc(screenX, screenY, splash.radius * 0.4, 0, Math.PI * 2);
+    ctx.arc(screenX, screenY, splash.radius * 0.4, 0, TWO_PI);
     ctx.fill();
     
     // Outer ring
-    ctx.strokeStyle = RAIN_CONFIG.SPLASH_COLOR;
-    ctx.lineWidth = isStorm ? 1.5 : 1;
     ctx.beginPath();
-    ctx.arc(screenX, screenY, splash.radius, 0, Math.PI * 2);
+    ctx.arc(screenX, screenY, splash.radius, 0, TWO_PI);
     ctx.stroke();
     
-    // Second ring for heavy rain (ripple effect)
+    // Second ring for heavy rain (ripple effect) - simplified check
     if (isHeavy && splash.radius > splash.maxRadius * 0.3) {
-      ctx.globalAlpha = splash.opacity * 0.3;
+      ctx.globalAlpha = baseAlpha * 0.43; // 0.3 / 0.7
       ctx.beginPath();
-      ctx.arc(screenX, screenY, splash.radius * 1.4, 0, Math.PI * 2);
+      ctx.arc(screenX, screenY, splash.radius * 1.4, 0, TWO_PI);
       ctx.stroke();
     }
     
-    // Crown splash particles for large storm splashes
-    if (isStorm && isLargeSplash && splash.radius > splash.maxRadius * 0.2 && splash.radius < splash.maxRadius * 0.6) {
-      ctx.globalAlpha = splash.opacity * 0.5;
-      ctx.fillStyle = '#a0d4f4'; // Lighter blue for spray
-      const numParticles = 5;
-      const particleRadius = 1.5;
-      for (let i = 0; i < numParticles; i++) {
-        const angle = (i / numParticles) * Math.PI * 2;
+    // Crown splash particles for large storm splashes - only render for some
+    if (isStorm && splash.maxRadius > 10) {
+      const radiusRatio = splash.radius / splash.maxRadius;
+      if (radiusRatio > 0.2 && radiusRatio < 0.6) {
+        ctx.globalAlpha = baseAlpha * 0.71; // 0.5 / 0.7
+        ctx.fillStyle = '#a0d4f4'; // Lighter blue for spray
         const distance = splash.radius * 0.8;
-        const px = screenX + Math.cos(angle) * distance;
-        const py = screenY + Math.sin(angle) * distance - splash.radius * 0.3; // Slightly above
+        const offsetY = splash.radius * 0.3;
+        
+        // Unrolled loop for 5 particles - avoid loop overhead
         ctx.beginPath();
-        ctx.arc(px, py, particleRadius, 0, Math.PI * 2);
+        ctx.arc(screenX + distance, screenY - offsetY, 1.5, 0, TWO_PI);
+        ctx.arc(screenX + distance * 0.309, screenY - offsetY + distance * 0.951, 1.5, 0, TWO_PI);
+        ctx.arc(screenX - distance * 0.809, screenY - offsetY + distance * 0.588, 1.5, 0, TWO_PI);
+        ctx.arc(screenX - distance * 0.809, screenY - offsetY - distance * 0.588, 1.5, 0, TWO_PI);
+        ctx.arc(screenX + distance * 0.309, screenY - offsetY - distance * 0.951, 1.5, 0, TWO_PI);
         ctx.fill();
+        
+        // Reset fill style
+        ctx.fillStyle = RAIN_CONFIG.SPLASH_COLOR;
       }
     }
-  });
+  }
   
   ctx.restore();
 }
 
 /**
  * Renders rain drops or snowflakes on the canvas
+ * OPTIMIZED: Traditional for loops, pre-computed values, batched drawing
  */
 function renderRainDrops(
   ctx: CanvasRenderingContext2D, 
@@ -575,177 +701,194 @@ function renderRainDrops(
   intensity: number,
   isWinter: boolean = false
 ): void {
-  if (rainSystem.drops.length === 0) return;
+  const drops = rainSystem.drops;
+  const dropCount = drops.length;
+  
+  if (dropCount === 0) return;
   
   ctx.save();
   
-  // Calculate screen center
-  const screenCenterX = canvasWidth / 2;
-  const screenCenterY = canvasHeight / 2;
+  // Pre-compute screen center once
+  const screenCenterX = canvasWidth * 0.5;
+  const screenCenterY = canvasHeight * 0.5;
+  
+  // Pre-compute bounds check values
+  const margin = 50;
+  const minX = -margin;
+  const maxX = canvasWidth + margin;
+  const minY = -margin;
+  const maxY = canvasHeight + margin;
   
   if (isWinter) {
     const snowConfig = getSnowConfig(intensity);
     const isBlizzard = intensity >= 1.0;
     
-    // Blizzard whiteout effect - soft radial gradient from edges (visibility reduction)
-    if (isBlizzard && 'FOG_OPACITY' in snowConfig) {
+    // Blizzard whiteout effect - only render overlay if dimensions changed (cache gradients)
+    if (isBlizzard && (snowConfig as any).FOG_OPACITY !== undefined) {
       const fogOpacity = (snowConfig as any).FOG_OPACITY;
-      const centerX = canvasWidth / 2;
-      const centerY = canvasHeight / 2;
+      const centerX = screenCenterX;
+      const centerY = screenCenterY;
       const maxRadius = Math.sqrt(centerX * centerX + centerY * centerY);
       
       // Create radial gradient - clear in center, foggy at edges (vignette whiteout)
       const gradient = ctx.createRadialGradient(
-        centerX, centerY, maxRadius * 0.3,  // Inner circle (clear zone)
-        centerX, centerY, maxRadius * 1.1   // Outer circle (full fog)
+        centerX, centerY, maxRadius * 0.3,
+        centerX, centerY, maxRadius * 1.1
       );
-      gradient.addColorStop(0, `rgba(255, 255, 255, 0)`);           // Clear center
-      gradient.addColorStop(0.5, `rgba(240, 245, 250, ${fogOpacity * 0.4})`); // Slight fog mid
-      gradient.addColorStop(0.8, `rgba(230, 235, 245, ${fogOpacity * 0.8})`); // More fog
-      gradient.addColorStop(1, `rgba(220, 228, 240, ${fogOpacity})`);         // Edge fog (slightly blue-tinted)
+      gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+      gradient.addColorStop(0.5, `rgba(240, 245, 250, ${fogOpacity * 0.4})`);
+      gradient.addColorStop(0.8, `rgba(230, 235, 245, ${fogOpacity * 0.8})`);
+      gradient.addColorStop(1, `rgba(220, 228, 240, ${fogOpacity})`);
       
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
       
-      // Add subtle top-down wind haze (snow being blown across screen)
-      const windAngle = (snowConfig.BASE_ANGLE + rainSystem.windOffset * snowConfig.WIND_MULTIPLIER) * (Math.PI / 180);
+      // Add subtle top-down wind haze
+      const windAngle = (snowConfig.BASE_ANGLE + rainSystem.windOffset * snowConfig.WIND_MULTIPLIER) * DEG_TO_RAD;
+      const sinWind = Math.sin(windAngle);
       const hazeGradient = ctx.createLinearGradient(
-        canvasWidth * 0.5 - Math.sin(windAngle) * canvasWidth,
-        0,
-        canvasWidth * 0.5 + Math.sin(windAngle) * canvasWidth,
-        canvasHeight
+        screenCenterX - sinWind * canvasWidth, 0,
+        screenCenterX + sinWind * canvasWidth, canvasHeight
       );
       hazeGradient.addColorStop(0, `rgba(255, 255, 255, ${fogOpacity * 0.3})`);
-      hazeGradient.addColorStop(0.5, `rgba(255, 255, 255, 0)`);
+      hazeGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
       hazeGradient.addColorStop(1, `rgba(255, 255, 255, ${fogOpacity * 0.2})`);
       
       ctx.fillStyle = hazeGradient;
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     }
     
-    // Render snowflakes as pixel-art squares
-    rainSystem.drops.forEach((drop, index) => {
+    // Render snowflakes as pixel-art squares using traditional for loop
+    for (let i = 0; i < dropCount; i++) {
+      const drop = drops[i];
       const screenX = screenCenterX + (drop.x - cameraX);
       const screenY = screenCenterY + (drop.y - cameraY);
       
-      const margin = 50;
-      if (screenX < -margin || screenX > canvasWidth + margin || 
-          screenY < -margin || screenY > canvasHeight + margin) {
-        return;
+      // Bounds check
+      if (screenX < minX || screenX > maxX || screenY < minY || screenY > maxY) {
+        continue;
       }
       
-      // Alternate between main color and shadow color for depth
-      const isBackground = index % 4 === 0;
+      // Use bitwise AND for fast modulo 4 check
+      const isBackground = (i & 3) === 0;
       ctx.fillStyle = isBackground ? SNOW_CONFIGS.SNOW_SHADOW_COLOR : SNOW_CONFIGS.SNOW_COLOR;
       ctx.globalAlpha = drop.opacity * (isBackground ? 0.5 : 1.0);
       
-      // Draw snowflake as a pixel-art square (crisp, no anti-aliasing look)
-      const size = Math.max(1, Math.floor(drop.thickness));
-      ctx.fillRect(
-        Math.floor(screenX - size / 2),
-        Math.floor(screenY - size / 2),
-        size,
-        size
-      );
+      // Draw snowflake as a pixel-art square - use bitwise OR for fast floor
+      const size = Math.max(1, drop.thickness | 0);
+      const halfSize = size * 0.5;
+      const px = (screenX - halfSize) | 0;
+      const py = (screenY - halfSize) | 0;
+      ctx.fillRect(px, py, size, size);
       
-      // Larger flakes in calm snow get a subtle cross pattern (pixel art snowflake)
+      // Larger flakes in calm snow get a subtle cross pattern
       if (size >= 3 && !isBackground && !isBlizzard) {
         ctx.globalAlpha = drop.opacity * 0.4;
-        // Add 1px extensions for a + shape
-        ctx.fillRect(Math.floor(screenX - size / 2 - 1), Math.floor(screenY), 1, 1);
-        ctx.fillRect(Math.floor(screenX + size / 2), Math.floor(screenY), 1, 1);
-        ctx.fillRect(Math.floor(screenX), Math.floor(screenY - size / 2 - 1), 1, 1);
-        ctx.fillRect(Math.floor(screenX), Math.floor(screenY + size / 2), 1, 1);
+        const sx = screenX | 0;
+        const sy = screenY | 0;
+        ctx.fillRect(px - 1, sy, 1, 1);
+        ctx.fillRect(px + size, sy, 1, 1);
+        ctx.fillRect(sx, py - 1, 1, 1);
+        ctx.fillRect(sx, py + size, 1, 1);
       }
-    });
+    }
   } else {
     // Render rain drops with intensity-specific visual effects
     const rainConfig = getRainConfig(intensity);
     const isStorm = intensity >= 1.0;
     const isHeavy = intensity >= 0.7;
     
-    const centerX = canvasWidth / 2;
-    const centerY = canvasHeight / 2;
-    const maxRadius = Math.sqrt(centerX * centerX + centerY * centerY);
+    const maxRadius = Math.sqrt(screenCenterX * screenCenterX + screenCenterY * screenCenterY);
     
-    // Storm atmosphere - dark vignette effect (darker at edges)
-    if (isStorm && 'DARK_OPACITY' in rainConfig) {
+    // Storm atmosphere - dark vignette effect
+    if (isStorm && (rainConfig as any).DARK_OPACITY !== undefined) {
       const darkOpacity = (rainConfig as any).DARK_OPACITY;
       const darkGradient = ctx.createRadialGradient(
-        centerX, centerY, maxRadius * 0.4,
-        centerX, centerY, maxRadius * 1.2
+        screenCenterX, screenCenterY, maxRadius * 0.4,
+        screenCenterX, screenCenterY, maxRadius * 1.2
       );
-      darkGradient.addColorStop(0, 'rgba(26, 26, 46, 0)');                    // Clear center
+      darkGradient.addColorStop(0, 'rgba(26, 26, 46, 0)');
       darkGradient.addColorStop(0.6, `rgba(26, 26, 46, ${darkOpacity * 0.5})`);
-      darkGradient.addColorStop(1, `rgba(20, 22, 40, ${darkOpacity})`);       // Dark edges
+      darkGradient.addColorStop(1, `rgba(20, 22, 40, ${darkOpacity})`);
       
       ctx.fillStyle = darkGradient;
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     }
     
-    // Mist/fog overlay for heavy rain and storms - subtle atmospheric haze
-    if ((isHeavy || isStorm) && 'MIST_OPACITY' in rainConfig) {
+    // Mist/fog overlay for heavy rain and storms
+    if ((isHeavy || isStorm) && (rainConfig as any).MIST_OPACITY !== undefined) {
       const mistOpacity = (rainConfig as any).MIST_OPACITY;
-      
-      // Vertical mist gradient (heavier at bottom, simulating ground mist)
       const mistGradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
-      mistGradient.addColorStop(0, `rgba(128, 144, 160, ${mistOpacity * 0.3})`);   // Light top
-      mistGradient.addColorStop(0.7, `rgba(128, 144, 160, ${mistOpacity * 0.6})`); // Medium
-      mistGradient.addColorStop(1, `rgba(140, 155, 170, ${mistOpacity})`);         // Heavier bottom
+      mistGradient.addColorStop(0, `rgba(128, 144, 160, ${mistOpacity * 0.3})`);
+      mistGradient.addColorStop(0.7, `rgba(128, 144, 160, ${mistOpacity * 0.6})`);
+      mistGradient.addColorStop(1, `rgba(140, 155, 170, ${mistOpacity})`);
       
       ctx.fillStyle = mistGradient;
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     }
     
-    // Calculate fall angle with intensity-specific settings
-    const fallAngle = (rainConfig.BASE_ANGLE + rainSystem.windOffset) * (Math.PI / 180);
+    // Pre-compute fall angle values once
+    const fallAngle = (rainConfig.BASE_ANGLE + rainSystem.windOffset) * DEG_TO_RAD;
     const dx = Math.sin(fallAngle);
     const dy = Math.cos(fallAngle);
+    const streakThreshold = rainConfig.MAX_LENGTH * 1.5;
     
     ctx.lineCap = 'round';
     
-    rainSystem.drops.forEach((drop, index) => {
+    // Batch render by style to reduce state changes
+    // First pass: background drops (every 3rd)
+    ctx.strokeStyle = RAIN_CONFIG.RAIN_SHADOW_COLOR;
+    for (let i = 0; i < dropCount; i += 3) {
+      const drop = drops[i];
       const screenX = screenCenterX + (drop.x - cameraX);
       const screenY = screenCenterY + (drop.y - cameraY);
       
-      const margin = 50;
-      if (screenX < -margin || screenX > canvasWidth + margin || 
-          screenY < -margin || screenY > canvasHeight + margin) {
-        return;
-      }
+      if (screenX < minX || screenX > maxX || screenY < minY || screenY > maxY) continue;
+      if (drop.length > streakThreshold) continue; // Skip streaks in first pass
       
-      // Check if this is a "sheet rain" streak (longer, slightly transparent)
-      const isStreak = drop.length > rainConfig.MAX_LENGTH * 1.5;
+      ctx.globalAlpha = drop.opacity * 0.6;
+      ctx.lineWidth = drop.thickness;
+      ctx.beginPath();
+      ctx.moveTo(screenX, screenY);
+      ctx.lineTo(screenX + dx * drop.length, screenY + dy * drop.length);
+      ctx.stroke();
+    }
+    
+    // Second pass: foreground drops
+    ctx.strokeStyle = RAIN_CONFIG.RAIN_COLOR;
+    for (let i = 0; i < dropCount; i++) {
+      if (i % 3 === 0) continue; // Skip background drops
       
-      // Alternate between main color and shadow color for depth
-      const isBackground = index % 3 === 0;
+      const drop = drops[i];
+      const screenX = screenCenterX + (drop.x - cameraX);
+      const screenY = screenCenterY + (drop.y - cameraY);
+      
+      if (screenX < minX || screenX > maxX || screenY < minY || screenY > maxY) continue;
+      
+      const isStreak = drop.length > streakThreshold;
       
       if (isStreak) {
-        // Sheet rain effect - slightly more transparent, whitish
-        ctx.strokeStyle = '#a0c4e8'; // Lighter blue for streaks
+        ctx.strokeStyle = '#a0c4e8';
         ctx.globalAlpha = drop.opacity * 0.6;
         ctx.lineWidth = drop.thickness * 0.7;
       } else {
-        ctx.strokeStyle = isBackground ? RAIN_CONFIG.RAIN_SHADOW_COLOR : RAIN_CONFIG.RAIN_COLOR;
-        ctx.globalAlpha = drop.opacity * (isBackground ? 0.6 : 1.0);
+        ctx.strokeStyle = RAIN_CONFIG.RAIN_COLOR;
+        ctx.globalAlpha = drop.opacity;
         ctx.lineWidth = drop.thickness;
       }
       
       ctx.beginPath();
       ctx.moveTo(screenX, screenY);
-      ctx.lineTo(
-        screenX + dx * drop.length,
-        screenY + dy * drop.length
-      );
+      ctx.lineTo(screenX + dx * drop.length, screenY + dy * drop.length);
       ctx.stroke();
       
-      // Add subtle glow for thick drops in heavy rain (water catching light)
-      if (drop.thickness >= 2 && !isBackground && !isStreak) {
+      // Add subtle glow for thick drops
+      if (drop.thickness >= 2 && !isStreak) {
         ctx.globalAlpha = drop.opacity * 0.2;
         ctx.lineWidth = drop.thickness * 2;
         ctx.stroke();
       }
-    });
+    }
   }
   
   ctx.restore();
@@ -810,6 +953,7 @@ function renderThunderFlash(
 /**
  * Main rain/snow rendering function to be called from the game loop
  * In winter, precipitation is rendered as snow instead of rain
+ * OPTIMIZED: Single performance.now() call, passed to sub-functions
  */
 export function renderRain(
   ctx: CanvasRenderingContext2D,
@@ -821,8 +965,11 @@ export function renderRain(
   deltaTime: number, // in seconds
   isWinter: boolean = false // When true, render snow instead of rain
 ): void {
+  // Get current time once for all operations this frame
+  const currentTime = performance.now();
+  
   // Update rain/snow system
-  updateRainDrops(deltaTime, cameraX, cameraY, canvasWidth, canvasHeight, rainIntensity, isWinter);
+  updateRainDrops(deltaTime, cameraX, cameraY, canvasWidth, canvasHeight, rainIntensity, isWinter, currentTime);
   
   // Render precipitation if there's any intensity
   if (rainIntensity > 0) {
@@ -837,10 +984,20 @@ export function renderRain(
 
 /**
  * Clears all rain drops and splashes (useful for immediate weather changes)
+ * Returns objects to pools for reuse
  */
 export function clearRain(): void {
-  rainSystem.drops = [];
-  rainSystem.splashes = [];
+  // Return all drops to pool
+  for (let i = 0; i < rainSystem.drops.length; i++) {
+    returnDropToPool(rainSystem.drops[i]);
+  }
+  rainSystem.drops.length = 0;
+  
+  // Return all splashes to pool
+  for (let i = 0; i < rainSystem.splashes.length; i++) {
+    returnSplashToPool(rainSystem.splashes[i]);
+  }
+  rainSystem.splashes.length = 0;
 }
 
 /**

@@ -93,6 +93,12 @@ RESOURCE_CONFIGS.Sunflowers = {
   targetWidth: 110 // Tall landmark plant
 };
 
+// === ALPINE/TUNDRA PLANTS ===
+RESOURCE_CONFIGS.ArcticHairgrass = {
+  ...RESOURCE_CONFIGS.ArcticHairgrass,
+  targetWidth: 128 // Larger for visibility on alpine terrain
+};
+
 // === OTHER RESOURCES ===
 RESOURCE_CONFIGS.ShaggyInkCap = {
   ...RESOURCE_CONFIGS.ShaggyInkCap,
