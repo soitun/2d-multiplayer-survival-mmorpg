@@ -1264,6 +1264,37 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .cookable(30.0, "Charcoal")
             .build(),
 
+        // === SHARK MEAT (Aquatic) ===
+        ItemBuilder::new("Raw Shark Meat", "Fresh meat from a salmon shark. Dense and protein-rich, but needs proper preparation to be palatable.", ItemCategory::Consumable)
+            .icon("raw_shark_meat.png")
+            .stackable(10)
+            .consumable(8.0, 22.0, -6.0) // Good raw nutrition - large predator
+            .cookable(50.0, "Cooked Shark Meat")
+            .build(),
+
+        ItemBuilder::new("Cooked Shark Meat", "Properly prepared shark meat. The firm, meaty flesh becomes tender and flavorful when cooked right.", ItemCategory::Consumable)
+            .icon("cooked_shark_meat.png")
+            .stackable(10)
+            .consumable(45.0, 65.0, 15.0) // Excellent nutrition - apex aquatic predator
+            .cookable(35.0, "Burnt Shark Meat")
+            .build(),
+
+        ItemBuilder::new("Burnt Shark Meat", "Overcooked shark meat. The once-firm flesh has become rubbery and unpleasant.", ItemCategory::Consumable)
+            .icon("burnt_shark_meat.png")
+            .stackable(10)
+            .consumable(-6.0, 15.0, -18.0) // Penalty for burning
+            .crafting_output(15, 0)
+            .cookable(40.0, "Charcoal")
+            .build(),
+
+        // === JELLYFISH ITEMS (Aquatic) ===
+        ItemBuilder::new("Jellyfish Gel", "Translucent gel extracted from a jellyfish. Has cooling properties that soothe burns. Can be applied topically or consumed for minor healing.", ItemCategory::Consumable)
+            .icon("jellyfish_gel.png")
+            .stackable(20)
+            .consumable(15.0, 5.0, 10.0) // Heals, minor hunger, some hydration
+            .preserved() // Gel is stable
+            .build(),
+
         // === SPECIALTY FOODS & MISC ===
         ItemBuilder::new("Tallow", "Rendered animal fat. High in calories and can be used as a slow-burning fuel source for lanterns and Ancestral Wards. Can be eaten in a pinch to stave off hunger, but it's not very appetizing and will make you thirsty.", ItemCategory::Consumable)
             .icon("tallow.png")

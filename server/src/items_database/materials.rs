@@ -205,6 +205,24 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .icon("whale_bone_fragment.png")
             .build(),
 
+        // === AQUATIC CREATURE MATERIALS ===
+
+        // Shark Fin - Rare drop from salmon sharks, used for crafting
+        basic_material("Shark Fin", "A fearsome dorsal fin from a salmon shark. The cartilage is surprisingly strong and flexible, making it useful for specialized crafting.", 20)
+            .icon("shark_fin.png")
+            .build(),
+
+        // Jellyfish Membrane - Translucent tissue from jellyfish, useful for waterproof crafting
+        basic_material("Jellyfish Membrane", "Translucent membrane from a jellyfish. Surprisingly durable and waterproof, used in specialized underwater equipment.", 50)
+            .icon("jellyfish_membrane.png")
+            .build(),
+
+        // Jellyfish Stinger - Venomous tentacle remnants, used for poison crafting
+        ItemBuilder::new("Jellyfish Stinger", "Venomous stinger cells from a jellyfish tentacle. Handle with care - the toxins remain potent. Used in poison and antidote crafting.", ItemCategory::Material)
+            .icon("jellyfish_stinger.png")
+            .stackable(20)
+            .build(),
+
         // === ADVANCED CRAFTING MATERIALS ===
 
         // Gunpowder - Made from charcoal and sulfur (essential for ammunition)

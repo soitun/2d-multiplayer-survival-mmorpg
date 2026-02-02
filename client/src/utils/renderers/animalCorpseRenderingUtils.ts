@@ -14,6 +14,7 @@ import ternWalkingAnimatedSheet from '../../assets/tern_walking_release.png';
 import wolverineWalkingAnimatedSheet from '../../assets/wolverine_walking_release.png';
 import caribouWalkingAnimatedSheet from '../../assets/caribou_walking_release.png';
 import salmonSharkWalkingAnimatedSheet from '../../assets/salmon_shark_walking_release.png';
+import jellyfishWalkingAnimatedSheet from '../../assets/jellyfish_walking_release.png';
 // Alpine animals (4x4 release pattern)
 import polarBearWalkingAnimatedSheet from '../../assets/polar_bear_walking_release.png';
 import hareWalkingAnimatedSheet from '../../assets/hare_walking_release.png';
@@ -68,6 +69,7 @@ const speciesSpriteSheets: Record<string, string> = {
     'Wolverine': wolverineWalkingAnimatedSheet,
     'Caribou': caribouWalkingAnimatedSheet,
     'SalmonShark': salmonSharkWalkingAnimatedSheet, // 256x256 frames
+    'Jellyfish': jellyfishWalkingAnimatedSheet, // 256x256 frames
     'Crow': crowWalkingAnimatedSheet,
     // Alpine animals (4x4 release pattern)
     'PolarBear': polarBearWalkingAnimatedSheet,
@@ -89,6 +91,7 @@ const usesReleasePattern: Record<string, boolean> = {
     'Wolverine': true,
     'Caribou': true,
     'SalmonShark': true, // 256x256 frames, 1024x1024 sheet
+    'Jellyfish': true, // 256x256 frames, 1024x1024 sheet
     'Crow': true,
     // Alpine animals (4x4 release pattern)
     'PolarBear': true,
@@ -122,9 +125,8 @@ function getCorpseRenderSize(species: any): { width: number; height: number } {
             // Return 0 size to skip rendering
             return { width: 0, height: 0 };
         case 'Jellyfish':
-            // Jellyfish don't produce corpses - they dissolve when killed
-            // Return 0 size to skip rendering (can't be harvested)
-            return { width: 0, height: 0 };
+            // Jellyfish corpses - harvestable with Tidebreaker Blade
+            return { width: 96, height: 96 };
         case 'Tern':
             return { width: 96, height: 96 }; // Medium-sized coastal bird
         case 'Crow':
@@ -235,8 +237,8 @@ export const renderAnimalCorpse = (
   if (isReleasePattern) {
     // 4x4 release pattern: use frame 0, direction 0 (down-facing)
     // Then flip upside down for corpse effect
-    // SalmonShark has larger frames (256x256) compared to other animals (80x80)
-    if (corpse.animalSpecies.tag === 'SalmonShark') {
+    // SalmonShark and Jellyfish have larger frames (256x256) compared to other animals (80x80)
+    if (corpse.animalSpecies.tag === 'SalmonShark' || corpse.animalSpecies.tag === 'Jellyfish') {
       sx = CORPSE_FRAME_4X4 * FRAME_WIDTH_SHARK;
       sy = CORPSE_DIRECTION_4X4 * FRAME_HEIGHT_SHARK;
       frameWidth = FRAME_WIDTH_SHARK;

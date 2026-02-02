@@ -122,6 +122,15 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .damage_type(DamageType::Blunt) // Blunt weapon
             .build(),
 
+        // Shark Skull - Aquatic predator trophy with serrated teeth
+        ItemBuilder::new("Shark Skull", "A fearsome shark skull with rows of serrated teeth. A rare trophy from the ocean's apex predator. The cartilaginous structure is surprisingly lightweight, but those teeth are deadly.", ItemCategory::Weapon)
+            .icon("shark_skull.png")
+            .stackable(10)
+            .weapon(38, 42, 1.9) // High damage - apex aquatic predator
+            .damage_type(DamageType::Pierce) // Pierce weapon (teeth)
+            .bleed_effect(3.0, 8.0, 1.0) // Serrated teeth cause serious bleeding
+            .build(),
+
         // === CRAFTABLE CLUBS & MACES ===
         // Heavy blunt weapons - slow but powerful
 

@@ -933,10 +933,10 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
         // === AQUATIC GEAR ===
         // Specialized gear for improved water mobility
 
-        // Reed Flippers - Feet armor with significant water speed bonus
-        // Allows players to swim 100% faster (2x normal water speed)
+        // Reed Flippers - Feet armor with moderate water speed bonus
+        // Allows players to swim 75% faster (1.75x normal water speed)
         // Crafted from common reed materials, making them accessible early-game
-        ItemBuilder::new("Reed Flippers", "Woven flippers made from buoyant reed stalks sealed with tallow. Significantly increases swimming speed but offers no protection.", ItemCategory::Armor)
+        ItemBuilder::new("Reed Flippers", "Woven flippers made from buoyant reed stalks sealed with tallow. Increases swimming speed but offers no protection.", ItemCategory::Armor)
             .icon("reed_flippers.png")
             .equippable(Some(EquipmentSlotType::Feet))
             .armor_resistances(ArmorResistances {
@@ -948,7 +948,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
                 pierce_resistance: 0.0,
                 cold_resistance: 0.0, // No protection - purely functional
             })
-            .water_speed_bonus(1.0) // +100% water speed (2x normal speed)
+            .water_speed_bonus(0.75) // +75% water speed (1.75x normal speed)
             .crafting_cost(vec![
                 CostIngredient { item_name: "Common Reed Stalk".to_string(), quantity: 8 },
                 CostIngredient { item_name: "Tallow".to_string(), quantity: 3 },
@@ -956,6 +956,32 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             ])
             .crafting_output(1, 7)
             .respawn_time(360)
+            .build(),
+
+        // Shark Fin Flippers - Advanced flippers with superior water speed
+        // Allows players to swim 125% faster (2.25x normal water speed)
+        // Upgraded version requiring underwater hunting materials
+        ItemBuilder::new("Shark Fin Flippers", "Advanced flippers reinforced with flexible shark cartilage. The hydrodynamic fin shape provides exceptional propulsion underwater. Significantly faster than basic reed flippers.", ItemCategory::Armor)
+            .icon("shark_fin_flippers.png")
+            .equippable(Some(EquipmentSlotType::Feet))
+            .armor_resistances(ArmorResistances {
+                melee_resistance: 0.0,
+                projectile_resistance: 0.0,
+                fire_resistance: 0.0,
+                blunt_resistance: 0.0,
+                slash_resistance: 0.0,
+                pierce_resistance: 0.0,
+                cold_resistance: 0.0, // No protection - purely functional
+            })
+            .water_speed_bonus(1.25) // +125% water speed (2.25x normal speed)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Reed Flippers".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Shark Fin".to_string(), quantity: 2 },
+                CostIngredient { item_name: "Jellyfish Membrane".to_string(), quantity: 3 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
+            ])
+            .crafting_output(1, 12)
+            .respawn_time(600)
             .build(),
 
     ]

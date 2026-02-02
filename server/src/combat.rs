@@ -4440,6 +4440,28 @@ pub fn damage_animal_corpse(
     let mut animal_corpse = animal_corpse_table.id().find(&animal_corpse_id)
         .ok_or_else(|| format!("Target animal corpse {} disappeared", animal_corpse_id))?;
 
+    // Check if this is an aquatic corpse (shark/jellyfish) that requires underwater harvesting
+    let is_aquatic_corpse = matches!(
+        animal_corpse.animal_species,
+        crate::wild_animal_npc::AnimalSpecies::SalmonShark | 
+        crate::wild_animal_npc::AnimalSpecies::Jellyfish
+    );
+    
+    if is_aquatic_corpse {
+        // Get player to check if they're snorkeling
+        let attacker = ctx.db.player().identity().find(&attacker_id)
+            .ok_or_else(|| format!("Could not find attacking player {}", attacker_id))?;
+        
+        // Aquatic corpses require: player is snorkeling AND using Tidebreaker Blade
+        if !attacker.is_snorkeling {
+            return Err("You must be underwater (snorkeling) to harvest aquatic creatures.".to_string());
+        }
+        
+        if item_def.name != "Tidebreaker Blade" {
+            return Err("You need a Tidebreaker Blade to harvest aquatic creatures underwater.".to_string());
+        }
+    }
+
     if animal_corpse.health == 0 {
         // Still update last_hit_time for visual feedback before deletion
         animal_corpse.last_hit_time = Some(timestamp);
@@ -4497,6 +4519,7 @@ pub fn damage_animal_corpse(
     const BONE_CLUB_MULTIPLIER: f64 = 3.0;
     const MACHETE_MULTIPLIER: f64 = 7.0; // High effectiveness for sharp cutting tool
     const AK74_BAYONET_MULTIPLIER: f64 = 10.0; // Highest effectiveness for modern military bayonet
+    const TIDEBREAKER_BLADE_MULTIPLIER: f64 = 9.0; // High effectiveness for underwater harvesting
     const PRIMARY_CORPSE_TOOL_MULTIPLIER: f64 = 1.0;
     const NON_PRIMARY_ITEM_MULTIPLIER: f64 = 0.4; // Increased from 0.1 to 0.4 - allows new players to harvest basic resources
 
@@ -4505,6 +4528,7 @@ pub fn damage_animal_corpse(
         "Bone Knife" => BONE_KNIFE_MULTIPLIER,
         "Bone Club" => BONE_CLUB_MULTIPLIER,
         "Bush Knife" => MACHETE_MULTIPLIER,
+        "Tidebreaker Blade" => TIDEBREAKER_BLADE_MULTIPLIER,
         _ => {
             if item_def.primary_target_type == Some(TargetType::AnimalCorpse) {
                 PRIMARY_CORPSE_TOOL_MULTIPLIER
@@ -4538,6 +4562,7 @@ pub fn damage_animal_corpse(
         "Bone Knife" => rng.gen_range(3..=5),
         "Bone Club" => rng.gen_range(2..=4),
         "Bush Knife" => rng.gen_range(1..=3),
+        "Tidebreaker Blade" => rng.gen_range(3..=6), // Good yield for underwater harvesting
         _ => {
             if item_def.primary_target_type == Some(TargetType::AnimalCorpse) && item_def.category == ItemCategory::Tool {
                 rng.gen_range(1..=2)
@@ -4599,10 +4624,10 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::Vole => None, // Voles are too small for usable fur
             crate::wild_animal_npc::AnimalSpecies::Wolverine => None, // Wolverines drop Animal Leather instead
             crate::wild_animal_npc::AnimalSpecies::Caribou => None, // Caribou drop warm hides
-            // SalmonShark - no loot (no underwater harvesting tools)
+            // SalmonShark - no cloth (sharks have skin, not fur)
             crate::wild_animal_npc::AnimalSpecies::SalmonShark => None,
-            // Jellyfish - no loot (dissolves when killed)
-            crate::wild_animal_npc::AnimalSpecies::Jellyfish => None,
+            // Jellyfish - drops jellyfish membrane
+            crate::wild_animal_npc::AnimalSpecies::Jellyfish => Some("Jellyfish Membrane"),
             // Night hostile NPCs don't drop items - they grant memory shards instead
             crate::wild_animal_npc::AnimalSpecies::Shorebound | 
             crate::wild_animal_npc::AnimalSpecies::Shardkin | 
@@ -4667,10 +4692,10 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::Vole => Some("Raw Vole Meat"),
             crate::wild_animal_npc::AnimalSpecies::Wolverine => Some("Raw Wolverine Meat"),
             crate::wild_animal_npc::AnimalSpecies::Caribou => Some("Raw Caribou Meat"),
-            // SalmonShark - no loot (no underwater harvesting tools)
-            crate::wild_animal_npc::AnimalSpecies::SalmonShark => None,
-            // Jellyfish - no loot (dissolves when killed)
-            crate::wild_animal_npc::AnimalSpecies::Jellyfish => None,
+            // SalmonShark - drops shark meat
+            crate::wild_animal_npc::AnimalSpecies::SalmonShark => Some("Raw Shark Meat"),
+            // Jellyfish - drops jellyfish gel instead of meat
+            crate::wild_animal_npc::AnimalSpecies::Jellyfish => Some("Jellyfish Gel"),
             // Night hostile NPCs don't drop items
             crate::wild_animal_npc::AnimalSpecies::Shorebound | 
             crate::wild_animal_npc::AnimalSpecies::Shardkin | 
@@ -4711,9 +4736,9 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::Vole => Some("Vole Skull"), // Tiny novelty trophy skull
             crate::wild_animal_npc::AnimalSpecies::Wolverine => Some("Wolverine Skull"), // Fierce predator skull
             crate::wild_animal_npc::AnimalSpecies::Caribou => Some("Caribou Skull"), // Large herbivore skull
-            // SalmonShark - no loot (no underwater harvesting tools)
-            crate::wild_animal_npc::AnimalSpecies::SalmonShark => None,
-            // Jellyfish - no loot (dissolves when killed)
+            // SalmonShark - drops shark skull (cartilage but still a trophy)
+            crate::wild_animal_npc::AnimalSpecies::SalmonShark => Some("Shark Skull"),
+            // Jellyfish - no skull (invertebrate)
             crate::wild_animal_npc::AnimalSpecies::Jellyfish => None,
             // Night hostile NPCs don't drop items
             crate::wild_animal_npc::AnimalSpecies::Shorebound | 
@@ -4755,6 +4780,40 @@ pub fn damage_animal_corpse(
                 }
                 Err(e) => log::error!(
                     "[DamageAnimalCorpse:{}] Failed to grant Cable Viper Gland to Player {:?}: {}",
+                    animal_corpse_id, attacker_id, e
+                ),
+            }
+        }
+        
+        // GUARANTEED: Shark Fin drop for SalmonShark (100% chance when corpse depleted with Tidebreaker Blade)
+        if animal_corpse.animal_species == crate::wild_animal_npc::AnimalSpecies::SalmonShark {
+            match grant_resource(ctx, attacker_id, "Shark Fin", 1) {
+                Ok(_) => {
+                    resources_granted.push(("Shark Fin".to_string(), 1));
+                    log::info!(
+                        "[DamageAnimalCorpse:{}] Granted 1 Shark Fin to Player {:?} (guaranteed shark drop).",
+                        animal_corpse_id, attacker_id
+                    );
+                }
+                Err(e) => log::error!(
+                    "[DamageAnimalCorpse:{}] Failed to grant Shark Fin to Player {:?}: {}",
+                    animal_corpse_id, attacker_id, e
+                ),
+            }
+        }
+        
+        // GUARANTEED: Jellyfish Stinger drop for Jellyfish (100% chance when corpse depleted with Tidebreaker Blade)
+        if animal_corpse.animal_species == crate::wild_animal_npc::AnimalSpecies::Jellyfish {
+            match grant_resource(ctx, attacker_id, "Jellyfish Stinger", 1) {
+                Ok(_) => {
+                    resources_granted.push(("Jellyfish Stinger".to_string(), 1));
+                    log::info!(
+                        "[DamageAnimalCorpse:{}] Granted 1 Jellyfish Stinger to Player {:?} (guaranteed jellyfish drop).",
+                        animal_corpse_id, attacker_id
+                    );
+                }
+                Err(e) => log::error!(
+                    "[DamageAnimalCorpse:{}] Failed to grant Jellyfish Stinger to Player {:?}: {}",
                     animal_corpse_id, attacker_id, e
                 ),
             }

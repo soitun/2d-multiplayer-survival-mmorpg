@@ -338,7 +338,7 @@ pub fn apply_item_effects_and_consume(
         log::info!("[EffectsHelper] Player {:?} consumed Validol Tablets!", player_id);
     } else if let Some(duration_secs) = item_def.consumable_duration_secs {
         if duration_secs > 0.0 { // This branch handles timed effects
-            if item_def.name == "Bandage" {
+            if item_def.name == "Bandage" || item_def.name == "Jellyfish Compress" {
                 if let Some(total_bandage_heal) = item_def.consumable_health_gain {
                     if total_bandage_heal != 0.0 {
                         // Cancel any existing HealthRegen OR BandageBurst effects for this player to prevent stacking similar effects.
@@ -348,7 +348,7 @@ pub fn apply_item_effects_and_consume(
                         // For now, let's assume one bandage at a time. A dedicated cancel_bandage_burst_effects could be called too.
                         // crate::active_effects::cancel_bleed_effects(ctx, player_id); // Bandages still cancel bleed - REMOVED, handled by BandageBurst effect completion
                         
-                        log::info!("[EffectsHelper] Player {:?} using Bandage. Creating BandageBurst effect.", player_id);
+                        log::info!("[EffectsHelper] Player {:?} using {}. Creating BandageBurst effect.", player_id, item_def.name);
                         apply_timed_effect_for_helper(ctx, player_id, item_def, item_instance_id, EffectType::BandageBurst, total_bandage_heal, duration_secs, 1.0)?;
                     }
                 }

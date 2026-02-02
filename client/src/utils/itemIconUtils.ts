@@ -89,6 +89,7 @@ import rockItemIcon from '../assets/items/rock_item.png';
 import combatLadleIcon from '../assets/items/combat_ladle.png';
 import boneClubIcon from '../assets/items/bone_club.png';
 import boneKnifeIcon from '../assets/items/bone_knife.png';
+import tidebreakerBladeIcon from '../assets/items/tidebreaker_blade.png';
 import repairHammerIcon from '../assets/items/repair_hammer.png';
 
 // Light sources
@@ -145,6 +146,8 @@ import wolverineSkullIcon from '../assets/items/wolverine_skull.png';
 import polarBearSkullIcon from '../assets/items/polar_bear_skull.png';
 import hareSkullIcon from '../assets/items/hare_skull.png';
 import owlSkullIcon from '../assets/items/owl_skull.png';
+// Aquatic animal skull
+import sharkSkullIcon from '../assets/items/shark_skull.png';
 
 // Utility melee weapons
 import kayakPaddleIcon from '../assets/items/kayak_paddle.png';
@@ -368,6 +371,17 @@ import rawHareMeatIcon from '../assets/items/hare_meat.png';
 import cookedHareMeatIcon from '../assets/items/cooked_hare_meat.png';
 import rawOwlMeatIcon from '../assets/items/owl_meat.png';
 import cookedOwlMeatIcon from '../assets/items/cooked_owl_meat.png';
+// Aquatic creature items
+import rawSharkMeatIcon from '../assets/items/raw_shark_meat.png';
+import cookedSharkMeatIcon from '../assets/items/cooked_shark_meat.png';
+import sharkFinIcon from '../assets/items/shark_fin.png';
+import jellyfishGelIcon from '../assets/items/jellyfish_gel.png';
+import jellyfishMembraneIcon from '../assets/items/jellyfish_membrane.png';
+import jellyfishStingerIcon from '../assets/items/jellyfish_stinger.png';
+import jellyfishCompressIcon from '../assets/items/jellyfish_compress.png';
+import sharkFinFlippersIcon from '../assets/items/shark_fin_flippers.png';
+import venomArrowIcon from '../assets/items/venom_arrow.png';
+import venomHarpoonDartIcon from '../assets/items/venom_harpoon_dart.png';
 
 // Fish - Raw fish icons
 import rawTwigfishIcon from '../assets/items/raw_twigfish.png';
@@ -652,6 +666,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'combat_ladle.png': combatLadleIcon,
   'bone_club.png': boneClubIcon,
   'bone_knife.png': boneKnifeIcon,
+  'tidebreaker_blade.png': tidebreakerBladeIcon,
   'repair_hammer.png': repairHammerIcon,
   
   // Light sources
@@ -710,6 +725,8 @@ const iconMap: { [key: string]: string | undefined } = {
   'polar_bear_skull.png': polarBearSkullIcon,
   'hare_skull.png': hareSkullIcon,
   'owl_skull.png': owlSkullIcon,
+  // Aquatic animal skull
+  'shark_skull.png': sharkSkullIcon,
   
   // Utility melee weapons
   'kayak_paddle.png': kayakPaddleIcon,
@@ -930,6 +947,18 @@ const iconMap: { [key: string]: string | undefined } = {
   'cooked_hare_meat.png': cookedHareMeatIcon,
   'owl_meat.png': rawOwlMeatIcon,
   'cooked_owl_meat.png': cookedOwlMeatIcon,
+  // Aquatic creature items
+  'raw_shark_meat.png': rawSharkMeatIcon,
+  'cooked_shark_meat.png': cookedSharkMeatIcon,
+  'burnt_shark_meat.png': errorIcon, // Uses burnt meat placeholder
+  'shark_fin.png': sharkFinIcon,
+  'jellyfish_gel.png': jellyfishGelIcon,
+  'jellyfish_membrane.png': jellyfishMembraneIcon,
+  'jellyfish_stinger.png': jellyfishStingerIcon,
+  'jellyfish_compress.png': jellyfishCompressIcon,
+  'shark_fin_flippers.png': sharkFinFlippersIcon,
+  'venom_arrow.png': venomArrowIcon,
+  'venom_harpoon_dart.png': venomHarpoonDartIcon,
   
   // Fish - Raw fish
   'raw_twigfish.png': rawTwigfishIcon,

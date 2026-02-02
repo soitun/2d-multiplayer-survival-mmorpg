@@ -138,10 +138,12 @@ pub fn get_animal_loot_chances(animal_species: AnimalSpecies) -> (f64, f64, f64,
         AnimalSpecies::Wolverine => (0.80, 0.0, 0.70, 0.90), // High fat (winter stores), no special cloth (drops generic leather instead), good bone, excellent meat
         // Caribou - large herbivore, excellent drops (tough to hunt but rewarding)
         AnimalSpecies::Caribou => (0.75, 0.85, 0.70, 0.95), // High fat, excellent hide, good bone, nearly guaranteed meat - large animal
-        // SalmonShark - no loot (no underwater harvesting tools, can't use knives underwater)
-        AnimalSpecies::SalmonShark => (0.0, 0.0, 0.0, 0.0),
-        // Jellyfish - no loot (dissolves when killed, can't be harvested)
-        AnimalSpecies::Jellyfish => (0.0, 0.0, 0.0, 0.0),
+        // SalmonShark - NOW harvestable with Tidebreaker Blade
+        // Good fat (blubber), no cloth, good bone (cartilage counts), excellent meat
+        AnimalSpecies::SalmonShark => (0.70, 0.0, 0.60, 0.90),
+        // Jellyfish - NOW harvestable with Tidebreaker Blade
+        // No fat, jellyfish membrane as cloth, no bone, jellyfish gel as meat
+        AnimalSpecies::Jellyfish => (0.0, 0.85, 0.0, 0.80),
         // Hostile NPCs don't create corpses - they despawn at dawn and grant memory shards instead
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => (0.0, 0.0, 0.0, 0.0),
         // Bees don't create corpses - they die instantly from fire and don't leave bodies
@@ -173,10 +175,10 @@ fn get_meat_type(animal_species: AnimalSpecies) -> &'static str {
         AnimalSpecies::PolarBear => "Raw Bear Meat", // Rich, fatty predator meat
         AnimalSpecies::Hare => "Raw Hare Meat", // Lean, tender rabbit-like meat
         AnimalSpecies::SnowyOwl => "Raw Owl Meat", // Gamey bird meat
-        // SalmonShark - no meat drops (no underwater harvesting)
-        AnimalSpecies::SalmonShark => "Raw Shark Meat", // Never actually dropped - no underwater harvesting
-        // Jellyfish - dissolves when killed, no corpse
-        AnimalSpecies::Jellyfish => unreachable!("Jellyfish don't create corpses"),
+        // SalmonShark - harvestable with Tidebreaker Blade
+        AnimalSpecies::SalmonShark => "Raw Shark Meat",
+        // Jellyfish - harvestable with Tidebreaker Blade, drops gel instead of meat
+        AnimalSpecies::Jellyfish => "Jellyfish Gel",
         // Hostile NPCs don't create corpses - they despawn at dawn
         AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => unreachable!("Hostile NPCs don't create corpses"),
         // Bees don't create corpses - they die instantly from fire and don't leave bodies
@@ -312,10 +314,10 @@ pub fn get_harvest_loot(
             AnimalSpecies::Vole => None, // Voles are too small for usable fur
             AnimalSpecies::Wolverine => None, // Wolverines don't drop special fur (use generic Animal Leather instead)
             AnimalSpecies::Caribou => Some("Caribou Hide"), // Large herbivore - valuable hide
-            // SalmonShark - no cloth drops (no underwater harvesting)
+            // SalmonShark - no cloth/fur drops (sharks don't have fur)
             AnimalSpecies::SalmonShark => None,
-            // Jellyfish - no cloth drops (dissolves when killed)
-            AnimalSpecies::Jellyfish => None,
+            // Jellyfish - drops jellyfish membrane
+            AnimalSpecies::Jellyfish => Some("Jellyfish Membrane"),
             // Hostile NPCs don't drop cloth resources
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => None,
             // Bees don't drop cloth - they're tiny insects
@@ -359,10 +361,10 @@ pub fn get_harvest_loot(
             AnimalSpecies::Vole => 0.0, // Voles are too small for trophies
             AnimalSpecies::Wolverine => 0.0, // Wolverines don't have special fur armor set, so no rare trophy
             AnimalSpecies::Caribou => if tool_name == "AK74 Bayonet" { 0.04 } else { 0.025 }, // 4%/2.5% chance for caribou antlers
-            // SalmonShark - no rare trophy drops (no underwater harvesting)
-            AnimalSpecies::SalmonShark => 0.0,
-            // Jellyfish - no rare trophy drops (dissolves when killed)
-            AnimalSpecies::Jellyfish => 0.0,
+            // SalmonShark - rare shark fin drop
+            AnimalSpecies::SalmonShark => if tool_name == "Tidebreaker Blade" { 0.15 } else { 0.05 }, // 15%/5% chance for shark fin
+            // Jellyfish - rare jellyfish stinger drop
+            AnimalSpecies::Jellyfish => if tool_name == "Tidebreaker Blade" { 0.20 } else { 0.08 }, // 20%/8% chance for stinger
             // Hostile NPCs don't drop rare trophies
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
             // Bees don't drop rare trophies - they're tiny insects
@@ -385,10 +387,10 @@ pub fn get_harvest_loot(
                 AnimalSpecies::Vole => unreachable!(), // Already checked above
                 AnimalSpecies::Wolverine => unreachable!(), // Already checked above
                 AnimalSpecies::Caribou => "Caribou Antlers", // Rare placeable trophy
-                // SalmonShark - never reaches here (chance is 0)
-                AnimalSpecies::SalmonShark => unreachable!(),
-                // Jellyfish - never reaches here (chance is 0)
-                AnimalSpecies::Jellyfish => unreachable!(),
+                // SalmonShark - rare shark fin
+                AnimalSpecies::SalmonShark => "Shark Fin",
+                // Jellyfish - rare jellyfish stinger
+                AnimalSpecies::Jellyfish => "Jellyfish Stinger",
                 // Hostile NPCs never reach here (chance is 0)
                 AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => unreachable!(),
                 // Bees never reach here (chance is 0)

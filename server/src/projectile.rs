@@ -745,6 +745,12 @@ fn apply_projectile_bleed_effect(
         log::debug!("Fire Arrow does not cause bleed effects - skipping bleed application");
         return Ok(());
     }
+    
+    // Venom arrows/darts should NOT cause bleed effects - they apply venom instead
+    if ammo_item_def.name == "Venom Arrow" || ammo_item_def.name == "Venom Harpoon Dart" {
+        log::debug!("{} does not cause bleed effects - applies venom instead", ammo_item_def.name);
+        return Ok(());
+    }
 
     // <<< CHECK BLEED IMMUNITY FROM ARMOR >>>
     if crate::armor::has_armor_immunity(ctx, target_player_id, crate::models::ImmunityType::Bleed) {
@@ -847,6 +853,68 @@ fn apply_projectile_burn_effect(
     }
 }
 // --- END NEW HELPER FUNCTION ---
+
+// --- NEW HELPER FUNCTION FOR VENOM ARROW/DART EFFECTS ---
+fn apply_projectile_venom_effect(
+    ctx: &ReducerContext,
+    target_player_id: Identity,
+    ammo_item_def: &crate::items::ItemDefinition,
+    _current_time: Timestamp,
+) -> Result<(), String> {
+    // Only apply venom effects to Venom Arrow and Venom Harpoon Dart
+    if ammo_item_def.name != "Venom Arrow" && ammo_item_def.name != "Venom Harpoon Dart" {
+        return Ok(());
+    }
+
+    // Check if player has poison resistance (from brews) - reduces venom damage
+    let has_poison_resistance = crate::active_effects::player_has_poison_resistance_effect(ctx, target_player_id);
+    
+    // Get venom parameters from the bleed fields (we repurpose them for venom)
+    let venom_damage_per_tick = ammo_item_def.bleed_damage_per_tick.unwrap_or(2.5);
+    let venom_duration = ammo_item_def.bleed_duration_seconds.unwrap_or(12.0);
+    let venom_tick_interval = ammo_item_def.bleed_tick_interval_seconds.unwrap_or(1.0);
+    
+    // Apply poison resistance reduction (50% less damage if resistant)
+    let final_damage_per_tick = if has_poison_resistance {
+        venom_damage_per_tick * 0.5
+    } else {
+        venom_damage_per_tick
+    };
+    
+    let total_ticks = (venom_duration / venom_tick_interval).ceil();
+    let total_venom_damage = final_damage_per_tick * total_ticks;
+    
+    // Apply venom effect using the dedicated venom function (requires anti-venom to cure)
+    match active_effects::apply_venom_effect(
+        ctx,
+        target_player_id,
+        total_venom_damage,
+        venom_duration,
+        venom_tick_interval,
+    ) {
+        Ok(()) => {
+            log::info!(
+                "Applied {} venom effect to player {:?}: {:.1} damage over {:.1}s{}",
+                ammo_item_def.name,
+                target_player_id,
+                total_venom_damage,
+                venom_duration,
+                if has_poison_resistance { " (reduced by poison resistance)" } else { "" }
+            );
+            Ok(())
+        }
+        Err(e) => {
+            log::error!(
+                "Failed to apply {} venom effect to player {:?}: {}",
+                ammo_item_def.name,
+                target_player_id,
+                e
+            );
+            Err(e)
+        }
+    }
+}
+// --- END VENOM EFFECT HELPER ---
 
 // --- NEW HELPER FUNCTION FOR DAMAGE CALCULATION ---
 fn calculate_projectile_damage(
@@ -2468,6 +2536,12 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                             // Apply fire arrow burn effects (checks for wet immunity internally)
                             if let Err(e) = apply_projectile_burn_effect(ctx, player_to_check.identity, &ammo_item_def, current_time) {
                                 log::error!("Error applying projectile burn effect for ammo '{}' on player {:?}: {}", 
+                                    ammo_item_def.name, player_to_check.identity, e);
+                            }
+                            
+                            // Apply venom arrow/dart effects (requires anti-venom to cure)
+                            if let Err(e) = apply_projectile_venom_effect(ctx, player_to_check.identity, &ammo_item_def, current_time) {
+                                log::error!("Error applying projectile venom effect for ammo '{}' on player {:?}: {}", 
                                     ammo_item_def.name, player_to_check.identity, e);
                             }
                             

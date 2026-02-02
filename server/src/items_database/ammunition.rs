@@ -54,6 +54,24 @@ pub fn get_ammunition_definitions() -> Vec<ItemDefinition> {
             .respawn_time(240)
             .build(),
 
+        // Venom Arrow - Poison damage over time projectile
+        ItemBuilder::new("Venom Arrow", "An arrow with a bone tip coated in jellyfish toxins. The venom causes intense burning pain and damage over time. Less immediate damage but deadly over time.", ItemCategory::Ammunition)
+            .icon("venom_arrow.png")
+            .stackable(20)
+            // Lower direct damage, but applies poison/burn effect
+            // Note: These values are handled in projectile.rs - venom arrows apply burn effect
+            .pvp_damage(5, 8) // Reduced direct damage - poison does the work
+            .ammo_type(AmmoType::Arrow)
+            .bleed_effect(2.5, 12.0, 1.0) // Venom causes burning pain (2.5 dps for 12 seconds = 30 total)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Wood".to_string(), quantity: 25 },
+                CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 15 },
+                CostIngredient { item_name: "Jellyfish Stinger".to_string(), quantity: 1 },
+            ])
+            .crafting_output(3, 4) // Makes 3 arrows per stinger
+            .respawn_time(300)
+            .build(),
+
         // Hollow Reed Arrow - Fast but light projectile
         ItemBuilder::new("Hollow Reed Arrow", "A lightweight arrow with a hollow reed shaft. Flies faster but deals less damage due to its light construction.", ItemCategory::Ammunition)
             .icon("hollow_reed_arrow.png")
@@ -106,6 +124,23 @@ pub fn get_ammunition_definitions() -> Vec<ItemDefinition> {
             ])
             .crafting_output(2, 4) // Makes 2 darts, takes 4 seconds
             .respawn_time(200)
+            .build(),
+
+        // Venom Harpoon Dart - Poison-tipped underwater ammunition
+        ItemBuilder::new("Venom Harpoon Dart", "A harpoon dart with its bone tip treated with jellyfish toxins. The venom spreads through water, making it particularly effective against aquatic targets. Causes prolonged pain and damage.", ItemCategory::Ammunition)
+            .icon("venom_harpoon_dart.png")
+            .stackable(15)
+            .pvp_damage(5, 8) // Slightly higher direct damage than standard dart
+            .ammo_type(AmmoType::HarpoonDart)
+            .bleed_effect(3.0, 15.0, 1.0) // Stronger venom effect underwater (3 dps for 15 seconds = 45 total)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Common Reed Stalk".to_string(), quantity: 3 },
+                CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 15 },
+                CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 5 },
+                CostIngredient { item_name: "Jellyfish Stinger".to_string(), quantity: 1 },
+            ])
+            .crafting_output(3, 5) // Makes 3 darts per stinger
+            .respawn_time(250)
             .build(),
     ]
 }

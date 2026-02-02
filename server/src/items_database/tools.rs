@@ -63,6 +63,26 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .attack_interval(0.5)
             .build(),
 
+        // Tidebreaker Blade - Underwater harvesting knife that works while snorkeling
+        ItemBuilder::new("Tidebreaker Blade", "A specialized diving knife with a serrated edge designed for underwater work. The corrugated grip prevents slipping when wet, and the blade geometry is optimized for cutting through tough marine life. Essential for harvesting sharks and jellyfish.", ItemCategory::Tool)
+            .icon("tidebreaker_blade.png")
+            .equippable(None)
+            
+            .primary_target_damage(30, 30)
+            .primary_target_yield(4, 6)
+            .primary_target_type(TargetType::AnimalCorpse)
+            .primary_yield_resource("Animal Parts")
+            .pvp_damage(22, 28)
+            .bleed_effect(2.0, 6.0, 1.0)
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Metal Fragments".to_string(), quantity: 80 },
+                CostIngredient { item_name: "Coral Fragments".to_string(), quantity: 15 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
+            ])
+            .crafting_output(1, 8)
+            .attack_interval(0.55)
+            .build(),
+
         // Repair Tool
         ItemBuilder::new("Repair Hammer", "A simple hammer for repairing structures and maintaining equipment.", ItemCategory::Tool)
             .icon("repair_hammer.png")
@@ -205,6 +225,23 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             ])
             .crafting_output(1, 1)
             .respawn_time(300)
+            .build(),
+
+        // Jellyfish Compress - Advanced bandage with burn healing properties
+        ItemBuilder::new("Jellyfish Compress", "A medical dressing infused with jellyfish gel and wrapped in translucent membrane. The cooling properties soothe burns while the collagen promotes rapid wound healing. More effective than a standard bandage.", ItemCategory::Tool)
+            .icon("jellyfish_compress.png")
+            .stackable(10)
+            .equippable(None)
+            
+            .consumable(45.0, 0.0, 0.0) // +80% more healing than standard bandage
+            .consumable_duration(3.5) // Faster application than bandage
+            .crafting_cost(vec![
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Jellyfish Membrane".to_string(), quantity: 1 },
+                CostIngredient { item_name: "Jellyfish Gel".to_string(), quantity: 2 },
+            ])
+            .crafting_output(2, 4) // Makes 2 compresses
+            .respawn_time(400)
             .build(),
 
         ItemBuilder::new("Selo Olive Oil", "Premium olive oil with miraculous healing properties. Restores health, stamina, warmth, hunger, and thirst.", ItemCategory::Tool)
