@@ -1,23 +1,25 @@
 import { AnimalCorpse as SpacetimeDBAnimalCorpse } from '../../generated';
 import { imageManager } from './imageManager';
 
-// Import sprite sheets (same as wildAnimalRenderingUtils)
-import walrusWalkingSheet from '../../assets/walrus_walking.png';
-import foxWalkingSheet from '../../assets/fox_walking.png';
+// Import legacy 3x3 sprite sheets (for crab, vole, snake - no release available)
 import crabWalkingSheet from '../../assets/crab_walking.png';
-import tundraWolfWalkingSheet from '../../assets/tundra_wolf_walking.png';
 import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
-import ternWalkingSheet from '../../assets/tern_walking.png';
-import crowWalkingSheet from '../../assets/crow_walking.png';
 import voleWalkingSheet from '../../assets/vole_walking.png';
-import wolverineWalkingSheet from '../../assets/wolverine_walking.png';
-// Import release pattern spritesheets (4x4 layout)
+
+// Import release pattern spritesheets (4x4 layout) - used for most animals
 import foxWalkingAnimatedSheet from '../../assets/fox_walking_release.png';
 import tundraWolfWalkingAnimatedSheet from '../../assets/tundra_wolf_walking_release.png';
 import walrusWalkingAnimatedSheet from '../../assets/walrus_walking_release.png';
 import ternWalkingAnimatedSheet from '../../assets/tern_walking_release.png';
+import wolverineWalkingAnimatedSheet from '../../assets/wolverine_walking_release.png';
 import caribouWalkingAnimatedSheet from '../../assets/caribou_walking_release.png';
 import salmonSharkWalkingAnimatedSheet from '../../assets/salmon_shark_walking_release.png';
+// Alpine animals (4x4 release pattern)
+import polarBearWalkingAnimatedSheet from '../../assets/polar_bear_walking_release.png';
+import hareWalkingAnimatedSheet from '../../assets/hare_walking_release.png';
+import snowyOwlWalkingAnimatedSheet from '../../assets/owl_walking_release.png';
+// Crow (4x4 release pattern)
+import crowWalkingAnimatedSheet from '../../assets/crow_walking_release.png';
 
 // Sprite sheet configuration for 3x3 sheets (legacy pattern)
 const SPRITE_SHEET_CONFIG_3X3 = {
@@ -55,35 +57,47 @@ export const ANIMAL_CORPSE_HEIGHT = 96; // Height for interaction indicators
 export const ANIMAL_CORPSE_COLLISION_RADIUS = 16; // From server-side constant
 
 // Map species to their sprite sheets
-// Animals using 4x4 release pattern: CinderFox, TundraWolf, ArcticWalrus, Tern, Caribou
-// Animals using 3x3 pattern: CableViper, BeachCrab, Crow, Vole, Wolverine
+// Animals using 4x4 release pattern: Most animals (fox, wolf, walrus, tern, wolverine, caribou, shark, crow, alpine animals)
+// Animals using 3x3 pattern: CableViper (snake), BeachCrab (crab), Vole
 const speciesSpriteSheets: Record<string, string> = {
-    'CinderFox': foxWalkingAnimatedSheet, // 4x4 release pattern
-    'TundraWolf': tundraWolfWalkingAnimatedSheet, // 4x4 release pattern
-    'CableViper': cableViperWalkingSheet, // 3x3 pattern
-    'ArcticWalrus': walrusWalkingAnimatedSheet, // 4x4 release pattern
-    'BeachCrab': crabWalkingSheet, // 3x3 pattern
-    'Tern': ternWalkingAnimatedSheet, // 4x4 release pattern
-    'Crow': crowWalkingSheet, // 3x3 pattern
-    'Vole': voleWalkingSheet, // 3x3 pattern
-    'Wolverine': wolverineWalkingSheet, // 3x3 pattern
-    'Caribou': caribouWalkingAnimatedSheet, // 4x4 release pattern
-    'SalmonShark': salmonSharkWalkingAnimatedSheet, // 4x4 release pattern (256x256 frames)
+    // 4x4 release pattern animals
+    'CinderFox': foxWalkingAnimatedSheet,
+    'TundraWolf': tundraWolfWalkingAnimatedSheet,
+    'ArcticWalrus': walrusWalkingAnimatedSheet,
+    'Tern': ternWalkingAnimatedSheet,
+    'Wolverine': wolverineWalkingAnimatedSheet,
+    'Caribou': caribouWalkingAnimatedSheet,
+    'SalmonShark': salmonSharkWalkingAnimatedSheet, // 256x256 frames
+    'Crow': crowWalkingAnimatedSheet,
+    // Alpine animals (4x4 release pattern)
+    'PolarBear': polarBearWalkingAnimatedSheet,
+    'Hare': hareWalkingAnimatedSheet,
+    'SnowyOwl': snowyOwlWalkingAnimatedSheet,
+    // 3x3 legacy pattern (crab, vole, snake - no release spritesheets)
+    'CableViper': cableViperWalkingSheet,
+    'BeachCrab': crabWalkingSheet,
+    'Vole': voleWalkingSheet,
 };
 
 // Track which species use 4x4 release pattern
 const usesReleasePattern: Record<string, boolean> = {
+    // 4x4 release pattern
     'CinderFox': true,
     'TundraWolf': true,
     'ArcticWalrus': true,
     'Tern': true,
+    'Wolverine': true,
     'Caribou': true,
-    'SalmonShark': true, // 4x4 release pattern (256x256 frames, 1024x1024 sheet)
+    'SalmonShark': true, // 256x256 frames, 1024x1024 sheet
+    'Crow': true,
+    // Alpine animals (4x4 release pattern)
+    'PolarBear': true,
+    'Hare': true,
+    'SnowyOwl': true,
+    // 3x3 legacy pattern
     'CableViper': false,
     'BeachCrab': false,
-    'Crow': false,
     'Vole': false,
-    'Wolverine': false,
 };
 
 // Special large frame config for SalmonShark (256x256 frames instead of 80x80)
@@ -119,6 +133,13 @@ function getCorpseRenderSize(species: any): { width: number; height: number } {
             return { width: 128, height: 128 }; // Large herd herbivore
         case 'SalmonShark':
             return { width: 160, height: 160 }; // Large aquatic predator
+        // Alpine animals
+        case 'PolarBear':
+            return { width: 160, height: 160 }; // Massive apex predator
+        case 'Hare':
+            return { width: 80, height: 80 }; // Small fast prey animal
+        case 'SnowyOwl':
+            return { width: 96, height: 96 }; // Medium aggressive flying bird
         default:
             return { width: 96, height: 96 };
     }
@@ -126,18 +147,15 @@ function getCorpseRenderSize(species: any): { width: number; height: number } {
 
 // Helper function to get sprite sheet for animal corpse
 function getCorpseSpriteSheet(species: any): string {
-    return speciesSpriteSheets[species.tag] || foxWalkingSheet;
+    return speciesSpriteSheets[species.tag] || foxWalkingAnimatedSheet;
 }
 
 // Preload animal corpse images using imageManager
 export const preloadAnimalCorpseImages = () => {
-    // Preload all sprite sheets
+    // Preload all sprite sheets (includes all release and legacy sheets)
     Object.values(speciesSpriteSheets).forEach(sheet => {
         imageManager.preloadImage(sheet);
     });
-    // Also preload release pattern sheets explicitly
-    imageManager.preloadImage(caribouWalkingAnimatedSheet);
-    imageManager.preloadImage(salmonSharkWalkingAnimatedSheet);
 };
 
 /**

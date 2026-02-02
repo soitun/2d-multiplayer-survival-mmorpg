@@ -65,6 +65,11 @@ import foxFurIcon from '../assets/items/fox_fur.png';
 import wolfFurIcon from '../assets/items/wolf_fur.png';
 import viperScaleIcon from '../assets/items/viper_scale.png';
 
+// Bird feathers
+import ternFeathersIcon from '../assets/items/tern_feathers.png';
+import crowFeathersIcon from '../assets/items/crow_feathers.png';
+import owlFeathersIcon from '../assets/items/owl_feathers.png';
+
 // Technological materials
 import memoryShardIcon from '../assets/items/memory_shard.png';
 
@@ -136,6 +141,10 @@ import viperSkullIcon from '../assets/items/viper_skull.png';
 import walrusSkullIcon from '../assets/items/walrus_skull.png';
 import voleSkullIcon from '../assets/items/vole_skull.png';
 import wolverineSkullIcon from '../assets/items/wolverine_skull.png';
+// Alpine animal skulls
+import polarBearSkullIcon from '../assets/items/polar_bear_skull.png';
+import hareSkullIcon from '../assets/items/hare_skull.png';
+import owlSkullIcon from '../assets/items/owl_skull.png';
 
 // Utility melee weapons
 import kayakPaddleIcon from '../assets/items/kayak_paddle.png';
@@ -352,6 +361,13 @@ import rawWolverineMeatIcon from '../assets/items/wolverine_meat.png';
 import cookedWolverineMeatIcon from '../assets/items/cooked_wolverine_meat.png';
 import rawCaribouMeatIcon from '../assets/items/caribou_meat.png';
 import cookedCaribouMeatIcon from '../assets/items/cooked_caribou_meat.png';
+// Alpine and missing animal meats (bear meat icons already exist above)
+import rawWalrusMeatIcon from '../assets/items/walrus_meat.png';
+import cookedWalrusMeatIcon from '../assets/items/cooked_walrus_meat.png';
+import rawHareMeatIcon from '../assets/items/hare_meat.png';
+import cookedHareMeatIcon from '../assets/items/cooked_hare_meat.png';
+import rawOwlMeatIcon from '../assets/items/owl_meat.png';
+import cookedOwlMeatIcon from '../assets/items/cooked_owl_meat.png';
 
 // Fish - Raw fish icons
 import rawTwigfishIcon from '../assets/items/raw_twigfish.png';
@@ -615,6 +631,11 @@ const iconMap: { [key: string]: string | undefined } = {
   'wolf_fur.png': wolfFurIcon,
   'viper_scale.png': viperScaleIcon,
 
+  // Bird feathers
+  'tern_feathers.png': ternFeathersIcon,
+  'crow_feathers.png': crowFeathersIcon,
+  'owl_feathers.png': owlFeathersIcon,
+
   // Technological materials
   'memory_shard.png': memoryShardIcon,
 
@@ -685,6 +706,10 @@ const iconMap: { [key: string]: string | undefined } = {
   'walrus_skull.png': walrusSkullIcon,
   'vole_skull.png': voleSkullIcon,
   'wolverine_skull.png': wolverineSkullIcon,
+  // Alpine animal skulls
+  'polar_bear_skull.png': polarBearSkullIcon,
+  'hare_skull.png': hareSkullIcon,
+  'owl_skull.png': owlSkullIcon,
   
   // Utility melee weapons
   'kayak_paddle.png': kayakPaddleIcon,
@@ -898,6 +923,13 @@ const iconMap: { [key: string]: string | undefined } = {
   'cooked_wolverine_meat.png': cookedWolverineMeatIcon,
   'caribou_meat.png': rawCaribouMeatIcon,
   'cooked_caribou_meat.png': cookedCaribouMeatIcon,
+  // Alpine and missing animal meats (bear meat already mapped above)
+  'walrus_meat.png': rawWalrusMeatIcon,
+  'cooked_walrus_meat.png': cookedWalrusMeatIcon,
+  'hare_meat.png': rawHareMeatIcon,
+  'cooked_hare_meat.png': cookedHareMeatIcon,
+  'owl_meat.png': rawOwlMeatIcon,
+  'cooked_owl_meat.png': cookedOwlMeatIcon,
   
   // Fish - Raw fish
   'raw_twigfish.png': rawTwigfishIcon,

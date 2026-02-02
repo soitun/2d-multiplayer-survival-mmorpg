@@ -44,7 +44,10 @@ export type AnimalSpecies = AnimalSpeciesVariants.CinderFox |
   AnimalSpeciesVariants.Shorebound |
   AnimalSpeciesVariants.Shardkin |
   AnimalSpeciesVariants.DrownedWatch |
-  AnimalSpeciesVariants.Bee;
+  AnimalSpeciesVariants.Bee |
+  AnimalSpeciesVariants.PolarBear |
+  AnimalSpeciesVariants.Hare |
+  AnimalSpeciesVariants.SnowyOwl;
 
 let _cached_AnimalSpecies_type_value: __AlgebraicTypeType | null = null;
 
@@ -71,6 +74,9 @@ export const AnimalSpecies = {
   Shardkin: { tag: "Shardkin" } as const,
   DrownedWatch: { tag: "DrownedWatch" } as const,
   Bee: { tag: "Bee" } as const,
+  PolarBear: { tag: "PolarBear" } as const,
+  Hare: { tag: "Hare" } as const,
+  SnowyOwl: { tag: "SnowyOwl" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_AnimalSpecies_type_value) return _cached_AnimalSpecies_type_value;
@@ -91,6 +97,9 @@ export const AnimalSpecies = {
       { name: "Shardkin", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DrownedWatch", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Bee", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PolarBear", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Hare", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SnowyOwl", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_AnimalSpecies_type_value;
   },

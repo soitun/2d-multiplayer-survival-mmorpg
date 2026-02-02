@@ -25,6 +25,10 @@ export const ANIMAL_COLLISION_SIZES = {
   Shardkin: { width: 56, height: 48 }, // Small swarmer
   DrownedWatch: { width: 160, height: 128 }, // Massive brute
   Bee: { width: 0, height: 0 }, // No collision - tiny flying insect
+  // Alpine animals
+  PolarBear: { width: 128, height: 96 }, // Massive apex predator
+  Hare: { width: 48, height: 40 }, // Small fast prey animal
+  SnowyOwl: { width: 64, height: 56 }, // Medium aggressive flying bird
 } as const;
 
 // Default collision size for unknown species

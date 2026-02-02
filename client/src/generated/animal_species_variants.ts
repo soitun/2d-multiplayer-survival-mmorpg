@@ -43,4 +43,7 @@ export type Shorebound = { tag: "Shorebound" };
 export type Shardkin = { tag: "Shardkin" };
 export type DrownedWatch = { tag: "DrownedWatch" };
 export type Bee = { tag: "Bee" };
+export type PolarBear = { tag: "PolarBear" };
+export type Hare = { tag: "Hare" };
+export type SnowyOwl = { tag: "SnowyOwl" };
 

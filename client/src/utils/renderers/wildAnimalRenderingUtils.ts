@@ -25,15 +25,22 @@ import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
 import ternWalkingSheet from '../../assets/tern_walking.png';
 import ternWalkingAnimatedSheet from '../../assets/tern_walking_release.png'; // NEW: 4x4 animated spritesheet
 import crowWalkingSheet from '../../assets/crow_walking.png';
+import crowWalkingAnimatedSheet from '../../assets/crow_walking_release.png'; // NEW: 4x4 animated spritesheet
 import voleWalkingSheet from '../../assets/vole_walking.png';
 import wolverineWalkingSheet from '../../assets/wolverine_walking.png';
 import wolverineWalkingAnimatedSheet from '../../assets/wolverine_walking_release.png'; // NEW: 4x4 animated spritesheet
 import caribouWalkingAnimatedSheet from '../../assets/caribou_walking_release.png'; // NEW: 4x4 animated spritesheet
 import salmonSharkWalkingAnimatedSheet from '../../assets/salmon_shark_walking_release.png'; // NEW: 4x4 animated spritesheet (aquatic predator)
+// Alpine animal sprite sheets
+import polarBearWalkingAnimatedSheet from '../../assets/polar_bear_walking_release.png'; // Alpine apex predator
+import hareWalkingAnimatedSheet from '../../assets/hare_walking_release.png'; // Alpine prey animal
+import snowyOwlWalkingAnimatedSheet from '../../assets/owl_walking_release.png'; // Alpine flying predator (grounded)
+import snowyOwlFlyingAnimatedSheet from '../../assets/owl_flying_release.png'; // Alpine flying predator (flying)
 // Flying sprite sheets for birds
 import ternFlyingSheet from '../../assets/tern_flying.png';
 import ternFlyingAnimatedSheet from '../../assets/tern_flying_release.png'; // NEW: 4x4 animated flying spritesheet
 import crowFlyingSheet from '../../assets/crow_flying.png';
+import crowFlyingAnimatedSheet from '../../assets/crow_flying_release.png'; // NEW: 4x4 animated flying spritesheet
 // Night hostile NPC sprite sheets
 import shoreboundWalkingSheet from '../../assets/shorebound_walking.png';
 import shoreboundWalkingAnimatedSheet from '../../assets/shorebound_walking_release.png'; // NEW: 6x4 animated spritesheet
@@ -145,6 +152,18 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         rows: 4,           // 4 directions
     },
 
+    // CROW - Inland scavenger bird (4x4 layout: 4 frames × 4 directions)
+    // Artist spec: 80x80 per frame → 320x320 total sheet
+    // Renders at: 104x104 (1.3x scale) - medium-sized bird, slightly larger than tern
+    'Crow': {
+        sheetWidth: 320,   // 80px × 4 frames
+        sheetHeight: 320,  // 80px × 4 rows
+        frameWidth: 80,
+        frameHeight: 80,
+        cols: 4,           // 4 animation frames
+        rows: 4,           // 4 directions
+    },
+
     // CARIBOU - Large herd herbivore (4x4 layout: 4 frames × 4 directions)
     // Artist spec: 80x80 per frame → 320x320 total sheet
     // Renders at: 128x128 (1.6x scale) - large animal
@@ -179,6 +198,47 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         sheetHeight: 320,  // Total sheet height
         frameWidth: 80,    // Frame width (320 / 4 = 80)
         frameHeight: 80,   // Frame height (320 / 4 = 80)
+        cols: 4,           // 4 animation frames
+        rows: 4,           // 4 directions
+    },
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ALPINE ANIMAL ANIMATED SPRITESHEETS (4x4 layout: 4 frames × 4 directions)
+    // Row order: Down, Right, Left, Up (same as player)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // POLARBEAR - Massive alpine apex predator (4x4 layout: 4 frames × 4 directions)
+    // Artist spec: 80x80 per frame → 320x320 total sheet
+    // Renders at: 160x160 (2x scale) - very large predator
+    'PolarBear': {
+        sheetWidth: 320,   // 80px × 4 frames
+        sheetHeight: 320,  // 80px × 4 rows
+        frameWidth: 80,
+        frameHeight: 80,
+        cols: 4,           // 4 animation frames
+        rows: 4,           // 4 directions
+    },
+
+    // HARE - Fast alpine prey animal (4x4 layout: 4 frames × 4 directions)
+    // Artist spec: 80x80 per frame → 320x320 total sheet
+    // Renders at: 80x80 (1x scale) - small prey animal
+    'Hare': {
+        sheetWidth: 320,   // 80px × 4 frames
+        sheetHeight: 320,  // 80px × 4 rows
+        frameWidth: 80,
+        frameHeight: 80,
+        cols: 4,           // 4 animation frames
+        rows: 4,           // 4 directions
+    },
+
+    // SNOWYOWL - Alpine aggressive flying predator (4x4 layout: 4 frames × 4 directions)
+    // Artist spec: 80x80 per frame → 320x320 total sheet
+    // Renders at: 96x96 (1.2x scale) - medium bird
+    'SnowyOwl': {
+        sheetWidth: 320,   // 80px × 4 frames
+        sheetHeight: 320,  // 80px × 4 rows
+        frameWidth: 80,
+        frameHeight: 80,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
@@ -264,7 +324,7 @@ const speciesSpriteSheets: Record<string, string> = {
     'ArcticWalrus': walrusWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'BeachCrab': crabWalkingSheet,
     'Tern': ternWalkingAnimatedSheet, // Use animated 4x4 spritesheet
-    'Crow': crowWalkingSheet,
+    'Crow': crowWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'Vole': voleWalkingSheet,
     'Wolverine': wolverineWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'Caribou': caribouWalkingAnimatedSheet, // Use animated 4x4 spritesheet
@@ -273,12 +333,17 @@ const speciesSpriteSheets: Record<string, string> = {
     'Shorebound': shoreboundWalkingAnimatedSheet, // NEW: Use animated 6x4 spritesheet
     'Shardkin': shardkinWalkingAnimatedSheet, // NEW: Use animated 6x4 spritesheet
     'DrownedWatch': drownedWatchWalkingSheet,
+    // Alpine animals
+    'PolarBear': polarBearWalkingAnimatedSheet, // Alpine apex predator
+    'Hare': hareWalkingAnimatedSheet, // Alpine prey animal
+    'SnowyOwl': snowyOwlWalkingAnimatedSheet, // Alpine flying predator (grounded)
 };
 
 // Map species to their flying sprite sheets (for birds when in flight)
 const speciesFlyingSpriteSheets: Record<string, string> = {
     'Tern': ternFlyingAnimatedSheet, // Use animated 4x4 flying spritesheet
-    'Crow': crowFlyingSheet,
+    'Crow': crowFlyingAnimatedSheet, // Use animated 4x4 flying spritesheet
+    'SnowyOwl': snowyOwlFlyingAnimatedSheet, // Alpine flying predator
 };
 
 // --- Constants for damage visual effects ---
@@ -676,6 +741,18 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
             // Tiny insect - just a small black dot, no shadow
             // Rendered as a simple circle, not a spritesheet
             return { width: 6, height: 6, shadowRadius: 0 };
+        // ═══════════════════════════════════════════════════════════════════════
+        // ALPINE ANIMALS
+        // ═══════════════════════════════════════════════════════════════════════
+        case 'PolarBear':
+            // Polar bears are massive apex predators - largest land animal
+            return { width: 160, height: 160, shadowRadius: 48 };
+        case 'Hare':
+            // Hares are small fast prey animals
+            return { width: 80, height: 80, shadowRadius: 20 };
+        case 'SnowyOwl':
+            // Snowy owls are medium-sized aggressive flying predators
+            return { width: 96, height: 96, shadowRadius: 28 };
         default:
             return { width: 96, height: 96, shadowRadius: 32 };
     }
@@ -1297,6 +1374,7 @@ export function preloadWildAnimalImages(): void {
         ternWalkingSheet,
         ternWalkingAnimatedSheet, // NEW: Animated 4x4 tern walking spritesheet
         crowWalkingSheet,
+        crowWalkingAnimatedSheet, // NEW: Animated 4x4 crow walking spritesheet
         voleWalkingSheet,
         wolverineWalkingSheet,
         wolverineWalkingAnimatedSheet, // NEW: Animated 4x4 wolverine spritesheet
@@ -1306,6 +1384,10 @@ export function preloadWildAnimalImages(): void {
         shoreboundWalkingAnimatedSheet, // Use animated spritesheet for Shorebound
         shardkinWalkingAnimatedSheet, // Use animated spritesheet for Shardkin
         drownedWatchWalkingSheet,
+        // Alpine animals
+        polarBearWalkingAnimatedSheet, // Alpine apex predator
+        hareWalkingAnimatedSheet, // Alpine prey animal
+        snowyOwlWalkingAnimatedSheet, // Alpine flying predator (grounded)
     ];
 
     // Flying sprite sheets for birds
@@ -1313,6 +1395,8 @@ export function preloadWildAnimalImages(): void {
         ternFlyingSheet,
         ternFlyingAnimatedSheet, // NEW: Animated 4x4 tern flying spritesheet
         crowFlyingSheet,
+        crowFlyingAnimatedSheet, // NEW: Animated 4x4 crow flying spritesheet
+        snowyOwlFlyingAnimatedSheet, // Alpine flying predator (flying)
     ];
 
     // Preload all sprite sheets
