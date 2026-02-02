@@ -12,97 +12,67 @@ interface RenderCloudsParams {
   cameraOffsetY: number;
 }
 
+// Pre-computed constants
+const DEG_TO_RAD = Math.PI / 180;
+const CLOUD_SIZE_MULTIPLIER = 1.5;
+
+// Cache for cloud image name extraction (avoid regex in hot path)
+const cloudImageNameCache = new Map<string, string>();
+
+function getCloudImageName(shapeTag: string): string {
+  let cached = cloudImageNameCache.get(shapeTag);
+  if (cached) return cached;
+  
+  // Extract number from shape.tag (e.g., "CloudImage1" -> "cloud1.png")
+  const match = shapeTag.match(/(\d+)$/);
+  cached = match && match[1] ? `cloud${match[1]}.png` : 'cloud1.png';
+  cloudImageNameCache.set(shapeTag, cached);
+  return cached;
+}
+
 export function renderCloudsDirectly({ ctx, clouds, cloudImages, worldScale }: RenderCloudsParams): void {
-  if (!clouds || clouds.size === 0) {
-    // console.log("[renderCloudsDirectly] No clouds data to render."); // Keep logs minimal unless debugging
-    return;
-  }
+  if (!clouds || clouds.size === 0) return;
   if (!cloudImages || cloudImages.size === 0) {
     console.warn("[renderCloudsDirectly] No cloudImages map or it is empty.");
     return;
   }
+
+  // Pre-compute scale factor
+  const scaledMultiplier = worldScale * CLOUD_SIZE_MULTIPLIER;
   
-  const DEBUG_CLOUDS = false; // ENABLED FOR DIAGNOSIS
-
-  if (DEBUG_CLOUDS) {
-    console.log(`[renderCloudsDirectly] Attempting to render ${clouds.size} clouds. Images available in map: ${cloudImages.size}. Keys: ${Array.from(cloudImages.keys()).join(', ')}`);
-  }
-
-  const cloudSizeMultiplier = 1.5; // Added: Make clouds 50% larger
-
+  // Use forEach with arrow function - Map.forEach is well-optimized
   clouds.forEach(cloud => {
-    // Destructure from InterpolatedCloudData - uses currentRenderPosX/Y
-    const { id, currentRenderPosX, currentRenderPosY, width, height, rotationDegrees, currentOpacity, blurStrength, shape } = cloud;
+    const { currentRenderPosX, currentRenderPosY, width, height, rotationDegrees, currentOpacity, blurStrength, shape } = cloud;
 
-    if (DEBUG_CLOUDS) {
-      console.log(`[renderCloudsDirectly] Processing Cloud ID: ${id}, Shape Tag from data: '${shape.tag}'`);
-    }
-
-    // Corrected imageName generation: Extract number from shape.tag and append .png
-    // Assumes shape.tag is like "CloudImage1", "CloudImage2", etc.
-    const match = shape.tag.match(/(\d+)$/);
-    let imageName = 'cloud1.png'; // Default fallback, though should ideally always match
-    if (match && match[1]) {
-      imageName = `cloud${match[1]}.png`;
-    }
-    
-    if (DEBUG_CLOUDS) {
-      console.log(`[renderCloudsDirectly] Cloud ID: ${id}, Generated imageName to lookup: '${imageName}'`);
-    }
-
+    // Use cached image name lookup
+    const imageName = getCloudImageName(shape.tag);
     const cloudImage = cloudImages.get(imageName);
 
-    if (!cloudImage) {
-      if (DEBUG_CLOUDS) console.warn(`[renderCloudsDirectly] Cloud ID: ${id}, Image NOT FOUND for shape.tag: '${shape.tag}' (tried to get '${imageName}')`);
-      return; // Skip if image not loaded/found
-    }
-    if (DEBUG_CLOUDS) {
-      console.log(`[renderCloudsDirectly] Cloud ID: ${id}, Image FOUND for '${imageName}'. Dimensions: ${cloudImage.width}x${cloudImage.height}`);
-    }
+    if (!cloudImage) return; // Skip if image not loaded/found
 
-    // Use currentRenderPosX and currentRenderPosY for positioning
-    const worldCloudCenterX = currentRenderPosX;
-    const worldCloudCenterY = currentRenderPosY;
-    const renderWidth = width * worldScale * cloudSizeMultiplier;
-    const renderHeight = height * worldScale * cloudSizeMultiplier;
-
-    if (DEBUG_CLOUDS) {
-      console.log(
-          `[renderCloudsDirectly] Cloud ID: ${id}, `, 
-          `WorldPos=(${worldCloudCenterX.toFixed(1)}, ${worldCloudCenterY.toFixed(1)}), `, 
-          `RenderSize=(${renderWidth.toFixed(1)}x${renderHeight.toFixed(1)}), Opacity: ${currentOpacity}, Blur: ${blurStrength}`
-      );
-    }
+    // Pre-compute values
+    const renderWidth = width * scaledMultiplier;
+    const renderHeight = height * scaledMultiplier;
+    const halfWidth = renderWidth * 0.5;
+    const halfHeight = renderHeight * 0.5;
 
     ctx.save();
-    // Translate to the cloud's world position (which is already interpolated)
-    // The main canvas context is already translated by cameraOffset, so these world positions work directly.
-    ctx.translate(worldCloudCenterX * worldScale, worldCloudCenterY * worldScale); 
-    ctx.rotate(rotationDegrees * Math.PI / 180);
+    ctx.translate(currentRenderPosX * worldScale, currentRenderPosY * worldScale); 
+    ctx.rotate(rotationDegrees * DEG_TO_RAD);
 
     const darkerOpacity = Math.min(currentOpacity * 1.5, 0.15);
     ctx.globalAlpha = darkerOpacity;
 
-    let currentFilter = 'brightness(0%)';
+    // Only set filter if blur is needed (filter changes are expensive)
     if (blurStrength > 0) {
-      currentFilter += ` blur(${blurStrength * worldScale}px)`;
+      ctx.filter = `brightness(0%) blur(${blurStrength * worldScale}px)`;
+    } else {
+      ctx.filter = 'brightness(0%)';
     }
-    ctx.filter = currentFilter;
     
-    ctx.drawImage(
-      cloudImage,
-      -renderWidth / 2, 
-      -renderHeight / 2, 
-      renderWidth,
-      renderHeight
-    );
-
+    ctx.drawImage(cloudImage, -halfWidth, -halfHeight, renderWidth, renderHeight);
     ctx.restore(); 
   });
-
-  if (DEBUG_CLOUDS && clouds.size > 0) {
-      console.log("[renderCloudsDirectly] Finished cloud rendering loop.");
-  }
 
   ctx.filter = 'none';
   ctx.globalAlpha = 1.0;

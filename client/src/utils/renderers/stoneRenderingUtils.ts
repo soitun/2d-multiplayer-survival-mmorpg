@@ -188,39 +188,51 @@ export function triggerStoneHitEffect(stoneId: string, x: number, y: number, ore
     activeStoneHitEffects.set(effectKey, effect);
 }
 
+// Pre-computed constant
+const TWO_PI = Math.PI * 2;
+
+// Pre-allocated arrays for effect removal (avoid allocation each frame)
+const stoneHitEffectsToRemove: string[] = [];
+
 /**
  * Render stone hit impact effects
+ * OPTIMIZED: Traditional loops, pre-allocated removal array
  */
 export function renderStoneHitEffects(ctx: CanvasRenderingContext2D, nowMs: number): void {
-    const effectsToRemove: string[] = [];
+    if (activeStoneHitEffects.size === 0) return;
+    
+    stoneHitEffectsToRemove.length = 0;
     
     activeStoneHitEffects.forEach((effect, effectKey) => {
         const elapsed = nowMs - effect.startTime;
         const progress = elapsed / effect.duration;
         
         if (progress >= 1) {
-            effectsToRemove.push(effectKey);
+            stoneHitEffectsToRemove.push(effectKey);
             return;
         }
         
-        ctx.save();
+        // Pre-compute fade multiplier
+        const fadeStart = 0.5;
+        const fadeMultiplier = progress > fadeStart 
+            ? (1 - (progress - fadeStart) / (1 - fadeStart))
+            : 1.0;
         
-        // Render particles
-        effect.particles.forEach((particle) => {
+        const particles = effect.particles;
+        const particleCount = particles.length;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = particles[i];
+            
             // Update physics
             particle.vy += particle.gravity;
             particle.x += particle.vx;
             particle.y += particle.vy;
             particle.rotation += particle.rotationSpeed;
-            particle.vx *= 0.98; // Air drag
+            particle.vx *= 0.98;
             
-            // Fade out
-            const fadeStart = 0.5;
-            const particleAlpha = progress > fadeStart 
-                ? particle.alpha * (1 - (progress - fadeStart) / (1 - fadeStart))
-                : particle.alpha;
-            
-            if (particleAlpha < 0.01) return;
+            const particleAlpha = particle.alpha * fadeMultiplier;
+            if (particleAlpha < 0.01) continue;
             
             ctx.save();
             ctx.translate(particle.x, particle.y);
@@ -228,31 +240,35 @@ export function renderStoneHitEffects(ctx: CanvasRenderingContext2D, nowMs: numb
             ctx.globalAlpha = particleAlpha;
             ctx.fillStyle = particle.color;
             
-            // Draw chip shape
-            if (particle.size > 2) {
+            const size = particle.size;
+            
+            if (size > 2) {
                 // Rock chip - irregular polygon
+                const halfSize = size * 0.5;
+                const thirdSize = size / 3;
+                const quarterSize = size * 0.25;
                 ctx.beginPath();
-                ctx.moveTo(-particle.size / 2, 0);
-                ctx.lineTo(0, -particle.size / 2);
-                ctx.lineTo(particle.size / 2, -particle.size / 4);
-                ctx.lineTo(particle.size / 3, particle.size / 2);
-                ctx.lineTo(-particle.size / 3, particle.size / 3);
+                ctx.moveTo(-halfSize, 0);
+                ctx.lineTo(0, -halfSize);
+                ctx.lineTo(halfSize, -quarterSize);
+                ctx.lineTo(thirdSize, halfSize);
+                ctx.lineTo(-thirdSize, thirdSize);
                 ctx.closePath();
                 ctx.fill();
             } else {
                 // Spark - small circle
                 ctx.beginPath();
-                ctx.arc(0, 0, particle.size, 0, Math.PI * 2);
+                ctx.arc(0, 0, size, 0, TWO_PI);
                 ctx.fill();
             }
             
             ctx.restore();
-        });
-        
-        ctx.restore();
+        }
     });
     
-    effectsToRemove.forEach(key => activeStoneHitEffects.delete(key));
+    for (let i = 0; i < stoneHitEffectsToRemove.length; i++) {
+        activeStoneHitEffects.delete(stoneHitEffectsToRemove[i]);
+    }
 }
 
 // Color palettes for different ore types (AAA pixel art style)
@@ -438,59 +454,79 @@ export function triggerStoneDestructionEffect(
     activeStoneDestructions.set(stoneId, effect);
 }
 
+// Pre-allocated array for destruction effects removal
+const stoneDestructionEffectsToRemove: string[] = [];
+
 /**
  * Render stone destruction effects - AAA pixel art quality
+ * OPTIMIZED: Traditional loops, pre-allocated arrays, reduced string operations
  */
 export function renderStoneDestructionEffects(
     ctx: CanvasRenderingContext2D,
     nowMs: number
 ): void {
-    const effectsToRemove: string[] = [];
+    if (activeStoneDestructions.size === 0) return;
+    
+    stoneDestructionEffectsToRemove.length = 0;
     
     activeStoneDestructions.forEach((effect, stoneId) => {
         const elapsed = nowMs - effect.startTime;
         const progress = elapsed / effect.duration;
         
         if (progress >= 1) {
-            effectsToRemove.push(stoneId);
+            stoneDestructionEffectsToRemove.push(stoneId);
             return;
         }
         
-        ctx.save();
+        const groundY = effect.y + 5;
         
         // === PHASE 1: DUST CLOUD (first 80%) ===
         if (progress < 0.8) {
             const dustProgress = progress / 0.8;
             const dustFade = 1 - Math.pow(dustProgress, 0.6);
+            const dustAlphaMultiplier = dustFade * (1 - dustProgress * 0.4);
             
-            effect.dust.forEach((dust) => {
+            const dustParticles = effect.dust;
+            const dustCount = dustParticles.length;
+            
+            for (let i = 0; i < dustCount; i++) {
+                const dust = dustParticles[i];
+                
                 dust.x += dust.vx;
                 dust.y += dust.vy;
                 dust.size += dust.expandRate;
                 dust.vy *= 0.97;
                 
-                const dustAlpha = dust.alpha * dustFade * (1 - dustProgress * 0.4);
+                const dustAlpha = dust.alpha * dustAlphaMultiplier;
                 if (dustAlpha > 0.01) {
                     const gradient = ctx.createRadialGradient(
                         dust.x, dust.y, 0,
                         dust.x, dust.y, dust.size
                     );
-                    gradient.addColorStop(0, dust.color.replace(/[\d.]+\)$/, `${dustAlpha * 0.7})`));
-                    gradient.addColorStop(0.5, dust.color.replace(/[\d.]+\)$/, `${dustAlpha * 0.4})`));
+                    // Pre-compute alpha values to avoid string replacement
+                    const alpha07 = dustAlpha * 0.7;
+                    const alpha04 = dustAlpha * 0.4;
+                    gradient.addColorStop(0, dust.color.replace(/[\d.]+\)$/, `${alpha07})`));
+                    gradient.addColorStop(0.5, dust.color.replace(/[\d.]+\)$/, `${alpha04})`));
                     gradient.addColorStop(1, dust.color.replace(/[\d.]+\)$/, '0)'));
                     
                     ctx.fillStyle = gradient;
                     ctx.beginPath();
-                    ctx.arc(dust.x, dust.y, dust.size, 0, Math.PI * 2);
+                    ctx.arc(dust.x, dust.y, dust.size, 0, TWO_PI);
                     ctx.fill();
                 }
-            });
+            }
         }
         
         // === PHASE 2: DEBRIS PARTICLES (full animation) ===
         const debrisFade = progress > 0.6 ? 1 - ((progress - 0.6) / 0.4) : 1;
         
-        effect.debris.forEach((particle) => {
+        const debrisParticles = effect.debris;
+        const debrisCount = debrisParticles.length;
+        
+        for (let i = 0; i < debrisCount; i++) {
+            const particle = debrisParticles[i];
+            
             // Physics update
             particle.vy += particle.gravity;
             particle.x += particle.vx;
@@ -499,21 +535,22 @@ export function renderStoneDestructionEffects(
             particle.vx *= 0.98;
             
             // Ground bounce
-            const groundY = effect.y + 5;
-            if (particle.y > groundY && particle.bounceCount < particle.maxBounces) {
-                particle.y = groundY;
-                particle.vy = -particle.vy * 0.35;
-                particle.vx *= 0.6;
-                particle.bounceCount++;
-                particle.rotationSpeed *= 0.4;
-            } else if (particle.y > groundY) {
-                particle.y = groundY;
-                particle.vy = 0;
-                particle.vx *= 0.92;
+            if (particle.y > groundY) {
+                if (particle.bounceCount < particle.maxBounces) {
+                    particle.y = groundY;
+                    particle.vy = -particle.vy * 0.35;
+                    particle.vx *= 0.6;
+                    particle.bounceCount++;
+                    particle.rotationSpeed *= 0.4;
+                } else {
+                    particle.y = groundY;
+                    particle.vy = 0;
+                    particle.vx *= 0.92;
+                }
             }
             
             const particleAlpha = particle.alpha * debrisFade;
-            if (particleAlpha < 0.05) return;
+            if (particleAlpha < 0.05) continue;
             
             ctx.save();
             ctx.translate(particle.x, particle.y);
@@ -521,48 +558,49 @@ export function renderStoneDestructionEffects(
             ctx.globalAlpha = particleAlpha;
             ctx.fillStyle = particle.color;
             
+            const size = particle.size;
+            const halfSize = size * 0.5;
+            const thirdSize = size / 3;
+            const quarterSize = size * 0.25;
+            
             switch (particle.type) {
                 case 'rock_chunk':
-                    // Irregular polygon chunk
                     ctx.beginPath();
-                    ctx.moveTo(-particle.size / 2, -particle.size / 3);
-                    ctx.lineTo(particle.size / 3, -particle.size / 2);
-                    ctx.lineTo(particle.size / 2, particle.size / 4);
-                    ctx.lineTo(-particle.size / 4, particle.size / 2);
+                    ctx.moveTo(-halfSize, -thirdSize);
+                    ctx.lineTo(thirdSize, -halfSize);
+                    ctx.lineTo(halfSize, quarterSize);
+                    ctx.lineTo(-quarterSize, halfSize);
                     ctx.closePath();
                     ctx.fill();
                     break;
                     
                 case 'rock_shard':
-                    // Sharp triangular shard
                     ctx.beginPath();
-                    ctx.moveTo(0, -particle.size);
-                    ctx.lineTo(particle.size / 2, particle.size / 2);
-                    ctx.lineTo(-particle.size / 2, particle.size / 2);
+                    ctx.moveTo(0, -size);
+                    ctx.lineTo(halfSize, halfSize);
+                    ctx.lineTo(-halfSize, halfSize);
                     ctx.closePath();
                     ctx.fill();
                     break;
                     
                 case 'dust':
-                    // Small soft circle
                     ctx.beginPath();
-                    ctx.arc(0, 0, particle.size, 0, Math.PI * 2);
+                    ctx.arc(0, 0, size, 0, TWO_PI);
                     ctx.fill();
                     break;
                     
                 case 'spark':
-                    // Bright small dot with glow
                     ctx.shadowColor = particle.color;
                     ctx.shadowBlur = 4;
                     ctx.beginPath();
-                    ctx.arc(0, 0, particle.size, 0, Math.PI * 2);
+                    ctx.arc(0, 0, size, 0, TWO_PI);
                     ctx.fill();
                     ctx.shadowBlur = 0;
                     break;
             }
             
             ctx.restore();
-        });
+        }
         
         // === PHASE 3: IMPACT BURST (first 15%) ===
         if (progress < 0.15) {
@@ -573,14 +611,14 @@ export function renderStoneDestructionEffects(
             ctx.strokeStyle = `rgba(255, 255, 255, ${burstAlpha})`;
             ctx.lineWidth = 3 - burstProgress * 2;
             ctx.beginPath();
-            ctx.arc(effect.x, effect.y - 20, burstRadius, 0, Math.PI * 2);
+            ctx.arc(effect.x, effect.y - 20, burstRadius, 0, TWO_PI);
             ctx.stroke();
         }
-        
-        ctx.restore();
     });
     
-    effectsToRemove.forEach(id => activeStoneDestructions.delete(id));
+    for (let i = 0; i < stoneDestructionEffectsToRemove.length; i++) {
+        activeStoneDestructions.delete(stoneDestructionEffectsToRemove[i]);
+    }
 }
 
 /**

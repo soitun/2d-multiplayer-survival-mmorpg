@@ -387,24 +387,42 @@ export function triggerTreeHitEffect(treeId: string, x: number, y: number): void
     activeTreeHitEffects.set(effectKey, effect);
 }
 
+// Pre-computed constants for tree effects
+const TWO_PI = Math.PI * 2;
+
+// Pre-allocated array for keys to remove (avoids allocation each frame)
+const treeHitEffectsToRemove: string[] = [];
+
 /**
  * Render tree hit effects
+ * OPTIMIZED: Traditional loops, pre-allocated removal array, reduced save/restore
  */
 export function renderTreeHitEffects(ctx: CanvasRenderingContext2D, nowMs: number): void {
-    const effectsToRemove: string[] = [];
+    if (activeTreeHitEffects.size === 0) return;
+    
+    treeHitEffectsToRemove.length = 0;
     
     activeTreeHitEffects.forEach((effect, effectKey) => {
         const elapsed = nowMs - effect.startTime;
         const progress = elapsed / effect.duration;
         
         if (progress >= 1) {
-            effectsToRemove.push(effectKey);
+            treeHitEffectsToRemove.push(effectKey);
             return;
         }
         
-        ctx.save();
+        // Pre-compute fade values
+        const fadeStart = 0.5;
+        const fadeMultiplier = progress > fadeStart 
+            ? (1 - (progress - fadeStart) / (1 - fadeStart))
+            : 1.0;
         
-        effect.particles.forEach((particle) => {
+        const particles = effect.particles;
+        const particleCount = particles.length;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = particles[i];
+            
             // Update physics
             particle.vy += particle.gravity;
             particle.x += particle.vx;
@@ -419,12 +437,8 @@ export function renderTreeHitEffects(ctx: CanvasRenderingContext2D, nowMs: numbe
             }
             
             // Fade out
-            const fadeStart = 0.5;
-            const particleAlpha = progress > fadeStart
-                ? particle.alpha * (1 - (progress - fadeStart) / (1 - fadeStart))
-                : particle.alpha;
-            
-            if (particleAlpha < 0.01) return;
+            const particleAlpha = particle.alpha * fadeMultiplier;
+            if (particleAlpha < 0.01) continue;
             
             ctx.save();
             ctx.translate(particle.x, particle.y);
@@ -432,38 +446,42 @@ export function renderTreeHitEffects(ctx: CanvasRenderingContext2D, nowMs: numbe
             ctx.globalAlpha = particleAlpha;
             ctx.fillStyle = particle.color;
             
+            const size = particle.size;
+            const halfSize = size * 0.5;
+            const thirdSize = size / 3;
+            const quarterSize = size * 0.25;
+            const sixthSize = size / 6;
+            
             switch (particle.type) {
                 case 'bark':
-                    // Irregular bark chip
                     ctx.beginPath();
-                    ctx.moveTo(-particle.size / 2, -particle.size / 3);
-                    ctx.lineTo(particle.size / 3, -particle.size / 2);
-                    ctx.lineTo(particle.size / 2, particle.size / 4);
-                    ctx.lineTo(-particle.size / 4, particle.size / 2);
+                    ctx.moveTo(-halfSize, -thirdSize);
+                    ctx.lineTo(thirdSize, -halfSize);
+                    ctx.lineTo(halfSize, quarterSize);
+                    ctx.lineTo(-quarterSize, halfSize);
                     ctx.closePath();
                     ctx.fill();
                     break;
                     
                 case 'splinter':
-                    // Long thin wood splinter
-                    ctx.fillRect(-particle.size / 6, -particle.size, particle.size / 3, particle.size * 2);
+                    ctx.fillRect(-sixthSize, -size, thirdSize, size * 2);
                     break;
                     
                 case 'leaf':
-                    // Leaf shape
                     ctx.beginPath();
-                    ctx.ellipse(0, 0, particle.size / 2, particle.size, 0, 0, Math.PI * 2);
+                    ctx.ellipse(0, 0, halfSize, size, 0, 0, TWO_PI);
                     ctx.fill();
                     break;
             }
             
             ctx.restore();
-        });
-        
-        ctx.restore();
+        }
     });
     
-    effectsToRemove.forEach(key => activeTreeHitEffects.delete(key));
+    // Delete completed effects
+    for (let i = 0; i < treeHitEffectsToRemove.length; i++) {
+        activeTreeHitEffects.delete(treeHitEffectsToRemove[i]);
+    }
 }
 
 // ============================================================================
@@ -678,40 +696,51 @@ function checkAndTriggerImpact(
     }
 }
 
+// Pre-allocated array for impact effects removal
+const treeImpactEffectsToRemove: string[] = [];
+
 /**
  * Render tree impact debris effect - AAA pixel art quality
+ * OPTIMIZED: Traditional loops, pre-allocated arrays, reduced ctx state changes
  */
 export function renderTreeImpactEffects(
     ctx: CanvasRenderingContext2D,
     nowMs: number
 ): void {
-    const effectsToRemove: string[] = [];
+    if (activeTreeImpacts.size === 0) return;
+    
+    treeImpactEffectsToRemove.length = 0;
     
     activeTreeImpacts.forEach((effect, treeId) => {
         const elapsed = nowMs - effect.startTime;
         const progress = elapsed / effect.duration;
         
         if (progress >= 1) {
-            effectsToRemove.push(treeId);
+            treeImpactEffectsToRemove.push(treeId);
             return;
         }
         
-        ctx.save();
+        const groundY = effect.y + 5;
         
         // === PHASE 1: DUST CLOUD (first 80% of animation) ===
         if (progress < 0.8) {
             const dustProgress = progress / 0.8;
-            const dustFade = 1 - Math.pow(dustProgress, 0.5); // Slow fade
+            const dustFade = 1 - Math.pow(dustProgress, 0.5);
+            const dustAlphaMultiplier = dustFade * (1 - dustProgress * 0.3);
             
-            effect.dust.forEach((dust) => {
+            const dustParticles = effect.dust;
+            const dustCount = dustParticles.length;
+            
+            for (let i = 0; i < dustCount; i++) {
+                const dust = dustParticles[i];
+                
                 // Update dust position
                 dust.x += dust.vx;
                 dust.y += dust.vy;
                 dust.size += dust.expandRate;
-                dust.vy *= 0.98; // Slow down rise
+                dust.vy *= 0.98;
                 
-                // Draw dust as soft circle
-                const dustAlpha = dust.alpha * dustFade * (1 - dustProgress * 0.3);
+                const dustAlpha = dust.alpha * dustAlphaMultiplier;
                 if (dustAlpha > 0.01) {
                     const gradient = ctx.createRadialGradient(
                         dust.x, dust.y, 0,
@@ -720,48 +749,50 @@ export function renderTreeImpactEffects(
                     gradient.addColorStop(0, `rgba(139, 119, 101, ${dustAlpha * 0.6})`);
                     gradient.addColorStop(0.4, `rgba(110, 90, 70, ${dustAlpha * 0.4})`);
                     gradient.addColorStop(0.7, `rgba(80, 65, 50, ${dustAlpha * 0.2})`);
-                    gradient.addColorStop(1, `rgba(60, 50, 40, 0)`);
+                    gradient.addColorStop(1, 'rgba(60, 50, 40, 0)');
                     
                     ctx.fillStyle = gradient;
                     ctx.beginPath();
-                    ctx.arc(dust.x, dust.y, dust.size, 0, Math.PI * 2);
+                    ctx.arc(dust.x, dust.y, dust.size, 0, TWO_PI);
                     ctx.fill();
                 }
-            });
+            }
         }
         
         // === PHASE 2: DEBRIS PARTICLES (full animation) ===
         const debrisFade = progress > 0.7 ? 1 - ((progress - 0.7) / 0.3) : 1;
         
-        effect.debris.forEach((particle) => {
+        const debrisParticles = effect.debris;
+        const debrisCount = debrisParticles.length;
+        
+        for (let i = 0; i < debrisCount; i++) {
+            const particle = debrisParticles[i];
+            
             // Physics update
             particle.vy += particle.gravity;
             particle.x += particle.vx;
             particle.y += particle.vy;
             particle.rotation += particle.rotationSpeed;
-            
-            // Friction
             particle.vx *= 0.98;
             
             // Ground bounce
-            const groundY = effect.y + 5;
-            if (particle.y > groundY && particle.bounceCount < particle.maxBounces) {
-                particle.y = groundY;
-                particle.vy = -particle.vy * 0.3; // Damped bounce
-                particle.vx *= 0.7; // Friction on bounce
-                particle.bounceCount++;
-                particle.rotationSpeed *= 0.5;
-            } else if (particle.y > groundY) {
-                // Settled on ground
-                particle.y = groundY;
-                particle.vy = 0;
-                particle.vx *= 0.95;
-                particle.rotationSpeed *= 0.9;
+            if (particle.y > groundY) {
+                if (particle.bounceCount < particle.maxBounces) {
+                    particle.y = groundY;
+                    particle.vy = -particle.vy * 0.3;
+                    particle.vx *= 0.7;
+                    particle.bounceCount++;
+                    particle.rotationSpeed *= 0.5;
+                } else {
+                    particle.y = groundY;
+                    particle.vy = 0;
+                    particle.vx *= 0.95;
+                    particle.rotationSpeed *= 0.9;
+                }
             }
             
-            // Draw particle based on type
             const particleAlpha = particle.alpha * debrisFade;
-            if (particleAlpha < 0.05) return;
+            if (particleAlpha < 0.05) continue;
             
             ctx.save();
             ctx.translate(particle.x, particle.y);
@@ -769,59 +800,56 @@ export function renderTreeImpactEffects(
             ctx.globalAlpha = particleAlpha;
             ctx.fillStyle = particle.color;
             
+            const size = particle.size;
+            const halfSize = size * 0.5;
+            const thirdSize = size / 3;
+            
             switch (particle.type) {
                 case 'twig':
-                    // Draw as elongated rectangle (stick shape)
-                    ctx.fillRect(-particle.size * 1.5, -particle.size * 0.3, particle.size * 3, particle.size * 0.6);
-                    // Add slight detail line
+                    ctx.fillRect(-size * 1.5, -size * 0.3, size * 3, size * 0.6);
                     ctx.fillStyle = BARK_COLORS[0];
-                    ctx.fillRect(-particle.size, -particle.size * 0.15, particle.size * 2, particle.size * 0.3);
+                    ctx.fillRect(-size, -size * 0.15, size * 2, size * 0.3);
                     break;
                     
                 case 'leaf':
-                    // Draw as diamond/rhombus shape
                     ctx.beginPath();
-                    ctx.moveTo(0, -particle.size);
-                    ctx.lineTo(particle.size * 0.6, 0);
-                    ctx.lineTo(0, particle.size);
-                    ctx.lineTo(-particle.size * 0.6, 0);
+                    ctx.moveTo(0, -size);
+                    ctx.lineTo(size * 0.6, 0);
+                    ctx.lineTo(0, size);
+                    ctx.lineTo(-size * 0.6, 0);
                     ctx.closePath();
                     ctx.fill();
-                    // Add center vein
                     ctx.strokeStyle = LEAF_COLORS[3];
                     ctx.lineWidth = 1;
                     ctx.beginPath();
-                    ctx.moveTo(0, -particle.size * 0.7);
-                    ctx.lineTo(0, particle.size * 0.7);
+                    ctx.moveTo(0, -size * 0.7);
+                    ctx.lineTo(0, size * 0.7);
                     ctx.stroke();
                     break;
                     
                 case 'dirt':
-                    // Draw as small irregular square (rotated)
-                    ctx.fillRect(-particle.size / 2, -particle.size / 2, particle.size, particle.size);
+                    ctx.fillRect(-halfSize, -halfSize, size, size);
                     break;
                     
                 case 'bark':
-                    // Draw as chunky irregular piece
                     ctx.beginPath();
-                    ctx.moveTo(-particle.size / 2, -particle.size / 3);
-                    ctx.lineTo(particle.size / 3, -particle.size / 2);
-                    ctx.lineTo(particle.size / 2, particle.size / 4);
-                    ctx.lineTo(-particle.size / 4, particle.size / 2);
+                    ctx.moveTo(-halfSize, -thirdSize);
+                    ctx.lineTo(thirdSize, -halfSize);
+                    ctx.lineTo(halfSize, size * 0.25);
+                    ctx.lineTo(-size * 0.25, halfSize);
                     ctx.closePath();
                     ctx.fill();
-                    // Add texture line
                     ctx.strokeStyle = BARK_COLORS[2];
                     ctx.lineWidth = 1;
                     ctx.beginPath();
-                    ctx.moveTo(-particle.size * 0.3, 0);
-                    ctx.lineTo(particle.size * 0.3, 0);
+                    ctx.moveTo(-size * 0.3, 0);
+                    ctx.lineTo(size * 0.3, 0);
                     ctx.stroke();
                     break;
             }
             
             ctx.restore();
-        });
+        }
         
         // === PHASE 3: GROUND IMPACT RING (first 20%) ===
         if (progress < 0.2) {
@@ -833,23 +861,22 @@ export function renderTreeImpactEffects(
             ctx.strokeStyle = `rgba(139, 119, 101, ${ringAlpha})`;
             ctx.lineWidth = 3 - ringProgress * 2;
             ctx.beginPath();
-            ctx.ellipse(impactX, effect.y, ringRadius, ringRadius * 0.3, 0, 0, Math.PI * 2);
+            ctx.ellipse(impactX, effect.y, ringRadius, ringRadius * 0.3, 0, 0, TWO_PI);
             ctx.stroke();
             
-            // Inner ring
             const innerRadius = ringRadius * 0.5;
             ctx.strokeStyle = `rgba(100, 85, 70, ${ringAlpha * 0.7})`;
             ctx.lineWidth = 2 - ringProgress * 1.5;
             ctx.beginPath();
-            ctx.ellipse(impactX, effect.y, innerRadius, innerRadius * 0.3, 0, 0, Math.PI * 2);
+            ctx.ellipse(impactX, effect.y, innerRadius, innerRadius * 0.3, 0, 0, TWO_PI);
             ctx.stroke();
         }
-        
-        ctx.restore();
     });
     
     // Clean up finished effects
-    effectsToRemove.forEach(id => activeTreeImpacts.delete(id));
+    for (let i = 0; i < treeImpactEffectsToRemove.length; i++) {
+        activeTreeImpacts.delete(treeImpactEffectsToRemove[i]);
+    }
 }
 
 /**
