@@ -394,7 +394,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // Bone Carving Kit - Unique tool found at Whale Bone Graveyard for crafting bone totems
-        ItemBuilder::new("Bone Carving Kit", "An ancient Unangan carving kit containing traditional bone-working tools: a curved adze, serrated scrapers, and polishing stones. Used by Aleut artisans to craft powerful bone totems imbued with animal spirits.", ItemCategory::Tool)
+        ItemBuilder::new("Bone Carving Kit", "An ancient Unangan carving kit containing traditional bone-working tools: a curved adze, serrated scrapers, and polishing stones.", ItemCategory::Tool)
             .icon("bone_carving_kit.png")
             .respawn_time(1800) // 30 minute respawn
             .build(),
