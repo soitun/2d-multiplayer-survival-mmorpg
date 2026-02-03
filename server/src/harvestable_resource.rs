@@ -344,7 +344,6 @@ pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64
         // Balanced to NOT compete with land-based mega producers:
         // - BorealNettle: 40-50 (mega producer)
         // - Beach Lyme Grass: 15 (dedicated coastal fiber)
-        // - Arctic Hairgrass: 3-5 (alpine fiber)
         // SeaweedBed bonus: 2-4 at 40% chance (modest underwater bonus)
         let fiber_chance: f32 = ctx.rng().gen_range(0.0..1.0);
         if fiber_chance < 0.40 {

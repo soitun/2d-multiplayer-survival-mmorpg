@@ -426,7 +426,7 @@ function isBeachLymeGrassPlacementBlocked(connection: DbConnection | null, world
 
 /**
  * Checks if alpine plant placement is valid (alpine tiles only).
- * Used for: Lichen Spores, Moss Spores, Arctic Poppy Seeds, Arctic Hairgrass Seeds
+ * Used for: Arctic Poppy Seeds
  * Returns true if placement should be blocked.
  */
 function isAlpinePlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
@@ -546,7 +546,7 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
     return isBeachLymeGrassPlacementBlocked(connection, worldX, worldY);
   }
 
-  // Special case: Seeds that require alpine placement (Lichen Spores, Moss Spores, Arctic Poppy Seeds, Arctic Hairgrass Seeds)
+  // Special case: Seeds that require alpine placement (Arctic Poppy Seeds)
   if (requiresAlpinePlacement(placementInfo.itemName)) {
     return isAlpinePlacementBlocked(connection, worldX, worldY);
   }

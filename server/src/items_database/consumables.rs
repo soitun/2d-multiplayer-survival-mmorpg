@@ -1826,7 +1826,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(30)
             .build(),
 
-        ItemBuilder::new("Fly Agaric", "Iconic red mushroom with white spots. Highly toxic and psychoactive. Cooking does not remove the toxins.", ItemCategory::Consumable)
+        ItemBuilder::new("Fly Agaric", "Iconic red mushroom with white spots. Highly toxic and psychoactive.", ItemCategory::Consumable)
             .icon("fly_agaric.png")
             .stackable(10)
             .consumable(-15.0, 2.0, -20.0)
@@ -2006,23 +2006,6 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
 
         // === NEW: ALPINE-SPECIFIC PLANTS ===
         // Survival food: Edible raw, burns directly to charcoal (no burnt stage)
-        // Lichen and moss also provide plant fiber (fibrous materials)
-        ItemBuilder::new("Arctic Lichen", "A slow-growing alpine lichen. Extremely hardy, grows year-round. Edible raw.", ItemCategory::Consumable)
-            .icon("arctic_lichen.png")
-            .stackable(10)
-            .consumable(3.0, 8.0, 5.0) // Low nutrition but edible raw
-            .cookable(50.0, "Charcoal") // Burns directly to charcoal (no intermediate stage)
-            .respawn_time(1800)
-            .build(),
-
-        ItemBuilder::new("Mountain Moss", "Moss. Can be eaten raw or burned directly to charcoal. Provides plant fiber.", ItemCategory::Consumable)
-            .icon("mountain_moss.png")
-            .stackable(15)
-            .consumable(4.0, 10.0, 6.0) // Slightly better than lichen
-            .cookable(50.0, "Charcoal") // Burns directly to charcoal (no intermediate stage)
-            .respawn_time(1500)
-            .build(),
-
         ItemBuilder::new("Arctic Poppy", "A rare alpine flower. Beautiful and hardy, grows year-round in harsh conditions. Edible raw.", ItemCategory::Consumable)
             .icon("arctic_poppy.png")
             .stackable(10)

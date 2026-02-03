@@ -649,7 +649,7 @@ impl AnimalBehavior for CaribouBehavior {
             "Chanterelle", "Cooked Chanterelle", "Porcini", "Cooked Porcini",
             "Shaggy Ink Cap", "Cooked Shaggy Ink Cap",
             // Arctic plants
-            "Arctic Lichen", "Mountain Moss", "Arctic Poppy",
+            "Arctic Poppy",
             "Fireweed Shoots", "Scurvy Grass",
         ]
     }

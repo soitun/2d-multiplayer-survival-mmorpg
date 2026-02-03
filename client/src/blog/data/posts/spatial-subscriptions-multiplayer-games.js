@@ -8,7 +8,7 @@ export default {
   authorTwitter: 'seloslav',
   excerpt: 'Learn how to implement efficient spatial subscriptions for large multiplayer game worlds using chunk-based queries and dynamic subscription management.',
   tags: ['SpacetimeDB', 'Multiplayer', 'Optimization', 'Spatial Queries', 'Performance'],
-  coverImage: '/images/blog/spatial-subscriptions-cover.jpg',
+  coverImage: '/images/blog/spacetimedb-revolution-cover.jpg',
   content: `
     <p>One of the biggest challenges in multiplayer game development is efficiently synchronizing game state across large worlds. Sending every entity to every player is wasteful and doesn't scale. The solution? <strong>Spatial subscriptions</strong> - only send players the data they can actually see.</p>
 

@@ -164,12 +164,13 @@ class AudioCache {
     private accessOrder = new Map<string, number>();
     private accessCounter = 0;
     private readonly maxSize = 50;
-    // Track failed loads to prevent repeated attempts
-    private failedLoads = new Set<string>();
+    // Track failed loads with retry count (allow retries, only permanently fail after 5 attempts)
+    private failedLoads = new Map<string, number>();
 
     get(filename: string): HTMLAudioElement | null {
-        // Don't even try if we know it failed before
-        if (this.failedLoads.has(filename)) {
+        // Don't even try if we know it permanently failed (5+ attempts)
+        const failCount = this.failedLoads.get(filename) || 0;
+        if (failCount >= 5) {
             return null;
         }
         
@@ -210,11 +211,19 @@ class AudioCache {
     }
     
     markFailed(filename: string): void {
-        this.failedLoads.add(filename);
+        // Track failure count instead of permanent failure
+        const currentCount = this.failedLoads.get(filename) || 0;
+        this.failedLoads.set(filename, currentCount + 1);
     }
     
     isFailed(filename: string): boolean {
-        return this.failedLoads.has(filename);
+        // Only consider permanently failed after 5 attempts
+        const failCount = this.failedLoads.get(filename) || 0;
+        return failCount >= 5;
+    }
+    
+    clearFailure(filename: string): void {
+        this.failedLoads.delete(filename);
     }
 
     clear(): void {

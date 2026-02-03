@@ -783,26 +783,6 @@ fn validate_seaweed_frond_planting(_ctx: &ReducerContext, _player_id: spacetimed
 
 // --- Alpine Plant Validation ---
 
-/// Validate arctic lichen spores planting location
-/// Arctic Lichen can only be planted on alpine tiles
-fn validate_arctic_lichen_planting(ctx: &ReducerContext, x: f32, y: f32) -> Result<(), String> {
-    if !crate::environment::is_position_on_alpine_tile(ctx, x, y) {
-        return Err("Lichen Spores can only be planted on alpine mountain tiles".to_string());
-    }
-    log::info!("Arctic Lichen planting validated at ({:.1}, {:.1})", x, y);
-    Ok(())
-}
-
-/// Validate mountain moss spores planting location
-/// Mountain Moss can only be planted on alpine tiles
-fn validate_mountain_moss_planting(ctx: &ReducerContext, x: f32, y: f32) -> Result<(), String> {
-    if !crate::environment::is_position_on_alpine_tile(ctx, x, y) {
-        return Err("Moss Spores can only be planted on alpine mountain tiles".to_string());
-    }
-    log::info!("Mountain Moss planting validated at ({:.1}, {:.1})", x, y);
-    Ok(())
-}
-
 /// Validate arctic poppy seeds planting location
 /// Arctic Poppy can only be planted on alpine tiles
 fn validate_arctic_poppy_planting(ctx: &ReducerContext, x: f32, y: f32) -> Result<(), String> {
@@ -810,16 +790,6 @@ fn validate_arctic_poppy_planting(ctx: &ReducerContext, x: f32, y: f32) -> Resul
         return Err("Arctic Poppy Seeds can only be planted on alpine mountain tiles".to_string());
     }
     log::info!("Arctic Poppy planting validated at ({:.1}, {:.1})", x, y);
-    Ok(())
-}
-
-/// Validate arctic hairgrass seeds planting location
-/// Arctic Hairgrass can only be planted on alpine tiles
-fn validate_arctic_hairgrass_planting(ctx: &ReducerContext, x: f32, y: f32) -> Result<(), String> {
-    if !crate::environment::is_position_on_alpine_tile(ctx, x, y) {
-        return Err("Arctic Hairgrass Seeds can only be planted on alpine mountain tiles".to_string());
-    }
-    log::info!("Arctic Hairgrass planting validated at ({:.1}, {:.1})", x, y);
     Ok(())
 }
 
@@ -977,34 +947,10 @@ pub fn plant_seed(
     
     // === ALPINE PLANT VALIDATIONS ===
     
-    // Special validation for Lichen Spores - must be planted on alpine tiles
-    if item_def.name == "Lichen Spores" {
-        if let Err(e) = validate_arctic_lichen_planting(ctx, plant_pos_x, plant_pos_y) {
-            log::error!("PLANT_SEED: Lichen Spores validation failed: {}", e);
-            return Err(e);
-        }
-    }
-    
-    // Special validation for Moss Spores - must be planted on alpine tiles
-    if item_def.name == "Moss Spores" {
-        if let Err(e) = validate_mountain_moss_planting(ctx, plant_pos_x, plant_pos_y) {
-            log::error!("PLANT_SEED: Moss Spores validation failed: {}", e);
-            return Err(e);
-        }
-    }
-    
     // Special validation for Arctic Poppy Seeds - must be planted on alpine tiles
     if item_def.name == "Arctic Poppy Seeds" {
         if let Err(e) = validate_arctic_poppy_planting(ctx, plant_pos_x, plant_pos_y) {
             log::error!("PLANT_SEED: Arctic Poppy Seeds validation failed: {}", e);
-            return Err(e);
-        }
-    }
-    
-    // Special validation for Arctic Hairgrass Seeds - must be planted on alpine tiles
-    if item_def.name == "Arctic Hairgrass Seeds" {
-        if let Err(e) = validate_arctic_hairgrass_planting(ctx, plant_pos_x, plant_pos_y) {
-            log::error!("PLANT_SEED: Arctic Hairgrass Seeds validation failed: {}", e);
             return Err(e);
         }
     }

@@ -46,11 +46,8 @@ pub enum PlantType {
     Crowberry,    // Empetrum - Low-growing subarctic berry, persists in winter (TUNDRA)
     SeaPlantain,  // Plantago maritima - Maritime plant, leaves available year-round
     Glasswort,    // Salicornia - Salt-tolerant maritime succulent
-    ArcticHairgrass, // Deschampsia - Arctic grass providing fiber, grows year-round
     Fireweed,        // Chamerion angustifolium - Common tundra plant with edible shoots
     // === NEW: ALPINE-SPECIFIC PLANTS ===
-    ArcticLichen, // Lichen - Year-round alpine plant, slow-growing
-    MountainMoss, // Moss - Year-round alpine plant, grows on rocks
     ArcticPoppy,  // Papaver - Alpine flower, year-round in harsh conditions
     
     // === MUSHROOMS (Can grow in cold, humid maritime conditions) ===
@@ -295,40 +292,6 @@ lazy_static! {
         });
         
         // === NEW: ALPINE-SPECIFIC PLANTS ===
-        configs.insert(PlantType::ArcticLichen, PlantConfig {
-            entity_name: "Arctic Lichen".to_string(),
-            density_percent: 0.0008, // Sparse but visible (~200 plants across Alpine)
-            min_distance_sq: 40.0 * 40.0,
-            min_tree_distance_sq: 30.0 * 30.0,
-            min_stone_distance_sq: 20.0 * 20.0, // Can grow on/near rocks
-            noise_threshold: 0.65,
-            primary_yield: ("Arctic Lichen".to_string(), 1, 2),
-            secondary_yield: Some(("Plant Fiber".to_string(), 1, 2, 0.60)), // 60% chance for fiber (lichen is fibrous)
-            seed_type: "Lichen Spores".to_string(),
-            seed_drop_chance: 0.80, // Standardized 80% - farming sustainability ensured
-            min_respawn_time_secs: 1800, // 30 minutes (slow-growing)
-            max_respawn_time_secs: 2700, // 45 minutes
-            spawn_condition: SpawnCondition::Alpine, // Alpine biome only
-            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Year-round - extremely hardy
-        });
-        
-        configs.insert(PlantType::MountainMoss, PlantConfig {
-            entity_name: "Mountain Moss".to_string(),
-            density_percent: 0.0012, // More common than lichen (~300 plants across Alpine)
-            min_distance_sq: 35.0 * 35.0,
-            min_tree_distance_sq: 25.0 * 25.0,
-            min_stone_distance_sq: 15.0 * 15.0, // Grows on rocks
-            noise_threshold: 0.60,
-            primary_yield: ("Mountain Moss".to_string(), 2, 4),
-            secondary_yield: Some(("Plant Fiber".to_string(), 2, 3, 0.70)), // 70% chance for fiber (moss is fibrous)
-            seed_type: "Moss Spores".to_string(),
-            seed_drop_chance: 0.80, // 45% chance - alpine moss
-            min_respawn_time_secs: 1500, // 25 minutes
-            max_respawn_time_secs: 2400, // 40 minutes
-            spawn_condition: SpawnCondition::Alpine, // Alpine biome only
-            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Year-round - grows on rocks
-        });
-        
         configs.insert(PlantType::ArcticPoppy, PlantConfig {
             entity_name: "Arctic Poppy".to_string(),
             density_percent: 0.0006, // Rare alpine flower (~150 plants across Alpine)
@@ -397,23 +360,6 @@ lazy_static! {
             max_respawn_time_secs: 1200, // 20 minutes
             spawn_condition: SpawnCondition::Coastal, // Salt-tolerant, grows in maritime areas
             growing_seasons: vec![Season::Summer, Season::Autumn], // Warm season succulent
-        });
-        
-        configs.insert(PlantType::ArcticHairgrass, PlantConfig {
-            entity_name: "Arctic Hairgrass".to_string(),
-            density_percent: 0.0008, // Similar density to Dogbane - fiber plant
-            min_distance_sq: 28.0 * 28.0,
-            min_tree_distance_sq: 18.0 * 18.0,
-            min_stone_distance_sq: 22.0 * 22.0,
-            noise_threshold: 0.64,
-            primary_yield: ("Plant Fiber".to_string(), 3, 5), // Provides fiber directly
-            secondary_yield: None,
-            seed_type: "Arctic Hairgrass Seeds".to_string(),
-            seed_drop_chance: 0.80, // 60% chance - important fiber source should be sustainable
-            min_respawn_time_secs: 900,  // 15 minutes
-            max_respawn_time_secs: 1400, // 23 minutes
-            spawn_condition: SpawnCondition::Alpine, // Arctic grass grows in alpine biome (high altitude)
-            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Year-round hardy arctic grass
         });
         
         configs.insert(PlantType::Beets, PlantConfig {
@@ -548,8 +494,8 @@ lazy_static! {
             seed_drop_chance: 0.0, // No seed drops - the food IS the seed
             min_respawn_time_secs: 1100, // ~18 minutes
             max_respawn_time_secs: 1700, // ~28 minutes
-            spawn_condition: SpawnCondition::Coastal, // Grows in coastal/wet areas
-            growing_seasons: vec![Season::Spring, Season::Summer],
+            spawn_condition: SpawnCondition::Alpine, // Alpine tundra plant
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Year-round hardy alpine plant
         });
         
         configs.insert(PlantType::Nagoonberry, PlantConfig {
@@ -583,7 +529,7 @@ lazy_static! {
             min_respawn_time_secs: 1300, // ~22 minutes
             max_respawn_time_secs: 1900, // ~32 minutes
             spawn_condition: SpawnCondition::Alpine, // Alpine tundra
-            growing_seasons: vec![Season::Spring, Season::Summer],
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // Year-round hardy alpine plant
         });
         
         // === HERBS & MEDICINAL PLANTS ===
@@ -1455,7 +1401,6 @@ fn get_plant_category(plant_type: &PlantType) -> PlantCategory {
         PlantType::Potato | PlantType::Pumpkin | PlantType::Carrot | PlantType::Beets |
         PlantType::Horseradish | PlantType::Corn | PlantType::Salsify | PlantType::Cabbage |
         PlantType::Fennel | PlantType::KamchatkaLily | PlantType::WildCelery | 
-        PlantType::Silverweed | PlantType::AlpineBistort => PlantCategory::Vegetable,
         
         // Nagoonberry is a berry
         PlantType::Nagoonberry => PlantCategory::Berry,
@@ -1477,7 +1422,7 @@ fn get_plant_category(plant_type: &PlantType) -> PlantCategory {
         // Fiber plants
         PlantType::BorealNettle | PlantType::Reed | PlantType::BeachLymeGrass |
         PlantType::Dogbane | PlantType::BogCotton | PlantType::Flax |
-        PlantType::ArcticHairgrass | PlantType::Fireweed => PlantCategory::Fiber,
+        PlantType::Fireweed => PlantCategory::Fiber,
         
         // Toxic plants
         PlantType::Mandrake | PlantType::Belladonna | PlantType::Henbane |
@@ -1485,7 +1430,7 @@ fn get_plant_category(plant_type: &PlantType) -> PlantCategory {
         
         // Arctic/Alpine plants
         PlantType::ScurvyGrass | PlantType::SeaPlantain | PlantType::Glasswort |
-        PlantType::ArcticLichen | PlantType::MountainMoss | PlantType::ArcticPoppy => PlantCategory::Arctic,
+        PlantType::ArcticPoppy | PlantType::Silverweed | PlantType::AlpineBistort => PlantCategory::Arctic,
         
         // Resource piles
         PlantType::WoodPile | PlantType::BeachWoodPile | PlantType::StonePile |
@@ -1697,9 +1642,9 @@ pub fn get_plant_bit_index(plant_type: &PlantType) -> Option<u32> {
         PlantType::ScurvyGrass => Some(27),
         PlantType::SeaPlantain => Some(28),
         PlantType::Glasswort => Some(29),
-        PlantType::ArcticLichen => Some(30),
-        PlantType::MountainMoss => Some(31),
-        PlantType::ArcticPoppy => Some(32),
+        PlantType::ArcticPoppy => Some(30),
+        PlantType::Silverweed => Some(31),
+        PlantType::AlpineBistort => Some(32),
         
         // ===== VEGETABLES (Bits 33-40, 49) =====
         PlantType::Potato => Some(33),
@@ -1713,19 +1658,16 @@ pub fn get_plant_bit_index(plant_type: &PlantType) -> Option<u32> {
         PlantType::Fennel => Some(49), // Added after fiber plants (bits 41-48)
         PlantType::KamchatkaLily => Some(50),
         PlantType::WildCelery => Some(51),
-        PlantType::Silverweed => Some(52),
-        PlantType::Nagoonberry => Some(53),
-        PlantType::AlpineBistort => Some(54),
+        PlantType::Nagoonberry => Some(52),
         
-        // ===== FIBER PLANTS (Bits 41-48) =====
+        // ===== FIBER PLANTS (Bits 41-47) =====
         PlantType::BorealNettle => Some(41),
         PlantType::Reed => Some(42),
         PlantType::BeachLymeGrass => Some(43),
         PlantType::Dogbane => Some(44),
         PlantType::BogCotton => Some(45),
         PlantType::Flax => Some(46),
-        PlantType::ArcticHairgrass => Some(47),
-        PlantType::Fireweed => Some(48),
+        PlantType::Fireweed => Some(47),
         
         // ===== NOT TRACKED (Resource piles, special items, tree saplings) =====
         PlantType::WoodPile | PlantType::BeachWoodPile | PlantType::StonePile |

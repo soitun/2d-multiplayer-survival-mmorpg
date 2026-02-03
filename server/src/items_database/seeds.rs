@@ -272,15 +272,6 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .cookable(22.0, "Charcoal") // Burns directly to charcoal - small seeds just char
             .build(),
 
-        // Arctic Hairgrass Seeds - Arctic fiber plant seeds
-        ItemBuilder::new("Arctic Hairgrass Seeds", "Seeds for growing arctic hairgrass. A hardy arctic grass that provides fiber. Can be eaten but provides minimal nutrition.", ItemCategory::Placeable)
-            .icon("arctic_hairgrass_seeds.png")
-            .stackable(50)
-            .respawn_time(600) // 10 minutes
-            .consumable(0.0, 1.0, -0.5) // health, hunger, thirst
-            .cookable(25.0, "Charcoal") // Burns directly to charcoal - small seeds just char
-            .build(),
-
         // === MUSHROOM SPORES ===
 
         // Chanterelle Spores - Edible mushroom spores
@@ -555,24 +546,6 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .respawn_time(1800) // 30 minutes - rare alpine flower
             .consumable(0.5, 0.5, 0.5) // health, hunger, thirst - minimal nutrition
             .cookable(18.0, "Charcoal") // Burns directly to charcoal - tiny seeds just char
-            .build(),
-
-        // Lichen Spores - Slow-growing alpine lichen
-        ItemBuilder::new("Lichen Spores", "Spores for growing arctic lichen. Extremely slow-growing but hardy in alpine conditions. Can be eaten but provide minimal nutrition.", ItemCategory::Placeable)
-            .icon("lichen_spores.png")
-            .stackable(30)
-            .respawn_time(2400) // 40 minutes - very slow growing
-            .consumable(0.5, 1.0, 0.0) // health, hunger, thirst - minimal nutrition
-            .cookable(15.0, "Charcoal") // Burns directly to charcoal - spores just char instantly
-            .build(),
-
-        // Moss Spores - Alpine moss propagation
-        ItemBuilder::new("Moss Spores", "Spores for growing mountain moss. Grows on rocks in alpine conditions. Can be eaten but are very fibrous.", ItemCategory::Placeable)
-            .icon("moss_spores.png")
-            .stackable(40)
-            .respawn_time(1500) // 25 minutes - moderate growth
-            .consumable(0.5, 1.0, 0.5) // health, hunger, thirst - fibrous
-            .cookable(15.0, "Charcoal") // Burns directly to charcoal - spores just char instantly
             .build(),
 
         // === TREE SEEDS (for player tree planting) ===

@@ -633,8 +633,7 @@ fn derive_seasonal_items_from_plants() -> (Vec<String>, Vec<String>, Vec<String>
         
         // Skip non-food items (Plant Fiber, Memory Shard, etc.)
         let non_food_yields = ["Plant Fiber", "Memory Shard", "Wood", "Stone", "Metal Ore", 
-                               "Sulfur Ore", "Charcoal", "Arctic Lichen", "Mountain Moss",
-                               "Dogbane Fiber"];
+                               "Sulfur Ore", "Charcoal", "Dogbane Fiber"];
         if non_food_yields.contains(&item_name.as_str()) {
             continue;
         }

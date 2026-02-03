@@ -8,7 +8,7 @@ export default {
   authorTwitter: 'seloslav',
   excerpt: 'A comprehensive guide covering every aspect of 2D multiplayer survival game development, based on our experience building Broth & Bullets.',
   tags: ['Game Development', 'Multiplayer', 'Survival Games', 'SpacetimeDB', 'Tutorial', 'React'],
-  coverImage: '/images/blog/2d-survival-games-guide-cover.jpg',
+  coverImage: '/images/blog/spacetimedb-revolution-cover.jpg',
   content: `
     <p>Building a multiplayer survival game is one of the most challenging yet rewarding projects in game development. This comprehensive guide covers everything you need to know, from architecture decisions to implementing core survival mechanics, based on our experience building <a href="/blog/how-we-built-broth-bullets-multiplayer-survival-game">Broth & Bullets</a>. For a deep dive into our tech stack, see our <a href="/blog/broth-bullets-spacetimedb-architecture">SpacetimeDB architecture article</a>.</p>
 

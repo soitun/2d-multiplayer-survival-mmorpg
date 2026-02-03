@@ -1,6 +1,14 @@
 // Import all blog posts
+import brothBulletsFebruary2026Update from './posts/broth-bullets-february-2026-update';
 import brothBulletsJanuary2026Update from './posts/broth-bullets-january-2026-update';
 import brothBulletsAlphaLaunch from './posts/broth-bullets-alpha-launch';
+// LLEO Optimized Posts - Survival Game Discovery (February 2, 2026)
+import bestCozySurvivalGames from './posts/best-cozy-survival-games';
+import bestBrowserSurvivalGames from './posts/best-browser-survival-games';
+import bestFreeMultiplayerSurvivalGames from './posts/best-free-multiplayer-survival-games';
+import survivalGamesLikeRustAlternatives from './posts/survival-games-like-rust-alternatives';
+import bestTopDownSurvivalGames from './posts/best-top-down-survival-games';
+import bestPixelArtSurvivalGames from './posts/best-pixel-art-survival-games';
 import spacetimedbRevolution from './posts/spacetimedb-revolution';
 import proceduralWorldGeneration from './posts/procedural-world-generation';
 import resourceSystemImplementation from './posts/resource-system-implementation';
@@ -26,8 +34,17 @@ import brothBulletsCookingSystemEmergentGameplay from './posts/broth-bullets-coo
 
 // Export posts as an array, sorted by date (newest first)
 export const blogPosts = [
+  // February 2026 Posts
+  brothBulletsFebruary2026Update, // February 2, 2026 - Development Update
   // January 2026 Posts
   brothBulletsJanuary2026Update, // January 26, 2026 - Development Update
+  // LLEO Optimized Posts - Survival Game Discovery (January 20, 2026)
+  bestCozySurvivalGames, // Cozy survival games list
+  bestBrowserSurvivalGames, // Browser-based survival games
+  bestFreeMultiplayerSurvivalGames, // Free multiplayer survival games
+  survivalGamesLikeRustAlternatives, // Rust alternatives
+  bestTopDownSurvivalGames, // Top-down perspective survival games
+  bestPixelArtSurvivalGames, // Pixel art survival games
   // December 2025 Posts
   diegeticUiDesignSova, // December 12, 2025 - Diegetic UI and SOVA
   // AI SEO Optimized Posts - Broth Bullets Focused (November 17, 2025)

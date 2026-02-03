@@ -39,11 +39,8 @@ import crowberriesImageSource from '../../assets/doodads/crowberries.png';
 import fireweedImageSource from '../../assets/doodads/fireweed.png';
 import seaPlantainImageSource from '../../assets/doodads/sea_plantain.png';
 import glasswortImageSource from '../../assets/doodads/glasswort.png';
-import arcticHairgrassImageSource from '../../assets/doodads/arctic_hairgrass.png';
 
 // NEW ALPINE PLANTS
-import arcticLichenImageSource from '../../assets/doodads/arctic_lichen.png';
-import mountainMossImageSource from '../../assets/doodads/mountain_moss.png';
 import arcticPoppyImageSource from '../../assets/doodads/arctic_poppy.png';
 
 // Mushrooms
@@ -134,11 +131,8 @@ export const RESOURCE_IMAGE_SOURCES = {
   Fireweed: fireweedImageSource,
   SeaPlantain: seaPlantainImageSource,
   Glasswort: glasswortImageSource,
-  ArcticHairgrass: arcticHairgrassImageSource,
   
   // === NEW: ALPINE PLANTS (Year-round hardy alpine species) ===
-  ArcticLichen: arcticLichenImageSource,
-  MountainMoss: mountainMossImageSource,
   ArcticPoppy: arcticPoppyImageSource,
   
   // === MUSHROOMS (Can grow in cold, humid maritime conditions) ===

@@ -8,7 +8,7 @@ export default {
   authorTwitter: 'seloslav',
   excerpt: 'Complete tutorial with code examples, common pitfalls, and production-ready patterns for building multiplayer games with SpacetimeDB.',
   tags: ['SpacetimeDB', 'Tutorial', 'Multiplayer', 'WebAssembly', 'Rust', 'React'],
-  coverImage: '/images/blog/spacetimedb-tutorial-cover.jpg',
+  coverImage: '/images/blog/spacetimedb-revolution-cover.jpg',
   content: `
     <p>If you're looking to build a real-time multiplayer game without the complexity of traditional game servers, SpacetimeDB is a game-changer. In this comprehensive tutorial, we'll build a functional multiplayer game from scratch in just 30 minutes. For a deeper comparison with traditional backends, check out our <a href="/blog/spacetimedb-vs-firebase-comparison">SpacetimeDB vs Firebase comparison</a>.</p>
 

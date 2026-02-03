@@ -179,6 +179,7 @@ const BlogFooter: React.FC = () => {
                                             textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
                                             background: 'none',
                                             border: 'none',
+                                            padding: 0,
                                             cursor: 'pointer',
                                         }}
                                         onMouseEnter={(e) => {
@@ -202,6 +203,7 @@ const BlogFooter: React.FC = () => {
                                             textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
                                             background: 'none',
                                             border: 'none',
+                                            padding: 0,
                                             cursor: 'pointer',
                                         }}
                                         onMouseEnter={(e) => {
@@ -284,6 +286,7 @@ const BlogFooter: React.FC = () => {
                                         textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
                                         background: 'none',
                                         border: 'none',
+                                        padding: 0,
                                         cursor: 'pointer',
                                     }}
                                     onMouseEnter={(e) => {

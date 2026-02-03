@@ -16,7 +16,7 @@ interface MusicTrack {
 }
 
 // Music zone types - extensible for future monuments
-export type MusicZone = 'normal' | 'fishing_village' | 'hunting_village' | 'alk_compound' | 'alk_substation';
+export type MusicZone = 'normal' | 'fishing_village' | 'hunting_village' | 'alk_compound' | 'alk_substation' | 'hot_springs';
 
 // Zone metadata for UI display
 export const MUSIC_ZONE_INFO: Record<MusicZone, { name: string; icon: string }> = {
@@ -25,6 +25,7 @@ export const MUSIC_ZONE_INFO: Record<MusicZone, { name: string; icon: string }> 
     hunting_village: { name: 'Hunting Village', icon: '🏕️' },
     alk_compound: { name: 'ALK Compound', icon: '🏭' },
     alk_substation: { name: 'ALK Substation', icon: '⚡' },
+    hot_springs: { name: 'Hot Springs', icon: '♨️' },
 };
 
 // Zone detection radius in pixels - should cover the whole fishing village area
@@ -46,6 +47,14 @@ const ALK_CENTRAL_COMPOUND_ZONE_RADIUS = 1750;
 
 // Substation music zone radius - matches building restriction zone
 const ALK_SUBSTATION_ZONE_RADIUS = 1200;
+
+// Hot springs music zone radius - 1400px from center of hot spring
+const HOT_SPRINGS_ZONE_RADIUS = 1400;
+
+// Hot spring shack offset from center (used to reverse-calculate center from monument parts)
+// Server places shacks at offset (-380, 250) from hot spring center
+const HOT_SPRING_SHACK_OFFSET_X = -380;
+const HOT_SPRING_SHACK_OFFSET_Y = 250;
 
 // Normal world music tracks (in /public/music/)
 const NORMAL_TRACKS: MusicTrack[] = [
@@ -87,6 +96,11 @@ const ALK_TRACKS: MusicTrack[] = [
     { filename: 'Failsafe_Still_Running.mp3', displayName: 'Failsafe Still Running', path: 'alk/Failsafe_Still_Running.mp3' },
 ];
 
+// Hot Springs music tracks (in /public/music/hs/) - relaxing ambient for geothermal pools
+const HOT_SPRINGS_TRACKS: MusicTrack[] = [
+    { filename: 'Steam_Over_Birchwood.mp3', displayName: 'Steam Over Birchwood', path: 'hs/Steam_Over_Birchwood.mp3' },
+];
+
 // Zone-based track mapping
 const ZONE_TRACKS: Record<MusicZone, MusicTrack[]> = {
     normal: NORMAL_TRACKS,
@@ -94,10 +108,11 @@ const ZONE_TRACKS: Record<MusicZone, MusicTrack[]> = {
     hunting_village: HUNTING_VILLAGE_TRACKS,
     alk_compound: ALK_TRACKS,
     alk_substation: ALK_TRACKS,
+    hot_springs: HOT_SPRINGS_TRACKS,
 };
 
 // All tracks for preloading
-const ALL_TRACKS: MusicTrack[] = [...NORMAL_TRACKS, ...FISHING_VILLAGE_TRACKS, ...HUNTING_VILLAGE_TRACKS, ...ALK_TRACKS];
+const ALL_TRACKS: MusicTrack[] = [...NORMAL_TRACKS, ...FISHING_VILLAGE_TRACKS, ...HUNTING_VILLAGE_TRACKS, ...ALK_TRACKS, ...HOT_SPRINGS_TRACKS];
 
 // Legacy export for backward compatibility
 const MUSIC_TRACKS = NORMAL_TRACKS;
@@ -452,6 +467,34 @@ const detectMusicZone = (
             
             if (distSq < HUNTING_VILLAGE_ZONE_RADIUS * HUNTING_VILLAGE_ZONE_RADIUS) {
                 return 'hunting_village';
+            }
+        }
+    }
+
+    // Check for hot springs
+    // Hot spring shacks are placed at offset from the hot spring center
+    // We reverse-calculate the center from shack positions
+    const hotSpringParts = Array.from(monumentParts.values())
+        .filter((part: any) => part.monumentType?.tag === 'HotSpring');
+    
+    if (hotSpringParts.length > 0) {
+        for (const part of hotSpringParts) {
+            const partX = part.world_x ?? part.worldX;
+            const partY = part.world_y ?? part.worldY;
+            
+            if (partX === undefined || partY === undefined) continue;
+            
+            // Reverse-calculate the hot spring center from shack position
+            // Server places shacks at (-380, 250) from center, so center = shack + (380, -250)
+            const centerX = partX - HOT_SPRING_SHACK_OFFSET_X;
+            const centerY = partY - HOT_SPRING_SHACK_OFFSET_Y;
+            
+            const dx = playerPos.x - centerX;
+            const dy = playerPos.y - centerY;
+            const distSq = dx * dx + dy * dy;
+            
+            if (distSq < HOT_SPRINGS_ZONE_RADIUS * HOT_SPRINGS_ZONE_RADIUS) {
+                return 'hot_springs';
             }
         }
     }

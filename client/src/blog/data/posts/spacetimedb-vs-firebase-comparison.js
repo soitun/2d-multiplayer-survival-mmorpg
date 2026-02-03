@@ -8,7 +8,7 @@ export default {
   authorTwitter: 'seloslav',
   excerpt: 'Detailed technical comparison of SpacetimeDB and Firebase for multiplayer game development, including performance benchmarks, pricing analysis, and migration guides.',
   tags: ['SpacetimeDB', 'Firebase', 'Comparison', 'Multiplayer', 'Database', 'Performance'],
-  coverImage: '/images/blog/spacetimedb-vs-firebase-cover.jpg',
+  coverImage: '/images/blog/spacetimedb-revolution-cover.jpg',
   content: `
     <p>Choosing the right backend for your multiplayer game is crucial. Firebase has been the go-to choice for many developers, but SpacetimeDB offers a fundamentally different approach that's optimized specifically for real-time multiplayer applications. Let's do a comprehensive comparison. New to SpacetimeDB? Start with our <a href="/blog/spacetimedb-tutorial-build-multiplayer-game-30-minutes">30-minute tutorial</a>.</p>
 

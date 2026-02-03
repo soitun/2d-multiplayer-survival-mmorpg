@@ -311,8 +311,6 @@ import seaPlantainIcon from '../assets/items/sea_plantain.png';
 import glasswortIcon from '../assets/items/glasswort.png';
 
 // Alpine plants
-import arcticLichenIcon from '../assets/items/arctic_lichen.png';
-import mountainMossIcon from '../assets/items/mountain_moss.png';
 import arcticPoppyIcon from '../assets/items/arctic_poppy.png';
 
 // Toxic/Medicinal plants (some grow in harsh northern climates)
@@ -513,13 +511,10 @@ import fireweedSeedsIcon from '../assets/items/fireweed_seeds.png';
 import seaPlantainSeedsIcon from '../assets/items/sea_plantain_seeds.png';
 import glasswortSeedsIcon from '../assets/items/glasswort_seeds.png';
 import beachLymeGrassSeedsIcon from '../assets/items/beach_lyme_grass_seeds.png';
-import arcticHairgrassSeedsIcon from '../assets/items/arctic_hairgrass_seeds.png';
 import bogCottonSeedsIcon from '../assets/items/bog_cotton_seeds.png';
 
 // Alpine plant spores/seeds
 import arcticPoppySeedsIcon from '../assets/items/arctic_poppy_seeds.png';
-import lichenSporesIcon from '../assets/items/lichen_spores.png';
-import mossSporesIcon from '../assets/items/moss_spores.png';
 
 // Berry seeds (subarctic/boreal region berries)
 import lingonberrySeedsIcon from '../assets/items/lingonberry_seeds.png';
@@ -888,8 +883,6 @@ const iconMap: { [key: string]: string | undefined } = {
   'glasswort.png': glasswortIcon,
   
   // Alpine plants
-  'arctic_lichen.png': arcticLichenIcon,
-  'mountain_moss.png': mountainMossIcon,
   'arctic_poppy.png': arcticPoppyIcon,
   
   // Toxic/Medicinal plants (some grow in harsh northern climates)
@@ -1035,13 +1028,10 @@ const iconMap: { [key: string]: string | undefined } = {
   'sea_plantain_seeds.png': seaPlantainSeedsIcon,
   'glasswort_seeds.png': glasswortSeedsIcon,
   'beach_lyme_grass_seeds.png': beachLymeGrassSeedsIcon,
-  'arctic_hairgrass_seeds.png': arcticHairgrassSeedsIcon,
   'bog_cotton_seeds.png': bogCottonSeedsIcon,
   
   // Alpine plant spores/seeds
   'arctic_poppy_seeds.png': arcticPoppySeedsIcon,
-  'lichen_spores.png': lichenSporesIcon,
-  'moss_spores.png': mossSporesIcon,
   
   // Berry seeds (subarctic/boreal region berries)
   'lingonberry_seeds.png': lingonberrySeedsIcon,

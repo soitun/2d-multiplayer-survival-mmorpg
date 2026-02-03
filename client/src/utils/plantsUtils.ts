@@ -106,17 +106,14 @@ export function requiresBeachPlacement(itemName: string, itemDef?: ItemDefinitio
 
 /**
  * Determines if a seed requires alpine/mountain placement
- * Arctic Lichen Spores, Moss Spores, Arctic Poppy Seeds, Arctic Hairgrass Seeds
+ * Arctic Poppy Seeds
  */
 export function requiresAlpinePlacement(itemName: string, itemDef?: ItemDefinition): boolean {
   const name = itemName.toLowerCase();
   const description = itemDef?.description.toLowerCase() || '';
   
   return (
-    name.includes('lichen spores') ||
-    name.includes('moss spores') ||
     name.includes('arctic poppy') ||
-    name.includes('arctic hairgrass') ||
     description.includes('alpine') ||
     description.includes('alpine mountain')
   );
