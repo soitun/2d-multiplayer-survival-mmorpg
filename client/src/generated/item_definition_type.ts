@@ -112,6 +112,13 @@ export type ItemDefinition = {
   waterSpeedBonus: number | undefined,
   isPreserved: boolean,
   spoilsAfterHours: number | undefined,
+  harvestBonus: number | undefined,
+  allyDamageBonus: number | undefined,
+  poisonDamageOnHit: number | undefined,
+  maxHealthBonus: number | undefined,
+  bleedChanceOnMelee: number | undefined,
+  reducesAnimalDetection: number | undefined,
+  meleeDamageBonus: number | undefined,
 };
 let _cached_ItemDefinition_type_value: __AlgebraicTypeType | null = null;
 
@@ -185,6 +192,13 @@ export const ItemDefinition = {
       { name: "waterSpeedBonus", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
       { name: "isPreserved", algebraicType: __AlgebraicTypeValue.Bool },
       { name: "spoilsAfterHours", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
+      { name: "harvestBonus", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
+      { name: "allyDamageBonus", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
+      { name: "poisonDamageOnHit", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
+      { name: "maxHealthBonus", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.I32) },
+      { name: "bleedChanceOnMelee", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
+      { name: "reducesAnimalDetection", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
+      { name: "meleeDamageBonus", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
     );
     return _cached_ItemDefinition_type_value;
   },

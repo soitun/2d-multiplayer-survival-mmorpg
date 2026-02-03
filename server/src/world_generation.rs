@@ -272,6 +272,12 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
             Ok(count) => log::info!("🦴 Spawned {} monument placeables at Whale Bone Graveyard", count),
             Err(e) => log::warn!("Failed to spawn whale bone graveyard placeables: {}", e),
         }
+        
+        // Spawn the unique Bone Carving Kit at the whale bone graveyard center
+        match crate::whale_bone_graveyard::spawn_bone_carving_kit(ctx) {
+            Ok(_) => log::info!("🦴 Spawned Bone Carving Kit at Whale Bone Graveyard"),
+            Err(e) => log::warn!("Failed to spawn Bone Carving Kit: {}", e),
+        }
     }
     
     // Store hunting village positions in database table for client access (one-time read, then static)

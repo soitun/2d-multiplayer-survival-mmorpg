@@ -234,6 +234,21 @@ import wolfFurBootsIcon from '../assets/items/wolf_fur_boots.png';
 import burlapSackIcon from '../assets/items/burlap_sack.png';
 import burlapBackpackIcon from '../assets/items/burlap_backpack.png';
 
+// Bone Totems (Aleutian spirit carvings)
+import kayuxAmuletIcon from '../assets/items/kayux_amulet.png';
+import sabaakaxTotemIcon from '../assets/items/sabaakax_totem.png';
+import qaxaadaxTotemIcon from '../assets/items/qaxaadax_totem.png';
+import tugixTotemIcon from '../assets/items/tugix_totem.png';
+import tunuxCharmIcon from '../assets/items/tunux_charm.png';
+import qilaxTotemIcon from '../assets/items/qilax_totem.png';
+import tanuuxTotemIcon from '../assets/items/tanuux_totem.png';
+import ulaxCharmIcon from '../assets/items/ulax_charm.png';
+import angunaxTotemIcon from '../assets/items/angunax_totem.png';
+import alaxTotemIcon from '../assets/items/alax_totem.png';
+
+// Bone Carving Kit
+import boneCarvingKitIcon from '../assets/items/bone_carving_kit.png';
+
 // === CONSUMABLES ===
 // Food, medicine, and edible items
 
@@ -800,6 +815,21 @@ const iconMap: { [key: string]: string | undefined } = {
   // Containers (wearable storage)
   'burlap_sack.png': burlapSackIcon,
   'burlap_backpack.png': burlapBackpackIcon,
+  
+  // Bone Totems (Aleutian spirit carvings)
+  'kayux_amulet.png': kayuxAmuletIcon,
+  'sabaakax_totem.png': sabaakaxTotemIcon,
+  'qaxaadax_totem.png': qaxaadaxTotemIcon,
+  'tugix_totem.png': tugixTotemIcon,
+  'tunux_charm.png': tunuxCharmIcon,
+  'qilax_totem.png': qilaxTotemIcon,
+  'tanuux_totem.png': tanuuxTotemIcon,
+  'ulax_charm.png': ulaxCharmIcon,
+  'angunax_totem.png': angunaxTotemIcon,
+  'alax_totem.png': alaxTotemIcon,
+  
+  // Bone Carving Kit
+  'bone_carving_kit.png': boneCarvingKitIcon,
 
   // === CONSUMABLES ===
   // Basic crops (burnt icons use cooked icons with visual filter applied by DraggableItem)

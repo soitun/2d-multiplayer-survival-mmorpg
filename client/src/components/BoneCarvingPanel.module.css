@@ -1,0 +1,360 @@
+/* BoneCarvingPanel.module.css - Aleutian bone carving interface */
+
+.panelOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.boneCarvingPanel {
+  position: relative;
+  width: 90vw;
+  max-width: 900px;
+  height: 80vh;
+  max-height: 700px;
+  background: linear-gradient(135deg, rgba(45, 30, 20, 0.98), rgba(30, 20, 15, 0.98));
+  border: 3px solid #8b5a2b;
+  box-shadow: 0 0 30px rgba(139, 90, 43, 0.4), inset 0 0 20px rgba(139, 90, 43, 0.1);
+  border-radius: 8px;
+  padding: 20px;
+  color: #f5deb3;
+  font-family: 'Press Start 2P', cursive;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Bone texture overlay */
+.boneCarvingPanel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0c1 10 5 20 0 30s-5 20 0 30' stroke='%23f5deb3' stroke-opacity='0.05' fill='none' stroke-width='2'/%3E%3C/svg%3E");
+  pointer-events: none;
+  opacity: 0.3;
+}
+
+.closeButton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: linear-gradient(135deg, rgba(120, 60, 40, 0.9), rgba(80, 40, 25, 0.95));
+  color: #f5deb3;
+  border: 2px solid #cd853f;
+  border-radius: 4px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 18px;
+  font-family: inherit;
+  z-index: 110;
+  transition: all 0.3s ease;
+}
+
+.closeButton:hover {
+  background: linear-gradient(135deg, rgba(150, 80, 50, 1), rgba(100, 50, 30, 1));
+  transform: scale(1.1);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid rgba(139, 90, 43, 0.5);
+}
+
+.title {
+  font-size: 18px;
+  color: #daa520;
+  margin: 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.subtitle {
+  font-size: 10px;
+  color: #cdaa7d;
+  margin: 8px 0 0 0;
+}
+
+.craftingMessage {
+  background: rgba(218, 165, 32, 0.2);
+  border: 1px solid #daa520;
+  border-radius: 4px;
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 10px;
+  margin-bottom: 10px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.content {
+  display: flex;
+  gap: 20px;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Recipe Grid */
+.recipeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.recipeCard {
+  background: linear-gradient(135deg, rgba(70, 50, 35, 0.9), rgba(50, 35, 25, 0.95));
+  border: 2px solid #6b4423;
+  border-radius: 6px;
+  padding: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.recipeCard:hover {
+  transform: translateY(-2px);
+  border-color: #8b5a2b;
+  box-shadow: 0 4px 12px rgba(139, 90, 43, 0.3);
+}
+
+.recipeCard.selected {
+  border-color: #daa520;
+  box-shadow: 0 0 15px rgba(218, 165, 32, 0.4);
+}
+
+.recipeCard.craftable {
+  border-color: #4a7c3f;
+}
+
+.recipeCard.craftable:hover {
+  border-color: #5a9c4f;
+}
+
+.recipeCard.notCraftable {
+  opacity: 0.6;
+}
+
+.recipeIcon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recipeIcon img {
+  max-width: 100%;
+  max-height: 100%;
+  image-rendering: pixelated;
+}
+
+.recipeName {
+  font-size: 8px;
+  text-align: center;
+  color: #f5deb3;
+}
+
+.recipeAnimal {
+  font-size: 7px;
+  color: #8b7355;
+}
+
+.recipeBonus {
+  font-size: 6px;
+  color: #90ee90;
+  text-align: center;
+}
+
+/* Recipe Details Panel */
+.recipeDetails {
+  width: 300px;
+  min-width: 280px;
+  background: linear-gradient(135deg, rgba(50, 35, 25, 0.95), rgba(35, 25, 18, 0.98));
+  border: 2px solid #6b4423;
+  border-radius: 6px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.recipeDetails h3 {
+  font-size: 12px;
+  color: #daa520;
+  margin: 0;
+  text-align: center;
+}
+
+.animalSpirit {
+  font-size: 9px;
+  color: #8b7355;
+  text-align: center;
+  margin: 0;
+}
+
+.bonusText {
+  font-size: 9px;
+  color: #90ee90;
+  text-align: center;
+  background: rgba(144, 238, 144, 0.1);
+  padding: 8px;
+  border-radius: 4px;
+  margin: 0;
+}
+
+.ingredientsList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ingredientsList h4 {
+  font-size: 9px;
+  color: #cdaa7d;
+  margin: 0 0 5px 0;
+}
+
+.ingredient {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  font-size: 8px;
+}
+
+.ingredient.hasEnough {
+  border-left: 3px solid #4a7c3f;
+}
+
+.ingredient.notEnough {
+  border-left: 3px solid #8b3a3a;
+}
+
+.ingredientIcon {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+}
+
+.ingredientName {
+  flex: 1;
+  color: #f5deb3;
+}
+
+.ingredientCount {
+  color: #cdaa7d;
+}
+
+.ingredient.notEnough .ingredientCount {
+  color: #ff6b6b;
+}
+
+.craftingTime {
+  font-size: 8px;
+  color: #8b7355;
+  text-align: center;
+}
+
+.craftButton {
+  background: linear-gradient(135deg, rgba(74, 124, 63, 0.9), rgba(54, 94, 43, 0.95));
+  color: #f5deb3;
+  border: 2px solid #5a9c4f;
+  border-radius: 4px;
+  padding: 10px 15px;
+  font-size: 10px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.craftButton:hover:not(.disabled) {
+  background: linear-gradient(135deg, rgba(90, 156, 79, 1), rgba(74, 124, 63, 1));
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(90, 156, 79, 0.4);
+}
+
+.craftButton.disabled {
+  background: linear-gradient(135deg, rgba(80, 60, 50, 0.9), rgba(60, 45, 35, 0.95));
+  border-color: #6b4423;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Crafting Queue */
+.craftingQueue {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 2px solid rgba(139, 90, 43, 0.5);
+}
+
+.craftingQueue h4 {
+  font-size: 9px;
+  color: #cdaa7d;
+  margin: 0 0 8px 0;
+}
+
+.queueItems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.queueItem {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #6b4423;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 8px;
+  display: flex;
+  gap: 10px;
+}
+
+.queueTime {
+  color: #daa520;
+}
+
+/* Scrollbar styling */
+.recipeGrid::-webkit-scrollbar,
+.recipeDetails::-webkit-scrollbar {
+  width: 8px;
+}
+
+.recipeGrid::-webkit-scrollbar-track,
+.recipeDetails::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.recipeGrid::-webkit-scrollbar-thumb,
+.recipeDetails::-webkit-scrollbar-thumb {
+  background: #6b4423;
+  border-radius: 4px;
+}
+
+.recipeGrid::-webkit-scrollbar-thumb:hover,
+.recipeDetails::-webkit-scrollbar-thumb:hover {
+  background: #8b5a2b;
+}

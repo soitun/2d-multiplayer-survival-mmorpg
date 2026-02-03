@@ -153,6 +153,15 @@ pub fn pickup_dropped_item(ctx: &ReducerContext, dropped_item_id: u64) -> Result
                 ) {
                     log::error!("[PickupDropped] Failed to track item collection quest progress: {}", e);
                 }
+                
+                // 7. Check if this is a Bone Carving Kit and schedule respawn
+                if item_name == "Bone Carving Kit" {
+                    crate::bone_carving::schedule_kit_respawn(
+                        ctx, 
+                        crate::whale_bone_graveyard::BONE_CARVING_KIT_RESPAWN_DELAY_SECS
+                    );
+                    log::info!("[PickupDropped] Bone Carving Kit picked up - scheduled respawn in 30 minutes");
+                }
             } else {
                 log::info!("[PickupDropped] Inventory full, moved item '{}' (ID {}) closer to player {:?}",
                          item_name, dropped_item_id, sender_id);

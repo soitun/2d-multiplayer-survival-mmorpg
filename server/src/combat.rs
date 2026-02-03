@@ -106,6 +106,12 @@ pub const PVP_KNOCKBACK_DISTANCE: f32 = 32.0;
 /// Set to true to enable PvP damage between players.
 pub const PVP_ENABLED: bool = false;
 
+// --- Bone Totem Configuration ---
+/// Distance within which allies count for the Sabaakax Totem pack bonus
+/// Set to 1500px to cover most of the visible viewport so pack hunting is viable
+const ALLY_DETECTION_RADIUS: f32 = 1500.0;
+const ALLY_DETECTION_RADIUS_SQ: f32 = ALLY_DETECTION_RADIUS * ALLY_DETECTION_RADIUS;
+
 /// Combat extension window - if player was in PvP combat within this time, timer can't expire
 const PVP_COMBAT_EXTENSION_WINDOW_MICROS: i64 = 5 * 60 * 1_000_000; // 5 minutes
 
@@ -157,6 +163,30 @@ fn update_pvp_combat_time(ctx: &ReducerContext, player_id: Identity, current_tim
         
         ctx.db.player().identity().update(player);
     }
+}
+
+/// Checks if a player has any allies (other alive players) within the ally detection radius
+/// Used for the Sabaakax Totem (Wolf) pack damage bonus
+fn check_for_nearby_allies(ctx: &ReducerContext, player_id: Identity, pos_x: f32, pos_y: f32) -> bool {
+    let players = ctx.db.player();
+    
+    for player in players.iter() {
+        // Skip self and dead players
+        if player.identity == player_id || player.is_dead {
+            continue;
+        }
+        
+        // Check distance
+        let dx = player.position_x - pos_x;
+        let dy = player.position_y - pos_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq <= ALLY_DETECTION_RADIUS_SQ {
+            return true;
+        }
+    }
+    
+    false
 }
 
 // --- Combat System Types ---
@@ -1555,10 +1585,21 @@ pub fn damage_tree(
         let original_yield = actual_yield;
         actual_yield = ((actual_yield as f32) * crate::memory_grid::MINING_EFFICIENCY_MULTIPLIER).ceil() as u32;
         actual_yield = std::cmp::min(actual_yield, tree.resource_remaining); // Cap to remaining resources
-        log::info!("Player {:?} has Mining Efficiency node - wood yield increased by {:.0}%: {} -> {}", 
+        log::info!("Player {:?} has Mining Efficiency node - wood yield increased by {:.0}%: {} -> {}",
             attacker_id, (crate::memory_grid::MINING_EFFICIENCY_MULTIPLIER - 1.0) * 100.0, original_yield, actual_yield);
     }
     // <<< END MEMORY GRID >>>
+    
+    // <<< BONE TOTEM: Tunux Charm (Vole) gives harvest yield bonus >>>
+    let totem_harvest_bonus = armor::calculate_harvest_bonus(ctx, attacker_id);
+    if totem_harvest_bonus > 0.0 {
+        let original_yield = actual_yield;
+        actual_yield = ((actual_yield as f32) * (1.0 + totem_harvest_bonus)).ceil() as u32;
+        actual_yield = std::cmp::min(actual_yield, tree.resource_remaining); // Cap to remaining resources
+        log::info!("Player {:?} has Tunux Charm - wood yield increased by {:.0}%: {} -> {}", 
+            attacker_id, totem_harvest_bonus * 100.0, original_yield, actual_yield);
+    }
+    // <<< END BONE TOTEM >>>
     
     tree.resource_remaining = tree.resource_remaining.saturating_sub(actual_yield);
     
@@ -1928,6 +1969,17 @@ pub fn damage_stone(
     }
     // <<< END MEMORY GRID >>>
     
+    // <<< BONE TOTEM: Tunux Charm (Vole) gives harvest yield bonus >>>
+    let totem_harvest_bonus = armor::calculate_harvest_bonus(ctx, attacker_id);
+    if totem_harvest_bonus > 0.0 {
+        let original_yield = actual_yield;
+        actual_yield = ((actual_yield as f32) * (1.0 + totem_harvest_bonus)).ceil() as u32;
+        actual_yield = std::cmp::min(actual_yield, stone.resource_remaining); // Cap to remaining resources
+        log::info!("Player {:?} has Tunux Charm - ore yield increased by {:.0}%: {} -> {}", 
+            attacker_id, totem_harvest_bonus * 100.0, original_yield, actual_yield);
+    }
+    // <<< END BONE TOTEM >>>
+    
     stone.resource_remaining = stone.resource_remaining.saturating_sub(actual_yield);
     
     log::info!("[damage_stone] After calculation - actual_yield: {}, new resource_remaining: {}", actual_yield, stone.resource_remaining);
@@ -2295,7 +2347,7 @@ pub fn damage_player(
 
     let mut final_damage = damage; // Start with the damage passed in (already calculated from weapon stats)
 
-    // <<< APPLY LOW HEALTH DAMAGE BONUS (WOLF FUR ARMOR) >>>
+    // <<< APPLY LOW HEALTH DAMAGE BONUS (WOLF FUR ARMOR / QILAX TOTEM) >>>
     // Check if attacker has low health damage bonus and is below 30% health
     if let Some(attacker_player) = attacker_player_opt.as_ref() {
         const LOW_HEALTH_THRESHOLD: f32 = 30.0; // 30% health threshold
@@ -2312,6 +2364,36 @@ pub fn damage_player(
         }
     }
     // <<< END LOW HEALTH DAMAGE BONUS >>>
+    
+    // <<< APPLY MELEE DAMAGE BONUS (TANUUX TOTEM - POLAR BEAR) >>>
+    let melee_damage_bonus = armor::calculate_melee_damage_bonus(ctx, attacker_id);
+    if melee_damage_bonus > 0.0 {
+        let bonus_damage = final_damage * melee_damage_bonus;
+        final_damage += bonus_damage;
+        log::info!(
+            "Player {:?} gained +{:.0}% melee damage bonus ({:.1} extra damage) from bone totem",
+            attacker_id, melee_damage_bonus * 100.0, bonus_damage
+        );
+    }
+    // <<< END MELEE DAMAGE BONUS >>>
+    
+    // <<< APPLY ALLY DAMAGE BONUS (SABAAKAX TOTEM - WOLF) >>>
+    // Check if attacker has allies nearby and has the ally damage bonus
+    let ally_damage_bonus = armor::calculate_ally_damage_bonus(ctx, attacker_id);
+    if ally_damage_bonus > 0.0 {
+        if let Some(attacker_player) = attacker_player_opt.as_ref() {
+            let has_ally_nearby = check_for_nearby_allies(ctx, attacker_id, attacker_player.position_x, attacker_player.position_y);
+            if has_ally_nearby {
+                let bonus_damage = final_damage * ally_damage_bonus;
+                final_damage += bonus_damage;
+                log::info!(
+                    "Player {:?} gained +{:.0}% ally damage bonus ({:.1} extra damage) from pack totem",
+                    attacker_id, ally_damage_bonus * 100.0, bonus_damage
+                );
+            }
+        }
+    }
+    // <<< END ALLY DAMAGE BONUS >>>
 
     // <<< APPLY TYPED ARMOR RESISTANCE >>>
     // Determine damage type from weapon (default to Melee if not specified)
@@ -2555,6 +2637,65 @@ pub fn damage_player(
     } else {
         log::info!("[BleedCheck] Item '{}' does not have all necessary bleed properties defined. Not applying bleed.", item_def.name);
     }
+    
+    // <<< APPLY BONE TOTEM BLEED CHANCE (ALAX TOTEM - SHARK) >>>
+    // Check if attacker has bleed chance on melee from equipped totem
+    let totem_bleed_chance = armor::get_bleed_chance_on_melee(ctx, attacker_id);
+    if totem_bleed_chance > 0.0 && actual_damage_applied > 0.0 {
+        let mut rng = ctx.rng();
+        let roll: f32 = rng.gen_range(0.0..1.0);
+        if roll < totem_bleed_chance {
+            // Check if target has bleed immunity
+            if !armor::has_armor_immunity(ctx, target_id, ImmunityType::Bleed) {
+                // Apply moderate bleed from totem (1.5 dmg/tick, 8 sec duration, 1 sec interval = 12 total)
+                const TOTEM_BLEED_DAMAGE_PER_TICK: f32 = 1.5;
+                const TOTEM_BLEED_DURATION: f32 = 8.0;
+                const TOTEM_BLEED_INTERVAL: f32 = 1.0;
+                
+                if let Err(e) = active_effects::apply_bleeding_effect(
+                    ctx,
+                    target_id,
+                    TOTEM_BLEED_DAMAGE_PER_TICK * (TOTEM_BLEED_DURATION / TOTEM_BLEED_INTERVAL),
+                    TOTEM_BLEED_DURATION,
+                    TOTEM_BLEED_INTERVAL,
+                ) {
+                    log::error!("Failed to apply totem bleed effect to player {:?}: {}", target_id, e);
+                } else {
+                    log::info!(
+                        "Player {:?}'s Alax Totem triggered bleed on player {:?} (roll: {:.2} < chance: {:.2})",
+                        attacker_id, target_id, roll, totem_bleed_chance
+                    );
+                }
+            }
+        }
+    }
+    // <<< END BONE TOTEM BLEED CHANCE >>>
+    
+    // <<< APPLY BONE TOTEM POISON DAMAGE (QAX'AADAX TOTEM - VIPER) >>>
+    // Check if attacker has poison damage on hit from equipped totem
+    let totem_poison_damage = armor::get_poison_damage_on_hit(ctx, attacker_id);
+    if totem_poison_damage > 0.0 && actual_damage_applied > 0.0 {
+        // Apply poison effect (duration based on totem damage)
+        // Higher totem poison damage = longer poison duration
+        const POISON_BASE_DURATION: f32 = 6.0;
+        let poison_duration = POISON_BASE_DURATION + (totem_poison_damage * 2.0);
+        
+        // Use a dummy item_def_id (0) since this is from a totem, not an item
+        if let Err(e) = active_effects::apply_poisoned_effect(
+            ctx,
+            target_id,
+            0, // No item def - this is from a bone totem
+            poison_duration,
+        ) {
+            log::error!("Failed to apply totem poison effect to player {:?}: {}", target_id, e);
+        } else {
+            log::info!(
+                "Player {:?}'s Qax'aadax Totem applied poison ({:.1}s duration) to player {:?}",
+                attacker_id, poison_duration, target_id
+            );
+        }
+    }
+    // <<< END BONE TOTEM POISON DAMAGE >>>
 
     // Apply burn effect if the weapon is a lit torch
     if item_def.name == "Torch" {

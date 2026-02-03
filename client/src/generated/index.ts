@@ -577,6 +577,8 @@ import { ResetFaction } from "./reset_faction_reducer.ts";
 export { ResetFaction };
 import { RespawnAtSleepingBag } from "./respawn_at_sleeping_bag_reducer.ts";
 export { RespawnAtSleepingBag };
+import { RespawnBoneCarvingKit } from "./respawn_bone_carving_kit_reducer.ts";
+export { RespawnBoneCarvingKit };
 import { RespawnDestroyedBarrels } from "./respawn_destroyed_barrels_reducer.ts";
 export { RespawnDestroyedBarrels };
 import { RespawnMilitaryRations } from "./respawn_military_rations_reducer.ts";
@@ -729,6 +731,8 @@ import { SplitStackWithinStash } from "./split_stack_within_stash_reducer.ts";
 export { SplitStackWithinStash };
 import { SplitStackWithinTurret } from "./split_stack_within_turret_reducer.ts";
 export { SplitStackWithinTurret };
+import { StartBoneCarving } from "./start_bone_carving_reducer.ts";
+export { StartBoneCarving };
 import { StartCrafting } from "./start_crafting_reducer.ts";
 export { StartCrafting };
 import { StartCraftingMultiple } from "./start_crafting_multiple_reducer.ts";
@@ -849,6 +853,8 @@ import { BeaconDropEventTableHandle } from "./beacon_drop_event_table.ts";
 export { BeaconDropEventTableHandle };
 import { BeehiveProcessScheduleTableHandle } from "./beehive_process_schedule_table.ts";
 export { BeehiveProcessScheduleTableHandle };
+import { BoneCarvingKitRespawnTableHandle } from "./bone_carving_kit_respawn_table.ts";
+export { BoneCarvingKitRespawnTableHandle };
 import { BrewRecipeCacheTableHandle } from "./brew_recipe_cache_table.ts";
 export { BrewRecipeCacheTableHandle };
 import { BrothPotTableHandle } from "./broth_pot_table.ts";
@@ -1219,6 +1225,8 @@ import { BeaconDropEvent } from "./beacon_drop_event_type.ts";
 export { BeaconDropEvent };
 import { BeehiveProcessSchedule } from "./beehive_process_schedule_type.ts";
 export { BeehiveProcessSchedule };
+import { BoneCarvingKitRespawn } from "./bone_carving_kit_respawn_type.ts";
+export { BoneCarvingKitRespawn };
 import { BrewRecipeCache } from "./brew_recipe_cache_type.ts";
 export { BrewRecipeCache };
 import { BrothPot } from "./broth_pot_type.ts";
@@ -1802,6 +1810,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (BeehiveProcessSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    bone_carving_kit_respawn: {
+      tableName: "bone_carving_kit_respawn" as const,
+      rowType: BoneCarvingKitRespawn.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (BoneCarvingKitRespawn.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     brew_recipe_cache: {
@@ -4275,6 +4292,10 @@ const REMOTE_MODULE = {
       reducerName: "respawn_at_sleeping_bag",
       argsType: RespawnAtSleepingBag.getTypeScriptAlgebraicType(),
     },
+    respawn_bone_carving_kit: {
+      reducerName: "respawn_bone_carving_kit",
+      argsType: RespawnBoneCarvingKit.getTypeScriptAlgebraicType(),
+    },
     respawn_destroyed_barrels: {
       reducerName: "respawn_destroyed_barrels",
       argsType: RespawnDestroyedBarrels.getTypeScriptAlgebraicType(),
@@ -4578,6 +4599,10 @@ const REMOTE_MODULE = {
     split_stack_within_turret: {
       reducerName: "split_stack_within_turret",
       argsType: SplitStackWithinTurret.getTypeScriptAlgebraicType(),
+    },
+    start_bone_carving: {
+      reducerName: "start_bone_carving",
+      argsType: StartBoneCarving.getTypeScriptAlgebraicType(),
     },
     start_crafting: {
       reducerName: "start_crafting",
@@ -5038,6 +5063,7 @@ export type Reducer = never
 | { name: "RequestTutorialHint", args: RequestTutorialHint }
 | { name: "ResetFaction", args: ResetFaction }
 | { name: "RespawnAtSleepingBag", args: RespawnAtSleepingBag }
+| { name: "RespawnBoneCarvingKit", args: RespawnBoneCarvingKit }
 | { name: "RespawnDestroyedBarrels", args: RespawnDestroyedBarrels }
 | { name: "RespawnMilitaryRations", args: RespawnMilitaryRations }
 | { name: "RespawnMineCarts", args: RespawnMineCarts }
@@ -5114,6 +5140,7 @@ export type Reducer = never
 | { name: "SplitStackWithinLantern", args: SplitStackWithinLantern }
 | { name: "SplitStackWithinStash", args: SplitStackWithinStash }
 | { name: "SplitStackWithinTurret", args: SplitStackWithinTurret }
+| { name: "StartBoneCarving", args: StartBoneCarving }
 | { name: "StartCrafting", args: StartCrafting }
 | { name: "StartCraftingMultiple", args: StartCraftingMultiple }
 | { name: "StartHeavyStormRainSoundReducer", args: StartHeavyStormRainSoundReducer }
@@ -9386,6 +9413,22 @@ export class RemoteReducers {
     this.connection.offReducer("respawn_at_sleeping_bag", callback);
   }
 
+  respawnBoneCarvingKit(args: BoneCarvingKitRespawn) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    RespawnBoneCarvingKit.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("respawn_bone_carving_kit", __argsBuffer, this.setCallReducerFlags.respawnBoneCarvingKitFlags);
+  }
+
+  onRespawnBoneCarvingKit(callback: (ctx: ReducerEventContext, args: BoneCarvingKitRespawn) => void) {
+    this.connection.onReducer("respawn_bone_carving_kit", callback);
+  }
+
+  removeOnRespawnBoneCarvingKit(callback: (ctx: ReducerEventContext, args: BoneCarvingKitRespawn) => void) {
+    this.connection.offReducer("respawn_bone_carving_kit", callback);
+  }
+
   respawnDestroyedBarrels(schedule: BarrelRespawnSchedule) {
     const __args = { schedule };
     let __writer = new __BinaryWriter(1024);
@@ -10572,6 +10615,22 @@ export class RemoteReducers {
 
   removeOnSplitStackWithinTurret(callback: (ctx: ReducerEventContext, turretId: number, sourceSlotIndex: number, quantityToSplit: number, targetSlotIndex: number) => void) {
     this.connection.offReducer("split_stack_within_turret", callback);
+  }
+
+  startBoneCarving(recipeId: bigint) {
+    const __args = { recipeId };
+    let __writer = new __BinaryWriter(1024);
+    StartBoneCarving.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("start_bone_carving", __argsBuffer, this.setCallReducerFlags.startBoneCarvingFlags);
+  }
+
+  onStartBoneCarving(callback: (ctx: ReducerEventContext, recipeId: bigint) => void) {
+    this.connection.onReducer("start_bone_carving", callback);
+  }
+
+  removeOnStartBoneCarving(callback: (ctx: ReducerEventContext, recipeId: bigint) => void) {
+    this.connection.offReducer("start_bone_carving", callback);
   }
 
   startCrafting(recipeId: bigint) {
@@ -12512,6 +12571,11 @@ export class SetReducerFlags {
     this.respawnAtSleepingBagFlags = flags;
   }
 
+  respawnBoneCarvingKitFlags: __CallReducerFlags = 'FullUpdate';
+  respawnBoneCarvingKit(flags: __CallReducerFlags) {
+    this.respawnBoneCarvingKitFlags = flags;
+  }
+
   respawnDestroyedBarrelsFlags: __CallReducerFlags = 'FullUpdate';
   respawnDestroyedBarrels(flags: __CallReducerFlags) {
     this.respawnDestroyedBarrelsFlags = flags;
@@ -12892,6 +12956,11 @@ export class SetReducerFlags {
     this.splitStackWithinTurretFlags = flags;
   }
 
+  startBoneCarvingFlags: __CallReducerFlags = 'FullUpdate';
+  startBoneCarving(flags: __CallReducerFlags) {
+    this.startBoneCarvingFlags = flags;
+  }
+
   startCraftingFlags: __CallReducerFlags = 'FullUpdate';
   startCrafting(flags: __CallReducerFlags) {
     this.startCraftingFlags = flags;
@@ -13190,6 +13259,11 @@ export class RemoteTables {
   get beehiveProcessSchedule(): BeehiveProcessScheduleTableHandle<'beehive_process_schedule'> {
     // clientCache is a private property
     return new BeehiveProcessScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<BeehiveProcessSchedule>(REMOTE_MODULE.tables.beehive_process_schedule));
+  }
+
+  get boneCarvingKitRespawn(): BoneCarvingKitRespawnTableHandle<'bone_carving_kit_respawn'> {
+    // clientCache is a private property
+    return new BoneCarvingKitRespawnTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<BoneCarvingKitRespawn>(REMOTE_MODULE.tables.bone_carving_kit_respawn));
   }
 
   get brewRecipeCache(): BrewRecipeCacheTableHandle<'brew_recipe_cache'> {

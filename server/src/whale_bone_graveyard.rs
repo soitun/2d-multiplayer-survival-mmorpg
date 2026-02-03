@@ -20,7 +20,12 @@
 use crate::ReducerContext;
 use crate::monument_part as MonumentPartTableTrait;
 use crate::MonumentType;
+use crate::items::item_definition as ItemDefinitionTableTrait;
+use crate::items::inventory_item as InventoryItemTableTrait;
+use crate::dropped_item::{DroppedItem, dropped_item as DroppedItemTableTrait};
+use crate::environment::calculate_chunk_index;
 use spacetimedb::Table;
+use log;
 
 // =============================================================================
 // WHALE BONE GRAVEYARD PROTECTION CONSTANTS
@@ -290,6 +295,97 @@ pub fn line_intersects_whale_bone_graveyard(
                 return true;
             }
         }
+    }
+    
+    false
+}
+
+// =============================================================================
+// BONE CARVING KIT SPAWN SYSTEM
+// =============================================================================
+
+/// Bone Carving Kit respawn delay in seconds (30 minutes)
+pub const BONE_CARVING_KIT_RESPAWN_DELAY_SECS: u64 = 1800;
+
+/// Spawn a Bone Carving Kit at the Whale Bone Graveyard center
+/// Only spawns if no kit currently exists in the world
+pub fn spawn_bone_carving_kit(ctx: &ReducerContext) -> Result<(), String> {
+    let dropped_item_table = ctx.db.dropped_item();
+    let item_def_table = ctx.db.item_definition();
+    
+    // Get Bone Carving Kit definition
+    let kit_def = item_def_table.iter()
+        .find(|def| def.name == "Bone Carving Kit")
+        .ok_or("Bone Carving Kit item definition not found.")?;
+    
+    // Check if a kit already exists as a dropped item
+    let kit_exists = dropped_item_table.iter()
+        .any(|item| item.item_def_id == kit_def.id);
+    
+    if kit_exists {
+        log::info!("Bone Carving Kit already exists in the world, skipping spawn.");
+        return Ok(());
+    }
+    
+    // Get whale bone graveyard center position
+    let (center_x, center_y) = get_whale_bone_graveyard_center(ctx)
+        .ok_or("Whale Bone Graveyard center not found.")?;
+    
+    // Spawn position with small random offset (within 50 pixels of center)
+    use rand::Rng;
+    let mut rng = ctx.rng();
+    let offset_x = rng.gen_range(-50.0..50.0);
+    let offset_y = rng.gen_range(-50.0..50.0);
+    let spawn_x = center_x + offset_x;
+    let spawn_y = center_y + offset_y;
+    
+    // Calculate chunk index for the spawn position
+    let chunk_index = calculate_chunk_index(spawn_x, spawn_y);
+    
+    // Create the dropped item
+    let dropped_item = DroppedItem {
+        id: 0, // Auto-increment
+        item_def_id: kit_def.id,
+        quantity: 1,
+        pos_x: spawn_x,
+        pos_y: spawn_y,
+        chunk_index,
+        created_at: ctx.timestamp,
+        item_data: None,
+        spawn_x: None,
+        spawn_y: None,
+    };
+    
+    dropped_item_table.insert(dropped_item);
+    
+    log::info!(
+        "Bone Carving Kit spawned at Whale Bone Graveyard ({:.1}, {:.1})",
+        spawn_x, spawn_y
+    );
+    
+    Ok(())
+}
+
+/// Check if a Bone Carving Kit exists in the world (as dropped item or in any player inventory)
+pub fn bone_carving_kit_exists_in_world(ctx: &ReducerContext) -> bool {
+    let dropped_item_table = ctx.db.dropped_item();
+    let item_def_table = ctx.db.item_definition();
+    let inventory_table = ctx.db.inventory_item();
+    
+    // Get Bone Carving Kit definition
+    let kit_def = match item_def_table.iter().find(|def| def.name == "Bone Carving Kit") {
+        Some(def) => def,
+        None => return false,
+    };
+    
+    // Check dropped items
+    if dropped_item_table.iter().any(|item| item.item_def_id == kit_def.id) {
+        return true;
+    }
+    
+    // Check player inventories/hotbars
+    if inventory_table.iter().any(|item| item.item_def_id == kit_def.id) {
+        return true;
     }
     
     false

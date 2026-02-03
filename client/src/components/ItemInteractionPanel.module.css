@@ -220,6 +220,17 @@
   border-color: #7fff00;
 }
 
+.carvingKitButton {
+  background: linear-gradient(135deg, #8b5a2b 0%, #6b4423 100%);
+  border-color: #daa520;
+  box-shadow: 0 0 10px rgba(139, 90, 43, 0.5), inset 0 0 10px rgba(218, 165, 32, 0.1);
+}
+
+.carvingKitButton:hover:not(:disabled) {
+  box-shadow: 0 4px 15px rgba(139, 90, 43, 0.7), inset 0 0 15px rgba(218, 165, 32, 0.2);
+  border-color: #ffd700;
+}
+
 /* Split controls styles */
 .splitControls {
   display: flex;

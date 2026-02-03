@@ -2205,6 +2205,15 @@ fn find_detected_player(ctx: &ReducerContext, animal: &WildAnimal, stats: &Anima
                        player.identity, detection_bonus * 100.0, effective_perception_range);
         }
         
+        // 🦴 KAYUX AMULET (FOX TOTEM): Reduces animal detection radius
+        // The fox spirit helps the wearer evade animal detection
+        let animal_detection_reduction = crate::armor::get_reduces_animal_detection(ctx, player.identity);
+        if animal_detection_reduction > 0.0 {
+            effective_perception_range *= 1.0 - animal_detection_reduction;
+            log::debug!("🦴 Player {} has Kayux Amulet, {:.1}% animal detection reduction, perception now {:.1}px",
+                       player.identity, animal_detection_reduction * 100.0, effective_perception_range);
+        }
+        
         // 🦊 FOX FUR BOOTS: Silent movement further reduces detection range
         // Players wearing fox fur boots make no sound, reducing detection by an additional 30%
         if crate::armor::has_silent_movement(ctx, player.identity) {

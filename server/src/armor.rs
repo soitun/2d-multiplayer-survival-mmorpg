@@ -351,3 +351,119 @@ pub fn calculate_water_speed_bonus(ctx: &ReducerContext, player_id: Identity) ->
     // Cap at 200% bonus (3x speed) to prevent absurd speeds
     total_bonus.min(2.0)
 }
+
+// === BONE TOTEM PASSIVE BONUS FUNCTIONS ===
+
+/// Calculates melee damage bonus from equipped armor (Tanuux Totem - Polar Bear)
+pub fn calculate_melee_damage_bonus(ctx: &ReducerContext, player_id: Identity) -> f32 {
+    let armor_pieces = get_equipped_armor_pieces(ctx, player_id);
+    let mut bonus = 0.0;
+    
+    for armor_piece in armor_pieces {
+        if let Some(dmg_bonus) = armor_piece.melee_damage_bonus {
+            bonus += dmg_bonus;
+        }
+    }
+    
+    bonus
+}
+
+/// Calculates ally damage bonus from equipped armor (Sabaakax Totem - Wolf)
+pub fn calculate_ally_damage_bonus(ctx: &ReducerContext, player_id: Identity) -> f32 {
+    let armor_pieces = get_equipped_armor_pieces(ctx, player_id);
+    let mut bonus = 0.0;
+    
+    for armor_piece in armor_pieces {
+        if let Some(ally_bonus) = armor_piece.ally_damage_bonus {
+            bonus += ally_bonus;
+        }
+    }
+    
+    bonus
+}
+
+/// Gets poison damage on hit from equipped armor (Qax'aadax Totem - Viper)
+pub fn get_poison_damage_on_hit(ctx: &ReducerContext, player_id: Identity) -> f32 {
+    let armor_pieces = get_equipped_armor_pieces(ctx, player_id);
+    let mut total_poison = 0.0;
+    
+    for armor_piece in armor_pieces {
+        if let Some(poison) = armor_piece.poison_damage_on_hit {
+            total_poison += poison;
+        }
+    }
+    
+    total_poison
+}
+
+/// Gets bleed chance on melee hit from equipped armor (Alax Totem - Shark)
+pub fn get_bleed_chance_on_melee(ctx: &ReducerContext, player_id: Identity) -> f32 {
+    let armor_pieces = get_equipped_armor_pieces(ctx, player_id);
+    let mut total_chance = 0.0;
+    
+    for armor_piece in armor_pieces {
+        if let Some(chance) = armor_piece.bleed_chance_on_melee {
+            total_chance += chance;
+        }
+    }
+    
+    // Cap at 100% chance
+    total_chance.min(1.0)
+}
+
+/// Calculates harvest yield bonus from equipped armor (Tunux Charm - Vole)
+pub fn calculate_harvest_bonus(ctx: &ReducerContext, player_id: Identity) -> f32 {
+    let armor_pieces = get_equipped_armor_pieces(ctx, player_id);
+    let mut bonus = 0.0;
+    
+    for armor_piece in armor_pieces {
+        if let Some(harvest_bonus) = armor_piece.harvest_bonus {
+            bonus += harvest_bonus;
+        }
+    }
+    
+    bonus
+}
+
+/// Gets max health bonus from equipped armor (Tugix Totem - Walrus)
+pub fn get_max_health_bonus(ctx: &ReducerContext, player_id: Identity) -> i32 {
+    let armor_pieces = get_equipped_armor_pieces(ctx, player_id);
+    let mut bonus = 0;
+    
+    for armor_piece in armor_pieces {
+        if let Some(health_bonus) = armor_piece.max_health_bonus {
+            bonus += health_bonus;
+        }
+    }
+    
+    bonus
+}
+
+/// Gets animal detection reduction from equipped armor (Kayux Amulet - Fox)
+/// Returns a value between 0.0 and 1.0 representing the % reduction in animal detection radius
+pub fn get_reduces_animal_detection(ctx: &ReducerContext, player_id: Identity) -> f32 {
+    let armor_pieces = get_equipped_armor_pieces(ctx, player_id);
+    let mut reduction = 0.0;
+    
+    for armor_piece in armor_pieces {
+        if let Some(detect_reduction) = armor_piece.reduces_animal_detection {
+            reduction += detect_reduction;
+        }
+    }
+    
+    // Cap at 80% reduction to always allow some detection
+    reduction.min(0.8)
+}
+
+/// Checks if player has night vision from equipped armor (Angunax Totem - Owl)
+pub fn has_night_vision(ctx: &ReducerContext, player_id: Identity) -> bool {
+    let armor_pieces = get_equipped_armor_pieces(ctx, player_id);
+    
+    for armor_piece in armor_pieces {
+        if armor_piece.grants_night_vision {
+            return true;
+        }
+    }
+    
+    false
+}

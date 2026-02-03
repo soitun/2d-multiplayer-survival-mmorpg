@@ -161,6 +161,7 @@ mod shipwreck; // <<< ADDED: Shipwreck monument collision system
 mod fishing_village; // <<< ADDED: Fishing village monument collision system
 mod whale_bone_graveyard; // <<< ADDED: Whale Bone Graveyard monument collision system
 mod hunting_village; // <<< ADDED: Hunting Village monument collision system
+mod bone_carving; // <<< ADDED: Bone carving system for Aleutian spirit totems
 pub mod monument; // <<< ADDED: Generic monument system for clearance zones (shipwrecks, ruins, crash sites, etc.)
 mod durability; // <<< ADDED: Item durability system for weapons, tools, and torches
 mod repair_bench; // <<< ADDED: Repair bench for item repair

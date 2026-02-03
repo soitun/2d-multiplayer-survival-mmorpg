@@ -60,6 +60,7 @@ impl ItemBuilder {
                 grants_wetness_immunity: false,
                 grants_knockback_immunity: false,
                 grants_bleed_immunity: false,
+                grants_night_vision: false,
                 noise_on_sprint: false,
                 silences_movement: false,
                 intimidates_animals: false,
@@ -68,6 +69,14 @@ impl ItemBuilder {
                 water_speed_bonus: None,
                 is_preserved: false,
                 spoils_after_hours: None,
+                // Bone totem passive bonuses
+                harvest_bonus: None,
+                ally_damage_bonus: None,
+                poison_damage_on_hit: None,
+                max_health_bonus: None,
+                bleed_chance_on_melee: None,
+                reduces_animal_detection: None,
+                melee_damage_bonus: None,
             }
         }
     }
@@ -332,6 +341,11 @@ impl ItemBuilder {
         self
     }
     
+    pub fn grants_night_vision(mut self, value: bool) -> Self {
+        self.inner.grants_night_vision = value;
+        self
+    }
+    
     pub fn noise_on_sprint(mut self, value: bool) -> Self {
         self.inner.noise_on_sprint = value;
         self
@@ -364,6 +378,50 @@ impl ItemBuilder {
     /// 1.0 = +100% water speed (2x normal), 0.5 = +50% water speed
     pub fn water_speed_bonus(mut self, bonus: f32) -> Self {
         self.inner.water_speed_bonus = Some(bonus);
+        self
+    }
+    
+    // BONE TOTEM PASSIVE BONUS BUILDER METHODS
+    
+    /// Set harvest yield bonus (0.25 = +25% harvest yield)
+    pub fn harvest_bonus(mut self, bonus: f32) -> Self {
+        self.inner.harvest_bonus = Some(bonus);
+        self
+    }
+    
+    /// Set ally damage bonus (0.15 = +15% damage when allies within range)
+    pub fn ally_damage_bonus(mut self, bonus: f32) -> Self {
+        self.inner.ally_damage_bonus = Some(bonus);
+        self
+    }
+    
+    /// Set flat poison damage added to each melee hit
+    pub fn poison_damage_on_hit(mut self, damage: f32) -> Self {
+        self.inner.poison_damage_on_hit = Some(damage);
+        self
+    }
+    
+    /// Set flat max health bonus (e.g., 10 = +10 max health)
+    pub fn max_health_bonus(mut self, bonus: i32) -> Self {
+        self.inner.max_health_bonus = Some(bonus);
+        self
+    }
+    
+    /// Set bleed chance on melee hit (0.1 = 10% chance to inflict bleed)
+    pub fn bleed_chance_on_melee(mut self, chance: f32) -> Self {
+        self.inner.bleed_chance_on_melee = Some(chance);
+        self
+    }
+    
+    /// Set animal detection reduction (0.2 = -20% animal detection radius against this player)
+    pub fn reduces_animal_detection(mut self, reduction: f32) -> Self {
+        self.inner.reduces_animal_detection = Some(reduction);
+        self
+    }
+    
+    /// Set melee damage bonus (0.15 = +15% melee damage)
+    pub fn melee_damage_bonus(mut self, bonus: f32) -> Self {
+        self.inner.melee_damage_bonus = Some(bonus);
         self
     }
 

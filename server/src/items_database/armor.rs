@@ -984,5 +984,100 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .respawn_time(600)
             .build(),
 
+        // === BONE TOTEMS (Aleutian Spirit Carvings) ===
+        // Powerful back-slot items crafted from animal skulls using the Bone Carving Kit
+        // Each provides unique passive bonuses tied to the spirit of the animal
+        // Cannot be crafted through normal crafting - requires Bone Carving Kit interface
+
+        // Kayux Amulet (Fox) - Stealth bonus
+        ItemBuilder::new("Kayux Amulet", "A sacred fox skull carved with Unangan spirit symbols. The kayux (red fox) grants cunning and stealth - animals have difficulty detecting the wearer.", ItemCategory::Armor)
+            .icon("kayux_amulet.png")
+            .equippable(Some(EquipmentSlotType::Back))
+            .armor_resistances(ArmorResistances::zero())
+            .reduces_animal_detection(0.20) // -20% animal detection radius
+            .build(),
+
+        // Sabaakax Totem (Wolf) - Pack damage bonus
+        ItemBuilder::new("Sabaakax Totem", "A wolf skull inscribed with pack hunting symbols. The spirit of sabaakax strengthens those who fight alongside allies, granting bonus damage when near friendly players.", ItemCategory::Armor)
+            .icon("sabaakax_totem.png")
+            .equippable(Some(EquipmentSlotType::Back))
+            .armor_resistances(ArmorResistances::zero())
+            .ally_damage_bonus(0.15) // +15% damage when allies within 500px
+            .build(),
+
+        // Qax'aadax Totem (Viper) - Poison on hit
+        ItemBuilder::new("Qax'aadax Totem", "A viper skull etched with serpentine patterns. The qax'aadax spirit infuses each strike with lingering venom, dealing poison damage on every melee hit.", ItemCategory::Armor)
+            .icon("qaxaadax_totem.png")
+            .equippable(Some(EquipmentSlotType::Back))
+            .armor_resistances(ArmorResistances::zero())
+            .poison_damage_on_hit(1.0) // +1 poison damage per melee hit
+            .build(),
+
+        // Tugix Totem (Walrus) - Cold resistance and health
+        ItemBuilder::new("Tugix Totem", "A massive walrus skull carved with ocean protection symbols. The tugix spirit grants resilience against the frozen waters and fortifies the body.", ItemCategory::Armor)
+            .icon("tugix_totem.png")
+            .equippable(Some(EquipmentSlotType::Back))
+            .armor_resistances(ArmorResistances {
+                melee_resistance: 0.0,
+                projectile_resistance: 0.0,
+                fire_resistance: 0.0,
+                blunt_resistance: 0.0,
+                slash_resistance: 0.0,
+                pierce_resistance: 0.0,
+                cold_resistance: 0.15, // +15% cold resistance
+            })
+            .max_health_bonus(10) // +10 max health
+            .build(),
+
+        // Tunux Charm (Vole) - Harvest bonus
+        ItemBuilder::new("Tunux Charm", "A tiny vole skull adorned with gathering symbols. The humble tunux spirit blesses the wearer with abundant harvests from the land.", ItemCategory::Armor)
+            .icon("tunux_charm.png")
+            .equippable(Some(EquipmentSlotType::Back))
+            .armor_resistances(ArmorResistances::zero())
+            .harvest_bonus(0.25) // +25% harvest yield
+            .build(),
+
+        // Qilax Totem (Wolverine) - Berserker damage bonus
+        ItemBuilder::new("Qilax Totem", "A wolverine skull marked with battle fury symbols. The fierce qilax spirit awakens when death approaches, granting devastating power at low health.", ItemCategory::Armor)
+            .icon("qilax_totem.png")
+            .equippable(Some(EquipmentSlotType::Back))
+            .armor_resistances(ArmorResistances::zero())
+            .low_health_damage_bonus(0.30) // +30% damage when below 25% health
+            .build(),
+
+        // Tanuux Totem (Polar Bear) - Melee damage and knockback immunity
+        ItemBuilder::new("Tanuux Totem", "A polar bear skull inscribed with strength glyphs. The tanuux spirit grants the power and stability of the great white bear.", ItemCategory::Armor)
+            .icon("tanuux_totem.png")
+            .equippable(Some(EquipmentSlotType::Back))
+            .armor_resistances(ArmorResistances::zero())
+            .melee_damage_bonus(0.15) // +15% melee damage
+            .grants_knockback_immunity(true)
+            .build(),
+
+        // Ulax Charm (Hare) - Movement speed
+        ItemBuilder::new("Ulax Charm", "A hare skull decorated with swift wind patterns. The ulax spirit grants the fleet-footed speed of the arctic hare.", ItemCategory::Armor)
+            .icon("ulax_charm.png")
+            .equippable(Some(EquipmentSlotType::Back))
+            .armor_resistances(ArmorResistances::zero())
+            .movement_speed_modifier(0.08) // +8% movement speed
+            .build(),
+
+        // Angunax Totem (Owl) - Grants permanent night vision while equipped
+        ItemBuilder::new("Angunax Totem", "An owl skull carved with all-seeing eye symbols. The angunax spirit grants the owl's keen sight in darkness, revealing what others cannot see.", ItemCategory::Armor)
+            .icon("angunax_totem.png")
+            .equippable(Some(EquipmentSlotType::Back))
+            .armor_resistances(ArmorResistances::zero())
+            .grants_night_vision(true) // Permanent night vision while equipped
+            .build(),
+
+        // Alax Totem (Shark) - Water speed and bleed chance
+        ItemBuilder::new("Alax Totem", "A shark skull etched with predator hunting symbols. The alax spirit grants dominion over the waters and the shark's bleeding bite.", ItemCategory::Armor)
+            .icon("alax_totem.png")
+            .equippable(Some(EquipmentSlotType::Back))
+            .armor_resistances(ArmorResistances::zero())
+            .water_speed_bonus(0.15) // +15% water speed
+            .bleed_chance_on_melee(0.10) // 10% chance to inflict bleed on melee
+            .build(),
+
     ]
 }

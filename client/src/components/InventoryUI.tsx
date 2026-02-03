@@ -122,6 +122,8 @@ interface InventoryUIProps {
     selectedInventoryItem?: PopulatedItem | null;
     onSelectInventoryItem?: (item: PopulatedItem | null) => void;
     onCloseItemInteraction?: () => void;
+    // Bone Carving Panel callback
+    onOpenBoneCarving?: () => void;
 }
 
 // Represents an item instance with its definition for rendering
@@ -193,6 +195,8 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
     selectedInventoryItem: externalSelectedItem,
     onSelectInventoryItem,
     onCloseItemInteraction,
+    // Bone Carving Panel callback
+    onOpenBoneCarving,
 }) => {
     const isPlacingItem = placementInfo !== null;
     const prevInteractionTargetRef = useRef<typeof interactionTarget | undefined>(undefined);
@@ -1501,6 +1505,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                         connection={connection}
                         onClose={handleCloseItemInteraction}
                         onStartSplitDrag={handleStartSplitDrag}
+                        onOpenBoneCarving={onOpenBoneCarving}
                     />
                 )}
             </div>

@@ -17,6 +17,7 @@ import ItemAcquisitionNotificationUI from './ItemAcquisitionNotificationUI';
 import ActiveCraftingQueueUI from './ActiveCraftingQueueUI';
 import CyberpunkKnockedOutScreen from './CyberpunkKnockedOutScreen';
 import CraftingScreen from './CraftingScreen';
+import BoneCarvingPanel from './BoneCarvingPanel';
 // Hot loot hook
 import { useHotLoot } from '../hooks/useHotLoot';
 // --- END NEW IMPORTS ---
@@ -124,6 +125,9 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
     // Lifted state for ItemInteractionPanel - allows clicking items in Hotbar/ExternalContainerUI while inventory is open
     const [selectedInventoryItem, setSelectedInventoryItem] = useState<PopulatedItem | null>(null);
     
+    // State for Bone Carving Panel
+    const [showBoneCarvingPanel, setShowBoneCarvingPanel] = useState<boolean>(false);
+    
     // Handler for selecting items from any source (InventoryUI, Hotbar, ExternalContainerUI)
     const handleSelectInventoryItem = useCallback((item: PopulatedItem | null) => {
         setSelectedInventoryItem(item);
@@ -132,6 +136,20 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
     // Handler for closing the item interaction panel
     const handleCloseItemInteraction = useCallback(() => {
         setSelectedInventoryItem(null);
+    }, []);
+    
+    // Handler for opening the Bone Carving Panel
+    const handleOpenBoneCarving = useCallback(() => {
+        setShowBoneCarvingPanel(true);
+        // Close inventory when opening bone carving panel
+        if (showInventory) {
+            onToggleInventory();
+        }
+    }, [showInventory, onToggleInventory]);
+    
+    // Handler for closing the Bone Carving Panel
+    const handleCloseBoneCarving = useCallback(() => {
+        setShowBoneCarvingPanel(false);
     }, []);
     
     // Clear selected item when inventory closes
@@ -1301,6 +1319,43 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
             }
         });
         
+        // Check for equipped bone totems (back slot equipment)
+        if (identity && activeEquipments && itemDefinitions) {
+            const playerEquipment = Array.from(activeEquipments.values())
+                .find(eq => eq.playerId.isEqual(identity));
+            
+            if (playerEquipment?.backSlot) {
+                const backItemDef = itemDefinitions.get(playerEquipment.backSlot.toString());
+                if (backItemDef) {
+                    // Bone totem name patterns and their status info
+                    const boneTotemStatusMap: Record<string, { emoji: string; description: string }> = {
+                        'Kayux Amulet': { emoji: '🦊', description: 'Fox spirit: -20% animal detection radius' },
+                        'Sabaakax Totem': { emoji: '🐺', description: 'Wolf spirit: +15% damage when allies nearby' },
+                        "Qax'aadax Totem": { emoji: '🐍', description: 'Viper spirit: +1 poison damage on melee hits' },
+                        'Tugix Totem': { emoji: '🦭', description: 'Walrus spirit: +15% cold resistance, +10 max HP' },
+                        'Tunux Charm': { emoji: '🐀', description: 'Vole spirit: +25% harvest yield' },
+                        'Qilax Totem': { emoji: '🦡', description: 'Wolverine spirit: +30% damage when low health' },
+                        'Tanuux Totem': { emoji: '🐻', description: 'Polar bear spirit: +15% melee damage, knockback immunity' },
+                        'Ulax Charm': { emoji: '🐇', description: 'Hare spirit: +8% movement speed' },
+                        'Angunax Totem': { emoji: '🦉', description: 'Owl spirit: permanent night vision' },
+                        'Alax Totem': { emoji: '🦈', description: 'Shark spirit: +15% water speed, 10% bleed on melee' },
+                    };
+                    
+                    const totemInfo = boneTotemStatusMap[backItemDef.name];
+                    if (totemInfo) {
+                        effects.push({
+                            id: 'bone_totem',
+                            name: backItemDef.name,
+                            emoji: totemInfo.emoji,
+                            type: 'positive' as const,
+                            description: totemInfo.description,
+                            // No duration - permanent while equipped
+                        });
+                    }
+                }
+            }
+        }
+        
         return effects;
     };
 
@@ -1565,6 +1620,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     selectedInventoryItem={selectedInventoryItem}
                     onSelectInventoryItem={handleSelectInventoryItem}
                     onCloseItemInteraction={handleCloseItemInteraction}
+                    onOpenBoneCarving={handleOpenBoneCarving}
                  />
              )}
 
@@ -1581,6 +1637,18 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     onSearchFocusChange={onCraftingSearchFocusChange}
                     purchasedMemoryNodes={purchasedMemoryNodes}
                     activeConsumableEffects={activeConsumableEffects}
+                />
+            )}
+
+            {/* Bone Carving Panel - Opened via Bone Carving Kit item interaction */}
+            {showBoneCarvingPanel && (
+                <BoneCarvingPanel
+                    playerIdentity={identity}
+                    craftingQueueItems={craftingQueueItems}
+                    itemDefinitions={itemDefinitions}
+                    inventoryItems={inventoryItems}
+                    connection={connection}
+                    onClose={handleCloseBoneCarving}
                 />
             )}
 

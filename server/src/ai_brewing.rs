@@ -404,6 +404,7 @@ pub fn create_generated_brew(
             grants_wetness_immunity: false,
             grants_knockback_immunity: false,
             grants_bleed_immunity: false,
+            grants_night_vision: false,
             noise_on_sprint: false,
             silences_movement: false,
             intimidates_animals: false,
@@ -423,6 +424,15 @@ pub fn create_generated_brew(
             // Food preservation (brewed items are fresh, not preserved)
             is_preserved: false,
             spoils_after_hours: None, // AI brews use default food spoilage calculation
+            
+            // Bone totem passive bonuses (not applicable for consumables)
+            harvest_bonus: None,
+            ally_damage_bonus: None,
+            poison_damage_on_hit: None,
+            max_health_bonus: None,
+            bleed_chance_on_melee: None,
+            reduces_animal_detection: None,
+            melee_damage_bonus: None,
         };
         
         let inserted = item_defs.insert(new_item_def);

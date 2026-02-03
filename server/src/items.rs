@@ -134,6 +134,7 @@ pub struct ItemDefinition {
     pub grants_wetness_immunity: bool, // Full scale set grants wetness immunity
     pub grants_knockback_immunity: bool, // Full scale set grants knockback immunity
     pub grants_bleed_immunity: bool, // Leather armor grants bleed immunity
+    pub grants_night_vision: bool, // Angunax (owl) totem grants night vision
     pub noise_on_sprint: bool, // Bone armor makes noise when sprinting
     pub silences_movement: bool, // Fox fur boots silence footsteps
     pub intimidates_animals: bool, // Wolf fur intimidates animals
@@ -152,6 +153,15 @@ pub struct ItemDefinition {
     
     // EXPLICIT SPOILAGE (for non-food items that should spoil, like live creatures)
     pub spoils_after_hours: Option<f32>, // If set, item spoils after this many hours regardless of category
+    
+    // BONE TOTEM PASSIVE BONUSES
+    pub harvest_bonus: Option<f32>, // 0.25 = +25% harvest yield bonus
+    pub ally_damage_bonus: Option<f32>, // 0.15 = +15% damage when allies within range
+    pub poison_damage_on_hit: Option<f32>, // Flat poison damage added to each melee hit
+    pub max_health_bonus: Option<i32>, // Flat bonus to max health (e.g., +10)
+    pub bleed_chance_on_melee: Option<f32>, // 0.1 = 10% chance to inflict bleed on melee hit
+    pub reduces_animal_detection: Option<f32>, // 0.2 = -20% animal detection radius
+    pub melee_damage_bonus: Option<f32>, // 0.15 = +15% melee damage bonus
 }
 
 // --- Inventory Table ---

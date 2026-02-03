@@ -20,6 +20,7 @@ interface ItemInteractionPanelProps {
     connection: DbConnection | null;
     onClose: () => void;
     onStartSplitDrag?: (itemInfo: PopulatedItem, quantity: number) => void;
+    onOpenBoneCarving?: () => void; // Opens the bone carving panel
 }
 
 interface ItemAction {
@@ -33,7 +34,8 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
     selectedItem, 
     connection, 
     onClose,
-    onStartSplitDrag
+    onStartSplitDrag,
+    onOpenBoneCarving
 }) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [currentItemQuantity, setCurrentItemQuantity] = useState(selectedItem.instance.quantity);
@@ -181,6 +183,16 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
             });
         }
 
+        // Check if item is the Bone Carving Kit
+        if (itemName === "Bone Carving Kit") {
+            actions.push({
+                label: 'Use Carving Kit',
+                action: 'use_carving_kit',
+                description: 'Open bone carving interface',
+                buttonStyle: 'carvingKitButton'
+            });
+        }
+
         // Check if item is a water container with water content
         if (isWaterContainer(itemName) && hasWaterContent(item.instance)) {
             actions.push({
@@ -254,6 +266,13 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
                 case 'drink':
                     // console.log(`Drinking from water container ${itemInstanceId}: ${selectedItem.definition.name}`);
                     connection.reducers.consumeFilledWaterContainer(itemInstanceId);
+                    break;
+                case 'use_carving_kit':
+                    // Open the bone carving panel
+                    if (onOpenBoneCarving) {
+                        onOpenBoneCarving();
+                        onClose(); // Close the interaction panel when opening carving panel
+                    }
                     break;
                 default:
                     console.warn(`Unknown action: ${action}`);
