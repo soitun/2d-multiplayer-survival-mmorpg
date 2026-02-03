@@ -39,7 +39,7 @@ const SOUND_DEFINITIONS = {
     // Continuous/looping sounds - server managed
     campfire_looping: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 525, isLooping: true },
     lantern_looping: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 525, isLooping: true },
-    bees_buzzing: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.8, maxDistance: 525, isLooping: true },
+    bees_buzzing: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.5, maxDistance: 525, isLooping: true }, // Subtle ambient buzz
     // Repair sounds - server only (triggered by repair actions)
     repair: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.2, maxDistance: 525 },
     repair_fail: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 525 },
@@ -482,6 +482,49 @@ const calculateSpatialVolume = (
     return baseVolume * volumeMultiplier * SOUND_CONFIG.MASTER_VOLUME;
 };
 
+// Calculate volume for looping/continuous sounds with smoother falloff
+// Uses a combination of exponential decay and cosine smoothing for gradual fade-out
+const calculateSmoothSpatialVolume = (
+    distance: number, 
+    baseVolume: number, 
+    maxDistance: number
+): number => {
+    if (distance <= 0) return baseVolume * SOUND_CONFIG.MASTER_VOLUME;
+    
+    // Extend the effective range for smoother falloff
+    const extendedMaxDistance = maxDistance * 1.3; // 30% extra fade zone
+    if (distance >= extendedMaxDistance) return 0;
+    
+    const distanceRatio = distance / maxDistance;
+    
+    // Use a smoother curve that:
+    // 1. Maintains good volume close to the source
+    // 2. Has a gradual, natural-sounding falloff
+    // 3. Smoothly fades to silence without abrupt cutoff
+    
+    if (distanceRatio <= 0.3) {
+        // Close range: nearly full volume with slight falloff
+        // Exponential keeps it loud near the source
+        return baseVolume * Math.exp(-distanceRatio * 0.5) * SOUND_CONFIG.MASTER_VOLUME;
+    } else if (distanceRatio <= 1.0) {
+        // Mid range: gradual exponential decay
+        // Volume at 0.3 ratio (for continuity): Math.exp(-0.3 * 0.5) ≈ 0.86
+        const startVolume = Math.exp(-0.3 * 0.5);
+        const midRatio = (distanceRatio - 0.3) / 0.7; // 0 to 1 over this range
+        // Smooth exponential decay from startVolume to ~0.15
+        const midVolume = startVolume * Math.exp(-midRatio * 1.8);
+        return baseVolume * midVolume * SOUND_CONFIG.MASTER_VOLUME;
+    } else {
+        // Extended fade zone (1.0 to 1.3 ratio): smooth cosine fade to zero
+        // Volume at ratio 1.0: startVolume * Math.exp(-1.8) ≈ 0.86 * 0.165 ≈ 0.14
+        const fadeStartVolume = Math.exp(-0.3 * 0.5) * Math.exp(-1.8);
+        const fadeRatio = (distanceRatio - 1.0) / 0.3; // 0 to 1 over the extended zone
+        // Cosine fade: smooth transition from fadeStartVolume to 0
+        const fadeMultiplier = (1 + Math.cos(fadeRatio * Math.PI)) / 2;
+        return baseVolume * fadeStartVolume * fadeMultiplier * SOUND_CONFIG.MASTER_VOLUME;
+    }
+};
+
 // Enhanced spatial audio with performance optimizations and random pitch/volume variations
 const playSpatialAudio = async (
     filename: string,
@@ -857,15 +900,67 @@ const activeSeamlessLoopingSounds = new Map<string, {
 // Track sounds that are currently fading out to prevent double-cleanup
 const fadingOutSounds = new Set<string>();
 
-// Fade-out duration for smooth audio transitions (ms)
-const LOOPING_SOUND_FADE_OUT_DURATION = 600; // 600ms smooth fade-out
+// Track viewport-capped sounds that are in the process of fading down (not full cleanup, just volume reduction)
+// Maps objectId to { intervalId, targetVolume } - allows cancellation if volume rises again
+const viewportCapFadingDown = new Map<string, { intervalId: ReturnType<typeof setInterval>, startTime: number }>();
+
+// Fade-out durations for smooth audio transitions (ms)
+const LOOPING_SOUND_FADE_OUT_DURATION = 800; // 800ms default fade-out
+const AMBIENT_SOUND_FADE_OUT_DURATION = 2000; // 2 seconds for ambient sounds (campfire, lantern)
+const BEE_DISPERSAL_FADE_OUT_DURATION = 4000; // 4 seconds for bees dispersing naturally
+const VIEWPORT_CAP_FADE_DOWN_DURATION = 1500; // 1.5 seconds for viewport-capped sounds fading when walking away
+
+// Ambient sounds that need longer fade-out for natural feel
+const AMBIENT_LOOPING_SOUNDS: Set<string> = new Set([
+    'campfire_looping.mp3',
+    'lantern_looping.mp3',
+]);
+
+// Bee sounds need extra-long fade-out to simulate bees dispersing
+const BEE_SOUNDS: Set<string> = new Set([
+    'bees_buzzing.mp3',
+]);
 
 // Helper function to fade out and cleanup an audio element
+// Uses a smooth exponential curve for natural-sounding fade-out
 const fadeOutAndCleanupAudio = (audio: HTMLAudioElement, objectId: string, onComplete: () => void) => {
-    const fadeOutTime = LOOPING_SOUND_FADE_OUT_DURATION;
-    const fadeSteps = 24; // Smooth steps
+    // Determine fade duration based on sound type
+    const strippedId = objectId.replace('viewport_cap_', '');
+    const isBeeSound = BEE_SOUNDS.has(strippedId);
+    const isAmbientSound = AMBIENT_LOOPING_SOUNDS.has(strippedId);
+    
+    // Bees get extra-long fade (dispersing), ambient gets medium fade, others get short fade
+    const fadeOutTime = isBeeSound 
+        ? BEE_DISPERSAL_FADE_OUT_DURATION 
+        : (isAmbientSound ? AMBIENT_SOUND_FADE_OUT_DURATION : LOOPING_SOUND_FADE_OUT_DURATION);
+    const fadeSteps = isBeeSound ? 120 : (isAmbientSound ? 60 : 30); // More steps for smoother bee fade
     const fadeInterval = fadeOutTime / fadeSteps;
     const initialVolume = audio.volume;
+    
+    console.log(`🐝 FADE-OUT: ${objectId} (bee: ${isBeeSound}, ambient: ${isAmbientSound}, duration: ${fadeOutTime}ms, volume: ${initialVolume.toFixed(3)}, paused: ${audio.paused})`);
+    
+    // If volume is already 0, just cleanup immediately (but still try to cleanup audio that's just paused)
+    if (initialVolume <= 0) {
+        console.log(`🐝 Audio already silent for ${objectId}, cleaning up immediately`);
+        try {
+            audio.pause();
+            audio.src = '';
+            audio.load();
+        } catch (e) {
+            // Cleanup errors are expected
+        }
+        onComplete();
+        return;
+    }
+    
+    // If audio is paused, try to resume it briefly for the fade-out effect to be heard
+    if (audio.paused) {
+        try {
+            audio.play().catch(() => {}); // Try to resume for fade, ignore errors
+        } catch (e) {
+            // Ignore play errors
+        }
+    }
     
     // Mark as being cleaned up to prevent error handling
     (audio as any)._isBeingCleaned = true;
@@ -873,7 +968,11 @@ const fadeOutAndCleanupAudio = (audio: HTMLAudioElement, objectId: string, onCom
     let fadeStep = 0;
     const fadeOutInterval = setInterval(() => {
         fadeStep++;
-        const newVolume = initialVolume * (1 - fadeStep / fadeSteps);
+        // Use exponential curve for more natural fade-out (sounds fade quickly at first, then slow down)
+        // This mimics how we perceive sound volume changes
+        const progress = fadeStep / fadeSteps;
+        const exponentialFactor = 1 - Math.pow(1 - progress, 2); // Quadratic ease-out
+        const newVolume = initialVolume * (1 - exponentialFactor);
         try {
             audio.volume = Math.max(0, newVolume);
         } catch (e) {
@@ -882,6 +981,7 @@ const fadeOutAndCleanupAudio = (audio: HTMLAudioElement, objectId: string, onCom
         
         if (fadeStep >= fadeSteps) {
             clearInterval(fadeOutInterval);
+            console.log(`🐝 FADE COMPLETE: ${objectId} - fade finished after ${fadeOutTime}ms`);
             try {
                 audio.pause();
                 audio.currentTime = 0;
@@ -899,8 +999,18 @@ const fadeOutAndCleanupAudio = (audio: HTMLAudioElement, objectId: string, onCom
 const cleanupLoopingSound = (objectId: string, reason: string = "cleanup") => {
     // Skip if already fading out
     if (fadingOutSounds.has(objectId)) {
+        console.log(`🐝 CLEANUP: ${objectId} - already fading, skipping (reason: ${reason})`);
         return;
     }
+    
+    // Cancel any in-progress fade-down interval before starting full cleanup
+    const fadeDownInfo = viewportCapFadingDown.get(objectId);
+    if (fadeDownInfo) {
+        clearInterval(fadeDownInfo.intervalId);
+        viewportCapFadingDown.delete(objectId);
+    }
+    
+    console.log(`🐝 CLEANUP: ${objectId} - starting cleanup (reason: ${reason})`);
     
     // Clean up traditional looping sound
     const audio = activeLoopingSounds.get(objectId);
@@ -1471,7 +1581,8 @@ export const useSoundSystem = ({
         // Clean up viewport-capped sounds that no longer have any active objects
         activeViewportCappedSounds.forEach((cap, filename) => {
             if (!viewportCappedGroups.has(filename)) {
-                // No more active objects for this sound type - clean up
+                // No more active objects for this sound type - clean up with fade
+                console.log(`🐝 VIEWPORT-CAP CLEANUP: ${filename} - no active objects, triggering fade-out`);
                 cleanupLoopingSound(cap.objectId, "no active viewport-capped objects");
                 activeViewportCappedSounds.delete(filename);
             }
@@ -1492,42 +1603,137 @@ export const useSoundSystem = ({
             }
             
             // Calculate volume based on closest object
+            // Use smooth falloff for looping sounds to avoid abrupt cutoff
             const distance = group.closestDistance;
-            const volume = calculateSpatialVolume(
+            const volume = calculateSmoothSpatialVolume(
                 distance,
                 closestSound.volume,
                 closestSound.maxDistance
             ) * masterVolume;
             
             if (existingSeamlessSound) {
-                // Update existing seamless sound volume
-                existingSeamlessSound.volume = volume;
+                // Update existing seamless sound volume with smooth fade handling
+                const isFadingDown = viewportCapFadingDown.has(masterObjectId);
+                
                 if (volume <= 0.01) {
-                    if (!existingSeamlessSound.primary.paused) existingSeamlessSound.primary.pause();
-                    if (!existingSeamlessSound.secondary.paused) existingSeamlessSound.secondary.pause();
+                    // Start fade-down if not already fading
+                    if (!isFadingDown && !fadingOutSounds.has(masterObjectId)) {
+                        const activeAudio = existingSeamlessSound.isPrimaryActive ? 
+                                           existingSeamlessSound.primary : existingSeamlessSound.secondary;
+                        const initialVolume = activeAudio.volume;
+                        
+                        if (initialVolume > 0.01) {
+                            // Start gradual fade-down
+                            const fadeSteps = 45; // Smooth fade
+                            const fadeInterval = VIEWPORT_CAP_FADE_DOWN_DURATION / fadeSteps;
+                            let fadeStep = 0;
+                            
+                            const intervalId = setInterval(() => {
+                                fadeStep++;
+                                const progress = fadeStep / fadeSteps;
+                                const exponentialFactor = 1 - Math.pow(1 - progress, 2);
+                                const newVolume = initialVolume * (1 - exponentialFactor);
+                                
+                                try {
+                                    existingSeamlessSound.primary.volume = Math.max(0, newVolume);
+                                    existingSeamlessSound.secondary.volume = Math.max(0, newVolume);
+                                    existingSeamlessSound.volume = newVolume;
+                                } catch (e) { /* ignore */ }
+                                
+                                if (fadeStep >= fadeSteps) {
+                                    clearInterval(intervalId);
+                                    viewportCapFadingDown.delete(masterObjectId);
+                                    // Don't pause - just leave at 0 volume, allows smooth resume
+                                }
+                            }, fadeInterval);
+                            
+                            viewportCapFadingDown.set(masterObjectId, { intervalId, startTime: Date.now() });
+                        }
+                    }
                 } else {
-                    const activeAudio = existingSeamlessSound.isPrimaryActive ? 
-                                       existingSeamlessSound.primary : existingSeamlessSound.secondary;
+                    // Volume is audible - cancel any fade-down in progress
+                    if (isFadingDown) {
+                        const fadeInfo = viewportCapFadingDown.get(masterObjectId);
+                        if (fadeInfo) {
+                            clearInterval(fadeInfo.intervalId);
+                            viewportCapFadingDown.delete(masterObjectId);
+                        }
+                    }
+                    
+                    // Update volume directly
+                    existingSeamlessSound.volume = volume;
                     existingSeamlessSound.primary.volume = Math.min(1.0, volume);
                     existingSeamlessSound.secondary.volume = Math.min(1.0, volume);
-                    if (activeAudio.paused) {
-                        activeAudio.play().catch(err => {
-                            console.warn(`🎯 Failed to resume viewport-capped seamless sound ${filename}:`, err);
-                        });
+                    
+                    // Resume if paused (only if not fading out for cleanup)
+                    if (!fadingOutSounds.has(masterObjectId)) {
+                        const activeAudio = existingSeamlessSound.isPrimaryActive ? 
+                                           existingSeamlessSound.primary : existingSeamlessSound.secondary;
+                        if (activeAudio.paused) {
+                            activeAudio.play().catch(err => {
+                                // Only warn if not an AbortError (which happens during normal fade transitions)
+                                if (err.name !== 'AbortError') {
+                                    console.warn(`🎯 Failed to resume viewport-capped seamless sound ${filename}:`, err);
+                                }
+                            });
+                        }
                     }
                 }
                 return;
             }
             
             if (existingSound) {
-                // Update existing traditional looping sound volume
-                existingSound.volume = Math.min(1.0, volume);
+                // Update existing traditional looping sound volume with smooth fade handling
+                const isFadingDown = viewportCapFadingDown.has(masterObjectId);
+                
                 if (volume <= 0.01) {
-                    if (!existingSound.paused) existingSound.pause();
-                } else if (existingSound.paused) {
-                    existingSound.play().catch(err => {
-                        console.warn(`🎯 Failed to resume viewport-capped sound ${filename}:`, err);
-                    });
+                    // Start fade-down if not already fading
+                    if (!isFadingDown && !fadingOutSounds.has(masterObjectId)) {
+                        const initialVolume = existingSound.volume;
+                        
+                        if (initialVolume > 0.01) {
+                            const fadeSteps = 45;
+                            const fadeInterval = VIEWPORT_CAP_FADE_DOWN_DURATION / fadeSteps;
+                            let fadeStep = 0;
+                            
+                            const intervalId = setInterval(() => {
+                                fadeStep++;
+                                const progress = fadeStep / fadeSteps;
+                                const exponentialFactor = 1 - Math.pow(1 - progress, 2);
+                                const newVolume = initialVolume * (1 - exponentialFactor);
+                                
+                                try {
+                                    existingSound.volume = Math.max(0, newVolume);
+                                } catch (e) { /* ignore */ }
+                                
+                                if (fadeStep >= fadeSteps) {
+                                    clearInterval(intervalId);
+                                    viewportCapFadingDown.delete(masterObjectId);
+                                }
+                            }, fadeInterval);
+                            
+                            viewportCapFadingDown.set(masterObjectId, { intervalId, startTime: Date.now() });
+                        }
+                    }
+                } else {
+                    // Volume is audible - cancel any fade-down in progress
+                    if (isFadingDown) {
+                        const fadeInfo = viewportCapFadingDown.get(masterObjectId);
+                        if (fadeInfo) {
+                            clearInterval(fadeInfo.intervalId);
+                            viewportCapFadingDown.delete(masterObjectId);
+                        }
+                    }
+                    
+                    existingSound.volume = Math.min(1.0, volume);
+                    
+                    if (!fadingOutSounds.has(masterObjectId) && existingSound.paused) {
+                        existingSound.play().catch(err => {
+                            if (err.name !== 'AbortError') {
+                                console.warn(`🎯 Failed to resume viewport-capped sound ${filename}:`, err);
+                            }
+                        });
+                    }
                 }
                 return;
             }
@@ -1653,6 +1859,7 @@ export const useSoundSystem = ({
                 }
                 
                 // Update volume based on distance for existing seamless sound
+                // Use smooth falloff for gradual fade-out
                 const distance = calculateDistance(
                     continuousSound.posX,
                     continuousSound.posY,
@@ -1666,7 +1873,7 @@ export const useSoundSystem = ({
                     return;
                 }
         
-                const volume = calculateSpatialVolume(
+                const volume = calculateSmoothSpatialVolume(
                     distance,
                     continuousSound.volume,
                     continuousSound.maxDistance
@@ -1725,6 +1932,7 @@ export const useSoundSystem = ({
                 }
                 
                 // Update volume based on distance for existing sound
+                // Use smooth falloff for gradual fade-out
                 const distance = calculateDistance(
                     continuousSound.posX,
                     continuousSound.posY,
@@ -1739,7 +1947,7 @@ export const useSoundSystem = ({
                     return;
                 }
                 
-                const volume = calculateSpatialVolume(
+                const volume = calculateSmoothSpatialVolume(
                     distance,
                     continuousSound.volume,
                     continuousSound.maxDistance
@@ -1815,7 +2023,8 @@ export const useSoundSystem = ({
                             return;
                         }
                         
-                        volume = calculateSpatialVolume(
+                        // Use smooth falloff for gradual fade-out on looping sounds
+                        volume = calculateSmoothSpatialVolume(
                             distance,
                             continuousSound.volume,
                             continuousSound.maxDistance

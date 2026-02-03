@@ -1,5 +1,6 @@
 import { DroppedItem as SpacetimeDBDroppedItem, ItemDefinition as SpacetimeDBItemDefinition } from '../../generated';
 import burlapSackImage from '../../assets/doodads/burlap_sack.png'; // Import the sack image as fallback
+import campfireOffImage from '../../assets/items/campfire_off.png'; // Import campfire off sprite for dropped campfires
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager'; 
 import { getItemIcon } from '../itemIconUtils'; // Import item icon utility
@@ -14,6 +15,11 @@ const droppedItemConfig: GroundEntityConfig<SpacetimeDBDroppedItem & { itemDef?:
     getImageSource: (entity) => {
         // If we have item definition, try to get the actual item icon
         if (entity.itemDef && entity.itemDef.iconAssetName) {
+            // Override: Campfire uses campfire_off.png when dropped on ground
+            if (entity.itemDef.name === "Campfire") {
+                return campfireOffImage;
+            }
+            
             const itemIconUrl = getItemIcon(entity.itemDef.iconAssetName);
             if (itemIconUrl) {
                 return itemIconUrl;
@@ -131,8 +137,9 @@ const droppedItemConfig: GroundEntityConfig<SpacetimeDBDroppedItem & { itemDef?:
     fallbackColor: '#A0522D', // Brown fallback color if image fails to load
 };
 
-// Preload the burlap sack fallback image
+// Preload fallback images
 imageManager.preloadImage(burlapSackImage);
+imageManager.preloadImage(campfireOffImage);
 
 // --- Arc Animation Constants ---
 const ARC_ANIMATION_DURATION_MS = 1200; // Duration of falling arc animation (longer for visibility)

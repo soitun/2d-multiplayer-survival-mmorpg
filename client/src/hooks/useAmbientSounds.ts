@@ -114,7 +114,7 @@ const AMBIENT_SOUND_DEFINITIONS = {
     bee_buzzing: {
         type: 'continuous',
         filename: 'bees_buzzing.mp3', // In /sounds/ not /sounds/ambient/
-        baseVolume: 0.35, // Noticeable warning sound
+        baseVolume: 0.18, // Subtle ambient buzzing - similar to campfire crackling
         isLooping: true,
         useSeamlessLooping: true,
         beeProximityBased: true, // Special: volume based on distance to nearest bee
@@ -290,8 +290,9 @@ class AmbientAudioCache {
             if (audio.duration && audio.duration > 0 && !isNaN(audio.duration) && isFinite(audio.duration)) {
                 // Create a new Audio element instead of cloning to ensure metadata loads properly
                 // Cloned elements don't automatically have metadata loaded
-                // Special handling for entrainment_ambient (stored in /sounds/ not /sounds/ambient/)
-                const fullPath = filename.startsWith('sova_') 
+                // Special handling for files stored in /sounds/ not /sounds/ambient/
+                const isRootSoundsFile = filename.startsWith('sova_') || filename === 'bees_buzzing.mp3';
+                const fullPath = isRootSoundsFile 
                     ? `/sounds/${filename}` 
                     : AMBIENT_CONFIG.SOUNDS_BASE_PATH + filename;
                 const newAudio = new Audio(fullPath);
@@ -371,8 +372,11 @@ class AmbientAudioCache {
         
         try {
             // Load and cache
-            // Special handling for entrainment_ambient (stored in /sounds/ not /sounds/ambient/)
-            const fullPath = filename.startsWith('sova_') 
+            // Special handling for files stored in /sounds/ not /sounds/ambient/
+            // - sova_* files (entrainment ambient)
+            // - bees_buzzing.mp3 (bee proximity sound)
+            const isRootSoundsFile = filename.startsWith('sova_') || filename === 'bees_buzzing.mp3';
+            const fullPath = isRootSoundsFile 
                 ? `/sounds/${filename}` 
                 : AMBIENT_CONFIG.SOUNDS_BASE_PATH + filename;
             // console.log(`🌊 [LOADING] Attempting to load: ${fullPath}`);

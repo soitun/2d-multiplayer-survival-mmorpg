@@ -1450,7 +1450,7 @@ export const useSpacetimeTables = ({
                 }
             };
             const handleGrassStateDelete = (ctx: any, item: SpacetimeDB.GrassState) => {
-                console.log(`[GrassState] DELETE: grassId=${item.grassId}`);
+                // console.log(`[GrassState] DELETE: grassId=${item.grassId}`);
                 setGrassState(prev => { const newMap = new Map(prev); newMap.delete(item.grassId.toString()); return newMap; });
             };
 

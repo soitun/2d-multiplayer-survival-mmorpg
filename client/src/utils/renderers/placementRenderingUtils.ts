@@ -920,6 +920,11 @@ export function isPlacementTooFar(
         // Large 256x256 objects need increased placement range (200px)
         const LARGE_OBJECT_PLACEMENT_MAX_DISTANCE = 200.0;
         clientPlacementRangeSq = LARGE_OBJECT_PLACEMENT_MAX_DISTANCE * LARGE_OBJECT_PLACEMENT_MAX_DISTANCE;
+    } else if (placementInfo.iconAssetName === 'cooking_station.png' ||
+               placementInfo.iconAssetName === 'repair_bench.png') {
+        // Medium-large 192x192 objects need increased placement range (160px)
+        const MEDIUM_LARGE_OBJECT_PLACEMENT_MAX_DISTANCE = 160.0;
+        clientPlacementRangeSq = MEDIUM_LARGE_OBJECT_PLACEMENT_MAX_DISTANCE * MEDIUM_LARGE_OBJECT_PLACEMENT_MAX_DISTANCE;
     } else {
         // Use standard interaction distance for other items (campfires, lanterns, boxes, etc.)
         clientPlacementRangeSq = PLAYER_BOX_INTERACTION_DISTANCE_SQUARED * 1.1;
@@ -1953,13 +1958,13 @@ export function renderPlacementPreview({
         drawWidth = REFRIGERATOR_WIDTH; // 96px
         drawHeight = REFRIGERATOR_HEIGHT; // 96px
     } else if (placementInfo.iconAssetName === 'repair_bench.png') {
-        // Repair Bench preview dimensions (matches actual rendering - 128x128)
-        drawWidth = REPAIR_BENCH_WIDTH; // 128px
-        drawHeight = REPAIR_BENCH_HEIGHT; // 128px
+        // Repair Bench preview dimensions (matches actual rendering - 192x192)
+        drawWidth = REPAIR_BENCH_WIDTH; // 192px
+        drawHeight = REPAIR_BENCH_HEIGHT; // 192px
     } else if (placementInfo.iconAssetName === 'cooking_station.png') {
-        // Cooking Station preview dimensions (matches actual rendering - 128x128)
-        drawWidth = COOKING_STATION_WIDTH; // 128px
-        drawHeight = COOKING_STATION_HEIGHT; // 128px
+        // Cooking Station preview dimensions (matches actual rendering - 192x192)
+        drawWidth = COOKING_STATION_WIDTH; // 192px
+        drawHeight = COOKING_STATION_HEIGHT; // 192px
     } else if (placementInfo.iconAssetName === 'beehive_wooden.png') {
         // Wooden Beehive preview dimensions (matches actual rendering - 256x256)
         drawWidth = PLAYER_BEEHIVE_WIDTH; // 256px

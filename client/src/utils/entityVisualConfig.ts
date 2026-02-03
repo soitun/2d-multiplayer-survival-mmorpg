@@ -107,22 +107,22 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   repair_bench: {
     centerOffsetX: 0,
-    centerOffsetY: -63,   // Sprite is 192x192 (25% smaller), renders at posY - 212, center at posY - 116, but adjusted for visual consistency
-    width: 90,            // Interaction box width - 25% smaller: 120 * 0.75 = 90
-    height: 90,           // Interaction box height - 25% smaller: 120 * 0.75 = 90
-    placementYOffset: -24, // Compensate for 192px sprite vs 64px normal box (reduced proportionally)
-    spriteWidth: 192,     // 25% smaller: 256 * 0.75 = 192
+    centerOffsetY: -70,   // Visual center for interaction box
+    width: 90,            // Interaction box width
+    height: 90,           // Interaction box height
+    placementYOffset: -60, // Adjusted to match actual placement position
+    spriteWidth: 192,
     spriteHeight: 192,
   },
   
   cooking_station: {
     centerOffsetX: 0,
-    centerOffsetY: -63,   // Sprite is 96x96 (25% smaller), renders at posY - 116, center at posY - 68, but adjusted for visual consistency
-    width: 90,            // Interaction box width - 25% smaller: 120 * 0.75 = 90
-    height: 90,           // Interaction box height - 25% smaller: 120 * 0.75 = 90
-    placementYOffset: -24, // Compensate for 96px sprite vs 64px normal box (reduced proportionally)
-    spriteWidth: 96,      // 25% smaller: 128 * 0.75 = 96
-    spriteHeight: 96,
+    centerOffsetY: -70,   // Visual center for interaction box
+    width: 90,            // Interaction box width
+    height: 90,           // Interaction box height
+    placementYOffset: -60, // Adjusted to match actual placement position
+    spriteWidth: 192,     // Matches actual placed sprite size (same as repair bench)
+    spriteHeight: 192,
   },
   
   scarecrow: {

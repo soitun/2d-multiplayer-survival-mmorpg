@@ -31,7 +31,7 @@ export const BACKPACK_WIDTH = 64;
 export const BACKPACK_HEIGHT = 64;
 export const REPAIR_BENCH_WIDTH = 192;  // 25% smaller: 256 * 0.75 = 192
 export const REPAIR_BENCH_HEIGHT = 192;
-export const COOKING_STATION_WIDTH = 192;  // 25% smaller: 128 * 0.75 = 96
+export const COOKING_STATION_WIDTH = 192;  // Same size as repair bench (192x192)
 export const COOKING_STATION_HEIGHT = 192;
 export const SCARECROW_WIDTH = 256;  // Scarecrow dimensions - tall figure
 export const SCARECROW_HEIGHT = 256;

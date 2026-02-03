@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useMusicSystem, MUSIC_ZONE_INFO, MusicZone } from '../hooks/useMusicSystem';
 
 // Style constants matching DayNightCycleTracker
@@ -14,6 +14,7 @@ const ZONE_COLORS: Record<MusicZone, { primary: string; secondary: string; glow:
     hunting_village: { primary: '#8b6f47', secondary: '#a0826d', glow: 'rgba(139, 111, 71, 0.8)' },
     alk_compound: { primary: '#ffc107', secondary: '#ff9800', glow: 'rgba(255, 193, 7, 0.8)' },
     alk_substation: { primary: '#9c27b0', secondary: '#ba68c8', glow: 'rgba(156, 39, 176, 0.8)' },
+    hot_springs: { primary: '#ff6b9d', secondary: '#4ecdc4', glow: 'rgba(255, 107, 157, 0.8)' },
 };
 
 interface MusicControlPanelProps {
@@ -106,6 +107,30 @@ const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
 }) => {
     // Optimistic UI state - show selected track immediately on click
     const [optimisticSelectedTrack, setOptimisticSelectedTrack] = useState<string | null>(null);
+    
+    // Ref for click-outside detection
+    const panelRef = useRef<HTMLDivElement>(null);
+
+    // Click outside to close
+    useEffect(() => {
+        if (!isVisible) return;
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+                onClose?.();
+            }
+        };
+
+        // Add listener with a slight delay to avoid closing immediately on the same click that opened it
+        const timeoutId = setTimeout(() => {
+            document.addEventListener('mousedown', handleClickOutside);
+        }, 0);
+
+        return () => {
+            clearTimeout(timeoutId);
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isVisible, onClose]);
 
     if (!isVisible) return null;
 
@@ -265,6 +290,7 @@ const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
     // Full view
     return (
         <div 
+            ref={panelRef}
             onWheel={handlePanelWheel}
             style={{
                 position: 'fixed',
