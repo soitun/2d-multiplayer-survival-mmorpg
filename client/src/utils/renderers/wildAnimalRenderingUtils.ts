@@ -12,42 +12,38 @@ import { WalrusBreedingData } from '../../generated/walrus_breeding_data_type';
 import { CaribouAgeStage } from '../../generated/caribou_age_stage_type';
 import { WalrusAgeStage } from '../../generated/walrus_age_stage_type';
 
-// Import sprite sheets (320x320, 3x3 grid, ~107x107 per frame)
-// These are the PRIMARY source for all animals
-import walrusWalkingSheet from '../../assets/walrus_walking.png';
-import walrusWalkingAnimatedSheet from '../../assets/walrus_walking_release.png'; // NEW: 4x4 animated spritesheet
-import foxWalkingSheet from '../../assets/fox_walking.png';
-import foxWalkingAnimatedSheet from '../../assets/fox_walking_release.png'; // NEW: 4x4 animated spritesheet
+// ═══════════════════════════════════════════════════════════════════════════
+// ANIMATED SPRITE SHEETS (4x4 or 6x4 layout with walking animations)
+// ═══════════════════════════════════════════════════════════════════════════
+// Wildlife - 4x4 layout (4 frames × 4 directions)
+import walrusWalkingAnimatedSheet from '../../assets/walrus_walking_release.png';
+import foxWalkingAnimatedSheet from '../../assets/fox_walking_release.png';
+import tundraWolfWalkingAnimatedSheet from '../../assets/tundra_wolf_walking_release.png';
+import ternWalkingAnimatedSheet from '../../assets/tern_walking_release.png';
+import crowWalkingAnimatedSheet from '../../assets/crow_walking_release.png';
+import wolverineWalkingAnimatedSheet from '../../assets/wolverine_walking_release.png';
+import caribouWalkingAnimatedSheet from '../../assets/caribou_walking_release.png';
+import salmonSharkWalkingAnimatedSheet from '../../assets/salmon_shark_walking_release.png';
+import jellyfishWalkingAnimatedSheet from '../../assets/jellyfish_walking_release.png';
+// Alpine animals - 4x4 layout
+import polarBearWalkingAnimatedSheet from '../../assets/polar_bear_walking_release.png';
+import hareWalkingAnimatedSheet from '../../assets/hare_walking_release.png';
+import snowyOwlWalkingAnimatedSheet from '../../assets/owl_walking_release.png';
+import snowyOwlFlyingAnimatedSheet from '../../assets/owl_flying_release.png';
+// Flying sprites - 4x4 layout
+import ternFlyingAnimatedSheet from '../../assets/tern_flying_release.png';
+import crowFlyingAnimatedSheet from '../../assets/crow_flying_release.png';
+// Hostile NPCs - 6x4 layout (6 frames × 4 directions)
+import shoreboundWalkingAnimatedSheet from '../../assets/shorebound_walking_release.png';
+import shardkinWalkingAnimatedSheet from '../../assets/shardkin_walking_release.png';
+import drownedWatchWalkingAnimatedSheet from '../../assets/drowned_watch_walking_release.png';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LEGACY SPRITE SHEETS (3x3 static layout - no walking animations yet)
+// ═══════════════════════════════════════════════════════════════════════════
 import crabWalkingSheet from '../../assets/crab_walking.png';
-import tundraWolfWalkingSheet from '../../assets/tundra_wolf_walking.png';
-import tundraWolfWalkingAnimatedSheet from '../../assets/tundra_wolf_walking_release.png'; // NEW: 4x4 animated spritesheet
-import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
-import ternWalkingSheet from '../../assets/tern_walking.png';
-import ternWalkingAnimatedSheet from '../../assets/tern_walking_release.png'; // NEW: 4x4 animated spritesheet
-import crowWalkingSheet from '../../assets/crow_walking.png';
-import crowWalkingAnimatedSheet from '../../assets/crow_walking_release.png'; // NEW: 4x4 animated spritesheet
 import voleWalkingSheet from '../../assets/vole_walking.png';
-import wolverineWalkingSheet from '../../assets/wolverine_walking.png';
-import wolverineWalkingAnimatedSheet from '../../assets/wolverine_walking_release.png'; // NEW: 4x4 animated spritesheet
-import caribouWalkingAnimatedSheet from '../../assets/caribou_walking_release.png'; // NEW: 4x4 animated spritesheet
-import salmonSharkWalkingAnimatedSheet from '../../assets/salmon_shark_walking_release.png'; // NEW: 4x4 animated spritesheet (aquatic predator)
-import jellyfishWalkingAnimatedSheet from '../../assets/jellyfish_walking_release.png'; // NEW: 4x4 animated spritesheet (aquatic passive)
-// Alpine animal sprite sheets
-import polarBearWalkingAnimatedSheet from '../../assets/polar_bear_walking_release.png'; // Alpine apex predator
-import hareWalkingAnimatedSheet from '../../assets/hare_walking_release.png'; // Alpine prey animal
-import snowyOwlWalkingAnimatedSheet from '../../assets/owl_walking_release.png'; // Alpine flying predator (grounded)
-import snowyOwlFlyingAnimatedSheet from '../../assets/owl_flying_release.png'; // Alpine flying predator (flying)
-// Flying sprite sheets for birds
-import ternFlyingSheet from '../../assets/tern_flying.png';
-import ternFlyingAnimatedSheet from '../../assets/tern_flying_release.png'; // NEW: 4x4 animated flying spritesheet
-import crowFlyingSheet from '../../assets/crow_flying.png';
-import crowFlyingAnimatedSheet from '../../assets/crow_flying_release.png'; // NEW: 4x4 animated flying spritesheet
-// Night hostile NPC sprite sheets
-import shoreboundWalkingSheet from '../../assets/shorebound_walking.png';
-import shoreboundWalkingAnimatedSheet from '../../assets/shorebound_walking_release.png'; // NEW: 6x4 animated spritesheet
-import shardkinWalkingSheet from '../../assets/shardkin_walking.png';
-import shardkinWalkingAnimatedSheet from '../../assets/shardkin_walking_release.png'; // NEW: 6x4 animated spritesheet
-import drownedWatchWalkingSheet from '../../assets/drowned_watch_walking.png';
+import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
 
 
 // --- Sprite Sheet Configuration ---
@@ -286,17 +282,17 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         rows: 4,
     },
 
-    // DROWNED WATCH - Massive brute, heavy boss-type (uncomment when asset is added)
+    // DROWNED WATCH - Massive brute, heavy boss-type
     // Artist spec: 96x96 per frame → 576x384 total sheet (artist's 96-bit tier)
     // Renders at: 192x192 (2x scale) - 2x player size, imposing "oh crap" moment
-    // 'DrownedWatch': {
-    //     sheetWidth: 576,   // 96px × 6 frames
-    //     sheetHeight: 384,  // 96px × 4 rows
-    //     frameWidth: 96,
-    //     frameHeight: 96,
-    //     cols: 6,
-    //     rows: 4,
-    // },
+    'DrownedWatch': {
+        sheetWidth: 576,   // 96px × 6 frames
+        sheetHeight: 384,  // 96px × 4 rows
+        frameWidth: 96,
+        frameHeight: 96,
+        cols: 6,
+        rows: 4,
+    },
 };
 
 // Common layout for all animated spritesheets (6 cols x 4 rows)
@@ -347,7 +343,7 @@ const speciesSpriteSheets: Record<string, string> = {
     // Night hostile NPCs have custom sprites
     'Shorebound': shoreboundWalkingAnimatedSheet, // NEW: Use animated 6x4 spritesheet
     'Shardkin': shardkinWalkingAnimatedSheet, // NEW: Use animated 6x4 spritesheet
-    'DrownedWatch': drownedWatchWalkingSheet,
+    'DrownedWatch': drownedWatchWalkingAnimatedSheet, // NEW: Use animated 6x4 spritesheet (576x384, 96x96 frames)
     // Alpine animals
     'PolarBear': polarBearWalkingAnimatedSheet, // Alpine apex predator
     'Hare': hareWalkingAnimatedSheet, // Alpine prey animal
@@ -613,7 +609,7 @@ function getSpriteSheet(species: AnimalSpecies, isFlying: boolean = false): stri
     if (isFlying && speciesFlyingSpriteSheets[species.tag]) {
         return speciesFlyingSpriteSheets[species.tag];
     }
-    return speciesSpriteSheets[species.tag] || foxWalkingSheet; // Fallback to fox
+    return speciesSpriteSheets[species.tag] || foxWalkingAnimatedSheet; // Fallback to fox
 }
 
 // Get the source rectangle for an ANIMATED sprite (supports various layouts like 4x4 or 6x4)
@@ -1458,47 +1454,41 @@ export function renderWildAnimal({
 
 // Preload wild animal images using imageManager
 export function preloadWildAnimalImages(): void {
-    // All animal sprite sheets (walking/grounded)
-    const spriteSheets = [
-        walrusWalkingSheet,
-        walrusWalkingAnimatedSheet, // NEW: Animated 4x4 walrus spritesheet
-        foxWalkingSheet,
-        foxWalkingAnimatedSheet, // NEW: Animated 4x4 fox spritesheet
-        crabWalkingSheet,
-        tundraWolfWalkingSheet,
-        tundraWolfWalkingAnimatedSheet, // NEW: Animated 4x4 tundra wolf spritesheet
-        cableViperWalkingSheet,
-        ternWalkingSheet,
-        ternWalkingAnimatedSheet, // NEW: Animated 4x4 tern walking spritesheet
-        crowWalkingSheet,
-        crowWalkingAnimatedSheet, // NEW: Animated 4x4 crow walking spritesheet
-        voleWalkingSheet,
-        wolverineWalkingSheet,
-        wolverineWalkingAnimatedSheet, // NEW: Animated 4x4 wolverine spritesheet
-        caribouWalkingAnimatedSheet, // Animated caribou spritesheet
-        salmonSharkWalkingAnimatedSheet, // Animated salmon shark spritesheet (aquatic)
-        jellyfishWalkingAnimatedSheet, // Animated jellyfish spritesheet (aquatic passive)
-        // Night hostile NPCs
-        shoreboundWalkingAnimatedSheet, // Use animated spritesheet for Shorebound
-        shardkinWalkingAnimatedSheet, // Use animated spritesheet for Shardkin
-        drownedWatchWalkingSheet,
-        // Alpine animals
-        polarBearWalkingAnimatedSheet, // Alpine apex predator
-        hareWalkingAnimatedSheet, // Alpine prey animal
-        snowyOwlWalkingAnimatedSheet, // Alpine flying predator (grounded)
+    // Animated sprite sheets (4x4 or 6x4 layout)
+    const animatedSpriteSheets = [
+        // Wildlife - 4x4 animated
+        walrusWalkingAnimatedSheet,
+        foxWalkingAnimatedSheet,
+        tundraWolfWalkingAnimatedSheet,
+        ternWalkingAnimatedSheet,
+        crowWalkingAnimatedSheet,
+        wolverineWalkingAnimatedSheet,
+        caribouWalkingAnimatedSheet,
+        salmonSharkWalkingAnimatedSheet,
+        jellyfishWalkingAnimatedSheet,
+        // Alpine animals - 4x4 animated
+        polarBearWalkingAnimatedSheet,
+        hareWalkingAnimatedSheet,
+        snowyOwlWalkingAnimatedSheet,
+        // Hostile NPCs - 6x4 animated
+        shoreboundWalkingAnimatedSheet,
+        shardkinWalkingAnimatedSheet,
+        drownedWatchWalkingAnimatedSheet,
+        // Flying sprites - 4x4 animated
+        ternFlyingAnimatedSheet,
+        crowFlyingAnimatedSheet,
+        snowyOwlFlyingAnimatedSheet,
     ];
 
-    // Flying sprite sheets for birds
-    const flyingSpriteSheets = [
-        ternFlyingSheet,
-        ternFlyingAnimatedSheet, // NEW: Animated 4x4 tern flying spritesheet
-        crowFlyingSheet,
-        crowFlyingAnimatedSheet, // NEW: Animated 4x4 crow flying spritesheet
-        snowyOwlFlyingAnimatedSheet, // Alpine flying predator (flying)
+    // Legacy sprite sheets (3x3 static - no animated versions yet)
+    const legacySpriteSheets = [
+        crabWalkingSheet,
+        voleWalkingSheet,
+        cableViperWalkingSheet,
     ];
 
     // Preload all sprite sheets
-    [...spriteSheets, ...flyingSpriteSheets].forEach(imageSrc => {
+    [...animatedSpriteSheets, ...legacySpriteSheets].forEach(imageSrc => {
         imageManager.preloadImage(imageSrc);
     });
 }
