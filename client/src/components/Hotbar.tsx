@@ -266,7 +266,7 @@ const Hotbar: React.FC<HotbarProps> = ({
     for (const itemInstance of inventoryItems.values()) {
       if (itemInstance.location.tag === 'Hotbar') {
         const hotbarData = itemInstance.location.value as HotbarLocationData;
-        if (hotbarData.ownerId.isEqual(playerIdentity) && hotbarData.slotIndex === slotIndex) {
+        if (hotbarData.ownerId && hotbarData.ownerId.isEqual(playerIdentity) && hotbarData.slotIndex === slotIndex) {
           const definition = itemDefinitions.get(itemInstance.itemDefId.toString());
           if (definition) {
               return { instance: itemInstance, definition };
@@ -1369,9 +1369,12 @@ const Hotbar: React.FC<HotbarProps> = ({
     
     // Check if mouse is over DebugPanel to allow scrolling
     const isOverDebugPanel = target.closest('[data-id="debug-panel-scroll"]') !== null;
+    
+    // Check if mouse is over BoneCarvingPanel to allow scrolling
+    const isOverBoneCarvingPanel = target.closest('[data-id="bone-carving-panel"]') !== null;
 
-    if (inventoryPanel || craftingScreen || chatInputIsFocused || craftSearchIsFocused || isGameMenuOpen || isOverChat || isOverCraftingScreen || isOverQuestsPanel || isOverDebugPanel || event.deltaY === 0) {
-      return; // Don't interfere if inventory/crafting screen/chat/search/game menu/quests panel/debug panel is open, over these elements, or no vertical scroll
+    if (inventoryPanel || craftingScreen || chatInputIsFocused || craftSearchIsFocused || isGameMenuOpen || isOverChat || isOverCraftingScreen || isOverQuestsPanel || isOverDebugPanel || isOverBoneCarvingPanel || event.deltaY === 0) {
+      return; // Don't interfere if inventory/crafting screen/chat/search/game menu/quests panel/debug panel/bone carving panel is open, over these elements, or no vertical scroll
     }
 
     event.preventDefault(); // Prevent page scrolling (only if inventory is NOT open)

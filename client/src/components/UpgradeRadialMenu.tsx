@@ -161,7 +161,7 @@ export const UpgradeRadialMenu: React.FC<UpgradeRadialMenuProps> = ({
     return Array.from(activeConsumableEffects.values()).some((effect) => {
       const effectTypeTag = effect.effectType ? (effect.effectType as any).tag : 'undefined';
       const effectPlayerId = effect.playerId;
-      return effectTypeTag === 'BuildingPrivilege' && effectPlayerId.isEqual(localPlayerIdentity);
+      return effectTypeTag === 'BuildingPrivilege' && effectPlayerId && effectPlayerId.isEqual(localPlayerIdentity);
     });
   }, [anyHearthsExist, activeConsumableEffects, localPlayerId, connection]);
 
@@ -185,7 +185,7 @@ export const UpgradeRadialMenu: React.FC<UpgradeRadialMenuProps> = ({
     for (const item of inventoryItems.values()) {
       // Only count items in the local player's inventory or hotbar
       const isPlayerItem = (item.location.tag === 'Inventory' || item.location.tag === 'Hotbar') &&
-                          item.location.value.ownerId.isEqual(localPlayerIdentity);
+                          item.location.value.ownerId && item.location.value.ownerId.isEqual(localPlayerIdentity);
       
       if (isPlayerItem && item.itemDefId === resourceDefId) {
         total += item.quantity;
@@ -212,7 +212,7 @@ export const UpgradeRadialMenu: React.FC<UpgradeRadialMenuProps> = ({
     const localPlayerIdentity = connection.identity;
     if (!localPlayerIdentity) return false;
     try {
-      return tile.owner.isEqual(localPlayerIdentity);
+      return tile.owner && tile.owner.isEqual(localPlayerIdentity);
     } catch (e) {
       console.warn('[UpgradeRadialMenu] Error checking ownership:', e);
       return false;

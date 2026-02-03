@@ -687,7 +687,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
     const hasActiveCrafting = React.useMemo(() => {
         if (!identity || !craftingQueueItems) return false;
         return Array.from(craftingQueueItems.values())
-            .some(item => item.playerIdentity.isEqual(identity));
+            .some(item => item.playerIdentity && item.playerIdentity.isEqual(identity));
     }, [identity, craftingQueueItems]);
 
     // Calculate active status effects for display
@@ -1320,12 +1320,17 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
         });
         
         // Check for equipped bone totems (back slot equipment)
-        if (identity && activeEquipments && itemDefinitions) {
+        if (identity && activeEquipments && itemDefinitions && inventoryItems) {
             const playerEquipment = Array.from(activeEquipments.values())
-                .find(eq => eq.playerId.isEqual(identity));
+                .find(eq => eq.playerIdentity && eq.playerIdentity.isEqual(identity));
             
-            if (playerEquipment?.backSlot) {
-                const backItemDef = itemDefinitions.get(playerEquipment.backSlot.toString());
+            if (playerEquipment?.backItemInstanceId) {
+                // Find the inventory item first, then look up the definition
+                const backInventoryItem = Array.from(inventoryItems.values())
+                    .find(item => item.instanceId === playerEquipment.backItemInstanceId);
+                const backItemDef = backInventoryItem 
+                    ? itemDefinitions.get(backInventoryItem.itemDefId.toString())
+                    : undefined;
                 if (backItemDef) {
                     // Bone totem name patterns and their status info
                     const boneTotemStatusMap: Record<string, { emoji: string; description: string }> = {

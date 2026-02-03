@@ -344,7 +344,8 @@ const CraftingSearchBar: React.FC<CraftingSearchBarProps> = (props) => {
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     // Prevent ALL game control keys from bubbling up to the game
-    const gameControlKeys = ['f', 'g', ' ', 'e', 'w', 'a', 's', 'd', 'z', 'c', 'm'];
+    // Including 'y' which opens achievements panel, 'b' which opens building menu
+    const gameControlKeys = ['f', 'g', ' ', 'e', 'w', 'a', 's', 'd', 'z', 'c', 'm', 'y', 'b'];
     const key = event.key.toLowerCase();
     
     if (gameControlKeys.includes(key)) {

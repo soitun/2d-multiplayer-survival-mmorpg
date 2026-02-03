@@ -306,13 +306,13 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                 if (location.tag === 'Inventory') {
                     // No need for type assertion if TypeScript can infer from .tag, but explicit for clarity if needed
                     const inventoryData = location.value as InventoryLocationData;
-                    if (inventoryData.ownerId.isEqual(playerIdentity)) {
+                    if (inventoryData.ownerId && inventoryData.ownerId.isEqual(playerIdentity)) {
                         invMap.set(inventoryData.slotIndex, populatedItem);
                     }
                 } else if (location.tag === 'Equipped') {
                     // No need for type assertion if TypeScript can infer, but explicit for clarity
                     const equipmentData = location.value as EquippedLocationData;
-                    if (equipmentData.ownerId.isEqual(playerIdentity)) {
+                    if (equipmentData.ownerId && equipmentData.ownerId.isEqual(playerIdentity)) {
                         // equipmentData.slotType will be like { tag: 'Head' } or { tag: 'Chest', value: ... }
                         // We need the string tag for the map key
                         equipMap.set(equipmentData.slotType.tag, populatedItem);

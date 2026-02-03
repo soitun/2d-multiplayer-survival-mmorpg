@@ -107,10 +107,10 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
             .filter(item => {
                 if (item.location.tag === 'Inventory') {
                     const inventoryData = item.location.value as InventoryLocationData;
-                    return inventoryData.ownerId.isEqual(playerIdentity);
+                    return inventoryData.ownerId && inventoryData.ownerId.isEqual(playerIdentity);
                 } else if (item.location.tag === 'Hotbar') {
                     const hotbarData = item.location.value as HotbarLocationData;
-                    return hotbarData.ownerId.isEqual(playerIdentity);
+                    return hotbarData.ownerId && hotbarData.ownerId.isEqual(playerIdentity);
                 }
                 return false;
             })
@@ -128,7 +128,7 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
         const now = Date.now();
         return Array.from(craftingQueueItems.values())
             .filter(item => {
-                if (!item.playerIdentity.isEqual(playerIdentity)) return false;
+                if (!item.playerIdentity || !item.playerIdentity.isEqual(playerIdentity)) return false;
                 const finishTimeMs = Number(item.finishTime.microsSinceUnixEpoch / 1000n);
                 const remainingTime = Math.ceil((finishTimeMs - now) / 1000);
                 return remainingTime > -2;
@@ -430,7 +430,8 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
     };
 
     const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-        const gameControlKeys = ['f', 'g', ' ', 'e', 'w', 'a', 's', 'd', 'z', 'c', 'm', 'b'];
+        // Including 'y' which opens achievements panel
+        const gameControlKeys = ['f', 'g', ' ', 'e', 'w', 'a', 's', 'd', 'z', 'c', 'm', 'b', 'y'];
         const key = event.key.toLowerCase();
 
         if (gameControlKeys.includes(key)) {
@@ -698,6 +699,11 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
                                                         max={maxCraftable > 0 ? maxCraftable : 1}
                                                         onKeyDown={(e) => {
                                                             if (e.key === '+' || e.key === '-') e.preventDefault();
+                                                            // Block game control keys (y opens achievements, etc)
+                                                            const gameControlKeys = ['f', 'g', ' ', 'e', 'w', 'a', 's', 'd', 'z', 'c', 'm', 'b', 'y'];
+                                                            if (gameControlKeys.includes(e.key.toLowerCase())) {
+                                                                e.stopPropagation();
+                                                            }
                                                         }}
                                                     />
                                                     <button

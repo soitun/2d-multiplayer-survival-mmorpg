@@ -42,7 +42,7 @@ const ActiveCraftingQueueUI: React.FC<ActiveCraftingQueueUIProps> = ({
     if (!playerIdentity) return null;
 
     const playerItems = Array.from(craftingQueueItems.values())
-      .filter(item => item.playerIdentity.isEqual(playerIdentity))
+      .filter(item => item.playerIdentity && item.playerIdentity.isEqual(playerIdentity))
       .sort((a, b) => Number(a.finishTime.microsSinceUnixEpoch - b.finishTime.microsSinceUnixEpoch));
 
     return playerItems.length > 0 ? playerItems[0] : null;

@@ -881,7 +881,7 @@ export const useSpacetimeTables = ({
                 // Always render on delete
                 setPlayers(new Map(playersRef.current));
 
-                if (connection && connection.identity && deletedPlayer.identity.isEqual(connection.identity)) {
+                if (connection && connection.identity && deletedPlayer.identity && deletedPlayer.identity.isEqual(connection.identity)) {
                     if (localPlayerRegistered) {
                         // console.warn('[useSpacetimeTables] Local player deleted from server.');
                         setLocalPlayerRegistered(false);
@@ -974,7 +974,7 @@ export const useSpacetimeTables = ({
             // --- Campfire Subscriptions ---
             const handleCampfireInsert = (ctx: any, campfire: SpacetimeDB.Campfire) => {
                 setCampfires(prev => new Map(prev).set(campfire.id.toString(), campfire));
-                if (connection.identity && campfire.placedBy.isEqual(connection.identity)) {
+                if (connection.identity && campfire.placedBy && campfire.placedBy.isEqual(connection.identity)) {
                     cancelPlacementRef.current();
                 }
             };
@@ -984,7 +984,7 @@ export const useSpacetimeTables = ({
             // --- Barbecue Subscriptions --- ADDED: Same pattern as campfire
             const handleBarbecueInsert = (ctx: any, barbecue: SpacetimeDB.Barbecue) => {
                 setBarbecues(prev => new Map(prev).set(barbecue.id.toString(), barbecue));
-                if (connection.identity && barbecue.placedBy.isEqual(connection.identity)) {
+                if (connection.identity && barbecue.placedBy && barbecue.placedBy.isEqual(connection.identity)) {
                     cancelPlacementRef.current();
                 }
             };
@@ -994,7 +994,7 @@ export const useSpacetimeTables = ({
             // --- Furnace Subscriptions --- ADDED: Same pattern as campfire
             const handleFurnaceInsert = (ctx: any, furnace: SpacetimeDB.Furnace) => {
                 setFurnaces(prev => new Map(prev).set(furnace.id.toString(), furnace));
-                if (connection.identity && furnace.placedBy.isEqual(connection.identity)) {
+                if (connection.identity && furnace.placedBy && furnace.placedBy.isEqual(connection.identity)) {
                     cancelPlacementRef.current();
                 }
             };
@@ -1004,7 +1004,7 @@ export const useSpacetimeTables = ({
             // --- Lantern Subscriptions ---
             const handleLanternInsert = (ctx: any, lantern: SpacetimeDB.Lantern) => {
                 setLanterns(prev => new Map(prev).set(lantern.id.toString(), lantern));
-                if (connection.identity && lantern.placedBy.isEqual(connection.identity)) {
+                if (connection.identity && lantern.placedBy && lantern.placedBy.isEqual(connection.identity)) {
                     cancelPlacementRef.current();
                 }
             };
@@ -1014,7 +1014,7 @@ export const useSpacetimeTables = ({
             // --- Turret Subscriptions --- ADDED: Same pattern as lantern
             const handleTurretInsert = (ctx: any, turret: SpacetimeDB.Turret) => {
                 setTurrets(prev => new Map(prev).set(turret.id.toString(), turret));
-                if (connection.identity && turret.placedBy.isEqual(connection.identity)) {
+                if (connection.identity && turret.placedBy && turret.placedBy.isEqual(connection.identity)) {
                     cancelPlacementRef.current();
                 }
             };
@@ -1024,7 +1024,7 @@ export const useSpacetimeTables = ({
             // --- Homestead Hearth Subscriptions --- ADDED: Same pattern as campfire
             const handleHomesteadHearthInsert = (ctx: any, hearth: SpacetimeDB.HomesteadHearth) => {
                 setHomesteadHearths(prev => new Map(prev).set(hearth.id.toString(), hearth));
-                if (connection.identity && hearth.placedBy.isEqual(connection.identity)) {
+                if (connection.identity && hearth.placedBy && hearth.placedBy.isEqual(connection.identity)) {
                     cancelPlacementRef.current();
                 }
             };
@@ -1034,7 +1034,7 @@ export const useSpacetimeTables = ({
             // --- Broth Pot Subscriptions --- ADDED: Same pattern as campfire
             const handleBrothPotInsert = (ctx: any, brothPot: SpacetimeDB.BrothPot) => {
                 setBrothPots(prev => new Map(prev).set(brothPot.id.toString(), brothPot));
-                if (connection.identity && brothPot.placedBy.isEqual(connection.identity)) {
+                if (connection.identity && brothPot.placedBy && brothPot.placedBy.isEqual(connection.identity)) {
                     cancelPlacementRef.current();
                 }
             };
@@ -1126,7 +1126,7 @@ export const useSpacetimeTables = ({
             // --- Wooden Storage Box Subscriptions ---
             const handleWoodenStorageBoxInsert = (ctx: any, box: SpacetimeDB.WoodenStorageBox) => {
                 setWoodenStorageBoxes(prev => new Map(prev).set(box.id.toString(), box));
-                if (connection.identity && box.placedBy.isEqual(connection.identity)) {
+                if (connection.identity && box.placedBy && box.placedBy.isEqual(connection.identity)) {
                     cancelPlacementRef.current();
                 }
             };
@@ -1163,60 +1163,60 @@ export const useSpacetimeTables = ({
 
             const handleAchievementUnlockNotificationInsert = (ctx: any, notif: SpacetimeDB.AchievementUnlockNotification) => {
                 // Only show notifications for local player
-                if (connection && connection.identity && notif.playerId.isEqual(connection.identity)) {
+                if (connection && connection.identity && notif.playerId && notif.playerId.isEqual(connection.identity)) {
                     setAchievementUnlockNotifications(prev => new Map(prev).set(notif.id.toString(), notif));
                 }
             };
             const handleAchievementUnlockNotificationUpdate = (ctx: any, oldNotif: SpacetimeDB.AchievementUnlockNotification, newNotif: SpacetimeDB.AchievementUnlockNotification) => {
-                if (connection && connection.identity && newNotif.playerId.isEqual(connection.identity)) {
+                if (connection && connection.identity && newNotif.playerId && newNotif.playerId.isEqual(connection.identity)) {
                     setAchievementUnlockNotifications(prev => new Map(prev).set(newNotif.id.toString(), newNotif));
                 }
             };
             const handleAchievementUnlockNotificationDelete = (ctx: any, notif: SpacetimeDB.AchievementUnlockNotification) => setAchievementUnlockNotifications(prev => { const newMap = new Map(prev); newMap.delete(notif.id.toString()); return newMap; });
 
             const handleLevelUpNotificationInsert = (ctx: any, notif: SpacetimeDB.LevelUpNotification) => {
-                if (connection && connection.identity && notif.playerId.isEqual(connection.identity)) {
+                if (connection && connection.identity && notif.playerId && notif.playerId.isEqual(connection.identity)) {
                     setLevelUpNotifications(prev => new Map(prev).set(notif.id.toString(), notif));
                 }
             };
             const handleLevelUpNotificationUpdate = (ctx: any, oldNotif: SpacetimeDB.LevelUpNotification, newNotif: SpacetimeDB.LevelUpNotification) => {
-                if (connection && connection.identity && newNotif.playerId.isEqual(connection.identity)) {
+                if (connection && connection.identity && newNotif.playerId && newNotif.playerId.isEqual(connection.identity)) {
                     setLevelUpNotifications(prev => new Map(prev).set(newNotif.id.toString(), newNotif));
                 }
             };
             const handleLevelUpNotificationDelete = (ctx: any, notif: SpacetimeDB.LevelUpNotification) => setLevelUpNotifications(prev => { const newMap = new Map(prev); newMap.delete(notif.id.toString()); return newMap; });
 
             const handleDailyLoginNotificationInsert = (ctx: any, notif: SpacetimeDB.DailyLoginNotification) => {
-                if (connection && connection.identity && notif.playerId.isEqual(connection.identity)) {
+                if (connection && connection.identity && notif.playerId && notif.playerId.isEqual(connection.identity)) {
                     setDailyLoginNotifications(prev => new Map(prev).set(notif.id.toString(), notif));
                 }
             };
             const handleDailyLoginNotificationUpdate = (ctx: any, oldNotif: SpacetimeDB.DailyLoginNotification, newNotif: SpacetimeDB.DailyLoginNotification) => {
-                if (connection && connection.identity && newNotif.playerId.isEqual(connection.identity)) {
+                if (connection && connection.identity && newNotif.playerId && newNotif.playerId.isEqual(connection.identity)) {
                     setDailyLoginNotifications(prev => new Map(prev).set(newNotif.id.toString(), newNotif));
                 }
             };
             const handleDailyLoginNotificationDelete = (ctx: any, notif: SpacetimeDB.DailyLoginNotification) => setDailyLoginNotifications(prev => { const newMap = new Map(prev); newMap.delete(notif.id.toString()); return newMap; });
 
             const handleProgressNotificationInsert = (ctx: any, notif: SpacetimeDB.ProgressNotification) => {
-                if (connection && connection.identity && notif.playerId.isEqual(connection.identity)) {
+                if (connection && connection.identity && notif.playerId && notif.playerId.isEqual(connection.identity)) {
                     setProgressNotifications(prev => new Map(prev).set(notif.id.toString(), notif));
                 }
             };
             const handleProgressNotificationUpdate = (ctx: any, oldNotif: SpacetimeDB.ProgressNotification, newNotif: SpacetimeDB.ProgressNotification) => {
-                if (connection && connection.identity && newNotif.playerId.isEqual(connection.identity)) {
+                if (connection && connection.identity && newNotif.playerId && newNotif.playerId.isEqual(connection.identity)) {
                     setProgressNotifications(prev => new Map(prev).set(newNotif.id.toString(), newNotif));
                 }
             };
             const handleProgressNotificationDelete = (ctx: any, notif: SpacetimeDB.ProgressNotification) => setProgressNotifications(prev => { const newMap = new Map(prev); newMap.delete(notif.id.toString()); return newMap; });
 
             const handleComparativeStatNotificationInsert = (ctx: any, notif: SpacetimeDB.ComparativeStatNotification) => {
-                if (connection && connection.identity && notif.playerId.isEqual(connection.identity)) {
+                if (connection && connection.identity && notif.playerId && notif.playerId.isEqual(connection.identity)) {
                     setComparativeStatNotifications(prev => new Map(prev).set(notif.id.toString(), notif));
                 }
             };
             const handleComparativeStatNotificationUpdate = (ctx: any, oldNotif: SpacetimeDB.ComparativeStatNotification, newNotif: SpacetimeDB.ComparativeStatNotification) => {
-                if (connection && connection.identity && newNotif.playerId.isEqual(connection.identity)) {
+                if (connection && connection.identity && newNotif.playerId && newNotif.playerId.isEqual(connection.identity)) {
                     setComparativeStatNotifications(prev => new Map(prev).set(newNotif.id.toString(), newNotif));
                 }
             };
@@ -1360,7 +1360,7 @@ export const useSpacetimeTables = ({
             // --- Sleeping Bag Subscriptions ---
             const handleSleepingBagInsert = (ctx: any, bag: SpacetimeDB.SleepingBag) => {
                 setSleepingBags(prev => new Map(prev).set(bag.id.toString(), bag));
-                if (connection.identity && bag.placedBy.isEqual(connection.identity)) {
+                if (connection.identity && bag.placedBy && bag.placedBy.isEqual(connection.identity)) {
                     cancelPlacementRef.current();
                 }
             };
@@ -1388,7 +1388,7 @@ export const useSpacetimeTables = ({
             // --- Stash Subscriptions ---
             const handleStashInsert = (ctx: any, stash: SpacetimeDB.Stash) => {
                 setStashes(prev => new Map(prev).set(stash.id.toString(), stash));
-                if (connection.identity && stash.placedBy.isEqual(connection.identity)) {
+                if (connection.identity && stash.placedBy && stash.placedBy.isEqual(connection.identity)) {
                     cancelPlacementRef.current();
                 }
             };
@@ -1521,7 +1521,7 @@ export const useSpacetimeTables = ({
             const handleShelterInsert = (ctx: any, shelter: SpacetimeDB.Shelter) => {
                 setShelters(prev => new Map(prev).set(shelter.id.toString(), shelter));
                 // If this client placed the shelter, cancel placement mode
-                if (connection && connection.identity && shelter.placedBy.isEqual(connection.identity)) {
+                if (connection && connection.identity && shelter.placedBy && shelter.placedBy.isEqual(connection.identity)) {
                     cancelPlacementRef.current();
                 }
             };
@@ -1630,7 +1630,7 @@ export const useSpacetimeTables = ({
             // --- RainCollector Subscriptions ---
             const handleRainCollectorInsert = (ctx: any, rainCollector: SpacetimeDB.RainCollector) => {
                 setRainCollectors(prev => new Map(prev).set(rainCollector.id.toString(), rainCollector));
-                if (connection.identity && rainCollector.placedBy.isEqual(connection.identity)) {
+                if (connection.identity && rainCollector.placedBy && rainCollector.placedBy.isEqual(connection.identity)) {
                     cancelPlacementRef.current();
                 }
             };
@@ -1739,7 +1739,7 @@ export const useSpacetimeTables = ({
                 console.log(`[EXPLOSIVE INSERT] Chunk ${explosive.chunkIndex} is ${isChunkSubscribed ? 'IN' : 'NOT IN'} subscribed chunks`);
                 setPlacedExplosives(prev => new Map(prev).set(explosive.id.toString(), explosive));
                 // Cancel placement if this explosive was placed by the local player
-                if (connection.identity && explosive.placedBy.isEqual(connection.identity)) {
+                if (connection.identity && explosive.placedBy && explosive.placedBy.isEqual(connection.identity)) {
                     cancelPlacementRef.current();
                 }
             };

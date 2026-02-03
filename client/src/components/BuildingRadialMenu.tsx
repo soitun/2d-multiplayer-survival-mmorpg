@@ -89,7 +89,7 @@ export const BuildingRadialMenu: React.FC<BuildingRadialMenuProps> = ({
     for (const item of inventoryItems.values()) {
       // Only count items in the local player's inventory or hotbar
       const isPlayerItem = (item.location.tag === 'Inventory' || item.location.tag === 'Hotbar') &&
-                          item.location.value.ownerId.isEqual(localPlayerIdentity);
+                          item.location.value.ownerId && item.location.value.ownerId.isEqual(localPlayerIdentity);
       
       if (isPlayerItem && item.itemDefId === woodDefId) {
         total += item.quantity;

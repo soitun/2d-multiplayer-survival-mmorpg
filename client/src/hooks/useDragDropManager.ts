@@ -126,14 +126,14 @@ export const useDragDropManager = ({
                                 targetItemInstance = allPlayerItems.find(i =>
                                     i.location.tag === 'Inventory' &&
                                     i.location.value instanceof Object && 'ownerId' in i.location.value && 'slotIndex' in i.location.value && // Type guard
-                                    (i.location.value as InventoryLocationData).ownerId.isEqual(playerIdentity) &&
+                                    (i.location.value as InventoryLocationData).ownerId && (i.location.value as InventoryLocationData).ownerId.isEqual(playerIdentity) &&
                                     (i.location.value as InventoryLocationData).slotIndex === targetSlotIndexNum
                                 );
                             } else { // hotbar
                                 targetItemInstance = allPlayerItems.find(i =>
                                     i.location.tag === 'Hotbar' &&
                                     i.location.value instanceof Object && 'ownerId' in i.location.value && 'slotIndex' in i.location.value && // Type guard
-                                    (i.location.value as HotbarLocationData).ownerId.isEqual(playerIdentity) &&
+                                    (i.location.value as HotbarLocationData).ownerId && (i.location.value as HotbarLocationData).ownerId.isEqual(playerIdentity) &&
                                     (i.location.value as HotbarLocationData).slotIndex === targetSlotIndexNum
                                 );
                             }

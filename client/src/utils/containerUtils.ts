@@ -652,7 +652,7 @@ function findFirstAvailableInventorySlot(connection: any): number {
     // Get all player items in inventory
     const playerItems = Array.from(connection.db.inventoryItem.iter()).filter((item: any) => 
         item.location.tag === 'Inventory' &&
-        item.location.value.ownerId.isEqual(playerIdentity)
+        item.location.value.ownerId && item.location.value.ownerId.isEqual(playerIdentity)
     );
     
     // Create a set of occupied slot indices

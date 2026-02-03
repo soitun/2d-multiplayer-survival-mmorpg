@@ -798,7 +798,7 @@ export function useInteractionFinder({
                     if (animal.health <= 0) return;
                     
                     // Must be tamed by the local player
-                    if (!animal.tamedBy || !animal.tamedBy.isEqual(localPlayer.identity)) return;
+                    if (!animal.tamedBy || !localPlayer.identity || !animal.tamedBy.isEqual(localPlayer.identity)) return;
                     
                     // Check if it's a milkable species (Caribou or ArcticWalrus)
                     const speciesTag = animal.species?.tag;
@@ -847,7 +847,7 @@ export function useInteractionFinder({
             if (players) {
                 players.forEach((player) => {
                     // Skip if it's the local player or player is not knocked out or is dead or offline
-                    if (localPlayer && player.identity.isEqual(localPlayer.identity)) {
+                    if (localPlayer && player.identity && localPlayer.identity && player.identity.isEqual(localPlayer.identity)) {
                         return; // Skip local player
                     }
                     if (!player.isOnline) {

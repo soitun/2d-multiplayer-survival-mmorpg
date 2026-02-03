@@ -9,21 +9,22 @@
   background: rgba(0, 0, 0, 0.6);
   z-index: 100;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding-top: 40px;
 }
 
 .boneCarvingPanel {
   position: relative;
-  width: 90vw;
-  max-width: 900px;
-  height: 80vh;
-  max-height: 700px;
+  width: 95vw;
+  max-width: 1200px;
+  height: 85vh;
+  max-height: 600px;
   background: linear-gradient(135deg, rgba(45, 30, 20, 0.98), rgba(30, 20, 15, 0.98));
   border: 3px solid #8b5a2b;
   box-shadow: 0 0 30px rgba(139, 90, 43, 0.4), inset 0 0 20px rgba(139, 90, 43, 0.1);
   border-radius: 8px;
-  padding: 20px;
+  padding: 25px;
   color: #f5deb3;
   font-family: 'Press Start 2P', cursive;
   display: flex;
@@ -52,9 +53,9 @@
   color: #f5deb3;
   border: 2px solid #cd853f;
   border-radius: 4px;
-  padding: 5px 12px;
+  padding: 8px 16px;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 24px;
   font-family: inherit;
   z-index: 110;
   transition: all 0.3s ease;
@@ -73,14 +74,14 @@
 }
 
 .title {
-  font-size: 18px;
+  font-size: 28px;
   color: #daa520;
   margin: 0;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .subtitle {
-  font-size: 10px;
+  font-size: 16px;
   color: #cdaa7d;
   margin: 8px 0 0 0;
 }
@@ -89,9 +90,9 @@
   background: rgba(218, 165, 32, 0.2);
   border: 1px solid #daa520;
   border-radius: 4px;
-  padding: 8px 12px;
+  padding: 12px 16px;
   text-align: center;
-  font-size: 10px;
+  font-size: 16px;
   margin-bottom: 10px;
   animation: fadeIn 0.3s ease;
 }
@@ -122,13 +123,13 @@
   background: linear-gradient(135deg, rgba(70, 50, 35, 0.9), rgba(50, 35, 25, 0.95));
   border: 2px solid #6b4423;
   border-radius: 6px;
-  padding: 10px;
+  padding: 15px;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
 }
 
 .recipeCard:hover {
@@ -155,8 +156,8 @@
 }
 
 .recipeIcon {
-  width: 48px;
-  height: 48px;
+  width: 96px;
+  height: 96px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -169,56 +170,56 @@
 }
 
 .recipeName {
-  font-size: 8px;
+  font-size: 14px;
   text-align: center;
   color: #f5deb3;
 }
 
 .recipeAnimal {
-  font-size: 7px;
+  font-size: 12px;
   color: #8b7355;
 }
 
 .recipeBonus {
-  font-size: 6px;
+  font-size: 11px;
   color: #90ee90;
   text-align: center;
 }
 
 /* Recipe Details Panel */
 .recipeDetails {
-  width: 300px;
-  min-width: 280px;
+  width: 380px;
+  min-width: 360px;
   background: linear-gradient(135deg, rgba(50, 35, 25, 0.95), rgba(35, 25, 18, 0.98));
   border: 2px solid #6b4423;
   border-radius: 6px;
-  padding: 15px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
   overflow-y: auto;
 }
 
 .recipeDetails h3 {
-  font-size: 12px;
+  font-size: 20px;
   color: #daa520;
   margin: 0;
   text-align: center;
 }
 
 .animalSpirit {
-  font-size: 9px;
+  font-size: 16px;
   color: #8b7355;
   text-align: center;
   margin: 0;
 }
 
 .bonusText {
-  font-size: 9px;
+  font-size: 16px;
   color: #90ee90;
   text-align: center;
   background: rgba(144, 238, 144, 0.1);
-  padding: 8px;
+  padding: 12px;
   border-radius: 4px;
   margin: 0;
 }
@@ -230,19 +231,19 @@
 }
 
 .ingredientsList h4 {
-  font-size: 9px;
+  font-size: 16px;
   color: #cdaa7d;
-  margin: 0 0 5px 0;
+  margin: 0 0 8px 0;
 }
 
 .ingredient {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 8px;
+  gap: 10px;
+  padding: 8px 12px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
-  font-size: 8px;
+  font-size: 14px;
 }
 
 .ingredient.hasEnough {
@@ -254,8 +255,8 @@
 }
 
 .ingredientIcon {
-  width: 24px;
-  height: 24px;
+  width: 48px;
+  height: 48px;
   image-rendering: pixelated;
 }
 
@@ -273,7 +274,7 @@
 }
 
 .craftingTime {
-  font-size: 8px;
+  font-size: 14px;
   color: #8b7355;
   text-align: center;
 }
@@ -283,8 +284,8 @@
   color: #f5deb3;
   border: 2px solid #5a9c4f;
   border-radius: 4px;
-  padding: 10px 15px;
-  font-size: 10px;
+  padding: 14px 20px;
+  font-size: 16px;
   font-family: inherit;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -311,25 +312,25 @@
 }
 
 .craftingQueue h4 {
-  font-size: 9px;
+  font-size: 16px;
   color: #cdaa7d;
-  margin: 0 0 8px 0;
+  margin: 0 0 10px 0;
 }
 
 .queueItems {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 
 .queueItem {
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid #6b4423;
   border-radius: 4px;
-  padding: 6px 10px;
-  font-size: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 
 .queueTime {
@@ -339,19 +340,20 @@
 /* Scrollbar styling */
 .recipeGrid::-webkit-scrollbar,
 .recipeDetails::-webkit-scrollbar {
-  width: 8px;
+  width: 12px;
 }
 
 .recipeGrid::-webkit-scrollbar-track,
 .recipeDetails::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
 }
 
 .recipeGrid::-webkit-scrollbar-thumb,
 .recipeDetails::-webkit-scrollbar-thumb {
   background: #6b4423;
-  border-radius: 4px;
+  border-radius: 6px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
 }
 
 .recipeGrid::-webkit-scrollbar-thumb:hover,

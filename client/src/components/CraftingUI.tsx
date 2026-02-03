@@ -127,10 +127,10 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
             .filter(item => {
                 if (item.location.tag === 'Inventory') {
                     const inventoryData = item.location.value as InventoryLocationData;
-                    return inventoryData.ownerId.isEqual(playerIdentity);
+                    return inventoryData.ownerId && inventoryData.ownerId.isEqual(playerIdentity);
                 } else if (item.location.tag === 'Hotbar') {
                     const hotbarData = item.location.value as HotbarLocationData;
-                    return hotbarData.ownerId.isEqual(playerIdentity);
+                    return hotbarData.ownerId && hotbarData.ownerId.isEqual(playerIdentity);
                 }
                 return false; // Not in player's inventory or hotbar
             })
@@ -152,7 +152,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
         const now = Date.now();
         return Array.from(craftingQueueItems.values())
             .filter(item => {
-                if (!item.playerIdentity.isEqual(playerIdentity)) return false;
+                if (!item.playerIdentity || !item.playerIdentity.isEqual(playerIdentity)) return false;
                 // Only hide items that have been finished for 2+ seconds
                 // This gives the server time to process (checks every 1 second) and grant the item
                 const finishTimeMs = Number(item.finishTime.microsSinceUnixEpoch / 1000n);

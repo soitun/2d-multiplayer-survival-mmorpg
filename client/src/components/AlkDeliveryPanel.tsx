@@ -196,7 +196,7 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
 
         alkPlayerContracts.forEach((pc) => {
             // Only show Active contracts for this player
-            if (!pc.playerId.isEqual(playerIdentity)) return;
+            if (!pc.playerId || !pc.playerId.isEqual(playerIdentity)) return;
             if (!pc.status || pc.status.tag !== 'Active') return;
 
             const contract = alkContracts.get(pc.contractId.toString());

@@ -234,10 +234,10 @@ const BoneCarvingPanel: React.FC<BoneCarvingPanelProps> = ({
             .filter(item => {
                 if (item.location.tag === 'Inventory') {
                     const data = item.location.value as InventoryLocationData;
-                    return data.ownerId.isEqual(playerIdentity);
+                    return data.ownerId && data.ownerId.isEqual(playerIdentity);
                 } else if (item.location.tag === 'Hotbar') {
                     const data = item.location.value as HotbarLocationData;
-                    return data.ownerId.isEqual(playerIdentity);
+                    return data.ownerId && data.ownerId.isEqual(playerIdentity);
                 }
                 return false;
             })
@@ -294,13 +294,13 @@ const BoneCarvingPanel: React.FC<BoneCarvingPanelProps> = ({
     const playerQueue = useMemo(() => {
         if (!playerIdentity) return [];
         return Array.from(craftingQueueItems.values())
-            .filter(item => item.playerIdentity.isEqual(playerIdentity))
+            .filter(item => item.playerIdentity && item.playerIdentity.isEqual(playerIdentity))
             .sort((a, b) => Number(a.finishTime.microsSinceUnixEpoch - b.finishTime.microsSinceUnixEpoch));
     }, [craftingQueueItems, playerIdentity]);
 
     return (
         <div className={styles.panelOverlay}>
-            <div className={styles.boneCarvingPanel} ref={panelRef}>
+            <div className={styles.boneCarvingPanel} ref={panelRef} data-id="bone-carving-panel">
                 <button className={styles.closeButton} onClick={onClose}>×</button>
                 
                 <div className={styles.header}>
