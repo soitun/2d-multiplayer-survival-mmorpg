@@ -44,7 +44,8 @@ pub(crate) const BARBECUE_BARBECUE_COLLISION_DISTANCE_SQUARED: f32 =
     (BARBECUE_COLLISION_RADIUS * 2.0) * (BARBECUE_COLLISION_RADIUS * 2.0);
 
 // --- Placement constants ---
-pub(crate) const BARBECUE_PLACEMENT_MAX_DISTANCE: f32 = 96.0;
+// Increased placement distance since barbecue is larger (128x128) and might get in player's way
+pub(crate) const BARBECUE_PLACEMENT_MAX_DISTANCE: f32 = 128.0;
 pub(crate) const BARBECUE_PLACEMENT_MAX_DISTANCE_SQUARED: f32 = BARBECUE_PLACEMENT_MAX_DISTANCE * BARBECUE_PLACEMENT_MAX_DISTANCE;
 
 // --- Initial amounts ---
@@ -585,7 +586,7 @@ pub fn place_barbecue(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
     let new_barbecue = Barbecue {
         id: 0,
         pos_x: world_x,
-        pos_y: world_y + 42.0,
+        pos_y: world_y, // No offset: cursor is at visual center, store exactly where clicked
         chunk_index: chunk_idx,
         placed_by: sender_id,
         placed_at: current_time,

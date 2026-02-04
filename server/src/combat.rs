@@ -38,6 +38,7 @@ use crate::rune_stone::{RUNE_STONE_AABB_HALF_WIDTH, RUNE_STONE_AABB_HALF_HEIGHT,
 use crate::wooden_storage_box::{WoodenStorageBox, BOX_COLLISION_RADIUS, BOX_COLLISION_Y_OFFSET, wooden_storage_box as WoodenStorageBoxTableTrait};
 use crate::grass::grass as GrassTableTrait; // RE-ADDED: grass table trait for destroyable grass
 use crate::grass::grass_state as GrassStateTableTrait; // Split tables: GrassState has health
+use crate::barbecue::barbecue as BarbecueTableTrait;
 
 // Table trait imports for database access
 use crate::tree::tree as TreeTableTrait;
@@ -215,6 +216,7 @@ pub enum TargetId {
     LivingCoral(u64), // ADDED: Living coral target (underwater resource)
     Door(u64), // ADDED: Door target (attackable doors)
     Fence(u64), // ADDED: Fence target
+    Barbecue(u32), // ADDED: Barbecue target
 }
 
 /// Represents a potential target within attack range
@@ -887,6 +889,50 @@ pub fn find_targets_in_cone(
         }
     }
     
+    // Check barbecues
+    for barbecue_entity in ctx.db.barbecue().iter() {
+        if barbecue_entity.is_destroyed {
+            continue;
+        }
+        let dx = barbecue_entity.pos_x - player.position_x;
+        let dy = barbecue_entity.pos_y - player.position_y; // Barbecue uses center-anchored rendering (no Y offset)
+        let dist_sq = dx * dx + dy * dy;
+
+        if dist_sq < (attack_range * attack_range) && dist_sq > 0.0 {
+            let distance = dist_sq.sqrt();
+            let target_vec_x = dx / distance;
+            let target_vec_y = dy / distance;
+
+            let dot_product = forward_x * target_vec_x + forward_y * target_vec_y;
+            let angle_rad = dot_product.acos();
+
+            if angle_rad <= half_attack_angle_rad {
+                // Check if line of sight is blocked by shelter walls
+                if is_line_blocked_by_shelter(
+                    ctx,
+                    player.identity,
+                    None, // No target player ID for barbecues
+                    player.position_x,
+                    player.position_y,
+                    barbecue_entity.pos_x,
+                    barbecue_entity.pos_y,
+                ) {
+                    log::debug!(
+                        "Player {:?} cannot attack Barbecue {}: line of sight blocked by shelter",
+                        player.identity, barbecue_entity.id
+                    );
+                    continue; // Skip this target - blocked by shelter
+                }
+                
+                targets.push(Target {
+                    target_type: TargetType::Barbecue,
+                    id: TargetId::Barbecue(barbecue_entity.id),
+                    distance_sq: dist_sq,
+                });
+            }
+        }
+    }
+    
     // Check wild animals
     // HITBOX_RADIUS accounts for the animal's physical size when checking cone intersection
     // This allows hits to register when the weapon passes through ANY part of the animal,
@@ -1345,6 +1391,7 @@ fn is_destructible_deployable(target_type: TargetType) -> bool {
         TargetType::Shelter |
         TargetType::RainCollector |
         TargetType::Furnace |
+        TargetType::Barbecue | // ADDED: Barbecue is destructible
         TargetType::Barrel | // Includes barrels and other destructible deployables
         TargetType::HomesteadHearth | // ADDED: Homestead Hearth is destructible
         TargetType::Wall | // ADDED: Walls are destructible structures
@@ -4064,6 +4111,13 @@ pub fn process_attack(
                 return Err("Target furnace not found".to_string());
             }
         },
+        TargetId::Barbecue(barbecue_id) => {
+            if let Some(barbecue) = ctx.db.barbecue().id().find(barbecue_id) {
+                (barbecue.pos_x, barbecue.pos_y, None) // Center-anchored rendering (no Y offset)
+            } else {
+                return Err("Target barbecue not found".to_string());
+            }
+        },
         TargetId::WildAnimal(animal_id) => {
             use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait;
             if let Some(animal) = ctx.db.wild_animal().id().find(animal_id) {
@@ -4393,6 +4447,9 @@ pub fn process_attack(
         },
         TargetId::Furnace(furnace_id) => {
             damage_furnace(ctx, attacker_id, *furnace_id, damage, timestamp, rng)
+        },
+        TargetId::Barbecue(barbecue_id) => {
+            damage_barbecue(ctx, attacker_id, *barbecue_id, damage, timestamp, rng)
         },
         TargetId::WildAnimal(animal_id) => {
             // Use weapon-tracked version for melee kills achievement tracking
@@ -5273,6 +5330,172 @@ pub fn damage_furnace(
     Ok(AttackResult {
         hit: true,
         target_type: Some(TargetType::Furnace),
+        resource_granted: None,
+    })
+}
+
+/// Applies damage to a barbecue and handles destruction/item scattering
+pub fn damage_barbecue(
+    ctx: &ReducerContext,
+    attacker_id: Identity,
+    barbecue_id: u32,
+    damage: f32,
+    timestamp: Timestamp,
+    rng: &mut impl Rng
+) -> Result<AttackResult, String> {
+    // TODO: Add repair hammer support for barbecues
+    // Check if the attacker is using a repair hammer
+    // if let Some(active_equip) = ctx.db.active_equipment().player_identity().find(&attacker_id) {
+    //     if let Some(equipped_item_id) = active_equip.equipped_item_instance_id {
+    //         if let Some(equipped_item) = ctx.db.inventory_item().instance_id().find(&equipped_item_id) {
+    //             if let Some(item_def) = ctx.db.item_definition().id().find(&equipped_item.item_def_id) {
+    //                 if crate::repair::is_repair_hammer(&item_def) {
+    //                     // Use repair instead of damage
+    //                     return crate::repair::repair_barbecue(ctx, attacker_id, barbecue_id, damage, timestamp);
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+
+    // Original damage logic if not using repair hammer
+    let mut barbecues_table = ctx.db.barbecue();
+    let mut barbecue = barbecues_table.id().find(&barbecue_id)
+        .ok_or_else(|| format!("Target barbecue {} disappeared", barbecue_id))?;
+
+    // Monument placeables are indestructible
+    if barbecue.is_monument {
+        return Err("Cannot damage monument structures.".to_string());
+    }
+
+    if barbecue.is_destroyed {
+        return Ok(AttackResult { hit: false, target_type: Some(TargetType::Barbecue), resource_granted: None });
+    }
+
+    // <<< PVP RAIDING CHECK >>>
+    if let Some(attacker_player) = ctx.db.player().identity().find(attacker_id) {
+        let attacker_pvp = is_pvp_active_for_player(&attacker_player, timestamp);
+        
+        if barbecue.placed_by != attacker_id {
+            if let Some(owner_player) = ctx.db.player().identity().find(&barbecue.placed_by) {
+                let owner_pvp = is_pvp_active_for_player(&owner_player, timestamp);
+                
+                if !attacker_pvp || !owner_pvp {
+                    log::debug!("Structure raiding blocked - Attacker PvP: {}, Owner PvP: {}", 
+                        attacker_pvp, owner_pvp);
+                    return Ok(AttackResult { hit: false, target_type: Some(TargetType::Barbecue), resource_granted: None });
+                }
+            }
+        }
+    }
+    // <<< END PVP RAIDING CHECK >>>
+
+    let old_health = barbecue.health;
+    barbecue.health = (barbecue.health - damage).max(0.0);
+    barbecue.last_hit_time = Some(timestamp);
+    barbecue.last_damaged_by = Some(attacker_id);
+
+    log::info!(
+        "Player {:?} hit Barbecue {} for {:.1} damage. Health: {:.1} -> {:.1}",
+        attacker_id, barbecue_id, damage, old_health, barbecue.health
+    );
+
+    // Play hit sound for all hits
+    sound_events::emit_barrel_hit_sound(ctx, barbecue.pos_x, barbecue.pos_y, attacker_id);
+
+    if barbecue.health <= 0.0 {
+        // Play destroyed sound
+        sound_events::emit_barrel_destroyed_sound(ctx, barbecue.pos_x, barbecue.pos_y, attacker_id);
+        barbecue.is_destroyed = true;
+        barbecue.destroyed_at = Some(timestamp);
+
+        let mut items_to_drop: Vec<(u64, u32)> = Vec::new();
+        // Check all 12 slots for items to drop
+        let slots = [
+            (barbecue.slot_instance_id_0, barbecue.slot_def_id_0),
+            (barbecue.slot_instance_id_1, barbecue.slot_def_id_1),
+            (barbecue.slot_instance_id_2, barbecue.slot_def_id_2),
+            (barbecue.slot_instance_id_3, barbecue.slot_def_id_3),
+            (barbecue.slot_instance_id_4, barbecue.slot_def_id_4),
+            (barbecue.slot_instance_id_5, barbecue.slot_def_id_5),
+            (barbecue.slot_instance_id_6, barbecue.slot_def_id_6),
+            (barbecue.slot_instance_id_7, barbecue.slot_def_id_7),
+            (barbecue.slot_instance_id_8, barbecue.slot_def_id_8),
+            (barbecue.slot_instance_id_9, barbecue.slot_def_id_9),
+            (barbecue.slot_instance_id_10, barbecue.slot_def_id_10),
+            (barbecue.slot_instance_id_11, barbecue.slot_def_id_11),
+        ];
+
+        for (instance_id_opt, def_id_opt) in slots {
+            if let (Some(instance_id), Some(def_id)) = (instance_id_opt, def_id_opt) {
+                if let Some(item) = ctx.db.inventory_item().instance_id().find(&instance_id) {
+                    items_to_drop.push((def_id, item.quantity));
+                    ctx.db.inventory_item().instance_id().delete(&instance_id);
+                }
+            }
+        }
+
+        // Clear all slots
+        barbecue.slot_instance_id_0 = None;
+        barbecue.slot_def_id_0 = None;
+        barbecue.slot_instance_id_1 = None;
+        barbecue.slot_def_id_1 = None;
+        barbecue.slot_instance_id_2 = None;
+        barbecue.slot_def_id_2 = None;
+        barbecue.slot_instance_id_3 = None;
+        barbecue.slot_def_id_3 = None;
+        barbecue.slot_instance_id_4 = None;
+        barbecue.slot_def_id_4 = None;
+        barbecue.slot_instance_id_5 = None;
+        barbecue.slot_def_id_5 = None;
+        barbecue.slot_instance_id_6 = None;
+        barbecue.slot_def_id_6 = None;
+        barbecue.slot_instance_id_7 = None;
+        barbecue.slot_def_id_7 = None;
+        barbecue.slot_instance_id_8 = None;
+        barbecue.slot_def_id_8 = None;
+        barbecue.slot_instance_id_9 = None;
+        barbecue.slot_def_id_9 = None;
+        barbecue.slot_instance_id_10 = None;
+        barbecue.slot_def_id_10 = None;
+        barbecue.slot_instance_id_11 = None;
+        barbecue.slot_def_id_11 = None;
+
+        // Save position before update (barbecue is moved by update)
+        let barbecue_pos_x = barbecue.pos_x;
+        let barbecue_pos_y = barbecue.pos_y;
+
+        barbecues_table.id().update(barbecue);
+
+        log::info!(
+            "Barbecue {} destroyed by player {:?}. Dropping contents.",
+            barbecue_id, attacker_id
+        );
+
+        // Drop all items WITHOUT triggering consolidation on each drop
+        for (item_def_id, quantity) in items_to_drop {
+            let offset_x = (rng.gen::<f32>() - 0.5) * 2.0 * 20.0; // Spread within +/- 20px
+            let offset_y = (rng.gen::<f32>() - 0.5) * 2.0 * 20.0;
+            let drop_pos_x = barbecue_pos_x + offset_x;
+            let drop_pos_y = barbecue_pos_y + offset_y;
+
+            match dropped_item::create_dropped_item_entity_no_consolidation(ctx, item_def_id, quantity, drop_pos_x, drop_pos_y) {
+                Ok(_) => log::debug!("Dropped {} of item_def_id {} from destroyed barbecue {}", quantity, item_def_id, barbecue_id),
+                Err(e) => log::error!("Failed to drop item_def_id {}: {}", item_def_id, e),
+            }
+        }
+        
+        // Trigger consolidation ONCE after all items are dropped
+        dropped_item::trigger_consolidation_at_position(ctx, barbecue_pos_x, barbecue_pos_y);
+
+    } else {
+        // Barbecue still has health, just update it
+        barbecues_table.id().update(barbecue);
+    }
+
+    Ok(AttackResult {
+        hit: true,
+        target_type: Some(TargetType::Barbecue),
         resource_granted: None,
     })
 }

@@ -120,6 +120,7 @@ pub enum TargetType {
     Turret, // ADDED: Turret target type
     HomesteadHearth, // ADDED: Homestead Hearth target type
     LivingCoral, // ADDED: Living coral underwater resource
+    Barbecue, // ADDED: Barbecue target type
 }
 
 // Building system enums

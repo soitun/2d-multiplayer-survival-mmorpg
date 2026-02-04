@@ -5020,21 +5020,122 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
         }
     );
 
-    // Respawn Harvestable Resources (Unified System) with Seasonal Filtering
-    
-    check_and_respawn_resource!(
-        ctx,
-        harvestable_resource,
-        crate::harvestable_resource::HarvestableResource,
-        "HarvestableResource",
-        |h: &crate::harvestable_resource::HarvestableResource| {
-            // SEASONAL CHECK: Only allow respawn if plant can grow in current season
-            plants_database::can_grow_in_season(&h.plant_type, &current_season)
-        },
-        |h: &mut crate::harvestable_resource::HarvestableResource| {
-            h.respawn_at = Timestamp::UNIX_EPOCH; // 0 = not respawning
+    // Respawn Harvestable Resources (Unified System) with Seasonal Filtering and Foundation Check
+    // Custom implementation to add foundation checking (resources shouldn't respawn on foundations)
+    {
+        use crate::harvestable_resource::harvestable_resource as HarvestableResourceTableTrait;
+        use crate::building::{is_position_on_foundation, foundation_cell as FoundationCellTableTrait};
+        use crate::player as PlayerTableTrait;
+        
+        let table_accessor = ctx.db.harvestable_resource();
+        let now_ts = ctx.timestamp;
+        let mut ids_to_respawn: Vec<u64> = Vec::new();
+        
+        // Get all online player positions for spatial gating
+        let player_positions: Vec<(f32, f32)> = ctx.db.player().iter()
+            .filter(|p| p.is_online && !p.is_dead)
+            .map(|p| (p.position_x, p.position_y))
+            .collect();
+        
+        const RESPAWN_CHECK_RADIUS_SQ: f32 = 2000.0 * 2000.0;
+        
+        if !player_positions.is_empty() {
+            for entity in table_accessor.iter() {
+                // Check if respawn_at is set and has passed
+                if entity.respawn_at > Timestamp::UNIX_EPOCH && entity.respawn_at <= now_ts {
+                    // SPATIAL FILTER: Only check entities within range of any player
+                    let mut near_player = false;
+                    for (px, py) in &player_positions {
+                        let dx = entity.pos_x - px;
+                        let dy = entity.pos_y - py;
+                        let dist_sq = dx * dx + dy * dy;
+                        if dist_sq <= RESPAWN_CHECK_RADIUS_SQ {
+                            near_player = true;
+                            break;
+                        }
+                    }
+                    
+                    if near_player {
+                        // SEASONAL CHECK: Only allow respawn if plant can grow in current season
+                        let season_ok = plants_database::can_grow_in_season(&entity.plant_type, &current_season);
+                        
+                        // FOUNDATION CHECK: Don't respawn on foundations
+                        let not_on_foundation = !is_position_on_foundation(ctx, entity.pos_x, entity.pos_y);
+                        
+                        if season_ok && not_on_foundation {
+                            ids_to_respawn.push(entity.id);
+                        } else if season_ok && !not_on_foundation {
+                            // Resource is on a foundation - delete it instead of respawning
+                            log::info!("Deleting HarvestableResource {} at ({:.1}, {:.1}) - blocked by foundation", 
+                                      entity.id, entity.pos_x, entity.pos_y);
+                            // We'll delete it in the update phase
+                        }
+                    }
+                }
+            }
         }
-    );
+        
+        // Update phase
+        for entity_id in ids_to_respawn {
+            let table_accessor_update = ctx.db.harvestable_resource();
+            if let Some(mut entity) = table_accessor_update.id().find(entity_id) {
+                let original_pos_x = entity.pos_x;
+                let original_pos_y = entity.pos_y;
+                let mut current_pos_x = original_pos_x;
+                let mut current_pos_y = original_pos_y;
+                let mut position_clear = false;
+                
+                // Check initial position and attempt offsets
+                for attempt in 0..=crate::respawn::MAX_RESPAWN_OFFSET_ATTEMPTS {
+                    // Check both collision and foundation
+                    let collision_clear = crate::utils::is_respawn_position_clear(ctx, current_pos_x, current_pos_y, crate::respawn::RESPAWN_CHECK_RADIUS_SQ);
+                    let foundation_clear = !is_position_on_foundation(ctx, current_pos_x, current_pos_y);
+                    
+                    if collision_clear && foundation_clear {
+                        position_clear = true;
+                        if attempt > 0 {
+                            log::info!(
+                                "Respawning HarvestableResource {} at offset position ({:.1}, {:.1}) due to blockage at original ({:.1}, {:.1}). Attempt {}",
+                                entity_id, current_pos_x, current_pos_y, original_pos_x, original_pos_y, attempt
+                            );
+                            entity.pos_x = current_pos_x;
+                            entity.pos_y = current_pos_y;
+                        } else {
+                            log::info!("Respawning HarvestableResource {} at original position ({:.1}, {:.1}).", entity_id, original_pos_x, original_pos_y);
+                        }
+                        break;
+                    }
+                    
+                    if attempt < crate::respawn::MAX_RESPAWN_OFFSET_ATTEMPTS {
+                        let (dx, dy) = match attempt % 8 {
+                            0 => (crate::respawn::RESPAWN_OFFSET_DISTANCE, 0.0),
+                            1 => (0.0, crate::respawn::RESPAWN_OFFSET_DISTANCE),
+                            2 => (-crate::respawn::RESPAWN_OFFSET_DISTANCE, 0.0),
+                            3 => (0.0, -crate::respawn::RESPAWN_OFFSET_DISTANCE),
+                            4 => (crate::respawn::RESPAWN_OFFSET_DISTANCE, crate::respawn::RESPAWN_OFFSET_DISTANCE),
+                            5 => (-crate::respawn::RESPAWN_OFFSET_DISTANCE, crate::respawn::RESPAWN_OFFSET_DISTANCE),
+                            6 => (-crate::respawn::RESPAWN_OFFSET_DISTANCE, -crate::respawn::RESPAWN_OFFSET_DISTANCE),
+                            _ => (crate::respawn::RESPAWN_OFFSET_DISTANCE, -crate::respawn::RESPAWN_OFFSET_DISTANCE),
+                        };
+                        current_pos_x = original_pos_x + dx;
+                        current_pos_y = original_pos_y + dy;
+                    } else {
+                        log::warn!(
+                            "Could not find clear respawn position for HarvestableResource {} near ({:.1}, {:.1}) after {} attempts. Skipping respawn.",
+                            entity_id, original_pos_x, original_pos_y, crate::respawn::MAX_RESPAWN_OFFSET_ATTEMPTS + 1
+                        );
+                    }
+                }
+                
+                if position_clear {
+                    entity.respawn_at = Timestamp::UNIX_EPOCH; // 0 = not respawning
+                    ctx.db.harvestable_resource().id().update(entity);
+                }
+            } else {
+                log::warn!("Could not find HarvestableResource {} to respawn.", entity_id);
+            }
+        }
+    }
 
     // Respawn Grass - TEMPORARILY COMMENTED OUT
     // check_and_respawn_resource!(

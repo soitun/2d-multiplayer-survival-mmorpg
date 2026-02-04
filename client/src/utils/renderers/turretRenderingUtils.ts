@@ -92,23 +92,8 @@ const turretConfig: GroundEntityConfig<Turret> = {
         }
     },
 
-    drawOverlay: (ctx, entity, finalDrawX, finalDrawY, finalDrawWidth, finalDrawHeight, nowMs, baseDrawX, baseDrawY) => {
-        // Render health bar if turret is damaged (only when PvP is enabled)
-        if (entity.health && entity.maxHealth && entity.health < entity.maxHealth) {
-            // Use entity position as player position fallback (health bar uses it for distance-based visibility)
-            // Centered sprite: health bar offset is half the height
-            renderEntityHealthBar(
-                ctx,
-                entity,
-                TURRET_WIDTH,
-                TURRET_HEIGHT,
-                nowMs,
-                entity.posX,
-                entity.posY,
-                TURRET_HEIGHT / 2 // Centered sprite - offset from center to top
-            );
-        }
-    },
+    // Health bar rendered separately via renderEntityHealthBar (after entity rendering)
+    drawOverlay: undefined,
 };
 
 /**
@@ -119,7 +104,9 @@ export function renderTurret(
     turret: Turret,
     cameraOffsetX: number,
     cameraOffsetY: number,
-    cycleProgress: number
+    cycleProgress: number,
+    playerX?: number,
+    playerY?: number
 ): void {
     const nowMs = performance.now();
     const entityPosX = turret.posX - cameraOffsetX;
@@ -134,6 +121,12 @@ export function renderTurret(
         entityPosY,
         cycleProgress
     });
+    
+    // Render health bar using unified system (turret is center-anchored)
+    // Health bar offset: sprite center is at posY, so offset is height/2
+    if (playerX !== undefined && playerY !== undefined) {
+        renderEntityHealthBar(ctx, turret, TURRET_WIDTH, TURRET_HEIGHT, nowMs, playerX, playerY, TURRET_HEIGHT / 2);
+    }
 }
 
 /**

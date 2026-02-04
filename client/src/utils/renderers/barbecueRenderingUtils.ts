@@ -11,8 +11,8 @@ export const BARBECUE_WIDTH = 128;
 export const BARBECUE_HEIGHT = 128;
 export const BARBECUE_WIDTH_PREVIEW = 128;
 export const BARBECUE_HEIGHT_PREVIEW = 128;
-// No render offset - sprite is CENTERED on posY
-// This makes collision (at posY) align with sprite center
+// Center-anchored rendering: sprite is centered on posY
+// Collision/cursor is at the center of the visual barbecue
 export const BARBECUE_RENDER_Y_OFFSET = 0;
 
 // Barbecue interaction distance (player <-> barbecue)
@@ -50,7 +50,8 @@ const barbecueConfig: GroundEntityConfig<Barbecue> = {
     }),
 
     calculateDrawPosition: (entity, drawWidth, drawHeight) => ({
-        // Sprite is CENTERED on posY - collision (at posY) aligns with sprite center
+        // Center-anchored: sprite is centered on posY
+        // Collision/cursor is at the center of the visual barbecue
         drawX: entity.posX - drawWidth / 2,
         drawY: entity.posY - drawHeight / 2,
     }),
@@ -70,7 +71,7 @@ const barbecueConfig: GroundEntityConfig<Barbecue> = {
                 SHAKE_INTENSITY_PX
             );
 
-            // Sprite is CENTERED on posY, so the BASE (bottom) is at posY + height/2
+            // Center-anchored: sprite is centered on posY, base is at posY + height/2
             const entityBaseY = entityPosY + BARBECUE_HEIGHT / 2;
 
             drawDynamicGroundShadow({
@@ -146,7 +147,8 @@ export function renderBarbecue(
         skipDrawingShadow
     });
     
-    // Render health bar using unified system (barbecue is centered on posY)
+    // Render health bar using unified system (barbecue is center-anchored)
+    // Health bar offset: sprite center is at posY, so offset is height/2
     if (!onlyDrawShadow && playerX !== undefined && playerY !== undefined) {
         renderEntityHealthBar(ctx, barbecue, BARBECUE_WIDTH, BARBECUE_HEIGHT, nowMs, playerX, playerY, BARBECUE_HEIGHT / 2);
     }

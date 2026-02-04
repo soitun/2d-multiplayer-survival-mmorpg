@@ -1169,7 +1169,10 @@ export const renderYSortedEntities = ({
       } else if (type === 'campfire') {
           const campfire = entity as SpacetimeDBCampfire;
           const isTheClosestTarget = closestInteractableTarget?.type === 'campfire' && closestInteractableTarget?.id === campfire.id;
-          renderCampfire(ctx, campfire, nowMs, cycleProgress);
+          // Pass player position for health bar rendering on opposite side (like barrels)
+          const playerX = localPlayerPosition?.x;
+          const playerY = localPlayerPosition?.y;
+          renderCampfire(ctx, campfire, nowMs, cycleProgress, false, false, playerX, playerY);
           
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
@@ -1181,7 +1184,10 @@ export const renderYSortedEntities = ({
       } else if (type === 'furnace') {
           const furnace = entity as any;
           const isTheClosestTarget = closestInteractableTarget?.type === 'furnace' && closestInteractableTarget?.id === furnace.id;
-          renderFurnace(ctx, furnace, nowMs, cycleProgress);
+          // Pass player position for health bar rendering on opposite side (like barrels)
+          const playerX = localPlayerPosition?.x;
+          const playerY = localPlayerPosition?.y;
+          renderFurnace(ctx, furnace, nowMs, cycleProgress, false, false, playerX, playerY);
           
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
@@ -1193,7 +1199,10 @@ export const renderYSortedEntities = ({
       } else if (type === 'barbecue') { // ADDED: Barbecue handling (same as campfire)
           const barbecue = entity as any; // Barbecue type from generated types
           const isTheClosestTarget = closestInteractableTarget?.type === 'barbecue' && closestInteractableTarget?.id === barbecue.id;
-          renderBarbecue(ctx, barbecue, nowMs, cycleProgress);
+          // Pass player position for health bar rendering on opposite side (like barrels)
+          const playerX = localPlayerPosition?.x;
+          const playerY = localPlayerPosition?.y;
+          renderBarbecue(ctx, barbecue, nowMs, cycleProgress, false, false, playerX, playerY);
           
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
@@ -1210,7 +1219,10 @@ export const renderYSortedEntities = ({
           // Use camera offsets from function parameters (passed from GameCanvas)
           const camX = cameraOffsetX ?? 0;
           const camY = cameraOffsetY ?? 0;
-          renderTurret(ctx, turret, camX, camY, cycleProgress);
+          // Pass player position for health bar rendering on opposite side (like barrels, campfires, furnaces)
+          const playerX = localPlayerPosition?.x;
+          const playerY = localPlayerPosition?.y;
+          renderTurret(ctx, turret, camX, camY, cycleProgress, playerX, playerY);
           
           if (isTheClosestTarget) {
               const config = ENTITY_VISUAL_CONFIG.turret;
@@ -1277,7 +1289,10 @@ export const renderYSortedEntities = ({
       } else if (type === 'wooden_storage_box') {
           const box = entity as SpacetimeDBWoodenStorageBox;
           const isTheClosestTarget = closestInteractableTarget?.type === 'box' && closestInteractableTarget?.id === box.id;
-          renderWoodenStorageBox(ctx, box, nowMs, cycleProgress, undefined, undefined, inventoryItems, itemDefinitions);
+          // Pass player position for health bar rendering on opposite side (like barrels, campfires, furnaces)
+          const playerX = localPlayerPosition?.x;
+          const playerY = localPlayerPosition?.y;
+          renderWoodenStorageBox(ctx, box, nowMs, cycleProgress, playerX, playerY, inventoryItems, itemDefinitions);
           
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');

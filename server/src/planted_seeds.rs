@@ -27,6 +27,7 @@ use crate::lantern::lantern as LanternTableTrait;
 use crate::shelter::shelter as ShelterTableTrait;
 use crate::tree::tree as TreeTableTrait;
 use crate::fertilizer_patch::fertilizer_patch as FertilizerPatchTableTrait;
+use crate::building::foundation_cell as FoundationCellTableTrait;
 // Import water tile detection from fishing module
 use crate::fishing::is_water_tile;
 
@@ -832,6 +833,20 @@ pub fn plant_seed(
     
     // Check if position is within monument zones (ALK stations, rune stones, hot springs, quarries)
     crate::building::check_monument_zone_placement(ctx, plant_pos_x, plant_pos_y)?;
+    
+    // Check if position is on a foundation tile (cannot plant seeds on foundations)
+    // Convert world position to foundation cell coordinates (96px grid)
+    let foundation_cell_x = (plant_pos_x / crate::building::FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    let foundation_cell_y = (plant_pos_y / crate::building::FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    
+    // Check if there's a foundation at this cell
+    for foundation in ctx.db.foundation_cell().idx_cell_coords().filter((foundation_cell_x, foundation_cell_y)) {
+        if !foundation.is_destroyed {
+            log::error!("PLANT_SEED: Cannot plant at ({:.1}, {:.1}) - foundation exists at cell ({}, {})", 
+                       plant_pos_x, plant_pos_y, foundation_cell_x, foundation_cell_y);
+            return Err("Cannot plant seeds on foundation tiles.".to_string());
+        }
+    }
     
     // Find the player
     let player = ctx.db.player().identity().find(player_id)

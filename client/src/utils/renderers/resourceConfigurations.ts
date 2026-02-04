@@ -109,15 +109,15 @@ RESOURCE_CONFIGS.MemoryShard = {
   targetWidth: 64
 };
 
-// Resource piles - 2x larger for better visibility as gathering targets
+// Resource piles - use default size (90) to match StonePile, SulfurPile and MetalOrePile
 RESOURCE_CONFIGS.WoodPile = {
   ...RESOURCE_CONFIGS.WoodPile,
-  targetWidth: 160 // 2x size for visibility
+  targetWidth: 90 // Same size as other small piles
 };
 
 RESOURCE_CONFIGS.BeachWoodPile = {
   ...RESOURCE_CONFIGS.BeachWoodPile,
-  targetWidth: 150 // 2x size for visibility
+  targetWidth: 90 // Same size as other small piles
 };
 
 // StonePile uses default size (90) to match SulfurPile and MetalOrePile

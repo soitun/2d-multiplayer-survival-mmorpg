@@ -66,10 +66,10 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   barbecue: {
     centerOffsetX: 0,
-    centerOffsetY: 0,    // Sprite is centered on posY, so box at posY
+    centerOffsetY: 0,     // Center-anchored: sprite centered on posY, collision at visual center
     width: 72,
     height: 96,
-    placementYOffset: 42, // Server adds +42 to Y when placing
+    placementYOffset: 0,  // No offset: cursor is at visual center, server stores exactly where clicked
     spriteWidth: 128,
     spriteHeight: 128,
   },

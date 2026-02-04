@@ -1298,7 +1298,7 @@ pub fn generate_hunting_village(
             ("campfire", "fv_campfire.png", 100.0, -250.0),
             
             // Drying rack for pelts and meat - west side of courtyard, moved up for better spacing
-            ("drying_rack", "hv_drying_rack.png", -200.0, -350.0),
+            ("drying_rack", "hv_drying_rack.png", -200.0, -300.0),
         ];
         
         for (part_type, image_name, offset_x, offset_y) in structure_configs.iter() {
