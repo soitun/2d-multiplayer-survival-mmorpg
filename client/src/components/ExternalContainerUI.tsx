@@ -413,16 +413,26 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         }
     }, [onExternalItemMouseEnter, container.containerEntity, itemDefinitions]);
 
-    // Helper function to check if it's raining heavily enough to prevent campfire lighting
-    // Uses chunk-based weather for the campfire's position
+    // Helper function to check if it's raining heavily enough to prevent campfire/barbecue lighting
+    // Uses chunk-based weather for the campfire's/barbecue's position
     const isHeavyRaining = useMemo(() => {
-        if (container.containerType !== 'campfire' || !container.containerEntity || !chunkWeather) {
+        if ((container.containerType !== 'campfire' && container.containerType !== 'barbecue') || !container.containerEntity || !chunkWeather) {
             return false;
         }
         
-        const campfire = container.containerEntity as SpacetimeDBCampfire;
-        const campfireChunkIndex = calculateChunkIndex(campfire.posX, campfire.posY);
-        const chunkWeatherData = chunkWeather.get(campfireChunkIndex.toString());
+        let entityPosX: number, entityPosY: number;
+        if (container.containerType === 'campfire') {
+            const campfire = container.containerEntity as SpacetimeDBCampfire;
+            entityPosX = campfire.posX;
+            entityPosY = campfire.posY;
+        } else {
+            const barbecue = container.containerEntity as SpacetimeDBBarbecue;
+            entityPosX = barbecue.posX;
+            entityPosY = barbecue.posY;
+        }
+        
+        const entityChunkIndex = calculateChunkIndex(entityPosX, entityPosY);
+        const chunkWeatherData = chunkWeather.get(entityChunkIndex.toString());
         
         if (!chunkWeatherData || !chunkWeatherData.currentWeather) {
             // Fallback to global weather if chunk weather not available
@@ -513,15 +523,25 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
     }, [container.containerType, container.containerEntity, container.isActive, container.items]);
 
     // Helper function to get weather warning message
-    // Uses chunk-based weather for the campfire's position
+    // Uses chunk-based weather for the campfire's/barbecue's position
     const getWeatherWarningMessage = useMemo(() => {
-        if (!isHeavyRaining || container.containerType !== 'campfire' || !container.containerEntity || !chunkWeather) {
+        if (!isHeavyRaining || (container.containerType !== 'campfire' && container.containerType !== 'barbecue') || !container.containerEntity || !chunkWeather) {
             return null;
         }
         
-        const campfire = container.containerEntity as SpacetimeDBCampfire;
-        const campfireChunkIndex = calculateChunkIndex(campfire.posX, campfire.posY);
-        const chunkWeatherData = chunkWeather.get(campfireChunkIndex.toString());
+        let entityPosX: number, entityPosY: number;
+        if (container.containerType === 'campfire') {
+            const campfire = container.containerEntity as SpacetimeDBCampfire;
+            entityPosX = campfire.posX;
+            entityPosY = campfire.posY;
+        } else {
+            const barbecue = container.containerEntity as SpacetimeDBBarbecue;
+            entityPosX = barbecue.posX;
+            entityPosY = barbecue.posY;
+        }
+        
+        const entityChunkIndex = calculateChunkIndex(entityPosX, entityPosY);
+        const chunkWeatherData = chunkWeather.get(entityChunkIndex.toString());
         
         // Get weather tag from chunk weather or fallback to global weather
         let weatherTag: string | null = null;
@@ -1391,6 +1411,29 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 </ContainerButtons>
             )}
 
+            {/* Barbecue Container Buttons - handles toggle/light/extinguish with weather warning */}
+            {container.containerType === 'barbecue' && (
+            <ContainerButtons
+                containerType={container.containerType}
+                containerEntity={container.containerEntity}
+                items={container.items}
+                    onToggle={container.toggleHandler}
+            >
+                {/* Barbecue weather warning */}
+                    {isHeavyRaining && !container.isActive && (
+                            <div style={{ 
+                                marginTop: '8px', 
+                                color: '#87CEEB', 
+                                fontSize: '12px', 
+                                textAlign: 'center',
+                                fontStyle: 'italic'
+                            }}>
+                            🌧️ {getWeatherWarningMessage || ''}
+                            </div>
+                    )}
+                </ContainerButtons>
+            )}
+
             {/* Broth Pot Section - shown below campfire when attached */}
             {attachedBrothPot && brothPotItems && (
                 <>
@@ -2150,8 +2193,8 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 </>
             )}
 
-            {/* Generic Container Buttons - handles toggle/light/extinguish (for non-campfire containers) */}
-            {container.containerType !== 'campfire' && (
+            {/* Generic Container Buttons - handles toggle/light/extinguish (for non-campfire, non-barbecue containers) */}
+            {container.containerType !== 'campfire' && container.containerType !== 'barbecue' && (
                 <ContainerButtons
                     containerType={container.containerType}
                     containerEntity={container.containerEntity}

@@ -521,18 +521,6 @@ export const MEMORY_GRID_NODES = [
     status: 'locked' as const,
     unlocksItems: ['Pantry']
   },
-  // Branch 5 UPPER (Passive Bonuses path)
-  { 
-    id: 'mining-efficiency', 
-    name: 'Mining Efficiency', 
-    description: 'Advanced mining techniques grant +30% resource yield from all gathering activities.', 
-    cost: 720, 
-    tier: 3, 
-    prerequisites: ['reed-bellows'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5 - SPLIT_OFFSET, 320),
-    category: 'passive' as const, 
-    status: 'locked' as const
-  },
   // Branch 5 CENTER (Farming tools)
   { 
     id: 'scythe', 
@@ -682,18 +670,6 @@ export const MEMORY_GRID_NODES = [
     status: 'locked' as const,
     unlocksItems: ['Matriarch\'s Wrath']
   },
-  // Branch 5 UPPER (Passive Bonuses)
-  { 
-    id: 'crafting-speed-1', 
-    name: 'Crafting Speed I', 
-    description: 'Improved crafting techniques. All crafting operations are 15% faster.', 
-    cost: 1600, 
-    tier: 4, 
-    prerequisites: ['mining-efficiency'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5 - SPLIT_OFFSET, 420), // Upper path
-    category: 'passive' as const, 
-    status: 'locked' as const
-  },
 
   // ============================================
   // TIER 5 - Mid-Late Game (2400-3000 shards)
@@ -714,18 +690,6 @@ export const MEMORY_GRID_NODES = [
     unlocksItems: ['9x18mm Round']
   },
   // NOTE: Shelter removed from Memory Grid - now always craftable as a starter base
-  // Branch 5 UPPER (Passive Bonuses)
-  { 
-    id: 'crafting-speed-2', 
-    name: 'Crafting Speed II', 
-    description: 'Master crafting techniques. All crafting operations are 25% faster.', 
-    cost: 3000, 
-    tier: 5, 
-    prerequisites: ['crafting-speed-1'], 
-    position: getRadialPosition(BRANCH_ANGLES.BRANCH_5 - SPLIT_OFFSET, 520), // Upper path
-    category: 'passive' as const, 
-    status: 'locked' as const
-  },
 
   // ============================================
   // TIER 6 - Late Game (3200 shards)

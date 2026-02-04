@@ -252,8 +252,6 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "barbecue" => Some((600, vec!["flashlight"])),
         // Branch 4 LOWER (Food Storage path @ 188°)
         "refrigerator" => Some((680, vec!["flashlight"])),
-        // Branch 5 UPPER (Passive Bonuses path @ 232°)
-        "mining-efficiency" => Some((720, vec!["reed-bellows"])),
         // Branch 5 LOWER (Maintenance path @ 248°)
         "repair-bench" => Some((560, vec!["reed-bellows"])),
         
@@ -280,8 +278,6 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         "scarecrow" => Some((2400, vec!["compost"])),
         // Branch 5 LOWER-LOWER (Demolition path) - Tier 2 explosive
         "matriarch-wrath" => Some((2400, vec!["babushka-surprise"])), // T5: Tier 2 explosive
-        // Branch 5 UPPER (Passive Bonuses)
-        "crafting-speed-1" => Some((1600, vec!["mining-efficiency"])),
         
         // ============================================
         // TIER 5 - Mid-Late Game (2400-3000 shards)
@@ -292,8 +288,6 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
         // NOTE: Shelter removed from Memory Grid - now craftable from start as a beginner base
         // Branch 4 UPPER (Cooking)
         "cooking-station" => Some((1400, vec!["barbecue"])),
-        // Branch 5 UPPER (Passive Bonuses)
-        "crafting-speed-2" => Some((3000, vec!["crafting-speed-1"])),
         
         // ============================================
         // TIER 6 - Late Game (3200 shards)
@@ -530,7 +524,6 @@ fn get_node_display_name(node_id: &str) -> String {
         "reed-rain-collector" => "Reed Rain Collector".to_string(),
         "barbecue" => "Barbecue".to_string(),
         "refrigerator" => "Refrigerator".to_string(),
-        "mining-efficiency" => "Mining Efficiency".to_string(),
         "repair-bench" => "Repair Bench".to_string(),
         
         // Tier 4
@@ -540,12 +533,10 @@ fn get_node_display_name(node_id: &str) -> String {
         "cooking-station" => "Cooking Station".to_string(),
         "compost" => "Compost".to_string(),
         "scarecrow" => "Scarecrow".to_string(),
-        "crafting-speed-1" => "Crafting Speed I".to_string(),
         
         // Tier 5
         "9x18mm-round" => "9x18mm Round".to_string(),
         // NOTE: Shelter removed from Memory Grid - now always craftable
-        "crafting-speed-2" => "Crafting Speed II".to_string(),
         
         // Tier 4 (Demolition)
         "babushka-surprise" => "Babushka's Surprise".to_string(),
