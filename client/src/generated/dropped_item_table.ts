@@ -4,21 +4,103 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import { DroppedItem } from "./dropped_item_type";
+import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
+declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-export default __t.row({
-  id: __t.u64().primaryKey(),
-  itemDefId: __t.u64().name("item_def_id"),
-  quantity: __t.u32(),
-  posX: __t.f32().name("pos_x"),
-  posY: __t.f32().name("pos_y"),
-  chunkIndex: __t.u32().name("chunk_index"),
-  createdAt: __t.timestamp().name("created_at"),
-  itemData: __t.option(__t.string()).name("item_data"),
-  spawnX: __t.option(__t.f32()).name("spawn_x"),
-  spawnY: __t.option(__t.f32()).name("spawn_y"),
-});
+/**
+ * Table handle for the table `dropped_item`.
+ *
+ * Obtain a handle from the [`droppedItem`] property on [`RemoteTables`],
+ * like `ctx.db.droppedItem`.
+ *
+ * Users are encouraged not to explicitly reference this type,
+ * but to directly chain method calls,
+ * like `ctx.db.droppedItem.on_insert(...)`.
+ */
+export class DroppedItemTableHandle<TableName extends string> implements __TableHandle<TableName> {
+  // phantom type to track the table name
+  readonly tableName!: TableName;
+  tableCache: __TableCache<DroppedItem>;
+
+  constructor(tableCache: __TableCache<DroppedItem>) {
+    this.tableCache = tableCache;
+  }
+
+  count(): number {
+    return this.tableCache.count();
+  }
+
+  iter(): Iterable<DroppedItem> {
+    return this.tableCache.iter();
+  }
+  /**
+   * Access to the `id` unique index on the table `dropped_item`,
+   * which allows point queries on the field of the same name
+   * via the [`DroppedItemIdUnique.find`] method.
+   *
+   * Users are encouraged not to explicitly reference this type,
+   * but to directly chain method calls,
+   * like `ctx.db.droppedItem.id().find(...)`.
+   *
+   * Get a handle on the `id` unique index on the table `dropped_item`.
+   */
+  id = {
+    // Find the subscribed row whose `id` column value is equal to `col_val`,
+    // if such a row is present in the client cache.
+    find: (col_val: bigint): DroppedItem | undefined => {
+      for (let row of this.tableCache.iter()) {
+        if (__deepEqual(row.id, col_val)) {
+          return row;
+        }
+      }
+    },
+  };
+
+  onInsert = (cb: (ctx: EventContext, row: DroppedItem) => void) => {
+    return this.tableCache.onInsert(cb);
+  }
+
+  removeOnInsert = (cb: (ctx: EventContext, row: DroppedItem) => void) => {
+    return this.tableCache.removeOnInsert(cb);
+  }
+
+  onDelete = (cb: (ctx: EventContext, row: DroppedItem) => void) => {
+    return this.tableCache.onDelete(cb);
+  }
+
+  removeOnDelete = (cb: (ctx: EventContext, row: DroppedItem) => void) => {
+    return this.tableCache.removeOnDelete(cb);
+  }
+
+  // Updates are only defined for tables with primary keys.
+  onUpdate = (cb: (ctx: EventContext, oldRow: DroppedItem, newRow: DroppedItem) => void) => {
+    return this.tableCache.onUpdate(cb);
+  }
+
+  removeOnUpdate = (cb: (ctx: EventContext, onRow: DroppedItem, newRow: DroppedItem) => void) => {
+    return this.tableCache.removeOnUpdate(cb);
+  }}

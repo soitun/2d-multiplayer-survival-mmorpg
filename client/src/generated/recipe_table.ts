@@ -4,20 +4,107 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import RecipeIngredient from "./recipe_ingredient_type";
+import { Recipe } from "./recipe_type";
+import { RecipeIngredient } from "./recipe_ingredient_type";
+// Mark import as potentially unused
+declare type __keep_RecipeIngredient = RecipeIngredient;
 
+import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
+declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-export default __t.row({
-  recipeId: __t.u64().primaryKey().name("recipe_id"),
-  outputItemDefId: __t.u64().name("output_item_def_id"),
-  outputQuantity: __t.u32().name("output_quantity"),
-  get ingredients() {
-    return __t.array(RecipeIngredient);
-  },
-  craftingTimeSecs: __t.u32().name("crafting_time_secs"),
-});
+/**
+ * Table handle for the table `recipe`.
+ *
+ * Obtain a handle from the [`recipe`] property on [`RemoteTables`],
+ * like `ctx.db.recipe`.
+ *
+ * Users are encouraged not to explicitly reference this type,
+ * but to directly chain method calls,
+ * like `ctx.db.recipe.on_insert(...)`.
+ */
+export class RecipeTableHandle<TableName extends string> implements __TableHandle<TableName> {
+  // phantom type to track the table name
+  readonly tableName!: TableName;
+  tableCache: __TableCache<Recipe>;
+
+  constructor(tableCache: __TableCache<Recipe>) {
+    this.tableCache = tableCache;
+  }
+
+  count(): number {
+    return this.tableCache.count();
+  }
+
+  iter(): Iterable<Recipe> {
+    return this.tableCache.iter();
+  }
+  /**
+   * Access to the `recipeId` unique index on the table `recipe`,
+   * which allows point queries on the field of the same name
+   * via the [`RecipeRecipeIdUnique.find`] method.
+   *
+   * Users are encouraged not to explicitly reference this type,
+   * but to directly chain method calls,
+   * like `ctx.db.recipe.recipeId().find(...)`.
+   *
+   * Get a handle on the `recipeId` unique index on the table `recipe`.
+   */
+  recipeId = {
+    // Find the subscribed row whose `recipeId` column value is equal to `col_val`,
+    // if such a row is present in the client cache.
+    find: (col_val: bigint): Recipe | undefined => {
+      for (let row of this.tableCache.iter()) {
+        if (__deepEqual(row.recipeId, col_val)) {
+          return row;
+        }
+      }
+    },
+  };
+
+  onInsert = (cb: (ctx: EventContext, row: Recipe) => void) => {
+    return this.tableCache.onInsert(cb);
+  }
+
+  removeOnInsert = (cb: (ctx: EventContext, row: Recipe) => void) => {
+    return this.tableCache.removeOnInsert(cb);
+  }
+
+  onDelete = (cb: (ctx: EventContext, row: Recipe) => void) => {
+    return this.tableCache.onDelete(cb);
+  }
+
+  removeOnDelete = (cb: (ctx: EventContext, row: Recipe) => void) => {
+    return this.tableCache.removeOnDelete(cb);
+  }
+
+  // Updates are only defined for tables with primary keys.
+  onUpdate = (cb: (ctx: EventContext, oldRow: Recipe, newRow: Recipe) => void) => {
+    return this.tableCache.onUpdate(cb);
+  }
+
+  removeOnUpdate = (cb: (ctx: EventContext, onRow: Recipe, newRow: Recipe) => void) => {
+    return this.tableCache.removeOnUpdate(cb);
+  }}

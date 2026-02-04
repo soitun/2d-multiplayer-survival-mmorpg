@@ -4,29 +4,107 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import ExplosiveType from "./explosive_type_type";
+import { PlacedExplosive } from "./placed_explosive_type";
+import { ExplosiveType } from "./explosive_type_type";
+// Mark import as potentially unused
+declare type __keep_ExplosiveType = ExplosiveType;
 
+import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
+declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-export default __t.row({
-  id: __t.u64().primaryKey(),
-  posX: __t.f32().name("pos_x"),
-  posY: __t.f32().name("pos_y"),
-  chunkIndex: __t.u32().name("chunk_index"),
-  get explosiveType() {
-    return ExplosiveType.name("explosive_type");
-  },
-  placedBy: __t.identity().name("placed_by"),
-  placedAt: __t.timestamp().name("placed_at"),
-  armedAt: __t.option(__t.timestamp()).name("armed_at"),
-  fuseDurationSecs: __t.f32().name("fuse_duration_secs"),
-  detonatesAt: __t.option(__t.timestamp()).name("detonates_at"),
-  isDud: __t.bool().name("is_dud"),
-  blastRadius: __t.f32().name("blast_radius"),
-  structureDamage: __t.f32().name("structure_damage"),
-  playerDamage: __t.f32().name("player_damage"),
-});
+/**
+ * Table handle for the table `placed_explosive`.
+ *
+ * Obtain a handle from the [`placedExplosive`] property on [`RemoteTables`],
+ * like `ctx.db.placedExplosive`.
+ *
+ * Users are encouraged not to explicitly reference this type,
+ * but to directly chain method calls,
+ * like `ctx.db.placedExplosive.on_insert(...)`.
+ */
+export class PlacedExplosiveTableHandle<TableName extends string> implements __TableHandle<TableName> {
+  // phantom type to track the table name
+  readonly tableName!: TableName;
+  tableCache: __TableCache<PlacedExplosive>;
+
+  constructor(tableCache: __TableCache<PlacedExplosive>) {
+    this.tableCache = tableCache;
+  }
+
+  count(): number {
+    return this.tableCache.count();
+  }
+
+  iter(): Iterable<PlacedExplosive> {
+    return this.tableCache.iter();
+  }
+  /**
+   * Access to the `id` unique index on the table `placed_explosive`,
+   * which allows point queries on the field of the same name
+   * via the [`PlacedExplosiveIdUnique.find`] method.
+   *
+   * Users are encouraged not to explicitly reference this type,
+   * but to directly chain method calls,
+   * like `ctx.db.placedExplosive.id().find(...)`.
+   *
+   * Get a handle on the `id` unique index on the table `placed_explosive`.
+   */
+  id = {
+    // Find the subscribed row whose `id` column value is equal to `col_val`,
+    // if such a row is present in the client cache.
+    find: (col_val: bigint): PlacedExplosive | undefined => {
+      for (let row of this.tableCache.iter()) {
+        if (__deepEqual(row.id, col_val)) {
+          return row;
+        }
+      }
+    },
+  };
+
+  onInsert = (cb: (ctx: EventContext, row: PlacedExplosive) => void) => {
+    return this.tableCache.onInsert(cb);
+  }
+
+  removeOnInsert = (cb: (ctx: EventContext, row: PlacedExplosive) => void) => {
+    return this.tableCache.removeOnInsert(cb);
+  }
+
+  onDelete = (cb: (ctx: EventContext, row: PlacedExplosive) => void) => {
+    return this.tableCache.onDelete(cb);
+  }
+
+  removeOnDelete = (cb: (ctx: EventContext, row: PlacedExplosive) => void) => {
+    return this.tableCache.removeOnDelete(cb);
+  }
+
+  // Updates are only defined for tables with primary keys.
+  onUpdate = (cb: (ctx: EventContext, oldRow: PlacedExplosive, newRow: PlacedExplosive) => void) => {
+    return this.tableCache.onUpdate(cb);
+  }
+
+  removeOnUpdate = (cb: (ctx: EventContext, onRow: PlacedExplosive, newRow: PlacedExplosive) => void) => {
+    return this.tableCache.removeOnUpdate(cb);
+  }}

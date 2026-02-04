@@ -4,16 +4,66 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export default __t.object("ProductionEffectConfig", {
-  itemsSpawnedThisNight: __t.u32(),
-  lastItemSpawnTime: __t.option(__t.timestamp()),
-  nightStartTime: __t.option(__t.timestamp()),
-});
+export type ProductionEffectConfig = {
+  itemsSpawnedThisNight: number,
+  lastItemSpawnTime: __Timestamp | undefined,
+  nightStartTime: __Timestamp | undefined,
+};
+let _cached_ProductionEffectConfig_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const ProductionEffectConfig = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_ProductionEffectConfig_type_value) return _cached_ProductionEffectConfig_type_value;
+    _cached_ProductionEffectConfig_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_ProductionEffectConfig_type_value.value.elements.push(
+      { name: "itemsSpawnedThisNight", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "lastItemSpawnTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "nightStartTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+    );
+    return _cached_ProductionEffectConfig_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: ProductionEffectConfig): void {
+    __AlgebraicTypeValue.serializeValue(writer, ProductionEffectConfig.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): ProductionEffectConfig {
+    return __AlgebraicTypeValue.deserializeValue(reader, ProductionEffectConfig.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default ProductionEffectConfig;
 
 

@@ -4,20 +4,74 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export default __t.object("CraftingQueueItem", {
-  queueItemId: __t.u64(),
-  playerIdentity: __t.identity(),
-  recipeId: __t.u64(),
-  outputItemDefId: __t.u64(),
-  outputQuantity: __t.u32(),
-  startTime: __t.timestamp(),
-  finishTime: __t.timestamp(),
-});
+export type CraftingQueueItem = {
+  queueItemId: bigint,
+  playerIdentity: __Identity,
+  recipeId: bigint,
+  outputItemDefId: bigint,
+  outputQuantity: number,
+  startTime: __Timestamp,
+  finishTime: __Timestamp,
+};
+let _cached_CraftingQueueItem_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const CraftingQueueItem = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_CraftingQueueItem_type_value) return _cached_CraftingQueueItem_type_value;
+    _cached_CraftingQueueItem_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_CraftingQueueItem_type_value.value.elements.push(
+      { name: "queueItemId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "playerIdentity", algebraicType: __AlgebraicTypeValue.createIdentityType() },
+      { name: "recipeId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "outputItemDefId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "outputQuantity", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "startTime", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+      { name: "finishTime", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+    );
+    return _cached_CraftingQueueItem_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: CraftingQueueItem): void {
+    __AlgebraicTypeValue.serializeValue(writer, CraftingQueueItem.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): CraftingQueueItem {
+    return __AlgebraicTypeValue.deserializeValue(reader, CraftingQueueItem.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default CraftingQueueItem;
 
 

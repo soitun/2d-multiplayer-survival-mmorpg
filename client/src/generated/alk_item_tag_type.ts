@@ -4,33 +4,118 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import * as AlkItemTagVariants from './alk_item_tag_variants'
 
 // The tagged union or sum type for the algebraic type `AlkItemTag`.
-const AlkItemTag = __t.enum("AlkItemTag", {CategoryMaterial: __t.unit(),
-  CategoryWeapon: __t.unit(),
-  CategoryRangedWeapon: __t.unit(),
-  CategoryArmor: __t.unit(),
-  CategoryTool: __t.unit(),
-  CategoryConsumable: __t.unit(),
-  CategoryAmmunition: __t.unit(),
-  CategoryPlaceable: __t.unit(),
-  PlantBased: __t.unit(),
-  HighValue: __t.unit(),
-  Craftable: __t.unit(),
-  SeasonSpring: __t.unit(),
-  SeasonSummer: __t.unit(),
-  SeasonAutumn: __t.unit(),
-  SeasonWinter: __t.unit(),
-  AllSeasons: __t.unit(),
-  AlkFood: __t.unit(),
-  AlkIndustrial: __t.unit(),
-  AlkBonusEligible: __t.unit(),
-});
+export type AlkItemTag = AlkItemTagVariants.CategoryMaterial |
+  AlkItemTagVariants.CategoryWeapon |
+  AlkItemTagVariants.CategoryRangedWeapon |
+  AlkItemTagVariants.CategoryArmor |
+  AlkItemTagVariants.CategoryTool |
+  AlkItemTagVariants.CategoryConsumable |
+  AlkItemTagVariants.CategoryAmmunition |
+  AlkItemTagVariants.CategoryPlaceable |
+  AlkItemTagVariants.PlantBased |
+  AlkItemTagVariants.HighValue |
+  AlkItemTagVariants.Craftable |
+  AlkItemTagVariants.SeasonSpring |
+  AlkItemTagVariants.SeasonSummer |
+  AlkItemTagVariants.SeasonAutumn |
+  AlkItemTagVariants.SeasonWinter |
+  AlkItemTagVariants.AllSeasons |
+  AlkItemTagVariants.AlkFood |
+  AlkItemTagVariants.AlkIndustrial |
+  AlkItemTagVariants.AlkBonusEligible;
+
+let _cached_AlkItemTag_type_value: __AlgebraicTypeType | null = null;
+
+// A value with helper functions to construct the type.
+export const AlkItemTag = {
+  // Helper functions for constructing each variant of the tagged union.
+  // ```
+  // const foo = Foo.A(42);
+  // assert!(foo.tag === "A");
+  // assert!(foo.value === 42);
+  // ```
+  CategoryMaterial: { tag: "CategoryMaterial" } as const,
+  CategoryWeapon: { tag: "CategoryWeapon" } as const,
+  CategoryRangedWeapon: { tag: "CategoryRangedWeapon" } as const,
+  CategoryArmor: { tag: "CategoryArmor" } as const,
+  CategoryTool: { tag: "CategoryTool" } as const,
+  CategoryConsumable: { tag: "CategoryConsumable" } as const,
+  CategoryAmmunition: { tag: "CategoryAmmunition" } as const,
+  CategoryPlaceable: { tag: "CategoryPlaceable" } as const,
+  PlantBased: { tag: "PlantBased" } as const,
+  HighValue: { tag: "HighValue" } as const,
+  Craftable: { tag: "Craftable" } as const,
+  SeasonSpring: { tag: "SeasonSpring" } as const,
+  SeasonSummer: { tag: "SeasonSummer" } as const,
+  SeasonAutumn: { tag: "SeasonAutumn" } as const,
+  SeasonWinter: { tag: "SeasonWinter" } as const,
+  AllSeasons: { tag: "AllSeasons" } as const,
+  AlkFood: { tag: "AlkFood" } as const,
+  AlkIndustrial: { tag: "AlkIndustrial" } as const,
+  AlkBonusEligible: { tag: "AlkBonusEligible" } as const,
+
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_AlkItemTag_type_value) return _cached_AlkItemTag_type_value;
+    _cached_AlkItemTag_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
+    _cached_AlkItemTag_type_value.value.variants.push(
+      { name: "CategoryMaterial", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CategoryWeapon", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CategoryRangedWeapon", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CategoryArmor", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CategoryTool", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CategoryConsumable", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CategoryAmmunition", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CategoryPlaceable", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PlantBased", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "HighValue", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Craftable", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SeasonSpring", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SeasonSummer", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SeasonAutumn", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SeasonWinter", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "AllSeasons", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "AlkFood", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "AlkIndustrial", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "AlkBonusEligible", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+    );
+    return _cached_AlkItemTag_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: AlkItemTag): void {
+      __AlgebraicTypeValue.serializeValue(writer, AlkItemTag.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): AlkItemTag {
+      return __AlgebraicTypeValue.deserializeValue(reader, AlkItemTag.getTypeScriptAlgebraicType());
+  },
+
+}
 
 export default AlkItemTag;
 

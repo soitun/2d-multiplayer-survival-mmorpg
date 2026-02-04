@@ -4,22 +4,74 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import Season from "./season_type";
+import { Season } from "./season_type";
+// Mark import as potentially unused
+declare type __keep_Season = Season;
 
 
-export default __t.object("SeasonalPlantManagementSchedule", {
-  scheduleId: __t.u64(),
-  scheduledAt: __t.scheduleAt(),
-  get transitionSeason() {
-    return Season;
+export type SeasonalPlantManagementSchedule = {
+  scheduleId: bigint,
+  scheduledAt: { tag: "Interval", value: __TimeDuration } | { tag: "Time", value: __Timestamp },
+  transitionSeason: Season,
+  transitionProgress: number,
+  spawnBatchSize: number,
+};
+let _cached_SeasonalPlantManagementSchedule_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const SeasonalPlantManagementSchedule = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_SeasonalPlantManagementSchedule_type_value) return _cached_SeasonalPlantManagementSchedule_type_value;
+    _cached_SeasonalPlantManagementSchedule_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_SeasonalPlantManagementSchedule_type_value.value.elements.push(
+      { name: "scheduleId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "scheduledAt", algebraicType: __AlgebraicTypeValue.createScheduleAtType() },
+      { name: "transitionSeason", algebraicType: Season.getTypeScriptAlgebraicType() },
+      { name: "transitionProgress", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "spawnBatchSize", algebraicType: __AlgebraicTypeValue.U32 },
+    );
+    return _cached_SeasonalPlantManagementSchedule_type_value;
   },
-  transitionProgress: __t.f32(),
-  spawnBatchSize: __t.u32(),
-});
+
+  serialize(writer: __BinaryWriter, value: SeasonalPlantManagementSchedule): void {
+    __AlgebraicTypeValue.serializeValue(writer, SeasonalPlantManagementSchedule.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): SeasonalPlantManagementSchedule {
+    return __AlgebraicTypeValue.deserializeValue(reader, SeasonalPlantManagementSchedule.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default SeasonalPlantManagementSchedule;
 
 

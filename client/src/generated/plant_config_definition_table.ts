@@ -4,32 +4,110 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import PlantType from "./plant_type_type";
-import PlantCategory from "./plant_category_type";
+import { PlantConfigDefinition } from "./plant_config_definition_type";
+import { PlantType } from "./plant_type_type";
+// Mark import as potentially unused
+declare type __keep_PlantType = PlantType;
+import { PlantCategory } from "./plant_category_type";
+// Mark import as potentially unused
+declare type __keep_PlantCategory = PlantCategory;
 
+import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
+declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-export default __t.row({
-  get plantType() {
-    return PlantType.primaryKey().name("plant_type");
-  },
-  entityName: __t.string().name("entity_name"),
-  get category() {
-    return PlantCategory;
-  },
-  primaryYieldItem: __t.string().name("primary_yield_item"),
-  primaryYieldMin: __t.u32().name("primary_yield_min"),
-  primaryYieldMax: __t.u32().name("primary_yield_max"),
-  secondaryYieldItem: __t.string().name("secondary_yield_item"),
-  secondaryYieldMin: __t.u32().name("secondary_yield_min"),
-  secondaryYieldMax: __t.u32().name("secondary_yield_max"),
-  secondaryYieldChance: __t.f32().name("secondary_yield_chance"),
-  seedType: __t.string().name("seed_type"),
-  seedDropChance: __t.f32().name("seed_drop_chance"),
-  spawnLocation: __t.string().name("spawn_location"),
-  growingSeasons: __t.string().name("growing_seasons"),
-});
+/**
+ * Table handle for the table `plant_config_definition`.
+ *
+ * Obtain a handle from the [`plantConfigDefinition`] property on [`RemoteTables`],
+ * like `ctx.db.plantConfigDefinition`.
+ *
+ * Users are encouraged not to explicitly reference this type,
+ * but to directly chain method calls,
+ * like `ctx.db.plantConfigDefinition.on_insert(...)`.
+ */
+export class PlantConfigDefinitionTableHandle<TableName extends string> implements __TableHandle<TableName> {
+  // phantom type to track the table name
+  readonly tableName!: TableName;
+  tableCache: __TableCache<PlantConfigDefinition>;
+
+  constructor(tableCache: __TableCache<PlantConfigDefinition>) {
+    this.tableCache = tableCache;
+  }
+
+  count(): number {
+    return this.tableCache.count();
+  }
+
+  iter(): Iterable<PlantConfigDefinition> {
+    return this.tableCache.iter();
+  }
+  /**
+   * Access to the `plantType` unique index on the table `plant_config_definition`,
+   * which allows point queries on the field of the same name
+   * via the [`PlantConfigDefinitionPlantTypeUnique.find`] method.
+   *
+   * Users are encouraged not to explicitly reference this type,
+   * but to directly chain method calls,
+   * like `ctx.db.plantConfigDefinition.plantType().find(...)`.
+   *
+   * Get a handle on the `plantType` unique index on the table `plant_config_definition`.
+   */
+  plantType = {
+    // Find the subscribed row whose `plantType` column value is equal to `col_val`,
+    // if such a row is present in the client cache.
+    find: (col_val: PlantType): PlantConfigDefinition | undefined => {
+      for (let row of this.tableCache.iter()) {
+        if (__deepEqual(row.plantType, col_val)) {
+          return row;
+        }
+      }
+    },
+  };
+
+  onInsert = (cb: (ctx: EventContext, row: PlantConfigDefinition) => void) => {
+    return this.tableCache.onInsert(cb);
+  }
+
+  removeOnInsert = (cb: (ctx: EventContext, row: PlantConfigDefinition) => void) => {
+    return this.tableCache.removeOnInsert(cb);
+  }
+
+  onDelete = (cb: (ctx: EventContext, row: PlantConfigDefinition) => void) => {
+    return this.tableCache.onDelete(cb);
+  }
+
+  removeOnDelete = (cb: (ctx: EventContext, row: PlantConfigDefinition) => void) => {
+    return this.tableCache.removeOnDelete(cb);
+  }
+
+  // Updates are only defined for tables with primary keys.
+  onUpdate = (cb: (ctx: EventContext, oldRow: PlantConfigDefinition, newRow: PlantConfigDefinition) => void) => {
+    return this.tableCache.onUpdate(cb);
+  }
+
+  removeOnUpdate = (cb: (ctx: EventContext, onRow: PlantConfigDefinition, newRow: PlantConfigDefinition) => void) => {
+    return this.tableCache.removeOnUpdate(cb);
+  }}

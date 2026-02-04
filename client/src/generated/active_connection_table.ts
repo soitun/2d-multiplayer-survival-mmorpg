@@ -4,14 +4,103 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import { ActiveConnection } from "./active_connection_type";
+import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
+declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-export default __t.row({
-  identity: __t.identity().primaryKey(),
-  connectionId: __t.connectionId().name("connection_id"),
-  timestamp: __t.timestamp(),
-});
+/**
+ * Table handle for the table `active_connection`.
+ *
+ * Obtain a handle from the [`activeConnection`] property on [`RemoteTables`],
+ * like `ctx.db.activeConnection`.
+ *
+ * Users are encouraged not to explicitly reference this type,
+ * but to directly chain method calls,
+ * like `ctx.db.activeConnection.on_insert(...)`.
+ */
+export class ActiveConnectionTableHandle<TableName extends string> implements __TableHandle<TableName> {
+  // phantom type to track the table name
+  readonly tableName!: TableName;
+  tableCache: __TableCache<ActiveConnection>;
+
+  constructor(tableCache: __TableCache<ActiveConnection>) {
+    this.tableCache = tableCache;
+  }
+
+  count(): number {
+    return this.tableCache.count();
+  }
+
+  iter(): Iterable<ActiveConnection> {
+    return this.tableCache.iter();
+  }
+  /**
+   * Access to the `identity` unique index on the table `active_connection`,
+   * which allows point queries on the field of the same name
+   * via the [`ActiveConnectionIdentityUnique.find`] method.
+   *
+   * Users are encouraged not to explicitly reference this type,
+   * but to directly chain method calls,
+   * like `ctx.db.activeConnection.identity().find(...)`.
+   *
+   * Get a handle on the `identity` unique index on the table `active_connection`.
+   */
+  identity = {
+    // Find the subscribed row whose `identity` column value is equal to `col_val`,
+    // if such a row is present in the client cache.
+    find: (col_val: __Identity): ActiveConnection | undefined => {
+      for (let row of this.tableCache.iter()) {
+        if (__deepEqual(row.identity, col_val)) {
+          return row;
+        }
+      }
+    },
+  };
+
+  onInsert = (cb: (ctx: EventContext, row: ActiveConnection) => void) => {
+    return this.tableCache.onInsert(cb);
+  }
+
+  removeOnInsert = (cb: (ctx: EventContext, row: ActiveConnection) => void) => {
+    return this.tableCache.removeOnInsert(cb);
+  }
+
+  onDelete = (cb: (ctx: EventContext, row: ActiveConnection) => void) => {
+    return this.tableCache.onDelete(cb);
+  }
+
+  removeOnDelete = (cb: (ctx: EventContext, row: ActiveConnection) => void) => {
+    return this.tableCache.removeOnDelete(cb);
+  }
+
+  // Updates are only defined for tables with primary keys.
+  onUpdate = (cb: (ctx: EventContext, oldRow: ActiveConnection, newRow: ActiveConnection) => void) => {
+    return this.tableCache.onUpdate(cb);
+  }
+
+  removeOnUpdate = (cb: (ctx: EventContext, onRow: ActiveConnection, newRow: ActiveConnection) => void) => {
+    return this.tableCache.removeOnUpdate(cb);
+  }}

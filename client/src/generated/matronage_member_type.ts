@@ -4,21 +4,72 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import MatronageRole from "./matronage_role_type";
+import { MatronageRole } from "./matronage_role_type";
+// Mark import as potentially unused
+declare type __keep_MatronageRole = MatronageRole;
 
 
-export default __t.object("MatronageMember", {
-  playerId: __t.identity(),
-  matronageId: __t.u64(),
-  get role() {
-    return MatronageRole;
+export type MatronageMember = {
+  playerId: __Identity,
+  matronageId: bigint,
+  role: MatronageRole,
+  joinedAt: __Timestamp,
+};
+let _cached_MatronageMember_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const MatronageMember = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_MatronageMember_type_value) return _cached_MatronageMember_type_value;
+    _cached_MatronageMember_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_MatronageMember_type_value.value.elements.push(
+      { name: "playerId", algebraicType: __AlgebraicTypeValue.createIdentityType() },
+      { name: "matronageId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "role", algebraicType: MatronageRole.getTypeScriptAlgebraicType() },
+      { name: "joinedAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+    );
+    return _cached_MatronageMember_type_value;
   },
-  joinedAt: __t.timestamp(),
-});
+
+  serialize(writer: __BinaryWriter, value: MatronageMember): void {
+    __AlgebraicTypeValue.serializeValue(writer, MatronageMember.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): MatronageMember {
+    return __AlgebraicTypeValue.deserializeValue(reader, MatronageMember.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default MatronageMember;
 
 

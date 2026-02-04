@@ -4,25 +4,107 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import SoundType from "./sound_type_type";
+import { SoundEvent } from "./sound_event_type";
+import { SoundType } from "./sound_type_type";
+// Mark import as potentially unused
+declare type __keep_SoundType = SoundType;
 
+import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
+declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-export default __t.row({
-  id: __t.u64().primaryKey(),
-  get soundType() {
-    return SoundType.name("sound_type");
-  },
-  filename: __t.string(),
-  posX: __t.f32().name("pos_x"),
-  posY: __t.f32().name("pos_y"),
-  volume: __t.f32(),
-  maxDistance: __t.f32().name("max_distance"),
-  triggeredBy: __t.identity().name("triggered_by"),
-  timestamp: __t.timestamp(),
-  pitchMultiplier: __t.f32().name("pitch_multiplier"),
-});
+/**
+ * Table handle for the table `sound_event`.
+ *
+ * Obtain a handle from the [`soundEvent`] property on [`RemoteTables`],
+ * like `ctx.db.soundEvent`.
+ *
+ * Users are encouraged not to explicitly reference this type,
+ * but to directly chain method calls,
+ * like `ctx.db.soundEvent.on_insert(...)`.
+ */
+export class SoundEventTableHandle<TableName extends string> implements __TableHandle<TableName> {
+  // phantom type to track the table name
+  readonly tableName!: TableName;
+  tableCache: __TableCache<SoundEvent>;
+
+  constructor(tableCache: __TableCache<SoundEvent>) {
+    this.tableCache = tableCache;
+  }
+
+  count(): number {
+    return this.tableCache.count();
+  }
+
+  iter(): Iterable<SoundEvent> {
+    return this.tableCache.iter();
+  }
+  /**
+   * Access to the `id` unique index on the table `sound_event`,
+   * which allows point queries on the field of the same name
+   * via the [`SoundEventIdUnique.find`] method.
+   *
+   * Users are encouraged not to explicitly reference this type,
+   * but to directly chain method calls,
+   * like `ctx.db.soundEvent.id().find(...)`.
+   *
+   * Get a handle on the `id` unique index on the table `sound_event`.
+   */
+  id = {
+    // Find the subscribed row whose `id` column value is equal to `col_val`,
+    // if such a row is present in the client cache.
+    find: (col_val: bigint): SoundEvent | undefined => {
+      for (let row of this.tableCache.iter()) {
+        if (__deepEqual(row.id, col_val)) {
+          return row;
+        }
+      }
+    },
+  };
+
+  onInsert = (cb: (ctx: EventContext, row: SoundEvent) => void) => {
+    return this.tableCache.onInsert(cb);
+  }
+
+  removeOnInsert = (cb: (ctx: EventContext, row: SoundEvent) => void) => {
+    return this.tableCache.removeOnInsert(cb);
+  }
+
+  onDelete = (cb: (ctx: EventContext, row: SoundEvent) => void) => {
+    return this.tableCache.onDelete(cb);
+  }
+
+  removeOnDelete = (cb: (ctx: EventContext, row: SoundEvent) => void) => {
+    return this.tableCache.removeOnDelete(cb);
+  }
+
+  // Updates are only defined for tables with primary keys.
+  onUpdate = (cb: (ctx: EventContext, oldRow: SoundEvent, newRow: SoundEvent) => void) => {
+    return this.tableCache.onUpdate(cb);
+  }
+
+  removeOnUpdate = (cb: (ctx: EventContext, onRow: SoundEvent, newRow: SoundEvent) => void) => {
+    return this.tableCache.removeOnUpdate(cb);
+  }}

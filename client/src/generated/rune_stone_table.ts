@@ -4,32 +4,116 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import RuneStoneType from "./rune_stone_type_type";
-import AgrarianEffectConfig from "./agrarian_effect_config_type";
-import ProductionEffectConfig from "./production_effect_config_type";
-import MemoryShardEffectConfig from "./memory_shard_effect_config_type";
+import { RuneStone } from "./rune_stone_type";
+import { RuneStoneType } from "./rune_stone_type_type";
+// Mark import as potentially unused
+declare type __keep_RuneStoneType = RuneStoneType;
+import { AgrarianEffectConfig } from "./agrarian_effect_config_type";
+// Mark import as potentially unused
+declare type __keep_AgrarianEffectConfig = AgrarianEffectConfig;
+import { ProductionEffectConfig } from "./production_effect_config_type";
+// Mark import as potentially unused
+declare type __keep_ProductionEffectConfig = ProductionEffectConfig;
+import { MemoryShardEffectConfig } from "./memory_shard_effect_config_type";
+// Mark import as potentially unused
+declare type __keep_MemoryShardEffectConfig = MemoryShardEffectConfig;
 
+import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
+declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-export default __t.row({
-  id: __t.u64().primaryKey(),
-  posX: __t.f32().name("pos_x"),
-  posY: __t.f32().name("pos_y"),
-  chunkIndex: __t.u32().name("chunk_index"),
-  get runeType() {
-    return RuneStoneType.name("rune_type");
-  },
-  get agrarianConfig() {
-    return __t.option(AgrarianEffectConfig).name("agrarian_config");
-  },
-  get productionConfig() {
-    return __t.option(ProductionEffectConfig).name("production_config");
-  },
-  get memoryShardConfig() {
-    return __t.option(MemoryShardEffectConfig).name("memory_shard_config");
-  },
-});
+/**
+ * Table handle for the table `rune_stone`.
+ *
+ * Obtain a handle from the [`runeStone`] property on [`RemoteTables`],
+ * like `ctx.db.runeStone`.
+ *
+ * Users are encouraged not to explicitly reference this type,
+ * but to directly chain method calls,
+ * like `ctx.db.runeStone.on_insert(...)`.
+ */
+export class RuneStoneTableHandle<TableName extends string> implements __TableHandle<TableName> {
+  // phantom type to track the table name
+  readonly tableName!: TableName;
+  tableCache: __TableCache<RuneStone>;
+
+  constructor(tableCache: __TableCache<RuneStone>) {
+    this.tableCache = tableCache;
+  }
+
+  count(): number {
+    return this.tableCache.count();
+  }
+
+  iter(): Iterable<RuneStone> {
+    return this.tableCache.iter();
+  }
+  /**
+   * Access to the `id` unique index on the table `rune_stone`,
+   * which allows point queries on the field of the same name
+   * via the [`RuneStoneIdUnique.find`] method.
+   *
+   * Users are encouraged not to explicitly reference this type,
+   * but to directly chain method calls,
+   * like `ctx.db.runeStone.id().find(...)`.
+   *
+   * Get a handle on the `id` unique index on the table `rune_stone`.
+   */
+  id = {
+    // Find the subscribed row whose `id` column value is equal to `col_val`,
+    // if such a row is present in the client cache.
+    find: (col_val: bigint): RuneStone | undefined => {
+      for (let row of this.tableCache.iter()) {
+        if (__deepEqual(row.id, col_val)) {
+          return row;
+        }
+      }
+    },
+  };
+
+  onInsert = (cb: (ctx: EventContext, row: RuneStone) => void) => {
+    return this.tableCache.onInsert(cb);
+  }
+
+  removeOnInsert = (cb: (ctx: EventContext, row: RuneStone) => void) => {
+    return this.tableCache.removeOnInsert(cb);
+  }
+
+  onDelete = (cb: (ctx: EventContext, row: RuneStone) => void) => {
+    return this.tableCache.onDelete(cb);
+  }
+
+  removeOnDelete = (cb: (ctx: EventContext, row: RuneStone) => void) => {
+    return this.tableCache.removeOnDelete(cb);
+  }
+
+  // Updates are only defined for tables with primary keys.
+  onUpdate = (cb: (ctx: EventContext, oldRow: RuneStone, newRow: RuneStone) => void) => {
+    return this.tableCache.onUpdate(cb);
+  }
+
+  removeOnUpdate = (cb: (ctx: EventContext, onRow: RuneStone, newRow: RuneStone) => void) => {
+    return this.tableCache.removeOnUpdate(cb);
+  }}

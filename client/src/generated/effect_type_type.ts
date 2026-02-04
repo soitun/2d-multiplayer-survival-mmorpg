@@ -4,54 +4,181 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import * as EffectTypeVariants from './effect_type_variants'
 
 // The tagged union or sum type for the algebraic type `EffectType`.
-const EffectType = __t.enum("EffectType", {HealthRegen: __t.unit(),
-  Burn: __t.unit(),
-  Bleed: __t.unit(),
-  BandageBurst: __t.unit(),
-  RemoteBandageBurst: __t.unit(),
-  SeawaterPoisoning: __t.unit(),
-  FoodPoisoning: __t.unit(),
-  Cozy: __t.unit(),
-  Wet: __t.unit(),
-  TreeCover: __t.unit(),
-  WaterDrinking: __t.unit(),
-  Venom: __t.unit(),
-  Exhausted: __t.unit(),
-  BuildingPrivilege: __t.unit(),
-  ProductionRune: __t.unit(),
-  AgrarianRune: __t.unit(),
-  MemoryRune: __t.unit(),
-  HotSpring: __t.unit(),
-  Fumarole: __t.unit(),
-  SafeZone: __t.unit(),
-  FishingVillageBonus: __t.unit(),
-  NearCookingStation: __t.unit(),
-  Intoxicated: __t.unit(),
-  Poisoned: __t.unit(),
-  SpeedBoost: __t.unit(),
-  StaminaBoost: __t.unit(),
-  NightVision: __t.unit(),
-  WarmthBoost: __t.unit(),
-  ColdResistance: __t.unit(),
-  PoisonResistance: __t.unit(),
-  FireResistance: __t.unit(),
-  PoisonCoating: __t.unit(),
-  PassiveHealthRegen: __t.unit(),
-  HarvestBoost: __t.unit(),
-  Entrainment: __t.unit(),
-  ValidolProtection: __t.unit(),
-  BrewCooldown: __t.unit(),
-  Stun: __t.unit(),
-  LagunovGhost: __t.unit(),
-  MemoryBeaconSanity: __t.unit(),
-});
+export type EffectType = EffectTypeVariants.HealthRegen |
+  EffectTypeVariants.Burn |
+  EffectTypeVariants.Bleed |
+  EffectTypeVariants.BandageBurst |
+  EffectTypeVariants.RemoteBandageBurst |
+  EffectTypeVariants.SeawaterPoisoning |
+  EffectTypeVariants.FoodPoisoning |
+  EffectTypeVariants.Cozy |
+  EffectTypeVariants.Wet |
+  EffectTypeVariants.TreeCover |
+  EffectTypeVariants.WaterDrinking |
+  EffectTypeVariants.Venom |
+  EffectTypeVariants.Exhausted |
+  EffectTypeVariants.BuildingPrivilege |
+  EffectTypeVariants.ProductionRune |
+  EffectTypeVariants.AgrarianRune |
+  EffectTypeVariants.MemoryRune |
+  EffectTypeVariants.HotSpring |
+  EffectTypeVariants.Fumarole |
+  EffectTypeVariants.SafeZone |
+  EffectTypeVariants.FishingVillageBonus |
+  EffectTypeVariants.NearCookingStation |
+  EffectTypeVariants.Intoxicated |
+  EffectTypeVariants.Poisoned |
+  EffectTypeVariants.SpeedBoost |
+  EffectTypeVariants.StaminaBoost |
+  EffectTypeVariants.NightVision |
+  EffectTypeVariants.WarmthBoost |
+  EffectTypeVariants.ColdResistance |
+  EffectTypeVariants.PoisonResistance |
+  EffectTypeVariants.FireResistance |
+  EffectTypeVariants.PoisonCoating |
+  EffectTypeVariants.PassiveHealthRegen |
+  EffectTypeVariants.HarvestBoost |
+  EffectTypeVariants.Entrainment |
+  EffectTypeVariants.ValidolProtection |
+  EffectTypeVariants.BrewCooldown |
+  EffectTypeVariants.Stun |
+  EffectTypeVariants.LagunovGhost |
+  EffectTypeVariants.MemoryBeaconSanity;
+
+let _cached_EffectType_type_value: __AlgebraicTypeType | null = null;
+
+// A value with helper functions to construct the type.
+export const EffectType = {
+  // Helper functions for constructing each variant of the tagged union.
+  // ```
+  // const foo = Foo.A(42);
+  // assert!(foo.tag === "A");
+  // assert!(foo.value === 42);
+  // ```
+  HealthRegen: { tag: "HealthRegen" } as const,
+  Burn: { tag: "Burn" } as const,
+  Bleed: { tag: "Bleed" } as const,
+  BandageBurst: { tag: "BandageBurst" } as const,
+  RemoteBandageBurst: { tag: "RemoteBandageBurst" } as const,
+  SeawaterPoisoning: { tag: "SeawaterPoisoning" } as const,
+  FoodPoisoning: { tag: "FoodPoisoning" } as const,
+  Cozy: { tag: "Cozy" } as const,
+  Wet: { tag: "Wet" } as const,
+  TreeCover: { tag: "TreeCover" } as const,
+  WaterDrinking: { tag: "WaterDrinking" } as const,
+  Venom: { tag: "Venom" } as const,
+  Exhausted: { tag: "Exhausted" } as const,
+  BuildingPrivilege: { tag: "BuildingPrivilege" } as const,
+  ProductionRune: { tag: "ProductionRune" } as const,
+  AgrarianRune: { tag: "AgrarianRune" } as const,
+  MemoryRune: { tag: "MemoryRune" } as const,
+  HotSpring: { tag: "HotSpring" } as const,
+  Fumarole: { tag: "Fumarole" } as const,
+  SafeZone: { tag: "SafeZone" } as const,
+  FishingVillageBonus: { tag: "FishingVillageBonus" } as const,
+  NearCookingStation: { tag: "NearCookingStation" } as const,
+  Intoxicated: { tag: "Intoxicated" } as const,
+  Poisoned: { tag: "Poisoned" } as const,
+  SpeedBoost: { tag: "SpeedBoost" } as const,
+  StaminaBoost: { tag: "StaminaBoost" } as const,
+  NightVision: { tag: "NightVision" } as const,
+  WarmthBoost: { tag: "WarmthBoost" } as const,
+  ColdResistance: { tag: "ColdResistance" } as const,
+  PoisonResistance: { tag: "PoisonResistance" } as const,
+  FireResistance: { tag: "FireResistance" } as const,
+  PoisonCoating: { tag: "PoisonCoating" } as const,
+  PassiveHealthRegen: { tag: "PassiveHealthRegen" } as const,
+  HarvestBoost: { tag: "HarvestBoost" } as const,
+  Entrainment: { tag: "Entrainment" } as const,
+  ValidolProtection: { tag: "ValidolProtection" } as const,
+  BrewCooldown: { tag: "BrewCooldown" } as const,
+  Stun: { tag: "Stun" } as const,
+  LagunovGhost: { tag: "LagunovGhost" } as const,
+  MemoryBeaconSanity: { tag: "MemoryBeaconSanity" } as const,
+
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_EffectType_type_value) return _cached_EffectType_type_value;
+    _cached_EffectType_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
+    _cached_EffectType_type_value.value.variants.push(
+      { name: "HealthRegen", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Burn", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Bleed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "BandageBurst", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "RemoteBandageBurst", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SeawaterPoisoning", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "FoodPoisoning", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Cozy", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Wet", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "TreeCover", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "WaterDrinking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Venom", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Exhausted", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "BuildingPrivilege", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ProductionRune", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "AgrarianRune", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "MemoryRune", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "HotSpring", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Fumarole", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SafeZone", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "FishingVillageBonus", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "NearCookingStation", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Intoxicated", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Poisoned", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SpeedBoost", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "StaminaBoost", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "NightVision", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "WarmthBoost", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ColdResistance", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PoisonResistance", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "FireResistance", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PoisonCoating", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PassiveHealthRegen", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "HarvestBoost", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Entrainment", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ValidolProtection", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "BrewCooldown", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Stun", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "LagunovGhost", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "MemoryBeaconSanity", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+    );
+    return _cached_EffectType_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: EffectType): void {
+      __AlgebraicTypeValue.serializeValue(writer, EffectType.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): EffectType {
+      return __AlgebraicTypeValue.deserializeValue(reader, EffectType.getTypeScriptAlgebraicType());
+  },
+
+}
 
 export default EffectType;
 

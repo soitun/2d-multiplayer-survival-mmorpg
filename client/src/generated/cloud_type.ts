@@ -4,37 +4,101 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import CloudShapeType from "./cloud_shape_type_type";
-import CloudType from "./cloud_type_type";
+import { CloudShapeType } from "./cloud_shape_type_type";
+// Mark import as potentially unused
+declare type __keep_CloudShapeType = CloudShapeType;
+import { CloudType } from "./cloud_type_type";
+// Mark import as potentially unused
+declare type __keep_CloudType = CloudType;
 
 
-export default __t.object("Cloud", {
-  id: __t.u64(),
-  posX: __t.f32(),
-  posY: __t.f32(),
-  chunkIndex: __t.u32(),
-  get shape() {
-    return CloudShapeType;
+export type Cloud = {
+  id: bigint,
+  posX: number,
+  posY: number,
+  chunkIndex: number,
+  shape: CloudShapeType,
+  width: number,
+  height: number,
+  rotationDegrees: number,
+  baseOpacity: number,
+  currentOpacity: number,
+  blurStrength: number,
+  driftSpeedX: number,
+  driftSpeedY: number,
+  cloudType: CloudType,
+  evolutionPhase: number,
+  evolutionSpeed: number,
+  lastIntensityUpdate: __Timestamp,
+};
+let _cached_Cloud_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const Cloud = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_Cloud_type_value) return _cached_Cloud_type_value;
+    _cached_Cloud_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_Cloud_type_value.value.elements.push(
+      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "posX", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "posY", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "shape", algebraicType: CloudShapeType.getTypeScriptAlgebraicType() },
+      { name: "width", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "height", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "rotationDegrees", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "baseOpacity", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "currentOpacity", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "blurStrength", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "driftSpeedX", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "driftSpeedY", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "cloudType", algebraicType: CloudType.getTypeScriptAlgebraicType() },
+      { name: "evolutionPhase", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "evolutionSpeed", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "lastIntensityUpdate", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+    );
+    return _cached_Cloud_type_value;
   },
-  width: __t.f32(),
-  height: __t.f32(),
-  rotationDegrees: __t.f32(),
-  baseOpacity: __t.f32(),
-  currentOpacity: __t.f32(),
-  blurStrength: __t.f32(),
-  driftSpeedX: __t.f32(),
-  driftSpeedY: __t.f32(),
-  get cloudType() {
-    return CloudType;
+
+  serialize(writer: __BinaryWriter, value: Cloud): void {
+    __AlgebraicTypeValue.serializeValue(writer, Cloud.getTypeScriptAlgebraicType(), value);
   },
-  evolutionPhase: __t.f32(),
-  evolutionSpeed: __t.f32(),
-  lastIntensityUpdate: __t.timestamp(),
-});
+
+  deserialize(reader: __BinaryReader): Cloud {
+    return __AlgebraicTypeValue.deserializeValue(reader, Cloud.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default Cloud;
 
 

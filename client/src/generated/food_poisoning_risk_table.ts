@@ -4,16 +4,103 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import { FoodPoisoningRisk } from "./food_poisoning_risk_type";
+import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
+declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-export default __t.row({
-  itemDefId: __t.u64().primaryKey().name("item_def_id"),
-  poisoningChancePercent: __t.f32().name("poisoning_chance_percent"),
-  damagePerTick: __t.f32().name("damage_per_tick"),
-  durationSeconds: __t.f32().name("duration_seconds"),
-  tickIntervalSeconds: __t.f32().name("tick_interval_seconds"),
-});
+/**
+ * Table handle for the table `food_poisoning_risk`.
+ *
+ * Obtain a handle from the [`foodPoisoningRisk`] property on [`RemoteTables`],
+ * like `ctx.db.foodPoisoningRisk`.
+ *
+ * Users are encouraged not to explicitly reference this type,
+ * but to directly chain method calls,
+ * like `ctx.db.foodPoisoningRisk.on_insert(...)`.
+ */
+export class FoodPoisoningRiskTableHandle<TableName extends string> implements __TableHandle<TableName> {
+  // phantom type to track the table name
+  readonly tableName!: TableName;
+  tableCache: __TableCache<FoodPoisoningRisk>;
+
+  constructor(tableCache: __TableCache<FoodPoisoningRisk>) {
+    this.tableCache = tableCache;
+  }
+
+  count(): number {
+    return this.tableCache.count();
+  }
+
+  iter(): Iterable<FoodPoisoningRisk> {
+    return this.tableCache.iter();
+  }
+  /**
+   * Access to the `itemDefId` unique index on the table `food_poisoning_risk`,
+   * which allows point queries on the field of the same name
+   * via the [`FoodPoisoningRiskItemDefIdUnique.find`] method.
+   *
+   * Users are encouraged not to explicitly reference this type,
+   * but to directly chain method calls,
+   * like `ctx.db.foodPoisoningRisk.itemDefId().find(...)`.
+   *
+   * Get a handle on the `itemDefId` unique index on the table `food_poisoning_risk`.
+   */
+  itemDefId = {
+    // Find the subscribed row whose `itemDefId` column value is equal to `col_val`,
+    // if such a row is present in the client cache.
+    find: (col_val: bigint): FoodPoisoningRisk | undefined => {
+      for (let row of this.tableCache.iter()) {
+        if (__deepEqual(row.itemDefId, col_val)) {
+          return row;
+        }
+      }
+    },
+  };
+
+  onInsert = (cb: (ctx: EventContext, row: FoodPoisoningRisk) => void) => {
+    return this.tableCache.onInsert(cb);
+  }
+
+  removeOnInsert = (cb: (ctx: EventContext, row: FoodPoisoningRisk) => void) => {
+    return this.tableCache.removeOnInsert(cb);
+  }
+
+  onDelete = (cb: (ctx: EventContext, row: FoodPoisoningRisk) => void) => {
+    return this.tableCache.onDelete(cb);
+  }
+
+  removeOnDelete = (cb: (ctx: EventContext, row: FoodPoisoningRisk) => void) => {
+    return this.tableCache.removeOnDelete(cb);
+  }
+
+  // Updates are only defined for tables with primary keys.
+  onUpdate = (cb: (ctx: EventContext, oldRow: FoodPoisoningRisk, newRow: FoodPoisoningRisk) => void) => {
+    return this.tableCache.onUpdate(cb);
+  }
+
+  removeOnUpdate = (cb: (ctx: EventContext, onRow: FoodPoisoningRisk, newRow: FoodPoisoningRisk) => void) => {
+    return this.tableCache.removeOnUpdate(cb);
+  }}

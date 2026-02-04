@@ -4,26 +4,97 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import * as ContainerTypeVariants from './container_type_variants'
 
 // The tagged union or sum type for the algebraic type `ContainerType`.
-const ContainerType = __t.enum("ContainerType", {Campfire: __t.unit(),
-  Furnace: __t.unit(),
-  Fumarole: __t.unit(),
-  WoodenStorageBox: __t.unit(),
-  PlayerCorpse: __t.unit(),
-  Stash: __t.unit(),
-  Lantern: __t.unit(),
-  RainCollector: __t.unit(),
-  HomesteadHearth: __t.unit(),
-  BrothPot: __t.unit(),
-  Barbecue: __t.unit(),
-  Turret: __t.unit(),
-});
+export type ContainerType = ContainerTypeVariants.Campfire |
+  ContainerTypeVariants.Furnace |
+  ContainerTypeVariants.Fumarole |
+  ContainerTypeVariants.WoodenStorageBox |
+  ContainerTypeVariants.PlayerCorpse |
+  ContainerTypeVariants.Stash |
+  ContainerTypeVariants.Lantern |
+  ContainerTypeVariants.RainCollector |
+  ContainerTypeVariants.HomesteadHearth |
+  ContainerTypeVariants.BrothPot |
+  ContainerTypeVariants.Barbecue |
+  ContainerTypeVariants.Turret;
+
+let _cached_ContainerType_type_value: __AlgebraicTypeType | null = null;
+
+// A value with helper functions to construct the type.
+export const ContainerType = {
+  // Helper functions for constructing each variant of the tagged union.
+  // ```
+  // const foo = Foo.A(42);
+  // assert!(foo.tag === "A");
+  // assert!(foo.value === 42);
+  // ```
+  Campfire: { tag: "Campfire" } as const,
+  Furnace: { tag: "Furnace" } as const,
+  Fumarole: { tag: "Fumarole" } as const,
+  WoodenStorageBox: { tag: "WoodenStorageBox" } as const,
+  PlayerCorpse: { tag: "PlayerCorpse" } as const,
+  Stash: { tag: "Stash" } as const,
+  Lantern: { tag: "Lantern" } as const,
+  RainCollector: { tag: "RainCollector" } as const,
+  HomesteadHearth: { tag: "HomesteadHearth" } as const,
+  BrothPot: { tag: "BrothPot" } as const,
+  Barbecue: { tag: "Barbecue" } as const,
+  Turret: { tag: "Turret" } as const,
+
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_ContainerType_type_value) return _cached_ContainerType_type_value;
+    _cached_ContainerType_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
+    _cached_ContainerType_type_value.value.variants.push(
+      { name: "Campfire", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Furnace", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Fumarole", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "WoodenStorageBox", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PlayerCorpse", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Stash", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Lantern", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "RainCollector", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "HomesteadHearth", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "BrothPot", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Barbecue", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Turret", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+    );
+    return _cached_ContainerType_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: ContainerType): void {
+      __AlgebraicTypeValue.serializeValue(writer, ContainerType.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): ContainerType {
+      return __AlgebraicTypeValue.deserializeValue(reader, ContainerType.getTypeScriptAlgebraicType());
+  },
+
+}
 
 export default ContainerType;
 

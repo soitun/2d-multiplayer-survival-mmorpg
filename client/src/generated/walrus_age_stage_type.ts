@@ -4,17 +4,70 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import * as WalrusAgeStageVariants from './walrus_age_stage_variants'
 
 // The tagged union or sum type for the algebraic type `WalrusAgeStage`.
-const WalrusAgeStage = __t.enum("WalrusAgeStage", {Pup: __t.unit(),
-  Juvenile: __t.unit(),
-  Adult: __t.unit(),
-});
+export type WalrusAgeStage = WalrusAgeStageVariants.Pup |
+  WalrusAgeStageVariants.Juvenile |
+  WalrusAgeStageVariants.Adult;
+
+let _cached_WalrusAgeStage_type_value: __AlgebraicTypeType | null = null;
+
+// A value with helper functions to construct the type.
+export const WalrusAgeStage = {
+  // Helper functions for constructing each variant of the tagged union.
+  // ```
+  // const foo = Foo.A(42);
+  // assert!(foo.tag === "A");
+  // assert!(foo.value === 42);
+  // ```
+  Pup: { tag: "Pup" } as const,
+  Juvenile: { tag: "Juvenile" } as const,
+  Adult: { tag: "Adult" } as const,
+
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_WalrusAgeStage_type_value) return _cached_WalrusAgeStage_type_value;
+    _cached_WalrusAgeStage_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
+    _cached_WalrusAgeStage_type_value.value.variants.push(
+      { name: "Pup", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Juvenile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Adult", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+    );
+    return _cached_WalrusAgeStage_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: WalrusAgeStage): void {
+      __AlgebraicTypeValue.serializeValue(writer, WalrusAgeStage.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): WalrusAgeStage {
+      return __AlgebraicTypeValue.deserializeValue(reader, WalrusAgeStage.getTypeScriptAlgebraicType());
+  },
+
+}
 
 export default WalrusAgeStage;
 

@@ -4,36 +4,127 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import * as AnimalStateVariants from './animal_state_variants'
 
 // The tagged union or sum type for the algebraic type `AnimalState`.
-const AnimalState = __t.enum("AnimalState", {Idle: __t.unit(),
-  Patrolling: __t.unit(),
-  Chasing: __t.unit(),
-  Attacking: __t.unit(),
-  Fleeing: __t.unit(),
-  Hiding: __t.unit(),
-  Burrowed: __t.unit(),
-  Investigating: __t.unit(),
-  Alert: __t.unit(),
-  Following: __t.unit(),
-  Protecting: __t.unit(),
-  Flying: __t.unit(),
-  FlyingChase: __t.unit(),
-  Grounded: __t.unit(),
-  Scavenging: __t.unit(),
-  Stealing: __t.unit(),
-  Swimming: __t.unit(),
-  SwimmingChase: __t.unit(),
-  Drifting: __t.unit(),
-  Stalking: __t.unit(),
-  AttackingStructure: __t.unit(),
-  Despawning: __t.unit(),
-});
+export type AnimalState = AnimalStateVariants.Idle |
+  AnimalStateVariants.Patrolling |
+  AnimalStateVariants.Chasing |
+  AnimalStateVariants.Attacking |
+  AnimalStateVariants.Fleeing |
+  AnimalStateVariants.Hiding |
+  AnimalStateVariants.Burrowed |
+  AnimalStateVariants.Investigating |
+  AnimalStateVariants.Alert |
+  AnimalStateVariants.Following |
+  AnimalStateVariants.Protecting |
+  AnimalStateVariants.Flying |
+  AnimalStateVariants.FlyingChase |
+  AnimalStateVariants.Grounded |
+  AnimalStateVariants.Scavenging |
+  AnimalStateVariants.Stealing |
+  AnimalStateVariants.Swimming |
+  AnimalStateVariants.SwimmingChase |
+  AnimalStateVariants.Drifting |
+  AnimalStateVariants.Stalking |
+  AnimalStateVariants.AttackingStructure |
+  AnimalStateVariants.Despawning;
+
+let _cached_AnimalState_type_value: __AlgebraicTypeType | null = null;
+
+// A value with helper functions to construct the type.
+export const AnimalState = {
+  // Helper functions for constructing each variant of the tagged union.
+  // ```
+  // const foo = Foo.A(42);
+  // assert!(foo.tag === "A");
+  // assert!(foo.value === 42);
+  // ```
+  Idle: { tag: "Idle" } as const,
+  Patrolling: { tag: "Patrolling" } as const,
+  Chasing: { tag: "Chasing" } as const,
+  Attacking: { tag: "Attacking" } as const,
+  Fleeing: { tag: "Fleeing" } as const,
+  Hiding: { tag: "Hiding" } as const,
+  Burrowed: { tag: "Burrowed" } as const,
+  Investigating: { tag: "Investigating" } as const,
+  Alert: { tag: "Alert" } as const,
+  Following: { tag: "Following" } as const,
+  Protecting: { tag: "Protecting" } as const,
+  Flying: { tag: "Flying" } as const,
+  FlyingChase: { tag: "FlyingChase" } as const,
+  Grounded: { tag: "Grounded" } as const,
+  Scavenging: { tag: "Scavenging" } as const,
+  Stealing: { tag: "Stealing" } as const,
+  Swimming: { tag: "Swimming" } as const,
+  SwimmingChase: { tag: "SwimmingChase" } as const,
+  Drifting: { tag: "Drifting" } as const,
+  Stalking: { tag: "Stalking" } as const,
+  AttackingStructure: { tag: "AttackingStructure" } as const,
+  Despawning: { tag: "Despawning" } as const,
+
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_AnimalState_type_value) return _cached_AnimalState_type_value;
+    _cached_AnimalState_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
+    _cached_AnimalState_type_value.value.variants.push(
+      { name: "Idle", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Patrolling", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Chasing", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Attacking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Fleeing", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Hiding", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Burrowed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Investigating", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Alert", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Following", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Protecting", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Flying", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "FlyingChase", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Grounded", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Scavenging", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Stealing", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Swimming", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SwimmingChase", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Drifting", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Stalking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "AttackingStructure", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Despawning", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+    );
+    return _cached_AnimalState_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: AnimalState): void {
+      __AlgebraicTypeValue.serializeValue(writer, AnimalState.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): AnimalState {
+      return __AlgebraicTypeValue.deserializeValue(reader, AnimalState.getTypeScriptAlgebraicType());
+  },
+
+}
 
 export default AnimalState;
 

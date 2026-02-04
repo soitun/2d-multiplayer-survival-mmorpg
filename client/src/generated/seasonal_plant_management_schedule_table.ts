@@ -4,20 +4,107 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import Season from "./season_type";
+import { SeasonalPlantManagementSchedule } from "./seasonal_plant_management_schedule_type";
+import { Season } from "./season_type";
+// Mark import as potentially unused
+declare type __keep_Season = Season;
 
+import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
+declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-export default __t.row({
-  scheduleId: __t.u64().primaryKey().name("schedule_id"),
-  scheduledAt: __t.scheduleAt().name("scheduled_at"),
-  get transitionSeason() {
-    return Season.name("transition_season");
-  },
-  transitionProgress: __t.f32().name("transition_progress"),
-  spawnBatchSize: __t.u32().name("spawn_batch_size"),
-});
+/**
+ * Table handle for the table `seasonal_plant_management_schedule`.
+ *
+ * Obtain a handle from the [`seasonalPlantManagementSchedule`] property on [`RemoteTables`],
+ * like `ctx.db.seasonalPlantManagementSchedule`.
+ *
+ * Users are encouraged not to explicitly reference this type,
+ * but to directly chain method calls,
+ * like `ctx.db.seasonalPlantManagementSchedule.on_insert(...)`.
+ */
+export class SeasonalPlantManagementScheduleTableHandle<TableName extends string> implements __TableHandle<TableName> {
+  // phantom type to track the table name
+  readonly tableName!: TableName;
+  tableCache: __TableCache<SeasonalPlantManagementSchedule>;
+
+  constructor(tableCache: __TableCache<SeasonalPlantManagementSchedule>) {
+    this.tableCache = tableCache;
+  }
+
+  count(): number {
+    return this.tableCache.count();
+  }
+
+  iter(): Iterable<SeasonalPlantManagementSchedule> {
+    return this.tableCache.iter();
+  }
+  /**
+   * Access to the `scheduleId` unique index on the table `seasonal_plant_management_schedule`,
+   * which allows point queries on the field of the same name
+   * via the [`SeasonalPlantManagementScheduleScheduleIdUnique.find`] method.
+   *
+   * Users are encouraged not to explicitly reference this type,
+   * but to directly chain method calls,
+   * like `ctx.db.seasonalPlantManagementSchedule.scheduleId().find(...)`.
+   *
+   * Get a handle on the `scheduleId` unique index on the table `seasonal_plant_management_schedule`.
+   */
+  scheduleId = {
+    // Find the subscribed row whose `scheduleId` column value is equal to `col_val`,
+    // if such a row is present in the client cache.
+    find: (col_val: bigint): SeasonalPlantManagementSchedule | undefined => {
+      for (let row of this.tableCache.iter()) {
+        if (__deepEqual(row.scheduleId, col_val)) {
+          return row;
+        }
+      }
+    },
+  };
+
+  onInsert = (cb: (ctx: EventContext, row: SeasonalPlantManagementSchedule) => void) => {
+    return this.tableCache.onInsert(cb);
+  }
+
+  removeOnInsert = (cb: (ctx: EventContext, row: SeasonalPlantManagementSchedule) => void) => {
+    return this.tableCache.removeOnInsert(cb);
+  }
+
+  onDelete = (cb: (ctx: EventContext, row: SeasonalPlantManagementSchedule) => void) => {
+    return this.tableCache.onDelete(cb);
+  }
+
+  removeOnDelete = (cb: (ctx: EventContext, row: SeasonalPlantManagementSchedule) => void) => {
+    return this.tableCache.removeOnDelete(cb);
+  }
+
+  // Updates are only defined for tables with primary keys.
+  onUpdate = (cb: (ctx: EventContext, oldRow: SeasonalPlantManagementSchedule, newRow: SeasonalPlantManagementSchedule) => void) => {
+    return this.tableCache.onUpdate(cb);
+  }
+
+  removeOnUpdate = (cb: (ctx: EventContext, onRow: SeasonalPlantManagementSchedule, newRow: SeasonalPlantManagementSchedule) => void) => {
+    return this.tableCache.removeOnUpdate(cb);
+  }}

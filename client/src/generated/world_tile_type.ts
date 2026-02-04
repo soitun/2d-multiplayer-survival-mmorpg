@@ -4,27 +4,84 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import TileType from "./tile_type_type";
+import { TileType } from "./tile_type_type";
+// Mark import as potentially unused
+declare type __keep_TileType = TileType;
 
 
-export default __t.object("WorldTile", {
-  id: __t.u64(),
-  chunkX: __t.i32(),
-  chunkY: __t.i32(),
-  tileX: __t.i32(),
-  tileY: __t.i32(),
-  worldX: __t.i32(),
-  worldY: __t.i32(),
-  get tileType() {
-    return TileType;
+export type WorldTile = {
+  id: bigint,
+  chunkX: number,
+  chunkY: number,
+  tileX: number,
+  tileY: number,
+  worldX: number,
+  worldY: number,
+  tileType: TileType,
+  variant: number,
+  biomeData: string | undefined,
+};
+let _cached_WorldTile_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const WorldTile = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_WorldTile_type_value) return _cached_WorldTile_type_value;
+    _cached_WorldTile_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_WorldTile_type_value.value.elements.push(
+      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "chunkX", algebraicType: __AlgebraicTypeValue.I32 },
+      { name: "chunkY", algebraicType: __AlgebraicTypeValue.I32 },
+      { name: "tileX", algebraicType: __AlgebraicTypeValue.I32 },
+      { name: "tileY", algebraicType: __AlgebraicTypeValue.I32 },
+      { name: "worldX", algebraicType: __AlgebraicTypeValue.I32 },
+      { name: "worldY", algebraicType: __AlgebraicTypeValue.I32 },
+      { name: "tileType", algebraicType: TileType.getTypeScriptAlgebraicType() },
+      { name: "variant", algebraicType: __AlgebraicTypeValue.U8 },
+      { name: "biomeData", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
+    );
+    return _cached_WorldTile_type_value;
   },
-  variant: __t.u8(),
-  biomeData: __t.option(__t.string()),
-});
+
+  serialize(writer: __BinaryWriter, value: WorldTile): void {
+    __AlgebraicTypeValue.serializeValue(writer, WorldTile.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): WorldTile {
+    return __AlgebraicTypeValue.deserializeValue(reader, WorldTile.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default WorldTile;
 
 

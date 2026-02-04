@@ -4,123 +4,103 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import { WoodenStorageBox } from "./wooden_storage_box_type";
+import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
+declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-export default __t.row({
-  id: __t.u32().primaryKey(),
-  posX: __t.f32().name("pos_x"),
-  posY: __t.f32().name("pos_y"),
-  chunkIndex: __t.u32().name("chunk_index"),
-  placedBy: __t.identity().name("placed_by"),
-  boxType: __t.u8().name("box_type"),
-  slotInstanceId0: __t.option(__t.u64()).name("slot_instance_id_0"),
-  slotDefId0: __t.option(__t.u64()).name("slot_def_id_0"),
-  slotInstanceId1: __t.option(__t.u64()).name("slot_instance_id_1"),
-  slotDefId1: __t.option(__t.u64()).name("slot_def_id_1"),
-  slotInstanceId2: __t.option(__t.u64()).name("slot_instance_id_2"),
-  slotDefId2: __t.option(__t.u64()).name("slot_def_id_2"),
-  slotInstanceId3: __t.option(__t.u64()).name("slot_instance_id_3"),
-  slotDefId3: __t.option(__t.u64()).name("slot_def_id_3"),
-  slotInstanceId4: __t.option(__t.u64()).name("slot_instance_id_4"),
-  slotDefId4: __t.option(__t.u64()).name("slot_def_id_4"),
-  slotInstanceId5: __t.option(__t.u64()).name("slot_instance_id_5"),
-  slotDefId5: __t.option(__t.u64()).name("slot_def_id_5"),
-  slotInstanceId6: __t.option(__t.u64()).name("slot_instance_id_6"),
-  slotDefId6: __t.option(__t.u64()).name("slot_def_id_6"),
-  slotInstanceId7: __t.option(__t.u64()).name("slot_instance_id_7"),
-  slotDefId7: __t.option(__t.u64()).name("slot_def_id_7"),
-  slotInstanceId8: __t.option(__t.u64()).name("slot_instance_id_8"),
-  slotDefId8: __t.option(__t.u64()).name("slot_def_id_8"),
-  slotInstanceId9: __t.option(__t.u64()).name("slot_instance_id_9"),
-  slotDefId9: __t.option(__t.u64()).name("slot_def_id_9"),
-  slotInstanceId10: __t.option(__t.u64()).name("slot_instance_id_10"),
-  slotDefId10: __t.option(__t.u64()).name("slot_def_id_10"),
-  slotInstanceId11: __t.option(__t.u64()).name("slot_instance_id_11"),
-  slotDefId11: __t.option(__t.u64()).name("slot_def_id_11"),
-  slotInstanceId12: __t.option(__t.u64()).name("slot_instance_id_12"),
-  slotDefId12: __t.option(__t.u64()).name("slot_def_id_12"),
-  slotInstanceId13: __t.option(__t.u64()).name("slot_instance_id_13"),
-  slotDefId13: __t.option(__t.u64()).name("slot_def_id_13"),
-  slotInstanceId14: __t.option(__t.u64()).name("slot_instance_id_14"),
-  slotDefId14: __t.option(__t.u64()).name("slot_def_id_14"),
-  slotInstanceId15: __t.option(__t.u64()).name("slot_instance_id_15"),
-  slotDefId15: __t.option(__t.u64()).name("slot_def_id_15"),
-  slotInstanceId16: __t.option(__t.u64()).name("slot_instance_id_16"),
-  slotDefId16: __t.option(__t.u64()).name("slot_def_id_16"),
-  slotInstanceId17: __t.option(__t.u64()).name("slot_instance_id_17"),
-  slotDefId17: __t.option(__t.u64()).name("slot_def_id_17"),
-  slotInstanceId18: __t.option(__t.u64()).name("slot_instance_id_18"),
-  slotDefId18: __t.option(__t.u64()).name("slot_def_id_18"),
-  slotInstanceId19: __t.option(__t.u64()).name("slot_instance_id_19"),
-  slotDefId19: __t.option(__t.u64()).name("slot_def_id_19"),
-  slotInstanceId20: __t.option(__t.u64()).name("slot_instance_id_20"),
-  slotDefId20: __t.option(__t.u64()).name("slot_def_id_20"),
-  slotInstanceId21: __t.option(__t.u64()).name("slot_instance_id_21"),
-  slotDefId21: __t.option(__t.u64()).name("slot_def_id_21"),
-  slotInstanceId22: __t.option(__t.u64()).name("slot_instance_id_22"),
-  slotDefId22: __t.option(__t.u64()).name("slot_def_id_22"),
-  slotInstanceId23: __t.option(__t.u64()).name("slot_instance_id_23"),
-  slotDefId23: __t.option(__t.u64()).name("slot_def_id_23"),
-  slotInstanceId24: __t.option(__t.u64()).name("slot_instance_id_24"),
-  slotDefId24: __t.option(__t.u64()).name("slot_def_id_24"),
-  slotInstanceId25: __t.option(__t.u64()).name("slot_instance_id_25"),
-  slotDefId25: __t.option(__t.u64()).name("slot_def_id_25"),
-  slotInstanceId26: __t.option(__t.u64()).name("slot_instance_id_26"),
-  slotDefId26: __t.option(__t.u64()).name("slot_def_id_26"),
-  slotInstanceId27: __t.option(__t.u64()).name("slot_instance_id_27"),
-  slotDefId27: __t.option(__t.u64()).name("slot_def_id_27"),
-  slotInstanceId28: __t.option(__t.u64()).name("slot_instance_id_28"),
-  slotDefId28: __t.option(__t.u64()).name("slot_def_id_28"),
-  slotInstanceId29: __t.option(__t.u64()).name("slot_instance_id_29"),
-  slotDefId29: __t.option(__t.u64()).name("slot_def_id_29"),
-  slotInstanceId30: __t.option(__t.u64()).name("slot_instance_id_30"),
-  slotDefId30: __t.option(__t.u64()).name("slot_def_id_30"),
-  slotInstanceId31: __t.option(__t.u64()).name("slot_instance_id_31"),
-  slotDefId31: __t.option(__t.u64()).name("slot_def_id_31"),
-  slotInstanceId32: __t.option(__t.u64()).name("slot_instance_id_32"),
-  slotDefId32: __t.option(__t.u64()).name("slot_def_id_32"),
-  slotInstanceId33: __t.option(__t.u64()).name("slot_instance_id_33"),
-  slotDefId33: __t.option(__t.u64()).name("slot_def_id_33"),
-  slotInstanceId34: __t.option(__t.u64()).name("slot_instance_id_34"),
-  slotDefId34: __t.option(__t.u64()).name("slot_def_id_34"),
-  slotInstanceId35: __t.option(__t.u64()).name("slot_instance_id_35"),
-  slotDefId35: __t.option(__t.u64()).name("slot_def_id_35"),
-  slotInstanceId36: __t.option(__t.u64()).name("slot_instance_id_36"),
-  slotDefId36: __t.option(__t.u64()).name("slot_def_id_36"),
-  slotInstanceId37: __t.option(__t.u64()).name("slot_instance_id_37"),
-  slotDefId37: __t.option(__t.u64()).name("slot_def_id_37"),
-  slotInstanceId38: __t.option(__t.u64()).name("slot_instance_id_38"),
-  slotDefId38: __t.option(__t.u64()).name("slot_def_id_38"),
-  slotInstanceId39: __t.option(__t.u64()).name("slot_instance_id_39"),
-  slotDefId39: __t.option(__t.u64()).name("slot_def_id_39"),
-  slotInstanceId40: __t.option(__t.u64()).name("slot_instance_id_40"),
-  slotDefId40: __t.option(__t.u64()).name("slot_def_id_40"),
-  slotInstanceId41: __t.option(__t.u64()).name("slot_instance_id_41"),
-  slotDefId41: __t.option(__t.u64()).name("slot_def_id_41"),
-  slotInstanceId42: __t.option(__t.u64()).name("slot_instance_id_42"),
-  slotDefId42: __t.option(__t.u64()).name("slot_def_id_42"),
-  slotInstanceId43: __t.option(__t.u64()).name("slot_instance_id_43"),
-  slotDefId43: __t.option(__t.u64()).name("slot_def_id_43"),
-  slotInstanceId44: __t.option(__t.u64()).name("slot_instance_id_44"),
-  slotDefId44: __t.option(__t.u64()).name("slot_def_id_44"),
-  slotInstanceId45: __t.option(__t.u64()).name("slot_instance_id_45"),
-  slotDefId45: __t.option(__t.u64()).name("slot_def_id_45"),
-  slotInstanceId46: __t.option(__t.u64()).name("slot_instance_id_46"),
-  slotDefId46: __t.option(__t.u64()).name("slot_def_id_46"),
-  slotInstanceId47: __t.option(__t.u64()).name("slot_instance_id_47"),
-  slotDefId47: __t.option(__t.u64()).name("slot_def_id_47"),
-  health: __t.f32(),
-  maxHealth: __t.f32().name("max_health"),
-  isDestroyed: __t.bool().name("is_destroyed"),
-  destroyedAt: __t.option(__t.timestamp()).name("destroyed_at"),
-  lastHitTime: __t.option(__t.timestamp()).name("last_hit_time"),
-  lastDamagedBy: __t.option(__t.identity()).name("last_damaged_by"),
-  respawnAt: __t.timestamp().name("respawn_at"),
-  isMonument: __t.bool().name("is_monument"),
-  activeUserId: __t.option(__t.identity()).name("active_user_id"),
-  activeUserSince: __t.option(__t.timestamp()).name("active_user_since"),
-});
+/**
+ * Table handle for the table `wooden_storage_box`.
+ *
+ * Obtain a handle from the [`woodenStorageBox`] property on [`RemoteTables`],
+ * like `ctx.db.woodenStorageBox`.
+ *
+ * Users are encouraged not to explicitly reference this type,
+ * but to directly chain method calls,
+ * like `ctx.db.woodenStorageBox.on_insert(...)`.
+ */
+export class WoodenStorageBoxTableHandle<TableName extends string> implements __TableHandle<TableName> {
+  // phantom type to track the table name
+  readonly tableName!: TableName;
+  tableCache: __TableCache<WoodenStorageBox>;
+
+  constructor(tableCache: __TableCache<WoodenStorageBox>) {
+    this.tableCache = tableCache;
+  }
+
+  count(): number {
+    return this.tableCache.count();
+  }
+
+  iter(): Iterable<WoodenStorageBox> {
+    return this.tableCache.iter();
+  }
+  /**
+   * Access to the `id` unique index on the table `wooden_storage_box`,
+   * which allows point queries on the field of the same name
+   * via the [`WoodenStorageBoxIdUnique.find`] method.
+   *
+   * Users are encouraged not to explicitly reference this type,
+   * but to directly chain method calls,
+   * like `ctx.db.woodenStorageBox.id().find(...)`.
+   *
+   * Get a handle on the `id` unique index on the table `wooden_storage_box`.
+   */
+  id = {
+    // Find the subscribed row whose `id` column value is equal to `col_val`,
+    // if such a row is present in the client cache.
+    find: (col_val: number): WoodenStorageBox | undefined => {
+      for (let row of this.tableCache.iter()) {
+        if (__deepEqual(row.id, col_val)) {
+          return row;
+        }
+      }
+    },
+  };
+
+  onInsert = (cb: (ctx: EventContext, row: WoodenStorageBox) => void) => {
+    return this.tableCache.onInsert(cb);
+  }
+
+  removeOnInsert = (cb: (ctx: EventContext, row: WoodenStorageBox) => void) => {
+    return this.tableCache.removeOnInsert(cb);
+  }
+
+  onDelete = (cb: (ctx: EventContext, row: WoodenStorageBox) => void) => {
+    return this.tableCache.onDelete(cb);
+  }
+
+  removeOnDelete = (cb: (ctx: EventContext, row: WoodenStorageBox) => void) => {
+    return this.tableCache.removeOnDelete(cb);
+  }
+
+  // Updates are only defined for tables with primary keys.
+  onUpdate = (cb: (ctx: EventContext, oldRow: WoodenStorageBox, newRow: WoodenStorageBox) => void) => {
+    return this.tableCache.onUpdate(cb);
+  }
+
+  removeOnUpdate = (cb: (ctx: EventContext, onRow: WoodenStorageBox, newRow: WoodenStorageBox) => void) => {
+    return this.tableCache.removeOnUpdate(cb);
+  }}

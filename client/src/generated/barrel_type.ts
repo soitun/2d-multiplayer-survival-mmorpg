@@ -4,22 +4,78 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export default __t.object("Barrel", {
-  id: __t.u64(),
-  posX: __t.f32(),
-  posY: __t.f32(),
-  health: __t.f32(),
-  variant: __t.u8(),
-  chunkIndex: __t.u32(),
-  lastHitTime: __t.option(__t.timestamp()),
-  respawnAt: __t.timestamp(),
-  clusterId: __t.u64(),
-});
+export type Barrel = {
+  id: bigint,
+  posX: number,
+  posY: number,
+  health: number,
+  variant: number,
+  chunkIndex: number,
+  lastHitTime: __Timestamp | undefined,
+  respawnAt: __Timestamp,
+  clusterId: bigint,
+};
+let _cached_Barrel_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const Barrel = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_Barrel_type_value) return _cached_Barrel_type_value;
+    _cached_Barrel_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_Barrel_type_value.value.elements.push(
+      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "posX", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "posY", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "health", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "variant", algebraicType: __AlgebraicTypeValue.U8 },
+      { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "respawnAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+      { name: "clusterId", algebraicType: __AlgebraicTypeValue.U64 },
+    );
+    return _cached_Barrel_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: Barrel): void {
+    __AlgebraicTypeValue.serializeValue(writer, Barrel.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): Barrel {
+    return __AlgebraicTypeValue.deserializeValue(reader, Barrel.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default Barrel;
 
 

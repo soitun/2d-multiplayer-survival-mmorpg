@@ -4,29 +4,92 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export default __t.object("Fence", {
-  id: __t.u64(),
-  ownerId: __t.identity(),
-  cellX: __t.i32(),
-  cellY: __t.i32(),
-  edge: __t.u8(),
-  posX: __t.f32(),
-  posY: __t.f32(),
-  tier: __t.u8(),
-  health: __t.f32(),
-  maxHealth: __t.f32(),
-  placedAt: __t.timestamp(),
-  chunkIndex: __t.u32(),
-  isDestroyed: __t.bool(),
-  destroyedAt: __t.option(__t.timestamp()),
-  lastHitTime: __t.option(__t.timestamp()),
-  lastDamagedBy: __t.option(__t.identity()),
-});
+export type Fence = {
+  id: bigint,
+  ownerId: __Identity,
+  cellX: number,
+  cellY: number,
+  edge: number,
+  posX: number,
+  posY: number,
+  tier: number,
+  health: number,
+  maxHealth: number,
+  placedAt: __Timestamp,
+  chunkIndex: number,
+  isDestroyed: boolean,
+  destroyedAt: __Timestamp | undefined,
+  lastHitTime: __Timestamp | undefined,
+  lastDamagedBy: __Identity | undefined,
+};
+let _cached_Fence_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const Fence = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_Fence_type_value) return _cached_Fence_type_value;
+    _cached_Fence_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_Fence_type_value.value.elements.push(
+      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "ownerId", algebraicType: __AlgebraicTypeValue.createIdentityType() },
+      { name: "cellX", algebraicType: __AlgebraicTypeValue.I32 },
+      { name: "cellY", algebraicType: __AlgebraicTypeValue.I32 },
+      { name: "edge", algebraicType: __AlgebraicTypeValue.U8 },
+      { name: "posX", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "posY", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "tier", algebraicType: __AlgebraicTypeValue.U8 },
+      { name: "health", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "maxHealth", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "placedAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+      { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "isDestroyed", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "destroyedAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "lastDamagedBy", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createIdentityType()) },
+    );
+    return _cached_Fence_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: Fence): void {
+    __AlgebraicTypeValue.serializeValue(writer, Fence.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): Fence {
+    return __AlgebraicTypeValue.deserializeValue(reader, Fence.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default Fence;
 
 

@@ -4,22 +4,78 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export default __t.object("PlayerTutorialProgress", {
-  playerId: __t.identity(),
-  currentQuestIndex: __t.u32(),
-  currentQuestProgress: __t.u32(),
-  secondaryQuestProgress: __t.u32(),
-  tertiaryQuestProgress: __t.u32(),
-  completedQuestIds: __t.string(),
-  tutorialCompleted: __t.bool(),
-  lastHintShown: __t.option(__t.timestamp()),
-  updatedAt: __t.timestamp(),
-});
+export type PlayerTutorialProgress = {
+  playerId: __Identity,
+  currentQuestIndex: number,
+  currentQuestProgress: number,
+  secondaryQuestProgress: number,
+  tertiaryQuestProgress: number,
+  completedQuestIds: string,
+  tutorialCompleted: boolean,
+  lastHintShown: __Timestamp | undefined,
+  updatedAt: __Timestamp,
+};
+let _cached_PlayerTutorialProgress_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const PlayerTutorialProgress = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_PlayerTutorialProgress_type_value) return _cached_PlayerTutorialProgress_type_value;
+    _cached_PlayerTutorialProgress_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_PlayerTutorialProgress_type_value.value.elements.push(
+      { name: "playerId", algebraicType: __AlgebraicTypeValue.createIdentityType() },
+      { name: "currentQuestIndex", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "currentQuestProgress", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "secondaryQuestProgress", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "tertiaryQuestProgress", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "completedQuestIds", algebraicType: __AlgebraicTypeValue.String },
+      { name: "tutorialCompleted", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "lastHintShown", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "updatedAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+    );
+    return _cached_PlayerTutorialProgress_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: PlayerTutorialProgress): void {
+    __AlgebraicTypeValue.serializeValue(writer, PlayerTutorialProgress.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): PlayerTutorialProgress {
+    return __AlgebraicTypeValue.deserializeValue(reader, PlayerTutorialProgress.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default PlayerTutorialProgress;
 
 

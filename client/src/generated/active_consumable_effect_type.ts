@@ -4,29 +4,88 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import EffectType from "./effect_type_type";
+import { EffectType } from "./effect_type_type";
+// Mark import as potentially unused
+declare type __keep_EffectType = EffectType;
 
 
-export default __t.object("ActiveConsumableEffect", {
-  effectId: __t.u64(),
-  playerId: __t.identity(),
-  targetPlayerId: __t.option(__t.identity()),
-  itemDefId: __t.u64(),
-  consumingItemInstanceId: __t.option(__t.u64()),
-  startedAt: __t.timestamp(),
-  endsAt: __t.timestamp(),
-  totalAmount: __t.option(__t.f32()),
-  amountAppliedSoFar: __t.option(__t.f32()),
-  get effectType() {
-    return EffectType;
+export type ActiveConsumableEffect = {
+  effectId: bigint,
+  playerId: __Identity,
+  targetPlayerId: __Identity | undefined,
+  itemDefId: bigint,
+  consumingItemInstanceId: bigint | undefined,
+  startedAt: __Timestamp,
+  endsAt: __Timestamp,
+  totalAmount: number | undefined,
+  amountAppliedSoFar: number | undefined,
+  effectType: EffectType,
+  tickIntervalMicros: bigint,
+  nextTickAt: __Timestamp,
+};
+let _cached_ActiveConsumableEffect_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const ActiveConsumableEffect = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_ActiveConsumableEffect_type_value) return _cached_ActiveConsumableEffect_type_value;
+    _cached_ActiveConsumableEffect_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_ActiveConsumableEffect_type_value.value.elements.push(
+      { name: "effectId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "playerId", algebraicType: __AlgebraicTypeValue.createIdentityType() },
+      { name: "targetPlayerId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createIdentityType()) },
+      { name: "itemDefId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "consumingItemInstanceId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
+      { name: "startedAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+      { name: "endsAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+      { name: "totalAmount", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
+      { name: "amountAppliedSoFar", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
+      { name: "effectType", algebraicType: EffectType.getTypeScriptAlgebraicType() },
+      { name: "tickIntervalMicros", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "nextTickAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+    );
+    return _cached_ActiveConsumableEffect_type_value;
   },
-  tickIntervalMicros: __t.u64(),
-  nextTickAt: __t.timestamp(),
-});
+
+  serialize(writer: __BinaryWriter, value: ActiveConsumableEffect): void {
+    __AlgebraicTypeValue.serializeValue(writer, ActiveConsumableEffect.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): ActiveConsumableEffect {
+    return __AlgebraicTypeValue.deserializeValue(reader, ActiveConsumableEffect.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default ActiveConsumableEffect;
 
 

@@ -4,23 +4,88 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import * as TimeOfDayVariants from './time_of_day_variants'
 
 // The tagged union or sum type for the algebraic type `TimeOfDay`.
-const TimeOfDay = __t.enum("TimeOfDay", {TwilightMorning: __t.unit(),
-  Dawn: __t.unit(),
-  Morning: __t.unit(),
-  Noon: __t.unit(),
-  Afternoon: __t.unit(),
-  Dusk: __t.unit(),
-  TwilightEvening: __t.unit(),
-  Night: __t.unit(),
-  Midnight: __t.unit(),
-});
+export type TimeOfDay = TimeOfDayVariants.TwilightMorning |
+  TimeOfDayVariants.Dawn |
+  TimeOfDayVariants.Morning |
+  TimeOfDayVariants.Noon |
+  TimeOfDayVariants.Afternoon |
+  TimeOfDayVariants.Dusk |
+  TimeOfDayVariants.TwilightEvening |
+  TimeOfDayVariants.Night |
+  TimeOfDayVariants.Midnight;
+
+let _cached_TimeOfDay_type_value: __AlgebraicTypeType | null = null;
+
+// A value with helper functions to construct the type.
+export const TimeOfDay = {
+  // Helper functions for constructing each variant of the tagged union.
+  // ```
+  // const foo = Foo.A(42);
+  // assert!(foo.tag === "A");
+  // assert!(foo.value === 42);
+  // ```
+  TwilightMorning: { tag: "TwilightMorning" } as const,
+  Dawn: { tag: "Dawn" } as const,
+  Morning: { tag: "Morning" } as const,
+  Noon: { tag: "Noon" } as const,
+  Afternoon: { tag: "Afternoon" } as const,
+  Dusk: { tag: "Dusk" } as const,
+  TwilightEvening: { tag: "TwilightEvening" } as const,
+  Night: { tag: "Night" } as const,
+  Midnight: { tag: "Midnight" } as const,
+
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_TimeOfDay_type_value) return _cached_TimeOfDay_type_value;
+    _cached_TimeOfDay_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
+    _cached_TimeOfDay_type_value.value.variants.push(
+      { name: "TwilightMorning", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Dawn", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Morning", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Noon", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Afternoon", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Dusk", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "TwilightEvening", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Night", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Midnight", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+    );
+    return _cached_TimeOfDay_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: TimeOfDay): void {
+      __AlgebraicTypeValue.serializeValue(writer, TimeOfDay.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): TimeOfDay {
+      return __AlgebraicTypeValue.deserializeValue(reader, TimeOfDay.getTypeScriptAlgebraicType());
+  },
+
+}
 
 export default TimeOfDay;
 

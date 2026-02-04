@@ -4,21 +4,82 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import * as DamageTypeVariants from './damage_type_variants'
 
 // The tagged union or sum type for the algebraic type `DamageType`.
-const DamageType = __t.enum("DamageType", {Melee: __t.unit(),
-  Projectile: __t.unit(),
-  Fire: __t.unit(),
-  Blunt: __t.unit(),
-  Slash: __t.unit(),
-  Pierce: __t.unit(),
-  Environmental: __t.unit(),
-});
+export type DamageType = DamageTypeVariants.Melee |
+  DamageTypeVariants.Projectile |
+  DamageTypeVariants.Fire |
+  DamageTypeVariants.Blunt |
+  DamageTypeVariants.Slash |
+  DamageTypeVariants.Pierce |
+  DamageTypeVariants.Environmental;
+
+let _cached_DamageType_type_value: __AlgebraicTypeType | null = null;
+
+// A value with helper functions to construct the type.
+export const DamageType = {
+  // Helper functions for constructing each variant of the tagged union.
+  // ```
+  // const foo = Foo.A(42);
+  // assert!(foo.tag === "A");
+  // assert!(foo.value === 42);
+  // ```
+  Melee: { tag: "Melee" } as const,
+  Projectile: { tag: "Projectile" } as const,
+  Fire: { tag: "Fire" } as const,
+  Blunt: { tag: "Blunt" } as const,
+  Slash: { tag: "Slash" } as const,
+  Pierce: { tag: "Pierce" } as const,
+  Environmental: { tag: "Environmental" } as const,
+
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_DamageType_type_value) return _cached_DamageType_type_value;
+    _cached_DamageType_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
+    _cached_DamageType_type_value.value.variants.push(
+      { name: "Melee", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Projectile", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Fire", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Blunt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Slash", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Pierce", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Environmental", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+    );
+    return _cached_DamageType_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: DamageType): void {
+      __AlgebraicTypeValue.serializeValue(writer, DamageType.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): DamageType {
+      return __AlgebraicTypeValue.deserializeValue(reader, DamageType.getTypeScriptAlgebraicType());
+  },
+
+}
 
 export default DamageType;
 

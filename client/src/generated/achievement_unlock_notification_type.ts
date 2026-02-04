@@ -4,20 +4,74 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export default __t.object("AchievementUnlockNotification", {
-  id: __t.u64(),
-  playerId: __t.identity(),
-  achievementId: __t.string(),
-  achievementName: __t.string(),
-  xpAwarded: __t.u64(),
-  titleAwarded: __t.option(__t.string()),
-  unlockedAt: __t.timestamp(),
-});
+export type AchievementUnlockNotification = {
+  id: bigint,
+  playerId: __Identity,
+  achievementId: string,
+  achievementName: string,
+  xpAwarded: bigint,
+  titleAwarded: string | undefined,
+  unlockedAt: __Timestamp,
+};
+let _cached_AchievementUnlockNotification_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const AchievementUnlockNotification = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_AchievementUnlockNotification_type_value) return _cached_AchievementUnlockNotification_type_value;
+    _cached_AchievementUnlockNotification_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_AchievementUnlockNotification_type_value.value.elements.push(
+      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "playerId", algebraicType: __AlgebraicTypeValue.createIdentityType() },
+      { name: "achievementId", algebraicType: __AlgebraicTypeValue.String },
+      { name: "achievementName", algebraicType: __AlgebraicTypeValue.String },
+      { name: "xpAwarded", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "titleAwarded", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
+      { name: "unlockedAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+    );
+    return _cached_AchievementUnlockNotification_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: AchievementUnlockNotification): void {
+    __AlgebraicTypeValue.serializeValue(writer, AchievementUnlockNotification.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): AchievementUnlockNotification {
+    return __AlgebraicTypeValue.deserializeValue(reader, AchievementUnlockNotification.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default AchievementUnlockNotification;
 
 

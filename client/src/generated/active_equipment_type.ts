@@ -4,29 +4,92 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export default __t.object("ActiveEquipment", {
-  playerIdentity: __t.identity(),
-  equippedItemDefId: __t.option(__t.u64()),
-  equippedItemInstanceId: __t.option(__t.u64()),
-  iconAssetName: __t.option(__t.string()),
-  swingStartTimeMs: __t.u64(),
-  loadedAmmoDefId: __t.option(__t.u64()),
-  loadedAmmoCount: __t.u8(),
-  isReadyToFire: __t.bool(),
-  preferredArrowType: __t.option(__t.string()),
-  reloadStartTimeMs: __t.u64(),
-  headItemInstanceId: __t.option(__t.u64()),
-  chestItemInstanceId: __t.option(__t.u64()),
-  legsItemInstanceId: __t.option(__t.u64()),
-  feetItemInstanceId: __t.option(__t.u64()),
-  handsItemInstanceId: __t.option(__t.u64()),
-  backItemInstanceId: __t.option(__t.u64()),
-});
+export type ActiveEquipment = {
+  playerIdentity: __Identity,
+  equippedItemDefId: bigint | undefined,
+  equippedItemInstanceId: bigint | undefined,
+  iconAssetName: string | undefined,
+  swingStartTimeMs: bigint,
+  loadedAmmoDefId: bigint | undefined,
+  loadedAmmoCount: number,
+  isReadyToFire: boolean,
+  preferredArrowType: string | undefined,
+  reloadStartTimeMs: bigint,
+  headItemInstanceId: bigint | undefined,
+  chestItemInstanceId: bigint | undefined,
+  legsItemInstanceId: bigint | undefined,
+  feetItemInstanceId: bigint | undefined,
+  handsItemInstanceId: bigint | undefined,
+  backItemInstanceId: bigint | undefined,
+};
+let _cached_ActiveEquipment_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const ActiveEquipment = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_ActiveEquipment_type_value) return _cached_ActiveEquipment_type_value;
+    _cached_ActiveEquipment_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_ActiveEquipment_type_value.value.elements.push(
+      { name: "playerIdentity", algebraicType: __AlgebraicTypeValue.createIdentityType() },
+      { name: "equippedItemDefId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
+      { name: "equippedItemInstanceId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
+      { name: "iconAssetName", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
+      { name: "swingStartTimeMs", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "loadedAmmoDefId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
+      { name: "loadedAmmoCount", algebraicType: __AlgebraicTypeValue.U8 },
+      { name: "isReadyToFire", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "preferredArrowType", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
+      { name: "reloadStartTimeMs", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "headItemInstanceId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
+      { name: "chestItemInstanceId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
+      { name: "legsItemInstanceId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
+      { name: "feetItemInstanceId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
+      { name: "handsItemInstanceId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
+      { name: "backItemInstanceId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
+    );
+    return _cached_ActiveEquipment_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: ActiveEquipment): void {
+    __AlgebraicTypeValue.serializeValue(writer, ActiveEquipment.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): ActiveEquipment {
+    return __AlgebraicTypeValue.deserializeValue(reader, ActiveEquipment.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default ActiveEquipment;
 
 

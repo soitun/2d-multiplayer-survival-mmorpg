@@ -4,17 +4,70 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import * as RuneStoneTypeVariants from './rune_stone_type_variants'
 
 // The tagged union or sum type for the algebraic type `RuneStoneType`.
-const RuneStoneType = __t.enum("RuneStoneType", {Green: __t.unit(),
-  Red: __t.unit(),
-  Blue: __t.unit(),
-});
+export type RuneStoneType = RuneStoneTypeVariants.Green |
+  RuneStoneTypeVariants.Red |
+  RuneStoneTypeVariants.Blue;
+
+let _cached_RuneStoneType_type_value: __AlgebraicTypeType | null = null;
+
+// A value with helper functions to construct the type.
+export const RuneStoneType = {
+  // Helper functions for constructing each variant of the tagged union.
+  // ```
+  // const foo = Foo.A(42);
+  // assert!(foo.tag === "A");
+  // assert!(foo.value === 42);
+  // ```
+  Green: { tag: "Green" } as const,
+  Red: { tag: "Red" } as const,
+  Blue: { tag: "Blue" } as const,
+
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_RuneStoneType_type_value) return _cached_RuneStoneType_type_value;
+    _cached_RuneStoneType_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
+    _cached_RuneStoneType_type_value.value.variants.push(
+      { name: "Green", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Red", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Blue", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+    );
+    return _cached_RuneStoneType_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: RuneStoneType): void {
+      __AlgebraicTypeValue.serializeValue(writer, RuneStoneType.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): RuneStoneType {
+      return __AlgebraicTypeValue.deserializeValue(reader, RuneStoneType.getTypeScriptAlgebraicType());
+  },
+
+}
 
 export default RuneStoneType;
 

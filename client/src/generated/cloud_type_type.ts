@@ -4,19 +4,76 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import * as CloudTypeVariants from './cloud_type_variants'
 
 // The tagged union or sum type for the algebraic type `CloudType`.
-const CloudType = __t.enum("CloudType", {Wispy: __t.unit(),
-  Cumulus: __t.unit(),
-  Stratus: __t.unit(),
-  Nimbus: __t.unit(),
-  Cirrus: __t.unit(),
-});
+export type CloudType = CloudTypeVariants.Wispy |
+  CloudTypeVariants.Cumulus |
+  CloudTypeVariants.Stratus |
+  CloudTypeVariants.Nimbus |
+  CloudTypeVariants.Cirrus;
+
+let _cached_CloudType_type_value: __AlgebraicTypeType | null = null;
+
+// A value with helper functions to construct the type.
+export const CloudType = {
+  // Helper functions for constructing each variant of the tagged union.
+  // ```
+  // const foo = Foo.A(42);
+  // assert!(foo.tag === "A");
+  // assert!(foo.value === 42);
+  // ```
+  Wispy: { tag: "Wispy" } as const,
+  Cumulus: { tag: "Cumulus" } as const,
+  Stratus: { tag: "Stratus" } as const,
+  Nimbus: { tag: "Nimbus" } as const,
+  Cirrus: { tag: "Cirrus" } as const,
+
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_CloudType_type_value) return _cached_CloudType_type_value;
+    _cached_CloudType_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
+    _cached_CloudType_type_value.value.variants.push(
+      { name: "Wispy", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Cumulus", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Stratus", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Nimbus", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Cirrus", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+    );
+    return _cached_CloudType_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: CloudType): void {
+      __AlgebraicTypeValue.serializeValue(writer, CloudType.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): CloudType {
+      return __AlgebraicTypeValue.deserializeValue(reader, CloudType.getTypeScriptAlgebraicType());
+  },
+
+}
 
 export default CloudType;
 

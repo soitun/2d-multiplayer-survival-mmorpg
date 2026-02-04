@@ -4,29 +4,85 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import QuestObjectiveType from "./quest_objective_type_type";
-import QuestDifficulty from "./quest_difficulty_type";
+import { QuestObjectiveType } from "./quest_objective_type_type";
+// Mark import as potentially unused
+declare type __keep_QuestObjectiveType = QuestObjectiveType;
+import { QuestDifficulty } from "./quest_difficulty_type";
+// Mark import as potentially unused
+declare type __keep_QuestDifficulty = QuestDifficulty;
 
 
-export default __t.object("DailyQuestDefinition", {
-  id: __t.string(),
-  name: __t.string(),
-  description: __t.string(),
-  get objectiveType() {
-    return QuestObjectiveType;
+export type DailyQuestDefinition = {
+  id: string,
+  name: string,
+  description: string,
+  objectiveType: QuestObjectiveType,
+  targetId: string | undefined,
+  targetAmount: number,
+  difficulty: QuestDifficulty,
+  baseXpReward: bigint,
+  baseShardReward: bigint,
+};
+let _cached_DailyQuestDefinition_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const DailyQuestDefinition = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_DailyQuestDefinition_type_value) return _cached_DailyQuestDefinition_type_value;
+    _cached_DailyQuestDefinition_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_DailyQuestDefinition_type_value.value.elements.push(
+      { name: "id", algebraicType: __AlgebraicTypeValue.String },
+      { name: "name", algebraicType: __AlgebraicTypeValue.String },
+      { name: "description", algebraicType: __AlgebraicTypeValue.String },
+      { name: "objectiveType", algebraicType: QuestObjectiveType.getTypeScriptAlgebraicType() },
+      { name: "targetId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
+      { name: "targetAmount", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "difficulty", algebraicType: QuestDifficulty.getTypeScriptAlgebraicType() },
+      { name: "baseXpReward", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "baseShardReward", algebraicType: __AlgebraicTypeValue.U64 },
+    );
+    return _cached_DailyQuestDefinition_type_value;
   },
-  targetId: __t.option(__t.string()),
-  targetAmount: __t.u32(),
-  get difficulty() {
-    return QuestDifficulty;
+
+  serialize(writer: __BinaryWriter, value: DailyQuestDefinition): void {
+    __AlgebraicTypeValue.serializeValue(writer, DailyQuestDefinition.getTypeScriptAlgebraicType(), value);
   },
-  baseXpReward: __t.u64(),
-  baseShardReward: __t.u64(),
-});
+
+  deserialize(reader: __BinaryReader): DailyQuestDefinition {
+    return __AlgebraicTypeValue.deserializeValue(reader, DailyQuestDefinition.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default DailyQuestDefinition;
 
 

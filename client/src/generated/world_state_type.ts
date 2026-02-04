@@ -4,39 +4,102 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import WeatherType from "./weather_type_type";
-import Season from "./season_type";
-import TimeOfDay from "./time_of_day_type";
+import { WeatherType } from "./weather_type_type";
+// Mark import as potentially unused
+declare type __keep_WeatherType = WeatherType;
+import { Season } from "./season_type";
+// Mark import as potentially unused
+declare type __keep_Season = Season;
+import { TimeOfDay } from "./time_of_day_type";
+// Mark import as potentially unused
+declare type __keep_TimeOfDay = TimeOfDay;
 
 
-export default __t.object("WorldState", {
-  id: __t.u32(),
-  cycleProgress: __t.f32(),
-  get timeOfDay() {
-    return TimeOfDay;
+export type WorldState = {
+  id: number,
+  cycleProgress: number,
+  timeOfDay: TimeOfDay,
+  cycleCount: number,
+  isFullMoon: boolean,
+  lastTick: __Timestamp,
+  currentSeason: Season,
+  dayOfYear: number,
+  year: number,
+  currentWeather: WeatherType,
+  rainIntensity: number,
+  weatherStartTime: __Timestamp | undefined,
+  weatherDuration: number | undefined,
+  lastRainEndTime: __Timestamp | undefined,
+  lastThunderTime: __Timestamp | undefined,
+  nextThunderTime: __Timestamp | undefined,
+};
+let _cached_WorldState_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const WorldState = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_WorldState_type_value) return _cached_WorldState_type_value;
+    _cached_WorldState_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_WorldState_type_value.value.elements.push(
+      { name: "id", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "cycleProgress", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "timeOfDay", algebraicType: TimeOfDay.getTypeScriptAlgebraicType() },
+      { name: "cycleCount", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "isFullMoon", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "lastTick", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+      { name: "currentSeason", algebraicType: Season.getTypeScriptAlgebraicType() },
+      { name: "dayOfYear", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "year", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "currentWeather", algebraicType: WeatherType.getTypeScriptAlgebraicType() },
+      { name: "rainIntensity", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "weatherStartTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "weatherDuration", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
+      { name: "lastRainEndTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "lastThunderTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "nextThunderTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+    );
+    return _cached_WorldState_type_value;
   },
-  cycleCount: __t.u32(),
-  isFullMoon: __t.bool(),
-  lastTick: __t.timestamp(),
-  get currentSeason() {
-    return Season;
+
+  serialize(writer: __BinaryWriter, value: WorldState): void {
+    __AlgebraicTypeValue.serializeValue(writer, WorldState.getTypeScriptAlgebraicType(), value);
   },
-  dayOfYear: __t.u32(),
-  year: __t.u32(),
-  get currentWeather() {
-    return WeatherType;
+
+  deserialize(reader: __BinaryReader): WorldState {
+    return __AlgebraicTypeValue.deserializeValue(reader, WorldState.getTypeScriptAlgebraicType());
   },
-  rainIntensity: __t.f32(),
-  weatherStartTime: __t.option(__t.timestamp()),
-  weatherDuration: __t.option(__t.f32()),
-  lastRainEndTime: __t.option(__t.timestamp()),
-  lastThunderTime: __t.option(__t.timestamp()),
-  nextThunderTime: __t.option(__t.timestamp()),
-});
+
+}
+
+export default WorldState;
 
 

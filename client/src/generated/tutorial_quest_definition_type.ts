@@ -4,46 +4,111 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import QuestObjectiveType from "./quest_objective_type_type";
-import ObjectiveLogic from "./objective_logic_type";
+import { QuestObjectiveType } from "./quest_objective_type_type";
+// Mark import as potentially unused
+declare type __keep_QuestObjectiveType = QuestObjectiveType;
+import { ObjectiveLogic } from "./objective_logic_type";
+// Mark import as potentially unused
+declare type __keep_ObjectiveLogic = ObjectiveLogic;
 
 
-export default __t.object("TutorialQuestDefinition", {
-  id: __t.string(),
-  orderIndex: __t.u32(),
-  name: __t.string(),
-  description: __t.string(),
-  get objectiveType() {
-    return QuestObjectiveType;
+export type TutorialQuestDefinition = {
+  id: string,
+  orderIndex: number,
+  name: string,
+  description: string,
+  objectiveType: QuestObjectiveType,
+  targetId: string | undefined,
+  targetAmount: number,
+  secondaryObjectiveType: QuestObjectiveType | undefined,
+  secondaryTargetId: string | undefined,
+  secondaryTargetAmount: number | undefined,
+  tertiaryObjectiveType: QuestObjectiveType | undefined,
+  tertiaryTargetId: string | undefined,
+  tertiaryTargetAmount: number | undefined,
+  secondaryOptional: boolean,
+  tertiaryOptional: boolean,
+  objectiveLogic: ObjectiveLogic,
+  xpReward: bigint,
+  shardReward: bigint,
+  unlockRecipe: string | undefined,
+  sovaStartMessage: string,
+  sovaCompleteMessage: string,
+  sovaHintMessage: string,
+};
+let _cached_TutorialQuestDefinition_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const TutorialQuestDefinition = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_TutorialQuestDefinition_type_value) return _cached_TutorialQuestDefinition_type_value;
+    _cached_TutorialQuestDefinition_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_TutorialQuestDefinition_type_value.value.elements.push(
+      { name: "id", algebraicType: __AlgebraicTypeValue.String },
+      { name: "orderIndex", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "name", algebraicType: __AlgebraicTypeValue.String },
+      { name: "description", algebraicType: __AlgebraicTypeValue.String },
+      { name: "objectiveType", algebraicType: QuestObjectiveType.getTypeScriptAlgebraicType() },
+      { name: "targetId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
+      { name: "targetAmount", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "secondaryObjectiveType", algebraicType: __AlgebraicTypeValue.createOptionType(QuestObjectiveType.getTypeScriptAlgebraicType()) },
+      { name: "secondaryTargetId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
+      { name: "secondaryTargetAmount", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
+      { name: "tertiaryObjectiveType", algebraicType: __AlgebraicTypeValue.createOptionType(QuestObjectiveType.getTypeScriptAlgebraicType()) },
+      { name: "tertiaryTargetId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
+      { name: "tertiaryTargetAmount", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
+      { name: "secondaryOptional", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "tertiaryOptional", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "objectiveLogic", algebraicType: ObjectiveLogic.getTypeScriptAlgebraicType() },
+      { name: "xpReward", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "shardReward", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "unlockRecipe", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
+      { name: "sovaStartMessage", algebraicType: __AlgebraicTypeValue.String },
+      { name: "sovaCompleteMessage", algebraicType: __AlgebraicTypeValue.String },
+      { name: "sovaHintMessage", algebraicType: __AlgebraicTypeValue.String },
+    );
+    return _cached_TutorialQuestDefinition_type_value;
   },
-  targetId: __t.option(__t.string()),
-  targetAmount: __t.u32(),
-  get secondaryObjectiveType() {
-    return __t.option(QuestObjectiveType);
+
+  serialize(writer: __BinaryWriter, value: TutorialQuestDefinition): void {
+    __AlgebraicTypeValue.serializeValue(writer, TutorialQuestDefinition.getTypeScriptAlgebraicType(), value);
   },
-  secondaryTargetId: __t.option(__t.string()),
-  secondaryTargetAmount: __t.option(__t.u32()),
-  get tertiaryObjectiveType() {
-    return __t.option(QuestObjectiveType);
+
+  deserialize(reader: __BinaryReader): TutorialQuestDefinition {
+    return __AlgebraicTypeValue.deserializeValue(reader, TutorialQuestDefinition.getTypeScriptAlgebraicType());
   },
-  tertiaryTargetId: __t.option(__t.string()),
-  tertiaryTargetAmount: __t.option(__t.u32()),
-  secondaryOptional: __t.bool(),
-  tertiaryOptional: __t.bool(),
-  get objectiveLogic() {
-    return ObjectiveLogic;
-  },
-  xpReward: __t.u64(),
-  shardReward: __t.u64(),
-  unlockRecipe: __t.option(__t.string()),
-  sovaStartMessage: __t.string(),
-  sovaCompleteMessage: __t.string(),
-  sovaHintMessage: __t.string(),
-});
+
+}
+
+export default TutorialQuestDefinition;
 
 

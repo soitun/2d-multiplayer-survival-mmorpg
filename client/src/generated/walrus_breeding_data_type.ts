@@ -4,34 +4,95 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import WalrusSex from "./walrus_sex_type";
-import WalrusAgeStage from "./walrus_age_stage_type";
+import { WalrusSex } from "./walrus_sex_type";
+// Mark import as potentially unused
+declare type __keep_WalrusSex = WalrusSex;
+import { WalrusAgeStage } from "./walrus_age_stage_type";
+// Mark import as potentially unused
+declare type __keep_WalrusAgeStage = WalrusAgeStage;
 
 
-export default __t.object("WalrusBreedingData", {
-  animalId: __t.u64(),
-  get sex() {
-    return WalrusSex;
+export type WalrusBreedingData = {
+  animalId: bigint,
+  sex: WalrusSex,
+  ageStage: WalrusAgeStage,
+  birthDay: number,
+  currentAgeDays: number,
+  isPregnant: boolean,
+  pregnancyStartDay: number | undefined,
+  pregnancyDuration: number | undefined,
+  lastBirthDay: number | undefined,
+  matingPartnerId: bigint | undefined,
+  consecutiveMatingNights: number,
+  lastMatingCheckDay: number | undefined,
+  lastMatingAttemptDay: number | undefined,
+  lastMilkedDay: number | undefined,
+};
+let _cached_WalrusBreedingData_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const WalrusBreedingData = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_WalrusBreedingData_type_value) return _cached_WalrusBreedingData_type_value;
+    _cached_WalrusBreedingData_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_WalrusBreedingData_type_value.value.elements.push(
+      { name: "animalId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "sex", algebraicType: WalrusSex.getTypeScriptAlgebraicType() },
+      { name: "ageStage", algebraicType: WalrusAgeStage.getTypeScriptAlgebraicType() },
+      { name: "birthDay", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "currentAgeDays", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "isPregnant", algebraicType: __AlgebraicTypeValue.Bool },
+      { name: "pregnancyStartDay", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
+      { name: "pregnancyDuration", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
+      { name: "lastBirthDay", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
+      { name: "matingPartnerId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
+      { name: "consecutiveMatingNights", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "lastMatingCheckDay", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
+      { name: "lastMatingAttemptDay", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
+      { name: "lastMilkedDay", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
+    );
+    return _cached_WalrusBreedingData_type_value;
   },
-  get ageStage() {
-    return WalrusAgeStage;
+
+  serialize(writer: __BinaryWriter, value: WalrusBreedingData): void {
+    __AlgebraicTypeValue.serializeValue(writer, WalrusBreedingData.getTypeScriptAlgebraicType(), value);
   },
-  birthDay: __t.u32(),
-  currentAgeDays: __t.u32(),
-  isPregnant: __t.bool(),
-  pregnancyStartDay: __t.option(__t.u32()),
-  pregnancyDuration: __t.option(__t.u32()),
-  lastBirthDay: __t.option(__t.u32()),
-  matingPartnerId: __t.option(__t.u64()),
-  consecutiveMatingNights: __t.u32(),
-  lastMatingCheckDay: __t.option(__t.u32()),
-  lastMatingAttemptDay: __t.option(__t.u32()),
-  lastMilkedDay: __t.option(__t.u32()),
-});
+
+  deserialize(reader: __BinaryReader): WalrusBreedingData {
+    return __AlgebraicTypeValue.deserializeValue(reader, WalrusBreedingData.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default WalrusBreedingData;
 
 

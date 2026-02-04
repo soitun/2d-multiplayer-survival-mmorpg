@@ -4,25 +4,84 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export default __t.object("Projectile", {
-  id: __t.u64(),
-  ownerId: __t.identity(),
-  itemDefId: __t.u64(),
-  ammoDefId: __t.u64(),
-  sourceType: __t.u8(),
-  npcProjectileType: __t.u8(),
-  startTime: __t.timestamp(),
-  startPosX: __t.f32(),
-  startPosY: __t.f32(),
-  velocityX: __t.f32(),
-  velocityY: __t.f32(),
-  maxRange: __t.f32(),
-});
+export type Projectile = {
+  id: bigint,
+  ownerId: __Identity,
+  itemDefId: bigint,
+  ammoDefId: bigint,
+  sourceType: number,
+  npcProjectileType: number,
+  startTime: __Timestamp,
+  startPosX: number,
+  startPosY: number,
+  velocityX: number,
+  velocityY: number,
+  maxRange: number,
+};
+let _cached_Projectile_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const Projectile = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_Projectile_type_value) return _cached_Projectile_type_value;
+    _cached_Projectile_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_Projectile_type_value.value.elements.push(
+      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "ownerId", algebraicType: __AlgebraicTypeValue.createIdentityType() },
+      { name: "itemDefId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "ammoDefId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "sourceType", algebraicType: __AlgebraicTypeValue.U8 },
+      { name: "npcProjectileType", algebraicType: __AlgebraicTypeValue.U8 },
+      { name: "startTime", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+      { name: "startPosX", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "startPosY", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "velocityX", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "velocityY", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "maxRange", algebraicType: __AlgebraicTypeValue.F32 },
+    );
+    return _cached_Projectile_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: Projectile): void {
+    __AlgebraicTypeValue.serializeValue(writer, Projectile.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): Projectile {
+    return __AlgebraicTypeValue.deserializeValue(reader, Projectile.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default Projectile;
 
 

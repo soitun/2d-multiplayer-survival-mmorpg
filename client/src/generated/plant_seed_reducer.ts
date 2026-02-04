@@ -4,14 +4,65 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export default {
-  itemInstanceId: __t.u64(),
-  plantPosX: __t.f32(),
-  plantPosY: __t.f32(),
+export type PlantSeed = {
+  itemInstanceId: bigint,
+  plantPosX: number,
+  plantPosY: number,
 };
+let _cached_PlantSeed_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const PlantSeed = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_PlantSeed_type_value) return _cached_PlantSeed_type_value;
+    _cached_PlantSeed_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_PlantSeed_type_value.value.elements.push(
+      { name: "itemInstanceId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "plantPosX", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "plantPosY", algebraicType: __AlgebraicTypeValue.F32 },
+    );
+    return _cached_PlantSeed_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: PlantSeed): void {
+    __AlgebraicTypeValue.serializeValue(writer, PlantSeed.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): PlantSeed {
+    return __AlgebraicTypeValue.deserializeValue(reader, PlantSeed.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default PlantSeed;
+

@@ -4,17 +4,70 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import * as SeaStackVariantVariants from './sea_stack_variant_variants'
 
 // The tagged union or sum type for the algebraic type `SeaStackVariant`.
-const SeaStackVariant = __t.enum("SeaStackVariant", {Tall: __t.unit(),
-  Medium: __t.unit(),
-  Wide: __t.unit(),
-});
+export type SeaStackVariant = SeaStackVariantVariants.Tall |
+  SeaStackVariantVariants.Medium |
+  SeaStackVariantVariants.Wide;
+
+let _cached_SeaStackVariant_type_value: __AlgebraicTypeType | null = null;
+
+// A value with helper functions to construct the type.
+export const SeaStackVariant = {
+  // Helper functions for constructing each variant of the tagged union.
+  // ```
+  // const foo = Foo.A(42);
+  // assert!(foo.tag === "A");
+  // assert!(foo.value === 42);
+  // ```
+  Tall: { tag: "Tall" } as const,
+  Medium: { tag: "Medium" } as const,
+  Wide: { tag: "Wide" } as const,
+
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_SeaStackVariant_type_value) return _cached_SeaStackVariant_type_value;
+    _cached_SeaStackVariant_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
+    _cached_SeaStackVariant_type_value.value.variants.push(
+      { name: "Tall", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Medium", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Wide", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+    );
+    return _cached_SeaStackVariant_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: SeaStackVariant): void {
+      __AlgebraicTypeValue.serializeValue(writer, SeaStackVariant.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): SeaStackVariant {
+      return __AlgebraicTypeValue.deserializeValue(reader, SeaStackVariant.getTypeScriptAlgebraicType());
+  },
+
+}
 
 export default SeaStackVariant;
 

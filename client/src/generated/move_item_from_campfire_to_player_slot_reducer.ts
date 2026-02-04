@@ -4,15 +4,67 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export default {
-  campfireId: __t.u32(),
-  sourceSlotIndex: __t.u8(),
-  targetSlotType: __t.string(),
-  targetSlotIndex: __t.u32(),
+export type MoveItemFromCampfireToPlayerSlot = {
+  campfireId: number,
+  sourceSlotIndex: number,
+  targetSlotType: string,
+  targetSlotIndex: number,
 };
+let _cached_MoveItemFromCampfireToPlayerSlot_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const MoveItemFromCampfireToPlayerSlot = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_MoveItemFromCampfireToPlayerSlot_type_value) return _cached_MoveItemFromCampfireToPlayerSlot_type_value;
+    _cached_MoveItemFromCampfireToPlayerSlot_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_MoveItemFromCampfireToPlayerSlot_type_value.value.elements.push(
+      { name: "campfireId", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "sourceSlotIndex", algebraicType: __AlgebraicTypeValue.U8 },
+      { name: "targetSlotType", algebraicType: __AlgebraicTypeValue.String },
+      { name: "targetSlotIndex", algebraicType: __AlgebraicTypeValue.U32 },
+    );
+    return _cached_MoveItemFromCampfireToPlayerSlot_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: MoveItemFromCampfireToPlayerSlot): void {
+    __AlgebraicTypeValue.serializeValue(writer, MoveItemFromCampfireToPlayerSlot.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): MoveItemFromCampfireToPlayerSlot {
+    return __AlgebraicTypeValue.deserializeValue(reader, MoveItemFromCampfireToPlayerSlot.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default MoveItemFromCampfireToPlayerSlot;
+

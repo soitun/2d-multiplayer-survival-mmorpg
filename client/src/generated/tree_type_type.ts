@@ -4,27 +4,100 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import * as TreeTypeVariants from './tree_type_variants'
 
 // The tagged union or sum type for the algebraic type `TreeType`.
-const TreeType = __t.enum("TreeType", {SiberianBirch: __t.unit(),
-  SitkaAlder: __t.unit(),
-  SitkaAlder2: __t.unit(),
-  ArcticWillow: __t.unit(),
-  SitkaSpruce: __t.unit(),
-  MountainHemlock: __t.unit(),
-  MountainHemlock2: __t.unit(),
-  DwarfPine: __t.unit(),
-  MountainHemlockSnow: __t.unit(),
-  KrummholzSpruce: __t.unit(),
-  CrabAppleTree: __t.unit(),
-  HazelnutTree: __t.unit(),
-  RowanberryTree: __t.unit(),
-});
+export type TreeType = TreeTypeVariants.SiberianBirch |
+  TreeTypeVariants.SitkaAlder |
+  TreeTypeVariants.SitkaAlder2 |
+  TreeTypeVariants.ArcticWillow |
+  TreeTypeVariants.SitkaSpruce |
+  TreeTypeVariants.MountainHemlock |
+  TreeTypeVariants.MountainHemlock2 |
+  TreeTypeVariants.DwarfPine |
+  TreeTypeVariants.MountainHemlockSnow |
+  TreeTypeVariants.KrummholzSpruce |
+  TreeTypeVariants.CrabAppleTree |
+  TreeTypeVariants.HazelnutTree |
+  TreeTypeVariants.RowanberryTree;
+
+let _cached_TreeType_type_value: __AlgebraicTypeType | null = null;
+
+// A value with helper functions to construct the type.
+export const TreeType = {
+  // Helper functions for constructing each variant of the tagged union.
+  // ```
+  // const foo = Foo.A(42);
+  // assert!(foo.tag === "A");
+  // assert!(foo.value === 42);
+  // ```
+  SiberianBirch: { tag: "SiberianBirch" } as const,
+  SitkaAlder: { tag: "SitkaAlder" } as const,
+  SitkaAlder2: { tag: "SitkaAlder2" } as const,
+  ArcticWillow: { tag: "ArcticWillow" } as const,
+  SitkaSpruce: { tag: "SitkaSpruce" } as const,
+  MountainHemlock: { tag: "MountainHemlock" } as const,
+  MountainHemlock2: { tag: "MountainHemlock2" } as const,
+  DwarfPine: { tag: "DwarfPine" } as const,
+  MountainHemlockSnow: { tag: "MountainHemlockSnow" } as const,
+  KrummholzSpruce: { tag: "KrummholzSpruce" } as const,
+  CrabAppleTree: { tag: "CrabAppleTree" } as const,
+  HazelnutTree: { tag: "HazelnutTree" } as const,
+  RowanberryTree: { tag: "RowanberryTree" } as const,
+
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_TreeType_type_value) return _cached_TreeType_type_value;
+    _cached_TreeType_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
+    _cached_TreeType_type_value.value.variants.push(
+      { name: "SiberianBirch", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SitkaAlder", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SitkaAlder2", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ArcticWillow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SitkaSpruce", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "MountainHemlock", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "MountainHemlock2", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DwarfPine", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "MountainHemlockSnow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "KrummholzSpruce", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CrabAppleTree", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "HazelnutTree", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "RowanberryTree", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+    );
+    return _cached_TreeType_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: TreeType): void {
+      __AlgebraicTypeValue.serializeValue(writer, TreeType.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): TreeType {
+      return __AlgebraicTypeValue.deserializeValue(reader, TreeType.getTypeScriptAlgebraicType());
+  },
+
+}
 
 export default TreeType;
 

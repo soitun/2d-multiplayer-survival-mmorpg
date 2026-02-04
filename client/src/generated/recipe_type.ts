@@ -4,22 +4,74 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import RecipeIngredient from "./recipe_ingredient_type";
+import { RecipeIngredient } from "./recipe_ingredient_type";
+// Mark import as potentially unused
+declare type __keep_RecipeIngredient = RecipeIngredient;
 
 
-export default __t.object("Recipe", {
-  recipeId: __t.u64(),
-  outputItemDefId: __t.u64(),
-  outputQuantity: __t.u32(),
-  get ingredients() {
-    return __t.array(RecipeIngredient);
+export type Recipe = {
+  recipeId: bigint,
+  outputItemDefId: bigint,
+  outputQuantity: number,
+  ingredients: RecipeIngredient[],
+  craftingTimeSecs: number,
+};
+let _cached_Recipe_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const Recipe = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_Recipe_type_value) return _cached_Recipe_type_value;
+    _cached_Recipe_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_Recipe_type_value.value.elements.push(
+      { name: "recipeId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "outputItemDefId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "outputQuantity", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "ingredients", algebraicType: __AlgebraicTypeValue.Array(RecipeIngredient.getTypeScriptAlgebraicType()) },
+      { name: "craftingTimeSecs", algebraicType: __AlgebraicTypeValue.U32 },
+    );
+    return _cached_Recipe_type_value;
   },
-  craftingTimeSecs: __t.u32(),
-});
+
+  serialize(writer: __BinaryWriter, value: Recipe): void {
+    __AlgebraicTypeValue.serializeValue(writer, Recipe.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): Recipe {
+    return __AlgebraicTypeValue.deserializeValue(reader, Recipe.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default Recipe;
 
 

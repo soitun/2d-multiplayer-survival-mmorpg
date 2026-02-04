@@ -4,51 +4,172 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
+import * as QuestObjectiveTypeVariants from './quest_objective_type_variants'
 
 // The tagged union or sum type for the algebraic type `QuestObjectiveType`.
-const QuestObjectiveType = __t.enum("QuestObjectiveType", {GatherWood: __t.unit(),
-  GatherStone: __t.unit(),
-  GatherFiber: __t.unit(),
-  HarvestPlant: __t.unit(),
-  HarvestSpecificPlant: __t.unit(),
-  MineCoral: __t.unit(),
-  ChopTree: __t.unit(),
-  MineStoneNode: __t.unit(),
-  CraftAnyItem: __t.unit(),
-  CraftSpecificItem: __t.unit(),
-  CollectSpecificItem: __t.unit(),
-  PlaceStructure: __t.unit(),
-  PlaceSpecificStructure: __t.unit(),
-  KillAnyAnimal: __t.unit(),
-  KillSpecificAnimal: __t.unit(),
-  KillWithWeaponType: __t.unit(),
-  CatchAnyFish: __t.unit(),
-  CatchSpecificFish: __t.unit(),
-  SurviveMinutes: __t.unit(),
-  EatFood: __t.unit(),
-  DrinkWater: __t.unit(),
-  DiscoverCairn: __t.unit(),
-  TravelDistance: __t.unit(),
-  DeliverAlkContract: __t.unit(),
-  EarnShards: __t.unit(),
-  PlantSeed: __t.unit(),
-  HarvestCrop: __t.unit(),
-  CompleteBrew: __t.unit(),
-  OpenInventory: __t.unit(),
-  UseHotbar: __t.unit(),
-  EquipArmor: __t.unit(),
-  EquipWeapon: __t.unit(),
-  PlaceShelter: __t.unit(),
-  PlaceCampfire: __t.unit(),
-  PlaceSleepingBag: __t.unit(),
-  PlaceStorageBox: __t.unit(),
-  PlaceFurnace: __t.unit(),
-});
+export type QuestObjectiveType = QuestObjectiveTypeVariants.GatherWood |
+  QuestObjectiveTypeVariants.GatherStone |
+  QuestObjectiveTypeVariants.GatherFiber |
+  QuestObjectiveTypeVariants.HarvestPlant |
+  QuestObjectiveTypeVariants.HarvestSpecificPlant |
+  QuestObjectiveTypeVariants.MineCoral |
+  QuestObjectiveTypeVariants.ChopTree |
+  QuestObjectiveTypeVariants.MineStoneNode |
+  QuestObjectiveTypeVariants.CraftAnyItem |
+  QuestObjectiveTypeVariants.CraftSpecificItem |
+  QuestObjectiveTypeVariants.CollectSpecificItem |
+  QuestObjectiveTypeVariants.PlaceStructure |
+  QuestObjectiveTypeVariants.PlaceSpecificStructure |
+  QuestObjectiveTypeVariants.KillAnyAnimal |
+  QuestObjectiveTypeVariants.KillSpecificAnimal |
+  QuestObjectiveTypeVariants.KillWithWeaponType |
+  QuestObjectiveTypeVariants.CatchAnyFish |
+  QuestObjectiveTypeVariants.CatchSpecificFish |
+  QuestObjectiveTypeVariants.SurviveMinutes |
+  QuestObjectiveTypeVariants.EatFood |
+  QuestObjectiveTypeVariants.DrinkWater |
+  QuestObjectiveTypeVariants.DiscoverCairn |
+  QuestObjectiveTypeVariants.TravelDistance |
+  QuestObjectiveTypeVariants.DeliverAlkContract |
+  QuestObjectiveTypeVariants.EarnShards |
+  QuestObjectiveTypeVariants.PlantSeed |
+  QuestObjectiveTypeVariants.HarvestCrop |
+  QuestObjectiveTypeVariants.CompleteBrew |
+  QuestObjectiveTypeVariants.OpenInventory |
+  QuestObjectiveTypeVariants.UseHotbar |
+  QuestObjectiveTypeVariants.EquipArmor |
+  QuestObjectiveTypeVariants.EquipWeapon |
+  QuestObjectiveTypeVariants.PlaceShelter |
+  QuestObjectiveTypeVariants.PlaceCampfire |
+  QuestObjectiveTypeVariants.PlaceSleepingBag |
+  QuestObjectiveTypeVariants.PlaceStorageBox |
+  QuestObjectiveTypeVariants.PlaceFurnace;
+
+let _cached_QuestObjectiveType_type_value: __AlgebraicTypeType | null = null;
+
+// A value with helper functions to construct the type.
+export const QuestObjectiveType = {
+  // Helper functions for constructing each variant of the tagged union.
+  // ```
+  // const foo = Foo.A(42);
+  // assert!(foo.tag === "A");
+  // assert!(foo.value === 42);
+  // ```
+  GatherWood: { tag: "GatherWood" } as const,
+  GatherStone: { tag: "GatherStone" } as const,
+  GatherFiber: { tag: "GatherFiber" } as const,
+  HarvestPlant: { tag: "HarvestPlant" } as const,
+  HarvestSpecificPlant: { tag: "HarvestSpecificPlant" } as const,
+  MineCoral: { tag: "MineCoral" } as const,
+  ChopTree: { tag: "ChopTree" } as const,
+  MineStoneNode: { tag: "MineStoneNode" } as const,
+  CraftAnyItem: { tag: "CraftAnyItem" } as const,
+  CraftSpecificItem: { tag: "CraftSpecificItem" } as const,
+  CollectSpecificItem: { tag: "CollectSpecificItem" } as const,
+  PlaceStructure: { tag: "PlaceStructure" } as const,
+  PlaceSpecificStructure: { tag: "PlaceSpecificStructure" } as const,
+  KillAnyAnimal: { tag: "KillAnyAnimal" } as const,
+  KillSpecificAnimal: { tag: "KillSpecificAnimal" } as const,
+  KillWithWeaponType: { tag: "KillWithWeaponType" } as const,
+  CatchAnyFish: { tag: "CatchAnyFish" } as const,
+  CatchSpecificFish: { tag: "CatchSpecificFish" } as const,
+  SurviveMinutes: { tag: "SurviveMinutes" } as const,
+  EatFood: { tag: "EatFood" } as const,
+  DrinkWater: { tag: "DrinkWater" } as const,
+  DiscoverCairn: { tag: "DiscoverCairn" } as const,
+  TravelDistance: { tag: "TravelDistance" } as const,
+  DeliverAlkContract: { tag: "DeliverAlkContract" } as const,
+  EarnShards: { tag: "EarnShards" } as const,
+  PlantSeed: { tag: "PlantSeed" } as const,
+  HarvestCrop: { tag: "HarvestCrop" } as const,
+  CompleteBrew: { tag: "CompleteBrew" } as const,
+  OpenInventory: { tag: "OpenInventory" } as const,
+  UseHotbar: { tag: "UseHotbar" } as const,
+  EquipArmor: { tag: "EquipArmor" } as const,
+  EquipWeapon: { tag: "EquipWeapon" } as const,
+  PlaceShelter: { tag: "PlaceShelter" } as const,
+  PlaceCampfire: { tag: "PlaceCampfire" } as const,
+  PlaceSleepingBag: { tag: "PlaceSleepingBag" } as const,
+  PlaceStorageBox: { tag: "PlaceStorageBox" } as const,
+  PlaceFurnace: { tag: "PlaceFurnace" } as const,
+
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_QuestObjectiveType_type_value) return _cached_QuestObjectiveType_type_value;
+    _cached_QuestObjectiveType_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
+    _cached_QuestObjectiveType_type_value.value.variants.push(
+      { name: "GatherWood", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "GatherStone", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "GatherFiber", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "HarvestPlant", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "HarvestSpecificPlant", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "MineCoral", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ChopTree", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "MineStoneNode", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CraftAnyItem", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CraftSpecificItem", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CollectSpecificItem", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PlaceStructure", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PlaceSpecificStructure", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "KillAnyAnimal", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "KillSpecificAnimal", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "KillWithWeaponType", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CatchAnyFish", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CatchSpecificFish", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "SurviveMinutes", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "EatFood", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DrinkWater", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DiscoverCairn", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "TravelDistance", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DeliverAlkContract", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "EarnShards", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PlantSeed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "HarvestCrop", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "CompleteBrew", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "OpenInventory", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "UseHotbar", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "EquipArmor", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "EquipWeapon", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PlaceShelter", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PlaceCampfire", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PlaceSleepingBag", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PlaceStorageBox", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "PlaceFurnace", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+    );
+    return _cached_QuestObjectiveType_type_value;
+  },
+
+  serialize(writer: __BinaryWriter, value: QuestObjectiveType): void {
+      __AlgebraicTypeValue.serializeValue(writer, QuestObjectiveType.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): QuestObjectiveType {
+      return __AlgebraicTypeValue.deserializeValue(reader, QuestObjectiveType.getTypeScriptAlgebraicType());
+  },
+
+}
 
 export default QuestObjectiveType;
 

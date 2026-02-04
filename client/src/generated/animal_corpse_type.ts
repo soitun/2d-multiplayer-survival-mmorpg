@@ -4,30 +4,90 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  TypeBuilder as __TypeBuilder,
-  t as __t,
-  type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
+  AlgebraicType as __AlgebraicTypeValue,
+  BinaryReader as __BinaryReader,
+  BinaryWriter as __BinaryWriter,
+  ClientCache as __ClientCache,
+  ConnectionId as __ConnectionId,
+  DbConnectionBuilder as __DbConnectionBuilder,
+  DbConnectionImpl as __DbConnectionImpl,
+  Identity as __Identity,
+  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
+  TableCache as __TableCache,
+  TimeDuration as __TimeDuration,
+  Timestamp as __Timestamp,
+  deepEqual as __deepEqual,
+  type AlgebraicType as __AlgebraicTypeType,
+  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
+  type CallReducerFlags as __CallReducerFlags,
+  type ErrorContextInterface as __ErrorContextInterface,
+  type Event as __Event,
+  type EventContextInterface as __EventContextInterface,
+  type ReducerEventContextInterface as __ReducerEventContextInterface,
+  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
+  type TableHandle as __TableHandle,
 } from "spacetimedb";
-import AnimalSpecies from "./animal_species_type";
+import { AnimalSpecies } from "./animal_species_type";
+// Mark import as potentially unused
+declare type __keep_AnimalSpecies = AnimalSpecies;
 
 
-export default __t.object("AnimalCorpse", {
-  id: __t.u32(),
-  get animalSpecies() {
-    return AnimalSpecies;
+export type AnimalCorpse = {
+  id: number,
+  animalSpecies: AnimalSpecies,
+  animalId: bigint,
+  posX: number,
+  posY: number,
+  chunkIndex: number,
+  deathTime: __Timestamp,
+  despawnAt: __Timestamp,
+  spawnedAt: __Timestamp,
+  health: number,
+  maxHealth: number,
+  lastHitTime: __Timestamp | undefined,
+  lastHitBy: __Identity | undefined,
+};
+let _cached_AnimalCorpse_type_value: __AlgebraicTypeType | null = null;
+
+/**
+ * An object for generated helper functions.
+ */
+export const AnimalCorpse = {
+  /**
+  * A function which returns this type represented as an AlgebraicType.
+  * This function is derived from the AlgebraicType used to generate this type.
+  */
+  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
+    if (_cached_AnimalCorpse_type_value) return _cached_AnimalCorpse_type_value;
+    _cached_AnimalCorpse_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_AnimalCorpse_type_value.value.elements.push(
+      { name: "id", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "animalSpecies", algebraicType: AnimalSpecies.getTypeScriptAlgebraicType() },
+      { name: "animalId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "posX", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "posY", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "deathTime", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+      { name: "despawnAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+      { name: "spawnedAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+      { name: "health", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "maxHealth", algebraicType: __AlgebraicTypeValue.U32 },
+      { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "lastHitBy", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createIdentityType()) },
+    );
+    return _cached_AnimalCorpse_type_value;
   },
-  animalId: __t.u64(),
-  posX: __t.f32(),
-  posY: __t.f32(),
-  chunkIndex: __t.u32(),
-  deathTime: __t.timestamp(),
-  despawnAt: __t.timestamp(),
-  spawnedAt: __t.timestamp(),
-  health: __t.u32(),
-  maxHealth: __t.u32(),
-  lastHitTime: __t.option(__t.timestamp()),
-  lastHitBy: __t.option(__t.identity()),
-});
+
+  serialize(writer: __BinaryWriter, value: AnimalCorpse): void {
+    __AlgebraicTypeValue.serializeValue(writer, AnimalCorpse.getTypeScriptAlgebraicType(), value);
+  },
+
+  deserialize(reader: __BinaryReader): AnimalCorpse {
+    return __AlgebraicTypeValue.deserializeValue(reader, AnimalCorpse.getTypeScriptAlgebraicType());
+  },
+
+}
+
+export default AnimalCorpse;
 
 
