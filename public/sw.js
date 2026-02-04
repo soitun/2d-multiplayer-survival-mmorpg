@@ -6,8 +6,13 @@
  * Network-first for API calls and dynamic content.
  */
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `game-assets-${CACHE_VERSION}`;
+
+// Production mode detection - silence verbose logs in production
+const IS_PRODUCTION = self.location.hostname !== 'localhost' && 
+                      !self.location.hostname.includes('127.0.0.1');
+const DEBUG_LOGGING = !IS_PRODUCTION;
 
 // Assets to precache on install (critical path)
 const PRECACHE_ASSETS = [
@@ -39,16 +44,16 @@ function matchesPattern(url, patterns) {
 
 // Install event - precache critical assets
 self.addEventListener('install', (event) => {
-    console.log('[SW] Installing service worker...');
+    if (DEBUG_LOGGING) console.log('[SW] Installing service worker...');
     
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => {
-                console.log('[SW] Precaching critical assets...');
+                if (DEBUG_LOGGING) console.log('[SW] Precaching critical assets...');
                 return cache.addAll(PRECACHE_ASSETS);
             })
             .then(() => {
-                console.log('[SW] Installation complete');
+                if (DEBUG_LOGGING) console.log('[SW] Installation complete');
                 // Skip waiting to activate immediately
                 return self.skipWaiting();
             })
@@ -60,7 +65,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-    console.log('[SW] Activating service worker...');
+    if (DEBUG_LOGGING) console.log('[SW] Activating service worker...');
     
     event.waitUntil(
         caches.keys()
@@ -69,13 +74,13 @@ self.addEventListener('activate', (event) => {
                     cacheNames
                         .filter(name => name.startsWith('game-assets-') && name !== CACHE_NAME)
                         .map(name => {
-                            console.log('[SW] Deleting old cache:', name);
+                            if (DEBUG_LOGGING) console.log('[SW] Deleting old cache:', name);
                             return caches.delete(name);
                         })
                 );
             })
             .then(() => {
-                console.log('[SW] Activation complete, claiming clients...');
+                if (DEBUG_LOGGING) console.log('[SW] Activation complete, claiming clients...');
                 return self.clients.claim();
             })
     );
@@ -103,11 +108,13 @@ self.addEventListener('fetch', (event) => {
     
     // For cacheable assets, use cache-first strategy
     if (matchesPattern(url, CACHEABLE_PATTERNS)) {
-        // Log the first few cacheable requests to debug
-        if (!self._loggedRequests) self._loggedRequests = 0;
-        if (self._loggedRequests < 5) {
-            console.log('[SW] Intercepting cacheable asset:', url.split('/').pop());
-            self._loggedRequests++;
+        // Log the first few cacheable requests to debug (only in dev)
+        if (DEBUG_LOGGING) {
+            if (!self._loggedRequests) self._loggedRequests = 0;
+            if (self._loggedRequests < 5) {
+                console.log('[SW] Intercepting cacheable asset:', url.split('/').pop());
+                self._loggedRequests++;
+            }
         }
         event.respondWith(cacheFirst(event.request));
         return;
@@ -126,7 +133,7 @@ async function cacheFirst(request) {
         // Return cached version immediately
         // Also update cache in background (stale-while-revalidate)
         updateCache(request, cache);
-        console.debug('[SW] Cache HIT:', request.url.split('/').pop());
+        if (DEBUG_LOGGING) console.debug('[SW] Cache HIT:', request.url.split('/').pop());
         return cachedResponse;
     }
     
@@ -141,13 +148,13 @@ async function cacheFirst(request) {
             // Clone because response can only be consumed once
             try {
                 cache.put(request, networkResponse.clone());
-                console.debug('[SW] Cached NEW asset:', request.url.split('/').pop());
+                if (DEBUG_LOGGING) console.debug('[SW] Cached NEW asset:', request.url.split('/').pop());
             } catch (e) {
                 // Silently ignore cache errors (e.g., unsupported schemes that slipped through)
-                console.debug('[SW] Cache put failed:', e.message);
+                if (DEBUG_LOGGING) console.debug('[SW] Cache put failed:', e.message);
             }
         } else {
-            console.debug('[SW] NOT caching (status:', networkResponse.status, '):', request.url.split('/').pop());
+            if (DEBUG_LOGGING) console.debug('[SW] NOT caching (status:', networkResponse.status, '):', request.url.split('/').pop());
         }
         
         return networkResponse;
@@ -170,7 +177,7 @@ async function networkFirst(request) {
                 cache.put(request, networkResponse.clone());
             } catch (e) {
                 // Silently ignore cache errors
-                console.debug('[SW] Cache put failed:', e.message);
+                if (DEBUG_LOGGING) console.debug('[SW] Cache put failed:', e.message);
             }
         }
         
@@ -270,5 +277,5 @@ async function getCacheStats() {
     }
 }
 
-console.log('[SW] Service worker script loaded');
+if (DEBUG_LOGGING) console.log('[SW] Service worker script loaded');
 
