@@ -476,15 +476,26 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
                 </div>
             )}
 
-            {/* Matronage Creation Section - Only at Central Compound with Matron's Mark */}
-            {isCentralCompound && hasMatronsMark && !isInMatronage && (
-                <div className="alk-matronage-section">
+            {/* Matronage Creation Section - Always shown at Central Compound, greyed out if unavailable */}
+            {isCentralCompound && (
+                <div className={`alk-matronage-section ${!hasMatronsMark || isInMatronage ? 'disabled' : ''}`}>
                     <div className="matronage-header">
                         <span className="matronage-icon">🏛️</span>
                         <h3>Found a Matronage</h3>
+                        {isInMatronage && (
+                            <span className="matronage-status in-matronage">Already in Matronage</span>
+                        )}
+                        {!isInMatronage && !hasMatronsMark && (
+                            <span className="matronage-status needs-mark">Requires Matron's Mark</span>
+                        )}
                     </div>
                     <p className="matronage-desc">
-                        Use your Matron's Mark to create a cooperative for pooling work order rewards.
+                        {isInMatronage 
+                            ? `You are a member of "${playerMatronage?.name || 'a Matronage'}". Leave to found your own.`
+                            : hasMatronsMark
+                                ? 'Use your Matron\'s Mark to create a cooperative for pooling work order rewards.'
+                                : 'Obtain a Matron\'s Mark to create your own cooperative for pooling work order rewards with allies.'
+                        }
                     </p>
                     {matronageError && (
                         <div className="matronage-error">{matronageError}</div>
@@ -493,19 +504,19 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
                         <input
                             type="text"
                             className="matronage-name-input"
-                            placeholder="Enter Matronage Name (1-32 chars)"
+                            placeholder={hasMatronsMark ? "Enter Matronage Name (1-32 chars)" : "Matron's Mark required..."}
                             value={matronageName}
                             onChange={(e) => setMatronageName(e.target.value)}
                             onFocus={() => setIsInputFocused(true)}
                             onBlur={() => setIsInputFocused(false)}
                             maxLength={32}
-                            disabled={isCreatingMatronage}
+                            disabled={isCreatingMatronage || !hasMatronsMark || isInMatronage}
                             data-allow-spacebar="true"
                         />
                         <button
                             className="matronage-create-btn"
                             onClick={handleCreateMatronage}
-                            disabled={isCreatingMatronage || !matronageName.trim()}
+                            disabled={isCreatingMatronage || !matronageName.trim() || !hasMatronsMark || isInMatronage}
                         >
                             {isCreatingMatronage ? 'Creating...' : 'Found Matronage'}
                         </button>

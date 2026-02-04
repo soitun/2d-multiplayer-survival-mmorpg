@@ -3223,14 +3223,10 @@ impl MonumentPlaceableConfig {
 
 /// Get monument placeables for the Central ALK Compound
 /// The central compound is at a fixed position in the world center
+/// NOTE: Furnaces and campfires removed - keeping the compound clean
 pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
     vec![
-        // Two campfires on opposite sides
-        MonumentPlaceableConfig::campfire(-150.0, 200.0),
-        MonumentPlaceableConfig::campfire(150.0, 200.0),
-        // Two furnaces further back
-        MonumentPlaceableConfig::furnace(-300.0, -100.0),
-        MonumentPlaceableConfig::furnace(300.0, -100.0),
+        // No placeables - keeping the Central Compound clean
     ]
 }
 

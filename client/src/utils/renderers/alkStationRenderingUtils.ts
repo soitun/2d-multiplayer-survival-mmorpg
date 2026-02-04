@@ -103,22 +103,18 @@ export function preloadAlkCentralCompoundImage(): Promise<HTMLImageElement | nul
 
 /**
  * Preload all ALK station images
+ * All stations now use alk_substation.png, so only preload that
  */
 export function preloadAlkStationImages(): Promise<void> {
-    return Promise.all([
-        preloadAlkSubstationImage(),
-        preloadAlkCentralCompoundImage()
-    ]).then(() => {});
+    return preloadAlkSubstationImage().then(() => {});
 }
 
 /**
  * Get the appropriate ALK station image based on station ID
- * Station ID 0 = Central Compound, all others = Substations
+ * All stations (including Central Compound) now use alk_substation.png
  */
 export function getAlkStationImage(stationId: number): HTMLImageElement | null {
-    if (stationId === 0) {
-        return alkCentralCompoundImage;
-    }
+    // All stations use the same substation sprite
     return alkSubstationImage;
 }
 
@@ -158,22 +154,20 @@ export function renderAlkStation(
     if (!station.isActive) return;
     
     // Station ID 0 = Central Compound, all others = Substations
+    // Central Compound now uses alk_substation.png sprite
     const isCentralCompound = station.stationId === 0;
-    const imageFileName = isCentralCompound ? 'alk_central_compound.png' : 'alk_substation.png';
+    const imageFileName = 'alk_substation.png';
     
     // Try to get image from doodadImagesRef first, then fallback to module-level preloaded images
     let img: HTMLImageElement | null | undefined = doodadImagesRef?.current?.get(imageFileName);
     if (!img) {
-        img = isCentralCompound ? alkCentralCompoundImage : alkSubstationImage;
+        // All stations (including Central Compound) now use alk_substation.png
+        img = alkSubstationImage;
     }
     
     if (!img) {
-        // Trigger preload for the appropriate image and render placeholder
-        if (isCentralCompound) {
-            preloadAlkCentralCompoundImage();
-        } else {
-            preloadAlkSubstationImage();
-        }
+        // Trigger preload for substation image and render placeholder
+        preloadAlkSubstationImage();
         renderPlaceholder(ctx, station, isHighlighted, isCentralCompound);
         return;
     }
