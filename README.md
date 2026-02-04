@@ -39,7 +39,7 @@ For experienced users familiar with Node.js, Rust, and SpacetimeDB. See detailed
 
 This project uses:
 - **SpacetimeDB CLI**: `1.6.0`
-- **SpacetimeDB Rust Crate**: `1.6.0` (from `spacetimedb = "1.1"` in Cargo.toml)
+- **SpacetimeDB Rust Crate**: `1.6.0`
 - **SpacetimeDB TypeScript SDK**: `spacetimedb@1.6.1` (npm package)
 
 **0. Install SpacetimeDB CLI:**
