@@ -57,6 +57,8 @@ interface AlkDeliveryPanelProps {
     matronages?: Map<string, any>;
     // Callback when a matronage is created - opens matronage page
     onMatronageCreated?: () => void;
+    // Callback to open ALK provisioning board (G menu) to a specific tab
+    onOpenAlkBoard?: (tab?: string) => void;
 }
 
 export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
@@ -72,6 +74,7 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
     matronageMembers,
     matronages,
     onMatronageCreated,
+    onOpenAlkBoard,
 }) => {
     const { connection } = useGameConnection();
     const [deliveryStatus, setDeliveryStatus] = useState<string | null>(null);
@@ -435,6 +438,43 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
                     {inventoryShardCount.toLocaleString()}
                 </span>
             </div>
+
+            {/* Central Compound Quick Actions - Only shown at station 0 */}
+            {isCentralCompound && onOpenAlkBoard && (
+                <div className="alk-quick-actions">
+                    <div className="quick-actions-header">
+                        <span className="quick-actions-icon">📋</span>
+                        <span className="quick-actions-title">ALK Provisioning Board</span>
+                    </div>
+                    <div className="quick-actions-buttons">
+                        <button 
+                            className="quick-action-btn buy-orders"
+                            onClick={() => onOpenAlkBoard('buy-orders')}
+                            title="Spend Memory Shards to buy materials"
+                        >
+                            <span className="btn-icon">🛒</span>
+                            <span className="btn-text">Buy Materials</span>
+                        </button>
+                        <button 
+                            className="quick-action-btn work-orders"
+                            onClick={() => onOpenAlkBoard('seasonal')}
+                            title="Accept work orders to earn Memory Shards"
+                        >
+                            <span className="btn-icon">📜</span>
+                            <span className="btn-text">Work Orders</span>
+                        </button>
+                        <button 
+                            className="quick-action-btn my-contracts"
+                            onClick={() => onOpenAlkBoard('my-contracts')}
+                            title="View your accepted contracts"
+                        >
+                            <span className="btn-icon">📦</span>
+                            <span className="btn-text">My Contracts</span>
+                        </button>
+                    </div>
+                    <p className="quick-actions-hint">Central Compound: No delivery fee • Buy orders available here</p>
+                </div>
+            )}
 
             {/* Matronage Creation Section - Only at Central Compound with Matron's Mark */}
             {isCentralCompound && hasMatronsMark && !isInMatronage && (

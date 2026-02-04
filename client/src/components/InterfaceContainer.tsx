@@ -51,6 +51,10 @@ interface InterfaceContainerProps {
   worldState?: WorldState | null;
   itemDefinitions?: Map<string, ItemDefinition>;
   inventoryItems?: Map<string, any>; // For counting Memory Shards
+  // Player position for ALK station proximity checking
+  playerPosition?: { x: number; y: number } | null;
+  // Initial tab for ALK Panel (e.g., 'buy-orders' when coming from delivery panel)
+  alkInitialTab?: 'seasonal' | 'materials' | 'arms' | 'armor' | 'tools' | 'provisions' | 'bonus' | 'buy-orders' | 'my-contracts';
   // Cairns Panel data props
   cairns?: Map<string, Cairn>;
   playerDiscoveredCairns?: Map<string, PlayerDiscoveredCairn>;
@@ -94,6 +98,8 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   worldState,
   itemDefinitions,
   inventoryItems,
+  playerPosition,
+  alkInitialTab,
   // Cairns Panel data props
   cairns,
   playerDiscoveredCairns,
@@ -927,6 +933,8 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
               worldState={worldState || null}
               itemDefinitions={itemDefinitions || new Map()}
               inventoryItems={inventoryItems || new Map()}
+              playerPosition={playerPosition}
+              initialTab={alkInitialTab}
             />
           </div>
         );

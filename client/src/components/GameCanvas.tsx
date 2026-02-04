@@ -231,6 +231,8 @@ interface GameCanvasProps {
   setIsMinimapOpen: React.Dispatch<React.SetStateAction<boolean>>;
   // Initial view for InterfaceContainer (e.g., 'matronage' after creating one)
   interfaceInitialView?: 'minimap' | 'encyclopedia' | 'memory-grid' | 'alk' | 'cairns' | 'matronage' | 'leaderboard' | 'achievements';
+  // Initial tab for ALK Panel (e.g., 'buy-orders' when coming from delivery panel)
+  alkInitialTab?: 'seasonal' | 'materials' | 'arms' | 'armor' | 'tools' | 'provisions' | 'bonus' | 'buy-orders' | 'my-contracts';
   // Callback to reset the initial view after interface closes
   onInterfaceClose?: () => void;
   isChatting: boolean;
@@ -396,6 +398,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   isMinimapOpen,
   setIsMinimapOpen,
   interfaceInitialView,
+  alkInitialTab,
   onInterfaceClose,
   isChatting,
   messages,
@@ -4749,6 +4752,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             worldState={worldState}
             itemDefinitions={itemDefinitions}
             inventoryItems={inventoryItems}
+            playerPosition={predictedPosition ?? (localPlayer ? { x: localPlayer.positionX, y: localPlayer.positionY } : null)}
+            alkInitialTab={alkInitialTab}
             // Cairns Panel data props
             cairns={cairns}
             playerDiscoveredCairns={playerDiscoveredCairns}

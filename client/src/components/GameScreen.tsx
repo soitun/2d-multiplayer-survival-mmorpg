@@ -518,6 +518,10 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     // Local speech bubbles for /s (say) command
     const [localBubbles, setLocalBubbles] = useState<Array<{id: string, message: string, playerId: string, timestamp: number}>>([]);
 
+    // ALK initial tab state - used when opening ALK panel from delivery panel
+    type AlkTab = 'seasonal' | 'materials' | 'arms' | 'armor' | 'tools' | 'provisions' | 'bonus' | 'buy-orders' | 'my-contracts';
+    const [alkInitialTab, setAlkInitialTab] = useState<AlkTab | undefined>(undefined);
+    
     // SOVA loading bar state
     const [sovaLoadingState, setSOVALoadingState] = useState({
         isRecording: false,
@@ -677,6 +681,17 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         handleSetInteractingWith(null);
         // Open interface container to matronage tab
         setInterfaceInitialView?.('matronage');
+        setIsMinimapOpen(true);
+    }, [handleSetInteractingWith, setInterfaceInitialView, setIsMinimapOpen]);
+    
+    // Handle opening ALK Board to a specific tab - close delivery panel and open ALK panel
+    const handleOpenAlkBoard = useCallback((tab?: string) => {
+        // Close the ALK delivery panel
+        handleSetInteractingWith(null);
+        // Store the desired ALK tab in state so it can be passed to InterfaceContainer
+        setAlkInitialTab(tab as AlkTab | undefined);
+        // Open interface container to ALK tab
+        setInterfaceInitialView?.('alk');
         setIsMinimapOpen(true);
     }, [handleSetInteractingWith, setInterfaceInitialView, setIsMinimapOpen]);
 
@@ -1185,6 +1200,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 isMinimapOpen={isMinimapOpen}
                 setIsMinimapOpen={setIsMinimapOpen}
                 interfaceInitialView={interfaceInitialView}
+                alkInitialTab={alkInitialTab}
                 onInterfaceClose={handleInterfaceClose}
                 isChatting={isChatting}
                 messages={messages}
@@ -1530,6 +1546,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     matronageMembers={props.matronageMembers}
                     matronages={props.matronages}
                     onMatronageCreated={handleMatronageCreated}
+                    onOpenAlkBoard={handleOpenAlkBoard}
                 />
             )}
 

@@ -232,6 +232,126 @@
     cursor: not-allowed;
 }
 
+/* Quick Actions Section (Central Compound Only) */
+.alk-quick-actions {
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.08) 0%, rgba(0, 100, 150, 0.05) 100%);
+    border-bottom: 2px solid rgba(0, 212, 255, 0.3);
+}
+
+.quick-actions-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.quick-actions-icon {
+    font-size: 16px;
+}
+
+.quick-actions-title {
+    font-size: 12px;
+    font-weight: bold;
+    color: #00d4ff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.quick-actions-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.quick-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 8px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    color: #ccc;
+    font-family: 'Courier New', monospace;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.quick-action-btn:hover {
+    background: rgba(0, 212, 255, 0.15);
+    border-color: rgba(0, 212, 255, 0.5);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.quick-action-btn .btn-icon {
+    font-size: 18px;
+}
+
+.quick-action-btn .btn-text {
+    font-size: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Buy Orders Button - Gold/Orange accent */
+.quick-action-btn.buy-orders {
+    border-color: rgba(255, 170, 0, 0.3);
+}
+
+.quick-action-btn.buy-orders:hover {
+    background: rgba(255, 170, 0, 0.2);
+    border-color: rgba(255, 170, 0, 0.6);
+    box-shadow: 0 0 10px rgba(255, 170, 0, 0.3);
+}
+
+.quick-action-btn.buy-orders .btn-text {
+    color: #ffdd00;
+}
+
+/* Work Orders Button - Cyan accent */
+.quick-action-btn.work-orders {
+    border-color: rgba(0, 212, 255, 0.3);
+}
+
+.quick-action-btn.work-orders:hover {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: rgba(0, 212, 255, 0.6);
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+}
+
+.quick-action-btn.work-orders .btn-text {
+    color: #00d4ff;
+}
+
+/* My Contracts Button - Green accent */
+.quick-action-btn.my-contracts {
+    border-color: rgba(0, 255, 136, 0.3);
+}
+
+.quick-action-btn.my-contracts:hover {
+    background: rgba(0, 255, 136, 0.15);
+    border-color: rgba(0, 255, 136, 0.6);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+}
+
+.quick-action-btn.my-contracts .btn-text {
+    color: #00ff88;
+}
+
+.quick-actions-hint {
+    margin: 0;
+    font-size: 10px;
+    color: #00d4ff;
+    text-align: center;
+    opacity: 0.8;
+}
+
 /* Contract List */
 .alk-delivery-contracts {
     flex: 1;

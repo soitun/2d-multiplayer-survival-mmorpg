@@ -272,6 +272,7 @@ import beetsIcon from '../assets/items/beet.png';
 import cookedBeetIcon from '../assets/items/cooked_beet.png';
 import horseradishIcon from '../assets/items/horseradish.png';
 import salsifyIcon from '../assets/items/salsify.png';
+import cookedSalsifyIcon from '../assets/items/cooked_salsify.png';
 import cabbageIcon from '../assets/items/cabbage.png';
 import cookedCabbageIcon from '../assets/items/cooked_cabbage.png';
 import fireweedShootsIcon from '../assets/items/fireweed_shoots.png';
@@ -323,6 +324,7 @@ import bearGarlicIcon from '../assets/items/bear_garlic.png';
 import siberianGinsengIcon from '../assets/items/siberian_ginseng.png';
 import ginsengLeavesIcon from '../assets/items/ginseng_leaves.png';
 import nettleLeavesIcon from '../assets/items/nettle_leaves.png';
+import cookedNettleLeavesIcon from '../assets/items/cooked_nettle_leaves.png';
 
 // Arctic/Subarctic plants (botanically accurate for Aleutian Islands)
 import scurvyGrassIcon from '../assets/items/scurvy_grass.png';
@@ -409,6 +411,7 @@ import rawSmeltIcon from '../assets/items/raw_smelt.png';
 import rawBlackKatyChitonIcon from '../assets/items/raw_black_katy_chiton.png';
 import rawSeaUrchinIcon from '../assets/items/raw_sea_urchin.png';
 import rawBlueMusselIcon from '../assets/items/raw_blue_mussel.png';
+import cookedBlueMusselIcon from '../assets/items/cooked_blue_mussel.png';
 import rawGreenlingIcon from '../assets/items/raw_greenling.png';
 import rawSculpinIcon from '../assets/items/raw_sculpin.png';
 import rawPacificCodIcon from '../assets/items/raw_pacific_cod.png';
@@ -422,6 +425,20 @@ import rawHalibutIcon from '../assets/items/raw_halibut.png';
 
 // Fish - Cooked versions (burnt items use cooked icons with visual filter)
 import cookedTwigfishIcon from '../assets/items/cooked_twigfish.png';
+import cookedHerringIcon from '../assets/items/cooked_herring.png';
+import cookedSmeltIcon from '../assets/items/cooked_smelt.png';
+import cookedGreenlingIcon from '../assets/items/cooked_greenling.png';
+import cookedSculpinIcon from '../assets/items/cooked_sculpin.png';
+import cookedPacificCodIcon from '../assets/items/cooked_pacific_cod.png';
+import cookedDollyVardenIcon from '../assets/items/cooked_dolly_varden.png';
+import cookedRockfishIcon from '../assets/items/cooked_rockfish.png';
+import cookedSteelheadIcon from '../assets/items/cooked_steelhead.png';
+import cookedPinkSalmonIcon from '../assets/items/cooked_pink_salmon.png';
+import cookedSockeyeSalmonIcon from '../assets/items/cooked_sockeye_salmon.png';
+import cookedKingSalmonIcon from '../assets/items/cooked_king_salmon.png';
+import cookedHalibutIcon from '../assets/items/cooked_halibut.png';
+import cookedBlackKatyChitonIcon from '../assets/items/cooked_black_katy_chiton.png';
+import cookedSeaUrchinIcon from '../assets/items/cooked_sea_urchin.png';
 
 // Specialty foods
 import tallowIcon from '../assets/items/tallow.png';
@@ -856,6 +873,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'cooked_beet.png': cookedBeetIcon,
   'horseradish.png': horseradishIcon,
   'salsify.png': salsifyIcon,
+  'cooked_salsify.png': cookedSalsifyIcon,
   'cabbage.png': cabbageIcon,
   'cooked_cabbage.png': cookedCabbageIcon,
   'fireweed_shoots.png': fireweedShootsIcon,
@@ -915,6 +933,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'siberian_ginseng.png': siberianGinsengIcon,
   'ginseng_leaves.png': ginsengLeavesIcon,
   'nettle_leaves.png': nettleLeavesIcon,
+  'cooked_nettle_leaves.png': cookedNettleLeavesIcon,
   
   // Arctic/Subarctic plants (botanically accurate for Aleutian Islands)
   'scurvy_grass.png': scurvyGrassIcon,
@@ -1002,6 +1021,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'raw_black_katy_chiton.png': rawBlackKatyChitonIcon,
   'raw_sea_urchin.png': rawSeaUrchinIcon,
   'raw_blue_mussel.png': rawBlueMusselIcon,
+  'cooked_blue_mussel.png': cookedBlueMusselIcon,
   'raw_greenling.png': rawGreenlingIcon,
   'raw_sculpin.png': rawSculpinIcon,
   'raw_pacific_cod.png': rawPacificCodIcon,
@@ -1015,6 +1035,20 @@ const iconMap: { [key: string]: string | undefined } = {
   
   // Fish - Cooked versions (burnt items use cooked icons with visual filter)
   'cooked_twigfish.png': cookedTwigfishIcon,
+  'cooked_herring.png': cookedHerringIcon,
+  'cooked_smelt.png': cookedSmeltIcon,
+  'cooked_greenling.png': cookedGreenlingIcon,
+  'cooked_sculpin.png': cookedSculpinIcon,
+  'cooked_pacific_cod.png': cookedPacificCodIcon,
+  'cooked_dolly_varden.png': cookedDollyVardenIcon,
+  'cooked_rockfish.png': cookedRockfishIcon,
+  'cooked_steelhead.png': cookedSteelheadIcon,
+  'cooked_pink_salmon.png': cookedPinkSalmonIcon,
+  'cooked_sockeye_salmon.png': cookedSockeyeSalmonIcon,
+  'cooked_king_salmon.png': cookedKingSalmonIcon,
+  'cooked_halibut.png': cookedHalibutIcon,
+  'cooked_black_katy_chiton.png': cookedBlackKatyChitonIcon,
+  'cooked_sea_urchin.png': cookedSeaUrchinIcon,
   
   // Specialty foods
   'tallow.png': tallowIcon,

@@ -53,6 +53,10 @@ interface AlkPanelProps {
     worldState: WorldState | null;
     itemDefinitions: Map<string, ItemDefinition>;
     inventoryItems?: Map<string, any>; // For counting Memory Shards
+    // Player position for station proximity checking
+    playerPosition?: { x: number; y: number } | null;
+    // Initial tab to open to (e.g., 'buy-orders' when coming from delivery panel)
+    initialTab?: AlkTab;
 }
 
 // Tab types - expanded for all contract categories
@@ -764,14 +768,43 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
     worldState,
     itemDefinitions,
     inventoryItems,
+    playerPosition,
+    initialTab,
 }) => {
-    const [activeTab, setActiveTab] = useState<AlkTab>('seasonal');
+    const [activeTab, setActiveTab] = useState<AlkTab>(initialTab || 'seasonal');
     const [nearbyStationId, setNearbyStationId] = useState<number | null>(null);
     const [isQuantityInputFocused, setIsQuantityInputFocused] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchFocused, setIsSearchFocused] = useState(false);
 
     const connection = useGameConnection();
+    
+    // Check station proximity when player position changes
+    useEffect(() => {
+        if (!playerPosition || alkStations.size === 0) {
+            setNearbyStationId(null);
+            return;
+        }
+        
+        let nearestStationId: number | null = null;
+        let nearestDistanceSq = Infinity;
+        
+        for (const station of alkStations.values()) {
+            if (!station.isActive) continue;
+            
+            const dx = playerPosition.x - station.worldPosX;
+            const dy = playerPosition.y - station.worldPosY;
+            const distanceSq = dx * dx + dy * dy;
+            const radiusSq = station.interactionRadius * station.interactionRadius;
+            
+            if (distanceSq <= radiusSq && distanceSq < nearestDistanceSq) {
+                nearestDistanceSq = distanceSq;
+                nearestStationId = station.stationId;
+            }
+        }
+        
+        setNearbyStationId(nearestStationId);
+    }, [playerPosition, alkStations]);
     
     // Block movement keys while panel is open to prevent character movement during UI interaction
     // Also block when quantity input or search input is focused (to prevent movement while typing)
