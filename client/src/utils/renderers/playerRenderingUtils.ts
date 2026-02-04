@@ -228,6 +228,56 @@ export const isPlayerHovered = (
   return distSq < radiusSq;
 };
 
+// Helper function to check if a player has active PvP status
+const isPvpActive = (player: SpacetimeDBPlayer, currentTimeMs: number): boolean => {
+  if (!player.pvpEnabled) {
+    return false;
+  }
+  
+  // If pvpEnabledUntil is set, check if it hasn't expired
+  if (player.pvpEnabledUntil) {
+    const untilMs = Number(player.pvpEnabledUntil.seconds) * 1000 + 
+                    Math.floor(Number(player.pvpEnabledUntil.nanoseconds) / 1_000_000);
+    return untilMs > currentTimeMs;
+  }
+  
+  return false;
+};
+
+// Draws the PvP indicator badge above the name tag
+const drawPvpIndicator = (
+  ctx: CanvasRenderingContext2D,
+  spriteTopY: number,
+  spriteX: number,
+  tagY: number // Position of the name tag
+) => {
+  const pvpText = 'PvP';
+  ctx.font = 'bold 10px Arial';
+  ctx.textAlign = 'center';
+  
+  const pvpTextWidth = ctx.measureText(pvpText).width;
+  const pvpPadding = 4;
+  const pvpHeight = 14;
+  const pvpWidth = pvpTextWidth + pvpPadding * 2;
+  const pvpX = spriteX - pvpWidth / 2;
+  const pvpY = tagY - pvpHeight - 2; // Position above the name tag
+  
+  // Draw red background with slight transparency
+  ctx.fillStyle = 'rgba(220, 53, 69, 0.9)'; // Bootstrap-style danger red
+  ctx.beginPath();
+  ctx.roundRect(pvpX, pvpY, pvpWidth, pvpHeight, 3);
+  ctx.fill();
+  
+  // Draw red border for emphasis
+  ctx.strokeStyle = 'rgba(255, 100, 100, 0.8)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  
+  // Draw text
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText(pvpText, spriteX, pvpY + pvpHeight / 2 + 3);
+};
+
 // Draws the styled name tag (Make exportable)
 export const drawNameTag = (
   ctx: CanvasRenderingContext2D,
@@ -236,7 +286,8 @@ export const drawNameTag = (
   spriteX: number, // Added new parameter for shaken X position
   isOnline: boolean, // <<< CHANGED: Pass explicit online status
   showLabel: boolean = true, // Add parameter to control visibility
-  activeTitle?: string | null // ADDED: Player's active title to display
+  activeTitle?: string | null, // ADDED: Player's active title to display
+  currentTimeMs?: number // ADDED: Current time for PvP status check
 ) => {
   if (!showLabel) return; // Skip rendering if not showing label
   
@@ -285,6 +336,12 @@ export const drawNameTag = (
   } else {
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText(displayText, spriteX, tagY + tagHeight / 2 + 4);
+  }
+  
+  // --- PVP INDICATOR ---
+  // Draw PvP badge above the name tag if player has active PvP
+  if (isOnline && currentTimeMs && isPvpActive(player, currentTimeMs)) {
+    drawPvpIndicator(ctx, spriteTopY, spriteX, tagY);
   }
 };
 
@@ -1173,16 +1230,16 @@ export const renderPlayer = (
   // - Living players: when hovered or shouldShowLabel is true
   // - Corpses: when shouldShowLabel is true (so players can identify whose corpse it is)
   if (isCorpse) {
-    // Corpses always show nametag if shouldShowLabel is true (no title for corpses)
+    // Corpses always show nametag if shouldShowLabel is true (no title for corpses, no PvP indicator)
     if (shouldShowLabel) {
-      drawNameTag(ctx, player, spriteDrawY, currentDisplayX + shakeX, finalIsOnline, true, null);
+      drawNameTag(ctx, player, spriteDrawY, currentDisplayX + shakeX, finalIsOnline, true, null, undefined);
     }
   } else if (!player.isDead) {
     // Living players: show based on hover or persistent label state
     const showingDueToCurrentHover = isHovered;
     const showingDueToPersistentState = shouldShowLabel;
     const willShowLabel = showingDueToCurrentHover || showingDueToPersistentState;
-    drawNameTag(ctx, player, spriteDrawY, currentDisplayX + shakeX, finalIsOnline, willShowLabel, activeTitle);
+    drawNameTag(ctx, player, spriteDrawY, currentDisplayX + shakeX, finalIsOnline, willShowLabel, activeTitle, nowMs);
     
     // NOTE: Throw indicator bubble disabled - was confusing for players
     // drawThrowIndicatorBubble(ctx, player, spriteDrawY, currentDisplayX + shakeX, nowMs);

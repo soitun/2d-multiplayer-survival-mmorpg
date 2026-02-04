@@ -495,7 +495,7 @@ pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
                         id: 0,
                         recipient_identity: sender_id,
                         sender_display_name: "SYSTEM".to_string(),
-                        text: "PvP ENABLED for 30 minutes! You gain +25% XP. You can attack (and be attacked by) other PvP players and raid their structures.".to_string(),
+                        text: "PvP ENABLED for 30 minutes! You gain +25% XP. You can be attacked by ANYONE (they become PvP-flagged if they attack you). You can also raid structures.".to_string(),
                         sent: current_time,
                     };
                     ctx.db.private_message().insert(feedback);

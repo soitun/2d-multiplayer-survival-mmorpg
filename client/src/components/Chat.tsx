@@ -685,7 +685,8 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
     };
   }, [connection, localPlayerIdentity, matronageMembers]);
 
-  // Track new messages (public, private, or team) and scroll to bottom
+  // Track new messages - only scroll to bottom on initial open (ChatMessageHistory handles smart scroll)
+  // This effect now only tracks message counts for other purposes, not auto-scrolling
   useEffect(() => {
     // Calculate count based on active tab
     let totalCurrentCount = 0;
@@ -698,13 +699,10 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
       return;
     }
     
-    if (totalCurrentCount > lastMessageCountRef.current || (isChatting && totalCurrentCount > 0)) {
-        if (messageEndRef.current) {
-            messageEndRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-    }
+    // NOTE: Auto-scrolling is now handled by ChatMessageHistory with smart scroll
+    // Only update the count reference - ChatMessageHistory handles actual scrolling
     lastMessageCountRef.current = totalCurrentCount;
-  }, [messages, privateMessages, teamMessages, isChatting, activeTab]);
+  }, [messages, privateMessages, teamMessages, activeTab]);
 
   // Track new SOVA messages and scroll to bottom
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, RefObject, useMemo } from 'react';
+import React, { useEffect, useRef, RefObject, useMemo, useCallback } from 'react';
 import { Message as SpacetimeDBMessage, Player as SpacetimeDBPlayer, PrivateMessage as SpacetimeDBPrivateMessage, TeamMessage as SpacetimeDBTeamMessage } from '../generated'; // Assuming Message and Player types are generated
 import { Identity } from 'spacetimedb'; // Import Identity directly from SDK
 import styles from './Chat.module.css';
@@ -11,6 +11,9 @@ type CombinedMessage = (SpacetimeDBMessage | SpacetimeDBPrivateMessage | Spaceti
   // Optional title field (for messages with sender_title)
   senderTitle?: string | null;
 };
+
+// Threshold for considering user "at bottom" - if within this many pixels, auto-scroll
+const SCROLL_BOTTOM_THRESHOLD = 100;
 
 interface ChatMessageHistoryProps {
   messages: Map<string, SpacetimeDBMessage>; // Pass the messages map
@@ -35,6 +38,21 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({
   matronages,
 }) => {
   const historyRef = useRef<HTMLDivElement>(null);
+  // Track if user is at/near bottom for smart auto-scroll
+  const isUserAtBottomRef = useRef(true);
+  const prevMessageCountRef = useRef(0);
+
+  // Check if scroll position is near the bottom
+  const checkIfAtBottom = useCallback(() => {
+    if (!historyRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = historyRef.current;
+    return scrollHeight - scrollTop - clientHeight < SCROLL_BOTTOM_THRESHOLD;
+  }, []);
+
+  // Handle scroll events to track if user is at bottom
+  const handleScroll = useCallback(() => {
+    isUserAtBottomRef.current = checkIfAtBottom();
+  }, [checkIfAtBottom]);
 
   // Memoize and sort all messages (public, private, and team)
   const allSortedMessages = useMemo(() => {
@@ -69,12 +87,26 @@ const ChatMessageHistory: React.FC<ChatMessageHistoryProps> = ({
     return combined;
   }, [messages, privateMessages, teamMessages]);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Smart auto-scroll: only scroll to bottom if user was already at the bottom
   useEffect(() => {
-    if (historyRef.current) {
+    const newMessageCount = allSortedMessages.length;
+    const hasNewMessages = newMessageCount > prevMessageCountRef.current;
+    
+    if (historyRef.current && hasNewMessages && isUserAtBottomRef.current) {
       historyRef.current.scrollTop = historyRef.current.scrollHeight;
     }
-  }, [allSortedMessages]); // Re-run effect when combined messages map changes
+    
+    prevMessageCountRef.current = newMessageCount;
+  }, [allSortedMessages]);
+
+  // Attach scroll listener
+  useEffect(() => {
+    const historyElement = historyRef.current;
+    if (historyElement) {
+      historyElement.addEventListener('scroll', handleScroll);
+      return () => historyElement.removeEventListener('scroll', handleScroll);
+    }
+  }, [handleScroll]);
 
   const getPlayerName = (identity: Identity): string => {
     const identityHex = identity.toHexString();

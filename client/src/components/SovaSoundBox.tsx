@@ -14,6 +14,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import './SovaSoundBox.css';
+import sovaLogo from '../assets/ui/sova.png';
 
 export interface SovaSoundBoxProps {
   /** The audio element being played - will be stopped when box is closed */
@@ -126,7 +127,7 @@ const SovaSoundBox: React.FC<SovaSoundBoxProps> = ({
     >
       {/* SOVA Icon */}
       <div className="sova-sound-box-icon">
-        <span className="sova-icon-glyph">◎</span>
+        <img src={sovaLogo} alt="SOVA" className="sova-icon-image" />
       </div>
 
       {/* Waveform visualization */}

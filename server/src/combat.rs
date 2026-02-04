@@ -2332,16 +2332,39 @@ pub fn damage_player(
     // <<< END SAFE ZONE CHECK >>>
 
     // <<< PVP CHECK - Per-player PvP flag system >>>
+    // NEW LOGIC: If the TARGET has PvP enabled, anyone can attack them.
+    // If a non-PvP attacker attacks a PvP target, they automatically get PvP enabled.
     let attacker_pvp_active = attacker_player_opt.as_ref()
         .map(|p| is_pvp_active_for_player(p, timestamp))
         .unwrap_or(false);
     let target_pvp_active = is_pvp_active_for_player(&target_player, timestamp);
 
-    // Both players must have PvP enabled for damage to occur
-    if attacker_player_opt.is_some() && (!attacker_pvp_active || !target_pvp_active) {
-        log::debug!("PvP blocked - Attacker PvP: {}, Target PvP: {}", 
+    // PvP is allowed if the TARGET has PvP enabled (attackers can hit PvP-flagged players)
+    // If neither has PvP enabled, block the attack
+    if attacker_player_opt.is_some() && !target_pvp_active && !attacker_pvp_active {
+        log::debug!("PvP blocked - Neither player has PvP enabled. Attacker PvP: {}, Target PvP: {}", 
             attacker_pvp_active, target_pvp_active);
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::Player), resource_granted: None });
+    }
+    
+    // If only the target has PvP (attacker doesn't), auto-enable PvP for the attacker
+    // This makes attacking a PvP player a commitment - you become PvP-flagged too!
+    if target_pvp_active && !attacker_pvp_active {
+        if let Some(attacker_player) = attacker_player_opt.as_ref() {
+            let pvp_duration_micros: i64 = 30 * 60 * 1_000_000; // 30 minutes
+            let until = Timestamp::from_micros_since_unix_epoch(
+                timestamp.to_micros_since_unix_epoch() + pvp_duration_micros
+            );
+            
+            let mut updated_attacker = attacker_player.clone();
+            updated_attacker.pvp_enabled = true;
+            updated_attacker.pvp_enabled_until = Some(until);
+            updated_attacker.last_pvp_combat_time = Some(timestamp);
+            ctx.db.player().identity().update(updated_attacker);
+            
+            log::info!("Player {:?} attacked PvP player {:?} - auto-enabled PvP for attacker for 30 minutes!", 
+                attacker_id, target_id);
+        }
     }
     // <<< END PVP CHECK >>>
 
