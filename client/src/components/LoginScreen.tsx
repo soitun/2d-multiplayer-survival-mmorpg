@@ -26,8 +26,6 @@ import ShipwreckCarousel from './ShipwreckCarousel';
 import GameplayFeaturesCarousel from './GameplayFeaturesCarousel';
 // @ts-ignore - importing JavaScript module
 import { blogPosts } from '../blog/data/blogPosts';
-// Remove Supabase imports
-// import { signInWithEmail, signUpWithEmail, signInWithGoogle, signOut } from '../services/supabase'; 
 
 // Style Constants (Consider moving to a shared file)
 const UI_BG_COLOR = 'rgba(40, 40, 60, 0.85)';

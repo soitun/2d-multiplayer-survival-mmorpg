@@ -21,7 +21,6 @@
     "@fortawesome/free-solid-svg-icons": "^6.7.2",
     "@fortawesome/react-fontawesome": "^0.2.2",
     "@openauthjs/openauth": "^0.4.3",
-    "@supabase/supabase-js": "^2.49.4",
     "@types/bcrypt": "^5.0.2",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
