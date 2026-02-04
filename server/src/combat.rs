@@ -757,8 +757,8 @@ pub fn find_targets_in_cone(
     for chunk_idx in chunk_indices_to_check {
         // Query GrassState for alive grass in this chunk
         for grass_state in grass_state_table.chunk_index().filter(chunk_idx) {
-            // Skip dead grass
-            if grass_state.health == 0 {
+            // Skip dead grass (use is_alive for efficient filtering)
+            if !grass_state.is_alive {
                 continue;
             }
             

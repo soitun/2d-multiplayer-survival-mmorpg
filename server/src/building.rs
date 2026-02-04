@@ -828,7 +828,7 @@ pub fn place_foundation(
     let check_grass_in_chunk = |chunk_idx: u32| -> bool {
         // Query GrassState for alive grass in this chunk
         for state in grass_state_table.chunk_index().filter(chunk_idx) {
-            if state.health > 0 {
+            if state.is_alive {
                 // Look up static grass data for position
                 if let Some(grass) = grass_table.id().find(state.grass_id) {
                     if grass.pos_x >= foundation_min_x && grass.pos_x <= foundation_max_x &&

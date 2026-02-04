@@ -598,14 +598,14 @@ fn damage_resources_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32
     
     // Damage grass blades (instant destroy - grass has 1 HP)
     // PERFORMANCE: With split tables, only update GrassState (smaller payload)
-    // Grass entities stay in the table with health=0 and respawn_at set in GrassState
+    // Grass entities stay in the table with is_alive=false and respawn_at set in GrassState
     let grass_state_table = ctx.db.grass_state();
     let grass_table = ctx.db.grass();
     
     // Find grass states to destroy (need to check position from Grass table)
     let grass_to_destroy: Vec<u64> = grass_state_table.iter()
         .filter(|state| {
-            if state.health == 0 {
+            if !state.is_alive {
                 return false;
             }
             // Look up static grass data for position and appearance
@@ -632,6 +632,7 @@ fn damage_resources_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32
             let respawn_time = current_time + spacetimedb::TimeDuration::from_micros(respawn_secs as i64 * 1_000_000);
             
             state.health = 0;
+            state.is_alive = false; // Mark as dead for subscription filtering
             state.respawn_at = respawn_time;
             state.last_hit_time = Some(current_time);
             

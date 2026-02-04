@@ -140,15 +140,23 @@ pub struct Grass {
 
 /// Dynamic grass state - updated when damaged, disturbed, or respawning
 /// Linked to Grass via grass_id (1:1 relationship)
-#[spacetimedb::table(name = grass_state, public, index(name = idx_chunk_health, btree(columns = [chunk_index, health])))]
+/// 
+/// SUBSCRIPTION INDEX OPTIMIZATION:
+/// SpacetimeDB subscription queries don't efficiently use range conditions like `health > 0`
+/// in compound queries. We use `is_alive: bool` with composite index `[chunk_index, is_alive]`
+/// for efficient subscription filtering: `WHERE chunk_index = X AND is_alive = true`
+#[spacetimedb::table(name = grass_state, public, index(name = idx_chunk_alive, btree(columns = [chunk_index, is_alive])))]
 #[derive(Clone, Debug)]
 pub struct GrassState {
     #[primary_key]
     pub grass_id: u64,  // References Grass.id (NOT auto_inc - must match grass.id)
-    #[index(btree)]
     pub health: u32,
     #[index(btree)]
     pub chunk_index: u32,  // Denormalized for efficient chunk-based queries
+    /// Boolean for efficient subscription queries. Updated whenever health changes.
+    /// Use `is_alive = true` in subscriptions instead of `health > 0` for better index usage.
+    #[index(btree)]
+    pub is_alive: bool,
     pub last_hit_time: Option<Timestamp>, // When it was last "chopped"
     /// When this grass should respawn. Use Timestamp::UNIX_EPOCH (0) for "not respawning".
     /// This allows efficient btree index range queries: .respawn_at().filter(1..=now)
@@ -235,10 +243,10 @@ pub fn process_grass_respawn_batch(ctx: &spacetimedb::ReducerContext, _schedule:
     let mut respawned_count = 0;
     
     // Find all grass states due for respawn
-    // health == 0 means destroyed, respawn_at > UNIX_EPOCH means scheduled
+    // is_alive == false means destroyed, respawn_at > UNIX_EPOCH means scheduled
     for mut state in grass_state_table.iter() {
         // Skip grass not due for respawn
-        if state.health > 0 || state.respawn_at == Timestamp::UNIX_EPOCH || state.respawn_at > now {
+        if state.is_alive || state.respawn_at == Timestamp::UNIX_EPOCH || state.respawn_at > now {
             continue;
         }
         
@@ -363,6 +371,7 @@ pub fn process_grass_respawn_batch(ctx: &spacetimedb::ReducerContext, _schedule:
         
         // Respawn the grass! Only update GrassState (dynamic data)
         state.health = GRASS_INITIAL_HEALTH;
+        state.is_alive = true; // Mark as alive for subscription filtering
         state.respawn_at = Timestamp::UNIX_EPOCH;
         state.last_hit_time = None;
         state.disturbed_at = None;
@@ -410,7 +419,7 @@ pub fn damage_grass(ctx: &ReducerContext, grass_id: u64) -> Result<(), String> {
         .ok_or_else(|| format!("GrassState for grass {} not found", grass_id))?;
     
     // 4. Check if grass is alive
-    if state.health == 0 {
+    if !state.is_alive {
         return Err("Grass is already destroyed.".to_string());
     }
     
@@ -424,6 +433,7 @@ pub fn damage_grass(ctx: &ReducerContext, grass_id: u64) -> Result<(), String> {
     
     // 6. Damage the grass (1 HP = instant destroy) - only update GrassState
     state.health = 0;
+    state.is_alive = false; // Mark as dead for efficient subscription filtering
     state.last_hit_time = Some(ctx.timestamp);
     
     // 7. Set respawn time (batch scheduler will handle actual respawn)
@@ -525,6 +535,7 @@ pub fn spawn_grass_entity(
         grass_id,
         health: GRASS_INITIAL_HEALTH,
         chunk_index, // Denormalized for efficient chunk queries
+        is_alive: true, // Grass starts alive
         last_hit_time: None,
         respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
         disturbed_at: None,

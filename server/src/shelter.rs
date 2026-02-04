@@ -961,12 +961,12 @@ fn clear_resources_in_shelter_footprint(ctx: &ReducerContext, shelter_x: f32, sh
     }
     
     // Cancel Grass Respawns within shelter footprint (update GrassState only)
-    // Note: With the batch scheduler, grass entities stay in the table with health=0 and respawn_at set.
+    // Note: With the batch scheduler, grass entities stay in the table with is_alive=false and respawn_at set.
     // We cancel their respawn by setting respawn_at = UNIX_EPOCH in GrassState
     let grass_to_cancel: Vec<u64> = grass_state_table.iter()
         .filter(|state| {
-            // Only check destroyed grass (health=0) with pending respawn
-            if state.health > 0 || state.respawn_at == spacetimedb::Timestamp::UNIX_EPOCH {
+            // Only check destroyed grass (is_alive=false) with pending respawn
+            if state.is_alive || state.respawn_at == spacetimedb::Timestamp::UNIX_EPOCH {
                 return false;
             }
             // Look up position from static Grass table
