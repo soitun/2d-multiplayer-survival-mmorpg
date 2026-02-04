@@ -50,4 +50,5 @@ export type Door = { tag: "Door" };
 export type Turret = { tag: "Turret" };
 export type HomesteadHearth = { tag: "HomesteadHearth" };
 export type LivingCoral = { tag: "LivingCoral" };
+export type Barbecue = { tag: "Barbecue" };
 

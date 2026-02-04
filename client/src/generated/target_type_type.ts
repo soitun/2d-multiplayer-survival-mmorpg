@@ -51,7 +51,8 @@ export type TargetType = TargetTypeVariants.Tree |
   TargetTypeVariants.Door |
   TargetTypeVariants.Turret |
   TargetTypeVariants.HomesteadHearth |
-  TargetTypeVariants.LivingCoral;
+  TargetTypeVariants.LivingCoral |
+  TargetTypeVariants.Barbecue;
 
 let _cached_TargetType_type_value: __AlgebraicTypeType | null = null;
 
@@ -85,6 +86,7 @@ export const TargetType = {
   Turret: { tag: "Turret" } as const,
   HomesteadHearth: { tag: "HomesteadHearth" } as const,
   LivingCoral: { tag: "LivingCoral" } as const,
+  Barbecue: { tag: "Barbecue" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_TargetType_type_value) return _cached_TargetType_type_value;
@@ -112,6 +114,7 @@ export const TargetType = {
       { name: "Turret", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HomesteadHearth", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "LivingCoral", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "Barbecue", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_TargetType_type_value;
   },
