@@ -28,6 +28,11 @@ const WHALE_BONE_FRAGMENT_FRAGMENTS: u32 = 3; // Small fishing junk, yields fewe
 const POLAR_BEAR_SKULL_FRAGMENTS: u32 = 30; // Massive skull - same as walrus
 const HARE_SKULL_FRAGMENTS: u32 = 6;     // Small prey skull
 const OWL_SKULL_FRAGMENTS: u32 = 10;     // Medium bird skull
+// Coastal bird skulls
+const TERN_SKULL_FRAGMENTS: u32 = 8;     // Small seabird skull
+const CROW_SKULL_FRAGMENTS: u32 = 8;     // Small scavenger bird skull
+// Aquatic animal skull
+const SHARK_SKULL_FRAGMENTS: u32 = 25;   // Large cartilaginous skull
 
 /// Crushes a bone or skull item into bone fragments.
 /// If inventory is full, fragments will be dropped near the player.
@@ -46,7 +51,7 @@ pub fn crush_bone_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<()
 
     // 2. Validate item ownership and type
     match item_def.name.as_str() {
-        "Animal Bone" | "Human Skull" | "Fox Skull" | "Wolf Skull" | "Viper Skull" | "Walrus Skull" | "Vole Skull" | "Wolverine Skull" | "Whale Bone Fragment" | "Polar Bear Skull" | "Hare Skull" | "Owl Skull" => {
+        "Animal Bone" | "Human Skull" | "Fox Skull" | "Wolf Skull" | "Viper Skull" | "Walrus Skull" | "Vole Skull" | "Wolverine Skull" | "Whale Bone Fragment" | "Polar Bear Skull" | "Hare Skull" | "Owl Skull" | "Tern Skull" | "Crow Skull" | "Shark Skull" => {
             // Validate ownership through location
             match &item_to_crush.location {
                 crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
@@ -76,6 +81,11 @@ pub fn crush_bone_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<()
         "Polar Bear Skull" => POLAR_BEAR_SKULL_FRAGMENTS,
         "Hare Skull" => HARE_SKULL_FRAGMENTS,
         "Owl Skull" => OWL_SKULL_FRAGMENTS,
+        // Coastal bird skulls
+        "Tern Skull" => TERN_SKULL_FRAGMENTS,
+        "Crow Skull" => CROW_SKULL_FRAGMENTS,
+        // Aquatic animal skull
+        "Shark Skull" => SHARK_SKULL_FRAGMENTS,
         _ => unreachable!(), // We already validated the item type
     };
 

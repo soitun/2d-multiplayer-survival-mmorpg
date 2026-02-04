@@ -182,6 +182,36 @@ const BONE_CARVING_RECIPES: BoneCarvingRecipe[] = [
         description: "+15% water speed, 10% bleed on melee",
         animalSource: "Shark",
     },
+    {
+        id: 11,
+        outputItemName: "Tayngax Totem",
+        outputQuantity: 1,
+        ingredients: [
+            { itemName: "Tern Skull", quantity: 1 },
+            { itemName: "Animal Bone", quantity: 10 },
+            { itemName: "Tallow", quantity: 4 },
+            { itemName: "Tern Feathers", quantity: 5 },
+            { itemName: "Rope", quantity: 2 },
+        ],
+        craftingTimeSecs: 55,
+        description: "+15% stamina regeneration",
+        animalSource: "Tern",
+    },
+    {
+        id: 12,
+        outputItemName: "Qaangax Totem",
+        outputQuantity: 1,
+        ingredients: [
+            { itemName: "Crow Skull", quantity: 1 },
+            { itemName: "Animal Bone", quantity: 10 },
+            { itemName: "Tallow", quantity: 4 },
+            { itemName: "Crow Feathers", quantity: 5 },
+            { itemName: "Rope", quantity: 2 },
+        ],
+        craftingTimeSecs: 55,
+        description: "Reflects 10% melee damage",
+        animalSource: "Crow",
+    },
 ];
 
 interface BoneCarvingPanelProps {

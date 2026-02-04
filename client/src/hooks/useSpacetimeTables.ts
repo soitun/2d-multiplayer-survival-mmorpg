@@ -131,7 +131,7 @@ export interface SpacetimeTableStates {
     localPlayerRegistered: boolean;
     clouds: Map<string, SpacetimeDB.Cloud>;
     grass: Map<string, SpacetimeDB.Grass>;
-    grassState: Map<string, SpacetimeDB.GrassState>; // Split tables: GrassState has health/respawn data
+    grassState: Map<string, SpacetimeDB.GrassState>; // Split tables: GrassState has is_alive/respawn data
     knockedOutStatus: Map<string, SpacetimeDB.KnockedOutStatus>;
     rangedWeaponStats: Map<string, SpacetimeDBRangedWeaponStats>;
     projectiles: Map<string, SpacetimeDBProjectile>;
@@ -261,7 +261,7 @@ export const useSpacetimeTables = ({
     const [activeConsumableEffects, setActiveConsumableEffects] = useState<Map<string, SpacetimeDB.ActiveConsumableEffect>>(() => new Map());
     const [clouds, setClouds] = useState<Map<string, SpacetimeDB.Cloud>>(() => new Map());
     const [grass, setGrass] = useState<Map<string, SpacetimeDB.Grass>>(() => new Map()); // Split tables: static geometry
-    const [grassState, setGrassState] = useState<Map<string, SpacetimeDB.GrassState>>(() => new Map()); // Split tables: dynamic state (health, respawn)
+    const [grassState, setGrassState] = useState<Map<string, SpacetimeDB.GrassState>>(() => new Map()); // Split tables: dynamic state (is_alive, respawn)
     const [knockedOutStatus, setKnockedOutStatus] = useState<Map<string, SpacetimeDB.KnockedOutStatus>>(() => new Map());
     const [rangedWeaponStats, setRangedWeaponStats] = useState<Map<string, SpacetimeDBRangedWeaponStats>>(() => new Map());
     const [projectiles, setProjectiles] = useState<Map<string, SpacetimeDBProjectile>>(() => new Map());
@@ -491,7 +491,8 @@ export const useSpacetimeTables = ({
                     // Split tables: grass (static) + grass_state (dynamic)
                     environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`);
                     if (GRASS_PERFORMANCE_MODE) {
-                        environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND health > 0`);
+                        // Use is_alive = true for efficient index usage (boolean equality vs range query)
+                        environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND is_alive = true`);
                     } else {
                         environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`);
                     }
@@ -543,7 +544,8 @@ export const useSpacetimeTables = ({
                     // Split tables: grass (static) + grass_state (dynamic)
                     newHandlesForChunk.push(timedSubscribe('Grass', `SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`));
                     if (GRASS_PERFORMANCE_MODE) {
-                        newHandlesForChunk.push(timedSubscribe('GrassState(Perf)', `SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND health > 0`));
+                        // Use is_alive = true for efficient index usage (boolean equality vs range query)
+                        newHandlesForChunk.push(timedSubscribe('GrassState(Perf)', `SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND is_alive = true`));
                     } else {
                         newHandlesForChunk.push(timedSubscribe('GrassState(Full)', `SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`));
                     }
@@ -1436,13 +1438,13 @@ export const useSpacetimeTables = ({
             // --- GrassState Subscriptions (Split Tables) ---
             // This table updates when grass is damaged/respawned - much smaller payload than old combined table
             const handleGrassStateInsert = (ctx: any, item: SpacetimeDB.GrassState) => {
-                // console.log(`[GrassState] INSERT: grassId=${item.grassId}, health=${item.health}`);
+                // console.log(`[GrassState] INSERT: grassId=${item.grassId}, isAlive=${item.isAlive}`);
                 setGrassState(prev => new Map(prev).set(item.grassId.toString(), item));
             };
             const handleGrassStateUpdate = (ctx: any, oldItem: SpacetimeDB.GrassState, newItem: SpacetimeDB.GrassState) => {
-                // console.log(`[GrassState] UPDATE: grassId=${newItem.grassId}, health: ${oldItem.health} -> ${newItem.health}`);
-                // Only update if relevant fields changed (health, respawn)
-                const hasChanges = oldItem.health !== newItem.health || 
+                // console.log(`[GrassState] UPDATE: grassId=${newItem.grassId}, isAlive: ${oldItem.isAlive} -> ${newItem.isAlive}`);
+                // Only update if relevant fields changed (is_alive, respawn)
+                const hasChanges = oldItem.isAlive !== newItem.isAlive || 
                                    oldItem.respawnAt !== newItem.respawnAt ||
                                    oldItem.disturbedAt !== newItem.disturbedAt;
                 if (hasChanges) {
@@ -2907,7 +2909,8 @@ export const useSpacetimeTables = ({
                                     // Split tables: grass (static) + grass_state (dynamic)
                                     environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`);
                                     if (GRASS_PERFORMANCE_MODE) {
-                                        environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND health > 0`);
+                                        // Use is_alive = true for efficient index usage (boolean equality vs range query)
+                                        environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND is_alive = true`);
                                     } else {
                                         environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`);
                                     }
@@ -3145,7 +3148,7 @@ export const useSpacetimeTables = ({
         activeConsumableEffects,
         clouds,
         grass,
-        grassState, // Split tables: dynamic state (health, respawn)
+        grassState, // Split tables: dynamic state (is_alive, respawn)
         knockedOutStatus,
         rangedWeaponStats,
         projectiles,

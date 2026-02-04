@@ -93,7 +93,14 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
             itemName === "Viper Skull" ||
             itemName === "Walrus Skull" ||
             itemName === "Vole Skull" ||
-            itemName === "Wolverine Skull") {
+            itemName === "Wolverine Skull" ||
+            itemName === "Whale Bone Fragment" ||
+            itemName === "Polar Bear Skull" ||
+            itemName === "Hare Skull" ||
+            itemName === "Owl Skull" ||
+            itemName === "Tern Skull" ||
+            itemName === "Crow Skull" ||
+            itemName === "Shark Skull") {
             actions.push({
                 label: 'Crush',
                 action: 'crush',

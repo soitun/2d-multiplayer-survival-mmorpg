@@ -743,7 +743,7 @@ export const useBuildingManager = (
         }
 
         // Check if position has grass (foundations cannot be placed on grass - must clear first)
-        // With split tables: grass (static) + grassState (health)
+        // With split tables: grass (static) + grassState (is_alive)
         const FOUNDATION_SIZE = 96; // Foundation is 96x96 pixels
         const foundationMinX = foundationCenterX - FOUNDATION_SIZE / 2;
         const foundationMaxX = foundationCenterX + FOUNDATION_SIZE / 2;
@@ -752,9 +752,9 @@ export const useBuildingManager = (
         
         let hasGrassBlockingPlacement = false;
         for (const grass of connection.db.grass.iter()) {
-          // Look up health from grassState table (split tables)
+          // Look up is_alive from grassState table (split tables)
           const grassState = connection.db.grassState.grassId.find(grass.id);
-          const isAlive = grassState && grassState.health > 0;
+          const isAlive = grassState?.isAlive ?? false;
           if (isAlive &&
               grass.posX >= foundationMinX && grass.posX <= foundationMaxX &&
               grass.posY >= foundationMinY && grass.posY <= foundationMaxY) {

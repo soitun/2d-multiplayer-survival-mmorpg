@@ -1079,5 +1079,21 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .bleed_chance_on_melee(0.10) // 10% chance to inflict bleed on melee
             .build(),
 
+        // Tayngax Totem (Tern) - Stamina regeneration bonus
+        ItemBuilder::new("Tayngax Totem", "A tern skull adorned with wave and wind patterns. The tayngax spirit grants the tireless endurance of the seabird that rides the coastal winds without rest.", ItemCategory::Armor)
+            .icon("tayngax_totem.png")
+            .equippable(Some(EquipmentSlotType::Back))
+            .armor_resistances(ArmorResistances::zero())
+            .stamina_regen_modifier(0.15) // +15% stamina regen
+            .build(),
+
+        // Qaangax Totem (Crow) - Reflects melee damage
+        ItemBuilder::new("Qaangax Totem", "A crow skull inscribed with defensive ward symbols. The qaangax spirit embodies the crow's aggressive nature, striking back at those who dare attack the wearer.", ItemCategory::Armor)
+            .icon("qaangax_totem.png")
+            .equippable(Some(EquipmentSlotType::Back))
+            .armor_resistances(ArmorResistances::zero())
+            .reflects_melee_damage(0.10) // Reflects 10% of melee damage back to attacker
+            .build(),
+
     ]
 }

@@ -4872,8 +4872,8 @@ pub fn damage_animal_corpse(
             crate::wild_animal_npc::AnimalSpecies::CableViper => Some("Viper Skull"),
             crate::wild_animal_npc::AnimalSpecies::ArcticWalrus => Some("Walrus Skull"), // Large, imposing skull with tusks
             crate::wild_animal_npc::AnimalSpecies::BeachCrab => None, // Crabs don't have skulls - they have exoskeletons
-            crate::wild_animal_npc::AnimalSpecies::Tern => None, // Birds don't drop skulls
-            crate::wild_animal_npc::AnimalSpecies::Crow => None, // Birds don't drop skulls
+            crate::wild_animal_npc::AnimalSpecies::Tern => Some("Tern Skull"), // Seabird skull trophy
+            crate::wild_animal_npc::AnimalSpecies::Crow => Some("Crow Skull"), // Clever scavenger skull trophy
             crate::wild_animal_npc::AnimalSpecies::Vole => Some("Vole Skull"), // Tiny novelty trophy skull
             crate::wild_animal_npc::AnimalSpecies::Wolverine => Some("Wolverine Skull"), // Fierce predator skull
             crate::wild_animal_npc::AnimalSpecies::Caribou => Some("Caribou Skull"), // Large herbivore skull

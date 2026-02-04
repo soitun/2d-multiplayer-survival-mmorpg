@@ -122,6 +122,22 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .damage_type(DamageType::Blunt) // Blunt weapon
             .build(),
 
+        // Tern Skull - Coastal seabird trophy
+        ItemBuilder::new("Tern Skull", "A tern skull with its distinctive sharp beak. A trophy from a tireless seabird known for diving into the waves. The streamlined shape makes it fast to swing.", ItemCategory::Weapon)
+            .icon("tern_skull.png")
+            .stackable(15)
+            .weapon(18, 20, 1.5) // Lower damage but very fast - small agile bird
+            .damage_type(DamageType::Pierce) // Pierce weapon (sharp beak)
+            .build(),
+
+        // Crow Skull - Clever scavenger trophy
+        ItemBuilder::new("Crow Skull", "A crow skull with intelligent eye sockets. A trophy from a cunning scavenger. The sturdy construction belies its small size.", ItemCategory::Weapon)
+            .icon("crow_skull.png")
+            .stackable(15)
+            .weapon(16, 18, 1.6) // Weak but fast - small bird skull
+            .damage_type(DamageType::Blunt) // Blunt weapon
+            .build(),
+
         // Shark Skull - Aquatic predator trophy with serrated teeth
         ItemBuilder::new("Shark Skull", "A fearsome shark skull with rows of serrated teeth. A rare trophy from the ocean's apex predator. The cartilaginous structure is surprisingly lightweight, but those teeth are deadly.", ItemCategory::Weapon)
             .icon("shark_skull.png")

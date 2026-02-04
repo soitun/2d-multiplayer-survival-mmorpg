@@ -147,6 +147,9 @@ import wolverineSkullIcon from '../assets/items/wolverine_skull.png';
 import polarBearSkullIcon from '../assets/items/polar_bear_skull.png';
 import hareSkullIcon from '../assets/items/hare_skull.png';
 import owlSkullIcon from '../assets/items/owl_skull.png';
+// Coastal bird skulls
+import ternSkullIcon from '../assets/items/tern_skull.png';
+import crowSkullIcon from '../assets/items/crow_skull.png';
 // Aquatic animal skull
 import sharkSkullIcon from '../assets/items/shark_skull.png';
 
@@ -245,6 +248,8 @@ import tanuuxTotemIcon from '../assets/items/tanuux_totem.png';
 import ulaxCharmIcon from '../assets/items/ulax_charm.png';
 import angunaxTotemIcon from '../assets/items/angunax_totem.png';
 import alaxTotemIcon from '../assets/items/alax_totem.png';
+import tayngaxTotemIcon from '../assets/items/tayngax_totem.png';
+import qaangaxTotemIcon from '../assets/items/qaangax_totem.png';
 
 // Bone Carving Kit
 import boneCarvingKitIcon from '../assets/items/bone_carving_kit.png';
@@ -737,6 +742,9 @@ const iconMap: { [key: string]: string | undefined } = {
   'polar_bear_skull.png': polarBearSkullIcon,
   'hare_skull.png': hareSkullIcon,
   'owl_skull.png': owlSkullIcon,
+  // Coastal bird skulls
+  'tern_skull.png': ternSkullIcon,
+  'crow_skull.png': crowSkullIcon,
   // Aquatic animal skull
   'shark_skull.png': sharkSkullIcon,
   
@@ -827,6 +835,8 @@ const iconMap: { [key: string]: string | undefined } = {
   'ulax_charm.png': ulaxCharmIcon,
   'angunax_totem.png': angunaxTotemIcon,
   'alax_totem.png': alaxTotemIcon,
+  'tayngax_totem.png': tayngaxTotemIcon,
+  'qaangax_totem.png': qaangaxTotemIcon,
   
   // Bone Carving Kit
   'bone_carving_kit.png': boneCarvingKitIcon,

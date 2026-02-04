@@ -183,7 +183,7 @@ pub fn get_bone_carving_recipes() -> Vec<BoneCarvingRecipe> {
                 BoneCarvingIngredient { item_name: "Rope".to_string(), quantity: 3 },
             ],
             crafting_time_secs: 60,
-            description: "+100px detection radius".to_string(),
+            description: "Permanent night vision".to_string(),
         },
         // 10. Alax Totem (Shark - Sea Hunter)
         BoneCarvingRecipe {
@@ -199,6 +199,36 @@ pub fn get_bone_carving_recipes() -> Vec<BoneCarvingRecipe> {
             ],
             crafting_time_secs: 75,
             description: "+15% water speed, 10% bleed on melee".to_string(),
+        },
+        // 11. Tayngax Totem (Tern - Tireless Endurance)
+        BoneCarvingRecipe {
+            id: 11,
+            output_item_name: "Tayngax Totem".to_string(),
+            output_quantity: 1,
+            ingredients: vec![
+                BoneCarvingIngredient { item_name: "Tern Skull".to_string(), quantity: 1 },
+                BoneCarvingIngredient { item_name: "Animal Bone".to_string(), quantity: 10 },
+                BoneCarvingIngredient { item_name: "Tallow".to_string(), quantity: 4 },
+                BoneCarvingIngredient { item_name: "Tern Feathers".to_string(), quantity: 5 },
+                BoneCarvingIngredient { item_name: "Rope".to_string(), quantity: 2 },
+            ],
+            crafting_time_secs: 55,
+            description: "+15% stamina regeneration".to_string(),
+        },
+        // 12. Qaangax Totem (Crow - Aggressive Defender)
+        BoneCarvingRecipe {
+            id: 12,
+            output_item_name: "Qaangax Totem".to_string(),
+            output_quantity: 1,
+            ingredients: vec![
+                BoneCarvingIngredient { item_name: "Crow Skull".to_string(), quantity: 1 },
+                BoneCarvingIngredient { item_name: "Animal Bone".to_string(), quantity: 10 },
+                BoneCarvingIngredient { item_name: "Tallow".to_string(), quantity: 4 },
+                BoneCarvingIngredient { item_name: "Crow Feathers".to_string(), quantity: 5 },
+                BoneCarvingIngredient { item_name: "Rope".to_string(), quantity: 2 },
+            ],
+            crafting_time_secs: 55,
+            description: "Reflects 10% melee damage".to_string(),
         },
     ]
 }

@@ -102,40 +102,40 @@ export const useGrassInterpolation = ({
 
       // Check if dynamic state changed (common during gameplay)
       const dynamicDataChanged = !grassState || !prevGrassState ||
-        prevGrassState.health !== grassState.health ||
+        prevGrassState.isAlive !== grassState.isAlive ||
         !Object.is(prevGrassState.lastHitTime, grassState.lastHitTime) ||
         !Object.is(prevGrassState.respawnAt, grassState.respawnAt) ||
         !Object.is(prevGrassState.disturbedAt, grassState.disturbedAt) ||
         prevGrassState.disturbanceDirectionX !== grassState.disturbanceDirectionX ||
         prevGrassState.disturbanceDirectionY !== grassState.disturbanceDirectionY;
 
-      // Determine effective health:
-      // - If grassState exists: use its health
+      // Determine if grass is alive:
+      // - If grassState exists: use its isAlive boolean
       // - If grassState is missing: don't render (could be dead or still loading)
       // 
       // NOTE: We can't distinguish "still loading" from "dead grass" because:
-      // - Dead grass has health=0, which doesn't match subscription `health > 0`
+      // - Dead grass has isAlive=false, which doesn't match subscription `is_alive = true`
       // - On page refresh, seenGrassStateIdsRef is reset, so we can't track previous session
-      // - Defaulting to health=1 would incorrectly render dead grass
+      // - Defaulting to isAlive=true would incorrectly render dead grass
       // 
       // The tradeoff: grass won't render until grassState loads (brief delay on chunk load)
       // This is acceptable and prevents dead grass from erroneously appearing.
-      let effectiveHealth: number;
+      let isAlive: boolean;
       if (grassState) {
-        // Grass is confirmed alive by subscription (health > 0)
-        effectiveHealth = grassState.health;
+        // Grass state is subscribed - use its isAlive boolean directly
+        isAlive = grassState.isAlive;
       } else if (seenGrassStateIdsRef.current.has(id)) {
         // We've seen this grass's state THIS SESSION but it's now missing = destroyed mid-session
-        effectiveHealth = 0;
+        isAlive = false;
       } else {
         // Never seen this grass's state this session = don't render
         // Could be: still loading OR dead from previous session
         // Either way, wait for grassState to confirm it's alive
-        effectiveHealth = 0;
+        isAlive = false;
       }
       
       // Don't add grass that's currently dead/respawning
-      if (effectiveHealth <= 0) {
+      if (!isAlive) {
         // If we had this grass before, remove it
         if (prevState) {
           changed = true;
