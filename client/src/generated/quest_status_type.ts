@@ -4,76 +4,19 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import * as QuestStatusVariants from './quest_status_variants'
 
 // The tagged union or sum type for the algebraic type `QuestStatus`.
-export type QuestStatus = QuestStatusVariants.Locked |
-  QuestStatusVariants.Available |
-  QuestStatusVariants.InProgress |
-  QuestStatusVariants.Completed |
-  QuestStatusVariants.Expired;
-
-let _cached_QuestStatus_type_value: __AlgebraicTypeType | null = null;
-
-// A value with helper functions to construct the type.
-export const QuestStatus = {
-  // Helper functions for constructing each variant of the tagged union.
-  // ```
-  // const foo = Foo.A(42);
-  // assert!(foo.tag === "A");
-  // assert!(foo.value === 42);
-  // ```
-  Locked: { tag: "Locked" } as const,
-  Available: { tag: "Available" } as const,
-  InProgress: { tag: "InProgress" } as const,
-  Completed: { tag: "Completed" } as const,
-  Expired: { tag: "Expired" } as const,
-
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_QuestStatus_type_value) return _cached_QuestStatus_type_value;
-    _cached_QuestStatus_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
-    _cached_QuestStatus_type_value.value.variants.push(
-      { name: "Locked", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Available", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "InProgress", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Completed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Expired", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-    );
-    return _cached_QuestStatus_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: QuestStatus): void {
-      __AlgebraicTypeValue.serializeValue(writer, QuestStatus.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): QuestStatus {
-      return __AlgebraicTypeValue.deserializeValue(reader, QuestStatus.getTypeScriptAlgebraicType());
-  },
-
-}
+const QuestStatus = __t.enum("QuestStatus", {Locked: __t.unit(),
+  Available: __t.unit(),
+  InProgress: __t.unit(),
+  Completed: __t.unit(),
+  Expired: __t.unit(),
+});
 
 export default QuestStatus;
 

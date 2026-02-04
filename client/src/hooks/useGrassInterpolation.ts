@@ -167,7 +167,7 @@ export const useGrassInterpolation = ({
           swayOffsetSeed: grass.swayOffsetSeed,
           swaySpeed: grass.swaySpeed,
           // Dynamic properties from GrassState table (with defaults if not found)
-          health: effectiveHealth,
+          health: grassState?.health ?? 0,
           lastHitTime: grassState?.lastHitTime ?? null,
           respawnAt: grassState?.respawnAt ?? null,
           disturbedAt: grassState?.disturbedAt ?? null,

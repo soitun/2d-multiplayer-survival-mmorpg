@@ -4,113 +4,37 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { WorldState } from "./world_state_type";
-import { WeatherType } from "./weather_type_type";
-// Mark import as potentially unused
-declare type __keep_WeatherType = WeatherType;
-import { Season } from "./season_type";
-// Mark import as potentially unused
-declare type __keep_Season = Season;
-import { TimeOfDay } from "./time_of_day_type";
-// Mark import as potentially unused
-declare type __keep_TimeOfDay = TimeOfDay;
+import WeatherType from "./weather_type_type";
+import Season from "./season_type";
+import TimeOfDay from "./time_of_day_type";
 
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
-declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-/**
- * Table handle for the table `world_state`.
- *
- * Obtain a handle from the [`worldState`] property on [`RemoteTables`],
- * like `ctx.db.worldState`.
- *
- * Users are encouraged not to explicitly reference this type,
- * but to directly chain method calls,
- * like `ctx.db.worldState.on_insert(...)`.
- */
-export class WorldStateTableHandle<TableName extends string> implements __TableHandle<TableName> {
-  // phantom type to track the table name
-  readonly tableName!: TableName;
-  tableCache: __TableCache<WorldState>;
-
-  constructor(tableCache: __TableCache<WorldState>) {
-    this.tableCache = tableCache;
-  }
-
-  count(): number {
-    return this.tableCache.count();
-  }
-
-  iter(): Iterable<WorldState> {
-    return this.tableCache.iter();
-  }
-  /**
-   * Access to the `id` unique index on the table `world_state`,
-   * which allows point queries on the field of the same name
-   * via the [`WorldStateIdUnique.find`] method.
-   *
-   * Users are encouraged not to explicitly reference this type,
-   * but to directly chain method calls,
-   * like `ctx.db.worldState.id().find(...)`.
-   *
-   * Get a handle on the `id` unique index on the table `world_state`.
-   */
-  id = {
-    // Find the subscribed row whose `id` column value is equal to `col_val`,
-    // if such a row is present in the client cache.
-    find: (col_val: number): WorldState | undefined => {
-      for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.id, col_val)) {
-          return row;
-        }
-      }
-    },
-  };
-
-  onInsert = (cb: (ctx: EventContext, row: WorldState) => void) => {
-    return this.tableCache.onInsert(cb);
-  }
-
-  removeOnInsert = (cb: (ctx: EventContext, row: WorldState) => void) => {
-    return this.tableCache.removeOnInsert(cb);
-  }
-
-  onDelete = (cb: (ctx: EventContext, row: WorldState) => void) => {
-    return this.tableCache.onDelete(cb);
-  }
-
-  removeOnDelete = (cb: (ctx: EventContext, row: WorldState) => void) => {
-    return this.tableCache.removeOnDelete(cb);
-  }
-
-  // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: WorldState, newRow: WorldState) => void) => {
-    return this.tableCache.onUpdate(cb);
-  }
-
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: WorldState, newRow: WorldState) => void) => {
-    return this.tableCache.removeOnUpdate(cb);
-  }}
+export default __t.row({
+  id: __t.u32().primaryKey(),
+  cycleProgress: __t.f32().name("cycle_progress"),
+  get timeOfDay() {
+    return TimeOfDay.name("time_of_day");
+  },
+  cycleCount: __t.u32().name("cycle_count"),
+  isFullMoon: __t.bool().name("is_full_moon"),
+  lastTick: __t.timestamp().name("last_tick"),
+  get currentSeason() {
+    return Season.name("current_season");
+  },
+  dayOfYear: __t.u32().name("day_of_year"),
+  year: __t.u32(),
+  get currentWeather() {
+    return WeatherType.name("current_weather");
+  },
+  rainIntensity: __t.f32().name("rain_intensity"),
+  weatherStartTime: __t.option(__t.timestamp()).name("weather_start_time"),
+  weatherDuration: __t.option(__t.f32()).name("weather_duration"),
+  lastRainEndTime: __t.option(__t.timestamp()).name("last_rain_end_time"),
+  lastThunderTime: __t.option(__t.timestamp()).name("last_thunder_time"),
+  nextThunderTime: __t.option(__t.timestamp()).name("next_thunder_time"),
+});

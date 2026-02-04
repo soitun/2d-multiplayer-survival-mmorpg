@@ -4,94 +4,30 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
 
-export type Turret = {
-  id: number,
-  turretType: number,
-  posX: number,
-  posY: number,
-  chunkIndex: number,
-  placedBy: __Identity,
-  placedAt: __Timestamp,
-  ammoInstanceId: bigint | undefined,
-  ammoDefId: bigint | undefined,
-  lastFireTime: __Timestamp | undefined,
-  currentTargetId: bigint | undefined,
-  currentTargetPlayer: __Identity | undefined,
-  health: number,
-  maxHealth: number,
-  isDestroyed: boolean,
-  destroyedAt: __Timestamp | undefined,
-  lastHitTime: __Timestamp | undefined,
-};
-let _cached_Turret_type_value: __AlgebraicTypeType | null = null;
-
-/**
- * An object for generated helper functions.
- */
-export const Turret = {
-  /**
-  * A function which returns this type represented as an AlgebraicType.
-  * This function is derived from the AlgebraicType used to generate this type.
-  */
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_Turret_type_value) return _cached_Turret_type_value;
-    _cached_Turret_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_Turret_type_value.value.elements.push(
-      { name: "id", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "turretType", algebraicType: __AlgebraicTypeValue.U8 },
-      { name: "posX", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "posY", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "placedBy", algebraicType: __AlgebraicTypeValue.createIdentityType() },
-      { name: "placedAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
-      { name: "ammoInstanceId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "ammoDefId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "lastFireTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-      { name: "currentTargetId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "currentTargetPlayer", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createIdentityType()) },
-      { name: "health", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "maxHealth", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "isDestroyed", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "destroyedAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-      { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-    );
-    return _cached_Turret_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: Turret): void {
-    __AlgebraicTypeValue.serializeValue(writer, Turret.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): Turret {
-    return __AlgebraicTypeValue.deserializeValue(reader, Turret.getTypeScriptAlgebraicType());
-  },
-
-}
-
-export default Turret;
+export default __t.object("Turret", {
+  id: __t.u32(),
+  turretType: __t.u8(),
+  posX: __t.f32(),
+  posY: __t.f32(),
+  chunkIndex: __t.u32(),
+  placedBy: __t.identity(),
+  placedAt: __t.timestamp(),
+  ammoInstanceId: __t.option(__t.u64()),
+  ammoDefId: __t.option(__t.u64()),
+  lastFireTime: __t.option(__t.timestamp()),
+  currentTargetId: __t.option(__t.u64()),
+  currentTargetPlayer: __t.option(__t.identity()),
+  health: __t.f32(),
+  maxHealth: __t.f32(),
+  isDestroyed: __t.bool(),
+  destroyedAt: __t.option(__t.timestamp()),
+  lastHitTime: __t.option(__t.timestamp()),
+});
 
 

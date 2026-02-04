@@ -4,76 +4,19 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import * as CloudShapeTypeVariants from './cloud_shape_type_variants'
 
 // The tagged union or sum type for the algebraic type `CloudShapeType`.
-export type CloudShapeType = CloudShapeTypeVariants.CloudImage1 |
-  CloudShapeTypeVariants.CloudImage2 |
-  CloudShapeTypeVariants.CloudImage3 |
-  CloudShapeTypeVariants.CloudImage4 |
-  CloudShapeTypeVariants.CloudImage5;
-
-let _cached_CloudShapeType_type_value: __AlgebraicTypeType | null = null;
-
-// A value with helper functions to construct the type.
-export const CloudShapeType = {
-  // Helper functions for constructing each variant of the tagged union.
-  // ```
-  // const foo = Foo.A(42);
-  // assert!(foo.tag === "A");
-  // assert!(foo.value === 42);
-  // ```
-  CloudImage1: { tag: "CloudImage1" } as const,
-  CloudImage2: { tag: "CloudImage2" } as const,
-  CloudImage3: { tag: "CloudImage3" } as const,
-  CloudImage4: { tag: "CloudImage4" } as const,
-  CloudImage5: { tag: "CloudImage5" } as const,
-
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_CloudShapeType_type_value) return _cached_CloudShapeType_type_value;
-    _cached_CloudShapeType_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
-    _cached_CloudShapeType_type_value.value.variants.push(
-      { name: "CloudImage1", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "CloudImage2", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "CloudImage3", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "CloudImage4", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "CloudImage5", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-    );
-    return _cached_CloudShapeType_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: CloudShapeType): void {
-      __AlgebraicTypeValue.serializeValue(writer, CloudShapeType.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): CloudShapeType {
-      return __AlgebraicTypeValue.deserializeValue(reader, CloudShapeType.getTypeScriptAlgebraicType());
-  },
-
-}
+const CloudShapeType = __t.enum("CloudShapeType", {CloudImage1: __t.unit(),
+  CloudImage2: __t.unit(),
+  CloudImage3: __t.unit(),
+  CloudImage4: __t.unit(),
+  CloudImage5: __t.unit(),
+});
 
 export default CloudShapeType;
 

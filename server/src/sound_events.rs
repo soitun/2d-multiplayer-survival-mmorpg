@@ -123,6 +123,9 @@ pub enum SoundType {
     Heartbeat,            // heartbeat.mp3 (looping - plays when player health is critically low)
     StopHeartbeat,           // Special signal to stop heartbeat sound
     Thunder,                 // thunder.mp3 (11 variations - thunder, thunder1 through thunder10)
+    MashBerries,             // mash_berries.mp3 (1 variation - for mashing berries into Berry Mash)
+    PulverizeFlour,          // pulverize_flour.mp3 (1 variation - for grinding items into flour)
+    ExtractQueenBee,         // extract_queen_bee.mp3 (1 variation - for extracting queen bee from honeycomb)
     // Add more as needed - extensible system
 }
 
@@ -245,6 +248,9 @@ impl SoundType {
             SoundType::Heartbeat => "heartbeat",
             SoundType::StopHeartbeat => "stop_heartbeat",
             SoundType::Thunder => "thunder",
+            SoundType::MashBerries => "mash_berries",
+            SoundType::PulverizeFlour => "pulverize_flour",
+            SoundType::ExtractQueenBee => "extract_queen_bee",
         }
     }
 
@@ -366,6 +372,9 @@ impl SoundType {
             SoundType::Heartbeat=> 1, // heartbeat.mp3 (looping sound)
             SoundType::StopHeartbeat => 1, // Signal to stop heartbeat
             SoundType::Thunder => 11, // thunder.mp3, thunder1.mp3 through thunder10.mp3 (11 variations)
+            SoundType::MashBerries => 1, // mash_berries.mp3 (single variation)
+            SoundType::PulverizeFlour => 1, // pulverize_flour.mp3 (single variation)
+            SoundType::ExtractQueenBee => 1, // extract_queen_bee.mp3 (single variation)
         }
     }
 

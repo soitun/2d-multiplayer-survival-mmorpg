@@ -4,68 +4,17 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
 
-export type PlayerCampingState = {
-  playerIdentity: __Identity,
-  lastKnownX: number,
-  lastKnownY: number,
-  stationarySince: __Timestamp,
-};
-let _cached_PlayerCampingState_type_value: __AlgebraicTypeType | null = null;
-
-/**
- * An object for generated helper functions.
- */
-export const PlayerCampingState = {
-  /**
-  * A function which returns this type represented as an AlgebraicType.
-  * This function is derived from the AlgebraicType used to generate this type.
-  */
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_PlayerCampingState_type_value) return _cached_PlayerCampingState_type_value;
-    _cached_PlayerCampingState_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_PlayerCampingState_type_value.value.elements.push(
-      { name: "playerIdentity", algebraicType: __AlgebraicTypeValue.createIdentityType() },
-      { name: "lastKnownX", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "lastKnownY", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "stationarySince", algebraicType: __AlgebraicTypeValue.createTimestampType() },
-    );
-    return _cached_PlayerCampingState_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: PlayerCampingState): void {
-    __AlgebraicTypeValue.serializeValue(writer, PlayerCampingState.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): PlayerCampingState {
-    return __AlgebraicTypeValue.deserializeValue(reader, PlayerCampingState.getTypeScriptAlgebraicType());
-  },
-
-}
-
-export default PlayerCampingState;
+export default __t.object("PlayerCampingState", {
+  playerIdentity: __t.identity(),
+  lastKnownX: __t.f32(),
+  lastKnownY: __t.f32(),
+  stationarySince: __t.timestamp(),
+});
 
 

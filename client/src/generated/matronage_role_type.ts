@@ -4,67 +4,16 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import * as MatronageRoleVariants from './matronage_role_variants'
 
 // The tagged union or sum type for the algebraic type `MatronageRole`.
-export type MatronageRole = MatronageRoleVariants.PraMatron |
-  MatronageRoleVariants.Member;
-
-let _cached_MatronageRole_type_value: __AlgebraicTypeType | null = null;
-
-// A value with helper functions to construct the type.
-export const MatronageRole = {
-  // Helper functions for constructing each variant of the tagged union.
-  // ```
-  // const foo = Foo.A(42);
-  // assert!(foo.tag === "A");
-  // assert!(foo.value === 42);
-  // ```
-  PraMatron: { tag: "PraMatron" } as const,
-  Member: { tag: "Member" } as const,
-
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_MatronageRole_type_value) return _cached_MatronageRole_type_value;
-    _cached_MatronageRole_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
-    _cached_MatronageRole_type_value.value.variants.push(
-      { name: "PraMatron", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Member", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-    );
-    return _cached_MatronageRole_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: MatronageRole): void {
-      __AlgebraicTypeValue.serializeValue(writer, MatronageRole.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): MatronageRole {
-      return __AlgebraicTypeValue.deserializeValue(reader, MatronageRole.getTypeScriptAlgebraicType());
-  },
-
-}
+const MatronageRole = __t.enum("MatronageRole", {PraMatron: __t.unit(),
+  Member: __t.unit(),
+});
 
 export default MatronageRole;
 

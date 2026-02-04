@@ -4,73 +4,18 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import * as AlkContractStatusVariants from './alk_contract_status_variants'
 
 // The tagged union or sum type for the algebraic type `AlkContractStatus`.
-export type AlkContractStatus = AlkContractStatusVariants.Active |
-  AlkContractStatusVariants.Completed |
-  AlkContractStatusVariants.Failed |
-  AlkContractStatusVariants.Cancelled;
-
-let _cached_AlkContractStatus_type_value: __AlgebraicTypeType | null = null;
-
-// A value with helper functions to construct the type.
-export const AlkContractStatus = {
-  // Helper functions for constructing each variant of the tagged union.
-  // ```
-  // const foo = Foo.A(42);
-  // assert!(foo.tag === "A");
-  // assert!(foo.value === 42);
-  // ```
-  Active: { tag: "Active" } as const,
-  Completed: { tag: "Completed" } as const,
-  Failed: { tag: "Failed" } as const,
-  Cancelled: { tag: "Cancelled" } as const,
-
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_AlkContractStatus_type_value) return _cached_AlkContractStatus_type_value;
-    _cached_AlkContractStatus_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
-    _cached_AlkContractStatus_type_value.value.variants.push(
-      { name: "Active", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Completed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Failed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Cancelled", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-    );
-    return _cached_AlkContractStatus_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: AlkContractStatus): void {
-      __AlgebraicTypeValue.serializeValue(writer, AlkContractStatus.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): AlkContractStatus {
-      return __AlgebraicTypeValue.deserializeValue(reader, AlkContractStatus.getTypeScriptAlgebraicType());
-  },
-
-}
+const AlkContractStatus = __t.enum("AlkContractStatus", {Active: __t.unit(),
+  Completed: __t.unit(),
+  Failed: __t.unit(),
+  Cancelled: __t.unit(),
+});
 
 export default AlkContractStatus;
 

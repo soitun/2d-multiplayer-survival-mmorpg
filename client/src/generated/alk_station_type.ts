@@ -4,74 +4,20 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
 
-export type AlkStation = {
-  stationId: number,
-  name: string,
-  worldPosX: number,
-  worldPosY: number,
-  interactionRadius: number,
-  deliveryFeeRate: number,
-  isActive: boolean,
-};
-let _cached_AlkStation_type_value: __AlgebraicTypeType | null = null;
-
-/**
- * An object for generated helper functions.
- */
-export const AlkStation = {
-  /**
-  * A function which returns this type represented as an AlgebraicType.
-  * This function is derived from the AlgebraicType used to generate this type.
-  */
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_AlkStation_type_value) return _cached_AlkStation_type_value;
-    _cached_AlkStation_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_AlkStation_type_value.value.elements.push(
-      { name: "stationId", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "name", algebraicType: __AlgebraicTypeValue.String },
-      { name: "worldPosX", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "worldPosY", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "interactionRadius", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "deliveryFeeRate", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "isActive", algebraicType: __AlgebraicTypeValue.Bool },
-    );
-    return _cached_AlkStation_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: AlkStation): void {
-    __AlgebraicTypeValue.serializeValue(writer, AlkStation.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): AlkStation {
-    return __AlgebraicTypeValue.deserializeValue(reader, AlkStation.getTypeScriptAlgebraicType());
-  },
-
-}
-
-export default AlkStation;
+export default __t.object("AlkStation", {
+  stationId: __t.u32(),
+  name: __t.string(),
+  worldPosX: __t.f32(),
+  worldPosY: __t.f32(),
+  interactionRadius: __t.f32(),
+  deliveryFeeRate: __t.f32(),
+  isActive: __t.bool(),
+});
 
 

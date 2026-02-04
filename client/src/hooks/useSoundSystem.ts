@@ -81,6 +81,9 @@ const SOUND_DEFINITIONS = {
     swimming: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.8, maxDistance: 450 }, // Player swimming sounds in water
     // UI/Item interaction sounds - immediate (no server sync needed)
     crush_bones: { strategy: SoundStrategy.IMMEDIATE, volume: 1.2 }, // Local client sound
+    mash_berries: { strategy: SoundStrategy.IMMEDIATE, volume: 1.2 }, // Mashing berries into Berry Mash
+    pulverize_flour: { strategy: SoundStrategy.IMMEDIATE, volume: 1.2 }, // Grinding items into flour
+    extract_queen_bee: { strategy: SoundStrategy.IMMEDIATE, volume: 1.2 }, // Extracting queen bee from honeycomb
     // SOVA tutorial sounds - special handling (triggers chat message as well as audio)
     sova_memory_shard_tutorial: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 10000 }, // SOVA explains memory shards on first pickup
     till_dirt: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 200 }, // Tilling soil with Stone Tiller
@@ -336,6 +339,9 @@ const PRELOAD_SOUNDS = [
     'light_torch.mp3',                                      // 1 light torch variation
     'extinguish_torch.mp3',                                 // 1 extinguish torch variation
     'crush_bones.mp3',                                      // 1 crush bones variation
+    'mash_berries.mp3',                                     // 1 mash berries variation
+    'pulverize_flour.mp3',                                  // 1 pulverize flour variation
+    'extract_queen_bee.mp3',                                // 1 extract queen bee variation
     'melee_hit_blunt.mp3',                                  // 1 melee hit blunt variation
     'weapon_swing.mp3',                                     // 1 weapon swing variation
     'item_thrown.mp3',                                      // 1 item thrown variation
@@ -683,6 +689,12 @@ const playLocalSound = async (
                 variationCount = 1; // item_thrown.mp3
             } else if (soundType === 'crush_bones') {
                 variationCount = 1; // crush_bones.mp3
+            } else if (soundType === 'mash_berries') {
+                variationCount = 1; // mash_berries.mp3
+            } else if (soundType === 'pulverize_flour') {
+                variationCount = 1; // pulverize_flour.mp3
+            } else if (soundType === 'extract_queen_bee') {
+                variationCount = 1; // extract_queen_bee.mp3
             } else if (soundType === 'construction_placement_error') {
                 variationCount = 1; // construction_placement_error.mp3
             } else if (soundType === 'error_arrows') {

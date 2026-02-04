@@ -4,85 +4,22 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import * as MonumentTypeVariants from './monument_type_variants'
 
 // The tagged union or sum type for the algebraic type `MonumentType`.
-export type MonumentType = MonumentTypeVariants.Shipwreck |
-  MonumentTypeVariants.FishingVillage |
-  MonumentTypeVariants.WhaleBoneGraveyard |
-  MonumentTypeVariants.HuntingVillage |
-  MonumentTypeVariants.CrashedResearchDrone |
-  MonumentTypeVariants.HotSpring |
-  MonumentTypeVariants.WeatherStation |
-  MonumentTypeVariants.WolfDen;
-
-let _cached_MonumentType_type_value: __AlgebraicTypeType | null = null;
-
-// A value with helper functions to construct the type.
-export const MonumentType = {
-  // Helper functions for constructing each variant of the tagged union.
-  // ```
-  // const foo = Foo.A(42);
-  // assert!(foo.tag === "A");
-  // assert!(foo.value === 42);
-  // ```
-  Shipwreck: { tag: "Shipwreck" } as const,
-  FishingVillage: { tag: "FishingVillage" } as const,
-  WhaleBoneGraveyard: { tag: "WhaleBoneGraveyard" } as const,
-  HuntingVillage: { tag: "HuntingVillage" } as const,
-  CrashedResearchDrone: { tag: "CrashedResearchDrone" } as const,
-  HotSpring: { tag: "HotSpring" } as const,
-  WeatherStation: { tag: "WeatherStation" } as const,
-  WolfDen: { tag: "WolfDen" } as const,
-
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_MonumentType_type_value) return _cached_MonumentType_type_value;
-    _cached_MonumentType_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
-    _cached_MonumentType_type_value.value.variants.push(
-      { name: "Shipwreck", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "FishingVillage", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "WhaleBoneGraveyard", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "HuntingVillage", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "CrashedResearchDrone", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "HotSpring", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "WeatherStation", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "WolfDen", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-    );
-    return _cached_MonumentType_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: MonumentType): void {
-      __AlgebraicTypeValue.serializeValue(writer, MonumentType.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): MonumentType {
-      return __AlgebraicTypeValue.deserializeValue(reader, MonumentType.getTypeScriptAlgebraicType());
-  },
-
-}
+const MonumentType = __t.enum("MonumentType", {Shipwreck: __t.unit(),
+  FishingVillage: __t.unit(),
+  WhaleBoneGraveyard: __t.unit(),
+  HuntingVillage: __t.unit(),
+  CrashedResearchDrone: __t.unit(),
+  HotSpring: __t.unit(),
+  WeatherStation: __t.unit(),
+  WolfDen: __t.unit(),
+});
 
 export default MonumentType;
 

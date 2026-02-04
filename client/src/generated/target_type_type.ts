@@ -4,127 +4,36 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import * as TargetTypeVariants from './target_type_variants'
 
 // The tagged union or sum type for the algebraic type `TargetType`.
-export type TargetType = TargetTypeVariants.Tree |
-  TargetTypeVariants.Stone |
-  TargetTypeVariants.Player |
-  TargetTypeVariants.Campfire |
-  TargetTypeVariants.Furnace |
-  TargetTypeVariants.Fumarole |
-  TargetTypeVariants.Lantern |
-  TargetTypeVariants.WoodenStorageBox |
-  TargetTypeVariants.Stash |
-  TargetTypeVariants.SleepingBag |
-  TargetTypeVariants.Animal |
-  TargetTypeVariants.PlayerCorpse |
-  TargetTypeVariants.AnimalCorpse |
-  TargetTypeVariants.Shelter |
-  TargetTypeVariants.RainCollector |
-  TargetTypeVariants.Barrel |
-  TargetTypeVariants.Foundation |
-  TargetTypeVariants.Wall |
-  TargetTypeVariants.Door |
-  TargetTypeVariants.Turret |
-  TargetTypeVariants.HomesteadHearth |
-  TargetTypeVariants.LivingCoral;
-
-let _cached_TargetType_type_value: __AlgebraicTypeType | null = null;
-
-// A value with helper functions to construct the type.
-export const TargetType = {
-  // Helper functions for constructing each variant of the tagged union.
-  // ```
-  // const foo = Foo.A(42);
-  // assert!(foo.tag === "A");
-  // assert!(foo.value === 42);
-  // ```
-  Tree: { tag: "Tree" } as const,
-  Stone: { tag: "Stone" } as const,
-  Player: { tag: "Player" } as const,
-  Campfire: { tag: "Campfire" } as const,
-  Furnace: { tag: "Furnace" } as const,
-  Fumarole: { tag: "Fumarole" } as const,
-  Lantern: { tag: "Lantern" } as const,
-  WoodenStorageBox: { tag: "WoodenStorageBox" } as const,
-  Stash: { tag: "Stash" } as const,
-  SleepingBag: { tag: "SleepingBag" } as const,
-  Animal: { tag: "Animal" } as const,
-  PlayerCorpse: { tag: "PlayerCorpse" } as const,
-  AnimalCorpse: { tag: "AnimalCorpse" } as const,
-  Shelter: { tag: "Shelter" } as const,
-  RainCollector: { tag: "RainCollector" } as const,
-  Barrel: { tag: "Barrel" } as const,
-  Foundation: { tag: "Foundation" } as const,
-  Wall: { tag: "Wall" } as const,
-  Door: { tag: "Door" } as const,
-  Turret: { tag: "Turret" } as const,
-  HomesteadHearth: { tag: "HomesteadHearth" } as const,
-  LivingCoral: { tag: "LivingCoral" } as const,
-
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_TargetType_type_value) return _cached_TargetType_type_value;
-    _cached_TargetType_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
-    _cached_TargetType_type_value.value.variants.push(
-      { name: "Tree", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Stone", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Player", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Campfire", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Furnace", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Fumarole", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Lantern", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "WoodenStorageBox", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Stash", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "SleepingBag", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Animal", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "PlayerCorpse", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "AnimalCorpse", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Shelter", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "RainCollector", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Barrel", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Foundation", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Wall", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Door", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Turret", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "HomesteadHearth", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "LivingCoral", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-    );
-    return _cached_TargetType_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: TargetType): void {
-      __AlgebraicTypeValue.serializeValue(writer, TargetType.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): TargetType {
-      return __AlgebraicTypeValue.deserializeValue(reader, TargetType.getTypeScriptAlgebraicType());
-  },
-
-}
+const TargetType = __t.enum("TargetType", {Tree: __t.unit(),
+  Stone: __t.unit(),
+  Player: __t.unit(),
+  Campfire: __t.unit(),
+  Furnace: __t.unit(),
+  Fumarole: __t.unit(),
+  Lantern: __t.unit(),
+  WoodenStorageBox: __t.unit(),
+  Stash: __t.unit(),
+  SleepingBag: __t.unit(),
+  Animal: __t.unit(),
+  PlayerCorpse: __t.unit(),
+  AnimalCorpse: __t.unit(),
+  Shelter: __t.unit(),
+  RainCollector: __t.unit(),
+  Barrel: __t.unit(),
+  Foundation: __t.unit(),
+  Wall: __t.unit(),
+  Door: __t.unit(),
+  Turret: __t.unit(),
+  HomesteadHearth: __t.unit(),
+  LivingCoral: __t.unit(),
+});
 
 export default TargetType;
 

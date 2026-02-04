@@ -4,89 +4,34 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { RuneStoneType } from "./rune_stone_type_type";
-// Mark import as potentially unused
-declare type __keep_RuneStoneType = RuneStoneType;
-import { AgrarianEffectConfig } from "./agrarian_effect_config_type";
-// Mark import as potentially unused
-declare type __keep_AgrarianEffectConfig = AgrarianEffectConfig;
-import { ProductionEffectConfig } from "./production_effect_config_type";
-// Mark import as potentially unused
-declare type __keep_ProductionEffectConfig = ProductionEffectConfig;
-import { MemoryShardEffectConfig } from "./memory_shard_effect_config_type";
-// Mark import as potentially unused
-declare type __keep_MemoryShardEffectConfig = MemoryShardEffectConfig;
+import RuneStoneType from "./rune_stone_type_type";
+import AgrarianEffectConfig from "./agrarian_effect_config_type";
+import ProductionEffectConfig from "./production_effect_config_type";
+import MemoryShardEffectConfig from "./memory_shard_effect_config_type";
 
 
-export type RuneStone = {
-  id: bigint,
-  posX: number,
-  posY: number,
-  chunkIndex: number,
-  runeType: RuneStoneType,
-  agrarianConfig: AgrarianEffectConfig | undefined,
-  productionConfig: ProductionEffectConfig | undefined,
-  memoryShardConfig: MemoryShardEffectConfig | undefined,
-};
-let _cached_RuneStone_type_value: __AlgebraicTypeType | null = null;
-
-/**
- * An object for generated helper functions.
- */
-export const RuneStone = {
-  /**
-  * A function which returns this type represented as an AlgebraicType.
-  * This function is derived from the AlgebraicType used to generate this type.
-  */
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_RuneStone_type_value) return _cached_RuneStone_type_value;
-    _cached_RuneStone_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_RuneStone_type_value.value.elements.push(
-      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
-      { name: "posX", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "posY", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "runeType", algebraicType: RuneStoneType.getTypeScriptAlgebraicType() },
-      { name: "agrarianConfig", algebraicType: __AlgebraicTypeValue.createOptionType(AgrarianEffectConfig.getTypeScriptAlgebraicType()) },
-      { name: "productionConfig", algebraicType: __AlgebraicTypeValue.createOptionType(ProductionEffectConfig.getTypeScriptAlgebraicType()) },
-      { name: "memoryShardConfig", algebraicType: __AlgebraicTypeValue.createOptionType(MemoryShardEffectConfig.getTypeScriptAlgebraicType()) },
-    );
-    return _cached_RuneStone_type_value;
+export default __t.object("RuneStone", {
+  id: __t.u64(),
+  posX: __t.f32(),
+  posY: __t.f32(),
+  chunkIndex: __t.u32(),
+  get runeType() {
+    return RuneStoneType;
   },
-
-  serialize(writer: __BinaryWriter, value: RuneStone): void {
-    __AlgebraicTypeValue.serializeValue(writer, RuneStone.getTypeScriptAlgebraicType(), value);
+  get agrarianConfig() {
+    return __t.option(AgrarianEffectConfig);
   },
-
-  deserialize(reader: __BinaryReader): RuneStone {
-    return __AlgebraicTypeValue.deserializeValue(reader, RuneStone.getTypeScriptAlgebraicType());
+  get productionConfig() {
+    return __t.option(ProductionEffectConfig);
   },
-
-}
-
-export default RuneStone;
+  get memoryShardConfig() {
+    return __t.option(MemoryShardEffectConfig);
+  },
+});
 
 

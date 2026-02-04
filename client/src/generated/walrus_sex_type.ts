@@ -4,67 +4,16 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import * as WalrusSexVariants from './walrus_sex_variants'
 
 // The tagged union or sum type for the algebraic type `WalrusSex`.
-export type WalrusSex = WalrusSexVariants.Male |
-  WalrusSexVariants.Female;
-
-let _cached_WalrusSex_type_value: __AlgebraicTypeType | null = null;
-
-// A value with helper functions to construct the type.
-export const WalrusSex = {
-  // Helper functions for constructing each variant of the tagged union.
-  // ```
-  // const foo = Foo.A(42);
-  // assert!(foo.tag === "A");
-  // assert!(foo.value === 42);
-  // ```
-  Male: { tag: "Male" } as const,
-  Female: { tag: "Female" } as const,
-
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_WalrusSex_type_value) return _cached_WalrusSex_type_value;
-    _cached_WalrusSex_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
-    _cached_WalrusSex_type_value.value.variants.push(
-      { name: "Male", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Female", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-    );
-    return _cached_WalrusSex_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: WalrusSex): void {
-      __AlgebraicTypeValue.serializeValue(writer, WalrusSex.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): WalrusSex {
-      return __AlgebraicTypeValue.deserializeValue(reader, WalrusSex.getTypeScriptAlgebraicType());
-  },
-
-}
+const WalrusSex = __t.enum("WalrusSex", {Male: __t.unit(),
+  Female: __t.unit(),
+});
 
 export default WalrusSex;
 

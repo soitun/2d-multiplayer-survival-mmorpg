@@ -4,103 +4,51 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { PlayerStats } from "./player_stats_type";
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
-declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-/**
- * Table handle for the table `player_stats`.
- *
- * Obtain a handle from the [`playerStats`] property on [`RemoteTables`],
- * like `ctx.db.playerStats`.
- *
- * Users are encouraged not to explicitly reference this type,
- * but to directly chain method calls,
- * like `ctx.db.playerStats.on_insert(...)`.
- */
-export class PlayerStatsTableHandle<TableName extends string> implements __TableHandle<TableName> {
-  // phantom type to track the table name
-  readonly tableName!: TableName;
-  tableCache: __TableCache<PlayerStats>;
-
-  constructor(tableCache: __TableCache<PlayerStats>) {
-    this.tableCache = tableCache;
-  }
-
-  count(): number {
-    return this.tableCache.count();
-  }
-
-  iter(): Iterable<PlayerStats> {
-    return this.tableCache.iter();
-  }
-  /**
-   * Access to the `playerId` unique index on the table `player_stats`,
-   * which allows point queries on the field of the same name
-   * via the [`PlayerStatsPlayerIdUnique.find`] method.
-   *
-   * Users are encouraged not to explicitly reference this type,
-   * but to directly chain method calls,
-   * like `ctx.db.playerStats.playerId().find(...)`.
-   *
-   * Get a handle on the `playerId` unique index on the table `player_stats`.
-   */
-  playerId = {
-    // Find the subscribed row whose `playerId` column value is equal to `col_val`,
-    // if such a row is present in the client cache.
-    find: (col_val: __Identity): PlayerStats | undefined => {
-      for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.playerId, col_val)) {
-          return row;
-        }
-      }
-    },
-  };
-
-  onInsert = (cb: (ctx: EventContext, row: PlayerStats) => void) => {
-    return this.tableCache.onInsert(cb);
-  }
-
-  removeOnInsert = (cb: (ctx: EventContext, row: PlayerStats) => void) => {
-    return this.tableCache.removeOnInsert(cb);
-  }
-
-  onDelete = (cb: (ctx: EventContext, row: PlayerStats) => void) => {
-    return this.tableCache.onDelete(cb);
-  }
-
-  removeOnDelete = (cb: (ctx: EventContext, row: PlayerStats) => void) => {
-    return this.tableCache.removeOnDelete(cb);
-  }
-
-  // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: PlayerStats, newRow: PlayerStats) => void) => {
-    return this.tableCache.onUpdate(cb);
-  }
-
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: PlayerStats, newRow: PlayerStats) => void) => {
-    return this.tableCache.removeOnUpdate(cb);
-  }}
+export default __t.row({
+  playerId: __t.identity().primaryKey().name("player_id"),
+  totalXp: __t.u64().name("total_xp"),
+  level: __t.u32(),
+  xpToNextLevel: __t.u64().name("xp_to_next_level"),
+  fishCaught: __t.u32().name("fish_caught"),
+  animalsKilled: __t.u32().name("animals_killed"),
+  cairnsDiscovered: __t.u32().name("cairns_discovered"),
+  contractsCompleted: __t.u32().name("contracts_completed"),
+  itemsCrafted: __t.u32().name("items_crafted"),
+  treesChopped: __t.u32().name("trees_chopped"),
+  stonesMined: __t.u32().name("stones_mined"),
+  coralsMined: __t.u32().name("corals_mined"),
+  plantsHarvested: __t.u32().name("plants_harvested"),
+  uniqueFishBitmask: __t.u32().name("unique_fish_bitmask"),
+  uniquePlantBitmask: __t.u64().name("unique_plant_bitmask"),
+  seedsPlanted: __t.u32().name("seeds_planted"),
+  deaths: __t.u32(),
+  bowKills: __t.u32().name("bow_kills"),
+  crossbowKills: __t.u32().name("crossbow_kills"),
+  gunKills: __t.u32().name("gun_kills"),
+  harpoonGunKills: __t.u32().name("harpoon_gun_kills"),
+  meleeKills: __t.u32().name("melee_kills"),
+  spearKills: __t.u32().name("spear_kills"),
+  walrusTamed: __t.bool().name("walrus_tamed"),
+  barrelsDestroyed: __t.u32().name("barrels_destroyed"),
+  brewsCompleted: __t.u32().name("brews_completed"),
+  apparitionsBanished: __t.u32().name("apparitions_banished"),
+  venomBites: __t.u32().name("venom_bites"),
+  maxInsanityReached: __t.f32().name("max_insanity_reached"),
+  timesEntrained: __t.u32().name("times_entrained"),
+  insanityThresholdsCrossed: __t.u8().name("insanity_thresholds_crossed"),
+  playTimeSeconds: __t.u64().name("play_time_seconds"),
+  longestSurvivalSeconds: __t.u64().name("longest_survival_seconds"),
+  currentSurvivalStart: __t.option(__t.timestamp()).name("current_survival_start"),
+  survivalQuestMinutesTracked: __t.u32().name("survival_quest_minutes_tracked"),
+  totalShardsEarned: __t.u64().name("total_shards_earned"),
+  lastLoginDay: __t.u32().name("last_login_day"),
+  loginStreakDays: __t.u32().name("login_streak_days"),
+  activeTitleId: __t.option(__t.string()).name("active_title_id"),
+  updatedAt: __t.timestamp().name("updated_at"),
+});

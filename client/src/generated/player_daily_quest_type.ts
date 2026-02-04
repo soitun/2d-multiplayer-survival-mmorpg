@@ -4,84 +4,27 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { QuestStatus } from "./quest_status_type";
-// Mark import as potentially unused
-declare type __keep_QuestStatus = QuestStatus;
+import QuestStatus from "./quest_status_type";
 
 
-export type PlayerDailyQuest = {
-  id: bigint,
-  playerId: __Identity,
-  questDefId: string,
-  assignedDay: number,
-  currentProgress: number,
-  targetAmount: number,
-  status: QuestStatus,
-  xpReward: bigint,
-  shardReward: bigint,
-  completedAt: __Timestamp | undefined,
-};
-let _cached_PlayerDailyQuest_type_value: __AlgebraicTypeType | null = null;
-
-/**
- * An object for generated helper functions.
- */
-export const PlayerDailyQuest = {
-  /**
-  * A function which returns this type represented as an AlgebraicType.
-  * This function is derived from the AlgebraicType used to generate this type.
-  */
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_PlayerDailyQuest_type_value) return _cached_PlayerDailyQuest_type_value;
-    _cached_PlayerDailyQuest_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_PlayerDailyQuest_type_value.value.elements.push(
-      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
-      { name: "playerId", algebraicType: __AlgebraicTypeValue.createIdentityType() },
-      { name: "questDefId", algebraicType: __AlgebraicTypeValue.String },
-      { name: "assignedDay", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "currentProgress", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "targetAmount", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "status", algebraicType: QuestStatus.getTypeScriptAlgebraicType() },
-      { name: "xpReward", algebraicType: __AlgebraicTypeValue.U64 },
-      { name: "shardReward", algebraicType: __AlgebraicTypeValue.U64 },
-      { name: "completedAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-    );
-    return _cached_PlayerDailyQuest_type_value;
+export default __t.object("PlayerDailyQuest", {
+  id: __t.u64(),
+  playerId: __t.identity(),
+  questDefId: __t.string(),
+  assignedDay: __t.u32(),
+  currentProgress: __t.u32(),
+  targetAmount: __t.u32(),
+  get status() {
+    return QuestStatus;
   },
-
-  serialize(writer: __BinaryWriter, value: PlayerDailyQuest): void {
-    __AlgebraicTypeValue.serializeValue(writer, PlayerDailyQuest.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): PlayerDailyQuest {
-    return __AlgebraicTypeValue.deserializeValue(reader, PlayerDailyQuest.getTypeScriptAlgebraicType());
-  },
-
-}
-
-export default PlayerDailyQuest;
+  xpReward: __t.u64(),
+  shardReward: __t.u64(),
+  completedAt: __t.option(__t.timestamp()),
+});
 
 

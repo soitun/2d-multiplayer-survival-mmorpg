@@ -4,103 +4,46 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { BrothPot } from "./broth_pot_type";
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
-declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-/**
- * Table handle for the table `broth_pot`.
- *
- * Obtain a handle from the [`brothPot`] property on [`RemoteTables`],
- * like `ctx.db.brothPot`.
- *
- * Users are encouraged not to explicitly reference this type,
- * but to directly chain method calls,
- * like `ctx.db.brothPot.on_insert(...)`.
- */
-export class BrothPotTableHandle<TableName extends string> implements __TableHandle<TableName> {
-  // phantom type to track the table name
-  readonly tableName!: TableName;
-  tableCache: __TableCache<BrothPot>;
-
-  constructor(tableCache: __TableCache<BrothPot>) {
-    this.tableCache = tableCache;
-  }
-
-  count(): number {
-    return this.tableCache.count();
-  }
-
-  iter(): Iterable<BrothPot> {
-    return this.tableCache.iter();
-  }
-  /**
-   * Access to the `id` unique index on the table `broth_pot`,
-   * which allows point queries on the field of the same name
-   * via the [`BrothPotIdUnique.find`] method.
-   *
-   * Users are encouraged not to explicitly reference this type,
-   * but to directly chain method calls,
-   * like `ctx.db.brothPot.id().find(...)`.
-   *
-   * Get a handle on the `id` unique index on the table `broth_pot`.
-   */
-  id = {
-    // Find the subscribed row whose `id` column value is equal to `col_val`,
-    // if such a row is present in the client cache.
-    find: (col_val: number): BrothPot | undefined => {
-      for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.id, col_val)) {
-          return row;
-        }
-      }
-    },
-  };
-
-  onInsert = (cb: (ctx: EventContext, row: BrothPot) => void) => {
-    return this.tableCache.onInsert(cb);
-  }
-
-  removeOnInsert = (cb: (ctx: EventContext, row: BrothPot) => void) => {
-    return this.tableCache.removeOnInsert(cb);
-  }
-
-  onDelete = (cb: (ctx: EventContext, row: BrothPot) => void) => {
-    return this.tableCache.onDelete(cb);
-  }
-
-  removeOnDelete = (cb: (ctx: EventContext, row: BrothPot) => void) => {
-    return this.tableCache.removeOnDelete(cb);
-  }
-
-  // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: BrothPot, newRow: BrothPot) => void) => {
-    return this.tableCache.onUpdate(cb);
-  }
-
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: BrothPot, newRow: BrothPot) => void) => {
-    return this.tableCache.removeOnUpdate(cb);
-  }}
+export default __t.row({
+  id: __t.u32().primaryKey(),
+  posX: __t.f32().name("pos_x"),
+  posY: __t.f32().name("pos_y"),
+  chunkIndex: __t.u32().name("chunk_index"),
+  placedBy: __t.identity().name("placed_by"),
+  placedAt: __t.timestamp().name("placed_at"),
+  attachedToCampfireId: __t.option(__t.u32()).name("attached_to_campfire_id"),
+  attachedToFumaroleId: __t.option(__t.u32()).name("attached_to_fumarole_id"),
+  waterLevelMl: __t.u32().name("water_level_ml"),
+  maxWaterCapacityMl: __t.u32().name("max_water_capacity_ml"),
+  isSeawater: __t.bool().name("is_seawater"),
+  isDesalinating: __t.bool().name("is_desalinating"),
+  ingredientInstanceId0: __t.option(__t.u64()).name("ingredient_instance_id_0"),
+  ingredientDefId0: __t.option(__t.u64()).name("ingredient_def_id_0"),
+  ingredientInstanceId1: __t.option(__t.u64()).name("ingredient_instance_id_1"),
+  ingredientDefId1: __t.option(__t.u64()).name("ingredient_def_id_1"),
+  ingredientInstanceId2: __t.option(__t.u64()).name("ingredient_instance_id_2"),
+  ingredientDefId2: __t.option(__t.u64()).name("ingredient_def_id_2"),
+  waterContainerInstanceId: __t.option(__t.u64()).name("water_container_instance_id"),
+  waterContainerDefId: __t.option(__t.u64()).name("water_container_def_id"),
+  isCooking: __t.bool().name("is_cooking"),
+  currentRecipeName: __t.option(__t.string()).name("current_recipe_name"),
+  cookingProgressSecs: __t.f32().name("cooking_progress_secs"),
+  requiredCookingTimeSecs: __t.f32().name("required_cooking_time_secs"),
+  stirQuality: __t.f32().name("stir_quality"),
+  lastStirredAt: __t.option(__t.timestamp()).name("last_stirred_at"),
+  outputItemInstanceId: __t.option(__t.u64()).name("output_item_instance_id"),
+  outputItemDefId: __t.option(__t.u64()).name("output_item_def_id"),
+  isSpoiled: __t.bool().name("is_spoiled"),
+  health: __t.f32(),
+  maxHealth: __t.f32().name("max_health"),
+  isDestroyed: __t.bool().name("is_destroyed"),
+  destroyedAt: __t.option(__t.timestamp()).name("destroyed_at"),
+  lastHitTime: __t.option(__t.timestamp()).name("last_hit_time"),
+  lastDamagedBy: __t.option(__t.identity()).name("last_damaged_by"),
+});

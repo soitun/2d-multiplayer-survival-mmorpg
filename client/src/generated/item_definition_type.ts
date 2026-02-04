@@ -4,217 +4,100 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { EquipmentSlotType } from "./equipment_slot_type_type";
-// Mark import as potentially unused
-declare type __keep_EquipmentSlotType = EquipmentSlotType;
-import { ItemCategory } from "./item_category_type";
-// Mark import as potentially unused
-declare type __keep_ItemCategory = ItemCategory;
-import { TargetType } from "./target_type_type";
-// Mark import as potentially unused
-declare type __keep_TargetType = TargetType;
-import { CostIngredient } from "./cost_ingredient_type";
-// Mark import as potentially unused
-declare type __keep_CostIngredient = CostIngredient;
-import { FlexibleIngredient } from "./flexible_ingredient_type";
-// Mark import as potentially unused
-declare type __keep_FlexibleIngredient = FlexibleIngredient;
-import { DamageType } from "./damage_type_type";
-// Mark import as potentially unused
-declare type __keep_DamageType = DamageType;
-import { ArmorResistances } from "./armor_resistances_type";
-// Mark import as potentially unused
-declare type __keep_ArmorResistances = ArmorResistances;
-import { AmmoType } from "./ammo_type_type";
-// Mark import as potentially unused
-declare type __keep_AmmoType = AmmoType;
+import EquipmentSlotType from "./equipment_slot_type_type";
+import ItemCategory from "./item_category_type";
+import TargetType from "./target_type_type";
+import CostIngredient from "./cost_ingredient_type";
+import FlexibleIngredient from "./flexible_ingredient_type";
+import DamageType from "./damage_type_type";
+import ArmorResistances from "./armor_resistances_type";
+import AmmoType from "./ammo_type_type";
 
 
-export type ItemDefinition = {
-  id: bigint,
-  name: string,
-  description: string,
-  category: ItemCategory,
-  iconAssetName: string,
-  isStackable: boolean,
-  stackSize: number,
-  isEquippable: boolean,
-  equipmentSlotType: EquipmentSlotType | undefined,
-  fuelBurnDurationSecs: number | undefined,
-  primaryTargetDamageMin: number | undefined,
-  primaryTargetDamageMax: number | undefined,
-  primaryTargetYieldMin: number | undefined,
-  primaryTargetYieldMax: number | undefined,
-  primaryTargetType: TargetType | undefined,
-  primaryYieldResourceName: string | undefined,
-  pvpDamageMin: number | undefined,
-  pvpDamageMax: number | undefined,
-  bleedDamagePerTick: number | undefined,
-  bleedDurationSeconds: number | undefined,
-  bleedTickIntervalSeconds: number | undefined,
-  craftingCost: CostIngredient[] | undefined,
-  alternativeCraftingCosts: CostIngredient[][] | undefined,
-  flexibleIngredients: FlexibleIngredient[] | undefined,
-  craftingOutputQuantity: number | undefined,
-  craftingTimeSecs: number | undefined,
-  requiresStation: string | undefined,
-  consumableHealthGain: number | undefined,
-  consumableHungerSatiated: number | undefined,
-  consumableThirstQuenched: number | undefined,
-  consumableDurationSecs: number | undefined,
-  cookTimeSecs: number | undefined,
-  cookedItemDefName: string | undefined,
-  damageResistance: number | undefined,
-  warmthBonus: number | undefined,
-  respawnTimeSeconds: number | undefined,
-  attackIntervalSecs: number | undefined,
-  damageType: DamageType | undefined,
-  armorResistances: ArmorResistances | undefined,
-  movementSpeedModifier: number | undefined,
-  staminaRegenModifier: number | undefined,
-  reflectsMeleeDamage: number | undefined,
-  fireDamageMultiplier: number | undefined,
-  detectionRadiusBonus: number | undefined,
-  lowHealthDamageBonus: number | undefined,
-  grantsBurnImmunity: boolean,
-  grantsColdImmunity: boolean,
-  grantsWetnessImmunity: boolean,
-  grantsKnockbackImmunity: boolean,
-  grantsBleedImmunity: boolean,
-  grantsNightVision: boolean,
-  noiseOnSprint: boolean,
-  silencesMovement: boolean,
-  intimidatesAnimals: boolean,
-  ammoType: AmmoType | undefined,
-  attackArcDegrees: number | undefined,
-  waterSpeedBonus: number | undefined,
-  isPreserved: boolean,
-  spoilsAfterHours: number | undefined,
-  harvestBonus: number | undefined,
-  allyDamageBonus: number | undefined,
-  poisonDamageOnHit: number | undefined,
-  maxHealthBonus: number | undefined,
-  bleedChanceOnMelee: number | undefined,
-  reducesAnimalDetection: number | undefined,
-  meleeDamageBonus: number | undefined,
-};
-let _cached_ItemDefinition_type_value: __AlgebraicTypeType | null = null;
-
-/**
- * An object for generated helper functions.
- */
-export const ItemDefinition = {
-  /**
-  * A function which returns this type represented as an AlgebraicType.
-  * This function is derived from the AlgebraicType used to generate this type.
-  */
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_ItemDefinition_type_value) return _cached_ItemDefinition_type_value;
-    _cached_ItemDefinition_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_ItemDefinition_type_value.value.elements.push(
-      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
-      { name: "name", algebraicType: __AlgebraicTypeValue.String },
-      { name: "description", algebraicType: __AlgebraicTypeValue.String },
-      { name: "category", algebraicType: ItemCategory.getTypeScriptAlgebraicType() },
-      { name: "iconAssetName", algebraicType: __AlgebraicTypeValue.String },
-      { name: "isStackable", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "stackSize", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "isEquippable", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "equipmentSlotType", algebraicType: __AlgebraicTypeValue.createOptionType(EquipmentSlotType.getTypeScriptAlgebraicType()) },
-      { name: "fuelBurnDurationSecs", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "primaryTargetDamageMin", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
-      { name: "primaryTargetDamageMax", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
-      { name: "primaryTargetYieldMin", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
-      { name: "primaryTargetYieldMax", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
-      { name: "primaryTargetType", algebraicType: __AlgebraicTypeValue.createOptionType(TargetType.getTypeScriptAlgebraicType()) },
-      { name: "primaryYieldResourceName", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
-      { name: "pvpDamageMin", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
-      { name: "pvpDamageMax", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
-      { name: "bleedDamagePerTick", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "bleedDurationSeconds", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "bleedTickIntervalSeconds", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "craftingCost", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.Array(CostIngredient.getTypeScriptAlgebraicType())) },
-      { name: "alternativeCraftingCosts", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.Array(__AlgebraicTypeValue.Array(CostIngredient.getTypeScriptAlgebraicType()))) },
-      { name: "flexibleIngredients", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.Array(FlexibleIngredient.getTypeScriptAlgebraicType())) },
-      { name: "craftingOutputQuantity", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
-      { name: "craftingTimeSecs", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
-      { name: "requiresStation", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
-      { name: "consumableHealthGain", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "consumableHungerSatiated", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "consumableThirstQuenched", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "consumableDurationSecs", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "cookTimeSecs", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "cookedItemDefName", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.String) },
-      { name: "damageResistance", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "warmthBonus", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "respawnTimeSeconds", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U32) },
-      { name: "attackIntervalSecs", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "damageType", algebraicType: __AlgebraicTypeValue.createOptionType(DamageType.getTypeScriptAlgebraicType()) },
-      { name: "armorResistances", algebraicType: __AlgebraicTypeValue.createOptionType(ArmorResistances.getTypeScriptAlgebraicType()) },
-      { name: "movementSpeedModifier", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "staminaRegenModifier", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "reflectsMeleeDamage", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "fireDamageMultiplier", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "detectionRadiusBonus", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "lowHealthDamageBonus", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "grantsBurnImmunity", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "grantsColdImmunity", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "grantsWetnessImmunity", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "grantsKnockbackImmunity", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "grantsBleedImmunity", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "grantsNightVision", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "noiseOnSprint", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "silencesMovement", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "intimidatesAnimals", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "ammoType", algebraicType: __AlgebraicTypeValue.createOptionType(AmmoType.getTypeScriptAlgebraicType()) },
-      { name: "attackArcDegrees", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "waterSpeedBonus", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "isPreserved", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "spoilsAfterHours", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "harvestBonus", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "allyDamageBonus", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "poisonDamageOnHit", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "maxHealthBonus", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.I32) },
-      { name: "bleedChanceOnMelee", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "reducesAnimalDetection", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "meleeDamageBonus", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-    );
-    return _cached_ItemDefinition_type_value;
+export default __t.object("ItemDefinition", {
+  id: __t.u64(),
+  name: __t.string(),
+  description: __t.string(),
+  get category() {
+    return ItemCategory;
   },
-
-  serialize(writer: __BinaryWriter, value: ItemDefinition): void {
-    __AlgebraicTypeValue.serializeValue(writer, ItemDefinition.getTypeScriptAlgebraicType(), value);
+  iconAssetName: __t.string(),
+  isStackable: __t.bool(),
+  stackSize: __t.u32(),
+  isEquippable: __t.bool(),
+  get equipmentSlotType() {
+    return __t.option(EquipmentSlotType);
   },
-
-  deserialize(reader: __BinaryReader): ItemDefinition {
-    return __AlgebraicTypeValue.deserializeValue(reader, ItemDefinition.getTypeScriptAlgebraicType());
+  fuelBurnDurationSecs: __t.option(__t.f32()),
+  primaryTargetDamageMin: __t.option(__t.u32()),
+  primaryTargetDamageMax: __t.option(__t.u32()),
+  primaryTargetYieldMin: __t.option(__t.u32()),
+  primaryTargetYieldMax: __t.option(__t.u32()),
+  get primaryTargetType() {
+    return __t.option(TargetType);
   },
-
-}
-
-export default ItemDefinition;
+  primaryYieldResourceName: __t.option(__t.string()),
+  pvpDamageMin: __t.option(__t.u32()),
+  pvpDamageMax: __t.option(__t.u32()),
+  bleedDamagePerTick: __t.option(__t.f32()),
+  bleedDurationSeconds: __t.option(__t.f32()),
+  bleedTickIntervalSeconds: __t.option(__t.f32()),
+  craftingCost: __t.option(__t.array(CostIngredient)),
+  alternativeCraftingCosts: __t.option(__t.array(__t.array(CostIngredient))),
+  flexibleIngredients: __t.option(__t.array(FlexibleIngredient)),
+  craftingOutputQuantity: __t.option(__t.u32()),
+  craftingTimeSecs: __t.option(__t.u32()),
+  requiresStation: __t.option(__t.string()),
+  consumableHealthGain: __t.option(__t.f32()),
+  consumableHungerSatiated: __t.option(__t.f32()),
+  consumableThirstQuenched: __t.option(__t.f32()),
+  consumableDurationSecs: __t.option(__t.f32()),
+  cookTimeSecs: __t.option(__t.f32()),
+  cookedItemDefName: __t.option(__t.string()),
+  damageResistance: __t.option(__t.f32()),
+  warmthBonus: __t.option(__t.f32()),
+  respawnTimeSeconds: __t.option(__t.u32()),
+  attackIntervalSecs: __t.option(__t.f32()),
+  get damageType() {
+    return __t.option(DamageType);
+  },
+  get armorResistances() {
+    return __t.option(ArmorResistances);
+  },
+  movementSpeedModifier: __t.option(__t.f32()),
+  staminaRegenModifier: __t.option(__t.f32()),
+  reflectsMeleeDamage: __t.option(__t.f32()),
+  fireDamageMultiplier: __t.option(__t.f32()),
+  detectionRadiusBonus: __t.option(__t.f32()),
+  lowHealthDamageBonus: __t.option(__t.f32()),
+  grantsBurnImmunity: __t.bool(),
+  grantsColdImmunity: __t.bool(),
+  grantsWetnessImmunity: __t.bool(),
+  grantsKnockbackImmunity: __t.bool(),
+  grantsBleedImmunity: __t.bool(),
+  grantsNightVision: __t.bool(),
+  noiseOnSprint: __t.bool(),
+  silencesMovement: __t.bool(),
+  intimidatesAnimals: __t.bool(),
+  get ammoType() {
+    return __t.option(AmmoType);
+  },
+  attackArcDegrees: __t.option(__t.f32()),
+  waterSpeedBonus: __t.option(__t.f32()),
+  isPreserved: __t.bool(),
+  spoilsAfterHours: __t.option(__t.f32()),
+  harvestBonus: __t.option(__t.f32()),
+  allyDamageBonus: __t.option(__t.f32()),
+  poisonDamageOnHit: __t.option(__t.f32()),
+  maxHealthBonus: __t.option(__t.i32()),
+  bleedChanceOnMelee: __t.option(__t.f32()),
+  reducesAnimalDetection: __t.option(__t.f32()),
+  meleeDamageBonus: __t.option(__t.f32()),
+});
 
 

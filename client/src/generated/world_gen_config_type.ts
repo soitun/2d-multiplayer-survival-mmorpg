@@ -4,78 +4,22 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
 
-export type WorldGenConfig = {
-  seed: bigint,
-  worldWidthTiles: number,
-  worldHeightTiles: number,
-  chunkSize: number,
-  islandBorderWidth: number,
-  beachWidth: number,
-  riverFrequency: number,
-  dirtPatchFrequency: number,
-  roadDensity: number,
-};
-let _cached_WorldGenConfig_type_value: __AlgebraicTypeType | null = null;
-
-/**
- * An object for generated helper functions.
- */
-export const WorldGenConfig = {
-  /**
-  * A function which returns this type represented as an AlgebraicType.
-  * This function is derived from the AlgebraicType used to generate this type.
-  */
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_WorldGenConfig_type_value) return _cached_WorldGenConfig_type_value;
-    _cached_WorldGenConfig_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_WorldGenConfig_type_value.value.elements.push(
-      { name: "seed", algebraicType: __AlgebraicTypeValue.U64 },
-      { name: "worldWidthTiles", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "worldHeightTiles", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "chunkSize", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "islandBorderWidth", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "beachWidth", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "riverFrequency", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "dirtPatchFrequency", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "roadDensity", algebraicType: __AlgebraicTypeValue.F32 },
-    );
-    return _cached_WorldGenConfig_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: WorldGenConfig): void {
-    __AlgebraicTypeValue.serializeValue(writer, WorldGenConfig.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): WorldGenConfig {
-    return __AlgebraicTypeValue.deserializeValue(reader, WorldGenConfig.getTypeScriptAlgebraicType());
-  },
-
-}
-
-export default WorldGenConfig;
+export default __t.object("WorldGenConfig", {
+  seed: __t.u64(),
+  worldWidthTiles: __t.u32(),
+  worldHeightTiles: __t.u32(),
+  chunkSize: __t.u32(),
+  islandBorderWidth: __t.u32(),
+  beachWidth: __t.u32(),
+  riverFrequency: __t.f32(),
+  dirtPatchFrequency: __t.f32(),
+  roadDensity: __t.f32(),
+});
 
 

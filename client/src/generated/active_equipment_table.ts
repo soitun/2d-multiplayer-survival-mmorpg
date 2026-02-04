@@ -4,103 +4,27 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { ActiveEquipment } from "./active_equipment_type";
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
-declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-/**
- * Table handle for the table `active_equipment`.
- *
- * Obtain a handle from the [`activeEquipment`] property on [`RemoteTables`],
- * like `ctx.db.activeEquipment`.
- *
- * Users are encouraged not to explicitly reference this type,
- * but to directly chain method calls,
- * like `ctx.db.activeEquipment.on_insert(...)`.
- */
-export class ActiveEquipmentTableHandle<TableName extends string> implements __TableHandle<TableName> {
-  // phantom type to track the table name
-  readonly tableName!: TableName;
-  tableCache: __TableCache<ActiveEquipment>;
-
-  constructor(tableCache: __TableCache<ActiveEquipment>) {
-    this.tableCache = tableCache;
-  }
-
-  count(): number {
-    return this.tableCache.count();
-  }
-
-  iter(): Iterable<ActiveEquipment> {
-    return this.tableCache.iter();
-  }
-  /**
-   * Access to the `playerIdentity` unique index on the table `active_equipment`,
-   * which allows point queries on the field of the same name
-   * via the [`ActiveEquipmentPlayerIdentityUnique.find`] method.
-   *
-   * Users are encouraged not to explicitly reference this type,
-   * but to directly chain method calls,
-   * like `ctx.db.activeEquipment.playerIdentity().find(...)`.
-   *
-   * Get a handle on the `playerIdentity` unique index on the table `active_equipment`.
-   */
-  playerIdentity = {
-    // Find the subscribed row whose `playerIdentity` column value is equal to `col_val`,
-    // if such a row is present in the client cache.
-    find: (col_val: __Identity): ActiveEquipment | undefined => {
-      for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.playerIdentity, col_val)) {
-          return row;
-        }
-      }
-    },
-  };
-
-  onInsert = (cb: (ctx: EventContext, row: ActiveEquipment) => void) => {
-    return this.tableCache.onInsert(cb);
-  }
-
-  removeOnInsert = (cb: (ctx: EventContext, row: ActiveEquipment) => void) => {
-    return this.tableCache.removeOnInsert(cb);
-  }
-
-  onDelete = (cb: (ctx: EventContext, row: ActiveEquipment) => void) => {
-    return this.tableCache.onDelete(cb);
-  }
-
-  removeOnDelete = (cb: (ctx: EventContext, row: ActiveEquipment) => void) => {
-    return this.tableCache.removeOnDelete(cb);
-  }
-
-  // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: ActiveEquipment, newRow: ActiveEquipment) => void) => {
-    return this.tableCache.onUpdate(cb);
-  }
-
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: ActiveEquipment, newRow: ActiveEquipment) => void) => {
-    return this.tableCache.removeOnUpdate(cb);
-  }}
+export default __t.row({
+  playerIdentity: __t.identity().primaryKey().name("player_identity"),
+  equippedItemDefId: __t.option(__t.u64()).name("equipped_item_def_id"),
+  equippedItemInstanceId: __t.option(__t.u64()).name("equipped_item_instance_id"),
+  iconAssetName: __t.option(__t.string()).name("icon_asset_name"),
+  swingStartTimeMs: __t.u64().name("swing_start_time_ms"),
+  loadedAmmoDefId: __t.option(__t.u64()).name("loaded_ammo_def_id"),
+  loadedAmmoCount: __t.u8().name("loaded_ammo_count"),
+  isReadyToFire: __t.bool().name("is_ready_to_fire"),
+  preferredArrowType: __t.option(__t.string()).name("preferred_arrow_type"),
+  reloadStartTimeMs: __t.u64().name("reload_start_time_ms"),
+  headItemInstanceId: __t.option(__t.u64()).name("head_item_instance_id"),
+  chestItemInstanceId: __t.option(__t.u64()).name("chest_item_instance_id"),
+  legsItemInstanceId: __t.option(__t.u64()).name("legs_item_instance_id"),
+  feetItemInstanceId: __t.option(__t.u64()).name("feet_item_instance_id"),
+  handsItemInstanceId: __t.option(__t.u64()).name("hands_item_instance_id"),
+  backItemInstanceId: __t.option(__t.u64()).name("back_item_instance_id"),
+});

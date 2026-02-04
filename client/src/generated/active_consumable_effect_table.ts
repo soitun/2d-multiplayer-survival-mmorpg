@@ -4,107 +4,27 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { ActiveConsumableEffect } from "./active_consumable_effect_type";
-import { EffectType } from "./effect_type_type";
-// Mark import as potentially unused
-declare type __keep_EffectType = EffectType;
+import EffectType from "./effect_type_type";
 
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
-declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-/**
- * Table handle for the table `active_consumable_effect`.
- *
- * Obtain a handle from the [`activeConsumableEffect`] property on [`RemoteTables`],
- * like `ctx.db.activeConsumableEffect`.
- *
- * Users are encouraged not to explicitly reference this type,
- * but to directly chain method calls,
- * like `ctx.db.activeConsumableEffect.on_insert(...)`.
- */
-export class ActiveConsumableEffectTableHandle<TableName extends string> implements __TableHandle<TableName> {
-  // phantom type to track the table name
-  readonly tableName!: TableName;
-  tableCache: __TableCache<ActiveConsumableEffect>;
-
-  constructor(tableCache: __TableCache<ActiveConsumableEffect>) {
-    this.tableCache = tableCache;
-  }
-
-  count(): number {
-    return this.tableCache.count();
-  }
-
-  iter(): Iterable<ActiveConsumableEffect> {
-    return this.tableCache.iter();
-  }
-  /**
-   * Access to the `effectId` unique index on the table `active_consumable_effect`,
-   * which allows point queries on the field of the same name
-   * via the [`ActiveConsumableEffectEffectIdUnique.find`] method.
-   *
-   * Users are encouraged not to explicitly reference this type,
-   * but to directly chain method calls,
-   * like `ctx.db.activeConsumableEffect.effectId().find(...)`.
-   *
-   * Get a handle on the `effectId` unique index on the table `active_consumable_effect`.
-   */
-  effectId = {
-    // Find the subscribed row whose `effectId` column value is equal to `col_val`,
-    // if such a row is present in the client cache.
-    find: (col_val: bigint): ActiveConsumableEffect | undefined => {
-      for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.effectId, col_val)) {
-          return row;
-        }
-      }
-    },
-  };
-
-  onInsert = (cb: (ctx: EventContext, row: ActiveConsumableEffect) => void) => {
-    return this.tableCache.onInsert(cb);
-  }
-
-  removeOnInsert = (cb: (ctx: EventContext, row: ActiveConsumableEffect) => void) => {
-    return this.tableCache.removeOnInsert(cb);
-  }
-
-  onDelete = (cb: (ctx: EventContext, row: ActiveConsumableEffect) => void) => {
-    return this.tableCache.onDelete(cb);
-  }
-
-  removeOnDelete = (cb: (ctx: EventContext, row: ActiveConsumableEffect) => void) => {
-    return this.tableCache.removeOnDelete(cb);
-  }
-
-  // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: ActiveConsumableEffect, newRow: ActiveConsumableEffect) => void) => {
-    return this.tableCache.onUpdate(cb);
-  }
-
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: ActiveConsumableEffect, newRow: ActiveConsumableEffect) => void) => {
-    return this.tableCache.removeOnUpdate(cb);
-  }}
+export default __t.row({
+  effectId: __t.u64().primaryKey().name("effect_id"),
+  playerId: __t.identity().name("player_id"),
+  targetPlayerId: __t.option(__t.identity()).name("target_player_id"),
+  itemDefId: __t.u64().name("item_def_id"),
+  consumingItemInstanceId: __t.option(__t.u64()).name("consuming_item_instance_id"),
+  startedAt: __t.timestamp().name("started_at"),
+  endsAt: __t.timestamp().name("ends_at"),
+  totalAmount: __t.option(__t.f32()).name("total_amount"),
+  amountAppliedSoFar: __t.option(__t.f32()).name("amount_applied_so_far"),
+  get effectType() {
+    return EffectType.name("effect_type");
+  },
+  tickIntervalMicros: __t.u64().name("tick_interval_micros"),
+  nextTickAt: __t.timestamp().name("next_tick_at"),
+});

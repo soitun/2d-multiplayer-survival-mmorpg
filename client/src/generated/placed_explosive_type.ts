@@ -4,92 +4,31 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { ExplosiveType } from "./explosive_type_type";
-// Mark import as potentially unused
-declare type __keep_ExplosiveType = ExplosiveType;
+import ExplosiveType from "./explosive_type_type";
 
 
-export type PlacedExplosive = {
-  id: bigint,
-  posX: number,
-  posY: number,
-  chunkIndex: number,
-  explosiveType: ExplosiveType,
-  placedBy: __Identity,
-  placedAt: __Timestamp,
-  armedAt: __Timestamp | undefined,
-  fuseDurationSecs: number,
-  detonatesAt: __Timestamp | undefined,
-  isDud: boolean,
-  blastRadius: number,
-  structureDamage: number,
-  playerDamage: number,
-};
-let _cached_PlacedExplosive_type_value: __AlgebraicTypeType | null = null;
-
-/**
- * An object for generated helper functions.
- */
-export const PlacedExplosive = {
-  /**
-  * A function which returns this type represented as an AlgebraicType.
-  * This function is derived from the AlgebraicType used to generate this type.
-  */
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_PlacedExplosive_type_value) return _cached_PlacedExplosive_type_value;
-    _cached_PlacedExplosive_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_PlacedExplosive_type_value.value.elements.push(
-      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
-      { name: "posX", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "posY", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "explosiveType", algebraicType: ExplosiveType.getTypeScriptAlgebraicType() },
-      { name: "placedBy", algebraicType: __AlgebraicTypeValue.createIdentityType() },
-      { name: "placedAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
-      { name: "armedAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-      { name: "fuseDurationSecs", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "detonatesAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-      { name: "isDud", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "blastRadius", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "structureDamage", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "playerDamage", algebraicType: __AlgebraicTypeValue.F32 },
-    );
-    return _cached_PlacedExplosive_type_value;
+export default __t.object("PlacedExplosive", {
+  id: __t.u64(),
+  posX: __t.f32(),
+  posY: __t.f32(),
+  chunkIndex: __t.u32(),
+  get explosiveType() {
+    return ExplosiveType;
   },
-
-  serialize(writer: __BinaryWriter, value: PlacedExplosive): void {
-    __AlgebraicTypeValue.serializeValue(writer, PlacedExplosive.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): PlacedExplosive {
-    return __AlgebraicTypeValue.deserializeValue(reader, PlacedExplosive.getTypeScriptAlgebraicType());
-  },
-
-}
-
-export default PlacedExplosive;
+  placedBy: __t.identity(),
+  placedAt: __t.timestamp(),
+  armedAt: __t.option(__t.timestamp()),
+  fuseDurationSecs: __t.f32(),
+  detonatesAt: __t.option(__t.timestamp()),
+  isDud: __t.bool(),
+  blastRadius: __t.f32(),
+  structureDamage: __t.f32(),
+  playerDamage: __t.f32(),
+});
 
 

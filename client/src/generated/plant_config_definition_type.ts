@@ -4,95 +4,34 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { PlantType } from "./plant_type_type";
-// Mark import as potentially unused
-declare type __keep_PlantType = PlantType;
-import { PlantCategory } from "./plant_category_type";
-// Mark import as potentially unused
-declare type __keep_PlantCategory = PlantCategory;
+import PlantType from "./plant_type_type";
+import PlantCategory from "./plant_category_type";
 
 
-export type PlantConfigDefinition = {
-  plantType: PlantType,
-  entityName: string,
-  category: PlantCategory,
-  primaryYieldItem: string,
-  primaryYieldMin: number,
-  primaryYieldMax: number,
-  secondaryYieldItem: string,
-  secondaryYieldMin: number,
-  secondaryYieldMax: number,
-  secondaryYieldChance: number,
-  seedType: string,
-  seedDropChance: number,
-  spawnLocation: string,
-  growingSeasons: string,
-};
-let _cached_PlantConfigDefinition_type_value: __AlgebraicTypeType | null = null;
-
-/**
- * An object for generated helper functions.
- */
-export const PlantConfigDefinition = {
-  /**
-  * A function which returns this type represented as an AlgebraicType.
-  * This function is derived from the AlgebraicType used to generate this type.
-  */
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_PlantConfigDefinition_type_value) return _cached_PlantConfigDefinition_type_value;
-    _cached_PlantConfigDefinition_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_PlantConfigDefinition_type_value.value.elements.push(
-      { name: "plantType", algebraicType: PlantType.getTypeScriptAlgebraicType() },
-      { name: "entityName", algebraicType: __AlgebraicTypeValue.String },
-      { name: "category", algebraicType: PlantCategory.getTypeScriptAlgebraicType() },
-      { name: "primaryYieldItem", algebraicType: __AlgebraicTypeValue.String },
-      { name: "primaryYieldMin", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "primaryYieldMax", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "secondaryYieldItem", algebraicType: __AlgebraicTypeValue.String },
-      { name: "secondaryYieldMin", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "secondaryYieldMax", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "secondaryYieldChance", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "seedType", algebraicType: __AlgebraicTypeValue.String },
-      { name: "seedDropChance", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "spawnLocation", algebraicType: __AlgebraicTypeValue.String },
-      { name: "growingSeasons", algebraicType: __AlgebraicTypeValue.String },
-    );
-    return _cached_PlantConfigDefinition_type_value;
+export default __t.object("PlantConfigDefinition", {
+  get plantType() {
+    return PlantType;
   },
-
-  serialize(writer: __BinaryWriter, value: PlantConfigDefinition): void {
-    __AlgebraicTypeValue.serializeValue(writer, PlantConfigDefinition.getTypeScriptAlgebraicType(), value);
+  entityName: __t.string(),
+  get category() {
+    return PlantCategory;
   },
-
-  deserialize(reader: __BinaryReader): PlantConfigDefinition {
-    return __AlgebraicTypeValue.deserializeValue(reader, PlantConfigDefinition.getTypeScriptAlgebraicType());
-  },
-
-}
-
-export default PlantConfigDefinition;
+  primaryYieldItem: __t.string(),
+  primaryYieldMin: __t.u32(),
+  primaryYieldMax: __t.u32(),
+  secondaryYieldItem: __t.string(),
+  secondaryYieldMin: __t.u32(),
+  secondaryYieldMax: __t.u32(),
+  secondaryYieldChance: __t.f32(),
+  seedType: __t.string(),
+  seedDropChance: __t.f32(),
+  spawnLocation: __t.string(),
+  growingSeasons: __t.string(),
+});
 
 

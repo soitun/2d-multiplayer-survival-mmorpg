@@ -4,172 +4,93 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { CookingProgress } from "./cooking_progress_type";
-// Mark import as potentially unused
-declare type __keep_CookingProgress = CookingProgress;
+import CookingProgress from "./cooking_progress_type";
 
 
-export type Barbecue = {
-  id: number,
-  posX: number,
-  posY: number,
-  chunkIndex: number,
-  placedBy: __Identity,
-  placedAt: __Timestamp,
-  isBurning: boolean,
-  slotInstanceId0: bigint | undefined,
-  slotDefId0: bigint | undefined,
-  slotInstanceId1: bigint | undefined,
-  slotDefId1: bigint | undefined,
-  slotInstanceId2: bigint | undefined,
-  slotDefId2: bigint | undefined,
-  slotInstanceId3: bigint | undefined,
-  slotDefId3: bigint | undefined,
-  slotInstanceId4: bigint | undefined,
-  slotDefId4: bigint | undefined,
-  slotInstanceId5: bigint | undefined,
-  slotDefId5: bigint | undefined,
-  slotInstanceId6: bigint | undefined,
-  slotDefId6: bigint | undefined,
-  slotInstanceId7: bigint | undefined,
-  slotDefId7: bigint | undefined,
-  slotInstanceId8: bigint | undefined,
-  slotDefId8: bigint | undefined,
-  slotInstanceId9: bigint | undefined,
-  slotDefId9: bigint | undefined,
-  slotInstanceId10: bigint | undefined,
-  slotDefId10: bigint | undefined,
-  slotInstanceId11: bigint | undefined,
-  slotDefId11: bigint | undefined,
-  currentFuelDefId: bigint | undefined,
-  remainingFuelBurnTimeSecs: number | undefined,
-  health: number,
-  maxHealth: number,
-  isDestroyed: boolean,
-  destroyedAt: __Timestamp | undefined,
-  lastHitTime: __Timestamp | undefined,
-  lastDamagedBy: __Identity | undefined,
-  slot0CookingProgress: CookingProgress | undefined,
-  slot1CookingProgress: CookingProgress | undefined,
-  slot2CookingProgress: CookingProgress | undefined,
-  slot3CookingProgress: CookingProgress | undefined,
-  slot4CookingProgress: CookingProgress | undefined,
-  slot5CookingProgress: CookingProgress | undefined,
-  slot6CookingProgress: CookingProgress | undefined,
-  slot7CookingProgress: CookingProgress | undefined,
-  slot8CookingProgress: CookingProgress | undefined,
-  slot9CookingProgress: CookingProgress | undefined,
-  slot10CookingProgress: CookingProgress | undefined,
-  slot11CookingProgress: CookingProgress | undefined,
-  isMonument: boolean,
-  activeUserId: __Identity | undefined,
-  activeUserSince: __Timestamp | undefined,
-};
-let _cached_Barbecue_type_value: __AlgebraicTypeType | null = null;
-
-/**
- * An object for generated helper functions.
- */
-export const Barbecue = {
-  /**
-  * A function which returns this type represented as an AlgebraicType.
-  * This function is derived from the AlgebraicType used to generate this type.
-  */
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_Barbecue_type_value) return _cached_Barbecue_type_value;
-    _cached_Barbecue_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_Barbecue_type_value.value.elements.push(
-      { name: "id", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "posX", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "posY", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
-      { name: "placedBy", algebraicType: __AlgebraicTypeValue.createIdentityType() },
-      { name: "placedAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
-      { name: "isBurning", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "slotInstanceId0", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotDefId0", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotInstanceId1", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotDefId1", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotInstanceId2", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotDefId2", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotInstanceId3", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotDefId3", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotInstanceId4", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotDefId4", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotInstanceId5", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotDefId5", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotInstanceId6", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotDefId6", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotInstanceId7", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotDefId7", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotInstanceId8", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotDefId8", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotInstanceId9", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotDefId9", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotInstanceId10", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotDefId10", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotInstanceId11", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "slotDefId11", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "currentFuelDefId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.U64) },
-      { name: "remainingFuelBurnTimeSecs", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.F32) },
-      { name: "health", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "maxHealth", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "isDestroyed", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "destroyedAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-      { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-      { name: "lastDamagedBy", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createIdentityType()) },
-      { name: "slot0CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
-      { name: "slot1CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
-      { name: "slot2CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
-      { name: "slot3CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
-      { name: "slot4CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
-      { name: "slot5CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
-      { name: "slot6CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
-      { name: "slot7CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
-      { name: "slot8CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
-      { name: "slot9CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
-      { name: "slot10CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
-      { name: "slot11CookingProgress", algebraicType: __AlgebraicTypeValue.createOptionType(CookingProgress.getTypeScriptAlgebraicType()) },
-      { name: "isMonument", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "activeUserId", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createIdentityType()) },
-      { name: "activeUserSince", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-    );
-    return _cached_Barbecue_type_value;
+export default __t.object("Barbecue", {
+  id: __t.u32(),
+  posX: __t.f32(),
+  posY: __t.f32(),
+  chunkIndex: __t.u32(),
+  placedBy: __t.identity(),
+  placedAt: __t.timestamp(),
+  isBurning: __t.bool(),
+  slotInstanceId0: __t.option(__t.u64()),
+  slotDefId0: __t.option(__t.u64()),
+  slotInstanceId1: __t.option(__t.u64()),
+  slotDefId1: __t.option(__t.u64()),
+  slotInstanceId2: __t.option(__t.u64()),
+  slotDefId2: __t.option(__t.u64()),
+  slotInstanceId3: __t.option(__t.u64()),
+  slotDefId3: __t.option(__t.u64()),
+  slotInstanceId4: __t.option(__t.u64()),
+  slotDefId4: __t.option(__t.u64()),
+  slotInstanceId5: __t.option(__t.u64()),
+  slotDefId5: __t.option(__t.u64()),
+  slotInstanceId6: __t.option(__t.u64()),
+  slotDefId6: __t.option(__t.u64()),
+  slotInstanceId7: __t.option(__t.u64()),
+  slotDefId7: __t.option(__t.u64()),
+  slotInstanceId8: __t.option(__t.u64()),
+  slotDefId8: __t.option(__t.u64()),
+  slotInstanceId9: __t.option(__t.u64()),
+  slotDefId9: __t.option(__t.u64()),
+  slotInstanceId10: __t.option(__t.u64()),
+  slotDefId10: __t.option(__t.u64()),
+  slotInstanceId11: __t.option(__t.u64()),
+  slotDefId11: __t.option(__t.u64()),
+  currentFuelDefId: __t.option(__t.u64()),
+  remainingFuelBurnTimeSecs: __t.option(__t.f32()),
+  health: __t.f32(),
+  maxHealth: __t.f32(),
+  isDestroyed: __t.bool(),
+  destroyedAt: __t.option(__t.timestamp()),
+  lastHitTime: __t.option(__t.timestamp()),
+  lastDamagedBy: __t.option(__t.identity()),
+  get slot0CookingProgress() {
+    return __t.option(CookingProgress);
   },
-
-  serialize(writer: __BinaryWriter, value: Barbecue): void {
-    __AlgebraicTypeValue.serializeValue(writer, Barbecue.getTypeScriptAlgebraicType(), value);
+  get slot1CookingProgress() {
+    return __t.option(CookingProgress);
   },
-
-  deserialize(reader: __BinaryReader): Barbecue {
-    return __AlgebraicTypeValue.deserializeValue(reader, Barbecue.getTypeScriptAlgebraicType());
+  get slot2CookingProgress() {
+    return __t.option(CookingProgress);
   },
-
-}
-
-export default Barbecue;
+  get slot3CookingProgress() {
+    return __t.option(CookingProgress);
+  },
+  get slot4CookingProgress() {
+    return __t.option(CookingProgress);
+  },
+  get slot5CookingProgress() {
+    return __t.option(CookingProgress);
+  },
+  get slot6CookingProgress() {
+    return __t.option(CookingProgress);
+  },
+  get slot7CookingProgress() {
+    return __t.option(CookingProgress);
+  },
+  get slot8CookingProgress() {
+    return __t.option(CookingProgress);
+  },
+  get slot9CookingProgress() {
+    return __t.option(CookingProgress);
+  },
+  get slot10CookingProgress() {
+    return __t.option(CookingProgress);
+  },
+  get slot11CookingProgress() {
+    return __t.option(CookingProgress);
+  },
+  isMonument: __t.bool(),
+  activeUserId: __t.option(__t.identity()),
+  activeUserSince: __t.option(__t.timestamp()),
+});
 
 

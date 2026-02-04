@@ -4,84 +4,27 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { SoundType } from "./sound_type_type";
-// Mark import as potentially unused
-declare type __keep_SoundType = SoundType;
+import SoundType from "./sound_type_type";
 
 
-export type ContinuousSound = {
-  objectId: bigint,
-  soundType: SoundType,
-  filename: string,
-  posX: number,
-  posY: number,
-  volume: number,
-  maxDistance: number,
-  isActive: boolean,
-  createdAt: __Timestamp,
-  updatedAt: __Timestamp,
-};
-let _cached_ContinuousSound_type_value: __AlgebraicTypeType | null = null;
-
-/**
- * An object for generated helper functions.
- */
-export const ContinuousSound = {
-  /**
-  * A function which returns this type represented as an AlgebraicType.
-  * This function is derived from the AlgebraicType used to generate this type.
-  */
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_ContinuousSound_type_value) return _cached_ContinuousSound_type_value;
-    _cached_ContinuousSound_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_ContinuousSound_type_value.value.elements.push(
-      { name: "objectId", algebraicType: __AlgebraicTypeValue.U64 },
-      { name: "soundType", algebraicType: SoundType.getTypeScriptAlgebraicType() },
-      { name: "filename", algebraicType: __AlgebraicTypeValue.String },
-      { name: "posX", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "posY", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "volume", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "maxDistance", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "isActive", algebraicType: __AlgebraicTypeValue.Bool },
-      { name: "createdAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
-      { name: "updatedAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
-    );
-    return _cached_ContinuousSound_type_value;
+export default __t.object("ContinuousSound", {
+  objectId: __t.u64(),
+  get soundType() {
+    return SoundType;
   },
-
-  serialize(writer: __BinaryWriter, value: ContinuousSound): void {
-    __AlgebraicTypeValue.serializeValue(writer, ContinuousSound.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): ContinuousSound {
-    return __AlgebraicTypeValue.deserializeValue(reader, ContinuousSound.getTypeScriptAlgebraicType());
-  },
-
-}
-
-export default ContinuousSound;
+  filename: __t.string(),
+  posX: __t.f32(),
+  posY: __t.f32(),
+  volume: __t.f32(),
+  maxDistance: __t.f32(),
+  isActive: __t.bool(),
+  createdAt: __t.timestamp(),
+  updatedAt: __t.timestamp(),
+});
 
 

@@ -4,400 +4,130 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import * as SoundTypeVariants from './sound_type_variants'
 
 // The tagged union or sum type for the algebraic type `SoundType`.
-export type SoundType = SoundTypeVariants.TreeChop |
-  SoundTypeVariants.TreeCreaking |
-  SoundTypeVariants.TreeFalling |
-  SoundTypeVariants.BirdsFlapping |
-  SoundTypeVariants.StoneHit |
-  SoundTypeVariants.StoneDestroyed |
-  SoundTypeVariants.HarvestPlant |
-  SoundTypeVariants.PlantSeed |
-  SoundTypeVariants.PickupItem |
-  SoundTypeVariants.CampfireLooping |
-  SoundTypeVariants.LanternLooping |
-  SoundTypeVariants.BeehiveLooping |
-  SoundTypeVariants.Repair |
-  SoundTypeVariants.RepairFail |
-  SoundTypeVariants.HeavyStormRain |
-  SoundTypeVariants.NormalRain |
-  SoundTypeVariants.DrinkingWater |
-  SoundTypeVariants.ThrowingUp |
-  SoundTypeVariants.EatingFood |
-  SoundTypeVariants.WateringCrops |
-  SoundTypeVariants.FillingContainer |
-  SoundTypeVariants.MeleeHitSharp |
-  SoundTypeVariants.SpearHit |
-  SoundTypeVariants.TorchHit |
-  SoundTypeVariants.TorchHitLit |
-  SoundTypeVariants.LightTorch |
-  SoundTypeVariants.ExtinguishTorch |
-  SoundTypeVariants.FlashlightOn |
-  SoundTypeVariants.FlashlightOff |
-  SoundTypeVariants.MeleeHitBlunt |
-  SoundTypeVariants.WeaponSwing |
-  SoundTypeVariants.ArrowHit |
-  SoundTypeVariants.ShootBow |
-  SoundTypeVariants.ShootCrossbow |
-  SoundTypeVariants.ShootPistol |
-  SoundTypeVariants.ReloadBow |
-  SoundTypeVariants.ReloadCrossbow |
-  SoundTypeVariants.ReloadPistol |
-  SoundTypeVariants.Bandaging |
-  SoundTypeVariants.StopBandaging |
-  SoundTypeVariants.BarrelHit |
-  SoundTypeVariants.BarrelDestroyed |
-  SoundTypeVariants.GrowlWolf |
-  SoundTypeVariants.GrowlFox |
-  SoundTypeVariants.GrowlSnake |
-  SoundTypeVariants.GrowlWalrus |
-  SoundTypeVariants.GrowlCrab |
-  SoundTypeVariants.GrowlCrow |
-  SoundTypeVariants.GrowlTern |
-  SoundTypeVariants.GrowlVole |
-  SoundTypeVariants.GrowlWolverine |
-  SoundTypeVariants.GrowlCaribou |
-  SoundTypeVariants.GrowlPolarBear |
-  SoundTypeVariants.GrowlHare |
-  SoundTypeVariants.GrowlOwl |
-  SoundTypeVariants.GrowlShorebound |
-  SoundTypeVariants.GrowlShardkin |
-  SoundTypeVariants.GrowlDrownedWatch |
-  SoundTypeVariants.Walking |
-  SoundTypeVariants.Swimming |
-  SoundTypeVariants.FoundationWoodConstructed |
-  SoundTypeVariants.FoundationWoodUpgraded |
-  SoundTypeVariants.FoundationStoneUpgraded |
-  SoundTypeVariants.FoundationMetalUpgraded |
-  SoundTypeVariants.FoundationTwigDestroyed |
-  SoundTypeVariants.ItemThrown |
-  SoundTypeVariants.ErrorResources |
-  SoundTypeVariants.ErrorCantPickUpCauldron |
-  SoundTypeVariants.DoneCooking |
-  SoundTypeVariants.DoneBurning |
-  SoundTypeVariants.SoupBoiling |
-  SoundTypeVariants.ErrorJarPlacement |
-  SoundTypeVariants.ErrorBrothNotCompatible |
-  SoundTypeVariants.DoorOpening |
-  SoundTypeVariants.BarbecueOn |
-  SoundTypeVariants.BarbecueOff |
-  SoundTypeVariants.CrowStealing |
-  SoundTypeVariants.CairnUnlock |
-  SoundTypeVariants.GrassCut |
-  SoundTypeVariants.SnorkelSubmerge |
-  SoundTypeVariants.SnorkelEmerge |
-  SoundTypeVariants.ErrorSeaweedAboveWater |
-  SoundTypeVariants.Stun |
-  SoundTypeVariants.ExplosiveFuseBabushka |
-  SoundTypeVariants.ExplosiveFuseMatriarch |
-  SoundTypeVariants.Explosion |
-  SoundTypeVariants.ExplosiveDud |
-  SoundTypeVariants.DoorDestroyed |
-  SoundTypeVariants.SovaMemoryShardTutorial |
-  SoundTypeVariants.TillDirt |
-  SoundTypeVariants.ErrorTillingFailed |
-  SoundTypeVariants.ErrorTillingDirt |
-  SoundTypeVariants.HostileDeath |
-  SoundTypeVariants.DeathWolf |
-  SoundTypeVariants.DeathFox |
-  SoundTypeVariants.DeathCrab |
-  SoundTypeVariants.DeathWalrus |
-  SoundTypeVariants.DeathTern |
-  SoundTypeVariants.DeathCrow |
-  SoundTypeVariants.DeathViper |
-  SoundTypeVariants.DeathVole |
-  SoundTypeVariants.DeathWolverine |
-  SoundTypeVariants.DeathCaribou |
-  SoundTypeVariants.DeathPolarBear |
-  SoundTypeVariants.DeathHare |
-  SoundTypeVariants.DeathOwl |
-  SoundTypeVariants.DeathBee |
-  SoundTypeVariants.DeathPlayer |
-  SoundTypeVariants.AnimalBurrow |
-  SoundTypeVariants.PlayerHurt |
-  SoundTypeVariants.Heartbeat |
-  SoundTypeVariants.StopHeartbeat |
-  SoundTypeVariants.Thunder;
-
-let _cached_SoundType_type_value: __AlgebraicTypeType | null = null;
-
-// A value with helper functions to construct the type.
-export const SoundType = {
-  // Helper functions for constructing each variant of the tagged union.
-  // ```
-  // const foo = Foo.A(42);
-  // assert!(foo.tag === "A");
-  // assert!(foo.value === 42);
-  // ```
-  TreeChop: { tag: "TreeChop" } as const,
-  TreeCreaking: { tag: "TreeCreaking" } as const,
-  TreeFalling: { tag: "TreeFalling" } as const,
-  BirdsFlapping: { tag: "BirdsFlapping" } as const,
-  StoneHit: { tag: "StoneHit" } as const,
-  StoneDestroyed: { tag: "StoneDestroyed" } as const,
-  HarvestPlant: { tag: "HarvestPlant" } as const,
-  PlantSeed: { tag: "PlantSeed" } as const,
-  PickupItem: { tag: "PickupItem" } as const,
-  CampfireLooping: { tag: "CampfireLooping" } as const,
-  LanternLooping: { tag: "LanternLooping" } as const,
-  BeehiveLooping: { tag: "BeehiveLooping" } as const,
-  Repair: { tag: "Repair" } as const,
-  RepairFail: { tag: "RepairFail" } as const,
-  HeavyStormRain: { tag: "HeavyStormRain" } as const,
-  NormalRain: { tag: "NormalRain" } as const,
-  DrinkingWater: { tag: "DrinkingWater" } as const,
-  ThrowingUp: { tag: "ThrowingUp" } as const,
-  EatingFood: { tag: "EatingFood" } as const,
-  WateringCrops: { tag: "WateringCrops" } as const,
-  FillingContainer: { tag: "FillingContainer" } as const,
-  MeleeHitSharp: { tag: "MeleeHitSharp" } as const,
-  SpearHit: { tag: "SpearHit" } as const,
-  TorchHit: { tag: "TorchHit" } as const,
-  TorchHitLit: { tag: "TorchHitLit" } as const,
-  LightTorch: { tag: "LightTorch" } as const,
-  ExtinguishTorch: { tag: "ExtinguishTorch" } as const,
-  FlashlightOn: { tag: "FlashlightOn" } as const,
-  FlashlightOff: { tag: "FlashlightOff" } as const,
-  MeleeHitBlunt: { tag: "MeleeHitBlunt" } as const,
-  WeaponSwing: { tag: "WeaponSwing" } as const,
-  ArrowHit: { tag: "ArrowHit" } as const,
-  ShootBow: { tag: "ShootBow" } as const,
-  ShootCrossbow: { tag: "ShootCrossbow" } as const,
-  ShootPistol: { tag: "ShootPistol" } as const,
-  ReloadBow: { tag: "ReloadBow" } as const,
-  ReloadCrossbow: { tag: "ReloadCrossbow" } as const,
-  ReloadPistol: { tag: "ReloadPistol" } as const,
-  Bandaging: { tag: "Bandaging" } as const,
-  StopBandaging: { tag: "StopBandaging" } as const,
-  BarrelHit: { tag: "BarrelHit" } as const,
-  BarrelDestroyed: { tag: "BarrelDestroyed" } as const,
-  GrowlWolf: { tag: "GrowlWolf" } as const,
-  GrowlFox: { tag: "GrowlFox" } as const,
-  GrowlSnake: { tag: "GrowlSnake" } as const,
-  GrowlWalrus: { tag: "GrowlWalrus" } as const,
-  GrowlCrab: { tag: "GrowlCrab" } as const,
-  GrowlCrow: { tag: "GrowlCrow" } as const,
-  GrowlTern: { tag: "GrowlTern" } as const,
-  GrowlVole: { tag: "GrowlVole" } as const,
-  GrowlWolverine: { tag: "GrowlWolverine" } as const,
-  GrowlCaribou: { tag: "GrowlCaribou" } as const,
-  GrowlPolarBear: { tag: "GrowlPolarBear" } as const,
-  GrowlHare: { tag: "GrowlHare" } as const,
-  GrowlOwl: { tag: "GrowlOwl" } as const,
-  GrowlShorebound: { tag: "GrowlShorebound" } as const,
-  GrowlShardkin: { tag: "GrowlShardkin" } as const,
-  GrowlDrownedWatch: { tag: "GrowlDrownedWatch" } as const,
-  Walking: { tag: "Walking" } as const,
-  Swimming: { tag: "Swimming" } as const,
-  FoundationWoodConstructed: { tag: "FoundationWoodConstructed" } as const,
-  FoundationWoodUpgraded: { tag: "FoundationWoodUpgraded" } as const,
-  FoundationStoneUpgraded: { tag: "FoundationStoneUpgraded" } as const,
-  FoundationMetalUpgraded: { tag: "FoundationMetalUpgraded" } as const,
-  FoundationTwigDestroyed: { tag: "FoundationTwigDestroyed" } as const,
-  ItemThrown: { tag: "ItemThrown" } as const,
-  ErrorResources: { tag: "ErrorResources" } as const,
-  ErrorCantPickUpCauldron: { tag: "ErrorCantPickUpCauldron" } as const,
-  DoneCooking: { tag: "DoneCooking" } as const,
-  DoneBurning: { tag: "DoneBurning" } as const,
-  SoupBoiling: { tag: "SoupBoiling" } as const,
-  ErrorJarPlacement: { tag: "ErrorJarPlacement" } as const,
-  ErrorBrothNotCompatible: { tag: "ErrorBrothNotCompatible" } as const,
-  DoorOpening: { tag: "DoorOpening" } as const,
-  BarbecueOn: { tag: "BarbecueOn" } as const,
-  BarbecueOff: { tag: "BarbecueOff" } as const,
-  CrowStealing: { tag: "CrowStealing" } as const,
-  CairnUnlock: { tag: "CairnUnlock" } as const,
-  GrassCut: { tag: "GrassCut" } as const,
-  SnorkelSubmerge: { tag: "SnorkelSubmerge" } as const,
-  SnorkelEmerge: { tag: "SnorkelEmerge" } as const,
-  ErrorSeaweedAboveWater: { tag: "ErrorSeaweedAboveWater" } as const,
-  Stun: { tag: "Stun" } as const,
-  ExplosiveFuseBabushka: { tag: "ExplosiveFuseBabushka" } as const,
-  ExplosiveFuseMatriarch: { tag: "ExplosiveFuseMatriarch" } as const,
-  Explosion: { tag: "Explosion" } as const,
-  ExplosiveDud: { tag: "ExplosiveDud" } as const,
-  DoorDestroyed: { tag: "DoorDestroyed" } as const,
-  SovaMemoryShardTutorial: { tag: "SovaMemoryShardTutorial" } as const,
-  TillDirt: { tag: "TillDirt" } as const,
-  ErrorTillingFailed: { tag: "ErrorTillingFailed" } as const,
-  ErrorTillingDirt: { tag: "ErrorTillingDirt" } as const,
-  HostileDeath: { tag: "HostileDeath" } as const,
-  DeathWolf: { tag: "DeathWolf" } as const,
-  DeathFox: { tag: "DeathFox" } as const,
-  DeathCrab: { tag: "DeathCrab" } as const,
-  DeathWalrus: { tag: "DeathWalrus" } as const,
-  DeathTern: { tag: "DeathTern" } as const,
-  DeathCrow: { tag: "DeathCrow" } as const,
-  DeathViper: { tag: "DeathViper" } as const,
-  DeathVole: { tag: "DeathVole" } as const,
-  DeathWolverine: { tag: "DeathWolverine" } as const,
-  DeathCaribou: { tag: "DeathCaribou" } as const,
-  DeathPolarBear: { tag: "DeathPolarBear" } as const,
-  DeathHare: { tag: "DeathHare" } as const,
-  DeathOwl: { tag: "DeathOwl" } as const,
-  DeathBee: { tag: "DeathBee" } as const,
-  DeathPlayer: { tag: "DeathPlayer" } as const,
-  AnimalBurrow: { tag: "AnimalBurrow" } as const,
-  PlayerHurt: { tag: "PlayerHurt" } as const,
-  Heartbeat: { tag: "Heartbeat" } as const,
-  StopHeartbeat: { tag: "StopHeartbeat" } as const,
-  Thunder: { tag: "Thunder" } as const,
-
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_SoundType_type_value) return _cached_SoundType_type_value;
-    _cached_SoundType_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
-    _cached_SoundType_type_value.value.variants.push(
-      { name: "TreeChop", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "TreeCreaking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "TreeFalling", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "BirdsFlapping", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "StoneHit", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "StoneDestroyed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "HarvestPlant", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "PlantSeed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "PickupItem", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "CampfireLooping", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "LanternLooping", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "BeehiveLooping", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Repair", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "RepairFail", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "HeavyStormRain", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "NormalRain", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DrinkingWater", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ThrowingUp", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "EatingFood", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "WateringCrops", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "FillingContainer", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "MeleeHitSharp", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "SpearHit", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "TorchHit", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "TorchHitLit", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "LightTorch", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ExtinguishTorch", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "FlashlightOn", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "FlashlightOff", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "MeleeHitBlunt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "WeaponSwing", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ArrowHit", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ShootBow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ShootCrossbow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ShootPistol", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ReloadBow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ReloadCrossbow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ReloadPistol", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Bandaging", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "StopBandaging", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "BarrelHit", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "BarrelDestroyed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlWolf", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlFox", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlSnake", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlWalrus", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlCrab", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlCrow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlTern", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlVole", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlWolverine", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlCaribou", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlPolarBear", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlHare", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlOwl", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlShorebound", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlShardkin", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrowlDrownedWatch", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Walking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Swimming", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "FoundationWoodConstructed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "FoundationWoodUpgraded", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "FoundationStoneUpgraded", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "FoundationMetalUpgraded", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "FoundationTwigDestroyed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ItemThrown", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ErrorResources", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ErrorCantPickUpCauldron", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DoneCooking", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DoneBurning", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "SoupBoiling", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ErrorJarPlacement", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ErrorBrothNotCompatible", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DoorOpening", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "BarbecueOn", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "BarbecueOff", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "CrowStealing", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "CairnUnlock", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "GrassCut", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "SnorkelSubmerge", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "SnorkelEmerge", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ErrorSeaweedAboveWater", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Stun", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ExplosiveFuseBabushka", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ExplosiveFuseMatriarch", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Explosion", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ExplosiveDud", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DoorDestroyed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "SovaMemoryShardTutorial", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "TillDirt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ErrorTillingFailed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ErrorTillingDirt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "HostileDeath", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DeathWolf", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DeathFox", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DeathCrab", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DeathWalrus", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DeathTern", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DeathCrow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DeathViper", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DeathVole", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DeathWolverine", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DeathCaribou", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DeathPolarBear", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DeathHare", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DeathOwl", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DeathBee", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DeathPlayer", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "AnimalBurrow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "PlayerHurt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Heartbeat", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "StopHeartbeat", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Thunder", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-    );
-    return _cached_SoundType_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: SoundType): void {
-      __AlgebraicTypeValue.serializeValue(writer, SoundType.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): SoundType {
-      return __AlgebraicTypeValue.deserializeValue(reader, SoundType.getTypeScriptAlgebraicType());
-  },
-
-}
+const SoundType = __t.enum("SoundType", {TreeChop: __t.unit(),
+  TreeCreaking: __t.unit(),
+  TreeFalling: __t.unit(),
+  BirdsFlapping: __t.unit(),
+  StoneHit: __t.unit(),
+  StoneDestroyed: __t.unit(),
+  HarvestPlant: __t.unit(),
+  PlantSeed: __t.unit(),
+  PickupItem: __t.unit(),
+  CampfireLooping: __t.unit(),
+  LanternLooping: __t.unit(),
+  BeehiveLooping: __t.unit(),
+  Repair: __t.unit(),
+  RepairFail: __t.unit(),
+  HeavyStormRain: __t.unit(),
+  NormalRain: __t.unit(),
+  DrinkingWater: __t.unit(),
+  ThrowingUp: __t.unit(),
+  EatingFood: __t.unit(),
+  WateringCrops: __t.unit(),
+  FillingContainer: __t.unit(),
+  MeleeHitSharp: __t.unit(),
+  SpearHit: __t.unit(),
+  TorchHit: __t.unit(),
+  TorchHitLit: __t.unit(),
+  LightTorch: __t.unit(),
+  ExtinguishTorch: __t.unit(),
+  FlashlightOn: __t.unit(),
+  FlashlightOff: __t.unit(),
+  MeleeHitBlunt: __t.unit(),
+  WeaponSwing: __t.unit(),
+  ArrowHit: __t.unit(),
+  ShootBow: __t.unit(),
+  ShootCrossbow: __t.unit(),
+  ShootPistol: __t.unit(),
+  ReloadBow: __t.unit(),
+  ReloadCrossbow: __t.unit(),
+  ReloadPistol: __t.unit(),
+  Bandaging: __t.unit(),
+  StopBandaging: __t.unit(),
+  BarrelHit: __t.unit(),
+  BarrelDestroyed: __t.unit(),
+  GrowlWolf: __t.unit(),
+  GrowlFox: __t.unit(),
+  GrowlSnake: __t.unit(),
+  GrowlWalrus: __t.unit(),
+  GrowlCrab: __t.unit(),
+  GrowlCrow: __t.unit(),
+  GrowlTern: __t.unit(),
+  GrowlVole: __t.unit(),
+  GrowlWolverine: __t.unit(),
+  GrowlCaribou: __t.unit(),
+  GrowlPolarBear: __t.unit(),
+  GrowlHare: __t.unit(),
+  GrowlOwl: __t.unit(),
+  GrowlShorebound: __t.unit(),
+  GrowlShardkin: __t.unit(),
+  GrowlDrownedWatch: __t.unit(),
+  Walking: __t.unit(),
+  Swimming: __t.unit(),
+  FoundationWoodConstructed: __t.unit(),
+  FoundationWoodUpgraded: __t.unit(),
+  FoundationStoneUpgraded: __t.unit(),
+  FoundationMetalUpgraded: __t.unit(),
+  FoundationTwigDestroyed: __t.unit(),
+  ItemThrown: __t.unit(),
+  ErrorResources: __t.unit(),
+  ErrorCantPickUpCauldron: __t.unit(),
+  DoneCooking: __t.unit(),
+  DoneBurning: __t.unit(),
+  SoupBoiling: __t.unit(),
+  ErrorJarPlacement: __t.unit(),
+  ErrorBrothNotCompatible: __t.unit(),
+  DoorOpening: __t.unit(),
+  BarbecueOn: __t.unit(),
+  BarbecueOff: __t.unit(),
+  CrowStealing: __t.unit(),
+  CairnUnlock: __t.unit(),
+  GrassCut: __t.unit(),
+  SnorkelSubmerge: __t.unit(),
+  SnorkelEmerge: __t.unit(),
+  ErrorSeaweedAboveWater: __t.unit(),
+  Stun: __t.unit(),
+  ExplosiveFuseBabushka: __t.unit(),
+  ExplosiveFuseMatriarch: __t.unit(),
+  Explosion: __t.unit(),
+  ExplosiveDud: __t.unit(),
+  DoorDestroyed: __t.unit(),
+  SovaMemoryShardTutorial: __t.unit(),
+  TillDirt: __t.unit(),
+  ErrorTillingFailed: __t.unit(),
+  ErrorTillingDirt: __t.unit(),
+  HostileDeath: __t.unit(),
+  DeathWolf: __t.unit(),
+  DeathFox: __t.unit(),
+  DeathCrab: __t.unit(),
+  DeathWalrus: __t.unit(),
+  DeathTern: __t.unit(),
+  DeathCrow: __t.unit(),
+  DeathViper: __t.unit(),
+  DeathVole: __t.unit(),
+  DeathWolverine: __t.unit(),
+  DeathCaribou: __t.unit(),
+  DeathPolarBear: __t.unit(),
+  DeathHare: __t.unit(),
+  DeathOwl: __t.unit(),
+  DeathBee: __t.unit(),
+  DeathPlayer: __t.unit(),
+  AnimalBurrow: __t.unit(),
+  PlayerHurt: __t.unit(),
+  Heartbeat: __t.unit(),
+  StopHeartbeat: __t.unit(),
+  Thunder: __t.unit(),
+  MashBerries: __t.unit(),
+  PulverizeFlour: __t.unit(),
+  ExtractQueenBee: __t.unit(),
+});
 
 export default SoundType;
 

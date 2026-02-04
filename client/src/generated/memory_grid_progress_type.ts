@@ -4,68 +4,17 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
 
-export type MemoryGridProgress = {
-  playerId: __Identity,
-  purchasedNodes: string,
-  totalShardsSpent: bigint,
-  lastUpdated: __Timestamp,
-};
-let _cached_MemoryGridProgress_type_value: __AlgebraicTypeType | null = null;
-
-/**
- * An object for generated helper functions.
- */
-export const MemoryGridProgress = {
-  /**
-  * A function which returns this type represented as an AlgebraicType.
-  * This function is derived from the AlgebraicType used to generate this type.
-  */
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_MemoryGridProgress_type_value) return _cached_MemoryGridProgress_type_value;
-    _cached_MemoryGridProgress_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_MemoryGridProgress_type_value.value.elements.push(
-      { name: "playerId", algebraicType: __AlgebraicTypeValue.createIdentityType() },
-      { name: "purchasedNodes", algebraicType: __AlgebraicTypeValue.String },
-      { name: "totalShardsSpent", algebraicType: __AlgebraicTypeValue.U64 },
-      { name: "lastUpdated", algebraicType: __AlgebraicTypeValue.createTimestampType() },
-    );
-    return _cached_MemoryGridProgress_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: MemoryGridProgress): void {
-    __AlgebraicTypeValue.serializeValue(writer, MemoryGridProgress.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): MemoryGridProgress {
-    return __AlgebraicTypeValue.deserializeValue(reader, MemoryGridProgress.getTypeScriptAlgebraicType());
-  },
-
-}
-
-export default MemoryGridProgress;
+export default __t.object("MemoryGridProgress", {
+  playerId: __t.identity(),
+  purchasedNodes: __t.string(),
+  totalShardsSpent: __t.u64(),
+  lastUpdated: __t.timestamp(),
+});
 
 

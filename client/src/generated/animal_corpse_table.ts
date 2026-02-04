@@ -4,107 +4,28 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { AnimalCorpse } from "./animal_corpse_type";
-import { AnimalSpecies } from "./animal_species_type";
-// Mark import as potentially unused
-declare type __keep_AnimalSpecies = AnimalSpecies;
+import AnimalSpecies from "./animal_species_type";
 
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
-declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-/**
- * Table handle for the table `animal_corpse`.
- *
- * Obtain a handle from the [`animalCorpse`] property on [`RemoteTables`],
- * like `ctx.db.animalCorpse`.
- *
- * Users are encouraged not to explicitly reference this type,
- * but to directly chain method calls,
- * like `ctx.db.animalCorpse.on_insert(...)`.
- */
-export class AnimalCorpseTableHandle<TableName extends string> implements __TableHandle<TableName> {
-  // phantom type to track the table name
-  readonly tableName!: TableName;
-  tableCache: __TableCache<AnimalCorpse>;
-
-  constructor(tableCache: __TableCache<AnimalCorpse>) {
-    this.tableCache = tableCache;
-  }
-
-  count(): number {
-    return this.tableCache.count();
-  }
-
-  iter(): Iterable<AnimalCorpse> {
-    return this.tableCache.iter();
-  }
-  /**
-   * Access to the `id` unique index on the table `animal_corpse`,
-   * which allows point queries on the field of the same name
-   * via the [`AnimalCorpseIdUnique.find`] method.
-   *
-   * Users are encouraged not to explicitly reference this type,
-   * but to directly chain method calls,
-   * like `ctx.db.animalCorpse.id().find(...)`.
-   *
-   * Get a handle on the `id` unique index on the table `animal_corpse`.
-   */
-  id = {
-    // Find the subscribed row whose `id` column value is equal to `col_val`,
-    // if such a row is present in the client cache.
-    find: (col_val: number): AnimalCorpse | undefined => {
-      for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.id, col_val)) {
-          return row;
-        }
-      }
-    },
-  };
-
-  onInsert = (cb: (ctx: EventContext, row: AnimalCorpse) => void) => {
-    return this.tableCache.onInsert(cb);
-  }
-
-  removeOnInsert = (cb: (ctx: EventContext, row: AnimalCorpse) => void) => {
-    return this.tableCache.removeOnInsert(cb);
-  }
-
-  onDelete = (cb: (ctx: EventContext, row: AnimalCorpse) => void) => {
-    return this.tableCache.onDelete(cb);
-  }
-
-  removeOnDelete = (cb: (ctx: EventContext, row: AnimalCorpse) => void) => {
-    return this.tableCache.removeOnDelete(cb);
-  }
-
-  // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: AnimalCorpse, newRow: AnimalCorpse) => void) => {
-    return this.tableCache.onUpdate(cb);
-  }
-
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: AnimalCorpse, newRow: AnimalCorpse) => void) => {
-    return this.tableCache.removeOnUpdate(cb);
-  }}
+export default __t.row({
+  id: __t.u32().primaryKey(),
+  get animalSpecies() {
+    return AnimalSpecies.name("animal_species");
+  },
+  animalId: __t.u64().name("animal_id"),
+  posX: __t.f32().name("pos_x"),
+  posY: __t.f32().name("pos_y"),
+  chunkIndex: __t.u32().name("chunk_index"),
+  deathTime: __t.timestamp().name("death_time"),
+  despawnAt: __t.timestamp().name("despawn_at"),
+  spawnedAt: __t.timestamp().name("spawned_at"),
+  health: __t.u32(),
+  maxHealth: __t.u32().name("max_health"),
+  lastHitTime: __t.option(__t.timestamp()).name("last_hit_time"),
+  lastHitBy: __t.option(__t.identity()).name("last_hit_by"),
+});

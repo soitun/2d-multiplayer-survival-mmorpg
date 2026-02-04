@@ -4,85 +4,22 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import * as ItemCategoryVariants from './item_category_variants'
 
 // The tagged union or sum type for the algebraic type `ItemCategory`.
-export type ItemCategory = ItemCategoryVariants.Tool |
-  ItemCategoryVariants.Material |
-  ItemCategoryVariants.Placeable |
-  ItemCategoryVariants.Armor |
-  ItemCategoryVariants.Consumable |
-  ItemCategoryVariants.Ammunition |
-  ItemCategoryVariants.Weapon |
-  ItemCategoryVariants.RangedWeapon;
-
-let _cached_ItemCategory_type_value: __AlgebraicTypeType | null = null;
-
-// A value with helper functions to construct the type.
-export const ItemCategory = {
-  // Helper functions for constructing each variant of the tagged union.
-  // ```
-  // const foo = Foo.A(42);
-  // assert!(foo.tag === "A");
-  // assert!(foo.value === 42);
-  // ```
-  Tool: { tag: "Tool" } as const,
-  Material: { tag: "Material" } as const,
-  Placeable: { tag: "Placeable" } as const,
-  Armor: { tag: "Armor" } as const,
-  Consumable: { tag: "Consumable" } as const,
-  Ammunition: { tag: "Ammunition" } as const,
-  Weapon: { tag: "Weapon" } as const,
-  RangedWeapon: { tag: "RangedWeapon" } as const,
-
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_ItemCategory_type_value) return _cached_ItemCategory_type_value;
-    _cached_ItemCategory_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
-    _cached_ItemCategory_type_value.value.variants.push(
-      { name: "Tool", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Material", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Placeable", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Armor", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Consumable", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Ammunition", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Weapon", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "RangedWeapon", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-    );
-    return _cached_ItemCategory_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: ItemCategory): void {
-      __AlgebraicTypeValue.serializeValue(writer, ItemCategory.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): ItemCategory {
-      return __AlgebraicTypeValue.deserializeValue(reader, ItemCategory.getTypeScriptAlgebraicType());
-  },
-
-}
+const ItemCategory = __t.enum("ItemCategory", {Tool: __t.unit(),
+  Material: __t.unit(),
+  Placeable: __t.unit(),
+  Armor: __t.unit(),
+  Consumable: __t.unit(),
+  Ammunition: __t.unit(),
+  Weapon: __t.unit(),
+  RangedWeapon: __t.unit(),
+});
 
 export default ItemCategory;
 

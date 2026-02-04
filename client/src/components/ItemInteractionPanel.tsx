@@ -248,19 +248,19 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
                 case 'pulverize':
                     // console.log(`Pulverizing item ${itemInstanceId}: ${selectedItem.definition.name}`);
                     connection.reducers.pulverizeItem(itemInstanceId);
-                    playImmediateSound('crush_bones'); // Reuse crushing sound for grinding
+                    playImmediateSound('pulverize_flour');
                     break;
                 case 'mash_berries':
                     connection.reducers.mashBerries(itemInstanceId);
-                    playImmediateSound('crush_bones'); // Mashing sound
+                    playImmediateSound('mash_berries');
                     break;
                 case 'mash_starch':
                     connection.reducers.mashStarch(itemInstanceId);
-                    playImmediateSound('crush_bones'); // Mashing sound
+                    playImmediateSound('mash_berries'); // Reuse berry mashing sound
                     break;
                 case 'extract_from_honeycomb':
                     connection.reducers.extractFromHoneycomb(itemInstanceId);
-                    playImmediateSound('crush_bones'); // Extraction sound
+                    playImmediateSound('extract_queen_bee');
                     break;
                 case 'extract_yeast':
                     connection.reducers.extractYeast(itemInstanceId);

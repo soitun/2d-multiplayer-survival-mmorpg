@@ -4,118 +4,33 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import * as AnimalSpeciesVariants from './animal_species_variants'
 
 // The tagged union or sum type for the algebraic type `AnimalSpecies`.
-export type AnimalSpecies = AnimalSpeciesVariants.CinderFox |
-  AnimalSpeciesVariants.TundraWolf |
-  AnimalSpeciesVariants.CableViper |
-  AnimalSpeciesVariants.ArcticWalrus |
-  AnimalSpeciesVariants.BeachCrab |
-  AnimalSpeciesVariants.Tern |
-  AnimalSpeciesVariants.Crow |
-  AnimalSpeciesVariants.Vole |
-  AnimalSpeciesVariants.Wolverine |
-  AnimalSpeciesVariants.Caribou |
-  AnimalSpeciesVariants.SalmonShark |
-  AnimalSpeciesVariants.Jellyfish |
-  AnimalSpeciesVariants.Shorebound |
-  AnimalSpeciesVariants.Shardkin |
-  AnimalSpeciesVariants.DrownedWatch |
-  AnimalSpeciesVariants.Bee |
-  AnimalSpeciesVariants.PolarBear |
-  AnimalSpeciesVariants.Hare |
-  AnimalSpeciesVariants.SnowyOwl;
-
-let _cached_AnimalSpecies_type_value: __AlgebraicTypeType | null = null;
-
-// A value with helper functions to construct the type.
-export const AnimalSpecies = {
-  // Helper functions for constructing each variant of the tagged union.
-  // ```
-  // const foo = Foo.A(42);
-  // assert!(foo.tag === "A");
-  // assert!(foo.value === 42);
-  // ```
-  CinderFox: { tag: "CinderFox" } as const,
-  TundraWolf: { tag: "TundraWolf" } as const,
-  CableViper: { tag: "CableViper" } as const,
-  ArcticWalrus: { tag: "ArcticWalrus" } as const,
-  BeachCrab: { tag: "BeachCrab" } as const,
-  Tern: { tag: "Tern" } as const,
-  Crow: { tag: "Crow" } as const,
-  Vole: { tag: "Vole" } as const,
-  Wolverine: { tag: "Wolverine" } as const,
-  Caribou: { tag: "Caribou" } as const,
-  SalmonShark: { tag: "SalmonShark" } as const,
-  Jellyfish: { tag: "Jellyfish" } as const,
-  Shorebound: { tag: "Shorebound" } as const,
-  Shardkin: { tag: "Shardkin" } as const,
-  DrownedWatch: { tag: "DrownedWatch" } as const,
-  Bee: { tag: "Bee" } as const,
-  PolarBear: { tag: "PolarBear" } as const,
-  Hare: { tag: "Hare" } as const,
-  SnowyOwl: { tag: "SnowyOwl" } as const,
-
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_AnimalSpecies_type_value) return _cached_AnimalSpecies_type_value;
-    _cached_AnimalSpecies_type_value = __AlgebraicTypeValue.Sum({ variants: [] });
-    _cached_AnimalSpecies_type_value.value.variants.push(
-      { name: "CinderFox", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "TundraWolf", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "CableViper", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "ArcticWalrus", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "BeachCrab", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Tern", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Crow", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Vole", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Wolverine", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Caribou", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "SalmonShark", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Jellyfish", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Shorebound", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Shardkin", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "DrownedWatch", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Bee", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "PolarBear", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "Hare", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-      { name: "SnowyOwl", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
-    );
-    return _cached_AnimalSpecies_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: AnimalSpecies): void {
-      __AlgebraicTypeValue.serializeValue(writer, AnimalSpecies.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): AnimalSpecies {
-      return __AlgebraicTypeValue.deserializeValue(reader, AnimalSpecies.getTypeScriptAlgebraicType());
-  },
-
-}
+const AnimalSpecies = __t.enum("AnimalSpecies", {CinderFox: __t.unit(),
+  TundraWolf: __t.unit(),
+  CableViper: __t.unit(),
+  ArcticWalrus: __t.unit(),
+  BeachCrab: __t.unit(),
+  Tern: __t.unit(),
+  Crow: __t.unit(),
+  Vole: __t.unit(),
+  Wolverine: __t.unit(),
+  Caribou: __t.unit(),
+  SalmonShark: __t.unit(),
+  Jellyfish: __t.unit(),
+  Shorebound: __t.unit(),
+  Shardkin: __t.unit(),
+  DrownedWatch: __t.unit(),
+  Bee: __t.unit(),
+  PolarBear: __t.unit(),
+  Hare: __t.unit(),
+  SnowyOwl: __t.unit(),
+});
 
 export default AnimalSpecies;
 
