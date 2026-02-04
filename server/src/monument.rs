@@ -3231,8 +3231,6 @@ pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
         // Two furnaces further back
         MonumentPlaceableConfig::furnace(-300.0, -100.0),
         MonumentPlaceableConfig::furnace(300.0, -100.0),
-        // Rain collector off to the side
-        MonumentPlaceableConfig::rain_collector(-250.0, 50.0),
     ]
 }
 
