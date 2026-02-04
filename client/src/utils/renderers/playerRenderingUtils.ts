@@ -236,12 +236,13 @@ const isPvpActive = (player: SpacetimeDBPlayer, currentTimeMs: number): boolean 
   
   // If pvpEnabledUntil is set, check if it hasn't expired
   if (player.pvpEnabledUntil) {
-    const untilMs = Number(player.pvpEnabledUntil.seconds) * 1000 + 
-                    Math.floor(Number(player.pvpEnabledUntil.nanoseconds) / 1_000_000);
+    // Convert microseconds to milliseconds: microsSinceUnixEpoch / 1000
+    const untilMs = Number(player.pvpEnabledUntil.microsSinceUnixEpoch) / 1000;
     return untilMs > currentTimeMs;
   }
   
-  return false;
+  // If pvpEnabled is true but no expiry is set, PvP is still active
+  return true;
 };
 
 // Draws the PvP indicator badge above the name tag

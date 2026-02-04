@@ -16,8 +16,7 @@ const MINIMAP_WIDTH = BASE_MINIMAP_WIDTH;
 const MINIMAP_HEIGHT = Math.round(calculatedMinimapHeight); // Use calculated height
 
 // Cyberpunk color scheme
-const MINIMAP_BG_COLOR_NORMAL = 'rgba(15, 23, 35, 0.95)'; // Dark blue-black
-const MINIMAP_BG_COLOR_HOVER = 'rgba(20, 30, 45, 0.98)'; // Slightly lighter on hover
+const MINIMAP_BG_COLOR = 'rgba(20, 30, 45, 0.98)'; // Dark blue-black
 const MINIMAP_BORDER_COLOR = '#00d4ff'; // Bright cyan border
 const MINIMAP_BORDER_WIDTH = 2;
 const MINIMAP_INNER_BORDER_COLOR = '#7c3aed'; // Purple inner border
@@ -146,35 +145,6 @@ const DEATH_MARKER_BORDER_WIDTH = 2;
 const DEATH_MARKER_BORDER_COLOR = '#FFFFFF'; // White border, same as regular bags
 const DEATH_MARKER_BG_COLOR = 'rgba(139, 0, 0, 0.5)'; // Dark red, semi-transparent
 
-// Opacity animation constants
-const OPACITY_TRANSITION_SPEED = 0.08; // Higher = faster transition
-const OPACITY_HIDDEN = 0.5; // 30% opacity when not hovered
-const OPACITY_VISIBLE = 1.0; // 100% opacity when hovered
-
-// Global ref to track animated opacity (shared across all minimap instances)
-let animatedOpacity = OPACITY_HIDDEN;
-let targetOpacity = OPACITY_HIDDEN;
-let animationFrameId: number | null = null;
-
-// Function to smoothly animate opacity
-const animateOpacity = () => {
-  const diff = targetOpacity - animatedOpacity;
-  if (Math.abs(diff) > 0.01) {
-    animatedOpacity += diff * OPACITY_TRANSITION_SPEED;
-    animationFrameId = requestAnimationFrame(animateOpacity);
-  } else {
-    animatedOpacity = targetOpacity;
-    animationFrameId = null;
-  }
-};
-
-// Function to set target opacity and start animation if needed
-const setTargetOpacity = (newTarget: number) => {
-  targetOpacity = newTarget;
-  if (animationFrameId === null && Math.abs(targetOpacity - animatedOpacity) > 0.01) {
-    animateOpacity();
-  }
-};
 
 // Add helper to check if it's night/evening
 function isNightTimeOfDay(tag: string): boolean {
@@ -635,8 +605,7 @@ export function drawMinimapOntoCanvas({
   playerPin, // Destructure playerPin
   canvasWidth,
   canvasHeight,
-  isMouseOverMinimap,
-  // isMouseOverXButton removed - X button now handled by React components
+  // isMouseOverMinimap - no longer used for styling (kept in interface for callers)
   zoomLevel, // Destructure zoomLevel
   viewCenterOffset, // Destructure pan offset
   minimapCache, // Destructure minimapCache
@@ -739,13 +708,6 @@ export function drawMinimapOntoCanvas({
   // --- Apply Retro Styling --- 
   ctx.save(); // Save context before applying shadow/styles
 
-  // --- Apply Smooth Animated Transparency Based on Hover State ---
-  // Set target opacity based on hover state
-  setTargetOpacity(isMouseOverMinimap ? OPACITY_VISIBLE : OPACITY_HIDDEN);
-  
-  // Apply current animated opacity (smoothly transitioning)
-  ctx.globalAlpha = animatedOpacity;
-
   // Apply cyberpunk glow shadow effect (optimized - reduced blur)
   const shadowOffset = 4;
   ctx.shadowColor = MINIMAP_GLOW_COLOR;
@@ -755,8 +717,7 @@ export function drawMinimapOntoCanvas({
   ctx.shadowBlur = 0; // Reset shadow
 
   // 1. Draw Overall Minimap Background (optimized - solid color instead of gradient)
-  // Gradients are expensive, use solid color with slight variation if needed
-  ctx.fillStyle = isMouseOverMinimap ? MINIMAP_BG_COLOR_HOVER : MINIMAP_BG_COLOR_NORMAL;
+  ctx.fillStyle = MINIMAP_BG_COLOR;
   ctx.fillRect(minimapX, minimapY, minimapWidth, minimapHeight);
 
   // Draw enhanced cyberpunk border with glow effect (optimized - reduced blur)
