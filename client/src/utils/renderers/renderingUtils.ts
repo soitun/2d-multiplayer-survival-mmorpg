@@ -780,7 +780,8 @@ export const renderYSortedEntities = ({
           
           // Update snow footprints for players walking on alpine terrain
           // This creates footprint trails that fade out over time
-          updatePlayerFootprints(connection ?? null, playerForRendering, isPlayerMoving, nowMs);
+          // Skip footprints when player is dodging
+          updatePlayerFootprints(connection ?? null, playerForRendering, isPlayerMoving, nowMs, playerDodgeRollStates);
          
           lastPositionsRef.current.set(playerId, { x: playerForRendering.positionX, y: playerForRendering.positionY });
 

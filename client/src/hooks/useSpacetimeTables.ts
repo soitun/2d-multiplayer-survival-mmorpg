@@ -73,6 +73,10 @@ const ENABLE_DETAILED_THROTTLE_LOGS = false; // Set to true for debugging thrott
 const ENABLE_BATCHED_SUBSCRIPTIONS = true; // Combines similar tables into batched queries for massive performance gains
 const MAX_CHUNKS_PER_BATCH = 20; // Maximum chunks to include in a single batched query
 
+// Session-level flag to prevent duplicate event dispatches
+// (Multiple hostile NPCs spawning can trigger events before localStorage updates)
+let hasDispatchedHostileEncounterEvent = false;
+
 // 🧪 PERFORMANCE TESTING: Toggle ENABLE_BATCHED_SUBSCRIPTIONS to compare:
 // - true:  ~3 batched calls per chunk (recommended for production)
 // - false: ~12 individual calls per chunk (legacy approach, for debugging only)
@@ -1782,8 +1786,11 @@ export const useSpacetimeTables = ({
                 // Trigger when the player first sees a hostile NPC at night
                 if (animal.isHostileNpc) {
                     const storageKey = 'broth_first_hostile_encounter_played';
-                    if (localStorage.getItem(storageKey) !== 'true') {
+                    // Check both localStorage AND session flag to prevent duplicate dispatches
+                    // (Multiple hostiles can spawn before localStorage is updated)
+                    if (localStorage.getItem(storageKey) !== 'true' && !hasDispatchedHostileEncounterEvent) {
                         console.log('[useSpacetimeTables] 👹 First hostile NPC detected! Dispatching tutorial event');
+                        hasDispatchedHostileEncounterEvent = true; // Prevent duplicate dispatches in this session
                         window.dispatchEvent(new CustomEvent('sova-first-hostile-encounter'));
                     }
                 }

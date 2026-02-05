@@ -79,7 +79,6 @@ export function preloadMonumentImages(): void {
     loadImage('fv_hut3.png', import('../../assets/doodads/fv_hut3.png?url'));
     loadImage('fv_dock.png', import('../../assets/doodads/fv_dock.png?url'));
     loadImage('fv_smokerack1.png', import('../../assets/doodads/fv_smokerack1.png?url'));
-    loadImage('fv_smokerack2.png', import('../../assets/doodads/fv_smokerack2.png?url'));
     loadImage('fv_kayak.png', import('../../assets/doodads/fv_kayak.png?url'));
     
     // Whale Bone Graveyard monument images (ancient whale bone graveyard on beach)
@@ -149,7 +148,6 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             'fv_hut3.png': () => import('../../assets/doodads/fv_hut3.png?url'),
             'fv_dock.png': () => import('../../assets/doodads/fv_dock.png?url'),
             'fv_smokerack1.png': () => import('../../assets/doodads/fv_smokerack1.png?url'),
-            'fv_smokerack2.png': () => import('../../assets/doodads/fv_smokerack2.png?url'),
             'fv_kayak.png': () => import('../../assets/doodads/fv_kayak.png?url'),
             
             // Whale Bone Graveyard monument images (ancient whale bone graveyard on beach)

@@ -784,7 +784,7 @@ pub fn generate_fishing_village(
         // NOTE: Campfire is already ON the beach (2-6 tiles from water), so towards_water
         //       offsets need careful tuning - positive values go INTO water!
         // LAYOUT: Spread out for spacious village feel with visual campfire at center
-        let structure_configs: [(&str, &str, f32, f32); 7] = [
+        let structure_configs: [(&str, &str, f32, f32); 6] = [
             // Campfire - CENTER PIECE - using visual doodad fv_campfire.png
             ("campfire", "fv_campfire.png", 0.0, 0.0),
             
@@ -795,7 +795,6 @@ pub fn generate_fishing_village(
             
             // Smoke racks - further from campfire, flanking it with more space
             ("smokerack", "fv_smokerack1.png", -320.0, -200.0),
-            ("smokerack", "fv_smokerack2.png", 320.0, -200.0),
             
             // Dock - EXTENDING INTO WATER, positioned away from smokeracks
             ("dock", "fv_dock.png", 280.0, 350.0),     // Right of campfire, extending into water
@@ -1297,8 +1296,8 @@ pub fn generate_hunting_village(
             // Campfire - in the central courtyard, offset to the east
             ("campfire", "fv_campfire.png", 100.0, -250.0),
             
-            // Drying rack for pelts and meat - west side of courtyard, moved up for better spacing
-            ("drying_rack", "hv_drying_rack.png", -200.0, -300.0),
+            // Drying rack for pelts and meat - west side of courtyard, pushed further up
+            ("drying_rack", "hv_drying_rack.png", -200.0, -400.0),
         ];
         
         for (part_type, image_name, offset_x, offset_y) in structure_configs.iter() {

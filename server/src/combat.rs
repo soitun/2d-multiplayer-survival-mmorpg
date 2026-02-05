@@ -3464,8 +3464,14 @@ pub fn damage_wooden_storage_box(
         attacker_id, box_id, damage, old_health, wooden_box.health
     );
 
-    // Play hit sound for all hits
-    sound_events::emit_barrel_hit_sound(ctx, wooden_box.pos_x, wooden_box.pos_y, attacker_id);
+    // Play hit sound based on box type
+    // Normal and large wooden storage boxes use wood hit sound
+    if wooden_box.box_type == crate::wooden_storage_box::BOX_TYPE_NORMAL ||
+       wooden_box.box_type == crate::wooden_storage_box::BOX_TYPE_LARGE {
+        sound_events::emit_wood_hit_sound(ctx, wooden_box.pos_x, wooden_box.pos_y, attacker_id);
+    } else {
+        sound_events::emit_barrel_hit_sound(ctx, wooden_box.pos_x, wooden_box.pos_y, attacker_id);
+    }
 
     if wooden_box.health <= 0.0 {
         // Play destroyed sound

@@ -1,4 +1,4 @@
-import { Grass, GrassState, DbConnection } from '../generated';
+import { Grass, GrassState, DbConnection, GrassAppearanceType } from '../generated';
 
 // ============================================================================
 // AAA PIXEL ART CUT GRASS ANIMATION EFFECT
@@ -19,7 +19,7 @@ const GRAVITY = 180; // Downward acceleration in pixels per second squared
 const MAX_ROTATION_SPEED_DEG = 360; // Max rotation speed in degrees per second
 const UPWARD_BIAS = -80; // Initial upward velocity bias
 
-// Pixel art grass blade colors (multiple shades for variety)
+// Pixel art grass blade colors (multiple shades for variety) - green for regular grass
 const GRASS_BLADE_COLORS = [
     '#2D5A27', // Dark forest green
     '#3B7A33', // Medium green
@@ -28,6 +28,39 @@ const GRASS_BLADE_COLORS = [
     '#6BC955', // Bright lime green
     '#367336', // Muted green
     '#28461E', // Very dark green
+];
+
+// Yellow/beige colors for alpine grass 2 and 4 (matches yellow alpine grass sprites)
+const ALPINE_GRASS_BLADE_COLORS = [
+    '#D4AF6A', // Light golden beige
+    '#E5C896', // Pale yellow-beige
+    '#C9A86A', // Medium golden beige
+    '#F5E6D3', // Very light cream
+    '#B8956A', // Darker golden beige
+    '#E8D4A8', // Warm beige
+    '#D9C19A', // Muted yellow-beige
+];
+
+// White/cream colors for alpine grass 1 and 3 (matches white alpine grass sprites)
+const WHITE_ALPINE_GRASS_BLADE_COLORS = [
+    '#FFFFFF', // Pure white
+    '#F8F8F8', // Off-white
+    '#F0F0F0', // Light gray-white
+    '#E8E8E8', // Slightly darker white
+    '#FAFAFA', // Very light cream
+    '#F5F5F5', // Light white-gray
+    '#EFEFEF', // Soft white
+];
+
+// Red colors for tundra grass (matches red tundra grass sprites)
+const TUNDRA_GRASS_BLADE_COLORS = [
+    '#8B0000', // Dark red
+    '#A52A2A', // Brown-red
+    '#B22222', // Fire brick red
+    '#C04000', // Dark orange-red
+    '#DC143C', // Crimson
+    '#CD5C5C', // Indian red
+    '#E9967A', // Dark salmon
 ];
 
 // Particle blade shapes (pixel widths for variety)
@@ -64,7 +97,7 @@ let dbConn: DbConnection | null = null;
 // Function to be called when a GrassState entity is deleted (grass destroyed)
 // With table split, GrassState is deleted when grass health becomes 0
 function handleGrassStateDestroyed(context: any, grassState: GrassState) {
-    // Look up the static Grass table to get the position
+    // Look up the static Grass table to get the position and appearance type
     if (!dbConn?.db?.grass) {
         // console.warn("[CutGrassEffect] Cannot spawn particles - grass table not available");
         return;
@@ -73,7 +106,7 @@ function handleGrassStateDestroyed(context: any, grassState: GrassState) {
     // Find the static grass data by ID (Grass.id matches GrassState.grassId)
     const grass = dbConn.db.grass.id.find(grassState.grassId);
     if (grass) {
-        spawnCutGrassParticles(grass.posX, grass.posY, grassState.grassId);
+        spawnCutGrassParticles(grass.posX, grass.posY, grassState.grassId, grass.appearanceType);
     } else {
         // Fallback: if we can't find the grass (rare edge case), skip the effect
         // console.warn(`[CutGrassEffect] Could not find grass position for grassId ${grassState.grassId}`);
@@ -99,8 +132,54 @@ export function initCutGrassEffectSystem(connection: DbConnection) {
     }
 }
 
-export function spawnCutGrassParticles(centerX: number, centerY: number, grassId: number | bigint) {
+// Check if appearance type is alpine grass 2 or 4 (yellow grass)
+function isYellowAlpineGrass(appearanceType: GrassAppearanceType): boolean {
+    const tag = appearanceType.tag;
+    return tag === 'AlpinePatchB' || // alpine2
+           tag === 'AlpinePatchD';    // alpine4
+}
+
+// Check if appearance type is alpine grass 1 or 3 (white grass)
+function isWhiteAlpineGrass(appearanceType: GrassAppearanceType): boolean {
+    const tag = appearanceType.tag;
+    return tag === 'AlpinePatchA' || // alpine1
+           tag === 'AlpinePatchC';    // alpine3
+}
+
+// Check if appearance type is tundra grass (red grass)
+function isTundraGrass(appearanceType: GrassAppearanceType): boolean {
+    const tag = appearanceType.tag;
+    return tag === 'TundraPatchA' ||
+           tag === 'TundraPatchB' ||
+           tag === 'TundraPatchC' ||
+           tag === 'TundraPatchD' ||
+           tag === 'TallGrassTundraA' ||
+           tag === 'TallGrassTundraB';
+}
+
+export function spawnCutGrassParticles(
+    centerX: number, 
+    centerY: number, 
+    grassId: number | bigint, 
+    appearanceType?: GrassAppearanceType
+) {
     const now = Date.now();
+    
+    // Determine color palette based on grass type
+    // AlpinePatchB (alpine2) and AlpinePatchD (alpine4) use yellow colors
+    // AlpinePatchA (alpine1) and AlpinePatchC (alpine3) use white colors
+    // All tundra grass types use red colors
+    // All other grass types use green colors
+    let colorPalette = GRASS_BLADE_COLORS; // Default to green
+    if (appearanceType) {
+        if (isYellowAlpineGrass(appearanceType)) {
+            colorPalette = ALPINE_GRASS_BLADE_COLORS;
+        } else if (isWhiteAlpineGrass(appearanceType)) {
+            colorPalette = WHITE_ALPINE_GRASS_BLADE_COLORS;
+        } else if (isTundraGrass(appearanceType)) {
+            colorPalette = TUNDRA_GRASS_BLADE_COLORS;
+        }
+    }
 
     for (let i = 0; i < NUM_PARTICLES_PER_GRASS; i++) {
         // Create particles in a circular spread pattern with randomization
@@ -110,8 +189,8 @@ export function spawnCutGrassParticles(centerX: number, centerY: number, grassId
         // Random blade shape
         const bladeShape = BLADE_SHAPES[Math.floor(Math.random() * BLADE_SHAPES.length)];
         
-        // Random color from palette
-        const color = GRASS_BLADE_COLORS[Math.floor(Math.random() * GRASS_BLADE_COLORS.length)];
+        // Random color from appropriate palette
+        const color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
 
         const particle: CutGrassParticle = {
             id: `cut_grass_${grassId}_${i}_${now}`,

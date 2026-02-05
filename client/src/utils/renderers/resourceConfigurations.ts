@@ -117,7 +117,7 @@ RESOURCE_CONFIGS.WoodPile = {
 
 RESOURCE_CONFIGS.BeachWoodPile = {
   ...RESOURCE_CONFIGS.BeachWoodPile,
-  targetWidth: 90 // Same size as other small piles
+  targetWidth: 160 // Larger size for better visibility (matches BonePile and SoggyPlantFiberPile)
 };
 
 // StonePile uses default size (90) to match SulfurPile and MetalOrePile

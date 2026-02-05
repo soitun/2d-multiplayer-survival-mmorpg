@@ -67,6 +67,8 @@ const SOUND_DEFINITIONS = {
     stop_bandaging: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.0, maxDistance: 300 }, // Stop bandaging sound
     barrel_hit: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 600 }, // Barrel hit sound
     barrel_destroyed: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.3, maxDistance: 700 }, // Barrel destroyed sound
+    hit_trash: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 600 }, // Trash hit sound (barrel5.png variant 4)
+    hit_wood: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 600 }, // Wood hit sound (barrel4.png variant 3, wooden storage boxes)
     player_burnt: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Player burn effect applied (client-side immediate feedback)
     // Animal growl sounds - when animals detect and approach players
     growl_wolf: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.2, maxDistance: 800 }, // Wolf growl when starting to chase

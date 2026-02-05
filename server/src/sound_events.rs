@@ -48,6 +48,8 @@ pub enum SoundType {
     StopBandaging,  // Special signal to stop bandaging sound
     BarrelHit,      // barrel_hit.mp3 (1 variation - when barrels are hit but not destroyed)
     BarrelDestroyed, // barrel_destroyed.mp3 (1 variation - when barrels are destroyed)
+    HitTrash,       // hit_trash.mp3 (1 variation - when barrel5.png (variant 4) is hit)
+    HitWood,        // hit_wood.mp3 (1 variation - when barrel4.png (variant 3) or wooden storage boxes are hit)
     // Animal growl sounds - when animals detect and approach players
     GrowlWolf,      // growl_wolf.mp3 (1 variation - when wolves start chasing)
     GrowlFox,       // growl_fox.mp3 (1 variation - when foxes start attacking)
@@ -175,6 +177,8 @@ impl SoundType {
             SoundType::StopBandaging => "stop_bandaging",
             SoundType::BarrelHit => "barrel_hit",
             SoundType::BarrelDestroyed => "barrel_destroyed",
+            SoundType::HitTrash => "hit_trash",
+            SoundType::HitWood => "hit_wood",
             SoundType::GrowlWolf => "growl_wolf",
             SoundType::GrowlFox => "growl_fox",
             SoundType::GrowlSnake => "growl_snake",
@@ -296,6 +300,8 @@ impl SoundType {
             SoundType::StopBandaging => 1,
             SoundType::BarrelHit => 1,
             SoundType::BarrelDestroyed => 1,
+            SoundType::HitTrash => 1,
+            SoundType::HitWood => 1,
             SoundType::GrowlWolf => 1,
             SoundType::GrowlFox => 1,
             SoundType::GrowlSnake => 1,
@@ -811,6 +817,16 @@ pub fn emit_barrel_hit_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, playe
 /// Emit a barrel destroyed sound (when barrels are completely destroyed)
 pub fn emit_barrel_destroyed_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::BarrelDestroyed, pos_x, pos_y, 1.3, 700.0, player_id);
+}
+
+/// Emit a trash hit sound (when barrel5.png variant 4 is hit)
+pub fn emit_trash_hit_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::HitTrash, pos_x, pos_y, 1.0, 600.0, player_id);
+}
+
+/// Emit a wood hit sound (when barrel4.png variant 3 or wooden storage boxes are hit)
+pub fn emit_wood_hit_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::HitWood, pos_x, pos_y, 1.0, 600.0, player_id);
 }
 
 /// Emit a wolf growl sound (when wolves detect and start chasing players)

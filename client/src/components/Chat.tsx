@@ -455,7 +455,14 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
     }
     
     console.log('[Chat] Adding SOVA message:', message.id, message.isUser ? '(user)' : '(bot)', message.flashTab ? '(with flash)' : '');
-    setSovaMessages(prev => [...prev, { id: message.id, text: message.text, isUser: message.isUser, timestamp: message.timestamp }]);
+    setSovaMessages(prev => {
+      // Check for duplicate message ID to prevent React key conflicts
+      if (prev.some(m => m.id === message.id)) {
+        console.log('[Chat] Skipping duplicate SOVA message:', message.id);
+        return prev;
+      }
+      return [...prev, { id: message.id, text: message.text, isUser: message.isUser, timestamp: message.timestamp }];
+    });
     
     // Auto-switch to SOVA tab when voice messages are added OR when flashTab is requested
     // This ensures users see SOVA's important messages (tutorials, warnings, lore, etc.)

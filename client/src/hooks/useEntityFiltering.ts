@@ -256,6 +256,9 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
     case 'planted_seed':
     case 'dropped_item':
     case 'harvestable_resource':
+      // Resources (piles): Subtract offset to ensure they render before monuments (underneath)
+      // This ensures stone piles, wood piles, etc. render under buildings
+      return entity.posY - 100;
     case 'rain_collector':
     case 'animal_corpse':
     case 'player_corpse':
@@ -305,9 +308,10 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       // Player should be BEHIND when in top 87.5%, IN FRONT only when in bottom 12.5%
       // Sprite visual bounds: top = worldY - height + anchorYOffset, bottom = worldY + anchorYOffset
       // 87.5% threshold = worldY - (height * 0.125) + anchorYOffset (only bottom 12.5% = player in front)
+      // Add offset to ensure monuments render above resources (piles) when at similar Y positions
       const building = entity as CompoundBuildingEntity;
       const sortThresholdY = building.worldY - (building.height * 0.125) + (building.anchorYOffset || 0);
-      return sortThresholdY;
+      return sortThresholdY + 50; // Add offset to ensure monuments render after resources (on top)
     }
     case 'foundation_cell': {
       // Foundation cells use cell coordinates - convert to world pixel Y
@@ -436,6 +440,7 @@ const getEntityPriority = (item: YSortedEntityType): number => {
       }
     }
     case 'door': return 22; // Doors render at same level as walls
+    case 'compound_building': return 13; // Monuments render after resources (piles) so they appear on top
     case 'shelter': return 25;
     default: return 0;
   }

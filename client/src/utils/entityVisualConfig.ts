@@ -157,12 +157,12 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   mine_cart: {
     centerOffsetX: 0,
-    centerOffsetY: -58,   // Same as wooden_storage_box (64x64 sprite)
+    centerOffsetY: -58,   // Adjusted for 128x128 sprite
     width: 64,
     height: 72,
     placementYOffset: 0,
-    spriteWidth: 64,
-    spriteHeight: 64,
+    spriteWidth: 128,
+    spriteHeight: 128,
   },
   
   fish_trap: {

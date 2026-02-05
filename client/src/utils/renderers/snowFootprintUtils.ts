@@ -20,6 +20,7 @@
 import { Player as SpacetimeDBPlayer } from '../../generated';
 import { DbConnection } from '../../generated';
 import { getTileTypeFromChunkData, worldPosToTileCoords } from './placementRenderingUtils';
+import { PlayerDodgeRollState } from '../../generated';
 
 // Import textures directly - Vite will handle the asset URLs
 import alpineTextureUrl from '../../assets/tiles/new/alpine.png';
@@ -243,7 +244,8 @@ export function updatePlayerFootprints(
   connection: DbConnection | null,
   player: SpacetimeDBPlayer,
   isMoving: boolean,
-  nowMs: number
+  nowMs: number,
+  playerDodgeRollStates?: Map<string, PlayerDodgeRollState>
 ): void {
   if (!connection) return;
   
@@ -284,6 +286,22 @@ export function updatePlayerFootprints(
   // Skip if player is swimming, jumping, or in other special states
   if (player.isOnWater || player.isDead || player.isKnockedOut) {
     return;
+  }
+  
+  // Skip footprints when player is dodging
+  if (playerDodgeRollStates) {
+    const dodgeRollState = playerDodgeRollStates.get(playerId);
+    if (dodgeRollState) {
+      // Use CLIENT reception time instead of server time to avoid clock drift issues
+      const clientReceptionTime = (dodgeRollState as any).clientReceptionTimeMs || nowMs;
+      const elapsed = nowMs - clientReceptionTime;
+      
+      if (elapsed < 500) { // 500ms dodge roll duration (SYNCED WITH SERVER)
+        // Player is dodging - skip creating footprints
+        state.lastPosition = { x: player.positionX, y: player.positionY };
+        return;
+      }
+    }
   }
   
   // Check if enough time has passed and player has moved enough

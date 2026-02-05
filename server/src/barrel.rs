@@ -378,8 +378,17 @@ pub fn damage_barrel(
         // Barrel damaged but not destroyed
         log::info!("[BarrelDamage] Barrel {} damaged, health: {:.1}", barrel_id, barrel.health);
         
-        // Emit hit sound
-        crate::sound_events::emit_barrel_hit_sound(ctx, barrel.pos_x, barrel.pos_y, attacker_id);
+        // Emit hit sound based on variant:
+        // - variant 3 (barrel4.png) uses wood hit sound
+        // - variant 4 (barrel5.png) uses trash hit sound
+        // - all other variants use regular barrel hit sound
+        if barrel.variant == 4 {
+            crate::sound_events::emit_trash_hit_sound(ctx, barrel.pos_x, barrel.pos_y, attacker_id);
+        } else if barrel.variant == 3 {
+            crate::sound_events::emit_wood_hit_sound(ctx, barrel.pos_x, barrel.pos_y, attacker_id);
+        } else {
+            crate::sound_events::emit_barrel_hit_sound(ctx, barrel.pos_x, barrel.pos_y, attacker_id);
+        }
     }
     
     // Update the barrel

@@ -37,8 +37,8 @@ export const SCARECROW_WIDTH = 256;  // Scarecrow dimensions - tall figure
 export const SCARECROW_HEIGHT = 256;
 export const MILITARY_RATION_WIDTH = 64;  // Military ration dimensions
 export const MILITARY_RATION_HEIGHT = 64;
-export const MINE_CART_WIDTH = 144;  // Mine cart dimensions (quarry-exclusive) - 25% smaller than original 192
-export const MINE_CART_HEIGHT = 144;
+export const MINE_CART_WIDTH = 128;  // Mine cart dimensions (quarry-exclusive) - rendered at 128x128px
+export const MINE_CART_HEIGHT = 128;
 export const FISH_TRAP_WIDTH = 200;  // Fish trap dimensions
 export const FISH_TRAP_HEIGHT = 200;
 export const WILD_BEEHIVE_WIDTH = 112;  // Wild beehive dimensions (forest-only) - 25% larger: 96 * 1.25 = 120

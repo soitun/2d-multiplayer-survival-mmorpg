@@ -151,7 +151,7 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
 
     // CROW - Inland scavenger bird (4x4 layout: 4 frames × 4 directions)
     // Artist spec: 80x80 per frame → 320x320 total sheet
-    // Renders at: 104x104 (1.3x scale) - medium-sized bird, slightly larger than tern
+    // Renders at: 64x64 (0.8x scale) - small bird, same size as tern
     'Crow': {
         sheetWidth: 320,   // 80px × 4 frames
         sheetHeight: 320,  // 80px × 4 rows
@@ -718,8 +718,8 @@ function getSpeciesRenderingProps(species: AnimalSpecies) {
             // Terns are small coastal seabirds
             return { width: 64, height: 64, shadowRadius: 20 };
         case 'Crow':
-            // Crows are medium-sized inland birds (slightly larger)
-            return { width: 104, height: 104, shadowRadius: 30 };
+            // Crows are small inland birds (same size as tern)
+            return { width: 64, height: 64, shadowRadius: 20 };
         case 'Vole':
             // Voles are tiny rodents - very small sprite
             return { width: 48, height: 48, shadowRadius: 14 };

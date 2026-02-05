@@ -246,6 +246,7 @@ export function renderAlkStation(
         maxShadowAlpha: 0.55, // Slightly darker for large industrial structure
         maxStretchFactor: 2.0, // Reasonable shadow stretch
         minStretchFactor: 0.2, // Minimum shadow at noon
+        shadowBlur: 3, // Blurry shadow like other buildings
         pivotYOffset: 100, // Offset shadow pivot point up to account for building base
     });
     
