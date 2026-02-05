@@ -909,9 +909,10 @@ export function isPlacementTooFar(
     } else if (placementInfo.iconAssetName === 'ancestral_ward.png' || 
                placementInfo.iconAssetName === 'signal_disruptor.png' || 
                placementInfo.iconAssetName === 'memory_beacon.png' ||
-               placementInfo.iconAssetName === 'turret_tallow.png') {
-        // Wards and turrets have larger placement range (160px) because they have collision
-        // (wards: radius 40, turret: radius 50) - players need to place them further away
+               placementInfo.iconAssetName === 'turret_tallow.png' ||
+               placementInfo.iconAssetName === 'large_furnace.png') {
+        // Wards, turrets, and large furnace have larger placement range (160px) because they have collision
+        // (wards: radius 40, turret: radius 50, large furnace: radius 50) - players need to place them further away
         const WARD_PLACEMENT_MAX_DISTANCE = 160.0;
         clientPlacementRangeSq = WARD_PLACEMENT_MAX_DISTANCE * WARD_PLACEMENT_MAX_DISTANCE;
     } else if (placementInfo.iconAssetName === 'beehive_wooden.png' ||

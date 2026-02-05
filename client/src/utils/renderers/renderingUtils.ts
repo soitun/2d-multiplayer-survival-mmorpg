@@ -1192,7 +1192,8 @@ export const renderYSortedEntities = ({
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              const config = ENTITY_VISUAL_CONFIG.furnace;
+              // Use large_furnace config if furnaceType is 1 (LARGE), otherwise use normal furnace config
+              const config = furnace.furnaceType === 1 ? ENTITY_VISUAL_CONFIG.large_furnace : ENTITY_VISUAL_CONFIG.furnace;
               const outline = getInteractionOutlineParams(furnace.posX, furnace.posY, config);
               drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }

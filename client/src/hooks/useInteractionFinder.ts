@@ -39,7 +39,10 @@ import {
 import {
     PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED,
     FURNACE_HEIGHT,
-    FURNACE_RENDER_Y_OFFSET
+    FURNACE_RENDER_Y_OFFSET,
+    LARGE_FURNACE_HEIGHT,
+    LARGE_FURNACE_RENDER_Y_OFFSET,
+    FURNACE_TYPE_LARGE
 } from '../utils/renderers/furnaceRenderingUtils'; // ADDED: Furnace rendering constants
 import {
     PLAYER_BARBECUE_INTERACTION_DISTANCE_SQUARED,
@@ -446,14 +449,19 @@ export function useInteractionFinder({
             // Find closest furnace - ADDED: Centered on actual furnace body for seamless interaction
             if (furnaces) {
                 furnaces.forEach((furnace) => {
+                    // Use furnace type to determine dimensions
+                    const isLargeFurnace = furnace.furnaceType === FURNACE_TYPE_LARGE;
+                    const furnaceHeight = isLargeFurnace ? LARGE_FURNACE_HEIGHT : FURNACE_HEIGHT;
+                    const furnaceYOffset = isLargeFurnace ? LARGE_FURNACE_RENDER_Y_OFFSET : FURNACE_RENDER_Y_OFFSET;
+                    
                     // Use asymmetric interaction points for better approach from below while keeping top unchanged
                     let interactionCenterY;
                     if (playerY > furnace.posY) {
                         // Player is below furnace - use lower interaction point for easier approach
-                        interactionCenterY = furnace.posY + 10; // Below the furnace base
+                        interactionCenterY = furnace.posY + (isLargeFurnace ? 40 : 10); // Below the furnace base (larger offset for large furnace)
                     } else {
                         // Player is above/level with furnace - use normal center point to keep existing behavior
-                        interactionCenterY = furnace.posY - (FURNACE_HEIGHT / 2) - FURNACE_RENDER_Y_OFFSET;
+                        interactionCenterY = furnace.posY - (furnaceHeight / 2) - furnaceYOffset;
                     }
                     
                     const dx = playerX - furnace.posX;

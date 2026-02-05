@@ -329,7 +329,8 @@ export function renderInteractionLabels({
         case 'furnace': {
             const furnace = furnaces.get(closestInteractableTarget.id.toString());
             if (furnace) {
-                const config = ENTITY_VISUAL_CONFIG.furnace;
+                // Use large_furnace config if furnaceType is 1 (LARGE), otherwise use normal furnace config
+                const config = furnace.furnaceType === 1 ? ENTITY_VISUAL_CONFIG.large_furnace : ENTITY_VISUAL_CONFIG.furnace;
                 const labelPos = getLabelPosition(furnace.posX, furnace.posY, config);
                 renderStyledInteractionLabel(ctx, text, labelPos.x, labelPos.y);
             }

@@ -84,6 +84,9 @@ export function useDoodadImages() {
     // Furnace
     loadDoodadImage(import('../assets/doodads/furnace_simple.png'), 'furnace_simple.png');
 
+    // Large Furnace (off state for placement preview)
+    loadDoodadImage(import('../assets/doodads/large_furnace_off.png'), 'large_furnace_off.png');
+
     // Campfire (off state for placement preview)
     loadDoodadImage(import('../assets/doodads/campfire_off.png'), 'campfire_off.png');
 

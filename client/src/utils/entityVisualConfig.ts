@@ -64,6 +64,16 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     spriteHeight: 96,
   },
   
+  large_furnace: {
+    centerOffsetX: 0,
+    centerOffsetY: -134,  // Visual center relative to posY (256px sprite, similar to wards)
+    width: 200,           // Interaction box width
+    height: 220,          // Interaction box height
+    placementYOffset: 0,  // Cursor at center of preview (server adds offset)
+    spriteWidth: 256,
+    spriteHeight: 256,
+  },
+  
   barbecue: {
     centerOffsetX: 0,
     centerOffsetY: 0,     // Center-anchored: sprite centered on posY, collision at visual center

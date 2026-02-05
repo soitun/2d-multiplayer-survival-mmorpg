@@ -724,6 +724,14 @@ export const NUM_PLAYER_BEEHIVE_SLOTS = 5; // 1 input (Queen Bee) + 4 output (Ho
 export function getContainerConfig(containerType: ContainerType, entity?: ContainerEntity) {
     const baseConfig = CONTAINER_CONFIGS[containerType];
     
+    // Handle dynamic slot count for furnaces based on furnaceType
+    if (containerType === 'furnace' && entity) {
+        const furnace = entity as Furnace;
+        if (furnace.furnaceType === FURNACE_TYPE_LARGE) {
+            return { ...baseConfig, slots: NUM_LARGE_FURNACE_SLOTS, gridCols: 6 };
+        }
+    }
+    
     // Handle dynamic slot count for wooden storage boxes based on boxType
     if (containerType === 'wooden_storage_box' && entity) {
         const box = entity as WoodenStorageBox;

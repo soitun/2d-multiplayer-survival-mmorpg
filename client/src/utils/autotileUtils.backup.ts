@@ -1,8 +1,8 @@
 import { WorldTile } from '../generated/world_tile_type';
 // Import autotile images
 import grassDirtAutotile from '../assets/tiles/tileset_grass_dirt_autotile.png';
-import grassBeachAutotile from '../assets/tiles/tileset_grass_beach_autotile_2.png';
-import beachSeaAutotile from '../assets/tiles/tileset_beach_sea_autotile_2.png';
+import grassBeachAutotile from '../assets/tiles/tileset_grass_beach_autotile.png';
+import beachSeaAutotile from '../assets/tiles/tileset_beach_sea_autotile.png';
 import grassDirtRoadAutotile from '../assets/tiles/tileset_grass_dirtroad_autotile.png';
 import dirtRoadDirtAutotile from '../assets/tiles/tileset_dirtroad_dirt_autotile.png';
 
