@@ -1714,6 +1714,12 @@ export const renderYSortedEntities = ({
                   restrictionRadius = 1200; // WHALE_BONE_GRAVEYARD_NPC_EXCLUSION_RADIUS from server
               } else if (buildingId.startsWith('hunting_village_')) {
                   restrictionRadius = 1200; // HUNTING_VILLAGE_NPC_EXCLUSION_RADIUS from server
+              } else if (buildingId.startsWith('crashed_research_drone_')) {
+                  restrictionRadius = 800; // CRASHED_RESEARCH_DRONE_RESTRICTION_RADIUS from server (800px minimum)
+              } else if (buildingId.startsWith('weather_station_')) {
+                  restrictionRadius = 800; // WEATHER_STATION_RESTRICTION_RADIUS from server (800px minimum)
+              } else if (buildingId.startsWith('wolf_den_')) {
+                  restrictionRadius = 800; // WOLF_DEN_RESTRICTION_RADIUS from server (800px minimum)
               }
               
               if (restrictionRadius > 0) {

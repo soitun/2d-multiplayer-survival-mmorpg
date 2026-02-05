@@ -737,11 +737,14 @@ function isPositionInMonumentZone(
         }
     }
     
-    // Check monument parts (unified table for fishing village, shipwreck, whale bone graveyard)
+    // Check monument parts (unified table for fishing village, shipwreck, whale bone graveyard, etc.)
     // NOTE: MonumentType is a tagged union with a `tag` property (e.g., { tag: 'FishingVillage' })
-    const FISHING_VILLAGE_RESTRICTION_RADIUS = 800.0;
+    // All monument restriction radii must match server/src/building.rs values
+    const MONUMENT_MINIMUM_RESTRICTION_RADIUS = 800.0; // 800px minimum for all monuments
+    const MONUMENT_MINIMUM_RESTRICTION_RADIUS_SQ = MONUMENT_MINIMUM_RESTRICTION_RADIUS * MONUMENT_MINIMUM_RESTRICTION_RADIUS;
+    const FISHING_VILLAGE_RESTRICTION_RADIUS = 1000.0; // 25% larger than original 800
     const FISHING_VILLAGE_RESTRICTION_RADIUS_SQ = FISHING_VILLAGE_RESTRICTION_RADIUS * FISHING_VILLAGE_RESTRICTION_RADIUS;
-    const SHIPWRECK_RESTRICTION_RADIUS = 1500.0; // 2.5x monument::clearance::SHIPWRECK (600 * 2.5)
+    const SHIPWRECK_RESTRICTION_RADIUS = 1875.0; // 25% larger than original 1500
     const SHIPWRECK_RESTRICTION_RADIUS_SQ = SHIPWRECK_RESTRICTION_RADIUS * SHIPWRECK_RESTRICTION_RADIUS;
     const WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS = 800.0;
     const WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS_SQ = WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS * WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS;
@@ -754,6 +757,7 @@ function isPositionInMonumentZone(
             const distSq = dx * dx + dy * dy;
             
             // Use different restriction radius based on monument type
+            // Larger monuments get larger radii, all others use 800px minimum
             let restrictionRadiusSq: number;
             switch (part.monumentType?.tag) {
                 case 'Shipwreck':
@@ -765,8 +769,13 @@ function isPositionInMonumentZone(
                 case 'WhaleBoneGraveyard':
                     restrictionRadiusSq = WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS_SQ;
                     break;
+                case 'CrashedResearchDrone':
+                case 'WeatherStation':
+                case 'WolfDen':
+                case 'HuntingVillage':
                 default:
-                    restrictionRadiusSq = FISHING_VILLAGE_RESTRICTION_RADIUS_SQ; // Default fallback
+                    // 800px minimum for all other monuments
+                    restrictionRadiusSq = MONUMENT_MINIMUM_RESTRICTION_RADIUS_SQ;
             }
             
             if (distSq <= restrictionRadiusSq) {
