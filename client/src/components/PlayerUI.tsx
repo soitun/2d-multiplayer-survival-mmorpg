@@ -73,6 +73,9 @@ interface PlayerUIProps {
   // Crafting Screen props
   showCraftingScreen: boolean;
   onToggleCraftingScreen: () => void;
+  // Music system callbacks for RadioPanel
+  onPauseBackgroundMusic?: () => void;
+  onResumeBackgroundMusic?: () => void;
 }
 
 const PlayerUI: React.FC<PlayerUIProps> = ({
@@ -119,6 +122,8 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
     isMobile = false,
     showCraftingScreen,
     onToggleCraftingScreen,
+    onPauseBackgroundMusic,
+    onResumeBackgroundMusic,
 }) => {
     const [localPlayer, setLocalPlayer] = useState<Player | null>(null);
     const [lowNeedThreshold, setLowNeedThreshold] = useState<number>(20.0);
@@ -163,12 +168,20 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
         if (showInventory) {
             onToggleInventory();
         }
-    }, [showInventory, onToggleInventory]);
+        // Pause background music when radio panel opens
+        if (onPauseBackgroundMusic) {
+            onPauseBackgroundMusic();
+        }
+    }, [showInventory, onToggleInventory, onPauseBackgroundMusic]);
     
     // Handler for closing the Radio Panel
     const handleCloseRadio = useCallback(() => {
         setShowRadioPanel(false);
-    }, []);
+        // Resume background music when radio panel closes
+        if (onResumeBackgroundMusic) {
+            onResumeBackgroundMusic();
+        }
+    }, [onResumeBackgroundMusic]);
     
     // Clear selected item when inventory closes
     useEffect(() => {

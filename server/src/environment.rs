@@ -2550,7 +2550,8 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     for (center_x, center_y) in &hot_spring_centers {
         // Shack position: southwest of center (opposite from campfire which is east)
         // Hot springs have ~7-9 tile radius (336-432px), offset further for beach placement
-        let shack_offset_x = -380.0_f32;
+        // Pushed left by 300px to avoid overlapping with water
+        let shack_offset_x = -680.0_f32;
         let shack_offset_y = 250.0_f32;
         let shack_x = center_x + shack_offset_x;
         let shack_y = center_y + shack_offset_y;

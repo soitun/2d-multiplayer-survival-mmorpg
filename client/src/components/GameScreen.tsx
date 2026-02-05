@@ -1337,6 +1337,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 isMobile={props.isMobile}
                 showCraftingScreen={showCraftingScreenState}
                 onToggleCraftingScreen={() => setShowCraftingScreenState(prev => !prev)}
+                onPauseBackgroundMusic={musicSystem.stop}
+                onResumeBackgroundMusic={musicSystem.start}
             />
             {/* DayNightCycleTracker with integrated SOVA Directives */}
             <DayNightCycleTracker
