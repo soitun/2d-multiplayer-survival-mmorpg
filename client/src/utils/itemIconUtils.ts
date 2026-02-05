@@ -576,6 +576,7 @@ import fertilizerIcon from '../assets/items/fertilizer.png';
 
 import campFireIcon from '../assets/items/campfire.png';
 import furnaceIcon from '../assets/items/furnace_simple.png';
+import largeFurnaceIcon from '../assets/items/large_furnace.png';
 import stashIcon from '../assets/items/stash.png';
 import woodenStorageBoxIcon from '../assets/items/wooden_storage_box.png';
 import largeWoodenStorageBoxIcon from '../assets/items/large_wood_box.png';
@@ -1128,6 +1129,7 @@ const iconMap: { [key: string]: string | undefined } = {
   // === PLACEABLES ===
   'campfire.png': campFireIcon,
   'furnace_simple.png': furnaceIcon,
+  'large_furnace.png': largeFurnaceIcon,
   'stash.png': stashIcon,
   'wooden_storage_box.png': woodenStorageBoxIcon,
   'large_wood_box.png': largeWoodenStorageBoxIcon,

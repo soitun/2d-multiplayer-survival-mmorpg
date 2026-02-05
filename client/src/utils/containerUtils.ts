@@ -25,6 +25,7 @@ export type ContainerEntity = Campfire | Furnace | Barbecue | Fumarole | Lantern
 export const CONTAINER_CONFIGS = {
     // Fuel/cooking containers (use fuel for burning/light, slot_* naming for consistency)
     campfire: { slots: 5, slotType: 'campfire_fuel', fieldPrefix: 'slotInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
+    // Note: furnace.slots is default; use getContainerConfig with entity for dynamic slot count based on furnaceType
     furnace: { slots: 5, slotType: 'furnace_fuel', fieldPrefix: 'slotInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
     barbecue: { slots: 12, slotType: 'barbecue_fuel', fieldPrefix: 'slotInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 6 }, // 12 slots in 6x2 grid (matches standard inventory row width)
     lantern: { slots: 1, slotType: 'lantern_fuel', fieldPrefix: 'fuelInstanceId', hasToggle: true, hasLightExtinguish: false, special: false, gridCols: 1 },
@@ -702,6 +703,10 @@ export const NUM_BOX_SLOTS = 18;
 export const NUM_REPAIR_BENCH_SLOTS = 1;
 export const NUM_COOKING_STATION_SLOTS = 0; // No inventory - proximity crafting only
 export const NUM_LARGE_BOX_SLOTS = 48;
+// Furnace type constants (must match server)
+export const FURNACE_TYPE_NORMAL = 0;
+export const FURNACE_TYPE_LARGE = 1;
+export const NUM_LARGE_FURNACE_SLOTS = 18;
 export const NUM_REFRIGERATOR_SLOTS = 30;
 export const NUM_COMPOST_SLOTS = 20;
 export const NUM_BACKPACK_SLOTS = 35; // Matches NUM_CORPSE_SLOTS (30 + 5 = 35 slots)
@@ -786,6 +791,17 @@ export const LANTERN_TYPE_MEMORY_BEACON = 3;
  * Helper to capitalize container type for display
  */
 export function getContainerDisplayName(containerType: ContainerType, entity?: ContainerEntity): string {
+    // Handle dynamic names for furnaces based on furnaceType
+    if (containerType === 'furnace' && entity) {
+        const furnace = entity as Furnace;
+        switch (furnace.furnaceType) {
+            case FURNACE_TYPE_LARGE:
+                return 'LARGE FURNACE';
+            default:
+                return 'FURNACE';
+        }
+    }
+    
     // Handle dynamic names for wooden storage boxes
     if (containerType === 'wooden_storage_box' && entity) {
         const box = entity as WoodenStorageBox;

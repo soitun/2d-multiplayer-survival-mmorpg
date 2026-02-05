@@ -1,10 +1,16 @@
 import { Furnace } from '../../generated'; // Import generated Furnace type
 import furnaceImage from '../../assets/doodads/furnace_simple.png'; // Direct import OFF
 import furnaceOnImage from '../../assets/doodads/furnace_simple_on.png'; // Direct import ON
+import largeFurnaceImage from '../../assets/doodads/large_furnace_off.png'; // Direct import OFF
+import largeFurnaceOnImage from '../../assets/doodads/large_furnace_on.png'; // Direct import ON
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { imageManager } from './imageManager'; // Import image manager
 import { renderEntityHealthBar } from './healthBarUtils';
+
+// --- Furnace Type Constants ---
+export const FURNACE_TYPE_NORMAL = 0;
+export const FURNACE_TYPE_LARGE = 1;
 
 // --- Constants directly used by this module or exported ---
 export const FURNACE_WIDTH = 96; // Standard furnace size
@@ -13,6 +19,11 @@ export const FURNACE_WIDTH_PREVIEW = 96; // Standard furnace size
 export const FURNACE_HEIGHT_PREVIEW = 96; // Standard furnace size
 // Offset for rendering to align with server-side collision zones
 export const FURNACE_RENDER_Y_OFFSET = 10; // Visual offset from entity's base Y
+
+// Large furnace constants
+export const LARGE_FURNACE_WIDTH = 256;
+export const LARGE_FURNACE_HEIGHT = 256;
+export const LARGE_FURNACE_RENDER_Y_OFFSET = 0; // Visual offset from entity's base Y
 
 // Furnace interaction distance (player <-> furnace)
 export const PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Same as campfire
@@ -29,7 +40,7 @@ const SHAKE_INTENSITY_PX = 8; // Same as campfire
 const clientFurnaceShakeStartTimes = new Map<string, number>(); // furnaceId -> client timestamp when shake started
 const lastKnownServerFurnaceShakeTimes = new Map<string, number>();
 
-// --- Define Configuration ---
+// --- Define Configuration for Normal Furnace ---
 const furnaceConfig: GroundEntityConfig<Furnace> = {
     // Return imported URL based on burning state
     getImageSource: (entity) => {
@@ -115,9 +126,113 @@ const furnaceConfig: GroundEntityConfig<Furnace> = {
     fallbackColor: '#8B4513', // Sienna brown fallback
 };
 
-// Preload both furnace images
+// --- Define Configuration for Large Furnace ---
+const largeFurnaceConfig: GroundEntityConfig<Furnace> = {
+    // Return imported URL based on burning state
+    getImageSource: (entity) => {
+        if (entity.isDestroyed) {
+            return null; // Don't render if destroyed
+        }
+        return entity.isBurning ? largeFurnaceOnImage : largeFurnaceImage;
+    },
+
+    getTargetDimensions: (_img, _entity) => ({
+        width: LARGE_FURNACE_WIDTH,
+        height: LARGE_FURNACE_HEIGHT,
+    }),
+
+    calculateDrawPosition: (entity, drawWidth, drawHeight) => ({
+        // Top-left corner for image drawing, originating from entity's base Y
+        // Apply Y offset to better align with collision area
+        drawX: entity.posX - drawWidth / 2,
+        drawY: entity.posY - drawHeight - LARGE_FURNACE_RENDER_Y_OFFSET,
+    }),
+
+    getShadowParams: undefined,
+
+    drawCustomGroundShadow: (ctx, entity, entityImage, entityPosX, entityPosY, imageDrawWidth, imageDrawHeight, cycleProgress) => {
+        // Draw DYNAMIC ground shadow for both burning and unlit furnaces (if not destroyed)
+        if (!entity.isDestroyed) {
+            // Calculate shake offsets for shadow synchronization using helper function
+            const { shakeOffsetX, shakeOffsetY } = calculateShakeOffsets(
+                entity,
+                entity.id.toString(),
+                {
+                    clientStartTimes: clientFurnaceShakeStartTimes,
+                    lastKnownServerTimes: lastKnownServerFurnaceShakeTimes
+                },
+                SHAKE_DURATION_MS,
+                SHAKE_INTENSITY_PX
+            );
+
+            drawDynamicGroundShadow({
+                ctx,
+                entityImage,
+                entityCenterX: entityPosX,
+                entityBaseY: entityPosY,
+                imageDrawWidth,
+                imageDrawHeight,
+                cycleProgress,
+                maxStretchFactor: 1.1, // Slightly less dynamic than campfire 
+                minStretchFactor: 0.2,  // Heavier/more stable than campfire
+                shadowBlur: 5,         // More blur for larger object
+                pivotYOffset: 80,      // Large furnace is heavier, shadow anchor lower
+                // Pass shake offsets so shadow moves with the furnace
+                shakeOffsetX,
+                shakeOffsetY      
+            });
+        }
+    },
+
+    applyEffects: (ctx, entity, nowMs, baseDrawX, baseDrawY, cycleProgress) => {
+        let shakeOffsetX = 0;
+        let shakeOffsetY = 0;
+
+        if (entity.lastHitTime && !entity.isDestroyed) {
+            const lastHitTimeMs = Number(entity.lastHitTime.microsSinceUnixEpoch / 1000n);
+            const elapsedSinceHit = nowMs - lastHitTimeMs;
+
+            if (elapsedSinceHit >= 0 && elapsedSinceHit < SHAKE_DURATION_MS) {
+                const shakeFactor = 1.0 - (elapsedSinceHit / SHAKE_DURATION_MS);
+                const currentShakeIntensity = SHAKE_INTENSITY_PX * shakeFactor;
+                shakeOffsetX = (Math.random() - 0.5) * 2 * currentShakeIntensity;
+                shakeOffsetY = (Math.random() - 0.5) * 2 * currentShakeIntensity; 
+            }
+        }
+
+        return {
+            offsetX: shakeOffsetX,
+            offsetY: shakeOffsetY,
+        };
+    },
+
+    // Health bar rendered separately via renderEntityHealthBar
+    drawOverlay: undefined,
+
+    fallbackColor: '#8B4513', // Sienna brown fallback
+};
+
+// Preload all furnace images
 imageManager.preloadImage(furnaceImage);
 imageManager.preloadImage(furnaceOnImage);
+imageManager.preloadImage(largeFurnaceImage);
+imageManager.preloadImage(largeFurnaceOnImage);
+
+// --- Helper function to get furnace dimensions based on type ---
+export function getFurnaceDimensions(furnaceType: number): { width: number; height: number; yOffset: number } {
+    if (furnaceType === FURNACE_TYPE_LARGE) {
+        return {
+            width: LARGE_FURNACE_WIDTH,
+            height: LARGE_FURNACE_HEIGHT,
+            yOffset: LARGE_FURNACE_RENDER_Y_OFFSET,
+        };
+    }
+    return {
+        width: FURNACE_WIDTH,
+        height: FURNACE_HEIGHT,
+        yOffset: FURNACE_RENDER_Y_OFFSET,
+    };
+}
 
 // --- Rendering Function ---
 export function renderFurnace(
@@ -129,11 +244,15 @@ export function renderFurnace(
     skipDrawingShadow?: boolean,
     playerX?: number,
     playerY?: number
-) { 
+) {
+    // Select config based on furnace type
+    const config = furnace.furnaceType === FURNACE_TYPE_LARGE ? largeFurnaceConfig : furnaceConfig;
+    const dimensions = getFurnaceDimensions(furnace.furnaceType);
+    
     renderConfiguredGroundEntity({
         ctx,
         entity: furnace,
-        config: furnaceConfig,
+        config,
         nowMs,
         entityPosX: furnace.posX,
         entityPosY: furnace.posY,
@@ -144,7 +263,7 @@ export function renderFurnace(
     
     // Render health bar using unified system
     if (!onlyDrawShadow && playerX !== undefined && playerY !== undefined) {
-        renderEntityHealthBar(ctx, furnace, FURNACE_WIDTH, FURNACE_HEIGHT, nowMs, playerX, playerY, -FURNACE_RENDER_Y_OFFSET);
+        renderEntityHealthBar(ctx, furnace, dimensions.width, dimensions.height, nowMs, playerX, playerY, -dimensions.yOffset);
     }
 } 
 

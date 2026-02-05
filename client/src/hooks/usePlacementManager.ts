@@ -1035,6 +1035,7 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
           // App.tsx's handleCampfireInsert callback will call it upon success.
           break;
         case 'Furnace': // ADDED: Furnace placement support
+        case 'Large Furnace': // ADDED: Large Furnace placement support (uses same reducer)
           // console.log(`[PlacementManager] Calling placeFurnace reducer with instance ID: ${placementInfo.instanceId}`);
           connection.reducers.placeFurnace(placementInfo.instanceId, worldX, worldY);
           // Note: We don't call cancelPlacement here. 

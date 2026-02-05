@@ -25,7 +25,7 @@ use crate::shelter::shelter as ShelterTableTrait;
 use crate::rain_collector::{RainCollector, RAIN_COLLECTOR_COLLISION_RADIUS, RAIN_COLLECTOR_COLLISION_Y_OFFSET};
 use crate::rain_collector::rain_collector as RainCollectorTableTrait;
 // Import furnace types for collision detection
-use crate::furnace::{Furnace, FURNACE_COLLISION_RADIUS, FURNACE_COLLISION_Y_OFFSET};
+use crate::furnace::{Furnace, FURNACE_COLLISION_RADIUS, FURNACE_COLLISION_Y_OFFSET, get_furnace_collision_radius, get_furnace_collision_y_offset};
 use crate::furnace::furnace as FurnaceTableTrait;
 // Import homestead hearth types for collision detection
 use crate::homestead_hearth::{HomesteadHearth, HEARTH_COLLISION_RADIUS, HEARTH_COLLISION_Y_OFFSET};
@@ -785,12 +785,14 @@ pub fn calculate_slide_collision_with_grid(
             spatial_grid::EntityType::Furnace(furnace_id) => { // ADDED Furnace slide logic
                 if let Some(furnace) = furnaces.id().find(furnace_id) {
                     if furnace.is_destroyed { continue; }
-                    // Use FURNACE_COLLISION_Y_OFFSET from furnace module
-                    let furnace_collision_y = furnace.pos_y - crate::furnace::FURNACE_COLLISION_Y_OFFSET;
+                    // Use dynamic collision Y offset based on furnace type
+                    let furnace_collision_y_offset = get_furnace_collision_y_offset(furnace.furnace_type);
+                    let furnace_collision_y = furnace.pos_y - furnace_collision_y_offset;
                     let dx = final_x - furnace.pos_x;
                     let dy = final_y - furnace_collision_y;
                     let dist_sq = dx * dx + dy * dy;
-                    let min_dist = current_player_radius + crate::furnace::FURNACE_COLLISION_RADIUS + SLIDE_SEPARATION_DISTANCE; // Add separation
+                    let furnace_collision_radius = get_furnace_collision_radius(furnace.furnace_type);
+                    let min_dist = current_player_radius + furnace_collision_radius + SLIDE_SEPARATION_DISTANCE; // Add separation
                     let min_dist_sq = min_dist * min_dist;
 
                     if dist_sq < min_dist_sq {
@@ -1659,11 +1661,14 @@ pub fn resolve_push_out_collision_with_grid(
                     log::debug!("[PushOutEntityType] Found Furnace: {}", furnace_id);
                     if let Some(furnace) = furnaces.id().find(furnace_id) {
                         if furnace.is_destroyed { continue; }
-                        let furnace_collision_y = furnace.pos_y - crate::furnace::FURNACE_COLLISION_Y_OFFSET;
+                        // Use dynamic collision Y offset and radius based on furnace type
+                        let furnace_collision_y_offset = get_furnace_collision_y_offset(furnace.furnace_type);
+                        let furnace_collision_y = furnace.pos_y - furnace_collision_y_offset;
                         let dx = resolved_x - furnace.pos_x;
                         let dy = resolved_y - furnace_collision_y;
                         let dist_sq = dx * dx + dy * dy;
-                        let min_dist = current_player_radius + crate::furnace::FURNACE_COLLISION_RADIUS + separation_distance;
+                        let furnace_collision_radius = get_furnace_collision_radius(furnace.furnace_type);
+                        let min_dist = current_player_radius + furnace_collision_radius + separation_distance;
                         let min_dist_sq = min_dist * min_dist;
                         
                         // OPTIMIZATION: Early exit with exact distance check

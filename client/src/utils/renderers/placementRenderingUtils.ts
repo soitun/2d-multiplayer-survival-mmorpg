@@ -2,7 +2,7 @@ import { PlacementItemInfo } from '../../hooks/usePlacementManager';
 import { BuildingPlacementState, BuildingMode } from '../../hooks/useBuildingManager';
 // Import dimensions directly from their respective rendering utility files
 import { CAMPFIRE_WIDTH_PREVIEW, CAMPFIRE_HEIGHT_PREVIEW } from './campfireRenderingUtils';
-import { FURNACE_WIDTH_PREVIEW, FURNACE_HEIGHT_PREVIEW } from './furnaceRenderingUtils'; // ADDED: Furnace dimensions
+import { FURNACE_WIDTH_PREVIEW, FURNACE_HEIGHT_PREVIEW, LARGE_FURNACE_WIDTH, LARGE_FURNACE_HEIGHT } from './furnaceRenderingUtils'; // ADDED: Furnace dimensions
 import { BARBECUE_WIDTH_PREVIEW, BARBECUE_HEIGHT_PREVIEW } from './barbecueRenderingUtils'; // ADDED: Barbecue dimensions
 import { ENTITY_VISUAL_CONFIG, getPlacementPreviewPosition } from '../entityVisualConfig'; // Centralized visual config
 import { 
@@ -617,7 +617,7 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
     }
 
     // List of items that cannot be placed on water
-    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Barbecue', 'Lantern', 'Ancestral Ward', 'Signal Disruptor', 'Memory Resonance Beacon', 'Tallow Steam Turret', 'Wooden Storage Box', 'Scarecrow', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath", 'Wooden Beehive'];
+    const waterBlockedItems = ['Camp Fire', 'Furnace', 'Large Furnace', 'Barbecue', 'Lantern', 'Ancestral Ward', 'Signal Disruptor', 'Memory Resonance Beacon', 'Tallow Steam Turret', 'Wooden Storage Box', 'Scarecrow', 'Sleeping Bag', 'Stash', 'Shelter', 'Reed Rain Collector', 'Repair Bench', 'Cooking Station', "Babushka's Surprise", "Matriarch's Wrath", 'Wooden Beehive'];
     
     // Seeds that don't require water or beach (most seeds) cannot be planted on water
     const isSeedButNotSpecialSeed = isSeedItemValid(placementInfo.itemName) && 
@@ -1890,6 +1890,9 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'furnace_simple.png') {
         // For Furnace, use the furnace_simple.png from doodads folder (matches actual placement rendering)
         previewImg = doodadImagesRef.current?.get('furnace_simple.png');
+    } else if (placementInfo.iconAssetName === 'large_furnace.png') {
+        // For Large Furnace, use the large_furnace_off.png from doodads folder (matches actual placement rendering)
+        previewImg = doodadImagesRef.current?.get('large_furnace_off.png');
     } else if (placementInfo.iconAssetName === 'campfire.png') {
         // For Campfire, use the campfire_off.png from doodads folder (matches actual placement rendering)
         previewImg = doodadImagesRef.current?.get('campfire_off.png');
@@ -1923,6 +1926,9 @@ export function renderPlacementPreview({
     if (placementInfo.iconAssetName === 'furnace_simple.png') { // ADDED: Furnace placement dimensions
         drawWidth = FURNACE_WIDTH_PREVIEW; 
         drawHeight = FURNACE_HEIGHT_PREVIEW;
+    } else if (placementInfo.iconAssetName === 'large_furnace.png') { // ADDED: Large Furnace placement dimensions
+        drawWidth = LARGE_FURNACE_WIDTH; 
+        drawHeight = LARGE_FURNACE_HEIGHT;
     } else if (placementInfo.iconAssetName === 'barbecue.png') { // ADDED: Barbecue placement dimensions
         drawWidth = BARBECUE_WIDTH_PREVIEW; 
         drawHeight = BARBECUE_HEIGHT_PREVIEW;

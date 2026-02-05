@@ -38,6 +38,8 @@ use crate::campfire::campfire as CampfireTableTrait;
 // Collision constants
 pub(crate) const FURNACE_COLLISION_RADIUS: f32 = 35.0;
 pub(crate) const FURNACE_COLLISION_Y_OFFSET: f32 = -35.0;
+pub(crate) const LARGE_FURNACE_COLLISION_RADIUS: f32 = 50.0;
+pub(crate) const LARGE_FURNACE_COLLISION_Y_OFFSET: f32 = 0.0;
 pub(crate) const PLAYER_FURNACE_COLLISION_DISTANCE_SQUARED: f32 = 
     (super::PLAYER_RADIUS + FURNACE_COLLISION_RADIUS) * (super::PLAYER_RADIUS + FURNACE_COLLISION_RADIUS);
 pub(crate) const FURNACE_FURNACE_COLLISION_DISTANCE_SQUARED: f32 = 
@@ -62,9 +64,14 @@ pub(crate) const PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED: f32 =
 // Fuel constants
 pub(crate) const FUEL_CONSUME_INTERVAL_SECS: u64 = 5;
 pub const NUM_FUEL_SLOTS: usize = 5;
+pub const NUM_LARGE_FURNACE_SLOTS: usize = 18;
 const FUEL_CHECK_INTERVAL_SECS: u64 = 1;
 pub const FURNACE_PROCESS_INTERVAL_SECS: u64 = 1;
 const CHARCOAL_PRODUCTION_CHANCE: u8 = 75; // 75% chance
+
+// --- Furnace Types ---
+pub const FURNACE_TYPE_NORMAL: u8 = 0;
+pub const FURNACE_TYPE_LARGE: u8 = 1;
 
 /// --- Furnace Data Structure ---
 /// Represents a furnace in the game world with position, owner, burning state,
@@ -82,7 +89,9 @@ pub struct Furnace {
     pub placed_by: Identity,
     pub placed_at: Timestamp,
     pub is_burning: bool,
+    pub furnace_type: u8, // 0 = normal (5 slots), 1 = large (18 slots)
     // Use individual fields instead of arrays (slot_* naming for consistency with other containers)
+    // Slots 0-4 (used by both normal and large furnaces)
     pub slot_instance_id_0: Option<u64>,
     pub slot_def_id_0: Option<u64>,
     pub slot_instance_id_1: Option<u64>,
@@ -93,6 +102,33 @@ pub struct Furnace {
     pub slot_def_id_3: Option<u64>,
     pub slot_instance_id_4: Option<u64>,
     pub slot_def_id_4: Option<u64>,
+    // Slots 5-17 (only used by large furnaces, but always present in table)
+    pub slot_instance_id_5: Option<u64>,
+    pub slot_def_id_5: Option<u64>,
+    pub slot_instance_id_6: Option<u64>,
+    pub slot_def_id_6: Option<u64>,
+    pub slot_instance_id_7: Option<u64>,
+    pub slot_def_id_7: Option<u64>,
+    pub slot_instance_id_8: Option<u64>,
+    pub slot_def_id_8: Option<u64>,
+    pub slot_instance_id_9: Option<u64>,
+    pub slot_def_id_9: Option<u64>,
+    pub slot_instance_id_10: Option<u64>,
+    pub slot_def_id_10: Option<u64>,
+    pub slot_instance_id_11: Option<u64>,
+    pub slot_def_id_11: Option<u64>,
+    pub slot_instance_id_12: Option<u64>,
+    pub slot_def_id_12: Option<u64>,
+    pub slot_instance_id_13: Option<u64>,
+    pub slot_def_id_13: Option<u64>,
+    pub slot_instance_id_14: Option<u64>,
+    pub slot_def_id_14: Option<u64>,
+    pub slot_instance_id_15: Option<u64>,
+    pub slot_def_id_15: Option<u64>,
+    pub slot_instance_id_16: Option<u64>,
+    pub slot_def_id_16: Option<u64>,
+    pub slot_instance_id_17: Option<u64>,
+    pub slot_def_id_17: Option<u64>,
     pub current_fuel_def_id: Option<u64>,
     pub remaining_fuel_burn_time_secs: Option<f32>,
     pub health: f32,
@@ -103,11 +139,26 @@ pub struct Furnace {
     pub last_damaged_by: Option<Identity>,
 
     // --- Smelting progress for each slot ---
+    // Slots 0-4 (used by both normal and large furnaces)
     pub slot_0_cooking_progress: Option<CookingProgress>,
     pub slot_1_cooking_progress: Option<CookingProgress>,
     pub slot_2_cooking_progress: Option<CookingProgress>,
     pub slot_3_cooking_progress: Option<CookingProgress>,
     pub slot_4_cooking_progress: Option<CookingProgress>,
+    // Slots 5-17 (only used by large furnaces, but always present in table)
+    pub slot_5_cooking_progress: Option<CookingProgress>,
+    pub slot_6_cooking_progress: Option<CookingProgress>,
+    pub slot_7_cooking_progress: Option<CookingProgress>,
+    pub slot_8_cooking_progress: Option<CookingProgress>,
+    pub slot_9_cooking_progress: Option<CookingProgress>,
+    pub slot_10_cooking_progress: Option<CookingProgress>,
+    pub slot_11_cooking_progress: Option<CookingProgress>,
+    pub slot_12_cooking_progress: Option<CookingProgress>,
+    pub slot_13_cooking_progress: Option<CookingProgress>,
+    pub slot_14_cooking_progress: Option<CookingProgress>,
+    pub slot_15_cooking_progress: Option<CookingProgress>,
+    pub slot_16_cooking_progress: Option<CookingProgress>,
+    pub slot_17_cooking_progress: Option<CookingProgress>,
     
     // --- Monument Placeable System ---
     pub is_monument: bool, // If true, this is a permanent monument placeable (indestructible, public access)
@@ -358,18 +409,12 @@ pub fn split_and_move_from_furnace(
     let furnace = furnaces.id().find(source_furnace_id)
         .ok_or(format!("Source furnace {} not found", source_furnace_id))?;
     
-    if source_slot_index >= NUM_FUEL_SLOTS as u8 {
+    if source_slot_index >= furnace.num_slots() as u8 {
         return Err(format!("Invalid source fuel slot index: {}", source_slot_index));
     }
 
-    let source_instance_id = match source_slot_index {
-        0 => furnace.slot_instance_id_0,
-        1 => furnace.slot_instance_id_1,
-        2 => furnace.slot_instance_id_2,
-        3 => furnace.slot_instance_id_3,
-        4 => furnace.slot_instance_id_4,
-        _ => None,
-    }.ok_or(format!("No item found in source furnace slot {}", source_slot_index))?;
+    let source_instance_id = furnace.get_slot_instance_id(source_slot_index)
+        .ok_or(format!("No item found in source furnace slot {}", source_slot_index))?;
 
     // --- 2. Get Source Item & Validate Split --- 
     let mut source_item = inventory_items.instance_id().find(source_instance_id)
@@ -542,6 +587,11 @@ pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         .map(|def| def.id)
         .ok_or_else(|| "Item definition for 'Furnace' not found.".to_string())?;
 
+    let large_furnace_def_id = item_defs.iter()
+        .find(|def| def.name == "Large Furnace")
+        .map(|def| def.id)
+        .ok_or_else(|| "Item definition for 'Large Furnace' not found.".to_string())?;
+
     let wood_def_id = item_defs.iter()
         .find(|def| def.name == "Wood")
         .map(|def| def.id)
@@ -568,9 +618,14 @@ pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         return Err("Item does not belong to you.".to_string());
     }
 
-    if item.item_def_id != furnace_def_id {
+    // Determine furnace type based on item definition
+    let (furnace_type, is_large) = if item.item_def_id == large_furnace_def_id {
+        (FURNACE_TYPE_LARGE, true)
+    } else if item.item_def_id == furnace_def_id {
+        (FURNACE_TYPE_NORMAL, false)
+    } else {
         return Err("Item is not a furnace.".to_string());
-    }
+    };
 
     // Check placement distance
     let distance_squared = (player.position_x - world_x).powi(2) + (player.position_y - world_y).powi(2);
@@ -584,14 +639,21 @@ pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
     }
 
     // Check for collisions with other furnaces
+    let placement_collision_radius = get_furnace_collision_radius(furnace_type);
+    let placement_collision_distance_squared = (placement_collision_radius * 2.0) * (placement_collision_radius * 2.0);
+    
     for existing_furnace in furnaces.iter() {
         if existing_furnace.is_destroyed {
             continue;
         }
+        let existing_collision_radius = get_furnace_collision_radius(existing_furnace.furnace_type);
+        let min_distance = placement_collision_radius + existing_collision_radius;
+        let min_distance_squared = min_distance * min_distance;
+        
         let dx = existing_furnace.pos_x - world_x;
         let dy = existing_furnace.pos_y - world_y;
         let distance_squared = dx * dx + dy * dy;
-        if distance_squared < FURNACE_FURNACE_COLLISION_DISTANCE_SQUARED {
+        if distance_squared < min_distance_squared {
             return Err("Cannot place furnace: too close to existing furnace.".to_string());
         }
     }
@@ -601,10 +663,14 @@ pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         if existing_campfire.is_destroyed {
             continue;
         }
+        let campfire_collision_radius = crate::campfire::CAMPFIRE_COLLISION_RADIUS;
+        let min_distance = placement_collision_radius + campfire_collision_radius;
+        let min_distance_squared = min_distance * min_distance;
+        
         let dx = existing_campfire.pos_x - world_x;
         let dy = existing_campfire.pos_y - world_y;
         let distance_squared = dx * dx + dy * dy;
-        if distance_squared < FURNACE_FURNACE_COLLISION_DISTANCE_SQUARED {
+        if distance_squared < min_distance_squared {
             return Err("Cannot place furnace: too close to existing campfire.".to_string());
         }
     }
@@ -631,10 +697,13 @@ pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
 
     // Create the furnace
     // Adjust Y position to account for client-side rendering offset
-    // Client renders at: entity.posY - FURNACE_HEIGHT - FURNACE_RENDER_Y_OFFSET
-    // We want the furnace center to align with the placement cursor position
-    // So: entity.posY = cursor_y + (FURNACE_HEIGHT / 2) + FURNACE_RENDER_Y_OFFSET
-    let adjusted_y = world_y + 48.0 + 10.0; // 48 = FURNACE_HEIGHT/2 (96/2), 10 = FURNACE_RENDER_Y_OFFSET
+    // For normal furnace: 96px height, 10px offset -> adjusted_y = world_y + 48 + 10
+    // For large furnace: 256px height, larger offset -> adjusted_y = world_y + 128 + offset
+    let adjusted_y = if is_large {
+        world_y + 128.0 + 0.0 // 128 = LARGE_FURNACE_HEIGHT/2 (256/2), 0 = LARGE_FURNACE_RENDER_Y_OFFSET
+    } else {
+        world_y + 48.0 + 10.0 // 48 = FURNACE_HEIGHT/2 (96/2), 10 = FURNACE_RENDER_Y_OFFSET
+    };
     
     let new_furnace = Furnace {
         id: 0, // Auto-generated
@@ -644,6 +713,7 @@ pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         placed_by: sender_id,
         placed_at: ctx.timestamp,
         is_burning: false,
+        furnace_type,
         slot_instance_id_0: Some(fuel_item.instance_id),
         slot_def_id_0: Some(wood_def_id),
         slot_instance_id_1: None,
@@ -654,6 +724,33 @@ pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         slot_def_id_3: None,
         slot_instance_id_4: None,
         slot_def_id_4: None,
+        // Large furnace additional slots (5-17) - initialize to None
+        slot_instance_id_5: None,
+        slot_def_id_5: None,
+        slot_instance_id_6: None,
+        slot_def_id_6: None,
+        slot_instance_id_7: None,
+        slot_def_id_7: None,
+        slot_instance_id_8: None,
+        slot_def_id_8: None,
+        slot_instance_id_9: None,
+        slot_def_id_9: None,
+        slot_instance_id_10: None,
+        slot_def_id_10: None,
+        slot_instance_id_11: None,
+        slot_def_id_11: None,
+        slot_instance_id_12: None,
+        slot_def_id_12: None,
+        slot_instance_id_13: None,
+        slot_def_id_13: None,
+        slot_instance_id_14: None,
+        slot_def_id_14: None,
+        slot_instance_id_15: None,
+        slot_def_id_15: None,
+        slot_instance_id_16: None,
+        slot_def_id_16: None,
+        slot_instance_id_17: None,
+        slot_def_id_17: None,
         current_fuel_def_id: None,
         remaining_fuel_burn_time_secs: None,
         health: FURNACE_INITIAL_HEALTH,
@@ -667,6 +764,20 @@ pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         slot_2_cooking_progress: None,
         slot_3_cooking_progress: None,
         slot_4_cooking_progress: None,
+        // Large furnace additional cooking progress slots (5-17) - initialize to None
+        slot_5_cooking_progress: None,
+        slot_6_cooking_progress: None,
+        slot_7_cooking_progress: None,
+        slot_8_cooking_progress: None,
+        slot_9_cooking_progress: None,
+        slot_10_cooking_progress: None,
+        slot_11_cooking_progress: None,
+        slot_12_cooking_progress: None,
+        slot_13_cooking_progress: None,
+        slot_14_cooking_progress: None,
+        slot_15_cooking_progress: None,
+        slot_16_cooking_progress: None,
+        slot_17_cooking_progress: None,
         // Monument placeable system (player-placed furnaces are not monuments)
         is_monument: false,
         active_user_id: None,
@@ -757,7 +868,7 @@ pub fn process_furnace_logic_scheduled(ctx: &ReducerContext, schedule_args: Furn
                 let mut consumed_and_reloaded_from_stack = false;
                 
                 // Find the current fuel slot and consume one unit
-                for i in 0..NUM_FUEL_SLOTS as u8 {
+                for i in 0..furnace.num_slots() as u8 {
                     if furnace.get_slot_def_id(i) == furnace.current_fuel_def_id {
                         if let Some(instance_id) = furnace.get_slot_instance_id(i) {
                             if let Some(mut fuel_item) = ctx.db.inventory_item().instance_id().find(instance_id) {
@@ -827,7 +938,7 @@ pub fn process_furnace_logic_scheduled(ctx: &ReducerContext, schedule_args: Furn
         if furnace.is_burning {
             let current_fuel_instance_id = furnace.current_fuel_def_id.and_then(|_| {
                 // Find which slot has the current fuel
-                for slot_index in 0..NUM_FUEL_SLOTS {
+                for slot_index in 0..furnace.num_slots() {
                     if let Some(instance_id) = furnace.get_slot_instance_id(slot_index as u8) {
                         if let Some(def_id) = furnace.get_slot_def_id(slot_index as u8) {
                             if Some(def_id) == furnace.current_fuel_def_id {
@@ -913,39 +1024,98 @@ pub fn schedule_next_furnace_processing(ctx: &ReducerContext, furnace_id: u32) -
 
 impl ItemContainer for Furnace {
     fn num_slots(&self) -> usize {
-        NUM_FUEL_SLOTS
+        match self.furnace_type {
+            FURNACE_TYPE_LARGE => NUM_LARGE_FURNACE_SLOTS,
+            _ => NUM_FUEL_SLOTS,
+        }
     }
 
     fn get_slot_instance_id(&self, slot_index: u8) -> Option<u64> {
+        // Check bounds based on furnace type
+        if slot_index as usize >= self.num_slots() {
+            return None;
+        }
         match slot_index {
             0 => self.slot_instance_id_0,
             1 => self.slot_instance_id_1,
             2 => self.slot_instance_id_2,
             3 => self.slot_instance_id_3,
             4 => self.slot_instance_id_4,
+            // Large furnace additional slots (5-17)
+            5 => self.slot_instance_id_5,
+            6 => self.slot_instance_id_6,
+            7 => self.slot_instance_id_7,
+            8 => self.slot_instance_id_8,
+            9 => self.slot_instance_id_9,
+            10 => self.slot_instance_id_10,
+            11 => self.slot_instance_id_11,
+            12 => self.slot_instance_id_12,
+            13 => self.slot_instance_id_13,
+            14 => self.slot_instance_id_14,
+            15 => self.slot_instance_id_15,
+            16 => self.slot_instance_id_16,
+            17 => self.slot_instance_id_17,
             _ => None,
         }
     }
 
     fn get_slot_def_id(&self, slot_index: u8) -> Option<u64> {
+        // Check bounds based on furnace type
+        if slot_index as usize >= self.num_slots() {
+            return None;
+        }
         match slot_index {
             0 => self.slot_def_id_0,
             1 => self.slot_def_id_1,
             2 => self.slot_def_id_2,
             3 => self.slot_def_id_3,
             4 => self.slot_def_id_4,
+            // Large furnace additional slots (5-17)
+            5 => self.slot_def_id_5,
+            6 => self.slot_def_id_6,
+            7 => self.slot_def_id_7,
+            8 => self.slot_def_id_8,
+            9 => self.slot_def_id_9,
+            10 => self.slot_def_id_10,
+            11 => self.slot_def_id_11,
+            12 => self.slot_def_id_12,
+            13 => self.slot_def_id_13,
+            14 => self.slot_def_id_14,
+            15 => self.slot_def_id_15,
+            16 => self.slot_def_id_16,
+            17 => self.slot_def_id_17,
             _ => None,
         }
     }
 
     fn set_slot(&mut self, slot_index: u8, instance_id: Option<u64>, def_id: Option<u64>) {
+        // Check bounds based on furnace type
+        if slot_index as usize >= self.num_slots() {
+            log::error!("[Furnace] Attempted to set slot {} on furnace_type {} (max slots: {})", 
+                slot_index, self.furnace_type, self.num_slots());
+            return;
+        }
         match slot_index {
             0 => { self.slot_instance_id_0 = instance_id; self.slot_def_id_0 = def_id; }
             1 => { self.slot_instance_id_1 = instance_id; self.slot_def_id_1 = def_id; }
             2 => { self.slot_instance_id_2 = instance_id; self.slot_def_id_2 = def_id; }
             3 => { self.slot_instance_id_3 = instance_id; self.slot_def_id_3 = def_id; }
             4 => { self.slot_instance_id_4 = instance_id; self.slot_def_id_4 = def_id; }
-            _ => {}
+            // Large furnace additional slots (5-17)
+            5 => { self.slot_instance_id_5 = instance_id; self.slot_def_id_5 = def_id; }
+            6 => { self.slot_instance_id_6 = instance_id; self.slot_def_id_6 = def_id; }
+            7 => { self.slot_instance_id_7 = instance_id; self.slot_def_id_7 = def_id; }
+            8 => { self.slot_instance_id_8 = instance_id; self.slot_def_id_8 = def_id; }
+            9 => { self.slot_instance_id_9 = instance_id; self.slot_def_id_9 = def_id; }
+            10 => { self.slot_instance_id_10 = instance_id; self.slot_def_id_10 = def_id; }
+            11 => { self.slot_instance_id_11 = instance_id; self.slot_def_id_11 = def_id; }
+            12 => { self.slot_instance_id_12 = instance_id; self.slot_def_id_12 = def_id; }
+            13 => { self.slot_instance_id_13 = instance_id; self.slot_def_id_13 = def_id; }
+            14 => { self.slot_instance_id_14 = instance_id; self.slot_def_id_14 = def_id; }
+            15 => { self.slot_instance_id_15 = instance_id; self.slot_def_id_15 = def_id; }
+            16 => { self.slot_instance_id_16 = instance_id; self.slot_def_id_16 = def_id; }
+            17 => { self.slot_instance_id_17 = instance_id; self.slot_def_id_17 = def_id; }
+            _ => { log::error!("[Furnace] Attempted to set invalid slot index: {}", slot_index); }
         }
     }
 
@@ -967,7 +1137,7 @@ pub(crate) fn clear_item_from_furnace_fuel_slots(ctx: &ReducerContext, item_inst
 
     for furnace in furnaces.iter() {
         let mut furnace = furnace.clone(); // Clone to avoid borrow issues
-        for slot_index in 0..NUM_FUEL_SLOTS {
+        for slot_index in 0..furnace.num_slots() {
             if let Some(instance_id) = furnace.get_slot_instance_id(slot_index as u8) {
                 if instance_id == item_instance_id_to_clear {
                     let furnace_id = furnace.id; // Store ID before move
@@ -1077,7 +1247,7 @@ pub(crate) fn check_if_furnace_has_fuel(ctx: &ReducerContext, furnace: &Furnace)
         }
     };
 
-    for slot_index in 0..NUM_FUEL_SLOTS {
+    for slot_index in 0..furnace.num_slots() {
         if let (Some(instance_id), Some(def_id)) = (
             furnace.get_slot_instance_id(slot_index as u8),
             furnace.get_slot_def_id(slot_index as u8),
@@ -1104,7 +1274,7 @@ fn find_and_consume_next_fuel(ctx: &ReducerContext, furnace: &mut Furnace) -> bo
         }
     };
 
-    for slot_index in 0..NUM_FUEL_SLOTS {
+    for slot_index in 0..furnace.num_slots() {
         if let (Some(instance_id), Some(def_id)) = (
             furnace.get_slot_instance_id(slot_index as u8),
             furnace.get_slot_def_id(slot_index as u8),
@@ -1165,7 +1335,7 @@ fn try_add_charcoal_to_furnace_or_drop(
     let mut charcoal_added_to_furnace_slots = false;
 
     // 1. Try to stack with existing charcoal in furnace slots
-    for i in 0..NUM_FUEL_SLOTS as u8 {
+    for i in 0..furnace.num_slots() as u8 {
         if furnace.get_slot_def_id(i) == Some(charcoal_def_id) {
             if let Some(instance_id) = furnace.get_slot_instance_id(i) {
                 if let Some(mut existing_charcoal_item) = inventory_items_table.instance_id().find(instance_id) {
@@ -1185,7 +1355,7 @@ fn try_add_charcoal_to_furnace_or_drop(
     }
 
     // 2. Try to place in an empty slot
-    for i in 0..NUM_FUEL_SLOTS as u8 {
+    for i in 0..furnace.num_slots() as u8 {
         if furnace.get_slot_instance_id(i).is_none() {
             let new_charcoal_location = ItemLocation::Container(ContainerLocationData {
                 container_type: ContainerType::Furnace,
@@ -1229,7 +1399,7 @@ pub fn has_reed_bellows(ctx: &ReducerContext, furnace: &Furnace) -> bool {
     let item_defs_table = ctx.db.item_definition();
     
     // Check all fuel slots for Reed Bellows
-    for slot_index in 0..NUM_FUEL_SLOTS {
+    for slot_index in 0..furnace.num_slots() {
         if let Some(fuel_def_id) = furnace.get_slot_def_id(slot_index as u8) {
             if let Some(item_def) = item_defs_table.id().find(fuel_def_id) {
                 if item_def.name == "Reed Bellows" {
@@ -1272,26 +1442,78 @@ pub fn get_smelting_speed_multiplier(ctx: &ReducerContext, furnace: &Furnace) ->
     multiplier
 }
 
+/// Get collision radius based on furnace type
+pub(crate) fn get_furnace_collision_radius(furnace_type: u8) -> f32 {
+    match furnace_type {
+        FURNACE_TYPE_LARGE => LARGE_FURNACE_COLLISION_RADIUS,
+        _ => FURNACE_COLLISION_RADIUS,
+    }
+}
+
+/// Get collision Y offset based on furnace type
+pub(crate) fn get_furnace_collision_y_offset(furnace_type: u8) -> f32 {
+    match furnace_type {
+        FURNACE_TYPE_LARGE => LARGE_FURNACE_COLLISION_Y_OFFSET,
+        _ => FURNACE_COLLISION_Y_OFFSET,
+    }
+}
+
 // Implement CookableAppliance for Furnace (smelting only)
 impl crate::cooking::CookableAppliance for Furnace {
     fn get_slot_cooking_progress(&self, slot_index: u8) -> Option<CookingProgress> {
+        // Check bounds based on furnace type
+        if slot_index as usize >= self.num_slots() {
+            return None;
+        }
         match slot_index {
             0 => self.slot_0_cooking_progress.clone(),
             1 => self.slot_1_cooking_progress.clone(),
             2 => self.slot_2_cooking_progress.clone(),
             3 => self.slot_3_cooking_progress.clone(),
             4 => self.slot_4_cooking_progress.clone(),
+            // Large furnace additional slots (5-17)
+            5 => self.slot_5_cooking_progress.clone(),
+            6 => self.slot_6_cooking_progress.clone(),
+            7 => self.slot_7_cooking_progress.clone(),
+            8 => self.slot_8_cooking_progress.clone(),
+            9 => self.slot_9_cooking_progress.clone(),
+            10 => self.slot_10_cooking_progress.clone(),
+            11 => self.slot_11_cooking_progress.clone(),
+            12 => self.slot_12_cooking_progress.clone(),
+            13 => self.slot_13_cooking_progress.clone(),
+            14 => self.slot_14_cooking_progress.clone(),
+            15 => self.slot_15_cooking_progress.clone(),
+            16 => self.slot_16_cooking_progress.clone(),
+            17 => self.slot_17_cooking_progress.clone(),
             _ => None,
         }
     }
 
     fn set_slot_cooking_progress(&mut self, slot_index: u8, progress: Option<CookingProgress>) {
+        // Check bounds based on furnace type
+        if slot_index as usize >= self.num_slots() {
+            return;
+        }
         match slot_index {
             0 => self.slot_0_cooking_progress = progress,
             1 => self.slot_1_cooking_progress = progress,
             2 => self.slot_2_cooking_progress = progress,
             3 => self.slot_3_cooking_progress = progress,
             4 => self.slot_4_cooking_progress = progress,
+            // Large furnace additional slots (5-17)
+            5 => self.slot_5_cooking_progress = progress,
+            6 => self.slot_6_cooking_progress = progress,
+            7 => self.slot_7_cooking_progress = progress,
+            8 => self.slot_8_cooking_progress = progress,
+            9 => self.slot_9_cooking_progress = progress,
+            10 => self.slot_10_cooking_progress = progress,
+            11 => self.slot_11_cooking_progress = progress,
+            12 => self.slot_12_cooking_progress = progress,
+            13 => self.slot_13_cooking_progress = progress,
+            14 => self.slot_14_cooking_progress = progress,
+            15 => self.slot_15_cooking_progress = progress,
+            16 => self.slot_16_cooking_progress = progress,
+            17 => self.slot_17_cooking_progress = progress,
             _ => {}
         }
     }
