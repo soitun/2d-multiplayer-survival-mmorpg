@@ -2350,7 +2350,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // === PERFORMANCE PROFILING ===
   // 🔧 SET TO true TO ENABLE LAG DIAGNOSTICS IN CONSOLE
-  const ENABLE_LAG_DIAGNOSTICS = true;
+  const ENABLE_LAG_DIAGNOSTICS = false;
   const LAG_DIAGNOSTIC_INTERVAL_MS = 5000; // Log every 5 seconds
   
   const perfProfilingRef = useRef({
