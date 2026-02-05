@@ -21,6 +21,7 @@ interface ItemInteractionPanelProps {
     onClose: () => void;
     onStartSplitDrag?: (itemInfo: PopulatedItem, quantity: number) => void;
     onOpenBoneCarving?: () => void; // Opens the bone carving panel
+    onOpenRadio?: () => void; // Opens the radio panel
 }
 
 interface ItemAction {
@@ -35,7 +36,8 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
     connection, 
     onClose,
     onStartSplitDrag,
-    onOpenBoneCarving
+    onOpenBoneCarving,
+    onOpenRadio
 }) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [currentItemQuantity, setCurrentItemQuantity] = useState(selectedItem.instance.quantity);
@@ -200,6 +202,16 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
             });
         }
 
+        // Check if item is the Transistor Radio
+        if (itemName === "Transistor Radio") {
+            actions.push({
+                label: 'Listen',
+                action: 'use_radio',
+                description: 'Tune into radio frequencies',
+                buttonStyle: 'radioButton'
+            });
+        }
+
         // Check if item is a water container with water content
         if (isWaterContainer(itemName) && hasWaterContent(item.instance)) {
             actions.push({
@@ -279,6 +291,13 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
                     if (onOpenBoneCarving) {
                         onOpenBoneCarving();
                         onClose(); // Close the interaction panel when opening carving panel
+                    }
+                    break;
+                case 'use_radio':
+                    // Open the radio panel
+                    if (onOpenRadio) {
+                        onOpenRadio();
+                        onClose(); // Close the interaction panel when opening radio panel
                     }
                     break;
                 default:

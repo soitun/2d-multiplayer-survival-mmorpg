@@ -587,6 +587,8 @@ import { RespawnMineCarts } from "./respawn_mine_carts_reducer.ts";
 export { RespawnMineCarts };
 import { RespawnRandomly } from "./respawn_randomly_reducer.ts";
 export { RespawnRandomly };
+import { RespawnTransistorRadio } from "./respawn_transistor_radio_reducer.ts";
+export { RespawnTransistorRadio };
 import { RespawnWildBeehives } from "./respawn_wild_beehives_reducer.ts";
 export { RespawnWildBeehives };
 import { ReviveKnockedOutPlayer } from "./revive_knocked_out_player_reducer.ts";
@@ -1125,6 +1127,8 @@ import { TilledTileReversionScheduleTableHandle } from "./tilled_tile_reversion_
 export { TilledTileReversionScheduleTableHandle };
 import { TorchDurabilityScheduleTableHandle } from "./torch_durability_schedule_table.ts";
 export { TorchDurabilityScheduleTableHandle };
+import { TransistorRadioRespawnTableHandle } from "./transistor_radio_respawn_table.ts";
+export { TransistorRadioRespawnTableHandle };
 import { TreeTableHandle } from "./tree_table.ts";
 export { TreeTableHandle };
 import { TurretTableHandle } from "./turret_table.ts";
@@ -1583,6 +1587,8 @@ import { TimeOfDay } from "./time_of_day_type.ts";
 export { TimeOfDay };
 import { TorchDurabilitySchedule } from "./torch_durability_schedule_type.ts";
 export { TorchDurabilitySchedule };
+import { TransistorRadioRespawn } from "./transistor_radio_respawn_type.ts";
+export { TransistorRadioRespawn };
 import { Tree } from "./tree_type.ts";
 export { Tree };
 import { TreeType } from "./tree_type_type.ts";
@@ -3036,6 +3042,15 @@ const REMOTE_MODULE = {
         colType: (TorchDurabilitySchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    transistor_radio_respawn: {
+      tableName: "transistor_radio_respawn" as const,
+      rowType: TransistorRadioRespawn.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (TransistorRadioRespawn.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     tree: {
       tableName: "tree" as const,
       rowType: Tree.getTypeScriptAlgebraicType(),
@@ -4312,6 +4327,10 @@ const REMOTE_MODULE = {
       reducerName: "respawn_randomly",
       argsType: RespawnRandomly.getTypeScriptAlgebraicType(),
     },
+    respawn_transistor_radio: {
+      reducerName: "respawn_transistor_radio",
+      argsType: RespawnTransistorRadio.getTypeScriptAlgebraicType(),
+    },
     respawn_wild_beehives: {
       reducerName: "respawn_wild_beehives",
       argsType: RespawnWildBeehives.getTypeScriptAlgebraicType(),
@@ -5068,6 +5087,7 @@ export type Reducer = never
 | { name: "RespawnMilitaryRations", args: RespawnMilitaryRations }
 | { name: "RespawnMineCarts", args: RespawnMineCarts }
 | { name: "RespawnRandomly", args: RespawnRandomly }
+| { name: "RespawnTransistorRadio", args: RespawnTransistorRadio }
 | { name: "RespawnWildBeehives", args: RespawnWildBeehives }
 | { name: "ReviveKnockedOutPlayer", args: ReviveKnockedOutPlayer }
 | { name: "RevokePlayerBuildingPrivilege", args: RevokePlayerBuildingPrivilege }
@@ -9489,6 +9509,22 @@ export class RemoteReducers {
     this.connection.offReducer("respawn_randomly", callback);
   }
 
+  respawnTransistorRadio(args: TransistorRadioRespawn) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    RespawnTransistorRadio.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("respawn_transistor_radio", __argsBuffer, this.setCallReducerFlags.respawnTransistorRadioFlags);
+  }
+
+  onRespawnTransistorRadio(callback: (ctx: ReducerEventContext, args: TransistorRadioRespawn) => void) {
+    this.connection.onReducer("respawn_transistor_radio", callback);
+  }
+
+  removeOnRespawnTransistorRadio(callback: (ctx: ReducerEventContext, args: TransistorRadioRespawn) => void) {
+    this.connection.offReducer("respawn_transistor_radio", callback);
+  }
+
   respawnWildBeehives(schedule: WildBeehiveRespawnSchedule) {
     const __args = { schedule };
     let __writer = new __BinaryWriter(1024);
@@ -12596,6 +12632,11 @@ export class SetReducerFlags {
     this.respawnRandomlyFlags = flags;
   }
 
+  respawnTransistorRadioFlags: __CallReducerFlags = 'FullUpdate';
+  respawnTransistorRadio(flags: __CallReducerFlags) {
+    this.respawnTransistorRadioFlags = flags;
+  }
+
   respawnWildBeehivesFlags: __CallReducerFlags = 'FullUpdate';
   respawnWildBeehives(flags: __CallReducerFlags) {
     this.respawnWildBeehivesFlags = flags;
@@ -13939,6 +13980,11 @@ export class RemoteTables {
   get torchDurabilitySchedule(): TorchDurabilityScheduleTableHandle<'torch_durability_schedule'> {
     // clientCache is a private property
     return new TorchDurabilityScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<TorchDurabilitySchedule>(REMOTE_MODULE.tables.torch_durability_schedule));
+  }
+
+  get transistorRadioRespawn(): TransistorRadioRespawnTableHandle<'transistor_radio_respawn'> {
+    // clientCache is a private property
+    return new TransistorRadioRespawnTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<TransistorRadioRespawn>(REMOTE_MODULE.tables.transistor_radio_respawn));
   }
 
   get tree(): TreeTableHandle<'tree'> {

@@ -254,6 +254,9 @@ import qaangaxTotemIcon from '../assets/items/qaangax_totem.png';
 // Bone Carving Kit
 import boneCarvingKitIcon from '../assets/items/bone_carving_kit.png';
 
+// Transistor Radio
+import transistorRadioIcon from '../assets/items/radio.png';
+
 // === CONSUMABLES ===
 // Food, medicine, and edible items
 
@@ -858,6 +861,9 @@ const iconMap: { [key: string]: string | undefined } = {
   
   // Bone Carving Kit
   'bone_carving_kit.png': boneCarvingKitIcon,
+  
+  // Transistor Radio
+  'radio.png': transistorRadioIcon,
 
   // === CONSUMABLES ===
   // Basic crops (burnt icons use cooked icons with visual filter applied by DraggableItem)

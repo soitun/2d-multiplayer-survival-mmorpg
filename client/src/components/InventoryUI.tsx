@@ -124,6 +124,8 @@ interface InventoryUIProps {
     onCloseItemInteraction?: () => void;
     // Bone Carving Panel callback
     onOpenBoneCarving?: () => void;
+    // Radio Panel callback
+    onOpenRadio?: () => void;
 }
 
 // Represents an item instance with its definition for rendering
@@ -197,6 +199,8 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
     onCloseItemInteraction,
     // Bone Carving Panel callback
     onOpenBoneCarving,
+    // Radio Panel callback
+    onOpenRadio,
 }) => {
     const isPlacingItem = placementInfo !== null;
     const prevInteractionTargetRef = useRef<typeof interactionTarget | undefined>(undefined);
@@ -1506,6 +1510,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                         onClose={handleCloseItemInteraction}
                         onStartSplitDrag={handleStartSplitDrag}
                         onOpenBoneCarving={onOpenBoneCarving}
+                        onOpenRadio={onOpenRadio}
                     />
                 )}
             </div>

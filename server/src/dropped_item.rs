@@ -162,6 +162,15 @@ pub fn pickup_dropped_item(ctx: &ReducerContext, dropped_item_id: u64) -> Result
                     );
                     log::info!("[PickupDropped] Bone Carving Kit picked up - scheduled respawn in 30 minutes");
                 }
+                
+                // 8. Check if this is a Transistor Radio and schedule respawn
+                if item_name == "Transistor Radio" {
+                    crate::transistor_radio::schedule_radio_respawn(
+                        ctx, 
+                        crate::transistor_radio::TRANSISTOR_RADIO_RESPAWN_DELAY_SECS
+                    );
+                    log::info!("[PickupDropped] Transistor Radio picked up - scheduled respawn in 30 minutes");
+                }
             } else {
                 log::info!("[PickupDropped] Inventory full, moved item '{}' (ID {}) closer to player {:?}",
                          item_name, dropped_item_id, sender_id);

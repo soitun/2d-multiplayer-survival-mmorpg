@@ -18,6 +18,7 @@ import ActiveCraftingQueueUI from './ActiveCraftingQueueUI';
 import CyberpunkKnockedOutScreen from './CyberpunkKnockedOutScreen';
 import CraftingScreen from './CraftingScreen';
 import BoneCarvingPanel from './BoneCarvingPanel';
+import RadioPanel from './RadioPanel';
 // Hot loot hook
 import { useHotLoot } from '../hooks/useHotLoot';
 // --- END NEW IMPORTS ---
@@ -128,6 +129,9 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
     // State for Bone Carving Panel
     const [showBoneCarvingPanel, setShowBoneCarvingPanel] = useState<boolean>(false);
     
+    // State for Radio Panel
+    const [showRadioPanel, setShowRadioPanel] = useState<boolean>(false);
+    
     // Handler for selecting items from any source (InventoryUI, Hotbar, ExternalContainerUI)
     const handleSelectInventoryItem = useCallback((item: PopulatedItem | null) => {
         setSelectedInventoryItem(item);
@@ -150,6 +154,20 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
     // Handler for closing the Bone Carving Panel
     const handleCloseBoneCarving = useCallback(() => {
         setShowBoneCarvingPanel(false);
+    }, []);
+    
+    // Handler for opening the Radio Panel
+    const handleOpenRadio = useCallback(() => {
+        setShowRadioPanel(true);
+        // Close inventory when opening radio panel
+        if (showInventory) {
+            onToggleInventory();
+        }
+    }, [showInventory, onToggleInventory]);
+    
+    // Handler for closing the Radio Panel
+    const handleCloseRadio = useCallback(() => {
+        setShowRadioPanel(false);
     }, []);
     
     // Clear selected item when inventory closes
@@ -1626,6 +1644,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     onSelectInventoryItem={handleSelectInventoryItem}
                     onCloseItemInteraction={handleCloseItemInteraction}
                     onOpenBoneCarving={handleOpenBoneCarving}
+                    onOpenRadio={handleOpenRadio}
                  />
              )}
 
@@ -1654,6 +1673,15 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                     inventoryItems={inventoryItems}
                     connection={connection}
                     onClose={handleCloseBoneCarving}
+                />
+            )}
+
+            {/* Radio Panel - Opened via Transistor Radio item interaction */}
+            {showRadioPanel && (
+                <RadioPanel
+                    playerIdentity={identity}
+                    connection={connection}
+                    onClose={handleCloseRadio}
                 />
             )}
 

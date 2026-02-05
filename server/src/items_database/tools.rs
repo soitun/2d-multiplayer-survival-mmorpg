@@ -398,5 +398,11 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .icon("bone_carving_kit.png")
             .respawn_time(1800) // 30 minute respawn
             .build(),
+
+            // Transistor Radio - Unique tool found at Crashed Research Drone for listening to radio stations
+            ItemBuilder::new("Transistor Radio", "A weathered Soviet-era transistor radio, its red casing faded by salt air. Salvaged from the crashed research drone wreckage. Still crackles with distant broadcasts across the island frequencies.", ItemCategory::Tool)
+            .icon("radio.png")
+            .respawn_time(1800) // 30 minute respawn (same as Bone Carving Kit)
+            .build(),
     ]
 }

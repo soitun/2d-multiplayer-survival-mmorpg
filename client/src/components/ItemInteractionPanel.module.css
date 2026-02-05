@@ -231,6 +231,17 @@
   border-color: #ffd700;
 }
 
+.radioButton {
+  background: linear-gradient(135deg, #8b2323 0%, #6b1b1b 100%);
+  border-color: #ff4444;
+  box-shadow: 0 0 10px rgba(139, 35, 35, 0.5), inset 0 0 10px rgba(255, 68, 68, 0.1);
+}
+
+.radioButton:hover:not(:disabled) {
+  box-shadow: 0 4px 15px rgba(139, 35, 35, 0.7), inset 0 0 15px rgba(255, 68, 68, 0.2);
+  border-color: #ff6666;
+}
+
 /* Split controls styles */
 .splitControls {
   display: flex;

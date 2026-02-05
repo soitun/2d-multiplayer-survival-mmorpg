@@ -358,6 +358,12 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 log::warn!("Failed to spawn crashed research drone entities: {}", e);
             }
         }
+        
+        // Spawn the unique Transistor Radio at the Crashed Research Drone
+        match crate::transistor_radio::spawn_transistor_radio(ctx) {
+            Ok(_) => log::info!("📻 Spawned Transistor Radio at Crashed Research Drone"),
+            Err(e) => log::warn!("Failed to spawn Transistor Radio: {}", e),
+        }
     }
     
     // Store weather station positions in database table for client access
