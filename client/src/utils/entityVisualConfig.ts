@@ -66,9 +66,9 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   large_furnace: {
     centerOffsetX: 0,
-    centerOffsetY: -134,  // Visual center relative to posY (256px sprite, similar to wards)
+    centerOffsetY: -140,  // Visual center relative to posY (256px sprite, slightly higher)
     width: 200,           // Interaction box width
-    height: 220,          // Interaction box height
+    height: 260,          // Interaction box height (larger for easier engagement)
     placementYOffset: 0,  // Cursor at center of preview (server adds offset)
     spriteWidth: 256,
     spriteHeight: 256,

@@ -38,8 +38,8 @@ use crate::campfire::campfire as CampfireTableTrait;
 // Collision constants
 pub(crate) const FURNACE_COLLISION_RADIUS: f32 = 35.0;
 pub(crate) const FURNACE_COLLISION_Y_OFFSET: f32 = -35.0;
-pub(crate) const LARGE_FURNACE_COLLISION_RADIUS: f32 = 50.0;
-pub(crate) const LARGE_FURNACE_COLLISION_Y_OFFSET: f32 = 0.0;
+pub(crate) const LARGE_FURNACE_COLLISION_RADIUS: f32 = 40.0;  // Same as Signal Disruptor
+pub(crate) const LARGE_FURNACE_COLLISION_Y_OFFSET: f32 = 80.0;  // Same as Signal Disruptor
 pub(crate) const PLAYER_FURNACE_COLLISION_DISTANCE_SQUARED: f32 = 
     (super::PLAYER_RADIUS + FURNACE_COLLISION_RADIUS) * (super::PLAYER_RADIUS + FURNACE_COLLISION_RADIUS);
 pub(crate) const FURNACE_FURNACE_COLLISION_DISTANCE_SQUARED: f32 = 

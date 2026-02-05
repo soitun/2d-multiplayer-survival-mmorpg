@@ -27,6 +27,7 @@ export const LARGE_FURNACE_RENDER_Y_OFFSET = 0; // Visual offset from entity's b
 
 // Furnace interaction distance (player <-> furnace)
 export const PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Same as campfire
+export const PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED = 130.0 * 130.0; // Larger for big furnace
 
 // Constants for server-side collision logic
 export const SERVER_FURNACE_COLLISION_RADIUS = 20.0;

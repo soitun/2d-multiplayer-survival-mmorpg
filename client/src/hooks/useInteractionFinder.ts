@@ -38,6 +38,7 @@ import {
 } from '../utils/renderers/campfireRenderingUtils';
 import {
     PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED,
+    PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED,
     FURNACE_HEIGHT,
     FURNACE_RENDER_Y_OFFSET,
     LARGE_FURNACE_HEIGHT,
@@ -322,7 +323,7 @@ export function useInteractionFinder({
         let closestCampfireDistSq = PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED;
 
         let closestFurnaceId: number | null = null; // ADDED: Furnace tracking variables
-        let closestFurnaceDistSq = PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED;
+        let closestFurnaceDistSq = PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED; // Use larger threshold for global tracking
 
         let closestBarbecueId: number | null = null; // ADDED: Barbecue tracking variables
         let closestBarbecueDistSq = PLAYER_BARBECUE_INTERACTION_DISTANCE_SQUARED;
@@ -449,10 +450,13 @@ export function useInteractionFinder({
             // Find closest furnace - ADDED: Centered on actual furnace body for seamless interaction
             if (furnaces) {
                 furnaces.forEach((furnace) => {
-                    // Use furnace type to determine dimensions
+                    // Use furnace type to determine dimensions and interaction distance
                     const isLargeFurnace = furnace.furnaceType === FURNACE_TYPE_LARGE;
                     const furnaceHeight = isLargeFurnace ? LARGE_FURNACE_HEIGHT : FURNACE_HEIGHT;
                     const furnaceYOffset = isLargeFurnace ? LARGE_FURNACE_RENDER_Y_OFFSET : FURNACE_RENDER_Y_OFFSET;
+                    const maxDistSq = isLargeFurnace 
+                        ? PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED 
+                        : PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED;
                     
                     // Use asymmetric interaction points for better approach from below while keeping top unchanged
                     let interactionCenterY;
@@ -467,7 +471,8 @@ export function useInteractionFinder({
                     const dx = playerX - furnace.posX;
                     const dy = playerY - interactionCenterY;
                     const distSq = dx * dx + dy * dy;
-                    if (distSq < closestFurnaceDistSq) {
+                    // Use furnace-specific max distance, but track globally for "closest"
+                    if (distSq < maxDistSq && distSq < closestFurnaceDistSq) {
                         // Check shelter access control
                         if (canPlayerInteractWithObjectInShelter(
                             playerX, playerY, localPlayer.identity.toHexString(),

@@ -4,7 +4,13 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { Furnace } from '../generated';
-import { FURNACE_HEIGHT, FURNACE_RENDER_Y_OFFSET } from '../utils/renderers/furnaceRenderingUtils';
+import { 
+  FURNACE_HEIGHT, 
+  FURNACE_RENDER_Y_OFFSET,
+  LARGE_FURNACE_HEIGHT,
+  LARGE_FURNACE_RENDER_Y_OFFSET,
+  FURNACE_TYPE_LARGE
+} from '../utils/renderers/furnaceRenderingUtils';
 
 export interface FurnaceParticle {
   x: number;
@@ -65,15 +71,24 @@ export function useFurnaceParticles({ visibleFurnacesMap }: { visibleFurnacesMap
     // Add new particles for burning furnaces
     visibleFurnacesMapRef.current.forEach(furnace => {
       if (furnace.isBurning && !furnace.isDestroyed) {
-        const centerX = furnace.posX - 8;
-        const centerY = furnace.posY - (FURNACE_HEIGHT / 2) - FURNACE_RENDER_Y_OFFSET - 12;
+        const isLargeFurnace = furnace.furnaceType === FURNACE_TYPE_LARGE;
+        
+        // Use different dimensions and offsets for large furnace
+        const furnaceHeight = isLargeFurnace ? LARGE_FURNACE_HEIGHT : FURNACE_HEIGHT;
+        const yOffset = isLargeFurnace ? LARGE_FURNACE_RENDER_Y_OFFSET : FURNACE_RENDER_Y_OFFSET;
+        
+        // Large furnace: sparks shifted up and to the left
+        const centerX = isLargeFurnace ? furnace.posX - 30 : furnace.posX - 8;
+        const centerY = isLargeFurnace 
+          ? furnace.posY - (furnaceHeight / 2) - yOffset - 60  // Much higher for large furnace
+          : furnace.posY - (furnaceHeight / 2) - yOffset - 12;
         
         // MAIN FURNACE PARTICLES (sparks + tiny fire)
         // Add tiny fire particles
         if (Math.random() < 0.08) {
           currentParticles.push({
-            x: centerX + (Math.random() - 0.5) * 6,
-            y: centerY + FURNACE_HEIGHT * 0.55,
+            x: centerX + (Math.random() - 0.5) * (isLargeFurnace ? 10 : 6),
+            y: centerY + furnaceHeight * (isLargeFurnace ? 0.45 : 0.55),
             vx: (Math.random() - 0.5) * 0.3,
             vy: -Math.random() * 0.8 - 0.3,
             life: 600 + Math.random() * 400,
@@ -88,8 +103,8 @@ export function useFurnaceParticles({ visibleFurnacesMap }: { visibleFurnacesMap
         // Add metal spark particles
         if (Math.random() < 0.05) {
           currentParticles.push({
-            x: centerX + (Math.random() - 0.5) * 8,
-            y: centerY + FURNACE_HEIGHT * 0.40,
+            x: centerX + (Math.random() - 0.5) * (isLargeFurnace ? 12 : 8),
+            y: centerY + furnaceHeight * (isLargeFurnace ? 0.35 : 0.40),
             vx: (Math.random() - 0.5) * 1.5,
             vy: -Math.random() * 1.0 - 0.2,
             life: 300 + Math.random() * 400,
@@ -101,24 +116,26 @@ export function useFurnaceParticles({ visibleFurnacesMap }: { visibleFurnacesMap
           });
         }
 
-        // SEPARATE LAZY SMOKE CHIMNEY
-        const smokeChimneyCenterX = centerX + 10;
-        const smokeChimneyCenterY = centerY + 25;
+        // SEPARATE LAZY SMOKE CHIMNEY - only for normal furnace (no smoke for large furnace)
+        if (!isLargeFurnace) {
+          const smokeChimneyCenterX = centerX + 10;
+          const smokeChimneyCenterY = centerY + 25;
 
-        // Add natural furnace chimney smoke
-        if (Math.random() < 0.25) {
-          currentParticles.push({
-            x: smokeChimneyCenterX + (Math.random() - 0.5) * 6,
-            y: smokeChimneyCenterY,
-            vx: (Math.random() - 0.5) * 0.05,
-            vy: -Math.random() * 0.1 - 0.02,
-            life: 2500 + Math.random() * 2000,
-            maxLife: 2500 + Math.random() * 2000,
-            size: 2 + Math.random() * 4,
-            color: ['#888888', '#999999', '#777777', '#aaaaaa'][Math.floor(Math.random() * 4)],
-            alpha: 0.3,
-            type: 'industrial_smoke'
-          });
+          // Add natural furnace chimney smoke
+          if (Math.random() < 0.25) {
+            currentParticles.push({
+              x: smokeChimneyCenterX + (Math.random() - 0.5) * 6,
+              y: smokeChimneyCenterY,
+              vx: (Math.random() - 0.5) * 0.05,
+              vy: -Math.random() * 0.1 - 0.02,
+              life: 2500 + Math.random() * 2000,
+              maxLife: 2500 + Math.random() * 2000,
+              size: 2 + Math.random() * 4,
+              color: ['#888888', '#999999', '#777777', '#aaaaaa'][Math.floor(Math.random() * 4)],
+              alpha: 0.3,
+              type: 'industrial_smoke'
+            });
+          }
         }
       }
     });
