@@ -48,6 +48,8 @@ pub(crate) const FURNACE_FURNACE_COLLISION_DISTANCE_SQUARED: f32 =
 // --- Placement constants ---
 pub(crate) const FURNACE_PLACEMENT_MAX_DISTANCE: f32 = 96.0;
 pub(crate) const FURNACE_PLACEMENT_MAX_DISTANCE_SQUARED: f32 = FURNACE_PLACEMENT_MAX_DISTANCE * FURNACE_PLACEMENT_MAX_DISTANCE;
+pub(crate) const LARGE_FURNACE_PLACEMENT_MAX_DISTANCE: f32 = 160.0; // Larger placement range for large furnace (similar to wards/turrets)
+pub(crate) const LARGE_FURNACE_PLACEMENT_MAX_DISTANCE_SQUARED: f32 = LARGE_FURNACE_PLACEMENT_MAX_DISTANCE * LARGE_FURNACE_PLACEMENT_MAX_DISTANCE;
 
 // --- Initial amounts ---
 pub const INITIAL_FURNACE_FUEL_AMOUNT: u32 = 50;
@@ -627,10 +629,15 @@ pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         return Err("Item is not a furnace.".to_string());
     };
 
-    // Check placement distance
+    // Check placement distance (large furnaces have a larger placement range)
     let distance_squared = (player.position_x - world_x).powi(2) + (player.position_y - world_y).powi(2);
-    if distance_squared > FURNACE_PLACEMENT_MAX_DISTANCE_SQUARED {
-        return Err(format!("Furnace placement too far away (max distance: {:.1})", FURNACE_PLACEMENT_MAX_DISTANCE));
+    let (max_distance, max_distance_squared) = if is_large {
+        (LARGE_FURNACE_PLACEMENT_MAX_DISTANCE, LARGE_FURNACE_PLACEMENT_MAX_DISTANCE_SQUARED)
+    } else {
+        (FURNACE_PLACEMENT_MAX_DISTANCE, FURNACE_PLACEMENT_MAX_DISTANCE_SQUARED)
+    };
+    if distance_squared > max_distance_squared {
+        return Err(format!("Furnace placement too far away (max distance: {:.1})", max_distance));
     }
 
     // Check if placement position is on water (including hot springs)
