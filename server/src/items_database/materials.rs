@@ -99,10 +99,11 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // Metal Ore - Raw metal resource
+        // Smelts to Metal Fragments: 5s in small furnace, 2.5s in large furnace (2x speed)
         ItemBuilder::new("Metal Ore", "Raw metallic ore extracted from the ground. Can be smelted into metal fragments.", ItemCategory::Material)
             .icon("metal.png")
             .stackable(1000)
-            .cook_time(20.0)
+            .cook_time(5.0)
             .cooked_item("Metal Fragments")
             .respawn_time(300)
             .build(),

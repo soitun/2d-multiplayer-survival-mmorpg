@@ -1429,12 +1429,17 @@ pub fn get_fuel_burn_rate_multiplier(ctx: &ReducerContext, furnace: &Furnace) ->
     }
 }
 
-/// Get the smelting speed multiplier based on Reed Bellows and red rune stone proximity
-/// Reed Bellows makes smelting 20% faster (multiplier = 1.2)
-/// Red rune stone zone doubles smelting speed (multiplier = 2.0)
-/// Multipliers stack multiplicatively (e.g., both = 1.2 * 2.0 = 2.4x)
+/// Get the smelting speed multiplier based on furnace type, Reed Bellows, and red rune stone proximity
+/// Large furnace: 2x faster smelting (base multiplier = 2.0)
+/// Reed Bellows makes smelting 20% faster (multiplier *= 1.2)
+/// Red rune stone zone doubles smelting speed (multiplier *= 2.0)
+/// Multipliers stack multiplicatively (e.g., large furnace + bellows = 2.0 * 1.2 = 2.4x)
 pub fn get_smelting_speed_multiplier(ctx: &ReducerContext, furnace: &Furnace) -> f32 {
-    let mut multiplier = 1.0;
+    // Large furnace smelts 2x faster (5s base -> 2.5s effective for Metal Ore)
+    let mut multiplier = match furnace.furnace_type {
+        FURNACE_TYPE_LARGE => 2.0,
+        _ => 1.0, // Normal furnace: base speed
+    };
     
     // Check for Reed Bellows (20% faster = 1.2x)
     if has_reed_bellows(ctx, furnace) {
