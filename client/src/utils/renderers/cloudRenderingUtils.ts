@@ -33,7 +33,7 @@ function getCloudImageName(shapeTag: string): string {
 export function renderCloudsDirectly({ ctx, clouds, cloudImages, worldScale }: RenderCloudsParams): void {
   if (!clouds || clouds.size === 0) return;
   if (!cloudImages || cloudImages.size === 0) {
-    console.warn("[renderCloudsDirectly] No cloudImages map or it is empty.");
+    // Cloud images not loaded yet - skip rendering silently
     return;
   }
 

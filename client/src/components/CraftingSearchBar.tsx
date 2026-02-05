@@ -327,10 +327,13 @@ const CraftingSearchBar: React.FC<CraftingSearchBarProps> = (props) => {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  
+  // Track previous filtered result to avoid redundant callbacks
+  const prevFilteredIdsRef = useRef<string>('');
 
-    // Apply filtering and sorting whenever inputs change
+  // Apply filtering and sorting whenever inputs change
   React.useEffect(() => {
-    if (recipes.length > 0 && Object.keys(playerInventory).length > 0) {
+    if (recipes.length > 0) {
       const filteredAndSorted = filterAndSortRecipes(
         recipes, 
         searchTerm, 
@@ -338,7 +341,13 @@ const CraftingSearchBar: React.FC<CraftingSearchBarProps> = (props) => {
         playerInventory, 
         playerHotbar
       );
-      onFilteredRecipesChange?.(filteredAndSorted);
+      
+      // Create a simple fingerprint of the result to avoid redundant updates
+      const resultIds = filteredAndSorted.map(r => r.id).join(',');
+      if (resultIds !== prevFilteredIdsRef.current) {
+        prevFilteredIdsRef.current = resultIds;
+        onFilteredRecipesChange?.(filteredAndSorted);
+      }
     }
   }, [recipes, searchTerm, selectedCategory, playerInventory, playerHotbar]); // Removed onFilteredRecipesChange from deps
 

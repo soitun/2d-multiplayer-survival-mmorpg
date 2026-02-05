@@ -968,9 +968,8 @@ export const renderYSortedEntities = ({
                 isLocalPlayerSnorkeling, // NEW: pass viewer's underwater state for underwater-from-above effects
                 playerActiveTitle // NEW: pass player's active title for name label
               );
-            } else {
-              console.log(`[DEBUG] heroImg is null for player ${playerId} - cannot render`);
             }
+            // heroImg not loaded yet - skip rendering silently (will render once loaded)
           } else { // This covers 'down' or 'right'
               // For DOWN or RIGHT, item should be rendered ABOVE the player
             // console.log(`[DEBUG] Rendering player ${playerId} (down/right) - heroImg available:`, !!heroImg, 'direction:', playerForRendering.direction);
@@ -1036,9 +1035,8 @@ export const renderYSortedEntities = ({
                 isLocalPlayerSnorkeling, // NEW: pass viewer's underwater state for underwater-from-above effects
                 playerActiveTitle2 // NEW: pass player's active title for name label
               );
-            } else {
-              console.log(`[DEBUG] heroImg is null for player ${playerId} (down/right) - cannot render`);
             }
+            // heroImg not loaded yet - skip rendering silently (will render once loaded)
             if (canRenderItem && equipment) {
                   // Pass player.direction (server-synced) for accurate attack arc display
                   // Pass snorkeling state for underwater teal tint effect

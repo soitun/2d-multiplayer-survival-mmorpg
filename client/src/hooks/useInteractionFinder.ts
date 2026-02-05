@@ -284,6 +284,32 @@ export function useInteractionFinder({
     const [closestInteractableWaterPosition, setClosestInteractableWaterPosition] = useState<{ x: number; y: number } | null>(null);
     const [closestInteractableMilkableAnimalId, setClosestInteractableMilkableAnimalId] = useState<bigint | null>(null); // ADDED: Milkable animal state
 
+    // Track previous state values via ref to avoid stale closure issues
+    const prevStateRef = useRef({
+        closestInteractableHarvestableResourceId: null as bigint | null,
+        closestInteractableCampfireId: null as number | null,
+        closestInteractableFurnaceId: null as number | null,
+        closestInteractableBarbecueId: null as number | null,
+        closestInteractableFumaroleId: null as number | null,
+        closestInteractableLanternId: null as number | null,
+        closestInteractableTurretId: null as number | null,
+        closestInteractableHearthId: null as number | null,
+        closestInteractableDroppedItemId: null as bigint | null,
+        closestInteractableBoxId: null as number | null,
+        isClosestInteractableBoxEmpty: false,
+        closestInteractableCorpseId: null as bigint | null,
+        closestInteractableStashId: null as number | null,
+        closestInteractableRainCollectorId: null as number | null,
+        closestInteractableBrothPotId: null as number | null,
+        closestInteractableSleepingBagId: null as number | null,
+        closestInteractableKnockedOutPlayerId: null as string | null,
+        closestInteractableWaterPosition: null as { x: number; y: number } | null,
+        closestInteractableDoorId: null as bigint | null,
+        closestInteractableAlkStationId: null as number | null,
+        closestInteractableCairnId: null as bigint | null,
+        closestInteractableMilkableAnimalId: null as bigint | null,
+    });
+
     const resultRef = useRef<UseInteractionFinderResult>({
         closestInteractableTarget: null,
         closestInteractableHarvestableResourceId: null,
@@ -1198,75 +1224,106 @@ export function useInteractionFinder({
 
         resultRef.current = calculatedResult;
 
-        // Update states if changed
-        if (calculatedResult.closestInteractableHarvestableResourceId !== closestInteractableHarvestableResourceId) {
+        // Use refs for comparison to avoid stale closure issues
+        const prev = prevStateRef.current;
+
+        // Update states if changed (comparing with ref, not stale state)
+        if (calculatedResult.closestInteractableHarvestableResourceId !== prev.closestInteractableHarvestableResourceId) {
+            prev.closestInteractableHarvestableResourceId = calculatedResult.closestInteractableHarvestableResourceId;
             setClosestInteractableHarvestableResourceId(calculatedResult.closestInteractableHarvestableResourceId);
         }
-        if (calculatedResult.closestInteractableCampfireId !== closestInteractableCampfireId) {
+        if (calculatedResult.closestInteractableCampfireId !== prev.closestInteractableCampfireId) {
+            prev.closestInteractableCampfireId = calculatedResult.closestInteractableCampfireId;
             setClosestInteractableCampfireId(calculatedResult.closestInteractableCampfireId);
         }
-        if (calculatedResult.closestInteractableFurnaceId !== closestInteractableFurnaceId) { // ADDED: Furnace useEffect
+        if (calculatedResult.closestInteractableFurnaceId !== prev.closestInteractableFurnaceId) {
+            prev.closestInteractableFurnaceId = calculatedResult.closestInteractableFurnaceId;
             setClosestInteractableFurnaceId(calculatedResult.closestInteractableFurnaceId);
         }
-        if (calculatedResult.closestInteractableBarbecueId !== closestInteractableBarbecueId) { // ADDED: Barbecue state update
+        if (calculatedResult.closestInteractableBarbecueId !== prev.closestInteractableBarbecueId) {
+            prev.closestInteractableBarbecueId = calculatedResult.closestInteractableBarbecueId;
             setClosestInteractableBarbecueId(calculatedResult.closestInteractableBarbecueId);
         }
-        if (calculatedResult.closestInteractableFumaroleId !== closestInteractableFumaroleId) { // ADDED: Fumarole state update
+        if (calculatedResult.closestInteractableFumaroleId !== prev.closestInteractableFumaroleId) {
+            prev.closestInteractableFumaroleId = calculatedResult.closestInteractableFumaroleId;
             setClosestInteractableFumaroleId(calculatedResult.closestInteractableFumaroleId);
         }
-        if (calculatedResult.closestInteractableLanternId !== closestInteractableLanternId) {
+        if (calculatedResult.closestInteractableLanternId !== prev.closestInteractableLanternId) {
+            prev.closestInteractableLanternId = calculatedResult.closestInteractableLanternId;
             setClosestInteractableLanternId(calculatedResult.closestInteractableLanternId);
         }
-        if (calculatedResult.closestInteractableTurretId !== closestInteractableTurretId) { // ADDED: Turret state update
+        if (calculatedResult.closestInteractableTurretId !== prev.closestInteractableTurretId) {
+            prev.closestInteractableTurretId = calculatedResult.closestInteractableTurretId;
             setClosestInteractableTurretId(calculatedResult.closestInteractableTurretId);
         }
-        if (calculatedResult.closestInteractableHearthId !== closestInteractableHearthId) { // ADDED: HomesteadHearth state update
+        if (calculatedResult.closestInteractableHearthId !== prev.closestInteractableHearthId) {
+            prev.closestInteractableHearthId = calculatedResult.closestInteractableHearthId;
             setClosestInteractableHearthId(calculatedResult.closestInteractableHearthId);
         }
-        if (calculatedResult.closestInteractableDroppedItemId !== closestInteractableDroppedItemId) {
+        if (calculatedResult.closestInteractableDroppedItemId !== prev.closestInteractableDroppedItemId) {
+            prev.closestInteractableDroppedItemId = calculatedResult.closestInteractableDroppedItemId;
             setClosestInteractableDroppedItemId(calculatedResult.closestInteractableDroppedItemId);
         }
-        if (calculatedResult.closestInteractableBoxId !== closestInteractableBoxId) {
+        if (calculatedResult.closestInteractableBoxId !== prev.closestInteractableBoxId) {
+            prev.closestInteractableBoxId = calculatedResult.closestInteractableBoxId;
             setClosestInteractableBoxId(calculatedResult.closestInteractableBoxId);
         }
-        if (calculatedResult.isClosestInteractableBoxEmpty !== isClosestInteractableBoxEmpty) {
+        if (calculatedResult.isClosestInteractableBoxEmpty !== prev.isClosestInteractableBoxEmpty) {
+            prev.isClosestInteractableBoxEmpty = calculatedResult.isClosestInteractableBoxEmpty;
             setIsClosestInteractableBoxEmpty(calculatedResult.isClosestInteractableBoxEmpty);
         }
-        // Update corpse state based on memoized result
-        if (calculatedResult.closestInteractableCorpseId !== closestInteractableCorpseId) {
+        if (calculatedResult.closestInteractableCorpseId !== prev.closestInteractableCorpseId) {
+            prev.closestInteractableCorpseId = calculatedResult.closestInteractableCorpseId;
             setClosestInteractableCorpseId(calculatedResult.closestInteractableCorpseId);
         }
-        if (calculatedResult.closestInteractableStashId !== closestInteractableStashId) {
+        if (calculatedResult.closestInteractableStashId !== prev.closestInteractableStashId) {
+            prev.closestInteractableStashId = calculatedResult.closestInteractableStashId;
             setClosestInteractableStashId(calculatedResult.closestInteractableStashId);
         }
-        if (calculatedResult.closestInteractableRainCollectorId !== closestInteractableRainCollectorId) {
+        if (calculatedResult.closestInteractableRainCollectorId !== prev.closestInteractableRainCollectorId) {
+            prev.closestInteractableRainCollectorId = calculatedResult.closestInteractableRainCollectorId;
             setClosestInteractableRainCollectorId(calculatedResult.closestInteractableRainCollectorId);
         }
-        if (calculatedResult.closestInteractableBrothPotId !== closestInteractableBrothPotId) {
+        if (calculatedResult.closestInteractableBrothPotId !== prev.closestInteractableBrothPotId) {
+            prev.closestInteractableBrothPotId = calculatedResult.closestInteractableBrothPotId;
             setClosestInteractableBrothPotId(calculatedResult.closestInteractableBrothPotId);
         }
-        if (calculatedResult.closestInteractableDoorId !== closestInteractableDoorId) {
+        if (calculatedResult.closestInteractableDoorId !== prev.closestInteractableDoorId) {
+            prev.closestInteractableDoorId = calculatedResult.closestInteractableDoorId;
             setClosestInteractableDoorId(calculatedResult.closestInteractableDoorId);
         }
-        if (calculatedResult.closestInteractableAlkStationId !== closestInteractableAlkStationId) {
+        if (calculatedResult.closestInteractableAlkStationId !== prev.closestInteractableAlkStationId) {
+            prev.closestInteractableAlkStationId = calculatedResult.closestInteractableAlkStationId;
             setClosestInteractableAlkStationId(calculatedResult.closestInteractableAlkStationId);
         }
-        if (calculatedResult.closestInteractableCairnId !== closestInteractableCairnId) {
+        if (calculatedResult.closestInteractableCairnId !== prev.closestInteractableCairnId) {
+            prev.closestInteractableCairnId = calculatedResult.closestInteractableCairnId;
             setClosestInteractableCairnId(calculatedResult.closestInteractableCairnId);
         }
-        if (calculatedResult.closestInteractableMilkableAnimalId !== closestInteractableMilkableAnimalId) {
+        if (calculatedResult.closestInteractableMilkableAnimalId !== prev.closestInteractableMilkableAnimalId) {
+            prev.closestInteractableMilkableAnimalId = calculatedResult.closestInteractableMilkableAnimalId;
             setClosestInteractableMilkableAnimalId(calculatedResult.closestInteractableMilkableAnimalId);
         }
-        if (calculatedResult.closestInteractableSleepingBagId !== closestInteractableSleepingBagId) {
+        if (calculatedResult.closestInteractableSleepingBagId !== prev.closestInteractableSleepingBagId) {
+            prev.closestInteractableSleepingBagId = calculatedResult.closestInteractableSleepingBagId;
             setClosestInteractableSleepingBagId(calculatedResult.closestInteractableSleepingBagId);
         }
-        if (calculatedResult.closestInteractableKnockedOutPlayerId !== closestInteractableKnockedOutPlayerId) {
+        if (calculatedResult.closestInteractableKnockedOutPlayerId !== prev.closestInteractableKnockedOutPlayerId) {
+            prev.closestInteractableKnockedOutPlayerId = calculatedResult.closestInteractableKnockedOutPlayerId;
             setClosestInteractableKnockedOutPlayerId(calculatedResult.closestInteractableKnockedOutPlayerId);
         }
-        if (calculatedResult.closestInteractableWaterPosition !== closestInteractableWaterPosition) {
+        // Special handling for water position (compare by value since it's an object)
+        const waterPosChanged = calculatedResult.closestInteractableWaterPosition?.x !== prev.closestInteractableWaterPosition?.x ||
+                                calculatedResult.closestInteractableWaterPosition?.y !== prev.closestInteractableWaterPosition?.y;
+        if (waterPosChanged) {
+            prev.closestInteractableWaterPosition = calculatedResult.closestInteractableWaterPosition;
             setClosestInteractableWaterPosition(calculatedResult.closestInteractableWaterPosition);
         }
-    }, [localPlayer, harvestableResources, campfires, furnaces, barbecues, fumaroles, lanterns, homesteadHearths, droppedItems, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, sleepingBags, players, shelters, inventoryItems, itemDefinitions, connection, playerDrinkingCooldowns, doors, alkStations, cairns, worldTiles]);
+    }, [localPlayer, harvestableResources, campfires, furnaces, barbecues, fumaroles, lanterns, homesteadHearths, droppedItems, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, sleepingBags, players, shelters, inventoryItems, itemDefinitions, connection, playerDrinkingCooldowns, doors, alkStations, cairns, worldTiles, wildAnimals, caribouBreedingData, walrusBreedingData, worldState]);
+
+    // Store callback in ref to avoid RAF loop restart on callback recreation
+    const updateCallbackRef = useRef(updateInteractionResult);
+    updateCallbackRef.current = updateInteractionResult;
 
     useEffect(() => {
         // Use requestAnimationFrame for frame-synced updates (every ~16ms at 60fps)
@@ -1274,7 +1331,8 @@ export function useInteractionFinder({
         let animationFrameId: number | null = null;
         
         const updateLoop = () => {
-            updateInteractionResult();
+            // Call via ref to always use latest callback without restarting loop
+            updateCallbackRef.current();
             animationFrameId = requestAnimationFrame(updateLoop);
         };
         
@@ -1286,7 +1344,7 @@ export function useInteractionFinder({
                 cancelAnimationFrame(animationFrameId);
             }
         };
-    }, [updateInteractionResult]);
+    }, []); // Empty deps - loop starts once and never restarts
 
     return {
         closestInteractableTarget: resultRef.current.closestInteractableTarget,

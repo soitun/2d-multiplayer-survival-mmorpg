@@ -394,18 +394,31 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
         return inventory;
     }, [playerInventoryResources, itemDefinitions]);
 
-    // Handle filtered recipes from the search bar
-    const handleFilteredRecipesChange = (filteredRecipes: any[]) => {
-        const recipesWithScores = filteredRecipes.map(filterResult => {
-            const originalRecipe = Array.from(recipes.values()).find(r => r.recipeId.toString() === filterResult.id);
-            return {
-                recipe: originalRecipe!,
-                score: 0 // Score is already calculated in the filter
-            };
-        }).filter(item => item.recipe); // Remove any undefined recipes
-        
-        setFilteredRecipes(recipesWithScores);
-    };
+    // Stable empty object for playerHotbar prop (avoid creating new {} on each render)
+    const emptyHotbar = useMemo(() => ({}), []);
+
+    // Handle filtered recipes from the search bar - memoized to prevent infinite loops
+    const handleFilteredRecipesChange = useCallback((filteredRecipesInput: any[]) => {
+        setFilteredRecipes(prevFiltered => {
+            const recipesWithScores = filteredRecipesInput.map(filterResult => {
+                const originalRecipe = Array.from(recipes.values()).find(r => r.recipeId.toString() === filterResult.id);
+                return {
+                    recipe: originalRecipe!,
+                    score: 0 // Score is already calculated in the filter
+                };
+            }).filter(item => item.recipe); // Remove any undefined recipes
+
+            // Avoid unnecessary state updates if the result is the same
+            if (prevFiltered.length === recipesWithScores.length) {
+                const same = prevFiltered.every((p, i) => 
+                    p.recipe?.recipeId === recipesWithScores[i]?.recipe?.recipeId
+                );
+                if (same) return prevFiltered; // Return same reference to avoid re-render
+            }
+            
+            return recipesWithScores;
+        });
+    }, [recipes]);
 
     // Initialize filtered recipes to empty - let CraftingSearchBar handle ALL filtering
     useEffect(() => {
@@ -438,6 +451,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                 onBlur={() => onCraftingSearchFocusChange?.(false)}
                 recipes={recipeList}
                 playerInventory={inventoryForFiltering}
+                playerHotbar={emptyHotbar}
                 onFilteredRecipesChange={handleFilteredRecipesChange}
                 showCategoryFilter={false}
             />

@@ -633,25 +633,26 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Add a state to track when images are loaded to trigger re-renders
   const [imageLoadTrigger, setImageLoadTrigger] = useState(0);
+  const imageLoadTriggeredRef = useRef(false);
 
-  // Effect to trigger re-render when images are loaded
+  // Effect to trigger re-render when images are loaded (ONE TIME ONLY)
   useEffect(() => {
+    // If already triggered, don't set up another interval
+    if (imageLoadTriggeredRef.current) return;
+
     const checkImages = () => {
-      if (itemImagesRef.current && itemImagesRef.current.size > 0) {
-        setImageLoadTrigger(prev => prev + 1);
+      if (itemImagesRef.current && itemImagesRef.current.size > 0 && !imageLoadTriggeredRef.current) {
+        imageLoadTriggeredRef.current = true;
+        setImageLoadTrigger(1); // Just set to 1, no increment needed
+        clearInterval(interval);
       }
     };
 
     // Check immediately
     checkImages();
 
-    // Set up an interval to check periodically (will be cleaned up when images are loaded)
+    // Set up an interval to check periodically (cleared when images are loaded)
     const interval = setInterval(checkImages, 100);
-
-    // Clean up interval when we have images
-    if (itemImagesRef.current && itemImagesRef.current.size > 0) {
-      clearInterval(interval);
-    }
 
     return () => clearInterval(interval);
   }, []);
@@ -2348,13 +2349,53 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   }, []);
 
   // === PERFORMANCE PROFILING ===
+  // 🔧 SET TO true TO ENABLE LAG DIAGNOSTICS IN CONSOLE
+  const ENABLE_LAG_DIAGNOSTICS = true;
+  const LAG_DIAGNOSTIC_INTERVAL_MS = 5000; // Log every 5 seconds
+  
   const perfProfilingRef = useRef({
     lastLogTime: Date.now(),
     frameCount: 0,
     totalFrameTime: 0,
     maxFrameTime: 0,
     slowFrames: 0, // frames > 16ms
+    verySlowFrames: 0, // frames > 33ms (below 30fps)
+    // Network latency tracking
+    lastServerUpdateTime: 0,
+    serverUpdateCount: 0,
+    maxServerLatency: 0,
+    totalServerLatency: 0,
+    // React re-render tracking
+    renderCallCount: 0,
   });
+  
+  // Track server updates via player position changes
+  const lastKnownPlayerPosRef = useRef<{ x: number; y: number; timestamp: number } | null>(null);
+  
+  // Track server update timing when localPlayer position changes
+  useEffect(() => {
+    if (!ENABLE_LAG_DIAGNOSTICS || !localPlayer) return;
+    
+    const now = performance.now();
+    const lastKnown = lastKnownPlayerPosRef.current;
+    
+    // Detect server-side position update (different from client prediction)
+    if (lastKnown && (localPlayer.positionX !== lastKnown.x || localPlayer.positionY !== lastKnown.y)) {
+      const timeSinceLastUpdate = now - lastKnown.timestamp;
+      perfProfilingRef.current.serverUpdateCount++;
+      perfProfilingRef.current.totalServerLatency += timeSinceLastUpdate;
+      if (timeSinceLastUpdate > perfProfilingRef.current.maxServerLatency) {
+        perfProfilingRef.current.maxServerLatency = timeSinceLastUpdate;
+      }
+      perfProfilingRef.current.lastServerUpdateTime = now;
+    }
+    
+    lastKnownPlayerPosRef.current = {
+      x: localPlayer.positionX,
+      y: localPlayer.positionY,
+      timestamp: now
+    };
+  }, [localPlayer?.positionX, localPlayer?.positionY]);
 
   const renderGame = useCallback(() => {
     const frameStartTime = performance.now();
@@ -4240,28 +4281,110 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const frameEndTime = performance.now();
     const frameTime = frameEndTime - frameStartTime;
     perfProfilingRef.current.totalFrameTime += frameTime;
+    perfProfilingRef.current.renderCallCount++;
     if (frameTime > perfProfilingRef.current.maxFrameTime) {
       perfProfilingRef.current.maxFrameTime = frameTime;
     }
     if (frameTime > 16) {
       perfProfilingRef.current.slowFrames++;
     }
-
-    // PERFORMANCE DEBUG: Uncomment to enable periodic frame time logging
-    // Log every 5 seconds (disabled by default to reduce console overhead)
-    /*
-    if (Date.now() - perfProfilingRef.current.lastLogTime > 5000) {
-      const p = perfProfilingRef.current;
-      const avgFrameTime = p.totalFrameTime / p.frameCount;
-      console.log(`[FRAME_PERF] Avg: ${avgFrameTime.toFixed(2)}ms, Max: ${p.maxFrameTime.toFixed(2)}ms, Slow(>16ms): ${p.slowFrames}/${p.frameCount} frames`);
-      console.log(`[ENTITY_COUNTS] Players: ${players.size}, Trees: ${trees?.size || 0}, Stones: ${stones?.size || 0}, YSorted: ${currentYSortedEntities.length}`);
-      console.log(`[VISIBLE_COUNTS] Campfires: ${visibleCampfiresMap.size}, Boxes: ${visibleBoxesMap.size}, Resources: ${visibleHarvestableResourcesMap.size}, DroppedItems: ${visibleDroppedItemsMap.size}, BasaltCols: ${visibleBasaltColumnsMap.size}, Fumaroles: ${visibleFumerolesMap.size}, SeaStacks: ${visibleSeaStacksMap.size}, Grass: ${visibleGrassMap?.size || 0}`);
-      // Reset
-      perfProfilingRef.current = { lastLogTime: Date.now(), frameCount: 0, totalFrameTime: 0, maxFrameTime: 0, slowFrames: 0 };
+    if (frameTime > 33) {
+      perfProfilingRef.current.verySlowFrames++;
     }
-    */
 
-    // === END PERFORMANCE PROFILING ===
+    // === LAG DIAGNOSTICS ===
+    // Comprehensive performance analysis to identify lag source
+    if (ENABLE_LAG_DIAGNOSTICS && Date.now() - perfProfilingRef.current.lastLogTime > LAG_DIAGNOSTIC_INTERVAL_MS) {
+      const p = perfProfilingRef.current;
+      const avgFrameTime = p.frameCount > 0 ? p.totalFrameTime / p.frameCount : 0;
+      const avgServerLatency = p.serverUpdateCount > 0 ? p.totalServerLatency / p.serverUpdateCount : 0;
+      const fps = p.frameCount > 0 ? (1000 / avgFrameTime) : 0;
+      const slowFramePct = p.frameCount > 0 ? ((p.slowFrames / p.frameCount) * 100).toFixed(1) : '0';
+      const verySlowFramePct = p.frameCount > 0 ? ((p.verySlowFrames / p.frameCount) * 100).toFixed(1) : '0';
+      
+      // Determine primary lag source
+      const isReactBottleneck = avgFrameTime > 16 || parseFloat(slowFramePct) > 10;
+      const isNetworkBottleneck = avgServerLatency > 100;
+      
+      console.log('%c═══════════════════════════════════════════════════════════════', 'color: #00ff00');
+      console.log('%c                    🎮 LAG DIAGNOSTIC REPORT                    ', 'color: #00ff00; font-weight: bold; font-size: 14px');
+      console.log('%c═══════════════════════════════════════════════════════════════', 'color: #00ff00');
+      
+      // VERDICT
+      if (isReactBottleneck && isNetworkBottleneck) {
+        console.log('%c⚠️  VERDICT: BOTH React AND Network are causing lag!', 'color: #ff6600; font-weight: bold');
+      } else if (isReactBottleneck) {
+        console.log('%c🔴 VERDICT: REACT/RENDERING is the primary bottleneck', 'color: #ff0000; font-weight: bold');
+      } else if (isNetworkBottleneck) {
+        console.log('%c🔵 VERDICT: NETWORK LATENCY is the primary bottleneck', 'color: #0088ff; font-weight: bold');
+      } else {
+        console.log('%c✅ VERDICT: Performance is GOOD - no major bottleneck detected', 'color: #00ff00; font-weight: bold');
+      }
+      
+      console.log('');
+      console.log('%c📊 RENDER PERFORMANCE (React/Canvas)', 'color: #ffaa00; font-weight: bold');
+      console.log(`   FPS: ${fps.toFixed(1)} | Avg Frame: ${avgFrameTime.toFixed(2)}ms | Max Frame: ${p.maxFrameTime.toFixed(2)}ms`);
+      console.log(`   Slow Frames (>16ms): ${p.slowFrames}/${p.frameCount} (${slowFramePct}%)`);
+      console.log(`   Very Slow (>33ms): ${p.verySlowFrames}/${p.frameCount} (${verySlowFramePct}%)`);
+      if (avgFrameTime > 16) {
+        console.log('%c   ⚠️  Average frame time exceeds 60fps budget!', 'color: #ff6600');
+      }
+      
+      console.log('');
+      console.log('%c🌐 NETWORK PERFORMANCE (SpacetimeDB)', 'color: #00aaff; font-weight: bold');
+      console.log(`   Server Updates: ${p.serverUpdateCount} | Avg Interval: ${avgServerLatency.toFixed(0)}ms | Max: ${p.maxServerLatency.toFixed(0)}ms`);
+      if (avgServerLatency > 100) {
+        console.log('%c   ⚠️  High server update latency - check network/maincloud RTT', 'color: #ff6600');
+      } else if (p.serverUpdateCount < 10) {
+        console.log('%c   ℹ️  Low update count - player may be stationary', 'color: #888888');
+      }
+      
+      console.log('');
+      console.log('%c📦 ENTITY COUNTS (data volume)', 'color: #aa88ff; font-weight: bold');
+      console.log(`   Players: ${players.size} | Trees: ${trees?.size || 0} | Stones: ${stones?.size || 0}`);
+      console.log(`   Y-Sorted Entities: ${currentYSortedEntities.length}`);
+      console.log(`   Visible - Campfires: ${visibleCampfiresMap.size} | Boxes: ${visibleBoxesMap.size} | Resources: ${visibleHarvestableResourcesMap.size}`);
+      console.log(`   Visible - Items: ${visibleDroppedItemsMap.size} | Grass: ${visibleGrassMap?.size || 0} | SeaStacks: ${visibleSeaStacksMap.size}`);
+      
+      // Recommendations
+      console.log('');
+      console.log('%c💡 RECOMMENDATIONS', 'color: #ffff00; font-weight: bold');
+      if (isReactBottleneck) {
+        if (currentYSortedEntities.length > 500) {
+          console.log('   - Y-sorted entities are high - consider reducing view distance');
+        }
+        if ((visibleGrassMap?.size || 0) > 200) {
+          console.log('   - Grass count is high - consider disabling grass in settings');
+        }
+        if (p.verySlowFrames > 5) {
+          console.log('   - Many frames below 30fps - check for GC pressure or heavy useMemo');
+        }
+        console.log('   - Try disabling weather overlay, tree shadows, or reducing particle effects');
+      }
+      if (isNetworkBottleneck) {
+        console.log('   - Consider testing with local SpacetimeDB instance');
+        console.log('   - Check if you are far from maincloud servers');
+        console.log('   - Reduce movement input frequency if possible');
+      }
+      
+      console.log('%c═══════════════════════════════════════════════════════════════', 'color: #00ff00');
+      
+      // Reset counters
+      perfProfilingRef.current = {
+        lastLogTime: Date.now(),
+        frameCount: 0,
+        totalFrameTime: 0,
+        maxFrameTime: 0,
+        slowFrames: 0,
+        verySlowFrames: 0,
+        lastServerUpdateTime: p.lastServerUpdateTime, // Preserve
+        serverUpdateCount: 0,
+        maxServerLatency: 0,
+        totalServerLatency: 0,
+        renderCallCount: 0,
+      };
+    }
+    // === END LAG DIAGNOSTICS ===
 
     // Performance monitoring - check frame time at end
     checkPerformance(frameStartTime);
