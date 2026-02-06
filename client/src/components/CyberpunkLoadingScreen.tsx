@@ -119,6 +119,7 @@ window.__LOADING_SCREEN_AUDIO_IS_PLAYING__ = () => {
 
 const TOTAL_SOVA_SOUNDS = 21;
 const AUDIO_ENABLED_KEY = 'sova_audio_enabled';
+const SOVA_INTRO_CRASH_STORAGE_KEY = 'broth_sova_intro_crash_played';
 
 // Check if user previously enabled audio
 const hasUserEnabledAudio = (): boolean => {
@@ -171,10 +172,10 @@ const tryLoadAudio = async (filename: string): Promise<HTMLAudioElement | null> 
                 audio.load();
             });
             
-            console.log(`Successfully loaded ${filename} from path: ${path}`);
+            console.debug(`Successfully loaded ${filename} from path: ${path}`);
             return audio;
         } catch (e) {
-            console.log(`Failed to load ${filename} from path: ${path}:`, e);
+            console.debug(`Failed to load ${filename} from path: ${path}:`, e);
         }
     }
     
@@ -191,14 +192,14 @@ const preloadAudio = async () => {
         return;
     }
     
-    console.log('Preloading SOVA audio files...');
+    console.debug('Preloading SOVA audio files...');
     
     // Preload numbered SOVA sounds (1-21)
     const loadPromises = [];
     for (let i = 1; i <= TOTAL_SOVA_SOUNDS; i++) {
         // Skip if already loaded
         if (preloadedAudioFiles[i.toString()]) {
-            console.log(`⏭️ Sound ${i}.mp3 already loaded, skipping`);
+            console.debug(`⏭️ Sound ${i}.mp3 already loaded, skipping`);
             continue;
         }
         
@@ -207,7 +208,7 @@ const preloadAudio = async () => {
                 if (audio) {
                     audio.volume = 0.85;
                     preloadedAudioFiles[i.toString()] = audio;
-                    console.log(`✅ Successfully preloaded sound ${i}.mp3 (readyState: ${audio.readyState})`);
+                    console.debug(`✅ Successfully preloaded sound ${i}.mp3 (readyState: ${audio.readyState})`);
                 } else {
                     console.warn(`❌ Failed to preload sound ${i}.mp3 - no audio returned`);
                 }
@@ -228,8 +229,7 @@ const preloadAudio = async () => {
         }
     }
     
-    console.log(`🔊 Audio preloading complete: ${loadedSounds.length}/${TOTAL_SOVA_SOUNDS} SOVA sounds loaded`);
-    console.log(`✅ Loaded sounds: [${loadedSounds.join(', ')}]`);
+    console.debug(`🔊 Audio preloading complete: ${loadedSounds.length}/${TOTAL_SOVA_SOUNDS} SOVA sounds loaded`);
     
     if (loadedSounds.length === 0) {
         console.error('⚠️ NO SOVA SOUNDS LOADED! Check audio file paths and network connectivity.');
@@ -363,25 +363,14 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
 
     // Function to unlock audio context and play random SOVA sound
     const attemptToPlayRandomSovaSound = useCallback(async () => {
-        // IMPORTANT: Don't play loading screen sounds on first-time players
-        // This ensures the intro tutorial (10 seconds after spawn) plays cleanly without overlap
-        const SOVA_INTRO_CRASH_STORAGE_KEY = 'broth_sova_intro_crash_played';
-        const isFirstTimePlayer = !localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY);
-        
-        if (isFirstTimePlayer) {
-            console.log('[CyberpunkLoadingScreen] 🚫 Skipping loading screen audio - first-time player (intro tutorial will play in-game)');
-            return;
-        }
+        // Don't play loading screen sounds on first-time players (intro tutorial plays in-game)
+        if (!localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY)) return;
         
         // Don't auto-play if we've already played something, if audio isn't ready, or if we're already attempting
-        if (hasPlayedReconnect.current || !audioPreloaded || isAttemptingAutoPlay.current) {
-            console.log('Skipping auto-play: already played, audio not ready, or attempt in progress');
-            return;
-        }
+        if (hasPlayedReconnect.current || !audioPreloaded || isAttemptingAutoPlay.current) return;
 
         // Set the guard to prevent multiple simultaneous attempts
         isAttemptingAutoPlay.current = true;
-        console.log('Starting auto-play attempt...');
 
         // Find all available SOVA sounds that are actually loaded
         const availableSounds: string[] = [];
@@ -394,8 +383,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         }
 
         if (availableSounds.length === 0) {
-            console.log('No SOVA sounds loaded and ready, skipping auto-play');
-            isAttemptingAutoPlay.current = false; // Reset guard
+            isAttemptingAutoPlay.current = false;
             return;
         }
 
@@ -406,8 +394,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         const randomSoundNumber = randomSoundKey; // Already a number string
 
         if (!randomAudio) {
-            console.log('Selected audio not found, skipping auto-play');
-            isAttemptingAutoPlay.current = false; // Reset guard
+            isAttemptingAutoPlay.current = false;
             return;
         }
 
@@ -416,10 +403,9 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             setIsSovaSpeaking(true);
             setCurrentAudio(randomAudio); // Track the current audio
             await randomAudio.play();
-            console.log(`Successfully auto-played SOVA sound ${randomSoundNumber}.mp3`);
             setAudioContextUnlocked(true);
             hasPlayedReconnect.current = true;
-            isAttemptingAutoPlay.current = false; // Reset guard after success
+            isAttemptingAutoPlay.current = false;
             
             // Save that audio is working for this user
             saveAudioPreference(true);
@@ -433,10 +419,10 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             randomAudio.addEventListener('ended', handleAutoAudioEnd, { once: true });
             
         } catch (error) {
-            console.log('Auto-play failed (likely due to browser autoplay policy):', error);
+            console.debug('Auto-play blocked by browser policy:', error);
             setIsSovaSpeaking(false);
             setCurrentAudio(null);
-            isAttemptingAutoPlay.current = false; // Reset guard after failure
+            isAttemptingAutoPlay.current = false;
             
             // Show the audio prompt to let user enable audio
             setShowAudioPrompt(true);
@@ -446,72 +432,40 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
 
     // Handle Sova avatar click to play random sounds
     const handleSovaClick = async () => {
-        console.log('🔊 SOVA CLICKED! showAudioPrompt:', showAudioPrompt, 'isSovaSpeaking:', isSovaSpeaking, 'audioPreloaded:', audioPreloaded);
         
-        // IMPORTANT: Don't play loading screen sounds on first-time players
-        // This ensures the intro tutorial (10 seconds after spawn) plays cleanly without overlap
-        const SOVA_INTRO_CRASH_STORAGE_KEY = 'broth_sova_intro_crash_played';
-        const isFirstTimePlayer = !localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY);
-        
-        if (isFirstTimePlayer) {
-            console.log('[CyberpunkLoadingScreen] 🚫 First-time player - skipping loading screen audio (intro tutorial will play in-game)');
-            // Still allow dismissing the audio prompt if it's showing
-            if (showAudioPrompt) {
-                setShowAudioPrompt(false);
-            }
+        // Don't play loading screen sounds on first-time players (intro tutorial plays in-game)
+        if (!localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY)) {
+            if (showAudioPrompt) setShowAudioPrompt(false);
             return;
         }
         
         // If showing audio prompt, clicking SOVA should enable audio AND play a sound
         if (showAudioPrompt) {
             setShowAudioPrompt(false);
-            // Don't return early - continue to play a sound after dismissing the prompt
-            console.log('SOVA: Audio prompt dismissed, now playing sound...');
         }
 
         // If audio is currently playing, stop it
         if (isSovaSpeaking && currentAudio) {
-            console.log('Stopping current SOVA audio...');
-            
-            // Stop the currently tracked audio
             currentAudio.pause();
             currentAudio.currentTime = 0;
-            
             setIsSovaSpeaking(false);
             setCurrentAudio(null);
-            console.log('SOVA audio stopped');
             return;
         }
 
         // Don't allow starting new audio if something is still playing
-        if (isSovaSpeaking) {
-            console.log('SOVA is still speaking, please wait...');
-            return;
-        }
+        if (isSovaSpeaking) return;
         
         // Get available sounds (any loaded sound)
         const availableSounds = [];
-        console.log('SOVA: Checking available sounds...');
         for (let i = 1; i <= TOTAL_SOVA_SOUNDS; i++) {
             const audio = preloadedAudioFiles[i.toString()];
-            if (audio) {
-                console.log(`SOVA: Sound ${i} exists, readyState: ${audio.readyState}`);
-                // Check if audio is ready to play (readyState >= 2 means HAVE_CURRENT_DATA or better)
-                if (audio.readyState >= 2) {
-                    availableSounds.push(i.toString());
-                } else {
-                    console.log(`SOVA: Sound ${i} not ready (readyState: ${audio.readyState})`);
-                }
-            } else {
-                console.log(`SOVA: Sound ${i} missing from preloadedAudioFiles`);
+            if (audio && audio.readyState >= 2) {
+                availableSounds.push(i.toString());
             }
         }
 
-        console.log(`SOVA: Found ${availableSounds.length} available sounds:`, availableSounds);
-
         if (availableSounds.length === 0) {
-            console.log('SOVA: No sounds ready to play. Trying to load one on-demand...');
-            
             // Try to find any audio that exists but isn't ready yet
             const loadingSounds = [];
             for (let i = 1; i <= TOTAL_SOVA_SOUNDS; i++) {
@@ -522,12 +476,9 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             }
             
             if (loadingSounds.length > 0) {
-                console.log(`SOVA: ${loadingSounds.length} sounds are loading, will try first one:`, loadingSounds[0]);
-                // Use the first loading sound anyway
                 availableSounds.push(loadingSounds[0]);
             } else {
                 // Try to load a sound on-demand
-                console.log('SOVA: No preloaded sounds found. Attempting on-demand load...');
                 try {
                     const randomSoundNumber = Math.floor(Math.random() * TOTAL_SOVA_SOUNDS) + 1;
                     const onDemandAudio = await tryLoadAudio(`${randomSoundNumber}.mp3`);
@@ -535,13 +486,11 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
                         onDemandAudio.volume = 0.85;
                         preloadedAudioFiles[randomSoundNumber.toString()] = onDemandAudio;
                         availableSounds.push(randomSoundNumber.toString());
-                        console.log(`✅ Successfully loaded sound ${randomSoundNumber}.mp3 on-demand`);
                     } else {
-                        console.log('❌ On-demand audio loading failed');
                         return;
                     }
                 } catch (error) {
-                    console.error('❌ On-demand audio loading error:', error);
+                    console.error('On-demand audio loading error:', error);
                     return;
                 }
             }
@@ -552,7 +501,6 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         const soundToPlay = availableSounds[randomIndex];
         const audioElement = preloadedAudioFiles[soundToPlay];
 
-        console.log(`Playing SOVA sound ${soundToPlay}.mp3`);
         setIsSovaSpeaking(true);
         setCurrentAudio(audioElement); // Track the current audio
 
@@ -584,20 +532,11 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
 
     // Try to play random SOVA sound when component mounts and audio is preloaded
     useEffect(() => {
-        // IMPORTANT: Don't play loading screen sounds on first-time players
-        // This ensures the intro tutorial (10 seconds after spawn) plays cleanly without overlap
-        const SOVA_INTRO_CRASH_STORAGE_KEY = 'broth_sova_intro_crash_played';
-        const isFirstTimePlayer = !localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY);
-        
-        if (isFirstTimePlayer) {
-            console.log('[CyberpunkLoadingScreen] 🚫 Skipping auto-play - first-time player (intro tutorial will play in-game)');
-            return;
-        }
+        // Don't auto-play for first-time players (intro tutorial plays in-game)
+        if (!localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY)) return;
         
         // Only attempt auto-play if audio is preloaded and we haven't tried yet
         if (audioPreloaded && !hasPlayedReconnect.current) {
-            console.log('Audio preloaded, attempting auto-play...');
-            // Small delay to ensure everything is ready
             const timer = setTimeout(attemptToPlayRandomSovaSound, 200);
             return () => clearTimeout(timer);
         }
@@ -631,12 +570,10 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             const isHMR = import.meta.hot !== undefined;
             
             if (!isHMR) {
-                console.log('CyberpunkLoadingScreen unmounting (production), stopping any playing audio...');
                 // Stop the currently tracked audio if it exists and is playing
                 if (currentAudio && !currentAudio.paused) {
                     currentAudio.pause();
                     currentAudio.currentTime = 0;
-                    console.log('Stopped audio on unmount');
                 }
                 // Also stop any other potentially playing audio
                 for (let i = 1; i <= TOTAL_SOVA_SOUNDS; i++) {
@@ -644,37 +581,36 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
                     if (audio && !audio.paused) {
                         audio.pause();
                         audio.currentTime = 0;
-                        console.log(`Stopped orphaned audio ${i} on unmount`);
                     }
                 }
-            } else {
-                console.log('CyberpunkLoadingScreen unmounting (HMR), keeping audio playing...');
             }
         };
     }, [currentAudio]); // Depend on currentAudio to always have latest reference
 
     useEffect(() => {
         if (currentLogIndex < logs.length) {
-            console.log(`[CyberpunkLoadingScreen] Showing log ${currentLogIndex + 1}/${logs.length}: ${logs[currentLogIndex]}`);
-            // Show logs faster when assets are loading (real progress), slower for simulated auth/spacetime
-            const baseDelay = assetProgress ? 100 : 300;
-            const randomDelay = assetProgress ? 50 : 200;
+            // When assets are already loaded (cached reconnect), blast through logs instantly
+            // Otherwise show them with a typing effect
+            const isCachedReconnect = assetsLoaded && assetProgress?.phase === 'complete';
+            const baseDelay = isCachedReconnect ? 30 : assetProgress ? 100 : 300;
+            const randomDelay = isCachedReconnect ? 10 : assetProgress ? 50 : 200;
             const timer = setTimeout(() => {
                 setVisibleLogs(prev => [...prev, logs[currentLogIndex]]);
                 setCurrentLogIndex(prev => prev + 1);
                 // Scroll to bottom after adding new log
-                setTimeout(scrollToBottom, 100);
+                setTimeout(scrollToBottom, isCachedReconnect ? 0 : 100);
             }, baseDelay + Math.random() * randomDelay);
 
             return () => clearTimeout(timer);
         } else if (currentLogIndex >= logs.length && !isSequenceComplete && assetsLoaded) {
             // Sequence is complete AND assets are loaded - show click to continue
-            console.log(`[CyberpunkLoadingScreen] All logs complete and assets loaded, setting sequence complete`);
+            // Fast-track if assets were already cached
+            const isCachedReconnect = assetProgress?.phaseName === 'Cached';
             const timer = setTimeout(() => {
                 setIsSequenceComplete(true);
                 // Scroll to bottom to show the continue button
-                setTimeout(scrollToBottom, 200);
-            }, 500);
+                setTimeout(scrollToBottom, isCachedReconnect ? 0 : 200);
+            }, isCachedReconnect ? 100 : 500);
 
             return () => clearTimeout(timer);
         }
@@ -690,14 +626,15 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     // BUT only if assets are loaded - we never want to show the game without assets!
     useEffect(() => {
         if (currentLogIndex >= logs.length && !isSequenceComplete && assetsLoaded) {
+            const isCachedReconnect = assetProgress?.phaseName === 'Cached';
             const fallbackTimer = setTimeout(() => {
                 console.log('[CyberpunkLoadingScreen] Fallback: Force completing sequence (assets loaded)');
                 setIsSequenceComplete(true);
-            }, 2000); // 2 second fallback
+            }, isCachedReconnect ? 500 : 2000); // Much shorter fallback for cached reconnects
             
             return () => clearTimeout(fallbackTimer);
         }
-    }, [currentLogIndex, logs.length, isSequenceComplete, assetsLoaded]);
+    }, [currentLogIndex, logs.length, isSequenceComplete, assetsLoaded, assetProgress]);
 
     // Reset when authLoading changes, but only if we haven't started the sequence at all
     // Once started, let the sequence complete regardless of player state (including death)
@@ -718,14 +655,8 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     const handleEnableAudioClick = async () => {
         setShowAudioPrompt(false);
         
-        // IMPORTANT: Don't play loading screen sounds on first-time players
-        // This ensures the intro tutorial (10 seconds after spawn) plays cleanly without overlap
-        const SOVA_INTRO_CRASH_STORAGE_KEY = 'broth_sova_intro_crash_played';
-        const isFirstTimePlayer = !localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY);
-        
-        if (isFirstTimePlayer) {
-            console.log('[CyberpunkLoadingScreen] 🚫 First-time player - skipping audio enable sound (intro tutorial will play in-game)');
-            // Still unlock audio context for future use
+        // Don't play for first-time players (intro tutorial plays in-game)
+        if (!localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY)) {
             setAudioContextUnlocked(true);
             saveAudioPreference(true);
             return;
@@ -743,17 +674,13 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
                 }
             }
             
-            if (!firstAvailableSound) {
-                console.log('No SOVA sounds available after enabling audio');
-                return;
-            }
+            if (!firstAvailableSound) return;
             
             const audio = preloadedAudioFiles[firstAvailableSound];
             audio.currentTime = 0;
             setIsSovaSpeaking(true);
-            setCurrentAudio(audio); // Track the current audio
+            setCurrentAudio(audio);
             await audio.play();
-            console.log(`Audio enabled and SOVA sound ${firstAvailableSound}.mp3 played after user interaction`);
             setAudioContextUnlocked(true);
             hasPlayedReconnect.current = true;
             

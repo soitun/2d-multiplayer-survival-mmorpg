@@ -320,6 +320,12 @@ export async function preloadAllAssets(onProgress: ProgressCallback): Promise<vo
     console.log(`[AssetPreloader] Phase 3: Loading ${itemIconAssets.length} item icons...`);
     const BATCH_SIZE = 3; // Small batches to prevent ERR_INSUFFICIENT_RESOURCES on Railway
     const DELAY_BETWEEN_BATCHES = 150; // Longer delay between batches for production
+    // Skip delays when most assets are from cache (returning user with warm cache)
+    const cacheRatioSoFar = loadedSoFar > 0 ? totalFromCache / loadedSoFar : 0;
+    const skipDelays = cacheRatioSoFar > 0.8; // >80% from cache = skip delays
+    if (skipDelays) {
+        console.log(`[AssetPreloader] 🚀 High cache rate (${(cacheRatioSoFar * 100).toFixed(0)}%), skipping batch delays`);
+    }
     let secondaryLoaded = 0;
     let secondaryFromCache = 0;
     
@@ -347,7 +353,8 @@ export async function preloadAllAssets(onProgress: ProgressCallback): Promise<vo
         });
         
         // Small delay between batches to prevent overwhelming the server
-        if (i + BATCH_SIZE < itemIconAssets.length) {
+        // Skip delays when assets are coming from cache (returning user)
+        if (!skipDelays && i + BATCH_SIZE < itemIconAssets.length) {
             await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
         }
     }
@@ -390,5 +397,18 @@ export function getLoadedImage(src: string): HTMLImageElement | null {
 // Check if all critical assets are loaded
 export function areCriticalAssetsLoaded(): boolean {
     return CRITICAL_ASSETS.every(asset => loadedImages.has(asset.src));
+}
+
+// Check if ALL assets (critical + important + secondary) are already in memory cache.
+// Returns true if a previous preload already loaded everything, meaning we can skip
+// the entire loading screen on reconnect / remount.
+export function areAllAssetsPreloaded(): boolean {
+    // Quick check: if we haven't loaded critical assets, definitely not done
+    if (!areCriticalAssetsLoaded()) return false;
+    if (!IMPORTANT_ASSETS.every(asset => loadedImages.has(asset.src))) return false;
+    // For secondary assets (item icons), check the cache size is non-trivial
+    // We can't easily enumerate all item icons synchronously, so use a heuristic:
+    // critical (12) + important (5) = 17, plus at least some secondary assets
+    return loadedImages.size >= CRITICAL_ASSETS.length + IMPORTANT_ASSETS.length + 10;
 }
 

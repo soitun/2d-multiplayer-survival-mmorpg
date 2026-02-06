@@ -51,7 +51,7 @@ import { useMobileDetection } from './hooks/useMobileDetection';
 import { useSettings } from './contexts/SettingsContext';
 
 // Asset Preloading
-import { preloadAllAssets, AssetLoadingProgress } from './services/assetPreloader';
+import { preloadAllAssets, areAllAssetsPreloaded, AssetLoadingProgress } from './services/assetPreloader';
 
 // Assets & Styles
 import './App.css';
@@ -627,6 +627,24 @@ function AppContent() {
                 loadedCount: 0,
                 totalCount: 0,
                 currentAsset: 'Skipped in dev',
+                fromCache: 0,
+            });
+            return;
+        }
+        
+        // Fast path: If all assets are already in memory (reconnect / remount),
+        // skip the entire preload process and mark as complete immediately.
+        if (areAllAssetsPreloaded()) {
+            console.log('[App] 🚀 Assets already in memory cache - skipping preload!');
+            setAssetsLoaded(true);
+            setAssetProgress({
+                phase: 'complete',
+                phaseName: 'Cached',
+                phaseProgress: 1,
+                totalProgress: 1,
+                loadedCount: 0,
+                totalCount: 0,
+                currentAsset: 'All assets cached',
                 fromCache: 0,
             });
             return;
