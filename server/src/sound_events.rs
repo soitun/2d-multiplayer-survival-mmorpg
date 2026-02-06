@@ -129,6 +129,7 @@ pub enum SoundType {
     MashBerries,             // mash_berries.mp3 (1 variation - for mashing berries into Berry Mash)
     PulverizeFlour,          // pulverize_flour.mp3 (1 variation - for grinding items into flour)
     ExtractQueenBee,         // extract_queen_bee.mp3 (1 variation - for extracting queen bee from honeycomb)
+    UnravelRope,             // unravel_rope.mp3 (1 variation - for unraveling rope into plant fiber)
     // Add more as needed - extensible system
 }
 
@@ -257,6 +258,7 @@ impl SoundType {
             SoundType::MashBerries => "mash_berries",
             SoundType::PulverizeFlour => "pulverize_flour",
             SoundType::ExtractQueenBee => "extract_queen_bee",
+            SoundType::UnravelRope => "unravel_rope",
         }
     }
 
@@ -384,6 +386,7 @@ impl SoundType {
             SoundType::MashBerries => 1, // mash_berries.mp3 (single variation)
             SoundType::PulverizeFlour => 1, // pulverize_flour.mp3 (single variation)
             SoundType::ExtractQueenBee => 1, // extract_queen_bee.mp3 (single variation)
+            SoundType::UnravelRope => 1, // unravel_rope.mp3 (single variation)
         }
     }
 

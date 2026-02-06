@@ -216,7 +216,7 @@ impl AnimalBehavior for CaribouBehavior {
         AnimalStats {
             max_health: 120.0, // Reduced for balanced hunting - ~4 hits with spear (25-35 damage)
             attack_damage: 30.0, // Strong antler charge when cornered
-            attack_range: 80.0, // Decent range with antlers
+            attack_range: 68.0, // Reduced from 80 - decent range with antlers but less oppressive
             attack_speed_ms: 1500, // Moderate attack speed
             movement_speed: 100.0, // Slow patrol speed (grazing)
             sprint_speed: 550.0, // VERY fast when spooked - hard to catch

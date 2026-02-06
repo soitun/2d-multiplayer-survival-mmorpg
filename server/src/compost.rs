@@ -369,6 +369,7 @@ fn process_single_compost_box(
     
     let mut compost_box = compost_box_original.clone();
     let num_slots: usize = compost_box.num_slots();
+    let mut box_struct_modified = false; // OPTIMIZATION: track if we actually need to write back
     
     let mut items_to_remove: Vec<(u8, u64)> = Vec::new();
     let mut items_to_timestamp: Vec<u64> = Vec::new();
@@ -436,6 +437,7 @@ fn process_single_compost_box(
     for (slot_u8, item_id) in items_to_remove {
         compost_box.set_slot(slot_u8, None, None);
         items_table.instance_id().delete(item_id);
+        box_struct_modified = true;
     }
     
     // Add fertilizer to compost slots
@@ -495,6 +497,7 @@ fn process_single_compost_box(
                             compost_box.set_slot(slot_u8, Some(inserted.instance_id), Some(fertilizer_def_id));
                             fertilizer_to_add -= quantity_to_place;
                             placed = true;
+                            box_struct_modified = true;
                             break;
                         }
                         Err(e) => {
@@ -524,9 +527,13 @@ fn process_single_compost_box(
         }
     }
     
-    // Update the box
-    let boxes_table_mut = ctx.db.wooden_storage_box();
-    boxes_table_mut.id().update(compost_box);
+    // OPTIMIZATION: Only write back to DB if the compost box struct actually changed
+    // (slots cleared or fertilizer placed). Stacking onto existing fertilizer only
+    // modifies InventoryItem rows, not the box struct itself.
+    if box_struct_modified {
+        let boxes_table_mut = ctx.db.wooden_storage_box();
+        boxes_table_mut.id().update(compost_box);
+    }
     
     Ok(())
 }

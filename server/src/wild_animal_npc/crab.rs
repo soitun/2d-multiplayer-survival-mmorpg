@@ -32,7 +32,7 @@ impl AnimalBehavior for BeachCrabBehavior {
         AnimalStats {
             max_health: 60.0, // Low health - easy to kill
             attack_damage: 8.0, // Light pinch damage
-            attack_range: 105.0, // Extended range to stay engaged after collision pushback (must be > 100 due to math)
+            attack_range: 85.0, // Reduced from 105 - still reaches after collision pushback but less generous
             attack_speed_ms: 1500, // Slow attacks (1.5 seconds)
             movement_speed: 80.0, // Very slow patrol speed
             sprint_speed: 120.0, // Slightly faster when chasing/fleeing

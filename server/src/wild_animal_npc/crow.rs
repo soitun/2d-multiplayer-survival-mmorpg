@@ -84,7 +84,7 @@ impl AnimalBehavior for CrowBehavior {
         AnimalStats {
             max_health: 60.0, // Low health - easy to kill
             attack_damage: 5.0, // Weak peck damage
-            attack_range: 85.0, // Extended range to stay engaged after collision pushback
+            attack_range: 70.0, // Reduced from 85 - still reaches after collision pushback but less generous
             attack_speed_ms: 1000, // Moderate attack speed
             movement_speed: 140.0, // Ground speed (rarely used)
             sprint_speed: 280.0, // Base flying speed (x1.8 = 504 effective) - same as tern

@@ -864,10 +864,12 @@ pub fn process_furnace_logic_scheduled(ctx: &ReducerContext, schedule_args: Furn
     }
 
     if furnace.is_burning {
-        // Process fuel consumption
+        // --- OPTIMIZATION: Cache bellows flag computed once per tick ---
+        let cached_has_bellows = has_reed_bellows(ctx, &furnace);
+        
+        // Process fuel consumption (using cached bellows)
         if let Some(remaining_time) = furnace.remaining_fuel_burn_time_secs {
-            // Apply Reed Bellows fuel burn rate multiplier (makes fuel burn slower)
-            let fuel_burn_multiplier = get_fuel_burn_rate_multiplier(ctx, &furnace);
+            let fuel_burn_multiplier = if cached_has_bellows { 1.5 } else { 1.0 };
             let adjusted_time_increment = FURNACE_PROCESS_INTERVAL_SECS as f32 / fuel_burn_multiplier;
             
             if remaining_time <= adjusted_time_increment {
@@ -943,22 +945,26 @@ pub fn process_furnace_logic_scheduled(ctx: &ReducerContext, schedule_args: Furn
 
         // Process smelting if still burning
         if furnace.is_burning {
-            let current_fuel_instance_id = furnace.current_fuel_def_id.and_then(|_| {
-                // Find which slot has the current fuel
-                for slot_index in 0..furnace.num_slots() {
-                    if let Some(instance_id) = furnace.get_slot_instance_id(slot_index as u8) {
-                        if let Some(def_id) = furnace.get_slot_def_id(slot_index as u8) {
-                            if Some(def_id) == furnace.current_fuel_def_id {
-                                return Some(instance_id);
-                            }
-                        }
+            // --- OPTIMIZATION: Cache fuel instance ID (avoids re-scanning all slots) ---
+            let current_fuel_instance_id: Option<u64> = furnace.current_fuel_def_id.and_then(|fuel_def_id| {
+                (0..furnace.num_slots() as u8).find_map(|i| {
+                    if furnace.get_slot_def_id(i) == Some(fuel_def_id) {
+                        furnace.get_slot_instance_id(i)
+                    } else {
+                        None
                     }
-                }
-                None
+                })
             });
 
-            // Apply Reed Bellows smelting speed multiplier (makes smelting faster)
-            let smelting_speed_multiplier = get_smelting_speed_multiplier(ctx, &furnace);
+            // --- OPTIMIZATION: Inline smelting speed multiplier using cached bellows flag ---
+            let mut smelting_speed_multiplier = match furnace.furnace_type {
+                FURNACE_TYPE_LARGE => 2.0,
+                _ => 1.0,
+            };
+            if cached_has_bellows { smelting_speed_multiplier *= 1.2; }
+            if crate::rune_stone::is_position_in_red_rune_zone(ctx, furnace.pos_x, furnace.pos_y) {
+                smelting_speed_multiplier *= 2.0;
+            }
             let adjusted_smelting_time_increment = FURNACE_PROCESS_INTERVAL_SECS as f32 * smelting_speed_multiplier;
             
             let smelting_result = crate::cooking::process_appliance_cooking_tick(

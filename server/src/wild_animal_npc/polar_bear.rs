@@ -41,7 +41,7 @@ impl AnimalBehavior for PolarBearBehavior {
         AnimalStats {
             max_health: 300.0, // Very tanky - requires significant effort to kill
             attack_damage: 35.0, // Devastating swipes
-            attack_range: 80.0, // Large reach due to size
+            attack_range: 68.0, // Reduced from 80 - still has reach due to size but gives players more room
             attack_speed_ms: 1200, // Slower but powerful attacks
             movement_speed: 160.0, // Slow patrol - bears are lumbering
             sprint_speed: 500.0, // Fast sprint when chasing - can catch players

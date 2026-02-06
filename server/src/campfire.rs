@@ -857,161 +857,144 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
          return Ok(());
      }
 
-     let mut made_changes_to_campfire_struct = false;
-     
-     // --- Auto-release container access if user is offline or too far ---
-     if let Some(active_user) = campfire.active_user_id {
-         let should_release = match ctx.db.player().identity().find(&active_user) {
-             Some(player) => {
-                 // Player is online - check distance
-                 let dx = player.position_x - campfire.pos_x;
-                 let dy = player.position_y - campfire.pos_y;
-                 let dist_sq = dx * dx + dy * dy;
-                 dist_sq > PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED * 2.0 // Give some buffer
-             }
-             None => true // Player is offline
-         };
-         if should_release {
-             campfire.active_user_id = None;
-             campfire.active_user_since = None;
-             made_changes_to_campfire_struct = true;
-             log::debug!("[ProcessCampfireScheduled] Released container access for campfire {} (user offline/too far)", campfire_id);
-         }
-     }
-     let mut produced_charcoal_and_modified_campfire_struct = false; // For charcoal logic
- 
-     // Reset is_player_in_hot_zone at the beginning of each tick for this campfire
-     if campfire.is_player_in_hot_zone { // Only change if it was true, to minimize DB writes if it's already false
-         campfire.is_player_in_hot_zone = false;
-         made_changes_to_campfire_struct = true;
-     }
- 
-     let current_time = ctx.timestamp;
-     // log::trace!("[CampfireProcess {}] Current time: {:?}", campfire_id, current_time);
- 
-     if campfire.is_burning {
-         // log::debug!("[CampfireProcess {}] Is BURNING.", campfire_id);
-         let time_increment = CAMPFIRE_PROCESS_INTERVAL_SECS as f32;
- 
-         // --- ADDED: Campfire Damage Logic ---
-         let damage_cooldown_duration = TimeDuration::from_micros(CAMPFIRE_DAMAGE_APPLICATION_COOLDOWN_SECONDS as i64 * 1_000_000);
-         // log::trace!("[CampfireProcess {}] Damage cooldown duration: {:?}", campfire_id, damage_cooldown_duration);
-         // log::trace!("[CampfireProcess {}] Last damage application time: {:?}", campfire_id, campfire.last_damage_application_time);
- 
-         let can_apply_damage = campfire.last_damage_application_time.map_or(true, |last_time| {
-             current_time >= last_time + damage_cooldown_duration
-         });
-         // log::debug!("[CampfireProcess {}] Can apply damage this tick: {}", campfire_id, can_apply_damage);
- 
-         if can_apply_damage {
-             // --- MODIFIED: Update cooldown time immediately upon damage attempt ---
-             campfire.last_damage_application_time = Some(current_time);
-             // This change is now handled by the made_changes_to_campfire_struct flag later
-             // log::debug!("[CampfireProcess {}] Damage application attempt at {:?}. Updated last_damage_application_time.", campfire_id, current_time);
-             // --- END MODIFICATION ---
+    let mut made_changes_to_campfire_struct = false;
+    
+    // --- Auto-release container access if user is offline or too far ---
+    if let Some(active_user) = campfire.active_user_id {
+        let should_release = match ctx.db.player().identity().find(&active_user) {
+            Some(player) => {
+                let dx = player.position_x - campfire.pos_x;
+                let dy = player.position_y - campfire.pos_y;
+                let dist_sq = dx * dx + dy * dy;
+                dist_sq > PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED * 2.0
+            }
+            None => true
+        };
+        if should_release {
+            campfire.active_user_id = None;
+            campfire.active_user_since = None;
+            made_changes_to_campfire_struct = true;
+        }
+    }
+    let mut produced_charcoal_and_modified_campfire_struct = false;
 
-             let mut applied_damage_this_tick = false;
-             let mut a_player_is_in_hot_zone_this_tick = false; // Track if any player is in the zone this tick
+    let current_time = ctx.timestamp;
 
-             for player_entity in ctx.db.player().iter() {
-                 if player_entity.is_dead { continue; } // Skip dead players
-                 
-                 // Check if player is in hot zone (for setting the flag, separate from damage application logic)
-                 // UPDATED: Use the same visual center offset for damage calculations
-                 // This ensures damage is applied based on the visual fire location the player sees
-                 const VISUAL_CENTER_Y_OFFSET: f32 = 42.0;
-                 
-                 let dx = player_entity.position_x - campfire.pos_x;
-                 let dy = player_entity.position_y - (campfire.pos_y - VISUAL_CENTER_Y_OFFSET);
-                 let dist_sq = dx * dx + dy * dy;
+    if campfire.is_burning {
+        let time_increment = CAMPFIRE_PROCESS_INTERVAL_SECS as f32;
 
-                 if dist_sq < CAMPFIRE_DAMAGE_RADIUS_SQUARED {
-                     a_player_is_in_hot_zone_this_tick = true; // A player is in the zone
+        // --- OPTIMIZATION: Cache item flags computed once per tick instead of re-scanning slots ---
+        // These used to iterate all slots + item_definition lookups every tick.
+        // Now computed once and reused for damage, cooking, and fuel logic.
+        let cached_has_bellows = has_reed_bellows(ctx, &campfire);
+        let cached_has_metal_ore = has_metal_ore_in_campfire(ctx, &campfire);
+        
+        // --- OPTIMIZATION: Cache the active fuel instance ID ---
+        // Previous code did a nested find_map over all slots every tick.
+        let cached_active_fuel_instance_id: Option<u64> = if campfire.remaining_fuel_burn_time_secs.unwrap_or(0.0) > 0.0 {
+            campfire.current_fuel_def_id.and_then(|fuel_def_id| {
+                (0..NUM_FUEL_SLOTS as u8).find_map(|i| {
+                    if campfire.get_slot_def_id(i) == Some(fuel_def_id) {
+                        campfire.get_slot_instance_id(i)
+                    } else {
+                        None
+                    }
+                })
+            })
+        } else {
+            None
+        };
 
-                     // Apply burn effect using the centralized function from active_effects.rs
-                     log::info!("[CampfireProcess {}] Player {:?} IS IN DAMAGE RADIUS (dist_sq={:.1}). Applying burn effect.", campfire_id, player_entity.identity, dist_sq);
-                     
-                     match crate::active_effects::apply_burn_effect(
-                         ctx, 
-                         player_entity.identity, 
-                         CAMPFIRE_DAMAGE_PER_TICK, 
-                         CAMPFIRE_DAMAGE_EFFECT_DURATION_SECONDS as f32, 
-                         CAMPFIRE_BURN_TICK_INTERVAL_SECONDS,
-                         0 // 0 for environmental/campfire source
-                     ) {
-                         Ok(_) => {
-                             log::info!("[CampfireProcess {}] Successfully applied/extended burn effect for player {:?}", campfire_id, player_entity.identity);
-                             applied_damage_this_tick = true;
-                         }
-                         Err(e) => {
-                             log::error!("[CampfireProcess {}] FAILED to apply burn effect for player {:?}: {}", campfire_id, player_entity.identity, e);
-                         }
-                     }
-                 }
-             }
+        // --- Campfire Damage Logic (OPTIMIZED) ---
+        // Only update last_damage_application_time when damage is actually applied, not every tick.
+        let damage_cooldown_duration = TimeDuration::from_micros(CAMPFIRE_DAMAGE_APPLICATION_COOLDOWN_SECONDS as i64 * 1_000_000);
+        let can_apply_damage = campfire.last_damage_application_time.map_or(true, |last_time| {
+            current_time >= last_time + damage_cooldown_duration
+        });
 
-             // After checking all players, if any were in the hot zone, update the campfire state
-             if a_player_is_in_hot_zone_this_tick && !campfire.is_player_in_hot_zone {
-                 campfire.is_player_in_hot_zone = true;
-                 made_changes_to_campfire_struct = true;
-                 // log::debug!("[CampfireProcess {}] Player detected in hot zone. Set is_player_in_hot_zone to true.", campfire_id);
-             } else if !a_player_is_in_hot_zone_this_tick && campfire.is_player_in_hot_zone {
-                 // This case is handled by the reset at the beginning of the tick.
-                 // campfire.is_player_in_hot_zone = false;
-                 // made_changes_to_campfire_struct = true;
-                 // log::debug!("[CampfireProcess {}] No players in hot zone this tick. is_player_in_hot_zone is now false (was reset or already false).", campfire_id);
-             }
+        if can_apply_damage {
+            let mut applied_damage_this_tick = false;
+            let mut a_player_is_in_hot_zone_this_tick = false;
 
-             if applied_damage_this_tick { // If damage was applied, update the last_damage_application_time
-                 campfire.last_damage_application_time = Some(current_time);
-                 made_changes_to_campfire_struct = true;
-                 // log::debug!("[CampfireProcess {}] Damage applied this tick. Updated last_damage_application_time.", campfire_id);
-             }
-         }
+            // OPTIMIZATION: Pre-compute fire center and use AABB bounding-box pre-filter.
+            // Most players will be far from this campfire; the AABB check avoids
+            // the more expensive squared-distance computation for the vast majority.
+            const VISUAL_CENTER_Y_OFFSET: f32 = 42.0;
+            let fire_center_y = campfire.pos_y - VISUAL_CENTER_Y_OFFSET;
+            
+            for player_entity in ctx.db.player().iter() {
+                // Early exit: skip dead and offline players
+                if player_entity.is_dead || !player_entity.is_online { continue; }
+                
+                // AABB bounding-box pre-filter (cheaper than dist_sq for far-away players)
+                let dx = player_entity.position_x - campfire.pos_x;
+                if dx > CAMPFIRE_DAMAGE_RADIUS || dx < -CAMPFIRE_DAMAGE_RADIUS { continue; }
+                let dy = player_entity.position_y - fire_center_y;
+                if dy > CAMPFIRE_DAMAGE_RADIUS || dy < -CAMPFIRE_DAMAGE_RADIUS { continue; }
+                
+                let dist_sq = dx * dx + dy * dy;
+
+                if dist_sq < CAMPFIRE_DAMAGE_RADIUS_SQUARED {
+                    a_player_is_in_hot_zone_this_tick = true;
+
+                    log::info!("[CampfireProcess {}] Player {:?} IS IN DAMAGE RADIUS (dist_sq={:.1}). Applying burn effect.", campfire_id, player_entity.identity, dist_sq);
+                    
+                    match crate::active_effects::apply_burn_effect(
+                        ctx, 
+                        player_entity.identity, 
+                        CAMPFIRE_DAMAGE_PER_TICK, 
+                        CAMPFIRE_DAMAGE_EFFECT_DURATION_SECONDS as f32, 
+                        CAMPFIRE_BURN_TICK_INTERVAL_SECONDS,
+                        0
+                    ) {
+                        Ok(_) => {
+                            log::info!("[CampfireProcess {}] Successfully applied/extended burn effect for player {:?}", campfire_id, player_entity.identity);
+                            applied_damage_this_tick = true;
+                        }
+                        Err(e) => {
+                            log::error!("[CampfireProcess {}] FAILED to apply burn effect for player {:?}: {}", campfire_id, player_entity.identity, e);
+                        }
+                    }
+                }
+            }
+
+            // OPTIMIZED: Compute final hot zone state and only write if changed
+            if a_player_is_in_hot_zone_this_tick != campfire.is_player_in_hot_zone {
+                campfire.is_player_in_hot_zone = a_player_is_in_hot_zone_this_tick;
+                made_changes_to_campfire_struct = true;
+            }
+
+            // OPTIMIZED: Only set last_damage_application_time when damage was actually applied
+            if applied_damage_this_tick {
+                campfire.last_damage_application_time = Some(current_time);
+                made_changes_to_campfire_struct = true;
+            }
+        }
  
-         // --- COOKING LOGIC (now delegated) ---
-         let active_fuel_instance_id_for_cooking_check = campfire.current_fuel_def_id.and_then(|fuel_def_id| {
-             (0..NUM_FUEL_SLOTS as u8).find_map(|slot_idx_check| {
-                 if campfire.get_slot_def_id(slot_idx_check) == Some(fuel_def_id) {
-                     if let Some(instance_id_check) = campfire.get_slot_instance_id(slot_idx_check) {
-                         if campfire.remaining_fuel_burn_time_secs.is_some() && campfire.remaining_fuel_burn_time_secs.unwrap_or(0.0) > 0.0 {
-                             return Some(instance_id_check);
-                         }
-                     }
-                 }
-                 None
-             })
-         });
-
-         // Apply Reed Bellows cooking speed multiplier (makes cooking faster)
-         let cooking_speed_multiplier = get_cooking_speed_multiplier(ctx, &campfire);
-         let adjusted_cooking_time_increment = time_increment * cooking_speed_multiplier;
-         
-         // ADDED: Check if any items in campfire slots are Metal Ore and prevent cooking them
-         // Metal Ore should only be smelted in furnaces, not cooked in campfires
-         if !has_metal_ore_in_campfire(ctx, &campfire) {
-             match crate::cooking::process_appliance_cooking_tick(ctx, &mut campfire, adjusted_cooking_time_increment, active_fuel_instance_id_for_cooking_check) {
-                 Ok(cooking_modified_appliance) => {
-                     if cooking_modified_appliance {
-                         made_changes_to_campfire_struct = true;
-                     }
-                 }
-                 Err(e) => {
-                     // log::error!("[ProcessCampfireScheduled] Error during generic cooking tick for campfire {}: {}. Further processing might be affected.", campfire.id, e);
-                 }
-             }
-         } else {
-             // Skip cooking entirely if Metal Ore is present - it should only be smelted in furnaces
-             log::debug!("[ProcessCampfireScheduled] Campfire {} contains Metal Ore, skipping cooking logic (Metal Ore can only be smelted in furnaces).", campfire.id);
-         }
-         // --- END COOKING LOGIC (delegated) ---
+        // --- COOKING LOGIC (using cached flags) ---
+        let cooking_speed_multiplier = if cached_has_bellows { 1.2 } else { 1.0 }
+            * if crate::rune_stone::is_position_in_green_rune_zone(ctx, campfire.pos_x, campfire.pos_y) { 2.0 } else { 1.0 };
+        let adjusted_cooking_time_increment = time_increment * cooking_speed_multiplier;
+        
+        if !cached_has_metal_ore {
+            match crate::cooking::process_appliance_cooking_tick(ctx, &mut campfire, adjusted_cooking_time_increment, cached_active_fuel_instance_id) {
+                Ok(cooking_modified_appliance) => {
+                    if cooking_modified_appliance {
+                        made_changes_to_campfire_struct = true;
+                    }
+                }
+                Err(e) => {
+                    log::error!("[ProcessCampfireScheduled] Error during cooking tick for campfire {}: {}", campfire.id, e);
+                }
+            }
+        }
+        // --- END COOKING LOGIC ---
  
-         // --- FUEL CONSUMPTION LOGIC (remains specific to campfire) ---
-         if let Some(mut remaining_time) = campfire.remaining_fuel_burn_time_secs {
-             if remaining_time > 0.0 {
-                 // Apply Reed Bellows fuel burn rate multiplier (makes fuel burn slower)
-                 let fuel_burn_multiplier = get_fuel_burn_rate_multiplier(ctx, &campfire);
-                 let adjusted_time_increment = time_increment / fuel_burn_multiplier;
+        // --- FUEL CONSUMPTION LOGIC (using cached bellows flag) ---
+        if let Some(mut remaining_time) = campfire.remaining_fuel_burn_time_secs {
+            if remaining_time > 0.0 {
+                let fuel_burn_multiplier = if cached_has_bellows { 1.5 } else { 1.0 };
+                let adjusted_time_increment = time_increment / fuel_burn_multiplier;
                  remaining_time -= adjusted_time_increment;
  
                  if remaining_time <= 0.0 {
@@ -1716,6 +1699,12 @@ pub fn is_campfire_protected_from_rain(ctx: &ReducerContext, campfire: &Campfire
     // NEW: Check if campfire is inside an enclosed building (foundation + walls)
     if crate::building_enclosure::is_position_inside_building(ctx, campfire.pos_x, campfire.pos_y) {
         log::debug!("Campfire {} is protected from rain by enclosed building", campfire.id);
+        return true;
+    }
+    
+    // Check if campfire is inside a shipwreck protection zone (shipwrecks provide indoor shelter)
+    if crate::shipwreck::is_position_protected_by_shipwreck(ctx, campfire.pos_x, campfire.pos_y) {
+        log::debug!("Campfire {} is protected from rain by shipwreck", campfire.id);
         return true;
     }
     

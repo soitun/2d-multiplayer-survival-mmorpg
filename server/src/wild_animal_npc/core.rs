@@ -3521,9 +3521,55 @@ fn apply_damage_knockback_effects(ctx: &ReducerContext, animal: &WildAnimal, att
             if distance_sq > 0.001 {
                 let distance = distance_sq.sqrt();
                 
-                // Apply knockback and recoil based on attack range
-                if distance <= 80.0 { // Melee range
-                    let attacker_recoil_distance = 16.0;
+                // --- KNOCKBACK THE ANIMAL AWAY FROM PLAYER ---
+                // Knockback distance varies by species mass/size:
+                // Lighter animals get knocked back more, massive ones are immune
+                let animal_knockback_distance = match animal.species {
+                    // Tiny - sent flying
+                    AnimalSpecies::Vole => 28.0,
+                    AnimalSpecies::Hare => 28.0,
+                    AnimalSpecies::Bee => 20.0,
+                    // Small - solid knockback
+                    AnimalSpecies::CinderFox => 22.0,
+                    AnimalSpecies::BeachCrab => 18.0,
+                    AnimalSpecies::Tern => 20.0,
+                    AnimalSpecies::Crow => 20.0,
+                    AnimalSpecies::SnowyOwl => 20.0,
+                    AnimalSpecies::CableViper => 18.0,
+                    AnimalSpecies::Shardkin => 22.0,
+                    AnimalSpecies::Jellyfish => 16.0,
+                    // Medium - moderate knockback
+                    AnimalSpecies::TundraWolf => 16.0,
+                    AnimalSpecies::Wolverine => 14.0,
+                    AnimalSpecies::Shorebound => 16.0,
+                    AnimalSpecies::Caribou => 12.0,
+                    // MASSIVE - immune to knockback (too heavy to push)
+                    AnimalSpecies::ArcticWalrus => 0.0,
+                    AnimalSpecies::PolarBear => 0.0,
+                    AnimalSpecies::DrownedWatch => 0.0,
+                    AnimalSpecies::SalmonShark => 0.0,
+                };
+                
+                // Push animal away from player (skip if immune to knockback)
+                if animal_knockback_distance > 0.0 {
+                    if let Some(mut updated_animal) = ctx.db.wild_animal().id().find(&animal.id) {
+                        let kb_dx = (dx_animal_from_attacker / distance) * animal_knockback_distance;
+                        let kb_dy = (dy_animal_from_attacker / distance) * animal_knockback_distance;
+                        
+                        let new_x = (updated_animal.pos_x + kb_dx).clamp(32.0, WORLD_WIDTH_PX - 32.0);
+                        let new_y = (updated_animal.pos_y + kb_dy).clamp(32.0, WORLD_HEIGHT_PX - 32.0);
+                        
+                        update_animal_position(&mut updated_animal, new_x, new_y);
+                        ctx.db.wild_animal().id().update(updated_animal);
+                        
+                        log::debug!("Applied knockback to animal {} ({:?}) from player {}: distance={:.1}px", 
+                                   animal.id, animal.species, attacker_id, animal_knockback_distance);
+                    }
+                }
+                
+                // --- SMALL PLAYER RECOIL FOR MELEE HITS ---
+                if distance <= 100.0 { // Melee range
+                    let attacker_recoil_distance = 8.0; // Small recoil - focus is on pushing the animal
                     let attacker_recoil_dx = (-dx_animal_from_attacker / distance) * attacker_recoil_distance;
                     let attacker_recoil_dy = (-dy_animal_from_attacker / distance) * attacker_recoil_distance;
                     

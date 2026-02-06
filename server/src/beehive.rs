@@ -288,12 +288,12 @@ pub fn process_beehive_production(ctx: &ReducerContext, _schedule: BeehiveProces
         let elapsed_secs = elapsed_micros / 1_000_000;
         
         if elapsed_secs < BEEHIVE_PRODUCTION_TIME_SECS as i64 {
-            continue; // Not enough time has passed
+            continue; // Not enough time has passed -- OPTIMIZATION: skip entirely, no DB write
         }
         
         // Time to produce honeycomb!
-        // Try to find an empty output slot or stack with existing honeycomb
         let mut honeycomb_placed = false;
+        let mut beehive_struct_modified = false; // OPTIMIZATION: track if box struct needs writing
         let mut updated_beehive = beehive.clone();
         
         // Check slots 1-4 for empty space or stacking
@@ -332,6 +332,7 @@ pub fn process_beehive_production(ctx: &ReducerContext, _schedule: BeehiveProces
                 }
                 
                 honeycomb_placed = true;
+                beehive_struct_modified = true; // New item placed in previously empty slot
                 total_produced += 1;
                 log::debug!("[Beehive] Produced honeycomb in beehive {} slot {}", beehive.id, slot_idx);
                 break;
@@ -379,8 +380,12 @@ pub fn process_beehive_production(ctx: &ReducerContext, _schedule: BeehiveProces
             inventory_items.instance_id().update(queen);
         }
         
-        // Save beehive changes
-        storage_boxes.id().update(updated_beehive);
+        // OPTIMIZATION: Only write beehive back to DB if a slot was changed
+        // (new item in empty slot). Stacking onto existing honeycomb only modifies
+        // the InventoryItem row, not the beehive box struct.
+        if beehive_struct_modified {
+            storage_boxes.id().update(updated_beehive);
+        }
     }
     
     if total_produced > 0 || total_dropped > 0 {

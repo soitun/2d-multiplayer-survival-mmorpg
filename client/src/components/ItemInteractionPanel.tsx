@@ -255,7 +255,7 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
                 case 'unravel':
                     // console.log(`Unraveling rope ${itemInstanceId}: ${selectedItem.definition.name}`);
                     connection.reducers.unravelRope(itemInstanceId);
-                    playImmediateSound('crush_bones'); // Reuse crushing sound for deconstruction
+                    playImmediateSound('unravel_rope');
                     break;
                 case 'pulverize':
                     // console.log(`Pulverizing item ${itemInstanceId}: ${selectedItem.definition.name}`);
@@ -276,7 +276,7 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
                     break;
                 case 'extract_yeast':
                     connection.reducers.extractYeast(itemInstanceId);
-                    playImmediateSound('crush_bones'); // Extraction sound
+                    playImmediateSound('extract_queen_bee'); // Same extraction sound as honeycomb
                     break;
                 case 'consume':
                     // console.log(`Consuming item ${itemInstanceId}: ${selectedItem.definition.name}`);

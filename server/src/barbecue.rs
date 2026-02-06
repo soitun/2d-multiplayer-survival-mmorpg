@@ -886,6 +886,11 @@ fn is_barbecue_protected_from_rain(ctx: &ReducerContext, barbecue: &Barbecue) ->
         return true;
     }
     
+    // Check if barbecue is inside a shipwreck protection zone (shipwrecks provide indoor shelter)
+    if crate::shipwreck::is_position_protected_by_shipwreck(ctx, barbecue.pos_x, barbecue.pos_y) {
+        return true;
+    }
+    
     const TREE_PROTECTION_DISTANCE_SQ: f32 = 100.0 * 100.0;
     
     for tree in ctx.db.tree().iter() {
@@ -1082,24 +1087,32 @@ pub fn process_barbecue_logic_scheduled(ctx: &ReducerContext, schedule: Barbecue
         // Note: Barbecues do NOT have fire damage zones - they're elevated cooking appliances
         let time_increment = BARBECUE_PROCESS_INTERVAL_SECS as f32;
 
-        let active_fuel_instance_id_for_cooking_check = barbecue.current_fuel_def_id.and_then(|fuel_def_id| {
-            (0..NUM_BARBECUE_SLOTS as u8).find_map(|slot_idx_check| {
-                if barbecue.get_slot_def_id(slot_idx_check) == Some(fuel_def_id) {
-                    if let Some(instance_id_check) = barbecue.get_slot_instance_id(slot_idx_check) {
-                        if barbecue.remaining_fuel_burn_time_secs.is_some() && barbecue.remaining_fuel_burn_time_secs.unwrap_or(0.0) > 0.0 {
-                            return Some(instance_id_check);
-                        }
-                    }
-                }
-                None
-            })
-        });
+        // --- OPTIMIZATION: Cache item flags computed once per tick ---
+        let cached_has_bellows = has_reed_bellows(ctx, &barbecue);
+        let cached_has_metal_ore = has_metal_ore_in_barbecue(ctx, &barbecue);
 
-        let cooking_speed_multiplier = get_cooking_speed_multiplier(ctx, &barbecue);
+        // --- OPTIMIZATION: Cache active fuel instance ID ---
+        let cached_active_fuel_instance_id: Option<u64> = if barbecue.remaining_fuel_burn_time_secs.unwrap_or(0.0) > 0.0 {
+            barbecue.current_fuel_def_id.and_then(|fuel_def_id| {
+                (0..NUM_BARBECUE_SLOTS as u8).find_map(|i| {
+                    if barbecue.get_slot_def_id(i) == Some(fuel_def_id) {
+                        barbecue.get_slot_instance_id(i)
+                    } else {
+                        None
+                    }
+                })
+            })
+        } else {
+            None
+        };
+
+        // --- COOKING LOGIC (using cached flags) ---
+        let cooking_speed_multiplier = if cached_has_bellows { 1.2 } else { 1.0 }
+            * if crate::rune_stone::is_position_in_green_rune_zone(ctx, barbecue.pos_x, barbecue.pos_y) { 2.0 } else { 1.0 };
         let adjusted_cooking_time_increment = time_increment * cooking_speed_multiplier;
         
-        if !has_metal_ore_in_barbecue(ctx, &barbecue) {
-            match crate::cooking::process_appliance_cooking_tick(ctx, &mut barbecue, adjusted_cooking_time_increment, active_fuel_instance_id_for_cooking_check) {
+        if !cached_has_metal_ore {
+            match crate::cooking::process_appliance_cooking_tick(ctx, &mut barbecue, adjusted_cooking_time_increment, cached_active_fuel_instance_id) {
                 Ok(cooking_modified_appliance) => {
                     if cooking_modified_appliance {
                         made_changes_to_barbecue_struct = true;
@@ -1109,9 +1122,10 @@ pub fn process_barbecue_logic_scheduled(ctx: &ReducerContext, schedule: Barbecue
             }
         }
 
+        // --- FUEL CONSUMPTION LOGIC (using cached bellows flag) ---
         if let Some(mut remaining_time) = barbecue.remaining_fuel_burn_time_secs {
             if remaining_time > 0.0 {
-                let fuel_burn_multiplier = get_fuel_burn_rate_multiplier(ctx, &barbecue);
+                let fuel_burn_multiplier = if cached_has_bellows { 1.5 } else { 1.0 };
                 let adjusted_time_increment = time_increment / fuel_burn_multiplier;
                 remaining_time -= adjusted_time_increment;
 

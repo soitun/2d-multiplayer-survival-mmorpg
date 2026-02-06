@@ -55,7 +55,7 @@ impl AnimalBehavior for ShoreboundBehavior {
         AnimalStats {
             max_health: 80.0, // Low health - can be killed quickly
             attack_damage: 18.0, // Moderate damage
-            attack_range: 95.0, // Extended range to hit from collision distance
+            attack_range: 75.0, // Reduced from 95 - still hits from collision distance but less oppressive
             attack_speed_ms: 500, // Very fast attacks
             movement_speed: 130.0, // Moderate patrol - slower than player walk (200)
             sprint_speed: 220.0, // Slower than player sprint (400) - can be outrun

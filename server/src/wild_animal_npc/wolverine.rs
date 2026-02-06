@@ -39,7 +39,7 @@ impl AnimalBehavior for WolverineBehavior {
         AnimalStats {
             max_health: 150.0, // Tough for their size
             attack_damage: 28.0, // High damage - wolverines are vicious
-            attack_range: 90.0, // Extended range to hit from collision distance (must be > ANIMAL_PLAYER_COLLISION_RADIUS of 65px)
+            attack_range: 75.0, // Reduced from 90 - still hits from collision distance but gives players more room to dodge
             attack_speed_ms: 700, // Fast, ferocious attacks
             movement_speed: 120.0, // Steady patrol speed
             sprint_speed: 280.0, // Fast chase - wolverines are quick

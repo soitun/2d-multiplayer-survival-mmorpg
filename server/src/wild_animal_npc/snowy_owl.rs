@@ -45,7 +45,7 @@ impl AnimalBehavior for SnowyOwlBehavior {
         AnimalStats {
             max_health: 70.0, // Medium health - tougher than crow but not a tank
             attack_damage: 10.0, // Moderate damage - talons hurt
-            attack_range: 70.0, // Decent range for talon attacks
+            attack_range: 60.0, // Reduced from 70 - decent range for talon attacks but tighter
             attack_speed_ms: 900, // Fast attack speed - aggressive predator
             movement_speed: 120.0, // Ground speed (rarely used)
             sprint_speed: 300.0, // Base flying speed (x1.8 = 540 effective) - fast flyer
