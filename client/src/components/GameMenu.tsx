@@ -15,19 +15,11 @@ interface MenuOption {
 interface GameMenuProps {
     onClose: () => void;
     onNavigate: (menu: MenuType) => void;
-    musicVolume?: number;
-    soundVolume?: number;
-    onMusicVolumeChange?: (volume: number) => void;
-    onSoundVolumeChange?: (volume: number) => void;
 }
 
 const GameMenu: React.FC<GameMenuProps> = ({ 
     onClose, 
     onNavigate, 
-    musicVolume = 0.25, 
-    soundVolume = 0.8, 
-    onMusicVolumeChange, 
-    onSoundVolumeChange 
 }) => {
     const { logout } = useAuth();
     const [showSignOutConfirm, setShowSignOutConfirm] = React.useState(false);

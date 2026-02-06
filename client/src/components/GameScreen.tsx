@@ -254,26 +254,7 @@ interface GameScreenProps {
     // Music system for debug controls
     musicSystem: ReturnType<typeof useMusicSystem>;
 
-    // Volume settings for menu controls
-    musicVolume: number;
-    soundVolume: number;
-    environmentalVolume: number;
-    onMusicVolumeChange: (volume: number) => void;
-    onSoundVolumeChange: (volume: number) => void;
-    onEnvironmentalVolumeChange: (volume: number) => void;
-
-    // Visual settings for menu controls
-    treeShadowsEnabled: boolean;
-    onTreeShadowsChange: (enabled: boolean) => void;
-    weatherOverlayEnabled: boolean;
-    onWeatherOverlayChange: (enabled: boolean) => void;
-    statusOverlaysEnabled: boolean;
-    onStatusOverlaysChange: (enabled: boolean) => void;
-    grassEnabled: boolean;
-    onGrassChange: (enabled: boolean) => void;
-    // Always show player names above heads
-    alwaysShowPlayerNames: boolean;
-    onAlwaysShowPlayerNamesChange: (enabled: boolean) => void;
+    // Settings (audio + visual) are now in SettingsContext -- no longer passed as props.
 
     // Sound system for immediate sound effects
     soundSystem: ReturnType<typeof import('../hooks/useSoundSystem').useSoundSystem>;
@@ -467,22 +448,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         onFishingStateChange,
         fishingSessions,
         musicSystem,
-        musicVolume,
-        soundVolume,
-        environmentalVolume,
-        onMusicVolumeChange,
-        onSoundVolumeChange,
-        onEnvironmentalVolumeChange,
-        treeShadowsEnabled,
-        onTreeShadowsChange,
-        weatherOverlayEnabled,
-        onWeatherOverlayChange,
-        statusOverlaysEnabled,
-        onStatusOverlaysChange,
-        grassEnabled,
-        onGrassChange,
-        alwaysShowPlayerNames,
-        onAlwaysShowPlayerNamesChange,
+        // Settings props removed -- consumers read from SettingsContext directly
         soundSystem,
         playerDrinkingCooldowns,
         playerDodgeRollStates,
@@ -970,10 +936,6 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 <GameMenu
                     onClose={handleMenuClose}
                     onNavigate={handleMenuNavigate}
-                    musicVolume={musicVolume}
-                    soundVolume={soundVolume}
-                    onMusicVolumeChange={onMusicVolumeChange}
-                    onSoundVolumeChange={onSoundVolumeChange}
                 />
             )}
             {currentMenu === 'controls' && (
@@ -992,28 +954,12 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 <GameSettingsMenu
                     onBack={handleMenuBack}
                     onClose={handleMenuClose}
-                    musicVolume={musicVolume}
-                    soundVolume={soundVolume}
-                    environmentalVolume={environmentalVolume}
-                    onMusicVolumeChange={onMusicVolumeChange}
-                    onSoundVolumeChange={onSoundVolumeChange}
-                    onEnvironmentalVolumeChange={onEnvironmentalVolumeChange}
                 />
             )}
             {currentMenu === 'visual_settings' && (
                 <GameVisualSettingsMenu
                     onBack={handleMenuBack}
                     onClose={handleMenuClose}
-                    treeShadowsEnabled={treeShadowsEnabled}
-                    onTreeShadowsChange={onTreeShadowsChange}
-                    weatherOverlayEnabled={weatherOverlayEnabled}
-                    onWeatherOverlayChange={onWeatherOverlayChange}
-                    statusOverlaysEnabled={statusOverlaysEnabled}
-                    onStatusOverlaysChange={onStatusOverlaysChange}
-                    grassEnabled={grassEnabled}
-                    onGrassChange={onGrassChange}
-                    alwaysShowPlayerNames={alwaysShowPlayerNames}
-                    onAlwaysShowPlayerNamesChange={onAlwaysShowPlayerNamesChange}
                     playerStats={props.playerStats}
                     playerAchievements={props.playerAchievements}
                     achievementDefinitions={props.achievementDefinitions}
@@ -1235,14 +1181,10 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 firePatches={props.firePatches}
                 placedExplosives={props.placedExplosives}
                 setMusicPanelVisible={setIsMusicPanelVisible}
-                environmentalVolume={props.environmentalVolume}
                 movementDirection={movementDirection}
                 isAutoWalking={props.isAutoWalking}
                 playerDodgeRollStates={props.playerDodgeRollStates}
-                treeShadowsEnabled={treeShadowsEnabled}
                 chunkWeather={chunkWeather}
-                showWeatherOverlay={weatherOverlayEnabled}
-                showStatusOverlays={statusOverlaysEnabled}
                 alkStations={props.alkStations}
                 alkContracts={props.alkContracts}
                 monumentParts={props.monumentParts}
@@ -1261,7 +1203,6 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 playerAchievements={props.playerAchievements}
                 plantConfigs={props.plantConfigDefinitions}
                 discoveredPlants={props.discoveredPlants}
-                alwaysShowPlayerNames={alwaysShowPlayerNames}
                 playerStats={props.playerStats} // ADDED: For title display on player name labels
                 rangedWeaponStats={rangedWeaponStats} // ADDED: For auto-fire detection
                 beaconDropEvents={props.beaconDropEvents} // ADDED: Memory Beacon server events
@@ -1380,8 +1321,6 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             {!props.isMobile && (
                 <MusicControlPanel
                     musicSystem={musicSystem}
-                    musicVolume={musicVolume}
-                    onMusicVolumeChange={onMusicVolumeChange}
                     isVisible={isMusicPanelVisible}
                     onClose={() => setIsMusicPanelVisible(false)}
                 />

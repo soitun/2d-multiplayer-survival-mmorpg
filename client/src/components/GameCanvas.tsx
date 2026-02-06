@@ -95,6 +95,7 @@ import { useBarbecueParticles } from '../hooks/useBarbecueParticles';
 import { useShoreWaveParticles, renderShoreWaves } from '../hooks/useShoreWaveParticles';
 import { playImmediateSound } from '../hooks/useSoundSystem';
 import { useDamageEffects, shakeOffsetXRef, shakeOffsetYRef, vignetteOpacityRef } from '../hooks/useDamageEffects';
+import { useSettings } from '../contexts/SettingsContext';
 
 // --- Rendering Utilities ---
 import { renderWorldBackground } from '../utils/renderers/worldRenderingUtils';
@@ -274,15 +275,11 @@ interface GameCanvasProps {
   doors: Map<string, any>; // ADDED: Building doors
   fences: Map<string, any>; // ADDED: Building fences
   setMusicPanelVisible: React.Dispatch<React.SetStateAction<boolean>>;
-  // Add ambient sound volume control
-  environmentalVolume?: number; // 0-1 scale for ambient/environmental sounds
   movementDirection: { x: number; y: number };
   isAutoWalking: boolean; // Auto-walk state for dodge roll detection
   playerDodgeRollStates: Map<string, any>; // PlayerDodgeRollState from generated types
   // ADD: Local facing direction for instant visual feedback (client-authoritative)
   localFacingDirection?: string;
-  // NEW: Visual cortex module setting for tree shadows
-  treeShadowsEnabled?: boolean;
   // Chunk-based weather data
   chunkWeather: Map<string, any>;
   // ALK delivery stations for minimap
@@ -301,10 +298,8 @@ interface GameCanvasProps {
   monumentParts?: Map<string, any>;
   // Large quarry locations with types for minimap labels (Stone/Sulfur/Metal Quarry)
   largeQuarries?: Map<string, any>;
-  // Weather overlay toggle for main game canvas atmospheric effects
-  showWeatherOverlay?: boolean;
-  // Status overlays toggle for cold/low health screen effects
-  showStatusOverlays?: boolean;
+  // showWeatherOverlay, showStatusOverlays, treeShadowsEnabled, alwaysShowPlayerNames,
+  // environmentalVolume are now in SettingsContext.
 
   // Matronage system
   matronages?: Map<string, any>;
@@ -320,9 +315,6 @@ interface GameCanvasProps {
   plantConfigs?: Map<string, any>;
   // Plants discovered by current player (for encyclopedia filtering)
   discoveredPlants?: Map<string, any>;
-
-  // Always show player names above heads
-  alwaysShowPlayerNames?: boolean;
 
   // Player stats for title display on name labels
   playerStats?: Map<string, any>;
@@ -438,7 +430,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   doors, // ADDED: Building doors
   fences, // ADDED: Building fences
   setMusicPanelVisible,
-  environmentalVolume,
   movementDirection,
   isAutoWalking, // Auto-walk state for dodge roll detection
   addSOVAMessage, // ADDED: SOVA message adder for cairn lore
@@ -446,7 +437,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   onCairnNotification, // ADDED: Cairn unlock notification callback
   playerDodgeRollStates,
   localFacingDirection, // ADD: Destructure local facing direction for client-authoritative direction changes
-  treeShadowsEnabled, // NEW: Destructure treeShadowsEnabled for visual cortex module setting
   chunkWeather, // Chunk-based weather data
   alkStations, // ALK delivery stations for minimap
   monumentParts, // Unified monument parts (all monument types)
@@ -456,7 +446,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   alkState, // ALK system state
   playerShardBalance, // Player shard balances
   memoryGridProgress, // Memory Grid progress for crafting unlocks
-  showWeatherOverlay, // Weather overlay toggle for main game canvas atmospheric effects (managed internally if not provided)
   // Matronage system
   matronages, // Matronage pooled rewards organizations
   matronageMembers, // Matronage membership tracking
@@ -467,10 +456,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   playerAchievements, // Player unlocked achievements
   plantConfigs, // Plant encyclopedia data
   discoveredPlants, // Plants discovered by current player
-  alwaysShowPlayerNames = true, // Always show player names above heads
   playerStats, // Player stats for title display on name labels
   rangedWeaponStats, // Ranged weapon stats for auto-fire detection
-  showStatusOverlays = true, // Status overlays toggle for cold/low health screen effects
   // Mobile controls
   isMobile = false,
   onMobileTap,
@@ -486,9 +473,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   caribouRutState,
   walrusRutState,
 }) => {
-  // console.log('[GameCanvas IS RUNNING] showInventory:', showInventory);
-
-  // console.log("Cloud data in GameCanvas:", Array.from(clouds?.values() || []));
+  // --- Settings from context (audio + visual) ---
+  const {
+    environmentalVolume,
+    treeShadowsEnabled,
+    weatherOverlayEnabled: showWeatherOverlay,
+    statusOverlaysEnabled: showStatusOverlays,
+    alwaysShowPlayerNames,
+  } = useSettings();
 
   // --- Refs ---
   const frameNumber = useRef(0);

@@ -2,6 +2,7 @@ import React from 'react';
 import styles from './MenuComponents.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMusic, faVolumeUp, faLeaf } from '@fortawesome/free-solid-svg-icons';
+import { useSettings } from '../contexts/SettingsContext';
 
 // Default audio settings based on optimal neural processing thresholds
 export const DEFAULT_AUDIO_SETTINGS = {
@@ -13,24 +14,20 @@ export const DEFAULT_AUDIO_SETTINGS = {
 interface GameSettingsMenuProps {
     onBack: () => void;
     onClose: () => void;
-    musicVolume: number;
-    soundVolume: number;
-    environmentalVolume: number;
-    onMusicVolumeChange: (volume: number) => void;
-    onSoundVolumeChange: (volume: number) => void;
-    onEnvironmentalVolumeChange: (volume: number) => void;
 }
 
 const GameSettingsMenu: React.FC<GameSettingsMenuProps> = ({
     onBack,
     onClose,
-    musicVolume,
-    soundVolume,
-    environmentalVolume,
-    onMusicVolumeChange,
-    onSoundVolumeChange,
-    onEnvironmentalVolumeChange,
 }) => {
+    const {
+        musicVolume,
+        soundVolume,
+        environmentalVolume,
+        setMusicVolume: onMusicVolumeChange,
+        setSoundVolume: onSoundVolumeChange,
+        setEnvironmentalVolume: onEnvironmentalVolumeChange,
+    } = useSettings();
     const handleBackdropClick = (e: React.MouseEvent) => {
         if (e.target === e.currentTarget) {
             onBack();

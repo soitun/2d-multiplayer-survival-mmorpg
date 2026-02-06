@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import { GameConnectionProvider } from './GameConnectionContext';
 import { PlayerActionsProvider } from './PlayerActionsContext';
+import { SettingsProvider } from './SettingsContext';
 
 interface GameContextsProviderProps {
     children: ReactNode;
@@ -9,14 +10,17 @@ interface GameContextsProviderProps {
 /**
  * Combined provider that sets up all game-related contexts in the correct order.
  * This ensures proper dependency hierarchy (player actions depend on game connection).
+ * SettingsProvider is outermost since it has no game dependencies.
  */
 export const GameContextsProvider: React.FC<GameContextsProviderProps> = ({ children }) => {
     return (
-        <GameConnectionProvider>
-            <PlayerActionsProvider>
-                {children}
-            </PlayerActionsProvider>
-        </GameConnectionProvider>
+        <SettingsProvider>
+            <GameConnectionProvider>
+                <PlayerActionsProvider>
+                    {children}
+                </PlayerActionsProvider>
+            </GameConnectionProvider>
+        </SettingsProvider>
     );
 };
 

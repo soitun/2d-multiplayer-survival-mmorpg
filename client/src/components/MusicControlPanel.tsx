@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useMusicSystem, MUSIC_ZONE_INFO, MusicZone } from '../hooks/useMusicSystem';
+import { useSettings } from '../contexts/SettingsContext';
 
 // Style constants matching DayNightCycleTracker
 const UI_BG_COLOR = 'linear-gradient(135deg, rgba(30, 15, 50, 0.9), rgba(20, 10, 40, 0.95))';
@@ -19,8 +20,6 @@ const ZONE_COLORS: Record<MusicZone, { primary: string; secondary: string; glow:
 
 interface MusicControlPanelProps {
     musicSystem: ReturnType<typeof useMusicSystem>;
-    musicVolume: number;
-    onMusicVolumeChange: (volume: number) => void;
     isVisible: boolean;
     onClose?: () => void;
 }
@@ -100,11 +99,10 @@ const CustomTooltip: React.FC<TooltipProps> = ({ text, children }) => {
 
 const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
     musicSystem,
-    musicVolume,
-    onMusicVolumeChange,
     isVisible,
     onClose
 }) => {
+    const { musicVolume, setMusicVolume: onMusicVolumeChange } = useSettings();
     // Optimistic UI state - show selected track immediately on click
     const [optimisticSelectedTrack, setOptimisticSelectedTrack] = useState<string | null>(null);
     

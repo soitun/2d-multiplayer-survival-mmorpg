@@ -48,6 +48,7 @@ import { useSoundSystem, playImmediateSound } from './hooks/useSoundSystem';
 import { useSovaSoundBox } from './hooks/useSovaSoundBox';
 import { useMusicSystem } from './hooks/useMusicSystem';
 import { useMobileDetection } from './hooks/useMobileDetection';
+import { useSettings } from './contexts/SettingsContext';
 
 // Asset Preloading
 import { preloadAllAssets, AssetLoadingProgress } from './services/assetPreloader';
@@ -164,96 +165,15 @@ function AppContent() {
     // Music panel state
     const [isMusicPanelVisible, setIsMusicPanelVisible] = useState(false);
     
-    // --- Volume Settings State ---
-    const [musicVolume, setMusicVolume] = useState(() => {
-        const saved = localStorage.getItem('musicVolume');
-        return saved ? Math.min(parseFloat(saved), 1.0) : 0.5; // 50% default (0.5 out of 1.0 max)
-    });
-    const [soundVolume, setSoundVolume] = useState(() => {
-        const saved = localStorage.getItem('soundVolume');
-        return saved ? Math.min(parseFloat(saved), 1.0) : 0.8; // 80% default (0.8 out of 1.0 max)
-    });
-    const [environmentalVolume, setEnvironmentalVolume] = useState(() => {
-        const saved = localStorage.getItem('environmentalVolume');
-        return saved ? Math.min(parseFloat(saved), 1.0) : 0.7; // 70% default (0.7 out of 1.0 max)
-    });
-    
-    // --- Visual Settings State ---
-    const [treeShadowsEnabled, setTreeShadowsEnabled] = useState(() => {
-        const saved = localStorage.getItem('treeShadowsEnabled');
-        return saved ? saved === 'true' : true; // true by default
-    });
-    
-    const [weatherOverlayEnabled, setWeatherOverlayEnabled] = useState(() => {
-        const saved = localStorage.getItem('weatherOverlayEnabled');
-        return saved ? saved === 'true' : true; // true by default
-    });
-    
-    const [statusOverlaysEnabled, setStatusOverlaysEnabled] = useState(() => {
-        const saved = localStorage.getItem('statusOverlaysEnabled');
-        return saved ? saved === 'true' : true; // true by default
-    });
-    
-    const [grassEnabled, setGrassEnabled] = useState(() => {
-        const saved = localStorage.getItem('grassEnabled');
-        return saved ? saved === 'true' : true; // true by default
-    });
-    
-    // Always show player names above heads (default ON)
-    const [alwaysShowPlayerNames, setAlwaysShowPlayerNames] = useState(() => {
-        const saved = localStorage.getItem('alwaysShowPlayerNames');
-        return saved ? saved === 'true' : true; // true by default
-    });
-    
-    // --- Volume Change Handlers ---
-    const handleMusicVolumeChange = useCallback((volume: number) => {
-        console.log(`[App] handleMusicVolumeChange called with: ${volume.toFixed(3)}`);
-        setMusicVolume(volume);
-        localStorage.setItem('musicVolume', volume.toString());
-    }, []);
-    
-    const handleSoundVolumeChange = useCallback((volume: number) => {
-        console.log(`[App] handleSoundVolumeChange called with: ${volume.toFixed(3)}`);
-        setSoundVolume(volume);
-        localStorage.setItem('soundVolume', volume.toString());
-    }, []);
-    
-    const handleEnvironmentalVolumeChange = useCallback((volume: number) => {
-        console.log(`[App] handleEnvironmentalVolumeChange called with: ${volume.toFixed(3)}`);
-        setEnvironmentalVolume(volume);
-        localStorage.setItem('environmentalVolume', volume.toString());
-    }, []);
-
-    // --- Visual Settings Change Handlers ---
-    const handleTreeShadowsChange = useCallback((enabled: boolean) => {
-        console.log(`[App] handleTreeShadowsChange called with: ${enabled}`);
-        setTreeShadowsEnabled(enabled);
-        localStorage.setItem('treeShadowsEnabled', enabled.toString());
-    }, []);
-    
-    const handleWeatherOverlayChange = useCallback((enabled: boolean) => {
-        console.log(`[App] handleWeatherOverlayChange called with: ${enabled}`);
-        setWeatherOverlayEnabled(enabled);
-        localStorage.setItem('weatherOverlayEnabled', enabled.toString());
-    }, []);
-    
-    const handleStatusOverlaysChange = useCallback((enabled: boolean) => {
-        console.log(`[App] handleStatusOverlaysChange called with: ${enabled}`);
-        setStatusOverlaysEnabled(enabled);
-        localStorage.setItem('statusOverlaysEnabled', enabled.toString());
-    }, []);
-    
-    const handleGrassChange = useCallback((enabled: boolean) => {
-        console.log(`[App] handleGrassChange called with: ${enabled}`);
-        setGrassEnabled(enabled);
-        localStorage.setItem('grassEnabled', enabled.toString());
-    }, []);
-    
-    const handleAlwaysShowPlayerNamesChange = useCallback((enabled: boolean) => {
-        console.log(`[App] handleAlwaysShowPlayerNamesChange called with: ${enabled}`);
-        setAlwaysShowPlayerNames(enabled);
-        localStorage.setItem('alwaysShowPlayerNames', enabled.toString());
-    }, []);
+    // --- Settings (audio + visual) are now in SettingsContext ---
+    // Only destructure the values App.tsx actually needs for its own hooks.
+    // Settings menus and GameCanvas read directly from useSettings().
+    const {
+        musicVolume,
+        soundVolume,
+        environmentalVolume,
+        grassEnabled,
+    } = useSettings();
 
     // --- Viewport State & Refs ---
     const [currentViewport, setCurrentViewport] = useState<{ minX: number, minY: number, maxX: number, maxY: number } | null>(null);
@@ -1324,22 +1244,7 @@ function AppContent() {
                             onFishingStateChange={setIsFishing}
                             fishingSessions={fishingSessions}
                             musicSystem={musicSystem}
-                            musicVolume={musicVolume}
-                            soundVolume={soundVolume}
-                            environmentalVolume={environmentalVolume}
-                            onMusicVolumeChange={handleMusicVolumeChange}
-                            onSoundVolumeChange={handleSoundVolumeChange}
-                            onEnvironmentalVolumeChange={handleEnvironmentalVolumeChange}
-                            onTreeShadowsChange={handleTreeShadowsChange}
-                            treeShadowsEnabled={treeShadowsEnabled}
-                            onWeatherOverlayChange={handleWeatherOverlayChange}
-                            weatherOverlayEnabled={weatherOverlayEnabled}
-                            onStatusOverlaysChange={handleStatusOverlaysChange}
-                            statusOverlaysEnabled={statusOverlaysEnabled}
-                            onGrassChange={handleGrassChange}
-                            grassEnabled={grassEnabled}
-                            alwaysShowPlayerNames={alwaysShowPlayerNames}
-                            onAlwaysShowPlayerNamesChange={handleAlwaysShowPlayerNamesChange}
+                            // Settings props removed -- menus and GameCanvas read from SettingsContext directly
                             soundSystem={soundSystemState}
                             playerDrinkingCooldowns={playerDrinkingCooldowns}
                             rainCollectors={rainCollectors}

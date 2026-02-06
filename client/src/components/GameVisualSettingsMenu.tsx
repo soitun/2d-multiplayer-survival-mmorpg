@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import styles from './MenuComponents.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTree, faCloudRain, faHeartPulse, faLeaf, faCrown, faUsers } from '@fortawesome/free-solid-svg-icons';
+import { useSettings } from '../contexts/SettingsContext';
 
 // Default visual settings based on optimal neural rendering thresholds
 export const DEFAULT_VISUAL_SETTINGS = {
@@ -15,18 +16,7 @@ export const DEFAULT_VISUAL_SETTINGS = {
 interface GameVisualSettingsMenuProps {
     onBack: () => void;
     onClose: () => void;
-    treeShadowsEnabled: boolean;
-    onTreeShadowsChange: (enabled: boolean) => void;
-    weatherOverlayEnabled: boolean;
-    onWeatherOverlayChange: (enabled: boolean) => void;
-    statusOverlaysEnabled: boolean;
-    onStatusOverlaysChange: (enabled: boolean) => void;
-    grassEnabled: boolean;
-    onGrassChange: (enabled: boolean) => void;
-    // NEW: Always show player names setting
-    alwaysShowPlayerNames: boolean;
-    onAlwaysShowPlayerNamesChange: (enabled: boolean) => void;
-    // NEW: Title selection props
+    // Title selection props (non-settings, kept as props)
     playerStats?: Map<string, any>;
     playerAchievements?: Map<string, any>;
     achievementDefinitions?: Map<string, any>;
@@ -37,22 +27,25 @@ interface GameVisualSettingsMenuProps {
 const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
     onBack,
     onClose,
-    treeShadowsEnabled,
-    onTreeShadowsChange,
-    weatherOverlayEnabled,
-    onWeatherOverlayChange,
-    statusOverlaysEnabled,
-    onStatusOverlaysChange,
-    grassEnabled,
-    onGrassChange,
-    alwaysShowPlayerNames,
-    onAlwaysShowPlayerNamesChange,
     playerStats,
     playerAchievements,
     achievementDefinitions,
     localPlayerIdentity,
     onTitleSelect,
 }) => {
+    const {
+        treeShadowsEnabled,
+        setTreeShadowsEnabled: onTreeShadowsChange,
+        weatherOverlayEnabled,
+        setWeatherOverlayEnabled: onWeatherOverlayChange,
+        statusOverlaysEnabled,
+        setStatusOverlaysEnabled: onStatusOverlaysChange,
+        grassEnabled,
+        setGrassEnabled: onGrassChange,
+        alwaysShowPlayerNames,
+        setAlwaysShowPlayerNames: onAlwaysShowPlayerNamesChange,
+    } = useSettings();
+
     const handleBackdropClick = (e: React.MouseEvent) => {
         if (e.target === e.currentTarget) {
             onBack();
