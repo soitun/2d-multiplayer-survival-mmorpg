@@ -25,16 +25,16 @@ export const LARGE_BOX_WIDTH = 96;  // Larger dimensions for large box
 export const LARGE_BOX_HEIGHT = 96;
 export const REFRIGERATOR_WIDTH = 96;  // Refrigerator dimensions (squared)
 export const REFRIGERATOR_HEIGHT = 96;
-export const COMPOST_WIDTH = 256;  // Compost box dimensions (larger than normal box)
-export const COMPOST_HEIGHT = 256;
+export const COMPOST_WIDTH = 192;  // Compost box dimensions (slightly smaller than 256 original)
+export const COMPOST_HEIGHT = 192;
 export const BACKPACK_WIDTH = 64;
 export const BACKPACK_HEIGHT = 64;
 export const REPAIR_BENCH_WIDTH = 192;  // 25% smaller: 256 * 0.75 = 192
 export const REPAIR_BENCH_HEIGHT = 192;
 export const COOKING_STATION_WIDTH = 192;  // Same size as repair bench (192x192)
 export const COOKING_STATION_HEIGHT = 192;
-export const SCARECROW_WIDTH = 256;  // Scarecrow dimensions - tall figure
-export const SCARECROW_HEIGHT = 256;
+export const SCARECROW_WIDTH = 160;  // Scarecrow dimensions - tall figure (slightly smaller)
+export const SCARECROW_HEIGHT = 160;
 export const MILITARY_RATION_WIDTH = 64;  // Military ration dimensions
 export const MILITARY_RATION_HEIGHT = 64;
 export const MINE_CART_WIDTH = 128;  // Mine cart dimensions (quarry-exclusive) - rendered at 128x128px
@@ -163,6 +163,14 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 SHAKE_INTENSITY_PX
             );
 
+            // NOON FIX: At noon, shadows appear too far below (detached from entity)
+            let noonExtraOffset = 0;
+            if (cycleProgress >= 0.35 && cycleProgress < 0.55) {
+                const noonT = (cycleProgress - 0.35) / 0.20;
+                const noonFactor = 1.0 - Math.abs(noonT - 0.5) * 2.0;
+                noonExtraOffset = noonFactor * imageDrawHeight * 0.25;
+            }
+
             drawDynamicGroundShadow({
                 ctx,
                 entityImage,
@@ -174,7 +182,7 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 maxStretchFactor: 1.2, 
                 minStretchFactor: 0.1,  
                 shadowBlur: 2,         
-                pivotYOffset: 35,
+                pivotYOffset: 35 + noonExtraOffset,
                 // NEW: Pass shake offsets so shadow moves with the wooden storage box
                 shakeOffsetX,
                 shakeOffsetY       
@@ -215,7 +223,7 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
 /**
  * Get box dimensions based on type
  */
-function getBoxDimensions(boxType: number): { width: number; height: number } {
+export function getBoxDimensions(boxType: number): { width: number; height: number } {
     switch (boxType) {
         case BOX_TYPE_LARGE:
             return { width: LARGE_BOX_WIDTH, height: LARGE_BOX_HEIGHT };

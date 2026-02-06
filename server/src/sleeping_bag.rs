@@ -15,7 +15,7 @@ pub(crate) const SLEEPING_BAG_COLLISION_Y_OFFSET: f32 = 5.0; // Low profile
 pub(crate) const PLAYER_SLEEPING_BAG_COLLISION_DISTANCE_SQUARED: f32 = (super::PLAYER_RADIUS + SLEEPING_BAG_COLLISION_RADIUS) * (super::PLAYER_RADIUS + SLEEPING_BAG_COLLISION_RADIUS);
 const SLEEPING_BAG_INTERACTION_DISTANCE_SQUARED: f32 = 64.0 * 64.0; // Same as box/campfire
 pub(crate) const SLEEPING_BAG_SLEEPING_BAG_COLLISION_DISTANCE_SQUARED: f32 = (SLEEPING_BAG_COLLISION_RADIUS * 2.0) * (SLEEPING_BAG_COLLISION_RADIUS * 2.0);
-const PLACEMENT_RANGE_SQ: f32 = 96.0 * 96.0; // Standard placement range
+const PLACEMENT_RANGE_SQ: f32 = 128.0 * 128.0; // Increased placement range for 96x96 sleeping bag
 
 // --- Deterioration Constants ---
 const SLEEPING_BAG_DETERIORATION_CHECK_INTERVAL_SECS: i64 = 3600; // Check every hour
@@ -177,7 +177,7 @@ pub fn place_sleeping_bag(ctx: &ReducerContext, item_instance_id: u64, world_x: 
     let chunk_idx = calculate_chunk_index(world_x, world_y);
     // Adjust Y position to compensate for client-side bottom-center anchoring
     // Client renders at posY - drawHeight, so we add half height to center on click position
-    let adjusted_y = world_y + 32.0; // Half of SLEEPING_BAG_HEIGHT (64/2 = 32)
+    let adjusted_y = world_y + 48.0; // Half of SLEEPING_BAG_HEIGHT (96/2 = 48)
     let new_bag = SleepingBag {
         id: 0, // Auto-incremented
         pos_x: world_x,

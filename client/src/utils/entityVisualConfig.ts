@@ -85,24 +85,37 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   },
   
   // Storage containers
+  // NOTE: Server adds BOX_COLLISION_Y_OFFSET (+52) to Y for all box types.
+  // Stored posY = worldY + 52. Render: drawY = posY - height - 20 = worldY - height + 32.
+  // Preview: previewTopY = (mouseY + offset) - height/2. For match: offset = -height/2 + 32.
   wooden_storage_box: {
     centerOffsetX: 0,
-    centerOffsetY: -58,
+    centerOffsetY: -52,   // Relative to stored posY: -(64/2 + 20) = -52
     width: 64,
-    height: 72,
-    placementYOffset: 0,
+    height: 64,
+    placementYOffset: 0,  // -64/2 + 32 = 0 (server +52 cancels out)
     spriteWidth: 64,
     spriteHeight: 64,
   },
   
+  large_wooden_storage_box: {
+    centerOffsetX: 0,
+    centerOffsetY: -68,   // Relative to stored posY: -(96/2 + 20) = -68
+    width: 96,
+    height: 96,
+    placementYOffset: -16, // -96/2 + 32 = -16
+    spriteWidth: 96,
+    spriteHeight: 96,
+  },
+  
   compost: {
     centerOffsetX: 0,
-    centerOffsetY: -84,   // Sprite renders at posY - 148, center at posY - 84
-    width: 80,            // Interaction box width (wider than regular box)
-    height: 80,           // Interaction box height
-    placementYOffset: -32, // Compensate for 128px sprite vs 64px normal box (server adds +52, but larger sprite)
-    spriteWidth: 128,
-    spriteHeight: 128,
+    centerOffsetY: -116,  // Relative to stored posY: -(192/2 + 20) = -116
+    width: 192,           // Match actual sprite size
+    height: 192,
+    placementYOffset: -64, // -192/2 + 32 = -64
+    spriteWidth: 192,
+    spriteHeight: 192,
   },
   
   refrigerator: {
@@ -117,32 +130,32 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   repair_bench: {
     centerOffsetX: 0,
-    centerOffsetY: -70,   // Visual center for interaction box
-    width: 90,            // Interaction box width
-    height: 90,           // Interaction box height
-    placementYOffset: -60, // Adjusted to match actual placement position
+    centerOffsetY: -116,  // Relative to stored posY: -(192/2 + 20) = -116
+    width: 192,           // Match actual sprite size
+    height: 192,
+    placementYOffset: -64, // -192/2 + 32 = -64
     spriteWidth: 192,
     spriteHeight: 192,
   },
   
   cooking_station: {
     centerOffsetX: 0,
-    centerOffsetY: -70,   // Visual center for interaction box
-    width: 90,            // Interaction box width
-    height: 90,           // Interaction box height
-    placementYOffset: -60, // Adjusted to match actual placement position
-    spriteWidth: 192,     // Matches actual placed sprite size (same as repair bench)
+    centerOffsetY: -116,  // Relative to stored posY: -(192/2 + 20) = -116
+    width: 192,           // Match actual sprite size
+    height: 192,
+    placementYOffset: -64, // -192/2 + 32 = -64
+    spriteWidth: 192,
     spriteHeight: 192,
   },
   
   scarecrow: {
     centerOffsetX: 0,
-    centerOffsetY: -84,   // Sprite is 96x128, renders similarly to cooking_station
-    width: 80,            // Interaction box width - narrower than cooking station
-    height: 120,          // Interaction box height - tall figure
-    placementYOffset: -32, // Compensate for taller sprite vs 64px normal box
-    spriteWidth: 96,
-    spriteHeight: 128,
+    centerOffsetY: -100,  // Relative to stored posY: -(160/2 + 20) = -100
+    width: 160,           // Match actual sprite size (160x160)
+    height: 160,
+    placementYOffset: -48, // -160/2 + 32 = -48
+    spriteWidth: 160,
+    spriteHeight: 160,
   },
   
   military_ration: {
@@ -355,12 +368,12 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   sleeping_bag: {
     centerOffsetX: 0,
-    centerOffsetY: 0,
-    width: 128,
-    height: 128,
-    placementYOffset: 0,
-    spriteWidth: 128,
-    spriteHeight: 128,
+    centerOffsetY: -48,   // Relative to stored posY: -(96/2) = -48 (no -20 render offset for sleeping bag)
+    width: 96,
+    height: 96,
+    placementYOffset: 0,  // Server adds +48 (half height), offset = 48 - 96/2 = 0
+    spriteWidth: 96,
+    spriteHeight: 96,
   },
   
   knocked_out_player: {

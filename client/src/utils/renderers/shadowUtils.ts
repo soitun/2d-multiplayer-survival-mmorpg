@@ -11,10 +11,11 @@ export function drawShadow(
   centerX: number,
   baseY: number, 
   radiusX: number,
-  radiusY: number
+  radiusY: number,
+  alpha: number = 0.5 // Match dynamic ground shadow's maxShadowAlpha
 ) {
   ctx.save();
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.35)'; // 35% opacity black
+  ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`; // Configurable opacity, default 0.5 to match dynamic shadow
   ctx.beginPath();
   // Draw an ellipse centered horizontally at centerX, vertically at baseY
   ctx.ellipse(centerX, baseY, radiusX, radiusY, 0, 0, Math.PI * 2);

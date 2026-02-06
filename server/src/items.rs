@@ -376,11 +376,67 @@ pub fn seed_food_poisoning_risks(ctx: &ReducerContext) -> Result<(), String> {
     let mut seeded_count = 0;
 
     // Define food poisoning risks: (item_name, chance%, damage_per_tick, duration_secs, tick_interval_secs)
+    // Organized by risk category for clarity
     let food_risks_data = vec![
-        ("Raw Human Flesh", 100.0, 2.0, 15.0, 1.5), // 100% chance, 2 damage every 1.5s for 15s = 20 total damage
-        ("Mushroom", 10.0, 1.0, 8.0, 2.0),          // 10% chance, 1 damage every 2s for 8s = 4 total damage
-        ("Raw Corn", 5.0, 0.5, 6.0, 2.0),           // 5% chance, 0.5 damage every 2s for 6s = 1.5 total damage
-        ("Raw Potato", 3.0, 0.5, 4.0, 2.0),         // 3% chance, 0.5 damage every 2s for 4s = 1 total damage
+        // === EXTREMELY DANGEROUS (Toxic/Poisonous) ===
+        ("Raw Human Flesh", 100.0, 2.0, 15.0, 1.5),      // 100% - prion disease, always dangerous
+        ("Destroying Angel", 95.0, 4.0, 20.0, 1.0),      // 95% - one of deadliest mushrooms, severe liver damage
+        ("Deadly Webcap", 90.0, 3.5, 18.0, 1.0),         // 90% - deadly nephrotoxic mushroom
+        ("Fly Agaric", 75.0, 2.5, 12.0, 1.5),            // 75% - toxic psychoactive, can cause organ damage
+        ("Henbane", 70.0, 2.0, 10.0, 1.5),               // 70% - toxic plant with dangerous alkaloids
+        
+        // === HIGH RISK (Raw Predator/Scavenger Meat - Parasites, Trichinosis) ===
+        ("Raw Bear Meat", 45.0, 1.5, 12.0, 2.0),         // 45% - high trichinosis risk in bears
+        ("Raw Wolverine Meat", 40.0, 1.5, 10.0, 2.0),    // 40% - scavenger, high parasite load
+        ("Raw Wolf Meat", 35.0, 1.2, 10.0, 2.0),         // 35% - predator meat, parasites common
+        ("Raw Fox Meat", 30.0, 1.0, 8.0, 2.0),           // 30% - wild canid, parasites
+        ("Raw Walrus Meat", 30.0, 1.2, 10.0, 2.0),       // 30% - trichinosis risk in marine mammals
+        
+        // === MEDIUM-HIGH RISK (Raw Seafood - Bacteria, Parasites) ===
+        ("Raw Sea Urchin", 25.0, 1.0, 8.0, 2.0),         // 25% - raw roe can harbor bacteria
+        ("Raw Blue Mussel", 30.0, 1.2, 10.0, 2.0),       // 30% - filter feeders accumulate toxins/bacteria
+        ("Raw Black Katy Chiton", 25.0, 1.0, 8.0, 2.0),  // 25% - raw shellfish risk
+        ("Raw Crab Meat", 20.0, 0.8, 6.0, 2.0),          // 20% - less risky but still raw shellfish
+        
+        // === MEDIUM RISK (Raw Fish - Parasites, Must Be Prepared Properly) ===
+        ("Raw Halibut", 20.0, 0.8, 6.0, 2.0),            // 20% - large bottom fish, parasites
+        ("Raw King Salmon", 18.0, 0.7, 6.0, 2.0),        // 18% - salmon can have parasites
+        ("Raw Sockeye Salmon", 18.0, 0.7, 6.0, 2.0),     // 18% - salmon parasites
+        ("Raw Pink Salmon", 18.0, 0.7, 6.0, 2.0),        // 18% - salmon parasites
+        ("Raw Steelhead", 15.0, 0.6, 5.0, 2.0),          // 15% - trout family
+        ("Raw Pacific Cod", 15.0, 0.6, 5.0, 2.0),        // 15% - white fish, anisakis risk
+        ("Raw Rockfish", 15.0, 0.6, 5.0, 2.0),           // 15% - deep water fish
+        ("Raw Dolly Varden", 12.0, 0.5, 5.0, 2.0),       // 12% - char family
+        ("Raw Sculpin", 12.0, 0.5, 5.0, 2.0),            // 12% - spiny fish, bacteria
+        ("Raw Greenling", 10.0, 0.5, 4.0, 2.0),          // 10% - coastal fish
+        ("Raw Herring", 10.0, 0.5, 4.0, 2.0),            // 10% - small oily fish
+        ("Raw Smelt", 8.0, 0.4, 4.0, 2.0),               // 8% - small fish, lower risk
+        ("Raw Twigfish", 8.0, 0.4, 4.0, 2.0),            // 8% - small bony fish
+        ("Raw Shark Meat", 25.0, 1.0, 8.0, 2.0),         // 25% - can accumulate mercury/toxins
+        
+        // === MEDIUM RISK (Raw Game Meat - Parasites) ===
+        ("Raw Caribou Meat", 20.0, 0.8, 6.0, 2.0),       // 20% - wild game, parasites possible
+        ("Raw Hare Meat", 15.0, 0.6, 5.0, 2.0),          // 15% - tularemia risk in hares
+        ("Raw Viper Meat", 15.0, 0.6, 5.0, 2.0),         // 15% - snake parasites, bacteria
+        
+        // === LOW-MEDIUM RISK (Raw Birds - Salmonella, Parasites) ===
+        ("Raw Owl Meat", 18.0, 0.7, 6.0, 2.0),           // 18% - raptor, accumulates toxins from prey
+        ("Raw Crow Meat", 15.0, 0.6, 5.0, 2.0),          // 15% - scavenger bird, bacteria
+        ("Raw Tern Meat", 12.0, 0.5, 4.0, 2.0),          // 12% - seabird
+        ("Raw Vole Meat", 10.0, 0.4, 4.0, 2.0),          // 10% - tiny, lower risk if fresh
+        
+        // === LOW RISK (Irritating/Mildly Risky Plants) ===
+        ("Nettle Leaves", 20.0, 0.8, 6.0, 2.0),          // 20% - formic acid stings, irritation
+        ("Shaggy Ink Cap", 15.0, 0.6, 5.0, 2.0),         // 15% - must be eaten fresh, deteriorates
+        ("Seaweed", 10.0, 0.4, 4.0, 2.0),                // 10% - raw ocean bacteria
+        ("Raw Milk", 8.0, 0.4, 4.0, 2.0),                // 8% - unpasteurized, bacteria risk
+        
+        // === VERY LOW RISK (Raw Vegetables - Minimal But Possible) ===
+        ("Raw Corn", 5.0, 0.5, 6.0, 2.0),                // 5% - generally safe raw
+        ("Raw Potato", 4.0, 0.4, 4.0, 2.0),              // 4% - solanine in green parts
+        ("Pumpkin", 3.0, 0.3, 3.0, 2.0),                 // 3% - generally safe raw
+        ("Chanterelle", 5.0, 0.4, 4.0, 2.0),             // 5% - safe mushroom but raw is risky
+        ("Porcini", 5.0, 0.4, 4.0, 2.0),                 // 5% - safe mushroom but better cooked
     ];
 
     for (item_name, chance_percent, damage_per_tick, duration_seconds, tick_interval_seconds) in food_risks_data {

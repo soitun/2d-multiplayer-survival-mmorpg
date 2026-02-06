@@ -129,6 +129,14 @@ pub fn place_repair_bench(
         return Err("This item is not a Repair Bench".to_string());
     }
     
+    // Validate placement distance (192px sprite, allow 200px range)
+    const REPAIR_BENCH_PLACEMENT_MAX_DISTANCE: f32 = 200.0;
+    let dx = player.position_x - pos_x;
+    let dy = player.position_y - pos_y;
+    if (dx * dx + dy * dy) > (REPAIR_BENCH_PLACEMENT_MAX_DISTANCE * REPAIR_BENCH_PLACEMENT_MAX_DISTANCE) {
+        return Err("Placement location is too far away.".to_string());
+    }
+    
     // Calculate chunk index for the position
     let chunk_index = calculate_chunk_index(pos_x, pos_y);
     

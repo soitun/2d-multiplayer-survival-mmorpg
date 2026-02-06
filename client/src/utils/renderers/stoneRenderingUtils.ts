@@ -710,6 +710,14 @@ const stoneConfig: GroundEntityConfig<Stone> = {
             }
         }
 
+        // NOON FIX: At noon, shadows appear too far below (detached from entity)
+        let noonExtraOffset = 0;
+        if (cycleProgress >= 0.35 && cycleProgress < 0.55) {
+            const noonT = (cycleProgress - 0.35) / 0.20;
+            const noonFactor = 1.0 - Math.abs(noonT - 0.5) * 2.0;
+            noonExtraOffset = noonFactor * imageDrawHeight * 0.2; // Stones need smaller offset
+        }
+
         drawDynamicGroundShadow({
             ctx,
             entityImage,
@@ -720,8 +728,8 @@ const stoneConfig: GroundEntityConfig<Stone> = {
             cycleProgress,
             maxStretchFactor: 1.5,
             minStretchFactor: 0.15,
-            shadowBlur: 1,
-            pivotYOffset: 10,
+            shadowBlur: 2, // Standardized to match other world objects
+            pivotYOffset: 10 + noonExtraOffset,
             // NEW: Pass shake offsets so shadow moves with the stone
             shakeOffsetX,
             shakeOffsetY

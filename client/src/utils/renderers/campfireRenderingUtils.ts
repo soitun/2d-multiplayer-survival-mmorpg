@@ -74,6 +74,14 @@ const campfireConfig: GroundEntityConfig<Campfire> = {
                 SHAKE_INTENSITY_PX
             );
 
+            // NOON FIX: At noon, shadows appear too far below (detached from entity)
+            let noonExtraOffset = 0;
+            if (cycleProgress >= 0.35 && cycleProgress < 0.55) {
+                const noonT = (cycleProgress - 0.35) / 0.20;
+                const noonFactor = 1.0 - Math.abs(noonT - 0.5) * 2.0;
+                noonExtraOffset = noonFactor * imageDrawHeight * 0.25;
+            }
+
             drawDynamicGroundShadow({
                 ctx,
                 entityImage,
@@ -85,7 +93,7 @@ const campfireConfig: GroundEntityConfig<Campfire> = {
                 maxStretchFactor: 1.2, 
                 minStretchFactor: 0.1,  
                 shadowBlur: 2,         
-                pivotYOffset: 25,
+                pivotYOffset: 25 + noonExtraOffset,
                 // NEW: Pass shake offsets so shadow moves with the campfire
                 shakeOffsetX,
                 shakeOffsetY      

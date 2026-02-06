@@ -1515,32 +1515,35 @@ pub fn validate_spawn_location(
                 return false;
             }
             
-            // Check only the 8 immediate neighbors (no sqrt, no unnecessary iterations)
-            // This is O(8) instead of O(25) with sqrt calculations
-            const NEIGHBOR_OFFSETS: [(i32, i32); 8] = [
-                (-1, -1), (0, -1), (1, -1),
-                (-1, 0),           (1, 0),
-                (-1, 1),  (0, 1),  (1, 1),
-            ];
+            // Check a 3-tile radius to ensure seaweed spawns well offshore
+            // This prevents seaweed from appearing too close to the beach/shore
+            const MIN_SHORE_DISTANCE_TILES: i32 = 3;
             
-            for (dx, dy) in NEIGHBOR_OFFSETS {
-                let check_x = tile_x + dx;
-                let check_y = tile_y + dy;
-                
-                // Bounds check
-                if check_x < 0 || check_y < 0 || 
-                   check_x >= WORLD_WIDTH_TILES as i32 || check_y >= WORLD_WIDTH_TILES as i32 {
-                    continue;
-                }
-                
-                if let Some(nearby_tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
-                    // If nearby tile is land/beach, this is too close to shore
-                    if !nearby_tile_type.is_water() && nearby_tile_type != TileType::Quarry {
-                        return false;
+            for dy in -MIN_SHORE_DISTANCE_TILES..=MIN_SHORE_DISTANCE_TILES {
+                for dx in -MIN_SHORE_DISTANCE_TILES..=MIN_SHORE_DISTANCE_TILES {
+                    // Skip the center tile (already checked above)
+                    if dx == 0 && dy == 0 {
+                        continue;
+                    }
+                    
+                    let check_x = tile_x + dx;
+                    let check_y = tile_y + dy;
+                    
+                    // Bounds check
+                    if check_x < 0 || check_y < 0 || 
+                       check_x >= WORLD_WIDTH_TILES as i32 || check_y >= WORLD_WIDTH_TILES as i32 {
+                        continue;
+                    }
+                    
+                    if let Some(nearby_tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
+                        // If nearby tile is land/beach, this is too close to shore
+                        if !nearby_tile_type.is_water() && nearby_tile_type != TileType::Quarry {
+                            return false;
+                        }
                     }
                 }
             }
-            true // Valid underwater spawn location
+            true // Valid underwater spawn location - at least 3 tiles from shore
         }
     }
 }

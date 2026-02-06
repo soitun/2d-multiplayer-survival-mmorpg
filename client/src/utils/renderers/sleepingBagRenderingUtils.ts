@@ -5,8 +5,8 @@ import { imageManager } from './imageManager';
 import { renderEntityHealthBar } from './healthBarUtils';
 
 // --- Constants ---
-export const SLEEPING_BAG_WIDTH = 128;
-export const SLEEPING_BAG_HEIGHT = 128;
+export const SLEEPING_BAG_WIDTH = 96;
+export const SLEEPING_BAG_HEIGHT = 96;
 const SHAKE_DURATION_MS = 150;
 const SHAKE_INTENSITY_PX = 6;
 

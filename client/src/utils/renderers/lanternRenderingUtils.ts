@@ -159,7 +159,7 @@ const lanternConfig: GroundEntityConfig<Lantern> = {
             // pivotYOffset should be proportional to sprite height
             const isWard = entity.lanternType !== LANTERN_TYPE_LANTERN;
             const pivotYOffset = isWard ? 60 : 15; // Larger offset for wards to align shadow with base
-            const shadowBlur = isWard ? 3 : 1;     // Softer shadow for larger wards
+            const shadowBlur = isWard ? 3 : 2;     // Standardized: 2 for base objects, 3 for larger wards
             const maxStretchFactor = isWard ? 1.2 : 1.1;
             const minStretchFactor = isWard ? 0.3 : 0.2;
 

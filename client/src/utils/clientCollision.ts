@@ -1038,7 +1038,7 @@ export const COLLISION_RADII = {
   STONE: 28,       // Smaller radius for flattened stones
   RUNE_STONE: 24,  // Half-width for 48x48 AABB collision (matches server-side RUNE_STONE_AABB_HALF_WIDTH)
   CAIRN: 48,       // Half-width for 96x48 AABB collision (matches server-side CAIRN_AABB_HALF_WIDTH)
-  STORAGE_BOX: 25, // Much tighter radius for boxes
+  STORAGE_BOX: 20, // Match small furnace collision radius for consistent feel
   RAIN_COLLECTOR: 30, // 256x256 sprite with stone base ~160px wide (matches server)
   FURNACE: 20, // Adjusted radius for easier bottom approach while keeping top collision
   BARBECUE: 20, // Same as furnace (similar size appliance)
@@ -1062,7 +1062,7 @@ export const COLLISION_OFFSETS = {
   STONE: { x: 0, y: -72 },     // Small circle positioned at visual stone base
   RUNE_STONE: { x: 0, y: -24 }, // Y offset for 48x48 AABB collision center (matches server-side)
   CAIRN: { x: 0, y: -24 },     // Y offset for 96x48 AABB collision center (matches server-side CAIRN_COLLISION_Y_OFFSET)
-  STORAGE_BOX: { x: 0, y: -70 }, // Small circle positioned at visual box base
+  STORAGE_BOX: { x: 0, y: -50 }, // Match small furnace collision offset (starts lower for better approach)
   RAIN_COLLECTOR: { x: 0, y: -30 }, // Pushed up to align with stone base (matches server offset of 0.0)
   FURNACE: { x: 0, y: -50 }, // Adjusted center to extend collision below while keeping top boundary
   BARBECUE: { x: 0, y: 0 }, // Collision at posY (matches server-side BARBECUE_COLLISION_Y_OFFSET: 0.0)

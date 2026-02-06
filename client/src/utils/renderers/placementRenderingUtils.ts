@@ -16,7 +16,7 @@ import { SLEEPING_BAG_WIDTH, SLEEPING_BAG_HEIGHT } from './sleepingBagRenderingU
 import { STASH_WIDTH, STASH_HEIGHT } from './stashRenderingUtils';
 import { SHELTER_RENDER_WIDTH, SHELTER_RENDER_HEIGHT } from './shelterRenderingUtils';
 import { HEARTH_WIDTH, HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from './hearthRenderingUtils'; // ADDED: Hearth dimensions
-import { COMPOST_WIDTH, COMPOST_HEIGHT, REFRIGERATOR_WIDTH, REFRIGERATOR_HEIGHT, LARGE_BOX_WIDTH, LARGE_BOX_HEIGHT, REPAIR_BENCH_WIDTH, REPAIR_BENCH_HEIGHT, COOKING_STATION_WIDTH, COOKING_STATION_HEIGHT, PLAYER_BEEHIVE_WIDTH, PLAYER_BEEHIVE_HEIGHT } from './woodenStorageBoxRenderingUtils'; // ADDED: Compost, Refrigerator, Large Box, Repair Bench, Cooking Station, and Beehive dimensions
+import { COMPOST_WIDTH, COMPOST_HEIGHT, REFRIGERATOR_WIDTH, REFRIGERATOR_HEIGHT, LARGE_BOX_WIDTH, LARGE_BOX_HEIGHT, REPAIR_BENCH_WIDTH, REPAIR_BENCH_HEIGHT, COOKING_STATION_WIDTH, COOKING_STATION_HEIGHT, PLAYER_BEEHIVE_WIDTH, PLAYER_BEEHIVE_HEIGHT, SCARECROW_WIDTH, SCARECROW_HEIGHT } from './woodenStorageBoxRenderingUtils'; // ADDED: Compost, Refrigerator, Large Box, Repair Bench, Cooking Station, Scarecrow, and Beehive dimensions
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, worldPixelsToFoundationCell, foundationCellToWorldCenter } from '../../config/gameConfig';
 import { DbConnection } from '../../generated';
 import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement, isPineconeBlockedOnBeach, isBirchCatkinBlockedOnAlpine, requiresTemperateOnlyPlacement } from '../plantsUtils';
@@ -931,12 +931,19 @@ export function isPlacementTooFar(
         const LARGE_OBJECT_PLACEMENT_MAX_DISTANCE = 200.0;
         clientPlacementRangeSq = LARGE_OBJECT_PLACEMENT_MAX_DISTANCE * LARGE_OBJECT_PLACEMENT_MAX_DISTANCE;
     } else if (placementInfo.iconAssetName === 'cooking_station.png' ||
-               placementInfo.iconAssetName === 'repair_bench.png') {
-        // Medium-large 192x192 objects need increased placement range (160px)
-        const MEDIUM_LARGE_OBJECT_PLACEMENT_MAX_DISTANCE = 160.0;
+               placementInfo.iconAssetName === 'repair_bench.png' ||
+               placementInfo.iconAssetName === 'scarecrow.png' ||
+               placementInfo.iconAssetName === 'compost.png') {
+        // Medium-large objects (160-192px) need increased placement range (200px)
+        const MEDIUM_LARGE_OBJECT_PLACEMENT_MAX_DISTANCE = 200.0;
         clientPlacementRangeSq = MEDIUM_LARGE_OBJECT_PLACEMENT_MAX_DISTANCE * MEDIUM_LARGE_OBJECT_PLACEMENT_MAX_DISTANCE;
+    } else if (placementInfo.iconAssetName === 'large_wood_box.png' ||
+               placementInfo.iconAssetName === 'sleeping_bag.png') {
+        // Medium objects (96px) need slightly increased placement range (120px)
+        const MEDIUM_OBJECT_PLACEMENT_MAX_DISTANCE = 120.0;
+        clientPlacementRangeSq = MEDIUM_OBJECT_PLACEMENT_MAX_DISTANCE * MEDIUM_OBJECT_PLACEMENT_MAX_DISTANCE;
     } else {
-        // Use standard interaction distance for other items (campfires, lanterns, boxes, etc.)
+        // Use standard interaction distance for other items (campfires, lanterns, small boxes, etc.)
         clientPlacementRangeSq = PLAYER_BOX_INTERACTION_DISTANCE_SQUARED * 1.1;
     }
 
@@ -1990,9 +1997,9 @@ export function renderPlacementPreview({
         drawWidth = 132;
         drawHeight = 132;
     } else if (placementInfo.iconAssetName === 'scarecrow.png') {
-        // Scarecrow preview dimensions (matches actual rendering - 96x128)
-        drawWidth = 96; // SCARECROW_WIDTH
-        drawHeight = 128; // SCARECROW_HEIGHT
+        // Scarecrow preview dimensions (matches actual rendering - square image)
+        drawWidth = SCARECROW_WIDTH;
+        drawHeight = SCARECROW_HEIGHT;
     } else if (placementInfo.iconAssetName === 'large_wood_box.png') {
         // Large wooden box preview dimensions (matches actual rendering)
         drawWidth = LARGE_BOX_WIDTH; // 96px
@@ -2388,6 +2395,30 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'reed_rain_collector.png') {
         // Use centralized visual config for Reed Rain Collector
         const config = ENTITY_VISUAL_CONFIG.rain_collector;
+        const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
+        adjustedX = preview.x;
+        adjustedY = preview.y;
+        drawWidth = preview.width;
+        drawHeight = preview.height;
+    } else if (placementInfo.iconAssetName === 'sleeping_bag.png') {
+        // Use centralized visual config for sleeping bag (bottom-anchored)
+        const config = ENTITY_VISUAL_CONFIG.sleeping_bag;
+        const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
+        adjustedX = preview.x;
+        adjustedY = preview.y;
+        drawWidth = preview.width;
+        drawHeight = preview.height;
+    } else if (placementInfo.iconAssetName === 'large_wood_box.png') {
+        // Use centralized visual config for large wooden storage box (bottom-anchored)
+        const config = ENTITY_VISUAL_CONFIG.large_wooden_storage_box;
+        const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
+        adjustedX = preview.x;
+        adjustedY = preview.y;
+        drawWidth = preview.width;
+        drawHeight = preview.height;
+    } else if (placementInfo.iconAssetName === 'wooden_storage_box.png') {
+        // Use centralized visual config for wooden storage box (bottom-anchored)
+        const config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
         const preview = getPlacementPreviewPosition(snappedX, snappedY, config);
         adjustedX = preview.x;
         adjustedY = preview.y;

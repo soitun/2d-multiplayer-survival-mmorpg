@@ -882,25 +882,26 @@ export const renderPlayer = (
       const shadowScale = 1.0 - jumpProgress * 0.4; 
       
       // Apply realistic shadow effects based on jump height
-      const shadowAlpha = 0.5 * (1.0 - jumpProgress * 0.3); // Shadow gets fainter when higher (darker base)
-      const shadowBlur = 3 + jumpProgress * 4; // Shadow gets blurrier when higher (starts with base blur)
+      // Base alpha 0.5 matches dynamic ground shadow, reduced when jumping
+      const shadowAlpha = 0.5 * (1.0 - jumpProgress * 0.3);
+      const shadowBlurAmount = 3 + jumpProgress * 4; // Shadow gets blurrier when higher (starts with base blur)
       
       ctx.save();
-      // Apply blur and alpha effects
-      if (shadowBlur > 0) {
-          ctx.filter = `blur(${shadowBlur}px)`;
+      // Apply blur effect only (alpha is now passed directly to drawShadow)
+      if (shadowBlurAmount > 0) {
+          ctx.filter = `blur(${shadowBlurAmount}px)`;
       }
-      ctx.globalAlpha = shadowAlpha;
       
       drawShadow(
         ctx, 
         currentDisplayX, 
         currentDisplayY + shadowBaseYOffset + shadowYOffsetFromJump, 
         shadowBaseRadiusX * shadowScale, 
-        shadowBaseRadiusY * shadowScale  
+        shadowBaseRadiusY * shadowScale,
+        shadowAlpha // Pass alpha directly to drawShadow instead of using globalAlpha
       );
       
-      ctx.restore(); // Reset filter and alpha
+      ctx.restore(); // Reset filter
   }
   // --- End Draw Shadow ---
 

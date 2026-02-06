@@ -67,7 +67,7 @@ import {
 } from '../utils/renderers/hearthRenderingUtils'; // ADDED: Hearth interaction constants
 import { PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/playerCorpseRenderingUtils';
 import { PLAYER_TURRET_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/turretRenderingUtils';
-import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
+import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT, getBoxDimensions, BOX_TYPE_SCARECROW } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { PLAYER_DOOR_INTERACTION_DISTANCE_SQUARED, DOOR_RENDER_Y_OFFSET } from '../utils/renderers/doorRenderingUtils'; // ADDED: Door interaction distance and render offset
 import { PLAYER_ALK_STATION_INTERACTION_DISTANCE_SQUARED, ALK_STATION_Y_OFFSET } from '../utils/renderers/alkStationRenderingUtils'; // ADDED: ALK station interaction distance
 import { getResourceConfig } from '../utils/renderers/resourceConfigurations';
@@ -630,9 +630,14 @@ export function useInteractionFinder({
             // Find closest wooden storage box and check emptiness
             if (woodenStorageBoxes) {
                 woodenStorageBoxes.forEach((box) => {
+                    // Scarecrow is decorative only - no interaction, no blue box, no E label
+                    if (box.boxType === BOX_TYPE_SCARECROW) return;
+                    
                     // Use the visual center of the box (middle of the visible sprite)
                     // Rendering: drawY = entity.posY - drawHeight - 20, so visual center is halfway down
-                    const visualCenterY = box.posY - (BOX_HEIGHT / 2) - 20;
+                    // Use actual box dimensions per boxType for correct interaction on tall boxes
+                    const dims = getBoxDimensions(box.boxType);
+                    const visualCenterY = box.posY - (dims.height / 2) - 20;
                     
                     const dx = playerX - box.posX;
                     const dy = playerY - visualCenterY; // Use visual center for interaction distance

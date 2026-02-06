@@ -15,6 +15,10 @@ pub(crate) const BOX_COLLISION_RADIUS: f32 = 18.0; // Default collision radius f
 pub(crate) const BOX_COLLISION_Y_OFFSET: f32 = 52.0; // Match the placement offset for proper collision detection
 pub(crate) const PLAYER_BOX_COLLISION_DISTANCE_SQUARED: f32 = (super::PLAYER_RADIUS + BOX_COLLISION_RADIUS) * (super::PLAYER_RADIUS + BOX_COLLISION_RADIUS);
 const BOX_INTERACTION_DISTANCE_SQUARED: f32 = 96.0 * 96.0; // Increased from 64.0 * 64.0 for more lenient interaction
+// Placement distance limits per box type (server-side enforcement)
+const BOX_PLACEMENT_MAX_DISTANCE: f32 = 96.0;          // Small boxes (normal, refrigerator, military ration, mine cart)
+const LARGE_BOX_PLACEMENT_MAX_DISTANCE: f32 = 128.0;   // Large boxes
+const TALL_BOX_PLACEMENT_MAX_DISTANCE: f32 = 200.0;    // Tall structures (compost, scarecrow, cooking station, repair bench, beehive)
 pub const NUM_BOX_SLOTS: usize = 18;
 pub const NUM_LARGE_BOX_SLOTS: usize = 48;
 pub(crate) const BOX_BOX_COLLISION_DISTANCE_SQUARED: f32 = (BOX_COLLISION_RADIUS * 2.0) * (BOX_COLLISION_RADIUS * 2.0);
@@ -790,6 +794,18 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
             }
         }
         _ => return Err("Wooden Storage Box must be in inventory or hotbar to be placed.".to_string()),
+    }
+
+    // 2b. Validate Placement Distance
+    let max_placement_dist = match box_type {
+        BOX_TYPE_LARGE => LARGE_BOX_PLACEMENT_MAX_DISTANCE,
+        BOX_TYPE_COMPOST | BOX_TYPE_SCARECROW | BOX_TYPE_PLAYER_BEEHIVE => TALL_BOX_PLACEMENT_MAX_DISTANCE,
+        _ => BOX_PLACEMENT_MAX_DISTANCE,
+    };
+    let dx = player.position_x - world_x;
+    let dy = player.position_y - world_y;
+    if (dx * dx + dy * dy) > (max_placement_dist * max_placement_dist) {
+        return Err("Placement location is too far away.".to_string());
     }
 
     // 3. Validate Placement Location (Collision Checks)

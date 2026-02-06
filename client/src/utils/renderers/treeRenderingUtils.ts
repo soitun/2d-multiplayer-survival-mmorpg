@@ -1014,6 +1014,16 @@ const treeConfig: GroundEntityConfig<Tree> = {
         // This allows it to appear ON TOP of trees and players for a realistic shade effect.
         // See renderTreeCanopyShadowsOverlay() which is called in GameCanvas after entity rendering.
 
+        // NOON FIX: At noon, shadows appear too far below (detached from entity)
+        // because the shadow is very short but still starts from the base pivot.
+        // Add extra upward offset at noon to keep shadow visually attached to entity base.
+        let noonExtraOffset = 0;
+        if (cycleProgress >= 0.35 && cycleProgress < 0.55) {
+            const noonT = (cycleProgress - 0.35) / 0.20;
+            const noonFactor = 1.0 - Math.abs(noonT - 0.5) * 2.0;
+            noonExtraOffset = noonFactor * imageDrawHeight * 0.25; // Trees need moderate offset
+        }
+
         // Draw dynamic directional ground shadow (sun-based)
         drawDynamicGroundShadow({
             ctx,
@@ -1026,7 +1036,7 @@ const treeConfig: GroundEntityConfig<Tree> = {
             maxStretchFactor: 1.8,
             minStretchFactor: 0.15,
             shadowBlur: 2,
-            pivotYOffset: 25, // Positive offset moves anchor UP, aligning shadow with tree base
+            pivotYOffset: 25 + noonExtraOffset, // Positive offset moves anchor UP, aligning shadow with tree base
             // NEW: Pass shake offsets so shadow moves with the tree
             shakeOffsetX,
             shakeOffsetY

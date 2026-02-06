@@ -80,6 +80,14 @@ const furnaceConfig: GroundEntityConfig<Furnace> = {
                 SHAKE_INTENSITY_PX
             );
 
+            // NOON FIX: At noon, shadows appear too far below (detached from entity)
+            let noonExtraOffset = 0;
+            if (cycleProgress >= 0.35 && cycleProgress < 0.55) {
+                const noonT = (cycleProgress - 0.35) / 0.20;
+                const noonFactor = 1.0 - Math.abs(noonT - 0.5) * 2.0;
+                noonExtraOffset = noonFactor * imageDrawHeight * 0.25;
+            }
+
             drawDynamicGroundShadow({
                 ctx,
                 entityImage,
@@ -91,7 +99,7 @@ const furnaceConfig: GroundEntityConfig<Furnace> = {
                 maxStretchFactor: 1.1, // Slightly less dynamic than campfire 
                 minStretchFactor: 0.2,  // Heavier/more stable than campfire
                 shadowBlur: 3,         // Slightly more blur for bigger object
-                pivotYOffset: 30,      // Furnace is heavier, shadow anchor lower
+                pivotYOffset: 30 + noonExtraOffset,      // Furnace is heavier, shadow anchor lower
                 // Pass shake offsets so shadow moves with the furnace
                 shakeOffsetX,
                 shakeOffsetY      
@@ -166,6 +174,14 @@ const largeFurnaceConfig: GroundEntityConfig<Furnace> = {
                 SHAKE_INTENSITY_PX
             );
 
+            // NOON FIX: At noon, shadows appear too far below (detached from entity)
+            let noonExtraOffset = 0;
+            if (cycleProgress >= 0.35 && cycleProgress < 0.55) {
+                const noonT = (cycleProgress - 0.35) / 0.20;
+                const noonFactor = 1.0 - Math.abs(noonT - 0.5) * 2.0;
+                noonExtraOffset = noonFactor * imageDrawHeight * 0.3; // Large furnace needs more offset
+            }
+
             drawDynamicGroundShadow({
                 ctx,
                 entityImage,
@@ -176,8 +192,8 @@ const largeFurnaceConfig: GroundEntityConfig<Furnace> = {
                 cycleProgress,
                 maxStretchFactor: 1.1, // Slightly less dynamic than campfire 
                 minStretchFactor: 0.2,  // Heavier/more stable than campfire
-                shadowBlur: 5,         // More blur for larger object
-                pivotYOffset: 80,      // Large furnace is heavier, shadow anchor lower
+                shadowBlur: 3,         // Standardized to match other large objects
+                pivotYOffset: 80 + noonExtraOffset,      // Large furnace is heavier, shadow anchor lower
                 // Pass shake offsets so shadow moves with the furnace
                 shakeOffsetX,
                 shakeOffsetY      

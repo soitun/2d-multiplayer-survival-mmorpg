@@ -381,7 +381,7 @@ function renderSeaStack(
       cycleProgress,
       maxStretchFactor: 2.5, // Sea stacks cast longer shadows
       minStretchFactor: 0.3,  // Decent minimum shadow
-      shadowBlur: 4,
+      shadowBlur: 3, // Standardized to match other large objects
       pivotYOffset: -15, // Moderate offset - shadow starts close but has angular skew
     });
   }

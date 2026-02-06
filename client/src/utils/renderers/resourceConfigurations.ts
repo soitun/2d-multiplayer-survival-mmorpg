@@ -176,6 +176,20 @@ export function createResourceGroundConfig(resourceType: ResourceType): GroundEn
     
     drawCustomGroundShadow: (ctx, entity, entityImage, entityPosX, entityPosY, imageDrawWidth, imageDrawHeight, cycleProgress) => {
       const shadowConfig = config.shadowConfig;
+      
+      // NOON FIX: At noon, shadows appear too far below (detached from entity)
+      // because the shadow is very short but still starts from the base pivot.
+      // Add extra upward offset at noon to keep shadow visually attached to entity base.
+      // Noon is roughly cycleProgress 0.35-0.55, peak at 0.45
+      let noonExtraOffset = 0;
+      if (cycleProgress >= 0.35 && cycleProgress < 0.55) {
+        // Parabolic curve: 0 at edges (0.35, 0.55), max at center (0.45)
+        const noonT = (cycleProgress - 0.35) / 0.20; // 0 to 1 across noon period
+        const noonFactor = 1.0 - Math.abs(noonT - 0.5) * 2.0; // 0 at edges, 1 at peak
+        // Push shadow UP - smaller offset for resources (they're smaller than monuments)
+        noonExtraOffset = noonFactor * imageDrawHeight * 0.3;
+      }
+      
       drawDynamicGroundShadow({
         ctx,
         entityImage,
@@ -189,7 +203,7 @@ export function createResourceGroundConfig(resourceType: ResourceType): GroundEn
         maxStretchFactor: shadowConfig.maxStretchFactor,
         minStretchFactor: shadowConfig.minStretchFactor, // Now included to match player shadows
         shadowBlur: shadowConfig.shadowBlur,
-        pivotYOffset: shadowConfig.pivotYOffset,
+        pivotYOffset: shadowConfig.pivotYOffset + noonExtraOffset, // Add noon offset to push shadow up at noon
       });
     },
     

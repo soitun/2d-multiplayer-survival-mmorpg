@@ -79,6 +79,14 @@ pub fn place_cooking_station(
         return Err("This item is not a Cooking Station".to_string());
     }
     
+    // Validate placement distance (192px sprite, allow 200px range)
+    const COOKING_STATION_PLACEMENT_MAX_DISTANCE: f32 = 200.0;
+    let dx = player.position_x - pos_x;
+    let dy = player.position_y - pos_y;
+    if (dx * dx + dy * dy) > (COOKING_STATION_PLACEMENT_MAX_DISTANCE * COOKING_STATION_PLACEMENT_MAX_DISTANCE) {
+        return Err("Placement location is too far away.".to_string());
+    }
+    
     // Calculate chunk index for the position
     let chunk_index = calculate_chunk_index(pos_x, pos_y);
     

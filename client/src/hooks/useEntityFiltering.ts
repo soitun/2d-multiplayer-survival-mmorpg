@@ -68,6 +68,7 @@ import { InterpolatedGrassData } from './useGrassInterpolation'; // Import Inter
 import { COMPOUND_BUILDINGS, getBuildingWorldPosition, getBuildingYSortPosition, getAllCompoundBuildings } from '../config/compoundBuildings'; // Import compound buildings config
 import { hasActiveStoneDestruction, checkStoneDestructionVisibility } from '../utils/renderers/stoneRenderingUtils'; // Import stone destruction tracking
 import { hasActiveCoralDestruction, checkCoralDestructionVisibility } from '../utils/renderers/livingCoralRenderingUtils'; // Import coral destruction tracking
+import { BOX_TYPE_LARGE, BOX_TYPE_COMPOST, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW } from '../utils/renderers/woodenStorageBoxRenderingUtils'; // Import box type constants for y-sorting
 // Ward radius constants for expanded viewport filtering (to render ward circles even when ward is off-screen)
 import { 
   LANTERN_TYPE_LANTERN,
@@ -246,7 +247,6 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       return playerY + 48 + 2.0;
     case 'tree':
     case 'stone':
-    case 'wooden_storage_box':
     case 'stash':
     case 'campfire':
     case 'furnace':
@@ -259,6 +259,20 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       // Resources (piles): Subtract offset to ensure they render before monuments (underneath)
       // This ensures stone piles, wood piles, etc. render under buildings
       return entity.posY - 100;
+    case 'wooden_storage_box': {
+      // Tall box types (repair bench, cooking station, scarecrow, compost, large)
+      // need proper y-sorting using actual posY so player walks behind them correctly.
+      // Small/flat boxes keep the -100 offset to render under buildings.
+      const box = entity as SpacetimeDBWoodenStorageBox;
+      if (box.boxType === BOX_TYPE_LARGE ||
+          box.boxType === BOX_TYPE_COMPOST ||
+          box.boxType === BOX_TYPE_REPAIR_BENCH ||
+          box.boxType === BOX_TYPE_COOKING_STATION ||
+          box.boxType === BOX_TYPE_SCARECROW) {
+        return entity.posY;
+      }
+      return entity.posY - 100;
+    }
     case 'rain_collector':
     case 'animal_corpse':
     case 'player_corpse':

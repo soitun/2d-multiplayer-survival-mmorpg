@@ -218,6 +218,19 @@ pub fn place_stash(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, wo
     // Check if position is within monument zones (ALK stations, rune stones, hot springs, quarries)
     crate::building::check_monument_zone_placement(ctx, world_x, world_y)?;
 
+    // Validate placement distance (small 48x48 item, allow 96px range)
+    const STASH_PLACEMENT_MAX_DISTANCE: f32 = 96.0;
+    let players = ctx.db.player();
+    if let Some(player) = players.identity().find(sender_id) {
+        let dx = player.position_x - world_x;
+        let dy = player.position_y - world_y;
+        if (dx * dx + dy * dy) > (STASH_PLACEMENT_MAX_DISTANCE * STASH_PLACEMENT_MAX_DISTANCE) {
+            return Err("Placement location is too far away.".to_string());
+        }
+    } else {
+        return Err("Player not found.".to_string());
+    }
+
     // 1. Validate Player (Existence checked by get_player_item)
     // 2. Validate Item to be Placed
     let mut item_to_place = get_player_item(ctx, item_instance_id)?; // Validates ownership and player existence
