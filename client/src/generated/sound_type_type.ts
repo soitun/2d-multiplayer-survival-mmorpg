@@ -74,6 +74,7 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.BarrelDestroyed |
   SoundTypeVariants.HitTrash |
   SoundTypeVariants.HitWood |
+  SoundTypeVariants.BoxDestroyed |
   SoundTypeVariants.GrowlWolf |
   SoundTypeVariants.GrowlFox |
   SoundTypeVariants.GrowlSnake |
@@ -203,6 +204,7 @@ export const SoundType = {
   BarrelDestroyed: { tag: "BarrelDestroyed" } as const,
   HitTrash: { tag: "HitTrash" } as const,
   HitWood: { tag: "HitWood" } as const,
+  BoxDestroyed: { tag: "BoxDestroyed" } as const,
   GrowlWolf: { tag: "GrowlWolf" } as const,
   GrowlFox: { tag: "GrowlFox" } as const,
   GrowlSnake: { tag: "GrowlSnake" } as const,
@@ -326,6 +328,7 @@ export const SoundType = {
       { name: "BarrelDestroyed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HitTrash", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HitWood", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "BoxDestroyed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "GrowlWolf", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "GrowlFox", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "GrowlSnake", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

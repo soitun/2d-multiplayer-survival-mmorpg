@@ -72,6 +72,7 @@ export type BarrelHit = { tag: "BarrelHit" };
 export type BarrelDestroyed = { tag: "BarrelDestroyed" };
 export type HitTrash = { tag: "HitTrash" };
 export type HitWood = { tag: "HitWood" };
+export type BoxDestroyed = { tag: "BoxDestroyed" };
 export type GrowlWolf = { tag: "GrowlWolf" };
 export type GrowlFox = { tag: "GrowlFox" };
 export type GrowlSnake = { tag: "GrowlSnake" };
