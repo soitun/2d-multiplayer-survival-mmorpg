@@ -3560,10 +3560,22 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             continue;
         }
         
-        // Block spawning on water, in central compound, or unsuitable terrain for the species
-        if is_position_on_water(ctx, pos_x, pos_y) || 
-           is_position_in_central_compound(pos_x, pos_y) ||
-           !is_wild_animal_location_suitable(ctx, pos_x, pos_y, chosen_species, &spawned_tree_positions) {
+        // Check central compound exclusion (no animals spawn in spawn zone)
+        if is_position_in_central_compound(pos_x, pos_y) {
+            continue;
+        }
+        
+        // Check terrain suitability for the species (this handles both land AND aquatic animals)
+        // IMPORTANT: This must be checked BEFORE the water check, because aquatic animals
+        // (SalmonShark, Jellyfish) REQUIRE water tiles to spawn!
+        if !is_wild_animal_location_suitable(ctx, pos_x, pos_y, chosen_species, &spawned_tree_positions) {
+            continue;
+        }
+        
+        // Block water spawns ONLY for non-aquatic animals
+        // Aquatic animals (SalmonShark, Jellyfish) need water to spawn
+        let is_aquatic_species = matches!(chosen_species, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish);
+        if is_position_on_water(ctx, pos_x, pos_y) && !is_aquatic_species {
             continue;
         }
         
@@ -3665,9 +3677,14 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     }
                     
                     // Check if suitable for this species spawning
-                    if is_position_on_water(ctx, group_pos_x, group_pos_y) || 
-                       is_position_in_central_compound(group_pos_x, group_pos_y) ||
+                    if is_position_in_central_compound(group_pos_x, group_pos_y) ||
                        !is_wild_animal_location_suitable(ctx, group_pos_x, group_pos_y, chosen_species, &spawned_tree_positions) {
+                        continue;
+                    }
+                    
+                    // Block water spawns ONLY for non-aquatic animals
+                    let is_aquatic_species = matches!(chosen_species, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish);
+                    if is_position_on_water(ctx, group_pos_x, group_pos_y) && !is_aquatic_species {
                         continue;
                     }
                     

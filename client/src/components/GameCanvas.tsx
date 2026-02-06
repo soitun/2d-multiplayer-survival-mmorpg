@@ -94,7 +94,7 @@ import { useFurnaceParticles } from '../hooks/useFurnaceParticles';
 import { useBarbecueParticles } from '../hooks/useBarbecueParticles';
 import { useShoreWaveParticles, renderShoreWaves } from '../hooks/useShoreWaveParticles';
 import { playImmediateSound } from '../hooks/useSoundSystem';
-import { useDamageEffects } from '../hooks/useDamageEffects';
+import { useDamageEffects, shakeOffsetXRef, shakeOffsetYRef, vignetteOpacityRef } from '../hooks/useDamageEffects';
 
 // --- Rendering Utilities ---
 import { renderWorldBackground } from '../utils/renderers/worldRenderingUtils';
@@ -559,18 +559,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const { canvasSize, cameraOffsetX: baseCameraOffsetX, cameraOffsetY: baseCameraOffsetY } = useGameViewport(localPlayer, predictedPosition);
 
   // === AAA Combat Effects: Screen shake, vignette, heartbeat ===
+  // PERFORMANCE FIX: shakeOffset and vignetteOpacity are now refs (updated by RAF loop,
+  // not React state). Only low-health UI state triggers re-renders.
   const {
-    shakeOffsetX,
-    shakeOffsetY,
-    vignetteOpacity,
     isLowHealth,
     isCriticalHealth,
     heartbeatPulse
   } = useDamageEffects(localPlayer, 100); // 100 = max health
 
-  // Apply screen shake to camera offset
-  const cameraOffsetX = baseCameraOffsetX + shakeOffsetX;
-  const cameraOffsetY = baseCameraOffsetY + shakeOffsetY;
+  // Camera offset WITHOUT shake - used by hooks (mouse position, day/night, etc.)
+  // Screen shake is applied directly inside renderGame() by reading shakeOffsetXRef/YRef,
+  // which avoids triggering React re-renders on every shake frame.
+  const cameraOffsetX = baseCameraOffsetX;
+  const cameraOffsetY = baseCameraOffsetY;
   // console.log('[GameCanvas DEBUG] Camera offsets:', cameraOffsetX, cameraOffsetY, 'canvas size:', canvasSize);
 
   const { heroImageRef, heroSprintImageRef, heroIdleImageRef, heroWaterImageRef, heroCrouchImageRef, heroDodgeImageRef, itemImagesRef, cloudImagesRef, shelterImageRef } = useAssetLoader();
@@ -2350,7 +2351,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // === PERFORMANCE PROFILING ===
   // 🔧 SET TO true TO ENABLE LAG DIAGNOSTICS IN CONSOLE
-  const ENABLE_LAG_DIAGNOSTICS = false;
+  const ENABLE_LAG_DIAGNOSTICS = true;
   const LAG_DIAGNOSTIC_INTERVAL_MS = 5000; // Log every 5 seconds
   
   const perfProfilingRef = useRef({
@@ -2414,8 +2415,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Read from refs to avoid dependency array churn
     const currentWorldMouseX = worldMousePosRef.current.x;
     const currentWorldMouseY = worldMousePosRef.current.y;
-    const currentCameraOffsetX = cameraOffsetRef.current.x;
-    const currentCameraOffsetY = cameraOffsetRef.current.y;
+    // PERFORMANCE FIX: Apply screen shake from refs directly in the render loop.
+    // shakeOffsetXRef/YRef are updated at 60fps by the damage effects RAF loop;
+    // reading them here means shake is always current without triggering React re-renders.
+    const currentCameraOffsetX = cameraOffsetRef.current.x + shakeOffsetXRef.current;
+    const currentCameraOffsetY = cameraOffsetRef.current.y + shakeOffsetYRef.current;
     const currentPredictedPosition = predictedPositionRef.current;
     // Read animation frames directly from module-level exported refs (updated by single RAF loop)
     const currentAnimationFrame = walkingAnimationFrameRef.current;
@@ -4277,6 +4281,27 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
     // --- End Mobile Tap Animation ---
 
+    // === AAA Damage Vignette Effect (rendered on canvas, not as React DOM) ===
+    // PERFORMANCE FIX: Reading from ref instead of React state eliminates
+    // 15-20 re-renders per combat hit during the 350ms vignette animation.
+    const currentVignetteOpacity = vignetteOpacityRef.current;
+    if (currentVignetteOpacity > 0) {
+      ctx.save();
+      // Reset transform to screen space (vignette is a screen-space overlay)
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const cx = currentCanvasWidth / 2;
+      const cy = currentCanvasHeight / 2;
+      const maxRadius = Math.sqrt(cx * cx + cy * cy);
+      const gradient = ctx.createRadialGradient(cx, cy, maxRadius * 0.2, cx, cy, maxRadius);
+      gradient.addColorStop(0, 'transparent');
+      gradient.addColorStop(0.7, `rgba(180, 20, 20, ${currentVignetteOpacity * 0.7})`);
+      gradient.addColorStop(1, `rgba(120, 0, 0, ${currentVignetteOpacity})`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, currentCanvasWidth, currentCanvasHeight);
+      ctx.restore();
+    }
+    // === End Damage Vignette ===
+
     // === PERFORMANCE PROFILING - Frame time tracking ===
     const frameEndTime = performance.now();
     const frameTime = frameEndTime - frameStartTime;
@@ -4754,21 +4779,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       />
 
       {/* === AAA Damage Vignette Effect === */}
-      {/* Red flash overlay when player takes damage */}
-      {vignetteOpacity > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            pointerEvents: 'none',
-            background: `radial-gradient(ellipse at center, transparent 20%, rgba(180, 20, 20, ${vignetteOpacity * 0.7}) 70%, rgba(120, 0, 0, ${vignetteOpacity}) 100%)`,
-            zIndex: 50,
-          }}
-        />
-      )}
+      {/* PERFORMANCE FIX: Vignette is now rendered on the game canvas in renderGame() */}
+      {/* Reading from vignetteOpacityRef avoids React re-renders during damage animations */}
 
       {/* === Low Health Warning Effect === */}
       {/* Pulsing red border when health is critically low */}

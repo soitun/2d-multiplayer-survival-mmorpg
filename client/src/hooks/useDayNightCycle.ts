@@ -477,6 +477,23 @@ export function useDayNightCycle({
     // OPTIMIZED: Track previous overlay value to avoid unnecessary re-renders
     const prevOverlayRef = useRef<string>('transparent');
 
+    // PERFORMANCE FIX: Store high-frequency values in refs to remove them from effect deps.
+    // cameraOffset and predictedPosition change every frame while walking, but the mask
+    // only needs to re-render when light sources actually change (torch toggled, campfire lit, etc.).
+    // The mask is redrawn by the game loop's renderGame() which already reads current camera position.
+    const cameraOffsetXRef = useRef(cameraOffsetX);
+    const cameraOffsetYRef = useRef(cameraOffsetY);
+    const predictedPositionRef = useRef(predictedPosition);
+    const worldMouseXRef = useRef(worldMouseX);
+    const worldMouseYRef = useRef(worldMouseY);
+    const remotePlayerInterpolationRef = useRef(remotePlayerInterpolation);
+    cameraOffsetXRef.current = cameraOffsetX;
+    cameraOffsetYRef.current = cameraOffsetY;
+    predictedPositionRef.current = predictedPosition;
+    worldMouseXRef.current = worldMouseX;
+    worldMouseYRef.current = worldMouseY;
+    remotePlayerInterpolationRef.current = remotePlayerInterpolation;
+
     // --- Create a derived state string that changes when any torch's lit status changes ---
     const torchLitStatesKey = useMemo(() => {
         let key = "torch_light_states:";
@@ -524,6 +541,16 @@ export function useDayNightCycle({
             setOverlayRgba('transparent');
             return;
         }
+
+        // PERFORMANCE FIX: Read high-frequency values from refs (not props).
+        // This allows the effect to NOT re-run when camera pans or player moves,
+        // only when lights actually change (torch toggled, campfire lit, etc.).
+        const cameraOffsetX = cameraOffsetXRef.current;
+        const cameraOffsetY = cameraOffsetYRef.current;
+        const predictedPosition = predictedPositionRef.current;
+        const remotePlayerInterpolation = remotePlayerInterpolationRef.current;
+        const worldMouseX = worldMouseXRef.current;
+        const worldMouseY = worldMouseYRef.current;
 
         maskCanvas.width = canvasSize.width;
         maskCanvas.height = canvasSize.height;
@@ -1453,7 +1480,12 @@ export function useDayNightCycle({
         
         maskCtx.globalCompositeOperation = 'source-over';
 
-    }, [worldState, campfires, lanterns, furnaces, barbecues, runeStones, firePatches, fumaroles, players, activeEquipments, itemDefinitions, cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height, torchLitStatesKey, headlampLitStatesKey, lanternBurningStatesKey, localPlayerId, predictedPosition, remotePlayerInterpolation, buildingClusters]);
+    // PERFORMANCE FIX: Removed cameraOffsetX, cameraOffsetY, predictedPosition,
+    // remotePlayerInterpolation from deps. These change every frame while walking
+    // but the mask only needs rebuilding when light sources actually change.
+    // The values are read from refs at the top of the effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [worldState, campfires, lanterns, furnaces, barbecues, runeStones, firePatches, fumaroles, players, activeEquipments, itemDefinitions, canvasSize.width, canvasSize.height, torchLitStatesKey, headlampLitStatesKey, lanternBurningStatesKey, localPlayerId, buildingClusters]);
 
     return { overlayRgba, maskCanvasRef };
 } 

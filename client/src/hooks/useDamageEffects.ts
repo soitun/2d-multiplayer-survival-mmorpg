@@ -6,8 +6,11 @@
  * 2. Red vignette flash when taking damage
  * 3. Heartbeat sound when player is critically low on health
  * 
- * These effects combine to create visceral combat feedback that makes
- * the game feel more responsive and impactful.
+ * PERFORMANCE FIX: Shake and vignette now use refs instead of state.
+ * The RAF animation loop writes to exported refs that the game loop reads directly,
+ * eliminating 15-20 React re-renders per combat hit (250-350ms of 60fps setState).
+ * Only low-health UI state (isLowHealth, isCriticalHealth, heartbeatPulse)
+ * uses React state since those change infrequently and drive JSX conditionals.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -29,15 +32,21 @@ const LOW_HEALTH_THRESHOLD = 25;         // Health % to trigger heartbeat (25%)
 const CRITICAL_HEALTH_THRESHOLD = 15;    // Health % for critical health visual effects
 const HEARTBEAT_INTERVAL = 1200;         // ms between beats (constant speed)
 
+// === EXPORTED REFS - Read these directly in the game loop / render ===
+// These are updated by a single RAF loop without triggering React re-renders
+export const shakeOffsetXRef = { current: 0 };
+export const shakeOffsetYRef = { current: 0 };
+export const vignetteOpacityRef = { current: 0 };
+
 interface DamageEffectsResult {
-  // Screen shake offset to apply to camera
+  // Screen shake offset to apply to camera (read from refs for zero-cost access)
   shakeOffsetX: number;
   shakeOffsetY: number;
   
-  // Vignette effect state
+  // Vignette effect state (read from ref for zero-cost access)
   vignetteOpacity: number;
   
-  // Low health state
+  // Low health state (React state - changes infrequently, drives JSX conditionals)
   isLowHealth: boolean;
   isCriticalHealth: boolean;
   heartbeatPulse: number; // 0-1 for visual pulse effect
@@ -53,17 +62,15 @@ export function useDamageEffects(
   // Use undefined as initial value to distinguish "first render" from "was null"
   const prevLastHitTimeRef = useRef<bigint | null | undefined>(undefined);
   
-  // Shake state
-  const [shakeOffsetX, setShakeOffsetX] = useState(0);
-  const [shakeOffsetY, setShakeOffsetY] = useState(0);
+  // Shake timing refs (no React state needed - RAF loop updates exported refs)
   const shakeStartTimeRef = useRef<number | null>(null);
   const shakeIntensityRef = useRef(0);
   
-  // Vignette state
-  const [vignetteOpacity, setVignetteOpacity] = useState(0);
+  // Vignette timing refs (no React state needed - RAF loop updates exported ref)
   const vignetteStartTimeRef = useRef<number | null>(null);
+  const vignetteInitialOpacityRef = useRef(0);
   
-  // Low health state
+  // Low health state (kept as React state - changes infrequently, used in JSX)
   const [isLowHealth, setIsLowHealth] = useState(false);
   const [isCriticalHealth, setIsCriticalHealth] = useState(false);
   const [heartbeatPulse, setHeartbeatPulse] = useState(0);
@@ -94,7 +101,8 @@ export function useDamageEffects(
     // Scale opacity based on damage
     const damagePercent = Math.min(damageAmount / maxHealth, 0.5);
     vignetteStartTimeRef.current = performance.now();
-    setVignetteOpacity(VIGNETTE_MAX_OPACITY + damagePercent * 0.2);
+    vignetteInitialOpacityRef.current = VIGNETTE_MAX_OPACITY + damagePercent * 0.2;
+    vignetteOpacityRef.current = vignetteInitialOpacityRef.current;
   }, [maxHealth]);
   
   // Detect COMBAT damage and trigger effects
@@ -146,11 +154,13 @@ export function useDamageEffects(
   }, [localPlayer?.health, localPlayer?.lastHitTime, triggerShake, triggerVignette]);
   
   // Animation loop for shake and vignette decay
+  // PERFORMANCE FIX: Writes to exported refs instead of calling setState at 60fps.
+  // No React re-renders are triggered by this loop.
   useEffect(() => {
     const animate = () => {
       const now = performance.now();
       
-      // Update shake
+      // Update shake (writes to exported refs, not state)
       if (shakeStartTimeRef.current !== null) {
         const elapsed = now - shakeStartTimeRef.current;
         
@@ -160,27 +170,27 @@ export function useDamageEffects(
           const decay = Math.pow(1 - progress, SHAKE_DECAY_EXPONENT);
           const currentIntensity = shakeIntensityRef.current * decay;
           
-          // Random shake offset
-          setShakeOffsetX((Math.random() - 0.5) * 2 * currentIntensity);
-          setShakeOffsetY((Math.random() - 0.5) * 2 * currentIntensity);
+          // Random shake offset - written to ref, zero React overhead
+          shakeOffsetXRef.current = (Math.random() - 0.5) * 2 * currentIntensity;
+          shakeOffsetYRef.current = (Math.random() - 0.5) * 2 * currentIntensity;
         } else {
           // Shake finished
-          setShakeOffsetX(0);
-          setShakeOffsetY(0);
+          shakeOffsetXRef.current = 0;
+          shakeOffsetYRef.current = 0;
           shakeStartTimeRef.current = null;
         }
       }
       
-      // Update vignette
+      // Update vignette (writes to exported ref, not state)
       if (vignetteStartTimeRef.current !== null) {
         const elapsed = now - vignetteStartTimeRef.current;
         
         if (elapsed < VIGNETTE_DURATION_MS) {
           const progress = elapsed / VIGNETTE_DURATION_MS;
           const decay = Math.pow(1 - progress, VIGNETTE_DECAY_EXPONENT);
-          setVignetteOpacity(prev => Math.max(0, prev * decay));
+          vignetteOpacityRef.current = Math.max(0, vignetteInitialOpacityRef.current * decay);
         } else {
-          setVignetteOpacity(0);
+          vignetteOpacityRef.current = 0;
           vignetteStartTimeRef.current = null;
         }
       }
@@ -304,10 +314,12 @@ export function useDamageEffects(
     };
   }, []);
   
+  // Return refs' current values for backwards compatibility.
+  // Consumers that need per-frame accuracy should import the refs directly.
   return {
-    shakeOffsetX,
-    shakeOffsetY,
-    vignetteOpacity,
+    shakeOffsetX: shakeOffsetXRef.current,
+    shakeOffsetY: shakeOffsetYRef.current,
+    vignetteOpacity: vignetteOpacityRef.current,
     isLowHealth,
     isCriticalHealth,
     heartbeatPulse,

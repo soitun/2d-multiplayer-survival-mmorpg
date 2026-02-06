@@ -2776,14 +2776,37 @@ pub fn debug_spawn_animal(ctx: &ReducerContext, species_str: String) -> Result<(
     let player = ctx.db.player().identity().find(&ctx.sender)
         .ok_or_else(|| "Player not found".to_string())?;
     
-    // Spawn at a random offset from the player (100-200 pixels away)
+    // Determine spawn distance based on whether the creature is hostile
+    // Hostile creatures spawn further away (400-600 pixels) to give player time to prepare
+    // Passive/neutral creatures spawn closer (100-200 pixels)
+    let is_hostile = matches!(
+        species,
+        AnimalSpecies::TundraWolf 
+        | AnimalSpecies::CableViper 
+        | AnimalSpecies::Wolverine
+        | AnimalSpecies::Shorebound 
+        | AnimalSpecies::Shardkin 
+        | AnimalSpecies::DrownedWatch
+    );
+    
     let mut rng = ctx.rng();
     let angle = rng.gen::<f32>() * std::f32::consts::PI * 2.0;
-    let distance = 100.0 + rng.gen::<f32>() * 100.0;
+    let distance = if is_hostile {
+        400.0 + rng.gen::<f32>() * 200.0 // 400-600 pixels for hostile
+    } else {
+        100.0 + rng.gen::<f32>() * 100.0 // 100-200 pixels for passive
+    };
     let spawn_x = player.position_x + angle.cos() * distance;
     let spawn_y = player.position_y + angle.sin() * distance;
     
-    log::info!("🐾 Debug spawning {:?} near player at ({:.0}, {:.0})", species, spawn_x, spawn_y);
+    log::info!(
+        "🐾 Debug spawning {:?} {} at ({:.0}, {:.0}) - {:.0}px from player", 
+        species, 
+        if is_hostile { "(hostile)" } else { "(passive)" },
+        spawn_x, 
+        spawn_y,
+        distance
+    );
     
     // Call the existing spawn function
     spawn_wild_animal(ctx, species, spawn_x, spawn_y)

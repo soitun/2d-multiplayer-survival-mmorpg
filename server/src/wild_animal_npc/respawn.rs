@@ -40,14 +40,19 @@ pub fn maintain_wild_animal_population(ctx: &ReducerContext) -> Result<(), Strin
     
     // Species distribution (same as initial seeding)
     let species_weights = [
-        (AnimalSpecies::CinderFox, 25),      // 25% - Common
-        (AnimalSpecies::ArcticWalrus, 12),   // 12% - Common (beaches only)
-        (AnimalSpecies::BeachCrab, 18),      // 18% - Common beach creature
+        (AnimalSpecies::CinderFox, 17),      // 17% - Common (reduced to make room for aquatic)
+        (AnimalSpecies::ArcticWalrus, 10),   // 10% - Common (beaches only)
+        (AnimalSpecies::BeachCrab, 13),      // 13% - Common beach creature
         (AnimalSpecies::TundraWolf, 5),      // 5% - RARE predator
         (AnimalSpecies::CableViper, 5),      // 5% - RARE ambush predator
-        (AnimalSpecies::Tern, 12),           // 12% - Coastal scavenger bird (beaches)
-        (AnimalSpecies::Crow, 10),           // 10% - Inland thief bird
-        (AnimalSpecies::Caribou, 13),        // 13% - Tundra/alpine herd animal
+        (AnimalSpecies::Tern, 10),           // 10% - Coastal scavenger bird (beaches)
+        (AnimalSpecies::Crow, 8),            // 8% - Inland thief bird
+        (AnimalSpecies::Vole, 16),           // 16% - Common prey animal (tundra/grassland/forest)
+        (AnimalSpecies::Wolverine, 6),       // 6% - Uncommon aggressive predator
+        (AnimalSpecies::Caribou, 10),        // 10% - Tundra/alpine herd animal
+        // Aquatic animals - REQUIRE water tiles to spawn
+        (AnimalSpecies::SalmonShark, 4),     // 4% - RARE aquatic apex predator (deep water only)
+        (AnimalSpecies::Jellyfish, 5),       // 5% - Uncommon aquatic hazard (deep water only)
         // Alpine animals
         (AnimalSpecies::PolarBear, 3),       // 3% - RARE alpine apex predator
         (AnimalSpecies::Hare, 10),           // 10% - Common alpine prey animal
@@ -191,14 +196,45 @@ fn is_valid_spawn_position(
     species: AnimalSpecies,
     existing_positions: &ExistingPositions,
 ) -> bool {
+    // Check central compound exclusion first
+    if is_position_in_central_compound(pos_x, pos_y) {
+        return false;
+    }
+    
     // Validate terrain suitability for species
+    // IMPORTANT: This must be checked BEFORE the water check, because aquatic animals
+    // (SalmonShark, Jellyfish) REQUIRE water tiles to spawn!
     if !is_wild_animal_location_suitable(ctx, pos_x, pos_y, species, &existing_positions.trees) {
         return false;
     }
     
-    // Check water and central compound
-    if is_position_on_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) {
-        return false;
+    // Check water - aquatic species REQUIRE water, non-aquatic species are BLOCKED from water
+    let is_aquatic_species = matches!(species, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish);
+    let is_on_water = is_position_on_water(ctx, pos_x, pos_y);
+    
+    if is_aquatic_species {
+        // Aquatic animals MUST spawn on water
+        if !is_on_water {
+            return false;
+        }
+        
+        // Check distance from existing animals (prevent clustering - still applies to aquatic)
+        let min_animal_distance_sq = 150.0 * 150.0;
+        for &(other_x, other_y) in &existing_positions.animals {
+            let dx = pos_x - other_x;
+            let dy = pos_y - other_y;
+            if dx * dx + dy * dy < min_animal_distance_sq {
+                return false;
+            }
+        }
+        
+        // Skip tree/stone/respawn position checks for aquatic animals (they're in water)
+        return true;
+    } else {
+        // Non-aquatic animals must NOT spawn on water
+        if is_on_water {
+            return false;
+        }
     }
     
     // Check distance from existing animals (prevent clustering)
@@ -211,7 +247,7 @@ fn is_valid_spawn_position(
         }
     }
     
-    // Check distance from trees and stones
+    // Check distance from trees and stones (only for non-aquatic)
     let min_tree_distance_sq = 40.0 * 40.0;
     for &(tree_x, tree_y) in &existing_positions.trees {
         let dx = pos_x - tree_x;

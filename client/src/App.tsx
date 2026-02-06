@@ -502,6 +502,47 @@ function AppContent() {
         }, 500);
     }, [isMobile]);
     
+    // PERFORMANCE FIX: Memoize collision entities to prevent recreating filtered Maps on every render.
+    // Previously, filterVisibleTrees/filterVisibleEntities ran and allocated new Maps on EVERY render
+    // (including unrelated state changes like matronage updates), causing usePredictedMovement
+    // to see new object references and recalculate collision data unnecessarily.
+    const collisionEntities = useMemo(() => {
+        const viewBounds = currentViewport ? {
+            viewMinX: currentViewport.minX,
+            viewMinY: currentViewport.minY,
+            viewMaxX: currentViewport.maxX,
+            viewMaxY: currentViewport.maxY
+        } : null;
+        return {
+            trees: viewBounds ? new Map(filterVisibleTrees(trees, viewBounds, Date.now()).map(t => [t.id.toString(), t])) : new Map(),
+            stones,
+            runeStones: viewBounds ? new Map(filterVisibleEntities(runeStones, viewBounds, Date.now()).map(rs => [rs.id.toString(), rs])) : new Map(),
+            cairns: viewBounds ? new Map(filterVisibleEntities(cairns, viewBounds, Date.now()).map(c => [c.id.toString(), c])) : new Map(),
+            boxes: woodenStorageBoxes,
+            rainCollectors,
+            furnaces,
+            barbecues,
+            shelters,
+            players,
+            wildAnimals,
+            barrels,
+            seaStacks,
+            wallCells,
+            foundationCells,
+            homesteadHearths,
+            basaltColumns,
+            livingCorals,
+            doors,
+            fences,
+            alkStations,
+            lanterns,
+            turrets
+        };
+    }, [currentViewport, trees, stones, runeStones, cairns, woodenStorageBoxes, rainCollectors,
+        furnaces, barbecues, shelters, players, wildAnimals, barrels, seaStacks, wallCells,
+        foundationCells, homesteadHearths, basaltColumns, livingCorals, doors, fences,
+        alkStations, lanterns, turrets]);
+
     // Simplified predicted movement - minimal lag
     // PERFORMANCE FIX: Pass inputStateRef for immediate input reading in RAF loop (bypasses React state delay)
     const { predictedPosition, getCurrentPositionNow, isAutoAttacking, facingDirection } = usePredictedMovement({
@@ -513,46 +554,7 @@ function AppContent() {
         playerDodgeRollStates, // Add dodge roll states for speed calculation
         mobileSprintOverride, // Mobile sprint toggle override (immediate, no server round-trip)
         waterSpeedBonus, // Water speed bonus from equipped armor (e.g., Reed Flippers)
-        entities: {
-            trees: currentViewport ? new Map(filterVisibleTrees(trees, {
-              viewMinX: currentViewport.minX,
-              viewMinY: currentViewport.minY,
-              viewMaxX: currentViewport.maxX,
-              viewMaxY: currentViewport.maxY
-            }, Date.now()).map(t => [t.id.toString(), t])) : new Map(), // Filter visible trees only
-            stones,
-            runeStones: currentViewport ? new Map(filterVisibleEntities(runeStones, {
-              viewMinX: currentViewport.minX,
-              viewMinY: currentViewport.minY,
-              viewMaxX: currentViewport.maxX,
-              viewMaxY: currentViewport.maxY
-            }, Date.now()).map(rs => [rs.id.toString(), rs])) : new Map(), // Filter visible rune stones only
-            cairns: currentViewport ? new Map(filterVisibleEntities(cairns, {
-              viewMinX: currentViewport.minX,
-              viewMinY: currentViewport.minY,
-              viewMaxX: currentViewport.maxX,
-              viewMaxY: currentViewport.maxY
-            }, Date.now()).map(c => [c.id.toString(), c])) : new Map(), // Filter visible cairns only
-            boxes: woodenStorageBoxes,
-            rainCollectors,
-            furnaces, // Add furnaces to collision system
-            barbecues, // Add barbecues to collision system
-            shelters,
-            players,
-            wildAnimals, // Add wild animals to collision system
-            barrels, // Add barrels to collision system
-            seaStacks, // Add sea stacks to collision system
-            wallCells, // Add wall cells for collision detection
-            foundationCells, // Add foundation cells for collision detection (especially triangle hypotenuses)
-            homesteadHearths, // Add homestead hearths for collision detection
-            basaltColumns, // Add basalt columns for collision detection
-            livingCorals, // Add living corals for collision detection (underwater)
-            doors, // Add doors for collision detection (closed doors only)
-            fences, // Add fences for collision detection
-            alkStations, // Add ALK stations for collision detection (large industrial structures)
-            lanterns, // Add lanterns/wards for collision detection (only wards have collision, NOT regular lanterns)
-            turrets // Add turrets for collision detection
-        }
+        entities: collisionEntities
     });
 
     // --- Sound System ---
@@ -726,66 +728,10 @@ function AppContent() {
         });
     }, []); // Empty deps - run once on mount
 
-    // --- Game Performance Monitor ---
-    useEffect(() => {
-        let frameCount = 0;
-        let lastReportTime = Date.now();
-        let totalRenderTime = 0;
-        let maxRenderTime = 0;
-        let lagSpikes = 0;
-        
-        const RENDER_LAG_THRESHOLD = 20; // 20ms+ is a lag spike
-        const REPORT_INTERVAL = 10000; // Report every 10 seconds
-        
-        const monitorPerformance = () => {
-            const frameStart = performance.now();
-            
-            // Monitor after the current render cycle
-            requestAnimationFrame(() => {
-                const frameEnd = performance.now();
-                const frameTime = frameEnd - frameStart;
-                
-                frameCount++;
-                totalRenderTime += frameTime;
-                maxRenderTime = Math.max(maxRenderTime, frameTime);
-                
-                if (frameTime > RENDER_LAG_THRESHOLD) {
-                    lagSpikes++;
-                    // console.warn(`🐌 [App] RENDER LAG SPIKE: ${frameTime.toFixed(2)}ms`);
-                }
-                
-                const now = Date.now();
-                if (now - lastReportTime > REPORT_INTERVAL) {
-                    const avgRenderTime = totalRenderTime / frameCount;
-                    const fps = 1000 / avgRenderTime;
-                    
-                    // console.log(`📊 [App] Game Performance Report:
-                    //     Frames: ${frameCount}
-                    //     Average Render Time: ${avgRenderTime.toFixed(2)}ms
-                    //     Max Render Time: ${maxRenderTime.toFixed(2)}ms
-                    //     Estimated FPS: ${fps.toFixed(1)}
-                    //     Lag Spikes: ${lagSpikes} (${((lagSpikes/frameCount)*100).toFixed(1)}%)
-                    //     Players Count: ${players.size}
-                    //     Connection Status: ${connection ? 'Connected' : 'Disconnected'}`);
-                    
-                    // Reset counters
-                    frameCount = 0;
-                    totalRenderTime = 0;
-                    maxRenderTime = 0;
-                    lagSpikes = 0;
-                    lastReportTime = now;
-                }
-                
-                // Continue monitoring
-                monitorPerformance();
-            });
-        };
-        
-        // Start monitoring
-        monitorPerformance();
-        
-        // No cleanup needed as we're using requestAnimationFrame
-    }, [players.size, connection]);
+    // Performance monitor removed - all logging was disabled and the recursive RAF loop
+    // was still consuming CPU cycles. It also restarted on players.size/connection changes,
+    // creating orphaned loops (no cleanup was implemented despite using requestAnimationFrame).
+    // Re-enable via browser DevTools Performance tab when profiling is needed.
 
     // Note: Movement is now handled entirely by usePredictedMovement hook
     // No need for complex movement processing in App.tsx anymore
@@ -1232,6 +1178,22 @@ function AppContent() {
         }
     }, [shouldShowLoadingScreen, loadingSequenceComplete, musicSystem]);
 
+    // PERFORMANCE FIX: Memoize derived arrays and callbacks passed to GameScreen.
+    // Array.from() creates a new array reference on every render, causing GameScreen to re-render
+    // (and re-evaluate all its hooks) even when the underlying notification Maps haven't changed.
+    const levelUpNotificationsList = useMemo(
+        () => Array.from(levelUpNotifications.values()),
+        [levelUpNotifications]
+    );
+    const achievementUnlockNotificationsList = useMemo(
+        () => Array.from(achievementUnlockNotifications.values()),
+        [achievementUnlockNotifications]
+    );
+    const handleOpenAchievements = useCallback(() => {
+        setInterfaceInitialView('achievements');
+        setIsMinimapOpen(true);
+    }, []);
+
     // --- Render Logic --- 
     // console.log("[AppContent] Rendering. Hemps map:", hemps); // <<< TEMP DEBUG LOG
     return (
@@ -1435,12 +1397,9 @@ function AppContent() {
                             // SOVA Sound Box callback
                             showSovaSoundBox={showSovaSoundBox}
                             // Player progression notifications (unified in UplinkNotifications)
-                            levelUpNotifications={Array.from(levelUpNotifications.values())}
-                            achievementUnlockNotifications={Array.from(achievementUnlockNotifications.values())}
-                            onOpenAchievements={() => {
-                                setInterfaceInitialView('achievements');
-                                setIsMinimapOpen(true);
-                            }}
+                            levelUpNotifications={levelUpNotificationsList}
+                            achievementUnlockNotifications={achievementUnlockNotificationsList}
+                            onOpenAchievements={handleOpenAchievements}
                         />
                         {/* SOVA Sound Box - Deterministic voice notifications */}
                         {SovaSoundBoxComponent}

@@ -1,10 +1,18 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef } from 'react';
 import { Grass as SpacetimeDBGrass, GrassState as SpacetimeDBGrassState, GrassAppearanceType } from '../generated';
 import { Timestamp as SpacetimeDBTimestamp } from 'spacetimedb';
 
 // ============================================================================
-// GRASS INTERPOLATION HOOK - Updated for Split Tables
+// GRASS INTERPOLATION HOOK - Ref-Based Pattern (matches useCloudInterpolation)
 // ============================================================================
+// PERFORMANCE FIX: Replaced double useState + double useEffect cascade with
+// a single ref-based pattern. Previously, every grass update caused:
+//   setInterpolatedGrassStates → re-render → setRenderableGrass → re-render
+// That's 2 React re-renders of the entire GameCanvas per grass change.
+//
+// Now uses shared refs (like useCloudInterpolation) so the game loop reads
+// grass data directly without triggering any React re-renders.
+//
 // With table normalization, grass data is split into:
 // - Grass: Static geometry (position, appearance, sway params) - rarely changes
 // - GrassState: Dynamic state (health, respawn, disturbance) - updates on damage
@@ -60,14 +68,16 @@ interface UseGrassInterpolationProps {
   deltaTime: number; // Milliseconds since last frame (currently unused for grass pos)
 }
 
+// PERFORMANCE FIX: Shared refs for grass data - avoids React re-renders entirely.
+// The game loop reads renderableGrassRef.current directly.
+const interpolatedStatesRef: { current: Map<string, GrassInterpolationState> } = { current: new Map() };
+const renderableGrassRef: { current: Map<string, InterpolatedGrassData> } = { current: new Map() };
+
 export const useGrassInterpolation = ({
   serverGrass,
   serverGrassState,
   deltaTime, // deltaTime is currently unused as grass position is static.
 }: UseGrassInterpolationProps): Map<string, InterpolatedGrassData> => {
-  const [interpolatedGrassStates, setInterpolatedGrassStates] = useState<Map<string, GrassInterpolationState>>(() => new Map());
-  const [renderableGrass, setRenderableGrass] = useState<Map<string, InterpolatedGrassData>>(() => new Map());
-
   const prevServerGrassRef = useRef<Map<string, SpacetimeDBGrass>>(new Map());
   const prevServerGrassStateRef = useRef<Map<string, SpacetimeDBGrassState>>(new Map());
   
@@ -76,8 +86,9 @@ export const useGrassInterpolation = ({
   const seenGrassStateIdsRef = useRef<Set<string>>(new Set());
 
   // Effect to update interpolation states when server data changes
+  // PERFORMANCE FIX: Writes directly to shared refs instead of calling setState twice.
   useEffect(() => {
-    const newStates = new Map(interpolatedGrassStates);
+    const states = interpolatedStatesRef.current;
     const now = performance.now();
     let changed = false;
 
@@ -86,9 +97,13 @@ export const useGrassInterpolation = ({
       seenGrassStateIdsRef.current.add(id);
     });
 
+    // Track IDs present in current serverGrass for removal pass
+    const currentGrassIds = new Set<string>();
+
     // Merge grass (static) with grass_state (dynamic) by ID
     serverGrass.forEach((grass, id) => {
-      const prevState = newStates.get(id);
+      currentGrassIds.add(id);
+      const prevState = states.get(id);
       const prevGrass = prevServerGrassRef.current.get(id);
       const grassState = serverGrassState.get(id); // Same ID as grass
       const prevGrassState = prevServerGrassStateRef.current.get(id);
@@ -112,46 +127,31 @@ export const useGrassInterpolation = ({
       // Determine if grass is alive:
       // - If grassState exists: use its isAlive boolean
       // - If grassState is missing: don't render (could be dead or still loading)
-      // 
-      // NOTE: We can't distinguish "still loading" from "dead grass" because:
-      // - Dead grass has isAlive=false, which doesn't match subscription `is_alive = true`
-      // - On page refresh, seenGrassStateIdsRef is reset, so we can't track previous session
-      // - Defaulting to isAlive=true would incorrectly render dead grass
-      // 
-      // The tradeoff: grass won't render until grassState loads (brief delay on chunk load)
-      // This is acceptable and prevents dead grass from erroneously appearing.
       let isAlive: boolean;
       if (grassState) {
-        // Grass state is subscribed - use its isAlive boolean directly
         isAlive = grassState.isAlive;
       } else if (seenGrassStateIdsRef.current.has(id)) {
-        // We've seen this grass's state THIS SESSION but it's now missing = destroyed mid-session
         isAlive = false;
       } else {
-        // Never seen this grass's state this session = don't render
-        // Could be: still loading OR dead from previous session
-        // Either way, wait for grassState to confirm it's alive
         isAlive = false;
       }
       
       // Don't add grass that's currently dead/respawning
       if (!isAlive) {
-        // If we had this grass before, remove it
         if (prevState) {
           changed = true;
-          newStates.delete(id);
+          states.delete(id);
+          renderableGrassRef.current.delete(id);
         }
-        return; // Skip this grass (using return since we're in forEach)
+        return;
       }
       
       if (!prevState || staticDataChanged || dynamicDataChanged) {
         changed = true;
         
-        // Merge static Grass data with dynamic GrassState data
-        newStates.set(id, {
+        const newState: GrassInterpolationState = {
           id,
           originalId: grass.id,
-          // Position from static Grass table
           serverPosX: grass.posX,
           serverPosY: grass.posY,
           posX: grass.posX,
@@ -161,55 +161,46 @@ export const useGrassInterpolation = ({
           targetPosX: grass.posX,
           targetPosY: grass.posY,
           lastServerUpdateTimeMs: now,
-          // Static properties from Grass table
           appearanceType: grass.appearanceType,
           chunkIndex: grass.chunkIndex,
           swayOffsetSeed: grass.swayOffsetSeed,
           swaySpeed: grass.swaySpeed,
-          // Dynamic properties from GrassState table (with defaults if not found)
           health: grassState?.health ?? 0,
           lastHitTime: grassState?.lastHitTime ?? null,
           respawnAt: grassState?.respawnAt ?? null,
           disturbedAt: grassState?.disturbedAt ?? null,
           disturbanceDirectionX: grassState?.disturbanceDirectionX ?? 0,
           disturbanceDirectionY: grassState?.disturbanceDirectionY ?? 0,
+        };
+        states.set(id, newState);
+        
+        // Update renderable data in the same pass (no second effect needed)
+        renderableGrassRef.current.set(id, {
+          ...newState,
+          currentRenderPosX: newState.targetPosX,
+          currentRenderPosY: newState.targetPosY,
         });
       }
     });
 
     // Remove grass entities that are no longer in serverGrass
-    interpolatedGrassStates.forEach((_, id) => {
-      if (!serverGrass.has(id)) {
+    states.forEach((_, id) => {
+      if (!currentGrassIds.has(id)) {
         changed = true;
-        newStates.delete(id);
-        // Also remove from seen set when grass entity itself is gone (chunk unloaded)
+        states.delete(id);
+        renderableGrassRef.current.delete(id);
         seenGrassStateIdsRef.current.delete(id);
       }
     });
 
-    if (changed) {
-      setInterpolatedGrassStates(newStates);
-    }
-
     // Update refs for next comparison
-    prevServerGrassRef.current = new Map(Array.from(serverGrass.entries()).map(([id, g]) => [id, { ...g }]));
-    prevServerGrassStateRef.current = new Map(Array.from(serverGrassState.entries()).map(([id, s]) => [id, { ...s }]));
+    // PERFORMANCE FIX: Only shallow-copy the Maps (no per-entry spread needed
+    // since we only compare primitive fields in the change detection above)
+    prevServerGrassRef.current = new Map(serverGrass);
+    prevServerGrassStateRef.current = new Map(serverGrassState);
 
   }, [serverGrass, serverGrassState]);
 
-  // Effect to prepare renderable grass data from interpolated states
-  useEffect(() => {
-    const newRenderables = new Map<string, InterpolatedGrassData>();
-
-    interpolatedGrassStates.forEach((state, id) => {
-      newRenderables.set(id, {
-        ...state,
-        currentRenderPosX: state.targetPosX,
-        currentRenderPosY: state.targetPosY,
-      });
-    });
-    setRenderableGrass(newRenderables);
-  }, [interpolatedGrassStates]);
-
-  return renderableGrass;
+  // Return the shared ref's current value - game loop reads this directly
+  return renderableGrassRef.current;
 };

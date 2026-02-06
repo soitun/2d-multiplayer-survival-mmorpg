@@ -372,8 +372,12 @@ pub fn damage_barrel(
             log::error!("[BarrelDamage] Failed to track barrel destroyed stat: {}", e);
         }
         
-        // Emit destruction sound
-        crate::sound_events::emit_barrel_destroyed_sound(ctx, barrel.pos_x, barrel.pos_y, attacker_id);
+        // Emit destruction sound - use box_destroyed for variants 3 and 4 (barrel4.png and barrel5.png)
+        if barrel.variant == 3 || barrel.variant == 4 {
+            crate::sound_events::emit_box_destroyed_sound(ctx, barrel.pos_x, barrel.pos_y, attacker_id);
+        } else {
+            crate::sound_events::emit_barrel_destroyed_sound(ctx, barrel.pos_x, barrel.pos_y, attacker_id);
+        }
     } else {
         // Barrel damaged but not destroyed
         log::info!("[BarrelDamage] Barrel {} damaged, health: {:.1}", barrel_id, barrel.health);

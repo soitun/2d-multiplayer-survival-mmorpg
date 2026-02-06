@@ -55,7 +55,7 @@ pub fn get_ammunition_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // Venom Arrow - Poison damage over time projectile
-        ItemBuilder::new("Venom Arrow", "An arrow with a bone tip coated in jellyfish toxins. The venom causes intense burning pain and damage over time. Less immediate damage but deadly over time.", ItemCategory::Ammunition)
+        ItemBuilder::new("Venom Arrow", "An arrow with a bone tip coated in natural toxins. Can be made with jellyfish venom or viper gland. The venom causes intense burning pain and damage over time. Less immediate damage but deadly over time.", ItemCategory::Ammunition)
             .icon("venom_arrow.png")
             .stackable(20)
             // Lower direct damage, but applies poison/burn effect
@@ -66,9 +66,10 @@ pub fn get_ammunition_definitions() -> Vec<ItemDefinition> {
             .crafting_cost(vec![
                 CostIngredient { item_name: "Wood".to_string(), quantity: 25 },
                 CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 15 },
-                CostIngredient { item_name: "Jellyfish Stinger".to_string(), quantity: 1 },
             ])
-            .crafting_output(3, 4) // Makes 3 arrows per stinger
+            // Allow either Jellyfish Stinger OR Cable Viper Gland as the poison source
+            .flexible_ingredient("Poison Source", 1, vec!["Jellyfish Stinger", "Cable Viper Gland"])
+            .crafting_output(3, 4) // Makes 3 arrows per poison source
             .respawn_time(300)
             .build(),
 
@@ -127,7 +128,7 @@ pub fn get_ammunition_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // Venom Harpoon Dart - Poison-tipped underwater ammunition
-        ItemBuilder::new("Venom Harpoon Dart", "A harpoon dart with its bone tip treated with jellyfish toxins. The venom spreads through water, making it particularly effective against aquatic targets. Causes prolonged pain and damage.", ItemCategory::Ammunition)
+        ItemBuilder::new("Venom Harpoon Dart", "A harpoon dart with its bone tip treated with natural toxins. Can be made with jellyfish venom or viper gland. The venom spreads through water, making it particularly effective against aquatic targets. Causes prolonged pain and damage.", ItemCategory::Ammunition)
             .icon("venom_harpoon_dart.png")
             .stackable(15)
             .pvp_damage(5, 8) // Slightly higher direct damage than standard dart
@@ -137,9 +138,10 @@ pub fn get_ammunition_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Common Reed Stalk".to_string(), quantity: 3 },
                 CostIngredient { item_name: "Bone Fragments".to_string(), quantity: 15 },
                 CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 5 },
-                CostIngredient { item_name: "Jellyfish Stinger".to_string(), quantity: 1 },
             ])
-            .crafting_output(3, 5) // Makes 3 darts per stinger
+            // Allow either Jellyfish Stinger OR Cable Viper Gland as the poison source
+            .flexible_ingredient("Poison Source", 1, vec!["Jellyfish Stinger", "Cable Viper Gland"])
+            .crafting_output(3, 5) // Makes 3 darts per poison source
             .respawn_time(250)
             .build(),
     ]

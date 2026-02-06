@@ -3474,8 +3474,13 @@ pub fn damage_wooden_storage_box(
     }
 
     if wooden_box.health <= 0.0 {
-        // Play destroyed sound
-        sound_events::emit_barrel_destroyed_sound(ctx, wooden_box.pos_x, wooden_box.pos_y, attacker_id);
+        // Play destroyed sound - use box_destroyed for normal/large boxes, barrel_destroyed for others
+        if wooden_box.box_type == crate::wooden_storage_box::BOX_TYPE_NORMAL ||
+           wooden_box.box_type == crate::wooden_storage_box::BOX_TYPE_LARGE {
+            sound_events::emit_box_destroyed_sound(ctx, wooden_box.pos_x, wooden_box.pos_y, attacker_id);
+        } else {
+            sound_events::emit_barrel_destroyed_sound(ctx, wooden_box.pos_x, wooden_box.pos_y, attacker_id);
+        }
         wooden_box.is_destroyed = true;
         wooden_box.destroyed_at = Some(timestamp);
         
