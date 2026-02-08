@@ -56,10 +56,10 @@ function loadImage(imageName: string, importPromise: Promise<{ default: string }
  * Includes both static monuments (compound buildings) and dynamic monuments (shipwrecks)
  */
 export function preloadMonumentImages(): void {
-    loadImage('guardpost.png', import('../../assets/doodads/guardpost.png?url'));
+    // guardpost.png removed - all guardposts/streetlights replaced by eerie ambient lights
     loadImage('shed.png', import('../../assets/doodads/shed.png?url'));
     loadImage('garage.png', import('../../assets/doodads/garage.png?url'));
-    loadImage('warehouse.png', import('../../assets/doodads/warehouse.png?url'));
+    // warehouse.png removed - replaced by monument large furnace placeable
     loadImage('barracks.png', import('../../assets/doodads/barracks.png?url'));
     loadImage('fuel_depot.png', import('../../assets/doodads/fuel_depot.png?url'));
     
@@ -125,7 +125,6 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
     
     // Image not loaded and not loading - try to trigger load
         const imageMap: Record<string, () => Promise<{ default: string }>> = {
-            'guardpost.png': () => import('../../assets/doodads/guardpost.png?url'),
             'shed.png': () => import('../../assets/doodads/shed.png?url'),
             'garage.png': () => import('../../assets/doodads/garage.png?url'),
             'warehouse.png': () => import('../../assets/doodads/warehouse.png?url'),
@@ -415,15 +414,11 @@ export function renderMonument(
             imageDrawWidth: building.width,
             imageDrawHeight: building.height,
             cycleProgress,
-            maxShadowAlpha: building.id.startsWith('guardpost') ? 0.4 : 0.5, // Lighter shadows for guardposts (light poles)
-            maxStretchFactor: building.id.startsWith('guardpost') ? 1.8 : 2.0, // Smaller stretch for guardposts
+            maxShadowAlpha: 0.5,
+            maxStretchFactor: 2.0,
             minStretchFactor: 0.2,
-            shadowBlur: 3, // Match other world entities for visual consistency
-            // Guardposts are perfect with +10, secondary buildings need more upward offset (+30) to push shadow up
-            // Add noonExtraOffset to push shadow UP behind building at noon
-            pivotYOffset: building.id.startsWith('guardpost') 
-                ? -building.anchorYOffset + 10 + noonExtraOffset  // Guardposts: perfect offset + noon fix
-                : -building.anchorYOffset + 50 + noonExtraOffset,  // Secondary buildings: push shadow up more + noon fix
+            shadowBlur: 3,
+            pivotYOffset: -building.anchorYOffset + 50 + noonExtraOffset,
         });
     }
     

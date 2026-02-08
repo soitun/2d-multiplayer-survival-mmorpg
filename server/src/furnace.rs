@@ -38,7 +38,7 @@ use crate::campfire::campfire as CampfireTableTrait;
 // Collision constants
 pub(crate) const FURNACE_COLLISION_RADIUS: f32 = 35.0;
 pub(crate) const FURNACE_COLLISION_Y_OFFSET: f32 = -35.0;
-pub(crate) const LARGE_FURNACE_COLLISION_RADIUS: f32 = 40.0;  // Same as Signal Disruptor
+pub(crate) const LARGE_FURNACE_COLLISION_RADIUS: f32 = 50.0;  // Larger collision radius for the big furnace
 pub(crate) const LARGE_FURNACE_COLLISION_Y_OFFSET: f32 = 80.0;  // Same as Signal Disruptor
 pub(crate) const PLAYER_FURNACE_COLLISION_DISTANCE_SQUARED: f32 = 
     (super::PLAYER_RADIUS + FURNACE_COLLISION_RADIUS) * (super::PLAYER_RADIUS + FURNACE_COLLISION_RADIUS);
@@ -62,6 +62,13 @@ pub const FURNACE_MAX_HEALTH: f32 = 300.0;
 pub(crate) const PLAYER_FURNACE_INTERACTION_DISTANCE: f32 = 96.0;
 pub(crate) const PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED: f32 = 
     PLAYER_FURNACE_INTERACTION_DISTANCE * PLAYER_FURNACE_INTERACTION_DISTANCE;
+pub(crate) const PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE: f32 = 130.0;
+pub(crate) const PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED: f32 = 
+    PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE * PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE;
+// Monument large furnace is ~480px vs 256px regular (1.875x), so proportionally larger interaction
+pub(crate) const PLAYER_MONUMENT_LARGE_FURNACE_INTERACTION_DISTANCE: f32 = 200.0;
+pub(crate) const PLAYER_MONUMENT_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED: f32 = 
+    PLAYER_MONUMENT_LARGE_FURNACE_INTERACTION_DISTANCE * PLAYER_MONUMENT_LARGE_FURNACE_INTERACTION_DISTANCE;
 
 // Fuel constants
 pub(crate) const FUEL_CONSUME_INTERVAL_SECS: u64 = 5;
@@ -847,11 +854,18 @@ pub fn process_furnace_logic_scheduled(ctx: &ReducerContext, schedule_args: Furn
     if let Some(active_user) = furnace.active_user_id {
         let should_release = match ctx.db.player().identity().find(&active_user) {
             Some(player) => {
-                // Player is online - check distance
+                // Player is online - check distance (use appropriate range for furnace size)
                 let dx = player.position_x - furnace.pos_x;
                 let dy = player.position_y - furnace.pos_y;
                 let dist_sq = dx * dx + dy * dy;
-                dist_sq > PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED * 2.0 // Give some buffer
+                let base_dist_sq = if furnace.is_monument && furnace.furnace_type == FURNACE_TYPE_LARGE {
+                    PLAYER_MONUMENT_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED
+                } else if furnace.furnace_type == FURNACE_TYPE_LARGE {
+                    PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED
+                } else {
+                    PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED
+                };
+                dist_sq > base_dist_sq * 2.0 // Give some buffer
             }
             None => true // Player is offline
         };
@@ -1192,13 +1206,20 @@ fn validate_furnace_interaction(
         return Err("Furnace is destroyed and cannot be interacted with.".to_string());
     }
 
-    // Check interaction distance
+    // Check interaction distance - larger furnaces allow interaction from farther away
+    let (max_dist_sq, max_dist) = if furnace.is_monument && furnace.furnace_type == FURNACE_TYPE_LARGE {
+        (PLAYER_MONUMENT_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED, PLAYER_MONUMENT_LARGE_FURNACE_INTERACTION_DISTANCE)
+    } else if furnace.furnace_type == FURNACE_TYPE_LARGE {
+        (PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED, PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE)
+    } else {
+        (PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED, PLAYER_FURNACE_INTERACTION_DISTANCE)
+    };
     let distance_squared = (player.position_x - furnace.pos_x).powi(2) + (player.position_y - furnace.pos_y).powi(2);
-    if distance_squared > PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED {
+    if distance_squared > max_dist_sq {
         return Err(format!(
             "Too far from furnace (distance: {:.1}, max: {:.1})",
             distance_squared.sqrt(),
-            PLAYER_FURNACE_INTERACTION_DISTANCE
+            max_dist
         ));
     }
 

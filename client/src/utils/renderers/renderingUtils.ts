@@ -1214,7 +1214,7 @@ export const renderYSortedEntities = ({
           // Pass player position for health bar rendering on opposite side (like barrels)
           const playerX = localPlayerPosition?.x;
           const playerY = localPlayerPosition?.y;
-          renderFurnace(ctx, furnace, nowMs, cycleProgress, false, false, playerX, playerY);
+          renderFurnace(ctx, furnace, nowMs, cycleProgress, false, false, playerX, playerY, localPlayerPosition);
           
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {

@@ -377,12 +377,18 @@ function getCollisionCandidates(
   for (const furnace of nearbyFurnaces) {
     if (furnace.isDestroyed) continue; // Skip destroyed furnaces
     
+    // Large furnaces (type 1) use larger collision matching server-side LARGE_FURNACE_COLLISION_RADIUS (40)
+    // and LARGE_FURNACE_COLLISION_Y_OFFSET (80) - similar to signal disruptor
+    const isLargeFurnace = furnace.furnaceType === 1;
+    const furnaceRadius = isLargeFurnace ? COLLISION_RADII.LARGE_FURNACE : COLLISION_RADII.FURNACE;
+    const furnaceOffset = isLargeFurnace ? COLLISION_OFFSETS.LARGE_FURNACE : COLLISION_OFFSETS.FURNACE;
+    
     shapes.push({
       id: furnace.id.toString(),
       type: `furnace-${furnace.id.toString()}`,
-      x: furnace.posX + COLLISION_OFFSETS.FURNACE.x,
-      y: furnace.posY + COLLISION_OFFSETS.FURNACE.y,
-      radius: COLLISION_RADII.FURNACE
+      x: furnace.posX + furnaceOffset.x,
+      y: furnace.posY + furnaceOffset.y,
+      radius: furnaceRadius
     });
   }
 
@@ -640,11 +646,7 @@ function getCollisionCandidates(
     // Position collision at visual base of building
     const collisionOffsetY = 0; // Collision at anchor point (building base)
     
-    // Special case for guardposts - they're thin poles, need tiny collision
-    const isGuardpost = building.id.startsWith('guardpost');
-    const collisionRadius = isGuardpost 
-      ? 15  // Tiny radius for thin pole
-      : Math.min(building.width * 0.2, 60); // Normal buildings
+    const collisionRadius = Math.min(building.width * 0.2, 60);
     
     shapes.push({
       id: `compound_building-${building.id}`,
@@ -1041,6 +1043,7 @@ export const COLLISION_RADII = {
   STORAGE_BOX: 20, // Match small furnace collision radius for consistent feel
   RAIN_COLLECTOR: 30, // 256x256 sprite with stone base ~160px wide (matches server)
   FURNACE: 20, // Adjusted radius for easier bottom approach while keeping top collision
+  LARGE_FURNACE: 50, // Larger collision radius for the big furnace (increased from 40)
   BARBECUE: 20, // Same as furnace (similar size appliance)
   PLAYER: PLAYER_RADIUS,
   WILD_ANIMAL: 40, // Add wild animal collision radius
@@ -1065,6 +1068,7 @@ export const COLLISION_OFFSETS = {
   STORAGE_BOX: { x: 0, y: -50 }, // Match small furnace collision offset (starts lower for better approach)
   RAIN_COLLECTOR: { x: 0, y: -30 }, // Pushed up to align with stone base (matches server offset of 0.0)
   FURNACE: { x: 0, y: -50 }, // Adjusted center to extend collision below while keeping top boundary
+  LARGE_FURNACE: { x: 0, y: -80 }, // Matches server-side LARGE_FURNACE_COLLISION_Y_OFFSET (80.0)
   BARBECUE: { x: 0, y: 0 }, // Collision at posY (matches server-side BARBECUE_COLLISION_Y_OFFSET: 0.0)
   SHELTER: { x: 0, y: -200 },  // Shelter offset unchanged
   WILD_ANIMAL: { x: 0, y: 0 }, // No offset needed for animals

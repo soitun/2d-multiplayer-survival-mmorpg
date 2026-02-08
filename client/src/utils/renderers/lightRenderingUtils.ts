@@ -3,7 +3,7 @@ import { Player as SpacetimeDBPlayer, ItemDefinition as SpacetimeDBItemDefinitio
 // Import rendering constants
 import { CAMPFIRE_RENDER_Y_OFFSET, CAMPFIRE_HEIGHT } from '../renderers/campfireRenderingUtils';
 import { LANTERN_RENDER_Y_OFFSET, LANTERN_HEIGHT, LANTERN_TYPE_LANTERN } from '../renderers/lanternRenderingUtils';
-import { FURNACE_RENDER_Y_OFFSET, FURNACE_HEIGHT } from '../renderers/furnaceRenderingUtils';
+import { FURNACE_RENDER_Y_OFFSET, FURNACE_HEIGHT, getFurnaceDimensions, FURNACE_TYPE_LARGE } from '../renderers/furnaceRenderingUtils';
 import { BARBECUE_RENDER_Y_OFFSET, BARBECUE_HEIGHT } from '../renderers/barbecueRenderingUtils';
 import { BuildingCluster } from '../buildingVisibilityUtils';
 import { FOUNDATION_TILE_SIZE } from '../../config/gameConfig';
@@ -919,8 +919,11 @@ export const renderFurnaceLight = ({
     // Apply indoor clipping if furnace is inside an enclosed building
     const restoreClip = applyIndoorClip(ctx, furnace.posX, furnace.posY, cameraOffsetX, cameraOffsetY, buildingClusters);
 
+    // Get correct dimensions based on furnace type and monument status
+    const dims = getFurnaceDimensions(furnace.furnaceType, furnace.isMonument);
+    
     const visualCenterX = furnace.posX;
-    const visualCenterY = furnace.posY - (FURNACE_HEIGHT / 2) - FURNACE_RENDER_Y_OFFSET;
+    const visualCenterY = furnace.posY - (dims.height / 2) - dims.yOffset;
     
     const lightScreenX = visualCenterX + cameraOffsetX;
     const lightScreenY = visualCenterY + cameraOffsetY;
@@ -933,7 +936,9 @@ export const renderFurnaceLight = ({
     const industrialFurnaceY = lightScreenY + furnaceAsymmetryY;
 
     // INDUSTRIAL FURNACE LIGHTING SYSTEM - realistic high-temperature metal smelting
-    const FURNACE_SCALE = 1.0; // Focused lighting that doesn't cast far
+    // Monument large furnaces (480px) cast more light than regular furnaces
+    const isLargeFurnace = furnace.furnaceType === FURNACE_TYPE_LARGE;
+    const FURNACE_SCALE = isLargeFurnace ? (furnace.isMonument ? 2.0 : 1.5) : 1.0;
 
     // Layer 1: Large ambient glow (hot furnace - bright orange ambient heat)
     const ambientRadius = Math.max(0, FURNACE_LIGHT_RADIUS_BASE * 3.5 * FURNACE_SCALE + baseFlicker * 0.3);

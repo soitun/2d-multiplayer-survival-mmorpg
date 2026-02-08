@@ -39,10 +39,13 @@ import {
 import {
     PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED,
     PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED,
+    PLAYER_MONUMENT_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED,
     FURNACE_HEIGHT,
     FURNACE_RENDER_Y_OFFSET,
     LARGE_FURNACE_HEIGHT,
     LARGE_FURNACE_RENDER_Y_OFFSET,
+    MONUMENT_LARGE_FURNACE_HEIGHT,
+    MONUMENT_LARGE_FURNACE_RENDER_Y_OFFSET,
     FURNACE_TYPE_LARGE
 } from '../utils/renderers/furnaceRenderingUtils'; // ADDED: Furnace rendering constants
 import {
@@ -349,7 +352,7 @@ export function useInteractionFinder({
         let closestCampfireDistSq = PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED;
 
         let closestFurnaceId: number | null = null; // ADDED: Furnace tracking variables
-        let closestFurnaceDistSq = PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED; // Use larger threshold for global tracking
+        let closestFurnaceDistSq = PLAYER_MONUMENT_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED; // Use largest threshold for global tracking
 
         let closestBarbecueId: number | null = null; // ADDED: Barbecue tracking variables
         let closestBarbecueDistSq = PLAYER_BARBECUE_INTERACTION_DISTANCE_SQUARED;
@@ -478,17 +481,23 @@ export function useInteractionFinder({
                 furnaces.forEach((furnace) => {
                     // Use furnace type to determine dimensions and interaction distance
                     const isLargeFurnace = furnace.furnaceType === FURNACE_TYPE_LARGE;
-                    const furnaceHeight = isLargeFurnace ? LARGE_FURNACE_HEIGHT : FURNACE_HEIGHT;
-                    const furnaceYOffset = isLargeFurnace ? LARGE_FURNACE_RENDER_Y_OFFSET : FURNACE_RENDER_Y_OFFSET;
+                    // Monument large furnaces are 480px tall (warehouse size), regular large furnaces are 256px
+                    const furnaceHeight = isLargeFurnace 
+                        ? (furnace.isMonument ? MONUMENT_LARGE_FURNACE_HEIGHT : LARGE_FURNACE_HEIGHT)
+                        : FURNACE_HEIGHT;
+                    const furnaceYOffset = isLargeFurnace 
+                        ? (furnace.isMonument ? MONUMENT_LARGE_FURNACE_RENDER_Y_OFFSET : LARGE_FURNACE_RENDER_Y_OFFSET)
+                        : FURNACE_RENDER_Y_OFFSET;
                     const maxDistSq = isLargeFurnace 
-                        ? PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED 
+                        ? (furnace.isMonument ? PLAYER_MONUMENT_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED : PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED) 
                         : PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED;
                     
                     // Use asymmetric interaction points for better approach from below while keeping top unchanged
                     let interactionCenterY;
                     if (playerY > furnace.posY) {
                         // Player is below furnace - use lower interaction point for easier approach
-                        interactionCenterY = furnace.posY + (isLargeFurnace ? 40 : 10); // Below the furnace base (larger offset for large furnace)
+                        const belowOffset = isLargeFurnace ? (furnace.isMonument ? 80 : 40) : 10;
+                        interactionCenterY = furnace.posY + belowOffset;
                     } else {
                         // Player is above/level with furnace - use normal center point to keep existing behavior
                         interactionCenterY = furnace.posY - (furnaceHeight / 2) - furnaceYOffset;

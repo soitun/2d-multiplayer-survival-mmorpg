@@ -125,11 +125,13 @@ import { ENTITY_VISUAL_CONFIG, getIndicatorPosition } from '../utils/entityVisua
 import { drawMinimapOntoCanvas } from './Minimap';
 import { renderCampfire } from '../utils/renderers/campfireRenderingUtils';
 import { renderBarbecue } from '../utils/renderers/barbecueRenderingUtils'; // ADDED: Barbecue renderer import
+import { getFurnaceDimensions, FURNACE_TYPE_LARGE } from '../utils/renderers/furnaceRenderingUtils'; // ADDED: Furnace dimensions helper
 import { renderPlayerCorpse } from '../utils/renderers/playerCorpseRenderingUtils';
 import { renderStash } from '../utils/renderers/stashRenderingUtils';
 import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarbecueLight, renderAllPlayerLights, renderFishingVillageCampfireLight, renderSovaAura } from '../utils/renderers/lightRenderingUtils';
 import { renderRuneStoneNightLight } from '../utils/renderers/runeStoneRenderingUtils';
 import { renderAllShipwreckNightLights, renderAllShipwreckDebugZones } from '../utils/renderers/shipwreckRenderingUtils';
+import { renderCompoundEerieLights } from '../utils/renderers/compoundEerieLightUtils';
 import { preloadCairnImages } from '../utils/renderers/cairnRenderingUtils';
 import { renderTree, renderTreeCanopyShadowsOverlay } from '../utils/renderers/treeRenderingUtils';
 import { renderTillerPreview } from '../utils/renderers/tillerPreviewRenderingUtils';
@@ -4033,6 +4035,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             } else {
               configKey = 'wooden_storage_box';
             }
+          } else if (entityType === 'furnace') {
+            // Use monument_large_furnace config for monument large furnaces
+            configKey = entityHeight >= 480 ? 'monument_large_furnace' 
+                      : entityHeight >= 256 ? 'large_furnace' 
+                      : 'furnace';
           } else {
             configKey = entityType;
           }
@@ -4063,7 +4070,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // Furnace interaction indicators (for hold actions like toggle burning)
     visibleFurnacesMap.forEach((furnace: SpacetimeDBFurnace) => {
-      drawIndicatorIfNeeded('furnace', furnace.id, furnace.posX, furnace.posY, 96, true); // 96px height for standard furnace size
+      // Use correct height based on furnace type and monument status
+      const dimensions = getFurnaceDimensions(furnace.furnaceType, furnace.isMonument);
+      drawIndicatorIfNeeded('furnace', furnace.id, furnace.posX, furnace.posY, dimensions.height, true);
     });
 
     // Barbecue interaction indicators (for hold actions like toggle burning)
@@ -4228,6 +4237,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         -currentCameraOffsetY + currentCanvasHeight, // viewMaxY
         now_ms
       );
+
+    // Compound Eerie Lights - Nanobot-style blue/purple ambient glow (replaces street lamps)
+    renderCompoundEerieLights(
+      ctx,
+      currentCycleProgress,
+      currentCameraOffsetX,
+      currentCameraOffsetY,
+      -currentCameraOffsetX,
+      -currentCameraOffsetX + currentCanvasWidth,
+      -currentCameraOffsetY,
+      -currentCameraOffsetY + currentCanvasHeight,
+      now_ms
+    );
 
       // DEBUG: Visible protection zone circles for shipwreck parts
       // Shows purple circle (protection zone), green crosshair (visual center), red dot (anchor point)

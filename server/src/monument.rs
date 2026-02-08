@@ -3145,6 +3145,7 @@ use spacetimedb::Identity;
 pub enum MonumentPlaceableType {
     Campfire,
     Furnace,
+    LargeFurnace,
     RainCollector,
     Lantern,
     CookingStation,
@@ -3177,6 +3178,15 @@ impl MonumentPlaceableConfig {
     pub fn furnace(offset_x: f32, offset_y: f32) -> Self {
         Self {
             placeable_type: MonumentPlaceableType::Furnace,
+            offset_x,
+            offset_y,
+            initial_fuel: Some(INITIAL_FURNACE_FUEL_AMOUNT),
+        }
+    }
+    
+    pub fn large_furnace(offset_x: f32, offset_y: f32) -> Self {
+        Self {
+            placeable_type: MonumentPlaceableType::LargeFurnace,
             offset_x,
             offset_y,
             initial_fuel: Some(INITIAL_FURNACE_FUEL_AMOUNT),
@@ -3222,10 +3232,11 @@ impl MonumentPlaceableConfig {
 
 /// Get monument placeables for the Central ALK Compound
 /// The central compound is at a fixed position in the world center
-/// NOTE: Furnaces and campfires removed - keeping the compound clean
 pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
     vec![
-        // No placeables - keeping the Central Compound clean
+        // Large furnace - replaces the warehouse in the northwest area of the compound
+        // Position matches the old warehouse offset (-450, -300) from compound center
+        MonumentPlaceableConfig::large_furnace(-450.0, -300.0),
     ]
 }
 
@@ -3563,6 +3574,81 @@ pub fn spawn_monument_placeables(
                     }
                     Err(e) => {
                         log::warn!("[MonumentPlaceables] Failed to spawn furnace at ({:.1}, {:.1}): {}", 
+                            world_x, world_y, e);
+                    }
+                }
+            }
+            
+            MonumentPlaceableType::LargeFurnace => {
+                // Large furnace Y offset: 128 (LARGE_FURNACE_HEIGHT/2) + 0 (LARGE_FURNACE_RENDER_Y_OFFSET)
+                let large_furnace_adjusted_y = world_y + 128.0;
+                let furnace = Furnace {
+                    id: 0,
+                    pos_x: world_x,
+                    pos_y: large_furnace_adjusted_y,
+                    chunk_index: chunk_idx,
+                    placed_by: monument_owner,
+                    placed_at: current_time,
+                    is_burning: false,
+                    furnace_type: crate::furnace::FURNACE_TYPE_LARGE,
+                    slot_instance_id_0: None, slot_def_id_0: None,
+                    slot_instance_id_1: None, slot_def_id_1: None,
+                    slot_instance_id_2: None, slot_def_id_2: None,
+                    slot_instance_id_3: None, slot_def_id_3: None,
+                    slot_instance_id_4: None, slot_def_id_4: None,
+                    slot_instance_id_5: None, slot_def_id_5: None,
+                    slot_instance_id_6: None, slot_def_id_6: None,
+                    slot_instance_id_7: None, slot_def_id_7: None,
+                    slot_instance_id_8: None, slot_def_id_8: None,
+                    slot_instance_id_9: None, slot_def_id_9: None,
+                    slot_instance_id_10: None, slot_def_id_10: None,
+                    slot_instance_id_11: None, slot_def_id_11: None,
+                    slot_instance_id_12: None, slot_def_id_12: None,
+                    slot_instance_id_13: None, slot_def_id_13: None,
+                    slot_instance_id_14: None, slot_def_id_14: None,
+                    slot_instance_id_15: None, slot_def_id_15: None,
+                    slot_instance_id_16: None, slot_def_id_16: None,
+                    slot_instance_id_17: None, slot_def_id_17: None,
+                    current_fuel_def_id: None,
+                    remaining_fuel_burn_time_secs: None,
+                    health: FURNACE_INITIAL_HEALTH,
+                    max_health: FURNACE_MAX_HEALTH,
+                    is_destroyed: false,
+                    destroyed_at: None,
+                    last_hit_time: None,
+                    last_damaged_by: None,
+                    slot_0_cooking_progress: None,
+                    slot_1_cooking_progress: None,
+                    slot_2_cooking_progress: None,
+                    slot_3_cooking_progress: None,
+                    slot_4_cooking_progress: None,
+                    slot_5_cooking_progress: None,
+                    slot_6_cooking_progress: None,
+                    slot_7_cooking_progress: None,
+                    slot_8_cooking_progress: None,
+                    slot_9_cooking_progress: None,
+                    slot_10_cooking_progress: None,
+                    slot_11_cooking_progress: None,
+                    slot_12_cooking_progress: None,
+                    slot_13_cooking_progress: None,
+                    slot_14_cooking_progress: None,
+                    slot_15_cooking_progress: None,
+                    slot_16_cooking_progress: None,
+                    slot_17_cooking_progress: None,
+                    // Mark as monument placeable
+                    is_monument: true,
+                    active_user_id: None,
+                    active_user_since: None,
+                };
+                
+                match ctx.db.furnace().try_insert(furnace) {
+                    Ok(inserted) => {
+                        spawned_count += 1;
+                        log::info!("[MonumentPlaceables] Spawned monument large furnace {} at ({:.1}, {:.1}) for {}", 
+                            inserted.id, world_x, world_y, monument_name);
+                    }
+                    Err(e) => {
+                        log::warn!("[MonumentPlaceables] Failed to spawn large furnace at ({:.1}, {:.1}): {}", 
                             world_x, world_y, e);
                     }
                 }

@@ -15,12 +15,12 @@ import {
 import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT, BARBECUE_LIGHT_RADIUS_BASE, BARBECUE_FLICKER_AMOUNT, SOVA_AURA_RADIUS_BASE } from '../utils/renderers/lightRenderingUtils';
 import { CAMPFIRE_HEIGHT } from '../utils/renderers/campfireRenderingUtils';
 import { LANTERN_HEIGHT, LANTERN_RENDER_Y_OFFSET, LANTERN_TYPE_LANTERN } from '../utils/renderers/lanternRenderingUtils';
-import { FURNACE_HEIGHT, FURNACE_RENDER_Y_OFFSET } from '../utils/renderers/furnaceRenderingUtils';
+import { FURNACE_HEIGHT, FURNACE_RENDER_Y_OFFSET, getFurnaceDimensions, FURNACE_TYPE_LARGE } from '../utils/renderers/furnaceRenderingUtils';
 import { BARBECUE_HEIGHT, BARBECUE_RENDER_Y_OFFSET } from '../utils/renderers/barbecueRenderingUtils';
 import { FIRE_PATCH_VISUAL_RADIUS } from '../utils/renderers/firePatchRenderingUtils';
 import { BuildingCluster } from '../utils/buildingVisibilityUtils';
 import { FOUNDATION_TILE_SIZE } from '../config/gameConfig';
-import { getCompoundBuildingsWithLights } from '../config/compoundBuildings';
+import { getCompoundEerieLightsWithPositions, getWorldCenter } from '../config/compoundBuildings';
 
 export interface ColorPoint {
   r: number; g: number; b: number; a: number;
@@ -797,19 +797,24 @@ export function useDayNightCycle({
         // Render furnace light cutouts with red gradient fill
         furnaces.forEach(furnace => {
             if (furnace.isBurning) {
+                // Get correct dimensions based on furnace type and monument status
+                const dims = getFurnaceDimensions(furnace.furnaceType, furnace.isMonument);
+                
                 // Adjust Y position for the light source to be centered on the furnace
-                const visualCenterWorldY = furnace.posY - (FURNACE_HEIGHT / 2);
-                const adjustedGradientCenterWorldY = visualCenterWorldY - (FURNACE_RENDER_Y_OFFSET * 0); // Changed from 0.6 to 0.4
+                const visualCenterWorldY = furnace.posY - (dims.height / 2) - dims.yOffset;
                 
                 const screenX = furnace.posX + cameraOffsetX;
-                const screenY = adjustedGradientCenterWorldY + cameraOffsetY; // Use adjusted Y
+                const screenY = visualCenterWorldY + cameraOffsetY;
                 
                 // Check if furnace is inside an enclosed building
                 const enclosingCluster = buildingClusters 
                     ? findEnclosingCluster(furnace.posX, furnace.posY, buildingClusters)
                     : null;
                 
-                const lightRadius = FURNACE_LIGHT_RADIUS_BASE * 2.0; // Double the cutout size
+                // Monument large furnaces get a bigger light cutout to match their size
+                const isLargeFurnace = furnace.furnaceType === FURNACE_TYPE_LARGE;
+                const lightRadiusMultiplier = isLargeFurnace ? (furnace.isMonument ? 4.0 : 3.0) : 2.0;
+                const lightRadius = FURNACE_LIGHT_RADIUS_BASE * lightRadiusMultiplier;
                 
                 // Apply clip if inside a building (clip affects both cutout and red fill)
                 if (enclosingCluster) {
@@ -1235,67 +1240,95 @@ export function useDayNightCycle({
         }
         // === END SOVA AURA ===
 
-        // Render compound building light cutouts (guardpost street lamps)
-        // These are static lights that are always on at night
-        const buildingsWithLights = getCompoundBuildingsWithLights();
-        buildingsWithLights.forEach(({ building, lightWorldX, lightWorldY }) => {
-            const lightSource = building.lightSource!;
-            const screenX = lightWorldX + cameraOffsetX;
-            const screenY = lightWorldY + cameraOffsetY;
+        // ═══════════════════════════════════════════════════════════════
+        // COMPOUND-WIDE EERIE LIGHT - Large circular cutout covering entire asphalt area
+        // Gives the whole compound a dim, otherworldly illumination at night
+        // ═══════════════════════════════════════════════════════════════
+        const compoundCenter = getWorldCenter();
+        const compoundScreenX = compoundCenter.x + cameraOffsetX;
+        const compoundScreenY = compoundCenter.y + cameraOffsetY;
+        // Asphalt area is ±768px from center. Use ~900px radius for soft edge beyond asphalt.
+        const compoundLightRadius = 900;
+        
+        // Large dim cutout - not fully bright, just lifts the darkness enough to see
+        const compoundCutout = maskCtx.createRadialGradient(
+            compoundScreenX, compoundScreenY, compoundLightRadius * 0.15,
+            compoundScreenX, compoundScreenY, compoundLightRadius
+        );
+        compoundCutout.addColorStop(0, 'rgba(0,0,0,0.55)');    // Moderate cutout at center
+        compoundCutout.addColorStop(0.3, 'rgba(0,0,0,0.45)');  // Gradual falloff
+        compoundCutout.addColorStop(0.6, 'rgba(0,0,0,0.30)');  // Mid fade
+        compoundCutout.addColorStop(0.8, 'rgba(0,0,0,0.12)');  // Soft edge
+        compoundCutout.addColorStop(0.92, 'rgba(0,0,0,0.04)'); // Very soft edge
+        compoundCutout.addColorStop(1, 'rgba(0,0,0,0)');       // Complete fade
+        
+        maskCtx.fillStyle = compoundCutout;
+        maskCtx.beginPath();
+        maskCtx.arc(compoundScreenX, compoundScreenY, compoundLightRadius, 0, Math.PI * 2);
+        maskCtx.fill();
+        
+        // Add eerie blue/purple tint over the entire compound
+        maskCtx.globalCompositeOperation = 'source-over';
+        const compoundGlowRadius = compoundLightRadius * 0.85;
+        const compoundGlow = maskCtx.createRadialGradient(
+            compoundScreenX, compoundScreenY, 0,
+            compoundScreenX, compoundScreenY, compoundGlowRadius
+        );
+        compoundGlow.addColorStop(0, 'rgba(60, 90, 180, 0.10)');    // Subtle blue center
+        compoundGlow.addColorStop(0.3, 'rgba(80, 100, 200, 0.08)'); // Blue mid
+        compoundGlow.addColorStop(0.5, 'rgba(100, 90, 210, 0.06)'); // Blue-purple blend
+        compoundGlow.addColorStop(0.7, 'rgba(120, 85, 200, 0.03)'); // Fading purple
+        compoundGlow.addColorStop(1, 'rgba(30, 50, 100, 0)');       // Fade to transparent
+        
+        maskCtx.fillStyle = compoundGlow;
+        maskCtx.beginPath();
+        maskCtx.arc(compoundScreenX, compoundScreenY, compoundGlowRadius, 0, Math.PI * 2);
+        maskCtx.fill();
+        maskCtx.globalCompositeOperation = 'destination-out';
+
+        // ═══════════════════════════════════════════════════════════════
+        // INDIVIDUAL EERIE LIGHT HOTSPOTS - scattered organically around compound
+        // These add localized bright spots with particles on top of the base illumination
+        // ═══════════════════════════════════════════════════════════════
+        const eerieLights = getCompoundEerieLightsWithPositions();
+        eerieLights.forEach(({ worldX, worldY, radius, intensity }) => {
+            const screenX = worldX + cameraOffsetX;
+            const screenY = worldY + cameraOffsetY;
+            const lightRadius = radius * intensity;
             
-            // Calculate effective light radius with intensity
-            const intensity = lightSource.intensity ?? 1.0;
-            const lightRadius = lightSource.radius * intensity;
-            
-            // FIRST: Create the transparent cutout hole for visibility
+            // Small localized cutout hotspot
             const maskGradient = maskCtx.createRadialGradient(
-                screenX, screenY, lightRadius * 0.05, // Inner radius (5% of total)
-                screenX, screenY, lightRadius // Outer radius
+                screenX, screenY, lightRadius * 0.03,
+                screenX, screenY, lightRadius
             );
-            
-            // Street lamp style cutout - strong center, gradual fade (cone-like illumination)
-            maskGradient.addColorStop(0, 'rgba(0,0,0,1)'); // Full cutout at center
-            maskGradient.addColorStop(0.15, 'rgba(0,0,0,0.95)'); // Strong cutout zone
-            maskGradient.addColorStop(0.35, 'rgba(0,0,0,0.8)'); // Gradual transition
-            maskGradient.addColorStop(0.55, 'rgba(0,0,0,0.5)'); // Mid fade
-            maskGradient.addColorStop(0.75, 'rgba(0,0,0,0.25)'); // Gentle fade
-            maskGradient.addColorStop(0.9, 'rgba(0,0,0,0.08)'); // Very soft edge
-            maskGradient.addColorStop(1, 'rgba(0,0,0,0)'); // Complete fade to darkness
+            maskGradient.addColorStop(0, 'rgba(0,0,0,0.50)');    // Moderate center boost
+            maskGradient.addColorStop(0.25, 'rgba(0,0,0,0.35)'); // Quick falloff
+            maskGradient.addColorStop(0.5, 'rgba(0,0,0,0.18)');  // Mid fade
+            maskGradient.addColorStop(0.75, 'rgba(0,0,0,0.06)'); // Soft edge
+            maskGradient.addColorStop(1, 'rgba(0,0,0,0)');       // Complete fade
             
             maskCtx.fillStyle = maskGradient;
             maskCtx.beginPath();
             maskCtx.arc(screenX, screenY, lightRadius, 0, Math.PI * 2);
             maskCtx.fill();
             
-            // SECOND: Add warm street lamp glow tint if color is specified
-            if (lightSource.color) {
-                maskCtx.globalCompositeOperation = 'source-over';
-                
-                const { r, g, b } = lightSource.color;
-                const glowRadius = lightRadius * 0.9; // Slightly smaller than cutout
-                
-                // Warm street lamp glow gradient
-                const glowGradient = maskCtx.createRadialGradient(
-                    screenX, screenY, 0,
-                    screenX, screenY, glowRadius
-                );
-                
-                // Subtle warm tint that doesn't overpower the cutout
-                glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.18)`); // Soft warm center
-                glowGradient.addColorStop(0.2, `rgba(${r}, ${g}, ${b}, 0.14)`); // Gradual fade
-                glowGradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, 0.10)`); // Mid transition
-                glowGradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, 0.06)`); // Gentle fade
-                glowGradient.addColorStop(0.8, `rgba(${r}, ${g}, ${b}, 0.02)`); // Very soft edge
-                glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`); // Fade to transparent
-                
-                maskCtx.fillStyle = glowGradient;
-                maskCtx.beginPath();
-                maskCtx.arc(screenX, screenY, glowRadius, 0, Math.PI * 2);
-                maskCtx.fill();
-                
-                // Switch back to cutout mode for other lights
-                maskCtx.globalCompositeOperation = 'destination-out';
-            }
+            // Localized eerie tint
+            maskCtx.globalCompositeOperation = 'source-over';
+            const glowRadius = lightRadius * 0.8;
+            const glowGradient = maskCtx.createRadialGradient(
+                screenX, screenY, 0,
+                screenX, screenY, glowRadius
+            );
+            glowGradient.addColorStop(0, 'rgba(80, 120, 200, 0.12)');    // Blue center
+            glowGradient.addColorStop(0.3, 'rgba(140, 100, 220, 0.08)'); // Purple blend
+            glowGradient.addColorStop(0.6, 'rgba(140, 100, 220, 0.04)'); // Fading
+            glowGradient.addColorStop(1, 'rgba(30, 50, 100, 0)');        // Transparent
+            
+            maskCtx.fillStyle = glowGradient;
+            maskCtx.beginPath();
+            maskCtx.arc(screenX, screenY, glowRadius, 0, Math.PI * 2);
+            maskCtx.fill();
+            maskCtx.globalCompositeOperation = 'destination-out';
         });
 
         // Render fire patch light cutouts (smaller than campfires, same size as the patch)

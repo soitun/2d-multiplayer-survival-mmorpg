@@ -39,8 +39,7 @@ pub const COMPOUND_BUILDING_COLLISIONS: &[CompoundBuildingCollision] = &[
     CompoundBuildingCollision { offset_x: 600.0, offset_y: 650.0, collision_radius: 30.0, collision_y_offset: 0.0 },
     
     // ===== MAIN BUILDINGS =====
-    // Warehouse
-    CompoundBuildingCollision { offset_x: -450.0, offset_y: -300.0, collision_radius: 150.0, collision_y_offset: 0.0 },
+    // Warehouse - REMOVED (replaced by monument large furnace placeable at same position)
     // Barracks
     CompoundBuildingCollision { offset_x: 450.0, offset_y: -300.0, collision_radius: 150.0, collision_y_offset: 0.0 },
     // Fuel Depot

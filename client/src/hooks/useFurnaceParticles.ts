@@ -9,6 +9,8 @@ import {
   FURNACE_RENDER_Y_OFFSET,
   LARGE_FURNACE_HEIGHT,
   LARGE_FURNACE_RENDER_Y_OFFSET,
+  MONUMENT_LARGE_FURNACE_HEIGHT,
+  MONUMENT_LARGE_FURNACE_RENDER_Y_OFFSET,
   FURNACE_TYPE_LARGE
 } from '../utils/renderers/furnaceRenderingUtils';
 
@@ -72,13 +74,20 @@ export function useFurnaceParticles({ visibleFurnacesMap }: { visibleFurnacesMap
     visibleFurnacesMapRef.current.forEach(furnace => {
       if (furnace.isBurning && !furnace.isDestroyed) {
         const isLargeFurnace = furnace.furnaceType === FURNACE_TYPE_LARGE;
+        const isMonument = furnace.isMonument;
         
-        // Use different dimensions and offsets for large furnace
-        const furnaceHeight = isLargeFurnace ? LARGE_FURNACE_HEIGHT : FURNACE_HEIGHT;
-        const yOffset = isLargeFurnace ? LARGE_FURNACE_RENDER_Y_OFFSET : FURNACE_RENDER_Y_OFFSET;
+        // Use different dimensions and offsets for large furnace / monument
+        const furnaceHeight = isLargeFurnace 
+          ? (isMonument ? MONUMENT_LARGE_FURNACE_HEIGHT : LARGE_FURNACE_HEIGHT)
+          : FURNACE_HEIGHT;
+        const yOffset = isLargeFurnace 
+          ? (isMonument ? MONUMENT_LARGE_FURNACE_RENDER_Y_OFFSET : LARGE_FURNACE_RENDER_Y_OFFSET)
+          : FURNACE_RENDER_Y_OFFSET;
         
-        // Large furnace: sparks shifted up and to the left
-        const centerX = isLargeFurnace ? furnace.posX - 30 : furnace.posX - 8;
+        // Spark origin: monument large furnace shifted further left to align with oven opening
+        const centerX = isLargeFurnace 
+          ? (isMonument ? furnace.posX - 60 : furnace.posX - 30)
+          : furnace.posX - 8;
         const centerY = isLargeFurnace 
           ? furnace.posY - (furnaceHeight / 2) - yOffset - 60  // Much higher for large furnace
           : furnace.posY - (furnaceHeight / 2) - yOffset - 12;

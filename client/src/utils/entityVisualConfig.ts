@@ -74,6 +74,16 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     spriteHeight: 256,
   },
   
+  monument_large_furnace: {
+    centerOffsetX: 0,
+    centerOffsetY: -240,  // Visual center for 480px monument furnace
+    width: 360,           // Proportionally larger interaction box (480/256 * 200)
+    height: 480,          // Full monument height
+    placementYOffset: 0,
+    spriteWidth: 480,
+    spriteHeight: 480,
+  },
+  
   barbecue: {
     centerOffsetX: 0,
     centerOffsetY: 0,     // Center-anchored: sprite centered on posY, collision at visual center

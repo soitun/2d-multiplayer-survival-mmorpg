@@ -147,258 +147,11 @@ export function getBuildingYSortPosition(building: CompoundBuilding): number {
 export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
   // ===== GUARD POSTS (4 corners - symmetrically positioned) =====
   // Collision at anchor point (worldY) - where building visually touches ground
-  // Light source at 70% up from sprite bottom (like a street lamp)
-  // Light Y offset calculation: spriteBottom - (0.7 * height) relative to anchor
-  // = (anchorYOffset) - (0.7 * height) = 72 - 268.8 = -196.8 (below anchor)
-  // Since positive offsetY moves UP, and we want 70% up from bottom:
-  // offsetY = height * 0.7 - anchorYOffset = 268.8 - 72 = ~197 pixels above anchor
-  {
-    id: 'guardpost_nw',
-    offsetX: -600,
-    offsetY: -600,
-    imagePath: 'guardpost.png',
-    width: 288,
-    height: 384,
-    anchorYOffset: 72,
-    collisionRadius: 30,
-    collisionYOffset: 0, // Collision at anchor point
-    lightSource: {
-      radius: 250,     // Street lamp light radius
-      offsetX: 0,      // Centered horizontally
-      offsetY: 100,    // 70% up from bottom of sprite (384 * 0.7 - 72)
-      color: { r: 255, g: 220, b: 150 }, // Warm street lamp glow
-      intensity: 1.0,
-    },
-  },
-  {
-    id: 'guardpost_ne',
-    offsetX: 600,
-    offsetY: -600,
-    imagePath: 'guardpost.png',
-    width: 288,
-    height: 384,
-    anchorYOffset: 72,
-    collisionRadius: 30,
-    collisionYOffset: 0,
-    lightSource: {
-      radius: 250,
-      offsetX: 0,
-      offsetY: 100,
-      color: { r: 255, g: 220, b: 150 },
-      intensity: 1.0,
-    },
-  },
-  {
-    id: 'guardpost_sw',
-    offsetX: -600,
-    offsetY: 650,
-    imagePath: 'guardpost.png',
-    width: 288,
-    height: 384,
-    anchorYOffset: 72,
-    collisionRadius: 30,
-    collisionYOffset: 0,
-    lightSource: {
-      radius: 250,
-      offsetX: 0,
-      offsetY: 100,
-      color: { r: 255, g: 220, b: 150 },
-      intensity: 1.0,
-    },
-  },
-  {
-    id: 'guardpost_se',
-    offsetX: 600,
-    offsetY: 650,
-    imagePath: 'guardpost.png',
-    width: 288,
-    height: 384,
-    anchorYOffset: 72,
-    collisionRadius: 30,
-    collisionYOffset: 0,
-    lightSource: {
-      radius: 250,
-      offsetX: 0,
-      offsetY: 100,
-      color: { r: 255, g: 220, b: 150 },
-      intensity: 1.0,
-    },
-  },
+  // ===== ALL GUARD POSTS / STREETLIGHTS REMOVED =====
+  // Replaced by compound eerie lights (COMPOUND_EERIE_LIGHTS below)
+  // which render as nanobot-style blue/purple ambient glows at night.
   
-  // ===== ADDITIONAL GUARD POSTS (near center and strategic locations) =====
-  // Guardpost near center building (shed) - west side
-  {
-    id: 'guardpost_center_west',
-    offsetX: -200,
-    offsetY: 450,
-    imagePath: 'guardpost.png',
-    width: 288,
-    height: 384,
-    anchorYOffset: 72,
-    collisionRadius: 30,
-    collisionYOffset: 0,
-    lightSource: {
-      radius: 250,
-      offsetX: 0,
-      offsetY: 100,
-      color: { r: 255, g: 220, b: 150 },
-      intensity: 1.0,
-    },
-  },
-  
-  // Guardpost near center building (shed) - east side
-  {
-    id: 'guardpost_center_east',
-    offsetX: 200,
-    offsetY: 450,
-    imagePath: 'guardpost.png',
-    width: 288,
-    height: 384,
-    anchorYOffset: 72,
-    collisionRadius: 30,
-    collisionYOffset: 0,
-    lightSource: {
-      radius: 250,
-      offsetX: 0,
-      offsetY: 100,
-      color: { r: 255, g: 220, b: 150 },
-      intensity: 1.0,
-    },
-  },
-  
-  // Guardpost between warehouse and garage (west side, mid-south)
-  {
-    id: 'guardpost_west_mid',
-    offsetX: -450,
-    offsetY: 50,
-    imagePath: 'guardpost.png',
-    width: 288,
-    height: 384,
-    anchorYOffset: 72,
-    collisionRadius: 30,
-    collisionYOffset: 0,
-    lightSource: {
-      radius: 250,
-      offsetX: 0,
-      offsetY: 100,
-      color: { r: 255, g: 220, b: 150 },
-      intensity: 1.0,
-    },
-  },
-  
-  // Guardpost between barracks and fuel depot (east side, mid-south)
-  {
-    id: 'guardpost_east_mid',
-    offsetX: 450,
-    offsetY: 50,
-    imagePath: 'guardpost.png',
-    width: 288,
-    height: 384,
-    anchorYOffset: 72,
-    collisionRadius: 30,
-    collisionYOffset: 0,
-    lightSource: {
-      radius: 250,
-      offsetX: 0,
-      offsetY: 100,
-      color: { r: 255, g: 220, b: 150 },
-      intensity: 1.0,
-    },
-  },
-  
-  // Guardpost near north entrance area (center-north)
-  {
-    id: 'guardpost_north_center',
-    offsetX: 0,
-    offsetY: -650,
-    imagePath: 'guardpost.png',
-    width: 288,
-    height: 384,
-    anchorYOffset: 72,
-    collisionRadius: 30,
-    collisionYOffset: 0,
-    lightSource: {
-      radius: 250,
-      offsetX: 0,
-      offsetY: 100,
-      color: { r: 255, g: 220, b: 150 },
-      intensity: 1.0,
-    },
-  },
-  
-  // Guardpost near warehouse (northwest area)
-  {
-    id: 'guardpost_northwest_inner',
-    offsetX: -300,
-    offsetY: -400,
-    imagePath: 'guardpost.png',
-    width: 288,
-    height: 384,
-    anchorYOffset: 72,
-    collisionRadius: 30,
-    collisionYOffset: 0,
-    lightSource: {
-      radius: 250,
-      offsetX: 0,
-      offsetY: 100,
-      color: { r: 255, g: 220, b: 150 },
-      intensity: 1.0,
-    },
-  },
-  
-  // Guardpost near barracks (northeast area)
-  {
-    id: 'guardpost_northeast_inner',
-    offsetX: 300,
-    offsetY: -400,
-    imagePath: 'guardpost.png',
-    width: 288,
-    height: 384,
-    anchorYOffset: 72,
-    collisionRadius: 30,
-    collisionYOffset: 0,
-    lightSource: {
-      radius: 250,
-      offsetX: 0,
-      offsetY: 100,
-      color: { r: 255, g: 220, b: 150 },
-      intensity: 1.0,
-    },
-  },
-  
-  
-  // Guardpost in middle of south wall, just north of it
-  {
-    id: 'guardpost_south_wall_center',
-    offsetX: 0,
-    offsetY: 700,
-    imagePath: 'guardpost.png',
-    width: 288,
-    height: 384,
-    anchorYOffset: 72,
-    collisionRadius: 30,
-    collisionYOffset: 0,
-    lightSource: {
-      radius: 250,
-      offsetX: 0,
-      offsetY: 100,
-      color: { r: 255, g: 220, b: 150 },
-      intensity: 1.0,
-    },
-  },
-  
-  // ===== LARGE WAREHOUSE =====
-  {
-    id: 'warehouse',
-    offsetX: -450,
-    offsetY: -300,
-    imagePath: 'warehouse.png',
-    width: 480,
-    height: 480,
-    anchorYOffset: 96,
-    collisionRadius: 150,
-    collisionYOffset: 0,
-  },
+  // ===== LARGE WAREHOUSE ===== (REMOVED - replaced by monument large furnace placeable)
   
   // ===== BARRACKS =====
   {
@@ -452,47 +205,53 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
     collisionYOffset: 0,
   },
   
-  // ===== STREET LIGHTS AT CENTRAL ALK BUILDING =====
-  // Street light west of central building
-  {
-    id: 'streetlight_central_west',
-    offsetX: -150,
-    offsetY: 50,
-    imagePath: 'guardpost.png',
-    width: 288,
-    height: 384,
-    anchorYOffset: 72,
-    collisionRadius: 30,
-    collisionYOffset: 0,
-    lightSource: {
-      radius: 250,
-      offsetX: 0,
-      offsetY: 100,
-      color: { r: 255, g: 220, b: 150 }, // Warm street lamp glow
-      intensity: 1.0,
-    },
-  },
-  
-  // Street light east of central building
-  {
-    id: 'streetlight_central_east',
-    offsetX: 150,
-    offsetY: 50,
-    imagePath: 'guardpost.png',
-    width: 288,
-    height: 384,
-    anchorYOffset: 72,
-    collisionRadius: 30,
-    collisionYOffset: 0,
-    lightSource: {
-      radius: 250,
-      offsetX: 0,
-      offsetY: 100,
-      color: { r: 255, g: 220, b: 150 }, // Warm street lamp glow
-      intensity: 1.0,
-    },
-  },
 ];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COMPOUND EERIE LIGHTS - Nanobot-style ambient lights (replaces street lamps)
+// These render as eerie blue/purple glows similar to shipwreck Lagunov ghost lights.
+// No physical structure - just floating light sources giving the compound an
+// otherworldly, nanobot-infused atmosphere at night.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface CompoundEerieLight {
+  id: string;
+  offsetX: number;   // Offset from world center
+  offsetY: number;   // Offset from world center
+  radius: number;    // Light cutout radius
+  intensity: number; // Light intensity (0-1)
+}
+
+export const COMPOUND_EERIE_LIGHTS: CompoundEerieLight[] = [
+  // Scattered organically around the compound - intentionally asymmetric and irregular
+  // These provide localized glow hotspots on top of the large compound-wide cutout
+  { id: 'eerie_01', offsetX: -570, offsetY: -530, radius: 180, intensity: 0.75 },
+  { id: 'eerie_02', offsetX:  520, offsetY: -620, radius: 160, intensity: 0.70 },
+  { id: 'eerie_03', offsetX: -630, offsetY:  580, radius: 170, intensity: 0.72 },
+  { id: 'eerie_04', offsetX:  560, offsetY:  700, radius: 150, intensity: 0.68 },
+  { id: 'eerie_05', offsetX: -180, offsetY:  420, radius: 140, intensity: 0.65 },
+  { id: 'eerie_06', offsetX:  230, offsetY:  480, radius: 130, intensity: 0.62 },
+  { id: 'eerie_07', offsetX: -120, offsetY:   80, radius: 150, intensity: 0.70 },
+  { id: 'eerie_08', offsetX:  170, offsetY:  -30, radius: 140, intensity: 0.65 },
+  { id: 'eerie_09', offsetX: -480, offsetY:   20, radius: 160, intensity: 0.72 },
+  { id: 'eerie_10', offsetX:  410, offsetY:  100, radius: 150, intensity: 0.68 },
+  { id: 'eerie_11', offsetX: -340, offsetY: -370, radius: 140, intensity: 0.65 },
+  { id: 'eerie_12', offsetX:  280, offsetY: -430, radius: 135, intensity: 0.63 },
+  { id: 'eerie_13', offsetX:   40, offsetY: -600, radius: 160, intensity: 0.70 },
+  { id: 'eerie_14', offsetX:  -30, offsetY:  680, radius: 155, intensity: 0.68 },
+];
+
+/**
+ * Get compound eerie lights with world positions.
+ */
+export function getCompoundEerieLightsWithPositions(): Array<CompoundEerieLight & { worldX: number; worldY: number }> {
+  const center = getWorldCenter();
+  return COMPOUND_EERIE_LIGHTS.map(light => ({
+    ...light,
+    worldX: center.x + light.offsetX,
+    worldY: center.y + light.offsetY,
+  }));
+}
 
 /**
  * Get all compound buildings with their calculated world positions.
@@ -510,34 +269,6 @@ export function getCompoundBuildingsWithPositions(): Array<CompoundBuilding & { 
   });
 }
 
-/**
- * Get compound buildings that have light sources.
- * Returns buildings with their world positions and light source info.
- * Used by the day/night cycle to render light cutouts.
- */
-export function getCompoundBuildingsWithLights(): Array<{
-  building: CompoundBuilding;
-  worldX: number;
-  worldY: number;
-  lightWorldX: number;
-  lightWorldY: number;
-}> {
-  return COMPOUND_BUILDINGS
-    .filter(building => building.lightSource !== undefined)
-    .map(building => {
-      const worldPos = getBuildingWorldPosition(building);
-      const lightSource = building.lightSource!;
-      return {
-        building,
-        worldX: worldPos.x,
-        worldY: worldPos.y,
-        // Light position: centered by default, offset by lightSource offsets
-        lightWorldX: worldPos.x + (lightSource.offsetX ?? 0),
-        // Light Y: anchor Y minus offsetY (positive offsetY = higher on screen = lower Y value)
-        lightWorldY: worldPos.y - lightSource.offsetY,
-      };
-    });
-}
 
 /**
  * Size configuration for monument part types.
