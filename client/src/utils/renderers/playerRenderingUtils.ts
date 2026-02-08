@@ -54,13 +54,21 @@ const playerVisualKnockbackState = new Map<string, PlayerVisualKnockbackState>()
 // Linear interpolation function
 const lerp = (a: number, b: number, t: number): number => a * (1 - t) + b * t;
 
-// --- NEW: Reusable Offscreen Canvas for Tinting ---
+// --- Reusable Offscreen Canvas for Tinting ---
 const offscreenCanvas = document.createElement('canvas');
 const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
 if (!offscreenCtx) {
   console.error("Failed to get 2D context from offscreen canvas for player rendering.");
 }
-// --- END NEW ---
+
+// --- Reusable Offscreen Canvas for Shadow Sprite Extraction ---
+// PERF FIX: Reuse a single canvas instead of document.createElement('canvas') every frame per player
+const shadowSpriteCanvas = document.createElement('canvas');
+const shadowSpriteCtx = shadowSpriteCanvas.getContext('2d');
+if (!shadowSpriteCtx) {
+  console.error("Failed to get 2D context from shadow sprite canvas for player rendering.");
+}
+let shadowSpriteCanvasInitialized = false;
 
 const PLAYER_NAME_FONT = '12px "Courier New", Consolas, Monaco, monospace'; // 🎯 CYBERPUNK: Match interaction label styling
 
@@ -303,6 +311,9 @@ export const drawNameTag = (
   if (activeTitle && isOnline) {
     displayText = `«${activeTitle}» ${player.username}`;
   }
+
+  // NPC indicator — check is_npc field (camelCase from generated bindings)
+  const isNpc = (player as any).isNpc ?? (player as any).is_npc ?? false;
   // --- END MODIFICATION ---
 
   ctx.font = PLAYER_NAME_FONT;
@@ -319,7 +330,10 @@ export const drawNameTag = (
   ctx.roundRect(tagX, tagY, tagWidth, tagHeight, 5);
   ctx.fill();
 
-  // Title gets gold color, username stays white
+  // NPC name color: soft cyan (#7fdbca) to subtly distinguish from human players
+  const nameColor = isNpc ? '#7fdbca' : '#FFFFFF';
+
+  // Title gets gold color, username stays white (or cyan for NPCs)
   if (activeTitle && isOnline) {
     // Draw title in gold
     const titleText = `«${activeTitle}» `;
@@ -332,10 +346,10 @@ export const drawNameTag = (
     ctx.textAlign = 'left';
     ctx.fillText(titleText, startX, tagY + tagHeight / 2 + 4);
     
-    ctx.fillStyle = '#FFFFFF'; // White for username
+    ctx.fillStyle = nameColor;
     ctx.fillText(player.username, startX + titleWidth, tagY + tagHeight / 2 + 4);
   } else {
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = nameColor;
     ctx.fillText(displayText, spriteX, tagY + tagHeight / 2 + 4);
   }
   
@@ -560,7 +574,7 @@ export const renderPlayer = (
         visualState.interpolationStartTime = nowMs;
         visualState.lastHitTimeMicros = serverLastHitTimePropMicros;
         visualState.clientHitDetectionTime = hitState.clientDetectionTime;
-        console.log(`🎯 [KNOCKBACK] Starting interpolation for player ${playerHexId} from (${visualState.interpolationSourceX.toFixed(1)}, ${visualState.interpolationSourceY.toFixed(1)}) to (${serverX.toFixed(1)}, ${serverY.toFixed(1)})`);
+        // Knockback interpolation started (log removed to avoid console spam in production)
       } else if (serverLastHitTimePropMicros > visualState.lastHitTimeMicros) {
         // FALLBACK: Old detection method for compatibility
         visualState.interpolationSourceX = visualState.displayX;
@@ -745,7 +759,7 @@ export const renderPlayer = (
     const MAX_HIT_EFFECT_DURATION_MS = 2000; // 2 seconds maximum
     const totalHitDuration = nowMs - hitState.clientDetectionTime;
     if (totalHitDuration > MAX_HIT_EFFECT_DURATION_MS) {
-      console.log(`🎯 [SAFETY] Force clearing stuck hit state for player ${playerHexId} after ${totalHitDuration}ms`);
+      // Safety: Force clearing stuck hit state (log removed to avoid console spam)
       playerHitStates.delete(playerHexId);
       isCurrentlyHit = false;
     }
@@ -771,50 +785,46 @@ export const renderPlayer = (
   const shouldShowShadow = !isCorpse && !(player.isOnWater && !isCurrentlyJumping);
   
   // NEW: Choose sprite based on player state (PRIORITY ORDER: dodge > swimming > crouching > idle/sprint/walk)
-  let currentSpriteImg: CanvasImageSource;
+  // With fallbacks to ensure we always have a valid sprite if any sprite is loaded
+  let currentSpriteImg: CanvasImageSource | null = null;
   if (isCorpse) {
     currentSpriteImg = heroImg; // Corpses use walking sprite
   } else if (isDodgeRollingState) {
     // HIGHEST PRIORITY: Dodge rolling uses dodge sprite regardless of other states
-    currentSpriteImg = heroDodgeImg;
+    currentSpriteImg = heroDodgeImg || heroImg; // Fallback to walking sprite
   } else if (isSwimming && !isCurrentlyJumping) {
     // SECOND PRIORITY: Swimming uses swim sprite (water overrides crouching)
-    currentSpriteImg = heroSwimImg;
+    currentSpriteImg = heroSwimImg || heroImg; // Fallback to walking sprite
   } else if (isCrouchingState) {
     // THIRD PRIORITY: Crouching uses crouch sprite (only when NOT on water)
-    currentSpriteImg = heroCrouchImg;
+    currentSpriteImg = heroCrouchImg || heroImg; // Fallback to walking sprite
   } else if (isIdleState) {
-    currentSpriteImg = heroIdleImg; // Use idle sprite when not moving
+    currentSpriteImg = heroIdleImg || heroImg; // Fallback to walking sprite
   } else if (isSprinting) {
-    currentSpriteImg = heroSprintImg; // Use sprint sprite when sprinting and moving
+    currentSpriteImg = heroSprintImg || heroImg; // Fallback to walking sprite
   } else {
     currentSpriteImg = heroImg; // Use walking sprite for normal movement
   }
+
+  // FIX: Early check - if we don't have a valid sprite, skip the entire rendering including shadows
+  // This prevents "shadow only" rendering when sprites haven't loaded yet
+  const hasValidSprite = currentSpriteImg && (currentSpriteImg instanceof HTMLImageElement);
   
-  if (currentSpriteImg instanceof HTMLImageElement && shouldShowShadow) {
-    // Extract the specific sprite frame for shadow rendering
-    const { sx, sy } = getSpriteCoordinates(
-      player, 
-      finalIsMoving, 
-      finalAnimationFrame, 
-      isUsingItem || isUsingSeloOliveOil, 
-      totalFrames, 
-      isIdleAnimation,
-      isCrouchingAnimation,
-      isSwimmingAnimation,
-      isDodgeRollingAnimation,
-      dodgeRollProgress || 0
-    );
+  if (hasValidSprite && shouldShowShadow) {
+    // Extract the specific sprite frame for shadow rendering (reuse computed sx, sy from above)
     
-    // Create a temporary canvas with just the current sprite frame
-    const spriteCanvas = document.createElement('canvas');
-    spriteCanvas.width = gameConfig.spriteWidth;
-    spriteCanvas.height = gameConfig.spriteHeight;
-    const spriteCtx = spriteCanvas.getContext('2d');
+    // PERF FIX: Reuse the cached shadow canvas instead of creating a new one every frame
+    if (!shadowSpriteCanvasInitialized || shadowSpriteCanvas.width !== gameConfig.spriteWidth || shadowSpriteCanvas.height !== gameConfig.spriteHeight) {
+      shadowSpriteCanvas.width = gameConfig.spriteWidth;
+      shadowSpriteCanvas.height = gameConfig.spriteHeight;
+      shadowSpriteCanvasInitialized = true;
+    }
     
-    if (spriteCtx) {
-      // Draw just the current sprite frame to the temporary canvas
-      spriteCtx.drawImage(
+    if (shadowSpriteCtx) {
+      // Clear previous frame data
+      shadowSpriteCtx.clearRect(0, 0, shadowSpriteCanvas.width, shadowSpriteCanvas.height);
+      // Draw just the current sprite frame to the reusable shadow canvas
+      shadowSpriteCtx.drawImage(
         currentSpriteImg, // UPDATED: Use selected sprite
         sx, sy, gameConfig.spriteWidth, gameConfig.spriteHeight, // Source: specific frame from spritesheet
         0, 0, gameConfig.spriteWidth, gameConfig.spriteHeight    // Destination: full temporary canvas
@@ -840,7 +850,7 @@ export const renderPlayer = (
 
       drawDynamicGroundShadow({
         ctx,
-        entityImage: spriteCanvas, // Use the extracted sprite frame instead of full spritesheet
+        entityImage: shadowSpriteCanvas, // PERF FIX: Use reusable cached canvas instead of allocating per frame
         entityCenterX: finalShadowCenterX,
         entityBaseY: finalShadowBaseY,
         imageDrawWidth: drawWidth * finalShadowScale,
@@ -858,7 +868,8 @@ export const renderPlayer = (
   // --- End Dynamic Ground Shadow ---
 
   // --- Draw Offline Shadow (corpses excluded - they're flat on the ground) --- 
-  if (!isCorpse && !finalIsOnline && shouldShowShadow) {
+  // FIX: Only render shadow if we have a valid sprite to render (prevents shadow-only rendering)
+  if (hasValidSprite && !isCorpse && !finalIsOnline && shouldShowShadow) {
       const shadowBaseRadiusX = drawWidth * 0.3;
       const shadowBaseRadiusY = shadowBaseRadiusX * 0.4;
       
@@ -873,7 +884,8 @@ export const renderPlayer = (
   // --- End Shadow ---
 
   // --- Draw Shadow (Only if alive and online, and not a corpse) ---
-  if (!isCorpse && !player.isDead && finalIsOnline && shouldShowShadow) {
+  // FIX: Only render shadow if we have a valid sprite to render (prevents shadow-only rendering)
+  if (hasValidSprite && !isCorpse && !player.isDead && finalIsOnline && shouldShowShadow) {
       const shadowBaseRadiusX = drawWidth * 0.3;
       const shadowBaseRadiusY = shadowBaseRadiusX * 0.4;
       const shadowMaxJumpOffset = 10; 
@@ -1021,8 +1033,11 @@ export const renderPlayer = (
 
     // --- Prepare sprite on offscreen canvas (for tinting) ---
     if (offscreenCtx && currentSpriteImg) {
-      offscreenCanvas.width = gameConfig.spriteWidth;
-      offscreenCanvas.height = gameConfig.spriteHeight;
+      // PERF FIX: Only set dimensions when they change (setting resets GPU state even if same value)
+      if (offscreenCanvas.width !== gameConfig.spriteWidth || offscreenCanvas.height !== gameConfig.spriteHeight) {
+        offscreenCanvas.width = gameConfig.spriteWidth;
+        offscreenCanvas.height = gameConfig.spriteHeight;
+      }
       // Ensure transparent background
       offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
       // Set composite operation to ensure proper transparency handling

@@ -120,7 +120,6 @@ mod flashlight; // <<< ADDED flashlight module
 mod headlamp; // <<< ADDED headlamp module
 mod snorkel; // <<< ADDED snorkel module for underwater stealth
 mod respawn; // <<< ADDED respawn module
-mod player_collision; // <<< ADDED player_collision module
 mod shelter; // <<< ADDED shelter module
 mod world_generation; // <<< ADDED world generation module
 mod fishing; // <<< ADDED fishing module
@@ -703,6 +702,9 @@ pub struct Player {
     pub pvp_enabled: bool, // Whether PvP mode is currently active
     pub pvp_enabled_until: Option<Timestamp>, // When PvP will auto-disable (minimum 30min)
     pub last_pvp_combat_time: Option<Timestamp>, // Last time player dealt/received PvP damage (for combat extension)
+    // === NPC Agent Fields ===
+    pub is_npc: bool, // True for ElizaOS-driven NPC agents, false for human players
+    pub npc_role: String, // NPC role identifier: "gatherer", "warrior", "builder", "trader", etc. Empty for humans.
 }
 
 // Table to store the last attack timestamp for each player
@@ -1214,27 +1216,32 @@ pub fn identity_disconnected(ctx: &ReducerContext) {
             // --- END Clean Up Connection --- 
 
             // --- Set Player Offline Status and Create Offline Corpse --- 
+            // NPCs are treated identically to human players here:
+            // they create lootable offline corpses, so other players can raid them.
             if let Some(mut player) = players.identity().find(&sender_id) {
                  if player.is_online { // Only update if they were marked online
                     player.is_online = false;
                     
-                    // Create offline corpse if player is not dead
+                    // Create offline corpse if player is not dead (NPCs and humans alike)
                     if !player.is_dead {
                         match player_corpse::create_offline_corpse(ctx, &player) {
                             Ok(corpse_id) => {
                                 player.offline_corpse_id = Some(corpse_id);
-                                log::info!("[Disconnect] Created offline corpse {} for player {:?}", corpse_id, sender_id);
+                                log::info!("[Disconnect] Created offline corpse {} for {} {:?}", 
+                                    corpse_id, if player.is_npc { "NPC" } else { "player" }, sender_id);
                             }
                             Err(e) => {
-                                log::error!("[Disconnect] Failed to create offline corpse for player {:?}: {}", sender_id, e);
+                                log::error!("[Disconnect] Failed to create offline corpse for {:?}: {}", sender_id, e);
                             }
                         }
                     } else {
-                        log::info!("[Disconnect] Player {:?} is dead, no offline corpse needed.", sender_id);
+                        log::info!("[Disconnect] {:?} is dead, no offline corpse needed.", sender_id);
                     }
                     
+                    let is_npc = player.is_npc;
                     players.identity().update(player);
-                    log::info!("[Disconnect] Set player {:?} to offline.", sender_id);
+                    log::info!("[Disconnect] Set {} {:?} to offline.", 
+                        if is_npc { "NPC" } else { "player" }, sender_id);
                  }
             } else {
                  log::warn!("[Disconnect] Player {:?} not found in Player table during disconnect cleanup.", sender_id);
@@ -1857,6 +1864,9 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         pvp_enabled: false, // PvP disabled by default
         pvp_enabled_until: None, // No PvP timer initially
         last_pvp_combat_time: None, // No PvP combat history initially
+        // NPC fields - human players are never NPCs
+        is_npc: false,
+        npc_role: String::new(),
     };
 
     // Insert the new player
@@ -1918,6 +1928,142 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         Err(e) => {
             log::error!("Failed to insert new player {} ({:?}): {}", username, sender_id, e);
             Err(format!("Failed to register player: Database error."))
+        }
+    }
+}
+
+/// Reducer for registering an NPC agent.
+/// Called by the ElizaOS agent runtime when connecting an NPC to the game.
+/// NPCs use the same Player table and systems as human players, but:
+/// - Skip tutorials, quests, daily login rewards
+/// - Don't create offline corpses on disconnect
+/// - Spawn at a random valid land position (not restricted to beach/shipwreck)
+/// - Receive role-appropriate starting items
+#[spacetimedb::reducer]
+pub fn register_npc(ctx: &ReducerContext, username: String, role: String) -> Result<(), String> {
+    let sender_id = ctx.sender;
+    let players = ctx.db.player();
+    log::info!("[NPC] Attempting NPC registration for identity: {:?}, username: {}, role: {}", 
+        sender_id, username, role);
+
+    // Check if this NPC already exists (reconnection case)
+    if let Some(mut existing_player) = players.identity().find(&sender_id) {
+        log::info!("[NPC] Found existing NPC {} ({:?}). Updating online status.", 
+            existing_player.username, sender_id);
+        existing_player.is_online = true;
+        existing_player.last_update = ctx.timestamp;
+        existing_player.npc_role = role;
+        players.identity().update(existing_player);
+        return Ok(());
+    }
+
+    // Validate inputs
+    if username.is_empty() || username.len() > 30 {
+        return Err("NPC username must be 1-30 characters.".to_string());
+    }
+    let valid_roles = ["gatherer", "warrior", "builder", "scout", "healer", "crafter", "explorer"];
+    if !valid_roles.contains(&role.as_str()) {
+        log::warn!("[NPC] Unknown role '{}' for NPC {}. Defaulting to explorer.", role, username);
+    }
+
+    // Find a spawn position - try random land tiles
+    let mut spawn_x: f32 = (WORLD_WIDTH_TILES / 2) as f32 * TILE_SIZE_PX as f32;
+    let mut spawn_y: f32 = (WORLD_HEIGHT_TILES / 2) as f32 * TILE_SIZE_PX as f32;
+    
+    // Try to find a valid land position up to 50 times
+    for _attempt in 0..50 {
+        let tile_x = ctx.rng().gen_range(50..WORLD_WIDTH_TILES as i32 - 50);
+        let tile_y = ctx.rng().gen_range(50..WORLD_HEIGHT_TILES as i32 - 50);
+        
+        if let Some(tile_type) = get_tile_type_at_position(ctx, tile_x, tile_y) {
+            // Check if this is a walkable land tile (not water)
+            if tile_type.is_walkable() && !tile_type.is_water() {
+                spawn_x = tile_x as f32 * TILE_SIZE_PX as f32 + (TILE_SIZE_PX as f32 / 2.0);
+                spawn_y = tile_y as f32 * TILE_SIZE_PX as f32 + (TILE_SIZE_PX as f32 / 2.0);
+                log::info!("[NPC] Found valid spawn at tile ({}, {})", tile_x, tile_y);
+                break;
+            }
+        }
+    }
+
+    // Create the NPC player record (same struct as human players)
+    let player = Player {
+        identity: sender_id,
+        username: username.clone(),
+        position_x: spawn_x,
+        position_y: spawn_y,
+        direction: "down".to_string(),
+        last_update: ctx.timestamp,
+        last_stat_update: ctx.timestamp,
+        jump_start_time_ms: 0,
+        health: 100.0,
+        stamina: 100.0,
+        thirst: PLAYER_STARTING_THIRST,
+        hunger: PLAYER_STARTING_HUNGER,
+        warmth: 100.0,
+        is_sprinting: false,
+        is_dead: false,
+        death_timestamp: None,
+        last_hit_time: None,
+        is_online: true,
+        is_torch_lit: false,
+        is_flashlight_on: false,
+        is_headlamp_lit: false,
+        flashlight_aim_angle: 0.0,
+        last_consumed_at: None,
+        is_crouching: false,
+        is_knocked_out: false,
+        knocked_out_at: None,
+        is_on_water: false,
+        is_snorkeling: false,
+        client_movement_sequence: 0,
+        is_inside_building: false,
+        is_aiming_throw: false,
+        last_respawn_time: ctx.timestamp,
+        insanity: 0.0,
+        last_insanity_threshold: 0.0,
+        shard_carry_start_time: None,
+        offline_corpse_id: None,
+        has_seen_memory_shard_tutorial: true, // NPCs don't need tutorials
+        has_seen_sova_intro: true,
+        has_seen_tutorial_hint: true,
+        has_seen_hostile_encounter_tutorial: true,
+        has_seen_rune_stone_tutorial: true,
+        has_seen_alk_station_tutorial: true,
+        has_seen_crashed_drone_tutorial: true,
+        pvp_enabled: false,
+        pvp_enabled_until: None,
+        last_pvp_combat_time: None,
+        // NPC-specific fields
+        is_npc: true,
+        npc_role: role.clone(),
+    };
+
+    match players.try_insert(player) {
+        Ok(_inserted) => {
+            log::info!("[NPC] NPC registered: {} (role: {}). Granting starting items...", username, role);
+
+            // Track connection for NPCs too
+            if let Some(connection_id) = ctx.connection_id {
+                let new_active_conn = ActiveConnection {
+                    identity: sender_id,
+                    connection_id,
+                    timestamp: ctx.timestamp,
+                };
+                let _ = ctx.db.active_connection().try_insert(new_active_conn);
+            }
+
+            // Grant basic starting items (same as human players)
+            match crate::starting_items::grant_starting_items(ctx, sender_id, &username) {
+                Ok(_) => log::info!("[NPC] Starting items granted to NPC {}", username),
+                Err(e) => log::error!("[NPC] Failed to grant starting items to NPC {}: {}", username, e),
+            }
+
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("[NPC] Failed to insert NPC {} ({:?}): {}", username, sender_id, e);
+            Err(format!("Failed to register NPC: {}", e))
         }
     }
 }

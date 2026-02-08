@@ -249,13 +249,13 @@ function getCollisionCandidates(
   );
   
   for (const runeStone of nearbyRuneStones) {
-    // Use AABB collision (48x48) instead of circular
+    // Use AABB collision (110x48) - wide to match monument base
     shapes.push({
       id: runeStone.id.toString(),
       type: `runeStone-${runeStone.id.toString()}`,
       x: runeStone.posX + COLLISION_OFFSETS.RUNE_STONE.x,
       y: runeStone.posY + COLLISION_OFFSETS.RUNE_STONE.y,
-      width: 48,  // 48x48 AABB collision
+      width: 110,  // 110x48 AABB collision (matches monument base width)
       height: 48
     });
   }
@@ -1036,7 +1036,7 @@ function getCollisionCandidates(
 export const COLLISION_RADII = {
   TREE: 24,
   STONE: 28,       // Smaller radius for flattened stones
-  RUNE_STONE: 24,  // Half-width for 48x48 AABB collision (matches server-side RUNE_STONE_AABB_HALF_WIDTH)
+  RUNE_STONE: 55,  // Half-width for 110x48 AABB collision (matches server-side RUNE_STONE_AABB_HALF_WIDTH)
   CAIRN: 48,       // Half-width for 96x48 AABB collision (matches server-side CAIRN_AABB_HALF_WIDTH)
   STORAGE_BOX: 20, // Match small furnace collision radius for consistent feel
   RAIN_COLLECTOR: 30, // 256x256 sprite with stone base ~160px wide (matches server)

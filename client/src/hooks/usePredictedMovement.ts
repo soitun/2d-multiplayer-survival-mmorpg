@@ -468,7 +468,6 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
           try {
             if (connection.reducers.updatePlayerPositionSimple && pendingPosition.current) {
               clientSequenceRef.current += 1n;
-              console.log(`[KnockedOut] Facing direction updated to: ${newFacingDirection}`);
               connection.reducers.updatePlayerPositionSimple(
                 pendingPosition.current.x,
                 pendingPosition.current.y,
@@ -526,7 +525,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
       console.error(`❌ [SimpleMovement] Error in updatePosition:`, error);
       movementMonitor.logUpdate(performance.now() - updateStartTime, false);
     }
-  }, [connection, localPlayer, inputState, isAutoWalking, stopAutoWalk, isUIFocused]);
+  }, [connection, localPlayer, inputState, isAutoWalking, stopAutoWalk, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus]);
 
   // Run position updates with optimized timing
   useEffect(() => {

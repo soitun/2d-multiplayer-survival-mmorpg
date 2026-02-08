@@ -692,7 +692,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     });
 
     // Use our custom hook to get camera offsets
-    const { cameraOffsetX, cameraOffsetY } = useSpeechBubbleManager(localPlayer);
+    // CRITICAL: Pass predictedPosition so camera offset matches GameCanvas exactly
+    const { cameraOffsetX, cameraOffsetY } = useSpeechBubbleManager(localPlayer, predictedPosition);
 
     // Derive activeItemDef for TargetingReticle
     const localPlayerActiveEquipment = localPlayerId ? activeEquipments.get(localPlayerId) : undefined;
@@ -1220,6 +1221,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             />
 
             {/* Use our camera offsets for SpeechBubbleManager */}
+            {/* Pass predicted position so local player bubble tracks smoothly */}
             <SpeechBubbleManager
                 messages={messages}
                 players={players}
@@ -1227,6 +1229,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 cameraOffsetY={cameraOffsetY}
                 localPlayerId={localPlayerId}
                 localBubbles={localBubbles}
+                predictedPosition={predictedPosition}
             />
 
             {/* PlayerUI - Always render for status bars, but inventory only when opened on mobile */}

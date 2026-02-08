@@ -113,7 +113,7 @@ import { drawInteractionOutline, drawCircularInteractionOutline, getInteractionO
 import { drawDynamicGroundShadow } from './shadowUtils';
 import { getTileTypeFromChunkData, worldPosToTileCoords } from './placementRenderingUtils';
 // Import snow footprint system for alpine terrain
-import { updatePlayerFootprints, renderAllFootprints } from './snowFootprintUtils';
+import { updatePlayerFootprints } from './snowFootprintUtils';
 
 // Type alias for Y-sortable entities
 import { YSortedEntityType } from '../../hooks/useEntityFiltering';
@@ -460,8 +460,8 @@ foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADD
   // Animal breeding system data for age-based rendering and pregnancy indicators
   caribouBreedingData?: Map<string, CaribouBreedingData>; // ADDED: Caribou breeding data (sex, age, pregnancy)
   walrusBreedingData?: Map<string, WalrusBreedingData>; // ADDED: Walrus breeding data (sex, age, pregnancy)
-  // View bounds for viewport culling (used by effects like snow footprints)
-  viewBounds?: { minX: number; maxX: number; minY: number; maxY: number };
+  // Note: viewBounds for snow footprints has been moved to GameCanvas.tsx
+  // Footprints are now rendered once before any renderYSortedEntities calls
 }
 
 
@@ -540,7 +540,6 @@ export const renderYSortedEntities = ({
   placementInfo, // ADDED: Current placement info for showing restriction zones when placing items
   caribouBreedingData, // ADDED: Caribou breeding data (sex, age, pregnancy)
   walrusBreedingData, // ADDED: Walrus breeding data (sex, age, pregnancy)
-  viewBounds, // ADDED: View bounds for snow footprint rendering
 }: RenderYSortedEntitiesProps) => {
   // PERFORMANCE: Clean up memory caches periodically
   cleanupCaches();
@@ -603,11 +602,10 @@ export const renderYSortedEntities = ({
       }
   });
   
-  // Pre-Pass 2: Render snow footprints on alpine terrain
-  // Footprints are rendered as ground decals before Y-sorted entities
-  if (viewBounds) {
-      renderAllFootprints(ctx, viewBounds, nowMs);
-  }
+  // NOTE: Snow/beach footprints are now rendered ONCE in GameCanvas.tsx before any
+  // renderYSortedEntities calls. Previously they were here in Pre-Pass 2, but that
+  // caused footprints to re-render on top of players when batched rendering splits
+  // Y-sorted entities across multiple renderYSortedEntities calls (swimming players).
   
   // First Pass: Render all Y-sorted entities including ALL walls
   // ALL walls now render in Pass 1 for correct Y-sorting with players/placeables/trees
@@ -855,19 +853,21 @@ export const renderYSortedEntities = ({
          // console.log(`[DEBUG] Player ${playerId} image selection - isDodgeRolling:`, isDodgeRolling, 'effectiveIsCrouching:`, effectiveIsCrouching, 'isOnWater:', playerForRendering.isOnWater, 'isCurrentlyJumping:', isCurrentlyJumping);
          // console.log(`[DEBUG] Image refs available - heroImageRef:`, !!heroImageRef.current, 'heroWaterImageRef:', !!heroWaterImageRef.current, 'heroCrouchImageRef:', !!heroCrouchImageRef.current, 'heroDodgeImageRef:', !!heroDodgeImageRef?.current);
          
-         if (isDodgeRolling) {
-             heroImg = heroDodgeImageRef?.current || heroImageRef.current; // HIGHEST PRIORITY: Use dodge roll sprite when dodge rolling, fallback to normal
-             // console.log(`[DEBUG] Using dodge roll sprite for ${playerId}:`, !!heroImg);
-         } else if (playerForRendering.isOnWater && !isCurrentlyJumping) {
-             heroImg = heroWaterImageRef.current; // HIGHEST PRIORITY: Use water sprite when on water (but not jumping)
-            // console.log(`[DEBUG] Using water sprite for ${playerId}:`, !!heroImg);
-         } else if (effectiveIsCrouching && !playerForRendering.isOnWater) {
-             heroImg = heroCrouchImageRef.current; // SECOND PRIORITY: Use crouch sprite when crouching (and NOT on water)
-            // console.log(`[DEBUG] Using crouch sprite for ${playerId}:`, !!heroImg);
-         } else {
-             heroImg = heroImageRef.current; // DEFAULT: Use normal sprite otherwise
-            // console.log(`[DEBUG] Using normal sprite for ${playerId}:`, !!heroImg);
-         }
+        if (isDodgeRolling) {
+            heroImg = heroDodgeImageRef?.current || heroImageRef.current; // HIGHEST PRIORITY: Use dodge roll sprite when dodge rolling, fallback to normal
+            // console.log(`[DEBUG] Using dodge roll sprite for ${playerId}:`, !!heroImg);
+        } else if (playerForRendering.isOnWater && !isCurrentlyJumping) {
+            // FIX: Add fallback to walking sprite if water sprite not loaded
+            heroImg = heroWaterImageRef.current || heroImageRef.current; // Use water sprite when on water, fallback to walking sprite
+           // console.log(`[DEBUG] Using water sprite for ${playerId}:`, !!heroImg);
+        } else if (effectiveIsCrouching && !playerForRendering.isOnWater) {
+            // FIX: Add fallback to walking sprite if crouch sprite not loaded
+            heroImg = heroCrouchImageRef.current || heroImageRef.current; // Use crouch sprite when crouching, fallback to walking sprite
+           // console.log(`[DEBUG] Using crouch sprite for ${playerId}:`, !!heroImg);
+        } else {
+            heroImg = heroImageRef.current; // DEFAULT: Use normal sprite otherwise
+           // console.log(`[DEBUG] Using normal sprite for ${playerId}:`, !!heroImg);
+        }
          const isOnline = activeConnections ? activeConnections.has(playerId) : false;
 
          const equipment = activeEquipments.get(playerId);

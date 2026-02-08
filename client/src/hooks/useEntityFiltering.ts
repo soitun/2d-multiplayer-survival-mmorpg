@@ -384,7 +384,12 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       }
     }
     case 'grass':
-      return entity.serverPosY;
+      // Grass is a ground-level decoration that should render BEHIND tall objects
+      // (trees, stones, basalt columns, etc.). Trees/stones use posY - 100 offset,
+      // so grass needs a larger negative offset to ensure it sorts before (behind) them.
+      // -200 ensures grass within ~100px south of a tree still renders behind the tree,
+      // while grass clearly south (200+ px) will correctly render in front.
+      return entity.serverPosY - 200;
     case 'projectile': {
       const startTime = Number(entity.startTime.microsSinceUnixEpoch / 1000n);
       const elapsedSeconds = (timestamp - startTime) / 1000.0;

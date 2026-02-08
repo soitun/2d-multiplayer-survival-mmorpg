@@ -17,9 +17,9 @@ use crate::harvestable_resource::harvestable_resource as HarvestableResourceTabl
 
 // --- Rune Stone Constants ---
 
-// Collision settings - 48x48 AABB collision
-pub(crate) const RUNE_STONE_AABB_HALF_WIDTH: f32 = 24.0; // Half-width for 48x48 AABB
-pub(crate) const RUNE_STONE_AABB_HALF_HEIGHT: f32 = 24.0; // Half-height for 48x48 AABB
+// Collision settings - 110x48 AABB collision (wide to match monument base)
+pub(crate) const RUNE_STONE_AABB_HALF_WIDTH: f32 = 55.0; // Half-width for 110px wide AABB (matches monument base)
+pub(crate) const RUNE_STONE_AABB_HALF_HEIGHT: f32 = 24.0; // Half-height for 48px tall AABB
 pub(crate) const RUNE_STONE_COLLISION_Y_OFFSET: f32 = 24.0; // Y offset for AABB center from pos_y
 // Maximum collision distance squared (player radius + half diagonal of AABB)
 pub(crate) const PLAYER_RUNE_STONE_COLLISION_DISTANCE_SQUARED: f32 = 

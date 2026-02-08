@@ -51,13 +51,17 @@ const SpeechBubble: React.FC<SpeechBubbleProps> = ({
 
   if (!visible) return null;
 
+  // Use transform for GPU-accelerated positioning instead of left/top
+  // This avoids layout recalculations and enables smooth sub-pixel rendering
   return (
     <div
       style={{
         position: 'absolute',
-        left: x,
-        top: y,
-        transform: 'translate(-50%, -120%)', // Moved slightly higher above head
+        left: 0,
+        top: 0,
+        // GPU-accelerated transform: translate to position + center horizontally + offset above head
+        transform: `translate3d(${x}px, ${y}px, 0) translate(-50%, -120%)`,
+        willChange: 'transform, opacity', // Hint to browser for GPU compositing
         backgroundColor: 'rgba(0, 0, 0, 0.7)', // Dark semi-transparent background
         color: 'white',
         padding: '8px 12px',
@@ -68,11 +72,11 @@ const SpeechBubble: React.FC<SpeechBubbleProps> = ({
         fontSize: '12px',
         lineHeight: '1.4',
         opacity: opacity,
-        pointerEvents: 'none', // Allow clicking through the bubble
+        pointerEvents: 'none' as const, // Allow clicking through the bubble
         zIndex: 1000, // Make sure it appears above other elements
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-        textAlign: 'center',
+        whiteSpace: 'pre-wrap' as const,
+        wordBreak: 'break-word' as const,
+        textAlign: 'center' as const,
         border: '2px solid rgba(255, 255, 255, 0.3)', // Subtle white border
       }}
     >
@@ -94,4 +98,4 @@ const SpeechBubble: React.FC<SpeechBubbleProps> = ({
   );
 };
 
-export default SpeechBubble; 
+export default SpeechBubble;

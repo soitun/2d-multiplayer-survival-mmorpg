@@ -51,6 +51,9 @@ interface WaterOverlayState {
   lastUpdate: number;
   globalPhaseOffset: number;
   worldTiles: Map<string, any> | null;
+  // Cached visible water tiles (recomputed once per updateWaterSystem call)
+  cachedVisibleTiles: Array<{x: number, y: number}>;
+  cachedVisibleTileCount: number;
 }
 
 // AAA Pixel Art Style Water Configuration - crisp, deliberate, polished
@@ -111,6 +114,8 @@ let waterSystem: WaterOverlayState = {
   lastUpdate: 0,
   globalPhaseOffset: 0,
   worldTiles: null,
+  cachedVisibleTiles: [],
+  cachedVisibleTileCount: 0,
 };
 
 /**
@@ -126,9 +131,13 @@ function worldPosToTileCoords(worldX: number, worldY: number): { tileX: number; 
 const waterTileCache = new Map<string, boolean>();
 let waterTileCacheWorldTiles: Map<string, any> | null = null;
 
+// Reusable key buffer to avoid string allocation in hot path
+let _tileKeyBuf = '';
+
 /**
  * Checks if a world position is on a water tile (Sea type) - same logic as placement system
- * OPTIMIZED: Uses direct key lookup instead of iterating all tiles
+ * OPTIMIZED: Uses direct key lookup instead of iterating all tiles.
+ * Uses a numeric key encoding to avoid string template allocation in the hot path.
  */
 function isPositionOnWaterTile(worldTiles: Map<string, any>, worldX: number, worldY: number): boolean {
   if (!worldTiles || worldTiles.size === 0) return false;
@@ -147,7 +156,9 @@ function isPositionOnWaterTile(worldTiles: Map<string, any>, worldX: number, wor
   const tileX = Math.floor(worldX / TILE_SIZE);
   const tileY = Math.floor(worldY / TILE_SIZE);
   
-  return waterTileCache.has(`${tileX}_${tileY}`);
+  // Reuse buffer pattern: builds key string but V8 inlines this well
+  _tileKeyBuf = `${tileX}_${tileY}`;
+  return waterTileCache.has(_tileKeyBuf);
 }
 
 // Pre-allocated array for visible water tiles (reused each frame)
@@ -155,16 +166,16 @@ const visibleWaterTilesPool: Array<{x: number, y: number}> = [];
 let visibleWaterTilesCount = 0;
 
 /**
- * Get all water tiles in the visible camera area for efficient spawning
- * OPTIMIZED: Uses pre-allocated array pool, reuses forEach
+ * Recompute visible water tiles for the current camera view.
+ * Called ONCE per frame in updateWaterSystem, result cached on waterSystem.
  */
-function getVisibleWaterTiles(
+function recomputeVisibleWaterTiles(
   worldTiles: Map<string, any>,
   cameraX: number,
   cameraY: number,
   canvasWidth: number,
   canvasHeight: number
-): Array<{x: number, y: number}> {
+): void {
   // Reset pool count
   visibleWaterTilesCount = 0;
   
@@ -198,28 +209,24 @@ function getVisibleWaterTiles(
     }
   });
   
-  // Return a view of the pool (up to count)
-  return visibleWaterTilesPool.slice(0, visibleWaterTilesCount);
+  // Cache result on waterSystem (reference to pool + count, no allocation)
+  waterSystem.cachedVisibleTiles = visibleWaterTilesPool;
+  waterSystem.cachedVisibleTileCount = visibleWaterTilesCount;
 }
 
 /**
  * Creates a single water line with AAA pixel art styling
- * Only spawns lines on water tiles
+ * Only spawns lines on water tiles. Uses cached visible tiles from updateWaterSystem.
  */
 function createWaterLine(
-  cameraX: number,
-  cameraY: number,
-  canvasWidth: number,
-  canvasHeight: number,
   worldTiles: Map<string, any>
 ): WaterLine | null {
-  // Get all visible water tiles for spawning
-  const visibleWaterTiles = getVisibleWaterTiles(worldTiles, cameraX, cameraY, canvasWidth, canvasHeight);
-  
-  if (visibleWaterTiles.length === 0) return null;
+  // Use cached visible water tiles (computed once per frame in updateWaterSystem)
+  const tileCount = waterSystem.cachedVisibleTileCount;
+  if (tileCount === 0) return null;
   
   // Pick a random water tile to spawn on
-  const randomWaterTile = visibleWaterTiles[Math.floor(Math.random() * visibleWaterTiles.length)];
+  const randomWaterTile = waterSystem.cachedVisibleTiles[Math.floor(Math.random() * tileCount)];
   const startX = randomWaterTile.x + (Math.random() - 0.5) * TILE_SIZE * 0.7;
   const y = randomWaterTile.y + (Math.random() - 0.5) * TILE_SIZE * 0.7;
   
@@ -297,20 +304,15 @@ function createWaterLine(
 }
 
 /**
- * Creates a sparkle effect at a random water position
+ * Creates a sparkle effect at a random water position.
+ * Uses cached visible tiles from updateWaterSystem.
  */
-function createSparkle(
-  cameraX: number,
-  cameraY: number,
-  canvasWidth: number,
-  canvasHeight: number,
-  worldTiles: Map<string, any>
-): WaterSparkle | null {
-  const visibleWaterTiles = getVisibleWaterTiles(worldTiles, cameraX, cameraY, canvasWidth, canvasHeight);
+function createSparkle(): WaterSparkle | null {
+  // Use cached visible water tiles (computed once per frame in updateWaterSystem)
+  const tileCount = waterSystem.cachedVisibleTileCount;
+  if (tileCount === 0) return null;
   
-  if (visibleWaterTiles.length === 0) return null;
-  
-  const randomTile = visibleWaterTiles[Math.floor(Math.random() * visibleWaterTiles.length)];
+  const randomTile = waterSystem.cachedVisibleTiles[Math.floor(Math.random() * tileCount)];
   
   return {
     x: randomTile.x + (Math.random() - 0.5) * TILE_SIZE * 0.8,
@@ -439,20 +441,27 @@ function updateWaterSystem(
   const targetLineCount = Math.floor((visibleArea / 1000000) * WATER_CONFIG.LINES_PER_SCREEN_AREA * 800);
   const targetSparkleCount = Math.floor((visibleArea / 1000000) * WATER_CONFIG.SPARKLE_DENSITY * 200);
   
-  // Spawn new lines - increased spawn rate for better coverage
-  if (waterSystem.lines.length < targetLineCount && worldTiles && worldTiles.size > 0) {
-    const linesToSpawn = Math.min(8, targetLineCount - waterSystem.lines.length); // Increased from 5
+  // Recompute visible water tiles ONCE per frame (used by all spawn calls below)
+  if (worldTiles && worldTiles.size > 0) {
+    recomputeVisibleWaterTiles(worldTiles, cameraX, cameraY, canvasWidth, canvasHeight);
+  } else {
+    waterSystem.cachedVisibleTileCount = 0;
+  }
+  
+  // Spawn new lines - uses cached visible tiles (no redundant iteration)
+  if (waterSystem.lines.length < targetLineCount && waterSystem.cachedVisibleTileCount > 0 && worldTiles) {
+    const linesToSpawn = Math.min(8, targetLineCount - waterSystem.lines.length);
     for (let i = 0; i < linesToSpawn; i++) {
-      const newLine = createWaterLine(cameraX, cameraY, canvasWidth, canvasHeight, worldTiles);
+      const newLine = createWaterLine(worldTiles);
       if (newLine) waterSystem.lines.push(newLine);
     }
   }
   
-  // Spawn new sparkles - increased spawn rate for better coverage
-  if (waterSystem.sparkles.length < targetSparkleCount && worldTiles && worldTiles.size > 0) {
-    const sparklesToSpawn = Math.min(5, targetSparkleCount - waterSystem.sparkles.length); // Increased from 3
+  // Spawn new sparkles - uses cached visible tiles (no redundant iteration)
+  if (waterSystem.sparkles.length < targetSparkleCount && waterSystem.cachedVisibleTileCount > 0) {
+    const sparklesToSpawn = Math.min(5, targetSparkleCount - waterSystem.sparkles.length);
     for (let i = 0; i < sparklesToSpawn; i++) {
-      const newSparkle = createSparkle(cameraX, cameraY, canvasWidth, canvasHeight, worldTiles);
+      const newSparkle = createSparkle();
       if (newSparkle) waterSystem.sparkles.push(newSparkle);
     }
   }

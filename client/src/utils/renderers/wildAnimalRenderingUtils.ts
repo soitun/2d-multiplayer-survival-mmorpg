@@ -25,6 +25,8 @@ import wolverineWalkingAnimatedSheet from '../../assets/wolverine_walking_releas
 import caribouWalkingAnimatedSheet from '../../assets/caribou_walking_release.png';
 import salmonSharkWalkingAnimatedSheet from '../../assets/salmon_shark_walking_release.png';
 import jellyfishWalkingAnimatedSheet from '../../assets/jellyfish_walking_release.png';
+import crabWalkingAnimatedSheet from '../../assets/crab_release_walking.png';
+import voleWalkingAnimatedSheet from '../../assets/vole_walking_release.png';
 // Alpine animals - 4x4 layout
 import polarBearWalkingAnimatedSheet from '../../assets/polar_bear_walking_release.png';
 import hareWalkingAnimatedSheet from '../../assets/hare_walking_release.png';
@@ -41,8 +43,9 @@ import drownedWatchWalkingAnimatedSheet from '../../assets/drowned_watch_walking
 // ═══════════════════════════════════════════════════════════════════════════
 // LEGACY SPRITE SHEETS (3x3 static layout - no walking animations yet)
 // ═══════════════════════════════════════════════════════════════════════════
-import crabWalkingSheet from '../../assets/crab_walking.png';
-import voleWalkingSheet from '../../assets/vole_walking.png';
+// NOTE: Crab and Vole now use animated 4x4 sheets (crab_release_walking.png, vole_walking_release.png)
+// import crabWalkingSheet from '../../assets/crab_walking.png';
+// import voleWalkingSheet from '../../assets/vole_walking.png';
 import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
 
 
@@ -178,10 +181,10 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
     // Renders at: 160x160 - large aquatic predator
     // Always rendered "underwater" with blur effect when viewed from surface
     'SalmonShark': {
-        sheetWidth: 1024,  // 256px × 4 frames
-        sheetHeight: 1024, // 256px × 4 rows
-        frameWidth: 256,
-        frameHeight: 256,
+        sheetWidth: 320,  // 80px × 4 frames
+        sheetHeight: 320, // 80px × 4 rows
+        frameWidth: 80,
+        frameHeight: 80,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
@@ -191,10 +194,10 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
     // Renders at: 96x96 - medium aquatic creature
     // Periodic electric shock effect (yellow glow when shock_active_until is set)
     'Jellyfish': {
-        sheetWidth: 1024,  // 256px × 4 frames
-        sheetHeight: 1024, // 256px × 4 rows
-        frameWidth: 256,
-        frameHeight: 256,
+        sheetWidth: 320,  // 80px × 4 frames
+        sheetHeight: 320, // 80px × 4 rows
+        frameWidth: 80,
+        frameHeight: 80,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
@@ -208,6 +211,30 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
         sheetHeight: 320,  // Total sheet height
         frameWidth: 80,    // Frame width (320 / 4 = 80)
         frameHeight: 80,   // Frame height (320 / 4 = 80)
+        cols: 4,           // 4 animation frames
+        rows: 4,           // 4 directions
+    },
+
+    // BEACHCRAB - Small coastal crustacean (4x4 layout: 4 frames × 4 directions)
+    // Artist spec: 256x256 per frame → 1024x1024 total sheet
+    // Renders at: 64x64 (0.25x scale) - small animal
+    'BeachCrab': {
+        sheetWidth: 320,  // 80px × 4 frames
+        sheetHeight: 320, // 80px × 4 rows
+        frameWidth: 80,
+        frameHeight: 80,
+        cols: 4,           // 4 animation frames
+        rows: 4,           // 4 directions
+    },
+
+    // VOLE - Tiny skittish rodent (4x4 layout: 4 frames × 4 directions)
+    // Artist spec: 256x256 per frame → 1024x1024 total sheet
+    // Renders at: 48x48 (0.1875x scale) - tiny rodent
+    'Vole': {
+        sheetWidth: 320,  // 80px × 4 frames
+        sheetHeight: 320, // 80px × 4 rows
+        frameWidth: 80,
+        frameHeight: 80,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
@@ -332,10 +359,10 @@ const speciesSpriteSheets: Record<string, string> = {
     'TundraWolf': tundraWolfWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'CableViper': cableViperWalkingSheet,
     'ArcticWalrus': walrusWalkingAnimatedSheet, // Use animated 4x4 spritesheet
-    'BeachCrab': crabWalkingSheet,
+    'BeachCrab': crabWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'Tern': ternWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'Crow': crowWalkingAnimatedSheet, // Use animated 4x4 spritesheet
-    'Vole': voleWalkingSheet,
+    'Vole': voleWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'Wolverine': wolverineWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'Caribou': caribouWalkingAnimatedSheet, // Use animated 4x4 spritesheet
     'SalmonShark': salmonSharkWalkingAnimatedSheet, // Use animated 4x4 spritesheet (aquatic)
@@ -1466,6 +1493,8 @@ export function preloadWildAnimalImages(): void {
         caribouWalkingAnimatedSheet,
         salmonSharkWalkingAnimatedSheet,
         jellyfishWalkingAnimatedSheet,
+        crabWalkingAnimatedSheet, // BeachCrab - 4x4 animated
+        voleWalkingAnimatedSheet, // Vole - 4x4 animated
         // Alpine animals - 4x4 animated
         polarBearWalkingAnimatedSheet,
         hareWalkingAnimatedSheet,
@@ -1482,8 +1511,8 @@ export function preloadWildAnimalImages(): void {
 
     // Legacy sprite sheets (3x3 static - no animated versions yet)
     const legacySpriteSheets = [
-        crabWalkingSheet,
-        voleWalkingSheet,
+        // crabWalkingSheet, // Now using animated crab_release_walking.png
+        // voleWalkingSheet, // Now using animated vole_walking_release.png
         cableViperWalkingSheet,
     ];
 

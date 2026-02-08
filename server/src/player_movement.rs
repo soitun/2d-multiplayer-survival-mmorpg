@@ -23,9 +23,6 @@ use crate::active_effects::{EXHAUSTED_SPEED_PENALTY, player_has_exhausted_effect
 // Import constants from environment module
 use crate::environment::{calculate_chunk_index, WORLD_WIDTH_CHUNKS};
 
-// Import the new player_collision module
-use crate::player_collision;
-
 // Import building module for wall collision checks
 use crate::building::{wall_cell as WallCellTableTrait, FOUNDATION_TILE_SIZE_PX};
 

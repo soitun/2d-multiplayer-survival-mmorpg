@@ -78,6 +78,7 @@ body {
   align-items: center;    /* Center vertically */
   overflow: hidden; 
   background-color: #000000; /* Black background for letter/pillarboxing */
+  position: relative; /* CRITICAL: Contains absolutely positioned children (speech bubbles, etc.) */
 }
 
 canvas {

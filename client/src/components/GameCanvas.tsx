@@ -105,6 +105,7 @@ import { renderAttackRangeDebug } from '../utils/renderers/attackRangeDebugUtils
 import { renderChunkBoundaries, renderInteriorDebug, renderCollisionDebug, renderYSortDebug, renderProjectileCollisionDebug } from '../utils/renderers/debugOverlayUtils'; // Consolidated debug overlays
 import { renderMobileTapAnimation } from '../utils/renderers/mobileRenderingUtils'; // Mobile-specific rendering
 import { renderYSortedEntities } from '../utils/renderers/renderingUtils.ts';
+import { renderAllFootprints } from '../utils/renderers/snowFootprintUtils';
 import { renderWardRadius, LANTERN_TYPE_LANTERN } from '../utils/renderers/lanternRenderingUtils';
 import { preloadMonumentImages } from '../utils/renderers/monumentRenderingUtils';
 import { renderFoundationTargetIndicator, renderWallTargetIndicator, renderFenceTargetIndicator } from '../utils/renderers/foundationRenderingUtils'; // ADDED: Foundation, wall, and fence target indicators
@@ -2710,8 +2711,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       // Update last positions (same as renderYSortedEntities)
       lastPositionsRef.current?.set(playerId, { x: playerForRendering.positionX, y: playerForRendering.positionY });
 
-      // Choose correct sprite image
-      let heroImg: HTMLImageElement | null = heroWaterImageRef.current;
+      // Choose correct sprite image - FIX: Add fallback to walking sprite if water sprite not loaded
+      let heroImg: HTMLImageElement | null = heroWaterImageRef.current || heroImageRef.current;
 
       if (heroImg) {
         const isOnline = activeConnections ? activeConnections.has(playerId) : false;
@@ -2724,7 +2725,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           heroSprintImageRef.current || heroImg,
           heroIdleImageRef.current || heroImg,
           heroCrouchImageRef.current || heroImg,
-          heroWaterImageRef.current || heroImg, // heroSwimImg
+          heroWaterImageRef.current || heroImageRef.current || heroImg, // heroSwimImg - with fallback chain
           heroDodgeImageRef.current || heroImg, // heroDodgeImg
           isOnline,
           isPlayerMoving,
@@ -2753,7 +2754,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const playerId = player.identity.toHexString();
       const isLocalPlayer = localPlayerId === playerId;
 
-      // Use predicted position for local player
+      // Use predicted/interpolated position so shadow tracks the sprite perfectly
       let playerForRendering = player;
       if (isLocalPlayer && currentPredictedPosition) {
         playerForRendering = {
@@ -2761,6 +2762,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           positionX: currentPredictedPosition.x,
           positionY: currentPredictedPosition.y,
           direction: localFacingDirection || player.direction,
+        };
+      } else if (!isLocalPlayer && remotePlayerInterpolation) {
+        // FIX: Use interpolated position for remote players so shadow doesn't lag behind sprite
+        const interpolatedPosition = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
+        playerForRendering = {
+          ...player,
+          positionX: interpolatedPosition.x,
+          positionY: interpolatedPosition.y,
         };
       }
 
@@ -2771,10 +2780,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         : player.isCrouching;
 
       // Choose sprite based on priority: water > crouching > default
+      // FIX: Add fallbacks to ensure we render with available sprite
       if (player.isOnWater) {
-        heroImg = heroWaterImageRef.current;
+        heroImg = heroWaterImageRef.current || heroImageRef.current;
       } else if (effectiveIsCrouching) {
-        heroImg = heroCrouchImageRef.current;
+        heroImg = heroCrouchImageRef.current || heroImageRef.current;
       } else {
         heroImg = heroImageRef.current;
       }
@@ -2850,8 +2860,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- STEP 1.6: Render underwater shadow for snorkeling (underwater) local player ---
     // Snorkeling players are excluded from swimmingPlayersForBottomHalf but still need an underwater shadow
     if (isSnorkeling && localPlayer && currentPredictedPosition) {
-      // Use underwater sprite for snorkeling shadow shape
-      const heroImg = heroWaterImageRef.current;
+      // Use underwater sprite for snorkeling shadow shape - FIX: Add fallback
+      const heroImg = heroWaterImageRef.current || heroImageRef.current;
 
       if (heroImg) {
         const drawWidth = gameConfig.spriteWidth * 2;
@@ -2925,29 +2935,42 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         return true;
       })
       .forEach(player => {
-        const heroImg = heroWaterImageRef.current;
+        // FIX: Add fallback to walking sprite if water sprite not loaded
+        const heroImg = heroWaterImageRef.current || heroImageRef.current;
 
         if (heroImg) {
+          const playerId = player.identity.toHexString();
+
+          // FIX: Use interpolated position for remote players so shadow tracks the sprite perfectly
+          let playerForRendering = player;
+          if (remotePlayerInterpolation) {
+            const interpolatedPosition = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
+            playerForRendering = {
+              ...player,
+              positionX: interpolatedPosition.x,
+              positionY: interpolatedPosition.y,
+            };
+          }
+
           const drawWidth = gameConfig.spriteWidth * 2;
           const drawHeight = gameConfig.spriteHeight * 2;
-          const spriteBaseX = player.positionX - drawWidth / 2;
-          const spriteBaseY = player.positionY - drawHeight / 2;
+          const spriteBaseX = playerForRendering.positionX - drawWidth / 2;
+          const spriteBaseY = playerForRendering.positionY - drawHeight / 2;
 
           // Calculate if player is moving
-          const playerId = player.identity.toHexString();
           let isPlayerMoving = false;
           const lastPos = lastPositionsRef.current?.get(playerId);
           if (lastPos) {
             const positionThreshold = 0.1;
-            const dx = Math.abs(player.positionX - lastPos.x);
-            const dy = Math.abs(player.positionY - lastPos.y);
+            const dx = Math.abs(playerForRendering.positionX - lastPos.x);
+            const dy = Math.abs(playerForRendering.positionY - lastPos.y);
             isPlayerMoving = dx > positionThreshold || dy > positionThreshold;
           }
 
           // Calculate animated sprite coordinates for swimming
           const totalSwimmingFrames = 24;
           const { sx, sy } = getSpriteCoordinates(
-            player,
+            playerForRendering,
             isPlayerMoving,
             currentIdleAnimationFrame,
             false, // isUsingItem
@@ -2959,9 +2982,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             0      // dodgeRollProgress
           );
 
-          // Calculate shadow position
-          const centerX = player.positionX;
-          const centerY = player.positionY;
+          // Calculate shadow position using interpolated position
+          const centerX = playerForRendering.positionX;
+          const centerY = playerForRendering.positionY;
           const shadowOffsetX = drawWidth * 0.28;
           const shadowOffsetY = drawHeight * 0.9;
           const shadowX = centerX + shadowOffsetX;
@@ -3014,6 +3037,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // --- STEP 2.5 & 3 COMBINED: Render Y-sorted entities AND swimming player top halves together ---
     // This ensures swimming player tops are properly Y-sorted with sea stacks and other tall entities
+
+    // Render snow/beach footprints ONCE as ground decals, before any Y-sorted entities.
+    // This ensures footprints are always below players/trees/structures regardless of
+    // how many times renderYSortedEntities is called (e.g. batched swimming player rendering).
+    renderAllFootprints(ctx, shoreWaveViewBounds, now_ms);
 
     // PERFORMANCE OPTIMIZATION: Skip complex merging when no swimming players
     // This is the common case and saves significant object creation/sorting overhead
@@ -3083,7 +3111,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
         caribouBreedingData, // ADDED: Pass caribou breeding data for age-based size scaling and pregnancy indicators
         walrusBreedingData, // ADDED: Pass walrus breeding data for age-based size scaling and pregnancy indicators
-        viewBounds: shoreWaveViewBounds, // ADDED: Pass view bounds for snow footprint rendering
       });
     } else {
       // --- Swimming players exist, need full merge/sort ---
@@ -3275,11 +3302,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           }
         }
 
+        // FIX: Add fallbacks to ensure we render with available sprite
         let heroImg: HTMLImageElement | null;
         if (player.isOnWater) {
-          heroImg = heroWaterImageRef.current;
+          heroImg = heroWaterImageRef.current || heroImageRef.current;
         } else if (player.isCrouching) {
-          heroImg = heroCrouchImageRef.current;
+          heroImg = heroCrouchImageRef.current || heroImageRef.current;
         } else {
           heroImg = heroImageRef.current;
         }
@@ -3295,7 +3323,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             heroSprintImageRef.current || heroImg,
             heroIdleImageRef.current || heroImg,
             heroCrouchImageRef.current || heroImg,
-            heroWaterImageRef.current || heroImg,
+            heroWaterImageRef.current || heroImageRef.current || heroImg, // with fallback chain
             heroDodgeImageRef.current || heroImg,
             isOnline,
             isPlayerMoving,
@@ -3406,7 +3434,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
             caribouBreedingData, // ADDED: Pass caribou breeding data for age-based size scaling and pregnancy indicators
             walrusBreedingData, // ADDED: Pass walrus breeding data for age-based size scaling and pregnancy indicators
-            viewBounds: shoreWaveViewBounds, // ADDED: Pass view bounds for snow footprint rendering
           });
           currentBatch = [];
         }

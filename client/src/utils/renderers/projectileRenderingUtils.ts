@@ -199,8 +199,7 @@ export const renderProjectile = ({
   const isNpcProjectile = projectile.sourceType === PROJECTILE_SOURCE_NPC;
   
   if (isNpcProjectile) {
-    // DEBUG: Log NPC projectile data to diagnose movement issues
-    console.log(`🎯 [NPC PROJ ${projectile.id}] pos=(${currentX.toFixed(1)}, ${currentY.toFixed(1)}) start=(${projectile.startPosX.toFixed(1)}, ${projectile.startPosY.toFixed(1)}) vel=(${projectile.velocityX.toFixed(1)}, ${projectile.velocityY.toFixed(1)}) elapsed=${elapsedTimeSeconds.toFixed(2)}s type=${projectile.npcProjectileType}`);
+    // NPC projectile rendering (debug log removed for performance)
     
     // NPC projectiles use no gravity - they travel in straight lines
     // Render based on npc_projectile_type

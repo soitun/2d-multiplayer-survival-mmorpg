@@ -120,7 +120,7 @@ const RadioPanel: React.FC<RadioPanelProps> = ({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [onClose]);
     
-    // Track if we're in "no signal" state (tuned between stations)
+    // Track if we're in "weak signal" state (tuned between stations)
     const [isNoSignal, setIsNoSignal] = useState(false);
     
     // Handle audio playback based on selected station and isPlaying state
@@ -227,7 +227,7 @@ const RadioPanel: React.FC<RadioPanelProps> = ({
             setSelectedStation(closestStation);
             setIsPlaying(true);
         } else {
-            // No station found - play static (no signal)
+            // No station found - play static (weak signal)
             setIsNoSignal(true);
             setSelectedStation(null);
             setIsPlaying(false);
@@ -266,7 +266,7 @@ const RadioPanel: React.FC<RadioPanelProps> = ({
                         </div>
                         {isNoSignal && (
                             <div className={styles.stationName}>
-                                ~ NO SIGNAL ~
+                                ~ WEAK SIGNAL ~
                             </div>
                         )}
                         
@@ -333,7 +333,7 @@ const RadioPanel: React.FC<RadioPanelProps> = ({
                         </div>
                     ) : isNoSignal ? (
                         <div className={styles.stationDescription}>
-                            <p>No signal... just static between the frequencies.</p>
+                            <p>Weak signal... just static between the frequencies.</p>
                             <p className={styles.staticText}>*crackle* *hiss* *crackle*</p>
                         </div>
                     ) : null}
