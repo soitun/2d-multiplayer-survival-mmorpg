@@ -76,9 +76,9 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   monument_large_furnace: {
     centerOffsetX: 0,
-    centerOffsetY: -240,  // Visual center for 480px monument furnace
-    width: 360,           // Proportionally larger interaction box (480/256 * 200)
-    height: 480,          // Full monument height
+    centerOffsetY: -260,  // Center box over furnace body (480px sprite, base at posY)
+    width: 420,           // Covers the furnace body width
+    height: 520,          // 480px sprite + small buffer for chimney detail
     placementYOffset: 0,
     spriteWidth: 480,
     spriteHeight: 480,

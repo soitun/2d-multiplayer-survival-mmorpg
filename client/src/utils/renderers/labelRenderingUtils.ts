@@ -329,8 +329,15 @@ export function renderInteractionLabels({
         case 'furnace': {
             const furnace = furnaces.get(closestInteractableTarget.id.toString());
             if (furnace) {
-                // Use large_furnace config if furnaceType is 1 (LARGE), otherwise use normal furnace config
-                const config = furnace.furnaceType === 1 ? ENTITY_VISUAL_CONFIG.large_furnace : ENTITY_VISUAL_CONFIG.furnace;
+                // Select config based on furnace type and monument status
+                let config;
+                if (furnace.furnaceType === 1 && furnace.isMonument) {
+                    config = ENTITY_VISUAL_CONFIG.monument_large_furnace;
+                } else if (furnace.furnaceType === 1) {
+                    config = ENTITY_VISUAL_CONFIG.large_furnace;
+                } else {
+                    config = ENTITY_VISUAL_CONFIG.furnace;
+                }
                 const labelPos = getLabelPosition(furnace.posX, furnace.posY, config);
                 renderStyledInteractionLabel(ctx, text, labelPos.x, labelPos.y);
             }

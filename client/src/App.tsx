@@ -64,14 +64,8 @@ const VIEWPORT_BUFFER = 300; // 🚨 REDUCED: Was 1200, causing 3600×3200 viewp
 const VIEWPORT_UPDATE_THRESHOLD_SQ = (VIEWPORT_WIDTH / 2) ** 2; // Increased threshold (was WIDTH/4), so updates happen less frequently
 const VIEWPORT_UPDATE_DEBOUNCE_MS = 750; // Increased debounce time (was 250ms) to reduce update frequency
 
-// Import interaction distance constants directly from their respective rendering utility files
-import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT } from './utils/renderers/woodenStorageBoxRenderingUtils';
-import { PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED, CAMPFIRE_HEIGHT, CAMPFIRE_RENDER_Y_OFFSET } from './utils/renderers/campfireRenderingUtils';
-import { PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED, FURNACE_HEIGHT, FURNACE_RENDER_Y_OFFSET } from './utils/renderers/furnaceRenderingUtils'; // ADDED: Furnace interaction constants
-import { PLAYER_FUMAROLE_INTERACTION_DISTANCE_SQUARED } from './utils/renderers/fumaroleRenderingUtils'; // ADDED: Fumarole interaction constants
-import { PLAYER_STASH_INTERACTION_DISTANCE_SQUARED } from './utils/renderers/stashRenderingUtils';
-import { PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED } from './utils/renderers/playerCorpseRenderingUtils';
-// Add other relevant interaction distances if new interactable container types are added
+// Auto-close interaction when player moves too far from container
+import { useInteractionAutoClose } from './hooks/useInteractionAutoClose';
 
 // Import the cut grass effect system
 import { initCutGrassEffectSystem, cleanupCutGrassEffectSystem } from './effects/cutGrassEffect';
@@ -841,108 +835,19 @@ function AppContent() {
          // Currently, errors are shown via connectionError or uiError
     }, [localPlayerRegistered, isRegistering]);
 
-    // --- Effect to automatically clear interactionTarget if player moves too far ---
-    useEffect(() => {
-        // Get the current local player directly instead of relying on ref
-        const localPlayer = connection?.identity ? players.get(connection.identity.toHexString()) : undefined;
-        
-        if (!localPlayer || !interactingWith) {
-            // No player or not interacting with anything, so nothing to check.
-            return;
-        }
-
-        // Add a small delay to prevent immediate clearing when interaction is first set
-        const timeoutId = setTimeout(() => {
-            // Re-get the current player to ensure we have the latest position
-            const currentPlayer = connection?.identity ? players.get(connection.identity.toHexString()) : undefined;
-            if (!currentPlayer || !interactingWith) return;
-
-            let entityPosition: { x: number, y: number } | null = null;
-            let interactionDistanceSquared: number | null = null;
-
-            switch (interactingWith.type) {
-                case 'wooden_storage_box':
-                    const box = woodenStorageBoxes.get(interactingWith.id.toString());
-                    if (box) {
-                        // Use the visual center of the box (middle of the visible sprite)
-                        const visualCenterY = box.posY - (BOX_HEIGHT / 2) - 20;
-                        entityPosition = { x: box.posX, y: visualCenterY };
-                        interactionDistanceSquared = PLAYER_BOX_INTERACTION_DISTANCE_SQUARED;
-                    }
-                    break;
-                case 'campfire':
-                    const campfire = campfires.get(interactingWith.id.toString());
-                    if (campfire) {
-                        // Use the same visual center calculation as useInteractionFinder
-                        const visualCenterY = campfire.posY - (CAMPFIRE_HEIGHT / 2) - CAMPFIRE_RENDER_Y_OFFSET;
-                        entityPosition = { x: campfire.posX, y: visualCenterY };
-                        interactionDistanceSquared = PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED;
-                    }
-                    break;
-                case 'furnace': // ADDED: Furnace interaction distance handling
-                    const furnace = furnaces.get(interactingWith.id.toString());
-                    if (furnace) {
-                        // Use the same visual center calculation as useInteractionFinder
-                        const visualCenterY = furnace.posY - (FURNACE_HEIGHT / 2) - FURNACE_RENDER_Y_OFFSET;
-                        entityPosition = { x: furnace.posX, y: visualCenterY };
-                        interactionDistanceSquared = PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED;
-                    }
-                    break;
-                case 'fumarole': // ADDED: Fumarole interaction distance handling (volcanic heat source)
-                    const fumarole = fumaroles.get(interactingWith.id.toString());
-                    if (fumarole) {
-                        // Fumaroles are ground-level entities, use their position directly
-                        entityPosition = { x: fumarole.posX, y: fumarole.posY };
-                        interactionDistanceSquared = PLAYER_FUMAROLE_INTERACTION_DISTANCE_SQUARED;
-                    }
-                    break;
-                case 'stash':
-                    const stash = stashes.get(interactingWith.id.toString());
-                    if (stash) {
-                        entityPosition = { x: stash.posX, y: stash.posY };
-                        interactionDistanceSquared = PLAYER_STASH_INTERACTION_DISTANCE_SQUARED;
-                    }
-                    break;
-                case 'player_corpse': // Added case for player_corpse
-                    // Player corpse ID is typically a bigint
-                    const corpse = playerCorpses.get(interactingWith.id.toString());
-                    if (corpse) {
-                        entityPosition = { x: corpse.posX, y: corpse.posY };
-                        interactionDistanceSquared = PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED;
-                    }
-                    break;
-                default:
-                    // Unknown interaction type, or type not handled for auto-closing.
-                    return;
-            }
-
-            if (entityPosition && interactionDistanceSquared !== null) {
-                const dx = currentPlayer.positionX - entityPosition.x;
-                const dy = currentPlayer.positionY - entityPosition.y;
-                const currentDistSq = dx * dx + dy * dy;
-
-                // console.log(`[App] Distance check for ${interactingWith.type} (ID: ${interactingWith.id}): distance=${Math.sqrt(currentDistSq).toFixed(1)}, threshold=${Math.sqrt(interactionDistanceSquared).toFixed(1)}`);
-
-                if (currentDistSq > interactionDistanceSquared) {
-                    // console.log(`[App] Player moved too far from ${interactingWith.type} (ID: ${interactingWith.id}). Clearing interaction.`);
-                    handleSetInteractingWith(null);
-                }
-            }
-        }, 100); // Small delay to prevent immediate clearing
-
-        return () => clearTimeout(timeoutId);
-    }, [
-        interactingWith, 
-        players, // Re-add players dependency to trigger on position changes
-        connection?.identity, // Add connection identity dependency
-        woodenStorageBoxes, 
-        campfires, 
-        furnaces, // ADDED: Furnaces dependency
-        fumaroles, // ADDED: Fumaroles dependency
-        stashes, 
+    // --- Automatically clear interactionTarget if player moves too far ---
+    useInteractionAutoClose({
+        interactingWith,
+        handleSetInteractingWith,
+        connectionIdentity: connection?.identity,
+        players,
+        woodenStorageBoxes,
+        campfires,
+        furnaces,
+        fumaroles,
+        stashes,
         playerCorpses,
-        handleSetInteractingWith
-    ]); // Added back players dependency and connection identity to properly trigger on player position changes
+    });
 
     // --- Determine overall loading state ---
     // We'll determine this after loggedInPlayer and getStoredUsername are defined

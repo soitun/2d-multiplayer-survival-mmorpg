@@ -1219,8 +1219,15 @@ export const renderYSortedEntities = ({
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              // Use large_furnace config if furnaceType is 1 (LARGE), otherwise use normal furnace config
-              const config = furnace.furnaceType === 1 ? ENTITY_VISUAL_CONFIG.large_furnace : ENTITY_VISUAL_CONFIG.furnace;
+              // Select config based on furnace type and monument status
+              let config;
+              if (furnace.furnaceType === 1 && furnace.isMonument) {
+                  config = ENTITY_VISUAL_CONFIG.monument_large_furnace;
+              } else if (furnace.furnaceType === 1) {
+                  config = ENTITY_VISUAL_CONFIG.large_furnace;
+              } else {
+                  config = ENTITY_VISUAL_CONFIG.furnace;
+              }
               const outline = getInteractionOutlineParams(furnace.posX, furnace.posY, config);
               drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
