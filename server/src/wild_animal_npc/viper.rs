@@ -41,7 +41,7 @@ impl AnimalBehavior for CableViperBehavior {
         AnimalStats {
             max_health: 200.0, // 2-3 bow shots to kill
             attack_damage: 22.0, // Balanced melee damage (venom provides additional DOT)
-            attack_range: 95.0, // Reduced from 120 - still has long strike range but less oppressive
+            attack_range: 109.0, // Increased from 95 to compensate for collision pushback preventing hits
             attack_speed_ms: 1500, // Slower but devastating strikes
             movement_speed: 60.0,  // Very slow movement (ambush predator)
             sprint_speed: 400.0,   // Lightning fast dash when attacking

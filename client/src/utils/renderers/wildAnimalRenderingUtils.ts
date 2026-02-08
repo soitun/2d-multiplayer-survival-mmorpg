@@ -1134,7 +1134,8 @@ export function renderWildAnimal({
             const shadowX = renderPosX + shadowOffsetX;
             const shadowY = renderPosY + renderHeight / 2 + shadowOffsetY;
 
-            // Draw simple oval shadow with soft edges
+            // Draw simple oval shadow with soft edges and blur (matching grounded shadow style)
+            ctx.filter = 'blur(4px)';
             ctx.fillStyle = `rgba(0, 0, 0, ${flyingShadowAlpha})`;
             ctx.beginPath();
             ctx.ellipse(
@@ -1145,6 +1146,7 @@ export function renderWildAnimal({
                 0, 0, Math.PI * 2
             );
             ctx.fill();
+            ctx.filter = 'none';
 
         } else if (useSpriteSheet && animalImage) {
             // GROUNDED SHADOW - Use sprite silhouette for dynamic shadow

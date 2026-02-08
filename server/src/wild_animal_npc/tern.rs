@@ -44,7 +44,7 @@ impl AnimalBehavior for TernBehavior {
         AnimalStats {
             max_health: 80.0, // Low health - easy to kill
             attack_damage: 6.0, // Weak peck damage
-            attack_range: 70.0, // Reduced from 85 - still reaches after collision pushback but less generous
+            attack_range: 80.0, // Increased from 70 to compensate for collision pushback preventing hits
             attack_speed_ms: 1200, // Slow attack speed
             movement_speed: 120.0, // Ground speed (rarely used)
             sprint_speed: 280.0, // Base flying speed (multiplied by FLYING_SPEED_MULTIPLIER)

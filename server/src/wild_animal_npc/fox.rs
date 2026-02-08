@@ -33,7 +33,7 @@ impl AnimalBehavior for CinderFoxBehavior {
         AnimalStats {
             max_health: 200.0, // 2 bow shots to kill
             attack_damage: 20.0, // Increased damage for aggressive hit-and-run
-            attack_range: 60.0, // Reduced from 72 - melee range that requires fox to close in more
+            attack_range: 69.0, // Increased from 60 to compensate for collision pushback preventing hits
             attack_speed_ms: 600, // Much faster attacks (was 800ms)
             movement_speed: 188.0, // Patrol speed - slow and manageable  
             sprint_speed: 465.0, // INCREASED: Faster than walking (400) but slower than sprinting (800)

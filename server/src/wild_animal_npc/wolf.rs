@@ -50,7 +50,7 @@ impl AnimalBehavior for TundraWolfBehavior {
         AnimalStats {
             max_health: 200.0, // 4 bow shots to kill
             attack_damage: 25.0, // Reduced from 40.0 - still dangerous but not one-shot
-            attack_range: 60.0, // Reduced from 72 - melee range that requires wolves to close in more
+            attack_range: 69.0, // Increased from 60 to compensate for collision pushback preventing hits
             attack_speed_ms: 800, // REDUCED from 1000ms - faster, more aggressive attacks
             movement_speed: 201.0, // Patrol speed - slow and manageable
             sprint_speed: 450.0, // Noticeably faster than player walking (400) - wolves will catch walkers, force players to sprint

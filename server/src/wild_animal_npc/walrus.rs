@@ -224,7 +224,7 @@ impl AnimalBehavior for ArcticWalrusBehavior {
         AnimalStats {
             max_health: 400.0, // Very tanky - takes 8 bow shots to kill
             attack_damage: 35.0, // High damage but slow attacks
-            attack_range: 80.0, // Reduced from 96 - still has reach due to size but less oppressive
+            attack_range: 92.0, // Increased from 80 to compensate for collision pushback preventing hits
             attack_speed_ms: 2000, // Very slow attacks (2 seconds)
             movement_speed: 60.0, // Extremely slow patrol speed (half of before)
             sprint_speed: 60.0, // Same as movement speed - walruses can't sprint

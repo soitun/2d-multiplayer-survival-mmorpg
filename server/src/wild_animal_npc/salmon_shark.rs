@@ -47,7 +47,7 @@ impl AnimalBehavior for SalmonSharkBehavior {
         AnimalStats {
             max_health: 150.0, // Moderate health - 3-5 harpoon hits
             attack_damage: 45.0, // High damage - devastating bite
-            attack_range: 64.0, // Close range bite attack
+            attack_range: 73.0, // Increased from 64 to compensate for collision pushback preventing hits
             attack_speed_ms: 1200, // Fast attack cycle
             movement_speed: 180.0, // Very fast patrol speed in water
             sprint_speed: 280.0, // Extremely fast chase speed - requires flippers to outrun

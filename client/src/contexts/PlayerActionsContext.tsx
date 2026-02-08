@@ -373,23 +373,31 @@ export const PlayerActionsProvider: React.FC<{ children: ReactNode }> = ({ child
     );
 };
 
+// Fallback singleton to avoid creating new objects on every call when context is unavailable
+const FALLBACK_ACTIONS: PlayerActionsContextState = {
+    updatePlayerPosition: (_x: number, _y: number) => {},
+    jump: () => {},
+    setSprinting: (_isSprinting: boolean) => {},
+    isAutoWalking: false,
+    toggleAutoWalk: () => {},
+    stopAutoWalk: () => {},
+    isAutoAttacking: false,
+    toggleAutoAttack: () => {},
+    stopAutoAttack: () => {},
+    updateViewport: (_minX: number, _minY: number, _maxX: number, _maxY: number) => {},
+};
+
+let hasWarnedMissingProvider = false;
+
 export const usePlayerActions = () => {
     const context = useContext(PlayerActionsContext);
     if (context === undefined) {
-        // Fallback to prevent crash - allows app to recover if context is momentarily missing
-        console.error('CRITICAL WARNING: usePlayerActions called outside PlayerActionsProvider. Using fallback to prevent crash.');
-        return {
-            updatePlayerPosition: (_x: number, _y: number) => {},
-            jump: () => {},
-            setSprinting: (_isSprinting: boolean) => {},
-            isAutoWalking: false,
-            toggleAutoWalk: () => {},
-            stopAutoWalk: () => {},
-            isAutoAttacking: false,
-            toggleAutoAttack: () => {},
-            stopAutoAttack: () => {},
-            updateViewport: (_minX: number, _minY: number, _maxX: number, _maxY: number) => {},
-        };
+        // Transient unavailability during HMR or error recovery - warn once, use fallback
+        if (!hasWarnedMissingProvider) {
+            hasWarnedMissingProvider = true;
+            console.warn('[PlayerActions] Context temporarily unavailable (HMR or error recovery). Using fallback.');
+        }
+        return FALLBACK_ACTIONS;
     }
     return context;
 }; 

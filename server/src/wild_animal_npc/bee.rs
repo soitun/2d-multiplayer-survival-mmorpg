@@ -53,7 +53,7 @@ impl AnimalBehavior for BeeBehavior {
         AnimalStats {
             max_health: 1.0, // Effectively invincible to weapons, but dies to fire
             attack_damage: 3.0, // Low damage per hit
-            attack_range: 65.0, // Wider range - bees swarm and sting from close range
+            attack_range: 75.0, // Increased from 65 to compensate for collision pushback preventing hits
             attack_speed_ms: 500, // Fast attacks - every 0.5 seconds
             movement_speed: 180.0, // Fast patrol near hive
             sprint_speed: 320.0, // Fast chase - can catch walking players but not sprinters

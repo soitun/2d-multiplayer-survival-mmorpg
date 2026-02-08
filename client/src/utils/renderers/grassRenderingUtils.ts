@@ -269,11 +269,11 @@ const grassTargetWidths: Record<string, number> = {
     
     // Alpine grass variants - same sizes as regular grass
     'AlpinePatchA': 128,
-    'AlpinePatchB': 128,
+    'AlpinePatchB': 64,
     'AlpinePatchC': 128,
-    'AlpinePatchD': 128,
-    'TallGrassAlpineA': 128,
-    'TallGrassAlpineB': 128,
+    'AlpinePatchD': 64,         // Smaller variant - rendered at half size
+    'TallGrassAlpineA': 64,     // Smaller variant - rendered at half size
+    'TallGrassAlpineB': 64,     // Smaller variant - rendered at half size
 
     // Beach grass variants - rendered larger for better visibility
     'BeachGrassA': 256,
