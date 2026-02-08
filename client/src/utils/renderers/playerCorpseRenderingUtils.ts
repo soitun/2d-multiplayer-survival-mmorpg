@@ -142,6 +142,8 @@ export function renderPlayerCorpse({
     pvpEnabled: false, // Corpses can't engage in PvP
     pvpEnabledUntil: undefined, // No PvP timer for corpses
     lastPvpCombatTime: undefined, // No PvP combat time for corpses
+    isNpc: false, // Corpses are not NPCs
+    npcRole: '', // Corpses have no NPC role
   };
 
   // Choose the appropriate hero sprite based on water status (corpses don't crouch)

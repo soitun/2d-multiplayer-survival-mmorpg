@@ -2375,7 +2375,7 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
         let start_x = animal.pos_x;
         let start_y = animal.pos_y;
         
-        let is_attacking = animal.state == AnimalState::Attacking;
+        let is_attacking = matches!(animal.state, AnimalState::Attacking | AnimalState::Chasing | AnimalState::FlyingChase);
         let (mut final_x, mut final_y) = resolve_animal_collision(
             ctx,
             animal.id,
@@ -2395,6 +2395,11 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
         let skip_player_collision = matches!(animal.species, AnimalSpecies::Bee);
         
         if !skip_player_collision {
+            // When in combat (Chasing/Attacking/FlyingChase), use smaller push buffer
+            // to keep animals within their attack range after pushback.
+            // Non-combat states use larger buffer to prevent visual overlap.
+            let push_buffer = if is_attacking { 3.0 } else { 15.0 };
+            
             for player in ctx.db.player().iter() {
                 if player.is_dead {
                     continue;
@@ -2408,17 +2413,16 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
                 if player_dist < ABSOLUTE_MIN_PLAYER_DISTANCE {
                     // Too close! Push away from player
                     if player_dist > 1.0 {
-                        let push_dist = ABSOLUTE_MIN_PLAYER_DISTANCE - player_dist + 15.0;
-                        final_x = player.position_x + (pdx / player_dist) * (ABSOLUTE_MIN_PLAYER_DISTANCE + 15.0);
-                        final_y = player.position_y + (pdy / player_dist) * (ABSOLUTE_MIN_PLAYER_DISTANCE + 15.0);
+                        final_x = player.position_x + (pdx / player_dist) * (ABSOLUTE_MIN_PLAYER_DISTANCE + push_buffer);
+                        final_y = player.position_y + (pdy / player_dist) * (ABSOLUTE_MIN_PLAYER_DISTANCE + push_buffer);
                     } else {
                         // Almost exactly on player - push in direction we were moving
                         let push_angle = (animal.id as f32 * 2.39996) % (2.0 * std::f32::consts::PI);
-                        final_x = player.position_x + push_angle.cos() * (ABSOLUTE_MIN_PLAYER_DISTANCE + 20.0);
-                        final_y = player.position_y + push_angle.sin() * (ABSOLUTE_MIN_PLAYER_DISTANCE + 20.0);
+                        final_x = player.position_x + push_angle.cos() * (ABSOLUTE_MIN_PLAYER_DISTANCE + push_buffer + 5.0);
+                        final_y = player.position_y + push_angle.sin() * (ABSOLUTE_MIN_PLAYER_DISTANCE + push_buffer + 5.0);
                     }
-                    log::debug!("[AntiOverlap] Animal {} was too close to player, pushed to ({:.1}, {:.1})", 
-                               animal.id, final_x, final_y);
+                    log::debug!("[AntiOverlap] Animal {} was too close to player (combat={}), pushed to ({:.1}, {:.1})", 
+                               animal.id, is_attacking, final_x, final_y);
                     break; // Only need to push away from one player
                 }
             }

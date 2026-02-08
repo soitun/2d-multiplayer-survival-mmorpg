@@ -26,6 +26,7 @@ pub struct ActiveConsumableEffect {
     #[primary_key]
     #[auto_inc]
     pub effect_id: u64,
+    #[index(btree)] // PERF FIX: Index for O(log N) lookups instead of O(N) full table scans per player
     pub player_id: Identity, // The player who INITIATED the effect (e.g., used the bandage)
     pub target_player_id: Option<Identity>, // The player RECEIVING the effect (None if self-inflicted/self-cast)
     pub item_def_id: u64, // Identifies the type of item that caused the effect (e.g., Bandage def ID)
@@ -947,8 +948,10 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
 
 pub fn cancel_health_regen_effects(ctx: &ReducerContext, player_id: Identity) {
     let mut effects_to_cancel = Vec::new();
-    for effect in ctx.db.active_consumable_effect().iter().filter(|e| e.player_id == player_id && e.effect_type == EffectType::HealthRegen) {
-        effects_to_cancel.push(effect.effect_id);
+    for effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        if effect.effect_type == EffectType::HealthRegen {
+            effects_to_cancel.push(effect.effect_id);
+        }
     }
     for effect_id in effects_to_cancel {
         ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
@@ -958,8 +961,10 @@ pub fn cancel_health_regen_effects(ctx: &ReducerContext, player_id: Identity) {
 
 pub fn cancel_bleed_effects(ctx: &ReducerContext, player_id: Identity) {
     let mut effects_to_cancel = Vec::new();
-    for effect in ctx.db.active_consumable_effect().iter().filter(|e| e.player_id == player_id && e.effect_type == EffectType::Bleed) {
-        effects_to_cancel.push(effect.effect_id);
+    for effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        if effect.effect_type == EffectType::Bleed {
+            effects_to_cancel.push(effect.effect_id);
+        }
     }
     for effect_id in effects_to_cancel {
         ctx.db.active_consumable_effect().effect_id().delete(&effect_id);
@@ -969,13 +974,22 @@ pub fn cancel_bleed_effects(ctx: &ReducerContext, player_id: Identity) {
 
 pub fn cancel_bandage_burst_effects(ctx: &ReducerContext, player_id: Identity) {
     let mut effects_to_cancel = Vec::new();
-    for effect in ctx.db.active_consumable_effect().iter().filter(|e| {
-        // Cancel if player is either the healer or the target of any bandage effect
-        (e.player_id == player_id && (e.effect_type == EffectType::BandageBurst || e.effect_type == EffectType::RemoteBandageBurst)) ||
-        (e.target_player_id == Some(player_id) && e.effect_type == EffectType::RemoteBandageBurst)
-    }) {
-        effects_to_cancel.push(effect.effect_id);
+    // Cancel effects where player is the healer (indexed lookup)
+    for effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        if effect.effect_type == EffectType::BandageBurst || effect.effect_type == EffectType::RemoteBandageBurst {
+            effects_to_cancel.push(effect.effect_id);
+        }
     }
+    // Also cancel RemoteBandageBurst where player is the TARGET (requires full scan for target_player_id)
+    // This is acceptable since it's a rare cancel operation, not a hot path
+    let target_effects: Vec<u64> = ctx.db.active_consumable_effect().iter()
+        .filter(|e| {
+            e.target_player_id == Some(player_id) && e.effect_type == EffectType::RemoteBandageBurst
+                && !effects_to_cancel.contains(&e.effect_id)
+        })
+        .map(|e| e.effect_id)
+        .collect();
+    effects_to_cancel.extend(target_effects);
     
     // Stop bandaging sound if any effects are being cancelled
     if !effects_to_cancel.is_empty() {
@@ -1016,9 +1030,9 @@ pub fn apply_food_poisoning_effect(ctx: &ReducerContext, player_id: Identity, it
         emit_throwing_up_sound(ctx, player.position_x, player.position_y, player_id);
     }
 
-    // Check for existing food poisoning effects and extend if found
-    for existing_effect in ctx.db.active_consumable_effect().iter() {
-        if existing_effect.player_id == player_id && existing_effect.effect_type == EffectType::FoodPoisoning {
+    // Check for existing food poisoning effects and extend if found (indexed lookup)
+    for existing_effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        if existing_effect.effect_type == EffectType::FoodPoisoning {
             // Extend existing effect
             let additional_duration = TimeDuration::from_micros((poisoning_risk.duration_seconds * 1_000_000.0) as i64);
             let additional_damage = poisoning_risk.damage_per_tick * (poisoning_risk.duration_seconds / poisoning_risk.tick_interval_seconds);
@@ -1075,9 +1089,9 @@ pub fn apply_seawater_poisoning_effect(ctx: &ReducerContext, player_id: Identity
     let tick_interval_micros = 1_000_000u64; // 1 second per tick
     let total_thirst_drain = duration_seconds as f32 * 2.5; // 2.5 thirst drain per second
     
-    // Check if player already has seawater poisoning - if so, extend the duration
-    let existing_effects: Vec<_> = ctx.db.active_consumable_effect().iter()
-        .filter(|e| e.player_id == player_id && e.effect_type == EffectType::SeawaterPoisoning)
+    // Check if player already has seawater poisoning - if so, extend the duration (indexed lookup)
+    let existing_effects: Vec<_> = ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .filter(|e| e.effect_type == EffectType::SeawaterPoisoning)
         .collect();
 
     if !existing_effects.is_empty() {
@@ -1198,8 +1212,8 @@ pub fn should_player_be_cozy(ctx: &ReducerContext, player_id: Identity, player_x
 /// Applies or removes cozy effect based on player's current conditions
 pub fn update_player_cozy_status(ctx: &ReducerContext, player_id: Identity, player_x: f32, player_y: f32) -> Result<(), String> {
     let should_be_cozy = should_player_be_cozy(ctx, player_id, player_x, player_y);
-    let has_cozy_effect = ctx.db.active_consumable_effect().iter()
-        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::Cozy);
+    let has_cozy_effect = ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|effect| effect.effect_type == EffectType::Cozy);
     
     log::debug!("Cozy status check for player {:?}: should_be_cozy={}, has_cozy_effect={}", 
         player_id, should_be_cozy, has_cozy_effect);
@@ -1254,8 +1268,8 @@ fn apply_cozy_effect(ctx: &ReducerContext, player_id: Identity) -> Result<(), St
 /// Removes cozy effect from a player
 fn remove_cozy_effect(ctx: &ReducerContext, player_id: Identity) {
     let mut effects_to_remove = Vec::new();
-    for effect in ctx.db.active_consumable_effect().iter() {
-        if effect.player_id == player_id && effect.effect_type == EffectType::Cozy {
+    for effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        if effect.effect_type == EffectType::Cozy {
             effects_to_remove.push(effect.effect_id);
         }
     }
@@ -1268,8 +1282,8 @@ fn remove_cozy_effect(ctx: &ReducerContext, player_id: Identity) {
 
 /// Checks if a player currently has the cozy effect active
 pub fn player_has_cozy_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::Cozy)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|effect| effect.effect_type == EffectType::Cozy)
 }
 
 // Tree Cover Effect Management
@@ -1356,8 +1370,8 @@ fn apply_tree_cover_effect(ctx: &ReducerContext, player_id: Identity) -> Result<
 /// Removes tree cover effect from a player
 fn remove_tree_cover_effect(ctx: &ReducerContext, player_id: Identity) {
     let mut effects_to_remove = Vec::new();
-    for effect in ctx.db.active_consumable_effect().iter() {
-        if effect.player_id == player_id && effect.effect_type == EffectType::TreeCover {
+    for effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        if effect.effect_type == EffectType::TreeCover {
             effects_to_remove.push(effect.effect_id);
         }
     }
@@ -1370,14 +1384,14 @@ fn remove_tree_cover_effect(ctx: &ReducerContext, player_id: Identity) {
 
 /// Checks if a player currently has the wet effect active
 pub fn player_has_wet_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::Wet)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|effect| effect.effect_type == EffectType::Wet)
 }
 
 /// Checks if a player currently has the tree cover effect active
 pub fn player_has_tree_cover_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::TreeCover)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|effect| effect.effect_type == EffectType::TreeCover)
 }
 
 // Bleeding Effect Management
@@ -1459,8 +1473,8 @@ fn apply_exhausted_effect(ctx: &ReducerContext, player_id: Identity) -> Result<(
 /// Removes exhausted effect from a player
 fn remove_exhausted_effect(ctx: &ReducerContext, player_id: Identity) {
     let mut effects_to_remove = Vec::new();
-    for effect in ctx.db.active_consumable_effect().iter() {
-        if effect.player_id == player_id && effect.effect_type == EffectType::Exhausted {
+    for effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        if effect.effect_type == EffectType::Exhausted {
             effects_to_remove.push(effect.effect_id);
         }
     }
@@ -1472,9 +1486,10 @@ fn remove_exhausted_effect(ctx: &ReducerContext, player_id: Identity) {
 }
 
 /// Checks if a player currently has the exhausted effect active
+/// Uses btree index on player_id for O(log N + k) lookup instead of O(N) table scan
 pub fn player_has_exhausted_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::Exhausted)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|effect| effect.effect_type == EffectType::Exhausted)
 }
 
 /// Extinguishes burn effects for a player due to water or rain
@@ -1482,9 +1497,9 @@ pub fn player_has_exhausted_effect(ctx: &ReducerContext, player_id: Identity) ->
 pub fn extinguish_burn_effects(ctx: &ReducerContext, player_id: Identity, reason: &str) -> u32 {
     let mut extinguished_count = 0;
     
-    // Find all burn effects for this player
-    let burn_effects_to_remove: Vec<_> = ctx.db.active_consumable_effect().iter()
-        .filter(|effect| effect.player_id == player_id && effect.effect_type == EffectType::Burn)
+    // Find all burn effects for this player (indexed lookup)
+    let burn_effects_to_remove: Vec<_> = ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .filter(|effect| effect.effect_type == EffectType::Burn)
         .collect();
     
     // Remove each burn effect
@@ -1661,9 +1676,9 @@ pub fn apply_venom_effect(
 ) -> Result<(), String> {
     let current_time = ctx.timestamp;
     
-    // Check if player already has a venom effect - if so, stack it
-    let existing_venom_effects: Vec<_> = ctx.db.active_consumable_effect().iter()
-        .filter(|e| e.player_id == player_id && e.effect_type == EffectType::Venom)
+    // Check if player already has a venom effect - if so, stack it (indexed lookup)
+    let existing_venom_effects: Vec<_> = ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .filter(|e| e.effect_type == EffectType::Venom)
         .collect();
 
     if !existing_venom_effects.is_empty() {
@@ -1725,9 +1740,9 @@ pub fn apply_bleeding_effect(
 ) -> Result<(), String> {
     let current_time = ctx.timestamp;
     
-    // Check if player already has a bleeding effect
-    let existing_bleed_effect = ctx.db.active_consumable_effect().iter()
-        .find(|e| e.player_id == player_id && e.effect_type == EffectType::Bleed);
+    // Check if player already has a bleeding effect (indexed lookup)
+    let existing_bleed_effect = ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .find(|e| e.effect_type == EffectType::Bleed);
 
     if let Some(existing_effect) = existing_bleed_effect {
         // Stack onto existing effect
@@ -1824,10 +1839,9 @@ pub fn apply_burn_effect(
     }
     // <<< END SAFE ZONE CHECK >>>
     
-    // Check if player already has a burn effect from the same source type
-    let existing_burn_effects: Vec<_> = ctx.db.active_consumable_effect().iter()
-        .filter(|e| e.player_id == player_id && 
-                   e.effect_type == EffectType::Burn && 
+    // Check if player already has a burn effect from the same source type (indexed lookup)
+    let existing_burn_effects: Vec<_> = ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .filter(|e| e.effect_type == EffectType::Burn && 
                    e.item_def_id == source_item_def_id)
         .collect();
 
@@ -1912,8 +1926,8 @@ pub fn apply_burn_effect(
 
 /// Cancels all active venom effects for a player (used when Anti-Venom is consumed)
 pub fn cancel_venom_effects(ctx: &ReducerContext, player_id: Identity) {
-    let effects_to_cancel: Vec<_> = ctx.db.active_consumable_effect().iter()
-        .filter(|e| e.player_id == player_id && e.effect_type == EffectType::Venom)
+    let effects_to_cancel: Vec<_> = ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .filter(|e| e.effect_type == EffectType::Venom)
         .collect();
 
     for effect in effects_to_cancel {
@@ -1943,8 +1957,8 @@ pub fn clear_all_effects_on_death(ctx: &ReducerContext, player_id: Identity) {
     // Entrainment is an insanity effect (not a broth effect), but it's still cleared on death
     // ONLY preserve BuildingPrivilege - it persists across death
     let mut effects_to_remove = Vec::new();
-    for effect in ctx.db.active_consumable_effect().iter() {
-        if effect.player_id == player_id {
+    for effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        {
             // Skip BuildingPrivilege - it persists across death
             if effect.effect_type == EffectType::BuildingPrivilege {
                 log::debug!("[PlayerDeath] Preserving BuildingPrivilege effect {} for deceased player {:?}", 
@@ -2026,20 +2040,20 @@ pub fn update_player_rune_stone_zone_effects(ctx: &ReducerContext, player_id: Id
 
 /// Checks if a player has the production rune effect
 pub fn player_has_production_rune_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::ProductionRune)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|effect| effect.effect_type == EffectType::ProductionRune)
 }
 
 /// Checks if a player has the agrarian rune effect
 pub fn player_has_agrarian_rune_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::AgrarianRune)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|effect| effect.effect_type == EffectType::AgrarianRune)
 }
 
 /// Checks if a player has the memory rune effect
 pub fn player_has_memory_rune_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::MemoryRune)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|effect| effect.effect_type == EffectType::MemoryRune)
 }
 
 /// Applies production rune zone effect
@@ -2076,8 +2090,8 @@ fn apply_production_rune_effect(ctx: &ReducerContext, player_id: Identity) -> Re
 
 /// Removes production rune zone effect
 fn remove_production_rune_effect(ctx: &ReducerContext, player_id: Identity) {
-    let effects_to_remove: Vec<_> = ctx.db.active_consumable_effect().iter()
-        .filter(|e| e.player_id == player_id && e.effect_type == EffectType::ProductionRune)
+    let effects_to_remove: Vec<_> = ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .filter(|e| e.effect_type == EffectType::ProductionRune)
         .map(|e| e.effect_id)
         .collect();
     
@@ -2121,8 +2135,8 @@ fn apply_agrarian_rune_effect(ctx: &ReducerContext, player_id: Identity) -> Resu
 
 /// Removes agrarian rune zone effect
 fn remove_agrarian_rune_effect(ctx: &ReducerContext, player_id: Identity) {
-    let effects_to_remove: Vec<_> = ctx.db.active_consumable_effect().iter()
-        .filter(|e| e.player_id == player_id && e.effect_type == EffectType::AgrarianRune)
+    let effects_to_remove: Vec<_> = ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .filter(|e| e.effect_type == EffectType::AgrarianRune)
         .map(|e| e.effect_id)
         .collect();
     
@@ -2166,8 +2180,8 @@ fn apply_memory_rune_effect(ctx: &ReducerContext, player_id: Identity) -> Result
 
 /// Removes memory rune zone effect
 fn remove_memory_rune_effect(ctx: &ReducerContext, player_id: Identity) {
-    let effects_to_remove: Vec<_> = ctx.db.active_consumable_effect().iter()
-        .filter(|e| e.player_id == player_id && e.effect_type == EffectType::MemoryRune)
+    let effects_to_remove: Vec<_> = ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .filter(|e| e.effect_type == EffectType::MemoryRune)
         .map(|e| e.effect_id)
         .collect();
     
@@ -2222,8 +2236,8 @@ pub fn update_player_hot_spring_status(ctx: &ReducerContext, player_id: Identity
 
 /// Checks if a player currently has the hot spring effect active
 pub fn player_has_hot_spring_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::HotSpring)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|effect| effect.effect_type == EffectType::HotSpring)
 }
 
 /// Applies hot spring healing effect to a player
@@ -2262,8 +2276,8 @@ fn apply_hot_spring_effect(ctx: &ReducerContext, player_id: Identity) -> Result<
 /// Removes hot spring effect from a player
 fn remove_hot_spring_effect(ctx: &ReducerContext, player_id: Identity) {
     let mut effects_to_remove = Vec::new();
-    for effect in ctx.db.active_consumable_effect().iter() {
-        if effect.player_id == player_id && effect.effect_type == EffectType::HotSpring {
+    for effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        if effect.effect_type == EffectType::HotSpring {
             effects_to_remove.push(effect.effect_id);
         }
     }
@@ -2328,8 +2342,8 @@ pub fn update_player_fumarole_status(ctx: &ReducerContext, player_id: Identity, 
 
 /// Checks if a player currently has the fumarole effect active
 pub fn player_has_fumarole_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::Fumarole)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|effect| effect.effect_type == EffectType::Fumarole)
 }
 
 /// Applies fumarole warmth protection effect to a player
@@ -2368,8 +2382,8 @@ fn apply_fumarole_effect(ctx: &ReducerContext, player_id: Identity) -> Result<()
 /// Removes fumarole effect from a player
 fn remove_fumarole_effect(ctx: &ReducerContext, player_id: Identity) {
     let mut effects_to_remove = Vec::new();
-    for effect in ctx.db.active_consumable_effect().iter() {
-        if effect.player_id == player_id && effect.effect_type == EffectType::Fumarole {
+    for effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        if effect.effect_type == EffectType::Fumarole {
             effects_to_remove.push(effect.effect_id);
         }
     }
@@ -2532,8 +2546,8 @@ pub fn update_player_safe_zone_status(ctx: &ReducerContext, player_id: Identity,
 
 /// Checks if a player currently has the safe zone effect active
 pub fn player_has_safe_zone_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::SafeZone)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|effect| effect.effect_type == EffectType::SafeZone)
 }
 
 /// Applies safe zone effect to a player
@@ -2572,8 +2586,8 @@ fn apply_safe_zone_effect(ctx: &ReducerContext, player_id: Identity) -> Result<(
 /// Removes safe zone effect from a player
 fn remove_safe_zone_effect(ctx: &ReducerContext, player_id: Identity) {
     let mut effects_to_remove = Vec::new();
-    for effect in ctx.db.active_consumable_effect().iter() {
-        if effect.player_id == player_id && effect.effect_type == EffectType::SafeZone {
+    for effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        if effect.effect_type == EffectType::SafeZone {
             effects_to_remove.push(effect.effect_id);
         }
     }
@@ -2621,8 +2635,8 @@ pub fn update_player_fishing_village_status(ctx: &ReducerContext, player_id: Ide
 
 /// Checks if a player currently has the fishing village bonus effect active
 pub fn player_has_fishing_village_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::FishingVillageBonus)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|effect| effect.effect_type == EffectType::FishingVillageBonus)
 }
 
 /// Applies fishing village bonus effect to a player
@@ -2661,8 +2675,8 @@ fn apply_fishing_village_effect(ctx: &ReducerContext, player_id: Identity) -> Re
 /// Removes fishing village bonus effect from a player
 fn remove_fishing_village_effect(ctx: &ReducerContext, player_id: Identity) {
     let mut effects_to_remove = Vec::new();
-    for effect in ctx.db.active_consumable_effect().iter() {
-        if effect.player_id == player_id && effect.effect_type == EffectType::FishingVillageBonus {
+    for effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        if effect.effect_type == EffectType::FishingVillageBonus {
             effects_to_remove.push(effect.effect_id);
         }
     }
@@ -2709,8 +2723,8 @@ pub fn update_lagunov_ghost_status(ctx: &ReducerContext, player_id: Identity, pl
 
 /// Checks if a player currently has the Lagunov's Ghost effect active
 pub fn player_has_lagunov_ghost_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::LagunovGhost)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|effect| effect.effect_type == EffectType::LagunovGhost)
 }
 
 /// Applies Lagunov's Ghost effect to a player
@@ -2749,8 +2763,8 @@ fn apply_lagunov_ghost_effect(ctx: &ReducerContext, player_id: Identity) -> Resu
 /// Removes Lagunov's Ghost effect from a player
 fn remove_lagunov_ghost_effect(ctx: &ReducerContext, player_id: Identity) {
     let mut effects_to_remove = Vec::new();
-    for effect in ctx.db.active_consumable_effect().iter() {
-        if effect.player_id == player_id && effect.effect_type == EffectType::LagunovGhost {
+    for effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        if effect.effect_type == EffectType::LagunovGhost {
             effects_to_remove.push(effect.effect_id);
         }
     }
@@ -2794,8 +2808,8 @@ pub fn update_cooking_station_proximity(ctx: &ReducerContext, player_id: Identit
 
 /// Checks if a player currently has the cooking station proximity effect active
 pub fn player_has_cooking_station_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::NearCookingStation)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|effect| effect.effect_type == EffectType::NearCookingStation)
 }
 
 /// Applies cooking station proximity effect to a player
@@ -2834,8 +2848,8 @@ fn apply_cooking_station_effect(ctx: &ReducerContext, player_id: Identity) -> Re
 /// Removes cooking station proximity effect from a player
 fn remove_cooking_station_effect(ctx: &ReducerContext, player_id: Identity) {
     let mut effects_to_remove = Vec::new();
-    for effect in ctx.db.active_consumable_effect().iter() {
-        if effect.player_id == player_id && effect.effect_type == EffectType::NearCookingStation {
+    for effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        if effect.effect_type == EffectType::NearCookingStation {
             effects_to_remove.push(effect.effect_id);
         }
     }
@@ -3401,81 +3415,83 @@ pub fn apply_harvest_boost_effect(ctx: &ReducerContext, player_id: Identity, ite
 // ============================================================================
 
 /// Checks if a player has the intoxicated (drunk) effect
+/// Uses btree index on player_id for O(log N + k) lookup instead of O(N) table scan
 pub fn player_has_intoxicated_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::Intoxicated)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::Intoxicated)
 }
 
 /// Checks if a player has the speed boost effect
+/// Uses btree index on player_id for O(log N + k) lookup instead of O(N) table scan
 pub fn player_has_speed_boost_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::SpeedBoost)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::SpeedBoost)
 }
 
 /// Checks if a player has the stamina boost effect
 pub fn player_has_stamina_boost_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::StaminaBoost)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::StaminaBoost)
 }
 
 /// Checks if a player has the night vision effect
 pub fn player_has_night_vision_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::NightVision)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::NightVision)
 }
 
 /// Checks if a player has the warmth boost effect
 pub fn player_has_warmth_boost_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::WarmthBoost)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::WarmthBoost)
 }
 
 /// Checks if a player has the cold resistance effect
 pub fn player_has_cold_resistance_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::ColdResistance)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::ColdResistance)
 }
 
 /// Checks if a player has the poison resistance effect
 pub fn player_has_poison_resistance_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::PoisonResistance)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::PoisonResistance)
 }
 
 /// Checks if a player has the fire resistance effect
 pub fn player_has_fire_resistance_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::FireResistance)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::FireResistance)
 }
 
 /// Checks if a player has the poison coating effect
 pub fn player_has_poison_coating_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::PoisonCoating)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::PoisonCoating)
 }
 
 /// Checks if a player has the passive health regen effect
 pub fn player_has_passive_health_regen_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::PassiveHealthRegen)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::PassiveHealthRegen)
 }
 
 /// Checks if a player has the harvest boost effect
 pub fn player_has_harvest_boost_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::HarvestBoost)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::HarvestBoost)
 }
 
 /// Checks if a player has the poisoned status effect
 pub fn player_has_poisoned_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::Poisoned)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::Poisoned)
 }
 
 /// Checks if a player has the Entrainment effect (permanent insanity debuff)
 pub fn player_has_entrainment_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::Entrainment)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::Entrainment)
 }
 
 /// Applies Entrainment effect - permanent debuff from max insanity
@@ -3529,8 +3545,8 @@ pub fn apply_entrainment_effect(ctx: &ReducerContext, player_id: Identity) -> Re
 
 /// Checks if a player currently has ValidolProtection active (pauses Entrainment damage)
 pub fn player_has_validol_protection(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::ValidolProtection)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::ValidolProtection)
 }
 
 /// Applies ValidolProtection effect - pauses Entrainment damage for 2-5 minutes
@@ -3538,8 +3554,8 @@ pub fn player_has_validol_protection(ctx: &ReducerContext, player_id: Identity) 
 /// Duration is random between 120-300 seconds (2-5 minutes)
 pub fn apply_validol_protection(ctx: &ReducerContext, player_id: Identity) -> Result<u64, String> {
     // Remove any existing ValidolProtection (refresh timer instead of stacking)
-    let existing_effects: Vec<u64> = ctx.db.active_consumable_effect().iter()
-        .filter(|e| e.player_id == player_id && e.effect_type == EffectType::ValidolProtection)
+    let existing_effects: Vec<u64> = ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .filter(|e| e.effect_type == EffectType::ValidolProtection)
         .map(|e| e.effect_id)
         .collect();
     
@@ -3608,8 +3624,8 @@ pub fn reduce_player_insanity(ctx: &ReducerContext, player_id: Identity, reducti
 
 /// Cancels a specific broth effect type for a player
 pub fn cancel_broth_effect(ctx: &ReducerContext, player_id: Identity, effect_type: EffectType) {
-    let effects_to_cancel: Vec<_> = ctx.db.active_consumable_effect().iter()
-        .filter(|e| e.player_id == player_id && e.effect_type == effect_type)
+    let effects_to_cancel: Vec<_> = ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .filter(|e| e.effect_type == effect_type)
         .map(|e| e.effect_id)
         .collect();
 
@@ -3659,16 +3675,16 @@ pub const BREW_COOLDOWN_MICROS: i64 = (BREW_COOLDOWN_SECONDS as i64) * 1_000_000
 
 /// Checks if a player currently has the brew cooldown effect active
 pub fn player_has_brew_cooldown(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::BrewCooldown)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::BrewCooldown)
 }
 
 /// Gets the remaining brew cooldown time in seconds for a player
 /// Returns None if no cooldown is active, Some(seconds) otherwise
 pub fn get_brew_cooldown_remaining(ctx: &ReducerContext, player_id: Identity) -> Option<f32> {
     let current_time = ctx.timestamp;
-    ctx.db.active_consumable_effect().iter()
-        .find(|e| e.player_id == player_id && e.effect_type == EffectType::BrewCooldown)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .find(|e| e.effect_type == EffectType::BrewCooldown)
         .map(|effect| {
             let ends_at_micros = effect.ends_at.to_micros_since_unix_epoch();
             let now_micros = current_time.to_micros_since_unix_epoch();
@@ -3750,17 +3766,18 @@ pub fn get_blunt_weapon_stun_params(weapon_name: &str) -> Option<(f32, f32)> {
 }
 
 /// Checks if a player currently has the stun effect active
+/// Uses btree index on player_id for O(log N + k) lookup instead of O(N) table scan
 pub fn player_has_stun_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|e| e.player_id == player_id && e.effect_type == EffectType::Stun)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|e| e.effect_type == EffectType::Stun)
 }
 
 /// Gets the remaining stun time in seconds for a player
 /// Returns None if not stunned, Some(seconds) otherwise
 pub fn get_stun_remaining(ctx: &ReducerContext, player_id: Identity) -> Option<f32> {
     let current_time = ctx.timestamp;
-    ctx.db.active_consumable_effect().iter()
-        .find(|e| e.player_id == player_id && e.effect_type == EffectType::Stun)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .find(|e| e.effect_type == EffectType::Stun)
         .map(|effect| {
             let ends_at_micros = effect.ends_at.to_micros_since_unix_epoch();
             let now_micros = current_time.to_micros_since_unix_epoch();
@@ -3838,8 +3855,8 @@ pub fn apply_stun_effect(
 
 /// Cancels any active stun effect for a player
 pub fn cancel_stun_effect(ctx: &ReducerContext, player_id: Identity) {
-    let effects_to_cancel: Vec<_> = ctx.db.active_consumable_effect().iter()
-        .filter(|e| e.player_id == player_id && e.effect_type == EffectType::Stun)
+    let effects_to_cancel: Vec<_> = ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .filter(|e| e.effect_type == EffectType::Stun)
         .map(|e| e.effect_id)
         .collect();
 
@@ -3922,8 +3939,8 @@ pub fn update_player_memory_beacon_status(ctx: &ReducerContext, player_id: Ident
 
 /// Checks if a player currently has the Memory Beacon sanity effect active
 pub fn player_has_memory_beacon_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
-    ctx.db.active_consumable_effect().iter()
-        .any(|effect| effect.player_id == player_id && effect.effect_type == EffectType::MemoryBeaconSanity)
+    ctx.db.active_consumable_effect().player_id().filter(&player_id)
+        .any(|effect| effect.effect_type == EffectType::MemoryBeaconSanity)
 }
 
 /// Applies Memory Beacon sanity effect to a player (display only)
@@ -3962,8 +3979,8 @@ fn apply_memory_beacon_effect(ctx: &ReducerContext, player_id: Identity) -> Resu
 /// Removes Memory Beacon sanity effect from a player
 fn remove_memory_beacon_effect(ctx: &ReducerContext, player_id: Identity) {
     let mut effects_to_remove = Vec::new();
-    for effect in ctx.db.active_consumable_effect().iter() {
-        if effect.player_id == player_id && effect.effect_type == EffectType::MemoryBeaconSanity {
+    for effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        if effect.effect_type == EffectType::MemoryBeaconSanity {
             effects_to_remove.push(effect.effect_id);
         }
     }

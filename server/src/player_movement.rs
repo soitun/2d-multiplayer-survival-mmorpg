@@ -532,6 +532,21 @@ pub fn update_player_position_simple(
     // --- Apply CLIENT-FRIENDLY collision detection ---
     // For client-authoritative movement, we need to be less aggressive to maintain smoothness
     
+    // === PERFORMANCE FIX: Skip DB write entirely for negligible changes ===
+    // Each player table update triggers subscription fan-out to ALL connected clients (N^2 scaling).
+    // By skipping writes when nothing meaningful changed, we eliminate thousands of
+    // unnecessary network messages per second with 20+ players.
+    let direction_changed = current_player.direction != facing_direction;
+    let sprint_changed = current_player.is_sprinting != is_sprinting;
+    
+    if distance_moved < 1.0 && !direction_changed && !sprint_changed {
+        // Nothing visually meaningful changed - skip DB write entirely.
+        // The client's local prediction keeps movement smooth; the ref (playersRef)
+        // on each client already has the latest data from the local prediction system.
+        // No subscription fan-out occurs, saving O(N) messages per skipped update.
+        return Ok(());
+    }
+
     // Always update sequence and basics
     current_player.client_movement_sequence = client_sequence;
     current_player.direction = facing_direction;

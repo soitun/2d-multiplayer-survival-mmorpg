@@ -577,6 +577,31 @@ export const renderYSortedEntities = ({
   // This allows fences to show proper end caps, center pieces, and corners
   const fencePositionMap = allFences ? buildFencePositionMap(allFences) : new Map<string, any>();
   
+  // PERF FIX: Pre-index activeConsumableEffects by player ID for O(1) lookup per player.
+  // Without this, renderPlayer iterates ALL effects (potentially hundreds) for EACH rendered player,
+  // costing O(N_players × N_effects) per frame. With the index, each player only sees its own effects.
+  const effectsByPlayerId = new Map<string, Map<string, ActiveConsumableEffect>>();
+  const EMPTY_EFFECTS_MAP = new Map<string, ActiveConsumableEffect>();
+  if (activeConsumableEffects) {
+    for (const [effectId, effect] of activeConsumableEffects) {
+      // Index by initiator player ID
+      const initiatorId = effect.playerId.toHexString();
+      if (!effectsByPlayerId.has(initiatorId)) {
+        effectsByPlayerId.set(initiatorId, new Map());
+      }
+      effectsByPlayerId.get(initiatorId)!.set(effectId, effect);
+      
+      // Also index by target player ID (for remote healing glow on the target)
+      if (effect.targetPlayerId) {
+        const targetId = effect.targetPlayerId.toHexString();
+        if (!effectsByPlayerId.has(targetId)) {
+          effectsByPlayerId.set(targetId, new Map());
+        }
+        effectsByPlayerId.get(targetId)!.set(effectId, effect);
+      }
+    }
+  }
+  
   // NOTE: Underwater shadows are now rendered separately in GameCanvas.tsx
   // before the water overlay, not here in renderYSortedEntities
   
@@ -889,6 +914,9 @@ export const renderYSortedEntities = ({
          }
          const canRenderItem = itemDef && itemImg && itemImg.complete && itemImg.naturalHeight !== 0;
          
+          // PERF FIX: Use pre-indexed effects for this specific player (O(1) lookup vs O(N) iteration)
+          const playerEffects = effectsByPlayerId.get(playerId) || EMPTY_EFFECTS_MAP;
+         
           // Determine rendering order based on player direction
           if (playerForRendering.direction === 'up' || playerForRendering.direction === 'left') {
               // For UP or LEFT, item should be rendered BENEATH the player
@@ -902,7 +930,7 @@ export const renderYSortedEntities = ({
                   // Pass player.direction (server-synced) for accurate attack arc display
                   // Pass snorkeling state for underwater teal tint effect
                   const playerIsSnorkelingForItem = isLocalPlayer ? isLocalPlayerSnorkeling : playerForRendering.isSnorkeling;
-                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction, playerIsSnorkelingForItem);
+                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, playerEffects, localPlayerId, player.direction, playerIsSnorkelingForItem);
             }
             
             // console.log(`[DEBUG] Rendering player ${playerId} - heroImg available:`, !!heroImg, 'direction:', playerForRendering.direction);
@@ -956,7 +984,7 @@ export const renderYSortedEntities = ({
                 nowMs, 
                 jumpOffset,
                 isPersistentlyHovered,
-                activeConsumableEffects,
+                playerEffects, // PERF FIX: Pre-indexed effects for this player only
                 localPlayerId,
                 false, // isCorpse
                 cycleProgress, // cycleProgress
@@ -1023,7 +1051,7 @@ export const renderYSortedEntities = ({
                 nowMs, 
                 jumpOffset,
                 isPersistentlyHovered,
-                activeConsumableEffects,
+                playerEffects, // PERF FIX: Pre-indexed effects for this player only
                 localPlayerId,
                 false, // isCorpse
                 cycleProgress, // cycleProgress
@@ -1041,7 +1069,7 @@ export const renderYSortedEntities = ({
                   // Pass player.direction (server-synced) for accurate attack arc display
                   // Pass snorkeling state for underwater teal tint effect
                   const playerIsSnorkelingForItem = isLocalPlayer ? isLocalPlayerSnorkeling : playerForRendering.isSnorkeling;
-                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction, playerIsSnorkelingForItem);
+                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, playerEffects, localPlayerId, player.direction, playerIsSnorkelingForItem);
             }
             
             // Ghost trail disabled for cleaner dodge roll experience

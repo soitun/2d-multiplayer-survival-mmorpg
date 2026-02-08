@@ -4,7 +4,7 @@ import { usePlayerActions } from '../contexts/PlayerActionsContext';
 import { resolveClientCollision, GameEntities } from '../utils/clientCollision';
 
 // Simple client-authoritative movement constants
-const POSITION_UPDATE_INTERVAL_MS = 25; // 40fps for better prediction accuracy with high latency
+const POSITION_UPDATE_INTERVAL_MS = 50; // 20fps server updates - reduces N^2 subscription fan-out while client prediction keeps movement smooth
 const PLAYER_SPEED = 320; // pixels per second - 6.67 tiles/sec (SYNCED WITH SERVER)
 const SPRINT_MULTIPLIER = 1.75; // 1.75x speed for sprinting (560 px/s) (SYNCED WITH SERVER)
 // Note: Dodge roll now uses server-authoritative interpolation instead of speed multipliers

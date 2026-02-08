@@ -376,7 +376,12 @@ export const useSpacetimeTables = ({
     const playerDodgeRollStatesRef = useRef<Map<string, SpacetimeDB.PlayerDodgeRollState>>(new Map());
     // OPTIMIZATION: Track players in a Ref to avoid re-renders on position updates
     const playersRef = useRef<Map<string, SpacetimeDB.Player>>(new Map());
-    const lastPlayerUpdateRef = useRef<number>(0); // For throttling React updates
+    // PERF FIX: Use a global render timestamp instead of per-player.
+    // With N players sending interleaved updates, a single shared timestamp
+    // effectively batches all position-only updates into one React render per throttle window.
+    const lastPlayerRenderTimeRef = useRef<number>(0);
+    const playerRenderPendingRef = useRef<boolean>(false);
+    const playerRenderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // NOTE: Wild animal and projectile updates now use batched refs (see above)
     // This reduces React re-renders while maintaining smooth animation
@@ -850,12 +855,10 @@ export const useSpacetimeTables = ({
                 const playerHexId = newPlayer.identity.toHexString();
 
                 // 1. Always update the Source of Truth (Ref) immediately
+                // This is O(1) and doesn't trigger React re-renders
                 playersRef.current.set(playerHexId, newPlayer);
 
-                // 2. Check for significant changes that require a React re-render
-                const EPSILON = 0.01;
-                const posChanged = Math.abs(oldPlayer.positionX - newPlayer.positionX) > EPSILON || Math.abs(oldPlayer.positionY - newPlayer.positionY) > EPSILON;
-
+                // 2. Check for significant changes that require IMMEDIATE React re-render
                 const oldLastHitTimeMicros = oldPlayer.lastHitTime ? BigInt(oldPlayer.lastHitTime.__timestamp_micros_since_unix_epoch__) : null;
                 const newLastHitTimeMicros = newPlayer.lastHitTime ? BigInt(newPlayer.lastHitTime.__timestamp_micros_since_unix_epoch__) : null;
                 const lastHitTimeChanged = oldLastHitTimeMicros !== newLastHitTimeMicros;
@@ -865,20 +868,48 @@ export const useSpacetimeTables = ({
                 const onlineStatusChanged = oldPlayer.isOnline !== newPlayer.isOnline;
                 const usernameChanged = oldPlayer.username !== newPlayer.username;
 
-                // OPTIMIZATION: Throttle React updates for position changes
-                // If ONLY position changed, we might skip the setPlayers call to save FPS
-                // But we must update periodically to ensure map/UI eventually syncs
-                const now = performance.now();
-                const timeSinceLastUpdate = now - lastPlayerUpdateRef.current;
-                const shouldThrottle = posChanged && !statsChanged && !stateChanged && !onlineStatusChanged && !usernameChanged && !lastHitTimeChanged;
+                const isImmediate = statsChanged || stateChanged || onlineStatusChanged || usernameChanged || lastHitTimeChanged;
 
-                // Trigger render if:
-                // 1. Non-positional data changed (stats, state, etc.)
-                // 2. OR enough time passed (e.g. 33ms = ~30fps cap for pure movement updates)
-                if (!shouldThrottle || timeSinceLastUpdate > 33) {
+                if (isImmediate) {
+                    // Non-positional data changed - flush immediately
+                    if (playerRenderTimerRef.current) {
+                        clearTimeout(playerRenderTimerRef.current);
+                        playerRenderTimerRef.current = null;
+                    }
                     setPlayers(new Map(playersRef.current));
-                    lastPlayerUpdateRef.current = now;
+                    lastPlayerRenderTimeRef.current = performance.now();
+                    playerRenderPendingRef.current = false;
+                    return;
                 }
+
+                // === BATCHED RENDER THROTTLE for position-only updates ===
+                // With N players sending interleaved position updates, we batch them
+                // into a single React re-render per throttle window (50ms = ~20fps).
+                // The Ref always has the latest data, so the render sees ALL accumulated changes.
+                const now = performance.now();
+                const timeSinceLastRender = now - lastPlayerRenderTimeRef.current;
+
+                if (timeSinceLastRender >= 50) {
+                    // Enough time passed - flush now (batches all player position changes)
+                    setPlayers(new Map(playersRef.current));
+                    lastPlayerRenderTimeRef.current = now;
+                    playerRenderPendingRef.current = false;
+                    if (playerRenderTimerRef.current) {
+                        clearTimeout(playerRenderTimerRef.current);
+                        playerRenderTimerRef.current = null;
+                    }
+                } else if (!playerRenderPendingRef.current) {
+                    // Schedule a deferred flush to guarantee we don't miss updates
+                    playerRenderPendingRef.current = true;
+                    const remainingMs = 50 - timeSinceLastRender;
+                    playerRenderTimerRef.current = setTimeout(() => {
+                        setPlayers(new Map(playersRef.current));
+                        lastPlayerRenderTimeRef.current = performance.now();
+                        playerRenderPendingRef.current = false;
+                        playerRenderTimerRef.current = null;
+                    }, remainingMs);
+                }
+                // else: timer already scheduled, pending changes will be included in next flush
             };
             const handlePlayerDelete = (ctx: any, deletedPlayer: SpacetimeDB.Player) => {
                 // Update Ref
@@ -3000,6 +3031,12 @@ export const useSpacetimeTables = ({
                 // Clear any pending unsubscribe timers
                 chunkUnsubscribeTimersRef.current.forEach(timer => clearTimeout(timer));
                 chunkUnsubscribeTimersRef.current.clear();
+
+                // Clear pending player render timer
+                if (playerRenderTimerRef.current) {
+                    clearTimeout(playerRenderTimerRef.current);
+                    playerRenderTimerRef.current = null;
+                }
 
                 isSubscribingRef.current = false;
                 subscribedChunksRef.current.clear();

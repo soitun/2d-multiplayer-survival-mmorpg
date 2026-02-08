@@ -1058,55 +1058,33 @@ export const renderPlayer = (
       }
 
       // Apply underwater teal tinting for swimming players
+      // PERF FIX: Uses GPU-accelerated canvas compositing instead of per-pixel getImageData/putImageData.
+      // getImageData forces a GPU→CPU sync and the pixel loop runs in JS — this was the #1 per-frame cost
+      // for swimming players. Canvas composite operations run entirely on the GPU.
       if (player.isOnWater && !isCorpse && !isCurrentlyJumping) {
-        // When snorkeling, apply full underwater tint to entire sprite
-        // Otherwise, only tint bottom half (below water line)
         const startY = isSnorkeling ? 0 : Math.floor(offscreenCanvas.height * 0.5);
         const tintHeight = isSnorkeling ? offscreenCanvas.height : (offscreenCanvas.height - startY);
         
-        // Get pixel data for the area to tint
-        const imageData = offscreenCtx.getImageData(0, startY, offscreenCanvas.width, tintHeight);
-        const data = imageData.data;
+        // Step 1: Darken the sprite in the tinted region (multiply darkens proportionally)
+        offscreenCtx.save();
+        offscreenCtx.globalCompositeOperation = 'source-atop';
         
-        // Apply pronounced teal tint to each pixel
-        for (let y = 0; y < imageData.height; y++) {
-          for (let x = 0; x < imageData.width; x++) {
-            const pixelIndex = (y * imageData.width + x) * 4;
-            const alpha = data[pixelIndex + 3];
-            
-            // Only process pixels that exist (have alpha > 0)
-            if (alpha > 0) {
-              // Calculate tinting factor based on depth
-              // For snorkeling: full sprite gets uniform deep tint
-              // For normal swimming: gradient from water line to bottom
-              const depthRatio = isSnorkeling ? 0.7 : (y / imageData.height); // Uniform 0.7 depth for snorkeling
-              const baseDarkenFactor = isSnorkeling ? 0.55 : (0.75 - (depthRatio * 0.25)); // Darker when fully submerged
-              
-              // Get original color values
-              const originalRed = data[pixelIndex];
-              const originalGreen = data[pixelIndex + 1];
-              const originalBlue = data[pixelIndex + 2];
-              
-              // Apply pronounced teal tint (cyan-green underwater effect)
-              // Teal = high blue + moderate green + low red
-              const tealIntensity = isSnorkeling ? 0.85 : (0.6 + (depthRatio * 0.3)); // Stronger teal when fully submerged
-              
-              // Red: Significantly reduced for teal effect
-              data[pixelIndex] = Math.floor(originalRed * baseDarkenFactor * 0.35); // Even less red when snorkeling
-              
-              // Green: Moderately reduced but boosted for teal
-              const greenBase = originalGreen * baseDarkenFactor * 0.65;
-              data[pixelIndex + 1] = Math.floor(greenBase + (tealIntensity * 45)); // Boost green for teal
-              
-              // Blue: Slightly darkened but boosted for teal
-              const blueBase = originalBlue * baseDarkenFactor * 0.75;
-              data[pixelIndex + 2] = Math.floor(Math.min(255, blueBase + (tealIntensity * 70))); // Strong boost blue for teal
-            }
-          }
+        if (isSnorkeling) {
+          // Uniform deep teal overlay for fully submerged player
+          // Approximates the original: red ×0.19, green ×0.36 + teal boost, blue ×0.41 + strong teal boost
+          offscreenCtx.fillStyle = 'rgba(0, 65, 100, 0.58)';
+          offscreenCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+        } else {
+          // Gradient teal tint for bottom half (swimming) — deeper = more teal
+          // Mimics the original depth-based gradient from water line to feet
+          const gradient = offscreenCtx.createLinearGradient(0, startY, 0, offscreenCanvas.height);
+          gradient.addColorStop(0, 'rgba(0, 50, 75, 0.25)');   // Light teal at water line
+          gradient.addColorStop(1, 'rgba(0, 75, 110, 0.52)');  // Deep teal at bottom
+          offscreenCtx.fillStyle = gradient;
+          offscreenCtx.fillRect(0, startY, offscreenCanvas.width, tintHeight);
         }
         
-        // Put the modified pixel data back
-        offscreenCtx.putImageData(imageData, 0, startY);
+        offscreenCtx.restore();
       }
 
     } else if (!currentSpriteImg) {
