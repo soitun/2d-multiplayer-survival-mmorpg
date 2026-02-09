@@ -335,9 +335,9 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
 
   monument_rain_collector: {
     centerOffsetX: 0,
-    centerOffsetY: MONUMENT_BUILDING.VISUAL_CENTER_OFFSET_Y,
-    width: MONUMENT_BUILDING.INTERACTION_WIDTH,
-    height: MONUMENT_BUILDING.INTERACTION_HEIGHT,
+    centerOffsetY: -104,  // Tighter square: top ~80px of sprite is empty, shift center down from -144
+    width: 460,           // Square box matching visible content width
+    height: 440,          // Reduced from 480 - cropped ~80px of empty space from top
     placementYOffset: 0,
     spriteWidth: MONUMENT_BUILDING.SPRITE_SIZE,
     spriteHeight: MONUMENT_BUILDING.SPRITE_SIZE,
@@ -378,8 +378,8 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   alk_station: {
     centerOffsetX: 0,
     centerOffsetY: -200,
-    width: 350,
-    height: 500,
+    width: 450,  // Increased from 350 to better accommodate image content
+    height: 550, // Increased from 500 to better accommodate image content
     placementYOffset: 0,
     spriteWidth: 350,
     spriteHeight: 500,

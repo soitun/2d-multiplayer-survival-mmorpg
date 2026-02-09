@@ -380,13 +380,13 @@ function getCollisionCandidates(
     const isLargeFurnace = furnace.furnaceType === 1;
     
     if (isLargeFurnace && furnace.isMonument) {
-      // Monument large furnaces use standardized AABB collision (same as ALK compound)
+      // Monument large furnaces use custom AABB collision (narrower + shifted up vs standard monument)
       shapes.push({
         id: furnace.id.toString(),
         type: `furnace-${furnace.id.toString()}`,
         x: furnace.posX,
-        y: furnace.posY + MONUMENT_BUILDING_COLLISION.CENTER_Y_OFFSET,
-        width: MONUMENT_BUILDING_COLLISION.WIDTH,
+        y: furnace.posY + MONUMENT_BUILDING_COLLISION.CENTER_Y_OFFSET - 60, // 50px higher than standard
+        width: MONUMENT_BUILDING_COLLISION.WIDTH - 60,  // 20px narrower (330px)
         height: MONUMENT_BUILDING_COLLISION.HEIGHT,
       });
     } else {

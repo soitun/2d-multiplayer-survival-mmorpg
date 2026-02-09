@@ -193,18 +193,20 @@ const largeFurnaceConfig: GroundEntityConfig<Furnace> = {
                 SHAKE_INTENSITY_PX
             );
 
-            // NOON FIX: At noon, shadows appear too far below (detached from entity)
-            let noonExtraOffset = 0;
-            if (cycleProgress >= 0.35 && cycleProgress < 0.55) {
-                const noonT = (cycleProgress - 0.35) / 0.20;
-                const noonFactor = 1.0 - Math.abs(noonT - 0.5) * 2.0;
-                noonExtraOffset = noonFactor * imageDrawHeight * 0.3; // Large furnace needs more offset
-            }
-
             // Monument furnaces are larger (480px) so need larger shadow pivot offset
             const isMonument = entity.isMonument;
-            const shadowPivotOffset = isMonument ? 150 : 80; // Larger offset for monument size
+            const shadowPivotOffset = isMonument ? 50 : 80; // Monument image was lowered, shadow pivot adjusted to match
             
+            // NOON FIX: Only apply noon shadow push for non-monument furnaces.
+            // Monument furnaces are wide ground-level structures where the noon push
+            // causes the shadow to detach upward unnaturally.
+            let noonExtraOffset = 0;
+            if (!isMonument && cycleProgress >= 0.35 && cycleProgress < 0.55) {
+                const noonT = (cycleProgress - 0.35) / 0.20;
+                const noonFactor = 1.0 - Math.abs(noonT - 0.5) * 2.0;
+                noonExtraOffset = noonFactor * imageDrawHeight * 0.3;
+            }
+
             drawDynamicGroundShadow({
                 ctx,
                 entityImage,

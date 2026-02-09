@@ -2287,7 +2287,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                 boxShadow: '0 0 8px rgba(255, 140, 0, 0.3)',
                             }}
                         >
-                            <FontAwesomeIcon icon={faArrowUp} /> Transfer Water OUT OF Rain Collector
+                            <FontAwesomeIcon icon={faArrowDown} /> Take
                         </button>
 
                         {/* IN = Blue/Cyan (filling) */}
@@ -2319,10 +2319,11 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                 boxShadow: '0 0 8px rgba(0, 150, 255, 0.3)',
                             }}
                         >
-                            <FontAwesomeIcon icon={faArrowDown} /> Transfer Water INTO Rain Collector
+                            <FontAwesomeIcon icon={faArrowUp} /> Give
                         </button>
 
-                        {/* Empty Reservoir Button - for clearing contaminated water */}
+                        {/* Empty Reservoir Button - for clearing contaminated water (not available on monument rain collectors) */}
+                        {!(container.containerEntity as SpacetimeDBRainCollector).isMonument && (
                         <button
                             onClick={() => {
                                 if (!connection?.reducers || container.containerId === null) return;
@@ -2345,6 +2346,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         >
                             <FontAwesomeIcon icon={faDroplet} /> Empty Reservoir (Spill All Water)
                         </button>
+                        )}
                         
                 </>
             )}
