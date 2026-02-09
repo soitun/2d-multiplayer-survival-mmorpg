@@ -38,6 +38,7 @@ export type Barrel = {
   lastHitTime: __Timestamp | undefined,
   respawnAt: __Timestamp,
   clusterId: bigint,
+  isMonument: boolean,
 };
 let _cached_Barrel_type_value: __AlgebraicTypeType | null = null;
 
@@ -62,6 +63,7 @@ export const Barrel = {
       { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "respawnAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
       { name: "clusterId", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "isMonument", algebraicType: __AlgebraicTypeValue.Bool },
     );
     return _cached_Barrel_type_value;
   },

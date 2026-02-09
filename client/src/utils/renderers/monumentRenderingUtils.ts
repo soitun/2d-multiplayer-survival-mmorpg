@@ -58,7 +58,7 @@ function loadImage(imageName: string, importPromise: Promise<{ default: string }
 export function preloadMonumentImages(): void {
     // guardpost.png removed - all guardposts/streetlights replaced by eerie ambient lights
     loadImage('shed.png', import('../../assets/doodads/shed.png?url'));
-    // garage.png removed - replaced by monument rain collector placeable
+    loadImage('garage.png', import('../../assets/doodads/garage.png?url'));
     // warehouse.png removed - replaced by monument large furnace placeable
     loadImage('barracks.png', import('../../assets/doodads/barracks.png?url'));
     loadImage('fuel_depot.png', import('../../assets/doodads/fuel_depot.png?url'));
@@ -126,6 +126,7 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
     // Image not loaded and not loading - try to trigger load
         const imageMap: Record<string, () => Promise<{ default: string }>> = {
             'shed.png': () => import('../../assets/doodads/shed.png?url'),
+            'garage.png': () => import('../../assets/doodads/garage.png?url'),
             'warehouse.png': () => import('../../assets/doodads/warehouse.png?url'),
             'barracks.png': () => import('../../assets/doodads/barracks.png?url'),
             'fuel_depot.png': () => import('../../assets/doodads/fuel_depot.png?url'),

@@ -92,6 +92,8 @@ pub struct Barrel {
     #[index(btree)]
     pub respawn_at: Timestamp,
     pub cluster_id: u64, // ID to group barrels that spawned together
+    /// Monument barrels are indestructible and placed at monument locations
+    pub is_monument: bool,
 }
 
 // Loot table definition
@@ -345,6 +347,11 @@ pub fn damage_barrel(
         return Err("Barrel is already destroyed.".to_string());
     }
     
+    // Monument barrels are indestructible
+    if barrel.is_monument {
+        return Err("This barrel is indestructible.".to_string());
+    }
+    
     let old_health = barrel.health;
     barrel.health = (barrel.health - damage).max(0.0);
     barrel.last_hit_time = Some(timestamp);
@@ -589,6 +596,7 @@ pub fn spawn_barrel_clusters_scaled(
                 last_hit_time: None,
                 respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
                 cluster_id: spawned_clusters as u64 + 1, // Assign cluster ID
+                is_monument: false,
             };
 
             match ctx.db.barrel().try_insert(new_barrel) {
@@ -882,6 +890,7 @@ fn spawn_barrel_cluster_at_position(
             last_hit_time: None,
             respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
             cluster_id,
+            is_monument: false,
         };
         
         match barrels.try_insert(new_barrel) {
@@ -1001,6 +1010,7 @@ pub fn spawn_sea_barrels_around_stacks(
                     last_hit_time: None,
                     respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
                     cluster_id: 0, // Sea barrels don't use cluster IDs (they're individual spawns)
+                    is_monument: false,
                 };
 
                 match barrels.try_insert(new_barrel) {
@@ -1133,6 +1143,7 @@ pub fn spawn_beach_barrels(
             last_hit_time: None,
             respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
             cluster_id: 0, // Beach barrels don't use cluster IDs
+            is_monument: false,
         };
 
         match barrels.try_insert(new_barrel) {
@@ -1247,6 +1258,7 @@ pub fn spawn_hot_spring_barrels(
                 last_hit_time: None,
                 respawn_at: Timestamp::UNIX_EPOCH,
                 cluster_id: 0,
+                is_monument: false,
             };
 
             match barrels.try_insert(new_barrel) {

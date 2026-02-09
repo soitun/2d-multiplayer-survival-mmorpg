@@ -525,7 +525,7 @@ pub fn is_foundation_position_valid(
 /// This function is used by all placement reducers (seeds, placeables, foundations)
 pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y: f32) -> Result<(), String> {
     // Check ALK station monument bounds (same logic as foundation placement)
-    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL: f32 = 7.0;
+    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL: f32 = 8.75;
     const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION: f32 = 3.0;
     
     let alk_stations = ctx.db.alk_station();

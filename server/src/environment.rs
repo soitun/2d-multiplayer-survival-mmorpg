@@ -221,8 +221,8 @@ pub fn is_position_in_central_compound(pos_x: f32, pos_y: f32) -> bool {
     let center_x = (WORLD_WIDTH_TILES / 2) as i32;
     let center_y = (WORLD_HEIGHT_TILES / 2) as i32;
     
-    // Central compound size + buffer zone (same as in world_generation.rs)
-    let compound_size = 8;
+    // Central compound size + buffer zone (must match world_generation.rs compound_size=20)
+    let compound_size = 20;
     let buffer = 15; // Extra buffer to keep trees and stones away from roads and compound
     
     // Check if position is within the exclusion zone
@@ -3318,6 +3318,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     last_hit_time: None,
                     respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
                     cluster_id: 0, // Individual spawns, not clusters
+                    is_monument: false,
                 };
                 
                 match ctx.db.barrel().try_insert(new_barrel) {
@@ -4646,6 +4647,13 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         .map(|barrel| (barrel.pos_x, barrel.pos_y))
         .collect();
     
+    // Collect ALK station positions for distance checking (ALK system is initialized before environment seeding)
+    let alk_station_positions: Vec<(f32, f32)> = ctx.db.alk_station().iter()
+        .map(|station| (station.world_pos_x, station.world_pos_y))
+        .collect();
+    log::info!("Rune stone ALK exclusion: {} stations found, min distance {}px", 
+               alk_station_positions.len(), crate::rune_stone::MIN_RUNE_STONE_ALK_STATION_DISTANCE_PX);
+    
     // Track counts per color
     let mut spawned_green_count = 0;
     let mut spawned_red_count = 0;
@@ -4763,6 +4771,17 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     if is_position_on_water(ctx, pos_x, pos_y) || 
                        is_position_on_inland_water(ctx, pos_x, pos_y) ||
                        is_position_in_central_compound(pos_x, pos_y) {
+                        continue;
+                    }
+                    
+                    // Check minimum distance from ALK stations (central compound + substations) - 2000px
+                    let too_close_to_alk = alk_station_positions.iter().any(|(sx, sy)| {
+                        let dx = pos_x - sx;
+                        let dy = pos_y - sy;
+                        dx * dx + dy * dy < crate::rune_stone::MIN_RUNE_STONE_ALK_STATION_DISTANCE_SQ
+                    });
+                    
+                    if too_close_to_alk {
                         continue;
                     }
                     

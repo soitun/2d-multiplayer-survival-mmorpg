@@ -126,7 +126,7 @@ function getAlkStationRestrictionZone(station: SpacetimeDBAlkStation): BuildingR
     const isCentralCompound = station.stationId === 0;
     
     // Safe zone radius multipliers (must match server-side values)
-    const SAFE_ZONE_MULTIPLIER_CENTRAL = 7.0; // Central compound: 7x interaction_radius
+    const SAFE_ZONE_MULTIPLIER_CENTRAL = 8.75; // Central compound: 8.75x interaction_radius (25% larger asphalt)
     const SAFE_ZONE_MULTIPLIER_SUBSTATION = 3.0; // Substations: 3x interaction_radius
     
     const multiplier = isCentralCompound ? SAFE_ZONE_MULTIPLIER_CENTRAL : SAFE_ZONE_MULTIPLIER_SUBSTATION;

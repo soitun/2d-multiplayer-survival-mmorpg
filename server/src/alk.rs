@@ -494,6 +494,97 @@ fn spawn_asphalt_around_station(ctx: &ReducerContext, center_x: f32, center_y: f
                tiles_converted, tiles_already_asphalt, center_x, center_y);
 }
 
+/// Carve dirt road paths through the central compound asphalt
+/// Creates a cross pattern of DirtRoad tiles with stubs branching toward buildings,
+/// making the compound feel more lived-in and industrial
+fn carve_dirt_paths_in_compound(ctx: &ReducerContext, center_x: f32, center_y: f32) {
+    let tile_size = crate::TILE_SIZE_PX as f32;
+    let center_tile_x = (center_x / tile_size).floor() as i32;
+    let center_tile_y = (center_y / tile_size).floor() as i32;
+    
+    let mut tiles_converted = 0;
+    
+    // Helper: convert a single tile at (tx, ty) from Asphalt to DirtRoad
+    let convert_tile = |ctx: &ReducerContext, tx: i32, ty: i32| -> bool {
+        for tile in ctx.db.world_tile().idx_world_position().filter((tx, ty)) {
+            if tile.tile_type == crate::TileType::Asphalt {
+                let mut updated = tile.clone();
+                updated.tile_type = crate::TileType::DirtRoad;
+                ctx.db.world_tile().id().update(updated);
+                return true;
+            }
+        }
+        false
+    };
+    
+    // === Main cross pattern ===
+    // Horizontal road (east-west through compound center), 2 tiles wide
+    for dx in -12..=12 {
+        for width_offset in 0..=1 {
+            if convert_tile(ctx, center_tile_x + dx, center_tile_y + width_offset) {
+                tiles_converted += 1;
+            }
+        }
+    }
+    
+    // Vertical road (north-south through compound center), 2 tiles wide
+    for dy in -12..=12 {
+        for width_offset in 0..=1 {
+            if convert_tile(ctx, center_tile_x + width_offset, center_tile_y + dy) {
+                tiles_converted += 1;
+            }
+        }
+    }
+    
+    // === Stub paths branching toward buildings ===
+    // These make the compound feel like buildings are connected by worn paths
+    
+    // Stub toward garage (north-west, offset -350, -680 -> tile approx -7, -14)
+    for dy in -14..=-8 {
+        if convert_tile(ctx, center_tile_x - 7, center_tile_y + dy) {
+            tiles_converted += 1;
+        }
+    }
+    
+    // Stub toward shed (north-east, offset 350, -680 -> tile approx 7, -14)
+    for dy in -14..=-8 {
+        if convert_tile(ctx, center_tile_x + 7, center_tile_y + dy) {
+            tiles_converted += 1;
+        }
+    }
+    
+    // Stub toward barracks (east, offset 450, -300 -> tile approx 9, -6)
+    for dx in 3..=9 {
+        if convert_tile(ctx, center_tile_x + dx, center_tile_y - 6) {
+            tiles_converted += 1;
+        }
+    }
+    
+    // Stub toward fuel depot (east, offset 450, 400 -> tile approx 9, 8)
+    for dx in 3..=9 {
+        if convert_tile(ctx, center_tile_x + dx, center_tile_y + 8) {
+            tiles_converted += 1;
+        }
+    }
+    
+    // Stub toward furnace (west, offset -450, -300 -> tile approx -9, -6)
+    for dx in -9..=-3 {
+        if convert_tile(ctx, center_tile_x + dx, center_tile_y - 6) {
+            tiles_converted += 1;
+        }
+    }
+    
+    // Stub toward rain collector (west, offset -450, 400 -> tile approx -9, 8)
+    for dx in -9..=-3 {
+        if convert_tile(ctx, center_tile_x + dx, center_tile_y + 8) {
+            tiles_converted += 1;
+        }
+    }
+    
+    log::info!("[ALK] Carved {} dirt road tiles in central compound at ({:.0}, {:.0})", 
+        tiles_converted, center_x, center_y);
+}
+
 /// Seed ALK delivery stations
 /// Places central compound at center, substations at the 4 corner road terminal asphalt areas
 fn seed_alk_stations(ctx: &ReducerContext) -> Result<(), String> {
@@ -507,8 +598,11 @@ fn seed_alk_stations(ctx: &ReducerContext) -> Result<(), String> {
         // Fix asphalt for existing stations (in case they were created before world tiles existed)
         for station in existing_stations {
             let is_central = station.station_id == 0;
-            let asphalt_radius = if is_central { 10 } else { 6 };
+            let asphalt_radius = if is_central { 13 } else { 6 };
             spawn_asphalt_around_station(ctx, station.world_pos_x, station.world_pos_y, asphalt_radius, is_central);
+            if is_central {
+                carve_dirt_paths_in_compound(ctx, station.world_pos_x, station.world_pos_y);
+            }
         }
         
         return Ok(());
@@ -517,8 +611,12 @@ fn seed_alk_stations(ctx: &ReducerContext) -> Result<(), String> {
     // Calculate world dimensions
     let world_width = crate::WORLD_WIDTH_PX;
     let world_height = crate::WORLD_HEIGHT_PX;
-    let center_x = world_width / 2.0;
-    let center_y = world_height / 2.0;
+    // Center at the true center of the center tile to match the asphalt square
+    // center from world_generation.rs (tile center, not pixel boundary)
+    let center_tile_x = (crate::WORLD_WIDTH_TILES / 2) as f32;
+    let center_tile_y = (crate::WORLD_HEIGHT_TILES / 2) as f32;
+    let center_x = center_tile_x * crate::TILE_SIZE_PX as f32 + (crate::TILE_SIZE_PX as f32 / 2.0);
+    let center_y = center_tile_y * crate::TILE_SIZE_PX as f32 + (crate::TILE_SIZE_PX as f32 / 2.0);
     
     // Calculate positions for substations at road terminal asphalt areas
     // Roads go from corners (tile 20, 20 etc.) to center
@@ -599,9 +697,14 @@ fn seed_alk_stations(ctx: &ReducerContext) -> Result<(), String> {
                           station.name, pos_x, pos_y);
                 
                 // Spawn asphalt around the station
-                // Central compound gets larger area (10 tile radius), substations get 6 tile radius
-                let asphalt_radius = if is_central { 10 } else { 6 };
+                // Central compound gets larger area (13 tile radius), substations get 6 tile radius
+                let asphalt_radius = if is_central { 13 } else { 6 };
                 spawn_asphalt_around_station(ctx, pos_x, pos_y, asphalt_radius, is_central);
+                
+                // Carve dirt road paths through the central compound asphalt
+                if is_central {
+                    carve_dirt_paths_in_compound(ctx, pos_x, pos_y);
+                }
                 
                 // Spawn monument placeables only at the central compound
                 if is_central {

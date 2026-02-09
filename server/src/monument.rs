@@ -2488,6 +2488,7 @@ pub fn spawn_shipwreck_barrels(
                     last_hit_time: None,
                     respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
                     cluster_id: 0, // Individual spawns, not clusters
+                    is_monument: false,
                 };
                 
                 match barrels.try_insert(new_barrel) {
@@ -2711,6 +2712,7 @@ pub fn spawn_whale_bone_graveyard_barrels(
                     last_hit_time: None,
                     respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
                     cluster_id: 0, // Individual spawns, not clusters
+                    is_monument: false,
                 };
                 
                 match barrels.try_insert(new_barrel) {
@@ -2915,6 +2917,7 @@ pub fn spawn_crashed_research_drone_barrels_with_collision(
                     last_hit_time: None,
                     respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
                     cluster_id: 0, // Individual spawns, not clusters
+                    is_monument: false,
                 };
                 
                 match barrels.try_insert(new_barrel) {
@@ -3022,6 +3025,7 @@ pub fn spawn_weather_station_barrels(
                 last_hit_time: None,
                 respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
                 cluster_id: 0, // Individual spawns, not clusters
+                is_monument: false,
             };
             
             ctx.db.barrel().insert(new_barrel);
@@ -3150,6 +3154,8 @@ pub enum MonumentPlaceableType {
     Lantern,
     CookingStation,
     RepairBench,
+    Barrel,
+    MilitaryRation,
 }
 
 /// Configuration for a single monument placeable
@@ -3228,6 +3234,24 @@ impl MonumentPlaceableConfig {
             initial_fuel: None,
         }
     }
+    
+    pub fn barrel(offset_x: f32, offset_y: f32) -> Self {
+        Self {
+            placeable_type: MonumentPlaceableType::Barrel,
+            offset_x,
+            offset_y,
+            initial_fuel: None,
+        }
+    }
+    
+    pub fn military_ration(offset_x: f32, offset_y: f32) -> Self {
+        Self {
+            placeable_type: MonumentPlaceableType::MilitaryRation,
+            offset_x,
+            offset_y,
+            initial_fuel: None,
+        }
+    }
 }
 
 /// Get monument placeables for the Central ALK Compound
@@ -3240,6 +3264,39 @@ pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
         // Rain collector (water reservoir) - replaces the garage in the southwest area
         // Position matches the old garage offset (-450, 400) from compound center
         MonumentPlaceableConfig::rain_collector(-450.0, 400.0),
+        
+        // === Monument Campfires (4 around the compound for warmth/cooking) ===
+        // South-west: near the fuel depot
+        MonumentPlaceableConfig::campfire(-200.0, 600.0),
+        // South-east: opposite corner
+        MonumentPlaceableConfig::campfire(200.0, 700.0),
+        // Center-west: between furnace and rain collector  
+        MonumentPlaceableConfig::campfire(-600.0, 50.0),
+        // Center-east: along the east dirt road
+        MonumentPlaceableConfig::campfire(650.0, 0.0),
+        
+        // === Monument Barrels (indestructible, scattered around compound) ===
+        // Near garage (north-west)
+        MonumentPlaceableConfig::barrel(-500.0, -600.0),
+        MonumentPlaceableConfig::barrel(-480.0, -550.0),
+        // Near shed (north-east)
+        MonumentPlaceableConfig::barrel(500.0, -600.0),
+        MonumentPlaceableConfig::barrel(520.0, -550.0),
+        // Along south wall
+        MonumentPlaceableConfig::barrel(-100.0, 850.0),
+        MonumentPlaceableConfig::barrel(100.0, 830.0),
+        // Near fuel depot
+        MonumentPlaceableConfig::barrel(600.0, 500.0),
+        // Near barracks
+        MonumentPlaceableConfig::barrel(600.0, -200.0),
+        
+        // === Military Rations (lootable crates, 3 spread around) ===
+        // Near the center - main supply cache
+        MonumentPlaceableConfig::military_ration(50.0, -100.0),
+        // Near barracks - officer's rations
+        MonumentPlaceableConfig::military_ration(300.0, -400.0),
+        // Near fuel depot - emergency supplies
+        MonumentPlaceableConfig::military_ration(300.0, 500.0),
     ]
 }
 
@@ -3813,6 +3870,54 @@ pub fn spawn_monument_placeables(
                 }
             }
             
+            MonumentPlaceableType::Barrel => {
+                use crate::barrel::{Barrel, BARREL_INITIAL_HEALTH};
+                
+                let barrel = Barrel {
+                    id: 0,
+                    pos_x: world_x,
+                    pos_y: world_y,
+                    chunk_index: chunk_idx,
+                    health: BARREL_INITIAL_HEALTH,
+                    variant: ctx.rng().gen_range(0..3), // Random road barrel variant (0, 1, 2)
+                    last_hit_time: None,
+                    respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
+                    cluster_id: 0,
+                    is_monument: true, // Monument barrels are indestructible
+                };
+                
+                match ctx.db.barrel().try_insert(barrel) {
+                    Ok(inserted) => {
+                        spawned_count += 1;
+                        log::info!("[MonumentPlaceables] Spawned monument barrel {} at ({:.1}, {:.1}) for {}", 
+                            inserted.id, world_x, world_y, monument_name);
+                    }
+                    Err(e) => {
+                        log::warn!("[MonumentPlaceables] Failed to spawn monument barrel at ({:.1}, {:.1}): {}", 
+                            world_x, world_y, e);
+                    }
+                }
+            }
+            
+            MonumentPlaceableType::MilitaryRation => {
+                match crate::military_ration::spawn_military_ration_with_loot(ctx, world_x, world_y, chunk_idx) {
+                    Ok(box_id) => {
+                        // Mark the spawned ration as a monument (indestructible but lootable)
+                        if let Some(mut ration_box) = ctx.db.wooden_storage_box().id().find(box_id) {
+                            ration_box.is_monument = true;
+                            ctx.db.wooden_storage_box().id().update(ration_box);
+                        }
+                        spawned_count += 1;
+                        log::info!("[MonumentPlaceables] Spawned monument military ration {} at ({:.1}, {:.1}) for {}", 
+                            box_id, world_x, world_y, monument_name);
+                    }
+                    Err(e) => {
+                        log::warn!("[MonumentPlaceables] Failed to spawn military ration at ({:.1}, {:.1}): {}", 
+                            world_x, world_y, e);
+                    }
+                }
+            }
+            
             MonumentPlaceableType::RepairBench => {
                 let repair_bench = WoodenStorageBox {
                     id: 0,
@@ -3981,6 +4086,7 @@ pub fn spawn_reed_marsh_resources(ctx: &ReducerContext) -> Result<(), String> {
                 last_hit_time: None,
                 respawn_at: spacetimedb::Timestamp::UNIX_EPOCH, // 0 = not respawning
                 cluster_id: 0, // Reed marsh barrels don't belong to a cluster
+                is_monument: false,
             };
             
             ctx.db.barrel().insert(barrel);

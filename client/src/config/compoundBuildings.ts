@@ -136,7 +136,7 @@ export function getBuildingYSortPosition(building: CompoundBuilding): number {
  * COORDINATE SYSTEM:
  * - offsetX: negative = west of center, positive = east of center
  * - offsetY: negative = north of center, positive = south of center
- * - The central compound asphalt area is roughly ±768px from center (16 tiles × 48px)
+ * - The central compound asphalt area is roughly ±960px from center (20 tiles × 48px)
  * 
  * IMAGE LOADING:
  * - Buildings without image files will show colored placeholder overlays with collision circles
@@ -179,13 +179,24 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
     collisionYOffset: 0,
   },
   
-  // ===== GARAGE ===== (REMOVED - replaced by monument rain collector placeable)
+  // ===== GARAGE ===== (north-west area of compound)
+  {
+    id: 'garage',
+    offsetX: -350,
+    offsetY: -680,
+    imagePath: 'garage.png',
+    width: 480,
+    height: 480,
+    anchorYOffset: 84,
+    collisionRadius: 120,
+    collisionYOffset: 0,
+  },
   
-  // ===== UTILITY SHED =====
+  // ===== UTILITY SHED ===== (north-east area, symmetric with garage)
   {
     id: 'shed',
-    offsetX: 0,
-    offsetY: 500,
+    offsetX: 350,
+    offsetY: -680,
     imagePath: 'shed.png',
     width: 384,
     height: 480,
@@ -214,20 +225,23 @@ export interface CompoundEerieLight {
 export const COMPOUND_EERIE_LIGHTS: CompoundEerieLight[] = [
   // Scattered organically around the compound - intentionally asymmetric and irregular
   // These provide localized glow hotspots on top of the large compound-wide cutout
-  { id: 'eerie_01', offsetX: -570, offsetY: -530, radius: 180, intensity: 0.75 },
-  { id: 'eerie_02', offsetX:  520, offsetY: -620, radius: 160, intensity: 0.70 },
-  { id: 'eerie_03', offsetX: -630, offsetY:  580, radius: 170, intensity: 0.72 },
-  { id: 'eerie_04', offsetX:  560, offsetY:  700, radius: 150, intensity: 0.68 },
-  { id: 'eerie_05', offsetX: -180, offsetY:  420, radius: 140, intensity: 0.65 },
-  { id: 'eerie_06', offsetX:  230, offsetY:  480, radius: 130, intensity: 0.62 },
-  { id: 'eerie_07', offsetX: -120, offsetY:   80, radius: 150, intensity: 0.70 },
-  { id: 'eerie_08', offsetX:  170, offsetY:  -30, radius: 140, intensity: 0.65 },
-  { id: 'eerie_09', offsetX: -480, offsetY:   20, radius: 160, intensity: 0.72 },
-  { id: 'eerie_10', offsetX:  410, offsetY:  100, radius: 150, intensity: 0.68 },
-  { id: 'eerie_11', offsetX: -340, offsetY: -370, radius: 140, intensity: 0.65 },
-  { id: 'eerie_12', offsetX:  280, offsetY: -430, radius: 135, intensity: 0.63 },
-  { id: 'eerie_13', offsetX:   40, offsetY: -600, radius: 160, intensity: 0.70 },
-  { id: 'eerie_14', offsetX:  -30, offsetY:  680, radius: 155, intensity: 0.68 },
+  // Spread across the full ±960px compound area
+  { id: 'eerie_01', offsetX: -700, offsetY: -750, radius: 180, intensity: 0.75 },
+  { id: 'eerie_02', offsetX:  650, offsetY: -800, radius: 160, intensity: 0.70 },
+  { id: 'eerie_03', offsetX: -800, offsetY:  700, radius: 170, intensity: 0.72 },
+  { id: 'eerie_04', offsetX:  700, offsetY:  850, radius: 150, intensity: 0.68 },
+  { id: 'eerie_05', offsetX: -200, offsetY:  500, radius: 140, intensity: 0.65 },
+  { id: 'eerie_06', offsetX:  280, offsetY:  580, radius: 130, intensity: 0.62 },
+  { id: 'eerie_07', offsetX: -150, offsetY:  100, radius: 150, intensity: 0.70 },
+  { id: 'eerie_08', offsetX:  200, offsetY:  -50, radius: 140, intensity: 0.65 },
+  { id: 'eerie_09', offsetX: -600, offsetY:   30, radius: 160, intensity: 0.72 },
+  { id: 'eerie_10', offsetX:  520, offsetY:  120, radius: 150, intensity: 0.68 },
+  { id: 'eerie_11', offsetX: -420, offsetY: -450, radius: 140, intensity: 0.65 },
+  { id: 'eerie_12', offsetX:  350, offsetY: -530, radius: 135, intensity: 0.63 },
+  { id: 'eerie_13', offsetX:   50, offsetY: -850, radius: 160, intensity: 0.70 },
+  { id: 'eerie_14', offsetX:  -40, offsetY:  850, radius: 155, intensity: 0.68 },
+  { id: 'eerie_15', offsetX: -850, offsetY: -200, radius: 145, intensity: 0.66 },
+  { id: 'eerie_16', offsetX:  880, offsetY: -150, radius: 140, intensity: 0.64 },
 ];
 
 /**

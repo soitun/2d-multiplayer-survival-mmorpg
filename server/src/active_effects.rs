@@ -2400,7 +2400,7 @@ fn remove_fumarole_effect(ctx: &ReducerContext, player_id: Identity) {
 /// Safe zone radius multipliers - safe zone extends beyond interaction radius
 /// Central compound gets larger protection, substations get standard protection
 /// These MUST match the building restriction radii to prevent abuse
-pub const SAFE_ZONE_RADIUS_MULTIPLIER_CENTRAL: f32 = 7.0; // 7x for central compound (station_id = 0) - ~1/3 of original 20x
+pub const SAFE_ZONE_RADIUS_MULTIPLIER_CENTRAL: f32 = 8.75; // 8.75x for central compound (station_id = 0) - scaled 25% from 7.0 to match larger asphalt
 pub const SAFE_ZONE_RADIUS_MULTIPLIER_SUBSTATION: f32 = 3.0; // 3x for substations (station_id 1-4) - 1/3 of original 10x
 
 /// Checks if a player is currently within a safe zone (near ALK monuments)
@@ -2430,7 +2430,7 @@ pub fn is_player_in_safe_zone(ctx: &ReducerContext, player_x: f32, player_y: f32
         let distance_sq = dx * dx + dy * dy;
         
         // Safe zone radius matches building restriction radius
-        // Central compound (station_id = 0): 7x interaction_radius (~1750px)
+        // Central compound (station_id = 0): 8.75x interaction_radius (~2188px)
         // Substations (station_id 1-4): 3x interaction_radius (~600px)
         let multiplier = if station.station_id == 0 {
             SAFE_ZONE_RADIUS_MULTIPLIER_CENTRAL

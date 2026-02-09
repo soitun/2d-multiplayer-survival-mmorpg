@@ -2125,7 +2125,7 @@ fn create_quarry_access_road(
 }
 
 /// Generate asphalt compound areas
-/// - Central compound: The main paved area at the center of the map (DOUBLED in size)
+/// - Central compound: The main paved area at the center of the map (~41x41 tiles)
 fn generate_asphalt_compounds(
     _config: &WorldGenConfig,
     _noise: &Perlin,
@@ -2138,7 +2138,7 @@ fn generate_asphalt_compounds(
     
     let center_x = width / 2;
     let center_y = height / 2;
-    let compound_size = 16; // DOUBLED: Size of central compound (was 8, now 16 for ~32x32 tile area)
+    let compound_size = 20; // 25% larger than previous 16: ~40x40 tile area for central compound
     
     // Create central asphalt compound (square area at center)
     for y in (center_y.saturating_sub(compound_size))..=(center_y + compound_size).min(height - 1) {

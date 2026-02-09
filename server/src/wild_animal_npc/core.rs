@@ -136,7 +136,7 @@ const WANDER_ACTIVATION_DISTANCE_SQUARED: f32 = WANDER_ACTIVATION_DISTANCE * WAN
 // === MONUMENT EXCLUSION ZONES - Hostile NPCs actively avoid these areas ===
 // These zones match the building restriction radii to prevent NPC griefing
 // Hostile NPCs will patrol around these zones, not enter them at all
-const ALK_CENTRAL_EXCLUSION_MULTIPLIER: f32 = 7.0; // ~1750px for central compound
+const ALK_CENTRAL_EXCLUSION_MULTIPLIER: f32 = 8.75; // ~2188px for central compound (25% larger asphalt)
 const ALK_SUBSTATION_EXCLUSION_MULTIPLIER: f32 = 3.0; // ~600px for substations
 const FISHING_VILLAGE_EXCLUSION_RADIUS: f32 = 1000.0; // 25% larger than original 800 for building restriction
 const FISHING_VILLAGE_EXCLUSION_RADIUS_SQ: f32 = FISHING_VILLAGE_EXCLUSION_RADIUS * FISHING_VILLAGE_EXCLUSION_RADIUS;
@@ -3637,7 +3637,7 @@ pub fn get_monument_exclusion_zone(ctx: &ReducerContext, x: f32, y: f32) -> Opti
         
         // Calculate exclusion radius based on station type
         let exclusion_radius = if station.station_id == 0 {
-            station.interaction_radius * ALK_CENTRAL_EXCLUSION_MULTIPLIER // Central compound ~1750px
+            station.interaction_radius * ALK_CENTRAL_EXCLUSION_MULTIPLIER // Central compound ~2188px
         } else {
             station.interaction_radius * ALK_SUBSTATION_EXCLUSION_MULTIPLIER // Substations ~600px
         };

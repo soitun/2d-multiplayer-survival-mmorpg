@@ -648,7 +648,7 @@ function isMonumentZonePlacementBlocked(connection: DbConnection | null, worldX:
   }
 
   // Check ALK stations (same logic as server-side)
-  const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL = 7.0;
+  const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL = 8.75;
   const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION = 3.0;
   
   for (const station of connection.db.alkStation.iter()) {

@@ -681,7 +681,7 @@ function isPositionInMonumentZone(
     const TILE_SIZE_LOCAL = 48;
     
     // Check ALK stations
-    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL = 7.0;
+    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL = 8.75;
     const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION = 3.0;
     
     for (const station of connection.db.alkStation.iter()) {
@@ -1104,7 +1104,7 @@ function isFoundationPlacementValid(
     // Building restriction radius MUST match safe zone radius to prevent abuse
     // Central compound (stationId = 0): 7x interactionRadius = ~1750px (~1/3 of original)
     // Substations (stationId 1-4): 3x interactionRadius = ~600px (1/3 of original)
-    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL = 7.0;
+    const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL = 8.75;
     const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION = 3.0;
     
     for (const station of connection.db.alkStation.iter()) {

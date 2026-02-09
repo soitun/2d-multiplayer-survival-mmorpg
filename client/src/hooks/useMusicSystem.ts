@@ -39,11 +39,11 @@ const FISHING_VILLAGE_ZONE_RADIUS = 1400;
 const HUNTING_VILLAGE_ZONE_RADIUS = 1400;
 
 // ALK zone radii - matches the building restriction zones
-// Central compound: interaction_radius (250px) × multiplier (7.0) = 1750px
+// Central compound: interaction_radius (250px) × multiplier (8.75) = 2188px
 // Substations: interaction_radius (200px) × multiplier (3.0) = 600px
 
 // Central compound music zone radius - matches building restriction zone
-const ALK_CENTRAL_COMPOUND_ZONE_RADIUS = 1750;
+const ALK_CENTRAL_COMPOUND_ZONE_RADIUS = 2188; // 250 * 8.75 - scaled 25% from 1750 to match larger asphalt
 
 // Substation music zone radius - matches building restriction zone
 const ALK_SUBSTATION_ZONE_RADIUS = 1200;
