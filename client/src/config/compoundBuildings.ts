@@ -179,18 +179,7 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
     collisionYOffset: 0,
   },
   
-  // ===== GARAGE =====
-  {
-    id: 'garage',
-    offsetX: -450,
-    offsetY: 400,
-    imagePath: 'garage.png',
-    width: 480,
-    height: 480,
-    anchorYOffset: 96,
-    collisionRadius: 140,
-    collisionYOffset: 0,
-  },
+  // ===== GARAGE ===== (REMOVED - replaced by monument rain collector placeable)
   
   // ===== UTILITY SHED =====
   {

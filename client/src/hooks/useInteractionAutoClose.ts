@@ -12,7 +12,7 @@
 
 import { useEffect } from 'react';
 import { Identity } from 'spacetimedb';
-import { Player, Campfire, Furnace, Fumarole, WoodenStorageBox, Stash, PlayerCorpse } from '../generated';
+import { Player, Campfire, Furnace, Fumarole, WoodenStorageBox, Stash, PlayerCorpse, RainCollector } from '../generated';
 import { InteractionTarget } from './useInteractionManager';
 import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED, CAMPFIRE_HEIGHT, CAMPFIRE_RENDER_Y_OFFSET } from '../utils/renderers/campfireRenderingUtils';
@@ -31,6 +31,10 @@ import {
 import { PLAYER_FUMAROLE_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/fumaroleRenderingUtils';
 import { PLAYER_STASH_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/stashRenderingUtils';
 import { PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/playerCorpseRenderingUtils';
+import {
+    PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED,
+    PLAYER_MONUMENT_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED,
+} from '../utils/renderers/rainCollectorRenderingUtils';
 
 interface UseInteractionAutoCloseProps {
     interactingWith: InteractionTarget;
@@ -43,6 +47,7 @@ interface UseInteractionAutoCloseProps {
     fumaroles: Map<string, Fumarole>;
     stashes: Map<string, Stash>;
     playerCorpses: Map<string, PlayerCorpse>;
+    rainCollectors: Map<string, RainCollector>;
 }
 
 /** Auto-close delay in ms to prevent immediate clearing when interaction is first set */
@@ -62,7 +67,7 @@ function isPlayerOutOfRange(
     playerX: number,
     playerY: number,
     interactingWith: NonNullable<InteractionTarget>,
-    containers: Pick<UseInteractionAutoCloseProps, 'woodenStorageBoxes' | 'campfires' | 'furnaces' | 'fumaroles' | 'stashes' | 'playerCorpses'>
+    containers: Pick<UseInteractionAutoCloseProps, 'woodenStorageBoxes' | 'campfires' | 'furnaces' | 'fumaroles' | 'stashes' | 'playerCorpses' | 'rainCollectors'>
 ): boolean | null {
     const id = interactingWith.id.toString();
 
@@ -150,6 +155,17 @@ function isPlayerOutOfRange(
             return (dx * dx + dy * dy) > PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED * AUTO_CLOSE_BUFFER;
         }
 
+        case 'rain_collector': {
+            const rc = containers.rainCollectors.get(id);
+            if (!rc) return null;
+            const maxDistSq = rc.isMonument
+                ? PLAYER_MONUMENT_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED
+                : PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED;
+            const dx = playerX - rc.posX;
+            const dy = playerY - rc.posY;
+            return (dx * dx + dy * dy) > maxDistSq * AUTO_CLOSE_BUFFER;
+        }
+
         default:
             return null;
     }
@@ -170,6 +186,7 @@ export function useInteractionAutoClose({
     fumaroles,
     stashes,
     playerCorpses,
+    rainCollectors,
 }: UseInteractionAutoCloseProps): void {
     useEffect(() => {
         const localPlayer = connectionIdentity ? players.get(connectionIdentity.toHexString()) : undefined;
@@ -187,7 +204,7 @@ export function useInteractionAutoClose({
                 currentPlayer.positionX,
                 currentPlayer.positionY,
                 interactingWith,
-                { woodenStorageBoxes, campfires, furnaces, fumaroles, stashes, playerCorpses }
+                { woodenStorageBoxes, campfires, furnaces, fumaroles, stashes, playerCorpses, rainCollectors }
             );
 
             if (outOfRange === true) {
@@ -206,6 +223,7 @@ export function useInteractionAutoClose({
         fumaroles,
         stashes,
         playerCorpses,
+        rainCollectors,
         handleSetInteractingWith,
     ]);
 }

@@ -1,5 +1,6 @@
 import { RainCollector } from '../../generated';
 import reedRainCollectorImage from '../../assets/doodads/reed_rain_collector.png';
+import alkWaterReservoirImage from '../../assets/doodads/alk_water_reservoir.png';
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';
@@ -9,6 +10,13 @@ import { renderEntityHealthBar } from './healthBarUtils';
 export const RAIN_COLLECTOR_WIDTH = 256;  // 256x256 sprite (matches beehive)
 export const RAIN_COLLECTOR_HEIGHT = 256;
 export const PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED = 200.0 * 200.0; // Larger range for big 256x256 sprite
+
+// Monument rain collector constants (matches compound building size - same as monument large furnace)
+export const MONUMENT_RAIN_COLLECTOR_WIDTH = 480;
+export const MONUMENT_RAIN_COLLECTOR_HEIGHT = 480;
+export const MONUMENT_RAIN_COLLECTOR_RENDER_Y_OFFSET = 0; // Visual offset from entity's base Y
+export const PLAYER_MONUMENT_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED = 250.0 * 250.0; // Matches server
+
 const SHAKE_DURATION_MS = 150;
 const SHAKE_INTENSITY_PX = 10; // Match box shake intensity
 
@@ -21,18 +29,36 @@ const rainCollectorConfig: GroundEntityConfig<RainCollector> = {
         if (entity.isDestroyed) {
             return null;
         }
-        return reedRainCollectorImage;
+        // Monument rain collectors use the ALK water reservoir graphic
+        return entity.isMonument ? alkWaterReservoirImage : reedRainCollectorImage;
     },
 
-    getTargetDimensions: (img, _entity) => ({
-        width: RAIN_COLLECTOR_WIDTH,
-        height: RAIN_COLLECTOR_HEIGHT,
-    }),
+    getTargetDimensions: (img, entity) => {
+        if (entity.isMonument) {
+            return {
+                width: MONUMENT_RAIN_COLLECTOR_WIDTH,
+                height: MONUMENT_RAIN_COLLECTOR_HEIGHT,
+            };
+        }
+        return {
+            width: RAIN_COLLECTOR_WIDTH,
+            height: RAIN_COLLECTOR_HEIGHT,
+        };
+    },
 
-    calculateDrawPosition: (entity, drawWidth, drawHeight) => ({
-        drawX: entity.posX - drawWidth / 2,
-        drawY: entity.posY - drawHeight + 36, // Bottom-anchored, adjusted so stone base is at ground level
-    }),
+    calculateDrawPosition: (entity, drawWidth, drawHeight) => {
+        if (entity.isMonument) {
+            // Monument: bottom-anchored at posY with large 480x480 sprite
+            return {
+                drawX: entity.posX - drawWidth / 2,
+                drawY: entity.posY - drawHeight + 96, // anchorYOffset matches compound buildings (96px)
+            };
+        }
+        return {
+            drawX: entity.posX - drawWidth / 2,
+            drawY: entity.posY - drawHeight + 36, // Bottom-anchored, adjusted so stone base is at ground level
+        };
+    },
 
     getShadowParams: undefined,
 
@@ -95,8 +121,25 @@ const rainCollectorConfig: GroundEntityConfig<RainCollector> = {
     fallbackColor: '#2c5aa0', // Blue fallback for rain collector
 };
 
-// Preload the rain collector image
+// Preload both rain collector images
 imageManager.preloadImage(reedRainCollectorImage);
+imageManager.preloadImage(alkWaterReservoirImage);
+
+/** Helper to get dimensions/offsets for a rain collector based on monument status */
+export function getRainCollectorDimensions(rainCollector: RainCollector): { width: number; height: number; yOffset: number } {
+    if (rainCollector.isMonument) {
+        return {
+            width: MONUMENT_RAIN_COLLECTOR_WIDTH,
+            height: MONUMENT_RAIN_COLLECTOR_HEIGHT,
+            yOffset: MONUMENT_RAIN_COLLECTOR_RENDER_Y_OFFSET,
+        };
+    }
+    return {
+        width: RAIN_COLLECTOR_WIDTH,
+        height: RAIN_COLLECTOR_HEIGHT,
+        yOffset: 0,
+    };
+}
 
 // --- Rendering Function ---
 export function renderRainCollector(
@@ -105,8 +148,33 @@ export function renderRainCollector(
     nowMs: number, 
     cycleProgress: number,
     playerX?: number,
-    playerY?: number
+    playerY?: number,
+    localPlayerPosition?: { x: number; y: number }
 ) {
+    // Monument rain collectors support occlusion transparency (same as monument large furnace)
+    let needsAlphaRestore = false;
+    if (rainCollector.isMonument && localPlayerPosition) {
+        const dims = getRainCollectorDimensions(rainCollector);
+        const drawY = rainCollector.posY - dims.height + 96; // matches calculateDrawPosition for monument
+        const entityTopY = drawY;
+        const entityBottomY = rainCollector.posY + 96; // base of sprite
+        const entityCenterX = rainCollector.posX;
+        const halfWidth = dims.width / 2;
+
+        // Check if player is behind (above) the entity and within its horizontal bounds
+        if (localPlayerPosition.y < entityBottomY - 20 &&
+            localPlayerPosition.y > entityTopY &&
+            localPlayerPosition.x > entityCenterX - halfWidth &&
+            localPlayerPosition.x < entityCenterX + halfWidth) {
+            const fadeRange = entityBottomY - entityTopY;
+            const playerRelativePos = (entityBottomY - 20 - localPlayerPosition.y) / fadeRange;
+            const alpha = 0.3 + 0.7 * (1.0 - Math.min(1.0, playerRelativePos));
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            needsAlphaRestore = true;
+        }
+    }
+
     renderConfiguredGroundEntity({
         ctx,
         entity: rainCollector,
@@ -116,10 +184,19 @@ export function renderRainCollector(
         entityPosY: rainCollector.posY,
         cycleProgress,
     });
+
+    if (needsAlphaRestore) {
+        ctx.restore();
+    }
     
     // Render health bar using unified system (bottom-anchored positioning)
-    // The yAnchorOffset of (RAIN_COLLECTOR_HEIGHT - 36) matches the calculateDrawPosition offset
     if (playerX !== undefined && playerY !== undefined) {
-        renderEntityHealthBar(ctx, rainCollector, RAIN_COLLECTOR_WIDTH, RAIN_COLLECTOR_HEIGHT, nowMs, playerX, playerY, RAIN_COLLECTOR_HEIGHT - 36);
+        if (rainCollector.isMonument) {
+            // Monument: 480x480 sprite with 96px anchor offset
+            renderEntityHealthBar(ctx, rainCollector, MONUMENT_RAIN_COLLECTOR_WIDTH, MONUMENT_RAIN_COLLECTOR_HEIGHT, nowMs, playerX, playerY, MONUMENT_RAIN_COLLECTOR_HEIGHT - 96);
+        } else {
+            // Regular: 256x256 sprite with 36px anchor offset
+            renderEntityHealthBar(ctx, rainCollector, RAIN_COLLECTOR_WIDTH, RAIN_COLLECTOR_HEIGHT, nowMs, playerX, playerY, RAIN_COLLECTOR_HEIGHT - 36);
+        }
     }
 } 

@@ -12,8 +12,14 @@ use log;
 // --- Constants --- 
 pub(crate) const RAIN_COLLECTOR_COLLISION_RADIUS: f32 = 80.0; // 256x256 sprite with stone base ~160px wide
 pub(crate) const RAIN_COLLECTOR_COLLISION_Y_OFFSET: f32 = 0.0; // Collision centered at posY (stone base area)
+// Monument rain collector: 480px sprite, standardized 350x160 AABB collision (same as ALK substations)
+// Circular approximation for server-side checks: half of AABB width = 175px
+pub(crate) const MONUMENT_RAIN_COLLECTOR_COLLISION_RADIUS: f32 = 175.0;
 pub(crate) const PLAYER_RAIN_COLLECTOR_COLLISION_DISTANCE_SQUARED: f32 = (super::PLAYER_RADIUS + RAIN_COLLECTOR_COLLISION_RADIUS) * (super::PLAYER_RADIUS + RAIN_COLLECTOR_COLLISION_RADIUS);
 const RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED: f32 = 200.0 * 200.0; // Larger range for 256x256 sprite
+// Monument rain collector is 480px (same as monument large furnace), proportionally larger interaction
+const MONUMENT_RAIN_COLLECTOR_INTERACTION_DISTANCE: f32 = 250.0;
+const MONUMENT_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED: f32 = MONUMENT_RAIN_COLLECTOR_INTERACTION_DISTANCE * MONUMENT_RAIN_COLLECTOR_INTERACTION_DISTANCE;
 pub(crate) const RAIN_COLLECTOR_RAIN_COLLECTOR_COLLISION_DISTANCE_SQUARED: f32 = (RAIN_COLLECTOR_COLLISION_RADIUS * 2.0) * (RAIN_COLLECTOR_COLLISION_RADIUS * 2.0);
 
 // --- Water collection constants ---
@@ -703,8 +709,13 @@ fn validate_collector_interaction(
     }
 
     // --- Check distance ---
+    let max_dist_sq = if collector.is_monument {
+        MONUMENT_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED
+    } else {
+        RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED
+    };
     let distance_squared = (player.position_x - collector.pos_x).powi(2) + (player.position_y - collector.pos_y).powi(2);
-    if distance_squared > RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED {
+    if distance_squared > max_dist_sq {
         return Err("Too far away from rain collector.".to_string());
     }
 

@@ -377,19 +377,30 @@ function getCollisionCandidates(
   for (const furnace of nearbyFurnaces) {
     if (furnace.isDestroyed) continue; // Skip destroyed furnaces
     
-    // Large furnaces (type 1) use larger collision matching server-side LARGE_FURNACE_COLLISION_RADIUS (40)
-    // and LARGE_FURNACE_COLLISION_Y_OFFSET (80) - similar to signal disruptor
     const isLargeFurnace = furnace.furnaceType === 1;
-    const furnaceRadius = isLargeFurnace ? COLLISION_RADII.LARGE_FURNACE : COLLISION_RADII.FURNACE;
-    const furnaceOffset = isLargeFurnace ? COLLISION_OFFSETS.LARGE_FURNACE : COLLISION_OFFSETS.FURNACE;
     
-    shapes.push({
-      id: furnace.id.toString(),
-      type: `furnace-${furnace.id.toString()}`,
-      x: furnace.posX + furnaceOffset.x,
-      y: furnace.posY + furnaceOffset.y,
-      radius: furnaceRadius
-    });
+    if (isLargeFurnace && furnace.isMonument) {
+      // Monument large furnaces use standardized AABB collision (same as ALK compound)
+      shapes.push({
+        id: furnace.id.toString(),
+        type: `furnace-${furnace.id.toString()}`,
+        x: furnace.posX,
+        y: furnace.posY + MONUMENT_BUILDING_COLLISION.CENTER_Y_OFFSET,
+        width: MONUMENT_BUILDING_COLLISION.WIDTH,
+        height: MONUMENT_BUILDING_COLLISION.HEIGHT,
+      });
+    } else {
+      // Regular/large furnaces use circular collision
+      const furnaceRadius = isLargeFurnace ? COLLISION_RADII.LARGE_FURNACE : COLLISION_RADII.FURNACE;
+      const furnaceOffset = isLargeFurnace ? COLLISION_OFFSETS.LARGE_FURNACE : COLLISION_OFFSETS.FURNACE;
+      shapes.push({
+        id: furnace.id.toString(),
+        type: `furnace-${furnace.id.toString()}`,
+        x: furnace.posX + furnaceOffset.x,
+        y: furnace.posY + furnaceOffset.y,
+        radius: furnaceRadius
+      });
+    }
   }
 
   // Filter rain collectors (both player-placed and monument rain collectors)
@@ -405,13 +416,26 @@ function getCollisionCandidates(
     for (const rainCollector of nearbyRainCollectors) {
       if (rainCollector.isDestroyed) continue; // Skip destroyed rain collectors
       
-      shapes.push({
-        id: rainCollector.id.toString(),
-        type: `rain_collector-${rainCollector.id.toString()}`,
-        x: rainCollector.posX + COLLISION_OFFSETS.RAIN_COLLECTOR.x,
-        y: rainCollector.posY + COLLISION_OFFSETS.RAIN_COLLECTOR.y,
-        radius: COLLISION_RADII.RAIN_COLLECTOR
-      });
+      if (rainCollector.isMonument) {
+        // Monument rain collectors use standardized AABB collision (same as ALK compound)
+        shapes.push({
+          id: rainCollector.id.toString(),
+          type: `rain_collector-${rainCollector.id.toString()}`,
+          x: rainCollector.posX,
+          y: rainCollector.posY + MONUMENT_BUILDING_COLLISION.CENTER_Y_OFFSET,
+          width: MONUMENT_BUILDING_COLLISION.WIDTH,
+          height: MONUMENT_BUILDING_COLLISION.HEIGHT,
+        });
+      } else {
+        // Regular rain collectors use circular collision
+        shapes.push({
+          id: rainCollector.id.toString(),
+          type: `rain_collector-${rainCollector.id.toString()}`,
+          x: rainCollector.posX + COLLISION_OFFSETS.RAIN_COLLECTOR.x,
+          y: rainCollector.posY + COLLISION_OFFSETS.RAIN_COLLECTOR.y,
+          radius: COLLISION_RADII.RAIN_COLLECTOR
+        });
+      }
     }
   }
 
@@ -574,29 +598,35 @@ function getCollisionCandidates(
       // Larger cull distance for large structure
       if (distSq > COLLISION_PERF.STRUCTURE_CULL_DISTANCE_SQ * 2) continue;
       
-      // AABB collision at the building base (bottom 1/3 height for substations)
-      // Central compound (stationId 0) uses half height from top, pushed up by its height
-      // Substations use 350px collision width, central compound uses 50% of building width
+      // AABB collision at the building base
+      // Central compound uses standardized monument building collision (260px wide, 80px tall)
+      // Substations use wider 350px collision width, taller 1/3 height
       const isCentralCompound = station.stationId === 0;
-      const collisionWidth = isCentralCompound 
-        ? ALK_STATION_WIDTH * 0.5  // Central compound: 50% of building width (240px)
-        : 350;  // Substations: 350px collision width
-      const collisionHeight = isCentralCompound 
-        ? ALK_STATION_HEIGHT / 6  // Central compound: half height from top (bottom 1/6)
-        : ALK_STATION_HEIGHT / 3; // Substations: bottom 1/3 of building height
-      const collisionYOffset = isCentralCompound ? collisionHeight : 0; // Push central compound up by its height
-      const spriteBottom = station.worldPosY + ALK_STATION_Y_OFFSET;  // Anchor point = sprite bottom
-      const collisionCenterX = station.worldPosX;  // Centered horizontally
-      const collisionCenterY = spriteBottom - collisionHeight / 2 - collisionYOffset;  // Center of collision box
-      
-      shapes.push({
-        id: `alk_station-${station.stationId.toString()}`,
-        type: `alk_station-${station.stationId.toString()}`,
-        x: collisionCenterX,
-        y: collisionCenterY,
-        width: collisionWidth,
-        height: collisionHeight
-      });
+      if (isCentralCompound) {
+        // Central compound: standardized monument building AABB
+        shapes.push({
+          id: `alk_station-${station.stationId.toString()}`,
+          type: `alk_station-${station.stationId.toString()}`,
+          x: station.worldPosX,
+          y: station.worldPosY + MONUMENT_BUILDING_COLLISION.ALK_CENTER_Y_OFFSET,
+          width: MONUMENT_BUILDING_COLLISION.WIDTH,
+          height: MONUMENT_BUILDING_COLLISION.HEIGHT,
+        });
+      } else {
+        // Substations: wider collision, taller box
+        const collisionWidth = 350;
+        const collisionHeight = ALK_STATION_HEIGHT / 3; // bottom 1/3
+        const spriteBottom = station.worldPosY + ALK_STATION_Y_OFFSET;
+        const collisionCenterY = spriteBottom - collisionHeight / 2;
+        shapes.push({
+          id: `alk_station-${station.stationId.toString()}`,
+          type: `alk_station-${station.stationId.toString()}`,
+          x: station.worldPosX,
+          y: collisionCenterY,
+          width: collisionWidth,
+          height: collisionHeight,
+        });
+      }
     }
   }
   
@@ -1033,6 +1063,25 @@ function getCollisionCandidates(
   return shapes;
 }
 
+// ============================================================================
+// STANDARDIZED MONUMENT COMPOUND BUILDING AABB COLLISION
+// All monument compound buildings (ALK compound, large furnace, rain collector,
+// future cooking station, repair bench, bank) use the same AABB dimensions
+// as the ALK substations: 350px wide x 160px tall (bottom 1/3 of 480px sprite).
+// This avoids the "thin shape" heuristic (width > height*3) in checkAABBCollision
+// which causes glitchy push-out on skinny boxes.
+// ============================================================================
+export const MONUMENT_BUILDING_COLLISION = {
+  WIDTH: 350,   // Same as ALK substations
+  HEIGHT: 160,  // Same as ALK substations (480 / 3)
+  // Y offset from entity posY to collision center
+  // spriteBottom = posY + anchorOffset, then center at spriteBottom - height/2
+  // Monument placeables (96px anchor): posY + 96 - 80 = posY + 16
+  // ALK compound (0px anchor):         posY + 0 - 80  = posY - 80
+  CENTER_Y_OFFSET: 16,           // For monument placeables (96px anchor offset)
+  ALK_CENTER_Y_OFFSET: -80,      // For ALK compound (0px anchor offset)
+} as const;
+
 // Unified collision radii for consistency - match visual sprite sizes
 // Exported for debug rendering
 export const COLLISION_RADII = {
@@ -1042,6 +1091,7 @@ export const COLLISION_RADII = {
   CAIRN: 48,       // Half-width for 96x48 AABB collision (matches server-side CAIRN_AABB_HALF_WIDTH)
   STORAGE_BOX: 20, // Match small furnace collision radius for consistent feel
   RAIN_COLLECTOR: 30, // 256x256 sprite with stone base ~160px wide (matches server)
+  // MONUMENT_RAIN_COLLECTOR removed - uses MONUMENT_BUILDING_COLLISION AABB instead
   FURNACE: 20, // Adjusted radius for easier bottom approach while keeping top collision
   LARGE_FURNACE: 50, // Larger collision radius for the big furnace (increased from 40)
   BARBECUE: 20, // Same as furnace (similar size appliance)
@@ -1067,6 +1117,7 @@ export const COLLISION_OFFSETS = {
   CAIRN: { x: 0, y: -24 },     // Y offset for 96x48 AABB collision center (matches server-side CAIRN_COLLISION_Y_OFFSET)
   STORAGE_BOX: { x: 0, y: -50 }, // Match small furnace collision offset (starts lower for better approach)
   RAIN_COLLECTOR: { x: 0, y: -30 }, // Pushed up to align with stone base (matches server offset of 0.0)
+  // MONUMENT_RAIN_COLLECTOR removed - uses MONUMENT_BUILDING_COLLISION AABB instead
   FURNACE: { x: 0, y: -50 }, // Adjusted center to extend collision below while keeping top boundary
   LARGE_FURNACE: { x: 0, y: -80 }, // Matches server-side LARGE_FURNACE_COLLISION_Y_OFFSET (80.0)
   BARBECUE: { x: 0, y: 0 }, // Collision at posY (matches server-side BARBECUE_COLLISION_Y_OFFSET: 0.0)

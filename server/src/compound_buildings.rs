@@ -44,8 +44,7 @@ pub const COMPOUND_BUILDING_COLLISIONS: &[CompoundBuildingCollision] = &[
     CompoundBuildingCollision { offset_x: 450.0, offset_y: -300.0, collision_radius: 150.0, collision_y_offset: 0.0 },
     // Fuel Depot
     CompoundBuildingCollision { offset_x: 450.0, offset_y: 400.0, collision_radius: 140.0, collision_y_offset: 0.0 },
-    // Garage
-    CompoundBuildingCollision { offset_x: -450.0, offset_y: 400.0, collision_radius: 140.0, collision_y_offset: 0.0 },
+    // Garage - REMOVED (replaced by monument rain collector placeable at same position)
     // Shed
     CompoundBuildingCollision { offset_x: 0.0, offset_y: 500.0, collision_radius: 100.0, collision_y_offset: 0.0 },
 ];

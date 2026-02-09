@@ -456,7 +456,10 @@ export function renderInteractionLabels({
         case 'rain_collector': {
             const rainCollector = rainCollectors.get(closestInteractableTarget.id.toString());
             if (rainCollector) {
-                const config = ENTITY_VISUAL_CONFIG.rain_collector;
+                // Select config based on monument status
+                const config = rainCollector.isMonument
+                    ? ENTITY_VISUAL_CONFIG.monument_rain_collector
+                    : ENTITY_VISUAL_CONFIG.rain_collector;
                 const labelPos = getLabelPosition(rainCollector.posX, rainCollector.posY, config);
                 renderStyledInteractionLabel(ctx, text, labelPos.x, labelPos.y);
             }

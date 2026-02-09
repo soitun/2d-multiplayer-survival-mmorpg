@@ -170,6 +170,7 @@ export const PLAYER_STASH_INTERACTION_DISTANCE_SQUARED = 64.0 * 64.0;
 export const PLAYER_CAIRN_INTERACTION_DISTANCE_SQUARED = 200.0 * 200.0; // Cairn interaction distance (increased for larger visual)
 export const PLAYER_STASH_SURFACE_INTERACTION_DISTANCE_SQUARED = 32.0 * 32.0;
 export const PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED = 140.0 * 140.0; // Larger range for big 256x256 sprite
+export const PLAYER_MONUMENT_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED = 250.0 * 250.0; // Monument rain collector (480px, matches server)
 
 // --- Shelter Access Control Constants ---
 const SHELTER_COLLISION_WIDTH = 300.0;
@@ -382,7 +383,7 @@ export function useInteractionFinder({
         let closestStashId: number | null = null;
 
         let closestRainCollectorId: number | null = null;
-        let closestRainCollectorDistSq = PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED;
+        let closestRainCollectorDistSq = PLAYER_MONUMENT_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED;
 
         let closestBrothPotId: number | null = null;
         let closestBrothPotDistSq = PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED; // Use same distance as rain collectors
@@ -741,15 +742,16 @@ export function useInteractionFinder({
                 rainCollectors.forEach((rainCollector) => {
                     if (rainCollector.isDestroyed) return;
                     
+                    // Use appropriate distance threshold based on monument status
+                    const maxDistSq = rainCollector.isMonument
+                        ? PLAYER_MONUMENT_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED
+                        : PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED;
+                    
                     const dx = playerX - rainCollector.posX;
                     const dy = playerY - rainCollector.posY;
                     const distSq = dx * dx + dy * dy;
-                    const distance = Math.sqrt(distSq);
                     
-                    // DEBUG: Log distance check
-                    // console.log(`[InteractionFinder] Rain collector ${rainCollector.id} distance: ${distance.toFixed(1)}px (threshold: ${Math.sqrt(PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED).toFixed(1)}px)`);
-                    
-                    if (distSq < closestRainCollectorDistSq) {
+                    if (distSq < maxDistSq && distSq < closestRainCollectorDistSq) {
                         // Check shelter access control
                         if (canPlayerInteractWithObjectInShelter(
                             playerX, playerY, localPlayer.identity.toHexString(),

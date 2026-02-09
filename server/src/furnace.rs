@@ -40,6 +40,9 @@ pub(crate) const FURNACE_COLLISION_RADIUS: f32 = 35.0;
 pub(crate) const FURNACE_COLLISION_Y_OFFSET: f32 = -35.0;
 pub(crate) const LARGE_FURNACE_COLLISION_RADIUS: f32 = 50.0;  // Larger collision radius for the big furnace
 pub(crate) const LARGE_FURNACE_COLLISION_Y_OFFSET: f32 = 80.0;  // Same as Signal Disruptor
+// Monument large furnace: 480px sprite, standardized 350x160 AABB collision (same as ALK substations)
+// Circular approximation for server-side checks: half of AABB width = 175px
+pub(crate) const MONUMENT_LARGE_FURNACE_COLLISION_RADIUS: f32 = 175.0;
 pub(crate) const PLAYER_FURNACE_COLLISION_DISTANCE_SQUARED: f32 = 
     (super::PLAYER_RADIUS + FURNACE_COLLISION_RADIUS) * (super::PLAYER_RADIUS + FURNACE_COLLISION_RADIUS);
 pub(crate) const FURNACE_FURNACE_COLLISION_DISTANCE_SQUARED: f32 = 
@@ -1481,11 +1484,20 @@ pub fn get_smelting_speed_multiplier(ctx: &ReducerContext, furnace: &Furnace) ->
     multiplier
 }
 
-/// Get collision radius based on furnace type
+/// Get collision radius based on furnace type and monument status
 pub(crate) fn get_furnace_collision_radius(furnace_type: u8) -> f32 {
     match furnace_type {
         FURNACE_TYPE_LARGE => LARGE_FURNACE_COLLISION_RADIUS,
         _ => FURNACE_COLLISION_RADIUS,
+    }
+}
+
+/// Get collision radius for a specific furnace entity (accounts for monument status)
+pub(crate) fn get_furnace_entity_collision_radius(furnace_type: u8, is_monument: bool) -> f32 {
+    if is_monument && furnace_type == FURNACE_TYPE_LARGE {
+        MONUMENT_LARGE_FURNACE_COLLISION_RADIUS
+    } else {
+        get_furnace_collision_radius(furnace_type)
     }
 }
 

@@ -42,6 +42,26 @@ export interface EntityVisualBounds {
  * 
  * Note: E label is ALWAYS centered horizontally on top of the blue box (no adjustment needed)
  */
+// ============================================================================
+// STANDARDIZED MONUMENT COMPOUND BUILDING CONSTANTS
+// All monument compound buildings (large furnace, rain collector, future cooking
+// station, repair bench, bank) are 480x480 sprites with a 96px anchor Y offset.
+// They share identical interaction box and collision dimensions.
+// ============================================================================
+export const MONUMENT_BUILDING = {
+  SPRITE_SIZE: 480,
+  ANCHOR_Y_OFFSET: 96,
+  // Sprite covers posY - 384 (top) to posY + 96 (bottom)
+  // Visual center is at posY - 144
+  VISUAL_CENTER_OFFSET_Y: -144,
+  // Interaction box: covers full sprite
+  INTERACTION_WIDTH: 440,
+  INTERACTION_HEIGHT: 480,
+  // AABB collision matches ALK substations: 350x160 (bottom 1/3 of 480px sprite)
+  COLLISION_WIDTH: 350,
+  COLLISION_HEIGHT: 160,
+} as const;
+
 export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   // Cooking appliances
   campfire: {
@@ -76,12 +96,12 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   monument_large_furnace: {
     centerOffsetX: 0,
-    centerOffsetY: -260,  // Center box over furnace body (480px sprite, base at posY)
-    width: 420,           // Covers the furnace body width
-    height: 520,          // 480px sprite + small buffer for chimney detail
+    centerOffsetY: MONUMENT_BUILDING.VISUAL_CENTER_OFFSET_Y,
+    width: MONUMENT_BUILDING.INTERACTION_WIDTH,
+    height: MONUMENT_BUILDING.INTERACTION_HEIGHT,
     placementYOffset: 0,
-    spriteWidth: 480,
-    spriteHeight: 480,
+    spriteWidth: MONUMENT_BUILDING.SPRITE_SIZE,
+    spriteHeight: MONUMENT_BUILDING.SPRITE_SIZE,
   },
   
   barbecue: {
@@ -311,6 +331,16 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     placementYOffset: -92, // Match visual center (posY - 92) for preview alignment
     spriteWidth: 256,
     spriteHeight: 256,
+  },
+
+  monument_rain_collector: {
+    centerOffsetX: 0,
+    centerOffsetY: MONUMENT_BUILDING.VISUAL_CENTER_OFFSET_Y,
+    width: MONUMENT_BUILDING.INTERACTION_WIDTH,
+    height: MONUMENT_BUILDING.INTERACTION_HEIGHT,
+    placementYOffset: 0,
+    spriteWidth: MONUMENT_BUILDING.SPRITE_SIZE,
+    spriteHeight: MONUMENT_BUILDING.SPRITE_SIZE,
   },
   
   homestead_hearth: {

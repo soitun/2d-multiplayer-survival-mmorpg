@@ -1491,7 +1491,7 @@ export const renderYSortedEntities = ({
           }
       } else if (type === 'rain_collector') {
           const rainCollector = entity as SpacetimeDBRainCollector;
-          renderRainCollector(ctx, rainCollector, nowMs, cycleProgress);
+          renderRainCollector(ctx, rainCollector, nowMs, cycleProgress, undefined, undefined, localPlayerPosition ?? undefined);
           
           // Check if this rain collector is the closest interactable target
           const isTheClosestTarget = closestInteractableTarget && 
@@ -1501,7 +1501,10 @@ export const renderYSortedEntities = ({
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
-              const config = ENTITY_VISUAL_CONFIG.rain_collector;
+              // Select config based on monument status
+              const config = rainCollector.isMonument
+                  ? ENTITY_VISUAL_CONFIG.monument_rain_collector
+                  : ENTITY_VISUAL_CONFIG.rain_collector;
               const outline = getInteractionOutlineParams(rainCollector.posX, rainCollector.posY, config);
               drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }

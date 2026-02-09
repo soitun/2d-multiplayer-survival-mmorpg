@@ -52,20 +52,21 @@ pub const ALK_STATION_WIDTH: f32 = 480.0;
 pub const ALK_STATION_HEIGHT: f32 = 480.0;
 pub const ALK_STATION_Y_OFFSET: f32 = 0.0; // Anchor point offset (worldPosY is the anchor)
 
-/// AABB collision dimensions - bottom 1/3 height for substations
-/// Central compound uses 50% of building width (240px), substations use 350px
-pub const ALK_STATION_COLLISION_WIDTH: f32 = ALK_STATION_WIDTH * 0.5;  // 50% of building width (central compound)
-pub const ALK_SUBSTATION_COLLISION_WIDTH: f32 = 350.0;  // Substations: 350px wide collision
-pub const ALK_STATION_COLLISION_HEIGHT: f32 = ALK_STATION_HEIGHT / 3.0; // Bottom 1/3 of building height (substations)
+/// AABB collision dimensions - all 480px monument compound buildings use the same shape
+/// Width: 350px, Height: 160px (bottom 1/3 of 480px sprite)
+/// This applies to: ALK central compound, substations, monument furnace, monument rain collector, etc.
+pub const ALK_STATION_COLLISION_WIDTH: f32 = 350.0;   // Standardized monument building width
+pub const ALK_SUBSTATION_COLLISION_WIDTH: f32 = 350.0; // Same as central compound
+pub const ALK_STATION_COLLISION_HEIGHT: f32 = ALK_STATION_HEIGHT / 3.0; // Bottom 1/3 of building height (160px)
 pub const ALK_STATION_AABB_HALF_WIDTH: f32 = ALK_STATION_COLLISION_WIDTH / 2.0;
 pub const ALK_SUBSTATION_AABB_HALF_WIDTH: f32 = ALK_SUBSTATION_COLLISION_WIDTH / 2.0;
 pub const ALK_STATION_AABB_HALF_HEIGHT: f32 = ALK_STATION_COLLISION_HEIGHT / 2.0;
 
-/// Central compound collision dimensions - half height from top (bottom 1/6 height, 1/2 width)
-pub const ALK_CENTRAL_COMPOUND_COLLISION_HEIGHT: f32 = ALK_STATION_HEIGHT / 6.0; // Bottom 1/6 of building height (half of substation height)
+/// Central compound collision - same 350x160 AABB as substations (standardized)
+pub const ALK_CENTRAL_COMPOUND_COLLISION_HEIGHT: f32 = ALK_STATION_COLLISION_HEIGHT; // 160px, same as substations
 pub const ALK_CENTRAL_COMPOUND_AABB_HALF_HEIGHT: f32 = ALK_CENTRAL_COMPOUND_COLLISION_HEIGHT / 2.0;
-/// Central compound collision Y offset - pushed up by its height to position higher on building
-pub const ALK_CENTRAL_COMPOUND_COLLISION_Y_OFFSET: f32 = ALK_CENTRAL_COMPOUND_COLLISION_HEIGHT; // Push up by full height
+/// No extra Y offset - collision sits at bottom of sprite, same as substations
+pub const ALK_CENTRAL_COMPOUND_COLLISION_Y_OFFSET: f32 = 0.0;
 
 /// Legacy circular collision constants (kept for compatibility, but AABB is used instead)
 pub const ALK_STATION_COLLISION_RADIUS: f32 = 120.0;

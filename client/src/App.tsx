@@ -847,6 +847,7 @@ function AppContent() {
         fumaroles,
         stashes,
         playerCorpses,
+        rainCollectors,
     });
 
     // --- Determine overall loading state ---

@@ -28,7 +28,7 @@ export const LARGE_FURNACE_RENDER_Y_OFFSET = 0; // Visual offset from entity's b
 // Monument large furnace constants (matches warehouse size it replaced)
 export const MONUMENT_LARGE_FURNACE_WIDTH = 480;
 export const MONUMENT_LARGE_FURNACE_HEIGHT = 480;
-export const MONUMENT_LARGE_FURNACE_RENDER_Y_OFFSET = 0; // Visual offset from entity's base Y
+export const MONUMENT_LARGE_FURNACE_RENDER_Y_OFFSET = -100;
 
 // Furnace interaction distance (player <-> furnace) - must match server constants
 export const PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Same as campfire

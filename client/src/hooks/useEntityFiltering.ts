@@ -255,10 +255,13 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
     case 'homestead_hearth': // ADDED: Homestead Hearth (same as campfire)
     case 'planted_seed':
     case 'dropped_item':
-    case 'harvestable_resource':
-      // Resources (piles): Subtract offset to ensure they render before monuments (underneath)
-      // This ensures stone piles, wood piles, etc. render under buildings
+      // Tall structures / placeables: Subtract offset to account for visual height extending
+      // above foot position, and to ensure they render before monuments (underneath buildings)
       return entity.posY - 100;
+    case 'harvestable_resource':
+      // Harvestable resources (mushrooms, hemp, pumpkins, corn, etc.) are small ground-level
+      // items that should Y-sort naturally with the player. No large negative offset needed.
+      return entity.posY;
     case 'wooden_storage_box': {
       // Tall box types (repair bench, cooking station, scarecrow, compost, large)
       // need proper y-sorting using actual posY so player walks behind them correctly.
@@ -384,12 +387,10 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       }
     }
     case 'grass':
-      // Grass is a ground-level decoration that should render BEHIND tall objects
-      // (trees, stones, basalt columns, etc.). Trees/stones use posY - 100 offset,
-      // so grass needs a larger negative offset to ensure it sorts before (behind) them.
-      // -200 ensures grass within ~100px south of a tree still renders behind the tree,
-      // while grass clearly south (200+ px) will correctly render in front.
-      return entity.serverPosY - 200;
+      // Grass is a ground-level decoration that should Y-sort naturally with the player
+      // and other entities based on its actual world Y position. No large negative offset
+      // needed - natural Y-sorting handles the correct render order with trees/stones/player.
+      return entity.serverPosY;
     case 'projectile': {
       const startTime = Number(entity.startTime.microsSinceUnixEpoch / 1000n);
       const elapsedSeconds = (timestamp - startTime) / 1000.0;
@@ -2132,6 +2133,18 @@ export function useEntityFiltering(
       }
       
       // NOTE: Broth pot vs campfire/fumarole check moved to ABSOLUTE FIRST CHECK at top of comparator
+      
+      // Grass vs tall structures: grass is a flat ground decoration that should always
+      // render behind (under) trees, stones, and other tall objects. Without this,
+      // grass at serverPosY sorts after trees at posY-100, causing grass to render
+      // on top of tree trunks/canopies. When they don't visually overlap (grass far
+      // south), order is irrelevant. When they do overlap, grass must be behind.
+      if (a.type === 'grass' && (b.type === 'tree' || b.type === 'stone' || b.type === 'basalt_column' || b.type === 'rune_stone' || b.type === 'sea_stack')) {
+        return -1; // Grass renders before (behind) tall structure
+      }
+      if (b.type === 'grass' && (a.type === 'tree' || a.type === 'stone' || a.type === 'basalt_column' || a.type === 'rune_stone' || a.type === 'sea_stack')) {
+        return 1; // Grass renders before (behind) tall structure
+      }
       
       // CRITICAL: Ensure walls ALWAYS render after (above) fog overlays - THIRD CHECK
       // This MUST run early to guarantee walls are never obscured by fog

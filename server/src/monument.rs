@@ -3237,6 +3237,9 @@ pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
         // Large furnace - replaces the warehouse in the northwest area of the compound
         // Position matches the old warehouse offset (-450, -300) from compound center
         MonumentPlaceableConfig::large_furnace(-450.0, -300.0),
+        // Rain collector (water reservoir) - replaces the garage in the southwest area
+        // Position matches the old garage offset (-450, 400) from compound center
+        MonumentPlaceableConfig::rain_collector(-450.0, 400.0),
     ]
 }
 
