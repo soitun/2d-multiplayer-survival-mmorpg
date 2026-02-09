@@ -390,9 +390,9 @@ export function renderInteractionLabels({
                 } else if (box.boxType === 2) { // BOX_TYPE_REFRIGERATOR
                     config = ENTITY_VISUAL_CONFIG.refrigerator;
                 } else if (box.boxType === 5) { // BOX_TYPE_REPAIR_BENCH
-                    config = ENTITY_VISUAL_CONFIG.repair_bench;
+                    config = box.isMonument ? ENTITY_VISUAL_CONFIG.monument_repair_bench : ENTITY_VISUAL_CONFIG.repair_bench;
                 } else if (box.boxType === 6) { // BOX_TYPE_COOKING_STATION
-                    config = ENTITY_VISUAL_CONFIG.cooking_station;
+                    config = box.isMonument ? ENTITY_VISUAL_CONFIG.monument_cooking_station : ENTITY_VISUAL_CONFIG.cooking_station;
                 } else if (box.boxType === 7) { // BOX_TYPE_SCARECROW
                     config = ENTITY_VISUAL_CONFIG.scarecrow;
                 } else if (box.boxType === 8) { // BOX_TYPE_MILITARY_RATION

@@ -59,6 +59,8 @@ export function preloadMonumentImages(): void {
     // guardpost.png removed - all guardposts/streetlights replaced by eerie ambient lights
     loadImage('shed.png', import('../../assets/doodads/shed.png?url'));
     loadImage('garage.png', import('../../assets/doodads/garage.png?url'));
+    loadImage('alk_food_processor.png', import('../../assets/doodads/alk_food_processor.png?url'));
+    loadImage('alk_weapons_depot.png', import('../../assets/doodads/alk_weapons_depot.png?url'));
     // warehouse.png removed - replaced by monument large furnace placeable
     loadImage('barracks.png', import('../../assets/doodads/barracks.png?url'));
     loadImage('fuel_depot.png', import('../../assets/doodads/fuel_depot.png?url'));
@@ -127,6 +129,8 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
         const imageMap: Record<string, () => Promise<{ default: string }>> = {
             'shed.png': () => import('../../assets/doodads/shed.png?url'),
             'garage.png': () => import('../../assets/doodads/garage.png?url'),
+            'alk_food_processor.png': () => import('../../assets/doodads/alk_food_processor.png?url'),
+            'alk_weapons_depot.png': () => import('../../assets/doodads/alk_weapons_depot.png?url'),
             'warehouse.png': () => import('../../assets/doodads/warehouse.png?url'),
             'barracks.png': () => import('../../assets/doodads/barracks.png?url'),
             'fuel_depot.png': () => import('../../assets/doodads/fuel_depot.png?url'),

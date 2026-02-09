@@ -205,6 +205,10 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
     collisionYOffset: 0,
   },
   
+  // ALK Food Processor and ALK Weapons Depot are NOT compound buildings.
+  // They are monument placeables (WoodenStorageBox entities) that render themselves
+  // at the larger 384x384 size, similar to the monument rain collector/large furnace pattern.
+  
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════

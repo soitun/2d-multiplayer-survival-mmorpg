@@ -496,7 +496,7 @@ fn spawn_asphalt_around_station(ctx: &ReducerContext, center_x: f32, center_y: f
 
 /// Carve dirt road paths through the central compound asphalt
 /// Creates a cross pattern of DirtRoad tiles with stubs branching toward buildings,
-/// making the compound feel more lived-in and industrial
+/// patchy corner patches with right-angle cutoffs, making it feel industrial and lived-in
 fn carve_dirt_paths_in_compound(ctx: &ReducerContext, center_x: f32, center_y: f32) {
     let tile_size = crate::TILE_SIZE_PX as f32;
     let center_tile_x = (center_x / tile_size).floor() as i32;
@@ -537,7 +537,6 @@ fn carve_dirt_paths_in_compound(ctx: &ReducerContext, center_x: f32, center_y: f
     }
     
     // === Stub paths branching toward buildings ===
-    // These make the compound feel like buildings are connected by worn paths
     
     // Stub toward garage (north-west, offset -350, -680 -> tile approx -7, -14)
     for dy in -14..=-8 {
@@ -578,6 +577,127 @@ fn carve_dirt_paths_in_compound(ctx: &ReducerContext, center_x: f32, center_y: f
     for dx in -9..=-3 {
         if convert_tile(ctx, center_tile_x + dx, center_tile_y + 8) {
             tiles_converted += 1;
+        }
+    }
+    
+    // Stub toward food processor (west-center, offset -600, 50 -> tile approx -12, 1)
+    for dx in -12..=-6 {
+        if convert_tile(ctx, center_tile_x + dx, center_tile_y + 2) {
+            tiles_converted += 1;
+        }
+    }
+    
+    // Stub toward weapons depot (east-center, offset 650, 0 -> tile approx 13, 0)
+    for dx in 6..=13 {
+        if convert_tile(ctx, center_tile_x + dx, center_tile_y - 1) {
+            tiles_converted += 1;
+        }
+    }
+    
+    // === Corner right-angle dirt patches ===
+    // These break up the asphalt at the 4 corners with L-shaped or rectangular dirt patches
+    // giving the compound a worn, patchy industrial feel with crisp right-angle edges
+    
+    // North-west corner patch (L-shape, 4x6 + 6x3)
+    for dx in -13..=-10 {
+        for dy in -13..=-8 {
+            if convert_tile(ctx, center_tile_x + dx, center_tile_y + dy) {
+                tiles_converted += 1;
+            }
+        }
+    }
+    for dx in -9..=-4 {
+        for dy in -13..=-11 {
+            if convert_tile(ctx, center_tile_x + dx, center_tile_y + dy) {
+                tiles_converted += 1;
+            }
+        }
+    }
+    
+    // North-east corner patch (L-shape, mirrored)
+    for dx in 10..=13 {
+        for dy in -13..=-8 {
+            if convert_tile(ctx, center_tile_x + dx, center_tile_y + dy) {
+                tiles_converted += 1;
+            }
+        }
+    }
+    for dx in 4..=9 {
+        for dy in -13..=-11 {
+            if convert_tile(ctx, center_tile_x + dx, center_tile_y + dy) {
+                tiles_converted += 1;
+            }
+        }
+    }
+    
+    // South-west corner patch (inverted L-shape)
+    for dx in -13..=-10 {
+        for dy in 8..=13 {
+            if convert_tile(ctx, center_tile_x + dx, center_tile_y + dy) {
+                tiles_converted += 1;
+            }
+        }
+    }
+    for dx in -9..=-4 {
+        for dy in 11..=13 {
+            if convert_tile(ctx, center_tile_x + dx, center_tile_y + dy) {
+                tiles_converted += 1;
+            }
+        }
+    }
+    
+    // South-east corner patch (inverted L-shape, mirrored)
+    for dx in 10..=13 {
+        for dy in 8..=13 {
+            if convert_tile(ctx, center_tile_x + dx, center_tile_y + dy) {
+                tiles_converted += 1;
+            }
+        }
+    }
+    for dx in 4..=9 {
+        for dy in 11..=13 {
+            if convert_tile(ctx, center_tile_x + dx, center_tile_y + dy) {
+                tiles_converted += 1;
+            }
+        }
+    }
+    
+    // === Scattered dirt patches (random-looking but deterministic) ===
+    // Small 2x2 or 3x2 dirt patches scattered to break up monotonous asphalt
+    
+    // Patch near barracks approach
+    for dx in 5..=7 {
+        for dy in -4..=-3 {
+            if convert_tile(ctx, center_tile_x + dx, center_tile_y + dy) {
+                tiles_converted += 1;
+            }
+        }
+    }
+    
+    // Patch near fuel depot approach
+    for dx in 5..=7 {
+        for dy in 5..=6 {
+            if convert_tile(ctx, center_tile_x + dx, center_tile_y + dy) {
+                tiles_converted += 1;
+            }
+        }
+    }
+    
+    // Patch in the south-center yard
+    for dx in -3..=-1 {
+        for dy in 4..=5 {
+            if convert_tile(ctx, center_tile_x + dx, center_tile_y + dy) {
+                tiles_converted += 1;
+            }
+        }
+    }
+    
+    // Patch near north-center
+    for dx in 2..=4 {
+        for dy in -5..=-4 {
+            if convert_tile(ctx, center_tile_x + dx, center_tile_y + dy) {
+                tiles_converted += 1;
+            }
         }
     }
     

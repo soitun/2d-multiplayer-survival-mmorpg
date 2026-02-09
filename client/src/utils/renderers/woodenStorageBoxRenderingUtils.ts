@@ -12,6 +12,8 @@ import mineCartImage from '../../assets/doodads/mine_cart.png'; // Mine cart ima
 import fishTrapImage from '../../assets/doodads/fish_trap.png'; // Fish trap image (shore-only)
 import wildBeehiveImage from '../../assets/doodads/pile_honeycomb.png'; // Wild beehive image (forest-only)
 import playerBeehiveImage from '../../assets/doodads/beehive_wooden.png'; // Player-made beehive (produces honeycomb)
+import alkFoodProcessorImage from '../../assets/doodads/alk_food_processor.png'; // Monument cooking station building
+import alkWeaponsDepotImage from '../../assets/doodads/alk_weapons_depot.png'; // Monument repair bench building
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';
@@ -45,6 +47,13 @@ export const WILD_BEEHIVE_WIDTH = 112;  // Wild beehive dimensions (forest-only)
 export const WILD_BEEHIVE_HEIGHT = 112;
 export const PLAYER_BEEHIVE_WIDTH = 256;  // Player beehive dimensions - larger for multi-hive structure
 export const PLAYER_BEEHIVE_HEIGHT = 256;
+
+// Monument building versions (rendered like rain collector/large furnace monuments)
+export const MONUMENT_COOKING_STATION_WIDTH = 384;
+export const MONUMENT_COOKING_STATION_HEIGHT = 384;
+export const MONUMENT_REPAIR_BENCH_WIDTH = 384;
+export const MONUMENT_REPAIR_BENCH_HEIGHT = 384;
+const MONUMENT_BOX_ANCHOR_Y_OFFSET = 96; // Same anchor as other monument buildings
 
 // Box type constants (must match server)
 export const BOX_TYPE_NORMAL = 0;
@@ -86,9 +95,9 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
             case BOX_TYPE_BACKPACK:
                 return backpackImage;
             case BOX_TYPE_REPAIR_BENCH:
-                return repairBenchImage;
+                return entity.isMonument ? alkWeaponsDepotImage : repairBenchImage;
             case BOX_TYPE_COOKING_STATION:
-                return cookingStationImage;
+                return entity.isMonument ? alkFoodProcessorImage : cookingStationImage;
             case BOX_TYPE_SCARECROW:
                 return scarecrowImage;
             case BOX_TYPE_MILITARY_RATION:
@@ -118,8 +127,10 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
             case BOX_TYPE_BACKPACK:
                 return { width: BACKPACK_WIDTH, height: BACKPACK_HEIGHT };
             case BOX_TYPE_REPAIR_BENCH:
+                if (entity.isMonument) return { width: MONUMENT_REPAIR_BENCH_WIDTH, height: MONUMENT_REPAIR_BENCH_HEIGHT };
                 return { width: REPAIR_BENCH_WIDTH, height: REPAIR_BENCH_HEIGHT };
             case BOX_TYPE_COOKING_STATION:
+                if (entity.isMonument) return { width: MONUMENT_COOKING_STATION_WIDTH, height: MONUMENT_COOKING_STATION_HEIGHT };
                 return { width: COOKING_STATION_WIDTH, height: COOKING_STATION_HEIGHT };
             case BOX_TYPE_SCARECROW:
                 return { width: SCARECROW_WIDTH, height: SCARECROW_HEIGHT };
@@ -139,7 +150,14 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
     },
 
     calculateDrawPosition: (entity, drawWidth, drawHeight) => {
-        // All box types use bottom-anchored positioning (consistent with server BOX_COLLISION_Y_OFFSET)
+        // Monument cooking stations and repair benches use monument-style anchoring (like rain collector)
+        if (entity.isMonument && (entity.boxType === BOX_TYPE_COOKING_STATION || entity.boxType === BOX_TYPE_REPAIR_BENCH)) {
+            return {
+                drawX: entity.posX - drawWidth / 2,
+                drawY: entity.posY - drawHeight + MONUMENT_BOX_ANCHOR_Y_OFFSET,
+            };
+        }
+        // All other box types use bottom-anchored positioning (consistent with server BOX_COLLISION_Y_OFFSET)
         return {
             drawX: entity.posX - drawWidth / 2,
             drawY: entity.posY - drawHeight - 20,
@@ -267,6 +285,8 @@ imageManager.preloadImage(militaryRationImage);
 imageManager.preloadImage(fishTrapImage);
 imageManager.preloadImage(wildBeehiveImage);
 imageManager.preloadImage(playerBeehiveImage);
+imageManager.preloadImage(alkFoodProcessorImage);
+imageManager.preloadImage(alkWeaponsDepotImage);
 
 // === FISH TRAP WATER EFFECTS CONFIGURATION ===
 const FISH_TRAP_WATER_CONFIG = {
@@ -480,12 +500,35 @@ export function renderWoodenStorageBox(
     playerX?: number,
     playerY?: number,
     inventoryItems?: Map<string, any>,
-    itemDefinitions?: Map<string, any>
+    itemDefinitions?: Map<string, any>,
+    localPlayerPosition?: { x: number; y: number }
 ) {
     // Fish traps get special water effects rendering (always on shore/in water)
     if (box.boxType === BOX_TYPE_FISH_TRAP && !box.isDestroyed) {
         renderFishTrapWithWaterEffects(ctx, box, nowMs, cycleProgress, playerX, playerY);
         return;
+    }
+    
+    // Monument cooking station / repair bench: occlusion transparency when player walks behind
+    const isMonumentBuilding = box.isMonument && (box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_REPAIR_BENCH);
+    let needsAlphaRestore = false;
+    if (isMonumentBuilding && localPlayerPosition) {
+        const w = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_WIDTH : MONUMENT_REPAIR_BENCH_WIDTH;
+        const h = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_HEIGHT : MONUMENT_REPAIR_BENCH_HEIGHT;
+        const drawY = box.posY - h + MONUMENT_BOX_ANCHOR_Y_OFFSET;
+        const entityTopY = drawY;
+        const entityBottomY = box.posY + MONUMENT_BOX_ANCHOR_Y_OFFSET;
+        const entityCenterX = box.posX;
+        const halfWidth = w / 2;
+
+        if (localPlayerPosition.y < entityBottomY - 20 &&
+            localPlayerPosition.y > entityTopY &&
+            localPlayerPosition.x > entityCenterX - halfWidth &&
+            localPlayerPosition.x < entityCenterX + halfWidth) {
+            ctx.save();
+            ctx.globalAlpha = 0.45;
+            needsAlphaRestore = true;
+        }
     }
     
     renderConfiguredGroundEntity({
@@ -498,6 +541,10 @@ export function renderWoodenStorageBox(
         cycleProgress,
     });
     
+    if (needsAlphaRestore) {
+        ctx.restore();
+    }
+    
     // Render decorative bees around player-made beehives (only when Queen Bee is present)
     if (box.boxType === BOX_TYPE_PLAYER_BEEHIVE && inventoryItems && itemDefinitions) {
         renderDecorativeBees(ctx, box, nowMs, inventoryItems, itemDefinitions);
@@ -505,7 +552,14 @@ export function renderWoodenStorageBox(
     
     // Render health bar using unified system (with type-specific dimensions)
     if (playerX !== undefined && playerY !== undefined) {
-        const dims = getBoxDimensions(box.boxType);
-        renderEntityHealthBar(ctx, box, dims.width, dims.height, nowMs, playerX, playerY, -BOX_RENDER_Y_OFFSET);
+        if (box.isMonument && (box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_REPAIR_BENCH)) {
+            // Monument buildings: larger sprite with monument anchor
+            const w = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_WIDTH : MONUMENT_REPAIR_BENCH_WIDTH;
+            const h = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_HEIGHT : MONUMENT_REPAIR_BENCH_HEIGHT;
+            renderEntityHealthBar(ctx, box, w, h, nowMs, playerX, playerY, h - MONUMENT_BOX_ANCHOR_Y_OFFSET);
+        } else {
+            const dims = getBoxDimensions(box.boxType);
+            renderEntityHealthBar(ctx, box, dims.width, dims.height, nowMs, playerX, playerY, -BOX_RENDER_Y_OFFSET);
+        }
     }
 } 

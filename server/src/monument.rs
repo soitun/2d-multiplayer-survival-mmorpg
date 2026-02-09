@@ -3265,30 +3265,44 @@ pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
         // Position matches the old garage offset (-450, 400) from compound center
         MonumentPlaceableConfig::rain_collector(-450.0, 400.0),
         
-        // === Monument Campfires (4 around the compound for warmth/cooking) ===
+        // === Monument Campfires (2 remaining after replacing center ones with buildings) ===
         // South-west: near the fuel depot
         MonumentPlaceableConfig::campfire(-200.0, 600.0),
         // South-east: opposite corner
         MonumentPlaceableConfig::campfire(200.0, 700.0),
-        // Center-west: between furnace and rain collector  
-        MonumentPlaceableConfig::campfire(-600.0, 50.0),
-        // Center-east: along the east dirt road
-        MonumentPlaceableConfig::campfire(650.0, 0.0),
+        
+        // === Monument Buildings (functional interactables at building positions) ===
+        // ALK Food Processor (center-west) - cooking station inside the food processor building
+        MonumentPlaceableConfig::cooking_station(-600.0, 50.0),
+        // ALK Weapons Depot (center-east) - repair bench inside the weapons depot building
+        MonumentPlaceableConfig::repair_bench(650.0, 0.0),
         
         // === Monument Barrels (indestructible, scattered around compound) ===
-        // Near garage (north-west)
+        // Near garage (north-west) - stacked supplies
         MonumentPlaceableConfig::barrel(-500.0, -600.0),
         MonumentPlaceableConfig::barrel(-480.0, -550.0),
-        // Near shed (north-east)
+        MonumentPlaceableConfig::barrel(-250.0, -620.0),
+        // Near shed (north-east) - stacked supplies
         MonumentPlaceableConfig::barrel(500.0, -600.0),
         MonumentPlaceableConfig::barrel(520.0, -550.0),
-        // Along south wall
+        MonumentPlaceableConfig::barrel(250.0, -620.0),
+        // Along south wall - perimeter crates
         MonumentPlaceableConfig::barrel(-100.0, 850.0),
         MonumentPlaceableConfig::barrel(100.0, 830.0),
+        MonumentPlaceableConfig::barrel(-400.0, 800.0),
+        MonumentPlaceableConfig::barrel(400.0, 820.0),
         // Near fuel depot
         MonumentPlaceableConfig::barrel(600.0, 500.0),
+        MonumentPlaceableConfig::barrel(550.0, 300.0),
         // Near barracks
         MonumentPlaceableConfig::barrel(600.0, -200.0),
+        MonumentPlaceableConfig::barrel(620.0, -450.0),
+        // Near food processor (west)
+        MonumentPlaceableConfig::barrel(-730.0, 150.0),
+        // Near weapons depot (east) - barrel removed (was at 820.0, 100.0)
+        // Center scatter - compound yard clutter
+        MonumentPlaceableConfig::barrel(-150.0, 200.0),
+        MonumentPlaceableConfig::barrel(180.0, -250.0),
         
         // === Military Rations (lootable crates, 3 spread around) ===
         // Near the center - main supply cache

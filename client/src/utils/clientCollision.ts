@@ -318,6 +318,8 @@ function getCollisionCandidates(
   // Filter structures (boxes, barrels, etc.)
   // Skip backpacks (boxType === 4) - they should not have collision
   const BOX_TYPE_BACKPACK = 4;
+  const BOX_TYPE_COOKING_STATION_COLLISION = 6;
+  const BOX_TYPE_REPAIR_BENCH_COLLISION = 5;
   const nearbyBoxes = filterEntitiesByDistance(
     entities.boxes,
     playerX,
@@ -330,13 +332,26 @@ function getCollisionCandidates(
     // Skip backpacks - they don't have collision
     if (box.boxType === BOX_TYPE_BACKPACK) continue;
     
-    shapes.push({
-      id: box.id.toString(),
-      type: `box-${box.id.toString()}`,
-      x: box.posX + COLLISION_OFFSETS.STORAGE_BOX.x,
-      y: box.posY + COLLISION_OFFSETS.STORAGE_BOX.y,
-      radius: COLLISION_RADII.STORAGE_BOX
-    });
+    // Monument cooking stations and repair benches use AABB collision
+    // Smaller than 480px monuments (384px sprite), positioned to cover building content
+    if (box.isMonument && (box.boxType === BOX_TYPE_COOKING_STATION_COLLISION || box.boxType === BOX_TYPE_REPAIR_BENCH_COLLISION)) {
+      shapes.push({
+        id: box.id.toString(),
+        type: `box-${box.id.toString()}`,
+        x: box.posX,
+        y: box.posY - 40,  // Pushed down 20px from previous (-60) to better align with building
+        width: 280,         // Narrower than standard monument (350) - 384px sprite is smaller
+        height: 120,        // Less tall (120 vs 160) - proportional to 384px sprite
+      });
+    } else {
+      shapes.push({
+        id: box.id.toString(),
+        type: `box-${box.id.toString()}`,
+        x: box.posX + COLLISION_OFFSETS.STORAGE_BOX.x,
+        y: box.posY + COLLISION_OFFSETS.STORAGE_BOX.y,
+        radius: COLLISION_RADII.STORAGE_BOX
+      });
+    }
   }
   
   const nearbyBarrels = filterEntitiesByDistance(
@@ -1066,7 +1081,7 @@ function getCollisionCandidates(
 // ============================================================================
 // STANDARDIZED MONUMENT COMPOUND BUILDING AABB COLLISION
 // All monument compound buildings (ALK compound, large furnace, rain collector,
-// future cooking station, repair bench, bank) use the same AABB dimensions
+// cooking station, repair bench, bank) use the same AABB dimensions
 // as the ALK substations: 350px wide x 160px tall (bottom 1/3 of 480px sprite).
 // This avoids the "thin shape" heuristic (width > height*3) in checkAABBCollision
 // which causes glitchy push-out on skinny boxes.

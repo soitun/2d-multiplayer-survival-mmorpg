@@ -48,6 +48,8 @@ pub const COMPOUND_BUILDING_COLLISIONS: &[CompoundBuildingCollision] = &[
     CompoundBuildingCollision { offset_x: -350.0, offset_y: -680.0, collision_radius: 120.0, collision_y_offset: 0.0 },
     // Shed (north-east area, symmetric with garage)
     CompoundBuildingCollision { offset_x: 350.0, offset_y: -680.0, collision_radius: 100.0, collision_y_offset: 0.0 },
+    // ALK Food Processor and Weapons Depot are monument placeables (WoodenStorageBox entities),
+    // not compound buildings. Their collision is handled by the entity system.
 ];
 
 /// Calculate the world center coordinates in pixels.

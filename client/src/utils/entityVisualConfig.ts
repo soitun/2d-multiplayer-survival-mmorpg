@@ -44,8 +44,8 @@ export interface EntityVisualBounds {
  */
 // ============================================================================
 // STANDARDIZED MONUMENT COMPOUND BUILDING CONSTANTS
-// All monument compound buildings (large furnace, rain collector, future cooking
-// station, repair bench, bank) are 480x480 sprites with a 96px anchor Y offset.
+// All monument compound buildings (large furnace, rain collector, cooking station,
+// repair bench, bank) are 480x480 sprites with a 96px anchor Y offset.
 // They share identical interaction box and collision dimensions.
 // ============================================================================
 export const MONUMENT_BUILDING = {
@@ -341,6 +341,28 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     placementYOffset: 0,
     spriteWidth: MONUMENT_BUILDING.SPRITE_SIZE,
     spriteHeight: MONUMENT_BUILDING.SPRITE_SIZE,
+  },
+  
+  // Monument cooking station (ALK Food Processor) - 384x384 building sprite
+  monument_cooking_station: {
+    centerOffsetX: 0,
+    centerOffsetY: -100,  // Similar to monument_rain_collector centering
+    width: 360,           // Interaction box matching building content width
+    height: 360,          // Square interaction box
+    placementYOffset: 0,
+    spriteWidth: 384,
+    spriteHeight: 384,
+  },
+  
+  // Monument repair bench (ALK Weapons Depot) - 384x384 building sprite
+  monument_repair_bench: {
+    centerOffsetX: 0,
+    centerOffsetY: -100,  // Similar to monument_rain_collector centering
+    width: 360,           // Interaction box matching building content width
+    height: 360,          // Square interaction box
+    placementYOffset: 0,
+    spriteWidth: 384,
+    spriteHeight: 384,
   },
   
   homestead_hearth: {

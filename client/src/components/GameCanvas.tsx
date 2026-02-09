@@ -92,7 +92,7 @@ import { useWorldTileCache } from '../hooks/useWorldTileCache';
 import { useAmbientSounds } from '../hooks/useAmbientSounds';
 import { useFurnaceParticles } from '../hooks/useFurnaceParticles';
 import { useBarbecueParticles } from '../hooks/useBarbecueParticles';
-import { useShoreWaveParticles, renderShoreWaves } from '../hooks/useShoreWaveParticles';
+
 import { playImmediateSound } from '../hooks/useSoundSystem';
 import { useDamageEffects, shakeOffsetXRef, shakeOffsetYRef, vignetteOpacityRef } from '../hooks/useDamageEffects';
 import { useSettings } from '../contexts/SettingsContext';
@@ -2027,21 +2027,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     deltaTime: 0, // Not used anymore, but kept for compatibility
   });
 
-  // Shore wave particle effects - animated waves lapping at beach/sea transitions
-  // Calculate viewBounds for viewport culling
-  const shoreWaveViewBounds = useMemo(() => ({
+  // Viewport bounds used by footprints and other systems
+  const viewBounds = useMemo(() => ({
     minX: -cameraOffsetX,
     maxX: -cameraOffsetX + canvasSize.width,
     minY: -cameraOffsetY,
     maxY: -cameraOffsetY + canvasSize.height,
   }), [cameraOffsetX, cameraOffsetY, canvasSize.width, canvasSize.height]);
-
-  const shoreWaveParticles = useShoreWaveParticles({
-    worldTiles: visibleWorldTiles,
-    viewBounds: shoreWaveViewBounds,
-    cameraOffsetX,
-    cameraOffsetY,
-  });
 
   // Resource sparkle particle effects - shows sparkles on harvestable resources (viewport-culled)
   const resourceSparkleParticles = useResourceSparkleParticles({
@@ -3030,20 +3022,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
     // --- END WATER OVERLAY ---
 
-    // --- Render shore wave particles (BELOW sea stacks, ABOVE water overlay) ---
-    // Skip shore waves when snorkeling - player is underwater, can't see surface effects
-    if (!isSnorkeling) {
-      renderShoreWaves(ctx, shoreWaveParticles, currentCameraOffsetX, currentCameraOffsetY);
-    }
-    // --- END SHORE WAVES ---
-
     // --- STEP 2.5 & 3 COMBINED: Render Y-sorted entities AND swimming player top halves together ---
     // This ensures swimming player tops are properly Y-sorted with sea stacks and other tall entities
 
     // Render snow/beach footprints ONCE as ground decals, before any Y-sorted entities.
     // This ensures footprints are always below players/trees/structures regardless of
     // how many times renderYSortedEntities is called (e.g. batched swimming player rendering).
-    renderAllFootprints(ctx, shoreWaveViewBounds, now_ms);
+    renderAllFootprints(ctx, viewBounds, now_ms);
 
     // PERFORMANCE OPTIMIZATION: Skip complex merging when no swimming players
     // This is the common case and saves significant object creation/sorting overhead

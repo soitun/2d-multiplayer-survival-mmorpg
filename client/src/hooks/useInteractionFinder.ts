@@ -70,7 +70,7 @@ import {
 } from '../utils/renderers/hearthRenderingUtils'; // ADDED: Hearth interaction constants
 import { PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/playerCorpseRenderingUtils';
 import { PLAYER_TURRET_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/turretRenderingUtils';
-import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT, getBoxDimensions, BOX_TYPE_SCARECROW } from '../utils/renderers/woodenStorageBoxRenderingUtils';
+import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT, getBoxDimensions, BOX_TYPE_SCARECROW, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH, MONUMENT_COOKING_STATION_WIDTH, MONUMENT_COOKING_STATION_HEIGHT, MONUMENT_REPAIR_BENCH_WIDTH, MONUMENT_REPAIR_BENCH_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { PLAYER_DOOR_INTERACTION_DISTANCE_SQUARED, DOOR_RENDER_Y_OFFSET } from '../utils/renderers/doorRenderingUtils'; // ADDED: Door interaction distance and render offset
 import { PLAYER_ALK_STATION_INTERACTION_DISTANCE_SQUARED, ALK_STATION_Y_OFFSET } from '../utils/renderers/alkStationRenderingUtils'; // ADDED: ALK station interaction distance
 import { getResourceConfig } from '../utils/renderers/resourceConfigurations';
@@ -171,6 +171,7 @@ export const PLAYER_CAIRN_INTERACTION_DISTANCE_SQUARED = 200.0 * 200.0; // Cairn
 export const PLAYER_STASH_SURFACE_INTERACTION_DISTANCE_SQUARED = 32.0 * 32.0;
 export const PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED = 140.0 * 140.0; // Larger range for big 256x256 sprite
 export const PLAYER_MONUMENT_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED = 250.0 * 250.0; // Monument rain collector (480px, matches server)
+export const PLAYER_MONUMENT_BOX_INTERACTION_DISTANCE_SQUARED = 250.0 * 250.0; // Monument cooking station/repair bench (384px building)
 
 // --- Shelter Access Control Constants ---
 const SHELTER_COLLISION_WIDTH = 300.0;
@@ -374,7 +375,8 @@ export function useInteractionFinder({
         let closestDroppedItemDistSq = PLAYER_DROPPED_ITEM_INTERACTION_DISTANCE_SQUARED;
 
         let closestBoxId: number | null = null;
-        let closestBoxDistSq = PLAYER_BOX_INTERACTION_DISTANCE_SQUARED;
+        // Start with the larger monument distance so monument buildings can be found
+        let closestBoxDistSq = PLAYER_MONUMENT_BOX_INTERACTION_DISTANCE_SQUARED;
         let isClosestBoxEmpty = false;
 
         let closestCorpse: bigint | null = null;
@@ -643,16 +645,30 @@ export function useInteractionFinder({
                     // Scarecrow is decorative only - no interaction, no blue box, no E label
                     if (box.boxType === BOX_TYPE_SCARECROW) return;
                     
-                    // Use the visual center of the box (middle of the visible sprite)
-                    // Rendering: drawY = entity.posY - drawHeight - 20, so visual center is halfway down
-                    // Use actual box dimensions per boxType for correct interaction on tall boxes
-                    const dims = getBoxDimensions(box.boxType);
-                    const visualCenterY = box.posY - (dims.height / 2) - 20;
+                    // Monument cooking stations / repair benches use monument building interaction
+                    const isMonumentBuilding = box.isMonument && (box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_REPAIR_BENCH);
+                    
+                    let visualCenterY: number;
+                    let maxDistSq: number;
+                    
+                    if (isMonumentBuilding) {
+                        // Monument buildings: 384px sprite with 96px anchor offset
+                        const h = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_HEIGHT : MONUMENT_REPAIR_BENCH_HEIGHT;
+                        const anchorOffset = 96;
+                        // Visual center: drawY = posY - h + anchorOffset, center = drawY + h/2
+                        visualCenterY = box.posY - h + anchorOffset + h / 2;
+                        maxDistSq = PLAYER_MONUMENT_BOX_INTERACTION_DISTANCE_SQUARED;
+                    } else {
+                        // Regular boxes: drawY = posY - height - 20
+                        const dims = getBoxDimensions(box.boxType);
+                        visualCenterY = box.posY - (dims.height / 2) - 20;
+                        maxDistSq = PLAYER_BOX_INTERACTION_DISTANCE_SQUARED;
+                    }
                     
                     const dx = playerX - box.posX;
                     const dy = playerY - visualCenterY; // Use visual center for interaction distance
                     const distSq = dx * dx + dy * dy;
-                    if (distSq < closestBoxDistSq) {
+                    if (distSq < maxDistSq && distSq < closestBoxDistSq) {
                         // Check shelter access control (use original stored position for shelter checks)
                         if (canPlayerInteractWithObjectInShelter(
                             playerX, playerY, localPlayer.identity.toHexString(),

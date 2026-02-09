@@ -1327,7 +1327,7 @@ export const renderYSortedEntities = ({
           // Pass player position for health bar rendering on opposite side (like barrels, campfires, furnaces)
           const playerX = localPlayerPosition?.x;
           const playerY = localPlayerPosition?.y;
-          renderWoodenStorageBox(ctx, box, nowMs, cycleProgress, playerX, playerY, inventoryItems, itemDefinitions);
+          renderWoodenStorageBox(ctx, box, nowMs, cycleProgress, playerX, playerY, inventoryItems, itemDefinitions, localPlayerPosition);
           
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
@@ -1338,9 +1338,9 @@ export const renderYSortedEntities = ({
               } else if (box.boxType === BOX_TYPE_REFRIGERATOR) {
                   config = ENTITY_VISUAL_CONFIG.refrigerator;
               } else if (box.boxType === BOX_TYPE_REPAIR_BENCH) {
-                  config = ENTITY_VISUAL_CONFIG.repair_bench;
+                  config = box.isMonument ? ENTITY_VISUAL_CONFIG.monument_repair_bench : ENTITY_VISUAL_CONFIG.repair_bench;
               } else if (box.boxType === BOX_TYPE_COOKING_STATION) {
-                  config = ENTITY_VISUAL_CONFIG.cooking_station;
+                  config = box.isMonument ? ENTITY_VISUAL_CONFIG.monument_cooking_station : ENTITY_VISUAL_CONFIG.cooking_station;
               } else if (box.boxType === BOX_TYPE_SCARECROW) {
                   config = ENTITY_VISUAL_CONFIG.scarecrow;
               } else if (box.boxType === BOX_TYPE_MILITARY_RATION) {
