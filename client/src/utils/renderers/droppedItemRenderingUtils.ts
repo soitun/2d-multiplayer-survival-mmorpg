@@ -9,6 +9,12 @@ import { getItemIcon } from '../itemIconUtils'; // Import item icon utility
 const DRAW_WIDTH = 48;
 const DRAW_HEIGHT = 48;
 
+// --- Reusable offscreen canvas for glow outline effect (avoids per-frame allocation) ---
+const _glowCanvas = document.createElement('canvas');
+_glowCanvas.width = 60;
+_glowCanvas.height = 60;
+const _glowCtx = _glowCanvas.getContext('2d');
+
 // --- Config --- 
 const droppedItemConfig: GroundEntityConfig<SpacetimeDBDroppedItem & { itemDef?: SpacetimeDBItemDefinition }> = {
     // Always try to show the actual item sprite, fall back to burlap sack if not found
@@ -85,18 +91,15 @@ const droppedItemConfig: GroundEntityConfig<SpacetimeDBDroppedItem & { itemDef?:
         ctx.shadowColor = `rgba(100, 200, 255, ${pulseIntensity * 0.4})`;
         ctx.shadowBlur = 25;
         
-        // Create a temporary canvas for the outline effect
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-        if (tempCtx) {
-            tempCanvas.width = 60; // Slightly larger than item
-            tempCanvas.height = 60;
+        // Reuse module-level canvas for the outline effect (avoids per-frame allocation)
+        if (_glowCtx) {
+            _glowCtx.clearRect(0, 0, 60, 60);
             
             // Draw a rounded rectangle outline
-            tempCtx.strokeStyle = `rgba(255, 255, 255, ${pulseIntensity * 0.8})`;
-            tempCtx.lineWidth = 2;
-            tempCtx.lineCap = 'round';
-            tempCtx.lineJoin = 'round';
+            _glowCtx.strokeStyle = `rgba(255, 255, 255, ${pulseIntensity * 0.8})`;
+            _glowCtx.lineWidth = 2;
+            _glowCtx.lineCap = 'round';
+            _glowCtx.lineJoin = 'round';
             
             const outlineSize = 50;
             const radius = 8;
@@ -104,21 +107,21 @@ const droppedItemConfig: GroundEntityConfig<SpacetimeDBDroppedItem & { itemDef?:
             const y = 5;
             
             // Draw rounded rectangle outline
-            tempCtx.beginPath();
-            tempCtx.moveTo(x + radius, y);
-            tempCtx.lineTo(x + outlineSize - radius, y);
-            tempCtx.quadraticCurveTo(x + outlineSize, y, x + outlineSize, y + radius);
-            tempCtx.lineTo(x + outlineSize, y + outlineSize - radius);
-            tempCtx.quadraticCurveTo(x + outlineSize, y + outlineSize, x + outlineSize - radius, y + outlineSize);
-            tempCtx.lineTo(x + radius, y + outlineSize);
-            tempCtx.quadraticCurveTo(x, y + outlineSize, x, y + outlineSize - radius);
-            tempCtx.lineTo(x, y + radius);
-            tempCtx.quadraticCurveTo(x, y, x + radius, y);
-            tempCtx.closePath();
-            tempCtx.stroke();
+            _glowCtx.beginPath();
+            _glowCtx.moveTo(x + radius, y);
+            _glowCtx.lineTo(x + outlineSize - radius, y);
+            _glowCtx.quadraticCurveTo(x + outlineSize, y, x + outlineSize, y + radius);
+            _glowCtx.lineTo(x + outlineSize, y + outlineSize - radius);
+            _glowCtx.quadraticCurveTo(x + outlineSize, y + outlineSize, x + outlineSize - radius, y + outlineSize);
+            _glowCtx.lineTo(x + radius, y + outlineSize);
+            _glowCtx.quadraticCurveTo(x, y + outlineSize, x, y + outlineSize - radius);
+            _glowCtx.lineTo(x, y + radius);
+            _glowCtx.quadraticCurveTo(x, y, x + radius, y);
+            _glowCtx.closePath();
+            _glowCtx.stroke();
             
             // Draw the outline on the main canvas with glow
-            ctx.drawImage(tempCanvas, baseDrawX - 6, baseDrawY - 6);
+            ctx.drawImage(_glowCanvas, baseDrawX - 6, baseDrawY - 6);
         }
         
         ctx.restore();

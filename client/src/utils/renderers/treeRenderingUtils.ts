@@ -99,6 +99,8 @@ let shadowOffscreenCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingConte
 function getShadowOffscreenCanvas(width: number, height: number): { canvas: OffscreenCanvas | HTMLCanvasElement, ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } | null {
     // Create canvas if needed or resize if dimensions changed
     if (!shadowOffscreenCanvas || shadowOffscreenCanvas.width !== width || shadowOffscreenCanvas.height !== height) {
+        // Release GPU memory from old canvas before creating new one
+        if (shadowOffscreenCanvas) { shadowOffscreenCanvas.width = 0; shadowOffscreenCanvas.height = 0; }
         try {
             // Prefer OffscreenCanvas for better performance
             shadowOffscreenCanvas = new OffscreenCanvas(width, height);

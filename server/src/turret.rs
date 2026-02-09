@@ -12,6 +12,7 @@ use crate::projectile::{Projectile, PROJECTILE_SOURCE_TURRET, PROJECTILE_SOURCE_
 use crate::projectile::projectile as ProjectileTableTrait;
 use crate::world_state::world_state as WorldStateTableTrait;
 use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait;
+use crate::sound_events::emit_shoot_turret_sound;
 
 // --- Constants ---
 pub const TURRET_PLACEMENT_MAX_DISTANCE: f32 = 150.0;
@@ -736,6 +737,7 @@ pub fn process_turret_logic_scheduled(ctx: &ReducerContext, _schedule: TurretPro
                     
                     ctx.db.projectile().insert(projectile);
                     turret.last_fire_time = Some(current_time);
+                    emit_shoot_turret_sound(ctx, turret.pos_x, turret.pos_y);
                     log::info!("Monument turret {} fired at target at ({:.1}, {:.1})", turret.id, target_x, target_y);
                 }
             }
@@ -847,6 +849,7 @@ pub fn process_turret_logic_scheduled(ctx: &ReducerContext, _schedule: TurretPro
                         }
                         
                         turret.last_fire_time = Some(current_time);
+                        emit_shoot_turret_sound(ctx, turret.pos_x, turret.pos_y);
                         log::info!("Turret {} fired at target at ({:.1}, {:.1})", turret.id, target_x, target_y);
                     }
                 }

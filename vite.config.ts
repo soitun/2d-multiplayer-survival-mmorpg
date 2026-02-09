@@ -54,8 +54,9 @@ export default defineConfig(({ command, mode }) => {
           assetFileNames: '[name]-[hash][extname]',
         }
       },
-      // Enable asset inlining for small images (4KB threshold)
-      assetsInlineLimit: 4096,
+      // Disable asset inlining to prevent base64 data URL strings from bloating JS heap
+      // (~20MB of retained strings with 950+ PNG imports when inlined at 4KB threshold)
+      assetsInlineLimit: 0,
       // Improve build performance
       target: 'esnext',
       minify: 'esbuild',

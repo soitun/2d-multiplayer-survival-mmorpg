@@ -62,6 +62,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
   const [lastWhisperFrom, setLastWhisperFrom] = useState<LastWhisperFrom | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
   const [activeTab, setActiveTab] = useState<ChatTab>('global');
+  const MAX_SOVA_MESSAGES = 200; // Cap to prevent unbounded memory growth
   const [sovaMessages, setSovaMessages] = useState<Array<{id: string, text: string, isUser: boolean, timestamp: Date}>>([]);
   const [sovaInputValue, setSovaInputValue] = useState('');
   const [showPerformanceReport, setShowPerformanceReport] = useState(false);
@@ -461,7 +462,12 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
         console.log('[Chat] Skipping duplicate SOVA message:', message.id);
         return prev;
       }
-      return [...prev, { id: message.id, text: message.text, isUser: message.isUser, timestamp: message.timestamp }];
+      const updated = [...prev, { id: message.id, text: message.text, isUser: message.isUser, timestamp: message.timestamp }];
+      // Cap messages to prevent unbounded memory growth
+      if (updated.length > MAX_SOVA_MESSAGES) {
+        return updated.slice(-MAX_SOVA_MESSAGES);
+      }
+      return updated;
     });
     
     // Auto-switch to SOVA tab when voice messages are added OR when flashTab is requested

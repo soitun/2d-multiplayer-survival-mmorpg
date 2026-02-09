@@ -63,6 +63,7 @@ export type ArrowHit = { tag: "ArrowHit" };
 export type ShootBow = { tag: "ShootBow" };
 export type ShootCrossbow = { tag: "ShootCrossbow" };
 export type ShootPistol = { tag: "ShootPistol" };
+export type ShootTurret = { tag: "ShootTurret" };
 export type ReloadBow = { tag: "ReloadBow" };
 export type ReloadCrossbow = { tag: "ReloadCrossbow" };
 export type ReloadPistol = { tag: "ReloadPistol" };

@@ -322,6 +322,8 @@ let fishTrapOffscreenCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingCon
 
 function getFishTrapOffscreenCanvas(width: number, height: number): { canvas: OffscreenCanvas | HTMLCanvasElement, ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } {
     if (!fishTrapOffscreenCanvas || fishTrapOffscreenCanvas.width < width || fishTrapOffscreenCanvas.height < height) {
+        // Release GPU memory from old canvas before creating new one
+        if (fishTrapOffscreenCanvas) { fishTrapOffscreenCanvas.width = 0; fishTrapOffscreenCanvas.height = 0; }
         try {
             fishTrapOffscreenCanvas = new OffscreenCanvas(width, height);
         } catch {

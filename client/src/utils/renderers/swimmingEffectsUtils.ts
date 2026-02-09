@@ -2,6 +2,10 @@ import { Player as SpacetimeDBPlayer } from '../../generated';
 import { gameConfig } from '../../config/gameConfig';
 import { drawDynamicGroundShadow } from './shadowUtils';
 
+// --- Reusable offscreen canvas for underwater shadow sprite extraction (avoids per-frame allocation) ---
+const _uwShadowCanvas = document.createElement('canvas');
+const _uwShadowCtx = _uwShadowCanvas.getContext('2d');
+
 // Swimming effects configuration
 const SWIMMING_EFFECTS_CONFIG = {
   WATER_LINE_OFFSET: 0.5, // Proper waist level (0.4 = 40% down from top)
@@ -418,16 +422,16 @@ function drawUnderwaterShadow(
   spriteWidth: number,
   spriteHeight: number
 ): void {
-  // Extract the current sprite frame to a temporary canvas
-  const spriteCanvas = document.createElement('canvas');
-  spriteCanvas.width = gameConfig.spriteWidth;
-  spriteCanvas.height = gameConfig.spriteHeight;
-  const spriteCtx = spriteCanvas.getContext('2d');
+  // Reuse module-level canvas for sprite extraction (avoids per-frame allocation)
+  _uwShadowCanvas.width = gameConfig.spriteWidth;
+  _uwShadowCanvas.height = gameConfig.spriteHeight;
   
-  if (!spriteCtx) return;
+  if (!_uwShadowCtx) return;
+  
+  _uwShadowCtx.clearRect(0, 0, gameConfig.spriteWidth, gameConfig.spriteHeight);
   
   // Draw just the current sprite frame to the temporary canvas
-  spriteCtx.drawImage(
+  _uwShadowCtx.drawImage(
     spriteImage,
     sx, sy, gameConfig.spriteWidth, gameConfig.spriteHeight, // Source: specific frame from spritesheet
     0, 0, gameConfig.spriteWidth, gameConfig.spriteHeight    // Destination: full temporary canvas
@@ -457,7 +461,7 @@ function drawUnderwaterShadow(
   // Use drawDynamicGroundShadow with custom parameters for underwater effect
   drawDynamicGroundShadow({
     ctx,
-    entityImage: spriteCanvas, // Use the extracted sprite frame
+    entityImage: _uwShadowCanvas, // Use the extracted sprite frame (reusable canvas)
     entityCenterX: shadowX,
     entityBaseY: shadowY,
     imageDrawWidth: spriteWidth,

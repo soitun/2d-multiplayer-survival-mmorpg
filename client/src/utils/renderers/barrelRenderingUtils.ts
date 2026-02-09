@@ -257,6 +257,8 @@ let barrelOffscreenCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingConte
 
 function getBarrelOffscreenCanvas(width: number, height: number): { canvas: OffscreenCanvas | HTMLCanvasElement, ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } {
     if (!barrelOffscreenCanvas || barrelOffscreenCanvas.width < width || barrelOffscreenCanvas.height < height) {
+        // Release GPU memory from old canvas before creating new one
+        if (barrelOffscreenCanvas) { barrelOffscreenCanvas.width = 0; barrelOffscreenCanvas.height = 0; }
         try {
             barrelOffscreenCanvas = new OffscreenCanvas(width, height);
         } catch {

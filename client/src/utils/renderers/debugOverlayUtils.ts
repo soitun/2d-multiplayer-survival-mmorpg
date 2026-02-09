@@ -269,7 +269,7 @@ function getShapeColors(shapeType: string): { fillColor: string; strokeColor: st
  */
 function getOffsetInfo(type: string): string {
   const typeUpper = type.toUpperCase();
-  if (typeUpper === 'TREE') return `off:(${COLLISION_OFFSETS.TREE.x},${COLLISION_OFFSETS.TREE.y})`;
+  if (typeUpper === 'TREE') return `off:(variant/default)`;
   if (typeUpper === 'STONE') return `off:(${COLLISION_OFFSETS.STONE.x},${COLLISION_OFFSETS.STONE.y})`;
   if (typeUpper === 'RUNESTONE') return `off:(${COLLISION_OFFSETS.RUNE_STONE.x},${COLLISION_OFFSETS.RUNE_STONE.y})`;
   if (typeUpper === 'CAIRN') return `off:(${COLLISION_OFFSETS.CAIRN.x},${COLLISION_OFFSETS.CAIRN.y})`;

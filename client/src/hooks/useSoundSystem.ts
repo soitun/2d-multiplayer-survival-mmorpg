@@ -1279,6 +1279,7 @@ export const useSoundSystem = ({
     const isInitializedRef = useRef(false);
     const lastSoundProcessTimeRef = useRef<number>(0);
     const SOUND_PROCESSING_DEBOUNCE_MS = 500; // Minimum 500ms between sound processing
+    const PROCESSED_EVENTS_MAX_SIZE = 2000; // Cap to prevent unbounded memory growth
     const pendingSoundCreationRef = useRef<Set<string>>(new Set()); // Track sounds being created
     
     // Helper function to check if player's current chunk has rain
@@ -1312,6 +1313,7 @@ export const useSoundSystem = ({
     
     // Track previous soundEvents to only process NEW events
     const previousSoundEventsRef = useRef<Map<string, any>>(new Map());
+    const PREVIOUS_EVENTS_MAX_SIZE = 2000; // Cap to prevent unbounded memory growth
     
     // Process server sound events (for other players' actions)
     useEffect(() => {
@@ -1486,12 +1488,18 @@ export const useSoundSystem = ({
         });
         
         // Update previous events ref AFTER processing (so we don't lose events if processing fails)
-        previousSoundEventsRef.current = new Map(soundEvents);
+        // Cap size to prevent unbounded memory growth
+        if (soundEvents.size > PREVIOUS_EVENTS_MAX_SIZE) {
+            const entries = Array.from(soundEvents.entries());
+            previousSoundEventsRef.current = new Map(entries.slice(-PREVIOUS_EVENTS_MAX_SIZE));
+        } else {
+            previousSoundEventsRef.current = new Map(soundEvents);
+        }
         
-        // Cleanup old processed events
-        if (processedSoundEventsRef.current.size > 100) {
+        // Cleanup old processed events - cap to prevent unbounded memory growth
+        if (processedSoundEventsRef.current.size > PROCESSED_EVENTS_MAX_SIZE) {
             const eventsArray = Array.from(processedSoundEventsRef.current);
-            processedSoundEventsRef.current = new Set(eventsArray.slice(-50));
+            processedSoundEventsRef.current = new Set(eventsArray.slice(-1000)); // Keep most recent 1000
         }
         
     }, [soundEvents, localPlayerPosition, localPlayerIdentity, masterVolume]);

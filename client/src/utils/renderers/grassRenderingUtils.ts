@@ -366,7 +366,9 @@ export function renderGrass(
     // Seed-based deterministic offsets
     const seed = grass.swayOffsetSeed;
     const offsetX = ((seed % (MAX_POSITION_OFFSET_PX * 2 + 1)) - MAX_POSITION_OFFSET_PX);
-    const offsetY = (((seed >> 8) % (MAX_POSITION_OFFSET_PX * 2 + 1)) - MAX_POSITION_OFFSET_PX);
+    // CRITICAL: Do not randomize grass Y anchor per instance.
+    // Per-instance Y offsets make identical grass types sort differently.
+    const offsetY = 0;
 
     // For FAR LOD: direct draw without transforms
     if (lodLevel === 'far') {

@@ -208,12 +208,13 @@ function getCollisionCandidates(
   
   for (const tree of nearbyTrees) {
     if (tree.health <= 0) continue;
+    const treeCollisionOffset = getTreeCollisionOffset(tree);
     
     shapes.push({
       id: tree.id.toString(),
       type: `tree-${tree.id.toString()}`,
-      x: tree.posX + COLLISION_OFFSETS.TREE.x,
-      y: tree.posY + COLLISION_OFFSETS.TREE.y,
+      x: tree.posX + treeCollisionOffset.x,
+      y: tree.posY + treeCollisionOffset.y,
       radius: COLLISION_RADII.TREE
     });
   }
@@ -1163,6 +1164,26 @@ export const COLLISION_OFFSETS = {
   // STORM_PILE removed - storms now spawn HarvestableResources and DroppedItems directly
   LIVING_CORAL: { x: 0, y: -60 }, // Living coral collision offset (doubled to match visual size)
 } as const;
+
+const TREE_COLLISION_VARIANT_OFFSETS: Record<string, { x: number; y: number }> = {
+  // Rowanberry collision should sit a bit higher than the default tree anchor.
+  RowanberryTree: { x: 0, y: -20 },
+  // Twisted spruce trunk is visually left-biased.
+  KrummholzSpruce: { x: -40, y: 0 },
+};
+
+function getTreeCollisionOffset(tree: Tree): { x: number; y: number } {
+  const treeTypeKey = typeof tree.treeType === 'object' && tree.treeType !== null && 'tag' in tree.treeType
+    ? (tree.treeType as any).tag
+    : (tree.treeType as unknown as string);
+  const variantOffset = TREE_COLLISION_VARIANT_OFFSETS[treeTypeKey];
+  if (!variantOffset) return COLLISION_OFFSETS.TREE;
+
+  return {
+    x: COLLISION_OFFSETS.TREE.x + variantOffset.x,
+    y: COLLISION_OFFSETS.TREE.y + variantOffset.y,
+  };
+}
 
 // Shelter AABB dimensions (must match server-side constants in shelter.rs)
 // These are tuned to match the interior collision rectangle (black debug box)

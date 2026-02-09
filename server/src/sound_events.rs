@@ -41,6 +41,7 @@ pub enum SoundType {
     ShootBow,       // shoot_bow.mp3 (1 variation - when hunting bow is fired)
     ShootCrossbow,  // shoot_crossbow.mp3 (1 variation - when crossbow is fired)
     ShootPistol,    // shoot_pistol.mp3 (1 variation - when pistol is fired)
+    ShootTurret,    // shoot_turret.mp3 (1 variation - when turret fires a bullet)
     ReloadBow,      // reload_bow.mp3 (1 variation - when hunting bow is nocked with an arrow)
     ReloadCrossbow, // reload_crossbow.mp3 (1 variation - when crossbow is loaded with a bolt)
     ReloadPistol,   // reload_pistol.mp3 (1 variation - when pistol magazine is loaded)
@@ -172,6 +173,7 @@ impl SoundType {
             SoundType::ShootBow => "shoot_bow",
             SoundType::ShootCrossbow => "shoot_crossbow",
             SoundType::ShootPistol => "shoot_pistol",
+            SoundType::ShootTurret => "shoot_turret",
             SoundType::ReloadBow => "reload_bow",
             SoundType::ReloadCrossbow => "reload_crossbow",
             SoundType::ReloadPistol => "reload_pistol",
@@ -300,6 +302,7 @@ impl SoundType {
             SoundType::ShootBow => 1,
             SoundType::ShootCrossbow => 1,
             SoundType::ShootPistol => 1,
+            SoundType::ShootTurret => 1,
             SoundType::Bandaging => 1,
             SoundType::StopBandaging => 1,
             SoundType::BarrelHit => 1,
@@ -788,6 +791,12 @@ pub fn emit_shoot_crossbow_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, p
 /// Emit a pistol shooting sound (when pistol is fired)
 pub fn emit_shoot_pistol_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::ShootPistol, pos_x, pos_y, 1.2, 900.0, player_id);
+}
+
+/// Emit a turret shooting sound (when turret fires a bullet)
+pub fn emit_shoot_turret_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32) {
+    // Turrets are triggered by the server/module, not a player
+    let _ = emit_sound_at_position_with_distance(ctx, SoundType::ShootTurret, pos_x, pos_y, 1.3, 1000.0, ctx.identity());
 }
 
 /// Emit a bow reload sound (when hunting bow is nocked with an arrow)

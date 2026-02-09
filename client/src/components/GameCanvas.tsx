@@ -149,7 +149,7 @@ import { renderWeatherOverlay } from '../utils/renderers/weatherOverlayUtils';
 import { calculateChunkIndex } from '../utils/chunkUtils';
 import { renderWaterOverlay } from '../utils/renderers/waterOverlayUtils';
 import { renderPlayer, isPlayerHovered, getSpriteCoordinates } from '../utils/renderers/playerRenderingUtils';
-import { renderSeaStackSingle, renderSeaStackShadowOnly, renderSeaStackBottomOnly, renderSeaStackWaterEffectsOnly, renderSeaStackWaterLineOnly, renderSeaStackUnderwaterSilhouette } from '../utils/renderers/seaStackRenderingUtils';
+import { renderSeaStackSingle, renderSeaStackShadowOnly, renderSeaStackBottomOnly, renderSeaStackUnderwaterSilhouette, renderSeaStackShadowsOverlay } from '../utils/renderers/seaStackRenderingUtils';
 import { renderBarrelUnderwaterSilhouette } from '../utils/renderers/barrelRenderingUtils';
 import { renderWaterPatches } from '../utils/renderers/waterPatchRenderingUtils';
 import { renderFertilizerPatches } from '../utils/renderers/fertilizerPatchRenderingUtils';
@@ -2339,8 +2339,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // === PERFORMANCE PROFILING ===
   // 🔧 SET TO true TO ENABLE LAG DIAGNOSTICS IN CONSOLE
-  const ENABLE_LAG_DIAGNOSTICS = true;
+  const ENABLE_LAG_DIAGNOSTICS = false;
   const LAG_DIAGNOSTIC_INTERVAL_MS = 5000; // Log every 5 seconds
+  const PLAYER_SORT_FEET_OFFSET_PX = 48;
+  // 🔧 SET TO true TO ENABLE Y-SORT DEBUG LOGGING
+  const ENABLE_YSORT_DEBUG = true;
+  const YSORT_DEBUG_INTERVAL_MS = 400;
+  const ySortDebugRef = useRef({
+    lastLogTime: 0,
+  });
   
   const perfProfilingRef = useRef({
     lastLogTime: Date.now(),
@@ -2418,6 +2425,76 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const currentYSortedEntities = ySortedEntitiesRef.current;
     const currentCanvasWidth = canvasSize.width;
     const currentCanvasHeight = canvasSize.height;
+
+    // Y-sort debug logging (throttled). Helps diagnose order mismatches in real time.
+    if (ENABLE_YSORT_DEBUG && localPlayerId) {
+      const nowDebug = Date.now();
+      if (nowDebug - ySortDebugRef.current.lastLogTime >= YSORT_DEBUG_INTERVAL_MS) {
+        ySortDebugRef.current.lastLogTime = nowDebug;
+
+        const localPosX = currentPredictedPosition?.x ?? localPlayer?.positionX ?? null;
+        const localPosY = currentPredictedPosition?.y ?? localPlayer?.positionY ?? null;
+        if (localPosX != null && localPosY != null) {
+          const localFeetY = localPosY + PLAYER_SORT_FEET_OFFSET_PX;
+
+          const playerIndex = currentYSortedEntities.findIndex((item: any) =>
+            item?.type === 'player' && item?.entity?.identity?.toHexString?.() === localPlayerId
+          );
+
+          // Find nearest grass/harvestable entity to local player by XY distance.
+          let nearest: any = null;
+          let nearestDistSq = Number.POSITIVE_INFINITY;
+          for (const item of currentYSortedEntities as any[]) {
+            if (!item || !item.entity) continue;
+            if (item.type !== 'grass' && item.type !== 'harvestable_resource') continue;
+
+            const ex = item.type === 'grass'
+              ? Number(item.entity.serverPosX ?? item.entity.posX ?? 0)
+              : Number(item.entity.posX ?? 0);
+            const ey = item.type === 'grass'
+              ? Number(item.entity.serverPosY ?? item.entity.posY ?? 0)
+              : Number(item.entity.posY ?? 0);
+            const dx = ex - localPosX;
+            const dy = ey - localPosY;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < nearestDistSq) {
+              nearestDistSq = distSq;
+              nearest = item;
+            }
+          }
+
+          if (nearest) {
+            const nearestIndex = currentYSortedEntities.indexOf(nearest);
+            const entityBaseY = nearest.type === 'grass'
+              ? Number(nearest.entity.serverPosY ?? 0) + 5
+              : Number(nearest.entity.posY ?? 0);
+            const expectedPlayerInFront = localFeetY >= entityBaseY;
+            const actualPlayerInFront =
+              playerIndex !== -1 && nearestIndex !== -1 ? playerIndex > nearestIndex : null;
+
+            // Keep this concise but complete so users can screenshot and share exact values.
+            console.log('[YSORT_DEBUG]', {
+              localPlayerId,
+              localPosX,
+              localPosY,
+              localFeetY,
+              nearestType: nearest.type,
+              nearestId: nearest.entity?.id?.toString?.() ?? null,
+              nearestTag: nearest.entity?.appearanceType?.tag ?? nearest.entity?.plantType?.tag ?? null,
+              nearestX: nearest.type === 'grass' ? nearest.entity?.serverPosX : nearest.entity?.posX,
+              nearestY: nearest.type === 'grass' ? nearest.entity?.serverPosY : nearest.entity?.posY,
+              entityBaseY,
+              expectedPlayerInFront,
+              playerIndex,
+              entityIndex: nearestIndex,
+              actualPlayerInFront,
+              orderMismatch: actualPlayerInFront != null ? actualPlayerInFront !== expectedPlayerInFront : null,
+              distSq: Math.round(nearestDistSq),
+            });
+          }
+        }
+      }
+    }
 
     // currentCycleProgress is read from ref above (defaults to 0.375 in ref initialization)
 
@@ -2576,7 +2653,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     });*/
     // --- End Ground Items --- 
 
-    // --- STEP 0.4: Render sea stack SHADOWS ONLY (below everything) ---
+    // --- STEP 0.4: Render sea stack underwater silhouettes (snorkeling) or bottom halves + water effects ---
+    // Sea stack ground shadows are now rendered as an overlay AFTER Y-sorted entities (see below)
     // Skip normal sea stack rendering when snorkeling - use underwater silhouettes instead
     if (isSnorkeling) {
       // When snorkeling, render sea stacks as feathered dark circles (underwater view of obstacles)
@@ -2591,11 +2669,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         renderBarrelUnderwaterSilhouette(ctx, barrel, currentCycleProgress, now_ms);
       });
     } else {
-      // Normal rendering: shadows, bottom half, and water effects
-      visibleSeaStacks.forEach(seaStack => {
-        renderSeaStackShadowOnly(ctx, seaStack, doodadImagesRef.current, currentCycleProgress);
-      });
-      // --- END SEA STACK SHADOWS ---
+      // Normal rendering: bottom half and water effects
+      // NOTE: Sea stack shadows are now rendered as an OVERLAY pass after Y-sorted entities
+      // (similar to tree canopy shadows) so they appear ON TOP of players walking near sea stacks.
 
       // --- STEP 0.5: Render sea stack BOTTOM halves WITHOUT shadows (underwater rock texture) ---
       const localPlayerPositionForSeaStacks = currentPredictedPosition ?? (localPlayer ? { x: localPlayer.positionX, y: localPlayer.positionY } : null);
@@ -2603,12 +2679,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         renderSeaStackBottomOnly(ctx, seaStack, doodadImagesRef.current, currentCycleProgress, now_ms, localPlayerPositionForSeaStacks);
       });
       // --- END SEA STACK BOTTOMS ---
-
-      // --- STEP 0.6: Render sea stack water effects (blue gradient overlay OVER the rock) ---
-      // This creates the underwater tint over the sea stack base
-      visibleSeaStacks.forEach(seaStack => {
-        renderSeaStackWaterEffectsOnly(ctx, seaStack, doodadImagesRef.current, now_ms);
-      });
     }
     // --- END SEA STACK RENDERING ---
 
@@ -3148,16 +3218,41 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             type: 'swimmingPlayerTopHalf' as const,
             entity: playerForRendering,
             // Use foot position for Y-sorting (same as other players)
-            yPosition: playerForRendering.positionY + 48,
+            yPosition: playerForRendering.positionY + PLAYER_SORT_FEET_OFFSET_PX,
             playerId
           };
         });
 
       // Helper function to get Y sort position from an entity
       const getEntityYSort = (entity: typeof nonSwimmingEntities[number]): number => {
+        // Keep this in sync with grassRenderingUtils.ts render anchor math.
+        const GRASS_RENDER_Y_SORT_OFFSET = 5;
         if ('positionY' in entity.entity && entity.entity.positionY !== undefined) {
-          return entity.entity.positionY + 48; // Player foot position
-        } else if ('worldPosY' in entity.entity && (entity.entity as any).worldPosY !== undefined) {
+          // CRITICAL FIX: For local player, use predicted position (matches rendering position)
+          // to prevent sort/render position mismatch when player is moving
+          if (entity.type === 'player') {
+            const player = entity.entity as any;
+            const playerId = player.identity?.toHexString?.();
+            if (playerId === localPlayerId && currentPredictedPosition) {
+              return currentPredictedPosition.y + PLAYER_SORT_FEET_OFFSET_PX; // Predicted foot position
+            }
+          }
+          return entity.entity.positionY + PLAYER_SORT_FEET_OFFSET_PX; // Player/other foot position
+        }
+        // Grass: use same +48 offset as player so offsets cancel out in comparisons,
+        // giving correct raw-Y-based sorting without needing explicit overrides
+        // that would break sort transitivity.
+        if (entity.type === 'grass' && 'serverPosY' in entity.entity) {
+          const grass = entity.entity as any;
+          const grassVisualAnchorY = Number(grass.serverPosY ?? 0) + GRASS_RENDER_Y_SORT_OFFSET;
+          return grassVisualAnchorY + PLAYER_SORT_FEET_OFFSET_PX;
+        }
+        if (entity.type === 'fumarole' && 'posY' in entity.entity) {
+          // HARD SAFETY RULE: keep fumaroles behind players in this re-sort path too.
+          const FUMAROLE_SORT_BACK_OFFSET_PX = 1000;
+          return Number((entity.entity as any).posY ?? 0) - FUMAROLE_SORT_BACK_OFFSET_PX;
+        }
+        if ('worldPosY' in entity.entity && (entity.entity as any).worldPosY !== undefined) {
           // ALK stations use worldPosY for their base position
           return (entity.entity as any).worldPosY;
         } else if ('worldY' in entity.entity && (entity.entity as any).worldY !== undefined) {
@@ -3184,11 +3279,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         const aEntity = !a._isSwimmingTop && 'entity' in a ? a.entity : null;
         const bEntity = !b._isSwimmingTop && 'entity' in b ? b.entity : null;
 
+        // CRITICAL: Helper to get effective Y for a player entity.
+        // Uses predicted position for local player (matches rendering position).
+        const getPlayerY = (entity: any): number => {
+          const playerId = entity?.identity?.toHexString?.();
+          if (playerId === localPlayerId && currentPredictedPosition) {
+            return currentPredictedPosition.y;
+          }
+          return entity?.positionY ?? 0;
+        };
+        
+
         // CRITICAL: Player vs ALK Station - tall structure Y-sorting
         // The ALK station sprite has ~24% transparent space at top. The visual "foot level"
         // (where players walk) is about 170px ABOVE worldPosY. Must use offset for correct sorting.
         if (aType === 'player' && bType === 'alk_station') {
-          const playerY = (aEntity as any)?.positionY ?? 0;
+          const playerY = getPlayerY(aEntity);
           const stationY = (bEntity as any)?.worldPosY ?? 0;
           const ALK_VISUAL_FOOT_OFFSET = 170; // Match collision Y offset - where building visually sits
           // Player renders in front if at or south of the building's visual foot level
@@ -3198,7 +3304,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           return -1; // Player clearly north of building - player behind (station on top)
         }
         if (aType === 'alk_station' && bType === 'player') {
-          const playerY = (bEntity as any)?.positionY ?? 0;
+          const playerY = getPlayerY(bEntity);
           const stationY = (aEntity as any)?.worldPosY ?? 0;
           const ALK_VISUAL_FOOT_OFFSET = 170;
           if (playerY >= stationY - ALK_VISUAL_FOOT_OFFSET) {
@@ -3210,7 +3316,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         // CRITICAL: Player vs Compound Building - tall structure Y-sorting (same pattern as ALK station)
         // Compound buildings use worldY as their visual foot/anchor point (no offset needed)
         if (aType === 'player' && bType === 'compound_building') {
-          const playerY = (aEntity as any)?.positionY ?? 0;
+          const playerY = getPlayerY(aEntity);
           const buildingY = (bEntity as any)?.worldY ?? 0;
           // Player renders in front if at or south of the building's visual foot level
           if (playerY >= buildingY) {
@@ -3219,7 +3325,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           return -1; // Player north of building - player behind (building on top)
         }
         if (aType === 'compound_building' && bType === 'player') {
-          const playerY = (bEntity as any)?.positionY ?? 0;
+          const playerY = getPlayerY(bEntity);
           const buildingY = (aEntity as any)?.worldY ?? 0;
           if (playerY >= buildingY) {
             return -1; // Player at/south of building's visual base - player in front (inverted)
@@ -3227,40 +3333,39 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           return 1; // Player north of building - player behind (inverted)
         }
 
-        // CRITICAL: Player vs Tree - explicit position-based Y-sorting
-        // Tree sprite bottom is at posY. Player feet at positionY.
-        // Player should be in front when their feet are at or south of tree base.
+        // Player vs Tree: force stable tree-base layering.
+        // Player north of tree base renders behind; south renders in front.
         if (aType === 'player' && bType === 'tree') {
-          const playerY = (aEntity as any)?.positionY ?? 0;
+          const playerY = getPlayerY(aEntity) + PLAYER_SORT_FEET_OFFSET_PX;
           const treeY = (bEntity as any)?.posY ?? 0;
           return playerY >= treeY ? 1 : -1;
         }
-        if (bType === 'player' && aType === 'tree') {
-          const playerY = (bEntity as any)?.positionY ?? 0;
+        if (aType === 'tree' && bType === 'player') {
+          const playerY = getPlayerY(bEntity) + PLAYER_SORT_FEET_OFFSET_PX;
           const treeY = (aEntity as any)?.posY ?? 0;
           return playerY >= treeY ? -1 : 1;
         }
 
-        // CRITICAL: Player vs Grass - explicit position-based Y-sorting
-        // Player should be in front when their feet are at or south of grass position.
-        if (aType === 'player' && bType === 'grass') {
-          const playerY = (aEntity as any)?.positionY ?? 0;
-          const grassY = (bEntity as any)?.serverPosY ?? (bEntity as any)?.posY ?? 0;
-          return playerY >= grassY ? 1 : -1;
+        
+
+        // Grass vs Tree: use relative Y so north grass is behind tree, south grass is in front.
+        // Keep this mirrored with useEntityFiltering to avoid re-sort mismatches.
+        if (aType === 'grass' && bType === 'tree') {
+          const grassBaseY = Number((aEntity as any)?.serverPosY ?? 0) + 5;
+          const treeY = Number((bEntity as any)?.posY ?? 0);
+          return grassBaseY >= treeY ? 1 : -1;
         }
-        if (bType === 'player' && aType === 'grass') {
-          const playerY = (bEntity as any)?.positionY ?? 0;
-          const grassY = (aEntity as any)?.serverPosY ?? (aEntity as any)?.posY ?? 0;
-          return playerY >= grassY ? -1 : 1;
+        if (aType === 'tree' && bType === 'grass') {
+          const treeY = Number((aEntity as any)?.posY ?? 0);
+          const grassBaseY = Number((bEntity as any)?.serverPosY ?? 0) + 5;
+          return grassBaseY >= treeY ? -1 : 1;
         }
 
-        // Grass vs tall structures: grass is a flat ground decoration that should always
-        // render behind (under) trees, stones, and other tall objects.
-        // Must replicate this from useEntityFiltering or this re-sort undoes the correct order.
-        if (aType === 'grass' && (bType === 'tree' || bType === 'stone' || bType === 'basalt_column' || bType === 'rune_stone' || bType === 'sea_stack')) {
+        // Grass vs other tall structures: keep grass behind.
+        if (aType === 'grass' && (bType === 'stone' || bType === 'basalt_column' || bType === 'rune_stone' || bType === 'sea_stack')) {
           return -1; // Grass renders before (behind) tall structure
         }
-        if (bType === 'grass' && (aType === 'tree' || aType === 'stone' || aType === 'basalt_column' || aType === 'rune_stone' || aType === 'sea_stack')) {
+        if (bType === 'grass' && (aType === 'stone' || aType === 'basalt_column' || aType === 'rune_stone' || aType === 'sea_stack')) {
           return 1; // Grass renders before (behind) tall structure
         }
 
@@ -3280,6 +3385,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         }
         if (bIsFlyingBird && !aIsFlyingBird) {
           return -1; // Flying bird renders after (above) non-flying entities
+        }
+
+        // Fumaroles are flat ground-level vents - players ALWAYS render above them
+        if (aType === 'player' && bType === 'fumarole') {
+          return 1; // Player renders after (above) fumarole
+        }
+        if (bType === 'player' && aType === 'fumarole') {
+          return -1; // Player renders after (above) fumarole
+        }
+        // Swimming player top halves also render above fumaroles
+        if (a._isSwimmingTop && bType === 'fumarole') {
+          return 1; // Swimming player top renders after (above) fumarole
+        }
+        if (b._isSwimmingTop && aType === 'fumarole') {
+          return -1; // Swimming player top renders after (above) fumarole
         }
 
         // Broth pot MUST render above campfires and fumaroles
@@ -3494,21 +3614,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
     // --- END TREE CANOPY SHADOWS ---
 
+    // --- Render Sea Stack Ground Shadow Overlays ---
+    // These render AFTER all Y-sorted entities so shadows appear ON TOP of players near sea stacks,
+    // matching how tree canopy shadows work. Uses an offscreen canvas with sea stack body cutouts
+    // so the shadow appears on the ground/players but NOT on the sea stack rock itself.
+    // Skip when snorkeling (underwater silhouettes are used instead).
+    if (!isSnorkeling && visibleSeaStacks && visibleSeaStacks.length > 0) {
+      renderSeaStackShadowsOverlay(ctx, visibleSeaStacks, doodadImagesRef.current, currentCycleProgress);
+    }
+    // --- END SEA STACK GROUND SHADOW OVERLAYS ---
+
     // --- Render animal burrow effects (dirt particles when animals burrow underground) ---
     // Process all wild animals to detect newly burrowed animals
     processWildAnimalsForBurrowEffects(wildAnimals, now_ms);
     // Render the active burrow particle effects
     renderBurrowEffects(ctx, now_ms);
     // --- END BURROW EFFECTS ---
-
-    // --- Render sea stack water lines (ABOVE sea stacks) ---
-    // Skip water lines when snorkeling - player is underwater, no surface water effects visible
-    if (!isSnorkeling) {
-      visibleSeaStacks.forEach(seaStack => {
-        renderSeaStackWaterLineOnly(ctx, seaStack, doodadImagesRef.current, now_ms);
-      });
-    }
-    // --- END SEA STACK WATER LINES ---
 
     // --- Render Hot Springs (ABOVE players for steam/bubbles to show on top) ---
     renderHotSprings(

@@ -218,8 +218,11 @@ export interface CompoundBuildingEntity {
 }
 
 // ===== HELPER FUNCTIONS FOR Y-SORTING =====
+const PLAYER_SORT_FEET_OFFSET_PX = 48;
 const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
   const { entity, type } = item;
+  // Keep this in sync with grassRenderingUtils.ts render anchor math.
+  const GRASS_RENDER_Y_SORT_OFFSET = 5;
   switch (type) {
     case 'player':
       // Player Y position: use positionY (foot position) + 48 to get head/center
@@ -244,7 +247,7 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
         return (player.positionX !== undefined ? player.positionX : 0) + 1000000; // Large offset to put invalid players at bottom
       }
       // Return the actual Y position - this should be the world Y coordinate
-      return playerY + 48 + 2.0;
+      return playerY + PLAYER_SORT_FEET_OFFSET_PX + 2.0;
     case 'tree':
     case 'stone':
     case 'stash':
@@ -282,7 +285,6 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
     case 'wild_animal':
     case 'barrel':
     case 'sleeping_bag':
-    case 'fumarole': // ADDED: Fumaroles sort by Y position (ground-level vents)
     case 'basalt_column': // ADDED: Basalt columns sort by Y position (tall obstacles)
     // storm_pile removed - storms now spawn HarvestableResources and DroppedItems directly
     case 'living_coral': // Living coral reefs sort by Y position (uses combat system)
@@ -290,13 +292,16 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       // The +10000 offset was causing everything to always render above players
       // Now placeables sort correctly based on their actual world Y position
       return entity.posY;
+    case 'fumarole': {
+      // HARD SAFETY RULE: players should never appear under fumaroles.
+      // Push fumaroles far back in Y-sort so they consistently render beneath players.
+      const FUMAROLE_SORT_BACK_OFFSET_PX = 1000;
+      return entity.posY - FUMAROLE_SORT_BACK_OFFSET_PX;
+    }
     case 'turret':
-      // Turret: sprite centered on posY
-      // Y-sort at the structure's mid-body so the player pops in front when walking
-      // past the center area - not waiting until fully past the base
-      // Monument turrets are 2x size (512x512) - sort ~40px below center
-      // Regular turrets (256x256) - sort ~40px below center
-      return entity.posY + ((entity as any).isMonument ? 40 : 40);
+      // Turret: 256x256 sprite centered on posY, visual base (wooden platform) is ~80px below center
+      // Y-sort by the visual base so players in front render correctly
+      return entity.posY + 80;
     case 'broth_pot':
       // CRITICAL: Broth pot sits ON TOP of campfires/fumaroles (same posY position).
       // Adding a significant offset (10) ensures broth_pot ALWAYS sorts AFTER its heat source
@@ -328,10 +333,9 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       // Player should be BEHIND when in top 87.5%, IN FRONT only when in bottom 12.5%
       // Sprite visual bounds: top = worldY - height + anchorYOffset, bottom = worldY + anchorYOffset
       // 87.5% threshold = worldY - (height * 0.125) + anchorYOffset (only bottom 12.5% = player in front)
-      // Add offset to ensure monuments render above resources (piles) when at similar Y positions
       const building = entity as CompoundBuildingEntity;
       const sortThresholdY = building.worldY - (building.height * 0.125) + (building.anchorYOffset || 0);
-      return sortThresholdY + 50; // Add offset to ensure monuments render after resources (on top)
+      return sortThresholdY;
     }
     case 'foundation_cell': {
       // Foundation cells use cell coordinates - convert to world pixel Y
@@ -390,9 +394,6 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       }
     }
     case 'grass':
-      // Grass is a ground-level decoration that should Y-sort naturally with the player
-      // and other entities based on its actual world Y position. No large negative offset
-      // needed - natural Y-sorting handles the correct render order with trees/stones/player.
       return entity.serverPosY;
     case 'projectile': {
       const startTime = Number(entity.startTime.microsSinceUnixEpoch / 1000n);
@@ -1929,6 +1930,11 @@ export function useEntityFiltering(
     };
     
     // Aggregate all entity types with pre-computed sort keys
+    // CRITICAL FIX: For the local player, use the PREDICTED Y position for sorting.
+    // The player is RENDERED at the predicted position (client-side prediction for smooth movement),
+    // but previously sorted at the SERVER position (player.positionY). When these diverge
+    // (e.g., during movement), the player can appear at a different Y than their sort position,
+    // causing incorrect rendering order relative to grass and other entities.
     visiblePlayers.forEach(e => addEntity('player', e));
     visibleTrees.forEach(e => addEntity('tree', e));
     // Include stones with health > 0 OR stones with active destruction effects
@@ -2054,6 +2060,11 @@ export function useEntityFiltering(
     // The Y sort key was computed once per entity during aggregation above,
     // eliminating O(n log n) getEntityY() calls during sorting.
     // Special case checks still run, but the final Y comparison uses simple numbers.
+    const getPlayerEffectiveY = (player: SpacetimeDBPlayer): number => {
+      return player.positionY;
+    };
+    
+    
     allEntities.sort((a, b) => {
       // ABSOLUTE FIRST CHECK: Broth pot MUST ALWAYS render above campfires and fumaroles
       // This is the highest priority visual rule - broth pots sit ON TOP of heat sources
@@ -2072,21 +2083,21 @@ export function useEntityFiltering(
       // The visual "foot" of the building is NOT at worldPosY - it's higher up.
       // We need a large buffer to account for: transparent sprite top (~115px) + player height (48px)
       if (a.type === 'player' && b.type === 'alk_station') {
-        const player = a.entity as SpacetimeDBPlayer;
+        const playerY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer);
         const station = b.entity as SpacetimeDBAlkStation;
         // Buffer accounts for: transparent top of sprite (~115px) + player height (48px) + safety margin
         const ALK_STATION_YSORT_BUFFER = 170; // Matches collision Y offset - where building visually sits
         // Player renders in front if their feet are at or south of the building's visual base
-        if (player.positionY >= station.worldPosY - ALK_STATION_YSORT_BUFFER) {
+        if (playerY >= station.worldPosY - ALK_STATION_YSORT_BUFFER) {
           return 1; // Player at/near/south of building's visual base - player in front
         }
         return -1; // Player clearly north of building - player behind (station on top)
       }
       if (a.type === 'alk_station' && b.type === 'player') {
-        const player = b.entity as SpacetimeDBPlayer;
+        const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer);
         const station = a.entity as SpacetimeDBAlkStation;
         const ALK_STATION_YSORT_BUFFER = 170; // Matches collision Y offset - where building visually sits
-        if (player.positionY >= station.worldPosY - ALK_STATION_YSORT_BUFFER) {
+        if (playerY >= station.worldPosY - ALK_STATION_YSORT_BUFFER) {
           return -1; // Player at/near/south of building's visual base - player in front (inverted)
         }
         return 1; // Player clearly north of building - player behind (inverted)
@@ -2098,56 +2109,40 @@ export function useEntityFiltering(
       // Sprite bounds: top = worldY - height + anchorYOffset, bottom = worldY + anchorYOffset
       // 87.5% threshold = worldY - (height * 0.125) + anchorYOffset (only bottom 12.5% = player in front)
       if (a.type === 'player' && b.type === 'compound_building') {
-        const player = a.entity as SpacetimeDBPlayer;
+        const playerY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer);
         const building = b.entity as CompoundBuildingEntity;
         // Calculate 87.5% Y threshold for sorting (player in front only in bottom 12.5%)
         const sortThresholdY = building.worldY - (building.height * 0.125) + (building.anchorYOffset || 0);
-        if (player.positionY >= sortThresholdY) {
+        if (playerY >= sortThresholdY) {
           return 1; // Player in bottom 12.5% of monument - player in front
         }
         return -1; // Player in top 87.5% of monument - player behind (building on top)
       }
       if (a.type === 'compound_building' && b.type === 'player') {
         const building = a.entity as CompoundBuildingEntity;
-        const player = b.entity as SpacetimeDBPlayer;
+        const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer);
         // Calculate 87.5% Y threshold for sorting (player in front only in bottom 12.5%)
         const sortThresholdY = building.worldY - (building.height * 0.125) + (building.anchorYOffset || 0);
-        if (player.positionY >= sortThresholdY) {
+        if (playerY >= sortThresholdY) {
           return -1; // Player in bottom 12.5% of monument - player in front (inverted)
         }
         return 1; // Player in top 87.5% of monument - player behind (inverted)
       }
       
-      // CRITICAL: Player vs Tree - explicit position-based Y-sorting
-      // Trees use posY - 100 as their sort key (to render under buildings), but this creates
-      // a 150px gap with the player's sort key (positionY + 50), causing the player to appear
-      // in front of trees WAY too early. Fix: compare raw world positions directly.
-      // Tree sprite bottom is at tree.posY, so player should be in front when feet >= tree base.
+      // Player vs Tree: force stable tree-base layering.
+      // Player north of tree base renders behind; south renders in front.
       if (a.type === 'player' && b.type === 'tree') {
-        const playerY = (a.entity as SpacetimeDBPlayer).positionY;
-        const treeY = (b.entity as SpacetimeDBTree).posY;
-        return playerY >= treeY ? 1 : -1;
+        const playerY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer) + PLAYER_SORT_FEET_OFFSET_PX;
+        const tree = b.entity as SpacetimeDBTree;
+        return playerY >= tree.posY ? 1 : -1;
       }
-      if (b.type === 'player' && a.type === 'tree') {
-        const playerY = (b.entity as SpacetimeDBPlayer).positionY;
-        const treeY = (a.entity as SpacetimeDBTree).posY;
-        return playerY >= treeY ? -1 : 1;
+      if (a.type === 'tree' && b.type === 'player') {
+        const tree = a.entity as SpacetimeDBTree;
+        const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer) + PLAYER_SORT_FEET_OFFSET_PX;
+        return playerY >= tree.posY ? -1 : 1;
       }
       
-      // CRITICAL: Player vs Grass - explicit position-based Y-sorting
-      // Grass uses raw serverPosY but the player sort key includes +50 offset,
-      // causing the player to render on top of grass that's up to 50px south of them.
-      // Fix: compare player feet (positionY) directly against grass world position.
-      if (a.type === 'player' && b.type === 'grass') {
-        const playerY = (a.entity as SpacetimeDBPlayer).positionY;
-        const grassY = (b.entity as any).serverPosY;
-        return playerY >= grassY ? 1 : -1;
-      }
-      if (b.type === 'player' && a.type === 'grass') {
-        const playerY = (b.entity as SpacetimeDBPlayer).positionY;
-        const grassY = (a.entity as any).serverPosY;
-        return playerY >= grassY ? -1 : 1;
-      }
+      
       
       // Flying birds MUST render above everything (trees, stones, players, etc.)
       // This ensures birds in flight are always visible above ground entities
@@ -2179,15 +2174,35 @@ export function useEntityFiltering(
       
       // NOTE: Broth pot vs campfire/fumarole check moved to ABSOLUTE FIRST CHECK at top of comparator
       
-      // Grass vs tall structures: grass is a flat ground decoration that should always
-      // render behind (under) trees, stones, and other tall objects. Without this,
-      // grass at serverPosY sorts after trees at posY-100, causing grass to render
-      // on top of tree trunks/canopies. When they don't visually overlap (grass far
-      // south), order is irrelevant. When they do overlap, grass must be behind.
-      if (a.type === 'grass' && (b.type === 'tree' || b.type === 'stone' || b.type === 'basalt_column' || b.type === 'rune_stone' || b.type === 'sea_stack')) {
+      // Fumaroles are flat ground-level vents - players should ALWAYS render above them.
+      // Without this, when a player and fumarole have similar Y positions, the fumarole
+      // can Y-sort on top of the player, making it look like the player is under the vent.
+      // This applies to both land fumaroles and submerged (water) fumaroles.
+      if (a.type === 'player' && b.type === 'fumarole') {
+        return 1; // Player renders after (above) fumarole
+      }
+      if (b.type === 'player' && a.type === 'fumarole') {
+        return -1; // Player renders after (above) fumarole
+      }
+      
+      // Grass vs Tree: use relative Y so north grass is behind tree, south grass is in front.
+      // This prevents local conflicts with player-vs-grass and player-vs-tree near trunks.
+      if (a.type === 'grass' && b.type === 'tree') {
+        const grassBaseY = Number((a.entity as any)?.serverPosY ?? 0) + 5;
+        const treeY = (b.entity as SpacetimeDBTree).posY;
+        return grassBaseY >= treeY ? 1 : -1;
+      }
+      if (a.type === 'tree' && b.type === 'grass') {
+        const treeY = (a.entity as SpacetimeDBTree).posY;
+        const grassBaseY = Number((b.entity as any)?.serverPosY ?? 0) + 5;
+        return grassBaseY >= treeY ? -1 : 1;
+      }
+
+      // Grass vs other tall structures: keep grass behind for clean layering.
+      if (a.type === 'grass' && (b.type === 'stone' || b.type === 'basalt_column' || b.type === 'rune_stone' || b.type === 'sea_stack')) {
         return -1; // Grass renders before (behind) tall structure
       }
-      if (b.type === 'grass' && (a.type === 'tree' || a.type === 'stone' || a.type === 'basalt_column' || a.type === 'rune_stone' || a.type === 'sea_stack')) {
+      if (b.type === 'grass' && (a.type === 'stone' || a.type === 'basalt_column' || a.type === 'rune_stone' || a.type === 'sea_stack')) {
         return 1; // Grass renders before (behind) tall structure
       }
       

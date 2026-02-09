@@ -210,8 +210,32 @@ function applyShelterClipping(ctx: CanvasRenderingContext2D, shelters?: Array<{p
   ctx.clip();
 }
 
-// Cache for pre-rendered silhouettes
+// Cache for pre-rendered silhouettes with LRU eviction to prevent unbounded growth
+const SILHOUETTE_CACHE_MAX_SIZE = 128;
 const silhouetteCache = new Map<string, HTMLCanvasElement>();
+
+/** Evicts oldest entries from silhouetteCache when it exceeds max size */
+function evictSilhouetteCache(): void {
+  if (silhouetteCache.size <= SILHOUETTE_CACHE_MAX_SIZE) return;
+  // Map iterates in insertion order; delete the oldest entries
+  const entriesToDelete = silhouetteCache.size - SILHOUETTE_CACHE_MAX_SIZE;
+  let deleted = 0;
+  for (const key of silhouetteCache.keys()) {
+    if (deleted >= entriesToDelete) break;
+    const canvas = silhouetteCache.get(key);
+    if (canvas) {
+      canvas.width = 0; // Release GPU memory
+      canvas.height = 0;
+    }
+    silhouetteCache.delete(key);
+    deleted++;
+  }
+}
+
+// Reusable offscreen canvas for non-cached silhouette rendering (canvas-type inputs)
+// Avoids creating a new canvas per draw call for sprite-sheet-extracted frames
+const _silhouetteCanvas = document.createElement('canvas');
+const _silhouetteCtx = _silhouetteCanvas.getContext('2d');
 
 // Global shelter clipping data - set by GameCanvas and used by all shadow rendering
 let globalShelterClippingData: Array<{posX: number, posY: number, isDestroyed: boolean}> = [];
@@ -359,18 +383,34 @@ export function drawDynamicGroundShadow({
   let offscreenCanvas = cacheKey ? silhouetteCache.get(cacheKey) : null;
 
   if (!offscreenCanvas) {
-    // Create an offscreen canvas to prepare the sharp silhouette if not cached
-    const newOffscreenCanvas = document.createElement('canvas');
-    newOffscreenCanvas.width = imageDrawWidth;
-    newOffscreenCanvas.height = imageDrawHeight;
-    const offscreenCtx = newOffscreenCanvas.getContext('2d');
+    // For non-cached inputs (canvas-type), reuse the module-level silhouette canvas
+    // For cached inputs (HTMLImageElement), create a new canvas to store in cache
+    let newOffscreenCanvas: HTMLCanvasElement;
+    let offscreenCtx: CanvasRenderingContext2D | null;
+
+    if (cacheKey) {
+      // HTMLImageElement path: create a new canvas for caching
+      newOffscreenCanvas = document.createElement('canvas');
+      newOffscreenCanvas.width = imageDrawWidth;
+      newOffscreenCanvas.height = imageDrawHeight;
+      offscreenCtx = newOffscreenCanvas.getContext('2d');
+    } else {
+      // Canvas-type input: reuse module-level canvas to avoid per-frame allocation
+      _silhouetteCanvas.width = imageDrawWidth;
+      _silhouetteCanvas.height = imageDrawHeight;
+      newOffscreenCanvas = _silhouetteCanvas;
+      offscreenCtx = _silhouetteCtx;
+    }
 
     if (!offscreenCtx) {
       console.error("Failed to get 2D context from offscreen canvas for shadow rendering.");
       return;
     }
 
+    offscreenCtx.clearRect(0, 0, imageDrawWidth, imageDrawHeight);
+
     // 1. Draw the original image onto the offscreen canvas
+    offscreenCtx.globalCompositeOperation = 'source-over';
     offscreenCtx.drawImage(entityImage, 0, 0, imageDrawWidth, imageDrawHeight);
 
     // 2. Create a sharp, tinted silhouette on the offscreen canvas using source-in
@@ -381,6 +421,7 @@ export function drawDynamicGroundShadow({
     // Store in cache only for HTMLImageElement (not for canvas)
     if (cacheKey) {
       silhouetteCache.set(cacheKey, newOffscreenCanvas);
+      evictSilhouetteCache(); // Prevent unbounded growth
     }
     offscreenCanvas = newOffscreenCanvas;
   }

@@ -3,13 +3,16 @@ import { TILE_SIZE } from '../../config/gameConfig';
 /**
  * Water Overlay Rendering Utilities
  *
- * High-performance multi-sine cellular shader with bilinear-scaled output
- * and per-tile shoreline feathering.  Targets <5 ms on a 1080p viewport.
+ * 4-cell voronoi noise shader with sine-wave cell animation, caustic
+ * interference, and per-tile shoreline feathering.  Computed at 1/4
+ * resolution and bilinear-scaled for smooth output.
  *
- * Architecture:
- *   1. Build a per-tile bitmask encoding water/land + shore adjacency.
- *   2. Evaluate a lightweight sine-interference shader at 1/PX resolution.
- *   3. putImageData → drawImage with bilinear upscale (smooth, not blocky).
+ * Performance budget (1080p, 50 % water): ~5 ms
+ *   • 4-cell voronoi (vs 9-cell): 2.25× fewer hash/sin lookups
+ *   • Squared-distance edge detection: no sqrt
+ *   • 1 hash + 1 fsin per cell (correlated XY drift): halved vs 2+2
+ *   • Per-row UV distortion pre-computation
+ *   • Bilinear upscale: GPU-free smooth edges at 1/4 pixel count
  */
 
 // ============================================================================
@@ -17,17 +20,14 @@ import { TILE_SIZE } from '../../config/gameConfig';
 // ============================================================================
 
 const TWO_PI = 6.283185307179586;
+const PX = 4; // shader texel size — bilinear-scaled up
 
-/**
- * Shader texel size in screen pixels.
- * Buffer is 1/PX the viewport resolution, then bilinear-scaled up.
- */
-const PX = 4;
-
-// --- Multi-sine crest pattern (cellular approximation — replaces voronoi) ---
-const CR1X = 0.032; const CR1Y = 0.018; const CR1S =  0.50;
-const CR2X = 0.018; const CR2Y = 0.028; const CR2S = -0.40;
-const CR3X = 0.024; const CR3Y = 0.036; const CR3S =  0.35;
+// --- Voronoi ---
+const VS  = 0.013;   // cell scale (smaller → bigger cells)
+const VA  = 0.55;    // cell animation speed
+const VW  = 0.35;    // cell wander radius
+const VE  = 0.08;    // edge threshold (squared-distance space)
+const VCS = 0.35;    // cell shade range (squared-distance space)
 
 // --- Caustic sine-interference ---
 const CA1X = 0.031; const CA1Y = 0.013; const CA1S = 1.40;
@@ -37,74 +37,76 @@ const CA2X = 0.017; const CA2Y = 0.023; const CA2S = 1.10;
 const DFX = 0.018; const DSX = 1.50; const DAX = 3.0;
 const DFY = 0.014; const DSY = 1.20; const DAY = 2.5;
 
-// --- Ripple band ---
-const RF1X = 0.042; const RF1Y = 0.016; const RS1 = 2.00;
-
-// --- Specular sparkle ---
-const SPX = 0.089; const SPS1 = 3.20;
-const SPY = 0.097; const SPS2 = 2.80;
+// --- Ripple ---
+const RFX = 0.042; const RFY = 0.016; const RS = 2.00;
 
 // --- Layer weights ---
-const WC = 0.50;   // crests
-const WA = 0.28;   // caustics
-const WR = 0.16;   // ripple
-const WS = 0.28;   // sparkle
+const WCR = 0.55;  // crest edges
+const WCA = 0.28;  // caustics
+const WRI = 0.16;  // ripple
+const WCS = 0.06;  // cell interior shading
 
-// --- Output colour / alpha ---
+// --- Output ---
 const BR = 225; const RR = 30;
 const BG = 240; const RG = 15;
 const OB = 255;
-const BA = 4;    // base alpha
-const RA = 85;   // alpha range
+const BA = 4;   const RA = 85;
 
 // --- Shoreline feathering ---
-const FEATH = 14;             // feather distance in world pixels
+const FEATH = 14;
 const INV_F = 1.0 / FEATH;
 
 // ============================================================================
-// SINE LUT  (4096 entries ≈ 16 KB — avoids Math.sin in hot loop)
+// SINE LUT
 // ============================================================================
 
-const SN   = 4096;
-const SMSK = SN - 1;
-const SSCL = SN / TWO_PI;
-const SLUT = new Float32Array(SN);
-for (let i = 0; i < SN; i++) SLUT[i] = Math.sin((i / SN) * TWO_PI);
+const SN = 4096, SM = SN - 1, SS = SN / TWO_PI;
+const SL = new Float32Array(SN);
+for (let i = 0; i < SN; i++) SL[i] = Math.sin((i / SN) * TWO_PI);
 
 function fsin(x: number): number {
-  let i = (x * SSCL) % SN;
-  if (i < 0) i += SN;
-  return SLUT[i & SMSK];
+  let i = (x * SS) % SN; if (i < 0) i += SN;
+  return SL[i & SM];
 }
 
 // ============================================================================
 // SMOOTHSTEP
 // ============================================================================
 
-function ss(e0: number, e1: number, x: number): number {
-  if (x <= e0) return 0;
-  if (x >= e1) return 1;
+function sst(e0: number, e1: number, x: number): number {
+  if (x <= e0) return 0; if (x >= e1) return 1;
   const t = (x - e0) / (e1 - e0);
   return t * t * (3.0 - 2.0 * t);
+}
+
+// ============================================================================
+// HASH  (Jenkins 32-bit — pure ALU, no trig)
+// ============================================================================
+
+function jh(n: number): number {
+  n = (n + 0x7ed55d16 + (n << 12)) | 0;
+  n = (n ^ 0xc761c23c ^ (n >>> 19)) | 0;
+  n = (n + 0x165667b1 + (n <<  5)) | 0;
+  n = (n + 0xd3a2646c ^ (n <<  9)) | 0;
+  n = (n + 0xfd7046c5 + (n <<  3)) | 0;
+  n = (n ^ 0xb55a4f09 ^ (n >>> 16)) | 0;
+  return (n & 0x7fffffff) * 4.656612873077393e-10;
 }
 
 // ============================================================================
 // WATER TILE SET
 // ============================================================================
 
-const _wSet = new Set<number>();
-let   _wSrc: Map<string, any> | null = null;
+const _wS = new Set<number>();
+let _wR: Map<string, any> | null = null;
 
-function tkey(tx: number, ty: number): number {
+function tk(tx: number, ty: number): number {
   return ((tx + 32768) << 16) | ((ty + 32768) & 0xFFFF);
 }
-
 function rebuildSet(wt: Map<string, any>): void {
-  _wSet.clear();
-  wt.forEach(t => {
-    if (t.tileType && t.tileType.tag === 'Sea') _wSet.add(tkey(t.worldX | 0, t.worldY | 0));
-  });
-  _wSrc = wt;
+  _wS.clear();
+  wt.forEach(t => { if (t.tileType && t.tileType.tag === 'Sea') _wS.add(tk(t.worldX | 0, t.worldY | 0)); });
+  _wR = wt;
 }
 
 // ============================================================================
@@ -119,6 +121,8 @@ let _bw = 0, _bh = 0;
 
 function ensureBuf(w: number, h: number): void {
   if (_oc && _bw === w && _bh === h) return;
+  // Release GPU memory from old canvas before creating new one
+  if (_oc) { _oc.width = 0; _oc.height = 0; }
   _oc = document.createElement('canvas');
   _oc.width = w; _oc.height = h;
   _ox = _oc.getContext('2d', { willReadFrequently: true })!;
@@ -128,64 +132,48 @@ function ensureBuf(w: number, h: number): void {
 }
 
 // ============================================================================
-// PER-FRAME TILE GRID
-//   0          → land
-//   TG_INT     → interior water (no adjacent land)
-//   bits 0-3   → which cardinal neighbours are land (for feathering)
+// TILE GRID  (0 = land, TG_I = interior water, bits 0-3 = shore adjacency)
 // ============================================================================
 
-const TG_INT = 0x80;
+const TG_I = 0x80;
 let _tg: Uint8Array | null = null;
-let _tgC = 0, _tgR = 0, _tgMx = 0, _tgMy = 0;
+let _tC = 0, _tMx = 0, _tMy = 0, _tRw = 0;
 
-function buildGrid(
-  wt: Map<string, any>,
-  ox: number, oy: number, vw: number, vh: number,
-): void {
-  if (wt !== _wSrc) rebuildSet(wt);
-
-  const mx = Math.floor(ox / TILE_SIZE) - 2;
-  const my = Math.floor(oy / TILE_SIZE) - 2;
-  const Mx = Math.floor((ox + vw) / TILE_SIZE) + 2;
-  const My = Math.floor((oy + vh) / TILE_SIZE) + 2;
-  const cols = Mx - mx + 1;
-  const rows = My - my + 1;
-  const sz   = cols * rows;
+function buildGrid(wt: Map<string, any>, ox: number, oy: number, vw: number, vh: number): void {
+  if (wt !== _wR) rebuildSet(wt);
+  const ts = TILE_SIZE;
+  const mx = Math.floor(ox / ts) - 2, my = Math.floor(oy / ts) - 2;
+  const Mx = Math.floor((ox + vw) / ts) + 2, My = Math.floor((oy + vh) / ts) + 2;
+  const cols = Mx - mx + 1, rows = My - my + 1, sz = cols * rows;
 
   if (!_tg || _tg.length < sz) _tg = new Uint8Array(sz);
   else _tg.fill(0, 0, sz);
 
-  // Pass 1 — mark water
   for (let ty = my; ty <= My; ty++) {
     const ro = (ty - my) * cols;
-    for (let tx = mx; tx <= Mx; tx++) {
-      if (_wSet.has(tkey(tx, ty))) _tg[ro + (tx - mx)] = TG_INT;
-    }
+    for (let tx = mx; tx <= Mx; tx++) if (_wS.has(tk(tx, ty))) _tg[ro + (tx - mx)] = TG_I;
   }
-
-  // Pass 2 — tag shore adjacency
   for (let ty = my; ty <= My; ty++) {
     const r = ty - my, ro = r * cols;
     for (let tx = mx; tx <= Mx; tx++) {
       const c = tx - mx, i = ro + c;
       if (_tg[i] === 0) continue;
       let e = 0;
-      if (c === 0        || _tg[ro + c - 1]         === 0) e |= 1;
-      if (c === cols - 1  || _tg[ro + c + 1]         === 0) e |= 2;
-      if (r === 0        || _tg[(r - 1) * cols + c] === 0) e |= 4;
-      if (r === rows - 1  || _tg[(r + 1) * cols + c] === 0) e |= 8;
+      if (c === 0          || _tg[ro + c - 1]         === 0) e |= 1;
+      if (c === cols - 1   || _tg[ro + c + 1]         === 0) e |= 2;
+      if (r === 0          || _tg[(r - 1) * cols + c] === 0) e |= 4;
+      if (r === rows - 1   || _tg[(r + 1) * cols + c] === 0) e |= 8;
       if (e) _tg[i] = e;
     }
   }
-
-  _tgC = cols; _tgR = rows; _tgMx = mx; _tgMy = my;
+  _tC = cols; _tRw = rows; _tMx = mx; _tMy = my;
 }
 
 // ============================================================================
 // INTENSITY
 // ============================================================================
 
-let _intMul = 1.0;
+let _int = 1.0;
 
 // ============================================================================
 // MAIN SHADER
@@ -198,64 +186,58 @@ function renderShader(
   tMs: number,
   wt: Map<string, any>,
 ): void {
-  const bw = Math.ceil(cw / PX);
-  const bh = Math.ceil(ch / PX);
+  const bw = Math.ceil(cw / PX), bh = Math.ceil(ch / PX);
   if (bw <= 0 || bh <= 0) return;
   ensureBuf(bw, bh);
 
-  const px  = _op!;
-  const t   = tMs * 0.001;
-  const intA = _intMul;
-
-  // Pre-compute time-dependent offsets (constant for the whole frame)
-  const tCr1 = t * CR1S, tCr2 = t * CR2S, tCr3 = t * CR3S;
-  const tCa1 = t * CA1S, tCa2 = t * CA2S;
-  const tDX  = t * DSX,  tDY  = t * DSY;
-  const tR1  = t * RS1;
-  const tSp1 = t * SPS1, tSp2 = t * SPS2;
-
-  buildGrid(wt, camX, camY, cw, ch);
-
-  const grid = _tg!;
-  const gCols = _tgC, gMx = _tgMx, gMy = _tgMy;
+  const px = _op!;
+  const t  = tMs * 0.001;
+  const intA = _int;
   const ts = TILE_SIZE;
   const invTS = 1.0 / ts;
 
+  // Frame-constant time products
+  const tAnim = t * VA;
+  const tCa1 = t * CA1S, tCa2 = t * CA2S;
+  const tDX = t * DSX, tDY = t * DSY;
+  const tR = t * RS;
+
+  buildGrid(wt, camX, camY, cw, ch);
+  const grid = _tg!, gC = _tC, gMx = _tMx, gMy = _tMy;
+
   for (let py = 0; py < bh; py++) {
-    const wy     = camY + py * PX;
+    const wy = camY + py * PX;
     const rowOff = py * bw;
 
-    // --- Per-row pre-computation ---
-    const tileRowY = Math.floor(wy * invTS);
-    const gridRowR = tileRowY - gMy;
-    const gridRowO = gridRowR * gCols;
-    const lyBase   = wy - tileRowY * ts;           // local Y within tile
-    const distRowX = fsin(wy * DFX + tDX) * DAX;   // UV distort X (constant for row)
+    // ---- Per-row pre-computation ----
+    const tileRowY  = Math.floor(wy * invTS);
+    const gridRowO  = (tileRowY - gMy) * gC;
+    const lyBase    = wy - tileRowY * ts;
+    const distRowX  = fsin(wy * DFX + tDX) * DAX;  // UV distort X
 
     for (let ppx = 0; ppx < bw; ppx++) {
       const wx  = camX + ppx * PX;
       const idx = (rowOff + ppx) << 2;
 
-      // ---- Tile grid lookup (inlined for speed) ----
+      // ---- Tile grid (inlined) ----
       const tileColX = Math.floor(wx * invTS);
       const gc = tileColX - gMx;
-      const gi = gridRowO + gc;
-      const v  = grid[gi];
+      const v  = grid[gridRowO + gc];
 
-      if (v === 0) { // land — transparent
+      if (v === 0) {
         px[idx] = 0; px[idx + 1] = 0; px[idx + 2] = 0; px[idx + 3] = 0;
         continue;
       }
 
-      // ---- Feather (only for shore-adjacent tiles) ----
+      // ---- Feather (shore tiles only) ----
       let feather = 1.0;
-      if (v !== TG_INT) {
+      if (v !== TG_I) {
         const lx = wx - tileColX * ts;
-        const ly = lyBase; // same tileRowY → same ly
-        if (v & 1) { const d = lx * INV_F; if (d < 1) { feather *= d * d * (3 - 2 * d); } }
-        if (v & 2) { const d = (ts - lx) * INV_F; if (d < 1) { feather *= d * d * (3 - 2 * d); } }
-        if (v & 4) { const d = ly * INV_F; if (d < 1) { feather *= d * d * (3 - 2 * d); } }
-        if (v & 8) { const d = (ts - ly) * INV_F; if (d < 1) { feather *= d * d * (3 - 2 * d); } }
+        const ly = lyBase;
+        if (v & 1) { const d = lx * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
+        if (v & 2) { const d = (ts - lx) * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
+        if (v & 4) { const d = ly * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
+        if (v & 8) { const d = (ts - ly) * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
         if (feather <= 0) {
           px[idx] = 0; px[idx + 1] = 0; px[idx + 2] = 0; px[idx + 3] = 0;
           continue;
@@ -266,29 +248,54 @@ function renderShader(
       const dX = wx + distRowX;
       const dY = wy + fsin(wx * DFY + tDY) * DAY;
 
-      // ---- Crests (multi-sine cellular approximation) ----
-      const cr1 = fsin(dX * CR1X + dY * CR1Y + tCr1);
-      const cr2 = fsin(dX * CR2X - dY * CR2Y + tCr2);
-      const cr3 = fsin(dX * CR3X + dY * CR3Y + tCr3);
-      // abs-sum creates cell-like interference ridges
-      const cell = Math.abs(cr1 + cr2) + Math.abs(cr2 + cr3);
-      const crest = ss(0.8, 1.6, cell);
+      // ---- 4-cell voronoi (squared distances, no sqrt) ----
+      const sx = dX * VS, sy = dY * VS;
+      const ix = Math.floor(sx), iy = Math.floor(sy);
+      const fx = sx - ix, fy = sy - iy;
 
-      // ---- Caustics ----
-      const caustic = ss(0.3, 0.7,
+      // Pick the 2×2 block closest to the point
+      const i0 = fx < 0.5 ? -1 : 0;
+      const j0 = fy < 0.5 ? -1 : 0;
+
+      let d1sq = 8.0, d2sq = 8.0;
+
+      for (let cj = j0; cj <= j0 + 1; cj++) {
+        const ncy = iy + cj;
+        for (let ci = i0; ci <= i0 + 1; ci++) {
+          const ncx = ix + ci;
+
+          // Single hash → derive X & Y offsets + animation phase
+          const h  = jh((ncx * 1597 + ncy * 51749) | 0);
+          const hy = (h * 7.931) % 1.0;
+          const drift = fsin(tAnim + h * TWO_PI) * VW;
+
+          const ox = ci + 0.5 + (h  - 0.5) * 0.3 + drift;
+          const oy = cj + 0.5 + (hy - 0.5) * 0.3 + drift * 0.73;
+
+          const ddx = ox - fx, ddy = oy - fy;
+          const dsq = ddx * ddx + ddy * ddy;
+
+          if (dsq < d1sq) { d2sq = d1sq; d1sq = dsq; }
+          else if (dsq < d2sq) { d2sq = dsq; }
+        }
+      }
+
+      // Crest: bright lines at cell edges (squared-distance space)
+      const crest    = 1.0 - sst(0.0, VE, d2sq - d1sq);
+      // Cell shade: subtle depth within cells
+      const cellShade = sst(0.0, VCS, d1sq);
+
+      // ---- Caustics (2-fsin interference) ----
+      const caustic = sst(0.3, 0.7,
         fsin(wx * CA1X + wy * CA1Y + tCa1) *
         fsin(wx * CA2X - wy * CA2Y + tCa2) + 0.5);
 
       // ---- Ripple band ----
-      const ripple = ss(0.83, 1.0,
-        fsin(wx * RF1X + wy * RF1Y + tR1) * 0.5 + 0.5);
-
-      // ---- Specular sparkle ----
-      const sparkle = ss(0.85, 1.0,
-        fsin(wx * SPX + tSp1) * fsin(wy * SPY + tSp2));
+      const ripple = sst(0.83, 1.0,
+        fsin(wx * RFX + wy * RFY + tR) * 0.5 + 0.5);
 
       // ---- Combine ----
-      const bright = crest * WC + caustic * WA + ripple * WR + sparkle * WS;
+      const bright = crest * WCR + caustic * WCA + ripple * WRI + cellShade * WCS;
 
       // ---- Write RGBA ----
       const a = (BA + bright * RA) * intA * feather;
@@ -299,14 +306,12 @@ function renderShader(
     }
   }
 
-  // --- Blit ---
   _ox!.putImageData(_oi!, 0, 0);
 
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  // Bilinear upscale — smooth, not blocky
   ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'low'; // fastest interpolation
+  ctx.imageSmoothingQuality = 'low';
   ctx.drawImage(_oc!, 0, 0, cw, ch);
   ctx.restore();
 }
@@ -331,10 +336,8 @@ export function renderWaterOverlay(
 export function clearWaterOverlay(): void {
   _oc = null; _ox = null; _oi = null; _op = null; _bw = 0; _bh = 0;
 }
-
 export function getWaterLineCount(): number { return _bw * _bh; }
 export function getWaterSparkleCount(): number { return 0; }
-
 export function setWaterOverlayIntensity(intensity: number): void {
-  _intMul = Math.max(0, Math.min(1, intensity));
+  _int = Math.max(0, Math.min(1, intensity));
 }

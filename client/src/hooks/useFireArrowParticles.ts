@@ -402,6 +402,20 @@ export function useFireArrowParticles({
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
             }
+            // Cleanup projectile timing Maps to prevent unbounded memory growth
+            // Remove entries for projectiles that no longer exist
+            const currentProjectileIds = new Set<string>();
+            projectiles.forEach((_, id) => currentProjectileIds.add(id));
+            for (const key of clientProjectileStartTimes.current.keys()) {
+                if (!currentProjectileIds.has(key)) {
+                    clientProjectileStartTimes.current.delete(key);
+                }
+            }
+            for (const key of lastKnownServerProjectileTimes.current.keys()) {
+                if (!currentProjectileIds.has(key)) {
+                    lastKnownServerProjectileTimes.current.delete(key);
+                }
+            }
         };
     }, [players, activeEquipments, itemDefinitions, projectiles, fireArrowStatesKey]); // Added projectiles to dependencies
 

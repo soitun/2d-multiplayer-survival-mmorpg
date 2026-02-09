@@ -11,21 +11,10 @@ const SEA_STACK_CONFIG = {
   BASE_WIDTH: 400, // pixels - base sea stack size (towering over trees)
 };
 
-// Water line effect constants
-const WATER_LINE_CONFIG = {
-  HEIGHT_OFFSET: 55, // How high up from the base to place the water line (increased to 55 for better gradient coverage)
-  WAVE_AMPLITUDE: 1.5, // How much the water line moves up/down (even more subtle for cozy feel)
-  WAVE_FREQUENCY: 0.0008, // Much slower for cozy, atmospheric feel (was 0.002)
-  SHIMMER_FREQUENCY: 0.002, // Slower shimmer for atmospheric feel (was 0.005)
-  UNDERWATER_TINT: 'rgba(44, 88, 103, 0.6)', // Dark blue underwater tint using #2C5867
-  CONTOUR_SAMPLE_DENSITY: 4, // Sample every 4 pixels for contour detection
-};
+// Water line effects removed - voronoi shader in waterOverlayUtils.ts handles water wave simulation
 
 // Sea stack images array for variation (all three variants available)
 const SEA_STACK_IMAGES = [seaStackImage1, seaStackImage2, seaStackImage3];
-
-// Cache for image contour data to avoid recalculating every frame
-const imageContourCache = new Map<string, number[]>();
 
 interface SeaStack {
   x: number;
@@ -76,278 +65,7 @@ function preloadSeaStackImages(): void {
 }
 
 /**
- * Analyzes image pixels to find the widest contour near the base
- * Samples multiple Y levels to ensure we get the full width, including the very bottom
- * Returns an array of X positions where the image has content (not transparent)
- */
-function getImageContourAtLevel(
-  image: HTMLImageElement,
-  waterLineY: number,
-  width: number,
-  height: number
-): number[] {
-  const cacheKey = `${image.src}_${WATER_LINE_CONFIG.HEIGHT_OFFSET}_${width}_${height}`;
-  
-  // Check cache first
-  if (imageContourCache.has(cacheKey)) {
-    return imageContourCache.get(cacheKey)!;
-  }
-  
-  // Create a temporary canvas to analyze the image
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return [];
-  
-  canvas.width = width;
-  canvas.height = height;
-  
-  // Draw the image to analyze its pixels
-  ctx.drawImage(image, 0, 0, width, height);
-  
-  let widestContour: number[] = [];
-  let maxWidth = 0;
-  
-  // console.log(`[SeaStacks] Image dimensions: ${width}x${height}`);
-  
-  // First pass: scan entire image to see what alpha values we actually have
-  let minAlpha = null, maxAlpha = null, totalPixels = 0, opaquePixels = 0;
-  
-  // Sample a few rows to analyze alpha values
-  for (let y = 0; y < height; y += Math.floor(height / 20)) { // Sample ~20 rows across the image
-    try {
-      const imageData = ctx.getImageData(0, y, width, 1);
-      const data = imageData.data;
-      
-      for (let x = 0; x < width; x++) {
-        const alpha = data[x * 4 + 3];
-        if (alpha !== undefined && !isNaN(alpha)) {
-          if (minAlpha === null || alpha < minAlpha) minAlpha = alpha;
-          if (maxAlpha === null || alpha > maxAlpha) maxAlpha = alpha;
-          totalPixels++;
-          if (alpha > 0) opaquePixels++;
-        }
-      }
-    } catch (error) {
-      console.warn(`[SeaStacks] Error reading row ${y}:`, error);
-    }
-  }
-  
-  // Fallback if no valid alpha values found
-  if (minAlpha === null || maxAlpha === null) {
-    // console.log(`[SeaStacks] Could not read alpha values, using fallback`);
-    minAlpha = 0;
-    maxAlpha = 255;
-  }
-  
-  // console.log(`[SeaStacks] Alpha range: ${minAlpha}-${maxAlpha}, ${opaquePixels}/${totalPixels} pixels have alpha > 0`);
-  
-  // Use a simple threshold that should work
-  const alphaThreshold = 30; // Fixed threshold that should catch solid pixels
-  // console.log(`[SeaStacks] Using alpha threshold: ${alphaThreshold}`);
-  
-    // Scan the image for contours, focusing on the bottom portion where sea stacks are widest
-  const startY = Math.floor(height * 0.2); // Start from 20% down
-  const endY = Math.floor(height * 0.98);  // Scan almost to the very bottom (98%)
-  // console.log(`[SeaStacks] Scanning rows ${startY} to ${endY}`);
-  
-  let rowsWithPixels = 0;
-  let debugRowCount = 0;
-  
-  for (let y = startY; y < endY; y += 2) { // Every 2nd row for better accuracy
-    try {
-      const imageData = ctx.getImageData(0, y, width, 1);
-      const data = imageData.data;
-      
-      let leftEdge = -1;
-      let rightEdge = -1;
-      let pixelsInRow = 0;
-      
-      // Count pixels in this row and find edges
-      for (let x = 0; x < width; x++) {
-        const alpha = data[x * 4 + 3];
-        if (alpha > 0) pixelsInRow++;
-        
-        if (alpha > alphaThreshold) {
-          if (leftEdge === -1) leftEdge = x;
-          rightEdge = x; // Keep updating to get the rightmost
-        }
-      }
-      
-      if (pixelsInRow > 0) rowsWithPixels++;
-      
-      // Debug first few rows
-      if (debugRowCount < 3 && pixelsInRow > 0) {
-        // console.log(`[SeaStacks] Row ${y} debug: ${pixelsInRow} pixels with alpha>0, left=${leftEdge}, right=${rightEdge}, threshold=${alphaThreshold}`);
-        // Sample a few pixel values
-        for (let x = 0; x < Math.min(width, 10); x++) {
-          const alpha = data[x * 4 + 3];
-          if (alpha > 0) {
-            // console.log(`[SeaStacks] Pixel at (${x}, ${y}) has alpha=${alpha}`);
-          }
-        }
-        debugRowCount++;
-      }
-      
-      // If we found both edges, check if this is the widest
-      if (leftEdge !== -1 && rightEdge !== -1) {
-        const contourWidth = rightEdge - leftEdge + 1;
-        
-        if (contourWidth > maxWidth) {
-          maxWidth = contourWidth;
-          widestContour = [];
-          
-          // console.log(`[SeaStacks] New widest contour at Y=${y}: width=${contourWidth}, left=${leftEdge}, right=${rightEdge}, pixelsInRow=${pixelsInRow}`);
-          
-          // Create contour points every 2 pixels for performance
-          for (let x = leftEdge; x <= rightEdge; x += 2) {
-            widestContour.push(x - width / 2); // Convert to centered coordinates
-          }
-        }
-      }
-    } catch (error) {
-      console.warn(`[SeaStacks] Error reading row ${y}:`, error);
-    }
-  }
-  
-  // console.log(`[SeaStacks] Found ${rowsWithPixels} rows with pixels out of ${Math.floor((endY - startY) / 2)} scanned rows`);
-    
-    // console.log(`[SeaStacks] Final contour: width=${maxWidth}, points=${widestContour.length}`);
-    
-    // If still no contour found, try a more aggressive approach
-    if (maxWidth === 0) {
-      // console.log(`[SeaStacks] No contour found with threshold ${alphaThreshold}, trying lower threshold`);
-      
-      // Try with a much lower threshold
-      const lowThreshold = 5;
-      for (let y = startY; y < endY; y += 3) {
-        try {
-          const imageData = ctx.getImageData(0, y, width, 1);
-          const data = imageData.data;
-          
-          let leftEdge = -1, rightEdge = -1;
-          
-          for (let x = 0; x < width; x++) {
-            const alpha = data[x * 4 + 3];
-            if (alpha > lowThreshold) {
-              leftEdge = x;
-              break;
-            }
-          }
-          
-          for (let x = width - 1; x >= 0; x--) {
-            const alpha = data[x * 4 + 3];
-            if (alpha > lowThreshold) {
-              rightEdge = x;
-              break;
-            }
-          }
-          
-          if (leftEdge !== -1 && rightEdge !== -1) {
-            const contourWidth = rightEdge - leftEdge + 1;
-            if (contourWidth > maxWidth) {
-              maxWidth = contourWidth;
-              widestContour = [];
-              // console.log(`[SeaStacks] Found contour with low threshold at Y=${y}: width=${contourWidth}`);
-              for (let x = leftEdge; x <= rightEdge; x += 2) {
-                widestContour.push(x - width / 2);
-              }
-            }
-          }
-        } catch (error) {
-          // Skip
-        }
-      }
-    }
-  
-
-  
-  // If we still don't have a good contour, create a fallback based on a reasonable base width
-  if (widestContour.length === 0) {
-    console.warn('[SeaStacks] No contour found, using fallback width');
-    const fallbackWidth = width * 0.15; // Use only 15% of the total width as fallback (much smaller!)
-    for (let x = -fallbackWidth / 2; x <= fallbackWidth / 2; x += 6) { // Smaller increments for better coverage
-      widestContour.push(x);
-    }
-    // console.log(`[SeaStacks] Using fallback width: ${fallbackWidth} (${widestContour.length} points)`);
-  }
-  
-  // Cache the result
-  imageContourCache.set(cacheKey, widestContour);
-  return widestContour;
-}
-
-/**
- * Draws animated water line effects that follow the actual sea stack contour
- * Note: The underwater base is now rendered with transparency so the actual 
- * water tile texture shows through - no more fixed blue gradient overlay
- */
-function drawWaterLineEffects(
-  ctx: CanvasRenderingContext2D,
-  stack: SeaStack,
-  image: HTMLImageElement,
-  width: number,
-  height: number,
-  currentTimeMs: number
-): void {
-  // Position water line at the exact split between base and tower
-  // WAY WAY LOWER - most of the sea stack should be underwater
-  const BASE_PORTION = 0.12; // Only 12% above water - 88% underwater!
-  const baseHeight = height * BASE_PORTION;
-  const waterLineY = -baseHeight; // Negative because we're measuring from stack.y (anchor point)
-  const time = currentTimeMs;
-  
-  // Get contour points at the water line level
-  const contourPoints = getImageContourAtLevel(image, waterLineY, width, height);
-  
-  if (contourPoints.length === 0) return; // No contour found
-  
-  // Create animated wave offset
-  const baseWaveOffset = Math.sin(time * WATER_LINE_CONFIG.WAVE_FREQUENCY + stack.x * 0.01) * WATER_LINE_CONFIG.WAVE_AMPLITUDE;
-  const shimmerIntensity = (Math.sin(time * WATER_LINE_CONFIG.SHIMMER_FREQUENCY * 2) + 1) * 0.5;
-  
-  ctx.save();
-  
-  // NOTE: Removed blue gradient underwater tinting - the water tile texture now shows 
-  // through naturally via the transparent base portion rendering
-  
-  // Draw the animated water line following the contour
-  if (contourPoints.length > 0) {
-    ctx.strokeStyle = `rgba(100, 200, 255, ${0.6 + shimmerIntensity * 0.3})`;
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    
-    ctx.beginPath();
-    
-    // Draw water line segments following the contour
-    contourPoints.forEach((x, index) => {
-      const localWaveOffset = baseWaveOffset + Math.sin(time * WATER_LINE_CONFIG.WAVE_FREQUENCY * 3 + index * 0.3) * 1;
-      const y = waterLineY + localWaveOffset;
-      
-      if (index === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    });
-    
-    ctx.stroke();
-    
-    // Add shimmer highlights on the water line
-    if (shimmerIntensity > 0.7) {
-      ctx.strokeStyle = `rgba(255, 255, 255, ${(shimmerIntensity - 0.7) * 2})`;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
-  }
-  
-  ctx.restore();
-}
-
-
-
-/**
- * Renders a single sea stack with dynamic ground shadow and water effects
+ * Renders a single sea stack with dynamic ground shadow
  */
 function renderSeaStack(
   ctx: CanvasRenderingContext2D,
@@ -400,8 +118,7 @@ function renderSeaStack(
   const halfMode = renderHalfMode || 'full';
   
   // The "base" is the underwater portion - needs to cover the sea stack base graphics
-  // This value must be consistent with BASE_PORTION in drawWaterLineEffects
-  // WATER LINE IS WAY WAY LOWER - most of sea stack underwater
+  // Most of the sea stack is underwater
   const BASE_PORTION = 0.12; // Only 12% above water - 88% underwater!
   
   if (halfMode === 'bottom') {
@@ -492,11 +209,6 @@ function renderSeaStack(
       width,
       height
     );
-    
-    // Add water line effect for full rendering
-    if (currentTimeMs !== undefined) {
-      drawWaterLineEffects(ctx, stack, image, width, height, currentTimeMs);
-    }
   }
   
   ctx.restore();
@@ -678,102 +390,33 @@ export function renderSeaStackBottomOnly(
   renderSeaStackSingle(ctx, seaStack, doodadImages, cycleProgress, currentTimeMs, 'bottom', localPlayerPosition);
 }
 
-/**
- * Draws ONLY the animated water line (without gradient)
- * This should be rendered on top of everything
- */
-function drawWaterLineOnly(
-  ctx: CanvasRenderingContext2D,
-  stack: SeaStack,
-  image: HTMLImageElement,
-  width: number,
-  height: number,
-  currentTimeMs: number
-): void {
-  // Position water line at the exact split between base and tower
-  // WAY WAY LOWER - most of the sea stack should be underwater
-  const BASE_PORTION = 0.12; // Only 12% above water - 88% underwater!
-  const baseHeight = height * BASE_PORTION;
-  const waterLineY = -baseHeight;
-  const time = currentTimeMs;
-  
-  // Get contour points at the water line level
-  const contourPoints = getImageContourAtLevel(image, waterLineY, width, height);
-  
-  if (contourPoints.length === 0) return;
-  
-  // Create animated wave offset
-  const baseWaveOffset = Math.sin(time * WATER_LINE_CONFIG.WAVE_FREQUENCY + stack.x * 0.01) * WATER_LINE_CONFIG.WAVE_AMPLITUDE;
-  const shimmerIntensity = (Math.sin(time * WATER_LINE_CONFIG.SHIMMER_FREQUENCY * 2) + 1) * 0.5;
-  
-  ctx.save();
-  
-  // Draw the animated water line following the contour
-  ctx.strokeStyle = `rgba(100, 200, 255, ${0.6 + shimmerIntensity * 0.3})`;
-  ctx.lineWidth = 2;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  
-  ctx.beginPath();
-  
-  // Draw water line segments following the contour
-  contourPoints.forEach((x, index) => {
-    const localWaveOffset = baseWaveOffset + Math.sin(time * WATER_LINE_CONFIG.WAVE_FREQUENCY * 3 + index * 0.3) * 1;
-    const y = waterLineY + localWaveOffset;
-    
-    if (index === 0) {
-      ctx.moveTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
+// Water line rendering functions removed - voronoi shader in waterOverlayUtils.ts
+// handles water wave simulation at the base of sea stacks
+
+// Removed clearSeaStackCache function - no longer needed since sea stacks are server-authoritative 
+
+// === SEA STACK SHADOW OVERLAY (renders above players but below sea stack rock) ===
+// Offscreen canvas for sea stack shadow compositing (reused to avoid allocation)
+let seaStackShadowCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
+let seaStackShadowCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
+
+function getSeaStackShadowCanvas(width: number, height: number): { canvas: OffscreenCanvas | HTMLCanvasElement, ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } | null {
+  if (!seaStackShadowCanvas || seaStackShadowCanvas.width !== width || seaStackShadowCanvas.height !== height) {
+    try {
+      seaStackShadowCanvas = new OffscreenCanvas(width, height);
+    } catch {
+      seaStackShadowCanvas = document.createElement('canvas');
+      seaStackShadowCanvas.width = width;
+      seaStackShadowCanvas.height = height;
     }
-  });
-  
-  ctx.stroke();
-  
-  // Add shimmer highlights on the water line
-  if (shimmerIntensity > 0.7) {
-    ctx.strokeStyle = `rgba(255, 255, 255, ${(shimmerIntensity - 0.7) * 2})`;
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    seaStackShadowCtx = seaStackShadowCanvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
   }
-  
-  ctx.restore();
+  if (!seaStackShadowCtx) return null;
+  return { canvas: seaStackShadowCanvas, ctx: seaStackShadowCtx };
 }
 
-/**
- * Renders only the water effects for sea stacks
- * NOTE: The blue gradient overlay has been removed - the actual water tile texture
- * now shows through via the transparent base rendering. The water line is rendered
- * separately by renderSeaStackWaterLineOnly.
- * This function is kept as a no-op for backward compatibility.
- */
-export function renderSeaStackWaterEffectsOnly(
-  _ctx: CanvasRenderingContext2D,
-  _seaStack: any, // Server-provided sea stack entity
-  _doodadImages: Map<string, HTMLImageElement> | null,
-  _currentTimeMs?: number // Current time for animations
-): void {
-  // No-op: Water effects (blue gradient) removed in favor of transparent base + water tile texture
-  // The animated water line is now rendered by renderSeaStackWaterLineOnly
-}
-
-/**
- * Renders only the water line (animated line, no gradient)
- * This should be called LAST to render the water line on top of both base and tower
- */
-export function renderSeaStackWaterLineOnly(
-  ctx: CanvasRenderingContext2D,
-  seaStack: any, // Server-provided sea stack entity
-  doodadImages: Map<string, HTMLImageElement> | null,
-  currentTimeMs?: number // Current time for animations
-): void {
-  // Trigger image preloading on first call
-  preloadSeaStackImages();
-  
-  // Early exit if images not loaded yet
-  if (!imagesLoaded || preloadedImages.length === 0) return;
-    
-  // Map server variant to image index
+/** Helper to get image index from sea stack variant */
+function getSeaStackImageIndex(seaStack: any): number {
   let imageIndex = 0;
   if (seaStack.variant && seaStack.variant.tag) {
     switch (seaStack.variant.tag) {
@@ -783,40 +426,113 @@ export function renderSeaStackWaterLineOnly(
       default: imageIndex = 0; break;
     }
   }
-  
-  // Ensure valid image index
-  imageIndex = Math.min(imageIndex, preloadedImages.length - 1);
-  const stackImage = preloadedImages[imageIndex];
-  
-  if (stackImage && stackImage.complete) {
-    // Create client-side rendering object from server data
+  return Math.min(imageIndex, preloadedImages.length - 1);
+}
+
+/**
+ * Renders sea stack ground shadows as an overlay AFTER Y-sorted entities.
+ * Uses an offscreen canvas to composite shadows with sea stack body cutouts,
+ * so shadows appear on players/ground but NOT on the sea stack rock itself.
+ * 
+ * This is the same approach used by tree canopy shadow overlays:
+ * 1. Draw all shadows to offscreen canvas
+ * 2. Cut out sea stack body regions (destination-out)
+ * 3. Composite onto main canvas
+ */
+export function renderSeaStackShadowsOverlay(
+  ctx: CanvasRenderingContext2D,
+  seaStacks: any[],
+  doodadImages: Map<string, HTMLImageElement> | null,
+  cycleProgress: number
+): void {
+  preloadSeaStackImages();
+  if (!imagesLoaded || preloadedImages.length === 0) return;
+  if (!seaStacks || seaStacks.length === 0) return;
+
+  const canvasWidth = ctx.canvas.width;
+  const canvasHeight = ctx.canvas.height;
+
+  const offscreen = getSeaStackShadowCanvas(canvasWidth, canvasHeight);
+  if (!offscreen) {
+    // Fallback: render shadows directly (will show on sea stacks, but better than nothing)
+    seaStacks.forEach(seaStack => {
+      renderSeaStackShadowOnly(ctx, seaStack, doodadImages, cycleProgress);
+    });
+    return;
+  }
+
+  const { ctx: offCtx, canvas: offCanvas } = offscreen;
+
+  // Clear offscreen canvas
+  offCtx.save();
+  offCtx.setTransform(1, 0, 0, 1, 0, 0);
+  offCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+  offCtx.restore();
+
+  // Apply same camera transform as main canvas
+  offCtx.save();
+  offCtx.setTransform(ctx.getTransform());
+
+  // Step 1: Draw all sea stack shadows onto offscreen canvas
+  seaStacks.forEach(seaStack => {
+    const imageIndex = getSeaStackImageIndex(seaStack);
+    const stackImage = preloadedImages[imageIndex];
+    if (!stackImage || !stackImage.complete) return;
+
     const clientStack: SeaStack = {
       x: seaStack.posX,
       y: seaStack.posY,
       scale: seaStack.scale || 1.0,
       rotation: 0.0,
       opacity: seaStack.opacity || 1.0,
-      imageIndex: imageIndex
+      imageIndex
     };
-    
-    const width = SEA_STACK_CONFIG.BASE_WIDTH * clientStack.scale;
-    const height = (stackImage.naturalHeight / stackImage.naturalWidth) * width;
-    
-    // Draw ONLY the water line in the stack's coordinate space
-    ctx.save();
-    ctx.translate(clientStack.x, clientStack.y);
-    ctx.rotate(clientStack.rotation);
-    ctx.globalAlpha = clientStack.opacity;
-    
-    if (currentTimeMs !== undefined) {
-      drawWaterLineOnly(ctx, clientStack, stackImage, width, height, currentTimeMs);
-    }
-    
-    ctx.restore();
-  }
-}
 
-// Removed clearSeaStackCache function - no longer needed since sea stacks are server-authoritative 
+    // Draw shadow only (onlyDrawShadow=true, skipDrawingShadow=false)
+    renderSeaStack(offCtx as CanvasRenderingContext2D, clientStack, stackImage, cycleProgress, true, false, undefined, 'full');
+  });
+
+  // Step 2: Cut out sea stack body regions using destination-out
+  // This erases shadow pixels wherever the sea stack rock image has opaque pixels,
+  // preventing the shadow from appearing on top of the rock itself.
+  offCtx.globalCompositeOperation = 'destination-out';
+
+  seaStacks.forEach(seaStack => {
+    const imageIndex = getSeaStackImageIndex(seaStack);
+    const stackImage = preloadedImages[imageIndex];
+    if (!stackImage || !stackImage.complete) return;
+
+    const scale = seaStack.scale || 1.0;
+    const width = SEA_STACK_CONFIG.BASE_WIDTH * scale;
+    const height = (stackImage.naturalHeight / stackImage.naturalWidth) * width;
+
+    offCtx.save();
+    offCtx.translate(seaStack.posX, seaStack.posY);
+    offCtx.globalAlpha = 1.0; // Full erase where rock pixels exist
+
+    // Draw the full sea stack image to cut out its silhouette from the shadow.
+    // The image's alpha channel determines the cutout shape - fully opaque rock
+    // pixels completely erase the shadow, transparent areas leave it intact.
+    offCtx.drawImage(
+      stackImage,
+      -width / 2,
+      -height,
+      width,
+      height
+    );
+
+    offCtx.restore();
+  });
+
+  offCtx.globalCompositeOperation = 'source-over';
+  offCtx.restore();
+
+  // Step 3: Composite the shadow layer (with cutouts) onto the main canvas
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform for direct pixel copy
+  ctx.drawImage(offCanvas, 0, 0);
+  ctx.restore();
+}
 
 // === UNDERWATER SNORKELING MODE ===
 // Constants for underwater silhouette rendering

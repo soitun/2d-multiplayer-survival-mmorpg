@@ -556,6 +556,10 @@ const VELOCITY_SMOOTHING = 0.3; // How much to smooth velocity changes (0=instan
 const offscreenCanvas = document.createElement('canvas');
 const offscreenCtx = offscreenCanvas.getContext('2d');
 
+// --- Reusable Offscreen Canvas for Shadow Sprite Extraction (separate from tinting to avoid clobbering) ---
+const _animalShadowCanvas = document.createElement('canvas');
+const _animalShadowCtx = _animalShadowCanvas.getContext('2d');
+
 // Re-export for convenience
 export type WildAnimal = SpacetimeDB.WildAnimal;
 export type AnimalSpecies = SpacetimeDB.AnimalSpecies;
@@ -1150,17 +1154,17 @@ export function renderWildAnimal({
 
         } else if (useSpriteSheet && animalImage) {
             // GROUNDED SHADOW - Use sprite silhouette for dynamic shadow
-            const shadowCanvas = document.createElement('canvas');
-            shadowCanvas.width = currentFrameWidth;
-            shadowCanvas.height = currentFrameHeight;
-            const shadowCtx = shadowCanvas.getContext('2d');
+            // Reuse dedicated module-level canvas to avoid per-frame allocation (memory leak fix)
+            _animalShadowCanvas.width = currentFrameWidth;
+            _animalShadowCanvas.height = currentFrameHeight;
 
-            if (shadowCtx) {
+            if (_animalShadowCtx) {
+                _animalShadowCtx.clearRect(0, 0, currentFrameWidth, currentFrameHeight);
                 // Use animated sprite rect for animated species, standard for others
                 const spriteRect = useAnimated
                     ? getAnimatedSpriteSourceRect(animal.species, animal.facingDirection, calculatedAnimFrame)
                     : getSpriteSourceRect(animal.facingDirection, useFlying);
-                shadowCtx.drawImage(
+                _animalShadowCtx.drawImage(
                     animalImage,
                     spriteRect.sx, spriteRect.sy, spriteRect.sw, spriteRect.sh,
                     0, 0, currentFrameWidth, currentFrameHeight
@@ -1169,7 +1173,7 @@ export function renderWildAnimal({
                 // Use the extracted frame for dynamic shadow
                 drawDynamicGroundShadow({
                     ctx,
-                    entityImage: shadowCanvas as unknown as HTMLImageElement,
+                    entityImage: _animalShadowCanvas as unknown as HTMLImageElement,
                     entityCenterX: renderPosX,
                     entityBaseY: renderPosY + renderHeight / 2,
                     imageDrawWidth: renderWidth,

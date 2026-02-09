@@ -3351,9 +3351,7 @@ pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
         // East perimeter
         MonumentPlaceableConfig::barrel(750.0, 300.0),
         MonumentPlaceableConfig::barrel(700.0, -350.0),
-        // West scatter  
-        MonumentPlaceableConfig::barrel(-700.0, 200.0),
-        // Barrel near cooking station removed
+        // West scatter - barrel near cooking station removed
         
         // === Monument Turrets (four corners of the compound asphalt square) ===
         // These are indestructible, infinite ammo, 2000px range turrets
