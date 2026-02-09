@@ -101,6 +101,33 @@ export function getWorldCenter(): { x: number; y: number } {
 }
 
 /**
+ * Check if a world position is within the central ALK compound area.
+ * Used to distinguish compound-specific monument placeables (ALK images, larger sizes)
+ * from regular monument placeables at other monuments (crashed drone, fishing village, etc.)
+ * 
+ * The compound asphalt area is roughly ±960px from center (20 tiles × 48px).
+ * We use a generous radius to ensure all compound buildings are captured.
+ */
+const COMPOUND_RADIUS_SQ = 1100 * 1100; // Slightly larger than compound area for safety margin
+export function isWithinCompound(posX: number, posY: number): boolean {
+  const center = getWorldCenter();
+  const dx = posX - center.x;
+  const dy = posY - center.y;
+  return (dx * dx + dy * dy) < COMPOUND_RADIUS_SQ;
+}
+
+/**
+ * Check if a monument entity should use ALK compound-specific rendering.
+ * Returns true only if the entity is both a monument AND within the central compound.
+ * 
+ * This is the key distinction: isMonument alone means "indestructible/non-pickupable",
+ * but isCompoundMonument means "use ALK-specific images, sizes, and names".
+ */
+export function isCompoundMonument(isMonument: boolean, posX: number, posY: number): boolean {
+  return isMonument && isWithinCompound(posX, posY);
+}
+
+/**
  * Get a building's absolute world position.
  * @param building - The building definition
  * @returns World coordinates { x, y } for the building's anchor point

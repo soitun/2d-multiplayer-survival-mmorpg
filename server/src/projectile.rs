@@ -52,6 +52,7 @@ const GRAVITY: f32 = 600.0; // Adjust this value to change the arc. Positive val
 pub const PROJECTILE_SOURCE_PLAYER: u8 = 0;
 pub const PROJECTILE_SOURCE_TURRET: u8 = 1;
 pub const PROJECTILE_SOURCE_NPC: u8 = 2;
+pub const PROJECTILE_SOURCE_MONUMENT_TURRET: u8 = 3;
 
 // NPC projectile type constants (used for client-side rendering)
 pub const NPC_PROJECTILE_NONE: u8 = 0;        // Standard/not NPC
@@ -923,6 +924,11 @@ fn calculate_projectile_damage(
     projectile: &Projectile,
     rng: &mut rand::rngs::StdRng,
 ) -> f32 {
+    // Monument turret projectiles one-shot kill any target
+    if projectile.source_type == PROJECTILE_SOURCE_MONUMENT_TURRET {
+        return crate::turret::MONUMENT_TURRET_DAMAGE;
+    }
+    
     // Turret tallow projectiles explode on impact and deal fixed high damage
     if projectile.source_type == PROJECTILE_SOURCE_TURRET {
         return TALLOW_PROJECTILE_DAMAGE;
@@ -971,7 +977,25 @@ fn create_fire_patch_if_turret_tallow(
     pos_x: f32,
     pos_y: f32,
 ) -> bool {
-    // Check if this is a turret projectile with Tallow ammo
+    // Check if this is a turret projectile (player turret with Tallow ammo, or monument turret)
+    if projectile.source_type == PROJECTILE_SOURCE_MONUMENT_TURRET {
+        // Monument turrets always have a chance to create fire patches
+        use rand::{Rng, SeedableRng};
+        let mut rng = rand::rngs::StdRng::seed_from_u64(ctx.timestamp.to_micros_since_unix_epoch() as u64);
+        if rng.gen_range(0..100) < crate::turret::FIRE_PATCH_CHANCE_PERCENT {
+            match crate::fire_patch::create_fire_patch(ctx, pos_x, pos_y, projectile.owner_id, false, None, None) {
+                Ok(_) => {
+                    log::info!("[MonumentTurret] Created fire patch at ({:.1}, {:.1})", pos_x, pos_y);
+                    return true;
+                }
+                Err(e) => {
+                    log::warn!("[MonumentTurret] Failed to create fire patch: {}", e);
+                }
+            }
+        }
+        return false;
+    }
+    
     if projectile.source_type != PROJECTILE_SOURCE_TURRET {
         return false;
     }
@@ -1117,8 +1141,10 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         let elapsed_time = current_time_secs - start_time_secs;
         
         // Get weapon definition to determine gravity effect
-        let weapon_item_def = item_defs_table.id().find(projectile.item_def_id);
-        let gravity_multiplier = if let Some(weapon_def) = weapon_item_def {
+        // Monument turret projectiles fire in a straight line - no gravity
+        let gravity_multiplier = if projectile.source_type == PROJECTILE_SOURCE_MONUMENT_TURRET {
+            0.0 // Monument turret projectiles have no gravity (direct trajectory at high speed)
+        } else if let Some(weapon_def) = item_defs_table.id().find(projectile.item_def_id) {
             if weapon_def.name == "Crossbow" {
                 0.0 // Crossbow projectiles have NO gravity effect (straight line)
             } else if weapon_def.name == "Makarov PM" || weapon_def.name == "PP-91 KEDR" {
@@ -1164,6 +1190,10 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             projectiles_to_delete.push(projectile.id);
             continue;
         }
+        
+        // Monument turret projectiles pass through structures (doors, fences, walls, shelters)
+        // to ensure they reach their targeted animals/players
+        if projectile.source_type != PROJECTILE_SOURCE_MONUMENT_TURRET {
         
         // Check for door collision (closed doors block projectiles)
         if let Some((door_id, collision_x, collision_y)) = crate::door::check_door_projectile_collision(ctx, prev_x, prev_y, current_x, current_y) {
@@ -1428,6 +1458,8 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             projectiles_to_delete.push(projectile.id);
             continue;
         }
+        
+        } // End of structure collision skip for monument turret projectiles
         
         // Check for natural obstacle collisions (trees and stones)
         let mut hit_natural_obstacle_this_tick = false;
@@ -2256,6 +2288,28 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 log::info!("Projectile {} from owner {:?} hit wild animal {} along path from ({:.1}, {:.1}) to ({:.1}, {:.1})", 
                          projectile.id, projectile.owner_id, wild_animal.id, prev_x, prev_y, current_x, current_y);
                 
+                // Monument turret projectiles: instant-kill, no item def lookup needed
+                if projectile.source_type == PROJECTILE_SOURCE_MONUMENT_TURRET {
+                    let final_damage = crate::turret::MONUMENT_TURRET_DAMAGE;
+                    log::info!("Monument turret projectile {} one-shot wild animal {} for {:.0} damage", projectile.id, wild_animal.id, final_damage);
+                    
+                    match crate::wild_animal_npc::damage_wild_animal_with_weapon(ctx, wild_animal.id, final_damage, projectile.owner_id, Some("Monument Turret")) {
+                        Ok(_) => {
+                            sound_events::emit_arrow_hit_sound(ctx, wild_animal.pos_x, wild_animal.pos_y, projectile.owner_id);
+                        }
+                        Err(e) => {
+                            log::error!("Error applying monument turret damage to wild animal {}: {}", wild_animal.id, e);
+                        }
+                    }
+                    
+                    create_fire_patch_if_turret_tallow(ctx, &projectile, current_x, current_y);
+                    
+                    // Monument turret projectiles don't create drops
+                    projectiles_to_delete.push(projectile.id);
+                    hit_wild_animal_this_tick = true;
+                    break;
+                }
+                
                 // Get weapon and ammunition definitions for damage calculation
                 let weapon_item_def = match item_defs_table.id().find(projectile.item_def_id) {
                     Some(def) => def,
@@ -2321,9 +2375,9 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 // Create fire patch if this is a turret tallow projectile (25% chance)
                 create_fire_patch_if_turret_tallow(ctx, &projectile, current_x, current_y);
 
-                // Turret tallow projectiles explode on impact and don't become dropped items
+                // Turret projectiles (player + monument) explode on impact and don't become dropped items
                 // Add projectile to dropped item system (with break chance) like other hits
-                if projectile.source_type != PROJECTILE_SOURCE_TURRET {
+                if projectile.source_type != PROJECTILE_SOURCE_TURRET && projectile.source_type != PROJECTILE_SOURCE_MONUMENT_TURRET {
                     missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
                 }
                 projectiles_to_delete.push(projectile.id);
@@ -2471,6 +2525,49 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 log::info!("Projectile {} from owner {:?} hit living player {:?} along path from ({:.1}, {:.1}) to ({:.1}, {:.1}) with PLAYER_RADIUS ({:.1})", 
                          projectile.id, projectile.owner_id, player_to_check.identity, prev_x, prev_y, current_x, current_y, crate::PLAYER_RADIUS);
                 
+                // Monument turret projectiles: instant-kill players, no item def lookup needed
+                if projectile.source_type == PROJECTILE_SOURCE_MONUMENT_TURRET {
+                    // CRITICAL: Re-verify PvP status at projectile impact time.
+                    // Only hit players who are EXPLICITLY PvP-flagged right now.
+                    // If a player toggled PvP off between turret firing and projectile arrival, skip them.
+                    if !crate::combat::is_pvp_active_for_player(&player_to_check, current_time) {
+                        log::info!("[MonumentTurret] Projectile {} passed through non-PvP player {:?} (PvP disabled since firing)", 
+                                 projectile.id, player_to_check.identity);
+                        continue; // Skip this player, projectile continues traveling
+                    }
+                    
+                    let final_damage = crate::turret::MONUMENT_TURRET_DAMAGE;
+                    log::info!("Monument turret projectile {} one-shot PvP-flagged player {:?} for {:.0} damage", projectile.id, player_to_check.identity, final_damage);
+                    
+                    // Apply massive damage directly - will kill any player
+                    if let Some(mut target_player) = ctx.db.player().identity().find(&player_to_check.identity) {
+                        target_player.health = (target_player.health - final_damage).max(0.0);
+                        target_player.last_hit_time = Some(current_time);
+                        
+                        if target_player.health <= 0.0 {
+                            ctx.db.player().identity().update(target_player);
+                            if let Err(e) = crate::player_corpse::handle_player_death(
+                                ctx,
+                                player_to_check.identity,
+                                "Monument Defense Turret",
+                                None, // No killer identity (system turret)
+                            ) {
+                                log::error!("[MonumentTurret] Death handling failed for player {:?}: {}", player_to_check.identity, e);
+                            }
+                        } else {
+                            ctx.db.player().identity().update(target_player);
+                        }
+                        
+                        sound_events::emit_arrow_hit_sound(ctx, player_to_check.position_x, player_to_check.position_y, projectile.owner_id);
+                    }
+                    
+                    create_fire_patch_if_turret_tallow(ctx, &projectile, player_to_check.position_x, player_to_check.position_y);
+                    
+                    projectiles_to_delete.push(projectile.id);
+                    hit_player_this_tick = true;
+                    break;
+                }
+                
                 // --- IMPROVED: Use combined weapon + ammunition damage ---
                 // Get weapon definition for base damage
                 let weapon_item_def = match item_defs_table.id().find(projectile.item_def_id) {
@@ -2580,9 +2677,9 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 }
                 // --- End Improved Combined Damage System ---
 
-                // Turret tallow projectiles explode on impact and don't become dropped items
+                // Turret projectiles (player + monument) explode on impact and don't become dropped items
                 // Add projectile to dropped item system (with break chance) like other hits
-                if projectile.source_type != PROJECTILE_SOURCE_TURRET {
+                if projectile.source_type != PROJECTILE_SOURCE_TURRET && projectile.source_type != PROJECTILE_SOURCE_MONUMENT_TURRET {
                     missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
                 }
                 projectiles_to_delete.push(projectile.id);
@@ -2602,7 +2699,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         let projectile_record = ctx.db.projectile().id().find(&projectile_id);
         let is_turret_projectile = projectile_record
             .as_ref()
-            .map(|p| p.source_type == PROJECTILE_SOURCE_TURRET)
+            .map(|p| p.source_type == PROJECTILE_SOURCE_TURRET || p.source_type == PROJECTILE_SOURCE_MONUMENT_TURRET)
             .unwrap_or(false);
         
         let is_npc_projectile = projectile_record

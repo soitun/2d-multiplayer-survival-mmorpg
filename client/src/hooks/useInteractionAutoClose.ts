@@ -14,7 +14,7 @@ import { useEffect } from 'react';
 import { Identity } from 'spacetimedb';
 import { Player, Campfire, Furnace, Fumarole, WoodenStorageBox, Stash, PlayerCorpse, RainCollector } from '../generated';
 import { InteractionTarget } from './useInteractionManager';
-import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH, MONUMENT_COOKING_STATION_HEIGHT, MONUMENT_REPAIR_BENCH_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
+import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT, BOX_TYPE_COMPOST, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH, MONUMENT_COMPOST_HEIGHT, MONUMENT_COOKING_STATION_HEIGHT, MONUMENT_REPAIR_BENCH_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { PLAYER_MONUMENT_BOX_INTERACTION_DISTANCE_SQUARED } from './useInteractionFinder';
 import { PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED, CAMPFIRE_HEIGHT, CAMPFIRE_RENDER_Y_OFFSET } from '../utils/renderers/campfireRenderingUtils';
 import {
@@ -36,6 +36,7 @@ import {
     PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED,
     PLAYER_MONUMENT_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED,
 } from '../utils/renderers/rainCollectorRenderingUtils';
+import { isCompoundMonument } from '../config/compoundBuildings';
 
 interface UseInteractionAutoCloseProps {
     interactingWith: InteractionTarget;
@@ -77,15 +78,16 @@ function isPlayerOutOfRange(
             const box = containers.woodenStorageBoxes.get(id);
             if (!box) return null;
             
-            // Monument cooking stations / repair benches use monument interaction distance
-            const isMonumentBuilding = box.isMonument && (box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_REPAIR_BENCH);
+            // Compound monument cooking stations / repair benches / compost use monument interaction distance
+            const isCompoundBldg = isCompoundMonument(box.isMonument, box.posX, box.posY);
+            const isMonumentBuilding = isCompoundBldg && (box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_REPAIR_BENCH || box.boxType === BOX_TYPE_COMPOST);
             
             let centerY: number;
             let maxDistSq: number;
             
             if (isMonumentBuilding) {
                 // Monument buildings: 384px sprite with 96px anchor offset
-                const h = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_HEIGHT : MONUMENT_REPAIR_BENCH_HEIGHT;
+                const h = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_HEIGHT : box.boxType === BOX_TYPE_COMPOST ? MONUMENT_COMPOST_HEIGHT : MONUMENT_REPAIR_BENCH_HEIGHT;
                 const anchorOffset = 96;
                 centerY = box.posY - h + anchorOffset + h / 2;
                 maxDistSq = PLAYER_MONUMENT_BOX_INTERACTION_DISTANCE_SQUARED;
@@ -113,21 +115,21 @@ function isPlayerOutOfRange(
             if (!furnace) return null;
 
             const isLargeFurnace = furnace.furnaceType === FURNACE_TYPE_LARGE;
-            const isMonument = furnace.isMonument;
+            const isCompoundFurnace = isCompoundMonument(furnace.isMonument, furnace.posX, furnace.posY);
 
             // Determine furnace dimensions (same as useInteractionFinder)
             const furnaceHeight = isLargeFurnace
-                ? (isMonument ? MONUMENT_LARGE_FURNACE_HEIGHT : LARGE_FURNACE_HEIGHT)
+                ? (isCompoundFurnace ? MONUMENT_LARGE_FURNACE_HEIGHT : LARGE_FURNACE_HEIGHT)
                 : FURNACE_HEIGHT;
             const furnaceYOffset = isLargeFurnace
-                ? (isMonument ? MONUMENT_LARGE_FURNACE_RENDER_Y_OFFSET : LARGE_FURNACE_RENDER_Y_OFFSET)
+                ? (isCompoundFurnace ? MONUMENT_LARGE_FURNACE_RENDER_Y_OFFSET : LARGE_FURNACE_RENDER_Y_OFFSET)
                 : FURNACE_RENDER_Y_OFFSET;
 
             // Asymmetric interaction center — MUST match useInteractionFinder
             let interactionCenterY: number;
             if (playerY > furnace.posY) {
                 // Player below furnace: use lower interaction point
-                const belowOffset = isLargeFurnace ? (isMonument ? 80 : 40) : 10;
+                const belowOffset = isLargeFurnace ? (isCompoundFurnace ? 80 : 40) : 10;
                 interactionCenterY = furnace.posY + belowOffset;
             } else {
                 // Player above furnace: use visual center
@@ -136,7 +138,7 @@ function isPlayerOutOfRange(
 
             // Select threshold (same as useInteractionFinder)
             let maxDistSq: number;
-            if (isMonument && isLargeFurnace) {
+            if (isCompoundFurnace && isLargeFurnace) {
                 maxDistSq = PLAYER_MONUMENT_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED;
             } else if (isLargeFurnace) {
                 maxDistSq = PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED;
@@ -176,7 +178,7 @@ function isPlayerOutOfRange(
         case 'rain_collector': {
             const rc = containers.rainCollectors.get(id);
             if (!rc) return null;
-            const maxDistSq = rc.isMonument
+            const maxDistSq = isCompoundMonument(rc.isMonument, rc.posX, rc.posY)
                 ? PLAYER_MONUMENT_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED
                 : PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED;
             const dx = playerX - rc.posX;

@@ -5,6 +5,7 @@ import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';
 import { renderEntityHealthBar } from './healthBarUtils';
+import { isCompoundMonument } from '../../config/compoundBuildings';
 
 // --- Constants ---
 export const RAIN_COLLECTOR_WIDTH = 256;  // 256x256 sprite (matches beehive)
@@ -29,12 +30,12 @@ const rainCollectorConfig: GroundEntityConfig<RainCollector> = {
         if (entity.isDestroyed) {
             return null;
         }
-        // Monument rain collectors use the ALK water reservoir graphic
-        return entity.isMonument ? alkWaterReservoirImage : reedRainCollectorImage;
+        // Only compound monument rain collectors use the ALK water reservoir graphic
+        return isCompoundMonument(entity.isMonument, entity.posX, entity.posY) ? alkWaterReservoirImage : reedRainCollectorImage;
     },
 
     getTargetDimensions: (img, entity) => {
-        if (entity.isMonument) {
+        if (isCompoundMonument(entity.isMonument, entity.posX, entity.posY)) {
             return {
                 width: MONUMENT_RAIN_COLLECTOR_WIDTH,
                 height: MONUMENT_RAIN_COLLECTOR_HEIGHT,
@@ -47,7 +48,7 @@ const rainCollectorConfig: GroundEntityConfig<RainCollector> = {
     },
 
     calculateDrawPosition: (entity, drawWidth, drawHeight) => {
-        if (entity.isMonument) {
+        if (isCompoundMonument(entity.isMonument, entity.posX, entity.posY)) {
             // Monument: bottom-anchored at posY with large 480x480 sprite
             return {
                 drawX: entity.posX - drawWidth / 2,
@@ -125,9 +126,9 @@ const rainCollectorConfig: GroundEntityConfig<RainCollector> = {
 imageManager.preloadImage(reedRainCollectorImage);
 imageManager.preloadImage(alkWaterReservoirImage);
 
-/** Helper to get dimensions/offsets for a rain collector based on monument status */
+/** Helper to get dimensions/offsets for a rain collector based on compound monument status */
 export function getRainCollectorDimensions(rainCollector: RainCollector): { width: number; height: number; yOffset: number } {
-    if (rainCollector.isMonument) {
+    if (isCompoundMonument(rainCollector.isMonument, rainCollector.posX, rainCollector.posY)) {
         return {
             width: MONUMENT_RAIN_COLLECTOR_WIDTH,
             height: MONUMENT_RAIN_COLLECTOR_HEIGHT,
@@ -151,26 +152,54 @@ export function renderRainCollector(
     playerY?: number,
     localPlayerPosition?: { x: number; y: number }
 ) {
-    // Monument rain collectors support occlusion transparency (same as monument large furnace)
+    // Compound monument rain collectors support occlusion transparency (same pattern as furnace)
+    // Only trigger when entity is Y-sorted IN FRONT of player (player is behind/above)
+    const isCompound = isCompoundMonument(rainCollector.isMonument, rainCollector.posX, rainCollector.posY);
     let needsAlphaRestore = false;
-    if (rainCollector.isMonument && localPlayerPosition) {
+    if (isCompound && localPlayerPosition) {
         const dims = getRainCollectorDimensions(rainCollector);
-        const drawY = rainCollector.posY - dims.height + 96; // matches calculateDrawPosition for monument
-        const entityTopY = drawY;
-        const entityBottomY = rainCollector.posY + 96; // base of sprite
-        const entityCenterX = rainCollector.posX;
-        const halfWidth = dims.width / 2;
-
-        // Check if player is behind (above) the entity and within its horizontal bounds
-        if (localPlayerPosition.y < entityBottomY - 20 &&
-            localPlayerPosition.y > entityTopY &&
-            localPlayerPosition.x > entityCenterX - halfWidth &&
-            localPlayerPosition.x < entityCenterX + halfWidth) {
-            const fadeRange = entityBottomY - entityTopY;
-            const playerRelativePos = (entityBottomY - 20 - localPlayerPosition.y) / fadeRange;
-            const alpha = 0.3 + 0.7 * (1.0 - Math.min(1.0, playerRelativePos));
+        
+        // Use portion of sprite for actual building bounds
+        const visualWidth = dims.width * 0.5;
+        const visualHeight = dims.height * 0.7;
+        
+        // Dynamic threshold based on height
+        const BASE_TRANSPARENCY_THRESHOLD_PERCENT = 0.25;
+        const dynamicThreshold = visualHeight * BASE_TRANSPARENCY_THRESHOLD_PERCENT;
+        
+        // Building is drawn bottom-anchored at posY with 96px anchor offset
+        const buildingLeft = rainCollector.posX - visualWidth / 2;
+        const buildingRight = rainCollector.posX + visualWidth / 2;
+        const buildingTop = rainCollector.posY - visualHeight + 96;
+        const buildingBottom = rainCollector.posY - dynamicThreshold + 96;
+        
+        // Player bounding box (approximate)
+        const playerSize = 48;
+        const pLeft = localPlayerPosition.x - playerSize / 2;
+        const pRight = localPlayerPosition.x + playerSize / 2;
+        const pTop = localPlayerPosition.y - playerSize;
+        const pBottom = localPlayerPosition.y;
+        
+        // Check if player overlaps with building visual area
+        const overlapsH = pRight > buildingLeft && pLeft < buildingRight;
+        const overlapsV = pBottom > buildingTop && pTop < buildingBottom;
+        
+        // Only apply transparency when building is IN FRONT of player (larger Y = rendered after)
+        if (overlapsH && overlapsV && rainCollector.posY > localPlayerPosition.y + dynamicThreshold) {
+            const depthDifference = rainCollector.posY - localPlayerPosition.y;
+            const maxDepthForFade = 100;
+            const MIN_ALPHA = 0.35;
+            const MAX_ALPHA = 1.0;
+            
+            let buildingAlpha = MAX_ALPHA;
+            if (depthDifference > 0 && depthDifference < maxDepthForFade) {
+                const fadeFactor = 1 - (depthDifference / maxDepthForFade);
+                buildingAlpha = MAX_ALPHA - (fadeFactor * (MAX_ALPHA - MIN_ALPHA));
+            } else if (depthDifference >= maxDepthForFade) {
+                buildingAlpha = MIN_ALPHA;
+            }
             ctx.save();
-            ctx.globalAlpha = alpha;
+            ctx.globalAlpha = Math.max(MIN_ALPHA, Math.min(MAX_ALPHA, buildingAlpha));
             needsAlphaRestore = true;
         }
     }
@@ -191,7 +220,7 @@ export function renderRainCollector(
     
     // Render health bar using unified system (bottom-anchored positioning)
     if (playerX !== undefined && playerY !== undefined) {
-        if (rainCollector.isMonument) {
+        if (isCompound) {
             // Monument: 480x480 sprite with 96px anchor offset
             renderEntityHealthBar(ctx, rainCollector, MONUMENT_RAIN_COLLECTOR_WIDTH, MONUMENT_RAIN_COLLECTOR_HEIGHT, nowMs, playerX, playerY, MONUMENT_RAIN_COLLECTOR_HEIGHT - 96);
         } else {

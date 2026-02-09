@@ -14,11 +14,13 @@ import wildBeehiveImage from '../../assets/doodads/pile_honeycomb.png'; // Wild 
 import playerBeehiveImage from '../../assets/doodads/beehive_wooden.png'; // Player-made beehive (produces honeycomb)
 import alkFoodProcessorImage from '../../assets/doodads/alk_food_processor.png'; // Monument cooking station building
 import alkWeaponsDepotImage from '../../assets/doodads/alk_weapons_depot.png'; // Monument repair bench building
+import alkCompostImage from '../../assets/doodads/alk_compost.png'; // Monument compost building
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';
 import { renderEntityHealthBar } from './healthBarUtils';
 import { renderDecorativeBees } from './decorativeBeeRenderingUtils';
+import { isCompoundMonument } from '../../config/compoundBuildings';
 
 // --- Constants --- (Keep exportable if used elsewhere)
 export const BOX_WIDTH = 64; 
@@ -53,6 +55,8 @@ export const MONUMENT_COOKING_STATION_WIDTH = 384;
 export const MONUMENT_COOKING_STATION_HEIGHT = 384;
 export const MONUMENT_REPAIR_BENCH_WIDTH = 384;
 export const MONUMENT_REPAIR_BENCH_HEIGHT = 384;
+export const MONUMENT_COMPOST_WIDTH = 384;
+export const MONUMENT_COMPOST_HEIGHT = 384;
 const MONUMENT_BOX_ANCHOR_Y_OFFSET = 96; // Same anchor as other monument buildings
 
 // Box type constants (must match server)
@@ -91,13 +95,13 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
             case BOX_TYPE_REFRIGERATOR:
                 return refrigeratorImage;
             case BOX_TYPE_COMPOST:
-                return compostImage;
+                return isCompoundMonument(entity.isMonument, entity.posX, entity.posY) ? alkCompostImage : compostImage;
             case BOX_TYPE_BACKPACK:
                 return backpackImage;
             case BOX_TYPE_REPAIR_BENCH:
-                return entity.isMonument ? alkWeaponsDepotImage : repairBenchImage;
+                return isCompoundMonument(entity.isMonument, entity.posX, entity.posY) ? alkWeaponsDepotImage : repairBenchImage;
             case BOX_TYPE_COOKING_STATION:
-                return entity.isMonument ? alkFoodProcessorImage : cookingStationImage;
+                return isCompoundMonument(entity.isMonument, entity.posX, entity.posY) ? alkFoodProcessorImage : cookingStationImage;
             case BOX_TYPE_SCARECROW:
                 return scarecrowImage;
             case BOX_TYPE_MILITARY_RATION:
@@ -123,14 +127,15 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
             case BOX_TYPE_REFRIGERATOR:
                 return { width: REFRIGERATOR_WIDTH, height: REFRIGERATOR_HEIGHT };
             case BOX_TYPE_COMPOST:
+                if (isCompoundMonument(entity.isMonument, entity.posX, entity.posY)) return { width: MONUMENT_COMPOST_WIDTH, height: MONUMENT_COMPOST_HEIGHT };
                 return { width: COMPOST_WIDTH, height: COMPOST_HEIGHT };
             case BOX_TYPE_BACKPACK:
                 return { width: BACKPACK_WIDTH, height: BACKPACK_HEIGHT };
             case BOX_TYPE_REPAIR_BENCH:
-                if (entity.isMonument) return { width: MONUMENT_REPAIR_BENCH_WIDTH, height: MONUMENT_REPAIR_BENCH_HEIGHT };
+                if (isCompoundMonument(entity.isMonument, entity.posX, entity.posY)) return { width: MONUMENT_REPAIR_BENCH_WIDTH, height: MONUMENT_REPAIR_BENCH_HEIGHT };
                 return { width: REPAIR_BENCH_WIDTH, height: REPAIR_BENCH_HEIGHT };
             case BOX_TYPE_COOKING_STATION:
-                if (entity.isMonument) return { width: MONUMENT_COOKING_STATION_WIDTH, height: MONUMENT_COOKING_STATION_HEIGHT };
+                if (isCompoundMonument(entity.isMonument, entity.posX, entity.posY)) return { width: MONUMENT_COOKING_STATION_WIDTH, height: MONUMENT_COOKING_STATION_HEIGHT };
                 return { width: COOKING_STATION_WIDTH, height: COOKING_STATION_HEIGHT };
             case BOX_TYPE_SCARECROW:
                 return { width: SCARECROW_WIDTH, height: SCARECROW_HEIGHT };
@@ -150,8 +155,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
     },
 
     calculateDrawPosition: (entity, drawWidth, drawHeight) => {
-        // Monument cooking stations and repair benches use monument-style anchoring (like rain collector)
-        if (entity.isMonument && (entity.boxType === BOX_TYPE_COOKING_STATION || entity.boxType === BOX_TYPE_REPAIR_BENCH)) {
+        // Compound monument cooking stations, repair benches, and compost use monument-style anchoring (like rain collector)
+        if (isCompoundMonument(entity.isMonument, entity.posX, entity.posY) && (entity.boxType === BOX_TYPE_COOKING_STATION || entity.boxType === BOX_TYPE_REPAIR_BENCH || entity.boxType === BOX_TYPE_COMPOST)) {
             return {
                 drawX: entity.posX - drawWidth / 2,
                 drawY: entity.posY - drawHeight + MONUMENT_BOX_ANCHOR_Y_OFFSET,
@@ -287,6 +292,7 @@ imageManager.preloadImage(wildBeehiveImage);
 imageManager.preloadImage(playerBeehiveImage);
 imageManager.preloadImage(alkFoodProcessorImage);
 imageManager.preloadImage(alkWeaponsDepotImage);
+imageManager.preloadImage(alkCompostImage);
 
 // === FISH TRAP WATER EFFECTS CONFIGURATION ===
 const FISH_TRAP_WATER_CONFIG = {
@@ -509,24 +515,56 @@ export function renderWoodenStorageBox(
         return;
     }
     
-    // Monument cooking station / repair bench: occlusion transparency when player walks behind
-    const isMonumentBuilding = box.isMonument && (box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_REPAIR_BENCH);
+    // Compound monument cooking station / repair bench / compost: occlusion transparency when player walks behind
+    // Same pattern as furnace occlusion - only trigger when entity is Y-sorted IN FRONT of player
+    const isCompoundBldg = isCompoundMonument(box.isMonument, box.posX, box.posY);
+    const isMonumentBuilding = isCompoundBldg && (box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_REPAIR_BENCH || box.boxType === BOX_TYPE_COMPOST);
     let needsAlphaRestore = false;
     if (isMonumentBuilding && localPlayerPosition) {
-        const w = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_WIDTH : MONUMENT_REPAIR_BENCH_WIDTH;
-        const h = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_HEIGHT : MONUMENT_REPAIR_BENCH_HEIGHT;
-        const drawY = box.posY - h + MONUMENT_BOX_ANCHOR_Y_OFFSET;
-        const entityTopY = drawY;
-        const entityBottomY = box.posY + MONUMENT_BOX_ANCHOR_Y_OFFSET;
-        const entityCenterX = box.posX;
-        const halfWidth = w / 2;
-
-        if (localPlayerPosition.y < entityBottomY - 20 &&
-            localPlayerPosition.y > entityTopY &&
-            localPlayerPosition.x > entityCenterX - halfWidth &&
-            localPlayerPosition.x < entityCenterX + halfWidth) {
+        const w = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_WIDTH : box.boxType === BOX_TYPE_COMPOST ? MONUMENT_COMPOST_WIDTH : MONUMENT_REPAIR_BENCH_WIDTH;
+        const h = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_HEIGHT : box.boxType === BOX_TYPE_COMPOST ? MONUMENT_COMPOST_HEIGHT : MONUMENT_REPAIR_BENCH_HEIGHT;
+        
+        // Use portion of sprite for actual building bounds
+        const visualWidth = w * 0.6;
+        const visualHeight = h * 0.7;
+        
+        // Dynamic threshold based on height (same approach as furnace)
+        const BASE_TRANSPARENCY_THRESHOLD_PERCENT = 0.25;
+        const dynamicThreshold = visualHeight * BASE_TRANSPARENCY_THRESHOLD_PERCENT;
+        
+        // Building is drawn bottom-anchored at posY with anchor offset
+        const buildingLeft = box.posX - visualWidth / 2;
+        const buildingRight = box.posX + visualWidth / 2;
+        const buildingTop = box.posY - visualHeight + MONUMENT_BOX_ANCHOR_Y_OFFSET;
+        const buildingBottom = box.posY - dynamicThreshold + MONUMENT_BOX_ANCHOR_Y_OFFSET;
+        
+        // Player bounding box (approximate)
+        const playerSize = 48;
+        const pLeft = localPlayerPosition.x - playerSize / 2;
+        const pRight = localPlayerPosition.x + playerSize / 2;
+        const pTop = localPlayerPosition.y - playerSize;
+        const pBottom = localPlayerPosition.y;
+        
+        // Check if player overlaps with building visual area
+        const overlapsH = pRight > buildingLeft && pLeft < buildingRight;
+        const overlapsV = pBottom > buildingTop && pTop < buildingBottom;
+        
+        // Only apply transparency when building is IN FRONT of player (larger Y = rendered after)
+        if (overlapsH && overlapsV && box.posY > localPlayerPosition.y + dynamicThreshold) {
+            const depthDifference = box.posY - localPlayerPosition.y;
+            const maxDepthForFade = 100;
+            const MIN_ALPHA = 0.35;
+            const MAX_ALPHA = 1.0;
+            
+            let buildingAlpha = MAX_ALPHA;
+            if (depthDifference > 0 && depthDifference < maxDepthForFade) {
+                const fadeFactor = 1 - (depthDifference / maxDepthForFade);
+                buildingAlpha = MAX_ALPHA - (fadeFactor * (MAX_ALPHA - MIN_ALPHA));
+            } else if (depthDifference >= maxDepthForFade) {
+                buildingAlpha = MIN_ALPHA;
+            }
             ctx.save();
-            ctx.globalAlpha = 0.45;
+            ctx.globalAlpha = Math.max(MIN_ALPHA, Math.min(MAX_ALPHA, buildingAlpha));
             needsAlphaRestore = true;
         }
     }
@@ -552,10 +590,10 @@ export function renderWoodenStorageBox(
     
     // Render health bar using unified system (with type-specific dimensions)
     if (playerX !== undefined && playerY !== undefined) {
-        if (box.isMonument && (box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_REPAIR_BENCH)) {
+        if (isCompoundBldg && (box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_REPAIR_BENCH || box.boxType === BOX_TYPE_COMPOST)) {
             // Monument buildings: larger sprite with monument anchor
-            const w = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_WIDTH : MONUMENT_REPAIR_BENCH_WIDTH;
-            const h = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_HEIGHT : MONUMENT_REPAIR_BENCH_HEIGHT;
+            const w = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_WIDTH : box.boxType === BOX_TYPE_COMPOST ? MONUMENT_COMPOST_WIDTH : MONUMENT_REPAIR_BENCH_WIDTH;
+            const h = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_HEIGHT : box.boxType === BOX_TYPE_COMPOST ? MONUMENT_COMPOST_HEIGHT : MONUMENT_REPAIR_BENCH_HEIGHT;
             renderEntityHealthBar(ctx, box, w, h, nowMs, playerX, playerY, h - MONUMENT_BOX_ANCHOR_Y_OFFSET);
         } else {
             const dims = getBoxDimensions(box.boxType);

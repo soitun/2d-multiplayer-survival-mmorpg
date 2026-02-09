@@ -7,6 +7,7 @@ import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroun
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { imageManager } from './imageManager'; // Import image manager
 import { renderEntityHealthBar } from './healthBarUtils';
+import { isCompoundMonument } from '../../config/compoundBuildings';
 
 // --- Furnace Type Constants ---
 export const FURNACE_TYPE_NORMAL = 0;
@@ -152,8 +153,8 @@ const largeFurnaceConfig: GroundEntityConfig<Furnace> = {
     },
 
     getTargetDimensions: (_img, entity) => {
-        // Monument large furnaces render at warehouse size (480x480)
-        if (entity.isMonument) {
+        // Compound monument large furnaces render at warehouse size (480x480)
+        if (isCompoundMonument(entity.isMonument, entity.posX, entity.posY)) {
             return {
                 width: MONUMENT_LARGE_FURNACE_WIDTH,
                 height: MONUMENT_LARGE_FURNACE_HEIGHT,
@@ -166,8 +167,8 @@ const largeFurnaceConfig: GroundEntityConfig<Furnace> = {
     },
 
     calculateDrawPosition: (entity, drawWidth, drawHeight) => {
-        // Use monument Y offset if this is a monument furnace
-        const yOffset = entity.isMonument ? MONUMENT_LARGE_FURNACE_RENDER_Y_OFFSET : LARGE_FURNACE_RENDER_Y_OFFSET;
+        // Use compound monument Y offset if this is a compound monument furnace
+        const yOffset = isCompoundMonument(entity.isMonument, entity.posX, entity.posY) ? MONUMENT_LARGE_FURNACE_RENDER_Y_OFFSET : LARGE_FURNACE_RENDER_Y_OFFSET;
         return {
             // Top-left corner for image drawing, originating from entity's base Y
             // Apply Y offset to better align with collision area
@@ -193,15 +194,15 @@ const largeFurnaceConfig: GroundEntityConfig<Furnace> = {
                 SHAKE_INTENSITY_PX
             );
 
-            // Monument furnaces are larger (480px) so need larger shadow pivot offset
-            const isMonument = entity.isMonument;
-            const shadowPivotOffset = isMonument ? 50 : 80; // Monument image was lowered, shadow pivot adjusted to match
+            // Compound monument furnaces are larger (480px) so need larger shadow pivot offset
+            const isCompound = isCompoundMonument(entity.isMonument, entity.posX, entity.posY);
+            const shadowPivotOffset = isCompound ? 50 : 80; // Monument image was lowered, shadow pivot adjusted to match
             
-            // NOON FIX: Only apply noon shadow push for non-monument furnaces.
-            // Monument furnaces are wide ground-level structures where the noon push
+            // NOON FIX: Only apply noon shadow push for non-compound-monument furnaces.
+            // Compound monument furnaces are wide ground-level structures where the noon push
             // causes the shadow to detach upward unnaturally.
             let noonExtraOffset = 0;
-            if (!isMonument && cycleProgress >= 0.35 && cycleProgress < 0.55) {
+            if (!isCompound && cycleProgress >= 0.35 && cycleProgress < 0.55) {
                 const noonT = (cycleProgress - 0.35) / 0.20;
                 const noonFactor = 1.0 - Math.abs(noonT - 0.5) * 2.0;
                 noonExtraOffset = noonFactor * imageDrawHeight * 0.3;
@@ -261,10 +262,11 @@ imageManager.preloadImage(largeFurnaceImage);
 imageManager.preloadImage(largeFurnaceOnImage);
 
 // --- Helper function to get furnace dimensions based on type ---
-export function getFurnaceDimensions(furnaceType: number, isMonument?: boolean): { width: number; height: number; yOffset: number } {
+// isCompoundMonumentFlag: true only for compound monument furnaces (ALK-specific large rendering)
+export function getFurnaceDimensions(furnaceType: number, isCompoundMonumentFlag?: boolean): { width: number; height: number; yOffset: number } {
     if (furnaceType === FURNACE_TYPE_LARGE) {
-        // Monument large furnaces render at warehouse size (480x480)
-        if (isMonument) {
+        // Compound monument large furnaces render at warehouse size (480x480)
+        if (isCompoundMonumentFlag) {
             return {
                 width: MONUMENT_LARGE_FURNACE_WIDTH,
                 height: MONUMENT_LARGE_FURNACE_HEIGHT,
@@ -298,7 +300,7 @@ export function renderFurnace(
 ) {
     // Select config based on furnace type
     const config = furnace.furnaceType === FURNACE_TYPE_LARGE ? largeFurnaceConfig : furnaceConfig;
-    const dimensions = getFurnaceDimensions(furnace.furnaceType, furnace.isMonument);
+    const dimensions = getFurnaceDimensions(furnace.furnaceType, isCompoundMonument(furnace.isMonument, furnace.posX, furnace.posY));
     
     // ===== OCCLUSION TRANSPARENCY FOR LARGE FURNACES =====
     // Large furnaces can occlude the player - apply transparency when player is behind

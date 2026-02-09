@@ -3114,6 +3114,11 @@ pub fn damage_turret(
         return Ok(AttackResult { hit: false, target_type: Some(TargetType::Turret), resource_granted: None });
     }
 
+    // Monument turrets are indestructible
+    if turret.is_monument {
+        return Ok(AttackResult { hit: false, target_type: Some(TargetType::Turret), resource_granted: None });
+    }
+
     // <<< PVP RAIDING CHECK >>>
     // Turret raiding requires both attacker and owner to have active PvP status
     if let Some(attacker_player) = ctx.db.player().identity().find(&attacker_id) {

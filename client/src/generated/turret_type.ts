@@ -46,6 +46,7 @@ export type Turret = {
   isDestroyed: boolean,
   destroyedAt: __Timestamp | undefined,
   lastHitTime: __Timestamp | undefined,
+  isMonument: boolean,
 };
 let _cached_Turret_type_value: __AlgebraicTypeType | null = null;
 
@@ -78,6 +79,7 @@ export const Turret = {
       { name: "isDestroyed", algebraicType: __AlgebraicTypeValue.Bool },
       { name: "destroyedAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
+      { name: "isMonument", algebraicType: __AlgebraicTypeValue.Bool },
     );
     return _cached_Turret_type_value;
   },

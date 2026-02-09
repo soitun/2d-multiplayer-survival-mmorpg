@@ -95,7 +95,7 @@ import { renderMonument, getBuildingImage } from './monumentRenderingUtils';
 import { CompoundBuildingEntity } from '../../hooks/useEntityFiltering';
 // Import building restriction overlay for monument zones
 import { renderBuildingRestrictionOverlay, BuildingRestrictionZoneConfig } from './buildingRestrictionOverlayUtils';
-import { COMPOUND_BUILDINGS } from '../../config/compoundBuildings';
+import { COMPOUND_BUILDINGS, isCompoundMonument } from '../../config/compoundBuildings';
 // Import sea stack renderer
 import { renderSeaStackSingle } from './seaStackRenderingUtils';
 // Import hearth renderer
@@ -1221,7 +1221,7 @@ export const renderYSortedEntities = ({
               const outlineColor = getInteractionOutlineColor('open');
               // Select config based on furnace type and monument status
               let config;
-              if (furnace.furnaceType === 1 && furnace.isMonument) {
+              if (furnace.furnaceType === 1 && isCompoundMonument(furnace.isMonument, furnace.posX, furnace.posY)) {
                   config = ENTITY_VISUAL_CONFIG.monument_large_furnace;
               } else if (furnace.furnaceType === 1) {
                   config = ENTITY_VISUAL_CONFIG.large_furnace;
@@ -1257,7 +1257,7 @@ export const renderYSortedEntities = ({
           // Pass player position for health bar rendering on opposite side (like barrels, campfires, furnaces)
           const playerX = localPlayerPosition?.x;
           const playerY = localPlayerPosition?.y;
-          renderTurret(ctx, turret, camX, camY, cycleProgress, playerX, playerY);
+          renderTurret(ctx, turret, camX, camY, cycleProgress, playerX, playerY, localPlayerPosition);
           
           if (isTheClosestTarget) {
               const config = ENTITY_VISUAL_CONFIG.turret;
@@ -1327,20 +1327,21 @@ export const renderYSortedEntities = ({
           // Pass player position for health bar rendering on opposite side (like barrels, campfires, furnaces)
           const playerX = localPlayerPosition?.x;
           const playerY = localPlayerPosition?.y;
-          renderWoodenStorageBox(ctx, box, nowMs, cycleProgress, playerX, playerY, inventoryItems, itemDefinitions, localPlayerPosition);
+          renderWoodenStorageBox(ctx, box, nowMs, cycleProgress, playerX, playerY, inventoryItems, itemDefinitions, localPlayerPosition ?? undefined);
           
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
               // Use appropriate config for each box type
               let config;
+              const isCompound = isCompoundMonument(box.isMonument, box.posX, box.posY);
               if (box.boxType === BOX_TYPE_COMPOST) {
-                  config = ENTITY_VISUAL_CONFIG.compost;
+                  config = isCompound ? ENTITY_VISUAL_CONFIG.monument_compost : ENTITY_VISUAL_CONFIG.compost;
               } else if (box.boxType === BOX_TYPE_REFRIGERATOR) {
                   config = ENTITY_VISUAL_CONFIG.refrigerator;
               } else if (box.boxType === BOX_TYPE_REPAIR_BENCH) {
-                  config = box.isMonument ? ENTITY_VISUAL_CONFIG.monument_repair_bench : ENTITY_VISUAL_CONFIG.repair_bench;
+                  config = isCompound ? ENTITY_VISUAL_CONFIG.monument_repair_bench : ENTITY_VISUAL_CONFIG.repair_bench;
               } else if (box.boxType === BOX_TYPE_COOKING_STATION) {
-                  config = box.isMonument ? ENTITY_VISUAL_CONFIG.monument_cooking_station : ENTITY_VISUAL_CONFIG.cooking_station;
+                  config = isCompound ? ENTITY_VISUAL_CONFIG.monument_cooking_station : ENTITY_VISUAL_CONFIG.cooking_station;
               } else if (box.boxType === BOX_TYPE_SCARECROW) {
                   config = ENTITY_VISUAL_CONFIG.scarecrow;
               } else if (box.boxType === BOX_TYPE_MILITARY_RATION) {
@@ -1393,11 +1394,12 @@ export const renderYSortedEntities = ({
       } else if (type === 'projectile') {
           const projectile = entity as SpacetimeDBProjectile;
           
-          // Check if this is a turret tallow projectile (source_type = 1)
+          // Check if this is a turret tallow projectile (source_type = 1 or 3 for monument turret)
           // Turret projectiles are rendered as primitives (glowing orange circles), not sprites
           const PROJECTILE_SOURCE_TURRET = 1;
           const PROJECTILE_SOURCE_NPC = 2;
-          const isTurretTallow = projectile.sourceType === PROJECTILE_SOURCE_TURRET;
+          const PROJECTILE_SOURCE_MONUMENT_TURRET = 3;
+          const isTurretTallow = projectile.sourceType === PROJECTILE_SOURCE_TURRET || projectile.sourceType === PROJECTILE_SOURCE_MONUMENT_TURRET;
           const isNpcProjectile = projectile.sourceType === PROJECTILE_SOURCE_NPC;
           
           if (isTurretTallow || isNpcProjectile) {
@@ -1502,7 +1504,7 @@ export const renderYSortedEntities = ({
           if (isTheClosestTarget) {
               const outlineColor = getInteractionOutlineColor('open');
               // Select config based on monument status
-              const config = rainCollector.isMonument
+              const config = isCompoundMonument(rainCollector.isMonument, rainCollector.posX, rainCollector.posY)
                   ? ENTITY_VISUAL_CONFIG.monument_rain_collector
                   : ENTITY_VISUAL_CONFIG.rain_collector;
               const outline = getInteractionOutlineParams(rainCollector.posX, rainCollector.posY, config);

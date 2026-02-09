@@ -70,7 +70,8 @@ import {
 } from '../utils/renderers/hearthRenderingUtils'; // ADDED: Hearth interaction constants
 import { PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/playerCorpseRenderingUtils';
 import { PLAYER_TURRET_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/turretRenderingUtils';
-import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT, getBoxDimensions, BOX_TYPE_SCARECROW, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH, MONUMENT_COOKING_STATION_WIDTH, MONUMENT_COOKING_STATION_HEIGHT, MONUMENT_REPAIR_BENCH_WIDTH, MONUMENT_REPAIR_BENCH_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
+import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT, getBoxDimensions, BOX_TYPE_SCARECROW, BOX_TYPE_COMPOST, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH, MONUMENT_COOKING_STATION_WIDTH, MONUMENT_COOKING_STATION_HEIGHT, MONUMENT_REPAIR_BENCH_WIDTH, MONUMENT_REPAIR_BENCH_HEIGHT, MONUMENT_COMPOST_WIDTH, MONUMENT_COMPOST_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
+import { isCompoundMonument } from '../config/compoundBuildings';
 import { PLAYER_DOOR_INTERACTION_DISTANCE_SQUARED, DOOR_RENDER_Y_OFFSET } from '../utils/renderers/doorRenderingUtils'; // ADDED: Door interaction distance and render offset
 import { PLAYER_ALK_STATION_INTERACTION_DISTANCE_SQUARED, ALK_STATION_Y_OFFSET } from '../utils/renderers/alkStationRenderingUtils'; // ADDED: ALK station interaction distance
 import { getResourceConfig } from '../utils/renderers/resourceConfigurations';
@@ -484,22 +485,23 @@ export function useInteractionFinder({
                 furnaces.forEach((furnace) => {
                     // Use furnace type to determine dimensions and interaction distance
                     const isLargeFurnace = furnace.furnaceType === FURNACE_TYPE_LARGE;
-                    // Monument large furnaces are 480px tall (warehouse size), regular large furnaces are 256px
+                    // Monument large furnaces in compound are 480px tall (warehouse size), regular large furnaces are 256px
+                    const isCompoundFurnace = isCompoundMonument(furnace.isMonument, furnace.posX, furnace.posY);
                     const furnaceHeight = isLargeFurnace 
-                        ? (furnace.isMonument ? MONUMENT_LARGE_FURNACE_HEIGHT : LARGE_FURNACE_HEIGHT)
+                        ? (isCompoundFurnace ? MONUMENT_LARGE_FURNACE_HEIGHT : LARGE_FURNACE_HEIGHT)
                         : FURNACE_HEIGHT;
                     const furnaceYOffset = isLargeFurnace 
-                        ? (furnace.isMonument ? MONUMENT_LARGE_FURNACE_RENDER_Y_OFFSET : LARGE_FURNACE_RENDER_Y_OFFSET)
+                        ? (isCompoundFurnace ? MONUMENT_LARGE_FURNACE_RENDER_Y_OFFSET : LARGE_FURNACE_RENDER_Y_OFFSET)
                         : FURNACE_RENDER_Y_OFFSET;
                     const maxDistSq = isLargeFurnace 
-                        ? (furnace.isMonument ? PLAYER_MONUMENT_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED : PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED) 
+                        ? (isCompoundFurnace ? PLAYER_MONUMENT_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED : PLAYER_LARGE_FURNACE_INTERACTION_DISTANCE_SQUARED) 
                         : PLAYER_FURNACE_INTERACTION_DISTANCE_SQUARED;
                     
                     // Use asymmetric interaction points for better approach from below while keeping top unchanged
                     let interactionCenterY;
                     if (playerY > furnace.posY) {
                         // Player is below furnace - use lower interaction point for easier approach
-                        const belowOffset = isLargeFurnace ? (furnace.isMonument ? 80 : 40) : 10;
+                        const belowOffset = isLargeFurnace ? (isCompoundFurnace ? 80 : 40) : 10;
                         interactionCenterY = furnace.posY + belowOffset;
                     } else {
                         // Player is above/level with furnace - use normal center point to keep existing behavior
@@ -581,10 +583,11 @@ export function useInteractionFinder({
                 });
             }
 
-            // Find closest turret
+            // Find closest turret (skip monument turrets - they cannot be interacted with)
             if (turrets) {
                 turrets.forEach((turret: SpacetimeDBTurret) => {
                     if (turret.isDestroyed) return;
+                    if (turret.isMonument) return; // Monument turrets cannot be interacted with
                     
                     // Turret sprite is centered on posX/posY - use posY directly
                     const dx = playerX - turret.posX;
@@ -645,15 +648,16 @@ export function useInteractionFinder({
                     // Scarecrow is decorative only - no interaction, no blue box, no E label
                     if (box.boxType === BOX_TYPE_SCARECROW) return;
                     
-                    // Monument cooking stations / repair benches use monument building interaction
-                    const isMonumentBuilding = box.isMonument && (box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_REPAIR_BENCH);
+                    // Compound monument cooking stations / repair benches / compost use monument building interaction
+                    const isCompoundBldg = isCompoundMonument(box.isMonument, box.posX, box.posY);
+                    const isMonumentBuilding = isCompoundBldg && (box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_REPAIR_BENCH || box.boxType === BOX_TYPE_COMPOST);
                     
                     let visualCenterY: number;
                     let maxDistSq: number;
                     
                     if (isMonumentBuilding) {
                         // Monument buildings: 384px sprite with 96px anchor offset
-                        const h = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_HEIGHT : MONUMENT_REPAIR_BENCH_HEIGHT;
+                        const h = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_HEIGHT : box.boxType === BOX_TYPE_COMPOST ? MONUMENT_COMPOST_HEIGHT : MONUMENT_REPAIR_BENCH_HEIGHT;
                         const anchorOffset = 96;
                         // Visual center: drawY = posY - h + anchorOffset, center = drawY + h/2
                         visualCenterY = box.posY - h + anchorOffset + h / 2;
@@ -758,8 +762,8 @@ export function useInteractionFinder({
                 rainCollectors.forEach((rainCollector) => {
                     if (rainCollector.isDestroyed) return;
                     
-                    // Use appropriate distance threshold based on monument status
-                    const maxDistSq = rainCollector.isMonument
+                    // Use appropriate distance threshold based on compound monument status
+                    const maxDistSq = isCompoundMonument(rainCollector.isMonument, rainCollector.posX, rainCollector.posY)
                         ? PLAYER_MONUMENT_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED
                         : PLAYER_RAIN_COLLECTOR_INTERACTION_DISTANCE_SQUARED;
                     

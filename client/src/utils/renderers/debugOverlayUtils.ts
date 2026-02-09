@@ -15,6 +15,7 @@ import { YSortedEntityType, CompoundBuildingEntity } from '../../hooks/useEntity
 const PROJECTILE_SOURCE_PLAYER = 0;
 const PROJECTILE_SOURCE_TURRET = 1;
 const PROJECTILE_SOURCE_NPC = 2;
+const PROJECTILE_SOURCE_MONUMENT_TURRET = 3;
 
 // NPC projectile types for rendering
 const NPC_PROJECTILE_SPECTRAL_SHARD = 1;  // Shardkin
@@ -741,7 +742,7 @@ function getProjectileDebugColor(sourceType: number, npcProjectileType: number):
           hitRadiusColor: 'rgba(255, 50, 50, 0.15)'
         };
     }
-  } else if (sourceType === PROJECTILE_SOURCE_TURRET) {
+  } else if (sourceType === PROJECTILE_SOURCE_TURRET || sourceType === PROJECTILE_SOURCE_MONUMENT_TURRET) {
     // Turret - orange/molten
     return {
       fillColor: 'rgba(255, 140, 0, 0.6)',
@@ -775,6 +776,8 @@ function getProjectileLabel(sourceType: number, npcProjectileType: number): stri
     }
   } else if (sourceType === PROJECTILE_SOURCE_TURRET) {
     return 'Turret Tallow';
+  } else if (sourceType === PROJECTILE_SOURCE_MONUMENT_TURRET) {
+    return 'Monument Turret';
   } else {
     return 'Player Projectile';
   }
@@ -807,6 +810,8 @@ export function renderProjectileCollisionDebug(
     let gravityMultiplier = 0.0;
     if (projectile.sourceType === PROJECTILE_SOURCE_TURRET) {
       gravityMultiplier = 1.0; // Turret tallow has full gravity
+    } else if (projectile.sourceType === PROJECTILE_SOURCE_MONUMENT_TURRET) {
+      gravityMultiplier = 0.0; // Monument turret projectiles fly straight
     } else if (projectile.sourceType === PROJECTILE_SOURCE_PLAYER) {
       // Player projectiles: bows have gravity, crossbows/guns have less
       gravityMultiplier = 1.0; // Default to full gravity for simplicity in debug

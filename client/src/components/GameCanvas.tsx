@@ -126,6 +126,7 @@ import { drawMinimapOntoCanvas } from './Minimap';
 import { renderCampfire } from '../utils/renderers/campfireRenderingUtils';
 import { renderBarbecue } from '../utils/renderers/barbecueRenderingUtils'; // ADDED: Barbecue renderer import
 import { getFurnaceDimensions, FURNACE_TYPE_LARGE } from '../utils/renderers/furnaceRenderingUtils'; // ADDED: Furnace dimensions helper
+import { isCompoundMonument } from '../config/compoundBuildings';
 import { renderPlayerCorpse } from '../utils/renderers/playerCorpseRenderingUtils';
 import { renderStash } from '../utils/renderers/stashRenderingUtils';
 import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarbecueLight, renderAllPlayerLights, renderFishingVillageCampfireLight, renderSovaAura } from '../utils/renderers/lightRenderingUtils';
@@ -3226,6 +3227,43 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           return 1; // Player north of building - player behind (inverted)
         }
 
+        // CRITICAL: Player vs Tree - explicit position-based Y-sorting
+        // Tree sprite bottom is at posY. Player feet at positionY.
+        // Player should be in front when their feet are at or south of tree base.
+        if (aType === 'player' && bType === 'tree') {
+          const playerY = (aEntity as any)?.positionY ?? 0;
+          const treeY = (bEntity as any)?.posY ?? 0;
+          return playerY >= treeY ? 1 : -1;
+        }
+        if (bType === 'player' && aType === 'tree') {
+          const playerY = (bEntity as any)?.positionY ?? 0;
+          const treeY = (aEntity as any)?.posY ?? 0;
+          return playerY >= treeY ? -1 : 1;
+        }
+
+        // CRITICAL: Player vs Grass - explicit position-based Y-sorting
+        // Player should be in front when their feet are at or south of grass position.
+        if (aType === 'player' && bType === 'grass') {
+          const playerY = (aEntity as any)?.positionY ?? 0;
+          const grassY = (bEntity as any)?.serverPosY ?? (bEntity as any)?.posY ?? 0;
+          return playerY >= grassY ? 1 : -1;
+        }
+        if (bType === 'player' && aType === 'grass') {
+          const playerY = (bEntity as any)?.positionY ?? 0;
+          const grassY = (aEntity as any)?.serverPosY ?? (aEntity as any)?.posY ?? 0;
+          return playerY >= grassY ? -1 : 1;
+        }
+
+        // Grass vs tall structures: grass is a flat ground decoration that should always
+        // render behind (under) trees, stones, and other tall objects.
+        // Must replicate this from useEntityFiltering or this re-sort undoes the correct order.
+        if (aType === 'grass' && (bType === 'tree' || bType === 'stone' || bType === 'basalt_column' || bType === 'rune_stone' || bType === 'sea_stack')) {
+          return -1; // Grass renders before (behind) tall structure
+        }
+        if (bType === 'grass' && (aType === 'tree' || aType === 'stone' || aType === 'basalt_column' || aType === 'rune_stone' || aType === 'sea_stack')) {
+          return 1; // Grass renders before (behind) tall structure
+        }
+
         // Flying birds MUST render above everything (trees, stones, players, etc.)
         const aIsFlyingBird = aType === 'wild_animal' && aEntity &&
           'species' in aEntity && 'isFlying' in aEntity &&
@@ -4056,7 +4094,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Furnace interaction indicators (for hold actions like toggle burning)
     visibleFurnacesMap.forEach((furnace: SpacetimeDBFurnace) => {
       // Use correct height based on furnace type and monument status
-      const dimensions = getFurnaceDimensions(furnace.furnaceType, furnace.isMonument);
+      const dimensions = getFurnaceDimensions(furnace.furnaceType, isCompoundMonument(furnace.isMonument, furnace.posX, furnace.posY));
       drawIndicatorIfNeeded('furnace', furnace.id, furnace.posX, furnace.posY, dimensions.height, true);
     });
 

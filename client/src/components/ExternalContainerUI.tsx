@@ -50,6 +50,7 @@ import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabili
 import { BOX_TYPE_REPAIR_BENCH, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_COOKING_STATION } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { getItemIcon } from '../utils/itemIconUtils';
 import { playImmediateSound } from '../hooks/useSoundSystem';
+import { isCompoundMonument } from '../config/compoundBuildings';
 
 /**
  * Convert item display name to icon asset name
@@ -2358,7 +2359,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         {/* Repair Bench Info Section */}
                         <div style={{ marginTop: '12px', marginBottom: '12px', padding: '10px', backgroundColor: 'rgba(0, 0, 0, 0.3)', borderRadius: '4px', border: '1px solid rgba(255, 166, 77, 0.3)' }}>
                             <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#ffa64d', marginBottom: '8px', textAlign: 'center' }}>
-                                🔧 Repair Bench
+                                🔧 {(() => { const box = container.containerEntity as SpacetimeDBWoodenStorageBox; return isCompoundMonument(box.isMonument, box.posX, box.posY) ? 'Maintenance Station' : 'Repair Bench'; })()}
                             </div>
                             
                             {/* Show item info if there's an item in the slot */}
@@ -2596,7 +2597,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             marginBottom: '8px', 
                             textAlign: 'center' 
                         }}>
-                            🍳 Cooking Station
+                            🍳 {(() => { const box = container.containerEntity as SpacetimeDBWoodenStorageBox; return isCompoundMonument(box.isMonument, box.posX, box.posY) ? 'Fabrication Kitchen' : 'Cooking Station'; })()}
                         </div>
                         
                         <div style={{

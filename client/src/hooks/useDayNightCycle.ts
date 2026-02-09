@@ -20,7 +20,7 @@ import { BARBECUE_HEIGHT, BARBECUE_RENDER_Y_OFFSET } from '../utils/renderers/ba
 import { FIRE_PATCH_VISUAL_RADIUS } from '../utils/renderers/firePatchRenderingUtils';
 import { BuildingCluster } from '../utils/buildingVisibilityUtils';
 import { FOUNDATION_TILE_SIZE } from '../config/gameConfig';
-import { getCompoundEerieLightsWithPositions, getWorldCenter } from '../config/compoundBuildings';
+import { getCompoundEerieLightsWithPositions, getWorldCenter, isCompoundMonument } from '../config/compoundBuildings';
 
 export interface ColorPoint {
   r: number; g: number; b: number; a: number;
@@ -797,8 +797,8 @@ export function useDayNightCycle({
         // Render furnace light cutouts with red gradient fill
         furnaces.forEach(furnace => {
             if (furnace.isBurning) {
-                // Get correct dimensions based on furnace type and monument status
-                const dims = getFurnaceDimensions(furnace.furnaceType, furnace.isMonument);
+                // Get correct dimensions based on furnace type and compound monument status
+                const dims = getFurnaceDimensions(furnace.furnaceType, isCompoundMonument(furnace.isMonument, furnace.posX, furnace.posY));
                 
                 // Adjust Y position for the light source to be centered on the furnace
                 const visualCenterWorldY = furnace.posY - (dims.height / 2) - dims.yOffset;
@@ -811,9 +811,10 @@ export function useDayNightCycle({
                     ? findEnclosingCluster(furnace.posX, furnace.posY, buildingClusters)
                     : null;
                 
-                // Monument large furnaces get a bigger light cutout to match their size
+                // Compound monument large furnaces get a bigger light cutout to match their size
                 const isLargeFurnace = furnace.furnaceType === FURNACE_TYPE_LARGE;
-                const lightRadiusMultiplier = isLargeFurnace ? (furnace.isMonument ? 4.0 : 3.0) : 2.0;
+                const isCompoundFurnace = isCompoundMonument(furnace.isMonument, furnace.posX, furnace.posY);
+                const lightRadiusMultiplier = isLargeFurnace ? (isCompoundFurnace ? 4.0 : 3.0) : 2.0;
                 const lightRadius = FURNACE_LIGHT_RADIUS_BASE * lightRadiusMultiplier;
                 
                 // Apply clip if inside a building (clip affects both cutout and red fill)

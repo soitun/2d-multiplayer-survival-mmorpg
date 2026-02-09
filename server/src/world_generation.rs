@@ -515,6 +515,7 @@ struct WorldFeatures {
     quarry_centers: Vec<(f32, f32, i32)>, // Quarry center positions (x, y, radius) for entity spawning
     large_quarry_centers: Vec<(f32, f32, i32, LargeQuarryType)>, // Large quarry centers with type (x, y, radius, type)
     asphalt_compound: Vec<Vec<bool>>, // Central compound and mini-compounds (paved asphalt)
+    compound_dirt_ring: Vec<Vec<bool>>, // Rough dirt ring around asphalt compound for organic transition
     forest_areas: Vec<Vec<bool>>, // Dense forested areas
     tundra_areas: Vec<Vec<bool>>, // Arctic tundra (northern regions)
     alpine_areas: Vec<Vec<bool>>, // High-altitude rocky terrain (far north)
@@ -585,8 +586,8 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     // Pass hot spring data to ensure quarries don't spawn near hot springs
     let (quarry_dirt, quarry_roads, quarry_centers, large_quarry_centers) = generate_quarries(config, noise, &shore_distance, &river_network, &lake_map, &hot_spring_water, &road_network, width, height);
     
-    // Generate asphalt compounds (central compound + mini-compounds at road terminals)
-    let asphalt_compound = generate_asphalt_compounds(config, noise, &shore_distance, &road_network, width, height);
+    // Generate asphalt compounds (central compound + organic dirt ring around it)
+    let (asphalt_compound, compound_dirt_ring) = generate_asphalt_compounds(config, noise, &shore_distance, &road_network, width, height);
     
     // Generate latitude-based biome areas (Tundra and Alpine for northern regions)
     let (tundra_areas, alpine_areas) = generate_latitude_biomes(config, noise, &shore_distance, width, height);
@@ -672,6 +673,7 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         quarry_centers,
         large_quarry_centers,
         asphalt_compound,
+        compound_dirt_ring,
         forest_areas,
         tundra_areas,
         alpine_areas,
@@ -2124,36 +2126,62 @@ fn create_quarry_access_road(
     }
 }
 
-/// Generate asphalt compound areas
+/// Generate asphalt compound areas with organic irregular edges and a surrounding dirt ring
 /// - Central compound: The main paved area at the center of the map (~41x41 tiles)
+/// - Dirt ring: A rough, noise-driven ring of dirt around the asphalt for organic look
 fn generate_asphalt_compounds(
     _config: &WorldGenConfig,
-    _noise: &Perlin,
+    noise: &Perlin,
     shore_distance: &[Vec<f64>],
     road_network: &[Vec<bool>],
     width: usize,
     height: usize,
-) -> Vec<Vec<bool>> {
+) -> (Vec<Vec<bool>>, Vec<Vec<bool>>) {
     let mut asphalt = vec![vec![false; width]; height];
+    let mut dirt_ring = vec![vec![false; width]; height];
     
     let center_x = width / 2;
     let center_y = height / 2;
-    let compound_size = 20; // 25% larger than previous 16: ~40x40 tile area for central compound
+    let compound_size = 20; // ~40x40 tile area for central compound
+    let dirt_ring_base_width: f64 = 4.0; // Base width of dirt ring (3-5 tiles)
+    let scan_radius = compound_size + 8; // Scan area large enough to cover asphalt + dirt ring + noise margin
     
-    // Create central asphalt compound (square area at center)
-    for y in (center_y.saturating_sub(compound_size))..=(center_y + compound_size).min(height - 1) {
-        for x in (center_x.saturating_sub(compound_size))..=(center_x + compound_size).min(width - 1) {
-            asphalt[y][x] = true;
+    // Create central asphalt compound with irregular (noisy) edges
+    // and a surrounding dirt ring that transitions organically into the terrain
+    for y in (center_y.saturating_sub(scan_radius))..=(center_y + scan_radius).min(height - 1) {
+        for x in (center_x.saturating_sub(scan_radius))..=(center_x + scan_radius).min(width - 1) {
+            let dx = x as f64 - center_x as f64;
+            let dy = y as f64 - center_y as f64;
+            
+            // Chebyshev distance gives a square shape
+            let dist = dx.abs().max(dy.abs());
+            
+            // Use noise to create irregular edges on the asphalt boundary
+            // High frequency noise for bumpy, organic edges (offset seed to avoid terrain correlation)
+            let edge_noise = noise.get([x as f64 * 0.18 + 777.0, y as f64 * 0.18 + 777.0]);
+            // Lower frequency for broad undulations in the dirt ring
+            let ring_noise = noise.get([x as f64 * 0.1 + 1234.0, y as f64 * 0.1 + 1234.0]);
+            
+            // Asphalt boundary varies by ±2.5 tiles from the nominal compound_size
+            let asphalt_boundary = compound_size as f64 + edge_noise * 2.5;
+            
+            // Dirt ring extends beyond asphalt with its own noisy outer boundary
+            // Width varies from ~2 to ~6 tiles depending on noise
+            let dirt_outer_boundary = asphalt_boundary + dirt_ring_base_width + ring_noise * 2.0;
+            
+            if dist <= asphalt_boundary {
+                asphalt[y][x] = true;
+            } else if dist <= dirt_outer_boundary {
+                dirt_ring[y][x] = true;
+            }
         }
     }
     
-    log::info!("Created central compound at ({}, {}) with size {} ({}x{} tiles)", 
-               center_x, center_y, compound_size, compound_size * 2 + 1, compound_size * 2 + 1);
+    log::info!("Created central compound at ({}, {}) with size {} and organic dirt ring", 
+               center_x, center_y, compound_size);
     
-    // Mini-compounds at road terminals have been removed - only central compound remains
-    
-    log::info!("Generated asphalt compounds (central compound only)");
-    asphalt
+    log::info!("Generated asphalt compounds with dirt ring (central compound only)");
+    (asphalt, dirt_ring)
 }
 
 // Shipwreck generation logic moved to monument.rs module
@@ -2885,6 +2913,12 @@ fn determine_realistic_tile_type(
     // This allows terminal compounds to overlap onto beach areas
     if features.asphalt_compound[y][x] {
         return TileType::Asphalt;
+    }
+    
+    // DIRT RING: Rough organic dirt transition around the asphalt compound
+    // Checked right after asphalt so the ring overrides beach/grass/etc.
+    if features.compound_dirt_ring[y][x] {
+        return TileType::Dirt;
     }
     
     // EXPANDED: South side of main island gets 2-3x larger beach zones

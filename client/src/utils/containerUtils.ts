@@ -12,6 +12,7 @@ import {
 import { PopulatedItem } from '../components/InventoryUI';
 import { DragSourceSlotInfo, DraggedItemInfo, SlotType } from '../types/dragDropTypes';
 import { playImmediateSound } from '../hooks/useSoundSystem';
+import { isCompoundMonument } from '../config/compoundBuildings';
 
 // Container type definitions based on actual usage
 export type ContainerType = 
@@ -819,13 +820,13 @@ export function getContainerDisplayName(containerType: ContainerType, entity?: C
             case BOX_TYPE_REFRIGERATOR:
                 return 'PANTRY';
             case BOX_TYPE_COMPOST:
-                return 'COMPOST';
+                return isCompoundMonument(box.isMonument, box.posX, box.posY) ? 'BIO PROCESSOR' : 'COMPOST';
             case BOX_TYPE_BACKPACK:
                 return 'BACKPACK';
             case BOX_TYPE_REPAIR_BENCH:
-                return 'REPAIR BENCH';
+                return isCompoundMonument(box.isMonument, box.posX, box.posY) ? 'MAINTENANCE STATION' : 'REPAIR BENCH';
             case BOX_TYPE_COOKING_STATION:
-                return 'COOKING STATION';
+                return isCompoundMonument(box.isMonument, box.posX, box.posY) ? 'FABRICATION KITCHEN' : 'COOKING STATION';
             case BOX_TYPE_MILITARY_RATION:
                 return 'MILITARY RATION';
             case BOX_TYPE_MINE_CART:
@@ -855,6 +856,12 @@ export function getContainerDisplayName(containerType: ContainerType, entity?: C
             default:
                 return 'LANTERN';
         }
+    }
+    
+    // Handle compound monument rain collector
+    if (containerType === 'rain_collector' && entity) {
+        const rc = entity as RainCollector;
+        if (isCompoundMonument(rc.isMonument, rc.posX, rc.posY)) return 'AQUIFER STATION';
     }
     
     const nameMap = {

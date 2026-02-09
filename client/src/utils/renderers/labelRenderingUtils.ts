@@ -18,6 +18,7 @@ import {
 
 // Centralized visual config - single source of truth for all entity visual bounds
 import { ENTITY_VISUAL_CONFIG, getLabelPosition } from '../entityVisualConfig';
+import { isCompoundMonument } from '../../config/compoundBuildings';
 
 // Define the single target type for labels
 interface InteractableTarget {
@@ -331,7 +332,7 @@ export function renderInteractionLabels({
             if (furnace) {
                 // Select config based on furnace type and monument status
                 let config;
-                if (furnace.furnaceType === 1 && furnace.isMonument) {
+                if (furnace.furnaceType === 1 && isCompoundMonument(furnace.isMonument, furnace.posX, furnace.posY)) {
                     config = ENTITY_VISUAL_CONFIG.monument_large_furnace;
                 } else if (furnace.furnaceType === 1) {
                     config = ENTITY_VISUAL_CONFIG.large_furnace;
@@ -385,14 +386,15 @@ export function renderInteractionLabels({
             if (box) {
                 // Use appropriate config for each box type
                 let config;
+                const isCompound = isCompoundMonument(box.isMonument, box.posX, box.posY);
                 if (box.boxType === 3) { // BOX_TYPE_COMPOST
-                    config = ENTITY_VISUAL_CONFIG.compost;
+                    config = isCompound ? ENTITY_VISUAL_CONFIG.monument_compost : ENTITY_VISUAL_CONFIG.compost;
                 } else if (box.boxType === 2) { // BOX_TYPE_REFRIGERATOR
                     config = ENTITY_VISUAL_CONFIG.refrigerator;
                 } else if (box.boxType === 5) { // BOX_TYPE_REPAIR_BENCH
-                    config = box.isMonument ? ENTITY_VISUAL_CONFIG.monument_repair_bench : ENTITY_VISUAL_CONFIG.repair_bench;
+                    config = isCompound ? ENTITY_VISUAL_CONFIG.monument_repair_bench : ENTITY_VISUAL_CONFIG.repair_bench;
                 } else if (box.boxType === 6) { // BOX_TYPE_COOKING_STATION
-                    config = box.isMonument ? ENTITY_VISUAL_CONFIG.monument_cooking_station : ENTITY_VISUAL_CONFIG.cooking_station;
+                    config = isCompound ? ENTITY_VISUAL_CONFIG.monument_cooking_station : ENTITY_VISUAL_CONFIG.cooking_station;
                 } else if (box.boxType === 7) { // BOX_TYPE_SCARECROW
                     config = ENTITY_VISUAL_CONFIG.scarecrow;
                 } else if (box.boxType === 8) { // BOX_TYPE_MILITARY_RATION
@@ -457,7 +459,7 @@ export function renderInteractionLabels({
             const rainCollector = rainCollectors.get(closestInteractableTarget.id.toString());
             if (rainCollector) {
                 // Select config based on monument status
-                const config = rainCollector.isMonument
+                const config = isCompoundMonument(rainCollector.isMonument, rainCollector.posX, rainCollector.posY)
                     ? ENTITY_VISUAL_CONFIG.monument_rain_collector
                     : ENTITY_VISUAL_CONFIG.rain_collector;
                 const labelPos = getLabelPosition(rainCollector.posX, rainCollector.posY, config);

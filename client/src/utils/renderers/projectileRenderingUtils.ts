@@ -15,6 +15,7 @@ const GRAVITY: number = 600.0; // Same as server-side
 const PROJECTILE_SOURCE_PLAYER = 0;
 const PROJECTILE_SOURCE_TURRET = 1;
 const PROJECTILE_SOURCE_NPC = 2;
+const PROJECTILE_SOURCE_MONUMENT_TURRET = 3;
 
 // NPC projectile type constants (must match server)
 const NPC_PROJECTILE_NONE = 0;
@@ -49,7 +50,8 @@ export const renderProjectile = ({
 }: RenderProjectileProps) => {
   // IMPORTANT: Check for NPC/turret projectiles FIRST - they use primitive rendering, not images
   const isNpcOrTurretProjectile = projectile.sourceType === PROJECTILE_SOURCE_NPC || 
-                                   projectile.sourceType === PROJECTILE_SOURCE_TURRET;
+                                   projectile.sourceType === PROJECTILE_SOURCE_TURRET ||
+                                   projectile.sourceType === PROJECTILE_SOURCE_MONUMENT_TURRET;
   
   // Only validate arrow image for regular (player) projectiles
   if (!isNpcOrTurretProjectile && (!arrowImage || !arrowImage.complete || arrowImage.naturalHeight === 0)) {
@@ -399,12 +401,12 @@ export const renderProjectile = ({
     return; // NPC projectile rendered, exit early
   }
   
-  // Check if this is a turret tallow projectile (source_type = 1)
-  const isTurretTallow = projectile.sourceType === PROJECTILE_SOURCE_TURRET;
+  // Check if this is a turret tallow projectile (source_type = 1 or 3 for monument turret)
+  const isTurretTallow = projectile.sourceType === PROJECTILE_SOURCE_TURRET || projectile.sourceType === PROJECTILE_SOURCE_MONUMENT_TURRET;
   
   if (isTurretTallow) {
-    // Turret tallow projectiles use full gravity (molten globs fall)
-    const tallowGravityMultiplier = 1.0;
+    // Regular turret tallow has full gravity (molten globs arc), monument turrets fire straight
+    const tallowGravityMultiplier = projectile.sourceType === PROJECTILE_SOURCE_MONUMENT_TURRET ? 0.0 : 1.0;
     const tallowGravityEffect = 0.5 * GRAVITY * tallowGravityMultiplier * elapsedTimeSeconds * elapsedTimeSeconds;
     const tallowCurrentY = projectile.startPosY + (projectile.velocityY * elapsedTimeSeconds) + tallowGravityEffect;
     

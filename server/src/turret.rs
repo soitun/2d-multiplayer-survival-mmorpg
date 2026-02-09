@@ -8,7 +8,7 @@ use crate::{Player, player as PlayerTableTrait};
 use crate::environment::calculate_chunk_index;
 use crate::player_inventory::{get_player_item, find_first_empty_player_slot, move_item_to_inventory, move_item_to_hotbar};
 use crate::dropped_item::create_dropped_item_entity_with_data;
-use crate::projectile::{Projectile, PROJECTILE_SOURCE_TURRET, NPC_PROJECTILE_NONE};
+use crate::projectile::{Projectile, PROJECTILE_SOURCE_TURRET, PROJECTILE_SOURCE_MONUMENT_TURRET, NPC_PROJECTILE_NONE};
 use crate::projectile::projectile as ProjectileTableTrait;
 use crate::world_state::world_state as WorldStateTableTrait;
 use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait;
@@ -40,6 +40,15 @@ pub const TALLOW_PROJECTILE_DAMAGE: f32 = 75.0; // Increased from 15.0 - tallow 
 pub const TALLOW_PROJECTILE_SPEED: f32 = 350.0; // Slow molten glob - visible in flight
 pub const FIRE_PATCH_CHANCE_PERCENT: u32 = 25; // 25% chance to create fire patch on hit
 
+// === MONUMENT TURRET STATS ===
+// Range matches the central compound building exclusion zone (250.0 * 8.75 = 2187.5px)
+pub const MONUMENT_TURRET_RANGE: f32 = 2188.0;
+pub const MONUMENT_TURRET_RANGE_SQUARED: f32 = MONUMENT_TURRET_RANGE * MONUMENT_TURRET_RANGE;
+pub const MONUMENT_TURRET_FIRE_INTERVAL_MS: u64 = 400; // Very fast attack speed for monument turrets
+pub const MONUMENT_TURRET_DAMAGE: f32 = 99999.0; // One-shot kill any target
+pub const MONUMENT_TURRET_PROJECTILE_SPEED: f32 = 600.0; // Fast projectile for monument turrets
+pub const MONUMENT_TURRET_COLLISION_RADIUS: f32 = 100.0; // Double collision radius for 2x size monument turrets
+
 // --- Turret Table ---
 #[spacetimedb::table(name = turret, public)]
 #[derive(Clone, Debug)]
@@ -65,6 +74,9 @@ pub struct Turret {
     pub is_destroyed: bool,
     pub destroyed_at: Option<Timestamp>,
     pub last_hit_time: Option<Timestamp>,
+    /// Monument turrets are indestructible, have infinite ammo, extended range,
+    /// target PvP players + all wild animals, and one-shot kill any valid target.
+    pub is_monument: bool,
 }
 
 // --- Scheduled Processing Table ---
@@ -249,6 +261,54 @@ fn find_target(ctx: &ReducerContext, turret: &Turret, current_time: Timestamp) -
     None
 }
 
+/// Finds the nearest valid target for a monument turret.
+/// Monument turrets target ALL wild animals (hostile + non-hostile) and ALL PvP-enabled players.
+/// They don't need an owner PvP check since they are system-owned.
+fn find_monument_target(ctx: &ReducerContext, turret: &Turret, current_time: Timestamp) -> Option<TargetInfo> {
+    let range_sq = MONUMENT_TURRET_RANGE_SQUARED;
+    
+    let mut closest_target: Option<(TargetInfo, f32)> = None;
+    
+    // Target ALL wild animals with health > 0 (hostile NPCs, regular animals, apparitions, etc.)
+    for animal in ctx.db.wild_animal().iter() {
+        if animal.health <= 0.0 {
+            continue;
+        }
+        let dx = animal.pos_x - turret.pos_x;
+        let dy = animal.pos_y - turret.pos_y;
+        let dist_sq = dx * dx + dy * dy;
+        if dist_sq < range_sq {
+            if closest_target.as_ref().map(|(_, d)| dist_sq < *d).unwrap_or(true) {
+                closest_target = Some((TargetInfo::Animal(animal.id), dist_sq));
+            }
+        }
+    }
+    
+    // Target ALL PvP-enabled players (no owner PvP check needed - monument is system-owned)
+    for player in ctx.db.player().iter() {
+        // Skip dead/offline players
+        if player.is_dead || !player.is_online {
+            continue;
+        }
+        
+        // Only target players with active PvP
+        if !crate::combat::is_pvp_active_for_player(&player, current_time) {
+            continue;
+        }
+        
+        let dx = player.position_x - turret.pos_x;
+        let dy = player.position_y - turret.pos_y;
+        let dist_sq = dx * dx + dy * dy;
+        if dist_sq < range_sq {
+            if closest_target.as_ref().map(|(_, d)| dist_sq < *d).unwrap_or(true) {
+                closest_target = Some((TargetInfo::Player(player.identity), dist_sq));
+            }
+        }
+    }
+    
+    closest_target.map(|(info, _)| info)
+}
+
 /// Target info enum
 pub(crate) enum TargetInfo {
     Animal(u64),
@@ -336,6 +396,7 @@ pub fn place_turret(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, w
         is_destroyed: false,
         destroyed_at: None,
         last_hit_time: None,
+        is_monument: false, // Player-placed turrets are not monument turrets
     };
     
     ctx.db.turret().insert(new_turret);
@@ -535,6 +596,11 @@ pub fn pickup_turret(ctx: &ReducerContext, turret_id: u32) -> Result<(), String>
     let sender_id = ctx.sender;
     let (_player, turret) = validate_turret_interaction(ctx, turret_id)?;
     
+    // Monument turrets cannot be picked up
+    if turret.is_monument {
+        return Err("Monument turrets cannot be picked up.".to_string());
+    }
+    
     // Check if turret is empty
     if turret.ammo_instance_id.is_some() {
         return Err("Turret must be empty to pickup.".to_string());
@@ -566,7 +632,13 @@ pub fn pickup_turret(ctx: &ReducerContext, turret_id: u32) -> Result<(), String>
 /// Interact with turret (opens UI)
 #[spacetimedb::reducer]
 pub fn interact_with_turret(ctx: &ReducerContext, turret_id: u32) -> Result<(), String> {
-    let (_player, _turret) = validate_turret_interaction(ctx, turret_id)?;
+    let (_player, turret) = validate_turret_interaction(ctx, turret_id)?;
+    
+    // Monument turrets cannot be interacted with by players
+    if turret.is_monument {
+        return Err("Monument turrets cannot be interacted with.".to_string());
+    }
+    
     // UI is handled client-side, this reducer just validates interaction
     Ok(())
 }
@@ -586,6 +658,93 @@ pub fn process_turret_logic_scheduled(ctx: &ReducerContext, _schedule: TurretPro
         if turret.is_destroyed {
             continue;
         }
+        
+        // Monument turrets have infinite ammo and different targeting
+        if turret.is_monument {
+            // Find target using monument-specific targeting (all animals + PvP players)
+            let target = find_monument_target(ctx, &turret, current_time);
+            
+            match target {
+                Some(TargetInfo::Animal(animal_id)) => {
+                    turret.current_target_id = Some(animal_id);
+                    turret.current_target_player = None;
+                }
+                Some(TargetInfo::Player(player_id)) => {
+                    turret.current_target_id = None;
+                    turret.current_target_player = Some(player_id);
+                }
+                None => {
+                    turret.current_target_id = None;
+                    turret.current_target_player = None;
+                }
+            }
+            
+            // Check fire cooldown (monument turrets fire faster)
+            let can_fire = if let Some(last_fire) = turret.last_fire_time {
+                let time_since_fire = current_time.to_micros_since_unix_epoch() - last_fire.to_micros_since_unix_epoch();
+                time_since_fire >= (MONUMENT_TURRET_FIRE_INTERVAL_MS * 1000) as i64
+            } else {
+                true
+            };
+            
+            if can_fire && (turret.current_target_id.is_some() || turret.current_target_player.is_some()) {
+                // Get target position
+                let (target_x, target_y) = if let Some(animal_id) = turret.current_target_id {
+                    if let Some(animal) = ctx.db.wild_animal().id().find(&animal_id) {
+                        (animal.pos_x, animal.pos_y)
+                    } else {
+                        ctx.db.turret().id().update(turret);
+                        continue;
+                    }
+                } else if let Some(player_id) = turret.current_target_player {
+                    if let Some(player) = ctx.db.player().identity().find(&player_id) {
+                        (player.position_x, player.position_y)
+                    } else {
+                        ctx.db.turret().id().update(turret);
+                        continue;
+                    }
+                } else {
+                    ctx.db.turret().id().update(turret);
+                    continue;
+                };
+                
+                let dx = target_x - turret.pos_x;
+                let dy = target_y - turret.pos_y;
+                let distance = (dx * dx + dy * dy).sqrt();
+                
+                if distance >= 1.0 {
+                    let time_to_target = distance / MONUMENT_TURRET_PROJECTILE_SPEED;
+                    let velocity_x = dx / time_to_target;
+                    let velocity_y = dy / time_to_target;
+                    
+                    // Monument turrets use a dummy def_id of 0 - no real ammo consumed
+                    // Use PROJECTILE_SOURCE_MONUMENT_TURRET so damage system knows to one-shot
+                    let projectile = Projectile {
+                        id: 0,
+                        owner_id: turret.placed_by,
+                        item_def_id: 0,
+                        ammo_def_id: 0,
+                        source_type: PROJECTILE_SOURCE_MONUMENT_TURRET,
+                        npc_projectile_type: NPC_PROJECTILE_NONE,
+                        start_time: current_time,
+                        start_pos_x: turret.pos_x,
+                        start_pos_y: turret.pos_y,
+                        velocity_x,
+                        velocity_y,
+                        max_range: MONUMENT_TURRET_RANGE * 1.5,
+                    };
+                    
+                    ctx.db.projectile().insert(projectile);
+                    turret.last_fire_time = Some(current_time);
+                    log::info!("Monument turret {} fired at target at ({:.1}, {:.1})", turret.id, target_x, target_y);
+                }
+            }
+            
+            ctx.db.turret().id().update(turret);
+            continue; // Skip normal turret processing
+        }
+        
+        // === Normal (player-placed) turret processing ===
         
         // Skip if no ammo loaded
         if turret.ammo_instance_id.is_none() {

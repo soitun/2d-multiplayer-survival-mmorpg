@@ -3131,7 +3131,7 @@ use crate::furnace::{Furnace, FURNACE_INITIAL_HEALTH, FURNACE_MAX_HEALTH, INITIA
 use crate::rain_collector::{RainCollector, RAIN_COLLECTOR_INITIAL_HEALTH, RAIN_COLLECTOR_MAX_HEALTH};
 use crate::lantern::{Lantern, LANTERN_INITIAL_HEALTH, LANTERN_MAX_HEALTH};
 use crate::wooden_storage_box::{
-    WoodenStorageBox, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH,
+    WoodenStorageBox, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COMPOST,
     COOKING_STATION_INITIAL_HEALTH, COOKING_STATION_MAX_HEALTH,
     REPAIR_BENCH_INITIAL_HEALTH, REPAIR_BENCH_MAX_HEALTH,
     BOX_COLLISION_Y_OFFSET,
@@ -3141,6 +3141,8 @@ use crate::furnace::furnace as FurnaceTableTrait;
 use crate::rain_collector::rain_collector as RainCollectorTableTrait;
 use crate::lantern::lantern as LanternTableTrait;
 use crate::wooden_storage_box::wooden_storage_box as WoodenStorageBoxTableTrait;
+use crate::turret::{Turret, TURRET_TYPE_TALLOW_STEAM, TURRET_INITIAL_HEALTH, TURRET_MAX_HEALTH};
+use crate::turret::turret as TurretTableTrait;
 use crate::environment::calculate_chunk_index;
 use spacetimedb::Identity;
 
@@ -3154,8 +3156,10 @@ pub enum MonumentPlaceableType {
     Lantern,
     CookingStation,
     RepairBench,
+    Compost,
     Barrel,
     MilitaryRation,
+    Turret,
 }
 
 /// Configuration for a single monument placeable
@@ -3235,6 +3239,15 @@ impl MonumentPlaceableConfig {
         }
     }
     
+    pub fn compost(offset_x: f32, offset_y: f32) -> Self {
+        Self {
+            placeable_type: MonumentPlaceableType::Compost,
+            offset_x,
+            offset_y,
+            initial_fuel: None,
+        }
+    }
+    
     pub fn barrel(offset_x: f32, offset_y: f32) -> Self {
         Self {
             placeable_type: MonumentPlaceableType::Barrel,
@@ -3252,6 +3265,15 @@ impl MonumentPlaceableConfig {
             initial_fuel: None,
         }
     }
+    
+    pub fn turret(offset_x: f32, offset_y: f32) -> Self {
+        Self {
+            placeable_type: MonumentPlaceableType::Turret,
+            offset_x,
+            offset_y,
+            initial_fuel: None,
+        }
+    }
 }
 
 /// Get monument placeables for the Central ALK Compound
@@ -3261,9 +3283,8 @@ pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
         // Large furnace - replaces the warehouse in the northwest area of the compound
         // Position matches the old warehouse offset (-450, -300) from compound center
         MonumentPlaceableConfig::large_furnace(-450.0, -300.0),
-        // Rain collector (water reservoir) - replaces the garage in the southwest area
-        // Position matches the old garage offset (-450, 400) from compound center
-        MonumentPlaceableConfig::rain_collector(-450.0, 400.0),
+        // Rain collector (water reservoir) - southwest area of compound
+        MonumentPlaceableConfig::rain_collector(-450.0, 500.0),
         
         // === Monument Campfires (2 remaining after replacing center ones with buildings) ===
         // South-west: near the fuel depot
@@ -3276,6 +3297,8 @@ pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
         MonumentPlaceableConfig::cooking_station(-600.0, 50.0),
         // ALK Weapons Depot (center-east) - repair bench inside the weapons depot building
         MonumentPlaceableConfig::repair_bench(650.0, 0.0),
+        // ALK Bio Processor (south-center) - compost facility
+        MonumentPlaceableConfig::compost(0.0, 400.0),
         
         // === Monument Barrels (indestructible, scattered around compound) ===
         // Near garage (north-west) - stacked supplies
@@ -3285,11 +3308,10 @@ pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
         // Near shed (north-east) - stacked supplies
         MonumentPlaceableConfig::barrel(500.0, -600.0),
         MonumentPlaceableConfig::barrel(520.0, -550.0),
-        MonumentPlaceableConfig::barrel(250.0, -620.0),
+        // Barrel to left of shed removed
         // Along south wall - perimeter crates
-        MonumentPlaceableConfig::barrel(-100.0, 850.0),
+        // Two barrels near rain collector removed
         MonumentPlaceableConfig::barrel(100.0, 830.0),
-        MonumentPlaceableConfig::barrel(-400.0, 800.0),
         MonumentPlaceableConfig::barrel(400.0, 820.0),
         // Near fuel depot
         MonumentPlaceableConfig::barrel(600.0, 500.0),
@@ -3297,20 +3319,53 @@ pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
         // Near barracks
         MonumentPlaceableConfig::barrel(600.0, -200.0),
         MonumentPlaceableConfig::barrel(620.0, -450.0),
-        // Near food processor (west)
-        MonumentPlaceableConfig::barrel(-730.0, 150.0),
         // Near weapons depot (east) - barrel removed (was at 820.0, 100.0)
         // Center scatter - compound yard clutter
         MonumentPlaceableConfig::barrel(-150.0, 200.0),
         MonumentPlaceableConfig::barrel(180.0, -250.0),
         
-        // === Military Rations (lootable crates, 3 spread around) ===
+        // === Military Rations (lootable crates, spread around) ===
         // Near the center - main supply cache
         MonumentPlaceableConfig::military_ration(50.0, -100.0),
         // Near barracks - officer's rations
         MonumentPlaceableConfig::military_ration(300.0, -400.0),
         // Near fuel depot - emergency supplies
         MonumentPlaceableConfig::military_ration(300.0, 500.0),
+        // Near north-west garage area
+        MonumentPlaceableConfig::military_ration(-350.0, -500.0),
+        // Near south-east perimeter
+        MonumentPlaceableConfig::military_ration(500.0, 650.0),
+        
+        // === Additional Campfires (north side of compound) ===
+        // North-center: warming fire for northern patrol
+        MonumentPlaceableConfig::campfire(0.0, -700.0),
+        // North-west: near the garage area
+        MonumentPlaceableConfig::campfire(-350.0, -500.0),
+        // North-east: near the barracks area
+        MonumentPlaceableConfig::campfire(400.0, -550.0),
+        
+        // === Additional Barrels (scattered, avoiding buildings) ===
+        // North-center scatter
+        MonumentPlaceableConfig::barrel(100.0, -480.0),
+        MonumentPlaceableConfig::barrel(-50.0, -520.0),
+        // East perimeter
+        MonumentPlaceableConfig::barrel(750.0, 300.0),
+        MonumentPlaceableConfig::barrel(700.0, -350.0),
+        // West scatter  
+        MonumentPlaceableConfig::barrel(-700.0, 200.0),
+        // Barrel near cooking station removed
+        
+        // === Monument Turrets (four corners of the compound asphalt square) ===
+        // These are indestructible, infinite ammo, 2000px range turrets
+        // that target PvP-enabled players and all wild animals with one-shot kill
+        // NW corner
+        MonumentPlaceableConfig::turret(-850.0, -850.0),
+        // NE corner
+        MonumentPlaceableConfig::turret(850.0, -850.0),
+        // SW corner
+        MonumentPlaceableConfig::turret(-850.0, 850.0),
+        // SE corner
+        MonumentPlaceableConfig::turret(850.0, 850.0),
     ]
 }
 
@@ -4009,6 +4064,124 @@ pub fn spawn_monument_placeables(
                     }
                     Err(e) => {
                         log::warn!("[MonumentPlaceables] Failed to spawn repair bench at ({:.1}, {:.1}): {}", 
+                            world_x, world_y, e);
+                    }
+                }
+            }
+            
+            MonumentPlaceableType::Turret => {
+                let turret = Turret {
+                    id: 0,
+                    turret_type: TURRET_TYPE_TALLOW_STEAM,
+                    pos_x: world_x,
+                    pos_y: world_y,
+                    chunk_index: chunk_idx,
+                    placed_by: monument_owner,
+                    placed_at: current_time,
+                    ammo_instance_id: None, // Monument turrets don't use ammo
+                    ammo_def_id: None,
+                    last_fire_time: None,
+                    current_target_id: None,
+                    current_target_player: None,
+                    health: TURRET_INITIAL_HEALTH,
+                    max_health: TURRET_MAX_HEALTH,
+                    is_destroyed: false,
+                    destroyed_at: None,
+                    last_hit_time: None,
+                    is_monument: true, // Monument turret: indestructible, infinite ammo, extended range
+                };
+                
+                match ctx.db.turret().try_insert(turret) {
+                    Ok(inserted) => {
+                        spawned_count += 1;
+                        log::info!("[MonumentPlaceables] Spawned monument turret {} at ({:.1}, {:.1}) for {}", 
+                            inserted.id, world_x, world_y, monument_name);
+                    }
+                    Err(e) => {
+                        log::warn!("[MonumentPlaceables] Failed to spawn turret at ({:.1}, {:.1}): {}", 
+                            world_x, world_y, e);
+                    }
+                }
+            }
+            
+            MonumentPlaceableType::Compost => {
+                use crate::compost::{COMPOST_INITIAL_HEALTH, COMPOST_MAX_HEALTH};
+                
+                let compost = WoodenStorageBox {
+                    id: 0,
+                    pos_x: world_x,
+                    pos_y: world_y + BOX_COLLISION_Y_OFFSET,
+                    chunk_index: chunk_idx,
+                    placed_by: monument_owner,
+                    box_type: BOX_TYPE_COMPOST,
+                    slot_instance_id_0: None, slot_def_id_0: None,
+                    slot_instance_id_1: None, slot_def_id_1: None,
+                    slot_instance_id_2: None, slot_def_id_2: None,
+                    slot_instance_id_3: None, slot_def_id_3: None,
+                    slot_instance_id_4: None, slot_def_id_4: None,
+                    slot_instance_id_5: None, slot_def_id_5: None,
+                    slot_instance_id_6: None, slot_def_id_6: None,
+                    slot_instance_id_7: None, slot_def_id_7: None,
+                    slot_instance_id_8: None, slot_def_id_8: None,
+                    slot_instance_id_9: None, slot_def_id_9: None,
+                    slot_instance_id_10: None, slot_def_id_10: None,
+                    slot_instance_id_11: None, slot_def_id_11: None,
+                    slot_instance_id_12: None, slot_def_id_12: None,
+                    slot_instance_id_13: None, slot_def_id_13: None,
+                    slot_instance_id_14: None, slot_def_id_14: None,
+                    slot_instance_id_15: None, slot_def_id_15: None,
+                    slot_instance_id_16: None, slot_def_id_16: None,
+                    slot_instance_id_17: None, slot_def_id_17: None,
+                    slot_instance_id_18: None, slot_def_id_18: None,
+                    slot_instance_id_19: None, slot_def_id_19: None,
+                    slot_instance_id_20: None, slot_def_id_20: None,
+                    slot_instance_id_21: None, slot_def_id_21: None,
+                    slot_instance_id_22: None, slot_def_id_22: None,
+                    slot_instance_id_23: None, slot_def_id_23: None,
+                    slot_instance_id_24: None, slot_def_id_24: None,
+                    slot_instance_id_25: None, slot_def_id_25: None,
+                    slot_instance_id_26: None, slot_def_id_26: None,
+                    slot_instance_id_27: None, slot_def_id_27: None,
+                    slot_instance_id_28: None, slot_def_id_28: None,
+                    slot_instance_id_29: None, slot_def_id_29: None,
+                    slot_instance_id_30: None, slot_def_id_30: None,
+                    slot_instance_id_31: None, slot_def_id_31: None,
+                    slot_instance_id_32: None, slot_def_id_32: None,
+                    slot_instance_id_33: None, slot_def_id_33: None,
+                    slot_instance_id_34: None, slot_def_id_34: None,
+                    slot_instance_id_35: None, slot_def_id_35: None,
+                    slot_instance_id_36: None, slot_def_id_36: None,
+                    slot_instance_id_37: None, slot_def_id_37: None,
+                    slot_instance_id_38: None, slot_def_id_38: None,
+                    slot_instance_id_39: None, slot_def_id_39: None,
+                    slot_instance_id_40: None, slot_def_id_40: None,
+                    slot_instance_id_41: None, slot_def_id_41: None,
+                    slot_instance_id_42: None, slot_def_id_42: None,
+                    slot_instance_id_43: None, slot_def_id_43: None,
+                    slot_instance_id_44: None, slot_def_id_44: None,
+                    slot_instance_id_45: None, slot_def_id_45: None,
+                    slot_instance_id_46: None, slot_def_id_46: None,
+                    slot_instance_id_47: None, slot_def_id_47: None,
+                    health: COMPOST_INITIAL_HEALTH,
+                    max_health: COMPOST_MAX_HEALTH,
+                    is_destroyed: false,
+                    destroyed_at: None,
+                    last_hit_time: None,
+                    last_damaged_by: None,
+                    respawn_at: Timestamp::UNIX_EPOCH,
+                    is_monument: true,
+                    active_user_id: None,
+                    active_user_since: None,
+                };
+                
+                match ctx.db.wooden_storage_box().try_insert(compost) {
+                    Ok(inserted) => {
+                        spawned_count += 1;
+                        log::info!("[MonumentPlaceables] Spawned monument compost {} at ({:.1}, {:.1}) for {}", 
+                            inserted.id, world_x, world_y, monument_name);
+                    }
+                    Err(e) => {
+                        log::warn!("[MonumentPlaceables] Failed to spawn compost at ({:.1}, {:.1}): {}", 
                             world_x, world_y, e);
                     }
                 }

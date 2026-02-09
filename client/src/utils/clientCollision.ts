@@ -2,7 +2,7 @@
 import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, LivingCoral, Lantern, Turret, Fence } from '../generated';
 // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
-import { COMPOUND_BUILDINGS, getBuildingWorldPosition } from '../config/compoundBuildings';
+import { COMPOUND_BUILDINGS, getBuildingWorldPosition, isCompoundMonument } from '../config/compoundBuildings';
 
 // Add at top after imports:
 // Spatial filtering constants
@@ -318,6 +318,7 @@ function getCollisionCandidates(
   // Filter structures (boxes, barrels, etc.)
   // Skip backpacks (boxType === 4) - they should not have collision
   const BOX_TYPE_BACKPACK = 4;
+  const BOX_TYPE_COMPOST_COLLISION = 3;
   const BOX_TYPE_COOKING_STATION_COLLISION = 6;
   const BOX_TYPE_REPAIR_BENCH_COLLISION = 5;
   const nearbyBoxes = filterEntitiesByDistance(
@@ -332,9 +333,9 @@ function getCollisionCandidates(
     // Skip backpacks - they don't have collision
     if (box.boxType === BOX_TYPE_BACKPACK) continue;
     
-    // Monument cooking stations and repair benches use AABB collision
+    // Compound monument cooking stations, repair benches, and compost use AABB collision
     // Smaller than 480px monuments (384px sprite), positioned to cover building content
-    if (box.isMonument && (box.boxType === BOX_TYPE_COOKING_STATION_COLLISION || box.boxType === BOX_TYPE_REPAIR_BENCH_COLLISION)) {
+    if (isCompoundMonument(box.isMonument, box.posX, box.posY) && (box.boxType === BOX_TYPE_COOKING_STATION_COLLISION || box.boxType === BOX_TYPE_REPAIR_BENCH_COLLISION || box.boxType === BOX_TYPE_COMPOST_COLLISION)) {
       shapes.push({
         id: box.id.toString(),
         type: `box-${box.id.toString()}`,
@@ -394,7 +395,7 @@ function getCollisionCandidates(
     
     const isLargeFurnace = furnace.furnaceType === 1;
     
-    if (isLargeFurnace && furnace.isMonument) {
+    if (isLargeFurnace && isCompoundMonument(furnace.isMonument, furnace.posX, furnace.posY)) {
       // Monument large furnaces use custom AABB collision (narrower + shifted up vs standard monument)
       shapes.push({
         id: furnace.id.toString(),
@@ -431,8 +432,8 @@ function getCollisionCandidates(
     for (const rainCollector of nearbyRainCollectors) {
       if (rainCollector.isDestroyed) continue; // Skip destroyed rain collectors
       
-      if (rainCollector.isMonument) {
-        // Monument rain collectors use standardized AABB collision (same as ALK compound)
+      if (isCompoundMonument(rainCollector.isMonument, rainCollector.posX, rainCollector.posY)) {
+        // Compound monument rain collectors use standardized AABB collision
         shapes.push({
           id: rainCollector.id.toString(),
           type: `rain_collector-${rainCollector.id.toString()}`,
@@ -559,13 +560,27 @@ function getCollisionCandidates(
     for (const turret of nearbyTurrets) {
       if (turret.isDestroyed) continue;
       
-      shapes.push({
-        id: turret.id.toString(),
-        type: `turret-${turret.id.toString()}`,
-        x: turret.posX + COLLISION_OFFSETS.TURRET.x,
-        y: turret.posY + COLLISION_OFFSETS.TURRET.y,
-        radius: COLLISION_RADII.TURRET
-      });
+      if (turret.isMonument) {
+        // Monument turrets are 2x size (512x512) - use AABB collision like other monument structures
+        // AABB centered on turret position, covering the solid structure portion
+        shapes.push({
+          id: turret.id.toString(),
+          type: `turret-${turret.id.toString()}`,
+          x: turret.posX,
+          y: turret.posY + 40,  // Shifted down to align with visual base/platform
+          width: 280,            // ~55% of 512px sprite width - covers solid structure
+          height: 160,           // Covers the base/platform area
+        });
+      } else {
+        // Regular player-placed turrets use circle collision
+        shapes.push({
+          id: turret.id.toString(),
+          type: `turret-${turret.id.toString()}`,
+          x: turret.posX + COLLISION_OFFSETS.TURRET.x,
+          y: turret.posY + COLLISION_OFFSETS.TURRET.y,
+          radius: COLLISION_RADII.TURRET
+        });
+      }
     }
   }
   
@@ -1118,7 +1133,7 @@ export const COLLISION_RADII = {
   BASALT_COLUMN: 35, // Basalt column collision radius
   ALK_STATION: 120, // ALK delivery station collision radius (reduced for easier navigation and Y-sorting)
   WARD: 40, // Ward collision radius (for ancestral ward, signal disruptor, memory beacon - NOT regular lanterns)
-  TURRET: 35, // Turret collision radius (smaller, focused on base)
+  TURRET: 35, // Turret collision radius (smaller, focused on base) - player-placed only; monument turrets use AABB
   // STORM_PILE removed - storms now spawn HarvestableResources and DroppedItems directly
   LIVING_CORAL: 80, // Living coral collision radius (underwater coral reef, doubled for better underwater presence)
 } as const;
@@ -1144,7 +1159,7 @@ export const COLLISION_OFFSETS = {
   HOMESTEAD_HEARTH: { x: 0, y: -72.5 }, // Homestead hearth collision offset (matches server-side HEARTH_COLLISION_Y_OFFSET)
   BASALT_COLUMN: { x: 0, y: -40 }, // Basalt column collision offset
   WARD: { x: 0, y: -80 }, // Ward collision offset (matches server-side WARD_COLLISION_Y_OFFSET)
-  TURRET: { x: 0, y: 70 }, // Turret collision at wooden base/platform
+  TURRET: { x: 0, y: 70 }, // Turret collision at wooden base/platform - player-placed only; monument turrets use AABB
   // STORM_PILE removed - storms now spawn HarvestableResources and DroppedItems directly
   LIVING_CORAL: { x: 0, y: -60 }, // Living coral collision offset (doubled to match visual size)
 } as const;

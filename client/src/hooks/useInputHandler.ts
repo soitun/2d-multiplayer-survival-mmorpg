@@ -443,9 +443,9 @@ export const useInputHandler = ({
                             actionTaken = true;
                             break;
                         case 'turret' as InteractionTargetType:
-                            // Check if turret is empty (no ammo)
+                            // Check if turret is empty (no ammo) and not a monument turret
                             const turret = turrets?.get(String(holdTarget.targetId));
-                            if (turret && !turret.ammoInstanceId) {
+                            if (turret && !turret.ammoInstanceId && !turret.isMonument) {
                                 console.log('[E-Hold ACTION] Attempting to pickup empty turret:', holdTarget.targetId);
                                 connection.reducers.pickupTurret(Number(holdTarget.targetId));
                                 actionTaken = true;
@@ -1246,11 +1246,15 @@ export const useInputHandler = ({
                                         onSetInteractingWith({ type: 'lantern', id: currentTarget.id });
                                         tapActionTaken = true;
                                         break;
-                                    case 'turret' as InteractionTargetType:
+                                    case 'turret' as InteractionTargetType: {
+                                        // Monument turrets cannot be interacted with
+                                        const tapTurret = turrets?.get(String(currentTarget.id));
+                                        if (tapTurret && tapTurret.isMonument) break;
                                         // console.log('[E-Tap ACTION] Opening turret interface:', currentTarget.id);
                                         onSetInteractingWith({ type: 'turret' as InteractionTargetType, id: currentTarget.id });
                                         tapActionTaken = true;
                                         break;
+                                    }
                                     case 'box':
                                         // console.log('[E-Tap ACTION] Opening box interface:', currentTarget.id);
                                         onSetInteractingWith({ type: 'wooden_storage_box', id: currentTarget.id });

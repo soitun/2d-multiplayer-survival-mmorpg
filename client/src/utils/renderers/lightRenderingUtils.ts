@@ -6,6 +6,7 @@ import { LANTERN_RENDER_Y_OFFSET, LANTERN_HEIGHT, LANTERN_TYPE_LANTERN } from '.
 import { FURNACE_RENDER_Y_OFFSET, FURNACE_HEIGHT, getFurnaceDimensions, FURNACE_TYPE_LARGE } from '../renderers/furnaceRenderingUtils';
 import { BARBECUE_RENDER_Y_OFFSET, BARBECUE_HEIGHT } from '../renderers/barbecueRenderingUtils';
 import { BuildingCluster } from '../buildingVisibilityUtils';
+import { isCompoundMonument } from '../../config/compoundBuildings';
 import { FOUNDATION_TILE_SIZE } from '../../config/gameConfig';
 
 // --- Indoor Light Containment Utilities ---
@@ -919,8 +920,8 @@ export const renderFurnaceLight = ({
     // Apply indoor clipping if furnace is inside an enclosed building
     const restoreClip = applyIndoorClip(ctx, furnace.posX, furnace.posY, cameraOffsetX, cameraOffsetY, buildingClusters);
 
-    // Get correct dimensions based on furnace type and monument status
-    const dims = getFurnaceDimensions(furnace.furnaceType, furnace.isMonument);
+    // Get correct dimensions based on furnace type and compound monument status
+    const dims = getFurnaceDimensions(furnace.furnaceType, isCompoundMonument(furnace.isMonument, furnace.posX, furnace.posY));
     
     const visualCenterX = furnace.posX;
     const visualCenterY = furnace.posY - (dims.height / 2) - dims.yOffset;
@@ -936,9 +937,10 @@ export const renderFurnaceLight = ({
     const industrialFurnaceY = lightScreenY + furnaceAsymmetryY;
 
     // INDUSTRIAL FURNACE LIGHTING SYSTEM - realistic high-temperature metal smelting
-    // Monument large furnaces (480px) cast more light than regular furnaces
+    // Compound monument large furnaces (480px) cast more light than regular furnaces
     const isLargeFurnace = furnace.furnaceType === FURNACE_TYPE_LARGE;
-    const FURNACE_SCALE = isLargeFurnace ? (furnace.isMonument ? 2.0 : 1.5) : 1.0;
+    const isCompoundFurnace = isCompoundMonument(furnace.isMonument, furnace.posX, furnace.posY);
+    const FURNACE_SCALE = isLargeFurnace ? (isCompoundFurnace ? 2.0 : 1.5) : 1.0;
 
     // Layer 1: Large ambient glow (hot furnace - bright orange ambient heat)
     const ambientRadius = Math.max(0, FURNACE_LIGHT_RADIUS_BASE * 3.5 * FURNACE_SCALE + baseFlicker * 0.3);

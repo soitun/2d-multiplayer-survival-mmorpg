@@ -343,12 +343,13 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     spriteHeight: MONUMENT_BUILDING.SPRITE_SIZE,
   },
   
-  // Monument cooking station (ALK Food Processor) - 384x384 building sprite
+  // Monument cooking station (ALK Food Processor) - 384x384 building sprite, base-anchored (96px offset)
+  // Sprite covers posY - 288 (top) to posY + 96 (bottom), building content in lower portion
   monument_cooking_station: {
     centerOffsetX: 0,
-    centerOffsetY: -100,  // Similar to monument_rain_collector centering
-    width: 360,           // Interaction box matching building content width
-    height: 360,          // Square interaction box
+    centerOffsetY: -55,   // Lowered from -100: base-anchored content sits near ground level
+    width: 320,           // Interaction box matching visible building content width
+    height: 280,          // Reduced: covers actual building content, not empty top of sprite
     placementYOffset: 0,
     spriteWidth: 384,
     spriteHeight: 384,
@@ -360,6 +361,18 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     centerOffsetY: -100,  // Similar to monument_rain_collector centering
     width: 360,           // Interaction box matching building content width
     height: 360,          // Square interaction box
+    placementYOffset: 0,
+    spriteWidth: 384,
+    spriteHeight: 384,
+  },
+  
+  // Monument compost (ALK Bio Processor) - 384x384 building sprite, base-anchored (96px offset)
+  // Sprite covers posY - 288 (top) to posY + 96 (bottom), building content in lower portion
+  monument_compost: {
+    centerOffsetX: 0,
+    centerOffsetY: -55,   // Lowered from -100: base-anchored content sits near ground level
+    width: 320,           // Interaction box matching visible building content width
+    height: 280,          // Reduced: covers actual building content, not empty top of sprite
     placementYOffset: 0,
     spriteWidth: 384,
     spriteHeight: 384,
