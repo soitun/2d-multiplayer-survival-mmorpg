@@ -833,6 +833,11 @@ fn seed_alk_stations(ctx: &ReducerContext) -> Result<(), String> {
                         Ok(count) => log::info!("🏭 Spawned {} monument placeables at Central Compound", count),
                         Err(e) => log::warn!("Failed to spawn central compound placeables: {}", e),
                     }
+                    // Spawn compound perimeter fence (square with corner openings for player entry)
+                    match crate::fence::spawn_compound_perimeter_fences(ctx, pos_x, pos_y) {
+                        Ok(count) => log::info!("🏭 Spawned {} monument fences around compound perimeter", count),
+                        Err(e) => log::warn!("Failed to spawn compound perimeter fences: {}", e),
+                    }
                 }
             },
             Err(e) => log::error!("Failed to create station {}: {}", station.name, e),

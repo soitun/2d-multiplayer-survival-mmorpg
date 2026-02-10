@@ -45,6 +45,7 @@ export type Fence = {
   destroyedAt: __Timestamp | undefined,
   lastHitTime: __Timestamp | undefined,
   lastDamagedBy: __Identity | undefined,
+  isMonument: boolean,
 };
 let _cached_Fence_type_value: __AlgebraicTypeType | null = null;
 
@@ -76,6 +77,7 @@ export const Fence = {
       { name: "destroyedAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "lastDamagedBy", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createIdentityType()) },
+      { name: "isMonument", algebraicType: __AlgebraicTypeValue.Bool },
     );
     return _cached_Fence_type_value;
   },

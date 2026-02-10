@@ -70,6 +70,8 @@ pub struct Fence {
     pub destroyed_at: Option<Timestamp>,
     pub last_hit_time: Option<Timestamp>,
     pub last_damaged_by: Option<Identity>,
+    /// Monument fences (e.g. compound perimeter) are indestructible and non-upgradeable
+    pub is_monument: bool,
 }
 
 // --- Helper Functions ---
@@ -357,6 +359,7 @@ pub fn place_fence(
         destroyed_at: None,
         last_hit_time: None,
         last_damaged_by: None,
+        is_monument: false,
     };
     
     fences.try_insert(new_fence)
@@ -390,6 +393,11 @@ pub fn damage_fence(
     
     if fence.is_destroyed {
         return Err("Fence is already destroyed.".to_string());
+    }
+    
+    // Monument fences are indestructible
+    if fence.is_monument {
+        return Err("Cannot damage monument fences.".to_string());
     }
     
     // <<< PVP RAIDING CHECK >>>
@@ -461,6 +469,11 @@ pub fn damage_fence_explosive(
     
     if let Some(mut fence) = fences.id().find(&fence_id) {
         if fence.is_destroyed {
+            return;
+        }
+        
+        // Monument fences are indestructible
+        if fence.is_monument {
             return;
         }
         
@@ -737,6 +750,11 @@ pub fn destroy_fence(ctx: &ReducerContext, fence_id: u64) -> Result<(), String> 
         return Err("Fence is already destroyed.".to_string());
     }
     
+    // Monument fences cannot be destroyed
+    if fence.is_monument {
+        return Err("Cannot destroy monument fences.".to_string());
+    }
+    
     // 4. Check ownership - only the player who placed it can destroy it
     if fence.owner_id != sender_id {
         return Err("You can only destroy fences that you built.".to_string());
@@ -819,6 +837,11 @@ pub fn upgrade_fence(
     
     if fence.is_destroyed {
         return Err("Cannot upgrade destroyed fence.".to_string());
+    }
+    
+    // Monument fences cannot be upgraded
+    if fence.is_monument {
+        return Err("Cannot upgrade monument fences.".to_string());
     }
     
     // 4. Validate new tier (fences can only be Wood=1, Stone=2, Metal=3)
@@ -1027,4 +1050,183 @@ pub fn upgrade_fence(
     );
     
     Ok(())
+}
+
+/// Spawn monument fences around the central compound perimeter.
+/// Square fence just outside the auto turrets (±1056px from center), with 2-cell (192px) gaps
+/// at each corner so players can walk in through the four corners.
+/// Uses module identity as owner. Fences are indestructible (is_monument = true).
+pub fn spawn_compound_perimeter_fences(
+    ctx: &ReducerContext,
+    center_x: f32,
+    center_y: f32,
+) -> Result<u32, String> {
+    use crate::building::FOUNDATION_TILE_SIZE_PX;
+    
+    let monument_owner = ctx.identity();
+    let current_time = ctx.timestamp;
+    let fences = ctx.db.fence();
+    
+    let cell_center_x = (center_x / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    let cell_center_y = (center_y / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+    
+    // Perimeter at ±1056px (11 cells) from center - just outside turrets at ±850px
+    const RADIUS_CELLS: i32 = 11;
+    // Corner gaps: 5 cells (480px) at each corner for generous player entry around turrets
+    const GAP_CELLS: i32 = 5;
+    let cx_min = cell_center_x - RADIUS_CELLS + GAP_CELLS;
+    let cx_max = cell_center_x + RADIUS_CELLS - GAP_CELLS;
+    let cy_min = cell_center_y - RADIUS_CELLS + GAP_CELLS;
+    let cy_max = cell_center_y + RADIUS_CELLS - GAP_CELLS;
+    
+    let mut spawned_count = 0u32;
+    
+    // Helper: skip if fence already exists at this position (e.g. from previous publish)
+    let fence_exists = |cell_x: i32, cell_y: i32, edge: u8| -> bool {
+        fences.idx_cell_coords().filter((cell_x, cell_y))
+            .any(|f| !f.is_destroyed && f.edge == edge)
+    };
+    
+    // North edge: fence on NORTH edge of cells
+    let north_cell_y = cell_center_y - RADIUS_CELLS;
+    for cell_x in cx_min..=cx_max {
+        if fence_exists(cell_x, north_cell_y, FENCE_EDGE_NORTH) {
+            continue;
+        }
+        let (world_x, world_y) = calculate_fence_world_position(cell_x, north_cell_y, FENCE_EDGE_NORTH);
+        let chunk_index = calculate_chunk_index(world_x, world_y);
+        
+        let new_fence = Fence {
+            id: 0,
+            owner_id: monument_owner,
+            cell_x,
+            cell_y: north_cell_y,
+            edge: FENCE_EDGE_NORTH,
+            pos_x: world_x,
+            pos_y: world_y,
+            tier: 3, // Metal
+            health: FENCE_METAL_MAX_HEALTH,
+            max_health: FENCE_METAL_MAX_HEALTH,
+            placed_at: current_time,
+            chunk_index,
+            is_destroyed: false,
+            destroyed_at: None,
+            last_hit_time: None,
+            last_damaged_by: None,
+            is_monument: true,
+        };
+        
+        if fences.try_insert(new_fence).is_ok() {
+            spawned_count += 1;
+        }
+    }
+    
+    // South edge
+    let south_cell_y = cell_center_y + RADIUS_CELLS - 1;
+    for cell_x in cx_min..=cx_max {
+        if fence_exists(cell_x, south_cell_y, FENCE_EDGE_SOUTH) {
+            continue;
+        }
+        let (world_x, world_y) = calculate_fence_world_position(cell_x, south_cell_y, FENCE_EDGE_SOUTH);
+        let chunk_index = calculate_chunk_index(world_x, world_y);
+        
+        let new_fence = Fence {
+            id: 0,
+            owner_id: monument_owner,
+            cell_x,
+            cell_y: south_cell_y,
+            edge: FENCE_EDGE_SOUTH,
+            pos_x: world_x,
+            pos_y: world_y,
+            tier: 3, // Metal
+            health: FENCE_METAL_MAX_HEALTH,
+            max_health: FENCE_METAL_MAX_HEALTH,
+            placed_at: current_time,
+            chunk_index,
+            is_destroyed: false,
+            destroyed_at: None,
+            last_hit_time: None,
+            last_damaged_by: None,
+            is_monument: true,
+        };
+        
+        if fences.try_insert(new_fence).is_ok() {
+            spawned_count += 1;
+        }
+    }
+    
+    // West edge
+    let west_cell_x = cell_center_x - RADIUS_CELLS;
+    for cell_y in cy_min..=cy_max {
+        if fence_exists(west_cell_x, cell_y, FENCE_EDGE_WEST) {
+            continue;
+        }
+        let (world_x, world_y) = calculate_fence_world_position(west_cell_x, cell_y, FENCE_EDGE_WEST);
+        let chunk_index = calculate_chunk_index(world_x, world_y);
+        
+        let new_fence = Fence {
+            id: 0,
+            owner_id: monument_owner,
+            cell_x: west_cell_x,
+            cell_y,
+            edge: FENCE_EDGE_WEST,
+            pos_x: world_x,
+            pos_y: world_y,
+            tier: 3, // Metal
+            health: FENCE_METAL_MAX_HEALTH,
+            max_health: FENCE_METAL_MAX_HEALTH,
+            placed_at: current_time,
+            chunk_index,
+            is_destroyed: false,
+            destroyed_at: None,
+            last_hit_time: None,
+            last_damaged_by: None,
+            is_monument: true,
+        };
+        
+        if fences.try_insert(new_fence).is_ok() {
+            spawned_count += 1;
+        }
+    }
+    
+    // East edge
+    let east_cell_x = cell_center_x + RADIUS_CELLS - 1;
+    for cell_y in cy_min..=cy_max {
+        if fence_exists(east_cell_x, cell_y, FENCE_EDGE_EAST) {
+            continue;
+        }
+        let (world_x, world_y) = calculate_fence_world_position(east_cell_x, cell_y, FENCE_EDGE_EAST);
+        let chunk_index = calculate_chunk_index(world_x, world_y);
+        
+        let new_fence = Fence {
+            id: 0,
+            owner_id: monument_owner,
+            cell_x: east_cell_x,
+            cell_y,
+            edge: FENCE_EDGE_EAST,
+            pos_x: world_x,
+            pos_y: world_y,
+            tier: 3, // Metal
+            health: FENCE_METAL_MAX_HEALTH,
+            max_health: FENCE_METAL_MAX_HEALTH,
+            placed_at: current_time,
+            chunk_index,
+            is_destroyed: false,
+            destroyed_at: None,
+            last_hit_time: None,
+            last_damaged_by: None,
+            is_monument: true,
+        };
+        
+        if fences.try_insert(new_fence).is_ok() {
+            spawned_count += 1;
+        }
+    }
+    
+    log::info!(
+        "[CompoundPerimeterFences] Spawned {} monument fences around compound at ({:.1}, {:.1})",
+        spawned_count, center_x, center_y
+    );
+    
+    Ok(spawned_count)
 }

@@ -113,6 +113,8 @@ export function useFenceTargeting(
 
     for (const fence of connection.db.fence.iter()) {
       if (fence.isDestroyed) continue;
+      // Monument fences (e.g. compound perimeter) cannot be targeted for destroy/upgrade
+      if (fence.isMonument) continue;
 
       // Check distance from player to fence
       const dx = fence.posX - localPlayerX;

@@ -1,5 +1,6 @@
 // Import all blog posts
 import brothBulletsFebruary2026Update from './posts/broth-bullets-february-2026-update';
+import alkCentralCompoundAdmiraltyLogisticsKernel from './posts/alk-central-compound-admiralty-logistics-kernel';
 import brothBulletsJanuary2026Update from './posts/broth-bullets-january-2026-update';
 import brothBulletsAlphaLaunch from './posts/broth-bullets-alpha-launch';
 // LLEO Optimized Posts - Survival Game Discovery (February 2, 2026)
@@ -36,6 +37,7 @@ import brothBulletsCookingSystemEmergentGameplay from './posts/broth-bullets-coo
 export const blogPosts = [
   // February 2026 Posts
   brothBulletsFebruary2026Update, // February 2, 2026 - Development Update
+  alkCentralCompoundAdmiraltyLogisticsKernel, // February 10, 2026 - ALK Central Compound & Lore
   // January 2026 Posts
   brothBulletsJanuary2026Update, // January 26, 2026 - Development Update
   // LLEO Optimized Posts - Survival Game Discovery (January 20, 2026)
