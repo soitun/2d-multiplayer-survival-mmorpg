@@ -1511,6 +1511,74 @@ pub fn validate_box_interaction(
     Ok((player, storage_box))
 }
 
+/// --- Sort Storage Box ---
+/// Sorts items in the storage box by item type (alphabetically by name).
+/// Items of the same type appear next to each other for easier organization.
+#[spacetimedb::reducer]
+pub fn sort_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<(), String> {
+    let mut boxes = ctx.db.wooden_storage_box();
+    let mut inventory_items = ctx.db.inventory_item();
+    let item_defs = ctx.db.item_definition();
+
+    let (_player, mut storage_box) = validate_box_interaction(ctx, box_id)?;
+
+    let num_slots = storage_box.num_slots();
+    if num_slots <= 1 {
+        return Err("Container has too few slots to sort.".to_string());
+    }
+
+    // Collect all items with their slot index, instance ID, def ID, and item name
+    let mut items_with_names: Vec<(u8, u64, u64, String)> = Vec::new();
+    for slot in 0..num_slots as u8 {
+        if let (Some(inst_id), Some(def_id)) = (
+            storage_box.get_slot_instance_id(slot),
+            storage_box.get_slot_def_id(slot),
+        ) {
+            let item_name = item_defs
+                .id()
+                .find(def_id)
+                .map(|def| def.name.clone())
+                .unwrap_or_else(|| format!("def_{}", def_id));
+            items_with_names.push((slot, inst_id, def_id, item_name));
+        }
+    }
+
+    if items_with_names.is_empty() {
+        return Ok(()); // Nothing to sort
+    }
+
+    // Sort by item name (alphabetically)
+    items_with_names.sort_by(|a, b| a.3.cmp(&b.3));
+
+    // Clear all slots
+    for slot in 0..num_slots as u8 {
+        storage_box.set_slot(slot, None, None);
+    }
+
+    // Place items back in sorted order and update their locations
+    let container_id = storage_box.id as u64;
+    let container_type = storage_box.get_container_type();
+
+    for (new_slot, (_, inst_id, def_id, _)) in items_with_names.into_iter().enumerate() {
+        let new_slot = new_slot as u8;
+        storage_box.set_slot(new_slot, Some(inst_id), Some(def_id));
+
+        if let Some(mut item) = inventory_items.instance_id().find(&inst_id) {
+            item.location = ItemLocation::Container(ContainerLocationData {
+                container_type: container_type.clone(),
+                container_id,
+                slot_index: new_slot,
+            });
+            inventory_items.instance_id().update(item);
+        }
+    }
+
+    boxes.id().update(storage_box);
+    log::debug!("Player {:?} sorted storage box {}", ctx.sender, box_id);
+
+    Ok(())
+}
+
 /// --- Open Storage Box Container ---
 /// Called when a player opens the storage box UI. Sets the active_user_id to prevent
 /// other players from using this container in safe zones.

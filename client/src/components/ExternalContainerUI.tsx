@@ -9,7 +9,7 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import styles from './InventoryUI.module.css'; // Reuse styles for now
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowUp, faArrowDown, faDroplet, faArrowRight } from '@fortawesome/free-solid-svg-icons';
+import { faArrowUp, faArrowDown, faDroplet, faArrowRight, faSortAlphaDown } from '@fortawesome/free-solid-svg-icons';
 
 // Import Custom Components
 import ContainerSlots from './ContainerSlots';
@@ -1275,10 +1275,48 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
 
     const config = getContainerConfig(container.containerType, container.containerEntity);
 
+    // Whether to show the sort button (wooden storage boxes with 2+ slots and at least one item)
+    const showSortButton = container.containerType === 'wooden_storage_box' &&
+        config.slots > 1 &&
+        container.items.some(item => item !== null) &&
+        connection?.reducers &&
+        container.containerId !== null;
+
     return (
         <div className={styles.externalInventorySection}>
-            {/* Dynamic Title */}
-            <h3 className={styles.sectionTitle}>{container.containerTitle}</h3>
+            {/* Dynamic Title with optional Sort button for storage boxes */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                <h3 className={styles.sectionTitle} style={{ margin: 0, flex: 1 }}>{container.containerTitle}</h3>
+                {showSortButton && (
+                    <button
+                        onClick={() => {
+                            if (!connection?.reducers || container.containerId === null) return;
+                            const boxId = typeof container.containerId === 'bigint' ? Number(container.containerId) : container.containerId;
+                            try {
+                                connection.reducers.sortStorageBox(boxId);
+                                playImmediateSound('item_pickup');
+                            } catch (e: any) {
+                                console.error('Error sorting storage box:', e);
+                            }
+                        }}
+                        className={styles.interactionButton}
+                        style={{
+                            padding: '4px 10px',
+                            fontSize: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'linear-gradient(135deg, rgba(100, 150, 100, 0.3), rgba(80, 120, 80, 0.2))',
+                            border: '1px solid rgba(100, 180, 100, 0.5)',
+                            color: '#a8e6a8',
+                            flexShrink: 0,
+                        }}
+                        title="Sort items by type (alphabetically). Same item types will appear next to each other."
+                    >
+                        <FontAwesomeIcon icon={faSortAlphaDown} /> Sort
+                    </button>
+                )}
+            </div>
 
             {/* Fumarole Helper Text - always show for new players */}
             {container.containerType === 'fumarole' && !attachedBrothPot && container.items.every(item => item === null) && (

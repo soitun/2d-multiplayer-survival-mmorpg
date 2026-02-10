@@ -629,6 +629,8 @@ import { SetSprinting } from "./set_sprinting_reducer.ts";
 export { SetSprinting };
 import { SetThrowAim } from "./set_throw_aim_reducer.ts";
 export { SetThrowAim };
+import { SortStorageBox } from "./sort_storage_box_reducer.ts";
+export { SortStorageBox };
 import { SpawnItemsAtNight } from "./spawn_items_at_night_reducer.ts";
 export { SpawnItemsAtNight };
 import { SpawnMemoryShardsAtNight } from "./spawn_memory_shards_at_night_reducer.ts";
@@ -4413,6 +4415,10 @@ const REMOTE_MODULE = {
       reducerName: "set_throw_aim",
       argsType: SetThrowAim.getTypeScriptAlgebraicType(),
     },
+    sort_storage_box: {
+      reducerName: "sort_storage_box",
+      argsType: SortStorageBox.getTypeScriptAlgebraicType(),
+    },
     spawn_items_at_night: {
       reducerName: "spawn_items_at_night",
       argsType: SpawnItemsAtNight.getTypeScriptAlgebraicType(),
@@ -5114,6 +5120,7 @@ export type Reducer = never
 | { name: "SetPlayerPin", args: SetPlayerPin }
 | { name: "SetSprinting", args: SetSprinting }
 | { name: "SetThrowAim", args: SetThrowAim }
+| { name: "SortStorageBox", args: SortStorageBox }
 | { name: "SpawnItemsAtNight", args: SpawnItemsAtNight }
 | { name: "SpawnMemoryShardsAtNight", args: SpawnMemoryShardsAtNight }
 | { name: "SpawnSeedsAtNight", args: SpawnSeedsAtNight }
@@ -9828,6 +9835,22 @@ export class RemoteReducers {
     this.connection.offReducer("set_throw_aim", callback);
   }
 
+  sortStorageBox(boxId: number) {
+    const __args = { boxId };
+    let __writer = new __BinaryWriter(1024);
+    SortStorageBox.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("sort_storage_box", __argsBuffer, this.setCallReducerFlags.sortStorageBoxFlags);
+  }
+
+  onSortStorageBox(callback: (ctx: ReducerEventContext, boxId: number) => void) {
+    this.connection.onReducer("sort_storage_box", callback);
+  }
+
+  removeOnSortStorageBox(callback: (ctx: ReducerEventContext, boxId: number) => void) {
+    this.connection.offReducer("sort_storage_box", callback);
+  }
+
   spawnItemsAtNight(schedule: RuneStoneItemSpawnSchedule) {
     const __args = { schedule };
     let __writer = new __BinaryWriter(1024);
@@ -12758,6 +12781,11 @@ export class SetReducerFlags {
   setThrowAimFlags: __CallReducerFlags = 'FullUpdate';
   setThrowAim(flags: __CallReducerFlags) {
     this.setThrowAimFlags = flags;
+  }
+
+  sortStorageBoxFlags: __CallReducerFlags = 'FullUpdate';
+  sortStorageBox(flags: __CallReducerFlags) {
+    this.sortStorageBoxFlags = flags;
   }
 
   spawnItemsAtNightFlags: __CallReducerFlags = 'FullUpdate';
