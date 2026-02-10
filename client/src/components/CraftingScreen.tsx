@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './CraftingScreen.module.css';
 import {
     Recipe,
@@ -21,7 +22,7 @@ import {
 import { Identity } from 'spacetimedb';
 import { getItemIcon } from '../utils/itemIconUtils';
 import { ITEM_TO_NODE_MAP, MEMORY_GRID_NODES } from './MemoryGridData';
-import Tooltip, { TooltipContent, TooltipStats } from './Tooltip';
+import Tooltip, { TooltipContent, TooltipStats, AlternativeItem } from './Tooltip';
 
 // Category definitions with icons
 const CATEGORIES = [
@@ -449,9 +450,8 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
         event.currentTarget.removeAttribute('title');
 
         if (panelRef.current) {
-            const panelRect = panelRef.current.getBoundingClientRect();
-            const relativeX = event.clientX - panelRect.left;
-            const relativeY = event.clientY - panelRect.top;
+            const viewportX = event.clientX;
+            const viewportY = event.clientY;
 
             const stats: TooltipStats[] = [];
 
@@ -483,10 +483,46 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
             };
 
             setTooltipContent(content);
-            setTooltipPosition({ x: relativeX, y: relativeY });
+            setTooltipPosition({ x: viewportX, y: viewportY });
             setTooltipVisible(true);
         }
     }, []);
+
+    // Tooltip handler for flexible ingredients - shows all alternatives
+    const handleFlexIngredientMouseEnter = useCallback((
+        flexInfo: { groupName: string; validItemDefIds: string[]; totalRequired: number },
+        currentQuantity: number,
+        event: React.MouseEvent<HTMLDivElement>
+    ) => {
+        event.currentTarget.removeAttribute('title');
+
+        if (panelRef.current) {
+            const viewportX = event.clientX;
+            const viewportY = event.clientY;
+
+            const alternatives: AlternativeItem[] = flexInfo.validItemDefIds.map(id => {
+                const def = itemDefinitions.get(id);
+                return {
+                    iconPath: getItemIcon(def?.iconAssetName || ''),
+                    name: def?.name || 'Unknown',
+                    available: playerInventoryResources.get(id) || 0,
+                };
+            });
+
+            const totalNeeded = flexInfo.totalRequired * currentQuantity;
+
+            const content: TooltipContent = {
+                name: flexInfo.groupName,
+                category: 'Flexible Ingredient',
+                alternatives,
+                alternativesRequired: totalNeeded,
+            };
+
+            setTooltipContent(content);
+            setTooltipPosition({ x: viewportX, y: viewportY });
+            setTooltipVisible(true);
+        }
+    }, [itemDefinitions, playerInventoryResources]);
 
     const handleItemMouseLeave = useCallback(() => {
         setTooltipVisible(false);
@@ -494,11 +530,8 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
     }, []);
 
     const handleItemMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-        if (panelRef.current && tooltipVisible) {
-            const panelRect = panelRef.current.getBoundingClientRect();
-            const relativeX = event.clientX - panelRect.left;
-            const relativeY = event.clientY - panelRect.top;
-            setTooltipPosition({ x: relativeX, y: relativeY });
+        if (tooltipVisible) {
+            setTooltipPosition({ x: event.clientX, y: event.clientY });
         }
     }, [tooltipVisible]);
 
@@ -642,27 +675,58 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
                                                             const neededQty = flex ? flex.totalRequired : ing.quantity;
                                                             const neededTotal = neededQty * currentQuantity;
                                                             const hasEnough = available >= neededTotal;
-                                                            
-                                                            // Display name: group name for flexible, item name for fixed
-                                                            const displayName = flex ? flex.groupName : (ingDef?.name || 'Unknown');
                                                             const isFlexible = !!flex;
+
+                                                            // For flexible ingredients: get icon paths for overlapping display (max 3)
+                                                            const flexIcons = isFlexible
+                                                                ? flex.validItemDefIds.slice(0, 3).map(id => ({
+                                                                    src: getItemIcon(itemDefinitions.get(id)?.iconAssetName || ''),
+                                                                    name: itemDefinitions.get(id)?.name || 'Unknown',
+                                                                }))
+                                                                : [];
 
                                                             return (
                                                                 <div
                                                                     key={index}
-                                                                    className={`${styles.ingredient} ${hasEnough ? styles.ingredientHasEnough : styles.ingredientNotEnough}`}
-                                                                    onMouseEnter={(e) => ingDef && handleItemMouseEnter(ingDef, e)}
+                                                                    className={`${styles.ingredient} ${hasEnough ? styles.ingredientHasEnough : styles.ingredientNotEnough} ${isFlexible ? styles.ingredientFlexible : ''}`}
+                                                                    onMouseEnter={(e) => {
+                                                                        if (isFlexible && flex) {
+                                                                            handleFlexIngredientMouseEnter(flex, currentQuantity, e);
+                                                                        } else if (ingDef) {
+                                                                            handleItemMouseEnter(ingDef, e);
+                                                                        }
+                                                                    }}
                                                                     onMouseLeave={handleItemMouseLeave}
                                                                     onMouseMove={handleItemMouseMove}
-                                                                    title={isFlexible ? `Accepts: ${flex.validItemDefIds.map(id => itemDefinitions.get(id)?.name).filter(Boolean).join(', ')}` : undefined}
                                                                 >
-                                                                    <div className={styles.ingredientIcon} style={isFlexible ? { border: '1px solid rgba(255, 200, 0, 0.5)', borderRadius: '4px' } : undefined}>
-                                                                        <img
-                                                                            src={getItemIcon(ingDef?.iconAssetName || '')}
-                                                                            alt={displayName}
-                                                                        />
-                                                                        {isFlexible && <span style={{ position: 'absolute', top: '-2px', right: '-2px', fontSize: '8px' }}>⚡</span>}
-                                                                    </div>
+                                                                    {isFlexible ? (
+                                                                        /* Overlapping icons for flexible ingredients */
+                                                                        <div className={styles.flexIconStack}>
+                                                                            {flexIcons.map((icon, i) => (
+                                                                                <img
+                                                                                    key={i}
+                                                                                    src={icon.src}
+                                                                                    alt={icon.name}
+                                                                                    className={styles.flexStackedIcon}
+                                                                                    style={{
+                                                                                        zIndex: flexIcons.length - i,
+                                                                                        marginLeft: i === 0 ? 0 : -8,
+                                                                                    }}
+                                                                                />
+                                                                            ))}
+                                                                            {flex.validItemDefIds.length > 3 && (
+                                                                                <span className={styles.flexMoreBadge}>+{flex.validItemDefIds.length - 3}</span>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        /* Single icon for fixed ingredients */
+                                                                        <div className={styles.ingredientIcon}>
+                                                                            <img
+                                                                                src={getItemIcon(ingDef?.iconAssetName || '')}
+                                                                                alt={ingDef?.name || 'Unknown'}
+                                                                            />
+                                                                        </div>
+                                                                    )}
                                                                     <span className={styles.ingredientQuantity}>{neededQty}</span>
                                                                     <span className={styles.ingredientAvailable}>({available})</span>
                                                                 </div>
@@ -796,7 +860,10 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
                 </div>
             </div>
 
-            <Tooltip content={tooltipContent} visible={tooltipVisible} position={tooltipPosition} />
+            {tooltipVisible && tooltipContent && createPortal(
+                <Tooltip content={tooltipContent} visible={tooltipVisible} position={tooltipPosition} />,
+                document.body
+            )}
         </div>
     );
 };

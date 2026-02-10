@@ -307,14 +307,15 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
         // - Only ranged weapon usable while swimming/snorkeling
         // - Small 2-dart magazine for underwater hunting
         // - Crossbow-like ballistics: fast projectile, good range, accurate
-        // - Slower reload between shots, but magazine allows follow-up
+        // - Magazine reload is the ONLY delay (same pattern as Crossbow)
+        // - NO fire rate cooldown - darts fire instantly when loaded
         // - PNEUMATIC RELOAD - takes time to re-pressurize and load darts
         RangedWeaponStats {
             item_name: "Reed Harpoon Gun".to_string(),
             weapon_range: 650.0,       // Similar to crossbow range (680)
             projectile_speed: 900.0,   // Fast dart speed like crossbow (920)
             accuracy: 0.90,            // 90% accuracy - pneumatic precision
-            reload_time_secs: 1.8,     // Time between shots (slower than bow, faster than crossbow)
+            reload_time_secs: 0.0,     // NO fire rate cooldown - magazine reload is the only delay
             magazine_capacity: 2,      // 2-dart magazine - limited capacity
             is_automatic: false,       // Semi-auto - must click for each shot
             magazine_reload_time_secs: 2.0, // 2 seconds to reload darts
@@ -460,6 +461,33 @@ pub fn seed_food_poisoning_risks(ctx: &ReducerContext) -> Result<(), String> {
             }
         } else {
             log::warn!("Item definition not found for food poisoning risk: '{}'", item_name);
+        }
+    }
+
+    // === SPOILED ITEMS - Very high poison chance (90%) - all items starting with "Spoiled "
+    // Spoiled food is crawling with bacteria; consuming is extremely dangerous
+    const SPOILED_POISON_CHANCE: f32 = 90.0;
+    const SPOILED_DAMAGE_PER_TICK: f32 = 2.0;
+    const SPOILED_DURATION: f32 = 15.0;
+    const SPOILED_TICK_INTERVAL: f32 = 1.5;
+    for item_def in item_defs.iter() {
+        if item_def.name.starts_with("Spoiled ") {
+            // Skip if already seeded (e.g. raw human flesh might overlap)
+            if food_risks.item_def_id().find(&item_def.id).is_some() {
+                continue;
+            }
+            let food_risk = crate::active_effects::FoodPoisoningRisk {
+                item_def_id: item_def.id,
+                poisoning_chance_percent: SPOILED_POISON_CHANCE,
+                damage_per_tick: SPOILED_DAMAGE_PER_TICK,
+                duration_seconds: SPOILED_DURATION,
+                tick_interval_seconds: SPOILED_TICK_INTERVAL,
+            };
+            if let Ok(_) = food_risks.try_insert(food_risk) {
+                seeded_count += 1;
+                log::info!("Added food poisoning risk for spoiled item '{}': {:.1}% chance", 
+                    item_def.name, SPOILED_POISON_CHANCE);
+            }
         }
     }
 

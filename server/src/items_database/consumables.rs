@@ -25,6 +25,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_pumpkin.png")
             .stackable(10)
             .consumable(-8.0, 8.0, -10.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(18, 0)
             .cookable(60.0, "Charcoal")
             .respawn_time(30)
@@ -44,6 +45,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_potato.png")
             .stackable(20)
             .consumable(-4.0, 10.0, -12.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(13, 0)
             .cookable(40.0, "Charcoal")
             .respawn_time(80)
@@ -69,6 +71,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_carrot.png")
             .stackable(15)
             .consumable(-2.0, 8.0, -8.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(12, 0)
             .cookable(50.0, "Charcoal")
             .respawn_time(60)
@@ -94,6 +97,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_corn.png")
             .stackable(20)
             .consumable(-3.0, 12.0, -10.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(14, 0)
             .cookable(50.0, "Charcoal")
             .respawn_time(80)
@@ -153,6 +157,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_beet.png")
             .stackable(12)
             .consumable(-2.0, 8.0, -8.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(12, 0)
             .cookable(55.0, "Charcoal")
             .respawn_time(100)
@@ -173,6 +178,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_horseradish.png")
             .stackable(12)
             .consumable(-2.0, 5.0, -8.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(12, 0)
             .cookable(55.0, "Charcoal")
             .respawn_time(90)
@@ -198,6 +204,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_sunflower.png")
             .stackable(12)
             .consumable(-2.0, 5.0, -8.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(12, 0)
             .cookable(55.0, "Charcoal")
             .respawn_time(90)
@@ -223,6 +230,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_salsify.png")
             .stackable(12)
             .consumable(-2.0, 5.0, -8.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(12, 0)
             .cookable(55.0, "Charcoal")
             .respawn_time(90)
@@ -249,6 +257,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_cabbage.png")
             .stackable(10)
             .consumable(-2.0, 8.0, -8.0) // health, hunger, thirst
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(12, 0)
             .cookable(50.0, "Charcoal")
             .respawn_time(60)
@@ -275,6 +284,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_fennel.png")
             .stackable(12)
             .consumable(-2.0, 8.0, -8.0) // health, hunger, thirst
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(12, 0)
             .cookable(55.0, "Charcoal")
             .respawn_time(70)
@@ -303,6 +313,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_kamchatka_lily_bulb.png")
             .stackable(15)
             .consumable(-3.0, 10.0, -10.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(12, 0)
             .cookable(55.0, "Charcoal")
             .respawn_time(80)
@@ -321,6 +332,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_silverweed_root.png")
             .stackable(20)
             .consumable(-2.0, 8.0, -8.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(10, 0)
             .cookable(50.0, "Charcoal")
             .respawn_time(70)
@@ -339,6 +351,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_bistort_bulbils.png")
             .stackable(40)
             .consumable(-2.0, 6.0, -6.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(8, 0)
             .cookable(45.0, "Charcoal")
             .respawn_time(60)
@@ -367,6 +380,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_wild_celery.png")
             .stackable(15)
             .consumable(-2.0, 8.0, -6.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(10, 0)
             .cookable(50.0, "Charcoal")
             .respawn_time(70)
@@ -410,6 +424,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_chicory.png")
             .stackable(12)
             .consumable(-2.0, 3.0, -5.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(12, 0)
             .cookable(55.0, "Charcoal")
             .respawn_time(90)
@@ -421,6 +436,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("yarrow.png")
             .stackable(12)
             .consumable(2.0, 4.0, 1.0)
+            .preserved() // Dried herbs last indefinitely
             .cookable(25.0, "Charcoal") // Medicinal herb, not a food - burns directly
             .respawn_time(180)
             .build(),
@@ -429,6 +445,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("chamomile.png")
             .stackable(12)
             .consumable(1.0, 3.0, 2.0)
+            .preserved() // Dried herbs last indefinitely
             .cookable(20.0, "Charcoal") // Tea herb, not a food - burns directly
             .respawn_time(200)
             .build(),
@@ -437,6 +454,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("mint.png")
             .stackable(12)
             .consumable(1.0, 3.0, 2.0)
+            .preserved() // Dried herbs last indefinitely
             .cookable(20.0, "Charcoal") // Flavoring herb, not a food - burns directly
             .respawn_time(200)
             .build(),
@@ -454,6 +472,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_valerian.png")
             .stackable(15)
             .consumable(-2.0, 1.0, -3.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(8, 0)
             .cookable(55.0, "Charcoal")
             .respawn_time(60)
@@ -463,6 +482,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("mugwort.png")
             .stackable(12)
             .consumable(6.0, 12.0, 2.0)
+            .preserved() // Dried herbs last indefinitely
             .cookable(25.0, "Charcoal") // Bitter herb, not a food - burns directly
             .respawn_time(200)
             .build(),
@@ -480,6 +500,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_bear_garlic.png")
             .stackable(16)
             .consumable(-3.0, 2.0, -5.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(9, 0)
             .cookable(52.0, "Charcoal")
             .respawn_time(50)
@@ -497,6 +518,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_siberian_ginseng.png")
             .stackable(8)
             .consumable(-5.0, 1.0, -8.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(12, 0)
             .cookable(60.0, "Charcoal")
             .respawn_time(80)
@@ -521,6 +543,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_nettle_leaves.png")
             .stackable(25)
             .consumable(-3.0, 3.0, -5.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(6, 0)
             .cookable(35.0, "Charcoal")
             .respawn_time(40)
@@ -541,6 +564,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_valerian_leaves.png")
             .stackable(25)
             .consumable(-2.0, 2.0, -3.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(5, 0)
             .cookable(30.0, "Charcoal")
             .respawn_time(35)
@@ -558,6 +582,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_ginseng_leaves.png")
             .stackable(15)
             .consumable(-3.0, 2.0, -4.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(6, 0)
             .cookable(35.0, "Charcoal")
             .respawn_time(40)
@@ -580,12 +605,12 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(240)
             .build(),
 
-        ItemBuilder::new("Burnt Human Flesh", "Overcooked human flesh. Charred and inedible, but can be processed into charcoal.", ItemCategory::Consumable)
+        ItemBuilder::new("Burnt Human Flesh", "Overcooked human flesh. Charred and inedible.", ItemCategory::Consumable)
             .icon("burnt_human_meat.png")
             .stackable(10)
             .consumable(-5.0, 5.0, -15.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(14, 0)
-            .cookable(55.0, "Charcoal")
             .respawn_time(30)
             .build(),
 
@@ -605,12 +630,12 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .cookable(30.0, "Burnt Twigfish")
             .build(),
 
-        ItemBuilder::new("Burnt Twigfish", "A badly overcooked twigfish. Not very appetizing, but can be processed into charcoal.", ItemCategory::Consumable)
+        ItemBuilder::new("Burnt Twigfish", "A badly overcooked twigfish. Not very appetizing.", ItemCategory::Consumable)
             .icon("burnt_twigfish.png")
             .stackable(10)
             .consumable(2.0, 5.0, 0.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(8, 0)
-            .cookable(35.0, "Charcoal")
             .build(),
 
         // --- TIER 1: SMALL FISH (Common) ---
@@ -634,8 +659,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_herring.png")
             .stackable(15)
             .consumable(3.0, 6.0, -3.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(6, 0)
-            .cookable(30.0, "Charcoal")
             .build(),
 
         ItemBuilder::new("Raw Smelt", "A small, oily fish also known as 'candlefish' because it's so fatty it can be lit like a candle. Best caught at night.", ItemCategory::Consumable)
@@ -657,8 +682,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_smelt.png")
             .stackable(15)
             .consumable(2.0, 8.0, -4.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(5, 0)
-            .cookable(28.0, "Charcoal")
             .build(),
 
         // --- TIER 2: MEDIUM FISH (Uncommon) ---
@@ -682,8 +707,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_greenling.png")
             .stackable(10)
             .consumable(4.0, 10.0, -6.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(9, 0)
-            .cookable(35.0, "Charcoal")
             .build(),
 
         ItemBuilder::new("Raw Sculpin", "An ugly, spiny bottom-dweller found in deeper waters at night. Careful preparation required to avoid the venomous spines.", ItemCategory::Consumable)
@@ -705,8 +730,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_sculpin.png")
             .stackable(10)
             .consumable(3.0, 8.0, -8.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(8, 0)
-            .cookable(38.0, "Charcoal")
             .build(),
 
         ItemBuilder::new("Raw Pacific Cod", "A large, flaky white fish and staple of northern fishing communities. Excellent nutrition when properly cooked.", ItemCategory::Consumable)
@@ -728,8 +753,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_pacific_cod.png")
             .stackable(8)
             .consumable(5.0, 12.0, -5.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(12, 0)
-            .cookable(40.0, "Charcoal")
             .build(),
 
         // --- TIER 3: LARGE FISH (Rare) ---
@@ -753,8 +778,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_dolly_varden.png")
             .stackable(8)
             .consumable(6.0, 14.0, -4.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(11, 0)
-            .cookable(38.0, "Charcoal")
             .build(),
 
         ItemBuilder::new("Raw Rockfish", "A large, deep-water fish with striking red and orange coloring. Best caught at night when they rise from the depths.", ItemCategory::Consumable)
@@ -776,8 +801,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_rockfish.png")
             .stackable(6)
             .consumable(6.0, 15.0, -6.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(14, 0)
-            .cookable(42.0, "Charcoal")
             .build(),
 
         ItemBuilder::new("Raw Steelhead", "A magnificent sea-run rainbow trout, prized for its fighting spirit. Most active at dawn and dusk.", ItemCategory::Consumable)
@@ -799,8 +824,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_steelhead.png")
             .stackable(6)
             .consumable(7.0, 16.0, -5.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(13, 0)
-            .cookable(40.0, "Charcoal")
             .build(),
 
         // --- TIER 4: PREMIUM FISH (Very Rare) ---
@@ -824,8 +849,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_pink_salmon.png")
             .stackable(5)
             .consumable(8.0, 18.0, -4.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(15, 0)
-            .cookable(42.0, "Charcoal")
             .build(),
 
         ItemBuilder::new("Raw Sockeye Salmon", "A prized Pacific salmon with brilliant red flesh, rich in oils and nutrients. Caught during twilight hours.", ItemCategory::Consumable)
@@ -847,8 +872,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_sockeye_salmon.png")
             .stackable(5)
             .consumable(9.0, 20.0, -3.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(16, 0)
-            .cookable(45.0, "Charcoal")
             .build(),
 
         ItemBuilder::new("Raw King Salmon", "The legendary Chinook salmon, largest of all Pacific salmon. An extremely rare and prized catch, best found at dawn.", ItemCategory::Consumable)
@@ -870,8 +895,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_king_salmon.png")
             .stackable(3)
             .consumable(12.0, 25.0, -2.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(18, 0)
-            .cookable(48.0, "Charcoal")
             .build(),
 
         ItemBuilder::new("Raw Halibut", "A massive flatfish from the deep ocean floor. Can grow to enormous sizes. Requires deep water fishing.", ItemCategory::Consumable)
@@ -893,8 +918,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_halibut.png")
             .stackable(3)
             .consumable(10.0, 22.0, -4.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(17, 0)
-            .cookable(46.0, "Charcoal")
             .build(),
 
         // === SHELLFISH & INVERTEBRATES ===
@@ -918,8 +943,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_black_katy_chiton.png")
             .stackable(15)
             .consumable(2.0, 5.0, -2.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(4, 0)
-            .cookable(32.0, "Charcoal")
             .build(),
 
         ItemBuilder::new("Raw Sea Urchin", "A spiny echinoderm found in rocky coastal areas. The orange roe inside is considered a delicacy, but requires careful handling.", ItemCategory::Consumable)
@@ -941,8 +966,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_sea_urchin.png")
             .stackable(15)
             .consumable(2.0, 6.0, -3.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(5, 0)
-            .cookable(30.0, "Charcoal")
             .build(),
 
         ItemBuilder::new("Raw Blue Mussel", "A common bivalve mollusk found attached to rocks and pilings. Filter-feeding mussels are abundant in coastal waters.", ItemCategory::Consumable)
@@ -964,8 +989,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_blue_mussel.png")
             .stackable(20)
             .consumable(1.0, 3.0, -1.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(3, 0)
-            .cookable(28.0, "Charcoal")
             .build(),
 
         // === ANIMAL MEAT ===
@@ -983,12 +1008,12 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .cookable(25.0, "Burnt Fox Meat")
             .build(),
 
-        ItemBuilder::new("Burnt Fox Meat", "Overcooked fox meat. Tough and charred, but can be processed into charcoal.", ItemCategory::Consumable)
+        ItemBuilder::new("Burnt Fox Meat", "Overcooked fox meat. Tough and charred.", ItemCategory::Consumable)
             .icon("burnt_fox_meat.png")
             .stackable(15)
             .consumable(-4.0, 8.0, -12.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(10, 0)
-            .cookable(35.0, "Charcoal")
             .build(),
 
         ItemBuilder::new("Raw Wolf Meat", "Dense, dark meat from a wolf. Tough and gamy, but provides substantial nutrition even when raw.", ItemCategory::Consumable)
@@ -1005,12 +1030,12 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .cookable(30.0, "Burnt Wolf Meat")
             .build(),
 
-        ItemBuilder::new("Burnt Wolf Meat", "Charred wolf meat. Ruined by overcooking, but can be processed into charcoal.", ItemCategory::Consumable)
+        ItemBuilder::new("Burnt Wolf Meat", "Charred wolf meat. Ruined by overcooking.", ItemCategory::Consumable)
             .icon("burnt_wolf_meat.png")
             .stackable(12)
             .consumable(-6.0, 12.0, -18.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(16, 0)
-            .cookable(45.0, "Charcoal")
             .build(),
 
         ItemBuilder::new("Raw Viper Meat", "Stringy snake meat. Lean and nutritious, though it's much better when cooked.", ItemCategory::Consumable)
@@ -1027,12 +1052,12 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .cookable(20.0, "Burnt Viper Meat")
             .build(),
 
-        ItemBuilder::new("Burnt Viper Meat", "Overcooked snake meat. Tough and unappetizing, but can be processed into charcoal.", ItemCategory::Consumable)
+        ItemBuilder::new("Burnt Viper Meat", "Overcooked snake meat. Tough and unappetizing.", ItemCategory::Consumable)
             .icon("burnt_viper_meat.png")
             .stackable(20)
             .consumable(-3.0, 5.0, -10.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(8, 0)
-            .cookable(30.0, "Charcoal")
             .build(),
 
         // === CRAB MEAT ===
@@ -1050,12 +1075,12 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .cookable(25.0, "Burnt Crab Meat")
             .build(),
 
-        ItemBuilder::new("Burnt Crab Meat", "Overcooked crab meat. Rubbery and unappetizing, but can be processed into charcoal.", ItemCategory::Consumable)
+        ItemBuilder::new("Burnt Crab Meat", "Overcooked crab meat. Rubbery and unappetizing.", ItemCategory::Consumable)
             .icon("burnt_crab_meat.png")
             .stackable(20)
             .consumable(-3.0, 8.0, -8.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(8, 0)
-            .cookable(30.0, "Charcoal")
             .build(),
 
         // === BIRD MEAT ===
@@ -1073,12 +1098,12 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .cookable(25.0, "Burnt Tern Meat")
             .build(),
 
-        ItemBuilder::new("Burnt Tern Meat", "Overcooked tern meat. Dry and tasteless, but can be processed into charcoal.", ItemCategory::Consumable)
+        ItemBuilder::new("Burnt Tern Meat", "Overcooked tern meat. Dry and tasteless.", ItemCategory::Consumable)
             .icon("burnt_tern_meat.png")
             .stackable(20)
             .consumable(-2.0, 6.0, -6.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(6, 0)
-            .cookable(25.0, "Charcoal")
             .build(),
 
         ItemBuilder::new("Raw Crow Meat", "Dark, gamey meat from a crow. Has a strong, earthy flavor that cooking helps mellow.", ItemCategory::Consumable)
@@ -1095,12 +1120,12 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .cookable(25.0, "Burnt Crow Meat")
             .build(),
 
-        ItemBuilder::new("Burnt Crow Meat", "Charred crow meat. Nearly inedible but can be processed into charcoal.", ItemCategory::Consumable)
+        ItemBuilder::new("Burnt Crow Meat", "Charred crow meat. Nearly inedible.", ItemCategory::Consumable)
             .icon("burnt_crow_meat.png")
             .stackable(20)
             .consumable(-3.0, 5.0, -7.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(5, 0)
-            .cookable(25.0, "Charcoal")
             .build(),
 
         // === VOLE MEAT ===
@@ -1122,8 +1147,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_vole_meat.png")
             .stackable(30)
             .consumable(-1.0, 2.0, -4.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(3, 0)
-            .cookable(20.0, "Charcoal")
             .build(),
 
         // === WOLVERINE MEAT ===
@@ -1145,8 +1170,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_wolverine_meat.png")
             .stackable(10)
             .consumable(-8.0, 15.0, -20.0) // Harsh penalty for burning such valuable meat
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(18, 0)
-            .cookable(50.0, "Charcoal")
             .build(),
 
         // === CARIBOU MEAT ===
@@ -1168,8 +1193,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_caribou_meat.png")
             .stackable(10)
             .consumable(-6.0, 18.0, -18.0) // Penalty for burning good meat
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(15, 0)
-            .cookable(40.0, "Charcoal")
             .build(),
 
         // === WALRUS MEAT ===
@@ -1191,8 +1216,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_walrus_meat.png")
             .stackable(10)
             .consumable(-8.0, 20.0, -20.0) // Penalty for burning fatty meat
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(15, 0)
-            .cookable(45.0, "Charcoal")
             .build(),
 
         // === BEAR MEAT (Alpine) ===
@@ -1214,8 +1239,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_bear_meat.png")
             .stackable(10)
             .consumable(-8.0, 22.0, -22.0) // Penalty for burning premium meat
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(15, 0)
-            .cookable(45.0, "Charcoal")
             .build(),
 
         // === HARE MEAT (Alpine) ===
@@ -1237,8 +1262,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_hare_meat.png")
             .stackable(10)
             .consumable(-4.0, 12.0, -12.0) // Mild penalty - small portion
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(15, 0)
-            .cookable(30.0, "Charcoal")
             .build(),
 
         // === OWL MEAT (Alpine) ===
@@ -1260,8 +1285,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_owl_meat.png")
             .stackable(10)
             .consumable(-5.0, 10.0, -14.0) // Penalty for burning
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(15, 0)
-            .cookable(30.0, "Charcoal")
             .build(),
 
         // === SHARK MEAT (Aquatic) ===
@@ -1283,8 +1308,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_shark_meat.png")
             .stackable(10)
             .consumable(-6.0, 15.0, -18.0) // Penalty for burning
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(15, 0)
-            .cookable(40.0, "Charcoal")
             .build(),
 
         // === JELLYFISH ITEMS (Aquatic) ===
@@ -1488,11 +1513,17 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
                 "Cabbage",
                 "Potato",
                 "Pumpkin",
-                "Corn",
+                "Raw Corn",
                 "Fennel",
-                "Horseradish",
-                "Salsify",
+                "Horseradish Root",
+                "Salsify Root",
                 "Chicory",
+                "Sunflower",
+                "Kamchatka Lily Bulb",
+                "Silverweed Root",
+                "Bistort Bulbils",
+                "Wild Celery Stalks",
+                "Nettle Leaves",
             ])
             .crafting_cost(vec![
                 CostIngredient { item_name: "Vinegar".to_string(), quantity: 1 },
@@ -1507,6 +1538,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(15.0, 35.0, -15.0) // Good protein, but sour and salty
             .preserved() // Never spoils - vinegar preservation
             .flexible_ingredient("Any Raw Fish", 2, vec![
+                "Raw Twigfish",
                 "Raw Herring",
                 "Raw Smelt",
                 "Raw Greenling",
@@ -1519,6 +1551,9 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
                 "Raw Sockeye Salmon",
                 "Raw King Salmon",
                 "Raw Halibut",
+                "Raw Black Katy Chiton",
+                "Raw Sea Urchin",
+                "Raw Blue Mussel",
             ])
             .crafting_cost(vec![
                 CostIngredient { item_name: "Vinegar".to_string(), quantity: 1 },
@@ -1541,6 +1576,12 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
                 "Cooked Vole Meat",
                 "Cooked Wolverine Meat",
                 "Cooked Caribou Meat",
+                "Cooked Walrus Meat",
+                "Cooked Bear Meat",
+                "Cooked Hare Meat",
+                "Cooked Owl Meat",
+                "Cooked Shark Meat",
+                "Cooked Crab Meat",
             ])
             .crafting_output(3, 10) // Takes time to dry, yields 3
             .requires_station("Cooking Station")
@@ -1552,6 +1593,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(20.0, 40.0, -15.0) // Good protein, dry
             .preserved() // Never spoils - traditional drying
             .flexible_ingredient("Any Raw Fish", 2, vec![
+                "Raw Twigfish",
                 "Raw Herring",
                 "Raw Smelt",
                 "Raw Greenling",
@@ -1564,6 +1606,9 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
                 "Raw Sockeye Salmon",
                 "Raw King Salmon",
                 "Raw Halibut",
+                "Raw Black Katy Chiton",
+                "Raw Sea Urchin",
+                "Raw Blue Mussel",
             ])
             .crafting_output(3, 10) // Takes time to dry, yields 3
             .requires_station("Cooking Station")
@@ -1769,12 +1814,12 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .cookable(20.0, "Burnt Chanterelle")
             .build(),
 
-        ItemBuilder::new("Burnt Chanterelle", "Overcooked chanterelles, blackened and bitter. Can be processed into charcoal.", ItemCategory::Consumable)
+        ItemBuilder::new("Burnt Chanterelle", "Overcooked chanterelles, blackened and bitter.", ItemCategory::Consumable)
             .icon("burnt_chanterelle.png")
             .stackable(20)
             .consumable(-4.0, 3.0, -6.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(8, 0)
-            .cookable(30.0, "Charcoal")
             .respawn_time(40)
             .build(),
 
@@ -1797,8 +1842,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_porcini.png")
             .stackable(15)
             .consumable(-5.0, 5.0, -8.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(10, 0)
-            .cookable(35.0, "Charcoal")
             .respawn_time(50)
             .build(),
 
@@ -1821,8 +1866,8 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_shaggy_ink_cap.png")
             .stackable(25)
             .consumable(-3.0, 2.0, -5.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(6, 0)
-            .cookable(25.0, "Charcoal")
             .respawn_time(30)
             .build(),
 
@@ -1834,12 +1879,12 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(400)
             .build(),
 
-        ItemBuilder::new("Burnt Fly Agaric", "Charred toxic mushroom. Still dangerous even when burnt, but can be processed into charcoal.", ItemCategory::Consumable)
+        ItemBuilder::new("Burnt Fly Agaric", "Charred toxic mushroom. Still dangerous even when burnt.", ItemCategory::Consumable)
             .icon("burnt_fly_agaric.png")
             .stackable(10)
             .consumable(-8.0, 1.0, -12.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(12, 0)
-            .cookable(40.0, "Charcoal")
             .respawn_time(70)
             .build(),
 
@@ -1851,12 +1896,12 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(500)
             .build(),
 
-        ItemBuilder::new("Burnt Deadly Webcap", "Charred deadly mushroom. Toxicity reduced but still harmful. Can be processed into charcoal.", ItemCategory::Consumable)
+        ItemBuilder::new("Burnt Deadly Webcap", "Charred deadly mushroom. Toxicity reduced but still harmful.", ItemCategory::Consumable)
             .icon("burnt_deadly_webcap.png")
             .stackable(8)
             .consumable(-12.0, 1.0, -15.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(15, 0)
-            .cookable(45.0, "Charcoal")
             .respawn_time(90)
             .build(),
 
@@ -1868,12 +1913,12 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(600)
             .build(),
 
-        ItemBuilder::new("Burnt Destroying Angel", "Charred death cap. Even burnt, it retains dangerous toxins. Can be processed into charcoal.", ItemCategory::Consumable)
+        ItemBuilder::new("Burnt Destroying Angel", "Charred death cap. Even burnt, it retains dangerous toxins.", ItemCategory::Consumable)
             .icon("burnt_destroying_angel.png")
             .stackable(6)
             .consumable(-15.0, 1.0, -20.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(18, 0)
-            .cookable(50.0, "Charcoal")
             .respawn_time(110)
             .build(),
 
@@ -1937,6 +1982,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_mandrake_root.png")
             .stackable(5)
             .consumable(-5.0, 1.0, -8.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(15, 0)
             .cookable(55.0, "Charcoal")
             .respawn_time(85)
@@ -1962,6 +2008,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_henbane.png")
             .stackable(10)
             .consumable(-6.0, 1.0, -9.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(10, 0)
             .cookable(42.0, "Charcoal")
             .respawn_time(75)
@@ -1979,6 +2026,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_datura.png")
             .stackable(6)
             .consumable(-9.0, 1.0, -15.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(14, 0)
             .cookable(48.0, "Charcoal")
             .respawn_time(100)
@@ -1996,6 +2044,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_wolfsbane.png")
             .stackable(8)
             .consumable(-11.0, 1.0, -18.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(16, 0)
             .cookable(52.0, "Charcoal")
             .respawn_time(105)
@@ -2029,7 +2078,6 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(20)
             .consumable(8.0, 18.0, -5.0) // Better nutrition, but salty so reduces thirst
             .preserved() // Dried foods are shelf-stable
-            .cookable(40.0, "Charcoal") // Burns to charcoal if overcooked
             .respawn_time(180)
             .build(),
 
@@ -2045,10 +2093,11 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("vegetable_stew.png")
             .stackable(5)
             .consumable(60.0, 90.0, 40.0) // High nutrition for veggie dish
-            .crafting_cost(vec![
-                CostIngredient { item_name: "Cooked Potato".to_string(), quantity: 2 },
-                CostIngredient { item_name: "Cooked Carrot".to_string(), quantity: 1 },
-                CostIngredient { item_name: "Cooked Beet".to_string(), quantity: 1 },
+            .flexible_ingredient("Any Cooked Vegetable", 4, vec![
+                "Cooked Potato", "Cooked Carrot", "Cooked Beet", "Cooked Pumpkin", "Cooked Corn",
+                "Cooked Cabbage", "Cooked Fennel", "Cooked Kamchatka Lily Bulb", "Cooked Silverweed Root",
+                "Cooked Bistort Bulbils", "Cooked Salsify Root", "Cooked Sunflower", "Cooked Horseradish",
+                "Cooked Chicory", "Cooked Nettle Leaves", "Cooked Wild Celery",
             ])
             .crafting_output(1, 0) // Instant crafting
             .requires_station("Cooking Station")
@@ -2058,90 +2107,114 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("root_medley.png")
             .stackable(5)
             .consumable(50.0, 85.0, 30.0)
+            .flexible_ingredient("Any Cooked Root", 4, vec![
+                "Cooked Potato", "Cooked Beet", "Cooked Kamchatka Lily Bulb", "Cooked Silverweed Root",
+                "Cooked Bistort Bulbils", "Cooked Salsify Root", "Cooked Carrot", "Cooked Pumpkin",
+            ])
             .crafting_cost(vec![
-                CostIngredient { item_name: "Cooked Potato".to_string(), quantity: 2 },
-                CostIngredient { item_name: "Cooked Beet".to_string(), quantity: 2 },
                 CostIngredient { item_name: "Roasted Bear Garlic".to_string(), quantity: 1 },
             ])
             .crafting_output(1, 0)
             .requires_station("Cooking Station")
             .build(),
 
-        ItemBuilder::new("Stuffed Pumpkin", "A cooked pumpkin stuffed with corn and herbs. A festive autumn dish.", ItemCategory::Consumable)
+        ItemBuilder::new("Stuffed Pumpkin", "A cooked pumpkin stuffed with starchy vegetables and herbs. A festive autumn dish.", ItemCategory::Consumable)
             .icon("stuffed_pumpkin.png")
             .stackable(3)
             .consumable(65.0, 95.0, 35.0)
             .crafting_cost(vec![
                 CostIngredient { item_name: "Cooked Pumpkin".to_string(), quantity: 1 },
-                CostIngredient { item_name: "Cooked Corn".to_string(), quantity: 2 },
-                CostIngredient { item_name: "Chamomile".to_string(), quantity: 1 },
+            ])
+            .flexible_ingredient("Any Cooked Starchy", 2, vec![
+                "Cooked Corn", "Cooked Potato", "Cooked Pumpkin", "Cooked Beet",
+                "Cooked Kamchatka Lily Bulb", "Cooked Silverweed Root", "Cooked Bistort Bulbils",
+            ])
+            .flexible_ingredient("Any Aromatic Herb", 1, vec![
+                "Chamomile", "Mint Leaves", "Mugwort", "Yarrow",
             ])
             .crafting_output(1, 0)
             .requires_station("Cooking Station")
             .build(),
 
         // === SEAFOOD DISHES ===
-        ItemBuilder::new("Fish Pie", "A savory pie filled with flaky cod and potato. Hearty and satisfying.", ItemCategory::Consumable)
+        ItemBuilder::new("Fish Pie", "A savory pie filled with flaky fish and potato. Hearty and satisfying.", ItemCategory::Consumable)
             .icon("fish_pie.png")
             .stackable(5)
             .consumable(70.0, 100.0, 30.0)
-            .crafting_cost(vec![
-                CostIngredient { item_name: "Cooked Pacific Cod".to_string(), quantity: 2 },
-                CostIngredient { item_name: "Cooked Potato".to_string(), quantity: 1 },
+            .flexible_ingredient("Any Cooked Fish", 2, vec![
+                "Cooked Twigfish", "Cooked Herring", "Cooked Smelt", "Cooked Greenling", "Cooked Sculpin",
+                "Cooked Pacific Cod", "Cooked Dolly Varden", "Cooked Rockfish", "Cooked Steelhead",
+                "Cooked Pink Salmon", "Cooked Sockeye Salmon", "Cooked King Salmon", "Cooked Halibut",
+            ])
+            .flexible_ingredient("Any Cooked Starchy", 1, vec![
+                "Cooked Potato", "Cooked Corn", "Cooked Pumpkin", "Cooked Beet",
+                "Cooked Kamchatka Lily Bulb", "Cooked Silverweed Root", "Cooked Bistort Bulbils",
             ])
             .crafting_output(1, 0)
             .requires_station("Cooking Station")
             .build(),
 
-        ItemBuilder::new("Seafood Platter", "A luxurious arrangement of cooked crab, mussels, and sea urchin. A coastal delicacy.", ItemCategory::Consumable)
+        ItemBuilder::new("Seafood Platter", "A luxurious arrangement of cooked seafood. A coastal delicacy.", ItemCategory::Consumable)
             .icon("seafood_platter.png")
             .stackable(3)
             .consumable(65.0, 85.0, 25.0)
-            .crafting_cost(vec![
-                CostIngredient { item_name: "Cooked Crab Meat".to_string(), quantity: 1 },
-                CostIngredient { item_name: "Cooked Blue Mussel".to_string(), quantity: 1 },
-                CostIngredient { item_name: "Cooked Sea Urchin".to_string(), quantity: 1 },
+            .flexible_ingredient("Any Cooked Seafood", 3, vec![
+                "Cooked Crab Meat", "Cooked Blue Mussel", "Cooked Sea Urchin", "Cooked Black Katy Chiton",
             ])
             .crafting_output(1, 0)
             .requires_station("Cooking Station")
             .build(),
 
-        ItemBuilder::new("Salmon Bake", "Fresh salmon baked with potatoes and mint. A refreshing and nutritious meal.", ItemCategory::Consumable)
+        ItemBuilder::new("Salmon Bake", "Fresh salmon baked with potatoes and herbs. A refreshing and nutritious meal.", ItemCategory::Consumable)
             .icon("salmon_bake.png")
             .stackable(5)
             .consumable(75.0, 95.0, 35.0)
-            .crafting_cost(vec![
-                CostIngredient { item_name: "Cooked Sockeye Salmon".to_string(), quantity: 1 },
-                CostIngredient { item_name: "Cooked Potato".to_string(), quantity: 1 },
-                CostIngredient { item_name: "Mint Leaves".to_string(), quantity: 1 },
+            .flexible_ingredient("Any Cooked Salmon", 1, vec![
+                "Cooked Pink Salmon", "Cooked Sockeye Salmon", "Cooked King Salmon",
+            ])
+            .flexible_ingredient("Any Cooked Starchy", 1, vec![
+                "Cooked Potato", "Cooked Corn", "Cooked Pumpkin", "Cooked Beet",
+                "Cooked Kamchatka Lily Bulb", "Cooked Silverweed Root", "Cooked Bistort Bulbils",
+            ])
+            .flexible_ingredient("Any Aromatic Herb", 1, vec![
+                "Mint Leaves", "Chamomile", "Mugwort", "Yarrow",
             ])
             .crafting_output(1, 0)
             .requires_station("Cooking Station")
             .build(),
 
-        ItemBuilder::new("Crab Cakes", "Crispy crab cakes with corn and seaweed. A savory coastal treat.", ItemCategory::Consumable)
+        ItemBuilder::new("Crab Cakes", "Crispy crab cakes with vegetables and seaweed. A savory coastal treat.", ItemCategory::Consumable)
             .icon("crab_cakes.png")
             .stackable(8)
             .consumable(55.0, 70.0, 20.0)
             .crafting_cost(vec![
                 CostIngredient { item_name: "Cooked Crab Meat".to_string(), quantity: 2 },
-                CostIngredient { item_name: "Cooked Corn".to_string(), quantity: 1 },
                 CostIngredient { item_name: "Dried Seaweed".to_string(), quantity: 1 },
+            ])
+            .flexible_ingredient("Any Cooked Starchy", 1, vec![
+                "Cooked Corn", "Cooked Potato", "Cooked Pumpkin", "Cooked Beet",
+                "Cooked Kamchatka Lily Bulb", "Cooked Silverweed Root", "Cooked Bistort Bulbils",
             ])
             .crafting_output(2, 0) // Makes 2 crab cakes
             .requires_station("Cooking Station")
             .build(),
 
         // === MEAT DISHES ===
-        ItemBuilder::new("Hunter's Feast", "A massive platter of mixed game meats with corn. A meal fit for a hunter.", ItemCategory::Consumable)
+        ItemBuilder::new("Hunter's Feast", "A massive platter of mixed game meats with vegetables. A meal fit for a hunter.", ItemCategory::Consumable)
             .icon("hunters_feast.png")
             .stackable(3)
             .consumable(80.0, 110.0, 20.0) // Very filling
-            .crafting_cost(vec![
-                CostIngredient { item_name: "Cooked Wolf Meat".to_string(), quantity: 1 },
-                CostIngredient { item_name: "Cooked Fox Meat".to_string(), quantity: 1 },
-                CostIngredient { item_name: "Cooked Tern Meat".to_string(), quantity: 1 },
-                CostIngredient { item_name: "Cooked Corn".to_string(), quantity: 2 },
+            .flexible_ingredient("Any Cooked Meat", 3, vec![
+                "Cooked Wolf Meat", "Cooked Fox Meat", "Cooked Viper Meat", "Cooked Crow Meat",
+                "Cooked Tern Meat", "Cooked Vole Meat", "Cooked Wolverine Meat", "Cooked Caribou Meat",
+                "Cooked Walrus Meat", "Cooked Bear Meat", "Cooked Hare Meat", "Cooked Owl Meat",
+                "Cooked Shark Meat", "Cooked Human Flesh", "Cooked Crab Meat",
+            ])
+            .flexible_ingredient("Any Cooked Vegetable", 2, vec![
+                "Cooked Corn", "Cooked Potato", "Cooked Carrot", "Cooked Beet", "Cooked Pumpkin",
+                "Cooked Cabbage", "Cooked Fennel", "Cooked Kamchatka Lily Bulb", "Cooked Silverweed Root",
+                "Cooked Bistort Bulbils", "Cooked Salsify Root", "Cooked Sunflower", "Cooked Horseradish",
+                "Cooked Chicory", "Cooked Nettle Leaves", "Cooked Wild Celery",
             ])
             .crafting_output(1, 0)
             .requires_station("Cooking Station")
@@ -2151,11 +2224,14 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("herb_crusted_meat.png")
             .stackable(5)
             .consumable(70.0, 80.0, 25.0)
-            .crafting_cost(vec![
-                CostIngredient { item_name: "Cooked Wolf Meat".to_string(), quantity: 1 },
-                CostIngredient { item_name: "Chamomile".to_string(), quantity: 1 },
-                CostIngredient { item_name: "Mugwort".to_string(), quantity: 1 },
-                CostIngredient { item_name: "Yarrow".to_string(), quantity: 1 },
+            .flexible_ingredient("Any Cooked Meat", 1, vec![
+                "Cooked Wolf Meat", "Cooked Fox Meat", "Cooked Viper Meat", "Cooked Crow Meat",
+                "Cooked Tern Meat", "Cooked Vole Meat", "Cooked Wolverine Meat", "Cooked Caribou Meat",
+                "Cooked Walrus Meat", "Cooked Bear Meat", "Cooked Hare Meat", "Cooked Owl Meat",
+                "Cooked Shark Meat", "Cooked Human Flesh", "Cooked Crab Meat",
+            ])
+            .flexible_ingredient("Any Aromatic Herb", 3, vec![
+                "Chamomile", "Mugwort", "Yarrow", "Mint Leaves",
             ])
             .crafting_output(1, 0)
             .requires_station("Cooking Station")
@@ -2167,8 +2243,12 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(90.0, 120.0, 15.0) // Most filling dish
             .crafting_cost(vec![
                 CostIngredient { item_name: "Cooked Bear Meat".to_string(), quantity: 2 },
-                CostIngredient { item_name: "Cooked Potato".to_string(), quantity: 2 },
-                CostIngredient { item_name: "Cooked Carrot".to_string(), quantity: 1 },
+            ])
+            .flexible_ingredient("Any Cooked Vegetable", 3, vec![
+                "Cooked Potato", "Cooked Carrot", "Cooked Beet", "Cooked Pumpkin", "Cooked Corn",
+                "Cooked Cabbage", "Cooked Fennel", "Cooked Kamchatka Lily Bulb", "Cooked Silverweed Root",
+                "Cooked Bistort Bulbils", "Cooked Salsify Root", "Cooked Sunflower", "Cooked Horseradish",
+                "Cooked Chicory", "Cooked Nettle Leaves", "Cooked Wild Celery",
             ])
             .crafting_output(1, 0)
             .requires_station("Cooking Station")
@@ -2179,9 +2259,10 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("mushroom_medley.png")
             .stackable(5)
             .consumable(55.0, 75.0, 35.0)
+            .flexible_ingredient("Any Cooked Mushroom", 4, vec![
+                "Cooked Chanterelle", "Cooked Porcini", "Cooked Shaggy Ink Cap",
+            ])
             .crafting_cost(vec![
-                CostIngredient { item_name: "Cooked Porcini".to_string(), quantity: 2 },
-                CostIngredient { item_name: "Cooked Chanterelle".to_string(), quantity: 2 },
                 CostIngredient { item_name: "Roasted Bear Garlic".to_string(), quantity: 1 },
             ])
             .crafting_output(1, 0)
@@ -2192,10 +2273,11 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("stuffed_mushrooms.png")
             .stackable(8)
             .consumable(45.0, 55.0, 30.0)
-            .crafting_cost(vec![
-                CostIngredient { item_name: "Cooked Porcini".to_string(), quantity: 2 },
-                CostIngredient { item_name: "Chamomile".to_string(), quantity: 1 },
-                CostIngredient { item_name: "Mugwort".to_string(), quantity: 1 },
+            .flexible_ingredient("Any Cooked Mushroom", 2, vec![
+                "Cooked Chanterelle", "Cooked Porcini", "Cooked Shaggy Ink Cap",
+            ])
+            .flexible_ingredient("Any Aromatic Herb", 2, vec![
+                "Chamomile", "Mugwort", "Yarrow", "Mint Leaves",
             ])
             .crafting_output(2, 0) // Makes 2 servings
             .requires_station("Cooking Station")
@@ -2206,9 +2288,9 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("berry_tart.png")
             .stackable(8)
             .consumable(40.0, 50.0, 60.0) // High thirst quench due to juicy berries
-            .crafting_cost(vec![
-                CostIngredient { item_name: "Lingonberries".to_string(), quantity: 3 },
-                CostIngredient { item_name: "Cloudberries".to_string(), quantity: 2 },
+            .flexible_ingredient("Any Berry", 5, vec![
+                "Lingonberries", "Cloudberries", "Crowberries", "Bilberries", "Wild Strawberries",
+                "Rowan Berries", "Cranberries", "Nagoonberries",
             ])
             .crafting_output(1, 0)
             .requires_station("Cooking Station")
@@ -2218,10 +2300,9 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("mixed_berry_bowl.png")
             .stackable(10)
             .consumable(35.0, 40.0, 55.0)
-            .crafting_cost(vec![
-                CostIngredient { item_name: "Lingonberries".to_string(), quantity: 2 },
-                CostIngredient { item_name: "Cloudberries".to_string(), quantity: 2 },
-                CostIngredient { item_name: "Crowberries".to_string(), quantity: 2 },
+            .flexible_ingredient("Any Berry", 6, vec![
+                "Lingonberries", "Cloudberries", "Crowberries", "Bilberries", "Wild Strawberries",
+                "Rowan Berries", "Cranberries", "Nagoonberries",
             ])
             .crafting_output(1, 0)
             .requires_station("Cooking Station")
@@ -2242,14 +2323,17 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // Premium version with berries
-        ItemBuilder::new("Berry Aleutian Bread", "Traditional Aleutian bread enriched with cloudberries. The perfect balance of savory and sweet - the finest food in the islands.", ItemCategory::Consumable)
+        ItemBuilder::new("Berry Aleutian Bread", "Traditional Aleutian bread enriched with berries. The perfect balance of savory and sweet - the finest food in the islands.", ItemCategory::Consumable)
             .icon("berry_aleutian_bread.png")
             .stackable(8)
             .consumable(95.0, 110.0, 40.0) // THE BEST consumable - excellent across all stats
             .crafting_cost(vec![
                 CostIngredient { item_name: "Flour".to_string(), quantity: 4 },
                 CostIngredient { item_name: "Yeast".to_string(), quantity: 1 },
-                CostIngredient { item_name: "Cloudberries".to_string(), quantity: 3 },
+            ])
+            .flexible_ingredient("Any Berry", 3, vec![
+                "Lingonberries", "Cloudberries", "Crowberries", "Bilberries", "Wild Strawberries",
+                "Rowan Berries", "Cranberries", "Nagoonberries",
             ])
             .crafting_output(2, 0) // Makes 2 loaves
             .requires_station("Cooking Station")
@@ -2270,6 +2354,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_pinecone.png")
             .stackable(20)
             .consumable(-3.0, 8.0, -5.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(10, 0)
             .cookable(50.0, "Charcoal")
             .respawn_time(60)
@@ -2298,6 +2383,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_crab_apples.png")
             .stackable(20)
             .consumable(-2.0, 6.0, -8.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(10, 0)
             .cookable(50.0, "Charcoal")
             .respawn_time(60)
@@ -2318,6 +2404,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("burnt_hazelnuts.png")
             .stackable(30)
             .consumable(-2.0, 8.0, -5.0)
+            .preserved() // Burnt items are shelf-stable
             .crafting_output(8, 0)
             .cookable(50.0, "Charcoal")
             .respawn_time(60)

@@ -81,11 +81,36 @@ pub fn maintain_wild_animal_population(ctx: &ReducerContext) -> Result<(), Strin
         // Choose species using weighted random selection
         let chosen_species = choose_random_species(&species_weights, total_weight, &mut ctx.rng());
         
-        // Generate random position
-        let tile_x = ctx.rng().gen_range(min_tile_x..max_tile_x);
-        let tile_y = ctx.rng().gen_range(min_tile_y..max_tile_y);
-        let pos_x = (tile_x as f32 + 0.5) * TILE_SIZE_PX as f32;
-        let pos_y = (tile_y as f32 + 0.5) * TILE_SIZE_PX as f32;
+        // Aquatic animals (sharks, jellyfish) ONLY spawn on Sea tiles. Retry until we find water.
+        let is_aquatic = matches!(chosen_species, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish);
+        const MAX_AQUATIC_RESPAWN_ATTEMPTS: u32 = 150;
+        
+        let (pos_x, pos_y) = if is_aquatic {
+            let mut rng = ctx.rng();
+            let mut found = None;
+            for _ in 0..MAX_AQUATIC_RESPAWN_ATTEMPTS {
+                let tile_x = rng.gen_range(min_tile_x..max_tile_x);
+                let tile_y = rng.gen_range(min_tile_y..max_tile_y);
+                let px = (tile_x as f32 + 0.5) * TILE_SIZE_PX as f32;
+                let py = (tile_y as f32 + 0.5) * TILE_SIZE_PX as f32;
+                if is_wild_animal_location_suitable(ctx, px, py, chosen_species, &existing_positions.trees)
+                    && is_position_on_water(ctx, px, py)
+                {
+                    found = Some((px, py));
+                    break;
+                }
+            }
+            match found {
+                Some(p) => p,
+                None => continue, // No valid water tile; skip this respawn attempt
+            }
+        } else {
+            let tile_x = ctx.rng().gen_range(min_tile_x..max_tile_x);
+            let tile_y = ctx.rng().gen_range(min_tile_y..max_tile_y);
+            let pos_x = (tile_x as f32 + 0.5) * TILE_SIZE_PX as f32;
+            let pos_y = (tile_y as f32 + 0.5) * TILE_SIZE_PX as f32;
+            (pos_x, pos_y)
+        };
         
         // Calculate chunk index and check distribution
         let chunk_idx = calculate_chunk_index(pos_x, pos_y);

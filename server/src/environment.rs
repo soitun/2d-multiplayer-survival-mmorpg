@@ -3544,11 +3544,36 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             }
         }
         
-        // CHANGED: Use simpler random positioning instead of noise-based clustering
-        let tile_x = rng.gen_range(min_tile_x..max_tile_x);
-        let tile_y = rng.gen_range(min_tile_y..max_tile_y);
-        let pos_x = (tile_x as f32 + 0.5) * TILE_SIZE_PX as f32;
-        let pos_y = (tile_y as f32 + 0.5) * TILE_SIZE_PX as f32;
+        // Aquatic animals (sharks, jellyfish) ONLY spawn on Sea tiles. Picking a random world
+        // position then checking suitability almost never hits water, so for aquatic species
+        // we retry until we find a valid water tile (with a cap to avoid infinite loops).
+        let is_aquatic_species = matches!(chosen_species, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish);
+        const MAX_AQUATIC_POSITION_ATTEMPTS: u32 = 200;
+        
+        let (tile_x, tile_y, pos_x, pos_y) = if is_aquatic_species {
+            let mut found = None;
+            for _ in 0..MAX_AQUATIC_POSITION_ATTEMPTS {
+                let tx = rng.gen_range(min_tile_x..max_tile_x);
+                let ty = rng.gen_range(min_tile_y..max_tile_y);
+                let px = (tx as f32 + 0.5) * TILE_SIZE_PX as f32;
+                let py = (ty as f32 + 0.5) * TILE_SIZE_PX as f32;
+                if is_wild_animal_location_suitable(ctx, px, py, chosen_species, &spawned_tree_positions) {
+                    found = Some((tx, ty, px, py));
+                    break;
+                }
+            }
+            match found {
+                Some(t) => t,
+                None => continue, // No valid water tile found this attempt; skip to next iteration
+            }
+        } else {
+            // CHANGED: Use simpler random positioning instead of noise-based clustering
+            let tile_x = rng.gen_range(min_tile_x..max_tile_x);
+            let tile_y = rng.gen_range(min_tile_y..max_tile_y);
+            let pos_x = (tile_x as f32 + 0.5) * TILE_SIZE_PX as f32;
+            let pos_y = (tile_y as f32 + 0.5) * TILE_SIZE_PX as f32;
+            (tile_x, tile_y, pos_x, pos_y)
+        };
         
         // Calculate which chunk this position would be in
         let chunk_idx = calculate_chunk_index(pos_x, pos_y);
@@ -3577,8 +3602,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         }
         
         // Block water spawns ONLY for non-aquatic animals
-        // Aquatic animals (SalmonShark, Jellyfish) need water to spawn
-        let is_aquatic_species = matches!(chosen_species, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish);
+        // (Aquatic species were already forced to water tiles above.)
         if is_position_on_water(ctx, pos_x, pos_y) && !is_aquatic_species {
             continue;
         }

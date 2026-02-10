@@ -102,10 +102,12 @@ pub fn consume_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), S
     
     log::info!("[ConsumeItem] Item '{}' passed consumption validation", item_def.name);
 
-    // Check if food is spoiled (durability <= 0)
+    // Check if food has 0 durability (no spoiled variant exists for this item)
+    // Note: Most foods convert to "Spoiled X" variants when durability hits 0 (which resets durability to 100).
+    // This check only catches items that have no spoiled variant and reached 0 durability.
     if crate::durability::is_food_item(&item_def) {
         if crate::durability::is_item_broken(&item_to_consume) {
-            return Err(format!("This {} has spoiled and cannot be consumed.", item_def.name));
+            return Err(format!("This {} has gone bad and cannot be consumed.", item_def.name));
         }
     }
 

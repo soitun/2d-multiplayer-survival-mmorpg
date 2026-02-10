@@ -56,6 +56,9 @@ const ANIMAL_SPECIES = [
     // Birds
     { value: 'Tern', label: '🐦 Tern', category: 'Birds' },
     { value: 'Crow', label: '🐦‍⬛ Crow', category: 'Birds' },
+    // Aquatic
+    { value: 'SalmonShark', label: '🦈 Salmon Shark', category: 'Aquatic' },
+    { value: 'Jellyfish', label: '🪼 Jellyfish', category: 'Aquatic' },
     // Hostile NPCs
     { value: 'Shorebound', label: '👹 Shorebound', category: 'Hostile NPCs' },
     { value: 'Shardkin', label: '👾 Shardkin', category: 'Hostile NPCs' },
@@ -934,6 +937,11 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                                 </optgroup>
                                 <optgroup label="🐦 Birds">
                                     {ANIMAL_SPECIES.filter(a => a.category === 'Birds').map(animal => (
+                                        <option key={animal.value} value={animal.value}>{animal.label}</option>
+                                    ))}
+                                </optgroup>
+                                <optgroup label="🌊 Aquatic">
+                                    {ANIMAL_SPECIES.filter(a => a.category === 'Aquatic').map(animal => (
                                         <option key={animal.value} value={animal.value}>{animal.label}</option>
                                     ))}
                                 </optgroup>

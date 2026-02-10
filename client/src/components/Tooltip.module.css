@@ -9,6 +9,8 @@
   font-size: 0.8rem;
   z-index: 200;
   width: 300px;
+  max-height: min(70vh, 500px);
+  overflow-y: auto;
   box-shadow: 0 0 30px rgba(0, 170, 255, 0.4), inset 0 0 20px rgba(0, 170, 255, 0.1);
   backdrop-filter: blur(10px);
   pointer-events: none;
@@ -152,4 +154,86 @@
 .craftingCostValue {
   font-weight: bold;
   text-shadow: 0 0 5px currentColor;
+}
+
+/* Flexible ingredient alternatives section */
+.tooltipAlternatives {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 2px dashed rgba(255, 200, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.alternativesHeader {
+  font-size: 0.7rem;
+  color: #ffc800;
+  font-weight: bold;
+  margin-bottom: 2px;
+  text-shadow: 0 0 5px rgba(255, 200, 0, 0.5);
+}
+
+/* Grid layout for many alternatives - compact horizontal arrangement */
+.alternativesGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.alternativeRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  padding: 3px 5px;
+  border-radius: 4px;
+  background: rgba(255, 200, 0, 0.06);
+  border: 1px solid rgba(255, 200, 0, 0.12);
+}
+
+.alternativeIcon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+
+/* Slightly smaller icons in grid context */
+.alternativesGrid .alternativeIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.alternativeName {
+  color: rgba(0, 255, 255, 0.9);
+  flex: 1;
+  min-width: 0;
+  text-shadow: 0 0 4px rgba(0, 255, 255, 0.3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alternativeCount {
+  font-weight: bold;
+  font-size: 0.72rem;
+  text-shadow: 0 0 5px currentColor;
+  min-width: 16px;
+  text-align: right;
+}
+
+.alternativesTotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(255, 200, 0, 0.2);
+  font-size: 0.72rem;
+  color: #ffc800;
+  text-shadow: 0 0 4px rgba(255, 200, 0, 0.4);
 }

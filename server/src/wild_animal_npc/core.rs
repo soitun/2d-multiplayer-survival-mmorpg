@@ -2675,10 +2675,14 @@ pub fn spawn_wild_animal(
     let stats = behavior.get_stats();
     let current_time = ctx.timestamp;
     
-    // Birds (Tern and Crow) start grounded to show walking animations
+    // Set species-appropriate initial state
     let is_bird = matches!(species, AnimalSpecies::Tern | AnimalSpecies::Crow);
     let initial_state = if is_bird {
         AnimalState::Grounded
+    } else if matches!(species, AnimalSpecies::SalmonShark) {
+        AnimalState::Swimming
+    } else if matches!(species, AnimalSpecies::Jellyfish) {
+        AnimalState::Drifting
     } else {
         AnimalState::Patrolling
     };
@@ -2770,10 +2774,11 @@ pub fn debug_spawn_animal(ctx: &ReducerContext, species_str: String) -> Result<(
         "Wolverine" => AnimalSpecies::Wolverine,
         "Caribou" => AnimalSpecies::Caribou,
         "SalmonShark" => AnimalSpecies::SalmonShark,
+        "Jellyfish" => AnimalSpecies::Jellyfish,
         "Shorebound" => AnimalSpecies::Shorebound,
         "Shardkin" => AnimalSpecies::Shardkin,
         "DrownedWatch" => AnimalSpecies::DrownedWatch,
-        _ => return Err(format!("Invalid species: {}. Valid options: CinderFox, TundraWolf, CableViper, ArcticWalrus, BeachCrab, Tern, Crow, Vole, Wolverine, Caribou, Shorebound, Shardkin, DrownedWatch", species_str)),
+        _ => return Err(format!("Invalid species: {}. Valid options: CinderFox, TundraWolf, CableViper, ArcticWalrus, BeachCrab, Tern, Crow, Vole, Wolverine, Caribou, SalmonShark, Jellyfish, Shorebound, Shardkin, DrownedWatch", species_str)),
     };
     
     // Get the player's position
@@ -2788,6 +2793,7 @@ pub fn debug_spawn_animal(ctx: &ReducerContext, species_str: String) -> Result<(
         AnimalSpecies::TundraWolf 
         | AnimalSpecies::CableViper 
         | AnimalSpecies::Wolverine
+        | AnimalSpecies::SalmonShark
         | AnimalSpecies::Shorebound 
         | AnimalSpecies::Shardkin 
         | AnimalSpecies::DrownedWatch

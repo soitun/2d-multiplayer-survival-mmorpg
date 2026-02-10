@@ -1327,18 +1327,35 @@ pub fn process_food_spoilage(ctx: &ReducerContext, _args: FoodSpoilageSchedule) 
         let spoilage_loss = calculate_food_spoilage_loss_per_tick(&item_def);
         let new_durability = (current_durability - spoilage_loss).max(0.0);
         
-        // Update durability
-        let mut item_to_update = item.clone();
-        set_durability(&mut item_to_update, new_durability);
-        inventory_items.instance_id().update(item_to_update);
-        
         food_processed_count += 1;
         
         if new_durability <= 0.0 {
             food_spoiled_count += 1;
             log::info!("[FoodSpoilage] Food item '{}' (instance {}) has spoiled!", 
                 item_def.name, item.instance_id);
+            
+            // Convert to Spoiled variant instead of leaving at 0 durability
+            if let Some(spoiled_name) = crate::items_database::get_spoiled_item_name(&item_def.name) {
+                if let Some(spoiled_def) = item_defs.iter().find(|d| d.name == spoiled_name) {
+                    let mut item_to_update = item.clone();
+                    item_to_update.item_def_id = spoiled_def.id;
+                    // Reset durability to 100 - spoiled items are preserved so they won't decay again
+                    set_durability(&mut item_to_update, MAX_DURABILITY);
+                    inventory_items.instance_id().update(item_to_update);
+                    log::info!("[FoodSpoilage] Converted '{}' to '{}' (instance {})", 
+                        item_def.name, spoiled_name, item.instance_id);
+                    continue;
+                }
+            }
+            
+            // No spoiled variant - leave at 0 durability (item cannot be consumed)
+            let mut item_to_update = item.clone();
+            set_durability(&mut item_to_update, new_durability);
+            inventory_items.instance_id().update(item_to_update);
         } else {
+            let mut item_to_update = item.clone();
+            set_durability(&mut item_to_update, new_durability);
+            inventory_items.instance_id().update(item_to_update);
             log::debug!("[FoodSpoilage] Food item '{}' (instance {}) durability: {:.1} -> {:.1}", 
                 item_def.name, item.instance_id, current_durability, new_durability);
         }

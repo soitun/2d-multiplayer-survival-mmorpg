@@ -30,6 +30,7 @@ pub const COMPOST_MAX_HEALTH: f32 = 500.0;
 pub const COMPOST_PROCESS_INTERVAL_SECS: u64 = 60; // Process every minute
 pub const COMPOST_CONVERSION_TIME_SECS: u64 = 300; // 5 minutes to convert items to fertilizer
 pub const COMPOST_FERTILIZER_PER_ITEM: u32 = 1; // Each compostable item produces 1 fertilizer
+pub const COMPOST_FERTILIZER_SPOILED_MULTIPLIER: u32 = 3; // Spoiled items give 3x fertilizer (already breaking down)
 
 // --- Compost Schedule Table ---
 #[spacetimedb::table(name = compost_process_schedule, scheduled(process_compost_conversion))]
@@ -101,20 +102,20 @@ pub fn is_item_compostable(item_def: &ItemDefinition, item_instance: Option<&Inv
         return true;
     }
     
-    // Plant Fiber
-    if item_def.name == "Plant Fiber" {
+    // Plant Fiber variants
+    if item_def.name == "Plant Fiber" || item_def.name == "Soggy Plant Fiber" {
         return true;
     }
     
-    // Seeds - check if it's a material with "Seed" in the name
-    if item_def.category == ItemCategory::Material && item_def.name.contains("Seed") {
+    // Seeds - Placeable (plantable) or Material category
+    if (item_def.category == ItemCategory::Material || item_def.category == ItemCategory::Placeable) 
+        && item_def.name.contains("Seed") {
         return true;
     }
     
     // Plants/Herbs (consumables that are plants - check name patterns)
     if item_def.category == ItemCategory::Consumable {
         let name_lower = item_def.name.to_lowercase();
-        // Check for plant-related keywords
         if name_lower.contains("plant") || 
            name_lower.contains("herb") || 
            name_lower.contains("berry") ||
@@ -125,6 +126,19 @@ pub fn is_item_compostable(item_def: &ItemDefinition, item_instance: Option<&Inv
            name_lower.contains("root") ||
            name_lower.contains("bulb") ||
            name_lower.contains("rhizome") {
+            return true;
+        }
+    }
+    
+    // Organic materials that decompose (soft organic matter)
+    if item_def.category == ItemCategory::Material {
+        let name_lower = item_def.name.to_lowercase();
+        if name_lower.contains("bark") ||        // Pine Bark, Birch Bark
+           name_lower.contains("feather") ||      // Tern/Crow/Owl Feathers
+           name_lower.contains("fat") ||          // Animal Fat
+           name_lower.contains("stalk") ||        // Common Reed Stalk
+           name_lower.contains("membrane") ||     // Jellyfish Membrane
+           name_lower.contains("fin") && !name_lower.contains("refin") { // Shark Fin (not "refined")
             return true;
         }
     }
@@ -397,7 +411,13 @@ fn process_single_compost_box(
                             let elapsed_secs: u64 = elapsed_micros / 1_000_000;
                             if elapsed_secs >= COMPOST_CONVERSION_TIME_SECS {
                                 // Convert ONE unit at a time, not the entire stack
-                                fertilizer_to_add += COMPOST_FERTILIZER_PER_ITEM;
+                                // Spoiled items give higher fertilizer yield (already breaking down)
+                                let fertilizer_per_unit = if item_def.name.starts_with("Spoiled ") {
+                                    COMPOST_FERTILIZER_PER_ITEM * COMPOST_FERTILIZER_SPOILED_MULTIPLIER
+                                } else {
+                                    COMPOST_FERTILIZER_PER_ITEM
+                                };
+                                fertilizer_to_add += fertilizer_per_unit;
                                 
                                 // Reduce quantity by 1
                                 if item.quantity > 1 {

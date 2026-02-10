@@ -170,7 +170,7 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
         // Limestone - Calcium carbonate from living coral reefs
         ItemBuilder::new("Limestone", "Calcium carbonate extracted from living coral reefs. Can be smelted into stone using a furnace.", ItemCategory::Material)
             .icon("limestone.png")
-            .stackable(100)
+            .stackable(1000)
             .cook_time(20.0) // Smelting time in furnace
             .cooked_item("Stone") // Smelts into Stone (1:1 ratio)
             .respawn_time(300)

@@ -3461,6 +3461,47 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           const isOnline = activeConnections ? activeConnections.has(playerId) : false;
           const isHovered = worldMousePos ? isPlayerHovered(worldMousePos.x, worldMousePos.y, player) : false;
 
+          // Resolve equipped item data once (used for direction-based render order)
+          const equipment = activeEquipments.get(playerId);
+          let itemDef: SpacetimeDBItemDefinition | null = null;
+          let itemImg: HTMLImageElement | null = null;
+
+          if (equipment && equipment.equippedItemDefId && equipment.equippedItemInstanceId) {
+            const equippedItemInstance = inventoryItems.get(equipment.equippedItemInstanceId.toString());
+            if (equippedItemInstance && equippedItemInstance.quantity > 0) {
+              itemDef = itemDefinitions.get(equipment.equippedItemDefId.toString()) || null;
+              itemImg = (itemDef ? itemImagesRef.current.get(itemDef.iconAssetName) : null) || null;
+            }
+          }
+
+          const canRenderItem = itemDef && itemImg && itemImg.complete && itemImg.naturalHeight !== 0;
+
+          // Render order must match land rendering (renderingUtils.ts):
+          // UP/LEFT  -> item FIRST (behind player)
+          // DOWN/RIGHT -> player FIRST (item in front)
+          const itemBehindPlayer = player.direction === 'up' || player.direction === 'left';
+
+          // Helper: render equipped item for swimming players.
+          // When facing UP, clip at the waterline so the weapon doesn't overlap the
+          // bottom-half pass. For other directions the weapon sits at/below the
+          // waterline and clipping would hide it entirely, so render unclipped.
+          const renderSwimmingEquippedItem = () => {
+            if (player.direction === 'up') {
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(player.positionX - 2000, player.positionY - 2000, 4000, 2000);
+              ctx.clip();
+              renderEquippedItem(ctx, player, equipment!, itemDef!, itemDefinitions, itemImg!, now_ms, 0, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction);
+              ctx.restore();
+            } else {
+              renderEquippedItem(ctx, player, equipment!, itemDef!, itemDefinitions, itemImg!, now_ms, 0, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction);
+            }
+          };
+
+          if (itemBehindPlayer && canRenderItem && equipment) {
+            renderSwimmingEquippedItem();
+          }
+
           renderPlayer(
             ctx,
             player,
@@ -3489,23 +3530,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             isSnorkeling // isViewerUnderwater - pass local player's snorkeling state
           );
 
-          // Render equipped items for swimming players
-          const equipment = activeEquipments.get(playerId);
-          let itemDef: SpacetimeDBItemDefinition | null = null;
-          let itemImg: HTMLImageElement | null = null;
-
-          if (equipment && equipment.equippedItemDefId && equipment.equippedItemInstanceId) {
-            const equippedItemInstance = inventoryItems.get(equipment.equippedItemInstanceId.toString());
-            if (equippedItemInstance && equippedItemInstance.quantity > 0) {
-              itemDef = itemDefinitions.get(equipment.equippedItemDefId.toString()) || null;
-              itemImg = (itemDef ? itemImagesRef.current.get(itemDef.iconAssetName) : null) || null;
-            }
-          }
-
-          const canRenderItem = itemDef && itemImg && itemImg.complete && itemImg.naturalHeight !== 0;
-          if (canRenderItem && equipment) {
-            // player.direction is already server-synced in this context
-            renderEquippedItem(ctx, player, equipment, itemDef!, itemDefinitions, itemImg!, now_ms, 0, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction);
+          if (!itemBehindPlayer && canRenderItem && equipment) {
+            renderSwimmingEquippedItem();
           }
         }
       };

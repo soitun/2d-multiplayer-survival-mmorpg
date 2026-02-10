@@ -307,10 +307,12 @@ import berryAleutianBreadIcon from '../assets/items/berry_aleutian_bread.png';
 // Mushrooms
 import flyAgaricIcon from '../assets/items/fly_agaric.png';
 import porciniIcon from '../assets/items/porcini.png';
+import cookedPorciniIcon from '../assets/items/cooked_porcini.png';
 import deadlyWebcapIcon from '../assets/items/deadly_webcap.png';
 import destroyingAngelIcon from '../assets/items/destroying_angel.png';
 import shaggylnkCapIcon from '../assets/items/shaggy_ink_cap.png';
-import chanterelleIcon from '../assets/items/chanterelle.png';  
+import chanterelleIcon from '../assets/items/chanterelle.png';
+import cookedChanterelleIcon from '../assets/items/cooked_chanterelle.png';
 
 // Herbs & medicinal plants
 import chicoryIcon from '../assets/items/chicory.png';
@@ -324,6 +326,7 @@ import valerianLeavesIcon from '../assets/items/valerian_leaves.png';
 import mugwortIcon from '../assets/items/mugwort.png';
 
 import bearGarlicIcon from '../assets/items/bear_garlic.png';
+import roastedBearGarlicIcon from '../assets/items/roasted_bear_garlic.png';
 import siberianGinsengIcon from '../assets/items/siberian_ginseng.png';
 import ginsengLeavesIcon from '../assets/items/ginseng_leaves.png';
 import nettleLeavesIcon from '../assets/items/nettle_leaves.png';
@@ -376,6 +379,7 @@ import cookedCrabMeatIcon from '../assets/items/cooked_crab_meat.png';
 import crabCarapaceIcon from '../assets/items/crab_carapace.png';
 import crabClawIcon from '../assets/items/crab_claw.png';
 import bearMeatIcon from '../assets/items/bear_meat.png';
+import cookedBearMeatIcon from '../assets/items/cooked_bear_meat.png';
 import boarMeatIcon from '../assets/items/boar_meat.png';
 import chickenMeatIcon from '../assets/items/chicken_meat.png';
 import rawCrowMeatIcon from '../assets/items/raw_crow_meat.png';
@@ -912,10 +916,12 @@ const iconMap: { [key: string]: string | undefined } = {
   // Mushrooms
   'fly_agaric.png': flyAgaricIcon,
   'porcini.png': porciniIcon,
+  'cooked_porcini.png': cookedPorciniIcon,
   'deadly_webcap.png': deadlyWebcapIcon,
   'destroying_angel.png': destroyingAngelIcon,
   'shaggy_ink_cap.png': shaggylnkCapIcon,
   'chanterelle.png': chanterelleIcon,
+  'cooked_chanterelle.png': cookedChanterelleIcon,
 
   // Mushroom spores (all use same graphic)
   'mushroom_spore.png': mushroomSporeIcon,
@@ -937,6 +943,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'valerian_leaves.png': valerianLeavesIcon,
   'mugwort.png': mugwortIcon,
   'bear_garlic.png': bearGarlicIcon,
+  'roasted_bear_garlic.png': roastedBearGarlicIcon,
   'siberian_ginseng.png': siberianGinsengIcon,
   'ginseng_leaves.png': ginsengLeavesIcon,
   'nettle_leaves.png': nettleLeavesIcon,
@@ -989,6 +996,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'crab_carapace.png': crabCarapaceIcon,
   'crab_claw.png': crabClawIcon,
   'bear_meat.png': bearMeatIcon,
+  'cooked_bear_meat.png': cookedBearMeatIcon,
   'boar_meat.png': boarMeatIcon,
   'chicken_meat.png': chickenMeatIcon,
   'raw_crow_meat.png': rawCrowMeatIcon,
@@ -1227,6 +1235,15 @@ const iconMap: { [key: string]: string | undefined } = {
 export function isBurntItem(itemName: string | undefined | null): boolean {
     if (!itemName) return false;
     return itemName.startsWith('Burnt ');
+}
+
+/**
+ * Helper function to check if an item name indicates it's a spoiled food item.
+ * Used by DraggableItem to apply a sickly greenish visual filter.
+ */
+export function isSpoiledItem(itemName: string | undefined | null): boolean {
+    if (!itemName) return false;
+    return itemName.startsWith('Spoiled ');
 }
 
 /**

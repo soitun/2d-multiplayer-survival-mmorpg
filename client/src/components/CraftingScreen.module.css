@@ -373,6 +373,53 @@
   transform: scale(1.05);
 }
 
+.ingredientFlexible {
+  border-color: rgba(255, 200, 0, 0.45) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 200, 0, 0.08),
+    rgba(255, 180, 0, 0.04)
+  ) !important;
+  position: relative;
+}
+
+.ingredientFlexible.ingredientHasEnough {
+  border-color: rgba(255, 200, 0, 0.5) !important;
+  box-shadow: 0 0 6px rgba(255, 200, 0, 0.15);
+}
+
+.ingredientFlexible.ingredientNotEnough {
+  border-color: rgba(255, 120, 0, 0.45) !important;
+}
+
+/* Overlapping icon stack for flexible ingredients */
+.flexIconStack {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  position: relative;
+  height: 22px;
+}
+
+.flexStackedIcon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 200, 0, 0.35);
+  background: rgba(20, 15, 35, 0.7);
+  position: relative;
+}
+
+.flexMoreBadge {
+  font-size: 8px;
+  color: #ffc800;
+  margin-left: 2px;
+  text-shadow: 0 0 4px rgba(255, 200, 0, 0.5);
+  font-weight: bold;
+}
+
 .ingredientIcon {
   width: 20px;
   height: 20px;

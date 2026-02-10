@@ -11,7 +11,66 @@ const SEA_STACK_CONFIG = {
   BASE_WIDTH: 400, // pixels - base sea stack size (towering over trees)
 };
 
-// Water line effects removed - voronoi shader in waterOverlayUtils.ts handles water wave simulation
+// Water line config – barrel-style: wavy clip + underwater tinting via offscreen compositing
+const WATER_LINE_CONFIG = {
+  WAVE_AMPLITUDE: 2.5,              // px – subtle vertical wiggle
+  WAVE_FREQUENCY: 0.003,            // time-based primary wave speed
+  WAVE_SPATIAL_FREQ: 0.025,         // spatial freq (waves per px across width)
+  WAVE_SECONDARY_AMPLITUDE: 1.2,    // px – secondary wave
+  WAVE_SECONDARY_FREQUENCY: 0.005,  // time-based secondary wave speed
+  UNDERWATER_FADE_SLICES: 20,        // number of horizontal slices for the fade
+  TINT_COLOR: { r: 30, g: 70, b: 100 },   // deep blue tint for underwater rock
+  TINT_INTENSITY: 0.55,             // strong tint so it's clearly visible on brown rock
+  DARKEN_INTENSITY: 0.35,           // noticeable darkening below water line
+  // Water line stroke
+  LINE_WIDTH: 2.5,                  // px – main water line thickness
+  LINE_COLOR: 'rgba(210, 235, 255, 0.55)', // bright highlight line
+  GLOW_WIDTH: 6.0,                  // px – soft glow behind the line
+  GLOW_COLOR: 'rgba(180, 220, 255, 0.18)', // diffuse glow
+  // Froth / foam system
+  FROTH_SPREAD_ABOVE: 3,            // px – how far above the wave line froth can appear
+  FROTH_SPREAD_BELOW: 14,           // px – how far below the wave line froth extends
+  // Foam band: irregular, layered strokes hugging the waterline
+  FOAM_BAND_PASSES: 3,
+  FOAM_BAND_BASE_WIDTH: 1.8,
+  FOAM_BAND_MAX_WIDTH: 4.5,
+  // Foam clusters: groups of overlapping circles
+  FOAM_CLUSTER_COUNT: 8,
+  FOAM_CLUSTER_MIN_DOTS: 3,
+  FOAM_CLUSTER_MAX_DOTS: 7,
+  FOAM_CLUSTER_SPREAD: 5,
+  FOAM_CLUSTER_DOT_MIN_R: 1.0,
+  FOAM_CLUSTER_DOT_MAX_R: 3.2,
+  // Foam streaks: curved wispy lines drifting below waterline
+  FOAM_STREAK_COUNT: 6,
+  FOAM_STREAK_MIN_LEN: 6,
+  FOAM_STREAK_MAX_LEN: 16,
+  FOAM_STREAK_WIDTH: 1.2,
+  // Scattered individual bubbles
+  BUBBLE_COUNT: 10,
+  BUBBLE_MIN_R: 0.6,
+  BUBBLE_MAX_R: 1.6,
+  // Colors
+  FOAM_COLOR_BRIGHT: { r: 240, g: 250, b: 255 },
+  FOAM_COLOR_MID: { r: 200, g: 230, b: 250 },
+  FOAM_COLOR_DIM: { r: 160, g: 200, b: 235 },
+};
+
+// Offscreen canvas for sea stack water line compositing (reused)
+let waterLineOffscreen: OffscreenCanvas | HTMLCanvasElement | null = null;
+let waterLineOffCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
+
+function getWaterLineOffscreen(w: number, h: number): { canvas: OffscreenCanvas | HTMLCanvasElement; ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } | null {
+  if (!waterLineOffscreen || waterLineOffscreen.width < w || waterLineOffscreen.height < h) {
+    const cw = Math.max(w, waterLineOffscreen?.width ?? 0);
+    const ch = Math.max(h, waterLineOffscreen?.height ?? 0);
+    try { waterLineOffscreen = new OffscreenCanvas(cw, ch); }
+    catch { waterLineOffscreen = document.createElement('canvas'); waterLineOffscreen.width = cw; waterLineOffscreen.height = ch; }
+    waterLineOffCtx = waterLineOffscreen.getContext('2d') as any;
+  }
+  if (!waterLineOffCtx) return null;
+  return { canvas: waterLineOffscreen, ctx: waterLineOffCtx };
+}
 
 // Sea stack images array for variation (all three variants available)
 const SEA_STACK_IMAGES = [seaStackImage1, seaStackImage2, seaStackImage3];
@@ -100,7 +159,7 @@ function renderSeaStack(
       maxStretchFactor: 2.5, // Sea stacks cast longer shadows
       minStretchFactor: 0.3,  // Decent minimum shadow
       shadowBlur: 3, // Standardized to match other large objects
-      pivotYOffset: -15, // Moderate offset - shadow starts close but has angular skew
+      pivotYOffset: -40, // Shadow anchored exactly at the water line base
     });
   }
   
@@ -122,93 +181,326 @@ function renderSeaStack(
   const BASE_PORTION = 0.12; // Only 12% above water - 88% underwater!
   
   if (halfMode === 'bottom') {
-    // Render the underwater base portion with gradient transparency
-    // The base extends BELOW the anchor point (into positive Y) for the underwater reflection
+    // Bottom pass: tinted underwater rock fading out + water line + froth
+    // This renders at water level (behind players in Y-sort order)
     const baseHeight = height * BASE_PORTION;
-    const sourceBaseHeight = image.naturalHeight * BASE_PORTION;
+    const halfW = width / 2;
+    const waterLineY = -baseHeight; // Local Y where rock meets water
+    const nowMs = currentTimeMs || 0;
     const savedAlpha = ctx.globalAlpha;
-    
-    // EXTENSION: How much further down past the anchor point to draw (for underwater depth)
-    // MASSIVE extension to cover the entire base of the sea stack image
-    const UNDERWATER_EXTENSION = 6.0; // Extend 600% of baseHeight further down (covers entire base!)
-    const extensionHeight = baseHeight * UNDERWATER_EXTENSION;
-    const totalDrawHeight = baseHeight + extensionHeight;
-    
-    // Draw the base in horizontal slices with gradient transparency
-    // FULLY OPAQUE at water line, fading to TRANSPARENT as it goes DOWN
-    const numSlices = 48; // More slices for smoother gradient over larger area
-    const sliceHeight = totalDrawHeight / numSlices;
-    const sourceSliceHeight = sourceBaseHeight / numSlices;
-    
-    for (let i = 0; i < numSlices; i++) {
-      // Calculate opacity: OPAQUE at top (water line), fading to transparent as we go DOWN
-      // Fade over the entire draw height
-      const fadeProgress = i / numSlices; // 0 at top, 1 at bottom
-      // Underwater portion should be SEMI-TRANSPARENT so water tiles show through
-      // Start at ~50% opacity at water line, fade to fully transparent at bottom
-      const baseOpacity = 0.0; // Base opacity for underwater portion (water shows through)
-      let sliceOpacity: number;
-      if (fadeProgress < 0.5) {
-        // First 50%: semi-transparent (water shows through)
-        sliceOpacity = baseOpacity;
-      } else {
-        // Last 50%: fade from semi-transparent to fully transparent
-        const localFade = (fadeProgress - 0.5) / 0.5; // 0 to 1 over remaining portion
-        sliceOpacity = baseOpacity * (1.0 - localFade); // Linear fade to transparent
+
+    // Time-animated wave offset
+    const getWaveOffset = (localX: number) => {
+      const worldX = stack.x + localX;
+      return Math.sin(nowMs * WATER_LINE_CONFIG.WAVE_FREQUENCY + worldX * WATER_LINE_CONFIG.WAVE_SPATIAL_FREQ)
+        * WATER_LINE_CONFIG.WAVE_AMPLITUDE
+        + Math.sin(nowMs * WATER_LINE_CONFIG.WAVE_SECONDARY_FREQUENCY + worldX * WATER_LINE_CONFIG.WAVE_SPATIAL_FREQ * 1.6 + Math.PI * 0.3)
+        * WATER_LINE_CONFIG.WAVE_SECONDARY_AMPLITUDE;
+    };
+
+    const waveSegments = 24;
+    const segW = width / waveSegments;
+
+    // --- Create tinted "wet rock" on offscreen ---
+    const offPad = 4;
+    const offW = Math.ceil(width) + offPad * 2;
+    const offH = Math.ceil(height) + offPad * 2;
+    const off = getWaterLineOffscreen(offW, offH);
+
+    if (off) {
+      const { ctx: oCtx } = off;
+      oCtx.save();
+      oCtx.setTransform(1, 0, 0, 1, 0, 0);
+      oCtx.clearRect(0, 0, offW, offH);
+      oCtx.drawImage(image, offPad, offPad, width, height);
+      oCtx.globalCompositeOperation = 'source-atop';
+      const { r, g, b } = WATER_LINE_CONFIG.TINT_COLOR;
+      oCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${WATER_LINE_CONFIG.TINT_INTENSITY})`;
+      oCtx.fillRect(0, 0, offW, offH);
+      oCtx.fillStyle = `rgba(0, 15, 30, ${WATER_LINE_CONFIG.DARKEN_INTENSITY})`;
+      oCtx.fillRect(0, 0, offW, offH);
+      oCtx.globalCompositeOperation = 'source-over';
+      oCtx.restore();
+
+      // --- Draw tinted rock below waterline, fading to transparent ---
+      const numSlices = WATER_LINE_CONFIG.UNDERWATER_FADE_SLICES;
+      const underwaterHeight = baseHeight;
+      const sliceH = underwaterHeight / numSlices;
+
+      for (let i = 0; i < numSlices; i++) {
+        const t = (i + 0.5) / numSlices;
+        const sliceAlpha = Math.max(0, 1.0 - t);
+        if (sliceAlpha < 0.01) continue;
+
+        ctx.save();
+        ctx.globalAlpha = savedAlpha * sliceAlpha;
+
+        ctx.beginPath();
+        const sliceTop = waterLineY + i * sliceH;
+        const sliceBot = waterLineY + (i + 1) * sliceH;
+
+        if (i === 0) {
+          for (let j = 0; j <= waveSegments; j++) {
+            const lx = -halfW + j * segW;
+            const wy = waterLineY + getWaveOffset(lx);
+            if (j === 0) ctx.moveTo(lx, wy);
+            else ctx.lineTo(lx, wy);
+          }
+          ctx.lineTo(halfW, sliceBot);
+          ctx.lineTo(-halfW, sliceBot);
+        } else {
+          ctx.moveTo(-halfW, sliceTop);
+          ctx.lineTo(halfW, sliceTop);
+          ctx.lineTo(halfW, sliceBot);
+          ctx.lineTo(-halfW, sliceBot);
+        }
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(off.canvas, 0, 0, offW, offH, -halfW - offPad, -height - offPad, offW, offH);
+        ctx.restore();
       }
-      
-      ctx.globalAlpha = savedAlpha * sliceOpacity;
-      
-      // Source Y: sample from the base portion of the source image
-      // For the extended portion, we repeat/stretch the bottom of the source
-      const sourceProgress = Math.min(1.0, i / 30); // Clamp to source range, stretch more
-      const sourceY = image.naturalHeight - sourceBaseHeight + (sourceProgress * sourceBaseHeight);
-      
-      // Destination Y: starts at -baseHeight (water line, UP from anchor)
-      // and goes DOWN past 0 (anchor point) into positive Y (below anchor)
-      // destY = -baseHeight + (i * sliceHeight)
-      // When i=0: destY = -baseHeight (water line, above anchor)
-      // When i reaches baseHeight/sliceHeight: destY = 0 (anchor point)
-      // When i continues: destY becomes positive (below anchor, extending down)
-      const destY = -baseHeight + (i * sliceHeight);
-      
-      ctx.drawImage(
-        image,
-        0, sourceY, // Source position
-        image.naturalWidth, sourceSliceHeight + 1, // Source size (+1 to avoid gaps)
-        -width / 2, destY, // Destination position (extends into positive Y = DOWN)
-        width, sliceHeight + 1 // Destination size (+1 to avoid gaps)
-      );
+      ctx.globalAlpha = savedAlpha;
+
+      // --- Water line (glow + main stroke) masked to rock silhouette ---
+      // Draw stroke on offscreen, then mask with destination-in so only rock-overlapping pixels remain
+      const buildWavePathOnOff = () => {
+        oCtx.beginPath();
+        for (let i = 0; i <= waveSegments; i++) {
+          const lx = -halfW + i * segW;
+          const ox = lx + halfW + offPad;
+          const oy = (waterLineY + getWaveOffset(lx)) + height + offPad;
+          if (i === 0) oCtx.moveTo(ox, oy);
+          else oCtx.lineTo(ox, oy);
+        }
+      };
+
+      // Glow
+      oCtx.save();
+      oCtx.setTransform(1, 0, 0, 1, 0, 0);
+      oCtx.clearRect(0, 0, offW, offH);
+      oCtx.strokeStyle = WATER_LINE_CONFIG.GLOW_COLOR;
+      oCtx.lineWidth = WATER_LINE_CONFIG.GLOW_WIDTH;
+      oCtx.lineCap = 'round';
+      oCtx.lineJoin = 'round';
+      buildWavePathOnOff();
+      oCtx.stroke();
+      // Mask: keep only where rock has pixels
+      oCtx.globalCompositeOperation = 'destination-in';
+      oCtx.drawImage(image, offPad, offPad, width, height);
+      oCtx.globalCompositeOperation = 'source-over';
+      oCtx.restore();
+      ctx.drawImage(off.canvas, 0, 0, offW, offH, -halfW - offPad, -height - offPad, offW, offH);
+
+      // Main line
+      oCtx.save();
+      oCtx.setTransform(1, 0, 0, 1, 0, 0);
+      oCtx.clearRect(0, 0, offW, offH);
+      oCtx.strokeStyle = WATER_LINE_CONFIG.LINE_COLOR;
+      oCtx.lineWidth = WATER_LINE_CONFIG.LINE_WIDTH;
+      oCtx.lineCap = 'round';
+      oCtx.lineJoin = 'round';
+      buildWavePathOnOff();
+      oCtx.stroke();
+      oCtx.globalCompositeOperation = 'destination-in';
+      oCtx.drawImage(image, offPad, offPad, width, height);
+      oCtx.globalCompositeOperation = 'source-over';
+      oCtx.restore();
+      ctx.drawImage(off.canvas, 0, 0, offW, offH, -halfW - offPad, -height - offPad, offW, offH);
+
+      // --- Rich foam system masked to rock silhouette ---
+      const wavePoints: { x: number; y: number }[] = [];
+      for (let i = 0; i <= waveSegments; i++) {
+        const lx = -halfW + i * segW;
+        wavePoints.push({ x: lx, y: waterLineY + getWaveOffset(lx) });
+      }
+
+      // Deterministic RNG seeded by stack world position (stable per-stack)
+      const foamSeed = Math.abs(Math.sin(stack.x * 73.17 + stack.y * 91.31)) * 10000;
+      const rng = (idx: number) => {
+        const v = Math.sin(foamSeed + idx * 127.1 + idx * idx * 0.31) * 43758.5453;
+        return v - Math.floor(v);
+      };
+
+      // Helper: get interpolated wave Y in offscreen coords at fractional X [0..1]
+      const waveYAtFrac = (frac: number): number => {
+        const seg = Math.min(waveSegments - 1, Math.floor(frac * waveSegments));
+        const t = frac * waveSegments - seg;
+        return (wavePoints[seg].y * (1 - t) + wavePoints[seg + 1].y * t) + height + offPad;
+      };
+
+      // Slow time-based drift for subtle animation
+      const drift = nowMs * 0.0004;
+
+      oCtx.save();
+      oCtx.setTransform(1, 0, 0, 1, 0, 0);
+      oCtx.clearRect(0, 0, offW, offH);
+
+      // ========== Layer 1: Foam band (irregular, layered strokes hugging the waterline) ==========
+      const C = WATER_LINE_CONFIG;
+      for (let pass = 0; pass < C.FOAM_BAND_PASSES; pass++) {
+        const passT = pass / C.FOAM_BAND_PASSES;
+        // Each pass has slightly different width and vertical offset for irregularity
+        const lw = C.FOAM_BAND_BASE_WIDTH + passT * (C.FOAM_BAND_MAX_WIDTH - C.FOAM_BAND_BASE_WIDTH);
+        const yShift = (pass - 1) * 1.5; // shifts: -1.5, 0, +1.5
+        const alpha = 0.35 - pass * 0.08; // dimmer for outer passes
+
+        oCtx.strokeStyle = `rgba(235, 248, 255, ${alpha})`;
+        oCtx.lineWidth = lw;
+        oCtx.lineCap = 'round';
+        oCtx.lineJoin = 'round';
+        oCtx.beginPath();
+
+        // Build an irregular path: the main wave with per-segment thickness wobble
+        for (let i = 0; i <= waveSegments; i++) {
+          const frac = i / waveSegments;
+          const wy = waveYAtFrac(frac) + yShift;
+          // Add per-pass spatial wobble for organic look
+          const wobble = Math.sin(frac * Math.PI * 5 + pass * 2.1 + drift) * 1.2;
+          const ox = frac * width + offPad;
+          if (i === 0) oCtx.moveTo(ox, wy + wobble);
+          else oCtx.lineTo(ox, wy + wobble);
+        }
+        oCtx.stroke();
+      }
+
+      // ========== Layer 2: Foam clusters (groups of overlapping circles) ==========
+      let rngIdx = 0;
+      for (let ci = 0; ci < C.FOAM_CLUSTER_COUNT; ci++) {
+        // Cluster center position along the rock
+        const cx = rng(rngIdx++) * 0.8 + 0.1; // avoid edges
+        const cyBias = rng(rngIdx++) * C.FROTH_SPREAD_BELOW * 0.7 + 1; // mostly below waterline
+        const clusterCenterY = waveYAtFrac(cx) + cyBias;
+        const clusterCenterX = cx * width + offPad;
+        const dotCount = C.FOAM_CLUSTER_MIN_DOTS + Math.floor(rng(rngIdx++) * (C.FOAM_CLUSTER_MAX_DOTS - C.FOAM_CLUSTER_MIN_DOTS + 1));
+
+        // Slow animation: cluster gently breathes/drifts
+        const clusterDriftX = Math.sin(drift * 1.3 + ci * 1.7) * 1.5;
+        const clusterDriftY = Math.sin(drift * 0.9 + ci * 2.3) * 0.8;
+
+        for (let di = 0; di < dotCount; di++) {
+          const angle = rng(rngIdx++) * Math.PI * 2;
+          const dist = rng(rngIdx++) * C.FOAM_CLUSTER_SPREAD;
+          const dotR = C.FOAM_CLUSTER_DOT_MIN_R + rng(rngIdx++) * (C.FOAM_CLUSTER_DOT_MAX_R - C.FOAM_CLUSTER_DOT_MIN_R);
+
+          const dx = clusterCenterX + Math.cos(angle) * dist + clusterDriftX;
+          const dy = clusterCenterY + Math.sin(angle) * dist * 0.6 + clusterDriftY; // squash vertically
+
+          // Dots near center are brighter
+          const centerDist = dist / C.FOAM_CLUSTER_SPREAD;
+          const dotAlpha = (0.3 + rng(rngIdx++) * 0.35) * (1 - centerDist * 0.5);
+
+          // Pick color: center dots brighter, edge dots dimmer
+          const cm = centerDist < 0.4 ? C.FOAM_COLOR_BRIGHT : centerDist < 0.7 ? C.FOAM_COLOR_MID : C.FOAM_COLOR_DIM;
+
+          oCtx.fillStyle = `rgba(${cm.r}, ${cm.g}, ${cm.b}, ${dotAlpha})`;
+          oCtx.beginPath();
+          oCtx.arc(dx, dy, dotR, 0, Math.PI * 2);
+          oCtx.fill();
+        }
+      }
+
+      // ========== Layer 3: Foam streaks (wispy curved lines below waterline) ==========
+      for (let si = 0; si < C.FOAM_STREAK_COUNT; si++) {
+        const sx = rng(rngIdx++) * 0.8 + 0.1;
+        const syBias = 2 + rng(rngIdx++) * (C.FROTH_SPREAD_BELOW - 2);
+        const startX = sx * width + offPad;
+        const startY = waveYAtFrac(sx) + syBias;
+        const len = C.FOAM_STREAK_MIN_LEN + rng(rngIdx++) * (C.FOAM_STREAK_MAX_LEN - C.FOAM_STREAK_MIN_LEN);
+        const curvature = (rng(rngIdx++) - 0.5) * 4; // slight curve up or down
+
+        // Animate: gentle horizontal drift
+        const streakDrift = Math.sin(drift * 0.7 + si * 3.1) * 2;
+
+        const alpha = 0.12 + rng(rngIdx++) * 0.18;
+        oCtx.strokeStyle = `rgba(210, 235, 255, ${alpha})`;
+        oCtx.lineWidth = C.FOAM_STREAK_WIDTH + rng(rngIdx++) * 0.8;
+        oCtx.lineCap = 'round';
+        oCtx.beginPath();
+        oCtx.moveTo(startX + streakDrift, startY);
+        // Quadratic curve for organic shape
+        oCtx.quadraticCurveTo(
+          startX + len * 0.5 + streakDrift,
+          startY + curvature,
+          startX + len + streakDrift,
+          startY + curvature * 0.3
+        );
+        oCtx.stroke();
+      }
+
+      // ========== Layer 4: Scattered individual bubbles ==========
+      for (let bi = 0; bi < C.BUBBLE_COUNT; bi++) {
+        const bx = rng(rngIdx++) * width;
+        const byBias = rng(rngIdx++) < 0.2
+          ? -rng(rngIdx++) * C.FROTH_SPREAD_ABOVE
+          : rng(rngIdx++) * C.FROTH_SPREAD_BELOW;
+        const frac = bx / width;
+        const by = waveYAtFrac(Math.min(1, Math.max(0, frac))) + byBias;
+        const br = C.BUBBLE_MIN_R + rng(rngIdx++) * (C.BUBBLE_MAX_R - C.BUBBLE_MIN_R);
+
+        // Gentle bob animation
+        const bob = Math.sin(drift * 1.5 + bi * 2.7) * 0.8;
+        const bAlpha = 0.2 + rng(rngIdx++) * 0.3;
+
+        oCtx.fillStyle = `rgba(230, 245, 255, ${bAlpha})`;
+        oCtx.beginPath();
+        oCtx.arc(bx + offPad, by + bob, br, 0, Math.PI * 2);
+        oCtx.fill();
+
+        // Tiny specular highlight on each bubble
+        if (br > 1.0) {
+          oCtx.fillStyle = `rgba(255, 255, 255, ${bAlpha * 0.6})`;
+          oCtx.beginPath();
+          oCtx.arc(bx + offPad - br * 0.25, by + bob - br * 0.25, br * 0.3, 0, Math.PI * 2);
+          oCtx.fill();
+        }
+      }
+
+      // Mask everything to rock silhouette
+      oCtx.globalCompositeOperation = 'destination-in';
+      oCtx.drawImage(image, offPad, offPad, width, height);
+      oCtx.globalCompositeOperation = 'source-over';
+      oCtx.restore();
+      ctx.drawImage(off.canvas, 0, 0, offW, offH, -halfW - offPad, -height - offPad, offW, offH);
     }
-    
-    ctx.globalAlpha = savedAlpha; // Restore original alpha
+
+    ctx.globalAlpha = savedAlpha;
   } else if (halfMode === 'top') {
-    // Render only the tower portion (top ~85% of sea stack)
-    // NO water effects here - those are rendered separately in Step 3.5
+    // Top pass: only the above-water rock, clipped at the wavy waterline boundary.
+    // All underwater effects (tint, fade, water line, froth) are in the 'bottom' pass
+    // so they render at water level (behind players in Y-sort order).
     const baseHeight = height * BASE_PORTION;
-    const towerHeight = height * (1 - BASE_PORTION);
-    const sourceTowerHeight = image.naturalHeight * (1 - BASE_PORTION);
-    
-    // Add 1-pixel overlap to eliminate seam between base and tower
-    const overlapPixels = 1;
-    const sourceOverlapPixels = Math.floor(overlapPixels * (image.naturalHeight / height));
-    
-    ctx.drawImage(
-      image,
-      0, 0, // Source: top 85% of image (starting from top)
-      image.naturalWidth, sourceTowerHeight + sourceOverlapPixels, // Add overlap to source
-      -width / 2, -height, // Destination: tower portion from top down
-      width, towerHeight + overlapPixels // Add overlap to destination to eliminate seam
-    );
+    const halfW = width / 2;
+    const waterLineY = -baseHeight;
+    const nowMs = currentTimeMs || 0;
+
+    const getWaveOffset = (localX: number) => {
+      const worldX = stack.x + localX;
+      return Math.sin(nowMs * WATER_LINE_CONFIG.WAVE_FREQUENCY + worldX * WATER_LINE_CONFIG.WAVE_SPATIAL_FREQ)
+        * WATER_LINE_CONFIG.WAVE_AMPLITUDE
+        + Math.sin(nowMs * WATER_LINE_CONFIG.WAVE_SECONDARY_FREQUENCY + worldX * WATER_LINE_CONFIG.WAVE_SPATIAL_FREQ * 1.6 + Math.PI * 0.3)
+        * WATER_LINE_CONFIG.WAVE_SECONDARY_AMPLITUDE;
+    };
+
+    const waveSegments = 24;
+    const segW = width / waveSegments;
+
+    // Clip to above-water region with wavy bottom edge, then draw normal rock
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(-halfW - 2, -height - 2);
+    ctx.lineTo(halfW + 2, -height - 2);
+    ctx.lineTo(halfW + 2, waterLineY);
+    for (let i = waveSegments; i >= 0; i--) {
+      const lx = -halfW + i * segW;
+      ctx.lineTo(lx, waterLineY + getWaveOffset(lx));
+    }
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(image, -halfW, -height, width, height);
+    ctx.restore();
   } else {
-    // Render full sea stack (default behavior)
-    ctx.drawImage(
-      image,
-      -width / 2,
-      -height,
-      width,
-      height
-    );
+    // Render full sea stack (shadow cutouts and fallback)
+    ctx.drawImage(image, -width / 2, -height, width, height);
   }
   
   ctx.restore();

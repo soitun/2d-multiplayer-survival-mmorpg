@@ -917,6 +917,11 @@ export const renderYSortedEntities = ({
           // PERF FIX: Use pre-indexed effects for this specific player (O(1) lookup vs O(N) iteration)
           const playerEffects = effectsByPlayerId.get(playerId) || EMPTY_EFFECTS_MAP;
          
+          // Determine if this player is swimming with split rendering (bottom half here, top half in GameCanvas).
+          // If so, skip equipped item rendering here — it's handled in the swimming top half pass.
+          const playerIsSnorkelingEarly = isLocalPlayer ? isLocalPlayerSnorkeling : playerForRendering.isSnorkeling;
+          const isSwimmingSplitRender = playerForRendering.isOnWater && !playerForRendering.isDead && !playerForRendering.isKnockedOut && !playerIsSnorkelingEarly;
+
           // Determine rendering order based on player direction
           if (playerForRendering.direction === 'up' || playerForRendering.direction === 'left') {
               // For UP or LEFT, item should be rendered BENEATH the player
@@ -926,7 +931,7 @@ export const renderYSortedEntities = ({
             //     renderGhostTrail(ctx, playerId, heroImg, playerForRendering);
             // }
             
-            if (canRenderItem && equipment) {
+            if (canRenderItem && equipment && !isSwimmingSplitRender) {
                   // Pass player.direction (server-synced) for accurate attack arc display
                   // Pass snorkeling state for underwater teal tint effect
                   const playerIsSnorkelingForItem = isLocalPlayer ? isLocalPlayerSnorkeling : playerForRendering.isSnorkeling;
@@ -1065,7 +1070,7 @@ export const renderYSortedEntities = ({
               );
             }
             // heroImg not loaded yet - skip rendering silently (will render once loaded)
-            if (canRenderItem && equipment) {
+            if (canRenderItem && equipment && !isSwimmingSplitRender) {
                   // Pass player.direction (server-synced) for accurate attack arc display
                   // Pass snorkeling state for underwater teal tint effect
                   const playerIsSnorkelingForItem = isLocalPlayer ? isLocalPlayerSnorkeling : playerForRendering.isSnorkeling;

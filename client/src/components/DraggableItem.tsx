@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { PopulatedItem } from './InventoryUI'; // Assuming type is exported from InventoryUI
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes'; // Correct import path
-import { itemIcons, getItemIcon, isBurntItem } from '../utils/itemIconUtils';
+import { itemIcons, getItemIcon, isBurntItem, isSpoiledItem } from '../utils/itemIconUtils';
 import styles from './DraggableItem.module.css'; // We'll create this CSS file
 
 interface DraggableItemProps {
@@ -57,9 +57,11 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     imgEl.style.objectFit = 'contain';
     imgEl.style.imageRendering = 'pixelated';
     
-    // Apply burnt filter to ghost image if this is a burnt item
+    // Apply visual filter for burnt (gray) or spoiled (greenish) items
     if (isBurntItem(item.definition.name)) {
       imgEl.style.filter = 'sepia(100%) saturate(50%) brightness(0.6) contrast(1.1)';
+    } else if (isSpoiledItem(item.definition.name)) {
+      imgEl.style.filter = 'hue-rotate(90deg) saturate(0.8) brightness(0.75)';
     }
     
     ghost.appendChild(imgEl);
@@ -305,13 +307,16 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     }
   };
 
-  // Check if this is a burnt item - apply visual filter to distinguish from cooked
+  // Check if this is a burnt or spoiled item - apply visual filter to distinguish
   const isBurnt = isBurntItem(item.definition.name);
+  const isSpoiled = isSpoiledItem(item.definition.name);
   
-  // Burnt item filter: sepia + reduced brightness gives a charred/burnt appearance
-  // This allows us to reuse cooked icons for burnt items while making them visually distinct
-  const burntFilterStyle: React.CSSProperties = isBurnt ? {
+  // Burnt: sepia + reduced brightness gives a charred appearance
+  // Spoiled: hue-rotate to green gives a sickly, rotten appearance
+  const itemFilterStyle: React.CSSProperties = isBurnt ? {
     filter: 'sepia(100%) saturate(50%) brightness(0.6) contrast(1.1)',
+  } : isSpoiled ? {
+    filter: 'hue-rotate(90deg) saturate(0.8) brightness(0.75)',
   } : {};
 
   // Basic rendering of the item
@@ -331,7 +336,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
         src={getItemIcon(item.definition.iconAssetName)}
         alt={item.definition.name}
         className={styles.itemImage}
-        style={burntFilterStyle}
+        style={itemFilterStyle}
         draggable="false" // Prevent native image drag
       />
       {item.definition.isStackable && item.instance.quantity > 1 && (

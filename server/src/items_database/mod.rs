@@ -7,6 +7,8 @@ mod seeds;
 mod armor;
 mod placeables;
 mod ammunition;
+mod spoiled_items;
+pub use spoiled_items::get_spoiled_item_name;
 
 use crate::items::ItemDefinition;
 
@@ -17,6 +19,7 @@ pub fn get_initial_item_definitions() -> Vec<ItemDefinition> {
     items.extend(weapons::get_weapon_definitions());
     items.extend(tools::get_tool_definitions());
     items.extend(consumables::get_consumable_definitions());
+    items.extend(spoiled_items::get_spoiled_item_definitions());
     items.extend(materials::get_material_definitions());
     items.extend(seeds::get_seed_definitions());
     items.extend(armor::get_armor_definitions());
