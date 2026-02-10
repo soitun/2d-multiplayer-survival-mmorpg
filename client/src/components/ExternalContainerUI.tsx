@@ -49,6 +49,7 @@ import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPer
 import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining, formatDurability, getDurability, getMaxDurability, getRepairCount, canItemBeRepaired, getRepairBlockedReason, calculateRepairCost, formatRepairCost, MAX_REPAIR_COUNT, MAX_DURABILITY } from '../utils/durabilityHelpers';
 import { BOX_TYPE_REPAIR_BENCH, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_COOKING_STATION } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { getItemIcon } from '../utils/itemIconUtils';
+import { formatDuration as formatDurationSeconds } from '../utils/formatDuration';
 import { playImmediateSound } from '../hooks/useSoundSystem';
 import { isCompoundMonument } from '../config/compoundBuildings';
 
@@ -97,26 +98,10 @@ function getIngredientNamesFromPot(
     return ingredientNames;
 }
 
-// Helper function to format decay time estimate
+// Helper function to format decay time estimate (hours → WoW-style compact)
 function formatDecayTime(hours: number): string {
-    if (hours < 1) {
-        const minutes = Math.round(hours * 60);
-        return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
-    } else if (hours < 24) {
-        const wholeHours = Math.floor(hours);
-        const minutes = Math.round((hours - wholeHours) * 60);
-        if (minutes > 0) {
-            return `${wholeHours}h ${minutes}m`;
-        }
-        return `${wholeHours} hour${wholeHours !== 1 ? 's' : ''}`;
-    } else {
-        const days = Math.floor(hours / 24);
-        const remainingHours = Math.floor(hours % 24);
-        if (remainingHours > 0) {
-            return `${days} day${days !== 1 ? 's' : ''} ${remainingHours}h`;
-        }
-        return `${days} day${days !== 1 ? 's' : ''}`;
-    }
+    if (!isFinite(hours) || hours <= 0) return '0s';
+    return formatDurationSeconds(hours * 3600);
 }
 
 // Helper function to calculate how long resources will last
@@ -2037,12 +2022,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                     }}>
                                         <span>⏱️ Time Remaining:</span>
                                         <span style={{ fontWeight: 'bold', color: '#ffcc44' }}>
-                                            {(() => {
-                                                const remaining = Math.max(0, attachedBrothPot.requiredCookingTimeSecs - attachedBrothPot.cookingProgressSecs);
-                                                const minutes = Math.floor(remaining / 60);
-                                                const seconds = Math.floor(remaining % 60);
-                                                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                                            })()}
+                                            {formatDurationSeconds(Math.max(0, attachedBrothPot.requiredCookingTimeSecs - attachedBrothPot.cookingProgressSecs))}
                                         </span>
                                         {/* Progress bar */}
                                         <div style={{
@@ -2706,9 +2686,6 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                     const remainingSecs = Math.max(0, BEEHIVE_PRODUCTION_TIME_SECS - elapsedSecs);
                                     const progressPercent = Math.min(100, (progressSecs / BEEHIVE_PRODUCTION_TIME_SECS) * 100);
                                     
-                                    const minutes = Math.floor(remainingSecs / 60);
-                                    const seconds = Math.floor(remainingSecs % 60);
-                                    
                                     return (
                                         <div style={{
                                             display: 'flex',
@@ -2726,7 +2703,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                                 color: remainingSecs <= 60 ? '#66d966' : '#ffcc44',
                                                 minWidth: '40px',
                                             }}>
-                                                {remainingSecs <= 0 ? 'Ready!' : `${minutes}:${seconds.toString().padStart(2, '0')}`}
+                                                {remainingSecs <= 0 ? 'Ready!' : formatDurationSeconds(remainingSecs)}
                                             </span>
                                             {/* Progress bar */}
                                             <div style={{

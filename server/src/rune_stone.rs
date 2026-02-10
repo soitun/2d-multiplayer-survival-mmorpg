@@ -42,6 +42,8 @@ pub(crate) const MIN_RUNE_STONE_HOT_SPRING_DISTANCE_SQ: f32 = 800.0 * 800.0; // 
 pub(crate) const MIN_RUNE_STONE_QUARRY_DISTANCE_SQ: f32 = 800.0 * 800.0; // Minimum distance from quarries (800px = ~16 tiles)
 pub(crate) const MIN_RUNE_STONE_ALK_STATION_DISTANCE_PX: f32 = 2000.0; // Minimum distance from ALK central compound and substations
 pub(crate) const MIN_RUNE_STONE_ALK_STATION_DISTANCE_SQ: f32 = MIN_RUNE_STONE_ALK_STATION_DISTANCE_PX * MIN_RUNE_STONE_ALK_STATION_DISTANCE_PX;
+pub(crate) const MIN_RUNE_STONE_MONUMENT_DISTANCE_PX: f32 = 2000.0; // Minimum distance from any monument (shipwreck, fishing village, whale bone, hunting village, drone, weather station, wolf den)
+pub(crate) const MIN_RUNE_STONE_MONUMENT_DISTANCE_SQ: f32 = MIN_RUNE_STONE_MONUMENT_DISTANCE_PX * MIN_RUNE_STONE_MONUMENT_DISTANCE_PX;
 
 // Effect Radius (in pixels) - MASSIVE economic zones for PvP hotspots
 pub(crate) const RUNE_STONE_EFFECT_RADIUS: f32 = 2000.0; // Huge AoE radius - true economic centers

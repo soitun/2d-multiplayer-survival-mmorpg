@@ -4678,6 +4678,13 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     log::info!("Rune stone ALK exclusion: {} stations found, min distance {}px", 
                alk_station_positions.len(), crate::rune_stone::MIN_RUNE_STONE_ALK_STATION_DISTANCE_PX);
     
+    // Collect monument positions for distance checking (all monument types - shipwreck, fishing village, whale bone, hunting village, drone, weather station, wolf den)
+    let monument_positions: Vec<(f32, f32)> = ctx.db.monument_part().iter()
+        .map(|part| (part.world_x, part.world_y))
+        .collect();
+    log::info!("Rune stone monument exclusion: {} monument parts found, min distance {}px", 
+               monument_positions.len(), crate::rune_stone::MIN_RUNE_STONE_MONUMENT_DISTANCE_PX);
+    
     // Track counts per color
     let mut spawned_green_count = 0;
     let mut spawned_red_count = 0;
@@ -4806,6 +4813,17 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     });
                     
                     if too_close_to_alk {
+                        continue;
+                    }
+                    
+                    // Check minimum distance from monuments (shipwreck, fishing village, whale bone, hunting village, drone, weather station, wolf den) - 2000px
+                    let too_close_to_monument = monument_positions.iter().any(|(mx, my)| {
+                        let dx = pos_x - mx;
+                        let dy = pos_y - my;
+                        dx * dx + dy * dy < crate::rune_stone::MIN_RUNE_STONE_MONUMENT_DISTANCE_SQ
+                    });
+                    
+                    if too_close_to_monument {
                         continue;
                     }
                     

@@ -428,6 +428,9 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
     const handleCategoryChange = (category: string) => {
         setSelectedCategory(category);
         localStorage.setItem('craftingScreenCategory', category);
+        // Clear search when switching categories to reduce UI friction
+        setSearchTerm('');
+        localStorage.setItem('craftingScreenSearchTerm', '');
     };
 
     const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
