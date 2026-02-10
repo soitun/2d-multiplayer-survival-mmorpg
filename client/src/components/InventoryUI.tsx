@@ -64,6 +64,7 @@ import ItemInteractionPanel from './ItemInteractionPanel';
 import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
 // Import durability helpers
 import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, formatDurability, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining, getMaxDurability, MAX_DURABILITY } from '../utils/durabilityHelpers';
+import { isCombatLadleHot } from '../utils/itemIconUtils';
 import DurabilityBar from './DurabilityBar';
 // Import arrow damage calculation helpers
 import { getArrowDamageTooltip } from '../utils/arrowDamageCalculations';
@@ -1355,6 +1356,16 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                         onMouseMove={handleItemMouseMove}
                                         onClick={(e: React.MouseEvent<HTMLDivElement>) => handleInventoryItemClick(item, e)}
                                     />
+                                )}
+
+                                {/* Fire emoji for hot combat ladle */}
+                                {item && isCombatLadleHot(item.instance, item.definition.name) && (
+                                    <span
+                                        style={{ position: 'absolute', top: '2px', left: '4px', fontSize: '12px', zIndex: 4, pointerEvents: 'none' }}
+                                        title="Hot! Use gloves to avoid burn damage"
+                                    >
+                                        🔥
+                                    </span>
                                 )}
                                 
                                 {/* Water level indicator for water containers */}

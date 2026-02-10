@@ -347,7 +347,7 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
             <div className={styles.interactionContent}>
                 <div className={styles.interactionItemIcon}>
                     <img 
-                        src={getItemIcon(selectedItem.definition.iconAssetName)}
+                        src={getItemIcon(selectedItem.definition.iconAssetName, 'crafting')}
                         alt={selectedItem.definition.name}
                         className={styles.itemIcon}
                     />

@@ -54,6 +54,8 @@ export type EffectType =
 
 export interface BrewIconResponse {
   icon_base64: string | null;
+  /** When Retrodiffusion is disabled, api-proxy returns icon_asset (e.g. broth_pot_icon.png) */
+  icon_asset?: string;
   mime_type?: string;
   placeholder?: boolean;
   description?: string;
@@ -240,7 +242,13 @@ export async function generateBrewIcon(subject: string): Promise<string | null> 
 
     console.log('[BrewingAI] Parsing icon response JSON...');
     const data: BrewIconResponse = await response.json();
-    console.log('[BrewingAI] Icon response parsed:', { placeholder: data.placeholder, hasIcon: !!data.icon_base64 });
+    console.log('[BrewingAI] Icon response parsed:', { placeholder: data.placeholder, hasIcon: !!data.icon_base64, iconAsset: data.icon_asset });
+    
+    // When Retrodiffusion is disabled, api-proxy returns icon_asset (static path like broth_pot_icon.png)
+    if (data.icon_asset) {
+      console.log('[BrewingAI] Using static icon asset:', data.icon_asset);
+      return data.icon_asset;
+    }
     
     if (data.placeholder) {
       console.log('[BrewingAI] Icon generation returned placeholder (feature not available)');

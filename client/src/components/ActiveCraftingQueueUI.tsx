@@ -207,7 +207,7 @@ const ActiveCraftingQueueUI: React.FC<ActiveCraftingQueueUIProps> = ({
         transition: 'all 0.3s ease-out',
       }}>
         <img 
-          src={getItemIcon(itemIcon)} 
+          src={getItemIcon(itemIcon, 'crafting')} 
           alt={itemName}
           style={{ 
             width: '22px', 

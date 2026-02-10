@@ -297,7 +297,7 @@ const BoneCarvingPanel: React.FC<BoneCarvingPanelProps> = ({
     const getItemIconByName = (itemName: string): string => {
         const itemDef = Array.from(itemDefinitions.values()).find(def => def.name === itemName);
         if (itemDef) {
-            return getItemIcon(itemDef.iconAssetName);
+            return getItemIcon(itemDef.iconAssetName, 'crafting');
         }
         return ''; // Fallback
     };

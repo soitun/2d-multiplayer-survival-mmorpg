@@ -987,6 +987,10 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
                     log::error!("[ProcessCampfireScheduled] Error during cooking tick for campfire {}: {}", campfire.id, e);
                 }
             }
+            // --- COMBAT LADLE HEATING ---
+            if crate::combat_ladle_heating::process_combat_ladle_heating(ctx, &mut campfire, adjusted_cooking_time_increment, cached_active_fuel_instance_id) {
+                made_changes_to_campfire_struct = true;
+            }
         }
         // --- END COOKING LOGIC ---
  

@@ -8,6 +8,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
         // Complete set of basic cloth armor providing warmth and minimal protection
 
         // Cloth Hood - Head protection
+        // Cost: 8 cloth = 40 fiber (~1 BorealNettle or ~3 Beach Lyme Grass)
         ItemBuilder::new("Cloth Hood", "Basic head covering. Light and fast-drying.", ItemCategory::Armor)
             .icon("cloth_hood.png")
             .equippable(Some(EquipmentSlotType::Head))
@@ -23,13 +24,14 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .warmth_bonus(0.2)
             .movement_speed_modifier(0.02) // +2% speed per piece
             .crafting_cost(vec![
-                CostIngredient { item_name: "Cloth".to_string(), quantity: 20 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 8 },
             ])
             .crafting_output(1, 3)
             .respawn_time(420)
             .build(),
 
         // Cloth Shirt - Chest protection
+        // Cost: 16 cloth = 80 fiber (~2 BorealNettle harvests)
         ItemBuilder::new("Cloth Shirt", "Simple protection for the torso. Light and breathable.", ItemCategory::Armor)
             .icon("cloth_shirt.png")
             .equippable(Some(EquipmentSlotType::Chest))
@@ -45,13 +47,14 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .warmth_bonus(0.2)
             .movement_speed_modifier(0.02)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Cloth".to_string(), quantity: 40 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 16 },
             ])
             .crafting_output(1, 5)
             .respawn_time(420)
             .build(),
 
         // Cloth Pants - Leg protection
+        // Cost: 12 cloth = 60 fiber (~1.5 BorealNettle harvests)
         ItemBuilder::new("Cloth Pants", "Simple protection for the legs. Allows quick movement.", ItemCategory::Armor)
             .icon("cloth_pants.png")
             .equippable(Some(EquipmentSlotType::Legs))
@@ -67,13 +70,14 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .warmth_bonus(0.2)
             .movement_speed_modifier(0.02)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Cloth".to_string(), quantity: 30 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 12 },
             ])
             .crafting_output(1, 5)
             .respawn_time(420)
             .build(),
 
         // Cloth Gloves - Hand protection
+        // Cost: 5 cloth = 25 fiber (gloves are small - ~0.5 BorealNettle harvest)
         ItemBuilder::new("Cloth Gloves", "Basic hand coverings. Lightweight and flexible.", ItemCategory::Armor)
             .icon("cloth_gloves.png")
             .equippable(Some(EquipmentSlotType::Hands))
@@ -89,13 +93,14 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .warmth_bonus(0.2)
             .movement_speed_modifier(0.02)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Cloth".to_string(), quantity: 15 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 5 },
             ])
             .crafting_output(1, 2)
             .respawn_time(420)
             .build(),
 
         // Cloth Boots - Foot protection
+        // Cost: 5 cloth = 25 fiber (boots are small)
         ItemBuilder::new("Cloth Boots", "Simple footwear. Easy to move in.", ItemCategory::Armor)
             .icon("cloth_boots.png")
             .equippable(Some(EquipmentSlotType::Feet))
@@ -111,13 +116,14 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .warmth_bonus(0.2)
             .movement_speed_modifier(0.02)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Cloth".to_string(), quantity: 15 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 5 },
             ])
             .crafting_output(1, 2)
             .respawn_time(420)
             .build(),
 
         // Cloth Cape - Back protection with extra warmth
+        // Cost: 12 cloth + 5 fiber (cape is moderate size)
         ItemBuilder::new("Cloth Cape", "A simple cape made of cloth. Provides extra warmth.", ItemCategory::Armor)
             .icon("burlap_cape.png")
             .equippable(Some(EquipmentSlotType::Back))
@@ -133,8 +139,8 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .warmth_bonus(0.25)
             .movement_speed_modifier(0.02)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Cloth".to_string(), quantity: 30 },
-                CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 10 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 12 },
+                CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 5 },
             ])
             .crafting_output(1, 7)
             .respawn_time(420)
@@ -159,10 +165,10 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             })
             .warmth_bonus(0.5) // Provides slight warmth when lit
             .crafting_cost(vec![
-                CostIngredient { item_name: "Tallow".to_string(), quantity: 20 },
-                CostIngredient { item_name: "Cloth".to_string(), quantity: 10 },
-                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 5 },
-                CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 30 },
+                CostIngredient { item_name: "Tallow".to_string(), quantity: 12 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 6 },
+                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 3 },
+                CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 15 },
             ])
             .crafting_output(1, 7)
             .respawn_time(600)
@@ -212,8 +218,8 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .noise_on_sprint(true)
             .grants_burn_immunity(true) // Each piece contributes to full set immunity
             .crafting_cost(vec![
-                CostIngredient { item_name: "Animal Bone".to_string(), quantity: 40 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 5 },
+                CostIngredient { item_name: "Animal Bone".to_string(), quantity: 25 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 3 },
             ])
             .crafting_output(1, 7)
             .respawn_time(480)
@@ -234,8 +240,8 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .noise_on_sprint(true)
             .grants_burn_immunity(true)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Animal Bone".to_string(), quantity: 80 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 10 },
+                CostIngredient { item_name: "Animal Bone".to_string(), quantity: 50 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 5 },
             ])
             .crafting_output(1, 10)
             .respawn_time(480)
@@ -256,8 +262,8 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .noise_on_sprint(true)
             .grants_burn_immunity(true)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Animal Bone".to_string(), quantity: 60 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 8 },
+                CostIngredient { item_name: "Animal Bone".to_string(), quantity: 35 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 4 },
             ])
             .crafting_output(1, 10)
             .respawn_time(480)
@@ -278,8 +284,8 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .noise_on_sprint(true)
             .grants_burn_immunity(true)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Animal Bone".to_string(), quantity: 30 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 4 },
+                CostIngredient { item_name: "Animal Bone".to_string(), quantity: 18 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
             ])
             .crafting_output(1, 5)
             .respawn_time(480)
@@ -300,8 +306,8 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .noise_on_sprint(true)
             .grants_burn_immunity(true)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Animal Bone".to_string(), quantity: 30 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 4 },
+                CostIngredient { item_name: "Animal Bone".to_string(), quantity: 18 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
             ])
             .crafting_output(1, 5)
             .respawn_time(480)
@@ -327,8 +333,8 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .fire_damage_multiplier(2.0) // Takes double fire damage
             .movement_speed_modifier(-0.04) // -4% speed per piece
             .crafting_cost(vec![
-                CostIngredient { item_name: "Wood".to_string(), quantity: 100 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 5 },
+                CostIngredient { item_name: "Wood".to_string(), quantity: 50 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 3 },
             ])
             .crafting_output(1, 7)
             .respawn_time(450)
@@ -350,8 +356,8 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .fire_damage_multiplier(2.0)
             .movement_speed_modifier(-0.04)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Wood".to_string(), quantity: 200 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 10 },
+                CostIngredient { item_name: "Wood".to_string(), quantity: 100 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 5 },
             ])
             .crafting_output(1, 10)
             .respawn_time(450)
@@ -373,8 +379,8 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .fire_damage_multiplier(2.0)
             .movement_speed_modifier(-0.04)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Wood".to_string(), quantity: 150 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 8 },
+                CostIngredient { item_name: "Wood".to_string(), quantity: 75 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 4 },
             ])
             .crafting_output(1, 10)
             .respawn_time(450)
@@ -396,8 +402,8 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .fire_damage_multiplier(2.0)
             .movement_speed_modifier(-0.04)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Wood".to_string(), quantity: 80 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 4 },
+                CostIngredient { item_name: "Wood".to_string(), quantity: 40 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
             ])
             .crafting_output(1, 5)
             .respawn_time(450)
@@ -419,8 +425,8 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .fire_damage_multiplier(2.0)
             .movement_speed_modifier(-0.04)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Wood".to_string(), quantity: 80 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 4 },
+                CostIngredient { item_name: "Wood".to_string(), quantity: 40 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
             ])
             .crafting_output(1, 5)
             .respawn_time(450)
@@ -445,8 +451,8 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .stamina_regen_modifier(0.02) // +2% stamina regen per piece
             .grants_bleed_immunity(true) // 3 pieces needed for full immunity
             .crafting_cost(vec![
-                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 15 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 3 },
+                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 10 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
             ])
             .crafting_output(1, 7)
             .respawn_time(420)
@@ -467,8 +473,8 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .stamina_regen_modifier(0.02)
             .grants_bleed_immunity(true)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 30 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 6 },
+                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 18 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 4 },
             ])
             .crafting_output(1, 10)
             .respawn_time(420)
@@ -489,8 +495,8 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .stamina_regen_modifier(0.02)
             .grants_bleed_immunity(true)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 22 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 5 },
+                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 14 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 3 },
             ])
             .crafting_output(1, 7)
             .respawn_time(420)
@@ -511,7 +517,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .stamina_regen_modifier(0.02)
             .grants_bleed_immunity(true)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 12 },
+                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 8 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
             ])
             .crafting_output(1, 4)
@@ -533,7 +539,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .stamina_regen_modifier(0.02)
             .grants_bleed_immunity(true)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 12 },
+                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 8 },
                 CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
             ])
             .crafting_output(1, 4)
@@ -555,8 +561,8 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .stamina_regen_modifier(0.02)
             .grants_bleed_immunity(true)
             .crafting_cost(vec![
-                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 18 },
-                CostIngredient { item_name: "Rope".to_string(), quantity: 4 },
+                CostIngredient { item_name: "Animal Leather".to_string(), quantity: 10 },
+                CostIngredient { item_name: "Rope".to_string(), quantity: 2 },
             ])
             .crafting_output(1, 7)
             .respawn_time(420)

@@ -569,18 +569,38 @@ CRITICAL RULES FOR POISON CATEGORY:
   }
 });
 
+// Flag: Set to false to use a static broth_pot_icon.png instead of Retrodiffusion API
+// (API costs are expensive for generated icons - we'll implement unique icons per brew type later)
+const USE_RETRODIFFUSION_FOR_BREW_ICONS = false;
+
+// Static asset path returned when USE_RETRODIFFUSION_FOR_BREW_ICONS is false
+// Client maps this to client/src/assets/items/broth_pot_icon.png (user can hand-design)
+const STATIC_BREW_ICON_ASSET = 'broth_pot_icon.png';
+
 // Retro Diffusion Icon Generation (specialized for pixel art game icons)
 // Uses rd_plus__mc_item prompt style for Minecraft-style game item icons
 app.post('/api/gemini/icon', async (req, res) => {
   try {
-    if (!RETRO_DIFFUSION_API_KEY) {
-      return res.status(500).json({ error: 'Retro Diffusion API key not configured' });
-    }
-
     const { subject } = req.body;
 
     if (!subject || typeof subject !== 'string') {
       return res.status(400).json({ error: 'Subject string required' });
+    }
+
+    console.log(`[Proxy] Icon request: ${subject}`);
+
+    // When flag is false: return static asset path without calling Retrodiffusion API
+    if (!USE_RETRODIFFUSION_FOR_BREW_ICONS) {
+      console.log(`[Proxy] Using static brew icon (Retrodiffusion disabled): ${STATIC_BREW_ICON_ASSET}`);
+      return res.json({
+        icon_base64: null,
+        icon_asset: STATIC_BREW_ICON_ASSET,
+        mime_type: 'image/png',
+      });
+    }
+
+    if (!RETRO_DIFFUSION_API_KEY) {
+      return res.status(500).json({ error: 'Retro Diffusion API key not configured' });
     }
 
     console.log(`[Proxy] Retro Diffusion icon request: ${subject}`);

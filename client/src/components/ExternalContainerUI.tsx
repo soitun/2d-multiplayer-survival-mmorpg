@@ -2096,8 +2096,8 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             </div>
                         )}
 
-                    {/* Bidirectional water transfer buttons */}
-                    {/* OUT = Orange/Amber (emptying) */}
+                    {/* Bidirectional water transfer buttons - same language/icons as Reed Rain Collector */}
+                    {/* Take = Orange/Amber - water from cauldron to your container */}
                     <button
                         onClick={() => {
                             if (!connection?.reducers) return;
@@ -2125,10 +2125,10 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             boxShadow: '0 0 8px rgba(255, 140, 0, 0.3)',
                         }}
                     >
-                        <FontAwesomeIcon icon={faArrowUp} /> Transfer Water OUT OF Field Cauldron
+                        <FontAwesomeIcon icon={faArrowDown} /> Take
                     </button>
 
-                    {/* IN = Blue/Cyan (filling) */}
+                    {/* Give = Blue/Cyan - water from your container to cauldron */}
                     <button
                         onClick={() => {
                             if (!connection?.reducers) return;
@@ -2156,7 +2156,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             boxShadow: '0 0 8px rgba(0, 150, 255, 0.3)',
                         }}
                     >
-                        <FontAwesomeIcon icon={faArrowDown} /> Transfer Water INTO Field Cauldron
+                        <FontAwesomeIcon icon={faArrowUp} /> Give
                     </button>
 
                         {/* Broth pot info and actions */}
@@ -2484,7 +2484,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                                                             gap: '4px'
                                                                         }}>
                                                                             <img 
-                                                                                src={getItemIcon(getIconAssetFromName(ingredient.itemName))}
+                                                                                src={getItemIcon(getIconAssetFromName(ingredient.itemName), 'crafting')}
                                                                                 alt={ingredient.itemName}
                                                                                 style={{
                                                                                     width: '16px',

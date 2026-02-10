@@ -50,7 +50,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     ghost.style.top = `${e.clientY + 10}px`;
 
     const imgEl = document.createElement('img');
-    imgEl.src = getItemIcon(item.definition.iconAssetName) || '';
+    imgEl.src = getItemIcon(item.definition.iconAssetName, 'crafting') || '';
     imgEl.alt = item.definition.name;
     imgEl.style.width = '40px'; 
     imgEl.style.height = '40px';
@@ -333,7 +333,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
       onMouseMove={onMouseMove}
     >
       <img
-        src={getItemIcon(item.definition.iconAssetName)}
+        src={getItemIcon(item.definition.iconAssetName, 'crafting')}
         alt={item.definition.name}
         className={styles.itemImage}
         style={itemFilterStyle}

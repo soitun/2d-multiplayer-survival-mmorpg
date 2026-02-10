@@ -554,7 +554,7 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
                                     <div className="contract-item">
                                         {itemDef?.iconAssetName && (
                                             <img 
-                                                src={getItemIcon(itemDef.iconAssetName)} 
+                                                src={getItemIcon(itemDef.iconAssetName, 'crafting')} 
                                                 alt="" 
                                                 className="item-icon" 
                                             />

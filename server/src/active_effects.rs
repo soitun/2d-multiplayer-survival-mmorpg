@@ -98,6 +98,9 @@ pub enum EffectType {
     
     // === MEMORY BEACON EFFECT ===
     MemoryBeaconSanity, // Inside Memory Beacon sanity zone - insanity is cleared and cannot accumulate (display only)
+
+    // === COMBAT LADLE HEATING ===
+    HotCombatLadle, // Hot combat ladle equipped: burn on hit, 2x wildlife (30 min). Gloves prevent self-burn.
 }
 
 // Table defining food poisoning risks for different food items
@@ -120,6 +123,81 @@ pub struct ProcessEffectsSchedule {
     pub job_id: u64,
     pub job_name: String,
     pub scheduled_at: ScheduleAt,
+}
+
+/// Hot combat ladle self-burn: without gloves, holding a hot ladle burns the player.
+/// The "hot" state lives on the item (item_data.is_hot), not as a timed player effect.
+/// Combat bonuses (2x wildlife, burn on hit) are checked directly from the equipped item.
+const HOT_LADLE_SELF_BURN_DAMAGE: f32 = 2.0;
+const HOT_LADLE_SELF_BURN_DURATION_SECS: f32 = 3.0;
+const HOT_LADLE_SELF_BURN_TICK_INTERVAL: f32 = 2.0;
+
+fn process_hot_combat_ladle_self_burn(ctx: &ReducerContext) {
+    use crate::combat_ladle_heating::{is_combat_ladle, is_combat_ladle_hot_at, check_and_expire_hot_ladle};
+    use crate::active_equipment::active_equipment as ActiveEquipmentTableTrait;
+
+    let active_equipments = ctx.db.active_equipment();
+    let inventory_items = ctx.db.inventory_item();
+    let item_defs = ctx.db.item_definition();
+    let current_micros = ctx.timestamp.to_micros_since_unix_epoch();
+
+    for player in ctx.db.player().iter() {
+        if player.is_dead || !player.is_online {
+            continue;
+        }
+
+        let equipment = match active_equipments.player_identity().find(&player.identity) {
+            Some(eq) => eq,
+            None => continue,
+        };
+
+        let equipped_instance_id = match equipment.equipped_item_instance_id {
+            Some(id) => id,
+            None => continue,
+        };
+
+        let equipped_item = match inventory_items.instance_id().find(equipped_instance_id) {
+            Some(item) => item,
+            None => continue,
+        };
+
+        let item_def = match item_defs.id().find(equipped_item.item_def_id) {
+            Some(def) => def,
+            None => continue,
+        };
+
+        if !is_combat_ladle(&item_def.name) {
+            continue;
+        }
+
+        // Check with time-based expiration
+        if !is_combat_ladle_hot_at(&equipped_item, current_micros) {
+            // Expire if needed
+            check_and_expire_hot_ladle(ctx, &equipped_item);
+            continue;
+        }
+
+        let has_gloves = equipment.hands_item_instance_id.is_some();
+
+        // Without gloves: player takes burn damage from holding the hot ladle
+        if !has_gloves {
+            // Only apply burn if player doesn't already have active burn from hot ladle (avoid stacking every tick)
+            let has_existing_burn = ctx.db.active_consumable_effect().player_id().filter(&player.identity)
+                .any(|e| e.effect_type == EffectType::Burn && e.item_def_id == item_def.id && ctx.timestamp < e.ends_at);
+            if !has_existing_burn {
+                if let Err(e) = apply_burn_effect(
+                    ctx,
+                    player.identity,
+                    HOT_LADLE_SELF_BURN_DAMAGE,
+                    HOT_LADLE_SELF_BURN_DURATION_SECS,
+                    HOT_LADLE_SELF_BURN_TICK_INTERVAL,
+                    item_def.id,
+                ) {
+                    log::error!("[HotCombatLadle] Failed to apply self-burn to player {:?}: {}", player.identity, e);
+                }
+            }
+        }
+    }
 }
 
 /// Updates indoor status for all online players
@@ -201,6 +279,9 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
     // This ensures the is_inside_building flag is properly cleared when leaving protected areas
     update_all_players_indoor_status(ctx);
 
+    // Process hot combat ladle: apply self-burn if holding hot ladle without gloves
+    process_hot_combat_ladle_self_burn(ctx);
+
     // PERFORMANCE: Quick exit if no active effects exist (most common case when idle)
     if ctx.db.active_consumable_effect().iter().next().is_none() {
         return Ok(());
@@ -267,7 +348,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         effect.target_player_id
                     },
                     // Other effect types shouldn't reach this code path, but we need to handle them
-                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::NearCookingStation | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment | EffectType::ValidolProtection | EffectType::BrewCooldown | EffectType::Stun | EffectType::LagunovGhost | EffectType::MemoryBeaconSanity => {
+                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::NearCookingStation | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment | EffectType::ValidolProtection | EffectType::BrewCooldown | EffectType::Stun | EffectType::LagunovGhost | EffectType::MemoryBeaconSanity | EffectType::HotCombatLadle => {
                         log::warn!("[EffectTick] Unexpected effect type {:?} in bandage processing", effect.effect_type);
                         Some(effect.player_id)
                     }
@@ -735,6 +816,11 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                             // No per-tick stat changes, just a flag that expires after 60 seconds
                             amount_this_tick = 0.0;
                         },
+                        EffectType::HotCombatLadle => {
+                            // HotCombatLadle: burn on hit and 2x wildlife damage (applied in combat.rs)
+                            // This effect is just a flag - no per-tick processing, expires after 30 min
+                            amount_this_tick = 0.0;
+                        },
                         EffectType::Stun => {
                             // Stun is a time-based immobilization effect from blunt weapons
                             // Movement is blocked in player_movement.rs when this effect is active
@@ -800,7 +886,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
         
         if effect.effect_type == EffectType::SeawaterPoisoning || effect.effect_type == EffectType::Venom || effect.effect_type == EffectType::Entrainment || 
            effect.effect_type == EffectType::Wet || effect.effect_type == EffectType::WaterDrinking || effect.effect_type == EffectType::Stun ||
-           effect.effect_type == EffectType::ValidolProtection || is_broth_buff_effect_end_check {
+           effect.effect_type == EffectType::ValidolProtection || effect.effect_type == EffectType::HotCombatLadle || is_broth_buff_effect_end_check {
             if current_time >= effect.ends_at {
                 effect_ended = true;
             }
@@ -2725,6 +2811,41 @@ pub fn update_lagunov_ghost_status(ctx: &ReducerContext, player_id: Identity, pl
 pub fn player_has_lagunov_ghost_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
     ctx.db.active_consumable_effect().player_id().filter(&player_id)
         .any(|effect| effect.effect_type == EffectType::LagunovGhost)
+}
+
+/// Returns true if the player is currently holding a hot combat ladle (not expired).
+/// Checks the equipped item's item_data directly — no ActiveConsumableEffect needed.
+/// Also expires the ladle if its 30 minutes are up.
+pub fn player_has_hot_combat_ladle_effect(ctx: &ReducerContext, player_id: Identity) -> bool {
+    use crate::combat_ladle_heating::{is_combat_ladle, is_combat_ladle_hot_at, check_and_expire_hot_ladle};
+    use crate::active_equipment::active_equipment as ActiveEquipmentTableTrait;
+
+    let equipment = match ctx.db.active_equipment().player_identity().find(&player_id) {
+        Some(eq) => eq,
+        None => return false,
+    };
+    let equipped_instance_id = match equipment.equipped_item_instance_id {
+        Some(id) => id,
+        None => return false,
+    };
+    let equipped_item = match ctx.db.inventory_item().instance_id().find(equipped_instance_id) {
+        Some(item) => item,
+        None => return false,
+    };
+    let item_def = match ctx.db.item_definition().id().find(equipped_item.item_def_id) {
+        Some(def) => def,
+        None => return false,
+    };
+    if !is_combat_ladle(&item_def.name) { return false; }
+
+    let current_micros = ctx.timestamp.to_micros_since_unix_epoch();
+    if is_combat_ladle_hot_at(&equipped_item, current_micros) {
+        true
+    } else {
+        // If it was hot but expired, clear the hot state
+        check_and_expire_hot_ladle(ctx, &equipped_item);
+        false
+    }
 }
 
 /// Applies Lagunov's Ghost effect to a player

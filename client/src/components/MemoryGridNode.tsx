@@ -37,7 +37,7 @@ const ITEM_ICON_MAPPINGS: Record<string, string> = {
 const getItemIconFromName = (itemName: string): string | null => {
   // First check special mappings
   if (ITEM_ICON_MAPPINGS[itemName]) {
-    return getItemIcon(ITEM_ICON_MAPPINGS[itemName]);
+    return getItemIcon(ITEM_ICON_MAPPINGS[itemName], 'crafting');
   }
   
   // Convert item name to icon filename (e.g., "Metal Hatchet" -> "metal_hatchet.png")
@@ -48,7 +48,7 @@ const getItemIconFromName = (itemName: string): string | null => {
     .replace(/['']/g, '')     // Remove any remaining apostrophes
     .replace(/\s+/g, '_')     // Replace spaces with underscores
     .trim() + '.png';
-  return getItemIcon(iconName);
+  return getItemIcon(iconName, 'crafting');
 };
 
 interface MemoryGridNodeProps {

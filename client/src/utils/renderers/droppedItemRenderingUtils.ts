@@ -1,6 +1,5 @@
 import { DroppedItem as SpacetimeDBDroppedItem, ItemDefinition as SpacetimeDBItemDefinition } from '../../generated';
 import burlapSackImage from '../../assets/doodads/burlap_sack.png'; // Import the sack image as fallback
-import campfireOffImage from '../../assets/items/campfire_off.png'; // Import campfire off sprite for dropped campfires
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager'; 
 import { getItemIcon } from '../itemIconUtils'; // Import item icon utility
@@ -20,13 +19,9 @@ const droppedItemConfig: GroundEntityConfig<SpacetimeDBDroppedItem & { itemDef?:
     // Always try to show the actual item sprite, fall back to burlap sack if not found
     getImageSource: (entity) => {
         // If we have item definition, try to get the actual item icon
+        // Use 'dropped' context: torch/campfire show off versions on ground
         if (entity.itemDef && entity.itemDef.iconAssetName) {
-            // Override: Campfire uses campfire_off.png when dropped on ground
-            if (entity.itemDef.name === "Campfire") {
-                return campfireOffImage;
-            }
-            
-            const itemIconUrl = getItemIcon(entity.itemDef.iconAssetName);
+            const itemIconUrl = getItemIcon(entity.itemDef.iconAssetName, 'dropped');
             if (itemIconUrl) {
                 return itemIconUrl;
             }
@@ -39,7 +34,7 @@ const droppedItemConfig: GroundEntityConfig<SpacetimeDBDroppedItem & { itemDef?:
     getTargetDimensions: (_img, entity) => {
         // If we have the actual item sprite, use appropriate size
         if (entity.itemDef && entity.itemDef.iconAssetName) {
-            const itemIconUrl = getItemIcon(entity.itemDef.iconAssetName);
+            const itemIconUrl = getItemIcon(entity.itemDef.iconAssetName, 'dropped');
             if (itemIconUrl) {
                 // Vole skull is tiny - half the size of other items
                 if (entity.itemDef.name === "Vole Skull") {
@@ -140,9 +135,9 @@ const droppedItemConfig: GroundEntityConfig<SpacetimeDBDroppedItem & { itemDef?:
     fallbackColor: '#A0522D', // Brown fallback color if image fails to load
 };
 
-// Preload fallback images
+// Preload fallback images (campfire_off used when Torch/Camp Fire dropped on ground)
 imageManager.preloadImage(burlapSackImage);
-imageManager.preloadImage(campfireOffImage);
+imageManager.preloadImage(getItemIcon('campfire_off.png'));
 
 // --- Arc Animation Constants ---
 const ARC_ANIMATION_DURATION_MS = 1200; // Duration of falling arc animation (longer for visibility)

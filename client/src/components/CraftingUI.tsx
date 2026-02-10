@@ -545,7 +545,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                 }}
                             >
                                 <img
-                                    src={getItemIcon(outputDef.iconAssetName)}
+                                    src={getItemIcon(outputDef.iconAssetName, 'crafting')}
                                     alt={outputDef.name}
                                     style={{ 
                                         width: '32px', 
@@ -612,7 +612,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                                 <div style={{ width: '40px', height: '40px', flexShrink: 0 }}>
                                     {outputDef && (
                                         <img
-                                            src={getItemIcon(outputDef.iconAssetName)}
+                                            src={getItemIcon(outputDef.iconAssetName, 'crafting')}
                                             alt={outputDef?.name || 'Crafting'}
                                             style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }}
                                         />

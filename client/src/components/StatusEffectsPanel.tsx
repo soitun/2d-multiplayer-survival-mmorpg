@@ -154,6 +154,10 @@ const StatusEffectsPanel: React.FC<StatusEffectsPanelProps> = ({ effects }) => {
     if (effectId === 'lagunov_ghost') {
       return '#8c64dc'; // Mystical purple-blue (matches shipwreck night glow)
     }
+    // Hot combat ladle - fiery orange
+    if (effectId === 'hot_combat_ladle') {
+      return '#ff8c00'; // Deep orange (fire/heat themed)
+    }
     switch (type) {
       case 'positive': return '#00ff88';
       case 'negative': return '#ff4444';
@@ -175,6 +179,10 @@ const StatusEffectsPanel: React.FC<StatusEffectsPanelProps> = ({ effects }) => {
     // Special case for shipwreck Lagunov's Ghost - eerie purple glow
     if (effectId === 'lagunov_ghost') {
       return '0 0 8px rgba(140, 100, 220, 0.6)'; // Mystical purple glow
+    }
+    // Hot combat ladle - fiery orange glow
+    if (effectId === 'hot_combat_ladle') {
+      return '0 0 8px rgba(255, 140, 0, 0.6)'; // Fiery orange glow
     }
     switch (type) {
       case 'positive': return '0 0 8px rgba(0, 255, 136, 0.6)';

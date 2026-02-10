@@ -206,11 +206,11 @@ const ContractCard: React.FC<ContractCardProps> = ({
     // Get item icon - try from itemDef first, fall back to contract.itemIconAsset
     const itemIcon = useMemo(() => {
         if (itemDef?.iconAssetName) {
-            return getItemIcon(itemDef.iconAssetName);
+            return getItemIcon(itemDef.iconAssetName, 'crafting');
         }
         // Fallback: try to construct icon name from item name
         const itemName = (contract.itemName || '').trim().toLowerCase().replace(/\s+/g, '_');
-        return getItemIcon(`${itemName}.png`);
+        return getItemIcon(`${itemName}.png`, 'crafting');
     }, [itemDef, contract.itemName]);
     
     // Clean item name (remove leading/trailing spaces)
@@ -456,10 +456,10 @@ const BuyOrderCard: React.FC<BuyOrderCardProps> = ({
     // Get item icon
     const itemIcon = useMemo(() => {
         if (itemDef?.iconAssetName) {
-            return getItemIcon(itemDef.iconAssetName);
+            return getItemIcon(itemDef.iconAssetName, 'crafting');
         }
         const itemName = (contract.itemName || '').trim().toLowerCase().replace(/\s+/g, '_');
-        return getItemIcon(`${itemName}.png`);
+        return getItemIcon(`${itemName}.png`, 'crafting');
     }, [itemDef, contract.itemName]);
     
     const cleanItemName = (contract.itemName || '').trim();
@@ -659,11 +659,11 @@ const PlayerContractCard: React.FC<PlayerContractCardProps> = ({
     // Get item icon
     const itemIcon = useMemo(() => {
         if (itemDef?.iconAssetName) {
-            return getItemIcon(itemDef.iconAssetName);
+            return getItemIcon(itemDef.iconAssetName, 'crafting');
         }
         // Fallback: try to construct icon name from item name
         const itemName = cleanItemName.toLowerCase().replace(/\s+/g, '_');
-        return getItemIcon(`${itemName}.png`);
+        return getItemIcon(`${itemName}.png`, 'crafting');
     }, [itemDef, cleanItemName]);
     
     // Check if delivery is allowed at nearby station

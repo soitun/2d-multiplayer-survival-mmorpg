@@ -114,6 +114,7 @@ import reedBellowsIcon from '../assets/items/reed_bellows.png';
 import reedWaterBottleIcon from '../assets/items/reed_water_bottle.png';
 import waterJugIcon from '../assets/items/water_jug.png';
 import fieldCauldronIcon from '../assets/items/field_cauldron.png';
+import brothPotIcon from '../assets/items/broth_pot_icon.png';
 
 // === WEAPONS ===
 // Melee weapons, ranged weapons, skulls
@@ -582,6 +583,7 @@ import fertilizerIcon from '../assets/items/fertilizer.png';
 // Structures, containers, and deployable items
 
 import campFireIcon from '../assets/items/campfire.png';
+import campfireOffIcon from '../assets/items/campfire_off.png';
 import furnaceIcon from '../assets/items/furnace_simple.png';
 import largeFurnaceIcon from '../assets/items/large_furnace.png';
 import stashIcon from '../assets/items/stash.png';
@@ -737,6 +739,8 @@ const iconMap: { [key: string]: string | undefined } = {
   'reed_water_bottle.png': reedWaterBottleIcon,
   'water_jug.png': waterJugIcon,
   'field_cauldron.png': fieldCauldronIcon,
+  // Static icon for AI brews when Retrodiffusion is disabled (user can replace with custom design)
+  'broth_pot_icon.png': brothPotIcon,
 
   // === WEAPONS ===
   'spear.png': spearIcon,
@@ -1142,6 +1146,7 @@ const iconMap: { [key: string]: string | undefined } = {
 
   // === PLACEABLES ===
   'campfire.png': campFireIcon,
+  'campfire_off.png': campfireOffIcon,
   'furnace_simple.png': furnaceIcon,
   'large_furnace.png': largeFurnaceIcon,
   'stash.png': stashIcon,
@@ -1247,6 +1252,12 @@ export function isSpoiledItem(itemName: string | undefined | null): boolean {
 }
 
 /**
+ * Context for icon display: 'crafting' shows lit/fancy versions (e.g. torch_on, campfire lit),
+ * 'dropped' shows unlit versions for world drops. Omit for default behavior.
+ */
+export type ItemIconContext = 'crafting' | 'dropped';
+
+/**
  * Converts a burnt icon asset name to its cooked equivalent.
  * burnt_xxx.png -> cooked_xxx.png
  * Returns original if not a burnt icon or no cooked equivalent exists.
@@ -1266,10 +1277,22 @@ function getBurntToCoookedIcon(assetName: string): string | null {
 }
 
 // Export a function that provides the fallback logic
-export function getItemIcon(assetName: string | undefined | null): string {
+// When context is 'crafting', torch and campfire use their "lit" versions for menus.
+// When context is 'dropped' or omitted, they use "off" versions for ground drops.
+export function getItemIcon(assetName: string | undefined | null, context?: ItemIconContext): string {
     if (!assetName) {
         console.log('[ItemIconUtils] assetName is missing, returning errorIcon');
         return errorIcon; // Return error icon if assetName is missing
+    }
+    
+    // Context-specific overrides: crafting menus show lit versions, dropped items show off versions
+    if (context === 'crafting') {
+        if (assetName === 'torch.png') return torchFlameIcon;   // torch_on (lit) for crafting
+        if (assetName === 'campfire.png') return campFireIcon;  // campfire (lit) for crafting - already correct
+    }
+    if (context === 'dropped') {
+        if (assetName === 'torch.png') return torchIcon;        // torch (off) for dropped
+        if (assetName === 'campfire.png') return campfireOffIcon; // campfire_off for dropped
     }
     
     // Check for AI-generated base64 data URL icons first
@@ -1328,6 +1351,38 @@ export function getItemIcon(assetName: string | undefined | null): string {
     // No match found - use error icon
     console.log(`[ItemIconUtils] No icon found in map for '${assetName}', returning errorIcon`);
     return errorIcon;
+}
+
+const HOT_LADLE_DURATION_MS = 30 * 60 * 1000; // 30 minutes in milliseconds
+
+/** Returns true if the combat ladle is currently hot (heated and not expired) */
+export function isCombatLadleHot(item: { itemData?: string | null }, itemName: string): boolean {
+  if (itemName !== 'Combat Ladle' || !item.itemData) return false;
+  try {
+    const data = JSON.parse(item.itemData);
+    if (data?.is_hot !== true) return false;
+    if (data?.heated_at_micros) {
+      const heatedAtMs = data.heated_at_micros / 1000;
+      return (Date.now() - heatedAtMs) < HOT_LADLE_DURATION_MS;
+    }
+    return true; // Legacy data without timestamp — treat as hot
+  } catch {
+    return false;
+  }
+}
+
+/** Returns remaining hot time in seconds, or 0 if expired/not hot */
+export function getCombatLadleRemainingHotSecs(item: { itemData?: string | null }, itemName: string): number {
+  if (itemName !== 'Combat Ladle' || !item.itemData) return 0;
+  try {
+    const data = JSON.parse(item.itemData);
+    if (data?.is_hot !== true || !data?.heated_at_micros) return 0;
+    const heatedAtMs = data.heated_at_micros / 1000;
+    const remaining = (heatedAtMs + HOT_LADLE_DURATION_MS - Date.now()) / 1000;
+    return Math.max(0, remaining);
+  } catch {
+    return 0;
+  }
 }
 
 // Keep the itemIcons map export if it's used elsewhere, but prefer getItemIcon

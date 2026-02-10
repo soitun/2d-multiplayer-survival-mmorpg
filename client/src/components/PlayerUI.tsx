@@ -854,6 +854,40 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
             });
         }
         
+        // Hot Combat Ladle: check if currently equipped item is a hot combat ladle
+        if (identity && localPlayerActiveEquipment?.equippedItemInstanceId) {
+            const equippedInstanceId = localPlayerActiveEquipment.equippedItemInstanceId.toString();
+            const equippedItem = inventoryItems.get(equippedInstanceId);
+            if (equippedItem) {
+                const equippedDef = itemDefinitions.get(equippedItem.itemDefId.toString());
+                if (equippedDef && equippedDef.name === 'Combat Ladle' && equippedItem.itemData) {
+                    try {
+                        const data = JSON.parse(equippedItem.itemData);
+                        if (data?.is_hot === true && data?.heated_at_micros) {
+                            const HOT_LADLE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+                            const heatedAtMs = data.heated_at_micros / 1000;
+                            const now = Date.now();
+                            const remainingSecs = Math.max(0, (heatedAtMs + HOT_LADLE_DURATION_MS - now) / 1000);
+
+                            if (remainingSecs > 0) {
+                                const hasGloves = !!localPlayerActiveEquipment.handsItemInstanceId;
+                                effects.push({
+                                    id: 'hot_combat_ladle',
+                                    name: 'Searing Ladle',
+                                    emoji: '🥄',
+                                    type: 'positive',
+                                    description: hasGloves
+                                        ? 'Your combat ladle glows with residual heat.\n• 2× damage vs wildlife & hostile NPCs\n• Inflicts burn on hit\n• Gloves protect from self-burn'
+                                        : 'Your combat ladle glows with residual heat.\n• 2× damage vs wildlife & hostile NPCs\n• Inflicts burn on hit\n⚠️ No gloves — taking self-burn damage!',
+                                    duration: remainingSecs
+                                });
+                            }
+                        }
+                    } catch { /* ignore parse errors */ }
+                }
+            }
+        }
+        
         if (!activeConsumableEffects || !identity) return effects;
         
         const localPlayerIdHex = identity.toHexString();
@@ -1304,6 +1338,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             duration: bufferedRemainingTime
                         };
                         break;
+                    // HotCombatLadle is handled above via equipped item state, not ActiveConsumableEffect
                 }
             } else if (effectTargetPlayerIdHex === localPlayerIdHex && effectTypeTag === 'RemoteBandageBurst') {
                 // Check if remote bandage healer is in range

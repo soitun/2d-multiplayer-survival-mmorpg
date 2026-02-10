@@ -54,11 +54,24 @@ const Tooltip: React.FC<TooltipProps> = ({ content, visible, position }) => {
                    (!content.description || content.description.trim() === '') && 
                    (!content.stats || content.stats.length === 0);
 
+  // Grid for alternatives - max 3 columns. Width derived from longest name (icon 18 + gap 6 + ~7px/char + count 16 + padding)
+  const altCount = content.alternatives?.length ?? 0;
+  const columns = altCount > 0 ? Math.min(3, Math.ceil(altCount / 2)) : 3;
+  const maxNameLen = altCount > 0
+    ? Math.max(...content.alternatives!.map((a) => a.name.length), 10)
+    : 0;
+  const pxPerChar = 8; // Approximate for 0.7rem monospace (slightly generous for long names)
+  const cellWidth = 18 + 6 + maxNameLen * pxPerChar + 16 + 10; // icon + gap + name + count + padding
+  const tooltipWidth = altCount > 0
+    ? Math.max(300, Math.min(cellWidth * columns + 24, 700))
+    : undefined;
+
   // Offset the tooltip slightly from the cursor
-  const tooltipStyle = {
+  const tooltipStyle: React.CSSProperties = {
     left: `${position.x + 5}px`,
     top: `${position.y + 5}px`,
-    ...(isSimple && { width: 'auto', minWidth: 'auto' }), // Use auto width for simple tooltips
+    ...(isSimple && { width: 'auto', minWidth: 'auto' }),
+    ...(tooltipWidth !== undefined && { width: tooltipWidth, minWidth: tooltipWidth }),
   };
 
   return (
@@ -106,7 +119,10 @@ const Tooltip: React.FC<TooltipProps> = ({ content, visible, position }) => {
           <div className={styles.alternativesHeader}>
             Accepts any of these{content.alternativesRequired ? ` (need ${content.alternativesRequired})` : ''}:
           </div>
-          <div className={styles.alternativesGrid}>
+          <div
+            className={styles.alternativesGrid}
+            style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+          >
             {content.alternatives.map((alt, index) => {
               const hasEnough = content.alternativesRequired ? alt.available >= content.alternativesRequired : alt.available > 0;
               return (

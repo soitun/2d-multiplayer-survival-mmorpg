@@ -1000,6 +1000,10 @@ pub fn process_furnace_logic_scheduled(ctx: &ReducerContext, schedule_args: Furn
                     log::error!("Error processing furnace {} smelting: {}", furnace_id, e);
                 }
             }
+            // --- COMBAT LADLE HEATING ---
+            if crate::combat_ladle_heating::process_combat_ladle_heating(ctx, &mut furnace, adjusted_smelting_time_increment, current_fuel_instance_id) {
+                needs_update = true;
+            }
         }
     }
 

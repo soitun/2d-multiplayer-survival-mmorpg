@@ -1120,6 +1120,10 @@ pub fn process_barbecue_logic_scheduled(ctx: &ReducerContext, schedule: Barbecue
                 }
                 Err(_) => {}
             }
+            // --- COMBAT LADLE HEATING ---
+            if crate::combat_ladle_heating::process_combat_ladle_heating(ctx, &mut barbecue, adjusted_cooking_time_increment, cached_active_fuel_instance_id) {
+                made_changes_to_barbecue_struct = true;
+            }
         }
 
         // --- FUEL CONSUMPTION LOGIC (using cached bellows flag) ---

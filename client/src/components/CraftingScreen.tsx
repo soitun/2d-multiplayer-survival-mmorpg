@@ -503,7 +503,7 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
             const alternatives: AlternativeItem[] = flexInfo.validItemDefIds.map(id => {
                 const def = itemDefinitions.get(id);
                 return {
-                    iconPath: getItemIcon(def?.iconAssetName || ''),
+                    iconPath: getItemIcon(def?.iconAssetName || '', 'crafting'),
                     name: def?.name || 'Unknown',
                     available: playerInventoryResources.get(id) || 0,
                 };
@@ -619,7 +619,7 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
                                                 onMouseMove={handleItemMouseMove}
                                             >
                                                 <img
-                                                    src={getItemIcon(outputDef.iconAssetName)}
+                                                    src={getItemIcon(outputDef.iconAssetName, 'crafting')}
                                                     alt={outputDef.name}
                                                     style={{ filter: !isMemoryGridUnlocked ? 'grayscale(60%) brightness(0.7)' : 'none' }}
                                                 />
@@ -680,7 +680,7 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
                                                             // For flexible ingredients: get icon paths for overlapping display (max 3)
                                                             const flexIcons = isFlexible
                                                                 ? flex.validItemDefIds.slice(0, 3).map(id => ({
-                                                                    src: getItemIcon(itemDefinitions.get(id)?.iconAssetName || ''),
+                                                                    src: getItemIcon(itemDefinitions.get(id)?.iconAssetName || '', 'crafting'),
                                                                     name: itemDefinitions.get(id)?.name || 'Unknown',
                                                                 }))
                                                                 : [];
@@ -722,7 +722,7 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
                                                                         /* Single icon for fixed ingredients */
                                                                         <div className={styles.ingredientIcon}>
                                                                             <img
-                                                                                src={getItemIcon(ingDef?.iconAssetName || '')}
+                                                                                src={getItemIcon(ingDef?.iconAssetName || '', 'crafting')}
                                                                                 alt={ingDef?.name || 'Unknown'}
                                                                             />
                                                                         </div>
@@ -830,7 +830,7 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
                                         <div className={styles.queueItemIcon}>
                                             {outputDef && (
                                                 <img
-                                                    src={getItemIcon(outputDef.iconAssetName)}
+                                                    src={getItemIcon(outputDef.iconAssetName, 'crafting')}
                                                     alt={outputDef?.name || 'Crafting'}
                                                 />
                                             )}

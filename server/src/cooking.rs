@@ -222,6 +222,10 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
         if let Some(current_item_instance_id) = appliance.get_slot_instance_id(i) {
             if let Some(current_item_def_id) = appliance.get_slot_def_id(i) {
                 if let Some(current_item_def) = item_definition_table.id().find(current_item_def_id) {
+                    // Skip items managed by combat ladle heating system
+                    if crate::combat_ladle_heating::is_combat_ladle(&current_item_def.name) {
+                        continue;
+                    }
                     if let Some(mut progress_data) = slot_cooking_progress_opt.take() {
                         let old_quantized = progress_data.quantized_progress();
                         progress_data.current_cook_time_secs += time_increment;

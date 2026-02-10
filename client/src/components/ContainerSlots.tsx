@@ -14,6 +14,7 @@ import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
 import { ContainerType, ContainerEntity, getContainerConfig, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MINE_CART, BOX_TYPE_COMPOST, BOX_TYPE_FISH_TRAP, BOX_TYPE_WILD_BEEHIVE } from '../utils/containerUtils';
 import { WoodenStorageBox, RangedWeaponStats } from '../generated';
 import { isWaterContainer, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
+import { isCombatLadleHot } from '../utils/itemIconUtils';
 import { hasDurabilitySystem, isItemBroken, isFoodItem } from '../utils/durabilityHelpers';
 import DurabilityBar from './DurabilityBar';
 import styles from './InventoryUI.module.css';
@@ -237,6 +238,22 @@ const ContainerSlots: React.FC<ContainerSlotsProps> = ({
                                 textShadow: '0 0 2px rgba(0, 0, 0, 0.8)'
                             }}>
                                 💧
+                            </div>
+                        )}
+                        
+                        {/* Fire emoji for hot combat ladle in campfire/furnace/barbecue slots */}
+                        {itemInSlot && isCombatLadleHot(itemInSlot.instance, itemInSlot.definition.name) && 
+                            (containerType === 'campfire' || containerType === 'furnace' || containerType === 'barbecue') && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '4px',
+                                left: '4px',
+                                fontSize: '12px',
+                                zIndex: 5,
+                                pointerEvents: 'none',
+                                textShadow: '0 0 2px rgba(0, 0, 0, 0.8)'
+                            }} title="Hot! Use gloves to avoid burn damage">
+                                🔥
                             </div>
                         )}
                         </DroppableSlot>

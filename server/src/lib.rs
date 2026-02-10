@@ -103,6 +103,7 @@ mod sleeping_bag; // ADD Sleeping Bag module
 mod player_corpse; // <<< ADDED: Declare Player Corpse module
 mod models; // <<< ADDED
 mod cooking; // <<< ADDED: For generic cooking logic
+mod combat_ladle_heating; // Combat ladle heating in fire sources
 mod stash; // Added Stash module
 mod planted_seeds; // Added for farming system with planted seeds
 pub mod active_effects; // Added for timed consumable effects

@@ -2809,6 +2809,23 @@ pub fn damage_player(
         }
     }
 
+    // Apply burn effect if attacker has HotCombatLadle effect (hot ladle + gloves)
+    if active_effects::player_has_hot_combat_ladle_effect(ctx, attacker_id) {
+        const HOT_LADLE_BURN_DURATION: f32 = 3.0;
+        const HOT_LADLE_BURN_TOTAL_DAMAGE: f32 = 5.0; // Similar to campfire
+        const HOT_LADLE_BURN_TICK_INTERVAL: f32 = 2.0;
+        if let Err(e) = active_effects::apply_burn_effect(
+            ctx,
+            target_id,
+            HOT_LADLE_BURN_TOTAL_DAMAGE,
+            HOT_LADLE_BURN_DURATION,
+            HOT_LADLE_BURN_TICK_INTERVAL,
+            item_def.id,
+        ) {
+            log::error!("Failed to apply hot combat ladle burn effect to player {:?}: {}", target_id, e);
+        }
+    }
+
     // <<< BROTH EFFECT: PoisonCoating - apply poison to target if attacker has coating >>>
     if active_effects::player_has_poison_coating_effect(ctx, attacker_id) {
         // Check if target has poison resistance (reduces duration)
@@ -4409,7 +4426,15 @@ pub fn process_attack(
         );
     }
 
-    let (damage, yield_amount, resource_name) = calculate_damage_and_yield(item_def, target.target_type, rng);
+    let (mut damage, yield_amount, resource_name) = calculate_damage_and_yield(item_def, target.target_type, rng);
+
+    // HotCombatLadle effect: 2x damage vs wildlife
+    if crate::active_effects::player_has_hot_combat_ladle_effect(ctx, attacker_id) {
+        if matches!(target.id, TargetId::WildAnimal(_)) {
+            damage *= 2.0;
+            log::info!("[HotCombatLadle] 2x wildlife damage: {:.1} (attacker {:?})", damage, attacker_id);
+        }
+    }
 
     match &target.id {
         TargetId::Tree(tree_id) => {

@@ -5,6 +5,7 @@ import { Identity, Timestamp } from 'spacetimedb';
 import { isWaterContainer, hasWaterContent, getWaterLevelPercentage, isSaltWater, getWaterCapacity } from '../utils/waterContainerHelpers';
 import { isPlantableSeed } from '../utils/plantsUtils';
 import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, getDurability, getMaxDurability, MAX_DURABILITY, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining } from '../utils/durabilityHelpers';
+import { isCombatLadleHot } from '../utils/itemIconUtils';
 import DurabilityBar from './DurabilityBar';
 
 // Import Custom Components
@@ -1762,6 +1763,16 @@ const Hotbar: React.FC<HotbarProps> = ({
               >
                 {index + 1}
               </span>
+
+              {/* Fire emoji for hot combat ladle */}
+              {populatedItem && isCombatLadleHot(populatedItem.instance, populatedItem.definition.name) && (
+                <span
+                  style={{ position: 'absolute', top: '2px', left: '4px', fontSize: '12px', zIndex: 4, pointerEvents: 'none' }}
+                  title="Hot! Use gloves to avoid burn damage"
+                >
+                  🔥
+                </span>
+              )}
 
               {populatedItem && (
                   <DraggableItem
