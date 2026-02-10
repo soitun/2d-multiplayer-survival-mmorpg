@@ -1117,7 +1117,7 @@ export const MONUMENT_BUILDING_COLLISION = {
 // Exported for debug rendering
 export const COLLISION_RADII = {
   TREE: 24,
-  STONE: 28,       // Smaller radius for flattened stones
+  STONE: 20,       // Smaller radius for flattened stones
   RUNE_STONE: 55,  // Half-width for 110x48 AABB collision (matches server-side RUNE_STONE_AABB_HALF_WIDTH)
   CAIRN: 48,       // Half-width for 96x48 AABB collision (matches server-side CAIRN_AABB_HALF_WIDTH)
   STORAGE_BOX: 20, // Match small furnace collision radius for consistent feel
@@ -1143,7 +1143,7 @@ export const COLLISION_RADII = {
 // Exported for debug rendering
 export const COLLISION_OFFSETS = {
   TREE: { x: 0, y: -68 },      // Adjusted to keep top boundary similar while squishing from bottom
-  STONE: { x: 0, y: -72 },     // Small circle positioned at visual stone base
+  STONE: { x: 0, y: -36 },     // Small circle positioned at visual stone base (pushed down from -72)
   RUNE_STONE: { x: 0, y: -24 }, // Y offset for 48x48 AABB collision center (matches server-side)
   CAIRN: { x: 0, y: -24 },     // Y offset for 96x48 AABB collision center (matches server-side CAIRN_COLLISION_Y_OFFSET)
   STORAGE_BOX: { x: 0, y: -50 }, // Match small furnace collision offset (starts lower for better approach)

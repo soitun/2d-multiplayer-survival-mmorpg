@@ -3346,7 +3346,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           return playerY >= treeY ? -1 : 1;
         }
 
-        
+        // Player vs Stone: same as trees - player north of stone base renders behind top half.
+        if (aType === 'player' && bType === 'stone') {
+          const playerY = getPlayerY(aEntity) + PLAYER_SORT_FEET_OFFSET_PX;
+          const stoneY = (bEntity as any)?.posY ?? 0;
+          return playerY >= stoneY ? 1 : -1;
+        }
+        if (aType === 'stone' && bType === 'player') {
+          const playerY = getPlayerY(bEntity) + PLAYER_SORT_FEET_OFFSET_PX;
+          const stoneY = (aEntity as any)?.posY ?? 0;
+          return playerY >= stoneY ? -1 : 1;
+        }
 
         // Grass vs Tree: use relative Y so north grass is behind tree, south grass is in front.
         // Keep this mirrored with useEntityFiltering to avoid re-sort mismatches.

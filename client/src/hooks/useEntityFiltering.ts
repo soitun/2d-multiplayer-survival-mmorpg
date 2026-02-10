@@ -2141,6 +2141,18 @@ export function useEntityFiltering(
         const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer) + PLAYER_SORT_FEET_OFFSET_PX;
         return playerY >= tree.posY ? -1 : 1;
       }
+
+      // Player vs Stone: same as trees - player north of stone base renders behind top half.
+      if (a.type === 'player' && b.type === 'stone') {
+        const playerY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer) + PLAYER_SORT_FEET_OFFSET_PX;
+        const stone = b.entity as SpacetimeDBStone;
+        return playerY >= stone.posY ? 1 : -1;
+      }
+      if (a.type === 'stone' && b.type === 'player') {
+        const stone = a.entity as SpacetimeDBStone;
+        const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer) + PLAYER_SORT_FEET_OFFSET_PX;
+        return playerY >= stone.posY ? -1 : 1;
+      }
       
       
       

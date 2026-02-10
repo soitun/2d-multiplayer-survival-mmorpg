@@ -317,8 +317,8 @@ export function drawDynamicGroundShadow({
     shadowLength = lerp(minStretchFactor * 2, minStretchFactor, noonFactor);
     // Noon: Sun overhead, shadow directly below
     shadowShearX = 0; // No horizontal lean (perfectly centered)
-    // ScaleY also transitions smoothly through noon
-    shadowScaleY = lerp(0.7, 0.8, noonFactor); // Gets taller at peak noon, then back down
+    // Constant scaleY to match morning/afternoon - no noon peak that pushes shadow up
+    shadowScaleY = 0.7;
   } else if (cycleProgress < 0.72) { // Afternoon (0.55 - 0.72)
     // SYMMETRY: START with same length as morning START (1.32)
     const t = (cycleProgress - 0.55) / (0.72 - 0.55);
