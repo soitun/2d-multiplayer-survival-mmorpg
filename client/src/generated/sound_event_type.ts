@@ -43,6 +43,8 @@ export type SoundEvent = {
   triggeredBy: __Identity,
   timestamp: __Timestamp,
   pitchMultiplier: number,
+  velocityX: number,
+  velocityY: number,
 };
 let _cached_SoundEvent_type_value: __AlgebraicTypeType | null = null;
 
@@ -68,6 +70,8 @@ export const SoundEvent = {
       { name: "triggeredBy", algebraicType: __AlgebraicTypeValue.createIdentityType() },
       { name: "timestamp", algebraicType: __AlgebraicTypeValue.createTimestampType() },
       { name: "pitchMultiplier", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "velocityX", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "velocityY", algebraicType: __AlgebraicTypeValue.F32 },
     );
     return _cached_SoundEvent_type_value;
   },

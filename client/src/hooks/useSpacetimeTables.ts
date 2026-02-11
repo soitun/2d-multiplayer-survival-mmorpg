@@ -199,6 +199,7 @@ export interface SpacetimeTableStates {
     questProgressNotifications: Map<string, SpacetimeDB.QuestProgressNotification>; // ADDED: Quest progress notifications
     sovaQuestMessages: Map<string, SpacetimeDB.SovaQuestMessage>; // ADDED: SOVA quest messages
     beaconDropEvents: Map<string, SpacetimeDB.BeaconDropEvent>; // ADDED: Memory Beacon server events (airdrop-style)
+    droneEvents: Map<string, SpacetimeDB.DroneEvent>; // ADDED: Sky drone events (periodic flyover)
     // Animal breeding system data
     caribouBreedingData: Map<string, SpacetimeDB.CaribouBreedingData>; // ADDED: Caribou breeding (sex, age, pregnancy)
     walrusBreedingData: Map<string, SpacetimeDB.WalrusBreedingData>; // ADDED: Walrus breeding (sex, age, pregnancy)

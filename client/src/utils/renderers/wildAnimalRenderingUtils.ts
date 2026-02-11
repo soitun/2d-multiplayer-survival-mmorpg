@@ -5,6 +5,7 @@ import {
     getAnimalCollisionBounds,
     ANIMAL_COLLISION_SIZES
 } from '../animalCollisionUtils';
+import { UNDERWATER_TINT_FILTER } from './underwaterEffectsUtils';
 
 // Import breeding data types for age-based rendering
 import { CaribouBreedingData } from '../../generated/caribou_breeding_data_type';
@@ -1236,16 +1237,17 @@ export function renderWildAnimal({
     const viewingAquaticFromAbove = viewingSharkFromAbove || viewingJellyfishFromAbove;
     const viewingAquaticFromUnderwater = viewingSharkFromUnderwater || viewingJellyfishFromUnderwater;
 
-    // Save filter state if we need to apply underwater blur
+    // Save filter state if we need to apply underwater effects
     const savedFilter = ctx.filter;
     if (viewingAquaticFromAbove) {
         // Viewing aquatic creature from above water - apply underwater blur effect (like coral)
         ctx.filter = 'blur(2px)';
         ctx.globalAlpha = 0.7; // Slightly transparent when viewed through water
     } else if (viewingAquaticFromUnderwater) {
-        // Viewing aquatic creature from underwater - apply teal underwater tint
+        // Viewing aquatic creature from underwater - use SAME teal tint as other underwater entities
+        // (players, corals, projectiles) for consistent visibility when snorkeling with Reed Diver's Helm
         ctx.globalAlpha = 1.0;
-        // Teal tint will be applied via composite operations after drawing
+        ctx.filter = UNDERWATER_TINT_FILTER;
     }
 
     if (useImageFallback) {
@@ -1395,19 +1397,12 @@ export function renderWildAnimal({
         }
     }
 
-    // 🦈🎐 Apply underwater teal tint overlay for aquatic creatures when viewer is underwater
-    if (viewingAquaticFromUnderwater && !useImageFallback) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'multiply';
-        ctx.fillStyle = 'rgba(0, 180, 180, 0.15)'; // Subtle teal underwater tint
-        ctx.fillRect(renderX, renderY, renderWidth, renderHeight);
-        ctx.restore();
-    }
-
-    // Restore filter if we applied underwater blur
+    // Restore filter after drawing - aquatic tint is applied via filter BEFORE draw (same as other entities)
     if (viewingAquaticFromAbove) {
         ctx.filter = savedFilter;
         ctx.globalAlpha = 1.0;
+    } else if (viewingAquaticFromUnderwater) {
+        ctx.filter = savedFilter;
     }
 
     // 🎐⚡ JELLYFISH SHOCK GLOW EFFECT

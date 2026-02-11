@@ -9,6 +9,7 @@
  ******************************************************************************/
 
 use spacetimedb::{table, reducer, ReducerContext, Identity, Timestamp, Table, ScheduleAt, TimeDuration};
+use std::collections::HashSet;
 use std::time::Duration;
 use std::f32::consts::PI;
 use log;
@@ -16,9 +17,9 @@ use rand::{Rng, SeedableRng};
 
 // Core game imports
 use crate::{Player, PLAYER_RADIUS, WORLD_WIDTH_PX, WORLD_HEIGHT_PX};
+use crate::environment::{calculate_chunk_index, CHUNK_SIZE_PX, WORLD_WIDTH_CHUNKS, WORLD_HEIGHT_CHUNKS};
 use crate::utils::get_distance_squared;
 use crate::sound_events::{self, SoundType};
-use crate::spatial_grid::{SpatialGrid, EntityType};
 use crate::fishing::is_water_tile;
 use crate::shelter::{is_player_inside_shelter, SHELTER_AABB_CENTER_Y_OFFSET_FROM_POS_Y, SHELTER_AABB_HALF_WIDTH, SHELTER_AABB_HALF_HEIGHT};
 use crate::animal_collision::{
@@ -174,8 +175,9 @@ impl PreFetchedAIData {
     /// Called ONCE at the start of each AI tick, not per-animal
     pub fn fetch(ctx: &ReducerContext) -> Self {
         Self {
+            // Only online players matter for active zone / wander checks - saves iterations
             all_players: ctx.db.player().iter()
-                .filter(|p| !p.is_dead)
+                .filter(|p| !p.is_dead && p.is_online)
                 .collect(),
             burning_campfires: ctx.db.campfire().iter()
                 .filter(|c| c.is_burning && !c.is_destroyed)
@@ -853,12 +855,12 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
     // This eliminates thousands of redundant table scans per tick
     let prefetched = PreFetchedAIData::fetch(ctx);
 
-    // Build spatial grid for efficient collision detection
-    let mut spatial_grid = SpatialGrid::new();
-    spatial_grid.populate_from_world(&ctx.db, current_time);
+    // NOTE: Animal collision uses get_cached_spatial_grid() internally (refreshed every 1s)
+    // No need to build a separate grid here - that was dead code costing ~full world scan every 125ms
 
-    // Process each animal
-    let animals: Vec<WildAnimal> = ctx.db.wild_animal().iter().collect();
+    // CHUNK-BASED OPTIMIZATION: Only fetch animals in chunks near players
+    // Avoids full table scan when world has many animals spread across the map
+    let animals: Vec<WildAnimal> = collect_animals_in_active_chunks(ctx, &prefetched.all_players);
     
     for mut animal in animals {
         // CRITICAL FIX: Wrap each animal's processing in error handling to prevent one bad animal from stopping the entire AI system
@@ -1000,7 +1002,7 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                         target_player.position_x, target_player.position_y, &shelter
                                     ) {
                                         actual_shelter_check = true;
-                                        log::info!("👹 [SHELTER DEBUG] Player {} IS inside Shelter {} (pos {:.1},{:.1}) - AABB center at ({:.1},{:.1})", 
+                                        log::debug!("👹 [SHELTER DEBUG] Player {} IS inside Shelter {} (pos {:.1},{:.1}) - AABB center at ({:.1},{:.1})", 
                                             target_id, shelter.id, 
                                             target_player.position_x, target_player.position_y,
                                             shelter.pos_x, shelter.pos_y - crate::shelter::SHELTER_AABB_CENTER_Y_OFFSET_FROM_POS_Y);
@@ -1008,7 +1010,7 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                     }
                                 }
                                 
-                                log::info!("👹 [HostileNPC DEBUG] {:?} {} at ({:.1},{:.1}) in Chasing state - player.is_inside_building={}, actual_shelter_check={}, species_can_attack={}", 
+                                log::debug!("👹 [HostileNPC DEBUG] {:?} {} at ({:.1},{:.1}) in Chasing state - player.is_inside_building={}, actual_shelter_check={}, species_can_attack={}", 
                                     animal.species, animal.id, animal.pos_x, animal.pos_y,
                                     target_player.is_inside_building,
                                     actual_shelter_check,
@@ -1027,7 +1029,7 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                 if let Some((ward_id, ward_type, dist_sq)) = crate::wild_animal_npc::hostile_spawning::find_nearest_active_ward(
                                     ctx, animal.pos_x, animal.pos_y, WARD_HUNT_RANGE
                                 ) {
-                                    log::info!("👹 [DrownedWatch] {} detected ward {} at {:.1}px - switching to destroy mode!", 
+                                    log::debug!("👹 [DrownedWatch] {} detected ward {} at {:.1}px - switching to destroy mode!", 
                                               animal.id, ward_id, dist_sq.sqrt());
                                     animal.target_structure_id = Some(ward_id);
                                     animal.target_structure_type = Some(ward_type.clone());
@@ -1071,11 +1073,11 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                         )
                                     };
                                     
-                                    log::info!("👹 [HostileNPC DEBUG] {:?} {} searching for structures within {}px - found: {:?}", 
+                                    log::debug!("👹 [HostileNPC DEBUG] {:?} {} searching for structures within {}px - found: {:?}", 
                                         animal.species, animal.id, STRUCTURE_SEARCH_RANGE, structure_result.is_some());
                                     
                                     if let Some((struct_id, struct_type, dist_sq)) = structure_result {
-                                        log::info!("👹 [HostileNPC] {:?} {} found structure to attack: {} #{} at dist {:.1}px (player {} is inside building)", 
+                                        log::debug!("👹 [HostileNPC] {:?} {} found structure to attack: {} #{} at dist {:.1}px (player {} is inside building)", 
                                             animal.species, animal.id, struct_type, struct_id, dist_sq.sqrt(), target_id);
                                         // Switch to attacking structure
                                         animal.target_structure_id = Some(struct_id);
@@ -1083,7 +1085,7 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                                         transition_to_state(&mut animal, AnimalState::AttackingStructure, current_time, Some(target_id), &format!("attacking {} #{}", struct_type, struct_id));
                                     }
                                 } else {
-                                    log::info!("👹 [HostileNPC DEBUG] {:?} {} CANNOT attack structures (not a structure-attacking species)", 
+                                    log::debug!("👹 [HostileNPC DEBUG] {:?} {} CANNOT attack structures (not a structure-attacking species)", 
                                         animal.species, animal.id);
                                 }
                             }
@@ -1886,6 +1888,43 @@ fn execute_animal_movement(
             }
         },
         
+        // ============================================================
+        // AQUATIC STATES - Sharks patrol/chase in water, Jellyfish drift
+        // ============================================================
+        
+        AnimalState::Swimming => {
+            // Salmon Shark patrolling in water - delegate to species patrol logic
+            behavior.execute_patrol_logic(ctx, animal, stats, dt, rng);
+        },
+        
+        AnimalState::SwimmingChase => {
+            // Salmon Shark chasing prey in water - move toward target
+            is_sprinting = true;
+            if let Some(target_id) = animal.target_player_id {
+                if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
+                    let distance_sq = get_distance_squared(
+                        animal.pos_x, animal.pos_y,
+                        target_player.position_x, target_player.position_y
+                    );
+                    let distance = distance_sq.sqrt();
+                    enforce_minimum_player_distance(animal, &target_player, stats);
+                    let new_distance_sq = get_distance_squared(
+                        animal.pos_x, animal.pos_y,
+                        target_player.position_x, target_player.position_y
+                    );
+                    let new_distance = new_distance_sq.sqrt();
+                    if new_distance > stats.attack_range * 0.9 {
+                        move_towards_target(ctx, animal, target_player.position_x, target_player.position_y, stats.sprint_speed, dt);
+                    }
+                }
+            }
+        },
+        
+        AnimalState::Drifting => {
+            // Jellyfish passive drifting - delegate to species patrol logic
+            behavior.execute_patrol_logic(ctx, animal, stats, dt, rng);
+        },
+        
         AnimalState::AttackingStructure => {
             // Hostile NPCs attacking structures - MOVE TOWARD the structure!
             if let (Some(struct_id), Some(ref struct_type)) = (animal.target_structure_id, animal.target_structure_type.clone()) {
@@ -2092,6 +2131,36 @@ fn find_nearby_players_prefetched(all_players: &[Player], animal: &WildAnimal, s
         })
         .cloned()
         .collect()
+}
+
+/// CHUNK-BASED OPTIMIZATION: Collect only animals in chunks near players
+/// Uses chunk_index B-tree index to avoid full table scan when world has many animals
+fn collect_animals_in_active_chunks(ctx: &ReducerContext, all_players: &[Player]) -> Vec<WildAnimal> {
+    if all_players.is_empty() {
+        return Vec::new();
+    }
+    // Chunks within this radius of each player are "active" (ANIMAL_ACTIVE_ZONE_RADIUS + buffer for fleeing)
+    let chunks_in_radius = (ANIMAL_ACTIVE_ZONE_RADIUS / CHUNK_SIZE_PX).ceil() as i32 + 1;
+    let mut active_chunks: HashSet<u32> = HashSet::new();
+    for player in all_players {
+        let center_chunk = calculate_chunk_index(player.position_x, player.position_y);
+        let center_x = (center_chunk % WORLD_WIDTH_CHUNKS) as i32;
+        let center_y = (center_chunk / WORLD_WIDTH_CHUNKS) as i32;
+        for dy in -chunks_in_radius..=chunks_in_radius {
+            for dx in -chunks_in_radius..=chunks_in_radius {
+                let cx = (center_x + dx).clamp(0, WORLD_WIDTH_CHUNKS as i32 - 1);
+                let cy = (center_y + dy).clamp(0, WORLD_HEIGHT_CHUNKS as i32 - 1);
+                active_chunks.insert((cy as u32) * WORLD_WIDTH_CHUNKS + (cx as u32));
+            }
+        }
+    }
+    let mut animals: Vec<WildAnimal> = Vec::new();
+    for chunk_idx in active_chunks {
+        for animal in ctx.db.wild_animal().chunk_index().filter(chunk_idx) {
+            animals.push(animal);
+        }
+    }
+    animals
 }
 
 /// VIEWPORT CULLING: Check if ANY player is within the active processing zone

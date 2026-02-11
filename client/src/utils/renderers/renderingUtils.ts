@@ -694,9 +694,9 @@ export const renderYSortedEntities = ({
       
       // === UNDERWATER SNORKELING MODE ===
       // When snorkeling, hide most land-based entities - player is underwater
-      // But allow underwater entities: players, living coral, submerged fumaroles, seaweed, and dropped items
+      // But allow underwater entities: players, living coral, submerged fumaroles, seaweed, fish, sharks, jellyfish, and dropped items
       if (isLocalPlayerSnorkeling) {
-        // Allow: players, living coral (always underwater), submerged fumaroles, SeaweedBed resources, dropped items, and projectiles
+        // Allow: players, living coral (always underwater), submerged fumaroles, SeaweedBed resources, dropped items, projectiles, and wild animals (sharks, jellyfish swim in water with you)
         const isSeaweedBed = type === 'harvestable_resource' && 
           (entity as SpacetimeDBHarvestableResource).plantType?.tag === 'SeaweedBed';
         
@@ -709,6 +709,7 @@ export const renderYSortedEntities = ({
           type === 'living_coral' || 
           type === 'dropped_item' || // Dropped items should be visible underwater (thrown harpoons, etc.)
           type === 'projectile' || // Projectiles should be visible underwater (thrown harpoons in flight, etc.)
+          type === 'wild_animal' || // Sharks and jellyfish swim in water - must be visible when snorkeling. Land animals on shore may also be in view.
           isSeaweedBed ||
           isPlantedSeaweed || // Planted seaweed fronds visible underwater
           (type === 'fumarole' && (entity as SpacetimeDBFumarole).isSubmerged);

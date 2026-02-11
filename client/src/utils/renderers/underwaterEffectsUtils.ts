@@ -7,6 +7,10 @@
  * - Vignette effect for depth perception
  */
 
+// === UNDERWATER TINT (shared across all underwater entities) ===
+// Used for sharks, jellyfish, players, corals, projectiles when viewed from underwater
+export const UNDERWATER_TINT_FILTER = 'sepia(20%) hue-rotate(140deg) saturate(120%)';
+
 // === BUBBLE PARTICLE SYSTEM ===
 interface Bubble {
   x: number;
