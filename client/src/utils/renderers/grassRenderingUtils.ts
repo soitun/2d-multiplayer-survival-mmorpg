@@ -78,7 +78,8 @@ const MAX_GRASS_PER_LOD = {
 // =============================================================================
 // PERFORMANCE FLAGS - Toggle for testing
 // =============================================================================
-const DISABLE_CLIENT_DISTURBANCE_EFFECTS = true;
+// Enabling disturbance allows grass to shake when drone passes over (and player walks)
+const DISABLE_CLIENT_DISTURBANCE_EFFECTS = false;
 const ENABLE_AGGRESSIVE_CULLING = true;
 const ENABLE_GRASS_PERF_LOGGING = false;
 

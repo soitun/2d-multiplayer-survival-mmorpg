@@ -113,6 +113,8 @@ import { DebugSetTime } from "./debug_set_time_reducer.ts";
 export { DebugSetTime };
 import { DebugSetWeather } from "./debug_set_weather_reducer.ts";
 export { DebugSetWeather };
+import { DebugSimulateDrone } from "./debug_simulate_drone_reducer.ts";
+export { DebugSimulateDrone };
 import { DebugSpawnAnimal } from "./debug_spawn_animal_reducer.ts";
 export { DebugSpawnAnimal };
 import { DebugSpawnItem } from "./debug_spawn_item_reducer.ts";
@@ -449,6 +451,10 @@ import { ProcessCorpseDespawn } from "./process_corpse_despawn_reducer.ts";
 export { ProcessCorpseDespawn };
 import { ProcessDawnCleanup } from "./process_dawn_cleanup_reducer.ts";
 export { ProcessDawnCleanup };
+import { ProcessDroneDaily } from "./process_drone_daily_reducer.ts";
+export { ProcessDroneDaily };
+import { ProcessDroneFlightTick } from "./process_drone_flight_tick_reducer.ts";
+export { ProcessDroneFlightTick };
 import { ProcessFirePatchDamage } from "./process_fire_patch_damage_reducer.ts";
 export { ProcessFirePatchDamage };
 import { ProcessFishTrapConversion } from "./process_fish_trap_conversion_reducer.ts";
@@ -917,6 +923,12 @@ import { DodgeRollCleanupScheduleTableHandle } from "./dodge_roll_cleanup_schedu
 export { DodgeRollCleanupScheduleTableHandle };
 import { DoorTableHandle } from "./door_table.ts";
 export { DoorTableHandle };
+import { DroneDailyScheduleTableHandle } from "./drone_daily_schedule_table.ts";
+export { DroneDailyScheduleTableHandle };
+import { DroneEventTableHandle } from "./drone_event_table.ts";
+export { DroneEventTableHandle };
+import { DroneFlightScheduleTableHandle } from "./drone_flight_schedule_table.ts";
+export { DroneFlightScheduleTableHandle };
 import { DroppedItemTableHandle } from "./dropped_item_table.ts";
 export { DroppedItemTableHandle };
 import { DroppedItemDespawnScheduleTableHandle } from "./dropped_item_despawn_schedule_table.ts";
@@ -1309,6 +1321,12 @@ import { DodgeRollCleanupSchedule } from "./dodge_roll_cleanup_schedule_type.ts"
 export { DodgeRollCleanupSchedule };
 import { Door } from "./door_type.ts";
 export { Door };
+import { DroneDailySchedule } from "./drone_daily_schedule_type.ts";
+export { DroneDailySchedule };
+import { DroneEvent } from "./drone_event_type.ts";
+export { DroneEvent };
+import { DroneFlightSchedule } from "./drone_flight_schedule_type.ts";
+export { DroneFlightSchedule };
 import { DroppedItem } from "./dropped_item_type.ts";
 export { DroppedItem };
 import { DroppedItemDespawnSchedule } from "./dropped_item_despawn_schedule_type.ts";
@@ -2081,6 +2099,33 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (Door.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    drone_daily_schedule: {
+      tableName: "drone_daily_schedule" as const,
+      rowType: DroneDailySchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "scheduleId",
+      primaryKeyInfo: {
+        colName: "scheduleId",
+        colType: (DroneDailySchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    drone_event: {
+      tableName: "drone_event" as const,
+      rowType: DroneEvent.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (DroneEvent.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    drone_flight_schedule: {
+      tableName: "drone_flight_schedule" as const,
+      rowType: DroneFlightSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "scheduleId",
+      primaryKeyInfo: {
+        colName: "scheduleId",
+        colType: (DroneFlightSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     dropped_item: {
@@ -3383,6 +3428,10 @@ const REMOTE_MODULE = {
       reducerName: "debug_set_weather",
       argsType: DebugSetWeather.getTypeScriptAlgebraicType(),
     },
+    debug_simulate_drone: {
+      reducerName: "debug_simulate_drone",
+      argsType: DebugSimulateDrone.getTypeScriptAlgebraicType(),
+    },
     debug_spawn_animal: {
       reducerName: "debug_spawn_animal",
       argsType: DebugSpawnAnimal.getTypeScriptAlgebraicType(),
@@ -4054,6 +4103,14 @@ const REMOTE_MODULE = {
     process_dawn_cleanup: {
       reducerName: "process_dawn_cleanup",
       argsType: ProcessDawnCleanup.getTypeScriptAlgebraicType(),
+    },
+    process_drone_daily: {
+      reducerName: "process_drone_daily",
+      argsType: ProcessDroneDaily.getTypeScriptAlgebraicType(),
+    },
+    process_drone_flight_tick: {
+      reducerName: "process_drone_flight_tick",
+      argsType: ProcessDroneFlightTick.getTypeScriptAlgebraicType(),
     },
     process_fire_patch_damage: {
       reducerName: "process_fire_patch_damage",
@@ -4862,6 +4919,7 @@ export type Reducer = never
 | { name: "DebugSetSeason", args: DebugSetSeason }
 | { name: "DebugSetTime", args: DebugSetTime }
 | { name: "DebugSetWeather", args: DebugSetWeather }
+| { name: "DebugSimulateDrone", args: DebugSimulateDrone }
 | { name: "DebugSpawnAnimal", args: DebugSpawnAnimal }
 | { name: "DebugSpawnItem", args: DebugSpawnItem }
 | { name: "DebugUpdateCloudIntensity", args: DebugUpdateCloudIntensity }
@@ -5030,6 +5088,8 @@ export type Reducer = never
 | { name: "ProcessCompostConversion", args: ProcessCompostConversion }
 | { name: "ProcessCorpseDespawn", args: ProcessCorpseDespawn }
 | { name: "ProcessDawnCleanup", args: ProcessDawnCleanup }
+| { name: "ProcessDroneDaily", args: ProcessDroneDaily }
+| { name: "ProcessDroneFlightTick", args: ProcessDroneFlightTick }
 | { name: "ProcessFirePatchDamage", args: ProcessFirePatchDamage }
 | { name: "ProcessFishTrapConversion", args: ProcessFishTrapConversion }
 | { name: "ProcessFoodSpoilage", args: ProcessFoodSpoilage }
@@ -5849,6 +5909,18 @@ export class RemoteReducers {
 
   removeOnDebugSetWeather(callback: (ctx: ReducerEventContext, weatherTypeStr: string) => void) {
     this.connection.offReducer("debug_set_weather", callback);
+  }
+
+  debugSimulateDrone() {
+    this.connection.callReducer("debug_simulate_drone", new Uint8Array(0), this.setCallReducerFlags.debugSimulateDroneFlags);
+  }
+
+  onDebugSimulateDrone(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.onReducer("debug_simulate_drone", callback);
+  }
+
+  removeOnDebugSimulateDrone(callback: (ctx: ReducerEventContext) => void) {
+    this.connection.offReducer("debug_simulate_drone", callback);
   }
 
   debugSpawnAnimal(speciesStr: string) {
@@ -8437,6 +8509,38 @@ export class RemoteReducers {
 
   removeOnProcessDawnCleanup(callback: (ctx: ReducerEventContext, args: HostileDawnCleanupSchedule) => void) {
     this.connection.offReducer("process_dawn_cleanup", callback);
+  }
+
+  processDroneDaily(schedule: DroneDailySchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    ProcessDroneDaily.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_drone_daily", __argsBuffer, this.setCallReducerFlags.processDroneDailyFlags);
+  }
+
+  onProcessDroneDaily(callback: (ctx: ReducerEventContext, schedule: DroneDailySchedule) => void) {
+    this.connection.onReducer("process_drone_daily", callback);
+  }
+
+  removeOnProcessDroneDaily(callback: (ctx: ReducerEventContext, schedule: DroneDailySchedule) => void) {
+    this.connection.offReducer("process_drone_daily", callback);
+  }
+
+  processDroneFlightTick(schedule: DroneFlightSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    ProcessDroneFlightTick.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_drone_flight_tick", __argsBuffer, this.setCallReducerFlags.processDroneFlightTickFlags);
+  }
+
+  onProcessDroneFlightTick(callback: (ctx: ReducerEventContext, schedule: DroneFlightSchedule) => void) {
+    this.connection.onReducer("process_drone_flight_tick", callback);
+  }
+
+  removeOnProcessDroneFlightTick(callback: (ctx: ReducerEventContext, schedule: DroneFlightSchedule) => void) {
+    this.connection.offReducer("process_drone_flight_tick", callback);
   }
 
   processFirePatchDamage(args: FirePatchDamageSchedule) {
@@ -11503,6 +11607,11 @@ export class SetReducerFlags {
     this.debugSetWeatherFlags = flags;
   }
 
+  debugSimulateDroneFlags: __CallReducerFlags = 'FullUpdate';
+  debugSimulateDrone(flags: __CallReducerFlags) {
+    this.debugSimulateDroneFlags = flags;
+  }
+
   debugSpawnAnimalFlags: __CallReducerFlags = 'FullUpdate';
   debugSpawnAnimal(flags: __CallReducerFlags) {
     this.debugSpawnAnimalFlags = flags;
@@ -12331,6 +12440,16 @@ export class SetReducerFlags {
   processDawnCleanupFlags: __CallReducerFlags = 'FullUpdate';
   processDawnCleanup(flags: __CallReducerFlags) {
     this.processDawnCleanupFlags = flags;
+  }
+
+  processDroneDailyFlags: __CallReducerFlags = 'FullUpdate';
+  processDroneDaily(flags: __CallReducerFlags) {
+    this.processDroneDailyFlags = flags;
+  }
+
+  processDroneFlightTickFlags: __CallReducerFlags = 'FullUpdate';
+  processDroneFlightTick(flags: __CallReducerFlags) {
+    this.processDroneFlightTickFlags = flags;
   }
 
   processFirePatchDamageFlags: __CallReducerFlags = 'FullUpdate';
@@ -13501,6 +13620,21 @@ export class RemoteTables {
   get door(): DoorTableHandle<'door'> {
     // clientCache is a private property
     return new DoorTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Door>(REMOTE_MODULE.tables.door));
+  }
+
+  get droneDailySchedule(): DroneDailyScheduleTableHandle<'drone_daily_schedule'> {
+    // clientCache is a private property
+    return new DroneDailyScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<DroneDailySchedule>(REMOTE_MODULE.tables.drone_daily_schedule));
+  }
+
+  get droneEvent(): DroneEventTableHandle<'drone_event'> {
+    // clientCache is a private property
+    return new DroneEventTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<DroneEvent>(REMOTE_MODULE.tables.drone_event));
+  }
+
+  get droneFlightSchedule(): DroneFlightScheduleTableHandle<'drone_flight_schedule'> {
+    // clientCache is a private property
+    return new DroneFlightScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<DroneFlightSchedule>(REMOTE_MODULE.tables.drone_flight_schedule));
   }
 
   get droppedItem(): DroppedItemTableHandle<'dropped_item'> {

@@ -177,7 +177,7 @@ function AppContent() {
 
     // --- Pass viewport state to useSpacetimeTables ---
     const { 
-      players, trees, clouds, stones, runeStones, cairns, playerDiscoveredCairns, campfires, furnaces, barbecues, lanterns, turrets, // ADDED: furnaces, barbecues, runeStones, cairns, turrets
+      players, trees, clouds, droneEvents, stones, runeStones, cairns, playerDiscoveredCairns, campfires, furnaces, barbecues, lanterns, turrets, // ADDED: furnaces, barbecues, runeStones, cairns, turrets, droneEvents
       harvestableResources,
       itemDefinitions, 
       inventoryItems, worldState, activeEquipments, droppedItems, 
@@ -1093,6 +1093,7 @@ function AppContent() {
                             players={players}
                             trees={trees}
                             clouds={clouds}
+                            droneEvents={droneEvents}
                             stones={stones}
                             runeStones={runeStones}
                             cairns={cairns}

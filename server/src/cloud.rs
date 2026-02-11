@@ -1,7 +1,7 @@
 use spacetimedb::{SpacetimeType, Identity, Timestamp, table, reducer, ReducerContext, Table, log, TimeDuration, ScheduleAt};
 use rand::Rng;
 use std::time::Duration;
-use crate::environment;
+use crate::environment::{self, calculate_chunk_index};
 use crate::world_state::{world_state as WorldStateTableTrait, WeatherType};
 use crate::player as PlayerTableTrait;
 
@@ -48,6 +48,7 @@ pub struct Cloud {
     pub evolution_phase: f32,  // 0.0 to 1.0 - current evolution phase
     pub evolution_speed: f32,  // How fast this cloud evolves (per hour)
     pub last_intensity_update: spacetimedb::Timestamp, // Last time intensity was updated
+    pub spawned_during_storm: bool, // True if spawned during HeavyStorm; cleaned up when storm ends
 }
 
 // --- Scheduled Reducer for Cloud Movement ---
@@ -164,6 +165,15 @@ pub fn debug_update_cloud_intensity(ctx: &ReducerContext) -> Result<(), String> 
 // PERFORMANCE: Increased from 30s to 120s - cloud intensity changes are subtle cosmetic effects
 const CLOUD_INTENSITY_UPDATE_INTERVAL_SECS: u64 = 120;
 
+// Storm cloud spawning - adds eerie atmosphere during HeavyStorm
+const STORM_CLOUD_SPAWN_CHANCE: f32 = 0.7; // 70% chance per intensity update when storm is active
+const STORM_CLOUD_MIN_COUNT: u32 = 1;
+const STORM_CLOUD_MAX_COUNT: u32 = 3;
+const STORM_CLOUD_BASE_DRIFT_X: f32 = 5.0; // Slightly faster during storms
+const STORM_CLOUD_BASE_DRIFT_Y: f32 = 1.5;
+const STORM_CLOUD_DRIFT_VARIATION: f32 = 1.5;
+const STORM_CLOUD_MAX_TOTAL: u32 = 100; // Cap total clouds to prevent unbounded growth
+
 // --- Dynamic Cloud Intensity System ---
 
 /// Get weather-based cloud intensity multiplier
@@ -187,6 +197,120 @@ fn get_cloud_type_characteristics(cloud_type: &CloudType) -> (f32, f32, f32) {
         CloudType::Nimbus => (1.2, 1.5, 1.8),   // Very dense, fast evolution, very weather-sensitive
         CloudType::Cirrus => (0.2, 0.3, 0.4),   // Very light, very slow evolution, minimal weather sensitivity
     }
+}
+
+/// Chunk index to world position bounds (center of chunk in pixels)
+fn chunk_index_to_world_bounds(chunk_index: u32) -> (f32, f32, f32, f32) {
+    let chunk_x = (chunk_index % environment::WORLD_WIDTH_CHUNKS) as f32;
+    let chunk_y = (chunk_index / environment::WORLD_WIDTH_CHUNKS) as f32;
+    let min_x = chunk_x * environment::CHUNK_SIZE_PX;
+    let min_y = chunk_y * environment::CHUNK_SIZE_PX;
+    let max_x = min_x + environment::CHUNK_SIZE_PX;
+    let max_y = min_y + environment::CHUNK_SIZE_PX;
+    (min_x, min_y, max_x, max_y)
+}
+
+/// Spawn additional Nimbus clouds during HeavyStorm for an eerie atmosphere.
+/// Spawns near storm chunks for realism. Cleans up when storm ends. Respects cloud cap.
+fn spawn_storm_clouds_during_heavy_storm(ctx: &ReducerContext) {
+    use crate::world_state::chunk_weather as ChunkWeatherTableTrait;
+
+    // Collect storm chunk indices and check if any HeavyStorm exists
+    let storm_chunks: Vec<u32> = ctx.db.chunk_weather()
+        .iter()
+        .filter(|cw| matches!(cw.current_weather, WeatherType::HeavyStorm))
+        .map(|cw| cw.chunk_index)
+        .collect();
+
+    let has_heavy_storm = !storm_chunks.is_empty();
+
+    if !has_heavy_storm {
+        // Cleanup: remove storm clouds when no HeavyStorm - satisfying "storm passed" moment
+        let to_delete: Vec<u64> = ctx.db.cloud().iter()
+            .filter(|c| c.spawned_during_storm)
+            .map(|c| c.id)
+            .collect();
+        let deleted_count = to_delete.len();
+        for id in to_delete {
+            ctx.db.cloud().id().delete(id);
+        }
+        if deleted_count > 0 {
+            log::info!("Cleaned up {} storm clouds (storm ended)", deleted_count);
+        }
+        return;
+    }
+
+    let mut rng = ctx.rng();
+    if rng.gen::<f32>() > STORM_CLOUD_SPAWN_CHANCE {
+        return;
+    }
+
+    // Cloud cap: prevent unbounded growth
+    let cloud_count = ctx.db.cloud().iter().count() as u32;
+    if cloud_count >= STORM_CLOUD_MAX_TOTAL {
+        log::debug!("Storm cloud spawn skipped: at cap ({})", cloud_count);
+        return;
+    }
+
+    let count = rng.gen_range(STORM_CLOUD_MIN_COUNT..=STORM_CLOUD_MAX_COUNT);
+    let world_width_px = crate::WORLD_WIDTH_PX;
+    let world_height_px = crate::WORLD_HEIGHT_PX;
+
+    for _ in 0..count {
+        // Spawn near storm chunks for realism (clouds form over the storm front)
+        let (pos_x, pos_y) = if let Some(&chunk_idx) = storm_chunks.get(rng.gen_range(0..storm_chunks.len())) {
+            let (min_x, min_y, max_x, max_y) = chunk_index_to_world_bounds(chunk_idx);
+            (
+                rng.gen_range(min_x..max_x),
+                rng.gen_range(min_y..max_y),
+            )
+        } else {
+            (rng.gen_range(0.0..world_width_px), rng.gen_range(0.0..world_height_px))
+        };
+
+        let chunk_idx = calculate_chunk_index(pos_x, pos_y);
+
+        let shape = match rng.gen_range(0..5) {
+            0 => CloudShapeType::CloudImage1,
+            1 => CloudShapeType::CloudImage2,
+            2 => CloudShapeType::CloudImage3,
+            3 => CloudShapeType::CloudImage4,
+            _ => CloudShapeType::CloudImage5,
+        };
+
+        // Storm clouds: larger, denser, more dramatic
+        let base_width = rng.gen_range(300.0..550.0);
+        let width = base_width * rng.gen_range(0.9..1.2);
+        let height = base_width * rng.gen_range(0.6..1.0);
+        let base_opacity = rng.gen_range(0.14..0.28); // Darker than normal clouds
+
+        let new_cloud = Cloud {
+            id: 0,
+            pos_x,
+            pos_y,
+            chunk_index: chunk_idx,
+            shape,
+            width,
+            height,
+            rotation_degrees: rng.gen_range(0.0..360.0),
+            base_opacity,
+            current_opacity: base_opacity,
+            blur_strength: rng.gen_range(15.0..35.0),
+            drift_speed_x: STORM_CLOUD_BASE_DRIFT_X + rng.gen_range(-STORM_CLOUD_DRIFT_VARIATION..STORM_CLOUD_DRIFT_VARIATION),
+            drift_speed_y: STORM_CLOUD_BASE_DRIFT_Y + rng.gen_range(-STORM_CLOUD_DRIFT_VARIATION..STORM_CLOUD_DRIFT_VARIATION),
+            cloud_type: CloudType::Nimbus,
+            evolution_phase: rng.gen_range(0.0..1.0),
+            evolution_speed: rng.gen_range(0.15..0.35),
+            last_intensity_update: ctx.timestamp,
+            spawned_during_storm: true,
+        };
+
+        if let Err(e) = ctx.db.cloud().try_insert(new_cloud) {
+            log::debug!("Storm cloud spawn failed: {}", e);
+        }
+    }
+
+    log::info!("Spawned {} storm clouds during HeavyStorm (eerie atmosphere)", count);
 }
 
 /// Calculate current cloud opacity based on all factors
@@ -287,6 +411,9 @@ pub fn update_cloud_intensities(ctx: &ReducerContext, _schedule_args: CloudInten
     if clouds_updated > 0 {
         log::info!("Updated intensity for {} clouds (weather: {:?})", clouds_updated, current_weather);
     }
+
+    // Spawn additional storm clouds during HeavyStorm for an eerie atmosphere
+    spawn_storm_clouds_during_heavy_storm(ctx);
     
     Ok(())
 }

@@ -1,6 +1,7 @@
 import { gameConfig } from '../config/gameConfig';
 import { calculateChunkIndex } from '../utils/chunkUtils';
-import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather, AlkStation as SpacetimeDBAlkStation, LivingCoral as SpacetimeDBLivingCoral, BeaconDropEvent as SpacetimeDBBeaconDropEvent } from '../generated';
+import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather, AlkStation as SpacetimeDBAlkStation, LivingCoral as SpacetimeDBLivingCoral, BeaconDropEvent as SpacetimeDBBeaconDropEvent, DroneEvent as SpacetimeDBDroneEvent } from '../generated';
+import { computeDronePosition } from '../utils/renderers/droneRenderingUtils';
 import { useRef, useCallback } from 'react';
 
 // --- Calculate Proportional Dimensions ---
@@ -94,6 +95,12 @@ const WEATHER_STATION_COLOR = '#87CEEB'; // Sky blue for weather equipment
 const WEATHER_STATION_GLOW_COLOR = '#4169E1'; // Royal blue glow (scientific/cold)
 
 // NOTE: Wolf Den removed from minimap - minor monument (wolf spawn point)
+
+// Drone flyover constants - EERIE SKY DRONE (periodic flyover)
+const DRONE_ICON_SIZE = 14; // Small plane/drone icon
+const DRONE_ICON_COLOR = '#8080A0'; // Muted gray-purple (eerie, distant)
+const DRONE_ICON_GLOW_COLOR = '#A0A0C0'; // Soft glow
+const DRONE_ICON_OUTLINE_COLOR = '#000000';
 
 // Memory Beacon Event constants - SERVER EVENT MARKERS (airdrop-style)
 const BEACON_EVENT_ICON_SIZE = 24; // Large for high visibility as major event
@@ -254,6 +261,8 @@ interface MinimapProps {
   matronages?: Map<string, any>; // Matronage organizations
   // Memory Beacon server events (airdrop-style)
   beaconDropEvents?: Map<string, SpacetimeDBBeaconDropEvent>; // Active beacon drop events
+  // Drone flyover events (periodic sky drone - globally subscribed)
+  droneEvents?: Map<string, SpacetimeDBDroneEvent>;
 }
 
 // Bright, clear terrain colors for easy readability
@@ -635,6 +644,8 @@ export function drawMinimapOntoCanvas({
   matronages, // Matronage organizations
   // Destructure beacon drop event props
   beaconDropEvents, // Active beacon drop events
+  // Destructure drone flyover events
+  droneEvents, // Periodic sky drone (globally subscribed)
 }: MinimapProps) {
   // On mobile (smaller canvas), use full canvas dimensions; on desktop, use fixed dimensions
   const isMobile = canvasWidth <= 768 || canvasHeight <= 768;
@@ -1617,6 +1628,50 @@ export function drawMinimapOntoCanvas({
         ctx.fillStyle = quarryColor;
         ctx.fillText(quarryLabel, x, y);
         
+        ctx.restore();
+      }
+    });
+  }
+
+  // --- Draw Drone Flyover Events (PERIODIC SKY DRONE - MOVING ICON) ---
+  // Drone flies across the island; position interpolated from start/end and time
+  if (droneEvents && droneEvents.size > 0) {
+    const nowMs = Date.now();
+    droneEvents.forEach((drone: SpacetimeDBDroneEvent) => {
+      const pos = computeDronePosition(drone, nowMs);
+      if (!pos) return;
+
+      const screenCoords = worldToMinimap(pos.x, pos.y);
+      if (screenCoords) {
+        const iconSize = DRONE_ICON_SIZE;
+        const halfSize = iconSize / 2;
+        const x = screenCoords.x;
+        const y = screenCoords.y;
+
+        // Rotation: drone faces direction of travel
+        const dx = drone.endX - drone.startX;
+        const dy = drone.endY - drone.startY;
+        const angleRad = Math.atan2(dy, dx);
+
+        ctx.save();
+
+        ctx.translate(x, y);
+        ctx.rotate(angleRad);
+
+        // Draw outline
+        ctx.strokeStyle = DRONE_ICON_OUTLINE_COLOR;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-halfSize, -halfSize * 0.5);
+        ctx.lineTo(halfSize, 0);
+        ctx.lineTo(-halfSize, halfSize * 0.5);
+        ctx.closePath();
+        ctx.stroke();
+
+        // Fill with drone color
+        ctx.fillStyle = DRONE_ICON_COLOR;
+        ctx.fill();
+
         ctx.restore();
       }
     });

@@ -264,6 +264,7 @@ export const useSpacetimeTables = ({
     const [hotSprings, setHotSprings] = useState<Map<string, any>>(() => new Map()); // HotSpring - placeholder (hot springs are tile-based, not entities)
     const [activeConsumableEffects, setActiveConsumableEffects] = useState<Map<string, SpacetimeDB.ActiveConsumableEffect>>(() => new Map());
     const [clouds, setClouds] = useState<Map<string, SpacetimeDB.Cloud>>(() => new Map());
+    const [droneEvents, setDroneEvents] = useState<Map<string, SpacetimeDB.DroneEvent>>(() => new Map());
     const [grass, setGrass] = useState<Map<string, SpacetimeDB.Grass>>(() => new Map()); // Split tables: static geometry
     const [grassState, setGrassState] = useState<Map<string, SpacetimeDB.GrassState>>(() => new Map()); // Split tables: dynamic state (is_alive, respawn)
     const [knockedOutStatus, setKnockedOutStatus] = useState<Map<string, SpacetimeDB.KnockedOutStatus>>(() => new Map());
@@ -1369,6 +1370,12 @@ export const useSpacetimeTables = ({
             const handleBeaconDropEventDelete = (ctx: any, event: SpacetimeDB.BeaconDropEvent) => {
                 setBeaconDropEvents(prev => { const newMap = new Map(prev); newMap.delete(event.id.toString()); return newMap; });
             };
+            const handleDroneEventInsert = (ctx: any, event: SpacetimeDB.DroneEvent) => {
+                setDroneEvents(prev => new Map(prev).set(event.id.toString(), event));
+            };
+            const handleDroneEventDelete = (ctx: any, event: SpacetimeDB.DroneEvent) => {
+                setDroneEvents(prev => { const newMap = new Map(prev); newMap.delete(event.id.toString()); return newMap; });
+            };
 
             // --- Player Pin Subscriptions ---
             const handlePlayerPinInsert = (ctx: any, pin: SpacetimeDB.PlayerPin) => setPlayerPins(prev => new Map(prev).set(pin.playerId.toHexString(), pin));
@@ -2308,6 +2315,7 @@ export const useSpacetimeTables = ({
             connection.db.sovaQuestMessage.onInsert(handleSovaQuestMessageInsert); connection.db.sovaQuestMessage.onDelete(handleSovaQuestMessageDelete);
             // Beacon drop event subscriptions (server events for minimap markers)
             connection.db.beaconDropEvent.onInsert(handleBeaconDropEventInsert); connection.db.beaconDropEvent.onUpdate(handleBeaconDropEventUpdate); connection.db.beaconDropEvent.onDelete(handleBeaconDropEventDelete);
+            connection.db.droneEvent.onInsert(handleDroneEventInsert); connection.db.droneEvent.onDelete(handleDroneEventDelete);
             connection.db.playerPin.onInsert(handlePlayerPinInsert); connection.db.playerPin.onUpdate(handlePlayerPinUpdate); connection.db.playerPin.onDelete(handlePlayerPinDelete);
             connection.db.activeConnection.onInsert(handleActiveConnectionInsert);
             connection.db.activeConnection.onDelete(handleActiveConnectionDelete);
@@ -2816,6 +2824,10 @@ export const useSpacetimeTables = ({
                 connection.subscriptionBuilder()
                     .onError((err) => console.error("[BEACON_DROP_EVENT Sub Error]:", err))
                     .subscribe('SELECT * FROM beacon_drop_event'),
+                // Drone flyover events (eerie shadow across island)
+                connection.subscriptionBuilder()
+                    .onError((err) => console.error("[DRONE_EVENT Sub Error]:", err))
+                    .subscribe('SELECT * FROM drone_event'),
             ];
             // console.log("[useSpacetimeTables] currentInitialSubs content:", currentInitialSubs); // ADDED LOG
             nonSpatialHandlesRef.current = currentInitialSubs;
@@ -3191,6 +3203,7 @@ export const useSpacetimeTables = ({
         hotSprings,
         activeConsumableEffects,
         clouds,
+        droneEvents,
         grass,
         grassState, // Split tables: dynamic state (is_alive, respawn)
         knockedOutStatus,

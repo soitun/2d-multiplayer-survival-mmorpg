@@ -170,6 +170,7 @@ mod cooking_station; // <<< ADDED: Cooking station for advanced food recipes
 mod player_progression; // <<< ADDED: Player progression system (XP, achievements, leaderboards)
 mod quests; // <<< ADDED: Quest system (tutorial + daily quests)
 mod beacon_event; // <<< ADDED: Memory Beacon server event system (airdrop-style)
+mod drone; // <<< ADDED: Periodic drone flyover event (eerie shadow across island)
 mod military_ration; // <<< ADDED: Military ration loot crate system
 mod mine_cart; // <<< ADDED: Mine cart loot crate system (quarry-only spawns)
 mod wild_beehive; // <<< ADDED: Wild beehive loot system (forest-only spawns)
@@ -810,6 +811,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     
     // ADD: Initialize sound event cleanup system
     crate::sound_events::init_sound_cleanup_system(ctx)?;
+
+    // ADD: Initialize drone daily flyover system
+    crate::drone::init_drone_system(ctx);
     
     // ADD: Initialize wild animal AI system
     crate::wild_animal_npc::init_wild_animal_ai_schedule(ctx)?;

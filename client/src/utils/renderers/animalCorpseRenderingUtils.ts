@@ -1,10 +1,8 @@
 import { AnimalCorpse as SpacetimeDBAnimalCorpse } from '../../generated';
 import { imageManager } from './imageManager';
 
-// Import legacy 3x3 sprite sheets (for crab, vole, snake - no release available)
-import crabWalkingSheet from '../../assets/crab_walking.png';
+// Import legacy 3x3 sprite sheets (CableViper only - no release spritesheet)
 import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
-import voleWalkingSheet from '../../assets/vole_walking.png';
 
 // Import release pattern spritesheets (4x4 layout) - used for most animals
 import foxWalkingAnimatedSheet from '../../assets/fox_walking_release.png';
@@ -21,6 +19,8 @@ import hareWalkingAnimatedSheet from '../../assets/hare_walking_release.png';
 import snowyOwlWalkingAnimatedSheet from '../../assets/owl_walking_release.png';
 // Crow (4x4 release pattern)
 import crowWalkingAnimatedSheet from '../../assets/crow_walking_release.png';
+import crabWalkingAnimatedSheet from '../../assets/crab_release_walking.png';
+import voleWalkingAnimatedSheet from '../../assets/vole_walking_release.png';
 
 // Sprite sheet configuration for 3x3 sheets (legacy pattern)
 const SPRITE_SHEET_CONFIG_3X3 = {
@@ -58,8 +58,8 @@ export const ANIMAL_CORPSE_HEIGHT = 96; // Height for interaction indicators
 export const ANIMAL_CORPSE_COLLISION_RADIUS = 16; // From server-side constant
 
 // Map species to their sprite sheets
-// Animals using 4x4 release pattern: Most animals (fox, wolf, walrus, tern, wolverine, caribou, shark, crow, alpine animals)
-// Animals using 3x3 pattern: CableViper (snake), BeachCrab (crab), Vole
+// Animals using 4x4 release pattern: Most animals (fox, wolf, walrus, tern, wolverine, caribou, shark, crow, alpine animals, BeachCrab, Vole)
+// Animals using 3x3 pattern: CableViper only (no release spritesheet)
 const speciesSpriteSheets: Record<string, string> = {
     // 4x4 release pattern animals
     'CinderFox': foxWalkingAnimatedSheet,
@@ -75,10 +75,11 @@ const speciesSpriteSheets: Record<string, string> = {
     'PolarBear': polarBearWalkingAnimatedSheet,
     'Hare': hareWalkingAnimatedSheet,
     'SnowyOwl': snowyOwlWalkingAnimatedSheet,
-    // 3x3 legacy pattern (crab, vole, snake - no release spritesheets)
+    // BeachCrab and Vole use 4x4 release pattern (like live animals)
+    'BeachCrab': crabWalkingAnimatedSheet,
+    'Vole': voleWalkingAnimatedSheet,
+    // 3x3 legacy pattern (CableViper only - no release spritesheet)
     'CableViper': cableViperWalkingSheet,
-    'BeachCrab': crabWalkingSheet,
-    'Vole': voleWalkingSheet,
 };
 
 // Track which species use 4x4 release pattern
@@ -97,10 +98,11 @@ const usesReleasePattern: Record<string, boolean> = {
     'PolarBear': true,
     'Hare': true,
     'SnowyOwl': true,
-    // 3x3 legacy pattern
+    // BeachCrab and Vole use 4x4 release pattern
+    'BeachCrab': true,
+    'Vole': true,
+    // 3x3 legacy pattern (CableViper only - no release spritesheet)
     'CableViper': false,
-    'BeachCrab': false,
-    'Vole': false,
 };
 
 // Special large frame config for SalmonShark (256x256 frames instead of 80x80)

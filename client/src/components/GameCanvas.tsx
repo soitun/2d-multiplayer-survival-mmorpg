@@ -55,6 +55,7 @@ import {
   AlkState as SpacetimeDBAlkState, // ADDED: ALK state
   PlayerShardBalance as SpacetimeDBPlayerShardBalance, // ADDED: Player shard balances
   MemoryGridProgress as SpacetimeDBMemoryGridProgress, // ADDED: Memory Grid progress
+  DroneEvent as SpacetimeDBDroneEvent,
 } from '../generated';
 
 // --- Core Hooks ---
@@ -137,6 +138,7 @@ import { preloadCairnImages } from '../utils/renderers/cairnRenderingUtils';
 import { renderTree, renderTreeCanopyShadowsOverlay } from '../utils/renderers/treeRenderingUtils';
 import { renderTillerPreview } from '../utils/renderers/tillerPreviewRenderingUtils';
 import { renderCloudsDirectly } from '../utils/renderers/cloudRenderingUtils';
+import { renderDronesDirectly, getInterpolatedDrones } from '../utils/renderers/droneRenderingUtils';
 import { useFallingTreeAnimations } from '../hooks/useFallingTreeAnimations';
 import { renderProjectile } from '../utils/renderers/projectileRenderingUtils';
 import { renderShelter } from '../utils/renderers/shelterRenderingUtils';
@@ -194,6 +196,7 @@ interface GameCanvasProps {
   players: Map<string, SpacetimeDBPlayer>;
   trees: Map<string, SpacetimeDBTree>;
   clouds: Map<string, SpacetimeDBCloud>;
+  droneEvents: Map<string, SpacetimeDBDroneEvent>;
   stones: Map<string, SpacetimeDBStone>;
   runeStones: Map<string, SpacetimeDBRuneStone>;
   cairns: Map<string, SpacetimeDBCairn>;
@@ -355,6 +358,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   players,
   trees,
   clouds,
+  droneEvents,
   stones,
   runeStones,
   cairns,
@@ -570,7 +574,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const cameraOffsetY = baseCameraOffsetY;
   // console.log('[GameCanvas DEBUG] Camera offsets:', cameraOffsetX, cameraOffsetY, 'canvas size:', canvasSize);
 
-  const { heroImageRef, heroSprintImageRef, heroIdleImageRef, heroWaterImageRef, heroCrouchImageRef, heroDodgeImageRef, itemImagesRef, cloudImagesRef, shelterImageRef } = useAssetLoader();
+  const { heroImageRef, heroSprintImageRef, heroIdleImageRef, heroWaterImageRef, heroCrouchImageRef, heroDodgeImageRef, itemImagesRef, cloudImagesRef, droneImageRef, shelterImageRef } = useAssetLoader();
   const doodadImagesRef = useDoodadImages(); // Extracted to dedicated hook
   const foundationTileImagesRef = useRef<Map<string, HTMLImageElement>>(new Map()); // ADDED: Foundation tile images
   const { worldMousePos, canvasMousePos } = useMousePosition({ canvasRef: gameCanvasRef, cameraOffsetX, cameraOffsetY, canvasSize });
@@ -3279,6 +3283,30 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         const aEntity = !a._isSwimmingTop && 'entity' in a ? a.entity : null;
         const bEntity = !b._isSwimmingTop && 'entity' in b ? b.entity : null;
 
+        // ABSOLUTE FIRST CHECK: Broth pot MUST ALWAYS render above campfires and fumaroles
+        // Broth pots sit ON TOP of heat sources - no exceptions, no situation where they don't
+        if (aType === 'broth_pot' && (bType === 'campfire' || bType === 'fumarole')) {
+          return 1; // Broth pot renders after (above) campfire/fumarole
+        }
+        if (bType === 'broth_pot' && (aType === 'campfire' || aType === 'fumarole')) {
+          return -1; // Broth pot renders after (above) campfire/fumarole
+        }
+
+        // ABSOLUTE SECOND CHECK: Player vs Fumarole - players ALWAYS render above fumaroles
+        // Applies to both land players and swimming player top halves (when in water near fumaroles).
+        if (aType === 'player' && bType === 'fumarole') {
+          return 1; // Player renders after (above) fumarole
+        }
+        if (bType === 'player' && aType === 'fumarole') {
+          return -1; // Player renders after (above) fumarole
+        }
+        if (a._isSwimmingTop && bType === 'fumarole') {
+          return 1; // Swimming player top renders after (above) fumarole
+        }
+        if (b._isSwimmingTop && aType === 'fumarole') {
+          return -1; // Swimming player top renders after (above) fumarole
+        }
+
         // CRITICAL: Helper to get effective Y for a player entity.
         // Uses predicted position for local player (matches rendering position).
         const getPlayerY = (entity: any): number => {
@@ -3397,28 +3425,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           return -1; // Flying bird renders after (above) non-flying entities
         }
 
-        // Fumaroles are flat ground-level vents - players ALWAYS render above them
-        if (aType === 'player' && bType === 'fumarole') {
-          return 1; // Player renders after (above) fumarole
-        }
-        if (bType === 'player' && aType === 'fumarole') {
-          return -1; // Player renders after (above) fumarole
-        }
-        // Swimming player top halves also render above fumaroles
-        if (a._isSwimmingTop && bType === 'fumarole') {
-          return 1; // Swimming player top renders after (above) fumarole
-        }
-        if (b._isSwimmingTop && aType === 'fumarole') {
-          return -1; // Swimming player top renders after (above) fumarole
-        }
-
-        // Broth pot MUST render above campfires and fumaroles
-        if (aType === 'broth_pot' && (bType === 'campfire' || bType === 'fumarole')) {
-          return 1; // Broth pot renders after (above) campfire/fumarole
-        }
-        if (bType === 'broth_pot' && (aType === 'campfire' || aType === 'fumarole')) {
-          return -1; // Broth pot renders after (above) campfire/fumarole
-        }
+        // NOTE: Broth pot vs campfire/fumarole moved to ABSOLUTE FIRST CHECK at top of comparator
+        // NOTE: Player vs fumarole moved to ABSOLUTE SECOND CHECK at top of comparator
 
         return a._ySort - b._ySort;
       });
@@ -3851,6 +3859,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       });
     }
     // --- End Render Clouds on Canvas ---
+
+    // --- Render Drones on Canvas --- (shadow-style like clouds)
+    if (droneEvents && droneEvents.size > 0 && droneImageRef.current) {
+      const interpolatedDrones = getInterpolatedDrones(droneEvents, droneImageRef.current, now_ms);
+      if (interpolatedDrones.size > 0) {
+        renderDronesDirectly({
+          ctx,
+          drones: interpolatedDrones,
+          droneImage: droneImageRef.current,
+          worldScale: 1,
+          cameraOffsetX: currentCameraOffsetX,
+          cameraOffsetY: currentCameraOffsetY
+        });
+      }
+    }
+    // --- End Render Drones on Canvas ---
 
     // --- Render Chunk Boundaries (Debug) ---
     if (showChunkBoundaries && worldState) {
@@ -4677,6 +4701,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     minimapCache,
     chunkWeather,
     clouds, // Only need clouds prop for the size check, interpolation is via ref
+    droneEvents,
+    droneImageRef,
   ]);
 
   const gameLoopCallback = useCallback((frameInfo: FrameInfo) => {
@@ -4936,6 +4962,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       matronages: matronages,
       // Memory Beacon server events (airdrop-style)
       beaconDropEvents: beaconDropEvents,
+      // Drone flyover events (periodic sky drone - globally subscribed)
+      droneEvents: droneEvents,
     });
   }, [
     isMinimapOpen,
@@ -4945,27 +4973,32 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     runeStones,
     sleepingBags,
     campfires,
+    barrels,
     localPlayer,
     localPlayerId,
     viewCenterOffset,
     localPlayerPin,
     isMouseOverMinimap,
-    isMouseOverXButton,
     minimapZoom,
     itemImagesRef,
     localPlayerDeathMarker,
     deathMarkerImg,
     worldState,
     minimapCache,
-    // Add new image dependencies
     pinMarkerImg,
     campfireWarmthImg,
     torchOnImg,
-    // Add minimap weather overlay dependencies (separate from game canvas)
     minimapShowWeatherOverlay,
     chunkWeather,
-    // ALK stations for minimap
     alkStations,
+    monumentParts,
+    largeQuarries,
+    visibleLivingCoralsMap,
+    minimapShowNames,
+    matronageMembers,
+    matronages,
+    beaconDropEvents,
+    droneEvents,
   ]);
 
   // PERFORMANCE FIX: Removed duplicate useGameLoop(processInputsAndActions)

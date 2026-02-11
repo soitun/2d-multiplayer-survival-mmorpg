@@ -1169,6 +1169,7 @@ fn init_alk_schedule(ctx: &ReducerContext) -> Result<(), String> {
 
 /// BASE MATERIALS - Fixed list, always available, never changes
 /// Only fundamental crafting resources - no furs, rare drops, etc.
+/// Uses actual item names from items_database (e.g. "Animal Bone" not "Bone")
 const BASE_MATERIALS: &[&str] = &[
     "Wood",
     "Stone", 
@@ -1177,6 +1178,7 @@ const BASE_MATERIALS: &[&str] = &[
     "Plant Fiber",
     "Cloth",
     "Charcoal",
+    "Animal Bone",
     "Bone Fragments",
     "Animal Fat",
     "Animal Leather",
@@ -1551,9 +1553,9 @@ fn generate_seasonal_harvest_contracts(ctx: &ReducerContext, world_day: u32, sea
     // These are already covered by Materials contracts
     const MATERIAL_EXCLUSIONS: &[&str] = &[
         "Wood", "Stone", "Metal Ore", "Metal Fragments", "Sulfur", "Sulfur Ore", 
-        "Charcoal", "Coal", "Plant Fiber", "Cloth", "Rope", "Bone", "Bone Fragments",
-        "Animal Leather", "Animal Fat", "Wolf Fur", "Fox Fur", "Bear Pelt",
-        "Tin Can", "Scrap Batteries", "Gunpowder", "Memory Shard" // These are lichen/moss, not edible plants
+        "Charcoal", "Plant Fiber", "Cloth", "Rope", "Animal Bone", "Bone Fragments",
+        "Animal Leather", "Animal Fat", "Wolf Fur", "Fox Fur", "Viper Scale",
+        "Tin Can", "Scrap Batteries", "Gunpowder", "Memory Shard" // Materials, not harvest plants
     ];
     
     // Find all plant-based items
@@ -1703,7 +1705,7 @@ fn generate_buyorder_contracts(ctx: &ReducerContext, world_day: u32) -> Result<(
     let item_defs = ctx.db.item_definition();
     
     // Buy orders available for key crafting materials
-    // These are items players commonly need but might be short on
+    // Uses actual item names from items_database
     const BUYABLE_MATERIALS: &[&str] = &[
         "Wood",
         "Stone", 
@@ -1712,6 +1714,7 @@ fn generate_buyorder_contracts(ctx: &ReducerContext, world_day: u32) -> Result<(
         "Plant Fiber",
         "Cloth",
         "Charcoal",
+        "Animal Bone",
         "Bone Fragments",
         "Gunpowder",
         "Rope",
@@ -1795,7 +1798,7 @@ fn get_material_contract_params(item_name: &str) -> (u32, u32) {
         "Rope" => (20, 65),                // Crafted item
         
         // === BONE (requires hunting) ===
-        "Bone" => (30, 60),                // From animal kills
+        "Animal Bone" | "Bone" => (30, 60), // From animal kills (item_def uses "Animal Bone")
         "Bone Fragments" => (40, 50),      // Processed bones
         
         // === ANIMAL PRODUCTS (hunting required - valuable) ===
@@ -1821,48 +1824,52 @@ fn get_material_contract_params(item_name: &str) -> (u32, u32) {
 }
 
 /// Get bundle size and reward for arms (weapons AND ammunition)
-/// REBALANCED: Crafted weapons should have LOW bundle sizes, HIGH rewards
+/// REBALANCED: Crafted weapons have LOW bundle sizes, HIGH rewards
+/// Aligned with items_database: weapons.rs, ammunition.rs
 fn get_arms_contract_params(item_name: &str) -> (u32, u32) {
     match item_name {
         // === MELEE - BASIC (stone/bone era) ===
-        "Stone Knife" => (3, 65),        // Easy to craft, low reward
         "Bone Club" => (3, 55),          // Very basic
         "Wooden Spear" => (2, 75),       // Common starting weapon
-        "Bone Dagger" => (2, 85),        // Requires hunting
+        "Stone Spear" => (2, 70),        // Basic spear with reach
+        "Bone Shiv" => (2, 85),          // Requires hunting (was Bone Dagger)
         
-        // === MELEE - INTERMEDIATE (metal weapons) ===
-        "Metal Knife" => (2, 120),       // Metal = valuable
-        "Metal Spear" => (1, 150),       // Good reach weapon
-        "Metal Sword" => (1, 180),       // Premium melee
-        "Metal Axe" => (1, 165),         // Combat variant
+        // === MELEE - CRAFTED (metal weapons) ===
+        "Metal Dagger" => (2, 120),      // Metal = valuable (was Metal Knife)
+        "Naval Cutlass" => (1, 180),     // Premium melee sword
+        "Battle Axe" => (1, 165),        // Heavy combat axe
+        "Stone Mace" => (2, 70),         // Basic crush weapon
+        "War Hammer" => (1, 150),        // Premium crush
         
-        // === RANGED - BASIC ===
-        "Wooden Bow" => (2, 90),         // Common ranged option
-        "Hunting Bow" => (1, 140),       // Better bow
-        "Reed Harpoon" => (3, 70),       // Fishing/combat hybrid
-        "Slingshot" => (3, 60),          // Very basic ranged
-        
-        // === RANGED - ADVANCED (high-end weapons) ===
-        "Compound Bow" => (1, 220),      // Advanced bow
+        // === RANGED - BOWS/CROSSBOWS ===
+        "Hunting Bow" => (1, 140),       // Primary bow
         "Crossbow" => (1, 280),          // Premium ranged
-        "Improvised Pistol" => (1, 320), // Rare firearm
-        "Hunting Rifle" => (1, 400),     // Top-tier ranged
+        "Reed Harpoon" => (3, 70),       // Fishing/combat hybrid
+        "Reed Harpoon Gun" => (1, 200),  // Underwater + above
         
-        // === AMMUNITION - ARROWS (consumable, stackable) ===
+        // === FIREARMS (rare, valuable) ===
+        "Makarov PM" => (1, 320),        // Soviet pistol
+        "PP-91 KEDR" => (1, 380),        // SMG - top tier
+        
+        // === AMMUNITION - ARROWS ===
         "Wooden Arrow" => (30, 50),      // Basic arrows - common
         "Bone Arrow" => (25, 70),        // Better arrows
         "Fire Arrow" => (15, 100),       // Special effect - premium
         "Hollow Reed Arrow" => (35, 40), // Fast but weak
+        "Venom Arrow" => (12, 115),      // Poison - premium
         
-        // === AMMUNITION - BULLETS (rare, valuable) ===
+        // === AMMUNITION - BULLETS/HARPOONS ===
         "9x18mm Round" => (15, 120),     // Premium ammo - gunpowder needed
+        "Reed Harpoon Dart" => (20, 65), // Harpoon ammo
+        "Venom Harpoon Dart" => (10, 110), // Poison harpoon
         
         _ => (2, 80), // Default for unlisted weapons
     }
 }
 
 /// Get bundle size and reward for armor
-/// REBALANCED: Armor is CRAFTED, should have LOW bundle sizes (1-3 max), decent rewards
+/// REBALANCED: Armor is CRAFTED, LOW bundle sizes (1-3), decent rewards
+/// Aligned with items_database: armor.rs (Fox Fur/Wolf Fur, Leather Chestplate)
 fn get_armor_contract_params(item_name: &str) -> (u32, u32) {
     match item_name {
         // === CLOTH ARMOR (easiest to craft, lowest tier) ===
@@ -1873,11 +1880,11 @@ fn get_armor_contract_params(item_name: &str) -> (u32, u32) {
         "Cloth Gloves" => (3, 40),       // Basic hands
         
         // === LEATHER ARMOR (requires hunting + tanning) ===
-        "Leather Hood" => (2, 90),       // Mid-tier head
-        "Leather Vest" => (1, 120),      // Mid-tier torso - single item
-        "Leather Pants" => (2, 105),     // Mid-tier legs
+        "Leather Helmet" => (2, 90),    // Mid-tier head
+        "Leather Chestplate" => (1, 120), // Mid-tier torso (was Leather Vest)
+        "Leather Leggings" => (2, 105),  // Mid-tier legs
         "Leather Boots" => (2, 85),      // Mid-tier feet
-        "Leather Gloves" => (2, 75),     // Mid-tier hands
+        "Leather Gauntlets" => (2, 75),  // Mid-tier hands
         
         // === BONE ARMOR (requires hunting dangerous animals) ===
         "Bone Helmet" => (1, 140),       // Strong head protection
@@ -1891,43 +1898,59 @@ fn get_armor_contract_params(item_name: &str) -> (u32, u32) {
         "Metal Boots" => (1, 200),       // Premium feet
         "Metal Gauntlets" => (1, 180),   // Premium hands
         
-        // === FUR/COLD WEATHER (hunting wolves/foxes) ===
-        "Fur Hood" => (1, 110),          // Cold protection head
-        "Fur Coat" => (1, 160),          // Cold protection torso
-        "Fur Pants" => (1, 135),         // Cold protection legs
-        "Fur Boots" => (2, 95),          // Cold protection feet
+        // === FOX/WOLF FUR (hunting wolves/foxes - items_database uses Fox Fur X, Wolf Fur X) ===
+        "Fox Fur Hood" => (1, 110),     // Cold protection head
+        "Fox Fur Coat" => (1, 160),     // Cold protection torso
+        "Fox Fur Leggings" => (1, 135),  // Cold protection legs
+        "Fox Fur Boots" => (2, 95),     // Cold protection feet
+        "Wolf Fur Hood" => (1, 120),    // Thicker fur
+        "Wolf Fur Coat" => (1, 170),    // Heavier coat
+        "Wolf Fur Leggings" => (1, 145), // Durable legs
+        "Wolf Fur Boots" => (2, 100),   // Sturdy boots
         
         _ => (2, 80), // Default for unlisted armor
     }
 }
 
 /// Get bundle size and reward for tools
-/// REBALANCED: Tools are CRAFTED, should have LOW bundle sizes (1-3), decent rewards
+/// REBALANCED: Tools are CRAFTED, LOW bundle sizes (1-3), decent rewards
+/// Aligned with items_database: tools.rs, placeables.rs
 fn get_tools_contract_params(item_name: &str) -> (u32, u32) {
     match item_name {
+        // === EXCLUDED (starter/basic items - not suitable for work orders) ===
+        "Rock" => (0, 0),                 // Starter tool - excluded
+        "Combat Ladle" => (0, 0),         // Starter tool - excluded
+        "Reed Water Bottle" => (0, 0),   // Starter container - excluded
+        "Torch" => (0, 0),               // Light source - excluded
+        "Cerametal Field Cauldron Mk. II" => (0, 0), // Field cauldron - excluded
+
         // === GATHERING - BASIC (stone era) ===
         "Stone Pickaxe" => (2, 65),       // Basic mining
         "Stone Hatchet" => (2, 65),       // Basic woodcutting
-        "Wooden Fishing Rod" => (2, 55),  // Basic fishing
+        "Primitive Reed Fishing Rod" => (2, 55), // Basic fishing (was Wooden Fishing Rod)
         
         // === GATHERING - METAL (upgraded tools) ===
         "Metal Pickaxe" => (1, 130),      // Premium mining
         "Metal Hatchet" => (1, 130),      // Premium woodcutting
-        "Metal Fishing Rod" => (1, 110),  // Premium fishing
         
         // === UTILITY (helpful items) ===
-        "Torch" => (5, 35),               // Light source - easy to make
         "Lantern" => (1, 95),             // Better light source
-        "Compass" => (1, 120),            // Navigation tool
-        "Binoculars" => (1, 150),         // Scouting tool
+        "Bone Club" => (3, 55),           // Basic gathering/combat
+        "Bone Knife" => (3, 65),          // Harvesting corpses
+        "Bandage" => (10, 80),            // Basic medical
+        "Med Kit" => (3, 150),            // Advanced medical (was First Aid Kit)
+        "Jellyfish Compress" => (5, 95),  // Med dressing
+        "Selo Olive Oil" => (2, 180),    // Premium healing
         
-        // === CRAFTING STATIONS (major investment) ===
-        "Workbench" => (1, 140),          // Essential station
-        "Forge" => (1, 200),              // Metal processing
-        "Tanning Rack" => (1, 110),       // Leather processing
-        "Loom" => (1, 115),               // Cloth processing
+        // === PLACEABLES (crafting stations from placeables.rs) ===
+        "Repair Bench" => (1, 140),       // Essential station (was Workbench)
+        "Furnace" => (1, 200),            // Metal processing (was Forge)
+        "Large Furnace" => (1, 250),      // Industrial smelting
         "Cooking Station" => (1, 125),    // Food processing
-        "Campfire" => (2, 50),            // Basic cooking
+        "Camp Fire" => (2, 50),           // Basic cooking
+        "Barbecue" => (1, 90),            // Large cooking
+        "Compost" => (1, 70),             // Fertilizer production
+        "Fish Trap" => (2, 75),           // Passive fishing
         
         _ => (2, 75), // Default for unlisted tools
     }
@@ -1942,23 +1965,27 @@ fn get_provisions_contract_params(item_name: &str, item_def: &crate::items::Item
         return (0, 0);
     }
     
-    // First check specific items
+    // First check specific items - aligned with items_database consumables
     match item_name {
         // === COOKED FISH (fishing + cooking) ===
-        "Cooked Salmon" => (12, 95),          // Premium fish
-        "Cooked Herring" | "Cooked Cod" | "Cooked Mackerel" => (18, 65),
+        "Cooked Pink Salmon" | "Cooked Sockeye Salmon" | "Cooked King Salmon" => (12, 95), // Premium salmon
+        "Cooked Pacific Cod" | "Cooked Herring" | "Cooked Smelt" => (18, 65), // Common fish
+        "Cooked Dolly Varden" | "Cooked Rockfish" | "Cooked Steelhead" => (15, 75), // Mid-tier fish
+        "Cooked Halibut" => (10, 90),          // Large premium fish
         "Cooked Twigfish" => (25, 45),         // Common fish
+        "Cooked Greenling" | "Cooked Sculpin" => (20, 55), // Basic fish
+        "Cooked Crab Meat" | "Cooked Blue Mussel" | "Cooked Sea Urchin" | "Cooked Black Katy Chiton" => (15, 70), // Seafood
         
-        // === COOKED MEAT (hunting + cooking - harder to get) ===
+        // === COOKED MEAT (hunting + cooking) ===
         "Cooked Wolf Meat" => (10, 110),       // Dangerous hunt
         "Cooked Fox Meat" => (12, 85),         // Medium hunt
-        "Cooked Crab Meat" => (15, 70),        // Easy but time-consuming
         "Cooked Crow Meat" | "Cooked Tern Meat" => (20, 55),
-        "Cooked Seal Meat" => (12, 90),        // Coastal hunting
-        "Cooked Caribou Meat" => (10, 100),    // Large game
-        "Cooked Moose Meat" => (8, 120),       // Largest game
+        "Cooked Caribou Meat" => (10, 100),   // Large game
         "Cooked Hare Meat" => (15, 75),        // Small game
         "Cooked Bear Meat" => (6, 140),        // Dangerous predator
+        "Cooked Walrus Meat" => (8, 95),       // Coastal
+        "Cooked Shark Meat" => (5, 130),       // Aquatic predator
+        "Cooked Vole Meat" | "Cooked Wolverine Meat" | "Cooked Owl Meat" => (12, 80),
         
         // === COOKED VEGETABLES (farming + cooking) ===
         "Cooked Potato" => (25, 60),           // Common crop
@@ -1966,22 +1993,26 @@ fn get_provisions_contract_params(item_name: &str, item_def: &crate::items::Item
         "Cooked Corn" => (25, 60),             // Common crop
         "Cooked Carrot" => (30, 55),           // Easy crop
         "Cooked Beet" => (25, 60),             // Common crop
+        "Cooked Cabbage" | "Cooked Fennel" | "Cooked Salsify Root" => (22, 58),
+        "Cooked Kamchatka Lily Bulb" | "Cooked Silverweed Root" | "Cooked Bistort Bulbils" => (18, 68), // Traditional
+        "Cooked Chicory" | "Cooked Nettle Leaves" | "Cooked Wild Celery" => (20, 60),
         
-        // === MEDICAL (crafted - valuable) ===
-        "Bandage" => (10, 80),                 // Basic medical
-        "First Aid Kit" => (3, 150),           // Advanced medical
-        "Antidote" => (5, 110),                // Specialized
-        "Painkillers" => (8, 90),              // Common medical
+        // === COOKED MUSHROOMS ===
+        "Cooked Porcini" => (15, 85),          // Premium mushroom
+        "Cooked Chanterelle" => (18, 75),      // Common edible
+        "Cooked Shaggy Ink Cap" => (20, 65),   // Quick cook
         
-        // === DRINKS ===
-        "Clean Water" => (20, 40),             // Basic necessity
-        "Herbal Tea" => (12, 60),              // Requires herbs
-        "Berry Juice" => (15, 50),             // Requires berries
+        // === COOKING STATION RECIPES (gourmet - higher value) ===
+        "Vegetable Stew" => (8, 85),            // Mixed vegetables (was Vegetable Soup)
+        "Hunter's Feast" => (3, 140),          // Premium meat platter
+        "Fish Pie" => (5, 95),                 // Seafood + starch
+        "Salmon Bake" => (4, 110),             // Premium salmon dish
+        "Bear Roast" => (2, 150),              // Massive roast
+        "Mushroom Medley" => (8, 90),          // Premium mushrooms
+        "Crab Cakes" => (10, 75),              // Coastal treat
         
-        // === BROTH/SOUPS (multi-ingredient cooking) ===
-        "Fish Broth" => (8, 95),               // Complex recipe
-        "Meat Stew" => (5, 120),               // Complex recipe
-        "Vegetable Soup" => (8, 85),           // Complex recipe
+        // NOTE: Broth pot outputs are AI-generated - we don't know their names.
+        // They fall through to dynamic calculation based on consumable stats.
         
         _ => {
             // Dynamic fallback based on item stats
@@ -2097,6 +2128,11 @@ fn calculate_bonus_contract_params(item_def: &crate::items::ItemDefinition) -> (
     
     // SECURITY: Never allow Memory Shard in contracts
     if item_name == "Memory Shard" {
+        return (0, 0);
+    }
+
+    // EXCLUDE: Starter/basic items - not suitable for work orders
+    if matches!(item_name.as_str(), "Rock" | "Combat Ladle" | "Broth Pot" | "Reed Water Bottle") {
         return (0, 0);
     }
     

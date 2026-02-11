@@ -53,6 +53,7 @@ export type Cloud = {
   evolutionPhase: number,
   evolutionSpeed: number,
   lastIntensityUpdate: __Timestamp,
+  spawnedDuringStorm: boolean,
 };
 let _cached_Cloud_type_value: __AlgebraicTypeType | null = null;
 
@@ -85,6 +86,7 @@ export const Cloud = {
       { name: "evolutionPhase", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "evolutionSpeed", algebraicType: __AlgebraicTypeValue.F32 },
       { name: "lastIntensityUpdate", algebraicType: __AlgebraicTypeValue.createTimestampType() },
+      { name: "spawnedDuringStorm", algebraicType: __AlgebraicTypeValue.Bool },
     );
     return _cached_Cloud_type_value;
   },

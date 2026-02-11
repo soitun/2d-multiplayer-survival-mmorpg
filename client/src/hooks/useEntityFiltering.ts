@@ -2067,8 +2067,8 @@ export function useEntityFiltering(
     
     allEntities.sort((a, b) => {
       // ABSOLUTE FIRST CHECK: Broth pot MUST ALWAYS render above campfires and fumaroles
-      // This is the highest priority visual rule - broth pots sit ON TOP of heat sources
-      // CRITICAL: This must be THE VERY FIRST check to ensure no other logic can interfere
+      // Broth pots sit ON TOP of heat sources - no exceptions, no situation where they don't.
+      // Players retain normal Y-sorting with broth pot and campfire; this rule only affects pot vs heat source.
       if (a.type === 'broth_pot' && (b.type === 'campfire' || b.type === 'fumarole')) {
         return 1; // Broth pot renders after (above) campfire/fumarole
       }
@@ -2076,7 +2076,16 @@ export function useEntityFiltering(
         return -1; // Broth pot renders after (above) campfire/fumarole
       }
       
-      // SECOND CHECK: Player vs ALK Station - tall structure Y-sorting
+      // ABSOLUTE SECOND CHECK: Player vs Fumarole - players ALWAYS render above fumaroles
+      // Applies to both land and water (fumaroles in quarries). Must run before any Y/priority fallback.
+      if (a.type === 'player' && b.type === 'fumarole') {
+        return 1; // Player renders after (above) fumarole
+      }
+      if (b.type === 'player' && a.type === 'fumarole') {
+        return -1; // Player renders after (above) fumarole
+      }
+      
+      // THIRD CHECK: Player vs ALK Station - tall structure Y-sorting
       // This MUST be first to ensure correct rendering for large structures
       // CRITICAL: The ALK station sprite is 1024x1024 but only ~775px has actual building content
       // The top ~24% is transparent PNG. When rendered at 480px, ~115px is transparent at top.
@@ -2185,17 +2194,7 @@ export function useEntityFiltering(
       }
       
       // NOTE: Broth pot vs campfire/fumarole check moved to ABSOLUTE FIRST CHECK at top of comparator
-      
-      // Fumaroles are flat ground-level vents - players should ALWAYS render above them.
-      // Without this, when a player and fumarole have similar Y positions, the fumarole
-      // can Y-sort on top of the player, making it look like the player is under the vent.
-      // This applies to both land fumaroles and submerged (water) fumaroles.
-      if (a.type === 'player' && b.type === 'fumarole') {
-        return 1; // Player renders after (above) fumarole
-      }
-      if (b.type === 'player' && a.type === 'fumarole') {
-        return -1; // Player renders after (above) fumarole
-      }
+      // NOTE: Player vs fumarole check moved to ABSOLUTE SECOND CHECK at top of comparator
       
       // Grass vs Tree: use relative Y so north grass is behind tree, south grass is in front.
       // This prevents local conflicts with player-vs-grass and player-vs-tree near trunks.

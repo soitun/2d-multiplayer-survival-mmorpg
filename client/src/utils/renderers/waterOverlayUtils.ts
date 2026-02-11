@@ -55,6 +55,10 @@ const BA = 4;   const RA = 85;
 // --- Shoreline feathering ---
 const FEATH = 14;
 const INV_F = 1.0 / FEATH;
+// --- Shore lap: narrow band (~6px) at water edge, not whole tile ---
+const SHORE_LAP_BAND = 6;
+const INV_LAP_BAND = 1.0 / SHORE_LAP_BAND;
+const SHORE_LAP_ATTENUATION = 0.85;
 
 // ============================================================================
 // SINE LUT
@@ -135,7 +139,8 @@ function ensureBuf(w: number, h: number): void {
 // TILE GRID  (0 = land, TG_I = interior water, bits 0-3 = shore adjacency)
 // ============================================================================
 
-const TG_I = 0x80;
+const TG_I = 0x80;       // interior water
+const TG_SHORE_LAP = 0x40; // land tile adjacent to water (overlay laps onto shore)
 let _tg: Uint8Array | null = null;
 let _tC = 0, _tMx = 0, _tMy = 0, _tRw = 0;
 
@@ -164,6 +169,20 @@ function buildGrid(wt: Map<string, any>, ox: number, oy: number, vw: number, vh:
       if (r === 0          || _tg[(r - 1) * cols + c] === 0) e |= 4;
       if (r === rows - 1   || _tg[(r + 1) * cols + c] === 0) e |= 8;
       if (e) _tg[i] = e;
+    }
+  }
+  // Shore lap: mark land tiles adjacent to water so overlay extends 1 tile onto shore
+  for (let ty = my; ty <= My; ty++) {
+    const r = ty - my, ro = r * cols;
+    for (let tx = mx; tx <= Mx; tx++) {
+      const c = tx - mx, i = ro + c;
+      if (_tg[i] !== 0) continue;
+      let e = 0;
+      if (c > 0          && _tg[ro + c - 1]         !== 0) e |= 1;
+      if (c < cols - 1   && _tg[ro + c + 1]         !== 0) e |= 2;
+      if (r > 0          && _tg[(r - 1) * cols + c] !== 0) e |= 4;
+      if (r < rows - 1   && _tg[(r + 1) * cols + c] !== 0) e |= 8;
+      if (e) _tg[i] = TG_SHORE_LAP | e;
     }
   }
   _tC = cols; _tRw = rows; _tMx = mx; _tMy = my;
@@ -229,19 +248,33 @@ function renderShader(
         continue;
       }
 
-      // ---- Feather (shore tiles only) ----
+      // ---- Feather ----
+      const lx = wx - tileColX * ts;
+      const ly = lyBase;
       let feather = 1.0;
-      if (v !== TG_I) {
-        const lx = wx - tileColX * ts;
-        const ly = lyBase;
-        if (v & 1) { const d = lx * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
-        if (v & 2) { const d = (ts - lx) * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
-        if (v & 4) { const d = ly * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
-        if (v & 8) { const d = (ts - ly) * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
-        if (feather <= 0) {
-          px[idx] = 0; px[idx + 1] = 0; px[idx + 2] = 0; px[idx + 3] = 0;
-          continue;
-        }
+      const isShoreLap = (v & TG_SHORE_LAP) !== 0;
+      const edgeFlags = v & 15;
+
+      if (isShoreLap) {
+        // Shore lap: narrow band (SHORE_LAP_BAND px) from water edge only, not whole tile
+        // dist = distance from water edge; feather = 1 at edge, 0 beyond band
+        let lapFeather = 0;
+        if (edgeFlags & 1) { const dist = lx; const d = dist * INV_LAP_BAND; if (d < 1) lapFeather = Math.max(lapFeather, 1 - d * d * (3 - 2 * d)); }
+        if (edgeFlags & 2) { const dist = ts - lx; const d = dist * INV_LAP_BAND; if (d < 1) lapFeather = Math.max(lapFeather, 1 - d * d * (3 - 2 * d)); }
+        if (edgeFlags & 4) { const dist = ly; const d = dist * INV_LAP_BAND; if (d < 1) lapFeather = Math.max(lapFeather, 1 - d * d * (3 - 2 * d)); }
+        if (edgeFlags & 8) { const dist = ts - ly; const d = dist * INV_LAP_BAND; if (d < 1) lapFeather = Math.max(lapFeather, 1 - d * d * (3 - 2 * d)); }
+        feather = lapFeather;
+      } else if (edgeFlags !== 0) {
+        // Water tile at shore: fade at water/land edge
+        if (edgeFlags & 1) { const d = lx * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
+        if (edgeFlags & 2) { const d = (ts - lx) * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
+        if (edgeFlags & 4) { const d = ly * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
+        if (edgeFlags & 8) { const d = (ts - ly) * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
+      }
+
+      if (feather <= 0) {
+        px[idx] = 0; px[idx + 1] = 0; px[idx + 2] = 0; px[idx + 3] = 0;
+        continue;
       }
 
       // ---- UV distortion ----
@@ -298,7 +331,8 @@ function renderShader(
       const bright = crest * WCR + caustic * WCA + ripple * WRI + cellShade * WCS;
 
       // ---- Write RGBA ----
-      const a = (BA + bright * RA) * intA * feather;
+      const lapAtten = isShoreLap ? SHORE_LAP_ATTENUATION : 1.0;
+      const a = (BA + bright * RA) * intA * feather * lapAtten;
       px[idx]     = BR + bright * RR;
       px[idx + 1] = BG + bright * RG;
       px[idx + 2] = OB;

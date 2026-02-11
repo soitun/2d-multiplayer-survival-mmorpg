@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useDebug } from '../contexts/DebugContext';
-import { WorldState as SpacetimeDBWorldState } from '../generated';
+import { WorldState as SpacetimeDBWorldState, ItemDefinition } from '../generated';
 import { DbConnection } from '../generated';
 import springIcon from '../assets/ui/spring.png';
 import summerIcon from '../assets/ui/summer.png';
@@ -12,6 +12,7 @@ interface DebugPanelProps {
     localPlayer: any;
     worldState: SpacetimeDBWorldState | null;
     connection: DbConnection | null;
+    itemDefinitions?: Map<string, ItemDefinition>;
 }
 
 // Custom scrollbar styles for the debug panel
@@ -65,15 +66,53 @@ const ANIMAL_SPECIES = [
     { value: 'DrownedWatch', label: '💀 Drowned Watch', category: 'Hostile NPCs' },
 ];
 
-const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connection }) => {
+// Category display order for item spawner
+const ITEM_CATEGORY_ORDER = ['Tool', 'Weapon', 'RangedWeapon', 'Ammunition', 'Armor', 'Consumable', 'Material', 'Placeable'];
+
+const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connection, itemDefinitions }) => {
     const { showAutotileDebug, toggleAutotileDebug, showChunkBoundaries, toggleChunkBoundaries, showInteriorDebug, toggleInteriorDebug, showCollisionDebug, toggleCollisionDebug, showAttackRangeDebug, toggleAttackRangeDebug, showYSortDebug, toggleYSortDebug, showShipwreckDebug, toggleShipwreckDebug } = useDebug();
     const [isMinimized, setIsMinimized] = useState(false);
     const [selectedAnimal, setSelectedAnimal] = useState(ANIMAL_SPECIES[0].value);
     
     // Item spawner state
-    const [spawnItemName, setSpawnItemName] = useState('');
+    const [selectedItemDef, setSelectedItemDef] = useState<ItemDefinition | null>(null);
+    const [itemSearchQuery, setItemSearchQuery] = useState('');
+    const [itemDropdownOpen, setItemDropdownOpen] = useState(false);
     const [spawnItemQuantity, setSpawnItemQuantity] = useState('1');
     const [spawnStatus, setSpawnStatus] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+    const itemDropdownRef = useRef<HTMLDivElement>(null);
+
+    // All items from server, sorted by category then name
+    const allItems = useMemo(() => {
+        if (!itemDefinitions?.size) return [];
+        const items = Array.from(itemDefinitions.values());
+        return items.sort((a, b) => {
+            const catA = a.category?.tag ?? '';
+            const catB = b.category?.tag ?? '';
+            const catOrderA = ITEM_CATEGORY_ORDER.indexOf(catA);
+            const catOrderB = ITEM_CATEGORY_ORDER.indexOf(catB);
+            if (catOrderA !== catOrderB) return (catOrderA >= 0 ? catOrderA : 99) - (catOrderB >= 0 ? catOrderB : 99);
+            return (a.name ?? '').localeCompare(b.name ?? '');
+        });
+    }, [itemDefinitions]);
+
+    // Filtered items for dropdown (case-insensitive search)
+    const filteredItems = useMemo(() => {
+        const q = itemSearchQuery.trim().toLowerCase();
+        if (!q) return allItems;
+        return allItems.filter(item => (item.name ?? '').toLowerCase().includes(q));
+    }, [allItems, itemSearchQuery]);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (itemDropdownRef.current && !itemDropdownRef.current.contains(e.target as Node)) {
+                setItemDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const cycleWeather = (direction: 'forward' | 'backward') => {
         const weatherTypes = ['Clear', 'LightRain', 'ModerateRain', 'HeavyRain', 'HeavyStorm'];
@@ -155,8 +194,20 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
         }
     };
 
-    const spawnItem = () => {
-        if (connection && spawnItemName.trim()) {
+    const simulateDrone = () => {
+        if (connection) {
+            try {
+                (connection.reducers as any).debugSimulateDrone();
+                console.log('Simulating drone flyover over player');
+            } catch (error) {
+                console.warn('Debug simulate drone function not available (production build?):', error);
+            }
+        }
+    };
+
+    const spawnItem = (itemOverride?: ItemDefinition | null) => {
+        const itemToSpawn = itemOverride ?? selectedItemDef;
+        if (connection && itemToSpawn?.name) {
             const qty = parseInt(spawnItemQuantity, 10);
             if (isNaN(qty) || qty < 1) {
                 setSpawnStatus({ message: 'Quantity must be at least 1', type: 'error' });
@@ -164,17 +215,17 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                 return;
             }
             try {
-                (connection.reducers as any).debugSpawnItem(spawnItemName.trim(), qty);
-                console.log(`Spawning ${qty}x ${spawnItemName.trim()} near player`);
-                setSpawnStatus({ message: `Spawned ${qty}x ${spawnItemName.trim()}`, type: 'success' });
+                (connection.reducers as any).debugSpawnItem(itemToSpawn.name, qty);
+                console.log(`Spawning ${qty}x ${itemToSpawn.name} near player`);
+                setSpawnStatus({ message: `Spawned ${qty}x ${itemToSpawn.name}`, type: 'success' });
                 setTimeout(() => setSpawnStatus(null), 3000);
             } catch (error) {
                 console.warn('Debug spawn item function not available (production build?):', error);
                 setSpawnStatus({ message: 'Spawn function not available', type: 'error' });
                 setTimeout(() => setSpawnStatus(null), 3000);
             }
-        } else if (!spawnItemName.trim()) {
-            setSpawnStatus({ message: 'Enter an item name', type: 'error' });
+        } else if (!itemToSpawn) {
+            setSpawnStatus({ message: 'Select an item from the list', type: 'error' });
             setTimeout(() => setSpawnStatus(null), 3000);
         }
     };
@@ -984,6 +1035,40 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                         </div>
                     </div>
 
+                    {/* Drone Simulator */}
+                    <div style={{ marginTop: '8px' }}>
+                        <button
+                            onClick={(e) => {
+                                simulateDrone();
+                                e.currentTarget.blur();
+                            }}
+                            onFocus={(e) => e.currentTarget.blur()}
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(80, 80, 100, 0.3), rgba(60, 60, 80, 0.4))',
+                                color: '#a0a0c0',
+                                border: '1px solid rgba(160, 160, 192, 0.4)',
+                                padding: '6px 12px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                fontFamily: 'inherit',
+                                width: '100%',
+                                textShadow: '0 0 4px rgba(160, 160, 192, 0.6)'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(100, 100, 130, 0.4), rgba(80, 80, 100, 0.5))';
+                                e.currentTarget.style.boxShadow = '0 0 10px rgba(160, 160, 192, 0.3)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(80, 80, 100, 0.3), rgba(60, 60, 80, 0.4))';
+                                e.currentTarget.style.boxShadow = 'none';
+                            }}
+                        >
+                            ✈️ SIMULATE DRONE FLYOVER
+                        </button>
+                    </div>
+
                     {/* Item Spawner Section */}
                     <div style={{
                         marginTop: '8px',
@@ -999,50 +1084,117 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                         }}>
                             📦 SPAWN ITEM
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            {/* Item name input */}
-                            <input
-                                type="text"
-                                value={spawnItemName}
-                                onChange={(e) => setSpawnItemName(e.target.value)}
-                                placeholder="Item name (exact match)"
-                                data-allow-spacebar="true"
-                                style={{
-                                    background: 'linear-gradient(135deg, rgba(30, 40, 60, 0.9), rgba(20, 30, 50, 0.95))',
-                                    color: '#ffffff',
-                                    border: '1px solid rgba(0, 212, 255, 0.4)',
-                                    padding: '6px 8px',
-                                    borderRadius: '4px',
-                                    fontSize: '9px',
-                                    fontFamily: 'inherit',
-                                    outline: 'none',
-                                    width: '100%',
-                                    boxSizing: 'border-box'
-                                }}
-                                onFocus={(e) => {
-                                    e.currentTarget.style.borderColor = '#00d4ff';
-                                    e.currentTarget.style.boxShadow = '0 0 5px rgba(0, 212, 255, 0.3)';
-                                }}
-                                onBlur={(e) => {
-                                    e.currentTarget.style.borderColor = 'rgba(0, 212, 255, 0.4)';
-                                    e.currentTarget.style.boxShadow = 'none';
-                                }}
-                                onKeyDown={(e) => {
-                                    e.stopPropagation();
-                                    e.nativeEvent.stopImmediatePropagation(); // Stop ALL listeners including capture phase
-                                    if (e.key === 'Enter') {
-                                        spawnItem();
-                                    }
-                                }}
-                                onKeyUp={(e) => {
-                                    e.stopPropagation();
-                                    e.nativeEvent.stopImmediatePropagation();
-                                }}
-                                onKeyPress={(e) => {
-                                    e.stopPropagation();
-                                    e.nativeEvent.stopImmediatePropagation();
-                                }}
-                            />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }} ref={itemDropdownRef}>
+                            {/* Searchable item dropdown */}
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    type="text"
+                                    value={itemDropdownOpen ? itemSearchQuery : (selectedItemDef?.name ?? '')}
+                                    onChange={(e) => {
+                                        setItemSearchQuery(e.target.value);
+                                        setItemDropdownOpen(true);
+                                    }}
+                                    onFocus={() => setItemDropdownOpen(true)}
+                                    placeholder={allItems.length ? "Search items..." : "Loading items..."}
+                                    data-allow-spacebar="true"
+                                    style={{
+                                        background: 'linear-gradient(135deg, rgba(30, 40, 60, 0.9), rgba(20, 30, 50, 0.95))',
+                                        color: '#ffffff',
+                                        border: '1px solid rgba(0, 212, 255, 0.4)',
+                                        padding: '6px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '9px',
+                                        fontFamily: 'inherit',
+                                        outline: 'none',
+                                        width: '100%',
+                                        boxSizing: 'border-box'
+                                    }}
+                                    onKeyDown={(e) => {
+                                        e.stopPropagation();
+                                        e.nativeEvent.stopImmediatePropagation();
+                                        if (e.key === 'Enter') {
+                                            const first = filteredItems[0];
+                                            if (first) {
+                                                setSelectedItemDef(first);
+                                                setItemSearchQuery('');
+                                                setItemDropdownOpen(false);
+                                                spawnItem(first);
+                                            } else {
+                                                spawnItem();
+                                            }
+                                        }
+                                        if (e.key === 'Escape') {
+                                            setItemDropdownOpen(false);
+                                        }
+                                    }}
+                                    onKeyUp={(e) => {
+                                        e.stopPropagation();
+                                        e.nativeEvent.stopImmediatePropagation();
+                                    }}
+                                    onKeyPress={(e) => {
+                                        e.stopPropagation();
+                                        e.nativeEvent.stopImmediatePropagation();
+                                    }}
+                                />
+                                {itemDropdownOpen && allItems.length > 0 && (
+                                    <div
+                                        style={{
+                                            position: 'absolute',
+                                            top: '100%',
+                                            left: 0,
+                                            right: 0,
+                                            marginTop: '2px',
+                                            maxHeight: '140px',
+                                            overflowY: 'auto',
+                                            background: 'rgba(15, 30, 50, 0.98)',
+                                            border: '1px solid rgba(0, 212, 255, 0.4)',
+                                            borderRadius: '4px',
+                                            zIndex: 1000,
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+                                        }}
+                                        className="debug-panel-scroll"
+                                    >
+                                        {filteredItems.length === 0 ? (
+                                            <div style={{ padding: '8px', color: '#888', fontSize: '9px' }}>No matches</div>
+                                        ) : (
+                                            filteredItems.map((item) => {
+                                                const categoryTag = item.category?.tag ?? '';
+                                                return (
+                                                    <div
+                                                        key={item.id.toString()}
+                                                        onClick={() => {
+                                                            setSelectedItemDef(item);
+                                                            setItemSearchQuery('');
+                                                            setItemDropdownOpen(false);
+                                                        }}
+                                                        style={{
+                                                            padding: '4px 8px',
+                                                            fontSize: '9px',
+                                                            cursor: 'pointer',
+                                                            color: selectedItemDef?.id === item.id ? '#00d4ff' : '#ffffff',
+                                                            background: selectedItemDef?.id === item.id ? 'rgba(0, 212, 255, 0.15)' : 'transparent',
+                                                            borderBottom: '1px solid rgba(255,255,255,0.05)'
+                                                        }}
+                                                        onMouseEnter={(e) => {
+                                                            if (selectedItemDef?.id !== item.id) {
+                                                                e.currentTarget.style.background = 'rgba(0, 212, 255, 0.2)';
+                                                            }
+                                                        }}
+                                                        onMouseLeave={(e) => {
+                                                            if (selectedItemDef?.id !== item.id) {
+                                                                e.currentTarget.style.background = 'transparent';
+                                                            }
+                                                        }}
+                                                    >
+                                                        <span style={{ opacity: 0.6, marginRight: '4px' }}>{categoryTag}</span>
+                                                        {item.name}
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                             
                             {/* Quantity and spawn button row */}
                             <div style={{ display: 'flex', gap: '6px' }}>

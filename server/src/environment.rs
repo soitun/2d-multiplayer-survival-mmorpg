@@ -952,8 +952,10 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
         break;
     }
     
-    // Block water tiles for all animals
-    if tile_type.is_water() { // Includes both Sea and HotSpringWater
+    // Block water tiles for NON-AQUATIC animals only.
+    // SalmonShark and Jellyfish REQUIRE Sea tiles to spawn - they must reach their species-specific logic.
+    let is_aquatic_species = matches!(species, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish);
+    if tile_type.is_water() && !is_aquatic_species {
         return false;
     }
     
@@ -1515,9 +1517,9 @@ pub fn validate_spawn_location(
                 return false;
             }
             
-            // Check a 3-tile radius to ensure seaweed spawns well offshore
-            // This prevents seaweed from appearing too close to the beach/shore
-            const MIN_SHORE_DISTANCE_TILES: i32 = 3;
+            // Check a large radius to ensure seaweed spawns well offshore - far from any shoreline
+            // Seaweed beds grow in deeper water, not in shallow coastal areas
+            const MIN_SHORE_DISTANCE_TILES: i32 = 8;
             
             for dy in -MIN_SHORE_DISTANCE_TILES..=MIN_SHORE_DISTANCE_TILES {
                 for dx in -MIN_SHORE_DISTANCE_TILES..=MIN_SHORE_DISTANCE_TILES {
@@ -1543,7 +1545,7 @@ pub fn validate_spawn_location(
                     }
                 }
             }
-            true // Valid underwater spawn location - at least 3 tiles from shore
+            true // Valid underwater spawn location - at least 8 tiles from shore (deep water only)
         }
     }
 }
@@ -4502,6 +4504,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             evolution_phase,
             evolution_speed,
             last_intensity_update: ctx.timestamp,
+            spawned_during_storm: false, // Initial clouds are permanent
         };
 
         match ctx.db.cloud().try_insert(new_cloud) {

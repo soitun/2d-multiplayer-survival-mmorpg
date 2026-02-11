@@ -128,6 +128,7 @@ interface GameScreenProps {
     players: Map<string, SpacetimeDBPlayer>;
     trees: Map<string, SpacetimeDBTree>;
     clouds: Map<string, SpacetimeDBCloud>;
+    droneEvents: Map<string, SpacetimeDB.DroneEvent>;
     stones: Map<string, SpacetimeDBStone>;
     runeStones: Map<string, SpacetimeDBRuneStone>;
     cairns: Map<string, SpacetimeDBCairn>;
@@ -436,6 +437,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         setIsChatting,
         activeConsumableEffects,
         clouds,
+        droneEvents,
         grass,
         grassState,
         knockedOutStatus,
@@ -928,6 +930,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     localPlayer={localPlayer}
                     worldState={worldState}
                     connection={connection}
+                    itemDefinitions={itemDefinitions}
                 />
             )}
 
@@ -1099,6 +1102,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 players={players}
                 trees={trees}
                 clouds={clouds}
+                droneEvents={droneEvents}
                 stones={stones}
                 runeStones={runeStones}
                 cairns={cairns}

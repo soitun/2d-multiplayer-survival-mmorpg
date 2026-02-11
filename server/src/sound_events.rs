@@ -131,6 +131,7 @@ pub enum SoundType {
     PulverizeFlour,          // pulverize_flour.mp3 (1 variation - for grinding items into flour)
     ExtractQueenBee,         // extract_queen_bee.mp3 (1 variation - for extracting queen bee from honeycomb)
     UnravelRope,             // unravel_rope.mp3 (1 variation - for unraveling rope into plant fiber)
+    DroneFlying,             // plane_flying.mp3 (3 variations - eerie drone flyover across the island)
     // Add more as needed - extensible system
 }
 
@@ -261,6 +262,7 @@ impl SoundType {
             SoundType::PulverizeFlour => "pulverize_flour",
             SoundType::ExtractQueenBee => "extract_queen_bee",
             SoundType::UnravelRope => "unravel_rope",
+            SoundType::DroneFlying => "plane_flying",
         }
     }
 
@@ -390,6 +392,7 @@ impl SoundType {
             SoundType::PulverizeFlour => 1, // pulverize_flour.mp3 (single variation)
             SoundType::ExtractQueenBee => 1, // extract_queen_bee.mp3 (single variation)
             SoundType::UnravelRope => 1, // unravel_rope.mp3 (single variation)
+            SoundType::DroneFlying => 3, // plane_flying.mp3, plane_flying1.mp3, plane_flying2.mp3 (3 variations)
         }
     }
 
@@ -427,6 +430,9 @@ pub struct SoundEvent {
     pub triggered_by: Identity, // Player who triggered the sound
     pub timestamp: Timestamp,
     pub pitch_multiplier: f32,  // Pitch multiplier for sound variation (default 1.0)
+    /// Velocity of sound source (px/sec) for Doppler effect. (0,0) = no Doppler.
+    pub velocity_x: f32,
+    pub velocity_y: f32,
 }
 
 /// Continuous sound table - tracks active looping sounds (campfires, lanterns, etc.)
@@ -516,6 +522,23 @@ pub fn emit_sound_at_position_with_distance(
     max_distance: f32,
     triggered_by: Identity,
 ) -> Result<(), String> {
+    emit_sound_at_position_with_distance_and_velocity(
+        ctx, sound_type, pos_x, pos_y, volume, max_distance, triggered_by, 0.0, 0.0,
+    )
+}
+
+/// Emit a sound event with velocity for Doppler effect (e.g. flying drone)
+pub fn emit_sound_at_position_with_distance_and_velocity(
+    ctx: &ReducerContext,
+    sound_type: SoundType,
+    pos_x: f32,
+    pos_y: f32,
+    volume: f32,
+    max_distance: f32,
+    triggered_by: Identity,
+    velocity_x: f32,
+    velocity_y: f32,
+) -> Result<(), String> {
     let mut rng = ctx.rng();
     let filename = sound_type.get_random_filename(&mut rng);
     
@@ -530,6 +553,8 @@ pub fn emit_sound_at_position_with_distance(
         triggered_by,
         timestamp: ctx.timestamp,
         pitch_multiplier: 1.0, // Default pitch multiplier
+        velocity_x,
+        velocity_y,
     };
 
     match ctx.db.sound_event().try_insert(sound_event) {
@@ -988,6 +1013,8 @@ pub fn emit_animal_walking_sound(
         triggered_by: ctx.identity(), // Animals triggered by server/module
         timestamp: ctx.timestamp,
         pitch_multiplier,
+        velocity_x: 0.0,
+        velocity_y: 0.0,
     };
 
     match ctx.db.sound_event().try_insert(sound_event) {
@@ -1074,6 +1101,8 @@ pub fn emit_global_sound(
         triggered_by: ctx.identity(), // Triggered by the server/module itself
         timestamp: ctx.timestamp,
         pitch_multiplier: 1.0, // Default pitch multiplier
+        velocity_x: 0.0,
+        velocity_y: 0.0,
     };
 
     match ctx.db.sound_event().try_insert(sound_event) {

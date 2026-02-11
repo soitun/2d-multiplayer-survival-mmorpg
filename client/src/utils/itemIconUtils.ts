@@ -312,6 +312,7 @@ import cookedPorciniIcon from '../assets/items/cooked_porcini.png';
 import deadlyWebcapIcon from '../assets/items/deadly_webcap.png';
 import destroyingAngelIcon from '../assets/items/destroying_angel.png';
 import shaggylnkCapIcon from '../assets/items/shaggy_ink_cap.png';
+import cookedShaggyInkCapIcon from '../assets/items/cooked_shaggy_ink_cap.png';
 import chanterelleIcon from '../assets/items/chanterelle.png';
 import cookedChanterelleIcon from '../assets/items/cooked_chanterelle.png';
 
@@ -924,6 +925,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'deadly_webcap.png': deadlyWebcapIcon,
   'destroying_angel.png': destroyingAngelIcon,
   'shaggy_ink_cap.png': shaggylnkCapIcon,
+  'cooked_shaggy_ink_cap.png': cookedShaggyInkCapIcon,
   'chanterelle.png': chanterelleIcon,
   'cooked_chanterelle.png': cookedChanterelleIcon,
 

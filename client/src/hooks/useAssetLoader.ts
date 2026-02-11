@@ -20,6 +20,7 @@ import cloud2Texture from '../assets/environment/clouds/cloud2.png';
 import cloud3Texture from '../assets/environment/clouds/cloud3.png';
 import cloud4Texture from '../assets/environment/clouds/cloud4.png';
 import cloud5Texture from '../assets/environment/clouds/cloud5.png';
+import droneTexture from '../assets/drone.png';
 
 // Define the hook's return type for clarity
 interface AssetLoaderResult {
@@ -33,6 +34,7 @@ interface AssetLoaderResult {
   itemImagesRef: React.RefObject<Map<string, HTMLImageElement>>;
   burlapSackImageRef: React.RefObject<HTMLImageElement | null>;
   cloudImagesRef: React.RefObject<Map<string, HTMLImageElement>>;
+  droneImageRef: React.RefObject<HTMLImageElement | null>;
   shelterImageRef: React.RefObject<HTMLImageElement | null>;
   isLoadingAssets: boolean;
 }
@@ -51,11 +53,12 @@ export function useAssetLoader(): AssetLoaderResult {
   const burlapSackImageRef = useRef<HTMLImageElement | null>(null);
   const itemImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const cloudImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const droneImageRef = useRef<HTMLImageElement | null>(null);
   const shelterImageRef = useRef<HTMLImageElement | null>(null);
 
     useEffect(() => {
     let loadedCount = 0;
-    const totalStaticAssets = 6 + 5 + 1 + 1 + 2; // hero images (6) + clouds (5) + shelter (1) + campfire (1) + burlap/death (2) = 15 total
+    const totalStaticAssets = 6 + 5 + 1 + 1 + 2 + 1; // hero images (6) + clouds (5) + shelter (1) + campfire (1) + burlap/death (2) + drone (1) = 16 total
     
     // Count total item icons to preload
     const itemIconEntries = Object.entries(itemIcons).filter(([key, iconPath]) => iconPath);
@@ -107,6 +110,7 @@ export function useAssetLoader(): AssetLoaderResult {
     loadImage(cloud3Texture, undefined, cloudImagesRef, 'cloud3.png');
     loadImage(cloud4Texture, undefined, cloudImagesRef, 'cloud4.png');
     loadImage(cloud5Texture, undefined, cloudImagesRef, 'cloud5.png');
+    loadImage(droneTexture, droneImageRef);
 
     // Load Shelter Image
     const shelterImg = new Image();
@@ -158,6 +162,7 @@ export function useAssetLoader(): AssetLoaderResult {
     burlapSackImageRef,
     itemImagesRef, 
     cloudImagesRef,
+    droneImageRef,
     shelterImageRef,
     isLoadingAssets,
   };

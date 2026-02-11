@@ -149,4 +149,5 @@ export type MashBerries = { tag: "MashBerries" };
 export type PulverizeFlour = { tag: "PulverizeFlour" };
 export type ExtractQueenBee = { tag: "ExtractQueenBee" };
 export type UnravelRope = { tag: "UnravelRope" };
+export type DroneFlying = { tag: "DroneFlying" };
 
