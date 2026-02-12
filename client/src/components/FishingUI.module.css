@@ -1,9 +1,9 @@
 /* FishingUI.module.css - SOVA Diegetic Style Fishing Interface */
 
-/* Main Fishing Panel - Centered below player, above hotbar */
+/* Main Fishing Panel - Centered below player, above XP bar and hotbar */
 .fishingPanel {
   position: fixed;
-  bottom: 100px;
+  bottom: 145px;
   left: 50%;
   transform: translateX(-50%);
   background: linear-gradient(135deg, rgba(30, 15, 50, 0.95), rgba(20, 10, 40, 0.98));
@@ -22,7 +22,7 @@
 /* Wide panel variant for active fishing (fish on line) */
 .fishingPanelWide {
   position: fixed;
-  bottom: 100px;
+  bottom: 145px;
   left: 50%;
   transform: translateX(-50%);
   background: linear-gradient(135deg, rgba(30, 15, 50, 0.95), rgba(20, 10, 40, 0.98));
@@ -450,10 +450,10 @@
   }
 }
 
-/* Fishing Reticle Panel (Mode indicator) - Centered below player, above hotbar */
+/* Fishing Reticle Panel (Mode indicator) - Centered below player, above XP bar and hotbar */
 .reticlePanel {
   position: fixed;
-  bottom: 100px;
+  bottom: 145px;
   left: 50%;
   transform: translateX(-50%);
   background: linear-gradient(135deg, rgba(30, 15, 50, 0.95), rgba(20, 10, 40, 0.98));
