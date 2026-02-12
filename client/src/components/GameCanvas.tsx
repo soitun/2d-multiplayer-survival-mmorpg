@@ -195,6 +195,8 @@ import { renderArrowBreakEffects } from '../effects/arrowBreakEffect';
 
 // --- Prop Interface ---
 interface GameCanvasProps {
+  /** O(1) chunk map from useWorldChunkDataMap - when provided, GameCanvas skips its own subscription */
+  worldChunkDataMap?: Map<string, any>;
   players: Map<string, SpacetimeDBPlayer>;
   trees: Map<string, SpacetimeDBTree>;
   clouds: Map<string, SpacetimeDBCloud>;
@@ -358,6 +360,7 @@ interface GameCanvasProps {
  * to manage specific aspects like input, viewport, assets, day/night cycle, etc.
  */
 const GameCanvas: React.FC<GameCanvasProps> = ({
+  worldChunkDataMap: worldChunkDataMapProp,
   players,
   trees,
   clouds,
@@ -788,15 +791,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const chunkSizeRef = useRef<number>(8);
   const [chunkCacheVersion, setChunkCacheVersion] = useState(0);
 
-  // PERFORMANCE FIX: Memoize worldChunkData Map to avoid creating new Map on every render
-  // This was previously created inline in useEntityFiltering and TillerPreview, causing GC pressure
-  // The map only recalculates when chunkCacheVersion changes (on insert/update/delete)
-  const worldChunkDataMap = useMemo(() => {
-    // Use the cached data from chunkCacheRef which is updated by the subscription callbacks
+  // PERFORMANCE FIX: Use worldChunkDataMap from parent (GameScreen) when provided, else build from internal cache
+  // Parent provides O(1) map from useWorldChunkDataMap - avoids duplicate subscription
+  const worldChunkDataMapInternal = useMemo(() => {
     if (chunkCacheRef.current.size === 0) return undefined;
-    // Return a copy of the cached Map (chunkCacheRef is already keyed by "chunkX,chunkY")
     return new Map(chunkCacheRef.current);
   }, [chunkCacheVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const worldChunkDataMap = worldChunkDataMapProp ?? worldChunkDataMapInternal;
 
   // --- Use Entity Filtering Hook ---
   const {
@@ -988,10 +990,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // --- Procedural World Tile Management ---
   const { proceduralRenderer, isInitialized: isWorldRendererInitialized, updateTileCache } = useWorldTileCache();
 
-  // Subscribe once to all compressed chunks (small row count, stable; avoids spatial churn)
+  // Subscribe once to all compressed chunks - only when parent does NOT provide worldChunkDataMap
   // NOTE: chunkCacheRef, chunkSizeRef, chunkCacheVersion are now declared earlier (before useEntityFiltering)
   useEffect(() => {
-    if (!connection) return;
+    if (!connection || worldChunkDataMapProp !== undefined) return;
 
     // Row callbacks
     const handleChunkInsert = (_ctx: any, row: SpacetimeDBWorldChunkData) => {
@@ -1026,7 +1028,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     return () => {
       try { handle?.unsubscribe?.(); } catch { }
     };
-  }, [connection]);
+  }, [connection, worldChunkDataMapProp]);
 
   // Monitor burn effects for local player and play sound when burn is applied/extended
   useEffect(() => {
@@ -1062,15 +1064,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     });
   }, [activeConsumableEffects, localPlayerId]);
 
-  // Detect hot springs from world chunk data
+  // Detect hot springs from world chunk data (use prop when provided, else internal cache)
   const detectedHotSprings = useMemo(() => {
-    return detectHotSprings(chunkCacheRef.current);
-  }, [chunkCacheVersion]); // Recalculate when chunk data changes
+    return detectHotSprings((worldChunkDataMap ?? new Map()) as Map<string, SpacetimeDBWorldChunkData>);
+  }, [chunkCacheVersion, worldChunkDataMap]); // Recalculate when chunk data changes
 
   // Detect small quarries from world chunk data for building restriction zones
   const detectedQuarries = useMemo(() => {
-    return detectQuarries(chunkCacheRef.current);
-  }, [chunkCacheVersion]); // Recalculate when chunk data changes
+    return detectQuarries((worldChunkDataMap ?? new Map()) as Map<string, SpacetimeDBWorldChunkData>);
+  }, [chunkCacheVersion, worldChunkDataMap]); // Recalculate when chunk data changes
 
   // Optimized: Memoize the integer tile coordinates for the viewport
   // This prevents visibleWorldTiles from recalculating on every sub-pixel camera movement

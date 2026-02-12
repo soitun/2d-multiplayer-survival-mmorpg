@@ -114,6 +114,7 @@ import { useEntrainmentSovaSounds } from '../hooks/useEntrainmentSovaSounds';
 
 // Import other necessary imports
 import { useInteractionManager } from '../hooks/useInteractionManager';
+import { useWorldChunkDataMap, createIsWaterTile } from '../hooks/useWorldChunkDataMap';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSovaTutorials } from '../hooks/useSovaTutorials';
 import { useQuestNotifications } from '../hooks/useQuestNotifications';
@@ -467,6 +468,13 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     } = props;
 
     const gameCanvasRef = useRef<HTMLCanvasElement>(null);
+
+    // O(1) chunk Map for water tile detection (fishing, etc.) - avoids O(n) iteration over all chunks
+    const worldChunkDataMap = useWorldChunkDataMap(connection);
+    const isWaterTile = useMemo(
+        () => createIsWaterTile(worldChunkDataMap),
+        [worldChunkDataMap]
+    );
 
     // Voice interface hook
     const {
@@ -1100,6 +1108,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             )}
 
             <GameCanvas
+                worldChunkDataMap={worldChunkDataMap}
                 players={players}
                 trees={trees}
                 clouds={clouds}
@@ -1432,41 +1441,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     players={players}
                     // Add worldState for weather information
                     worldState={worldState}
-                    isWaterTile={(worldX: number, worldY: number) => {
-                        if (!connection) return false;
-
-                        // Convert world position to tile coordinates
-                        const tileX = Math.floor(worldX / 48); // TILE_SIZE is 48
-                        const tileY = Math.floor(worldY / 48);
-
-                        // Use compressed chunk data (same as GameCanvas)
-                        const chunkSize = 16; // Standard chunk size
-                        const chunkX = Math.floor(tileX / chunkSize);
-                        const chunkY = Math.floor(tileY / chunkSize);
-
-                        // Find the chunk containing this tile
-                        for (const chunk of connection.db.worldChunkData.iter()) {
-                            if (chunk.chunkX === chunkX && chunk.chunkY === chunkY) {
-                                // Calculate local tile position within chunk
-                                const localX = tileX % chunkSize;
-                                const localY = tileY % chunkSize;
-                                const localTileX = localX < 0 ? localX + chunkSize : localX;
-                                const localTileY = localY < 0 ? localY + chunkSize : localY;
-                                const tileIndex = localTileY * chunkSize + localTileX;
-
-                                // Check if index is valid
-                                if (tileIndex >= 0 && tileIndex < chunk.tileTypes.length) {
-                                    const tileTypeU8 = chunk.tileTypes[tileIndex];
-                                    // Check if it's water: Sea (3) or HotSpringWater (6)
-                                    return tileTypeU8 === 3 || tileTypeU8 === 6;
-                                }
-                                break;
-                            }
-                        }
-
-                        // No chunk found or invalid index, assume not water
-                        return false;
-                    }}
+                    isWaterTile={isWaterTile}
                 />
             )}
 
