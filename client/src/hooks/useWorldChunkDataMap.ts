@@ -10,7 +10,7 @@ import { gameConfig } from '../config/gameConfig';
  * Without this: O(n) iteration over all chunks per lookup.
  * With this: O(1) Map.get(chunkKey) per lookup.
  */
-export function useWorldChunkDataMap(connection: { db: { worldChunkData: any }; subscriptionBuilder: () => any } | null): Map<string, WorldChunkData> | undefined {
+export function useWorldChunkDataMap(connection: any): Map<string, WorldChunkData> | undefined {
   const chunkCacheRef = useRef<Map<string, WorldChunkData>>(new Map());
   const chunkSizeRef = useRef<number>(gameConfig.chunkSizeTiles);
   const [version, setVersion] = useState(0);

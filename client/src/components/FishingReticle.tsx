@@ -13,6 +13,9 @@ interface FishingReticleProps {
   cameraOffsetY: number;
   onCast: (worldX: number, worldY: number) => void;
   isWaterTile: (worldX: number, worldY: number) => boolean;
+  isInventoryOpen: boolean;
+  isGameMenuOpen: boolean;
+  isMinimapOpen: boolean; // Hide reticle when InterfaceContainer (menus, hotbar, debug panel, etc.) is open
 }
 
 const FishingReticle: React.FC<FishingReticleProps> = ({
@@ -24,6 +27,9 @@ const FishingReticle: React.FC<FishingReticleProps> = ({
   cameraOffsetY,
   onCast,
   isWaterTile,
+  isInventoryOpen,
+  isGameMenuOpen,
+  isMinimapOpen,
 }) => {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isValidTarget, setIsValidTarget] = useState(false);
@@ -33,6 +39,9 @@ const FishingReticle: React.FC<FishingReticleProps> = ({
 
   // Check if player has a valid fishing rod
   const hasValidRod = activeItemDef && FISHING_CONSTANTS.VALID_FISHING_RODS.some(rod => rod === activeItemDef.name);
+
+  // Same pattern as TargetingReticle: hide reticle when menus/hotbar/debug panel (InterfaceContainer) are open
+  const shouldShowReticle = hasValidRod && !isInventoryOpen && !isGameMenuOpen && !isMinimapOpen;
 
   // Cache canvas rect and update it less frequently
   const updateCanvasRect = useCallback(() => {
@@ -66,7 +75,7 @@ const FishingReticle: React.FC<FishingReticleProps> = ({
   }, [isWaterTile, fishingRangeSquared]);
 
   useEffect(() => {
-    if (!hasValidRod || !localPlayer || !gameCanvasRef.current) return;
+    if (!shouldShowReticle || !localPlayer || !gameCanvasRef.current) return;
 
     updateCanvasRect(); // Ensure we have fresh canvas rect
 
@@ -127,10 +136,10 @@ const FishingReticle: React.FC<FishingReticleProps> = ({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mousedown', handleLeftClick, true);
     };
-  }, [hasValidRod, localPlayer, gameCanvasRef, cameraOffsetX, cameraOffsetY, isValidTarget, onCast, validateTarget, updateCanvasRect]);
+  }, [shouldShowReticle, localPlayer, gameCanvasRef, cameraOffsetX, cameraOffsetY, isValidTarget, onCast, validateTarget, updateCanvasRect]);
 
-  // Don't render if no valid fishing rod
-  if (!hasValidRod) {
+  // Don't render if no valid fishing rod or when menus are open (same pattern as TargetingReticle)
+  if (!shouldShowReticle) {
     return null;
   }
 

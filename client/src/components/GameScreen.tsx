@@ -1442,6 +1442,9 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     // Add worldState for weather information
                     worldState={worldState}
                     isWaterTile={isWaterTile}
+                    isInventoryOpen={showInventoryState || showCraftingScreenState}
+                    isGameMenuOpen={currentMenu !== null}
+                    isMinimapOpen={isMinimapOpen}
                 />
             )}
 

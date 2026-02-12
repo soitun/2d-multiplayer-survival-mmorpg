@@ -23,6 +23,10 @@ interface FishingManagerProps {
   players: Map<string, Player>;
   // Add worldState for weather information
   worldState: WorldState | null;
+  // Same pattern as TargetingReticle: hide reticle when menus/hotbar/debug panel are open
+  isInventoryOpen: boolean;
+  isGameMenuOpen: boolean;
+  isMinimapOpen: boolean;
 }
 
 const FishingManager: React.FC<FishingManagerProps> = ({
@@ -38,6 +42,9 @@ const FishingManager: React.FC<FishingManagerProps> = ({
   fishingSessions,
   players,
   worldState,
+  isInventoryOpen,
+  isGameMenuOpen,
+  isMinimapOpen,
 }) => {
   const [fishingState, setFishingState] = useState<FishingState>({
     isActive: false,
@@ -171,6 +178,9 @@ const FishingManager: React.FC<FishingManagerProps> = ({
           cameraOffsetY={cameraOffsetY}
           onCast={handleCast}
           isWaterTile={isWaterTile}
+          isInventoryOpen={isInventoryOpen}
+          isGameMenuOpen={isGameMenuOpen}
+          isMinimapOpen={isMinimapOpen}
         />
       )}
       
