@@ -85,6 +85,7 @@ mod backpack; // Backpack auto-consolidation system
 mod items_database; // <<< NEW: Modular items database
 mod starting_items; // <<< ADDED module declaration
 mod inventory_management; // <<< ADDED new module
+mod container_access; // Validates player access to items in external containers
 mod spatial_grid; // ADD: Spatial grid module for optimized collision detection
 mod crafting; // ADD: Crafting recipe definitions
 mod crafting_queue; // ADD: Crafting queue logic
@@ -465,7 +466,7 @@ use crate::drinking::player_drinking_cooldown as PlayerDrinkingCooldownTableTrai
 use crate::planted_seeds::planted_seed as PlantedSeedTableTrait; // <<< ADDED: Import PlantedSeed table trait
 use crate::sound_events::sound_event as SoundEventTableTrait; // <<< ADDED: Import SoundEvent table trait
 use crate::sound_events::sound_event_cleanup_schedule as SoundEventCleanupScheduleTableTrait; // <<< ADDED: Import SoundEventCleanupSchedule table trait
-// Thunder sound schedule removed - system disabled for now
+use crate::sound_events::thunder_sound_schedule as ThunderSoundScheduleTableTrait; // <<< ADDED: Import ThunderSoundSchedule table trait for delayed thunder
 use crate::rain_collector::rain_collector as RainCollectorTableTrait; // <<< ADDED: Import RainCollector table trait
 use crate::water_patch::water_patch as WaterPatchTableTrait; // <<< ADDED: Import WaterPatch table trait
 use crate::fertilizer_patch::fertilizer_patch as FertilizerPatchTableTrait; // <<< ADDED: Import FertilizerPatch table trait

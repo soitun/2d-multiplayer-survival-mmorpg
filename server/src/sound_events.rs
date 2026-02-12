@@ -104,6 +104,7 @@ pub enum SoundType {
     TillDirt,                // till_dirt.mp3 (1 variation - when player tills soil with Stone Tiller)
     ErrorTillingFailed,      // error_tilling_failed.mp3 (SOVA: "This ground cannot be tilled")
     ErrorTillingDirt,        // error_tilling_dirt.mp3 (SOVA: "This soil has already been prepared")
+    ErrorMobileCapability,   // sova_error_mobile_capability.mp3 (SOVA: "Perhaps you could put me on more capable hardware...")
     HostileDeath,            // death_hostile.mp3 (2 variations - when hostile NPCs are killed)
     // Animal/creature death sounds
     DeathWolf,               // death_wolf.mp3 (1 variation - when wolves die)
@@ -126,7 +127,7 @@ pub enum SoundType {
     PlayerHurt,              // player_hurt.mp3 (3 variations - player grunts when taking damage)
     Heartbeat,            // heartbeat.mp3 (looping - plays when player health is critically low)
     StopHeartbeat,           // Special signal to stop heartbeat sound
-    Thunder,                 // thunder.mp3 (11 variations - thunder, thunder1 through thunder10)
+    Thunder,                 // thunder.mp3 (4 variations - thunder, thunder1, thunder2, thunder3)
     MashBerries,             // mash_berries.mp3 (1 variation - for mashing berries into Berry Mash)
     PulverizeFlour,          // pulverize_flour.mp3 (1 variation - for grinding items into flour)
     ExtractQueenBee,         // extract_queen_bee.mp3 (1 variation - for extracting queen bee from honeycomb)
@@ -235,6 +236,7 @@ impl SoundType {
             SoundType::TillDirt => "till_dirt",
             SoundType::ErrorTillingFailed => "error_tilling_failed",
             SoundType::ErrorTillingDirt => "error_tilling_dirt",
+            SoundType::ErrorMobileCapability => "sova_error_mobile_capability",
             SoundType::HostileDeath => "death_hostile",
             // Animal/creature death sounds
             SoundType::DeathWolf => "death_wolf",
@@ -365,6 +367,7 @@ impl SoundType {
             SoundType::TillDirt => 1, // till_dirt.mp3 (tilling soil with Stone Tiller)
             SoundType::ErrorTillingFailed => 1, // error_tilling_failed.mp3 (SOVA error for non-tillable ground)
             SoundType::ErrorTillingDirt => 1, // error_tilling_dirt.mp3 (SOVA error for already-tilled ground)
+            SoundType::ErrorMobileCapability => 1, // sova_error_mobile_capability.mp3 (SOVA: mobile capability error - no pitch variation)
             SoundType::HostileDeath => 2, // death_hostile.mp3, death_hostile1.mp3 (2 variations for hostile NPC death)
             // Animal/creature death sounds
             SoundType::DeathWolf => 1, // death_wolf.mp3 (single variation)
@@ -387,7 +390,7 @@ impl SoundType {
             SoundType::PlayerHurt => 3, // player_hurt.mp3, player_hurt1.mp3, player_hurt2.mp3 (grunts when hit)
             SoundType::Heartbeat=> 1, // heartbeat.mp3 (looping sound)
             SoundType::StopHeartbeat => 1, // Signal to stop heartbeat
-            SoundType::Thunder => 11, // thunder.mp3, thunder1.mp3 through thunder10.mp3 (11 variations)
+            SoundType::Thunder => 4, // thunder.mp3, thunder1.mp3, thunder2.mp3, thunder3.mp3 (4 variations)
             SoundType::MashBerries => 1, // mash_berries.mp3 (single variation)
             SoundType::PulverizeFlour => 1, // pulverize_flour.mp3 (single variation)
             SoundType::ExtractQueenBee => 1, // extract_queen_bee.mp3 (single variation)
@@ -464,6 +467,16 @@ pub struct SoundEventCleanupSchedule {
     pub scheduled_at: ScheduleAt,
 }
 
+/// Schedule table for delayed thunder sound (0.5-2.5s after lightning flash)
+#[table(name = thunder_sound_schedule, scheduled(emit_delayed_thunder_sound))]
+#[derive(Clone, Debug)]
+pub struct ThunderSoundSchedule {
+    #[primary_key]
+    #[auto_inc]
+    pub schedule_id: u64,
+    pub scheduled_at: ScheduleAt,
+}
+
 /// Clean up sound events older than 5 seconds to prevent table bloat
 #[reducer]
 pub fn cleanup_old_sound_events(ctx: &ReducerContext, _args: SoundEventCleanupSchedule) -> Result<(), String> {
@@ -495,6 +508,37 @@ pub fn cleanup_old_sound_events(ctx: &ReducerContext, _args: SoundEventCleanupSc
     }
 
     Ok(())
+}
+
+/// Emit thunder sound when scheduled (called 0.5-2.5s after lightning flash)
+#[reducer]
+pub fn emit_delayed_thunder_sound(ctx: &ReducerContext, _args: ThunderSoundSchedule) -> Result<(), String> {
+    if ctx.sender != ctx.identity() {
+        return Err("Delayed thunder sound can only be run by scheduler".to_string());
+    }
+    emit_thunder_sound(ctx, 1.2);
+    Ok(())
+}
+
+/// Schedule thunder sound to play 0.5-2.5 seconds from now (simulates sound travel delay)
+pub fn schedule_delayed_thunder_sound(ctx: &ReducerContext, rng: &mut impl Rng) -> Result<(), String> {
+    // Random delay 0.5-2.5 seconds (sound travels ~343 m/s, lightning is visible instantly)
+    let delay_secs = 0.5 + rng.gen::<f32>() * 2.0;
+    let delay_micros = (delay_secs * 1_000_000.0) as i64;
+    let scheduled_time = ctx.timestamp + TimeDuration::from_micros(delay_micros);
+
+    let schedule = ThunderSoundSchedule {
+        schedule_id: 0,
+        scheduled_at: ScheduleAt::Time(scheduled_time),
+    };
+
+    match ctx.db.thunder_sound_schedule().try_insert(schedule) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Failed to schedule delayed thunder sound: {:?}", e);
+            Err("Failed to schedule delayed thunder sound".to_string())
+        }
+    }
 }
 
 // --- Public API Functions ---

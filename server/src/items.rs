@@ -15,14 +15,26 @@ use crate::dropped_item::{calculate_drop_position, create_dropped_item_entity, c
 use crate::items_database; // Use new modular items database
 use std::cmp::min;
 use spacetimedb::Identity; // ADDED for add_item_to_player_inventory
-// Import the ContainerItemClearer trait
-use crate::inventory_management::ContainerItemClearer;
+// Import the ContainerItemClearer and ItemContainer traits
+use crate::inventory_management::{ContainerItemClearer, ItemContainer};
+// Table traits for clear_item_from_container_by_location (direct db access)
+use crate::furnace::furnace as FurnaceTableTrait;
+use crate::fumarole::fumarole as FumaroleTableTrait;
+use crate::wooden_storage_box::wooden_storage_box as WoodenStorageBoxTableTrait;
+use crate::player_corpse::player_corpse as PlayerCorpseTableTrait;
+use crate::stash::stash as StashTableTrait;
+use crate::rain_collector::rain_collector as RainCollectorTableTrait;
+use crate::turret::turret as TurretTableTrait;
+use crate::barbecue::barbecue as BarbecueTableTrait;
+use crate::lantern::lantern as LanternTableTrait;
+use crate::broth_pot::broth_pot as BrothPotTableTrait;
+use crate::homestead_hearth::homestead_hearth as HomesteadHearthTableTrait;
 // Import the function that was moved
 use crate::player_inventory::move_item_to_hotbar;
 use crate::player_inventory::move_item_to_inventory;
 // Import helper used locally
 use crate::player_inventory::find_first_empty_inventory_slot; 
-use crate::models::{ItemLocation, EquipmentSlotType, TargetType}; // <<< UPDATED IMPORT
+use crate::models::{ItemLocation, ContainerLocationData, ContainerType, EquipmentSlotType, TargetType}; // <<< UPDATED IMPORT
 use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 use crate::campfire::CampfireClearer; 
@@ -32,6 +44,10 @@ use crate::player_corpse::PlayerCorpseClearer;
 use crate::stash::StashClearer; // Added StashClearer import
 use crate::rain_collector::RainCollector as RainCollectorClearer; // Added RainCollectorClearer import
 use crate::turret::TurretClearer; // Added TurretClearer import
+use crate::furnace::FurnaceClearer;
+use crate::barbecue::BarbecueClearer;
+use crate::lantern::LanternClearer;
+use crate::broth_pot::BrothPotClearer;
 use crate::ranged_weapon_stats::RangedWeaponStats; // For the struct
 use crate::ranged_weapon_stats::ranged_weapon_stats as ranged_weapon_stats_table_accessor; // For ctx.db.ranged_weapon_stats()
 use crate::active_effects::{FoodPoisoningRisk, food_poisoning_risk as FoodPoisoningRiskTableTrait}; // For food poisoning
@@ -888,9 +904,196 @@ pub(crate) fn clear_specific_item_from_equipment_slots(ctx: &ReducerContext, pla
     }
 }
 
+/// Clears an item from a specific container when the location is known.
+/// O(1) lookup by container ID instead of iterating all instances.
+/// Use this when the item's ContainerLocationData is available (e.g. from bones, consumables).
+pub(crate) fn clear_item_from_container_by_location(
+    ctx: &ReducerContext,
+    loc: &ContainerLocationData,
+    item_instance_id: u64,
+) -> bool {
+    let container_id_u32 = loc.container_id as u32;
+    let slot_index = loc.slot_index;
+
+    let cleared = match loc.container_type {
+        ContainerType::Campfire => {
+            if let Some(mut cf) = ctx.db.campfire().id().find(container_id_u32) {
+                if cf.get_slot_instance_id(slot_index) == Some(item_instance_id) {
+                    cf.set_slot(slot_index, None, None);
+                    ctx.db.campfire().id().update(cf);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        ContainerType::Furnace => {
+            if let Some(mut f) = ctx.db.furnace().id().find(container_id_u32) {
+                if f.get_slot_instance_id(slot_index) == Some(item_instance_id) {
+                    f.set_slot(slot_index, None, None);
+                    ctx.db.furnace().id().update(f);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        ContainerType::Fumarole => {
+            if let Some(mut fu) = ctx.db.fumarole().id().find(container_id_u32) {
+                if fu.get_slot_instance_id(slot_index) == Some(item_instance_id) {
+                    fu.set_slot(slot_index, None, None);
+                    ctx.db.fumarole().id().update(fu);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        ContainerType::WoodenStorageBox => {
+            if let Some(mut w) = ctx.db.wooden_storage_box().id().find(container_id_u32) {
+                if w.get_slot_instance_id(slot_index) == Some(item_instance_id) {
+                    w.set_slot(slot_index, None, None);
+                    ctx.db.wooden_storage_box().id().update(w);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        ContainerType::PlayerCorpse => {
+            if let Some(mut pc) = ctx.db.player_corpse().id().find(container_id_u32) {
+                if pc.get_slot_instance_id(slot_index) == Some(item_instance_id) {
+                    pc.set_slot(slot_index, None, None);
+                    ctx.db.player_corpse().id().update(pc);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        ContainerType::Stash => {
+            if let Some(mut s) = ctx.db.stash().id().find(container_id_u32) {
+                if s.get_slot_instance_id(slot_index) == Some(item_instance_id) {
+                    s.set_slot(slot_index, None, None);
+                    ctx.db.stash().id().update(s);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        ContainerType::RainCollector => {
+            if slot_index == 0 {
+                if let Some(mut rc) = ctx.db.rain_collector().id().find(container_id_u32) {
+                    if rc.slot_0_instance_id == Some(item_instance_id) {
+                        rc.slot_0_instance_id = None;
+                        rc.slot_0_def_id = None;
+                        ctx.db.rain_collector().id().update(rc);
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        ContainerType::Turret => {
+            if slot_index == 0 {
+                if let Some(mut t) = ctx.db.turret().id().find(container_id_u32) {
+                    if t.ammo_instance_id == Some(item_instance_id) {
+                        t.ammo_instance_id = None;
+                        t.ammo_def_id = None;
+                        ctx.db.turret().id().update(t);
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        ContainerType::Barbecue => {
+            if let Some(mut b) = ctx.db.barbecue().id().find(container_id_u32) {
+                if b.get_slot_instance_id(slot_index) == Some(item_instance_id) {
+                    b.set_slot(slot_index, None, None);
+                    ctx.db.barbecue().id().update(b);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        ContainerType::Lantern => {
+            if let Some(mut l) = ctx.db.lantern().id().find(container_id_u32) {
+                if l.get_slot_instance_id(slot_index) == Some(item_instance_id) {
+                    l.set_slot(slot_index, None, None);
+                    ctx.db.lantern().id().update(l);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        ContainerType::BrothPot => {
+            if let Some(mut bp) = ctx.db.broth_pot().id().find(container_id_u32) {
+                if bp.get_slot_instance_id(slot_index) == Some(item_instance_id) {
+                    bp.set_slot(slot_index, None, None);
+                    ctx.db.broth_pot().id().update(bp);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        ContainerType::HomesteadHearth => {
+            if let Some(mut h) = ctx.db.homestead_hearth().id().find(container_id_u32) {
+                if h.get_slot_instance_id(slot_index) == Some(item_instance_id) {
+                    h.set_slot(slot_index, None, None);
+                    ctx.db.homestead_hearth().id().update(h);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+    };
+
+    if cleared {
+        log::debug!("[ItemsClear] Item {} cleared from container {:?} (optimized path).", item_instance_id, loc.container_type);
+    }
+    cleared
+}
+
 // Clears an item from any known container type that might hold it.
 // This is a broader cleanup function, typically called when an item is being
 // definitively removed from the game or its location becomes truly unknown.
+// Use clear_item_from_container_by_location when the item's ContainerLocationData is available.
 pub(crate) fn clear_item_from_any_container(ctx: &ReducerContext, item_instance_id: u64) {
     // Attempt to clear from Campfire fuel slots
     if CampfireClearer::clear_item(ctx, item_instance_id) {
@@ -934,6 +1137,30 @@ pub(crate) fn clear_item_from_any_container(ctx: &ReducerContext, item_instance_
         return; // Item found and handled
     }
 
+    // Attempt to clear from Furnace slots
+    if FurnaceClearer::clear_item(ctx, item_instance_id) {
+        log::debug!("[ItemsClear] Item {} cleared from a furnace.", item_instance_id);
+        return;
+    }
+
+    // Attempt to clear from Barbecue slots
+    if BarbecueClearer::clear_item(ctx, item_instance_id) {
+        log::debug!("[ItemsClear] Item {} cleared from a barbecue.", item_instance_id);
+        return;
+    }
+
+    // Attempt to clear from Lantern slots
+    if LanternClearer::clear_item(ctx, item_instance_id) {
+        log::debug!("[ItemsClear] Item {} cleared from a lantern.", item_instance_id);
+        return;
+    }
+
+    // Attempt to clear from BrothPot slots
+    if BrothPotClearer::clear_item(ctx, item_instance_id) {
+        log::debug!("[ItemsClear] Item {} cleared from a broth pot.", item_instance_id);
+        return;
+    }
+
     // If we reach here, the item was not found in any of the explicitly checked containers.
     // The item's own `location` field might be stale or point to a player inventory/hotbar/equipment,
     // which this function is not designed to clear directly.
@@ -956,8 +1183,10 @@ fn clear_item_from_source_location(ctx: &ReducerContext, item_instance_id: u64) 
     if was_equipped {
         clear_specific_item_from_equipment_slots(ctx, sender_id, item_instance_id);
         log::debug!("[ClearSource] Attempted clearing item {} from equipment slots for player {:?}", item_instance_id, sender_id);
-    } else if was_in_container {
-        clear_item_from_any_container(ctx, item_instance_id);
+    } else if let ItemLocation::Container(ref loc) = &item.location {
+        if !clear_item_from_container_by_location(ctx, loc, item_instance_id) {
+            clear_item_from_any_container(ctx, item_instance_id);
+        }
         log::debug!("[ClearSource] Attempted clearing item {} from container slots.", item_instance_id);
     } else {
         log::debug!("[ClearSource] Item {} was in player inventory/hotbar. No equipment/container clearing needed.", item_instance_id);
@@ -1071,7 +1300,13 @@ pub fn equip_armor_from_drag(ctx: &ReducerContext, item_instance_id: u64, target
     // Clear from original container if it wasn't in player direct possession
     if !came_from_player_direct_possession {
         log::debug!("[EquipArmorDrag] Item {} came from container/other. Clearing containers.", item_instance_id);
-        clear_item_from_any_container(ctx, item_instance_id);
+        if let ItemLocation::Container(ref loc) = &original_location {
+            if !clear_item_from_container_by_location(ctx, loc, item_instance_id) {
+                clear_item_from_any_container(ctx, item_instance_id);
+            }
+        } else {
+            clear_item_from_any_container(ctx, item_instance_id);
+        }
         // Ownership was implicitly handled by setting ItemLocation::Equipped above.
     }
 

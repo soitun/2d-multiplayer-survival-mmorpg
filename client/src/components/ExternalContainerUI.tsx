@@ -170,6 +170,8 @@ interface ExternalContainerUIProps {
     getSlotIndicator?: (slotType: string, slotIndex: number | string, parentId?: number | bigint) => { progress: number } | undefined;
     onHotLootSlotHover?: (item: PopulatedItem, slotInfo: DragSourceSlotInfo, context: 'player' | 'container') => void;
     setHotLootCurrentHover?: (item: PopulatedItem | null, slotInfo: DragSourceSlotInfo | null, context: 'player' | 'container' | null) => void;
+    /** Opens ItemInteractionPanel when item is clicked (consume, crush, etc. from container) */
+    onSelectInventoryItem?: (item: PopulatedItem | null) => void;
 }
 
 const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
@@ -207,6 +209,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
     getSlotIndicator,
     onHotLootSlotHover,
     setHotLootCurrentHover,
+    onSelectInventoryItem,
 }) => {
     // Add ref to track when drag operations complete
     const lastDragCompleteTime = useRef<number>(0);
@@ -1394,8 +1397,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 }
                 onItemMouseLeave={onExternalItemMouseLeave}
                 onItemMouseMove={onExternalItemMouseMove}
-                // Note: onItemClick intentionally omitted - items in external containers can't be
-                // crushed/consumed/etc since server reducers require items to be in player's possession
+                onItemClick={onSelectInventoryItem}
                 style={container.containerType === 'rain_collector' ? { marginTop: '12px' } : undefined}
                 disabledSlots={
                     (container.containerType === 'campfire' && attachedBrothPot) 

@@ -122,7 +122,7 @@ const SOUND_DEFINITIONS = {
     cairn_unlock: { strategy: SoundStrategy.IMMEDIATE, volume: 1.0 }, // Cairn unlock sound (client-side immediate for instant feedback when player first unlocks a cairn)
     crow_stealing: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.2, maxDistance: 700 }, // Crow stealing sound when successfully stealing from player
     // Thunder sound - global weather effect
-    thunder: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.5, maxDistance: Infinity, isEnvironmental: true }, // Thunder sound (11 variations)
+    thunder: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.5, maxDistance: Infinity, isEnvironmental: true }, // Thunder sound (4 variations)
 } as const;
 
 type SoundType = keyof typeof SOUND_DEFINITIONS;
@@ -400,18 +400,12 @@ const PRELOAD_SOUNDS = [
     'crow_stealing.mp3',                                     // 1 crow stealing variation (when crow steals from player)
     'cairn_unlock.mp3',                                      // 1 cairn unlock variation (when discovering new cairn)
     'error_seaweed_above_water.mp3',                         // 1 seaweed harvest error variation (when above water)
+    'sova_error_mobile_capability.mp3',                     // 1 SOVA mobile capability error (no pitch variation - voice line)
     'stun.mp3',                                               // 1 stun effect variation (when stunned by blunt weapon)
-    'thunder.mp3',                                             // 11 thunder variations
+    'thunder.mp3',                                             // 4 thunder variations
     'thunder1.mp3',
     'thunder2.mp3',
     'thunder3.mp3',
-    'thunder4.mp3',
-    'thunder5.mp3',
-    'thunder6.mp3',
-    'thunder7.mp3',
-    'thunder8.mp3',
-    'thunder9.mp3',
-    'thunder10.mp3',
 ] as const;
 
 // Enhanced audio loading with error handling and performance monitoring
@@ -788,7 +782,7 @@ const playLocalSound = async (
             } else if (soundType === 'stun') {
                 variationCount = 1; // stun.mp3
             } else if (soundType === 'thunder') {
-                variationCount = 11; // thunder.mp3, thunder1.mp3 through thunder10.mp3
+                variationCount = 4; // thunder.mp3, thunder1.mp3, thunder2.mp3, thunder3.mp3
             }
             
             const randomVariation = Math.floor(Math.random() * variationCount);

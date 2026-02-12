@@ -339,8 +339,8 @@ function AppContent() {
     const TAP_ARRIVAL_THRESHOLD = 16; // Stop when within 16px of destination
     
     // --- Mobile Sprint Override State ---
+    // On mobile: always run by default (no walking - screen is smaller). Desktop: undefined (use server state).
     // This is set immediately when mobile sprint button is pressed (no server round-trip)
-    // Used to ensure sprint state is consistent in position updates
     const [mobileSprintOverride, setMobileSprintOverride] = useState<boolean | undefined>(undefined);
     
     // Simplified movement input - no complex processing
@@ -416,6 +416,21 @@ function AppContent() {
             setTapAnimation(null);
         }, 500);
     }, [isMobile]);
+    
+    // Mobile: run by default (no walking - screen is smaller). Set override on mount when isMobile.
+    useEffect(() => {
+        if (isMobile) {
+            setMobileSprintOverride(true);
+            // Server sync: ensure sprint state is persisted
+            if (connection?.reducers) {
+                try {
+                    connection.reducers.setSprinting(true);
+                } catch { /* ignore */ }
+            }
+        } else {
+            setMobileSprintOverride(undefined);
+        }
+    }, [isMobile, connection]);
     
     // PERFORMANCE FIX: Memoize collision entities to prevent recreating filtered Maps on every render.
     // Previously, filterVisibleTrees/filterVisibleEntities ran and allocated new Maps on EVERY render

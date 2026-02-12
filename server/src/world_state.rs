@@ -939,9 +939,7 @@ pub fn debug_set_weather(ctx: &ReducerContext, weather_type_str: String) -> Resu
         extinguish_unprotected_campfires(ctx, &weather_type)?;
     }
     
-    // Handle HeavyStorm-specific setup (thunder scheduling)
-    // Thunder/lightning disabled for now
-    // TODO: Re-enable thunder system after debugging
+    // Handle HeavyStorm-specific setup (thunder scheduling is handled in update_single_chunk_weather)
     
     // 🌧️ Start continuous rain sounds based on weather type
     if matches!(weather_type, WeatherType::HeavyRain | WeatherType::HeavyStorm) {
@@ -975,11 +973,7 @@ pub fn debug_set_weather(ctx: &ReducerContext, weather_type_str: String) -> Resu
         chunk_weather.weather_start_time = Some(now);
         chunk_weather.weather_duration = Some(600.0); // 10 minutes
         chunk_weather.last_update = now;
-        
-        // Thunder/lightning disabled for now
-        // TODO: Re-enable thunder system after debugging
-        chunk_weather.next_thunder_time = None;
-        chunk_weather.last_thunder_time = None;
+        // Thunder scheduling: next_thunder_time=None lets update_single_chunk_weather set it on first tick
         
         ctx.db.chunk_weather().chunk_index().update(chunk_weather);
         log::info!("Debug: Chunk {} weather set to {:?} (player position: {:.1}, {:.1})", chunk_index, weather_type, player.position_x, player.position_y);
@@ -1554,6 +1548,45 @@ fn update_single_chunk_weather(
     let chunk_index = chunk_weather.chunk_index;
     let current_weather = chunk_weather.current_weather.clone();
     let seasonal_config = SeasonalWeatherConfig::for_season(&world_state.current_season);
+
+    // === STEP 0: THUNDER/LIGHTNING (HeavyStorm only) ===
+    // Lightning flash + delayed thunder sound in heavy storm zones
+    const MIN_THUNDER_INTERVAL_SECS: f32 = 8.0;
+    const MAX_THUNDER_INTERVAL_SECS: f32 = 25.0;
+    if matches!(current_weather, WeatherType::HeavyStorm) {
+        // Schedule first thunder if not yet set
+        if chunk_weather.next_thunder_time.is_none() {
+            let interval_secs = rng.gen_range(MIN_THUNDER_INTERVAL_SECS..=MAX_THUNDER_INTERVAL_SECS);
+            chunk_weather.next_thunder_time = Some(now + TimeDuration::from_micros((interval_secs * 1_000_000.0) as i64));
+        }
+
+        // Time for thunder?
+        if let Some(next_time) = chunk_weather.next_thunder_time {
+            if now >= next_time {
+                // 1. Insert ThunderEvent (triggers lightning flash on client)
+                let intensity = rng.gen_range(0.6..=1.0);
+                let thunder_event = ThunderEvent {
+                    id: 0,
+                    chunk_index,
+                    timestamp: now,
+                    intensity,
+                };
+                if ctx.db.thunder_event().try_insert(thunder_event).is_ok() {
+                    log::debug!("⚡ Thunder in chunk {} intensity {:.2}", chunk_index, intensity);
+                }
+
+                // 2. Schedule delayed thunder sound (0.5-2.5s after flash)
+                if let Err(e) = sound_events::schedule_delayed_thunder_sound(ctx, rng) {
+                    log::warn!("Failed to schedule thunder sound: {}", e);
+                }
+
+                // 3. Schedule next thunder
+                chunk_weather.last_thunder_time = Some(now);
+                let next_interval = rng.gen_range(MIN_THUNDER_INTERVAL_SECS..=MAX_THUNDER_INTERVAL_SECS);
+                chunk_weather.next_thunder_time = Some(now + TimeDuration::from_micros((next_interval * 1_000_000.0) as i64));
+            }
+        }
+    }
     
     // === STEP 1: INTERIOR STABILITY CHECK ===
     // Chunks deep inside a weather front are extremely stable - skip most logic

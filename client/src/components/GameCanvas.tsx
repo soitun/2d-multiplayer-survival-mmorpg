@@ -86,7 +86,7 @@ import { useStructureImpactParticles } from '../hooks/useStructureImpactParticle
 import { useCloudInterpolation, InterpolatedCloudData } from '../hooks/useCloudInterpolation';
 import { useGrassInterpolation, InterpolatedGrassData } from '../hooks/useGrassInterpolation';
 import { useArrowBreakEffects } from '../hooks/useArrowBreakEffects';
-// Thunder effects removed - system disabled for now
+import { useThunderEffects } from '../hooks/useThunderEffects';
 import { useChunkBasedRainSounds } from '../hooks/useChunkBasedRainSounds';
 import { useFireArrowParticles } from '../hooks/useFireArrowParticles';
 import { useFirePatchParticles } from '../hooks/useFirePatchParticles';
@@ -1357,7 +1357,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const getInteractableLabel = useCallback((target: any): string => {
     if (!target) return '';
     switch (target.type) {
-      case 'harvestable_resource': return 'PLANT';
+      case 'harvestable_resource': return 'PICK';
       case 'campfire': return 'FIRE';
       case 'furnace': return 'SMELT';
       case 'fumarole': return 'HEAT';
@@ -1396,8 +1396,26 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     lastMobileInteractTriggerRef.current = mobileInteractTrigger;
 
     // Trigger interaction with current target
-    if (unifiedInteractableTarget && connection?.reducers) {
-      const target = unifiedInteractableTarget;
+    if (!unifiedInteractableTarget) return;
+
+    const target = unifiedInteractableTarget;
+
+    // Mobile: block containers, placeables, inventory - play SOVA error instead
+    const MOBILE_BLOCKED_TYPES = new Set([
+      'campfire', 'furnace', 'lantern', 'box', 'stash', 'corpse', 'sleeping_bag',
+      'rain_collector', 'homestead_hearth', 'fumarole', 'broth_pot', 'alk_station', 'door',
+    ]);
+    if (MOBILE_BLOCKED_TYPES.has(target.type)) {
+      if (showSovaSoundBox) {
+        const audio = new Audio('/sounds/sova_error_mobile_capability.mp3');
+        audio.volume = 0.8;
+        showSovaSoundBox(audio, 'SOVA');
+        audio.play().catch((e) => console.warn('[Mobile] Failed to play capability error:', e));
+      }
+      return;
+    }
+
+    if (connection?.reducers) {
       switch (target.type) {
         case 'harvestable_resource':
           connection.reducers.interactWithHarvestableResource(target.id as bigint);
@@ -1408,53 +1426,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         case 'door':
           connection.reducers.interactDoor(target.id as bigint);
           break;
-        case 'campfire':
-          onSetInteractingWith({ type: 'campfire', id: target.id as number });
-          break;
-        case 'furnace':
-          onSetInteractingWith({ type: 'furnace', id: target.id as number });
-          break;
-        case 'lantern':
-          onSetInteractingWith({ type: 'lantern', id: target.id as number });
-          break;
-        case 'box':
-          onSetInteractingWith({ type: 'wooden_storage_box', id: target.id as bigint });
-          break;
-        case 'stash':
-          onSetInteractingWith({ type: 'stash', id: target.id as bigint });
-          break;
-        case 'corpse':
-          onSetInteractingWith({ type: 'player_corpse', id: target.id as bigint });
-          break;
-        case 'sleeping_bag':
-          onSetInteractingWith({ type: 'sleeping_bag', id: target.id as bigint });
-          break;
-        case 'rain_collector':
-          onSetInteractingWith({ type: 'rain_collector', id: target.id as bigint });
-          break;
-        case 'homestead_hearth':
-          onSetInteractingWith({ type: 'homestead_hearth', id: target.id as bigint });
-          break;
-        case 'fumarole':
-          onSetInteractingWith({ type: 'fumarole', id: target.id as number });
-          break;
-        case 'broth_pot':
-          onSetInteractingWith({ type: 'broth_pot', id: target.id as bigint });
-          break;
-        case 'alk_station':
-          onSetInteractingWith({ type: 'alk_station', id: target.id as bigint });
-          break;
         case 'water':
           // Water requires hold - for mobile just show a message or ignore
           console.log('[Mobile] Water drinking requires hold action - not supported in tap');
           break;
         case 'knocked_out_player':
-          // Revive requires hold - for mobile just show a message or ignore  
+          // Revive requires hold - for mobile just show a message or ignore
           console.log('[Mobile] Reviving requires hold action - not supported in tap');
           break;
       }
     }
-  }, [mobileInteractTrigger, isMobile, unifiedInteractableTarget, connection, onSetInteractingWith]);
+  }, [mobileInteractTrigger, isMobile, unifiedInteractableTarget, connection, onSetInteractingWith, showSovaSoundBox]);
 
   // Store the foundation/wall/fence when upgrade menu opens (prevents flickering)
   const upgradeMenuFoundationRef = useRef<FoundationCell | null>(null);
@@ -2327,8 +2309,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
   }, [connection, camera.x, camera.y, currentCanvasWidth, currentCanvasHeight]);
 
-  // Thunder effects removed - system disabled for now
-  // TODO: Re-enable thunder system after debugging
+  // Lightning flash + delayed thunder sound in heavy storm zones
+  useThunderEffects({ connection, localPlayer });
 
   // Hook for chunk-based rain sounds (manages rain sounds based on player's chunk weather)
   useChunkBasedRainSounds({ connection, localPlayer, chunkWeather });

@@ -49,16 +49,10 @@ pub fn crush_bone_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<()
     let item_def = item_def_table.id().find(item_to_crush.item_def_id)
         .ok_or_else(|| format!("Item definition {} not found", item_to_crush.item_def_id))?;
 
-    // 2. Validate item ownership and type
+    // 2. Validate item type and access (player possession OR accessible container)
     match item_def.name.as_str() {
         "Animal Bone" | "Human Skull" | "Fox Skull" | "Wolf Skull" | "Viper Skull" | "Walrus Skull" | "Vole Skull" | "Wolverine Skull" | "Whale Bone Fragment" | "Polar Bear Skull" | "Hare Skull" | "Owl Skull" | "Tern Skull" | "Crow Skull" | "Shark Skull" => {
-            // Validate ownership through location
-            match &item_to_crush.location {
-                crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
-                crate::models::ItemLocation::Hotbar(data) if data.owner_id == sender_id => (),
-                crate::models::ItemLocation::Equipped(data) if data.owner_id == sender_id => (),
-                _ => return Err("Item must be in your inventory, hotbar, or equipped to crush.".to_string()),
-            }
+            crate::container_access::validate_player_can_use_item(ctx, &item_to_crush)?;
         },
         _ => return Err(format!("Cannot crush item '{}'. Only bones and skulls can be crushed.", item_def.name)),
     }
@@ -103,7 +97,12 @@ pub fn crush_bone_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<()
         updated_item.quantity -= 1;
         inventory_table.instance_id().update(updated_item);
     } else {
-        // Delete the item if it's the last one
+        // Clear from container slot if item was in a container (optimized O(1) when location known)
+        if let crate::models::ItemLocation::Container(ref loc) = &item_to_crush.location {
+            if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
+                crate::items::clear_item_from_any_container(ctx, item_instance_id);
+            }
+        }
         inventory_table.instance_id().delete(item_instance_id);
     }
 
@@ -142,13 +141,7 @@ pub fn unravel_rope(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), S
         return Err(format!("Cannot unravel '{}'. Only Rope can be unraveled into Plant Fiber.", item_def.name));
     }
 
-    // Validate ownership through location
-    match &item_to_unravel.location {
-        crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
-        crate::models::ItemLocation::Hotbar(data) if data.owner_id == sender_id => (),
-        crate::models::ItemLocation::Equipped(data) if data.owner_id == sender_id => (),
-        _ => return Err("Item must be in your inventory, hotbar, or equipped to unravel.".to_string()),
-    }
+    crate::container_access::validate_player_can_use_item(ctx, &item_to_unravel)?;
 
     // 3. Calculate fiber to return (with penalty - 50-70% of original 20 cost)
     let fiber_to_create = ctx.rng().gen_range(MIN_FIBER_PER_ROPE..=MAX_FIBER_PER_ROPE);
@@ -167,7 +160,11 @@ pub fn unravel_rope(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), S
         updated_item.quantity -= 1;
         inventory_table.instance_id().update(updated_item);
     } else {
-        // Delete the item if it's the last one
+        if let crate::models::ItemLocation::Container(ref loc) = &item_to_unravel.location {
+            if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
+                crate::items::clear_item_from_any_container(ctx, item_instance_id);
+            }
+        }
         inventory_table.instance_id().delete(item_instance_id);
     }
 
@@ -222,13 +219,7 @@ pub fn pulverize_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(),
         return Err(format!("Cannot pulverize '{}'. Only starchy roots, bulbs, and certain seeds can be ground into flour.", item_def.name));
     }
 
-    // Validate ownership through location
-    match &item_to_pulverize.location {
-        crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
-        crate::models::ItemLocation::Hotbar(data) if data.owner_id == sender_id => (),
-        crate::models::ItemLocation::Equipped(data) if data.owner_id == sender_id => (),
-        _ => return Err("Item must be in your inventory, hotbar, or equipped to pulverize.".to_string()),
-    }
+    crate::container_access::validate_player_can_use_item(ctx, &item_to_pulverize)?;
 
     // 3. Calculate flour yield based on item type
     let flour_to_create = match item_name {
@@ -257,7 +248,11 @@ pub fn pulverize_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(),
         updated_item.quantity -= 1;
         inventory_table.instance_id().update(updated_item);
     } else {
-        // Delete the item if it's the last one
+        if let crate::models::ItemLocation::Container(ref loc) = &item_to_pulverize.location {
+            if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
+                crate::items::clear_item_from_any_container(ctx, item_instance_id);
+            }
+        }
         inventory_table.instance_id().delete(item_instance_id);
     }
 
@@ -316,13 +311,7 @@ pub fn mash_berries(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), S
         return Err(format!("Cannot mash '{}'. Only berries can be mashed into Berry Mash.", item_def.name));
     }
 
-    // Validate ownership through location
-    match &item_to_mash.location {
-        crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
-        crate::models::ItemLocation::Hotbar(data) if data.owner_id == sender_id => (),
-        crate::models::ItemLocation::Equipped(data) if data.owner_id == sender_id => (),
-        _ => return Err("Item must be in your inventory, hotbar, or equipped to mash.".to_string()),
-    }
+    crate::container_access::validate_player_can_use_item(ctx, &item_to_mash)?;
 
     // Find the Berry Mash item definition
     let berry_mash_def = item_def_table.iter()
@@ -337,6 +326,11 @@ pub fn mash_berries(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), S
         updated_item.quantity -= 1;
         inventory_table.instance_id().update(updated_item);
     } else {
+        if let crate::models::ItemLocation::Container(ref loc) = &item_to_mash.location {
+            if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
+                crate::items::clear_item_from_any_container(ctx, item_instance_id);
+            }
+        }
         inventory_table.instance_id().delete(item_instance_id);
     }
 
@@ -391,13 +385,7 @@ pub fn mash_starch(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), St
         return Err(format!("Cannot mash '{}'. Only cooked starchy roots and bulbs can be mashed into Starchy Mash.", item_def.name));
     }
 
-    // Validate ownership through location
-    match &item_to_mash.location {
-        crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
-        crate::models::ItemLocation::Hotbar(data) if data.owner_id == sender_id => (),
-        crate::models::ItemLocation::Equipped(data) if data.owner_id == sender_id => (),
-        _ => return Err("Item must be in your inventory, hotbar, or equipped to mash.".to_string()),
-    }
+    crate::container_access::validate_player_can_use_item(ctx, &item_to_mash)?;
 
     // Find the Starchy Mash item definition
     let starchy_mash_def = item_def_table.iter()
@@ -412,6 +400,11 @@ pub fn mash_starch(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), St
         updated_item.quantity -= 1;
         inventory_table.instance_id().update(updated_item);
     } else {
+        if let crate::models::ItemLocation::Container(ref loc) = &item_to_mash.location {
+            if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
+                crate::items::clear_item_from_any_container(ctx, item_instance_id);
+            }
+        }
         inventory_table.instance_id().delete(item_instance_id);
     }
 
@@ -458,13 +451,7 @@ pub fn extract_yeast(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), 
         return Err(format!("Cannot extract yeast from '{}'. Only mashes and raw milk contain natural yeasts.", item_def.name));
     }
 
-    // Validate ownership through location
-    match &item_to_extract.location {
-        crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
-        crate::models::ItemLocation::Hotbar(data) if data.owner_id == sender_id => (),
-        crate::models::ItemLocation::Equipped(data) if data.owner_id == sender_id => (),
-        _ => return Err("Item must be in your inventory, hotbar, or equipped to extract yeast.".to_string()),
-    }
+    crate::container_access::validate_player_can_use_item(ctx, &item_to_extract)?;
 
     // Find the Yeast item definition
     let yeast_def = item_def_table.iter()
@@ -487,6 +474,11 @@ pub fn extract_yeast(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), 
         updated_item.quantity -= 1;
         inventory_table.instance_id().update(updated_item);
     } else {
+        if let crate::models::ItemLocation::Container(ref loc) = &item_to_extract.location {
+            if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
+                crate::items::clear_item_from_any_container(ctx, item_instance_id);
+            }
+        }
         inventory_table.instance_id().delete(item_instance_id);
     }
 
@@ -530,13 +522,7 @@ pub fn extract_from_honeycomb(ctx: &ReducerContext, item_instance_id: u64) -> Re
         return Err(format!("Cannot extract from '{}'. Only Honeycomb can be extracted.", item_def.name));
     }
 
-    // Validate ownership through location
-    match &item_to_extract.location {
-        crate::models::ItemLocation::Inventory(data) if data.owner_id == sender_id => (),
-        crate::models::ItemLocation::Hotbar(data) if data.owner_id == sender_id => (),
-        crate::models::ItemLocation::Equipped(data) if data.owner_id == sender_id => (),
-        _ => return Err("Item must be in your inventory, hotbar, or equipped to extract.".to_string()),
-    }
+    crate::container_access::validate_player_can_use_item(ctx, &item_to_extract)?;
 
     // Find the Queen Bee and Yeast item definitions
     let queen_bee_def = item_def_table.iter()
@@ -559,6 +545,11 @@ pub fn extract_from_honeycomb(ctx: &ReducerContext, item_instance_id: u64) -> Re
         updated_item.quantity -= 1;
         inventory_table.instance_id().update(updated_item);
     } else {
+        if let crate::models::ItemLocation::Container(ref loc) = &item_to_extract.location {
+            if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
+                crate::items::clear_item_from_any_container(ctx, item_instance_id);
+            }
+        }
         inventory_table.instance_id().delete(item_instance_id);
     }
 

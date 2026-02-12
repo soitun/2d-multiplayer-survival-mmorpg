@@ -1003,6 +1003,12 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
             }
 
             if inventory_item.quantity == 0 {
+                // Clear from container slot if item was in a container (optimized O(1) when location known)
+                if let crate::models::ItemLocation::Container(ref loc) = &inventory_item.location {
+                    if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
+                        crate::items::clear_item_from_any_container(ctx, item_instance_id);
+                    }
+                }
                 ctx.db.inventory_item().instance_id().delete(&item_instance_id);
                 log::info!("[ItemConsumption] Consumed and deleted item_instance_id: {} (quantity became 0) for player {:?}.", 
                     item_instance_id, player_id);

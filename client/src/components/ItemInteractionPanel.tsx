@@ -31,6 +31,12 @@ interface ItemAction {
     buttonStyle?: string; // Optional class name for button styling
 }
 
+/** Check if item is in an external container (not player inventory/hotbar/equipped) */
+function isItemInContainer(item: PopulatedItem): boolean {
+    const loc = item.instance.location;
+    return loc && typeof loc === 'object' && 'tag' in loc && loc.tag === 'Container';
+}
+
 const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({ 
     selectedItem, 
     connection, 
@@ -375,7 +381,8 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
                                 {isProcessing ? 'Processing...' : actionInfo.label}
                             </button>
                         ))}
-                        {selectedItem.definition.isStackable && currentItemQuantity > 1 && (
+                        {selectedItem.definition.isStackable && currentItemQuantity > 1 && 
+                         !isItemInContainer(selectedItem) && (
                             <div className={styles.splitControls}>
                                 <input
                                     type="number"

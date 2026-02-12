@@ -66,15 +66,8 @@ pub fn consume_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), S
     let item_to_consume = ctx.db.inventory_item().instance_id().find(item_instance_id)
         .ok_or_else(|| format!("Item instance {} not found.", item_instance_id))?;
 
-    let is_in_possession = match &item_to_consume.location {
-        ItemLocation::Inventory(data) => data.owner_id == sender_id,
-        ItemLocation::Hotbar(data) => data.owner_id == sender_id,
-        _ => false,
-    };
-
-    if !is_in_possession {
-        return Err("Cannot consume an item not in your inventory or hotbar.".to_string());
-    }
+    // Validate access: item must be in player's possession OR in an accessible container
+    crate::container_access::validate_player_can_use_item(ctx, &item_to_consume)?;
 
     let item_def = item_defs.id().find(item_to_consume.item_def_id)
         .ok_or_else(|| format!("Definition for item ID {} not found.", item_to_consume.item_def_id))?;
@@ -166,6 +159,12 @@ pub fn consume_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), S
         
         // Remove item if quantity is 0
         if item_to_consume.quantity == 0 {
+            // Clear from container slot if item was in a container (optimized O(1) when location known)
+            if let ItemLocation::Container(ref loc) = &item_to_consume.location {
+                if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
+                    crate::items::clear_item_from_any_container(ctx, item_instance_id);
+                }
+            }
             ctx.db.inventory_item().instance_id().delete(&item_instance_id);
             log::info!("[ConsumeItem] ✅ Instantly consumed and deleted item_instance_id: {} for player {:?}.", 
                 item_instance_id, sender_id);
@@ -801,16 +800,8 @@ pub fn consume_filled_water_container(ctx: &ReducerContext, item_instance_id: u6
     let water_container = ctx.db.inventory_item().instance_id().find(item_instance_id)
         .ok_or_else(|| format!("Water container instance {} not found.", item_instance_id))?;
 
-    // --- Check if the item is in player's possession ---
-    let is_in_possession = match &water_container.location {
-        ItemLocation::Inventory(data) => data.owner_id == sender_id,
-        ItemLocation::Hotbar(data) => data.owner_id == sender_id,
-        _ => false,
-    };
-
-    if !is_in_possession {
-        return Err("Cannot consume a water container not in your inventory or hotbar.".to_string());
-    }
+    // --- Validate access: item must be in player's possession OR in an accessible container ---
+    crate::container_access::validate_player_can_use_item(ctx, &water_container)?;
 
     // --- Get item definition ---
     let item_def = item_defs.id().find(&water_container.item_def_id)

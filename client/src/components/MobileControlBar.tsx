@@ -4,30 +4,23 @@ interface MobileControlBarProps {
     onMapToggle: () => void;
     onChatToggle: () => void;
     onInteract: () => void;
-    onSprintToggle: () => void;
-    onCrouchToggle: () => void;
     isMapOpen: boolean;
     isChatOpen: boolean;
-    isSprinting: boolean;
-    isCrouching: boolean;
     hasInteractable: boolean; // Whether there's an interactable entity nearby
     interactableLabel?: string; // Optional label for what can be interacted with
 }
 
 /**
- * Mobile control bar with buttons for Map, Chat, Sprint, Crouch, and Interact
+ * Mobile control bar with buttons for Map, Chat, and Interact.
+ * Sprint/crouch removed: mobile runs by default (no walking); crouch not needed on small screens.
  * Positioned at the bottom of the screen with highest z-index to stay visible
  */
 const MobileControlBar: React.FC<MobileControlBarProps> = ({
     onMapToggle,
     onChatToggle,
     onInteract,
-    onSprintToggle,
-    onCrouchToggle,
     isMapOpen,
     isChatOpen,
-    isSprinting,
-    isCrouching,
     hasInteractable,
     interactableLabel,
 }) => {
@@ -182,100 +175,6 @@ const MobileControlBar: React.FC<MobileControlBarProps> = ({
                 </span>
             </button>
 
-            {/* Sprint Toggle Button */}
-            <button
-                onClick={onSprintToggle}
-                style={{
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '50%',
-                    background: isSprinting 
-                        ? 'linear-gradient(135deg, rgba(255, 100, 0, 0.9), rgba(220, 60, 0, 0.95))'
-                        : 'linear-gradient(135deg, rgba(20, 40, 80, 0.9), rgba(10, 30, 70, 0.95))',
-                    border: isSprinting 
-                        ? '3px solid #ff6600'
-                        : '3px solid #00aaff',
-                    color: isSprinting ? '#ffcc99' : '#00ffff',
-                    cursor: 'pointer',
-                    boxShadow: isSprinting
-                        ? '0 0 20px rgba(255, 100, 0, 0.6), inset 0 0 15px rgba(255, 100, 0, 0.2)'
-                        : '0 0 15px rgba(0, 170, 255, 0.4), inset 0 0 10px rgba(0, 170, 255, 0.1)',
-                    transition: 'all 0.3s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexDirection: 'column',
-                }}
-                aria-label="Toggle sprint"
-            >
-                {/* Sprint icon - running person with motion lines */}
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    {/* Head */}
-                    <circle cx="10" cy="6" r="2" />
-                    {/* Body */}
-                    <path d="M10 8v6" />
-                    {/* Legs running */}
-                    <path d="M8 14l2-2 2 2" />
-                    <path d="M12 14l2-2 2 2" />
-                    {/* Motion lines */}
-                    <line x1="4" y1="10" x2="6" y2="10" strokeWidth="1.5" />
-                    <line x1="4" y1="14" x2="6" y2="14" strokeWidth="1.5" />
-                </svg>
-                <span style={{
-                    fontSize: '6px',
-                    fontFamily: '"Press Start 2P", cursive',
-                    marginTop: '2px',
-                    textShadow: isSprinting ? '0 0 4px rgba(255, 200, 0, 0.8)' : '0 0 4px rgba(0, 255, 255, 0.8)',
-                }}>
-                    RUN
-                </span>
-            </button>
-
-            {/* Crouch Toggle Button */}
-            <button
-                onClick={onCrouchToggle}
-                style={{
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '50%',
-                    background: isCrouching 
-                        ? 'linear-gradient(135deg, rgba(100, 150, 255, 0.9), rgba(60, 100, 200, 0.95))'
-                        : 'linear-gradient(135deg, rgba(20, 40, 80, 0.9), rgba(10, 30, 70, 0.95))',
-                    border: isCrouching 
-                        ? '3px solid #6495ed'
-                        : '3px solid #00aaff',
-                    color: isCrouching ? '#b0c4de' : '#00ffff',
-                    cursor: 'pointer',
-                    boxShadow: isCrouching
-                        ? '0 0 20px rgba(100, 150, 255, 0.6), inset 0 0 15px rgba(100, 150, 255, 0.2)'
-                        : '0 0 15px rgba(0, 170, 255, 0.4), inset 0 0 10px rgba(0, 170, 255, 0.1)',
-                    transition: 'all 0.3s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexDirection: 'column',
-                }}
-                aria-label="Toggle crouch"
-            >
-                {/* Crouch icon - crouched person */}
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    {/* Head */}
-                    <circle cx="12" cy="8" r="2" />
-                    {/* Body - shorter */}
-                    <path d="M12 10v4" />
-                    {/* Legs - bent/crouched */}
-                    <path d="M10 14l2 2 2-2" />
-                    <path d="M8 18h8" />
-                </svg>
-                <span style={{
-                    fontSize: '6px',
-                    fontFamily: '"Press Start 2P", cursive',
-                    marginTop: '2px',
-                    textShadow: isCrouching ? '0 0 4px rgba(100, 150, 255, 0.8)' : '0 0 4px rgba(0, 255, 255, 0.8)',
-                }}>
-                    DUCK
-                </span>
-            </button>
         </div>
     );
 };

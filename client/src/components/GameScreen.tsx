@@ -1277,7 +1277,19 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 activeEquipments={activeEquipments}
                 activeConsumableEffects={activeConsumableEffects}
                 onCraftingSearchFocusChange={setIsCraftingSearchFocused}
-                onToggleInventory={() => setShowInventoryState(prev => !prev)}
+                onToggleInventory={() => {
+                    if (props.isMobile && !showInventoryState) {
+                        // Block opening inventory on mobile - play SOVA capability error
+                        if (showSovaSoundBox) {
+                            const audio = new Audio('/sounds/sova_error_mobile_capability.mp3');
+                            audio.volume = 0.8;
+                            showSovaSoundBox(audio, 'SOVA');
+                            audio.play().catch(() => {});
+                        }
+                        return;
+                    }
+                    setShowInventoryState(prev => !prev);
+                }}
                 showInventory={props.isMobile ? showInventoryState : showInventoryState}
                 knockedOutStatus={knockedOutStatus}
                 worldState={worldState}
@@ -1286,7 +1298,19 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 playerStats={props.playerStats}
                 isMobile={props.isMobile}
                 showCraftingScreen={showCraftingScreenState}
-                onToggleCraftingScreen={() => setShowCraftingScreenState(prev => !prev)}
+                onToggleCraftingScreen={() => {
+                    if (props.isMobile && !showCraftingScreenState) {
+                        // Block opening crafting on mobile - play SOVA capability error
+                        if (showSovaSoundBox) {
+                            const audio = new Audio('/sounds/sova_error_mobile_capability.mp3');
+                            audio.volume = 0.8;
+                            showSovaSoundBox(audio, 'SOVA');
+                            audio.play().catch(() => {});
+                        }
+                        return;
+                    }
+                    setShowCraftingScreenState(prev => !prev);
+                }}
                 onPauseBackgroundMusic={musicSystem.stop}
                 onResumeBackgroundMusic={musicSystem.start}
             />
@@ -1506,50 +1530,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     onMapToggle={() => setIsMinimapOpen(prev => !prev)}
                     onChatToggle={() => setIsMobileChatOpen(prev => !prev)}
                     onInteract={() => setMobileInteractTrigger(prev => prev + 1)}
-                    onSprintToggle={() => {
-                        if (!connection) {
-                            console.warn('[MobileControls] No connection available for sprint toggle');
-                            return;
-                        }
-                        if (!connection.reducers) {
-                            console.warn('[MobileControls] No reducers available for sprint toggle');
-                            return;
-                        }
-                        try {
-                            // Use mobileSprintOverride for immediate toggle (bypasses server round-trip)
-                            const currentSprintState = props.mobileSprintOverride ?? localPlayer?.isSprinting ?? false;
-                            const newSprintState = !currentSprintState;
-                            console.log(`[MobileControls] Toggling sprint from ${currentSprintState} to ${newSprintState}`);
-                            
-                            // CRITICAL: Set local override FIRST for immediate effect
-                            props.onMobileSprintToggle?.(newSprintState);
-                            
-                            // Also update server state for persistence (but this has a round-trip delay)
-                            connection.reducers.setSprinting(newSprintState);
-                        } catch (error) {
-                            console.error('[MobileControls] Error toggling sprint:', error);
-                        }
-                    }}
-                    onCrouchToggle={() => {
-                        if (!connection) {
-                            console.warn('[MobileControls] No connection available for crouch toggle');
-                            return;
-                        }
-                        if (!connection.reducers) {
-                            console.warn('[MobileControls] No reducers available for crouch toggle');
-                            return;
-                        }
-                        try {
-                            console.log(`[MobileControls] Toggling crouch from ${localPlayer?.isCrouching || false}`);
-                            connection.reducers.toggleCrouch();
-                        } catch (error) {
-                            console.error('[MobileControls] Error toggling crouch:', error);
-                        }
-                    }}
                     isMapOpen={isMinimapOpen}
                     isChatOpen={isMobileChatOpen}
-                    isSprinting={props.mobileSprintOverride ?? localPlayer?.isSprinting ?? false}
-                    isCrouching={localPlayer?.isCrouching || false}
                     hasInteractable={mobileInteractInfo?.hasTarget || false}
                     interactableLabel={mobileInteractInfo?.label}
                 />

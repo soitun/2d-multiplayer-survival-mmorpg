@@ -161,6 +161,8 @@ import { DropItemFromLanternSlotToWorld } from "./drop_item_from_lantern_slot_to
 export { DropItemFromLanternSlotToWorld };
 import { DropItemFromStashSlotToWorld } from "./drop_item_from_stash_slot_to_world_reducer.ts";
 export { DropItemFromStashSlotToWorld };
+import { EmitDelayedThunderSound } from "./emit_delayed_thunder_sound_reducer.ts";
+export { EmitDelayedThunderSound };
 import { EmptyRainCollectorReservoir } from "./empty_rain_collector_reservoir_reducer.ts";
 export { EmptyRainCollectorReservoir };
 import { EquipArmor } from "./equip_armor_reducer.ts";
@@ -1139,6 +1141,8 @@ import { ThunderEventTableHandle } from "./thunder_event_table.ts";
 export { ThunderEventTableHandle };
 import { ThunderEventCleanupScheduleTableHandle } from "./thunder_event_cleanup_schedule_table.ts";
 export { ThunderEventCleanupScheduleTableHandle };
+import { ThunderSoundScheduleTableHandle } from "./thunder_sound_schedule_table.ts";
+export { ThunderSoundScheduleTableHandle };
 import { TilledTileMetadataTableHandle } from "./tilled_tile_metadata_table.ts";
 export { TilledTileMetadataTableHandle };
 import { TilledTileReversionScheduleTableHandle } from "./tilled_tile_reversion_schedule_table.ts";
@@ -1603,6 +1607,8 @@ import { ThunderEvent } from "./thunder_event_type.ts";
 export { ThunderEvent };
 import { ThunderEventCleanupSchedule } from "./thunder_event_cleanup_schedule_type.ts";
 export { ThunderEventCleanupSchedule };
+import { ThunderSoundSchedule } from "./thunder_sound_schedule_type.ts";
+export { ThunderSoundSchedule };
 import { TileType } from "./tile_type_type.ts";
 export { TileType };
 import { TilledTileMetadata } from "./tilled_tile_metadata_type.ts";
@@ -3077,6 +3083,15 @@ const REMOTE_MODULE = {
         colType: (ThunderEventCleanupSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    thunder_sound_schedule: {
+      tableName: "thunder_sound_schedule" as const,
+      rowType: ThunderSoundSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "scheduleId",
+      primaryKeyInfo: {
+        colName: "scheduleId",
+        colType: (ThunderSoundSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     tilled_tile_metadata: {
       tableName: "tilled_tile_metadata" as const,
       rowType: TilledTileMetadata.getTypeScriptAlgebraicType(),
@@ -3536,6 +3551,10 @@ const REMOTE_MODULE = {
     drop_item_from_stash_slot_to_world: {
       reducerName: "drop_item_from_stash_slot_to_world",
       argsType: DropItemFromStashSlotToWorld.getTypeScriptAlgebraicType(),
+    },
+    emit_delayed_thunder_sound: {
+      reducerName: "emit_delayed_thunder_sound",
+      argsType: EmitDelayedThunderSound.getTypeScriptAlgebraicType(),
     },
     empty_rain_collector_reservoir: {
       reducerName: "empty_rain_collector_reservoir",
@@ -4956,6 +4975,7 @@ export type Reducer = never
 | { name: "DropItemFromHearthSlotToWorld", args: DropItemFromHearthSlotToWorld }
 | { name: "DropItemFromLanternSlotToWorld", args: DropItemFromLanternSlotToWorld }
 | { name: "DropItemFromStashSlotToWorld", args: DropItemFromStashSlotToWorld }
+| { name: "EmitDelayedThunderSound", args: EmitDelayedThunderSound }
 | { name: "EmptyRainCollectorReservoir", args: EmptyRainCollectorReservoir }
 | { name: "EquipArmor", args: EquipArmor }
 | { name: "EquipArmorFromDrag", args: EquipArmorFromDrag }
@@ -6290,6 +6310,22 @@ export class RemoteReducers {
 
   removeOnDropItemFromStashSlotToWorld(callback: (ctx: ReducerEventContext, stashId: number, slotIndex: number) => void) {
     this.connection.offReducer("drop_item_from_stash_slot_to_world", callback);
+  }
+
+  emitDelayedThunderSound(args: ThunderSoundSchedule) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    EmitDelayedThunderSound.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("emit_delayed_thunder_sound", __argsBuffer, this.setCallReducerFlags.emitDelayedThunderSoundFlags);
+  }
+
+  onEmitDelayedThunderSound(callback: (ctx: ReducerEventContext, args: ThunderSoundSchedule) => void) {
+    this.connection.onReducer("emit_delayed_thunder_sound", callback);
+  }
+
+  removeOnEmitDelayedThunderSound(callback: (ctx: ReducerEventContext, args: ThunderSoundSchedule) => void) {
+    this.connection.offReducer("emit_delayed_thunder_sound", callback);
   }
 
   emptyRainCollectorReservoir(collectorId: number) {
@@ -11740,6 +11776,11 @@ export class SetReducerFlags {
     this.dropItemFromStashSlotToWorldFlags = flags;
   }
 
+  emitDelayedThunderSoundFlags: __CallReducerFlags = 'FullUpdate';
+  emitDelayedThunderSound(flags: __CallReducerFlags) {
+    this.emitDelayedThunderSoundFlags = flags;
+  }
+
   emptyRainCollectorReservoirFlags: __CallReducerFlags = 'FullUpdate';
   emptyRainCollectorReservoir(flags: __CallReducerFlags) {
     this.emptyRainCollectorReservoirFlags = flags;
@@ -14173,6 +14214,11 @@ export class RemoteTables {
   get thunderEventCleanupSchedule(): ThunderEventCleanupScheduleTableHandle<'thunder_event_cleanup_schedule'> {
     // clientCache is a private property
     return new ThunderEventCleanupScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ThunderEventCleanupSchedule>(REMOTE_MODULE.tables.thunder_event_cleanup_schedule));
+  }
+
+  get thunderSoundSchedule(): ThunderSoundScheduleTableHandle<'thunder_sound_schedule'> {
+    // clientCache is a private property
+    return new ThunderSoundScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ThunderSoundSchedule>(REMOTE_MODULE.tables.thunder_sound_schedule));
   }
 
   get tilledTileMetadata(): TilledTileMetadataTableHandle<'tilled_tile_metadata'> {
