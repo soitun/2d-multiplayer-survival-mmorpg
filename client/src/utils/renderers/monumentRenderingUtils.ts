@@ -109,6 +109,10 @@ export function preloadMonumentImages(): void {
     
     // Wolf Den monument images (tundra wolf mound)
     loadImage('wd_mound.png', import('../../assets/doodads/wd_mound.png?url'));
+
+    // Aleutian whale oil road lampposts (along dirt roads)
+    loadImage('road_lamp.png', import('../../assets/doodads/road_lamp.png?url'));
+    loadImage('road_lamp_off.png', import('../../assets/doodads/road_lamp_off.png?url'));
 }
 
 /**
@@ -179,6 +183,10 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             
             // Wolf Den monument images (tundra wolf mound)
             'wd_mound.png': () => import('../../assets/doodads/wd_mound.png?url'),
+
+            // Aleutian whale oil road lampposts (along dirt roads)
+            'road_lamp.png': () => import('../../assets/doodads/road_lamp.png?url'),
+            'road_lamp_off.png': () => import('../../assets/doodads/road_lamp_off.png?url'),
         };
     
         const loader = imageMap[imagePath];

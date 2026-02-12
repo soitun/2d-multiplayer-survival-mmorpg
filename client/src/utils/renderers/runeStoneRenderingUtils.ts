@@ -6,6 +6,7 @@ import { drawDynamicGroundShadow } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';
 import { renderBuildingRestrictionOverlay, BuildingRestrictionZoneConfig } from './buildingRestrictionOverlayUtils';
+import { isNightTime, NIGHT_LIGHTS_ON, LIGHT_FADE_FULL_AT, TWILIGHT_MORNING_FADE_START, TWILIGHT_MORNING_END } from '../../config/dayNightConstants';
 
 // Configuration constants
 const TARGET_RUNE_STONE_WIDTH_PX = 300; // Target width on screen (doubled from 150)
@@ -23,8 +24,6 @@ const RUNE_STONE_IMAGES: Record<RuneStoneTypeKey, string> = {
 // Night lighting configuration - AAA quality mythical effects
 const NIGHT_LIGHT_RADIUS = 440; // Radius of the colored light effect (doubled from 220)
 const NIGHT_LIGHT_INTENSITY = 0.7; // Intensity of the light (0-1)
-const TWILIGHT_EVENING_START = 0.76; // Start of twilight evening (76% through day)
-const TWILIGHT_MORNING_END = 1.0; // End of twilight morning (100% through day, wraps around)
 
 // Rune stone colors for night lighting - richer, more vibrant mythical colors
 const RUNE_STONE_COLORS: Record<RuneStoneTypeKey, { r: number; g: number; b: number }> = {
@@ -70,16 +69,6 @@ const LIGHT_CENTER_Y_OFFSET = 140; // Pixels to offset light center upward from 
 function getRuneStoneImageSource(runeStone: RuneStone): string {
     const runeType = (runeStone.runeType?.tag || 'Blue') as RuneStoneTypeKey; // Default to Blue if not set
     return RUNE_STONE_IMAGES[runeType] || RUNE_STONE_IMAGES['Blue'];
-}
-
-/**
- * Check if it's night time (between twilight evening and twilight morning)
- * Excludes Dawn (0.0-0.05) - only shows from twilight evening (0.76) to twilight morning (ends at 1.0)
- */
-function isNightTime(cycleProgress: number): boolean {
-    // Only show from twilight evening (0.76) through end of cycle (1.0)
-    // This excludes Dawn (0.0-0.05) which comes after twilight morning wraps around
-    return cycleProgress >= TWILIGHT_EVENING_START;
 }
 
 /**
@@ -365,20 +354,16 @@ export function renderRuneStoneNightLight(
     const accentColor = RUNE_STONE_ACCENT_COLORS[runeType] || RUNE_STONE_ACCENT_COLORS['Blue'];
     const deepColor = RUNE_STONE_DEEP_COLORS[runeType] || RUNE_STONE_DEEP_COLORS['Blue'];
 
-    // Calculate light intensity based on how deep into night we are
+    // Calculate light intensity from shared day/night constants
     let timeIntensity = NIGHT_LIGHT_INTENSITY;
-    if (cycleProgress >= TWILIGHT_EVENING_START) {
-        // Fade in during twilight evening, then maintain full intensity
-        if (cycleProgress < 0.80) {
-            // Twilight evening (0.76-0.80) - fade in with easing
-            const fadeProgress = (cycleProgress - TWILIGHT_EVENING_START) / (0.80 - TWILIGHT_EVENING_START);
-            timeIntensity = NIGHT_LIGHT_INTENSITY * Math.pow(fadeProgress, 0.7); // Ease-out
-        } else if (cycleProgress >= 0.97) {
-            // Twilight morning (0.97-1.0) - fade out with easing
-            const fadeProgress = (TWILIGHT_MORNING_END - cycleProgress) / (TWILIGHT_MORNING_END - 0.97);
-            timeIntensity = NIGHT_LIGHT_INTENSITY * Math.pow(fadeProgress, 0.7); // Ease-in
+    if (cycleProgress >= NIGHT_LIGHTS_ON) {
+        if (cycleProgress < LIGHT_FADE_FULL_AT) {
+            const fadeProgress = (cycleProgress - NIGHT_LIGHTS_ON) / (LIGHT_FADE_FULL_AT - NIGHT_LIGHTS_ON);
+            timeIntensity = NIGHT_LIGHT_INTENSITY * Math.pow(fadeProgress, 0.7);
+        } else if (cycleProgress >= TWILIGHT_MORNING_FADE_START) {
+            const fadeProgress = (TWILIGHT_MORNING_END - cycleProgress) / (TWILIGHT_MORNING_END - TWILIGHT_MORNING_FADE_START);
+            timeIntensity = NIGHT_LIGHT_INTENSITY * Math.pow(fadeProgress, 0.7);
         }
-        // Full night (0.80-0.97) uses full NIGHT_LIGHT_INTENSITY
     }
     
     const currentTime = nowMs ?? Date.now();

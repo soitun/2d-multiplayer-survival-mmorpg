@@ -9,14 +9,11 @@
  */
 
 import { MonumentPart, MonumentType } from '../../generated';
+import { isNightTime, NIGHT_LIGHTS_ON, LIGHT_FADE_FULL_AT, TWILIGHT_MORNING_FADE_START, TWILIGHT_MORNING_END } from '../../config/dayNightConstants';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // NIGHT LIGHTING CONFIGURATION - EERIE SHIPWRECK ATMOSPHERE
 // ═══════════════════════════════════════════════════════════════════════════
-
-// Night time detection thresholds (same as runeStoneRenderingUtils.ts)
-const TWILIGHT_EVENING_START = 0.76; // Start of twilight evening (76% through day)
-const TWILIGHT_MORNING_END = 1.0; // End of twilight morning (100% through day)
 
 // Light radii and intensities
 const NIGHT_LIGHT_RADIUS = 280; // Radius of the colored light effect per part (tighter glow)
@@ -51,14 +48,6 @@ const LIGHT_CENTER_Y_OFFSET = 220; // Pixels to offset light center upward from 
 // ═══════════════════════════════════════════════════════════════════════════
 // UTILITY FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
-
-/**
- * Check if it's night time (between twilight evening and twilight morning)
- * Excludes Dawn (0.0-0.05) - only shows from twilight evening (0.76) to twilight morning (ends at 1.0)
- */
-function isNightTime(cycleProgress: number): boolean {
-    return cycleProgress >= TWILIGHT_EVENING_START;
-}
 
 /**
  * Simple deterministic random number generator based on seed
@@ -331,16 +320,14 @@ export function renderShipwreckNightLight(
     const accent = SHIPWRECK_ACCENT_COLOR;
     const deep = SHIPWRECK_DEEP_COLOR;
     
-    // Calculate light intensity based on night cycle
+    // Calculate light intensity based on night cycle (fade in from NIGHT_LIGHTS_ON to LIGHT_FADE_FULL_AT)
     let timeIntensity = NIGHT_LIGHT_INTENSITY;
-    if (cycleProgress >= TWILIGHT_EVENING_START) {
-        if (cycleProgress < 0.80) {
-            // Twilight evening fade in
-            const fadeProgress = (cycleProgress - TWILIGHT_EVENING_START) / (0.80 - TWILIGHT_EVENING_START);
+    if (cycleProgress >= NIGHT_LIGHTS_ON) {
+        if (cycleProgress < LIGHT_FADE_FULL_AT) {
+            const fadeProgress = (cycleProgress - NIGHT_LIGHTS_ON) / (LIGHT_FADE_FULL_AT - NIGHT_LIGHTS_ON);
             timeIntensity = NIGHT_LIGHT_INTENSITY * Math.pow(fadeProgress, 0.7);
-        } else if (cycleProgress >= 0.97) {
-            // Twilight morning fade out
-            const fadeProgress = (TWILIGHT_MORNING_END - cycleProgress) / (TWILIGHT_MORNING_END - 0.97);
+        } else if (cycleProgress >= TWILIGHT_MORNING_FADE_START) {
+            const fadeProgress = (TWILIGHT_MORNING_END - cycleProgress) / (TWILIGHT_MORNING_END - TWILIGHT_MORNING_FADE_START);
             timeIntensity = NIGHT_LIGHT_INTENSITY * Math.pow(fadeProgress, 0.7);
         }
     }

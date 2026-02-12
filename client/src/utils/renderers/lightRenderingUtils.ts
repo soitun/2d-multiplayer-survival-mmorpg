@@ -1,7 +1,9 @@
-import { Player as SpacetimeDBPlayer, ItemDefinition as SpacetimeDBItemDefinition, ActiveEquipment as SpacetimeDBActiveEquipment, Lantern as SpacetimeDBLantern, Furnace as SpacetimeDBFurnace, Campfire as SpacetimeDBCampfire, Barbecue as SpacetimeDBBarbecue } from '../../generated';
+import { Player as SpacetimeDBPlayer, ItemDefinition as SpacetimeDBItemDefinition, ActiveEquipment as SpacetimeDBActiveEquipment, Lantern as SpacetimeDBLantern, Furnace as SpacetimeDBFurnace, Campfire as SpacetimeDBCampfire, Barbecue as SpacetimeDBBarbecue, RoadLamppost as SpacetimeDBRoadLamppost } from '../../generated';
 
 // Import rendering constants
 import { CAMPFIRE_RENDER_Y_OFFSET, CAMPFIRE_HEIGHT } from '../renderers/campfireRenderingUtils';
+import { ROAD_LAMP_LIGHT_Y_OFFSET, ROAD_LAMP_LIGHT_RADIUS_BASE } from '../renderers/roadLamppostRenderingUtils';
+import { isNightTime } from '../../config/dayNightConstants';
 import { LANTERN_RENDER_Y_OFFSET, LANTERN_HEIGHT, LANTERN_TYPE_LANTERN } from '../renderers/lanternRenderingUtils';
 import { FURNACE_RENDER_Y_OFFSET, FURNACE_HEIGHT, getFurnaceDimensions, FURNACE_TYPE_LARGE } from '../renderers/furnaceRenderingUtils';
 import { BARBECUE_RENDER_Y_OFFSET, BARBECUE_HEIGHT } from '../renderers/barbecueRenderingUtils';
@@ -896,6 +898,77 @@ export const renderLanternLight = ({
     if (restoreClip) restoreClip();
 };
 
+// --- Road Lamppost Light Rendering (Aleutian whale oil - always on at night) ---
+const ROAD_LAMP_FLICKER_AMOUNT = CAMPFIRE_FLICKER_AMOUNT * 0.2; // Very stable - whale oil burns steadily
+
+interface RenderRoadLamppostLightProps {
+    ctx: CanvasRenderingContext2D;
+    lamppost: SpacetimeDBRoadLamppost;
+    cameraOffsetX: number;
+    cameraOffsetY: number;
+    cycleProgress: number;
+}
+
+export const renderRoadLamppostLight = ({
+    ctx,
+    lamppost,
+    cameraOffsetX,
+    cameraOffsetY,
+    cycleProgress,
+}: RenderRoadLamppostLightProps) => {
+    if (!isNightTime(cycleProgress)) return;
+
+    const lightCenterX = lamppost.posX;
+    const lightCenterY = lamppost.posY + ROAD_LAMP_LIGHT_Y_OFFSET;
+
+    const lightScreenX = lightCenterX + cameraOffsetX;
+    const lightScreenY = lightCenterY + cameraOffsetY;
+    const baseFlicker = (Math.random() - 0.5) * 2 * ROAD_LAMP_FLICKER_AMOUNT;
+
+    const lampX = lightScreenX + (Math.random() - 0.5) * baseFlicker * 0.2;
+    const lampY = lightScreenY + (Math.random() - 0.5) * baseFlicker * 0.1;
+
+    const ROAD_LAMP_SCALE = 1.0;
+
+    // Layer 1: Ambient glow (warm whale oil amber)
+    const ambientRadius = Math.max(0, ROAD_LAMP_LIGHT_RADIUS_BASE * 3.5 * ROAD_LAMP_SCALE + baseFlicker * 0.1);
+    const ambientGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, ambientRadius);
+    ambientGradient.addColorStop(0, 'rgba(235, 200, 150, 0.05)');
+    ambientGradient.addColorStop(0.15, 'rgba(225, 180, 130, 0.04)');
+    ambientGradient.addColorStop(0.5, 'rgba(210, 160, 110, 0.03)');
+    ambientGradient.addColorStop(0.85, 'rgba(195, 140, 85, 0.015)');
+    ambientGradient.addColorStop(1, 'rgba(180, 120, 70, 0)');
+    ctx.fillStyle = ambientGradient;
+    ctx.beginPath();
+    ctx.arc(lampX, lampY, ambientRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Layer 2: Main illumination (whale oil warmth)
+    const mainRadius = Math.max(0, ROAD_LAMP_LIGHT_RADIUS_BASE * 2.2 * ROAD_LAMP_SCALE + baseFlicker * 0.3);
+    const mainGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, mainRadius);
+    mainGradient.addColorStop(0, 'rgba(240, 215, 170, 0.16)');
+    mainGradient.addColorStop(0.2, 'rgba(230, 195, 145, 0.14)');
+    mainGradient.addColorStop(0.5, 'rgba(215, 175, 120, 0.10)');
+    mainGradient.addColorStop(0.8, 'rgba(200, 155, 95, 0.05)');
+    mainGradient.addColorStop(1, 'rgba(185, 135, 80, 0)');
+    ctx.fillStyle = mainGradient;
+    ctx.beginPath();
+    ctx.arc(lampX, lampY, mainRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Layer 3: Core bright light (whale oil flame)
+    const coreRadius = Math.max(0, ROAD_LAMP_LIGHT_RADIUS_BASE * 0.9 * ROAD_LAMP_SCALE + baseFlicker * 0.8);
+    const coreGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, coreRadius);
+    coreGradient.addColorStop(0, 'rgba(245, 225, 185, 0.22)');
+    coreGradient.addColorStop(0.3, 'rgba(235, 205, 155, 0.18)');
+    coreGradient.addColorStop(0.6, 'rgba(220, 180, 125, 0.12)');
+    coreGradient.addColorStop(1, 'rgba(205, 155, 95, 0)');
+    ctx.fillStyle = coreGradient;
+    ctx.beginPath();
+    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
+    ctx.fill();
+};
+
 // --- Furnace Light Rendering ---
 interface RenderFurnaceLightProps {
     ctx: CanvasRenderingContext2D;
@@ -1114,6 +1187,7 @@ interface RenderFishingVillageCampfireLightProps {
     worldY: number;
     cameraOffsetX: number;
     cameraOffsetY: number;
+    cycleProgress: number;
 }
 
 /**
@@ -1127,7 +1201,9 @@ export const renderFishingVillageCampfireLight = ({
     worldY,
     cameraOffsetX,
     cameraOffsetY,
+    cycleProgress,
 }: RenderFishingVillageCampfireLightProps) => {
+    if (!isNightTime(cycleProgress)) return;
     const lightScreenX = worldX + cameraOffsetX;
     // Apply Y offset to center light on the firepit in the image
     const lightScreenY = worldY + cameraOffsetY + FV_CAMPFIRE_Y_OFFSET;

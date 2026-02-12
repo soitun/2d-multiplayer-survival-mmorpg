@@ -11,8 +11,11 @@ import {
     FirePatch as SpacetimeDBFirePatch, // ADDED: FirePatch
     Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole
     Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue
+    RoadLamppost as SpacetimeDBRoadLamppost, // ADDED: Aleutian whale oil lampposts
 } from '../generated';
 import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT, BARBECUE_LIGHT_RADIUS_BASE, BARBECUE_FLICKER_AMOUNT, SOVA_AURA_RADIUS_BASE } from '../utils/renderers/lightRenderingUtils';
+import { ROAD_LAMP_LIGHT_RADIUS_BASE, ROAD_LAMP_LIGHT_Y_OFFSET } from '../utils/renderers/roadLamppostRenderingUtils';
+import { isNightTime, NIGHT_LIGHTS_ON, LIGHT_FADE_FULL_AT, TWILIGHT_MORNING_FADE_START, TWILIGHT_MORNING_END } from '../config/dayNightConstants';
 import { CAMPFIRE_HEIGHT } from '../utils/renderers/campfireRenderingUtils';
 import { LANTERN_HEIGHT, LANTERN_RENDER_Y_OFFSET, LANTERN_TYPE_LANTERN } from '../utils/renderers/lanternRenderingUtils';
 import { FURNACE_HEIGHT, FURNACE_RENDER_Y_OFFSET, getFurnaceDimensions, FURNACE_TYPE_LARGE } from '../utils/renderers/furnaceRenderingUtils';
@@ -423,6 +426,7 @@ interface UseDayNightCycleProps {
     lanterns: Map<string, SpacetimeDBLantern>;
     furnaces: Map<string, SpacetimeDBFurnace>;
     barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues for night light cutouts
+    roadLampposts: Map<string, SpacetimeDBRoadLamppost>; // ADDED: Aleutian whale oil lampposts along roads
     runeStones: Map<string, SpacetimeDBRuneStone>; // ADDED: RuneStones for night light cutouts
     firePatches: Map<string, SpacetimeDBFirePatch>; // ADDED: Fire patches for night light cutouts
     fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles for heat glow at night
@@ -455,6 +459,7 @@ export function useDayNightCycle({
     lanterns,
     furnaces,
     barbecues, // ADDED: Barbecues
+    roadLampposts, // ADDED: Aleutian whale oil lampposts
     runeStones, // ADDED: RuneStones
     firePatches, // ADDED: Fire patches
     fumaroles, // ADDED: Fumaroles
@@ -920,6 +925,25 @@ export function useDayNightCycle({
                 // Switch back to cutout mode for other lights
                 maskCtx.globalCompositeOperation = 'destination-out';
             }
+        });
+
+        // Render road lamppost light cutouts (Aleutian whale oil - always on at night)
+        roadLampposts.forEach(lamppost => {
+            // Light center is above the lantern (same as renderRoadLamppostLight)
+            const lightCenterWorldY = lamppost.posY + ROAD_LAMP_LIGHT_Y_OFFSET;
+            const screenX = lamppost.posX + cameraOffsetX;
+            const screenY = lightCenterWorldY + cameraOffsetY;
+            const lightRadius = ROAD_LAMP_LIGHT_RADIUS_BASE * 2.0; // Double for cutout visibility
+            const maskGradient = maskCtx.createRadialGradient(screenX, screenY, lightRadius * 0.05, screenX, screenY, lightRadius);
+            maskGradient.addColorStop(0, 'rgba(0,0,0,1)'); // Full cutout at center
+            maskGradient.addColorStop(0.2, 'rgba(0,0,0,0.9)'); // Strong cutout zone
+            maskGradient.addColorStop(0.5, 'rgba(0,0,0,0.6)'); // Warm whale oil fade
+            maskGradient.addColorStop(0.8, 'rgba(0,0,0,0.2)'); // Soft edge
+            maskGradient.addColorStop(1, 'rgba(0,0,0,0)'); // Fade to darkness
+            maskCtx.fillStyle = maskGradient;
+            maskCtx.beginPath();
+            maskCtx.arc(screenX, screenY, lightRadius, 0, Math.PI * 2);
+            maskCtx.fill();
         });
 
         // Render torch light cutouts
@@ -1410,12 +1434,9 @@ export function useDayNightCycle({
             maskCtx.globalCompositeOperation = 'destination-out';
         });
 
-        // Render rune stone light cutouts with colored atmospheric glows (only at night: twilight evening to twilight morning)
-        // Excludes Dawn (0.0-0.05) - only shows from twilight evening (0.76) to twilight morning (ends at 1.0)
+        // Render rune stone light cutouts with colored atmospheric glows (shared day/night constants)
         if (typeof currentCycleProgress === 'number') {
-            const isNightTime = currentCycleProgress >= 0.76; // Twilight evening (0.76) through twilight morning (ends at 1.0)
-            
-            if (isNightTime) {
+            if (isNightTime(currentCycleProgress)) {
                 runeStones.forEach(runeStone => {
                     // Center on the rune stone light center (offset upward to match visual mass)
                     // LIGHT_CENTER_Y_OFFSET = 140 (doubled from 70) - matches runeStoneRenderingUtils.ts
@@ -1455,12 +1476,10 @@ export function useDayNightCycle({
                     
                     // Calculate intensity based on time of night (subtle pulsing effect)
                     let timeIntensity = 1.0;
-                    if (currentCycleProgress < 0.80) {
-                        // Twilight evening (0.76-0.80) - fade in
-                        timeIntensity = (currentCycleProgress - 0.76) / 0.04;
-                    } else if (currentCycleProgress >= 0.97) {
-                        // Twilight morning (0.97-1.0) - fade out
-                        timeIntensity = (1.0 - currentCycleProgress) / 0.03;
+                    if (currentCycleProgress < LIGHT_FADE_FULL_AT) {
+                        timeIntensity = (currentCycleProgress - NIGHT_LIGHTS_ON) / (LIGHT_FADE_FULL_AT - NIGHT_LIGHTS_ON);
+                    } else if (currentCycleProgress >= TWILIGHT_MORNING_FADE_START) {
+                        timeIntensity = (TWILIGHT_MORNING_END - currentCycleProgress) / (TWILIGHT_MORNING_END - TWILIGHT_MORNING_FADE_START);
                     }
                     // Add subtle breathing/pulsing effect (very gentle, mystical)
                     const breathingPhase = (Date.now() / 3000) % (Math.PI * 2); // 3 second cycle
@@ -1519,7 +1538,7 @@ export function useDayNightCycle({
     // but the mask only needs rebuilding when light sources actually change.
     // The values are read from refs at the top of the effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [worldState, campfires, lanterns, furnaces, barbecues, runeStones, firePatches, fumaroles, players, activeEquipments, itemDefinitions, canvasSize.width, canvasSize.height, torchLitStatesKey, headlampLitStatesKey, lanternBurningStatesKey, localPlayerId, buildingClusters]);
+    }, [worldState, campfires, lanterns, furnaces, barbecues, roadLampposts, runeStones, firePatches, fumaroles, players, activeEquipments, itemDefinitions, canvasSize.width, canvasSize.height, torchLitStatesKey, headlampLitStatesKey, lanternBurningStatesKey, localPlayerId, buildingClusters]);
 
     return { overlayRgba, maskCanvasRef };
 } 

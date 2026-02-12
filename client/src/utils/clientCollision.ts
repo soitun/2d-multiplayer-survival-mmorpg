@@ -1,5 +1,5 @@
 // AAA-Quality Client-side Collision Detection System
-import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, LivingCoral, Lantern, Turret, Fence } from '../generated';
+import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, LivingCoral, Lantern, Turret, Fence, RoadLamppost } from '../generated';
 // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 import { COMPOUND_BUILDINGS, getBuildingWorldPosition, isCompoundMonument } from '../config/compoundBuildings';
@@ -434,12 +434,12 @@ function getCollisionCandidates(
       if (rainCollector.isDestroyed) continue; // Skip destroyed rain collectors
       
       if (isCompoundMonument(rainCollector.isMonument, rainCollector.posX, rainCollector.posY)) {
-        // Compound monument rain collectors use standardized AABB collision
+        // Compound monument rain collectors use standardized AABB collision (pushed up 20px from base)
         shapes.push({
           id: rainCollector.id.toString(),
           type: `rain_collector-${rainCollector.id.toString()}`,
           x: rainCollector.posX,
-          y: rainCollector.posY + MONUMENT_BUILDING_COLLISION.CENTER_Y_OFFSET,
+          y: rainCollector.posY + MONUMENT_BUILDING_COLLISION.RAIN_COLLECTOR_CENTER_Y_OFFSET,
           width: MONUMENT_BUILDING_COLLISION.WIDTH,
           height: MONUMENT_BUILDING_COLLISION.HEIGHT,
         });
@@ -519,6 +519,27 @@ function getCollisionCandidates(
         x: basaltColumn.posX + COLLISION_OFFSETS.BASALT_COLUMN.x,
         y: basaltColumn.posY + COLLISION_OFFSETS.BASALT_COLUMN.y,
         radius: COLLISION_RADII.BASALT_COLUMN
+      });
+    }
+  }
+  
+  // Filter road lampposts (Aleutian whale oil lampposts along dirt roads)
+  if (entities.roadLampposts && entities.roadLampposts.size > 0) {
+    const nearbyRoadLampposts = filterEntitiesByDistance(
+      entities.roadLampposts,
+      playerX,
+      playerY,
+      COLLISION_PERF.STRUCTURE_CULL_DISTANCE_SQ,
+      COLLISION_PERF.MAX_STONES_TO_CHECK
+    );
+    
+    for (const lamppost of nearbyRoadLampposts) {
+      shapes.push({
+        id: lamppost.id.toString(),
+        type: `road_lamppost-${lamppost.id.toString()}`,
+        x: lamppost.posX + COLLISION_OFFSETS.ROAD_LAMPPOST.x,
+        y: lamppost.posY + COLLISION_OFFSETS.ROAD_LAMPPOST.y,
+        radius: COLLISION_RADII.ROAD_LAMPPOST
       });
     }
   }
@@ -1108,9 +1129,11 @@ export const MONUMENT_BUILDING_COLLISION = {
   // Y offset from entity posY to collision center
   // spriteBottom = posY + anchorOffset, then center at spriteBottom - height/2
   // Monument placeables (96px anchor): posY + 96 - 80 = posY + 16
-  // ALK compound (0px anchor):         posY + 0 - 80  = posY - 80
+  // ALK compound (0px anchor):         pushed up 60px from base (sprite at worldPosY)
+  // Compound rain collector:           pushed up 60px from standard (16 - 60 = -44)
   CENTER_Y_OFFSET: 16,           // For monument placeables (96px anchor offset)
-  ALK_CENTER_Y_OFFSET: -80,      // For ALK compound (0px anchor offset)
+  ALK_CENTER_Y_OFFSET: -140,     // For ALK compound (0px anchor, pushed up 60px from -80)
+  RAIN_COLLECTOR_CENTER_Y_OFFSET: -44,  // For compound rain collector (pushed up 60px from 16)
 } as const;
 
 // Unified collision radii for consistency - match visual sprite sizes
@@ -1132,6 +1155,7 @@ export const COLLISION_RADII = {
   SEA_STACK: 60, // Base radius for sea stacks - reduced significantly for smoother collision like trees
   HOMESTEAD_HEARTH: 55, // Homestead hearth collision radius (matches server-side HEARTH_COLLISION_RADIUS)
   BASALT_COLUMN: 35, // Basalt column collision radius
+  ROAD_LAMPPOST: 28, // Road lamppost collision radius (narrow pole, smaller for easier navigation)
   ALK_STATION: 120, // ALK delivery station collision radius (reduced for easier navigation and Y-sorting)
   WARD: 40, // Ward collision radius (for ancestral ward, signal disruptor, memory beacon - NOT regular lanterns)
   TURRET: 35, // Turret collision radius (smaller, focused on base) - player-placed only; monument turrets use AABB
@@ -1159,6 +1183,7 @@ export const COLLISION_OFFSETS = {
   SEA_STACK: { x: 0, y: -120 }, // Offset up to position collision higher on the structure
   HOMESTEAD_HEARTH: { x: 0, y: -72.5 }, // Homestead hearth collision offset (matches server-side HEARTH_COLLISION_Y_OFFSET)
   BASALT_COLUMN: { x: 0, y: -40 }, // Basalt column collision offset
+  ROAD_LAMPPOST: { x: 0, y: -90 }, // Road lamppost collision base pushed up (128x192 sprite, pole center)
   WARD: { x: 0, y: -80 }, // Ward collision offset (matches server-side WARD_COLLISION_Y_OFFSET)
   TURRET: { x: 0, y: 70 }, // Turret collision at wooden base/platform - player-placed only; monument turrets use AABB
   // STORM_PILE removed - storms now spawn HarvestableResources and DroppedItems directly
@@ -1245,6 +1270,7 @@ export interface GameEntities {
   foundationCells: Map<string, FoundationCell>; // Add foundation cells for collision
   homesteadHearths: Map<string, HomesteadHearth>; // Add homestead hearths for collision
   basaltColumns: Map<string, BasaltColumn>; // Add basalt columns for collision
+  roadLampposts?: Map<string, RoadLamppost>; // Aleutian whale oil lampposts along roads
   doors: Map<string, Door>; // Add doors for collision
   alkStations?: Map<string, AlkStation>; // Add ALK delivery stations for collision
   // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly

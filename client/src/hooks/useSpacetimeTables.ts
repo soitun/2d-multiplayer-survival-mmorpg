@@ -154,6 +154,7 @@ export interface SpacetimeTableStates {
     hostileDeathEvents: Array<{id: string, x: number, y: number, species: string, timestamp: number}>; // Client-side death events for particle effects
     animalCorpses: Map<string, SpacetimeDB.AnimalCorpse>;
     barrels: Map<string, SpacetimeDB.Barrel>; // ADDED barrels
+    roadLampposts: Map<string, SpacetimeDB.RoadLamppost>; // ADDED: Aleutian whale oil lampposts along roads
     seaStacks: Map<string, SpacetimeDB.SeaStack>; // ADDED sea stacks
     fumaroles: Map<string, SpacetimeDB.Fumarole>; // ADDED fumaroles
     basaltColumns: Map<string, SpacetimeDB.BasaltColumn>; // ADDED basalt columns
@@ -285,6 +286,7 @@ export const useSpacetimeTables = ({
     const [hostileDeathEvents, setHostileDeathEvents] = useState<Array<{id: string, x: number, y: number, species: string, timestamp: number}>>([]);
     const [animalCorpses, setAnimalCorpses] = useState<Map<string, SpacetimeDB.AnimalCorpse>>(() => new Map());
     const [barrels, setBarrels] = useState<Map<string, SpacetimeDB.Barrel>>(() => new Map()); // ADDED barrels
+    const [roadLampposts, setRoadLampposts] = useState<Map<string, SpacetimeDB.RoadLamppost>>(() => new Map()); // ADDED: Road lampposts
     const [seaStacks, setSeaStacks] = useState<Map<string, SpacetimeDB.SeaStack>>(() => new Map()); // ADDED sea stacks
     const [fumaroles, setFumaroles] = useState<Map<string, SpacetimeDB.Fumarole>>(() => new Map()); // ADDED fumaroles
     const [basaltColumns, setBasaltColumns] = useState<Map<string, SpacetimeDB.BasaltColumn>>(() => new Map()); // ADDED basalt columns
@@ -480,6 +482,7 @@ export const useSpacetimeTables = ({
                     `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM placed_explosive WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`,
+                    `SELECT * FROM road_lamppost WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
                     `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`,
@@ -537,6 +540,7 @@ export const useSpacetimeTables = ({
                 console.log(`[EXPLOSIVE_SUB] Subscribing to placed_explosive for chunk ${chunkIndex}`);
                 newHandlesForChunk.push(timedSubscribe('PlacedExplosive', `SELECT * FROM placed_explosive WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('Barrel', `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`));
+                newHandlesForChunk.push(timedSubscribe('RoadLamppost', `SELECT * FROM road_lamppost WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('SeaStack', `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('FoundationCell', `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`));
                 newHandlesForChunk.push(timedSubscribe('WallCell', `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`));
@@ -1937,6 +1941,11 @@ export const useSpacetimeTables = ({
             };
             const handleBarrelDelete = (ctx: any, barrel: SpacetimeDB.Barrel) => setBarrels(prev => { const newMap = new Map(prev); newMap.delete(barrel.id.toString()); return newMap; });
 
+            // RoadLamppost handlers - SPATIAL
+            const handleRoadLamppostInsert = (ctx: any, lamppost: SpacetimeDB.RoadLamppost) => setRoadLampposts(prev => new Map(prev).set(lamppost.id.toString(), lamppost));
+            const handleRoadLamppostUpdate = (ctx: any, _old: SpacetimeDB.RoadLamppost, newLamppost: SpacetimeDB.RoadLamppost) => setRoadLampposts(prev => new Map(prev).set(newLamppost.id.toString(), newLamppost));
+            const handleRoadLamppostDelete = (ctx: any, lamppost: SpacetimeDB.RoadLamppost) => setRoadLampposts(prev => { const newMap = new Map(prev); newMap.delete(lamppost.id.toString()); return newMap; });
+
             // Sea Stack handlers - SPATIAL
             const handleSeaStackInsert = (ctx: any, seaStack: SpacetimeDB.SeaStack) => setSeaStacks(prev => new Map(prev).set(seaStack.id.toString(), seaStack));
             const handleSeaStackUpdate = (ctx: any, oldSeaStack: SpacetimeDB.SeaStack, newSeaStack: SpacetimeDB.SeaStack) => {
@@ -2489,6 +2498,11 @@ export const useSpacetimeTables = ({
             connection.db.barrel.onInsert(handleBarrelInsert);
             connection.db.barrel.onUpdate(handleBarrelUpdate);
             connection.db.barrel.onDelete(handleBarrelDelete);
+
+            // Register RoadLamppost callbacks - SPATIAL
+            connection.db.roadLamppost.onInsert(handleRoadLamppostInsert);
+            connection.db.roadLamppost.onUpdate(handleRoadLamppostUpdate);
+            connection.db.roadLamppost.onDelete(handleRoadLamppostDelete);
 
             // Register SeaStack callbacks - SPATIAL
             connection.db.seaStack.onInsert(handleSeaStackInsert);
@@ -3224,6 +3238,7 @@ export const useSpacetimeTables = ({
         hostileDeathEvents, // Client-side death events for particle effects (no server subscription)
         animalCorpses,
         barrels, // ADDED barrels
+        roadLampposts, // ADDED: Aleutian whale oil lampposts along roads
         seaStacks, // ADDED sea stacks
         foundationCells, // ADDED: Building foundations
         wallCells, // ADDED: Building walls

@@ -153,6 +153,7 @@ interface GameScreenProps {
     hostileDeathEvents: Array<{id: string, x: number, y: number, species: string, timestamp: number}>; // Client-side death events for particles
     animalCorpses: Map<string, SpacetimeDBAnimalCorpse>;
     barrels: Map<string, SpacetimeDBBarrel>; // ADDED barrels
+    roadLampposts: Map<string, SpacetimeDB.RoadLamppost>; // ADDED: Aleutian whale oil lampposts along roads
     seaStacks: Map<string, any>; // ADDED sea stacks
     homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED homesteadHearths
     foundationCells: Map<string, any>; // ADDED: Building foundations
@@ -1122,6 +1123,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 hostileDeathEvents={hostileDeathEvents}
                 animalCorpses={animalCorpses}
                 barrels={props.barrels}
+                roadLampposts={props.roadLampposts}
                 seaStacks={props.seaStacks}
                 homesteadHearths={props.homesteadHearths}
                 foundationCells={props.foundationCells}

@@ -39,6 +39,7 @@ import {
   WildAnimal as SpacetimeDBWildAnimal,
   AnimalCorpse as SpacetimeDBAnimalCorpse,
   Barrel as SpacetimeDBBarrel, // ADDED Barrel type
+  RoadLamppost as SpacetimeDBRoadLamppost, // ADDED: Aleutian whale oil lampposts along roads
   FoundationCell as SpacetimeDBFoundationCell, // ADDED: Building foundations
   WallCell as SpacetimeDBWallCell, // ADDED: Building walls
   Door as SpacetimeDBDoor, // ADDED: Building doors
@@ -141,6 +142,8 @@ interface EntityFilteringResult {
   visibleAnimalCorpsesMap: Map<string, SpacetimeDBAnimalCorpse>; // ADDED
   visibleBarrels: SpacetimeDBBarrel[]; // ADDED
   visibleBarrelsMap: Map<string, SpacetimeDBBarrel>; // ADDED
+  visibleRoadLampposts: SpacetimeDBRoadLamppost[]; // ADDED: Road lampposts
+  visibleRoadLamppostsMap: Map<string, SpacetimeDBRoadLamppost>; // ADDED: Road lampposts map
   visibleFumaroles: SpacetimeDBFumarole[]; // ADDED
   visibleFumerolesMap: Map<string, SpacetimeDBFumarole>; // ADDED
   visibleBasaltColumns: SpacetimeDBBasaltColumn[]; // ADDED
@@ -191,6 +194,7 @@ export type YSortedEntityType =
   | { type: 'wild_animal'; entity: SpacetimeDBWildAnimal }
   | { type: 'animal_corpse'; entity: SpacetimeDBAnimalCorpse }
   | { type: 'barrel'; entity: SpacetimeDBBarrel }
+  | { type: 'road_lamppost'; entity: SpacetimeDBRoadLamppost } // ADDED: Aleutian whale oil lampposts along roads
   | { type: 'sea_stack'; entity: any } // Server-provided sea stack entities
   | { type: 'sleeping_bag'; entity: SpacetimeDBSleepingBag } // ADDED: Sleeping bags
   | { type: 'foundation_cell'; entity: SpacetimeDBFoundationCell } // ADDED: Building foundations
@@ -284,6 +288,7 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
     case 'player_corpse':
     case 'wild_animal':
     case 'barrel':
+    case 'road_lamppost': // ADDED: Aleutian whale oil lampposts (same as barrels - tall road structures)
     case 'sleeping_bag':
     case 'basalt_column': // ADDED: Basalt columns sort by Y position (tall obstacles)
     // storm_pile removed - storms now spawn HarvestableResources and DroppedItems directly
@@ -440,6 +445,7 @@ const getEntityPriority = (item: YSortedEntityType): number => {
     case 'harvestable_resource': return 12;
     case 'sleeping_bag': return 13; // Render after dropped items, before barrels
     case 'barrel': return 15;
+    case 'road_lamppost': return 15; // Same layer as barrels (tall road structures)
     case 'fumarole': return 14; // ADDED: Fumaroles render slightly before barrels (ground vents)
     case 'basalt_column': return 16; // ADDED: Basalt columns render after barrels (tall obstacles)
     // storm_pile removed - storms now spawn HarvestableResources and DroppedItems directly
@@ -720,6 +726,7 @@ export function useEntityFiltering(
   wildAnimals: Map<string, SpacetimeDBWildAnimal>, // ADDED wildAnimals argument
   animalCorpses: Map<string, SpacetimeDBAnimalCorpse>, // ADDED animalCorpses argument
   barrels: Map<string, SpacetimeDBBarrel>, // ADDED barrels argument
+  roadLampposts: Map<string, SpacetimeDBRoadLamppost>, // ADDED: Aleutian whale oil lampposts along roads (caller passes ?? new Map())
   fumaroles: Map<string, SpacetimeDBFumarole>, // ADDED fumaroles argument
   basaltColumns: Map<string, SpacetimeDBBasaltColumn>, // ADDED basalt columns argument
   seaStacks: Map<string, any>, // ADDED sea stacks argument
@@ -906,6 +913,12 @@ export function useEntityFiltering(
         width = 256; // TURRET_WIDTH
         height = 256; // TURRET_HEIGHT
       }
+    } else if ((entity as any).nearBarrelCluster !== undefined && (entity as any).chunkIndex !== undefined) {
+      // Handle road lampposts - Aleutian whale oil lampposts along dirt roads
+      x = (entity as any).posX;
+      y = (entity as any).posY;
+      width = 128; // ROAD_LAMP_WIDTH
+      height = 192; // ROAD_LAMP_HEIGHT (tall structure)
     } else if ((entity as any).id !== undefined && (entity as any).posX !== undefined && (entity as any).posY !== undefined && (entity as any).chunkIndex !== undefined) {
       // Handle fumaroles and basalt columns - they have id, posX, posY, and chunkIndex
       x = (entity as any).posX;
@@ -1311,6 +1324,13 @@ export function useEntityFiltering(
     [barrels, isEntityInView, viewBounds, stableTimestamp]
   );
 
+  const visibleRoadLampposts = useMemo(() =>
+    roadLampposts ? Array.from(roadLampposts.values()).filter(e =>
+      isEntityInView(e, viewBounds, stableTimestamp)
+    ) : [],
+    [roadLampposts, isEntityInView, viewBounds, stableTimestamp]
+  );
+
   const visibleFumaroles = useMemo(() => {
     // console.log('🔥 [FUMAROLE FILTER] Running filter. fumaroles:', fumaroles ? `Map with ${fumaroles.size} entries` : 'null/undefined');
     const visible = fumaroles ? Array.from(fumaroles.values()).filter(e => 
@@ -1653,6 +1673,12 @@ export function useEntityFiltering(
     [visibleBarrels]
   );
 
+  // ADDED: Map for visible road lampposts
+  const visibleRoadLamppostsMap = useMemo(() =>
+    new Map(visibleRoadLampposts.map(l => [l.id.toString(), l])),
+    [visibleRoadLampposts]
+  );
+
   const visibleFumerolesMap = useMemo(() =>
     new Map(visibleFumaroles.map(f => [f.id.toString(), f])),
     [visibleFumaroles]
@@ -1960,6 +1986,7 @@ export function useEntityFiltering(
     visiblePlayerCorpses.forEach(e => addEntity('player_corpse', e));
     visibleWildAnimals.forEach(e => addEntity('wild_animal', e));
     visibleBarrels.forEach(e => addEntity('barrel', e));
+    visibleRoadLampposts.forEach(e => addEntity('road_lamppost', e)); // ADDED: Road lampposts
     visibleFumaroles.forEach(e => addEntity('fumarole', e)); // ADDED: Fumaroles
     visibleBasaltColumns.forEach(e => addEntity('basalt_column', e)); // ADDED: Basalt columns
     // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
@@ -2659,6 +2686,7 @@ export function useEntityFiltering(
     visibleWildAnimals,
     visibleAnimalCorpses,
     visibleBarrels,
+    visibleRoadLampposts,
     visibleFumaroles,
     visibleBasaltColumns,
     // visibleStormPiles removed - storms now spawn HarvestableResources and DroppedItems directly
@@ -2738,6 +2766,8 @@ export function useEntityFiltering(
     visibleAnimalCorpsesMap,
     visibleBarrels,
     visibleBarrelsMap,
+    visibleRoadLampposts,
+    visibleRoadLamppostsMap,
     visibleFumaroles,
     visibleFumerolesMap,
     visibleBasaltColumns,

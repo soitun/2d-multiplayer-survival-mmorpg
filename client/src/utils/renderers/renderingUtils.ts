@@ -80,6 +80,8 @@ import { renderAnimalCorpse } from './animalCorpseRenderingUtils';
 import { renderPlayerCorpse, isCorpseHovered } from './playerCorpseRenderingUtils';
 // Import barrel renderer
 import { renderBarrel } from './barrelRenderingUtils';
+// Import road lamppost renderer (Aleutian whale oil lampposts along dirt roads)
+import { renderRoadLamppost } from './roadLamppostRenderingUtils';
 // Import entity visual config for centralized bounds
 import { ENTITY_VISUAL_CONFIG, getInteractionOutlineParams } from '../entityVisualConfig';
 // Import fumarole renderer
@@ -1584,6 +1586,9 @@ export const renderYSortedEntities = ({
               const outline = getInteractionOutlineParams(barrel.posX, barrel.posY, config);
               drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
+      } else if (type === 'road_lamppost') {
+          const lamppost = entity as any; // RoadLamppost from SpacetimeDB
+          renderRoadLamppost(ctx, lamppost, cameraOffsetX, cameraOffsetY, nowMs, cycleProgress, localPlayerPosition);
       } else if (type === 'sea_stack') {
           const seaStack = entity as any; // Sea stack from SpacetimeDB
           // Skip top half rendering when snorkeling - underwater silhouettes are rendered elsewhere

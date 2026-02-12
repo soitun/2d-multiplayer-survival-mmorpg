@@ -4575,13 +4575,28 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     );
     
     // Spawn barrel clusters on dirt roads with scaling parameters
-    match barrel::spawn_barrel_clusters_scaled(ctx, dirt_road_tiles, recommended_cluster_count) {
+    match barrel::spawn_barrel_clusters_scaled(ctx, dirt_road_tiles.clone(), recommended_cluster_count) {
         Ok(_) => {
             let spawned_barrel_count = ctx.db.barrel().iter().count();
             log::info!("Successfully spawned {} barrels on dirt roads", spawned_barrel_count);
         }
         Err(e) => {
             log::error!("Failed to spawn barrels: {}", e);
+        }
+    }
+
+    // --- Spawn Aleutian Whale Oil Lampposts along Dirt Roads ---
+    // Spaced evenly but sparsely; excludes ALK central compound; sometimes near barrel clusters
+    let barrel_positions: Vec<(f32, f32)> = ctx.db.barrel().iter()
+        .filter(|b| b.health > 0.0 && b.variant < crate::barrel::SEA_BARREL_VARIANT_START) // Road barrels only
+        .map(|b| (b.pos_x, b.pos_y))
+        .collect();
+    match crate::road_lamppost::spawn_road_lampposts(ctx, dirt_road_tiles.clone(), &barrel_positions) {
+        Ok(count) => {
+            log::info!("Successfully spawned {} Aleutian whale oil lampposts along dirt roads", count);
+        }
+        Err(e) => {
+            log::error!("Failed to spawn road lampposts: {}", e);
         }
     }
 

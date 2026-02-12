@@ -174,6 +174,7 @@ mod drone; // <<< ADDED: Periodic drone flyover event (eerie shadow across islan
 mod military_ration; // <<< ADDED: Military ration loot crate system
 mod mine_cart; // <<< ADDED: Mine cart loot crate system (quarry-only spawns)
 mod wild_beehive; // <<< ADDED: Wild beehive loot system (forest-only spawns)
+mod road_lamppost; // <<< ADDED: Aleutian whale oil lampposts along dirt roads
 
 // ADD: Re-export respawn reducer
 pub use respawn::respawn_randomly;

@@ -213,6 +213,7 @@ function AppContent() {
       hostileDeathEvents, // <<< ADD hostileDeathEvents HERE (client-side death events for particle effects)
       animalCorpses, // <<< ADD animalCorpses HERE (NON-SPATIAL)
       barrels, // <<< ADD barrels HERE
+      roadLampposts, // <<< ADD road lampposts (Aleutian whale oil lampposts along roads)
       fumaroles, // <<< ADD fumaroles HERE
       basaltColumns, // <<< ADD basaltColumns HERE
       livingCorals, // Living coral for underwater harvesting (uses combat system)
@@ -440,6 +441,7 @@ function AppContent() {
             players,
             wildAnimals,
             barrels,
+            roadLampposts,
             seaStacks,
             wallCells,
             foundationCells,
@@ -453,7 +455,7 @@ function AppContent() {
             turrets
         };
     }, [currentViewport, trees, stones, runeStones, cairns, woodenStorageBoxes, rainCollectors,
-        furnaces, barbecues, shelters, players, wildAnimals, barrels, seaStacks, wallCells,
+        furnaces, barbecues, shelters, players, wildAnimals, barrels, roadLampposts, seaStacks, wallCells,
         foundationCells, homesteadHearths, basaltColumns, livingCorals, doors, fences,
         alkStations, lanterns, turrets]);
 
@@ -1116,6 +1118,7 @@ function AppContent() {
                             hostileDeathEvents={hostileDeathEvents}
                             animalCorpses={animalCorpses}
                             barrels={barrels}
+                            roadLampposts={roadLampposts}
                             fumaroles={fumaroles}
                             basaltColumns={basaltColumns}
                             livingCorals={livingCorals}

@@ -557,8 +557,16 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
     e.preventDefault(); // Safe to call preventDefault on context menu events
   };
 
-  // Detect mobile screen size
-  const isMobileScreen = typeof window !== 'undefined' && window.innerWidth <= 768;
+  // Detect mobile screen size - update on resize for rotation/resize
+  const [isMobileScreen, setIsMobileScreen] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth <= 768
+  );
+  useEffect(() => {
+    const check = () => setIsMobileScreen(window.innerWidth <= 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   // Calculate container width to match tab bar width (8 tabs)
   // GRU MAPS(110) + ENCYCLOPEDIA(130) + MEMORY GRID(130) + ALK(110) + CAIRNS(~85) + MATRONAGE(~105) + LEADERBOARD(~115) + ACHIEVEMENTS(~125) + margins(2px*7=14)
@@ -1041,6 +1049,17 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
       onWheel={handleWheelEvent}
       onContextMenu={handleContextMenuEvent}
     >
+      {/* Mobile-only close button - 44px min touch target */}
+      {isMobileScreen && (
+        <button
+          className="interface-container-close-mobile"
+          onClick={onClose}
+          aria-label="Close"
+          type="button"
+        >
+          ×
+        </button>
+      )}
       <InterfaceTabs
         currentView={currentView}
         onViewChange={handleViewChange}

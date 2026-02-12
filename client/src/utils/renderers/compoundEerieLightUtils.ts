@@ -11,14 +11,11 @@
  */
 
 import { getCompoundEerieLightsWithPositions, CompoundEerieLight } from '../../config/compoundBuildings';
+import { isNightTime, NIGHT_LIGHTS_ON, LIGHT_FADE_FULL_AT, TWILIGHT_MORNING_FADE_START, TWILIGHT_MORNING_END } from '../../config/dayNightConstants';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONFIGURATION - Eerie Nanobot Light Palette
 // ═══════════════════════════════════════════════════════════════════════════
-
-// Night time thresholds (matches shipwreckRenderingUtils.ts)
-const TWILIGHT_EVENING_START = 0.76;
-const TWILIGHT_MORNING_END = 1.0;
 
 // Eerie nanobot colors - ghostly blue/purple matching Lagunov ghost palette
 const EERIE_PRIMARY = { r: 80, g: 120, b: 200 };   // Deep ocean blue
@@ -36,10 +33,6 @@ const PARTICLE_MAX_SIZE = 7;
 // ═══════════════════════════════════════════════════════════════════════════
 // UTILITY
 // ═══════════════════════════════════════════════════════════════════════════
-
-function isNightTime(cycleProgress: number): boolean {
-    return cycleProgress >= TWILIGHT_EVENING_START;
-}
 
 function seededRandom(seed: number): number {
     const x = Math.sin(seed) * 10000;
@@ -82,11 +75,11 @@ function renderCompoundEerieLight(
 
     // Calculate time-based intensity (fade in/out at twilight)
     let timeIntensity = light.intensity;
-    if (cycleProgress < 0.80) {
-        const fadeProgress = (cycleProgress - TWILIGHT_EVENING_START) / (0.80 - TWILIGHT_EVENING_START);
+    if (cycleProgress < LIGHT_FADE_FULL_AT) {
+        const fadeProgress = (cycleProgress - NIGHT_LIGHTS_ON) / (LIGHT_FADE_FULL_AT - NIGHT_LIGHTS_ON);
         timeIntensity = light.intensity * Math.pow(Math.max(0, fadeProgress), 0.7);
-    } else if (cycleProgress >= 0.97) {
-        const fadeProgress = (TWILIGHT_MORNING_END - cycleProgress) / (TWILIGHT_MORNING_END - 0.97);
+    } else if (cycleProgress >= TWILIGHT_MORNING_FADE_START) {
+        const fadeProgress = (TWILIGHT_MORNING_END - cycleProgress) / (TWILIGHT_MORNING_END - TWILIGHT_MORNING_FADE_START);
         timeIntensity = light.intensity * Math.pow(Math.max(0, fadeProgress), 0.7);
     }
 

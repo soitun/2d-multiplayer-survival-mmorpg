@@ -1101,6 +1101,8 @@ import { RecipeTableHandle } from "./recipe_table.ts";
 export { RecipeTableHandle };
 import { ReedMarshTableHandle } from "./reed_marsh_table.ts";
 export { ReedMarshTableHandle };
+import { RoadLamppostTableHandle } from "./road_lamppost_table.ts";
+export { RoadLamppostTableHandle };
 import { RuneStoneTableHandle } from "./rune_stone_table.ts";
 export { RuneStoneTableHandle };
 import { RuneStoneItemSpawnScheduleTableHandle } from "./rune_stone_item_spawn_schedule_table.ts";
@@ -1553,6 +1555,8 @@ import { RecipeIngredient } from "./recipe_ingredient_type.ts";
 export { RecipeIngredient };
 import { ReedMarsh } from "./reed_marsh_type.ts";
 export { ReedMarsh };
+import { RoadLamppost } from "./road_lamppost_type.ts";
+export { RoadLamppost };
 import { RuneStone } from "./rune_stone_type.ts";
 export { RuneStone };
 import { RuneStoneItemSpawnSchedule } from "./rune_stone_item_spawn_schedule_type.ts";
@@ -2900,6 +2904,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (ReedMarsh.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    road_lamppost: {
+      tableName: "road_lamppost" as const,
+      rowType: RoadLamppost.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (RoadLamppost.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     rune_stone: {
@@ -14065,6 +14078,11 @@ export class RemoteTables {
   get reedMarsh(): ReedMarshTableHandle<'reed_marsh'> {
     // clientCache is a private property
     return new ReedMarshTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ReedMarsh>(REMOTE_MODULE.tables.reed_marsh));
+  }
+
+  get roadLamppost(): RoadLamppostTableHandle<'road_lamppost'> {
+    // clientCache is a private property
+    return new RoadLamppostTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<RoadLamppost>(REMOTE_MODULE.tables.road_lamppost));
   }
 
   get runeStone(): RuneStoneTableHandle<'rune_stone'> {

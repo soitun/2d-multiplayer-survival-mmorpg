@@ -9,6 +9,7 @@ import {
   Campfire as SpacetimeDBCampfire,
   Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
   Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
+  RoadLamppost as SpacetimeDBRoadLamppost, // ADDED: Aleutian whale oil lampposts
   Lantern as SpacetimeDBLantern,
   WorldState as SpacetimeDBWorldState,
   ActiveEquipment as SpacetimeDBActiveEquipment,
@@ -130,11 +131,12 @@ import { getFurnaceDimensions, FURNACE_TYPE_LARGE } from '../utils/renderers/fur
 import { isCompoundMonument } from '../config/compoundBuildings';
 import { renderPlayerCorpse } from '../utils/renderers/playerCorpseRenderingUtils';
 import { renderStash } from '../utils/renderers/stashRenderingUtils';
-import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarbecueLight, renderAllPlayerLights, renderFishingVillageCampfireLight, renderSovaAura } from '../utils/renderers/lightRenderingUtils';
+import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarbecueLight, renderRoadLamppostLight, renderAllPlayerLights, renderFishingVillageCampfireLight, renderSovaAura } from '../utils/renderers/lightRenderingUtils';
 import { renderRuneStoneNightLight } from '../utils/renderers/runeStoneRenderingUtils';
 import { renderAllShipwreckNightLights, renderAllShipwreckDebugZones } from '../utils/renderers/shipwreckRenderingUtils';
 import { renderCompoundEerieLights } from '../utils/renderers/compoundEerieLightUtils';
 import { preloadCairnImages } from '../utils/renderers/cairnRenderingUtils';
+import { preloadRoadLamppostImages } from '../utils/renderers/roadLamppostRenderingUtils';
 import { renderTree, renderTreeCanopyShadowsOverlay } from '../utils/renderers/treeRenderingUtils';
 import { renderTillerPreview } from '../utils/renderers/tillerPreviewRenderingUtils';
 import { renderCloudsDirectly } from '../utils/renderers/cloudRenderingUtils';
@@ -272,6 +274,7 @@ interface GameCanvasProps {
   hostileDeathEvents: Array<{ id: string, x: number, y: number, species: string, timestamp: number }>; // Client-side death events for particles
   animalCorpses: Map<string, SpacetimeDBAnimalCorpse>;
   barrels: Map<string, SpacetimeDBBarrel>; // Add barrels
+  roadLampposts?: Map<string, SpacetimeDBRoadLamppost>; // ADDED: Aleutian whale oil lampposts along roads
   fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles
   basaltColumns: Map<string, SpacetimeDBBasaltColumn>; // ADDED: Basalt columns
   livingCorals: Map<string, any>; // Living coral for underwater harvesting (uses combat system)
@@ -428,6 +431,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   hostileDeathEvents,
   animalCorpses,
   barrels,
+  roadLampposts,
   fumaroles, // ADDED: Fumaroles destructuring
   basaltColumns, // ADDED: Basalt columns destructuring
   livingCorals, // Living coral for underwater harvesting (uses combat system)
@@ -832,6 +836,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleAnimalCorpsesMap,
     visibleBarrels,
     visibleBarrelsMap,
+    visibleRoadLampposts,
+    visibleRoadLamppostsMap,
     visibleFumaroles, // ADDED: Fumaroles
     visibleFumerolesMap, // ADDED: Fumaroles map
     visibleBasaltColumns, // ADDED: Basalt columns
@@ -882,6 +888,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     wildAnimals,
     animalCorpses,
     barrels,
+    roadLampposts ?? new Map(), // ADDED: Road lampposts (Aleutian whale oil lampposts along roads)
     fumaroles, // ADDED: Fumaroles
     basaltColumns, // ADDED: Basalt columns
     seaStacks,
@@ -905,6 +912,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     lanterns,
     furnaces, // Add furnaces for darkness cutouts
     barbecues, // ADDED: Barbecues for night light cutouts
+    roadLampposts: roadLampposts ?? new Map(), // ADDED: Aleutian whale oil lampposts for night light cutouts
     runeStones, // ADDED: RuneStones for night light cutouts
     firePatches, // ADDED: Fire patches for night light cutouts
     fumaroles, // ADDED: Fumaroles for heat glow at night
@@ -1809,6 +1817,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     preloadMonumentImages();
     preloadCairnImages(); // ADDED: Preload cairn images
+    preloadRoadLamppostImages(); // Aleutian whale oil lampposts (day/night variants)
   }, []);
 
   // Load foundation and wall tile images
@@ -3917,6 +3926,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         players: players || new Map(),
         wildAnimals: wildAnimals || new Map(),
         barrels: barrels || new Map(),
+        roadLampposts: roadLampposts || new Map(),
         seaStacks: seaStacks || new Map(),
         wallCells: wallCells || new Map(),
         foundationCells: foundationCells || new Map(),
@@ -4371,6 +4381,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             worldY: part.worldY,
             cameraOffsetX: currentCameraOffsetX,
             cameraOffsetY: currentCameraOffsetY,
+            cycleProgress: currentCycleProgress,
           });
         }
       });
@@ -4409,6 +4420,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         cameraOffsetY: currentCameraOffsetY,
         // Indoor light containment - clip light to building interior
         buildingClusters,
+      });
+    });
+
+    // Road Lamppost Lights - Aleutian whale oil lampposts along dirt roads (only at night)
+    visibleRoadLamppostsMap.forEach((lamppost: SpacetimeDBRoadLamppost) => {
+      renderRoadLamppostLight({
+        ctx,
+        lamppost,
+        cameraOffsetX: currentCameraOffsetX,
+        cameraOffsetY: currentCameraOffsetY,
+        cycleProgress: currentCycleProgress,
       });
     });
 

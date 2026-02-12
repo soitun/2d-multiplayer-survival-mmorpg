@@ -968,7 +968,7 @@ const AIDisclosurePage: React.FC = () => {
                             marginBottom: '16px',
                             fontWeight: 'bold',
                         }}>
-                            🎵 AI Audio (Targeted for Replacement)
+                            🎵 AI Audio
                         </h3>
                         <p style={{
                             fontSize: '14px',
