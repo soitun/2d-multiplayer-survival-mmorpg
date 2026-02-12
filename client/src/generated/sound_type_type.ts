@@ -126,6 +126,7 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.TillDirt |
   SoundTypeVariants.ErrorTillingFailed |
   SoundTypeVariants.ErrorTillingDirt |
+  SoundTypeVariants.ErrorMobileCapability |
   SoundTypeVariants.HostileDeath |
   SoundTypeVariants.DeathWolf |
   SoundTypeVariants.DeathFox |
@@ -259,6 +260,7 @@ export const SoundType = {
   TillDirt: { tag: "TillDirt" } as const,
   ErrorTillingFailed: { tag: "ErrorTillingFailed" } as const,
   ErrorTillingDirt: { tag: "ErrorTillingDirt" } as const,
+  ErrorMobileCapability: { tag: "ErrorMobileCapability" } as const,
   HostileDeath: { tag: "HostileDeath" } as const,
   DeathWolf: { tag: "DeathWolf" } as const,
   DeathFox: { tag: "DeathFox" } as const,
@@ -386,6 +388,7 @@ export const SoundType = {
       { name: "TillDirt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ErrorTillingFailed", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "ErrorTillingDirt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ErrorMobileCapability", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HostileDeath", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DeathWolf", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DeathFox", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
