@@ -10,6 +10,11 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Post commit(s) to Discord
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -20,36 +25,14 @@ jobs:
         run: |
           set -e
 
-          # Build a short list of commits (max 5) with links
-          COMMITS=$(python3 - << 'PY'
-import json, os
-event_path = os.environ["GITHUB_EVENT_PATH"]
-data = json.load(open(event_path, "r", encoding="utf-8"))
-commits = data.get("commits", [])[:5]
-lines = []
-for c in commits:
-    msg = (c.get("message","").split("\n")[0])[:120]
-    url = c.get("url","").replace("api.github.com/repos", "github.com").replace("/commits/", "/commit/")
-    sha = (c.get("id","")[:7])
-    lines.append(f"- [`{sha}`]({url}) {msg}")
-print("\n".join(lines) if lines else "- (no commits found)")
-PY
-)
-
-          export CONTENT="**${REPO}** pushed to **${BRANCH}** by **${PUSHER}**
-${COMMITS}
-<${COMPARE_URL}>"
-
-          # Send to Discord (requires DISCORD_WEBHOOK_URL secret in repo Settings → Secrets)
           if [ -z "$DISCORD_WEBHOOK_URL" ]; then
             echo "::error::DISCORD_WEBHOOK_URL secret not set. Add it in Settings → Secrets and variables → Actions"
             exit 1
           fi
-          python3 - << 'PY'
-import json, os, urllib.request
-webhook = os.environ["DISCORD_WEBHOOK_URL"]
-content = os.environ["CONTENT"]
-payload = json.dumps({"content": content}).encode("utf-8")
-req = urllib.request.Request(webhook, data=payload, headers={"Content-Type":"application/json"})
-urllib.request.urlopen(req).read()
-PY
+
+          COMMITS=$(python3 .github/scripts/discord-commit-helper.py)
+          export CONTENT="**${REPO}** pushed to **${BRANCH}** by **${PUSHER}**
+          ${COMMITS}
+          <${COMPARE_URL}>"
+
+          python3 .github/scripts/discord-commit-helper.py post
