@@ -1,11 +1,11 @@
 /**
  * Shoreline Overlay Utilities
  *
- * Renders a thin light-blue shoreline at the beach/sea boundary, plus
- * procedural sine-wave lines that pulse out from the shore and fade.
+ * Renders a thin light-blue shoreline at the beach/sea boundary. The edge
+ * pixels periodically fan out into the water and fade - like water pushing
+ * from the shore.
  *
- * Uses pre-computed shoreline mask (thin edge only, no dots) and draws
- * waves procedurally each frame.
+ * Uses pre-computed shoreline mask (thin edge only, no dots).
  */
 
 import { TILE_SIZE as AUTOTILE_TILE_SIZE, TILESET_COLS, TILESET_ROWS } from '../dualGridAutotile';
@@ -17,17 +17,15 @@ import beachSeaAutotileUrl from '../../assets/tiles/new/tileset_beach_sea_autoti
 // CONSTANTS
 // =============================================================================
 
-const EDGE_THRESHOLD = 22;            // Min warmth difference (stricter = fewer dots)
-const WAVE_PULSE_RATE = 4;           // Wave pulse cycles per second
-const WAVE_COUNT = 5;                // Number of wave lines (staggered)
-const WAVE_PULSE_DURATION = 0.45;    // Fraction of cycle for expand+fade (0-1)
-const WAVE_MAX_SCALE = 1.06;         // How far wave expands into water
-const WAVE_AMPLITUDE = 0.008;        // Sine wave amplitude (as fraction of tile)
-const WAVE_FREQ = 12;                // Sine wave frequency
+const EDGE_THRESHOLD = 33;            // Min warmth difference (stricter = fewer dots)
+const WAVE_SPEED = 2.8;               // Wave cycle speed (rad/s)
+const WAVE_OFFSET_PX = 2.8;           // Pixels the edge shifts (visible motion)
+const WAVE_LAYERS = 2.8;                 // Fading layers that trail the main edge
 
-// Refined blue - clearer, slightly lighter than sea
+// Refined blue - main shoreline edge
 const SHORE_COLOR = { r: 145, g: 190, b: 225 };
-const WAVE_COLOR = 'rgb(160, 205, 240)';
+// Frothy beach water color - wave layers fade toward this
+const BEACH_COLOR = { r: 200, g: 225, b: 235 };
 
 // Warmth: positive = sand (yellow/brown), negative = water (blue)
 const getWarmth = (r: number, g: number, b: number): number =>
@@ -39,6 +37,7 @@ const getWarmth = (r: number, g: number, b: number): number =>
 
 interface ShorelineMaskCache {
   canvas: HTMLCanvasElement;
+  waveCanvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   ready: boolean;
 }
@@ -125,23 +124,37 @@ function processTileRegion(
     }
   }
 
-  // Shoreline: thin line only (1px dilate) - no thick band, no dots
+  // Shoreline: thin line, dilate only toward shore (sand) - never into water
   const shoreline = new Uint8Array(tileW * tileH * 4);
   const expand = 1;
   for (let y = 0; y < tileH; y++) {
     for (let x = 0; x < tileW; x++) {
       const idx = y * tileW + x;
+      const i = y * stride + x * 4;
+      const myWarmth = getWarmth(data[i], data[i + 1], data[i + 2]);
       let maxA = cleaned[idx * 4 + 3];
-      for (let dy = -expand; dy <= expand; dy++) {
-        for (let dx = -expand; dx <= expand; dx++) {
-          const nx = x + dx;
-          const ny = y + dy;
-          if (nx >= 0 && nx < tileW && ny >= 0 && ny < tileH) {
-            maxA = Math.max(maxA, cleaned[(ny * tileW + nx) * 4 + 3]);
+      let addPixel = maxA > 0;
+      if (!addPixel) {
+        for (let dy = -expand; dy <= expand; dy++) {
+          for (let dx = -expand; dx <= expand; dx++) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx >= 0 && nx < tileW && ny >= 0 && ny < tileH) {
+              const nIdx = ny * tileW + nx;
+              const nA = cleaned[nIdx * 4 + 3];
+              if (nA > 0) {
+                const ni = ny * stride + nx * 4;
+                const nWarmth = getWarmth(data[ni], data[ni + 1], data[ni + 2]);
+                if (myWarmth >= nWarmth) {
+                  maxA = Math.max(maxA, nA);
+                  addPixel = true;
+                }
+              }
+            }
           }
         }
       }
-      if (maxA > 0) {
+      if (addPixel && maxA > 0) {
         const base = idx * 4;
         shoreline[base] = SHORE_COLOR.r;
         shoreline[base + 1] = SHORE_COLOR.g;
@@ -158,7 +171,7 @@ function processTileRegion(
  * Generate thin shoreline mask from tileset.
  * Same layout as tileset: 4x5 grid of 128x128 tiles.
  */
-async function generateShorelineMask(tilesetImg: HTMLImageElement): Promise<HTMLCanvasElement> {
+async function generateShorelineMasks(tilesetImg: HTMLImageElement): Promise<{ shoreCanvas: HTMLCanvasElement; waveCanvas: HTMLCanvasElement }> {
   const fullW = tilesetImg.naturalWidth;
   const fullH = tilesetImg.naturalHeight;
 
@@ -219,7 +232,25 @@ async function generateShorelineMask(tilesetImg: HTMLImageElement): Promise<HTML
   }
 
   shoreCtx.putImageData(shoreData, 0, 0);
-  return shoreCanvas;
+
+  // Wave mask: same shape, beachy color (transitions blue → sand, not white)
+  const waveCanvas = document.createElement('canvas');
+  waveCanvas.width = fullW;
+  waveCanvas.height = fullH;
+  const waveCtx = waveCanvas.getContext('2d')!;
+  waveCtx.drawImage(shoreCanvas, 0, 0);
+  const waveData = waveCtx.getImageData(0, 0, fullW, fullH);
+  const wavePixels = waveData.data;
+  for (let i = 0; i < wavePixels.length; i += 4) {
+    if (wavePixels[i + 3] > 0) {
+      wavePixels[i] = BEACH_COLOR.r;
+      wavePixels[i + 1] = BEACH_COLOR.g;
+      wavePixels[i + 2] = BEACH_COLOR.b;
+    }
+  }
+  waveCtx.putImageData(waveData, 0, 0);
+
+  return { shoreCanvas, waveCanvas };
 }
 
 /**
@@ -245,10 +276,11 @@ export async function initShorelineMask(beachSeaImage?: HTMLImageElement | null)
         });
       }
 
-      const shoreline = await generateShorelineMask(img);
+      const { shoreCanvas, waveCanvas } = await generateShorelineMasks(img);
       maskCache = {
-        canvas: shoreline,
-        ctx: shoreline.getContext('2d')!,
+        canvas: shoreCanvas,
+        waveCanvas,
+        ctx: shoreCanvas.getContext('2d')!,
         ready: true,
       };
       return maskCache;
@@ -305,7 +337,7 @@ export function renderShorelineOverlay(
   const centerX = destX + destSize / 2;
   const centerY = destY + destSize / 2;
 
-  // Layer 1: Shoreline - thin static blue line, no animation
+  // Layer 1: Shoreline - thin static blue edge
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1.0;
   ctx.drawImage(
@@ -320,41 +352,31 @@ export function renderShorelineOverlay(
     Math.floor(destSize)
   );
 
-  // Layer 2: Procedural sine wave lines - pulse out from shore, fade quickly
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  for (let w = 0; w < WAVE_COUNT; w++) {
-    const phase = (t * WAVE_PULSE_RATE + w / WAVE_COUNT) % 1;
-    if (phase >= WAVE_PULSE_DURATION) continue;
-    const pulseProgress = phase / WAVE_PULSE_DURATION;
-    const waveScale = 1 + pulseProgress * (WAVE_MAX_SCALE - 1);
-    const waveAlpha = 0.55 * (1 - pulseProgress);
-    const wavePhase = t * 4 + w * 1.2;
-
-    ctx.globalAlpha = waveAlpha;
-    ctx.strokeStyle = WAVE_COLOR;
-    ctx.lineWidth = Math.max(1, destSize * 0.008);
+  // Layer 2: Edge pixels move and fade - use source-over so beach color shows true (lighter adds → white)
+  ctx.globalCompositeOperation = 'source-over';
+  const tileScale = destSize / AUTOTILE_TILE_SIZE;
+  const offsetPx = WAVE_OFFSET_PX * Math.max(0.5, tileScale / 4);
+  for (let w = 0; w < WAVE_LAYERS; w++) {
+    const phase = t * WAVE_SPEED + w * 0.7;
+    const s = Math.sin(phase);
+    const dx = s * offsetPx;
+    const dy = Math.sin(phase + 0.5) * offsetPx;
+    const alpha = 0.75 * (1 - w * 0.35) * (0.5 + 0.5 * s);
 
     ctx.save();
-    ctx.translate(centerX, centerY);
-    ctx.scale(waveScale, waveScale);
-    ctx.translate(-centerX, -centerY);
-
-    // Draw sine wave lines across the tile
-    const baseYs = [0.35, 0.5, 0.65];
-    for (const frac of baseYs) {
-      const baseY = destY + destSize * frac;
-      ctx.beginPath();
-      const steps = Math.max(20, Math.floor(destSize / 4));
-      for (let i = 0; i <= steps; i++) {
-        const x = destX + (destSize * i) / steps;
-        const y = baseY + destSize * WAVE_AMPLITUDE * Math.sin((x / destSize) * WAVE_FREQ * Math.PI * 2 + wavePhase);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
+    ctx.globalAlpha = Math.max(0.2, alpha);
+    ctx.translate(dx, dy);
+    ctx.drawImage(
+      maskCache.waveCanvas,
+      Math.floor(spriteCoords.x),
+      Math.floor(spriteCoords.y),
+      Math.floor(spriteCoords.width),
+      Math.floor(spriteCoords.height),
+      destX,
+      destY,
+      Math.floor(destSize),
+      Math.floor(destSize)
+    );
     ctx.restore();
   }
 

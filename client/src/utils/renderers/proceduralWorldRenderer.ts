@@ -9,7 +9,7 @@ import {
     DUAL_GRID_LOOKUP
 } from '../dualGridAutotile';
 import { tileDoodadRenderer } from './tileDoodadRenderer';
-import { initShorelineMask, renderShorelineOverlay } from './shorelineOverlayUtils';
+import { initShorelineMask, isShorelineMaskReady, renderShorelineOverlay } from './shorelineOverlayUtils';
 
 // Helper to get tile base texture path from tile type name
 function getTileBaseTexturePath(tileTypeName: string): string {
@@ -213,8 +213,10 @@ export class ProceduralWorldRenderer {
         isSnorkeling: boolean = false
     ): void {
         if (isSnorkeling) return;
+        if (!isShorelineMaskReady()) return;
 
         const { tileSize } = gameConfig;
+        const currentTimeMs = performance.now();
         const viewMinX = -cameraOffsetX;
         const viewMinY = -cameraOffsetY;
         const dualStartX = Math.max(0, Math.floor(viewMinX / tileSize) - 1);
@@ -224,7 +226,7 @@ export class ProceduralWorldRenderer {
 
         for (let y = dualStartY; y <= dualEndY; y++) {
             for (let x = dualStartX; x <= dualEndX; x++) {
-                this.renderShorelineForCell(ctx, x, y, tileSize);
+                this.renderShorelineForCell(ctx, x, y, tileSize, currentTimeMs);
             }
         }
     }
@@ -233,7 +235,8 @@ export class ProceduralWorldRenderer {
         ctx: CanvasRenderingContext2D,
         logicalX: number,
         logicalY: number,
-        tileSize: number
+        tileSize: number,
+        currentTimeMs: number
     ): void {
         const transitions = getDualGridTileInfoMultiLayer(logicalX, logicalY, this.tileCache.tiles);
         if (transitions.length === 0) return;
@@ -282,7 +285,7 @@ export class ProceduralWorldRenderer {
                 pixelSize,
                 tileInfo.flipHorizontal,
                 tileInfo.flipVertical,
-                performance.now()
+                currentTimeMs
             );
 
             ctx.restore();
