@@ -435,6 +435,8 @@ import { ProcessActiveConsumableEffectsTick } from "./process_active_consumable_
 export { ProcessActiveConsumableEffectsTick };
 import { ProcessAlkContractRefresh } from "./process_alk_contract_refresh_reducer.ts";
 export { ProcessAlkContractRefresh };
+import { ProcessAllFumarolesScheduled } from "./process_all_fumaroles_scheduled_reducer.ts";
+export { ProcessAllFumarolesScheduled };
 import { ProcessBarbecueLogicScheduled } from "./process_barbecue_logic_scheduled_reducer.ts";
 export { ProcessBarbecueLogicScheduled };
 import { ProcessBeehiveProduction } from "./process_beehive_production_reducer.ts";
@@ -463,8 +465,6 @@ import { ProcessFishTrapConversion } from "./process_fish_trap_conversion_reduce
 export { ProcessFishTrapConversion };
 import { ProcessFoodSpoilage } from "./process_food_spoilage_reducer.ts";
 export { ProcessFoodSpoilage };
-import { ProcessFumaroleLogicScheduled } from "./process_fumarole_logic_scheduled_reducer.ts";
-export { ProcessFumaroleLogicScheduled };
 import { ProcessFurnaceLogicScheduled } from "./process_furnace_logic_scheduled_reducer.ts";
 export { ProcessFurnaceLogicScheduled };
 import { ProcessGlobalTick } from "./process_global_tick_reducer.ts";
@@ -611,8 +611,6 @@ import { ScheduleNextBrothPotProcessing } from "./schedule_next_broth_pot_proces
 export { ScheduleNextBrothPotProcessing };
 import { ScheduleNextCampfireProcessing } from "./schedule_next_campfire_processing_reducer.ts";
 export { ScheduleNextCampfireProcessing };
-import { ScheduleNextFumaroleProcessing } from "./schedule_next_fumarole_processing_reducer.ts";
-export { ScheduleNextFumaroleProcessing };
 import { SeedEnvironment } from "./seed_environment_reducer.ts";
 export { SeedEnvironment };
 import { SeedFoodPoisoningRisks } from "./seed_food_poisoning_risks_reducer.ts";
@@ -961,8 +959,8 @@ import { FoundationCellTableHandle } from "./foundation_cell_table.ts";
 export { FoundationCellTableHandle };
 import { FumaroleTableHandle } from "./fumarole_table.ts";
 export { FumaroleTableHandle };
-import { FumaroleProcessingScheduleTableHandle } from "./fumarole_processing_schedule_table.ts";
-export { FumaroleProcessingScheduleTableHandle };
+import { FumaroleGlobalScheduleTableHandle } from "./fumarole_global_schedule_table.ts";
+export { FumaroleGlobalScheduleTableHandle };
 import { FurnaceTableHandle } from "./furnace_table.ts";
 export { FurnaceTableHandle };
 import { FurnaceProcessingScheduleTableHandle } from "./furnace_processing_schedule_table.ts";
@@ -1375,8 +1373,8 @@ import { FoundationCell } from "./foundation_cell_type.ts";
 export { FoundationCell };
 import { Fumarole } from "./fumarole_type.ts";
 export { Fumarole };
-import { FumaroleProcessingSchedule } from "./fumarole_processing_schedule_type.ts";
-export { FumaroleProcessingSchedule };
+import { FumaroleGlobalSchedule } from "./fumarole_global_schedule_type.ts";
+export { FumaroleGlobalSchedule };
 import { Furnace } from "./furnace_type.ts";
 export { Furnace };
 import { FurnaceProcessingSchedule } from "./furnace_processing_schedule_type.ts";
@@ -2273,13 +2271,13 @@ const REMOTE_MODULE = {
         colType: (Fumarole.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
-    fumarole_processing_schedule: {
-      tableName: "fumarole_processing_schedule" as const,
-      rowType: FumaroleProcessingSchedule.getTypeScriptAlgebraicType(),
-      primaryKey: "fumaroleId",
+    fumarole_global_schedule: {
+      tableName: "fumarole_global_schedule" as const,
+      rowType: FumaroleGlobalSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
       primaryKeyInfo: {
-        colName: "fumaroleId",
-        colType: (FumaroleProcessingSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+        colName: "id",
+        colType: (FumaroleGlobalSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     furnace: {
@@ -4100,6 +4098,10 @@ const REMOTE_MODULE = {
       reducerName: "process_alk_contract_refresh",
       argsType: ProcessAlkContractRefresh.getTypeScriptAlgebraicType(),
     },
+    process_all_fumaroles_scheduled: {
+      reducerName: "process_all_fumaroles_scheduled",
+      argsType: ProcessAllFumarolesScheduled.getTypeScriptAlgebraicType(),
+    },
     process_barbecue_logic_scheduled: {
       reducerName: "process_barbecue_logic_scheduled",
       argsType: ProcessBarbecueLogicScheduled.getTypeScriptAlgebraicType(),
@@ -4155,10 +4157,6 @@ const REMOTE_MODULE = {
     process_food_spoilage: {
       reducerName: "process_food_spoilage",
       argsType: ProcessFoodSpoilage.getTypeScriptAlgebraicType(),
-    },
-    process_fumarole_logic_scheduled: {
-      reducerName: "process_fumarole_logic_scheduled",
-      argsType: ProcessFumaroleLogicScheduled.getTypeScriptAlgebraicType(),
     },
     process_furnace_logic_scheduled: {
       reducerName: "process_furnace_logic_scheduled",
@@ -4451,10 +4449,6 @@ const REMOTE_MODULE = {
     schedule_next_campfire_processing: {
       reducerName: "schedule_next_campfire_processing",
       argsType: ScheduleNextCampfireProcessing.getTypeScriptAlgebraicType(),
-    },
-    schedule_next_fumarole_processing: {
-      reducerName: "schedule_next_fumarole_processing",
-      argsType: ScheduleNextFumaroleProcessing.getTypeScriptAlgebraicType(),
     },
     seed_environment: {
       reducerName: "seed_environment",
@@ -5112,6 +5106,7 @@ export type Reducer = never
 | { name: "PlantSeed", args: PlantSeed }
 | { name: "ProcessActiveConsumableEffectsTick", args: ProcessActiveConsumableEffectsTick }
 | { name: "ProcessAlkContractRefresh", args: ProcessAlkContractRefresh }
+| { name: "ProcessAllFumarolesScheduled", args: ProcessAllFumarolesScheduled }
 | { name: "ProcessBarbecueLogicScheduled", args: ProcessBarbecueLogicScheduled }
 | { name: "ProcessBeehiveProduction", args: ProcessBeehiveProduction }
 | { name: "ProcessBrothPotLogicScheduled", args: ProcessBrothPotLogicScheduled }
@@ -5126,7 +5121,6 @@ export type Reducer = never
 | { name: "ProcessFirePatchDamage", args: ProcessFirePatchDamage }
 | { name: "ProcessFishTrapConversion", args: ProcessFishTrapConversion }
 | { name: "ProcessFoodSpoilage", args: ProcessFoodSpoilage }
-| { name: "ProcessFumaroleLogicScheduled", args: ProcessFumaroleLogicScheduled }
 | { name: "ProcessFurnaceLogicScheduled", args: ProcessFurnaceLogicScheduled }
 | { name: "ProcessGlobalTick", args: ProcessGlobalTick }
 | { name: "ProcessGrassRespawnBatch", args: ProcessGrassRespawnBatch }
@@ -5200,7 +5194,6 @@ export type Reducer = never
 | { name: "ScheduleNextBarbecueProcessing", args: ScheduleNextBarbecueProcessing }
 | { name: "ScheduleNextBrothPotProcessing", args: ScheduleNextBrothPotProcessing }
 | { name: "ScheduleNextCampfireProcessing", args: ScheduleNextCampfireProcessing }
-| { name: "ScheduleNextFumaroleProcessing", args: ScheduleNextFumaroleProcessing }
 | { name: "SeedEnvironment", args: SeedEnvironment }
 | { name: "SeedFoodPoisoningRisks", args: SeedFoodPoisoningRisks }
 | { name: "SeedItems", args: SeedItems }
@@ -8416,6 +8409,22 @@ export class RemoteReducers {
     this.connection.offReducer("process_alk_contract_refresh", callback);
   }
 
+  processAllFumarolesScheduled(schedule: FumaroleGlobalSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    ProcessAllFumarolesScheduled.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_all_fumaroles_scheduled", __argsBuffer, this.setCallReducerFlags.processAllFumarolesScheduledFlags);
+  }
+
+  onProcessAllFumarolesScheduled(callback: (ctx: ReducerEventContext, schedule: FumaroleGlobalSchedule) => void) {
+    this.connection.onReducer("process_all_fumaroles_scheduled", callback);
+  }
+
+  removeOnProcessAllFumarolesScheduled(callback: (ctx: ReducerEventContext, schedule: FumaroleGlobalSchedule) => void) {
+    this.connection.offReducer("process_all_fumaroles_scheduled", callback);
+  }
+
   processBarbecueLogicScheduled(schedule: BarbecueProcessingSchedule) {
     const __args = { schedule };
     let __writer = new __BinaryWriter(1024);
@@ -8638,22 +8647,6 @@ export class RemoteReducers {
 
   removeOnProcessFoodSpoilage(callback: (ctx: ReducerEventContext, args: FoodSpoilageSchedule) => void) {
     this.connection.offReducer("process_food_spoilage", callback);
-  }
-
-  processFumaroleLogicScheduled(scheduleArgs: FumaroleProcessingSchedule) {
-    const __args = { scheduleArgs };
-    let __writer = new __BinaryWriter(1024);
-    ProcessFumaroleLogicScheduled.serialize(__writer, __args);
-    let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("process_fumarole_logic_scheduled", __argsBuffer, this.setCallReducerFlags.processFumaroleLogicScheduledFlags);
-  }
-
-  onProcessFumaroleLogicScheduled(callback: (ctx: ReducerEventContext, scheduleArgs: FumaroleProcessingSchedule) => void) {
-    this.connection.onReducer("process_fumarole_logic_scheduled", callback);
-  }
-
-  removeOnProcessFumaroleLogicScheduled(callback: (ctx: ReducerEventContext, scheduleArgs: FumaroleProcessingSchedule) => void) {
-    this.connection.offReducer("process_fumarole_logic_scheduled", callback);
   }
 
   processFurnaceLogicScheduled(scheduleArgs: FurnaceProcessingSchedule) {
@@ -9802,22 +9795,6 @@ export class RemoteReducers {
 
   removeOnScheduleNextCampfireProcessing(callback: (ctx: ReducerEventContext, campfireId: number) => void) {
     this.connection.offReducer("schedule_next_campfire_processing", callback);
-  }
-
-  scheduleNextFumaroleProcessing(fumaroleId: number) {
-    const __args = { fumaroleId };
-    let __writer = new __BinaryWriter(1024);
-    ScheduleNextFumaroleProcessing.serialize(__writer, __args);
-    let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("schedule_next_fumarole_processing", __argsBuffer, this.setCallReducerFlags.scheduleNextFumaroleProcessingFlags);
-  }
-
-  onScheduleNextFumaroleProcessing(callback: (ctx: ReducerEventContext, fumaroleId: number) => void) {
-    this.connection.onReducer("schedule_next_fumarole_processing", callback);
-  }
-
-  removeOnScheduleNextFumaroleProcessing(callback: (ctx: ReducerEventContext, fumaroleId: number) => void) {
-    this.connection.offReducer("schedule_next_fumarole_processing", callback);
   }
 
   seedEnvironment() {
@@ -12451,6 +12428,11 @@ export class SetReducerFlags {
     this.processAlkContractRefreshFlags = flags;
   }
 
+  processAllFumarolesScheduledFlags: __CallReducerFlags = 'FullUpdate';
+  processAllFumarolesScheduled(flags: __CallReducerFlags) {
+    this.processAllFumarolesScheduledFlags = flags;
+  }
+
   processBarbecueLogicScheduledFlags: __CallReducerFlags = 'FullUpdate';
   processBarbecueLogicScheduled(flags: __CallReducerFlags) {
     this.processBarbecueLogicScheduledFlags = flags;
@@ -12519,11 +12501,6 @@ export class SetReducerFlags {
   processFoodSpoilageFlags: __CallReducerFlags = 'FullUpdate';
   processFoodSpoilage(flags: __CallReducerFlags) {
     this.processFoodSpoilageFlags = flags;
-  }
-
-  processFumaroleLogicScheduledFlags: __CallReducerFlags = 'FullUpdate';
-  processFumaroleLogicScheduled(flags: __CallReducerFlags) {
-    this.processFumaroleLogicScheduledFlags = flags;
   }
 
   processFurnaceLogicScheduledFlags: __CallReducerFlags = 'FullUpdate';
@@ -12889,11 +12866,6 @@ export class SetReducerFlags {
   scheduleNextCampfireProcessingFlags: __CallReducerFlags = 'FullUpdate';
   scheduleNextCampfireProcessing(flags: __CallReducerFlags) {
     this.scheduleNextCampfireProcessingFlags = flags;
-  }
-
-  scheduleNextFumaroleProcessingFlags: __CallReducerFlags = 'FullUpdate';
-  scheduleNextFumaroleProcessing(flags: __CallReducerFlags) {
-    this.scheduleNextFumaroleProcessingFlags = flags;
   }
 
   seedEnvironmentFlags: __CallReducerFlags = 'FullUpdate';
@@ -13766,9 +13738,9 @@ export class RemoteTables {
     return new FumaroleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Fumarole>(REMOTE_MODULE.tables.fumarole));
   }
 
-  get fumaroleProcessingSchedule(): FumaroleProcessingScheduleTableHandle<'fumarole_processing_schedule'> {
+  get fumaroleGlobalSchedule(): FumaroleGlobalScheduleTableHandle<'fumarole_global_schedule'> {
     // clientCache is a private property
-    return new FumaroleProcessingScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FumaroleProcessingSchedule>(REMOTE_MODULE.tables.fumarole_processing_schedule));
+    return new FumaroleGlobalScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FumaroleGlobalSchedule>(REMOTE_MODULE.tables.fumarole_global_schedule));
   }
 
   get furnace(): FurnaceTableHandle<'furnace'> {

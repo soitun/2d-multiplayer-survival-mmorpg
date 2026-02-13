@@ -9,6 +9,7 @@ import {
     DUAL_GRID_LOOKUP
 } from '../dualGridAutotile';
 import { tileDoodadRenderer } from './tileDoodadRenderer';
+import { initShorelineMask, renderShorelineOverlay } from './shorelineOverlayUtils';
 
 // Helper to get tile base texture path from tile type name
 function getTileBaseTexturePath(tileTypeName: string): string {
@@ -79,6 +80,8 @@ export class ProceduralWorldRenderer {
         try {
             await Promise.all(promises);
             this.isInitialized = true;
+            const beachSeaImg = this.tileCache.images.get('transition_Beach_Sea');
+            initShorelineMask(beachSeaImg).catch(() => {});
         } catch (error) {
             // Silently handle errors - missing assets will show fallback colors
         }
@@ -195,6 +198,95 @@ export class ProceduralWorldRenderer {
             endTileY,
             isSnorkeling
         );
+    }
+
+    /**
+     * Render shoreline overlay for Beach_Sea transitions only.
+     * Call this AFTER the water overlay so the white shoreline appears on top.
+     */
+    public renderShorelineOverlayPass(
+        ctx: CanvasRenderingContext2D,
+        cameraOffsetX: number,
+        cameraOffsetY: number,
+        canvasWidth: number,
+        canvasHeight: number,
+        isSnorkeling: boolean = false
+    ): void {
+        if (isSnorkeling) return;
+
+        const { tileSize } = gameConfig;
+        const viewMinX = -cameraOffsetX;
+        const viewMinY = -cameraOffsetY;
+        const dualStartX = Math.max(0, Math.floor(viewMinX / tileSize) - 1);
+        const dualStartY = Math.max(0, Math.floor(viewMinY / tileSize) - 1);
+        const dualEndX = Math.min(gameConfig.worldWidth - 1, Math.ceil((viewMinX + canvasWidth) / tileSize));
+        const dualEndY = Math.min(gameConfig.worldHeight - 1, Math.ceil((viewMinY + canvasHeight) / tileSize));
+
+        for (let y = dualStartY; y <= dualEndY; y++) {
+            for (let x = dualStartX; x <= dualEndX; x++) {
+                this.renderShorelineForCell(ctx, x, y, tileSize);
+            }
+        }
+    }
+
+    private renderShorelineForCell(
+        ctx: CanvasRenderingContext2D,
+        logicalX: number,
+        logicalY: number,
+        tileSize: number
+    ): void {
+        const transitions = getDualGridTileInfoMultiLayer(logicalX, logicalY, this.tileCache.tiles);
+        if (transitions.length === 0) return;
+
+        const pixelX = Math.floor((logicalX + 0.5) * tileSize);
+        const pixelY = Math.floor((logicalY + 0.5) * tileSize);
+        const pixelSize = Math.floor(tileSize) + 1;
+        const destX = Math.floor(pixelX - pixelSize / 2);
+        const destY = Math.floor(pixelY - pixelSize / 2);
+        const halfSize = Math.floor(pixelSize / 2);
+
+        for (const tileInfo of transitions) {
+            const isBeachSea = (tileInfo.primaryTerrain === 'Beach' && tileInfo.secondaryTerrain === 'Sea') ||
+                (tileInfo.primaryTerrain === 'Sea' && tileInfo.secondaryTerrain === 'Beach');
+            if (!isBeachSea) continue;
+
+            ctx.save();
+
+            if (tileInfo.flipHorizontal || tileInfo.flipVertical) {
+                const centerX = destX + pixelSize / 2;
+                const centerY = destY + pixelSize / 2;
+                ctx.translate(centerX, centerY);
+                if (tileInfo.flipHorizontal) ctx.scale(-1, 1);
+                if (tileInfo.flipVertical) ctx.scale(1, -1);
+                ctx.translate(-centerX, -centerY);
+            }
+
+            if (tileInfo.clipCorners && tileInfo.clipCorners.length > 0) {
+                ctx.beginPath();
+                for (const corner of tileInfo.clipCorners) {
+                    switch (corner) {
+                        case 'TL': ctx.rect(destX, destY, halfSize, halfSize); break;
+                        case 'TR': ctx.rect(destX + halfSize, destY, halfSize, halfSize); break;
+                        case 'BL': ctx.rect(destX, destY + halfSize, halfSize, halfSize); break;
+                        case 'BR': ctx.rect(destX + halfSize, destY + halfSize, halfSize, halfSize); break;
+                    }
+                }
+                ctx.clip();
+            }
+
+            renderShorelineOverlay(
+                ctx,
+                tileInfo.spriteCoords,
+                destX,
+                destY,
+                pixelSize,
+                tileInfo.flipHorizontal,
+                tileInfo.flipVertical,
+                performance.now()
+            );
+
+            ctx.restore();
+        }
     }
     
     /**
@@ -451,7 +543,7 @@ export class ProceduralWorldRenderer {
                 destX, destY,
                 Math.floor(pixelSize), Math.floor(pixelSize)
             );
-            
+
             ctx.restore();
         }
         

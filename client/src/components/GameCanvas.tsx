@@ -100,7 +100,7 @@ import { useDamageEffects, shakeOffsetXRef, shakeOffsetYRef, vignetteOpacityRef 
 import { useSettings } from '../contexts/SettingsContext';
 
 // --- Rendering Utilities ---
-import { renderWorldBackground } from '../utils/renderers/worldRenderingUtils';
+import { renderWorldBackground, renderShorelineOverlay } from '../utils/renderers/worldRenderingUtils';
 import { renderCyberpunkGridBackground } from '../utils/renderers/cyberpunkGridBackground';
 import { getCollisionShapesForDebug, CollisionShape, PLAYER_RADIUS as CLIENT_PLAYER_RADIUS, COLLISION_OFFSETS } from '../utils/clientCollision'; // ADDED: Collision debug rendering
 import { renderAttackRangeDebug } from '../utils/renderers/attackRangeDebugUtils'; // Attack range debug visualization
@@ -3086,6 +3086,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         canvasSize.height,
         deltaTimeRef.current / 1000, // Convert ms to seconds
         visibleWorldTiles
+      );
+      // Shoreline overlay (white foam line) on Beach_Sea tiles - must render AFTER water overlay
+      renderShorelineOverlay(
+        ctx,
+        currentCameraOffsetX,
+        currentCameraOffsetY,
+        canvasSize.width,
+        canvasSize.height,
+        isSnorkeling
       );
     }
     // --- END WATER OVERLAY ---

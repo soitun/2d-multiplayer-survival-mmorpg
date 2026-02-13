@@ -268,7 +268,7 @@ export default {
 
     <ul>
       <li><strong>Play Now</strong>: <a href="https://brothbullets.com" target="_blank" rel="noopener noreferrer">brothbullets.com</a></li>
-      <li><strong>Join Discord</strong>: <a href="https://discord.com/channels/1037340874172014652/1381583490646147093" target="_blank" rel="noopener noreferrer">Get alpha access and updates</a></li>
+      <li><strong>Join Discord</strong>: <a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer">Get alpha access and updates</a></li>
       <li><strong>Follow Development</strong>: <a href="https://twitter.com/seloslav" target="_blank" rel="noopener noreferrer">@seloslav on Twitter</a></li>
     </ul>
 
@@ -295,7 +295,7 @@ export default {
       <li><a href="/blog/minimap-spatial-subscriptions">The Hardlight Map: Spatial Awareness in a 2D World</a></li>
     </ul>
 
-    <p>Questions about Broth & Bullets? Join our <a href="https://discord.com/channels/1037340874172014652/1381583490646147093" target="_blank" rel="noopener noreferrer">Discord community</a> and chat with the dev team!</p>
+    <p>Questions about Broth & Bullets? Join our <a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer">Discord community</a> and chat with the dev team!</p>
   `
 };
 

@@ -59,3 +59,26 @@ export function renderWorldBackground(
         isSnorkeling
     );
 }
+
+/**
+ * Renders the shoreline overlay (white foam line) on Beach_Sea transitions.
+ * Must be called AFTER renderWaterOverlay so the shoreline appears on top.
+ */
+export function renderShorelineOverlay(
+    ctx: CanvasRenderingContext2D,
+    cameraOffsetX: number,
+    cameraOffsetY: number,
+    canvasWidth: number,
+    canvasHeight: number,
+    isSnorkeling: boolean = false
+): void {
+    if (!globalProceduralRenderer) return;
+    globalProceduralRenderer.renderShorelineOverlayPass(
+        ctx,
+        cameraOffsetX,
+        cameraOffsetY,
+        canvasWidth,
+        canvasHeight,
+        isSnorkeling
+    );
+}

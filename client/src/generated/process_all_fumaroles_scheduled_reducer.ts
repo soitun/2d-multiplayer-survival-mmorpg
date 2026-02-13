@@ -28,40 +28,41 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type FumaroleProcessingSchedule = {
-  fumaroleId: bigint,
-  scheduledAt: { tag: "Interval", value: __TimeDuration } | { tag: "Time", value: __Timestamp },
+import { FumaroleGlobalSchedule } from "./fumarole_global_schedule_type";
+// Mark import as potentially unused
+declare type __keep_FumaroleGlobalSchedule = FumaroleGlobalSchedule;
+
+export type ProcessAllFumarolesScheduled = {
+  schedule: FumaroleGlobalSchedule,
 };
-let _cached_FumaroleProcessingSchedule_type_value: __AlgebraicTypeType | null = null;
+let _cached_ProcessAllFumarolesScheduled_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const FumaroleProcessingSchedule = {
+export const ProcessAllFumarolesScheduled = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_FumaroleProcessingSchedule_type_value) return _cached_FumaroleProcessingSchedule_type_value;
-    _cached_FumaroleProcessingSchedule_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_FumaroleProcessingSchedule_type_value.value.elements.push(
-      { name: "fumaroleId", algebraicType: __AlgebraicTypeValue.U64 },
-      { name: "scheduledAt", algebraicType: __AlgebraicTypeValue.createScheduleAtType() },
+    if (_cached_ProcessAllFumarolesScheduled_type_value) return _cached_ProcessAllFumarolesScheduled_type_value;
+    _cached_ProcessAllFumarolesScheduled_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_ProcessAllFumarolesScheduled_type_value.value.elements.push(
+      { name: "schedule", algebraicType: FumaroleGlobalSchedule.getTypeScriptAlgebraicType() },
     );
-    return _cached_FumaroleProcessingSchedule_type_value;
+    return _cached_ProcessAllFumarolesScheduled_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: FumaroleProcessingSchedule): void {
-    __AlgebraicTypeValue.serializeValue(writer, FumaroleProcessingSchedule.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: ProcessAllFumarolesScheduled): void {
+    __AlgebraicTypeValue.serializeValue(writer, ProcessAllFumarolesScheduled.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): FumaroleProcessingSchedule {
-    return __AlgebraicTypeValue.deserializeValue(reader, FumaroleProcessingSchedule.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): ProcessAllFumarolesScheduled {
+    return __AlgebraicTypeValue.deserializeValue(reader, ProcessAllFumarolesScheduled.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default FumaroleProcessingSchedule;
-
+export default ProcessAllFumarolesScheduled;
 

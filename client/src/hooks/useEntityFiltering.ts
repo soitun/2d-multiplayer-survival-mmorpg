@@ -1165,14 +1165,6 @@ export function useEntityFiltering(
       );
     });
     
-    // Debug logging for projectiles
-    if (projectilesArray.length > 0 || filtered.length > 0) {
-      console.log(`🏹 [FILTERING] Total projectiles: ${projectilesArray.length}, Visible: ${filtered.length}`);
-      if (filtered.length > 0) {
-        console.log(`🏹 [FILTERING] Visible projectile IDs:`, filtered.map(p => p.id));
-      }
-    }
-    
     return filtered;
   }, [projectiles, viewBounds]);
 

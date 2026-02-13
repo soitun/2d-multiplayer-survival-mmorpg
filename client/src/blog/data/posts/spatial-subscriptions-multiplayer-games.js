@@ -441,7 +441,7 @@ if new_chunk != entity.chunk_index {
     <ul>
       <li><a href="https://github.com/clockworklabs/broth-bullets" target="_blank" rel="noopener noreferrer">Broth & Bullets Source Code</a></li>
       <li><a href="https://spacetimedb.com/docs" target="_blank" rel="noopener noreferrer">SpacetimeDB Documentation</a></li>
-      <li><a href="https://discord.gg/spacetimedb" target="_blank" rel="noopener noreferrer">SpacetimeDB Discord</a></li>
+      <li><a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer">SpacetimeDB Discord</a></li>
     </ul>
 
     <p>Questions? Join our Discord community!</p>

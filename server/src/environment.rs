@@ -2459,11 +2459,9 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             if !too_close {
                 let chunk_idx = calculate_chunk_index(fumarole_x, fumarole_y);
                 let underwater_fumarole = crate::fumarole::Fumarole::new_submerged(fumarole_x, fumarole_y, chunk_idx);
-                if let Ok(inserted_fumarole) = ctx.db.fumarole().try_insert(underwater_fumarole) {
+                if let Ok(_) = ctx.db.fumarole().try_insert(underwater_fumarole) {
                     spawned_underwater_fumarole_count += 1;
-                    // Note: No need to track positions - distance check uses ctx.db.fumarole().iter()
-                    // Schedule processing for burn damage
-                    let _ = crate::fumarole::schedule_next_fumarole_processing(ctx, inserted_fumarole.id);
+                    // Note: Global fumarole schedule processes all fumaroles (init in lib.rs)
                 }
             }
         }
@@ -2769,7 +2767,6 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                         total_spawned_fumarole_count += 1;
                         guaranteed_fumaroles_spawned += 1;
                         spawned_fumarole_positions.push((alt_world_x, alt_world_y));
-                        let _ = crate::fumarole::schedule_next_fumarole_processing(ctx, inserted_fumarole.id);
                         log::info!("🔥 Cluster #{}: Spawned GUARANTEED fumarole at ({:.0}, {:.0}) [alternative position, {} tiles]",
                                    cluster_idx + 1, alt_world_x, alt_world_y, cluster.len());
                         found_alternative = true;
@@ -2790,7 +2787,6 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 total_spawned_fumarole_count += 1;
                 guaranteed_fumaroles_spawned += 1;
                 spawned_fumarole_positions.push((world_x_px, world_y_px));
-                let _ = crate::fumarole::schedule_next_fumarole_processing(ctx, inserted_fumarole.id);
                 log::info!("🔥 Cluster #{}: Spawned GUARANTEED fumarole at ({:.0}, {:.0}) [center, {} tiles]",
                            cluster_idx + 1, world_x_px, world_y_px, cluster.len());
             }
@@ -2891,7 +2887,6 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     total_spawned_fumarole_count += 1;
                     spawned_fumarole_positions.push((world_x_px, world_y_px)); // Track position
                     // Schedule processing for burn damage (runs even when empty)
-                    let _ = crate::fumarole::schedule_next_fumarole_processing(ctx, inserted_fumarole.id);
                 }
             }
         }
@@ -3397,7 +3392,6 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 if let Ok(inserted_fumarole) = ctx.db.fumarole().try_insert(fumarole) {
                     total_spawned_fumarole_count += 1;
                     spawned_fumarole_positions.push((*world_x_px, *world_y_px));
-                    let _ = crate::fumarole::schedule_next_fumarole_processing(ctx, inserted_fumarole.id);
                     spawned_count += 1;
                     log::info!("🏔️✅ Force-spawned fumarole #{} in south at ({:.0}, {:.0})", 
                               spawned_count, world_x_px, world_y_px);

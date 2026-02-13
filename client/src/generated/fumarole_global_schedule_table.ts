@@ -27,26 +27,26 @@ import {
   type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
   type TableHandle as __TableHandle,
 } from "spacetimedb";
-import { FumaroleProcessingSchedule } from "./fumarole_processing_schedule_type";
+import { FumaroleGlobalSchedule } from "./fumarole_global_schedule_type";
 import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
 declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
 /**
- * Table handle for the table `fumarole_processing_schedule`.
+ * Table handle for the table `fumarole_global_schedule`.
  *
- * Obtain a handle from the [`fumaroleProcessingSchedule`] property on [`RemoteTables`],
- * like `ctx.db.fumaroleProcessingSchedule`.
+ * Obtain a handle from the [`fumaroleGlobalSchedule`] property on [`RemoteTables`],
+ * like `ctx.db.fumaroleGlobalSchedule`.
  *
  * Users are encouraged not to explicitly reference this type,
  * but to directly chain method calls,
- * like `ctx.db.fumaroleProcessingSchedule.on_insert(...)`.
+ * like `ctx.db.fumaroleGlobalSchedule.on_insert(...)`.
  */
-export class FumaroleProcessingScheduleTableHandle<TableName extends string> implements __TableHandle<TableName> {
+export class FumaroleGlobalScheduleTableHandle<TableName extends string> implements __TableHandle<TableName> {
   // phantom type to track the table name
   readonly tableName!: TableName;
-  tableCache: __TableCache<FumaroleProcessingSchedule>;
+  tableCache: __TableCache<FumaroleGlobalSchedule>;
 
-  constructor(tableCache: __TableCache<FumaroleProcessingSchedule>) {
+  constructor(tableCache: __TableCache<FumaroleGlobalSchedule>) {
     this.tableCache = tableCache;
   }
 
@@ -54,53 +54,53 @@ export class FumaroleProcessingScheduleTableHandle<TableName extends string> imp
     return this.tableCache.count();
   }
 
-  iter(): Iterable<FumaroleProcessingSchedule> {
+  iter(): Iterable<FumaroleGlobalSchedule> {
     return this.tableCache.iter();
   }
   /**
-   * Access to the `fumaroleId` unique index on the table `fumarole_processing_schedule`,
+   * Access to the `id` unique index on the table `fumarole_global_schedule`,
    * which allows point queries on the field of the same name
-   * via the [`FumaroleProcessingScheduleFumaroleIdUnique.find`] method.
+   * via the [`FumaroleGlobalScheduleIdUnique.find`] method.
    *
    * Users are encouraged not to explicitly reference this type,
    * but to directly chain method calls,
-   * like `ctx.db.fumaroleProcessingSchedule.fumaroleId().find(...)`.
+   * like `ctx.db.fumaroleGlobalSchedule.id().find(...)`.
    *
-   * Get a handle on the `fumaroleId` unique index on the table `fumarole_processing_schedule`.
+   * Get a handle on the `id` unique index on the table `fumarole_global_schedule`.
    */
-  fumaroleId = {
-    // Find the subscribed row whose `fumaroleId` column value is equal to `col_val`,
+  id = {
+    // Find the subscribed row whose `id` column value is equal to `col_val`,
     // if such a row is present in the client cache.
-    find: (col_val: bigint): FumaroleProcessingSchedule | undefined => {
+    find: (col_val: bigint): FumaroleGlobalSchedule | undefined => {
       for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.fumaroleId, col_val)) {
+        if (__deepEqual(row.id, col_val)) {
           return row;
         }
       }
     },
   };
 
-  onInsert = (cb: (ctx: EventContext, row: FumaroleProcessingSchedule) => void) => {
+  onInsert = (cb: (ctx: EventContext, row: FumaroleGlobalSchedule) => void) => {
     return this.tableCache.onInsert(cb);
   }
 
-  removeOnInsert = (cb: (ctx: EventContext, row: FumaroleProcessingSchedule) => void) => {
+  removeOnInsert = (cb: (ctx: EventContext, row: FumaroleGlobalSchedule) => void) => {
     return this.tableCache.removeOnInsert(cb);
   }
 
-  onDelete = (cb: (ctx: EventContext, row: FumaroleProcessingSchedule) => void) => {
+  onDelete = (cb: (ctx: EventContext, row: FumaroleGlobalSchedule) => void) => {
     return this.tableCache.onDelete(cb);
   }
 
-  removeOnDelete = (cb: (ctx: EventContext, row: FumaroleProcessingSchedule) => void) => {
+  removeOnDelete = (cb: (ctx: EventContext, row: FumaroleGlobalSchedule) => void) => {
     return this.tableCache.removeOnDelete(cb);
   }
 
   // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: FumaroleProcessingSchedule, newRow: FumaroleProcessingSchedule) => void) => {
+  onUpdate = (cb: (ctx: EventContext, oldRow: FumaroleGlobalSchedule, newRow: FumaroleGlobalSchedule) => void) => {
     return this.tableCache.onUpdate(cb);
   }
 
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: FumaroleProcessingSchedule, newRow: FumaroleProcessingSchedule) => void) => {
+  removeOnUpdate = (cb: (ctx: EventContext, onRow: FumaroleGlobalSchedule, newRow: FumaroleGlobalSchedule) => void) => {
     return this.tableCache.removeOnUpdate(cb);
   }}

@@ -127,7 +127,7 @@ const getChunkIndicesForViewportWithBuffer = (viewport, bufferChunks = 1) => {
 
     <h2>💬 Join the Discussion</h2>
 
-    <p>We're constantly iterating on the minimap system based on player feedback. Have ideas for how to improve spatial awareness in a 2D survival game? <a href="https://discord.com/channels/1037340874172014652/1381583490646147093" target="_blank" rel="noopener noreferrer">Join our Discord</a> and let us know. We're building this game with the community, and your input shapes the final product.</p>
+    <p>We're constantly iterating on the minimap system based on player feedback. Have ideas for how to improve spatial awareness in a 2D survival game? <a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer">Join our Discord</a> and let us know. We're building this game with the community, and your input shapes the final product.</p>
 
     <p>And if you're a developer curious about SpacetimeDB's spatial subscription system, the code is open source. Check out our <a href="https://github.com/SeloSlav/2d-multiplayer-survival-mmorpg?tab=readme-ov-file#-art-generation-prompts" target="_blank" rel="noopener noreferrer">GitHub repository</a> to see how we implemented chunk-based subscriptions and optimized for performance.</p>
   `,

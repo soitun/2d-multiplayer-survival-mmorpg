@@ -460,6 +460,7 @@ use crate::world_tile as WorldTileTableTrait; // <<< ADDED: Import WorldTile tab
 use crate::minimap_cache as MinimapCacheTableTrait; // <<< ADDED: Import MinimapCache table trait
 use crate::player_movement::player_dodge_roll_state as PlayerDodgeRollStateTableTrait; // <<< ADDED: Import PlayerDodgeRollState table trait
 use crate::player_movement::dodge_roll_cleanup_schedule as DodgeRollCleanupScheduleTableTrait; // <<< ADDED: Import DodgeRollCleanupSchedule table trait
+use crate::projectile::projectile_update_schedule as ProjectileUpdateScheduleTableTrait; // <<< ADDED: For pause/resume game systems
 use crate::world_chunk_data as WorldChunkDataTableTrait; // <<< ADDED: Import WorldChunkData table trait
 use crate::fishing::fishing_session as FishingSessionTableTrait; // <<< ADDED: Import FishingSession table trait
 use crate::drinking::player_drinking_cooldown as PlayerDrinkingCooldownTableTrait; // <<< ADDED: Import PlayerDrinkingCooldown table trait
@@ -856,6 +857,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     
     // ADD: Initialize dodge roll cleanup system
     crate::player_movement::init_dodge_roll_cleanup_system(ctx)?;
+
+    // ADD: Initialize global fumarole processing (1 tx/sec for all fumaroles, replaces per-fumarole schedules)
+    crate::fumarole::init_fumarole_global_schedule(ctx)?;
     
     // ADD: Initialize water container fill system for rain collection
     crate::active_equipment::init_water_container_fill_schedule(ctx)?;
@@ -995,6 +999,33 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
 }
 
 /// Reducer that handles client connection events.
+/// Pause game systems when no players are online to save reducer transactions.
+/// Deletes schedule rows for projectiles, wild animal AI, and dodge roll cleanup.
+fn pause_game_systems(ctx: &ReducerContext) {
+    log::info!("[GameSystems] Pausing projectiles, wild animal AI, dodge roll cleanup (no players online)");
+    let projectile_ids: Vec<u64> = ctx.db.projectile_update_schedule().iter().map(|r| r.id).collect();
+    for id in projectile_ids {
+        ctx.db.projectile_update_schedule().id().delete(id);
+    }
+    let animal_ids: Vec<u64> = ctx.db.wild_animal_ai_schedule().iter().map(|r| r.id).collect();
+    for id in animal_ids {
+        ctx.db.wild_animal_ai_schedule().id().delete(id);
+    }
+    let dodge_ids: Vec<u64> = ctx.db.dodge_roll_cleanup_schedule().iter().map(|r| r.id).collect();
+    for id in dodge_ids {
+        ctx.db.dodge_roll_cleanup_schedule().id().delete(id);
+    }
+}
+
+/// Resume game systems when first player connects.
+fn resume_game_systems(ctx: &ReducerContext) -> Result<(), String> {
+    log::info!("[GameSystems] Resuming projectiles, wild animal AI, dodge roll cleanup");
+    crate::projectile::init_projectile_system(ctx)?;
+    crate::wild_animal_npc::init_wild_animal_ai_schedule(ctx)?;
+    crate::player_movement::init_dodge_roll_cleanup_system(ctx)?;
+    Ok(())
+}
+
 /// 
 /// This reducer is called automatically when a new client connects to the server.
 /// It initializes the game world if needed, tracks the client's connection,
@@ -1022,6 +1053,15 @@ pub fn identity_connected(ctx: &ReducerContext) -> Result<(), String> {
         connection_id,
         timestamp: ctx.timestamp, // Add timestamp
     };
+
+    // --- Resume game systems when first player connects (saves ~23 tx/sec when idle) ---
+    let was_empty = active_connections.iter().count() == 0;
+    if was_empty {
+        if let Err(e) = resume_game_systems(ctx) {
+            log::warn!("[Connect] Failed to resume game systems: {}", e);
+        }
+    }
+    // --- End resume game systems ---
 
     // Insert or update the active connection record
     if active_connections.identity().find(&client_identity).is_some() {
@@ -1219,8 +1259,15 @@ pub fn identity_disconnected(ctx: &ReducerContext) {
         if initial_active_conn.connection_id == disconnecting_connection_id {
 
             // --- Clean Up Connection --- 
+            let was_last_player = active_connections.iter().count() == 1;
             active_connections.identity().delete(&sender_id);
             // --- END Clean Up Connection --- 
+
+            // --- Pause game systems when last player leaves (saves ~23 tx/sec when idle) ---
+            if was_last_player {
+                pause_game_systems(ctx);
+            }
+            // --- End pause game systems ---
 
             // --- Set Player Offline Status and Create Offline Corpse --- 
             // NPCs are treated identically to human players here:

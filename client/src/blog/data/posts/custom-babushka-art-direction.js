@@ -200,7 +200,7 @@ export default {
     
     <p>This is where decisions get made, where we share early prototypes, and where the community helps shape what Broth & Bullets becomes. Don't just read about the development - be part of it.</p>
     
-    <p><a href="https://discord.com/channels/1037340874172014652/1381583490646147093" target="_blank" rel="noopener noreferrer" class="cta-link">→ Join the Broth & Bullets Discord</a></p>
+    <p><a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer" class="cta-link">→ Join the Broth & Bullets Discord</a></p>
 
     <h2>🔗 Related Articles</h2>
 
