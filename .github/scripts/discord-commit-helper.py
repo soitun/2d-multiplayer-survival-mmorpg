@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+import urllib.error
 import urllib.request
 
 
@@ -30,16 +31,40 @@ def get_commits():
 
 def post_webhook():
     """Post CONTENT env var to Discord webhook."""
-    webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+    webhook = (os.environ.get("DISCORD_WEBHOOK_URL") or "").strip()
     content = os.environ.get("CONTENT", "")
     if not webhook:
         print("::error::DISCORD_WEBHOOK_URL secret not set", file=sys.stderr)
         sys.exit(1)
+
+    # Discord message limit is 2000 chars
+    if len(content) > 2000:
+        content = content[:1997] + "..."
+
     payload = json.dumps({"content": content}).encode("utf-8")
     req = urllib.request.Request(
-        webhook, data=payload, headers={"Content-Type": "application/json"}
+        webhook,
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "GitHub-Actions-Discord-Webhook/1.0",
+        },
+        method="POST",
     )
-    urllib.request.urlopen(req).read()
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            resp.read()
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+        print(
+            f"::error::Discord webhook failed ({e.code} {e.reason}): {body}",
+            file=sys.stderr,
+        )
+        print(
+            "::notice::Check: 1) Webhook URL is valid (no extra spaces/newlines in secret) 2) Webhook was not deleted 3) Discord server still exists",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 if __name__ == "__main__":
