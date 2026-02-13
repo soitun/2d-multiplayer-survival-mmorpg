@@ -9,7 +9,7 @@ import {
     DUAL_GRID_LOOKUP
 } from '../dualGridAutotile';
 import { tileDoodadRenderer } from './tileDoodadRenderer';
-import { initShorelineMask, isShorelineMaskReady, renderShorelineOverlay } from './shorelineOverlayUtils';
+import { initShorelineMask, isShorelineMaskReady, renderShorelineOverlay } from './shorelineOverlayUtils.ts';
 
 // Helper to get tile base texture path from tile type name
 function getTileBaseTexturePath(tileTypeName: string): string {

@@ -20,7 +20,7 @@ import beachSeaAutotileUrl from '../../assets/tiles/new/tileset_beach_sea_autoti
 const EDGE_THRESHOLD = 33;            // Min warmth difference (stricter = fewer dots)
 const WAVE_SPEED = 2.8;               // Wave cycle speed (rad/s)
 const WAVE_OFFSET_PX = 2.8;           // Pixels the edge shifts (visible motion)
-const WAVE_LAYERS = 2.8;                 // Fading layers that trail the main edge
+const WAVE_LAYERS = 3;                  // Fading layers that trail the main edge
 
 // Refined blue - main shoreline edge
 const SHORE_COLOR = { r: 145, g: 190, b: 225 };
