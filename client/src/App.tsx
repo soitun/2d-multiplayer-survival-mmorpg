@@ -467,12 +467,13 @@ function AppContent() {
             fences,
             alkStations,
             lanterns,
-            turrets
+            turrets,
+            monumentParts: monumentParts ?? new Map()
         };
     }, [currentViewport, trees, stones, runeStones, cairns, woodenStorageBoxes, rainCollectors,
         furnaces, barbecues, shelters, players, wildAnimals, barrels, roadLampposts, seaStacks, wallCells,
         foundationCells, homesteadHearths, basaltColumns, livingCorals, doors, fences,
-        alkStations, lanterns, turrets]);
+        alkStations, lanterns, turrets, monumentParts]);
 
     // Simplified predicted movement - minimal lag
     // PERFORMANCE FIX: Pass inputStateRef for immediate input reading in RAF loop (bypasses React state delay)

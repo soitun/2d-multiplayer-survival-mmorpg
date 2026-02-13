@@ -63,13 +63,13 @@ pub fn spawn_transistor_radio(ctx: &ReducerContext) -> Result<(), String> {
     let (center_x, center_y) = get_crashed_research_drone_center(ctx)
         .ok_or("Crashed Research Drone monument center not found.")?;
     
-    // Spawn position with small random offset (within 50 pixels of center)
-    use rand::Rng;
-    let mut rng = ctx.rng();
-    let offset_x = rng.gen_range(-50.0..50.0);
-    let offset_y = rng.gen_range(-50.0..50.0);
-    let spawn_x = center_x + offset_x;
-    let spawn_y = center_y + offset_y;
+    // Spawn at a fixed offset south of the drone center - outside the harvestable (60-200px)
+    // and barrel (80-200px) spawn rings, so the radio won't be hidden among other loot.
+    // 240px south = clear, prominent spot where nothing else spawns.
+    const RADIO_OFFSET_X: f32 = 0.0;
+    const RADIO_OFFSET_Y: f32 = 240.0;
+    let spawn_x = center_x + RADIO_OFFSET_X;
+    let spawn_y = center_y + RADIO_OFFSET_Y;
     
     // Calculate chunk index for the spawn position
     let chunk_index = calculate_chunk_index(spawn_x, spawn_y);

@@ -10,8 +10,9 @@
 
 import { TILE_SIZE as AUTOTILE_TILE_SIZE, TILESET_COLS, TILESET_ROWS } from '../dualGridAutotile';
 
-// Import tileset for mask generation
+// Import tilesets for mask generation
 import beachSeaAutotileUrl from '../../assets/tiles/new/tileset_beach_sea_autotile.png';
+import beachHotSpringWaterAutotileUrl from '../../assets/tiles/new/tileset_beach_hotspringwater_autotile.png';
 
 // =============================================================================
 // CONSTANTS
@@ -44,6 +45,9 @@ interface ShorelineMaskCache {
 
 let maskCache: ShorelineMaskCache | null = null;
 let maskLoadPromise: Promise<ShorelineMaskCache | null> | null = null;
+
+let hotSpringMaskCache: ShorelineMaskCache | null = null;
+let hotSpringMaskLoadPromise: Promise<ShorelineMaskCache | null> | null = null;
 
 /** 8-neighbor offsets for connectivity check */
 const DX8 = [-1, 0, 1, -1, 1, -1, 0, 1];
@@ -294,8 +298,48 @@ export async function initShorelineMask(beachSeaImage?: HTMLImageElement | null)
 }
 
 /**
- * Render the animated shoreline overlay for a single Beach_Sea tile.
- * Call from ProceduralWorldRenderer when drawing Beach_Sea transitions.
+ * Load and initialize the shoreline mask for Beach_HotSpringWater transitions.
+ * Pass preloaded Beach_HotSpringWater image from tile cache to avoid delay.
+ */
+export async function initHotSpringShorelineMask(beachHotSpringWaterImage?: HTMLImageElement | null): Promise<ShorelineMaskCache | null> {
+  if (hotSpringMaskCache?.ready) return hotSpringMaskCache;
+  if (hotSpringMaskLoadPromise) return hotSpringMaskLoadPromise;
+
+  hotSpringMaskLoadPromise = (async () => {
+    try {
+      let img: HTMLImageElement;
+      if (beachHotSpringWaterImage?.complete && beachHotSpringWaterImage.naturalWidth > 0) {
+        img = beachHotSpringWaterImage;
+      } else {
+        img = new Image();
+        img.crossOrigin = 'anonymous';
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error('Failed to load beach_hotspringwater tileset'));
+          img.src = beachHotSpringWaterAutotileUrl;
+        });
+      }
+
+      const { shoreCanvas, waveCanvas } = await generateShorelineMasks(img);
+      hotSpringMaskCache = {
+        canvas: shoreCanvas,
+        waveCanvas,
+        ctx: shoreCanvas.getContext('2d')!,
+        ready: true,
+      };
+      return hotSpringMaskCache;
+    } catch (e) {
+      console.warn('[ShorelineOverlay] Failed to generate hotspring mask:', e);
+      return null;
+    }
+  })();
+
+  return hotSpringMaskLoadPromise;
+}
+
+/**
+ * Render the animated shoreline overlay for Beach_Sea or Beach_HotSpringWater tiles.
+ * Call from ProceduralWorldRenderer when drawing beach/water transitions.
  *
  * @param ctx - Canvas context (already translated and clipped if needed)
  * @param spriteCoords - Source rect in tileset { x, y, width, height }
@@ -305,6 +349,7 @@ export async function initShorelineMask(beachSeaImage?: HTMLImageElement | null)
  * @param flipHorizontal - Whether tile was flipped
  * @param flipVertical - Whether tile was flipped
  * @param currentTimeMs - Current time for animation
+ * @param forHotSpring - If true, use Beach_HotSpringWater mask (subtle wave edges on hotspring sides)
  */
 export function renderShorelineOverlay(
   ctx: CanvasRenderingContext2D,
@@ -314,8 +359,10 @@ export function renderShorelineOverlay(
   destSize: number,
   flipHorizontal: boolean,
   flipVertical: boolean,
-  currentTimeMs: number
+  currentTimeMs: number,
+  forHotSpring: boolean = false
 ): void {
+  const cache = forHotSpring ? hotSpringMaskCache : maskCache;
   const t = currentTimeMs * 0.001;
 
   ctx.save();
@@ -329,7 +376,7 @@ export function renderShorelineOverlay(
     ctx.translate(-centerX, -centerY);
   }
 
-  if (!maskCache?.ready) {
+  if (!cache?.ready) {
     ctx.restore();
     return;
   }
@@ -341,7 +388,7 @@ export function renderShorelineOverlay(
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1.0;
   ctx.drawImage(
-    maskCache.canvas,
+    cache.canvas,
     Math.floor(spriteCoords.x),
     Math.floor(spriteCoords.y),
     Math.floor(spriteCoords.width),
@@ -367,7 +414,7 @@ export function renderShorelineOverlay(
     ctx.globalAlpha = Math.max(0.2, alpha);
     ctx.translate(dx, dy);
     ctx.drawImage(
-      maskCache.waveCanvas,
+      cache.waveCanvas,
       Math.floor(spriteCoords.x),
       Math.floor(spriteCoords.y),
       Math.floor(spriteCoords.width),
@@ -386,8 +433,15 @@ export function renderShorelineOverlay(
 }
 
 /**
- * Check if shoreline overlay is ready to render.
+ * Check if shoreline overlay is ready to render (Beach_Sea).
  */
 export function isShorelineMaskReady(): boolean {
   return maskCache?.ready ?? false;
+}
+
+/**
+ * Check if hotspring shoreline overlay is ready to render (Beach_HotSpringWater).
+ */
+export function isHotSpringShorelineMaskReady(): boolean {
+  return hotSpringMaskCache?.ready ?? false;
 }

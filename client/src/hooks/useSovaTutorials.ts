@@ -109,7 +109,7 @@ export const TUTORIALS: Record<string, TutorialDefinition> = {
         displayName: 'Neural Link Established',
         emoji: '🚢',
         description: 'The opening broadcast when you first wake up on the island.',
-        message: `Neural link established. This is SOVA — Sentient Ocular Virtual Assistant — your tactical AI implant from Gred Naval Intelligence. I've been offline since the Sovereign Tide went down. Based on your biometrics, you've been unconscious for... a while. The icebreaker's gone. Most of the crew... didn't make it. You're stranded on an uncharted island somewhere in the Aleutians — no comms, no extraction, no backup. Your survival is now my primary directive. The wreckage scattered supplies across the shoreline, but they won't last. You're going to need to learn how to live off this place. I'll walk you through it — press J anytime to check your current objectives. I've loaded an introductory sequence to get you started, and once you're stable, I'll push daily assignments to keep your skills sharp. For now, head to the beach and start gathering plant fibers from the tall grass along the shoreline. You'll need them for rope, bandages, the basics. One step at a time, agent. Just stay alive.`,
+        message: `Neural link established. This is SOVA — Sentient Ocular Virtual Assistant — your tactical AI implant from Gred Naval Intelligence. I've been offline since the Sovereign Tide went down. Based on your biometrics, you've been unconscious for... a while. The icebreaker's gone. I'm not picking up other neural links in range—most of the crew... didn't make it. You're stranded on an uncharted island somewhere in the Aleutians — no comms, no extraction, no backup. Your survival is now my primary directive. I'm picking up debris signatures along the shoreline—could be salvageable, but it won't last out here. You're going to need to learn how to live off this place. I'll walk you through it — press J anytime to check your current objectives. I've loaded an introductory sequence to get you started, and once you're stable, I'll push daily assignments to keep your skills sharp. For now, head to the shore and start gathering plant fibers from the vegetation. You'll need them for rope, bandages, the basics. One step at a time, agent. Just stay alive.`,
     },
     tutorialHint: {
         id: 'tutorialHint',
@@ -126,12 +126,12 @@ export const TUTORIALS: Record<string, TutorialDefinition> = {
         id: 'memoryShard',
         storageKey: 'broth_memory_shard_tutorial_played',
         audioFile: '/sounds/sova_tutorial_memory_shard.mp3',
-        soundBoxLabel: 'SOVA: Memory Shard Warning',
+        soundBoxLabel: 'SOVA: Crystalline Substrate Detected',
         eventName: 'sova-memory-shard-tutorial',
-        displayName: 'Memory Shard Warning',
+        displayName: 'Crystalline Substrate Detected',
         emoji: '🔮',
-        description: 'Important warning about the effects of carrying memory shards.',
-        message: `Agent, you've acquired a Memory Shard. These things keep appearing on this island — I don't know where they come from, but I can integrate them to upgrade your loadout and unlock new blueprints. Be warned though: the longer you carry them, the more they mess with your head. You'll notice your vision turning purple — that's the insanity building up. It's not dangerous immediately, but don't hoard them for too long. Drop them on the ground for a bit if you need a break, or stash them at your base once you build one. The purple fades once you're not carrying them.`,
+        description: 'First encounter with a crystalline shard and its unknown effects.',
+        message: `I'm picking up something on you—crystalline substrate, resonance is fragmented—echoes of something I can't resolve. The pattern resembles neural memory encoding though. I'm calling it a memory shard. I don't know where they come from. Hold on—my systems are responding to the substrate. There's some kind of compatibility. I think I can interface with it. I'm also picking up elevated neural activity from you—stress markers. I don't know what this thing is doing to you. If something feels off, drop it.`,
     },
     firstHostileEncounter: {
         id: 'firstHostileEncounter',
@@ -142,7 +142,7 @@ export const TUTORIALS: Record<string, TutorialDefinition> = {
         displayName: 'Neural Resonance Detected',
         emoji: '👹',
         description: 'Warning about the apparitions that appear at night.',
-        message: `Wait... I'm picking up something strange. Neural resonance patterns—fragmented, hostile. They're not quite... real. More like echoes. Apparitions formed from collective fear and fractured memories. They sense vulnerable minds—yours is lit up like a beacon right now. Shelter can block their attacks, but don't get comfortable. Stay too long in one place and the larger ones will start tearing through your walls. Your best options? Keep moving until dawn, or stand your ground and fight. They can be killed. They're not invincible—just relentless.`,
+        message: `Wait... I'm picking up something strange. Neural resonance patterns. They're not quite... real. The readings show fear signatures, fragmented resonance. The patterns are converging on your position—your neural readout is spiking. Solid structures might attenuate the resonance—shelter should help, but don't get comfortable. I'm detecting larger patterns with higher density; extended contact could compromise structural integrity. Your options? Keep moving, or stand your ground. I don't know if they can be stopped.`,
     },
     runeStone: {
         id: 'runeStone',
@@ -153,7 +153,7 @@ export const TUTORIALS: Record<string, TutorialDefinition> = {
         displayName: 'Rune Stone Discovery',
         emoji: '🪨',
         description: 'Analysis of the mysterious rune stones and their powers.',
-        message: `Hold on — I'm picking up some unusual readings from that structure. Scanning now. It's old. Pre-industrial, possibly ancient. These markings... they're some kind of resonance pattern. I'm detecting three distinct signatures across the island — green ones seem to accelerate biological growth, red ones affect material synthesis, and blue ones... those give off the same frequency as Memory Shards. Interesting. They also emit a faint light field at night. Approach the stone and read the inscription — it should tell you exactly what this one does.`,
+        message: `Hold on — I'm picking up unusual readings from that structure. Scanning now. It's old. I'm detecting similar structures elsewhere on the island, few and far between. At least three distinct types. And there's residue on the surface—same substrate as those shards we've been finding. There are markings carved into the stone—get closer. Might tell us what this one does.`,
     },
     alkStation: {
         id: 'alkStation',
@@ -164,7 +164,7 @@ export const TUTORIALS: Record<string, TutorialDefinition> = {
         displayName: 'ALK Station Briefing',
         emoji: '🏭',
         description: 'Explanation of the Automated Logistics Kernel contract system.',
-        message: `That structure is broadcasting on a military frequency. Analyzing... Decoding the header now. A-L-K — Automated Logistics Kernel. Pre-collapse infrastructure, still operational. There's a central compound somewhere on the island and several substations scattered around. They all connect to the same contract system — bring them resources, they pay you in shards. Press E at a station to deliver contracts you've accepted. To browse and accept new contracts remotely, press G and select the ALK Board from my interface. Could be useful for converting surplus materials into something more valuable.`,
+        message: `That structure is broadcasting on a military frequency. Analyzing... Decoding the header now. A-L-K — Automated Logistics Kernel. Pre-collapse infrastructure, still operational. I'm picking up similar broadcasts from other locations. The protocol describes a contract system—resource exchange for crystalline compensation. The shards. I've downloaded the protocol response and set up a tab in my interface for you under the title ALK Board. It'll collate all the work orders in one place. Might as well plug in and see what it wants. Could be useful.`,
     },
     crashedDrone: {
         id: 'crashedDrone',
@@ -175,7 +175,7 @@ export const TUTORIALS: Record<string, TutorialDefinition> = {
         displayName: 'Crashed Drone Analysis',
         emoji: '🛸',
         description: 'Investigation of the crashed research drone and abandoned camp.',
-        message: `Hold up — I'm detecting residual electromagnetic signatures from that wreckage. Scanning... It's a research drone. Pre-collapse tech, military-grade sensors. Someone already tried to salvage it — there's an abandoned camp nearby. Furnace, rain collector, repair station... whoever set this up knew what they were doing. They were probably trying to extract the drone's memory cores. The good news? They left their equipment behind. The bad news? They left everything behind. No body, no trail. Just... gone. Be careful out here, agent. Grab what you can — Memory Shards, sulfur, metal fragments — the wreckage is rich with salvage. But don't linger. Whatever happened to that survivor... I don't think they saw it coming.`,
+        message: `Hold up — I'm detecting residual electromagnetic signatures from that wreckage. Scanning... It's a research drone. Pre-collapse tech, military-grade sensors. Someone already tried to salvage it — there's an abandoned camp nearby. Furnace, rain collector, repair station... whoever set this up knew what they were doing. They were probably trying to extract the drone's CPU. The good news? They left their equipment behind. The bad news? They left everything behind. No body, no trail. Just... gone. Be careful out here, agent. I'm detecting memory shards, sulfur compounds, metal fragments — the wreckage is rich with salvage. But don't linger. Whatever happened to that survivor... I don't think they saw it coming.`,
     },
 };
 

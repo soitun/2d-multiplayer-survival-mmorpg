@@ -3416,13 +3416,42 @@ pub fn get_hot_spring_placeables() -> Vec<MonumentPlaceableConfig> {
 }
 
 /// Hunting Village-specific harvestable resource configuration
-/// Spawns wood piles and hunting-related resources around the village
+/// Spawns cold-hardy crops and northern berries appropriate for an Aleut hunting village.
+/// Best 4 choices: Potato, Cabbage (staples), Lingonberries, Cloudberries (traditional forage).
 pub fn get_hunting_village_harvestables() -> Vec<MonumentHarvestableConfig> {
     vec![
-        // Wood pile - forest resources near the village
+        // Potato - cold-hardy staple, historically grown in northern climates
         MonumentHarvestableConfig {
-            plant_type: crate::plants_database::PlantType::StonePile,
-            spawn_chance: 0.50, // 50% per part
+            plant_type: crate::plants_database::PlantType::Potato,
+            spawn_chance: 0.55,
+            min_distance: 60.0,
+            max_distance: 180.0,
+        },
+        // Cabbage - cold-hardy leafy vegetable, excellent for northern climates
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::Cabbage,
+            spawn_chance: 0.50,
+            min_distance: 70.0,
+            max_distance: 190.0,
+        },
+        // Lingonberries - native northern berry, traditional Aleut forage
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::Lingonberries,
+            spawn_chance: 0.50,
+            min_distance: 65.0,
+            max_distance: 185.0,
+        },
+        // Cloudberries - northern berry, grows in boreal/tundra edges
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::Cloudberries,
+            spawn_chance: 0.45,
+            min_distance: 75.0,
+            max_distance: 200.0,
+        },
+        // Wood pile - forest resources near the village (fuel, crafting)
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::WoodPile,
+            spawn_chance: 0.40,
             min_distance: 80.0,
             max_distance: 200.0,
         },

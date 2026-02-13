@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useRef } from 'react';
 import { Timestamp } from 'spacetimedb';
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 
@@ -66,7 +66,7 @@ import {
   isSeaStack // ADDED SeaStack type guard import
 } from '../utils/typeGuards';
 import { InterpolatedGrassData } from './useGrassInterpolation'; // Import InterpolatedGrassData
-import { COMPOUND_BUILDINGS, getBuildingWorldPosition, getBuildingYSortPosition, getAllCompoundBuildings } from '../config/compoundBuildings'; // Import compound buildings config
+import { COMPOUND_BUILDINGS, getBuildingWorldPosition, getMonumentBuildings } from '../config/compoundBuildings'; // Import compound buildings config
 import { hasActiveStoneDestruction, checkStoneDestructionVisibility } from '../utils/renderers/stoneRenderingUtils'; // Import stone destruction tracking
 import { hasActiveCoralDestruction, checkCoralDestructionVisibility } from '../utils/renderers/livingCoralRenderingUtils'; // Import coral destruction tracking
 import { BOX_TYPE_LARGE, BOX_TYPE_COMPOST, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW } from '../utils/renderers/woodenStorageBoxRenderingUtils'; // Import box type constants for y-sorting
@@ -205,7 +205,8 @@ export type YSortedEntityType =
   | { type: 'fumarole'; entity: SpacetimeDBFumarole } // ADDED: Fumaroles (geothermal vents in quarries)
   | { type: 'basalt_column'; entity: SpacetimeDBBasaltColumn } // ADDED: Basalt columns (decorative obstacles in quarries)
   | { type: 'alk_station'; entity: SpacetimeDBAlkStation } // ADDED: ALK delivery stations
-  | { type: 'compound_building'; entity: CompoundBuildingEntity } // ADDED: Static compound buildings
+  | { type: 'compound_building'; entity: CompoundBuildingEntity } // ADDED: Static ALK compound buildings
+  | { type: 'monument_doodad'; entity: CompoundBuildingEntity } // ADDED: Monument parts - player in front when in bottom 25% of sprite
   // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
   | { type: 'living_coral'; entity: SpacetimeDBLivingCoral }; // Living coral reefs (uses combat system)
 
@@ -333,14 +334,16 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       return alkStation.worldPosY - ALK_STATION_VISUAL_FOOT_OFFSET;
     }
     case 'compound_building': {
-      // Compound buildings: Use 87.5% height threshold for Y-sorting
-      // Monument images are squares (256x256) but actual visual content is in the bottom portion
+      // Static ALK compound buildings: Use 87.5% height threshold for Y-sorting
       // Player should be BEHIND when in top 87.5%, IN FRONT only when in bottom 12.5%
-      // Sprite visual bounds: top = worldY - height + anchorYOffset, bottom = worldY + anchorYOffset
-      // 87.5% threshold = worldY - (height * 0.125) + anchorYOffset (only bottom 12.5% = player in front)
       const building = entity as CompoundBuildingEntity;
       const sortThresholdY = building.worldY - (building.height * 0.125) + (building.anchorYOffset || 0);
       return sortThresholdY;
+    }
+    case 'monument_doodad': {
+      // Monument doodads: 75% threshold - player in front when in bottom 25% of sprite
+      const doodad = entity as CompoundBuildingEntity;
+      return doodad.worldY - (doodad.height * 0.25) + (doodad.anchorYOffset || 0);
     }
     case 'foundation_cell': {
       // Foundation cells use cell coordinates - convert to world pixel Y
@@ -470,7 +473,8 @@ const getEntityPriority = (item: YSortedEntityType): number => {
       }
     }
     case 'door': return 22; // Doors render at same level as walls
-    case 'compound_building': return 13; // Monuments render after resources (piles) so they appear on top
+    case 'compound_building': return 13; // Static ALK compound buildings
+    case 'monument_doodad': return 13; // Monument doodads (shipwreck, fishing village, etc.)
     case 'shelter': return 25;
     default: return 0;
   }
@@ -1358,29 +1362,9 @@ export function useEntityFiltering(
     });
   }, [alkStations, viewBounds]);
 
-  // ADDED: Compound buildings filtering - static buildings + dynamic monuments
-  // Static buildings come from config, dynamic monuments come from database
-  // All monument types (Shipwreck, FishingVillage, WhaleBoneGraveyard, HuntingVillage, etc.) 
-  // are processed in a single efficient pass
-  const visibleCompoundBuildings = useMemo(() => {
-    // Convert all monument parts to unified format in a single pass
-    // NOTE: MonumentType is a tagged union with a `tag` property (e.g., { tag: 'Shipwreck' })
-    const allMonumentParts = monumentParts ? Array.from(monumentParts.values())
-      .map((part: any) => ({
-        id: part.id,
-        worldX: part.worldX,
-        worldY: part.worldY,
-        imagePath: part.imagePath,
-        partType: part.partType || '', // Some monuments (like shipwreck) may not have partType
-        isCenter: part.isCenter,
-        collisionRadius: part.collisionRadius,
-        monumentType: part.monumentType?.tag || 'Unknown', // Extract tag from tagged union
-      })) : [];
-    
-    const allBuildings = getAllCompoundBuildings(allMonumentParts);
-    
-    // Convert buildings to entity format with world positions
-    return allBuildings.map(building => {
+  // Static ALK compound buildings (barracks, garage, shed, etc.) - 87.5% Y-sort threshold
+  const visibleStaticCompoundBuildings = useMemo(() => {
+    return COMPOUND_BUILDINGS.map(building => {
       const worldPos = getBuildingWorldPosition(building);
       return {
         id: building.id,
@@ -1390,16 +1374,53 @@ export function useEntityFiltering(
         height: building.height,
         imagePath: building.imagePath,
         anchorYOffset: building.anchorYOffset,
-        isCenter: building.isCenter, // For building restriction overlay
+        isCenter: building.isCenter,
       };
     }).filter(building => {
-      // Check if building is in viewport (with buffer for tall buildings)
-      const buffer = 500; // Large buffer for tall buildings
+      const buffer = 500;
       const left = building.worldX - building.width / 2;
       const right = building.worldX + building.width / 2;
       const top = building.worldY - building.height + building.anchorYOffset;
       const bottom = building.worldY;
-      
+      return right + buffer >= viewBounds.viewMinX &&
+             left - buffer <= viewBounds.viewMaxX &&
+             bottom + buffer >= viewBounds.viewMinY &&
+             top - buffer <= viewBounds.viewMaxY;
+    });
+  }, [viewBounds]);
+
+  // Monument doodads (shipwreck, fishing village, hunting village, etc.) - 50/50 Y-sort (sprite center)
+  const visibleMonumentDoodads = useMemo(() => {
+    const allMonumentParts = monumentParts ? Array.from(monumentParts.values())
+      .map((part: any) => ({
+        id: part.id,
+        worldX: part.worldX,
+        worldY: part.worldY,
+        imagePath: part.imagePath,
+        partType: part.partType || '',
+        isCenter: part.isCenter,
+        collisionRadius: part.collisionRadius,
+        monumentType: part.monumentType?.tag || 'Unknown',
+      })) : [];
+    const monumentBuildings = getMonumentBuildings(allMonumentParts);
+    return monumentBuildings.map(building => {
+      const worldPos = getBuildingWorldPosition(building);
+      return {
+        id: building.id,
+        worldX: worldPos.x,
+        worldY: worldPos.y,
+        width: building.width,
+        height: building.height,
+        imagePath: building.imagePath,
+        anchorYOffset: building.anchorYOffset,
+        isCenter: building.isCenter,
+      };
+    }).filter(building => {
+      const buffer = 500;
+      const left = building.worldX - building.width / 2;
+      const right = building.worldX + building.width / 2;
+      const top = building.worldY - building.height + building.anchorYOffset;
+      const bottom = building.worldY;
       return right + buffer >= viewBounds.viewMinX &&
              left - buffer <= viewBounds.viewMaxX &&
              bottom + buffer >= viewBounds.viewMinY &&
@@ -1759,12 +1780,15 @@ export function useEntityFiltering(
     lastWallMapSize: 0, // Track wall map size separately
     isDirty: true
   }), []);
+
+  // PERFORMANCE: Cache corpse hit check - only recompute every 150ms instead of every frame
+  const corpseHitCheckCache = useRef<{ timestamp: number; result: boolean }>({ timestamp: 0, result: false });
   
   // Helper to check if entity counts changed significantly
   const hasEntityCountChanged = useCallback((newCounts: Record<string, number>) => {
     const oldCounts = ySortedCache.lastEntityCounts;
     for (const [key, count] of Object.entries(newCounts)) {
-      if (Math.abs((oldCounts[key] || 0) - count) > 2) { // Only resort if count changed by more than 2
+      if (Math.abs((oldCounts[key] || 0) - count) > 5) { // Only resort if count changed by more than 5
         return true;
       }
     }
@@ -1806,7 +1830,7 @@ export function useEntityFiltering(
       playerCorpses: visiblePlayerCorpses.length,
       stashes: visibleStashes.length,
       wallCells: visibleWallCells.length,
-      compoundBuildings: visibleCompoundBuildings.length, // ADDED: Static compound buildings
+      compoundBuildings: visibleStaticCompoundBuildings.length + visibleMonumentDoodads.length,
     };
     
     // Calculate fog overlay count (building clusters that should be masked)
@@ -1879,22 +1903,13 @@ export function useEntityFiltering(
     // subscription race condition. Now we re-sort every 4 frames (~15fps) for smooth visuals.
     
     // CORPSE SHAKE FIX: Check if any corpse was recently hit (within 250ms)
-    // This ensures we use fresh entity data for shake rendering instead of cached stale data
-    // The check is intentionally 250ms (longer than shake duration of 150-200ms) to ensure
-    // we catch all shake animations even with frame timing variations
+    // PERFORMANCE: Cache result for 150ms - avoids iterating all corpses every frame
     const CORPSE_SHAKE_CACHE_THRESHOLD_MS = 250;
-    let hasRecentCorpseHit = false;
-    for (const corpse of visibleAnimalCorpses) {
-      if (corpse.lastHitTime) {
-        const hitTimeMs = Number((corpse.lastHitTime as any).microsSinceUnixEpoch || (corpse.lastHitTime as any).__timestamp_micros_since_unix_epoch__ || 0n) / 1000;
-        if (stableTimestamp - hitTimeMs < CORPSE_SHAKE_CACHE_THRESHOLD_MS) {
-          hasRecentCorpseHit = true;
-          break;
-        }
-      }
-    }
-    if (!hasRecentCorpseHit) {
-      for (const corpse of visiblePlayerCorpses) {
+    const CORPSE_CHECK_CACHE_MS = 150;
+    let hasRecentCorpseHit = corpseHitCheckCache.current.result;
+    if (stableTimestamp - corpseHitCheckCache.current.timestamp > CORPSE_CHECK_CACHE_MS) {
+      hasRecentCorpseHit = false;
+      for (const corpse of visibleAnimalCorpses) {
         if (corpse.lastHitTime) {
           const hitTimeMs = Number((corpse.lastHitTime as any).microsSinceUnixEpoch || (corpse.lastHitTime as any).__timestamp_micros_since_unix_epoch__ || 0n) / 1000;
           if (stableTimestamp - hitTimeMs < CORPSE_SHAKE_CACHE_THRESHOLD_MS) {
@@ -1903,14 +1918,24 @@ export function useEntityFiltering(
           }
         }
       }
+      if (!hasRecentCorpseHit) {
+        for (const corpse of visiblePlayerCorpses) {
+          if (corpse.lastHitTime) {
+            const hitTimeMs = Number((corpse.lastHitTime as any).microsSinceUnixEpoch || (corpse.lastHitTime as any).__timestamp_micros_since_unix_epoch__ || 0n) / 1000;
+            if (stableTimestamp - hitTimeMs < CORPSE_SHAKE_CACHE_THRESHOLD_MS) {
+              hasRecentCorpseHit = true;
+              break;
+            }
+          }
+        }
+      }
+      corpseHitCheckCache.current = { timestamp: stableTimestamp, result: hasRecentCorpseHit };
     }
     
     // Check if we need to resort
-    // PERFORMANCE FIX: Removed `hasBothPlayersAndTiles` which disabled caching entirely (60 re-sorts/sec)
-    // The other safeguards (foundationsJustLoaded, wallsJustLoaded, etc.) already handle subscription race conditions
-    // Reduced frame interval from 10 to 4 for smoother visuals (~15 re-sorts/sec instead of 60)
+    // PERFORMANCE: Resort every 8 frames (~7.5/sec) - balances smoothness vs cost. Increase to 4 for more responsive.
     const needsResort = ySortedCache.isDirty || 
-                       (frameCounter - ySortedCache.lastUpdateFrame) > 4 || // Force resort every 4 frames (~15fps) for smooth player/wall transitions
+                       (frameCounter - ySortedCache.lastUpdateFrame) > 8 || // Force resort every 8 frames
                        hasEntityCountChanged(currentEntityCounts) ||
                        foundationsJustLoaded || // Force resort when foundations first load
                        wallsJustLoaded || // Force resort when walls first load
@@ -1985,7 +2010,8 @@ export function useEntityFiltering(
     // Include living corals that are healthy OR have active destruction effects
     visibleLivingCorals.forEach(e => { if (isNotRespawning(e.respawnAt) || hasActiveCoralDestruction(e.id.toString())) addEntity('living_coral', e); }); // Living corals (uses combat)
     visibleAlkStations.forEach(e => addEntity('alk_station', e)); // ADDED: ALK delivery stations
-    visibleCompoundBuildings.forEach(e => addEntity('compound_building', e)); // ADDED: Static compound buildings
+    visibleStaticCompoundBuildings.forEach(e => addEntity('compound_building', e)); // Static ALK compound buildings
+    visibleMonumentDoodads.forEach(e => addEntity('monument_doodad', e)); // Monument doodads (bottom 25% Y-sort)
     visibleSleepingBags.forEach(e => addEntity('sleeping_bag', e)); // ADDED: Sleeping bags
     visibleSeaStacks.forEach(e => addEntity('sea_stack', e));
     visibleShelters.forEach(e => addEntity('shelter', e));
@@ -2103,6 +2129,20 @@ export function useEntityFiltering(
       if (b.type === 'player' && a.type === 'fumarole') {
         return -1; // Player renders after (above) fumarole
       }
+
+      // PERFORMANCE: Fast path for type pairs that only need numeric Y-sort (no special rules)
+      // Skips ~50 type checks for common pairs like (dropped_item, harvestable_resource)
+      const SIMPLE_YSORT_TYPES = new Set<YSortedEntityType['type']>([
+        'dropped_item', 'harvestable_resource', 'projectile', 'animal_corpse', 'player_corpse',
+        'barrel', 'road_lamppost', 'sleeping_bag', 'sea_stack', 'living_coral', 'barbecue',
+        'turret', 'furnace', 'lantern', 'homestead_hearth', 'planted_seed', 'rain_collector',
+        'wooden_storage_box', 'stash', 'cairn', 'rune_stone', 'basalt_column', 'fence'
+      ]);
+      if (SIMPLE_YSORT_TYPES.has(a.type) && SIMPLE_YSORT_TYPES.has(b.type)) {
+        const yDiff = a._ySortKey - b._ySortKey;
+        if (Math.abs(yDiff) > 0.1) return yDiff;
+        return b._priority - a._priority;
+      }
       
       // THIRD CHECK: Player vs ALK Station - tall structure Y-sorting
       // This MUST be first to ensure correct rendering for large structures
@@ -2149,12 +2189,25 @@ export function useEntityFiltering(
       if (a.type === 'compound_building' && b.type === 'player') {
         const building = a.entity as CompoundBuildingEntity;
         const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer);
-        // Calculate 87.5% Y threshold for sorting (player in front only in bottom 12.5%)
         const sortThresholdY = building.worldY - (building.height * 0.125) + (building.anchorYOffset || 0);
-        if (playerY >= sortThresholdY) {
-          return -1; // Player in bottom 12.5% of monument - player in front (inverted)
-        }
-        return 1; // Player in top 87.5% of monument - player behind (inverted)
+        if (playerY >= sortThresholdY) return -1;
+        return 1;
+      }
+
+      // Player vs Monument Doodad - 75% threshold (player in front when in bottom 25% of sprite)
+      if (a.type === 'player' && b.type === 'monument_doodad') {
+        const playerY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer);
+        const doodad = b.entity as CompoundBuildingEntity;
+        const sortThresholdY = doodad.worldY - (doodad.height * 0.25) + (doodad.anchorYOffset || 0);
+        if (playerY >= sortThresholdY) return 1; // Player in bottom 25% - player in front
+        return -1; // Player in top 75% - player behind
+      }
+      if (a.type === 'monument_doodad' && b.type === 'player') {
+        const doodad = a.entity as CompoundBuildingEntity;
+        const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer);
+        const sortThresholdY = doodad.worldY - (doodad.height * 0.25) + (doodad.anchorYOffset || 0);
+        if (playerY >= sortThresholdY) return -1; // Player in front (inverted)
+        return 1; // Player behind (inverted)
       }
       
       // Player vs Tree: force stable tree-base layering.
@@ -2684,7 +2737,8 @@ export function useEntityFiltering(
     // visibleStormPiles removed - storms now spawn HarvestableResources and DroppedItems directly
     visibleLivingCorals, // Living corals dependency (uses combat)
     visibleAlkStations, // ADDED: ALK stations dependency
-    visibleCompoundBuildings, // ADDED: Static compound buildings dependency
+    visibleStaticCompoundBuildings,
+    visibleMonumentDoodads,
     visibleSeaStacks,
     visibleHarvestableResources,
     visibleFoundationCells, // ADDED: Foundations dependency

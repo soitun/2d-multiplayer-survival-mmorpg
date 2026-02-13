@@ -121,10 +121,8 @@ interface StaticCampfirePosition {
     posY: number;
 }
 
-// ADDED: Y offset for static campfires (fishing village) to center particles on firepit
-// The fishing village campfire image has the firepit centered higher in the 1024x1024 image
-// This offset moves particles up to match the visual firepit center
-const STATIC_CAMPFIRE_Y_OFFSET = -150; // Dropped 100px lower for better alignment with 256x256 firepit
+// Y offset for static campfires - positions emission; more negative = base starts higher
+const STATIC_CAMPFIRE_Y_OFFSET = -135;
 
 interface UseCampfireParticlesProps {
     visibleCampfiresMap: Map<string, SpacetimeDBCampfire>;
@@ -184,10 +182,9 @@ export function useCampfireParticles({
                     // Check if this is a static campfire (fishing village) smoke - make it rise much higher
                     const isStaticCampfireSmoke = p.id && p.id.startsWith('smoke_static_');
                     if (isStaticCampfireSmoke) {
-                        // Stronger upward acceleration for high-rising smoke
-                        newVy -= 0.005 * deltaTimeFactor;
-                        // Controlled growth - don't get massive (max ~20px)
-                        newSize = Math.min(p.size + PARTICLE_SMOKE_GROWTH_RATE * deltaTimeFactor * 1.2, PARTICLE_SMOKE_SIZE_MAX * 4.0);
+                        // Strong upward acceleration - smoke extends much higher
+                        newVy -= 0.008 * deltaTimeFactor;
+                        newSize = Math.min(p.size + PARTICLE_SMOKE_GROWTH_RATE * deltaTimeFactor * 2.0, PARTICLE_SMOKE_SIZE_MAX * 2.0);
                     } else {
                         newVy -= 0.003 * deltaTimeFactor;
                         newSize = Math.min(p.size + PARTICLE_SMOKE_GROWTH_RATE * deltaTimeFactor, PARTICLE_SMOKE_SIZE_MAX);
@@ -364,149 +361,78 @@ export function useCampfireParticles({
                 });
             }
 
-            // ADDED: Static campfires (e.g., fishing village communal campfire) - always burning
-            // These don't have isBurning state, they're always active monument pieces
-            // ENHANCED: AAA-quality communal firepit with embers, sparks, and dynamic flames
+            // Static campfires (fishing village, hunting village) - start lower, extend much higher
+            const STATIC_CAMPFIRE_SCALE = 2.0;
+            // Fire zones: base starts higher, lots more fire
+            const STATIC_FIRE_ZONES = [
+                { name: 'base', yOffset: CAMPFIRE_HEIGHT * 0.05, emissionRate: 0.6, spread: { x: 12, y: 6 }, speedMultiplier: 0.5 },
+                { name: 'middle', yOffset: CAMPFIRE_HEIGHT * -0.10, emissionRate: 1.0, spread: { x: 10, y: 5 }, speedMultiplier: 0.75 },
+                { name: 'top', yOffset: CAMPFIRE_HEIGHT * -0.25, emissionRate: 1.2, spread: { x: 6, y: 3 }, speedMultiplier: 1.0 },
+            ];
             if (staticCampfires && staticCampfires.length > 0) {
                 staticCampfires.forEach((campfire) => {
                     const campfireId = `static_${campfire.id}`;
                     currentVisibleCampfireIds.add(campfireId);
                     
-                    // Static campfires are always burning - no state tracking needed
-                    // Apply Y offset to center particles on the firepit in the image
                     const visualCenterX = campfire.posX;
                     const visualCenterY = campfire.posY + STATIC_CAMPFIRE_Y_OFFSET;
-                    
-                    // === ENHANCED FIRE PARTICLES ===
-                    // AAA PIXEL ART STYLE: Wide, dramatic communal firepit with layered flames
-                    FIRE_EMISSION_ZONES.forEach((zone) => {
+                    const smokeEmissionX = visualCenterX;
+                    const smokeEmissionY = visualCenterY + CAMPFIRE_HEIGHT * -0.35; // Smoke higher, above the flames
+
+                    // Fire - starts lower, flames extend higher (faster upward vy)
+                    STATIC_FIRE_ZONES.forEach((zone) => {
                         let fireAcc = fireEmissionAccumulatorRef.current.get(`${campfireId}_${zone.name}`) || 0;
-                        // Dynamic emission rate - varies slightly for natural flickering
-                        const flickerMultiplier = 0.9 + Math.sin(now * 0.005) * 0.2 + Math.random() * 0.2;
-                        fireAcc += zone.emissionRate * 7.0 * deltaTimeFactor * flickerMultiplier;
+                        fireAcc += zone.emissionRate * STATIC_CAMPFIRE_SCALE * deltaTimeFactor;
                         
                         while (fireAcc >= 1) {
                             fireAcc -= 1;
-                            const lifetime = PARTICLE_FIRE_LIFETIME_MIN + Math.random() * (PARTICLE_FIRE_LIFETIME_MAX - PARTICLE_FIRE_LIFETIME_MIN);
+                            const lifetime = (PARTICLE_FIRE_LIFETIME_MIN * 1.5) + Math.random() * (PARTICLE_FIRE_LIFETIME_MAX - PARTICLE_FIRE_LIFETIME_MIN);
+                            const zoneEmissionX = visualCenterX;
+                            const zoneEmissionY = visualCenterY + zone.yOffset;
+                            const spreadX = zone.spread.x * STATIC_CAMPFIRE_SCALE;
+                            const spreadY = zone.spread.y * STATIC_CAMPFIRE_SCALE;
+                            const fireSize = Math.floor((PARTICLE_FIRE_SIZE_MIN + Math.random() * (PARTICLE_FIRE_SIZE_MAX - PARTICLE_FIRE_SIZE_MIN)) * STATIC_CAMPFIRE_SCALE) + 1;
+                            const vyMult = zone.speedMultiplier * 1.4; // Stronger upward - extends higher
                             
-                            // WIDER spread for communal fire
-                            const spreadMultiplier = 4.0;
-                            // Dynamic size variation
-                            const pitFireSizeMin = PARTICLE_FIRE_SIZE_MIN * 2.5;
-                            const pitFireSizeMax = PARTICLE_FIRE_SIZE_MAX * 3.5;
-                            
-                            // Enhanced color palette based on zone
-                            let zoneColors = PARTICLE_FIRE_COLORS;
-                            if (zone.name === 'base') {
-                                // Core is brightest - white-hot to yellow
-                                zoneColors = ["#FFFAED", "#FFF7D6", "#FFE4A8", "#FFD878", "#FFB04A"];
-                            } else if (zone.name === 'middle') {
-                                // Middle is classic fire orange
-                                zoneColors = ["#FFD878", "#FFB04A", "#FF9933", "#FF783C"];
-                            } else if (zone.name === 'top') {
-                                // Tips are darker red-orange
-                                zoneColors = ["#FF783C", "#FC9842", "#E04F18", "#C73E15", "#A62E12"];
-                            }
-
                             newGeneratedParticles.push({
                                 id: `fire_static_${zone.name}_${now}_${Math.random()}`, 
                                 type: 'fire',
-                                x: visualCenterX + (Math.random() - 0.5) * zone.spread.x * spreadMultiplier,
-                                y: visualCenterY + zone.yOffset * 1.5 + (Math.random() - 0.5) * zone.spread.y * spreadMultiplier,
-                                vx: (Math.random() - 0.5) * PARTICLE_FIRE_SPEED_X_SPREAD * 2.0,
-                                vy: (PARTICLE_FIRE_SPEED_Y_MIN + Math.random() * (PARTICLE_FIRE_SPEED_Y_MAX - PARTICLE_FIRE_SPEED_Y_MIN)) * zone.speedMultiplier * 1.2,
+                                x: zoneEmissionX + (Math.random() - 0.5) * spreadX,
+                                y: zoneEmissionY + (Math.random() - 0.5) * spreadY,
+                                vx: (Math.random() - 0.5) * PARTICLE_FIRE_SPEED_X_SPREAD,
+                                vy: (PARTICLE_FIRE_SPEED_Y_MIN + Math.random() * (PARTICLE_FIRE_SPEED_Y_MAX - PARTICLE_FIRE_SPEED_Y_MIN)) * vyMult,
                                 spawnTime: now, 
                                 initialLifetime: lifetime, 
                                 lifetime,
-                                size: Math.floor(pitFireSizeMin + Math.random() * (pitFireSizeMax - pitFireSizeMin)) + 1,
-                                color: zoneColors[Math.floor(Math.random() * zoneColors.length)],
+                                size: fireSize,
+                                color: PARTICLE_FIRE_COLORS[Math.floor(Math.random() * PARTICLE_FIRE_COLORS.length)],
                                 alpha: 1.0, 
                             });
                         }
                         fireEmissionAccumulatorRef.current.set(`${campfireId}_${zone.name}`, fireAcc);
                     });
 
-                    // === EMBER PARTICLES ===
-                    // Glowing embers that float up gently and sway
-                    let emberAcc = fireEmissionAccumulatorRef.current.get(`${campfireId}_ember`) || 0;
-                    emberAcc += EMBER_PARTICLES_PER_FRAME * 2.5 * deltaTimeFactor;
-                    while (emberAcc >= 1) {
-                        emberAcc -= 1;
-                        const lifetime = PARTICLE_EMBER_LIFETIME_MIN + Math.random() * (PARTICLE_EMBER_LIFETIME_MAX - PARTICLE_EMBER_LIFETIME_MIN);
-                        
-                        newGeneratedParticles.push({
-                            id: `ember_static_${now}_${Math.random()}`,
-                            type: 'ember',
-                            x: visualCenterX + (Math.random() - 0.5) * 35, // Wide spawn area
-                            y: visualCenterY + (Math.random() - 0.5) * 20,
-                            vx: (Math.random() - 0.5) * PARTICLE_EMBER_SPEED_X_SPREAD,
-                            vy: PARTICLE_EMBER_SPEED_Y_MIN + Math.random() * (PARTICLE_EMBER_SPEED_Y_MAX - PARTICLE_EMBER_SPEED_Y_MIN),
-                            spawnTime: now,
-                            initialLifetime: lifetime,
-                            lifetime,
-                            size: PARTICLE_EMBER_SIZE_MIN + Math.floor(Math.random() * (PARTICLE_EMBER_SIZE_MAX - PARTICLE_EMBER_SIZE_MIN + 1)),
-                            color: PARTICLE_EMBER_COLORS[Math.floor(Math.random() * PARTICLE_EMBER_COLORS.length)],
-                            alpha: EMBER_INITIAL_ALPHA,
-                        });
-                    }
-                    fireEmissionAccumulatorRef.current.set(`${campfireId}_ember`, emberAcc);
-
-                    // === SPARK BURSTS ===
-                    // Occasional bright sparks that shoot upward (like wood cracking)
-                    if (Math.random() < SPARK_BURST_CHANCE * deltaTimeFactor) {
-                        const sparkCount = SPARK_BURST_COUNT_MIN + Math.floor(Math.random() * (SPARK_BURST_COUNT_MAX - SPARK_BURST_COUNT_MIN + 1));
-                        // Pick a random point in the fire for the burst origin
-                        const burstX = visualCenterX + (Math.random() - 0.5) * 25;
-                        const burstY = visualCenterY + (Math.random() - 0.5) * 15;
-                        
-                        for (let i = 0; i < sparkCount; i++) {
-                            const lifetime = PARTICLE_SPARK_LIFETIME_MIN + Math.random() * (PARTICLE_SPARK_LIFETIME_MAX - PARTICLE_SPARK_LIFETIME_MIN);
-                            const angle = (Math.random() - 0.5) * Math.PI * 0.6 - Math.PI / 2; // Mostly upward with spread
-                            const speed = 1.5 + Math.random() * 1.5;
-                            
-                            newGeneratedParticles.push({
-                                id: `spark_static_${now}_${i}_${Math.random()}`,
-                                type: 'spark',
-                                x: burstX + (Math.random() - 0.5) * 8,
-                                y: burstY,
-                                vx: Math.cos(angle) * speed * PARTICLE_SPARK_SPEED_X_SPREAD,
-                                vy: Math.sin(angle) * speed + PARTICLE_SPARK_SPEED_Y_MIN + Math.random() * (PARTICLE_SPARK_SPEED_Y_MAX - PARTICLE_SPARK_SPEED_Y_MIN),
-                                spawnTime: now,
-                                initialLifetime: lifetime,
-                                lifetime,
-                                size: PARTICLE_SPARK_SIZE,
-                                color: PARTICLE_SPARK_COLORS[Math.floor(Math.random() * PARTICLE_SPARK_COLORS.length)],
-                                alpha: 1.0,
-                            });
-                        }
-                    }
-
-                    // === ENHANCED SMOKE PARTICLES ===
-                    // Billowing smoke that rises high and disperses
+                    // Smoke - starts low, extends much higher (faster vy + stronger upward accel in update loop)
                     let smokeAcc = smokeEmissionAccumulatorRef.current.get(campfireId) || 0;
-                    smokeAcc += SMOKE_PARTICLES_PER_CAMPFIRE_FRAME * 5.0 * deltaTimeFactor;
+                    smokeAcc += SMOKE_PARTICLES_PER_CAMPFIRE_FRAME * STATIC_CAMPFIRE_SCALE * deltaTimeFactor;
                     while (smokeAcc >= 1) {
                         smokeAcc -= 1;
-                        // Very long lifetime for high-rising smoke
-                        const lifetime = (PARTICLE_SMOKE_LIFETIME_MIN * 3.0) + Math.random() * ((PARTICLE_SMOKE_LIFETIME_MAX * 3.5) - (PARTICLE_SMOKE_LIFETIME_MIN * 3.0));
-                        // Larger smoke puffs
-                        const pitSmokeSizeMin = PARTICLE_SMOKE_SIZE_MIN * 2.5;
-                        const pitSmokeSizeMax = PARTICLE_SMOKE_SIZE_MAX * 3.0;
-                        
-                        // Varied smoke colors - blend of warm and cool grays
-                        const stylizedSmokeColors = ["#5A5A6A", "#6D6D80", "#808095", "#4A4A58", "#3E3E4C"];
+                        const lifetime = (PARTICLE_SMOKE_LIFETIME_MIN * 2.5) + Math.random() * (PARTICLE_SMOKE_LIFETIME_MAX * 2.0 - PARTICLE_SMOKE_LIFETIME_MIN * 2.5);
+                        const smokeSpreadX = 8 * STATIC_CAMPFIRE_SCALE;
+                        const smokeSpreadY = 6 * STATIC_CAMPFIRE_SCALE;
+                        const smokeSize = Math.floor((PARTICLE_SMOKE_SIZE_MIN + Math.random() * (PARTICLE_SMOKE_SIZE_MAX - PARTICLE_SMOKE_SIZE_MIN)) * STATIC_CAMPFIRE_SCALE) + 1;
+                        const smokeVy = (PARTICLE_SMOKE_SPEED_Y_MIN * 3.0) + Math.random() * ((PARTICLE_SMOKE_SPEED_Y_MAX * 3.0) - (PARTICLE_SMOKE_SPEED_Y_MIN * 3.0));
                         
                         newGeneratedParticles.push({
                             id: `smoke_static_${now}_${Math.random()}`, type: 'smoke',
-                            x: visualCenterX + (Math.random() - 0.5) * 40, // Wide spread
-                            y: visualCenterY + SMOKE_EMISSION_CENTER_Y_OFFSET + (Math.random() - 0.5) * 20,
-                            vx: (Math.random() - 0.5) * PARTICLE_SMOKE_SPEED_X_SPREAD * 1.5,
-                            // Faster upward movement for dramatic rising smoke
-                            vy: (PARTICLE_SMOKE_SPEED_Y_MIN * 3.0) + Math.random() * ((PARTICLE_SMOKE_SPEED_Y_MAX * 3.0) - (PARTICLE_SMOKE_SPEED_Y_MIN * 3.0)),
+                            x: smokeEmissionX + (Math.random() - 0.5) * smokeSpreadX,
+                            y: smokeEmissionY + (Math.random() - 0.5) * smokeSpreadY,
+                            vx: (Math.random() - 0.5) * PARTICLE_SMOKE_SPEED_X_SPREAD,
+                            vy: smokeVy,
                             spawnTime: now, initialLifetime: lifetime, lifetime,
-                            size: Math.floor(pitSmokeSizeMin + Math.random() * (pitSmokeSizeMax - pitSmokeSizeMin)) + 1,
-                            color: stylizedSmokeColors[Math.floor(Math.random() * stylizedSmokeColors.length)],
-                            alpha: SMOKE_INITIAL_ALPHA * 0.9, // Slightly more translucent
+                            size: smokeSize,
+                            color: PARTICLE_SMOKE_COLORS[Math.floor(Math.random() * PARTICLE_SMOKE_COLORS.length)],
+                            alpha: SMOKE_INITIAL_ALPHA,
                         });
                     }
                     smokeEmissionAccumulatorRef.current.set(campfireId, smokeAcc);

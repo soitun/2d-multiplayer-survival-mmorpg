@@ -1011,7 +1011,7 @@ const fadeOutAndCleanupAudio = (audio: HTMLAudioElement, objectId: string, onCom
 const cleanupLoopingSound = (objectId: string, reason: string = "cleanup") => {
     // Skip if already fading out
     if (fadingOutSounds.has(objectId)) {
-        console.log(`🐝 CLEANUP: ${objectId} - already fading, skipping (reason: ${reason})`);
+        // console.log(`🐝 CLEANUP: ${objectId} - already fading, skipping (reason: ${reason})`);
         return;
     }
     
@@ -1022,7 +1022,7 @@ const cleanupLoopingSound = (objectId: string, reason: string = "cleanup") => {
         viewportCapFadingDown.delete(objectId);
     }
     
-    console.log(`🐝 CLEANUP: ${objectId} - starting cleanup (reason: ${reason})`);
+    // console.log(`🐝 CLEANUP: ${objectId} - starting cleanup (reason: ${reason})`);
     
     // Clean up traditional looping sound
     const audio = activeLoopingSounds.get(objectId);

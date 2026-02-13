@@ -114,8 +114,8 @@ import { renderPlayerTorchLight, renderCampfireLight } from './lightRenderingUti
 import { drawInteractionOutline, drawCircularInteractionOutline, getInteractionOutlineColor } from './outlineUtils';
 import { drawDynamicGroundShadow } from './shadowUtils';
 import { getTileTypeFromChunkData, worldPosToTileCoords } from './placementRenderingUtils';
-// Import snow footprint system for alpine terrain
-import { updatePlayerFootprints } from './snowFootprintUtils';
+// Import terrain trail system (snow/beach footprints)
+import { updatePlayerFootprints } from './terrainTrailUtils';
 
 // Type alias for Y-sortable entities
 import { YSortedEntityType } from '../../hooks/useEntityFiltering';
@@ -462,7 +462,7 @@ foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADD
   // Animal breeding system data for age-based rendering and pregnancy indicators
   caribouBreedingData?: Map<string, CaribouBreedingData>; // ADDED: Caribou breeding data (sex, age, pregnancy)
   walrusBreedingData?: Map<string, WalrusBreedingData>; // ADDED: Walrus breeding data (sex, age, pregnancy)
-  // Note: viewBounds for snow footprints has been moved to GameCanvas.tsx
+  // Note: viewBounds for terrain footprints has been moved to GameCanvas.tsx
   // Footprints are now rendered once before any renderYSortedEntities calls
 }
 
@@ -629,7 +629,7 @@ export const renderYSortedEntities = ({
       }
   });
   
-  // NOTE: Snow/beach footprints are now rendered ONCE in GameCanvas.tsx before any
+  // NOTE: Terrain footprints (snow/beach) are now rendered ONCE in GameCanvas.tsx before any
   // renderYSortedEntities calls. Previously they were here in Pre-Pass 2, but that
   // caused footprints to re-render on top of players when batched rendering splits
   // Y-sorted entities across multiple renderYSortedEntities calls (swimming players).
@@ -804,7 +804,7 @@ export const renderYSortedEntities = ({
               movementReason = 'sprinting';
           }
           
-          // Update snow footprints for players walking on alpine terrain
+          // Update terrain footprints for players walking on snow/beach
           // This creates footprint trails that fade out over time
           // Skip footprints when player is dodging
           updatePlayerFootprints(connection ?? null, playerForRendering, isPlayerMoving, nowMs, playerDodgeRollStates);
@@ -1701,8 +1701,8 @@ export const renderYSortedEntities = ({
               const outline = getInteractionOutlineParams(alkStation.worldPosX, alkStation.worldPosY, config);
               drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
-      } else if (type === 'compound_building') {
-          // Compound buildings include both static buildings and dynamic shipwreck parts
+      } else if (type === 'compound_building' || type === 'monument_doodad') {
+          // compound_building: static ALK compound (barracks, garage, shed). monument_doodad: monument parts (shipwreck, fishing village, etc.)
           const buildingEntity = entity as CompoundBuildingEntity;
           
           // The entity already has all the data we need from useEntityFiltering

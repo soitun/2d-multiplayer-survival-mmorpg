@@ -332,7 +332,7 @@ const MONUMENT_PART_SIZES: Record<string, { width: number; height: number }> = {
   
   // Hunting Village parts
   'lodge': { width: 512, height: 512 },
-  'drying_rack': { width: 320, height: 320 },
+  'drying_rack': { width: 256, height: 256 }, // Same size as fishing village smokerack
   
   // Crashed Research Drone parts
   'drone': { width: 512, height: 512 },

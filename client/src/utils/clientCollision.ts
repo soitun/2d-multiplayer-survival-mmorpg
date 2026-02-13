@@ -1,5 +1,6 @@
 // AAA-Quality Client-side Collision Detection System
-import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, LivingCoral, Lantern, Turret, Fence, RoadLamppost } from '../generated';
+import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, LivingCoral, Lantern, Turret, Fence, RoadLamppost, MonumentPart } from '../generated';
+import { getVillageCampfireCollisionShapes } from './monumentCollision';
 // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';
 import { COMPOUND_BUILDINGS, getBuildingWorldPosition, isCompoundMonument } from '../config/compoundBuildings';
@@ -1111,6 +1112,12 @@ function getCollisionCandidates(
       });
     }
   }
+
+  // Monument buildings (village campfires - 60px radius circle)
+  if (entities.monumentParts && entities.monumentParts.size > 0) {
+    const monumentShapes = getVillageCampfireCollisionShapes(entities.monumentParts, playerX, playerY);
+    shapes.push(...monumentShapes);
+  }
   
   return shapes;
 }
@@ -1278,6 +1285,7 @@ export interface GameEntities {
   lanterns?: Map<string, Lantern>; // Add lanterns/wards for collision (only wards have collision, NOT regular lanterns)
   turrets?: Map<string, Turret>; // ADDED: Turrets for collision (all turrets have collision)
   fences?: Map<string, Fence>; // ADDED: Fences for collision
+  monumentParts?: Map<string, MonumentPart>; // Monument buildings (village campfires, etc.)
 }
 
 // Exported for debug rendering

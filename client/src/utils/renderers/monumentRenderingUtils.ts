@@ -17,6 +17,13 @@ import {
 } from '../../config/compoundBuildings';
 import { drawDynamicGroundShadow } from './shadowUtils';
 
+/** Isometric hut/lodge doodads: footprint extends down-right; shadow needs R(45° CW) * S(1, 0.5) */
+const ISOMETRIC_DOODAD_IMAGES = new Set([
+  'fv_lodge.png', 'fv_hut2.png', 'fv_hut3.png',
+  'hv_lodge.png', 'hv_hut2.png', 'hv_hut3.png',
+  'wbg_hermit_hut.png', 'hs_shack.png',
+]);
+
 // Image cache for compound buildings (same pattern as alkStationRenderingUtils.ts)
 const buildingImages: Map<string, HTMLImageElement> = new Map();
 const loadingImages: Set<string> = new Set();
@@ -398,12 +405,13 @@ export function renderMonument(
     }
     
     // Draw dynamic ground shadow (before building sprite, like ALK central compound)
-    // Skip shadow for crashed research drone since it's flat on the ground
+    // Skip shadow for ground-level items: crashed research drone, campfire (fv_campfire used in both villages)
     // The sprite's visual base (where it touches ground) is at worldY + anchorYOffset
     // (since drawY = worldY - height + anchorYOffset, sprite bottom = drawY + height = worldY + anchorYOffset)
     // So we need to adjust entityBaseY to the visual base, or use negative pivotYOffset
     // Using negative pivotYOffset to move shadow pivot DOWN to match sprite visual base
-    if (!building.id.startsWith('crashed_research_drone')) {
+    const skipShadow = building.id.startsWith('crashed_research_drone') || building.imagePath === 'fv_campfire.png';
+    if (!skipShadow) {
         // Compound buildings are large ground-level structures - no noon shadow push needed.
         // The noon push fix is for tall narrow entities (trees, stones) where the short noon
         // shadow detaches from the base. Compound buildings have wide bases so the shadow
@@ -420,7 +428,10 @@ export function renderMonument(
             maxStretchFactor: 2.0,
             minStretchFactor: 0.2,
             shadowBlur: 3,
-            pivotYOffset: -building.anchorYOffset + 50,
+            pivotYOffset: ISOMETRIC_DOODAD_IMAGES.has(building.imagePath)
+                ? 80  // Iso huts need larger pivot to pull shadow up (scaleY=0.5 creates gap)
+                : -building.anchorYOffset + 50,
+            isometricShadow: ISOMETRIC_DOODAD_IMAGES.has(building.imagePath),
         });
     }
     

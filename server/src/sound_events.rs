@@ -1461,6 +1461,38 @@ pub fn stop_beehive_sound(ctx: &ReducerContext, beehive_id: u64) {
     }
 }
 
+/// Unique object IDs for village campfires (always burning, emit continuous crackling)
+const FISHING_VILLAGE_CAMPFIRE_OBJECT_ID: u64 = 7_000_000_001;
+const HUNTING_VILLAGE_CAMPFIRE_OBJECT_ID: u64 = 7_000_000_002;
+
+/// Start continuous campfire sound for fishing/hunting village communal campfires (fv_campfire doodad)
+/// These are always burning and emit the same crackling sound as player-placed campfires
+pub fn start_village_campfire_sound(
+    ctx: &ReducerContext,
+    village_type: VillageCampfireType,
+    pos_x: f32,
+    pos_y: f32,
+) {
+    let object_id = match village_type {
+        VillageCampfireType::FishingVillage => FISHING_VILLAGE_CAMPFIRE_OBJECT_ID,
+        VillageCampfireType::HuntingVillage => HUNTING_VILLAGE_CAMPFIRE_OBJECT_ID,
+    };
+    let village_name = match village_type {
+        VillageCampfireType::FishingVillage => "Fishing Village",
+        VillageCampfireType::HuntingVillage => "Hunting Village",
+    };
+    log::info!("🔥 Starting campfire sound for {} at ({:.1}, {:.1})", village_name, pos_x, pos_y);
+    if let Err(e) = start_continuous_sound(ctx, object_id, SoundType::CampfireLooping, pos_x, pos_y, 1.0, 525.0) {
+        log::error!("Failed to start {} campfire sound: {}", village_name, e);
+    }
+}
+
+/// Village campfire type for sound registration
+pub enum VillageCampfireType {
+    FishingVillage,
+    HuntingVillage,
+}
+
 /// Start soup boiling looping sound for a broth pot
 pub fn start_soup_boiling_sound(ctx: &ReducerContext, broth_pot_id: u32, pos_x: f32, pos_y: f32) {
     let unique_id = create_unique_object_id("broth_pot", broth_pot_id as u64);

@@ -473,6 +473,10 @@ function getYSortKeyForEntity(item: YSortedEntityType, timestamp: number): numbe
       const building = entity as CompoundBuildingEntity;
       return building.worldY;
     }
+    case 'monument_doodad': {
+      const doodad = entity as CompoundBuildingEntity;
+      return doodad.worldY - (doodad.height * 0.25) + (doodad.anchorYOffset || 0); // Bottom 25% threshold
+    }
     case 'shelter':
       return (entity as Shelter).posY - 100;
     case 'sea_stack':
@@ -524,6 +528,7 @@ function getEntityX(item: YSortedEntityType): number {
     case 'alk_station':
       return (entity as AlkStation).worldPosX;
     case 'compound_building':
+    case 'monument_doodad':
       return (entity as CompoundBuildingEntity).worldX;
     case 'foundation_cell':
       return (entity as FoundationCell).cellX * 48 + 24;
@@ -553,7 +558,8 @@ function getEntityWidth(item: YSortedEntityType): number {
     case 'wooden_storage_box': return 48;
     case 'shelter': return 120;
     case 'alk_station': return 160;
-    case 'compound_building': return (item.entity as CompoundBuildingEntity).width;
+    case 'compound_building':
+    case 'monument_doodad': return (item.entity as CompoundBuildingEntity).width;
     case 'wall_cell': return 96;
     case 'door': return 48;
     case 'foundation_cell': return 96;
@@ -587,6 +593,7 @@ function getYSortColor(type: string): string {
     case 'shelter': return '#4682b4'; // Steel blue for shelters
     case 'alk_station': return '#8a2be2'; // Blue violet for ALK
     case 'compound_building': return '#ffd700'; // Gold for compounds
+    case 'monument_doodad': return '#daa520'; // Goldenrod for monument doodads
     case 'wall_cell': return '#8b4513'; // Saddle brown for walls
     case 'door': return '#a0522d'; // Sienna for doors
     case 'foundation_cell': return '#696969'; // Dim gray for foundations

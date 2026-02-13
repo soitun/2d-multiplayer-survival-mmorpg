@@ -169,6 +169,8 @@ export interface DynamicGroundShadowParams {
   // NEW: Shake effect support for impact animations
   shakeOffsetX?: number;      // Horizontal shake offset when entity is hit
   shakeOffsetY?: number;      // Vertical shake offset when entity is hit
+  /** Apply isometric ground transform (rotate 45° CW + scale Y 0.5) for isometric hut sprites */
+  isometricShadow?: boolean;
 }
 
 // Shelter collision constants (adjusted for visual clipping)
@@ -270,6 +272,7 @@ export function drawDynamicGroundShadow({
   shelters,
   shakeOffsetX,
   shakeOffsetY,
+  isometricShadow,
 }: DynamicGroundShadowParams): void {
   let overallAlpha: number;
   let shadowLength: number; // How far the shadow extends
@@ -372,6 +375,14 @@ export function drawDynamicGroundShadow({
     shadowScaleY = 0.5;
   }
 
+  // Isometric buildings at noon: use the exact same params as afternoon start
+  // (the afternoon shadow looks correct on the isometric ground plane)
+  if (isometricShadow && cycleProgress >= 0.35 && cycleProgress < 0.55) {
+    shadowLength = maxStretchFactor * 0.6;
+    shadowShearX = 0;
+    shadowScaleY = 0.4;
+  }
+
   if (overallAlpha < 0.01 || shadowLength < 0.01) {
     return; // No shadow if invisible or too small
   }
@@ -445,7 +456,7 @@ export function drawDynamicGroundShadow({
 
   // Calculate shadow height based on length (before perspective flattening)
   const scaledShadowHeight = imageDrawHeight * shadowLength;
-  
+
   // Apply shadow transformation matrix:
   // - shearX: leans the shadow left/right based on sun position
   // - scaleY: flattens the shadow onto the ground plane (perspective)

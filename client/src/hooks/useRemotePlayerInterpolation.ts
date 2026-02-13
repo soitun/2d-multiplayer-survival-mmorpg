@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useMemo } from 'react';
 import { Player } from '../generated';
 
 // Tuned for smooth movement at typical server tick rates (10-20Hz)
@@ -99,8 +99,9 @@ export const useRemotePlayerInterpolation = () => {
     remotePlayerStates.current.delete(playerId);
   }, []);
 
-  return {
-    updateAndGetSmoothedPosition,
-    cleanupPlayer
-  };
+  // Memoize return object so consumers (e.g. useDayNightCycle) don't re-run effects every render
+  return useMemo(
+    () => ({ updateAndGetSmoothedPosition, cleanupPlayer }),
+    [updateAndGetSmoothedPosition, cleanupPlayer]
+  );
 }; 

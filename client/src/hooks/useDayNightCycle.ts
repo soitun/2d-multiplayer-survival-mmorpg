@@ -482,23 +482,6 @@ export function useDayNightCycle({
     // OPTIMIZED: Track previous overlay value to avoid unnecessary re-renders
     const prevOverlayRef = useRef<string>('transparent');
 
-    // PERFORMANCE FIX: Store high-frequency values in refs to remove them from effect deps.
-    // cameraOffset and predictedPosition change every frame while walking, but the mask
-    // only needs to re-render when light sources actually change (torch toggled, campfire lit, etc.).
-    // The mask is redrawn by the game loop's renderGame() which already reads current camera position.
-    const cameraOffsetXRef = useRef(cameraOffsetX);
-    const cameraOffsetYRef = useRef(cameraOffsetY);
-    const predictedPositionRef = useRef(predictedPosition);
-    const worldMouseXRef = useRef(worldMouseX);
-    const worldMouseYRef = useRef(worldMouseY);
-    const remotePlayerInterpolationRef = useRef(remotePlayerInterpolation);
-    cameraOffsetXRef.current = cameraOffsetX;
-    cameraOffsetYRef.current = cameraOffsetY;
-    predictedPositionRef.current = predictedPosition;
-    worldMouseXRef.current = worldMouseX;
-    worldMouseYRef.current = worldMouseY;
-    remotePlayerInterpolationRef.current = remotePlayerInterpolation;
-
     // --- Create a derived state string that changes when any torch's lit status changes ---
     const torchLitStatesKey = useMemo(() => {
         let key = "torch_light_states:";
@@ -547,16 +530,8 @@ export function useDayNightCycle({
             return;
         }
 
-        // PERFORMANCE FIX: Read high-frequency values from refs (not props).
-        // This allows the effect to NOT re-run when camera pans or player moves,
-        // only when lights actually change (torch toggled, campfire lit, etc.).
-        const cameraOffsetX = cameraOffsetXRef.current;
-        const cameraOffsetY = cameraOffsetYRef.current;
-        const predictedPosition = predictedPositionRef.current;
-        const remotePlayerInterpolation = remotePlayerInterpolationRef.current;
-        const worldMouseX = worldMouseXRef.current;
-        const worldMouseY = worldMouseYRef.current;
-
+        // cameraOffset, predictedPosition, remotePlayerInterpolation, worldMouse are in deps
+        // so player-held lights (torch, headlamp, flashlight) follow the player during movement.
         maskCanvas.width = canvasSize.width;
         maskCanvas.height = canvasSize.height;
 
@@ -642,22 +617,22 @@ export function useDayNightCycle({
             }
         });
 
-        // Render fishing village campfire light cutouts (Aleut-style central campfire)
-        // This is a LARGE communal campfire - cozy safe zone with warm light
+        // Render village campfire light cutouts (fishing + hunting - same fv_campfire doodad)
+        // Aleut-style communal campfires - cozy safe zones with warm light
         // Y offset to center light on the firepit in the 1024x1024 image (rendered at 256x256)
-        const FV_CAMPFIRE_Y_OFFSET = -150; // Dropped 100px lower for better alignment
+        const VILLAGE_CAMPFIRE_Y_OFFSET = -150; // Dropped 100px lower for better alignment
         monumentParts.forEach(part => {
-            // Fishing village center has the functional campfire
-            // NOTE: MonumentType is a tagged union with a `tag` property
-            if (part.monumentType?.tag === 'FishingVillage' && part.isCenter) {
+            const isFishingVillageCampfire = part.monumentType?.tag === 'FishingVillage' && part.isCenter;
+            const isHuntingVillageCampfire = part.monumentType?.tag === 'HuntingVillage' && part.partType === 'campfire';
+            if (isFishingVillageCampfire || isHuntingVillageCampfire) {
                 const screenX = part.worldX + cameraOffsetX;
-                const screenY = part.worldY + cameraOffsetY + FV_CAMPFIRE_Y_OFFSET; // Apply offset
+                const screenY = part.worldY + cameraOffsetY + VILLAGE_CAMPFIRE_Y_OFFSET; // Apply offset
                 
-                // LARGE FISHING VILLAGE CAMPFIRE - bigger and warmer than regular campfires
+                // LARGE VILLAGE CAMPFIRE - bigger and warmer than regular campfires
                 // Creates a cozy, safe atmosphere in the village
-                const FISHING_VILLAGE_CAMPFIRE_RADIUS = CAMPFIRE_LIGHT_RADIUS_BASE * 3.0; // Communal fire light
+                const VILLAGE_CAMPFIRE_RADIUS = CAMPFIRE_LIGHT_RADIUS_BASE * 3.0; // Communal fire light
                 const flicker = (Math.random() - 0.5) * 2 * CAMPFIRE_FLICKER_AMOUNT * 0.8; // Slightly more stable
-                const lightRadius = Math.max(0, FISHING_VILLAGE_CAMPFIRE_RADIUS + flicker);
+                const lightRadius = Math.max(0, VILLAGE_CAMPFIRE_RADIUS + flicker);
                 
                 // No building clusters for outdoor village campfire
                 renderClippedLightCutout(
@@ -1533,12 +1508,11 @@ export function useDayNightCycle({
         
         maskCtx.globalCompositeOperation = 'source-over';
 
-    // PERFORMANCE FIX: Removed cameraOffsetX, cameraOffsetY, predictedPosition,
-    // remotePlayerInterpolation from deps. These change every frame while walking
-    // but the mask only needs rebuilding when light sources actually change.
-    // The values are read from refs at the top of the effect.
+    // cameraOffset and predictedPosition MUST be in deps - player-held lights (torch, headlamp, flashlight)
+    // need to follow the player. Without these, the mask uses stale positions and lights lag behind
+    // during fast movement or dodge rolls.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [worldState, campfires, lanterns, furnaces, barbecues, roadLampposts, runeStones, firePatches, fumaroles, players, activeEquipments, itemDefinitions, canvasSize.width, canvasSize.height, torchLitStatesKey, headlampLitStatesKey, lanternBurningStatesKey, localPlayerId, buildingClusters]);
+    }, [worldState, campfires, lanterns, furnaces, barbecues, roadLampposts, runeStones, firePatches, fumaroles, monumentParts, players, activeEquipments, itemDefinitions, canvasSize.width, canvasSize.height, torchLitStatesKey, headlampLitStatesKey, lanternBurningStatesKey, localPlayerId, buildingClusters, cameraOffsetX, cameraOffsetY, predictedPosition, remotePlayerInterpolation, worldMouseX, worldMouseY]);
 
     return { overlayRgba, maskCanvasRef };
 } 

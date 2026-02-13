@@ -106,13 +106,13 @@ import { getCollisionShapesForDebug, CollisionShape, PLAYER_RADIUS as CLIENT_PLA
 import { renderAttackRangeDebug } from '../utils/renderers/attackRangeDebugUtils'; // Attack range debug visualization
 import { renderChunkBoundaries, renderInteriorDebug, renderCollisionDebug, renderYSortDebug, renderProjectileCollisionDebug } from '../utils/renderers/debugOverlayUtils'; // Consolidated debug overlays
 import { renderMobileTapAnimation } from '../utils/renderers/mobileRenderingUtils'; // Mobile-specific rendering
-import { renderYSortedEntities } from '../utils/renderers/renderingUtils.ts';
-import { renderAllFootprints } from '../utils/renderers/snowFootprintUtils';
+import { renderYSortedEntities } from '../utils/renderers/renderingUtils';
+import { renderAllFootprints } from '../utils/renderers/terrainTrailUtils';
 import { renderWardRadius, LANTERN_TYPE_LANTERN } from '../utils/renderers/lanternRenderingUtils';
 import { preloadMonumentImages } from '../utils/renderers/monumentRenderingUtils';
 import { renderFoundationTargetIndicator, renderWallTargetIndicator, renderFenceTargetIndicator } from '../utils/renderers/foundationRenderingUtils'; // ADDED: Foundation, wall, and fence target indicators
-import { renderInteractionLabels, renderLocalPlayerStatusTags } from '../utils/renderers/labelRenderingUtils.ts';
-import { renderPlacementPreview, isPlacementTooFar } from '../utils/renderers/placementRenderingUtils.ts';
+import { renderInteractionLabels, renderLocalPlayerStatusTags } from '../utils/renderers/labelRenderingUtils';
+import { renderPlacementPreview, isPlacementTooFar } from '../utils/renderers/placementRenderingUtils';
 import { detectHotSprings } from '../utils/hotSpringDetector'; // ADDED: Hot spring detection
 import { detectQuarries } from '../utils/quarryDetector'; // ADDED: Small quarry detection for building restriction zones
 import { renderHotSprings } from '../utils/renderers/hotSpringRenderingUtils'; // ADDED: Hot spring rendering
@@ -906,6 +906,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     livingCorals, // Living coral for underwater harvesting (uses combat system)
   );
 
+  // Memoize predictedPosition by coordinates so useDayNightCycle's effect doesn't re-run
+  // when the parent re-renders with the same position (e.g. player stationary)
+  const stablePredictedPosition = useMemo(() => {
+    if (!predictedPosition) return null;
+    return { x: predictedPosition.x, y: predictedPosition.y };
+  }, [predictedPosition?.x, predictedPosition?.y]);
+
   // --- Day/Night Cycle with Indoor Light Containment ---
   // Must be after useEntityFiltering since it uses buildingClusters
   const { overlayRgba, maskCanvasRef } = useDayNightCycle({
@@ -927,7 +934,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     canvasSize,
     // Add interpolation parameters for smooth torch light cutouts
     localPlayerId,
-    predictedPosition,
+    predictedPosition: stablePredictedPosition,
     remotePlayerInterpolation,
     // Indoor light containment - clip light cutouts to building interiors
     buildingClusters,
@@ -2339,8 +2346,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const ENABLE_LAG_DIAGNOSTICS = false;
   const LAG_DIAGNOSTIC_INTERVAL_MS = 5000; // Log every 5 seconds
   const PLAYER_SORT_FEET_OFFSET_PX = 48;
-  // 🔧 SET TO true TO ENABLE Y-SORT DEBUG LOGGING
-  const ENABLE_YSORT_DEBUG = true;
+  // 🔧 SET TO true TO ENABLE Y-SORT DEBUG LOGGING (throttled to 400ms; adds findIndex + loop overhead)
+  const ENABLE_YSORT_DEBUG = false;
   const YSORT_DEBUG_INTERVAL_MS = 400;
   const ySortDebugRef = useRef({
     lastLogTime: 0,
@@ -3102,7 +3109,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- STEP 2.5 & 3 COMBINED: Render Y-sorted entities AND swimming player top halves together ---
     // This ensures swimming player tops are properly Y-sorted with sea stacks and other tall entities
 
-    // Render snow/beach footprints ONCE as ground decals, before any Y-sorted entities.
+    // Render terrain footprints (snow/beach) ONCE as ground decals, before any Y-sorted entities.
     // This ensures footprints are always below players/trees/structures regardless of
     // how many times renderYSortedEntities is called (e.g. batched swimming player rendering).
     renderAllFootprints(ctx, viewBounds, now_ms);
@@ -3261,6 +3268,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         if ('worldPosY' in entity.entity && (entity.entity as any).worldPosY !== undefined) {
           // ALK stations use worldPosY for their base position
           return (entity.entity as any).worldPosY;
+        } else if (entity.type === 'monument_doodad' && 'worldY' in entity.entity && 'height' in entity.entity) {
+          // Monument doodads: player in front when in bottom 25% of sprite
+          const e = entity.entity as any;
+          return e.worldY - (e.height * 0.25) + (e.anchorYOffset || 0);
         } else if ('worldY' in entity.entity && (entity.entity as any).worldY !== undefined) {
           // Compound buildings use worldY for their anchor/foot position
           return (entity.entity as any).worldY;
@@ -3361,6 +3372,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             return -1; // Player at/south of building's visual base - player in front (inverted)
           }
           return 1; // Player north of building - player behind (inverted)
+        }
+
+        // Player vs Monument Doodad - player in front when in bottom 25% of sprite
+        if (aType === 'player' && bType === 'monument_doodad') {
+          const playerY = getPlayerY(aEntity);
+          const doodad = bEntity as any;
+          const sortThresholdY = (doodad?.worldY ?? 0) - ((doodad?.height ?? 0) * 0.25) + (doodad?.anchorYOffset ?? 0);
+          if (playerY >= sortThresholdY) return 1; // Player in bottom 25% - player in front
+          return -1; // Player in top 75% - player behind
+        }
+        if (aType === 'monument_doodad' && bType === 'player') {
+          const playerY = getPlayerY(bEntity);
+          const doodad = aEntity as any;
+          const sortThresholdY = (doodad?.worldY ?? 0) - ((doodad?.height ?? 0) * 0.25) + (doodad?.anchorYOffset ?? 0);
+          if (playerY >= sortThresholdY) return -1; // Player in front (inverted)
+          return 1; // Player behind (inverted)
         }
 
         // Player vs Tree: force stable tree-base layering.
@@ -3929,6 +3956,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         alkStations: alkStations || new Map(),
         lanterns: lanterns || new Map(), // Add lanterns for ward collision
         turrets: turrets || new Map(), // ADDED: Turrets for collision
+        monumentParts: monumentParts ?? new Map(), // Village campfires, etc.
       };
 
       // Get collision shapes from the client collision system
@@ -4362,12 +4390,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       });
     });
 
-    // Fishing Village Campfire Light - Always burning communal fire
-    // Renders the warm, cozy light from the Aleut-style central campfire
+    // Village Campfire Lights - Fishing + Hunting (same fv_campfire doodad, always burning)
+    // Renders the warm, cozy light from Aleut-style communal campfires
     if (monumentParts && monumentParts.size > 0) {
       monumentParts.forEach((part: any) => {
-        // Fishing village center has the functional campfire
-        if (part.monumentType?.tag === 'FishingVillage' && part.isCenter) {
+        const isFishingVillageCampfire = part.monumentType?.tag === 'FishingVillage' && part.isCenter;
+        const isHuntingVillageCampfire = part.monumentType?.tag === 'HuntingVillage' && part.partType === 'campfire';
+        if (isFishingVillageCampfire || isHuntingVillageCampfire) {
           renderFishingVillageCampfireLight({
             ctx,
             worldX: part.worldX,
@@ -5380,4 +5409,5 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   );
 };
 
-export default React.memo(GameCanvas);
+const MemoizedGameCanvas = React.memo(GameCanvas);
+export default MemoizedGameCanvas;

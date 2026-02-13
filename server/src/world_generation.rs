@@ -209,6 +209,19 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         log::info!("🏘️ Stored {} fishing village parts in database - client reads once, then treats as static config",
                    world_features.fishing_village_parts.len());
         
+        // Start continuous campfire sound for fishing village communal campfire (fv_campfire - always burning)
+        for (part_x, part_y, _, part_type) in &world_features.fishing_village_parts {
+            if *part_type == "campfire" {
+                crate::sound_events::start_village_campfire_sound(
+                    ctx,
+                    crate::sound_events::VillageCampfireType::FishingVillage,
+                    *part_x,
+                    *part_y,
+                );
+                break; // Only one campfire per village
+            }
+        }
+        
         // Spawn monument placeables (campfires, rain collectors) at fishing village for player use
         let placeable_configs = crate::monument::get_fishing_village_placeables();
         match crate::monument::spawn_monument_placeables(ctx, "Fishing Village", center_x, center_y, &placeable_configs) {
@@ -299,6 +312,19 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         
         log::info!("🏕️ Stored {} hunting village parts in database - client reads once, then treats as static config",
                    world_features.hunting_village_parts.len());
+        
+        // Start continuous campfire sound for hunting village communal campfire (fv_campfire - always burning)
+        for (part_x, part_y, _, part_type) in &world_features.hunting_village_parts {
+            if *part_type == "campfire" {
+                crate::sound_events::start_village_campfire_sound(
+                    ctx,
+                    crate::sound_events::VillageCampfireType::HuntingVillage,
+                    *part_x,
+                    *part_y,
+                );
+                break; // Only one campfire per village
+            }
+        }
         
         // Spawn respawnable resources around hunting village
         let mut village_positions = Vec::new();
@@ -536,6 +562,8 @@ struct WorldFeatures {
     wolf_den_parts: Vec<(f32, f32, String, String)>, // Wolf den parts (x, y, image_path, part_type) in world pixels
     coral_reef_zones: Vec<Vec<bool>>, // Coral reef zones (deep sea areas for living coral)
     reed_marsh_centers: Vec<(f32, f32)>, // Reed marsh center positions (x, y) in world pixels
+    fishing_village_roads: Vec<Vec<bool>>, // Dirt road tiles in fishing village (for lampposts)
+    hunting_village_roads: Vec<Vec<bool>>, // Dirt road tiles in hunting village (circle + spur)
     width: usize,
     height: usize,
 }
@@ -658,6 +686,19 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     // Generate reed marsh centers (wide river sections for tern hunting and reed collection)
     let reed_marsh_centers = generate_reed_marsh_centers(config, noise, &river_network, &lake_map, &shore_distance, width, height);
     
+    // Generate village dirt roads (fishing + hunting) - for lampposts and village atmosphere
+    let (fishing_village_roads, hunting_village_roads) = generate_village_roads(
+        &road_network,
+        &dirt_paths,
+        fishing_village_center,
+        &fishing_village_parts,
+        hunting_village_center,
+        &hunting_village_parts,
+        noise,
+        width,
+        height,
+    );
+    
     WorldFeatures {
         heightmap,
         shore_distance,
@@ -694,9 +735,181 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         wolf_den_parts,
         coral_reef_zones,
         reed_marsh_centers,
+        fishing_village_roads,
+        hunting_village_roads,
         width,
         height,
     }
+}
+
+/// Generate dirt road tiles for fishing and hunting villages.
+/// - Fishing village: small path around campfire and along structures
+/// - Hunting village: rough circular plaza + spur road leading toward main road network
+fn generate_village_roads(
+    road_network: &[Vec<bool>],
+    dirt_paths: &[Vec<bool>],
+    fishing_village_center: Option<(f32, f32)>,
+    fishing_village_parts: &[(f32, f32, String, String)],
+    hunting_village_center: Option<(f32, f32)>,
+    hunting_village_parts: &[(f32, f32, String, String)],
+    noise: &Perlin,
+    width: usize,
+    height: usize,
+) -> (Vec<Vec<bool>>, Vec<Vec<bool>>) {
+    let tile_size_px = crate::TILE_SIZE_PX as f32;
+    let mut fishing_roads = vec![vec![false; width]; height];
+    let mut hunting_roads = vec![vec![false; width]; height];
+
+    // --- Fishing village: small dirt path around campfire and between structures ---
+    if let Some((center_px_x, center_px_y)) = fishing_village_center {
+        let center_tx = (center_px_x / tile_size_px).floor() as i32;
+        let center_ty = (center_px_y / tile_size_px).floor() as i32;
+        // Path radius ~4-5 tiles around campfire
+        let path_radius = 5i32;
+        for dy in -path_radius..=path_radius {
+            for dx in -path_radius..=path_radius {
+                let tx = center_tx + dx;
+                let ty = center_ty + dy;
+                if tx >= 0 && ty >= 0 && (tx as usize) < width && (ty as usize) < height {
+                    let dist = ((dx * dx + dy * dy) as f64).sqrt();
+                    let shape_noise = noise.get([tx as f64 * 0.15, ty as f64 * 0.15, 55000.0]);
+                    let adjusted_radius = path_radius as f64 + shape_noise * 1.5;
+                    if dist < adjusted_radius {
+                        fishing_roads[ty as usize][tx as usize] = true;
+                    }
+                }
+            }
+        }
+        // Add path tiles near other structures (huts, dock, smokeracks)
+        for (part_px_x, part_px_y, _, _) in fishing_village_parts {
+            let pt_tx = (part_px_x / tile_size_px).floor() as i32;
+            let pt_ty = (part_px_y / tile_size_px).floor() as i32;
+            for dy in -2..=2 {
+                for dx in -2..=2 {
+                    let tx = pt_tx + dx;
+                    let ty = pt_ty + dy;
+                    if tx >= 0 && ty >= 0 && (tx as usize) < width && (ty as usize) < height {
+                        fishing_roads[ty as usize][tx as usize] = true;
+                    }
+                }
+            }
+        }
+        log::info!("🏘️ Generated fishing village dirt roads (campfire + structure paths)");
+    }
+
+    // --- Hunting village: rough circular plaza + spur road leading toward main road ---
+    if let Some((center_px_x, center_px_y)) = hunting_village_center {
+        let center_tx = (center_px_x / tile_size_px).floor() as i32;
+        let center_ty = (center_px_y / tile_size_px).floor() as i32;
+
+        // Rough circle in center (~10-12 tiles radius) - buildings sit on it
+        let circle_radius = 12i32;
+        for dy in -circle_radius..=circle_radius {
+            for dx in -circle_radius..=circle_radius {
+                let tx = center_tx + dx;
+                let ty = center_ty + dy;
+                if tx >= 0 && ty >= 0 && (tx as usize) < width && (ty as usize) < height {
+                    let dist = ((dx * dx + dy * dy) as f64).sqrt();
+                    let shape_noise = noise.get([tx as f64 * 0.12, ty as f64 * 0.12, 60000.0]);
+                    let adjusted_radius = circle_radius as f64 + shape_noise * 2.0;
+                    if dist < adjusted_radius {
+                        hunting_roads[ty as usize][tx as usize] = true;
+                    }
+                }
+            }
+        }
+
+        // Spur road: find nearest road_network or dirt_paths, draw path from village toward it
+        let search_radius = 80i32;
+        let mut nearest_pos: Option<(i32, i32)> = None;
+        let mut nearest_dist_sq = i32::MAX;
+
+        for dy in -search_radius..=search_radius {
+            for dx in -search_radius..=search_radius {
+                let check_x = center_tx + dx;
+                let check_y = center_ty + dy;
+                if check_x < 0 || check_y < 0 || (check_x as usize) >= width || (check_y as usize) >= height {
+                    continue;
+                }
+                let has_road = road_network[check_y as usize][check_x as usize]
+                    || dirt_paths[check_y as usize][check_x as usize];
+                if has_road {
+                    let dist_sq = dx * dx + dy * dy;
+                    if dist_sq < nearest_dist_sq {
+                        nearest_dist_sq = dist_sq;
+                        nearest_pos = Some((check_x, check_y));
+                    }
+                }
+            }
+        }
+
+        if let Some((road_x, road_y)) = nearest_pos {
+            let dx = road_x - center_tx;
+            let dy = road_y - center_ty;
+            let angle = (dy as f32).atan2(dx as f32);
+            let start_tx = center_tx + (angle.cos() * circle_radius as f32) as i32;
+            let start_ty = center_ty + (angle.sin() * circle_radius as f32) as i32;
+            draw_village_road_spur(&mut hunting_roads, start_tx, start_ty, road_x, road_y, width, height);
+        } else {
+            // No main road nearby - draw spur south for ~15 tiles (toward map center / beach)
+            let spur_len = 15i32;
+            let end_tx = center_tx;
+            let end_ty = (center_ty + spur_len).min(height as i32 - 1);
+            draw_village_road_spur(&mut hunting_roads, center_tx, center_ty, end_tx, end_ty, width, height);
+        }
+        log::info!("🏕️ Generated hunting village dirt roads (circle + spur)");
+    }
+
+    (fishing_roads, hunting_roads)
+}
+
+/// Draw a narrow (3x3) dirt road spur between two points
+fn draw_village_road_spur(
+    roads: &mut Vec<Vec<bool>>,
+    x1: i32,
+    y1: i32,
+    x2: i32,
+    y2: i32,
+    width: usize,
+    height: usize,
+) {
+    let dx = (x2 - x1).abs();
+    let dy = (y2 - y1).abs();
+    let sx = if x1 < x2 { 1 } else { -1 };
+    let sy = if y1 < y2 { 1 } else { -1 };
+    let mut err = dx - dy;
+
+    let mut x = x1;
+    let mut y = y1;
+
+    let mark = |roads: &mut Vec<Vec<bool>>, px: i32, py: i32| {
+        for dy_off in -1..=1 {
+            for dx_off in -1..=1 {
+                let rx = px + dx_off;
+                let ry = py + dy_off;
+                if rx >= 0 && ry >= 0 && (rx as usize) < width && (ry as usize) < height {
+                    roads[ry as usize][rx as usize] = true;
+                }
+            }
+        }
+    };
+
+    loop {
+        mark(roads, x, y);
+        if x == x2 && y == y2 {
+            break;
+        }
+        let e2 = 2 * err;
+        if e2 > -dy {
+            err -= dy;
+            x += sx;
+        }
+        if e2 < dx {
+            err += dx;
+            y += sy;
+        }
+    }
+    mark(roads, x2, y2);
 }
 
 fn generate_scattered_islands(
@@ -2953,6 +3166,14 @@ fn determine_realistic_tile_type(
     
     // Quarry access roads - use regular DirtRoad tile type
     if features.quarry_roads[y][x] {
+        return TileType::DirtRoad;
+    }
+
+    // Village dirt roads - fishing and hunting villages (for lampposts and atmosphere)
+    if features.fishing_village_roads[y][x] {
+        return TileType::DirtRoad;
+    }
+    if features.hunting_village_roads[y][x] {
         return TileType::DirtRoad;
     }
     

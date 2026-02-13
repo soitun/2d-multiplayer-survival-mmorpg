@@ -9,7 +9,7 @@ import {
     DUAL_GRID_LOOKUP
 } from '../dualGridAutotile';
 import { tileDoodadRenderer } from './tileDoodadRenderer';
-import { initShorelineMask, isShorelineMaskReady, renderShorelineOverlay } from './shorelineOverlayUtils.ts';
+import { initShorelineMask, initHotSpringShorelineMask, isShorelineMaskReady, isHotSpringShorelineMaskReady, renderShorelineOverlay } from './shorelineOverlayUtils.ts';
 
 // Helper to get tile base texture path from tile type name
 function getTileBaseTexturePath(tileTypeName: string): string {
@@ -81,7 +81,9 @@ export class ProceduralWorldRenderer {
             await Promise.all(promises);
             this.isInitialized = true;
             const beachSeaImg = this.tileCache.images.get('transition_Beach_Sea');
+            const beachHotSpringWaterImg = this.tileCache.images.get('transition_Beach_HotSpringWater');
             initShorelineMask(beachSeaImg).catch(() => {});
+            initHotSpringShorelineMask(beachHotSpringWaterImg).catch(() => {});
         } catch (error) {
             // Silently handle errors - missing assets will show fallback colors
         }
@@ -213,7 +215,7 @@ export class ProceduralWorldRenderer {
         isSnorkeling: boolean = false
     ): void {
         if (isSnorkeling) return;
-        if (!isShorelineMaskReady()) return;
+        if (!isShorelineMaskReady() && !isHotSpringShorelineMaskReady()) return;
 
         const { tileSize } = gameConfig;
         const currentTimeMs = performance.now();
@@ -251,7 +253,9 @@ export class ProceduralWorldRenderer {
         for (const tileInfo of transitions) {
             const isBeachSea = (tileInfo.primaryTerrain === 'Beach' && tileInfo.secondaryTerrain === 'Sea') ||
                 (tileInfo.primaryTerrain === 'Sea' && tileInfo.secondaryTerrain === 'Beach');
-            if (!isBeachSea) continue;
+            const isBeachHotSpring = (tileInfo.primaryTerrain === 'Beach' && tileInfo.secondaryTerrain === 'HotSpringWater') ||
+                (tileInfo.primaryTerrain === 'HotSpringWater' && tileInfo.secondaryTerrain === 'Beach');
+            if (!isBeachSea && !isBeachHotSpring) continue;
 
             ctx.save();
 
@@ -285,7 +289,8 @@ export class ProceduralWorldRenderer {
                 pixelSize,
                 tileInfo.flipHorizontal,
                 tileInfo.flipVertical,
-                currentTimeMs
+                currentTimeMs,
+                isBeachHotSpring
             );
 
             ctx.restore();
