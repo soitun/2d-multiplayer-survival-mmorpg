@@ -1,0 +1,51 @@
+name: Discord - Git commits
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post commit(s) to Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          COMPARE_URL: ${{ github.event.compare }}
+          PUSHER: ${{ github.actor }}
+        run: |
+          set -e
+
+          # Build a short list of commits (max 5) with links
+          COMMITS=$(python3 - << 'PY'
+import json, os
+event_path = os.environ["GITHUB_EVENT_PATH"]
+data = json.load(open(event_path, "r", encoding="utf-8"))
+commits = data.get("commits", [])[:5]
+lines = []
+for c in commits:
+    msg = (c.get("message","").split("\n")[0])[:120]
+    url = c.get("url","").replace("api.github.com/repos", "github.com").replace("/commits/", "/commit/")
+    sha = (c.get("id","")[:7])
+    lines.append(f"- [`{sha}`]({url}) {msg}")
+print("\n".join(lines) if lines else "- (no commits found)")
+PY
+)
+
+          CONTENT="**${REPO}** pushed to **${BRANCH}** by **${PUSHER}**\n${COMMITS}\n<${COMPARE_URL}>"
+
+          # Send to Discord
+          python3 - << 'PY'
+import json, os, urllib.request
+webhook = os.environ["DISCORD_WEBHOOK_URL"]
+content = os.environ["CONTENT"]
+payload = json.dumps({"content": content}).encode("utf-8")
+req = urllib.request.Request(webhook, data=payload, headers={"Content-Type":"application/json"})
+urllib.request.urlopen(req).read()
+PY
+        env:
+          CONTENT: ${{ env.CONTENT }}
