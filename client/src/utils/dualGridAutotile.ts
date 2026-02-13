@@ -45,6 +45,7 @@ import asphaltBeachAutotile from '../assets/tiles/new/tileset_asphalt_beach_auto
 import asphaltAlpineAutotile from '../assets/tiles/new/tileset_asphalt_alpine_autotile.png';
 import asphaltTundraAutotile from '../assets/tiles/new/tileset_asphalt_tundra_autotile.png';
 import asphaltSeaAutotile from '../assets/tiles/new/tileset_asphalt_sea_autotile.png';
+import asphaltGrassAutotile from '../assets/tiles/new/tileset_asphalt_grass_autotile.png';
 import alpineDirtRoadAutotile from '../assets/tiles/new/tileset_alpine_dirtroad_autotile.png';
 import alpineDirtAutotile from '../assets/tiles/new/tileset_alpine_dirt_autotile.png';
 import alpineBeachAutotile from '../assets/tiles/new/tileset_alpine_beach_autotile.png';
@@ -200,6 +201,7 @@ export const TRANSITION_TILESETS: Readonly<Record<string, string>> = {
     'Asphalt_Alpine': asphaltAlpineAutotile,
     'Asphalt_Tundra': asphaltTundraAutotile,
     'Asphalt_Sea': asphaltSeaAutotile,
+    'Asphalt_Grass': asphaltGrassAutotile,
     
     // === Alpine transitions ===
     'Alpine_DirtRoad': alpineDirtRoadAutotile,

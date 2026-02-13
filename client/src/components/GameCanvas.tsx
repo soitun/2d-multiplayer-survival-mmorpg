@@ -3268,13 +3268,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         if ('worldPosY' in entity.entity && (entity.entity as any).worldPosY !== undefined) {
           // ALK stations use worldPosY for their base position
           return (entity.entity as any).worldPosY;
-        } else if (entity.type === 'monument_doodad' && 'worldY' in entity.entity && 'height' in entity.entity) {
-          // Monument doodads: player in front when in bottom 25% of sprite
+        } else if (entity.type === 'monument_doodad' && 'worldY' in entity.entity) {
+          // Use sprite BOTTOM for Y-sort so monument renders on top of entities at its base
           const e = entity.entity as any;
-          return e.worldY - (e.height * 0.25) + (e.anchorYOffset || 0);
+          return (e.worldY ?? 0) + (e.anchorYOffset ?? 0);
         } else if ('worldY' in entity.entity && (entity.entity as any).worldY !== undefined) {
-          // Compound buildings use worldY for their anchor/foot position
-          return (entity.entity as any).worldY;
+          // Compound buildings: use sprite BOTTOM (worldY + anchor) for Y-sort
+          const e = entity.entity as any;
+          return (e.worldY ?? 0) + (e.anchorYOffset ?? 0);
         } else if ('posY' in entity.entity && entity.entity.posY !== undefined) {
           return entity.entity.posY;
         }
@@ -3413,6 +3414,39 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           const playerY = getPlayerY(bEntity) + PLAYER_SORT_FEET_OFFSET_PX;
           const stoneY = (aEntity as any)?.posY ?? 0;
           return playerY >= stoneY ? -1 : 1;
+        }
+
+        // CRITICAL: Small ground entities vs tall structures - CONSISTENT sorting regardless of player position.
+        // Mirrors useEntityFiltering. For monuments: entities within footprint ALWAYS render BEHIND (inside).
+        const SMALL_GROUND_TYPES = ['barrel', 'road_lamppost', 'harvestable_resource', 'grass'];
+        const TALL_STRUCTURE_TYPES = ['tree', 'stone', 'monument_doodad', 'compound_building'];
+        const TREE_STONE_Y_OVERLAP_PX = 120;
+        const MONUMENT_FOOTPRINT_PADDING = 24;
+        const getSmallPos = (e: any, t: string | null) => {
+          if (t === 'grass' && e && 'serverPosX' in e) return { x: (e as any).serverPosX ?? 0, y: (e as any).serverPosY ?? 0 };
+          return { x: e?.posX ?? e?.positionX ?? 0, y: e?.posY ?? e?.positionY ?? 0 };
+        };
+        const isSmallWithinMonumentFootprint = (small: { x: number; y: number }, tall: any, pad: number) => {
+          const w = tall?.width ?? 0, h = tall?.height ?? 0, anchor = tall?.anchorYOffset ?? 0;
+          const worldX = tall?.worldX ?? 0, worldY = tall?.worldY ?? 0;
+          const left = worldX - w / 2 - pad, right = worldX + w / 2 + pad;
+          const top = worldY - h + anchor - pad, bottom = worldY + anchor + pad;
+          return small.x >= left && small.x <= right && small.y >= top && small.y <= bottom;
+        };
+        const isSmallNearTreeOrStone = (smallY: number, tallY: number) => Math.abs(smallY - tallY) < TREE_STONE_Y_OVERLAP_PX;
+        if (SMALL_GROUND_TYPES.includes(aType ?? '') && TALL_STRUCTURE_TYPES.includes(bType ?? '')) {
+          const smallPos = getSmallPos(aEntity, aType);
+          const tall = bEntity as any;
+          if (bType === 'monument_doodad' || bType === 'compound_building') {
+            if (isSmallWithinMonumentFootprint(smallPos, tall, MONUMENT_FOOTPRINT_PADDING)) return -1; // Monument always on top
+          } else if (isSmallNearTreeOrStone(smallPos.y, tall?.posY ?? 0)) return -1;
+        }
+        if (TALL_STRUCTURE_TYPES.includes(aType ?? '') && SMALL_GROUND_TYPES.includes(bType ?? '')) {
+          const smallPos = getSmallPos(bEntity, bType);
+          const tall = aEntity as any;
+          if (aType === 'monument_doodad' || aType === 'compound_building') {
+            if (isSmallWithinMonumentFootprint(smallPos, tall, MONUMENT_FOOTPRINT_PADDING)) return 1; // Monument always on top (inverted)
+          } else if (isSmallNearTreeOrStone(smallPos.y, tall?.posY ?? 0)) return 1;
         }
 
         // Grass vs Tree: use relative Y so north grass is behind tree, south grass is in front.

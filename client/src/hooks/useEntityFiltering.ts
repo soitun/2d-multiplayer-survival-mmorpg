@@ -334,16 +334,16 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       return alkStation.worldPosY - ALK_STATION_VISUAL_FOOT_OFFSET;
     }
     case 'compound_building': {
-      // Static ALK compound buildings: Use 87.5% height threshold for Y-sorting
-      // Player should be BEHIND when in top 87.5%, IN FRONT only when in bottom 12.5%
+      // Use sprite BOTTOM for Y-sort so building renders on top of entities at its base.
+      // Player-vs-building uses explicit threshold (bottom 12.5%) in comparator.
       const building = entity as CompoundBuildingEntity;
-      const sortThresholdY = building.worldY - (building.height * 0.125) + (building.anchorYOffset || 0);
-      return sortThresholdY;
+      return building.worldY + (building.anchorYOffset || 0);
     }
     case 'monument_doodad': {
-      // Monument doodads: 75% threshold - player in front when in bottom 25% of sprite
+      // Use sprite BOTTOM (worldY + anchor) for Y-sort so monument consistently renders on top of
+      // harvestables/grass at its base. Player-vs-monument uses explicit threshold (bottom 25%).
       const doodad = entity as CompoundBuildingEntity;
-      return doodad.worldY - (doodad.height * 0.25) + (doodad.anchorYOffset || 0);
+      return doodad.worldY + (doodad.anchorYOffset || 0);
     }
     case 'foundation_cell': {
       // Foundation cells use cell coordinates - convert to world pixel Y
@@ -2235,7 +2235,58 @@ export function useEntityFiltering(
         return playerY >= stone.posY ? -1 : 1;
       }
       
+      // CRITICAL: Small ground entities vs tall structures - CONSISTENT sorting regardless of player position.
+      // Visibility sets change with player (harvestables: 80 closest; grass: viewport). Use spatial footprint
+      // so the SAME pair always sorts the same way. For monuments: entities within footprint ALWAYS render
+      // BEHIND (inside/underneath) - berry bush, logs, grass at base stay hidden. Trees/stones: same.
+      const SMALL_GROUND_TYPES: Array<YSortedEntityType['type']> = ['barrel', 'road_lamppost', 'harvestable_resource', 'grass'];
+      const TALL_STRUCTURE_TYPES: Array<YSortedEntityType['type']> = ['tree', 'stone', 'monument_doodad', 'compound_building'];
+      const TREE_STONE_Y_OVERLAP_PX = 120;
+      const MONUMENT_FOOTPRINT_PADDING = 24; // Catch entities at edges
       
+      const getSmallPos = (e: any, type: string): { x: number; y: number } => {
+        if (type === 'grass' && ('serverPosX' in (e ?? {}))) {
+          return { x: (e as any).serverPosX ?? 0, y: (e as any).serverPosY ?? 0 };
+        }
+        return { x: e?.posX ?? e?.positionX ?? 0, y: e?.posY ?? e?.positionY ?? 0 };
+      };
+      const isSmallWithinMonumentFootprint = (small: { x: number; y: number }, tallEntity: any, pad: number): boolean => {
+        const w = tallEntity?.width ?? 0;
+        const h = tallEntity?.height ?? 0;
+        const anchor = tallEntity?.anchorYOffset ?? 0;
+        const worldX = tallEntity?.worldX ?? 0;
+        const worldY = tallEntity?.worldY ?? 0;
+        const left = worldX - w / 2 - pad;
+        const right = worldX + w / 2 + pad;
+        const top = worldY - h + anchor - pad;
+        const bottom = worldY + anchor + pad;
+        return small.x >= left && small.x <= right && small.y >= top && small.y <= bottom;
+      };
+      const isSmallNearTreeOrStone = (smallY: number, tallY: number): boolean =>
+        Math.abs(smallY - tallY) < TREE_STONE_Y_OVERLAP_PX;
+      
+      if (SMALL_GROUND_TYPES.includes(a.type) && TALL_STRUCTURE_TYPES.includes(b.type)) {
+        const smallPos = getSmallPos(a.entity, a.type);
+        const tall = b.entity as any;
+        if (b.type === 'monument_doodad' || b.type === 'compound_building') {
+          if (isSmallWithinMonumentFootprint(smallPos, tall, MONUMENT_FOOTPRINT_PADDING)) {
+            return -1; // Monument always on top - stuff at base stays inside/behind
+          }
+        } else if (isSmallNearTreeOrStone(smallPos.y, tall?.posY ?? 0)) {
+          return -1; // Tree/stone in front
+        }
+      }
+      if (TALL_STRUCTURE_TYPES.includes(a.type) && SMALL_GROUND_TYPES.includes(b.type)) {
+        const smallPos = getSmallPos(b.entity, b.type);
+        const tall = a.entity as any;
+        if (a.type === 'monument_doodad' || a.type === 'compound_building') {
+          if (isSmallWithinMonumentFootprint(smallPos, tall, MONUMENT_FOOTPRINT_PADDING)) {
+            return 1; // Monument always on top (inverted)
+          }
+        } else if (isSmallNearTreeOrStone(smallPos.y, tall?.posY ?? 0)) {
+          return 1; // Tree/stone in front (inverted)
+        }
+      }
       
       // Flying birds MUST render above everything (trees, stones, players, etc.)
       // This ensures birds in flight are always visible above ground entities

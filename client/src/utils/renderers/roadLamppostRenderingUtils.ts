@@ -52,7 +52,7 @@ const roadLamppostConfig: GroundEntityConfig<RoadLamppost> = {
             maxShadowAlpha: 0.3,
             maxStretchFactor: 1.8,
             minStretchFactor: 0.2,
-            pivotYOffset: -ROAD_LAMP_Y_OFFSET + 20,
+            pivotYOffset: ROAD_LAMP_Y_OFFSET, // Align shadow with lamp base (sprite bottom at posY - 24)
         });
     },
 

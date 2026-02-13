@@ -2415,6 +2415,94 @@ pub fn spawn_monument_harvestables(
     Ok(())
 }
 
+/// Spawns hunting village harvestables in a dedicated garden grid south of the lodge.
+/// Places crops/berries in a neat row or square grid so they don't overlap buildings.
+/// Garden is positioned south of center (positive Y) - clear of lodge, huts, campfire, drying rack.
+pub fn spawn_hunting_village_harvestables(
+    ctx: &ReducerContext,
+    center_x: f32,
+    center_y: f32,
+    monument_part_positions: &[(f32, f32)],
+    harvestable_configs: &[MonumentHarvestableConfig],
+) -> Result<u32, String> {
+    const HARVESTABLE_RADIUS: f32 = 30.0;
+    const BUILDING_EXCLUSION_RADIUS: f32 = 220.0; // Keep harvestables away from building sprites
+    const GRID_COLS: i32 = 4;
+    const GRID_ROWS: i32 = 3;
+    const GRID_SPACING: f32 = 56.0; // One tile between plants
+
+    // Pre-populate occupied with all building positions so garden stays clear
+    let mut occupied: Vec<OccupiedPosition> = monument_part_positions
+        .iter()
+        .map(|&(px, py)| OccupiedPosition {
+            x: px,
+            y: py,
+            radius: BUILDING_EXCLUSION_RADIUS,
+        })
+        .collect();
+
+    // Garden center: south of the lodge (positive Y), offset slightly east for visual balance
+    let garden_center_x = center_x + 20.0;
+    let garden_center_y = center_y + 300.0;
+
+    // Build grid positions (4 cols x 3 rows = 12 slots)
+    let half_width = (GRID_COLS - 1) as f32 * GRID_SPACING * 0.5;
+    let half_height = (GRID_ROWS - 1) as f32 * GRID_SPACING * 0.5;
+    let start_x = garden_center_x - half_width;
+    let start_y = garden_center_y - half_height;
+
+    let harvestable_resources = ctx.db.harvestable_resource();
+    let mut spawned_count = 0u32;
+
+    for row in 0..GRID_ROWS {
+        for col in 0..GRID_COLS {
+            let spawn_x = start_x + col as f32 * GRID_SPACING;
+            let spawn_y = start_y + row as f32 * GRID_SPACING;
+
+            if is_position_occupied(spawn_x, spawn_y, HARVESTABLE_RADIUS, &occupied) {
+                continue; // Slot too close to a building
+            }
+
+            // Pick first config that passes spawn_chance (shuffle order for variety)
+            let mut config_indices: Vec<usize> = (0..harvestable_configs.len()).collect();
+            for i in 1..config_indices.len() {
+                let j = ctx.rng().gen_range(0..=i);
+                config_indices.swap(i, j);
+            }
+
+            for &idx in &config_indices {
+                let config = &harvestable_configs[idx];
+                let roll: f32 = ctx.rng().gen();
+                if roll > config.spawn_chance {
+                    continue;
+                }
+
+                let chunk_idx = crate::environment::calculate_chunk_index(spawn_x, spawn_y);
+                let harvestable = crate::harvestable_resource::create_harvestable_resource(
+                    config.plant_type,
+                    spawn_x,
+                    spawn_y,
+                    chunk_idx,
+                    false, // wild
+                );
+
+                if harvestable_resources.try_insert(harvestable).is_ok() {
+                    spawned_count += 1;
+                    occupied.push(OccupiedPosition {
+                        x: spawn_x,
+                        y: spawn_y,
+                        radius: HARVESTABLE_RADIUS,
+                    });
+                    break; // One harvestable per slot
+                }
+            }
+        }
+    }
+
+    log::info!("[HuntingVillageGarden] Spawned {} harvestables in garden grid", spawned_count);
+    Ok(spawned_count)
+}
+
 /// Spawns beach barrels around shipwreck monument parts
 /// Uses barrel.rs system but spawns specifically around shipwreck locations
 pub fn spawn_shipwreck_barrels(

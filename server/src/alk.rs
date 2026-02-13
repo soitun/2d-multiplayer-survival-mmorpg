@@ -88,6 +88,10 @@ pub const DAYS_PER_SEASON: u32 = 240; // 240 in-game days = 5 real-life days per
 /// Days per ALK cycle (bonus contracts refresh)
 pub const DAYS_PER_ALK_CYCLE: u32 = 24;
 
+/// Delivery radius multiplier - client allows opening panel from 280px (PLAYER_ALK_STATION_INTERACTION_DISTANCE)
+/// but base interaction_radius is 200 (substations) / 250 (central). Use 1.6x so delivery works from ~320/400px.
+pub const ALK_DELIVERY_RADIUS_MULTIPLIER: f32 = 1.6;
+
 /// Default contract expiry in days
 pub const BONUS_CONTRACT_DEFAULT_EXPIRY_DAYS: u32 = 5;
 
@@ -2604,13 +2608,14 @@ pub fn deliver_alk_contract(
         return Err("Station is not operational".to_string());
     }
     
-    // Check player is in range
+    // Check player is in range (use delivery radius multiplier - client opens panel from 280px)
     let dx = player.position_x - station.world_pos_x;
     let dy = player.position_y - station.world_pos_y;
     let distance_sq = dx * dx + dy * dy;
-    let interaction_radius_sq = station.interaction_radius * station.interaction_radius;
+    let delivery_radius = station.interaction_radius * ALK_DELIVERY_RADIUS_MULTIPLIER;
+    let delivery_radius_sq = delivery_radius * delivery_radius;
     
-    if distance_sq > interaction_radius_sq {
+    if distance_sq > delivery_radius_sq {
         return Err("You must be at the station to deliver".to_string());
     }
     
@@ -2818,13 +2823,14 @@ pub fn deliver_alk_contract_to_matronage(
         return Err("Station is not operational".to_string());
     }
     
-    // Check player is in range
+    // Check player is in range (use delivery radius multiplier - client opens panel from 280px)
     let dx = player.position_x - station.world_pos_x;
     let dy = player.position_y - station.world_pos_y;
     let distance_sq = dx * dx + dy * dy;
-    let interaction_radius_sq = station.interaction_radius * station.interaction_radius;
+    let delivery_radius = station.interaction_radius * ALK_DELIVERY_RADIUS_MULTIPLIER;
+    let delivery_radius_sq = delivery_radius * delivery_radius;
     
-    if distance_sq > interaction_radius_sq {
+    if distance_sq > delivery_radius_sq {
         return Err("You must be at the station to deliver".to_string());
     }
     

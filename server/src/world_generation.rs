@@ -326,16 +326,16 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
             }
         }
         
-        // Spawn respawnable resources around hunting village
+        // Spawn harvestable resources in a dedicated garden grid (south of lodge)
+        // Avoids overlap with buildings - neat row/grid layout like a little garden
         let mut village_positions = Vec::new();
         for (part_x, part_y, _, _) in &world_features.hunting_village_parts {
             village_positions.push((*part_x, *part_y));
         }
-        
-        // Spawn harvestable resources - these respawn
         let harvestable_configs = crate::monument::get_hunting_village_harvestables();
-        if let Err(e) = crate::monument::spawn_monument_harvestables(ctx, &village_positions, &harvestable_configs) {
-            log::warn!("Failed to spawn hunting village harvestables: {}", e);
+        match crate::monument::spawn_hunting_village_harvestables(ctx, center_x, center_y, &village_positions, &harvestable_configs) {
+            Ok(count) => log::info!("🏕️ Spawned {} harvestables in hunting village garden", count),
+            Err(e) => log::warn!("Failed to spawn hunting village harvestables: {}", e),
         }
         
         // Spawn monument placeables for player use
