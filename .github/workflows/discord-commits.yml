@@ -9,6 +9,8 @@ on:
 jobs:
   notify:
     runs-on: ubuntu-latest
+    # Only run on the public repo; skip when pushing to origin (private/other remote)
+    if: github.repository == 'SeloSlav/2d-multiplayer-survival-mmorpg'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
