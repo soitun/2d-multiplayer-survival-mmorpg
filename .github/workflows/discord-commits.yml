@@ -36,9 +36,13 @@ print("\n".join(lines) if lines else "- (no commits found)")
 PY
 )
 
-          CONTENT="**${REPO}** pushed to **${BRANCH}** by **${PUSHER}**\n${COMMITS}\n<${COMPARE_URL}>"
+          export CONTENT="**${REPO}** pushed to **${BRANCH}** by **${PUSHER}**\n${COMMITS}\n<${COMPARE_URL}>"
 
-          # Send to Discord
+          # Send to Discord (requires DISCORD_WEBHOOK_URL secret in repo Settings → Secrets)
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "::error::DISCORD_WEBHOOK_URL secret not set. Add it in Settings → Secrets and variables → Actions"
+            exit 1
+          fi
           python3 - << 'PY'
 import json, os, urllib.request
 webhook = os.environ["DISCORD_WEBHOOK_URL"]
@@ -47,5 +51,3 @@ payload = json.dumps({"content": content}).encode("utf-8")
 req = urllib.request.Request(webhook, data=payload, headers={"Content-Type":"application/json"})
 urllib.request.urlopen(req).read()
 PY
-        env:
-          CONTENT: ${{ env.CONTENT }}
