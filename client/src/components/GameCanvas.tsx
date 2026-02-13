@@ -181,7 +181,7 @@ import {
   SERVER_CAMPFIRE_DAMAGE_CENTER_Y_OFFSET
 } from '../utils/renderers/campfireRenderingUtils';
 // V2 system removed due to performance issues
-import { BOX_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
+import { BOX_HEIGHT, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_WILD_BEEHIVE } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { useInputHandler } from '../hooks/useInputHandler';
 import { useRemotePlayerInterpolation } from '../hooks/useRemotePlayerInterpolation';
 
@@ -779,10 +779,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Note: ySortedEntities sync is done after useEntityFiltering hook below
   // Split tables: merge Grass (static) + GrassState (dynamic) for rendering
-  const interpolatedGrass = useGrassInterpolation({ 
-    serverGrass: grass, 
-    serverGrassState: grassState, 
-    deltaTime: deltaTimeRef.current 
+  const interpolatedGrass = useGrassInterpolation({
+    serverGrass: grass,
+    serverGrassState: grassState,
+    deltaTime: deltaTimeRef.current
   });
 
   // PERFORMANCE FIX: Chunk cache refs moved here (before useEntityFiltering) to enable memoized worldChunkDataMap
@@ -2352,7 +2352,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const ySortDebugRef = useRef({
     lastLogTime: 0,
   });
-  
+
   const perfProfilingRef = useRef({
     lastLogTime: Date.now(),
     frameCount: 0,
@@ -2368,17 +2368,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // React re-render tracking
     renderCallCount: 0,
   });
-  
+
   // Track server updates via player position changes
   const lastKnownPlayerPosRef = useRef<{ x: number; y: number; timestamp: number } | null>(null);
-  
+
   // Track server update timing when localPlayer position changes
   useEffect(() => {
     if (!ENABLE_LAG_DIAGNOSTICS || !localPlayer) return;
-    
+
     const now = performance.now();
     const lastKnown = lastKnownPlayerPosRef.current;
-    
+
     // Detect server-side position update (different from client prediction)
     if (lastKnown && (localPlayer.positionX !== lastKnown.x || localPlayer.positionY !== lastKnown.y)) {
       const timeSinceLastUpdate = now - lastKnown.timestamp;
@@ -2389,7 +2389,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
       perfProfilingRef.current.lastServerUpdateTime = now;
     }
-    
+
     lastKnownPlayerPosRef.current = {
       x: localPlayer.positionX,
       y: localPlayer.positionY,
@@ -3330,7 +3330,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           }
           return entity?.positionY ?? 0;
         };
-        
+
 
         // CRITICAL: Player vs ALK Station - tall structure Y-sorting
         // The ALK station sprite has ~24% transparent space at top. The visual "foot level"
@@ -3414,6 +3414,24 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           const playerY = getPlayerY(bEntity) + PLAYER_SORT_FEET_OFFSET_PX;
           const stoneY = (aEntity as any)?.posY ?? 0;
           return playerY >= stoneY ? -1 : 1;
+        }
+
+        // Player vs tall beehive (wooden_storage_box): same as trees - player north of beehive renders behind
+        if (aType === 'player' && bType === 'wooden_storage_box') {
+          const box = bEntity as SpacetimeDBWoodenStorageBox;
+          if (box.boxType === BOX_TYPE_PLAYER_BEEHIVE || box.boxType === BOX_TYPE_WILD_BEEHIVE) {
+            const playerY = getPlayerY(aEntity) + PLAYER_SORT_FEET_OFFSET_PX;
+            const boxY = box.posY;
+            return playerY >= boxY ? 1 : -1;
+          }
+        }
+        if (aType === 'wooden_storage_box' && bType === 'player') {
+          const box = aEntity as SpacetimeDBWoodenStorageBox;
+          if (box.boxType === BOX_TYPE_PLAYER_BEEHIVE || box.boxType === BOX_TYPE_WILD_BEEHIVE) {
+            const playerY = getPlayerY(bEntity) + PLAYER_SORT_FEET_OFFSET_PX;
+            const boxY = box.posY;
+            return playerY >= boxY ? -1 : 1;
+          }
         }
 
         // CRITICAL: Small ground entities vs tall structures - CONSISTENT sorting regardless of player position.
@@ -4306,9 +4324,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             }
           } else if (entityType === 'furnace') {
             // Use monument_large_furnace config for monument large furnaces
-            configKey = entityHeight >= 480 ? 'monument_large_furnace' 
-                      : entityHeight >= 256 ? 'large_furnace' 
-                      : 'furnace';
+            configKey = entityHeight >= 480 ? 'monument_large_furnace'
+              : entityHeight >= 256 ? 'large_furnace'
+                : 'furnace';
           } else {
             configKey = entityType;
           }
@@ -4520,18 +4538,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         now_ms
       );
 
-    // Compound Eerie Lights - Nanobot-style blue/purple ambient glow (replaces street lamps)
-    renderCompoundEerieLights(
-      ctx,
-      currentCycleProgress,
-      currentCameraOffsetX,
-      currentCameraOffsetY,
-      -currentCameraOffsetX,
-      -currentCameraOffsetX + currentCanvasWidth,
-      -currentCameraOffsetY,
-      -currentCameraOffsetY + currentCanvasHeight,
-      now_ms
-    );
+      // Compound Eerie Lights - Nanobot-style blue/purple ambient glow (replaces street lamps)
+      renderCompoundEerieLights(
+        ctx,
+        currentCycleProgress,
+        currentCameraOffsetX,
+        currentCameraOffsetY,
+        -currentCameraOffsetX,
+        -currentCameraOffsetX + currentCanvasWidth,
+        -currentCameraOffsetY,
+        -currentCameraOffsetY + currentCanvasHeight,
+        now_ms
+      );
 
       // DEBUG: Visible protection zone circles for shipwreck parts
       // Shows purple circle (protection zone), green crosshair (visual center), red dot (anchor point)
@@ -4649,15 +4667,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const fps = p.frameCount > 0 ? (1000 / avgFrameTime) : 0;
       const slowFramePct = p.frameCount > 0 ? ((p.slowFrames / p.frameCount) * 100).toFixed(1) : '0';
       const verySlowFramePct = p.frameCount > 0 ? ((p.verySlowFrames / p.frameCount) * 100).toFixed(1) : '0';
-      
+
       // Determine primary lag source
       const isReactBottleneck = avgFrameTime > 16 || parseFloat(slowFramePct) > 10;
       const isNetworkBottleneck = avgServerLatency > 100;
-      
+
       console.log('%c═══════════════════════════════════════════════════════════════', 'color: #00ff00');
       console.log('%c                    🎮 LAG DIAGNOSTIC REPORT                    ', 'color: #00ff00; font-weight: bold; font-size: 14px');
       console.log('%c═══════════════════════════════════════════════════════════════', 'color: #00ff00');
-      
+
       // VERDICT
       if (isReactBottleneck && isNetworkBottleneck) {
         console.log('%c⚠️  VERDICT: BOTH React AND Network are causing lag!', 'color: #ff6600; font-weight: bold');
@@ -4668,7 +4686,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       } else {
         console.log('%c✅ VERDICT: Performance is GOOD - no major bottleneck detected', 'color: #00ff00; font-weight: bold');
       }
-      
+
       console.log('');
       console.log('%c📊 RENDER PERFORMANCE (React/Canvas)', 'color: #ffaa00; font-weight: bold');
       console.log(`   FPS: ${fps.toFixed(1)} | Avg Frame: ${avgFrameTime.toFixed(2)}ms | Max Frame: ${p.maxFrameTime.toFixed(2)}ms`);
@@ -4677,7 +4695,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (avgFrameTime > 16) {
         console.log('%c   ⚠️  Average frame time exceeds 60fps budget!', 'color: #ff6600');
       }
-      
+
       console.log('');
       console.log('%c🌐 NETWORK PERFORMANCE (SpacetimeDB)', 'color: #00aaff; font-weight: bold');
       console.log(`   Server Updates: ${p.serverUpdateCount} | Avg Interval: ${avgServerLatency.toFixed(0)}ms | Max: ${p.maxServerLatency.toFixed(0)}ms`);
@@ -4686,14 +4704,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       } else if (p.serverUpdateCount < 10) {
         console.log('%c   ℹ️  Low update count - player may be stationary', 'color: #888888');
       }
-      
+
       console.log('');
       console.log('%c📦 ENTITY COUNTS (data volume)', 'color: #aa88ff; font-weight: bold');
       console.log(`   Players: ${players.size} | Trees: ${trees?.size || 0} | Stones: ${stones?.size || 0}`);
       console.log(`   Y-Sorted Entities: ${currentYSortedEntities.length}`);
       console.log(`   Visible - Campfires: ${visibleCampfiresMap.size} | Boxes: ${visibleBoxesMap.size} | Resources: ${visibleHarvestableResourcesMap.size}`);
       console.log(`   Visible - Items: ${visibleDroppedItemsMap.size} | Grass: ${visibleGrassMap?.size || 0} | SeaStacks: ${visibleSeaStacksMap.size}`);
-      
+
       // Recommendations
       console.log('');
       console.log('%c💡 RECOMMENDATIONS', 'color: #ffff00; font-weight: bold');
@@ -4714,9 +4732,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         console.log('   - Check if you are far from maincloud servers');
         console.log('   - Reduce movement input frequency if possible');
       }
-      
+
       console.log('%c═══════════════════════════════════════════════════════════════', 'color: #00ff00');
-      
+
       // Reset counters
       perfProfilingRef.current = {
         lastLogTime: Date.now(),

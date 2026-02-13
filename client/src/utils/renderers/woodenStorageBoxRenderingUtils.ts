@@ -74,6 +74,7 @@ export const BOX_TYPE_FISH_TRAP = 10;
 export const BOX_TYPE_WILD_BEEHIVE = 11;
 export const BOX_TYPE_PLAYER_BEEHIVE = 12;
 export const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Added interaction distance
+export const PLAYER_BEEHIVE_INTERACTION_DISTANCE_SQUARED = 140.0 * 140.0; // Tall structures - allow interaction from bottom
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 10; // Make boxes shake a bit more
 const BOX_RENDER_Y_OFFSET = 20; // Matches calculateDrawPosition offset
@@ -521,6 +522,7 @@ export function renderWoodenStorageBox(
     // Same pattern as furnace occlusion - only trigger when entity is Y-sorted IN FRONT of player
     const isCompoundBldg = isCompoundMonument(box.isMonument, box.posX, box.posY);
     const isMonumentBuilding = isCompoundBldg && (box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_REPAIR_BENCH || box.boxType === BOX_TYPE_COMPOST);
+    const isPlayerBeehive = box.boxType === BOX_TYPE_PLAYER_BEEHIVE;
     let needsAlphaRestore = false;
     if (isMonumentBuilding && localPlayerPosition) {
         const w = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_WIDTH : box.boxType === BOX_TYPE_COMPOST ? MONUMENT_COMPOST_WIDTH : MONUMENT_REPAIR_BENCH_WIDTH;
@@ -558,6 +560,44 @@ export function renderWoodenStorageBox(
             const MIN_ALPHA = 0.35;
             const MAX_ALPHA = 1.0;
             
+            let buildingAlpha = MAX_ALPHA;
+            if (depthDifference > 0 && depthDifference < maxDepthForFade) {
+                const fadeFactor = 1 - (depthDifference / maxDepthForFade);
+                buildingAlpha = MAX_ALPHA - (fadeFactor * (MAX_ALPHA - MIN_ALPHA));
+            } else if (depthDifference >= maxDepthForFade) {
+                buildingAlpha = MIN_ALPHA;
+            }
+            ctx.save();
+            ctx.globalAlpha = Math.max(MIN_ALPHA, Math.min(MAX_ALPHA, buildingAlpha));
+            needsAlphaRestore = true;
+        }
+    }
+    
+    // Player beehive: occlusion transparency when player walks behind (same pattern as monument buildings)
+    if (isPlayerBeehive && localPlayerPosition && !box.isDestroyed) {
+        const w = PLAYER_BEEHIVE_WIDTH;
+        const h = PLAYER_BEEHIVE_HEIGHT;
+        const visualWidth = w * 0.6;
+        const visualHeight = h * 0.7;
+        const BASE_TRANSPARENCY_THRESHOLD_PERCENT = 0.25;
+        const dynamicThreshold = visualHeight * BASE_TRANSPARENCY_THRESHOLD_PERCENT;
+        // Beehive is drawn bottom-anchored at posY - 20 (from calculateDrawPosition)
+        const buildingLeft = box.posX - visualWidth / 2;
+        const buildingRight = box.posX + visualWidth / 2;
+        const buildingTop = box.posY - h - 20;
+        const buildingBottom = box.posY - dynamicThreshold - 20;
+        const playerSize = 48;
+        const pLeft = localPlayerPosition.x - playerSize / 2;
+        const pRight = localPlayerPosition.x + playerSize / 2;
+        const pTop = localPlayerPosition.y - playerSize;
+        const pBottom = localPlayerPosition.y;
+        const overlapsH = pRight > buildingLeft && pLeft < buildingRight;
+        const overlapsV = pBottom > buildingTop && pTop < buildingBottom;
+        if (overlapsH && overlapsV && box.posY > localPlayerPosition.y + dynamicThreshold) {
+            const depthDifference = box.posY - localPlayerPosition.y;
+            const maxDepthForFade = 100;
+            const MIN_ALPHA = 0.35;
+            const MAX_ALPHA = 1.0;
             let buildingAlpha = MAX_ALPHA;
             if (depthDifference > 0 && depthDifference < maxDepthForFade) {
                 const fadeFactor = 1 - (depthDifference / maxDepthForFade);

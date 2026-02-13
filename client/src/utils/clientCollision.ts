@@ -323,6 +323,8 @@ function getCollisionCandidates(
   const BOX_TYPE_COMPOST_COLLISION = 3;
   const BOX_TYPE_COOKING_STATION_COLLISION = 6;
   const BOX_TYPE_REPAIR_BENCH_COLLISION = 5;
+  const BOX_TYPE_PLAYER_BEEHIVE = 12;
+  const BOX_TYPE_WILD_BEEHIVE = 11;
   const nearbyBoxes = filterEntitiesByDistance(
     entities.boxes,
     playerX,
@@ -347,12 +349,16 @@ function getCollisionCandidates(
         height: 120,        // Less tall (120 vs 160) - proportional to 384px sprite
       });
     } else {
+      // Beehives: same size as other boxes, collision 30px higher to allow access from bottom
+      const isBeehive = box.boxType === BOX_TYPE_PLAYER_BEEHIVE || box.boxType === BOX_TYPE_WILD_BEEHIVE;
+      const boxOffsetY = isBeehive ? -82 : COLLISION_OFFSETS.STORAGE_BOX.y; // 52 + 30 = 82, so center at posY - 82
+      const boxRadius = COLLISION_RADII.STORAGE_BOX;
       shapes.push({
         id: box.id.toString(),
         type: `box-${box.id.toString()}`,
         x: box.posX + COLLISION_OFFSETS.STORAGE_BOX.x,
-        y: box.posY + COLLISION_OFFSETS.STORAGE_BOX.y,
-        radius: COLLISION_RADII.STORAGE_BOX
+        y: box.posY + boxOffsetY,
+        radius: boxRadius
       });
     }
   }

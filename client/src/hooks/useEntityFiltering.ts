@@ -69,7 +69,7 @@ import { InterpolatedGrassData } from './useGrassInterpolation'; // Import Inter
 import { COMPOUND_BUILDINGS, getBuildingWorldPosition, getMonumentBuildings } from '../config/compoundBuildings'; // Import compound buildings config
 import { hasActiveStoneDestruction, checkStoneDestructionVisibility } from '../utils/renderers/stoneRenderingUtils'; // Import stone destruction tracking
 import { hasActiveCoralDestruction, checkCoralDestructionVisibility } from '../utils/renderers/livingCoralRenderingUtils'; // Import coral destruction tracking
-import { BOX_TYPE_LARGE, BOX_TYPE_COMPOST, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW } from '../utils/renderers/woodenStorageBoxRenderingUtils'; // Import box type constants for y-sorting
+import { BOX_TYPE_LARGE, BOX_TYPE_COMPOST, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_WILD_BEEHIVE } from '../utils/renderers/woodenStorageBoxRenderingUtils'; // Import box type constants for y-sorting
 // Ward radius constants for expanded viewport filtering (to render ward circles even when ward is off-screen)
 import { 
   LANTERN_TYPE_LANTERN,
@@ -279,7 +279,9 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
           box.boxType === BOX_TYPE_COMPOST ||
           box.boxType === BOX_TYPE_REPAIR_BENCH ||
           box.boxType === BOX_TYPE_COOKING_STATION ||
-          box.boxType === BOX_TYPE_SCARECROW) {
+          box.boxType === BOX_TYPE_SCARECROW ||
+          box.boxType === BOX_TYPE_PLAYER_BEEHIVE ||
+          box.boxType === BOX_TYPE_WILD_BEEHIVE) {
         return entity.posY;
       }
       return entity.posY - 100;
@@ -2233,6 +2235,22 @@ export function useEntityFiltering(
         const stone = a.entity as SpacetimeDBStone;
         const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer) + PLAYER_SORT_FEET_OFFSET_PX;
         return playerY >= stone.posY ? -1 : 1;
+      }
+
+      // Player vs tall beehive (wooden_storage_box): same as trees - player north of beehive renders behind
+      if (a.type === 'player' && b.type === 'wooden_storage_box') {
+        const box = b.entity as SpacetimeDBWoodenStorageBox;
+        if (box.boxType === BOX_TYPE_PLAYER_BEEHIVE || box.boxType === BOX_TYPE_WILD_BEEHIVE) {
+          const playerY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer) + PLAYER_SORT_FEET_OFFSET_PX;
+          return playerY >= box.posY ? 1 : -1;
+        }
+      }
+      if (a.type === 'wooden_storage_box' && b.type === 'player') {
+        const box = a.entity as SpacetimeDBWoodenStorageBox;
+        if (box.boxType === BOX_TYPE_PLAYER_BEEHIVE || box.boxType === BOX_TYPE_WILD_BEEHIVE) {
+          const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer) + PLAYER_SORT_FEET_OFFSET_PX;
+          return playerY >= box.posY ? -1 : 1;
+        }
       }
       
       // CRITICAL: Small ground entities vs tall structures - CONSISTENT sorting regardless of player position.

@@ -798,11 +798,12 @@ where
             },
             spatial_grid::EntityType::WoodenStorageBox(box_id) => {
                 if let Some(box_instance) = db.wooden_storage_box().id().find(box_id) {
-                    let box_collision_y = box_instance.pos_y - crate::wooden_storage_box::BOX_COLLISION_Y_OFFSET;
+                    let box_collision_y = box_instance.pos_y - crate::wooden_storage_box::get_box_collision_y_offset(box_instance.box_type);
                     let dx = proposed_x - box_instance.pos_x;
                     let dy = proposed_y - box_collision_y;
                     let distance_sq = dx * dx + dy * dy;
-                    let min_distance = ANIMAL_COLLISION_RADIUS + crate::wooden_storage_box::BOX_COLLISION_RADIUS;
+                    let box_radius = crate::wooden_storage_box::get_box_player_collision_radius(box_instance.box_type);
+                    let min_distance = ANIMAL_COLLISION_RADIUS + box_radius;
                     let min_distance_sq = min_distance * min_distance;
                     
                     if distance_sq < min_distance_sq && distance_sq > 0.1 {

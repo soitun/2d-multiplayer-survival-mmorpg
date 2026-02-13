@@ -15,6 +15,7 @@ pub(crate) const BOX_COLLISION_RADIUS: f32 = 18.0; // Default collision radius f
 pub(crate) const BOX_COLLISION_Y_OFFSET: f32 = 52.0; // Match the placement offset for proper collision detection
 pub(crate) const PLAYER_BOX_COLLISION_DISTANCE_SQUARED: f32 = (super::PLAYER_RADIUS + BOX_COLLISION_RADIUS) * (super::PLAYER_RADIUS + BOX_COLLISION_RADIUS);
 const BOX_INTERACTION_DISTANCE_SQUARED: f32 = 96.0 * 96.0; // Increased from 64.0 * 64.0 for more lenient interaction
+const BEEHIVE_INTERACTION_DISTANCE_SQUARED: f32 = 140.0 * 140.0; // Tall structures - allow interaction from bottom
 // Placement distance limits per box type (server-side enforcement)
 const BOX_PLACEMENT_MAX_DISTANCE: f32 = 96.0;          // Small boxes (normal, refrigerator, military ration, mine cart)
 const LARGE_BOX_PLACEMENT_MAX_DISTANCE: f32 = 128.0;   // Large boxes
@@ -36,7 +37,16 @@ pub(crate) const PLAYER_BEEHIVE_COLLISION_RADIUS: f32 = 48.0; // Reduced to allo
 pub(crate) const MINE_CART_COLLISION_RADIUS: f32 = 72.0;      // 144x144 visual -> radius ~72
 pub(crate) const REFRIGERATOR_COLLISION_RADIUS: f32 = 48.0;   // 96x96 visual -> radius ~48
 
-/// Get the collision radius for a specific box type
+/// Get the collision Y offset for a specific box type (how much to subtract from pos_y to get collision center).
+/// Beehives use +30px so the collision sits slightly higher, allowing better access from the bottom.
+pub(crate) fn get_box_collision_y_offset(box_type: u8) -> f32 {
+    match box_type {
+        BOX_TYPE_PLAYER_BEEHIVE | BOX_TYPE_WILD_BEEHIVE => BOX_COLLISION_Y_OFFSET + 30.0, // 82px - collision 30px higher
+        _ => BOX_COLLISION_Y_OFFSET,
+    }
+}
+
+/// Get the collision radius for a specific box type (placement overlap prevention).
 pub(crate) fn get_box_collision_radius(box_type: u8) -> f32 {
     match box_type {
         BOX_TYPE_NORMAL => BOX_COLLISION_RADIUS,
@@ -53,6 +63,14 @@ pub(crate) fn get_box_collision_radius(box_type: u8) -> f32 {
         BOX_TYPE_WILD_BEEHIVE => WILD_BEEHIVE_COLLISION_RADIUS,
         BOX_TYPE_PLAYER_BEEHIVE => PLAYER_BEEHIVE_COLLISION_RADIUS,
         _ => BOX_COLLISION_RADIUS,
+    }
+}
+
+/// Get the player/animal collision radius. Beehives use same size as normal boxes (moved up 30px).
+pub(crate) fn get_box_player_collision_radius(box_type: u8) -> f32 {
+    match box_type {
+        BOX_TYPE_PLAYER_BEEHIVE | BOX_TYPE_WILD_BEEHIVE => BOX_COLLISION_RADIUS,
+        _ => get_box_collision_radius(box_type),
     }
 }
 
@@ -1476,12 +1494,17 @@ pub fn validate_box_interaction(
     }
 
     // Check distance between the interacting player and the box
-    // Account for the visual center offset that was applied during placement
-    // When placing, we add BOX_COLLISION_Y_OFFSET to the Y position to compensate for bottom-anchoring + render offset
-    // So we need to subtract that same offset to get the actual visual center for collision detection
+    // Account for the visual center offset (type-specific for beehives)
+    let interaction_center_y = storage_box.pos_y - get_box_collision_y_offset(storage_box.box_type);
     let dx = player.position_x - storage_box.pos_x;
-    let dy = player.position_y - (storage_box.pos_y - BOX_COLLISION_Y_OFFSET);
-    if (dx * dx + dy * dy) > BOX_INTERACTION_DISTANCE_SQUARED {
+    let dy = player.position_y - interaction_center_y;
+    let dist_sq = dx * dx + dy * dy;
+    let max_dist_sq = if storage_box.box_type == BOX_TYPE_PLAYER_BEEHIVE || storage_box.box_type == BOX_TYPE_WILD_BEEHIVE {
+        BEEHIVE_INTERACTION_DISTANCE_SQUARED
+    } else {
+        BOX_INTERACTION_DISTANCE_SQUARED
+    };
+    if dist_sq > max_dist_sq {
         return Err("Too far away".to_string());
     }
 

@@ -1822,10 +1822,13 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
                 },
                 crate::spatial_grid::EntityType::WoodenStorageBox(box_id) => {
                     if let Some(box_instance) = wooden_storage_boxes.id().find(&box_id) {
+                        let box_collision_y = box_instance.pos_y - crate::wooden_storage_box::get_box_collision_y_offset(box_instance.box_type);
                         let dx = spawn_x - box_instance.pos_x;
-                        let dy = spawn_y - (box_instance.pos_y - crate::wooden_storage_box::BOX_COLLISION_Y_OFFSET);
+                        let dy = spawn_y - box_collision_y;
                         let distance_sq = dx * dx + dy * dy;
-                        if distance_sq < (crate::wooden_storage_box::PLAYER_BOX_COLLISION_DISTANCE_SQUARED * 0.8) {
+                        let box_radius = crate::wooden_storage_box::get_box_player_collision_radius(box_instance.box_type);
+                        let spawn_collision_dist_sq = (crate::PLAYER_RADIUS + box_radius) * (crate::PLAYER_RADIUS + box_radius) * 0.8;
+                        if distance_sq < spawn_collision_dist_sq {
                             collision = true;
                             last_collision_reason = format!("Storage box collision at ({:.1}, {:.1})", box_instance.pos_x, box_instance.pos_y);
                             break;

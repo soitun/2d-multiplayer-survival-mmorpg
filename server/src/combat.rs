@@ -35,7 +35,7 @@ use crate::grass; // RE-ADDED: grass module for destroyable grass
 use crate::tree::{MIN_TREE_RESPAWN_TIME_SECS, MAX_TREE_RESPAWN_TIME_SECS, TREE_COLLISION_Y_OFFSET, PLAYER_TREE_COLLISION_DISTANCE_SQUARED, TREE_INITIAL_HEALTH};
 use crate::stone::{MIN_STONE_RESPAWN_TIME_SECS, MAX_STONE_RESPAWN_TIME_SECS, STONE_COLLISION_Y_OFFSET, PLAYER_STONE_COLLISION_DISTANCE_SQUARED};
 use crate::rune_stone::{RUNE_STONE_AABB_HALF_WIDTH, RUNE_STONE_AABB_HALF_HEIGHT, RUNE_STONE_COLLISION_Y_OFFSET};
-use crate::wooden_storage_box::{WoodenStorageBox, BOX_COLLISION_RADIUS, BOX_COLLISION_Y_OFFSET, wooden_storage_box as WoodenStorageBoxTableTrait};
+use crate::wooden_storage_box::{WoodenStorageBox, get_box_player_collision_radius, get_box_collision_y_offset, wooden_storage_box as WoodenStorageBoxTableTrait};
 use crate::grass::grass as GrassTableTrait; // RE-ADDED: grass table trait for destroyable grass
 use crate::grass::grass_state as GrassStateTableTrait; // Split tables: GrassState has health
 use crate::barbecue::barbecue as BarbecueTableTrait;
@@ -547,7 +547,7 @@ pub fn find_targets_in_cone(
             continue;
         }
         let dx = box_entity.pos_x - player.position_x;
-        let target_y = box_entity.pos_y - BOX_COLLISION_Y_OFFSET;
+        let target_y = box_entity.pos_y - get_box_collision_y_offset(box_entity.box_type);
         let dy = target_y - player.position_y;
         let dist_sq = dx * dx + dy * dy;
 
@@ -4088,7 +4088,7 @@ pub fn process_attack(
         },
         TargetId::WoodenStorageBox(box_id) => {
             if let Some(storage_box) = ctx.db.wooden_storage_box().id().find(box_id) {
-                (storage_box.pos_x, storage_box.pos_y - BOX_COLLISION_Y_OFFSET, None)
+                (storage_box.pos_x, storage_box.pos_y - get_box_collision_y_offset(storage_box.box_type), None)
             } else {
                 return Err("Target storage box not found".to_string());
             }
@@ -4667,10 +4667,11 @@ fn resolve_knockback_collision(
     // Check against WoodenStorageBoxes (solid collision)
     for box_entity in ctx.db.wooden_storage_box().iter() {
         if box_entity.is_destroyed { continue; }
-        let box_collision_center_y = box_entity.pos_y - BOX_COLLISION_Y_OFFSET;
+        let box_collision_center_y = box_entity.pos_y - get_box_collision_y_offset(box_entity.box_type);
         let dx = proposed_x - box_entity.pos_x;
         let dy = proposed_y - box_collision_center_y;
-        let player_box_collision_dist_sq = (PLAYER_RADIUS + BOX_COLLISION_RADIUS) * (PLAYER_RADIUS + BOX_COLLISION_RADIUS);
+        let box_radius = get_box_player_collision_radius(box_entity.box_type);
+        let player_box_collision_dist_sq = (PLAYER_RADIUS + box_radius) * (PLAYER_RADIUS + box_radius);
         if (dx * dx + dy * dy) < player_box_collision_dist_sq {
             log::debug!("[KnockbackCollision] Player ID {:?} would collide with Box ID {} at proposed ({:.1}, {:.1}). Reverting knockback.", 
                        colliding_player_id, box_entity.id, proposed_x, proposed_y);

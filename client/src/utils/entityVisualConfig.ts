@@ -227,6 +227,17 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     spriteWidth: 120,     // 25% larger: 96 * 1.25 = 120
     spriteHeight: 120,    // 25% larger: 96 * 1.25 = 120
   },
+
+  // Player beehive: 256x256 sprite, drawY = posY - 256 - 20, center at posY - 148
+  player_beehive: {
+    centerOffsetX: 0,
+    centerOffsetY: -92,   // Visual center: posY - 276 + 128 = posY - 148 (256px sprite, bottom-anchored)
+    width: 164,            // Match actual sprite size
+    height: 182,
+    placementYOffset: 4,   // Server adds +152; preview center aligns with final sprite
+    spriteWidth: 256,
+    spriteHeight: 256,
+  },
   
   stash: {
     centerOffsetX: 0,

@@ -69,6 +69,10 @@ const PICKUP_RADIUS_SQUARED: f32 = PICKUP_RADIUS * PICKUP_RADIUS;
 pub(crate) const DROP_OFFSET: f32 = 40.0; // How far in front of the player to drop the item
 const DESPAWN_CHECK_INTERVAL_SECS: u64 = 60; // Check every 1 minute
 
+/// Monument loot items that persist until picked up. They never despawn on their own;
+/// respawn is scheduled only when a player picks them up.
+const MONUMENT_LOOT_NEVER_DESPAWN: &[&str] = &["Transistor Radio", "Bone Carving Kit"];
+
 // --- Reducers ---
 
 /// Called by the client when they attempt to pick up a dropped item.
@@ -211,14 +215,22 @@ pub fn despawn_expired_items(ctx: &ReducerContext, _schedule: DroppedItemDespawn
     log::trace!("[DespawnCheck] Running scheduled check for expired dropped items at {:?}", current_time);
 
     for item in dropped_items_table.iter() {
-        // --- Get respawn time from ItemDefinition --- 
-        let item_def_respawn_seconds = match item_defs_table.id().find(item.item_def_id) {
-            Some(def) => def.respawn_time_seconds.unwrap_or(300), // Default to 5 mins if not set
+        let (item_def_respawn_seconds, is_monument_loot) = match item_defs_table.id().find(item.item_def_id) {
+            Some(def) => {
+                let respawn = def.respawn_time_seconds.unwrap_or(300);
+                let is_monument = MONUMENT_LOOT_NEVER_DESPAWN.contains(&def.name.as_str());
+                (respawn, is_monument)
+            }
             None => {
                 log::warn!("[DespawnCheck] ItemDefinition not found for dropped item ID {} (DefID {}). Using default despawn time.", item.id, item.item_def_id);
-                300 // Default to 5 mins if definition is missing
+                (300, false)
             }
         };
+
+        // Monument loot (Transistor Radio, Bone Carving Kit) persists until picked up
+        if is_monument_loot {
+            continue;
+        }
 
         // Calculate elapsed time in microseconds
         let elapsed_micros = current_time.to_micros_since_unix_epoch()
