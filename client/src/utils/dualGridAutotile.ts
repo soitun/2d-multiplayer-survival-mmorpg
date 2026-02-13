@@ -16,7 +16,7 @@
 import { WorldTile } from '../generated/world_tile_type';
 
 // Import all existing autotile images (reusing the 4x5 format)
-import grassBeachAutotile from '../assets/tiles/new/tileset_grass_beach_autotile.png';
+import grassBeachAutotile from '../assets/tiles/new/tileset_grass_beach_autotile_2.png';
 import beachSeaAutotile from '../assets/tiles/new/tileset_beach_sea_autotile.png';
 import grassDirtAutotile from '../assets/tiles/new/tileset_grass_dirt_autotile.png';
 import dirtBeachAutotile from '../assets/tiles/new/tileset_dirt_beach_autotile.png';

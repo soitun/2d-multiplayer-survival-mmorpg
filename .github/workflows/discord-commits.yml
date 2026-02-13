@@ -36,7 +36,9 @@ print("\n".join(lines) if lines else "- (no commits found)")
 PY
 )
 
-          export CONTENT="**${REPO}** pushed to **${BRANCH}** by **${PUSHER}**\n${COMMITS}\n<${COMPARE_URL}>"
+          export CONTENT="**${REPO}** pushed to **${BRANCH}** by **${PUSHER}**
+${COMMITS}
+<${COMPARE_URL}>"
 
           # Send to Discord (requires DISCORD_WEBHOOK_URL secret in repo Settings → Secrets)
           if [ -z "$DISCORD_WEBHOOK_URL" ]; then
