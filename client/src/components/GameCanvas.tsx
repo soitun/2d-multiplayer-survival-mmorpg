@@ -1429,7 +1429,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         showSovaSoundBox(audio, 'SOVA');
         audio.play().catch((e) => {
           console.warn('[Mobile] Failed to play capability error:', e);
-          showError('Voice feedback unavailable on this device.');
         });
       }
       return;
@@ -1456,7 +1455,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           break;
       }
     }
-  }, [mobileInteractTrigger, isMobile, unifiedInteractableTarget, connection, onSetInteractingWith, showSovaSoundBox, showError]);
+  }, [mobileInteractTrigger, isMobile, unifiedInteractableTarget, connection, onSetInteractingWith, showSovaSoundBox]);
 
   // Store the foundation/wall/fence when upgrade menu opens (prevents flickering)
   const upgradeMenuFoundationRef = useRef<FoundationCell | null>(null);
@@ -1592,11 +1591,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             audio.volume = 0.7;
             audio.play().catch(err => {
               console.warn(`[GameCanvas] Failed to play SOVA brew cooldown sound:`, err);
-              showError('Brew cooldown feedback failed.');
             });
           } catch (err) {
             console.warn(`[GameCanvas] Error creating brew cooldown audio:`, err);
-            showError('Brew cooldown feedback failed.');
           }
         } else {
           console.error(`[GameCanvas] ❌ consumeItem failed for instance ${itemInstanceId.toString()}:`, errorMsg);

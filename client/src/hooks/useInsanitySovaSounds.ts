@@ -15,7 +15,6 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import type { Player } from '../generated';
-import { useErrorDisplay, getErrorMessageForError } from '../contexts/ErrorDisplayContext';
 
 interface UseInsanitySovaSoundsProps {
   localPlayer: Player | undefined;
@@ -74,8 +73,9 @@ function playInsanitySovaSound(
 export const insanity100SoundRef = { current: null as HTMLAudioElement | null };
 
 export function useInsanitySovaSounds({ localPlayer, onSoundPlay, onAddMessage }: UseInsanitySovaSoundsProps): void {
-  const { showError } = useErrorDisplay();
-  const onSovaError = useCallback((err: unknown) => showError(getErrorMessageForError(err)), [showError]);
+  const onSovaError = useCallback((err: unknown) => {
+    console.warn('[SOVA Insanity] Audio error (gameplay errors only in error box):', err);
+  }, []);
   const lastThresholdRef = useRef<number>(0.0);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const pendingThresholdRef = useRef<number | null>(null); // Queue for sounds that couldn't play immediately

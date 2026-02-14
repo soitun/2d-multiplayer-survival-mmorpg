@@ -15,7 +15,6 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
 import type { ActiveConsumableEffect } from '../generated';
 import { insanity100SoundRef } from './useInsanitySovaSounds';
-import { useErrorDisplay, getErrorMessageForError } from '../contexts/ErrorDisplayContext';
 
 interface UseEntrainmentSovaSoundsProps {
   activeConsumableEffects: Map<string, ActiveConsumableEffect> | undefined;
@@ -138,8 +137,9 @@ export function useEntrainmentSovaSounds({
   onSoundPlay,
   onAddMessage
 }: UseEntrainmentSovaSoundsProps): void {
-  const { showError } = useErrorDisplay();
-  const onSovaError = useCallback((err: unknown) => showError(getErrorMessageForError(err)), [showError]);
+  const onSovaError = useCallback((err: unknown) => {
+    console.warn('[SOVA Entrainment] Audio error (gameplay errors only in error box):', err);
+  }, []);
   const quoteTimerRef = useRef<number | null>(null);
   const currentQuoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const hasEntrainmentRef = useRef<boolean>(false);

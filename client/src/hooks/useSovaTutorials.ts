@@ -20,7 +20,6 @@
  */
 
 import { useEffect, useRef, useCallback, MutableRefObject } from 'react';
-import { useErrorDisplay, getErrorMessageForError } from '../contexts/ErrorDisplayContext';
 
 // ============================================================================
 // Types
@@ -384,8 +383,9 @@ export function useSovaTutorials({
     alkStations,
     monumentParts,
 }: UseSovaTutorialsProps): void {
-    const { showError } = useErrorDisplay();
-    const onSovaError = useCallback((err: unknown) => showError(getErrorMessageForError(err)), [showError]);
+    const onSovaError = useCallback((err: unknown) => {
+        console.warn('[SOVA] Audio error (gameplay errors only in error box):', err);
+    }, []);
 
     // Track if component is mounted to avoid state updates after unmount
     const isMountedRef = useRef(true);
