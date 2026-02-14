@@ -806,8 +806,9 @@ pub fn generate_fishing_village(
         let shore_dir_y = water_direction_x;
         
         // Dock sprite: anchor at bottom-center, extends "up" (384px) toward shore.
-        // We place anchor at shore + DOCK_ANCHOR_OFFSET into water so dock connects to shore.
-        const DOCK_ANCHOR_OFFSET: f32 = 200.0; // Anchor ~200px into water; dock extends 384px back to shore
+        // Place anchor so dock is HALFWAY through water: half on shore, half in water.
+        const DOCK_SPRITE_HEIGHT: f32 = 384.0;
+        const DOCK_ANCHOR_OFFSET: f32 = DOCK_SPRITE_HEIGHT * 0.5; // 192px into water = dock midpoint at shore
         
         for (part_type, image_name, offset_along_shore, offset_towards_water) in structure_configs.iter() {
             let (part_world_x, part_world_y, rotation_rad) = if *part_type == "dock" {
@@ -847,9 +848,11 @@ pub fn generate_fishing_village(
                 let final_x = anchor_x + shore_dir_x * offset_along_shore;
                 let final_y = anchor_y + shore_dir_y * offset_along_shore;
                 
-                // Rotation: dock sprite "up" must point inland (toward shore)
-                // Inland = -water_direction. Canvas: atan2(-water_direction_x, water_direction_y) gives angle from "up"
-                let rotation_rad = (-water_direction_x).atan2(water_direction_y);
+                // Rotation: dock sprite "up" must point inland (toward shore).
+                // SNAP to cardinal directions only (0°, 90°, 180°, 270°) - never diagonal.
+                let raw_angle = (-water_direction_x).atan2(water_direction_y);
+                let half_pi = std::f32::consts::FRAC_PI_2;
+                let rotation_rad = (raw_angle / half_pi).round() * half_pi;
                 
                 (final_x, final_y, rotation_rad)
             } else {

@@ -12,6 +12,7 @@ import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { imageManager } from './imageManager'; // Import image manager
 import { renderHealthBar, getLastHitTimeMs } from './healthBarUtils';
+import { mergeWithOptimisticOverlay } from '../optimisticHealthOverlays';
 
 // --- Constants --- (Keep exportable if used elsewhere)
 export const BARREL_WIDTH = 86; // Standard barrel size (increased from 72)
@@ -201,16 +202,22 @@ export function renderBarrelHealthBar(
     const pX = playerX ?? currentPlayerX;
     const pY = playerY ?? currentPlayerY;
     
-    // Use renderHealthBar directly since barrels don't have maxHealth field
+    // Merge with optimistic overlay for instant feedback when local player attacks
+    const merged = mergeWithOptimisticOverlay('barrel', barrel.id, {
+        health: barrel.health,
+        maxHealth: BARREL_MAX_HEALTH,
+        lastHitTime: barrel.lastHitTime,
+    });
+    
     renderHealthBar({
         ctx,
         entityX: barrel.posX,
         entityY: barrel.posY,
         entityWidth: dims.width,
         entityHeight: dims.height,
-        health: barrel.health,
+        health: merged.health,
         maxHealth: BARREL_MAX_HEALTH,
-        lastHitTimeMs: getLastHitTimeMs(barrel.lastHitTime),
+        lastHitTimeMs: merged.lastHitTimeMs,
         nowMs,
         playerX: pX,
         playerY: pY,
