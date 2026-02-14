@@ -496,7 +496,7 @@ function renderFishTrapWithWaterEffects(
     
     // Render health bar for fish trap
     if (playerX !== undefined && playerY !== undefined) {
-        renderEntityHealthBar(ctx, box, drawWidth, drawHeight, nowMs, playerX, playerY, -yOffset, 'box', box.id);
+        renderEntityHealthBar(ctx, box, drawWidth, drawHeight, nowMs, playerX, playerY, -yOffset);
     }
 }
 
@@ -636,10 +636,10 @@ export function renderWoodenStorageBox(
             // Monument buildings: larger sprite with monument anchor
             const w = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_WIDTH : box.boxType === BOX_TYPE_COMPOST ? MONUMENT_COMPOST_WIDTH : MONUMENT_REPAIR_BENCH_WIDTH;
             const h = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_HEIGHT : box.boxType === BOX_TYPE_COMPOST ? MONUMENT_COMPOST_HEIGHT : MONUMENT_REPAIR_BENCH_HEIGHT;
-            renderEntityHealthBar(ctx, box, w, h, nowMs, playerX, playerY, h - MONUMENT_BOX_ANCHOR_Y_OFFSET, 'box', box.id);
+            renderEntityHealthBar(ctx, box, w, h, nowMs, playerX, playerY, h - MONUMENT_BOX_ANCHOR_Y_OFFSET);
         } else {
             const dims = getBoxDimensions(box.boxType);
-            renderEntityHealthBar(ctx, box, dims.width, dims.height, nowMs, playerX, playerY, -BOX_RENDER_Y_OFFSET, 'box', box.id);
+            renderEntityHealthBar(ctx, box, dims.width, dims.height, nowMs, playerX, playerY, -BOX_RENDER_Y_OFFSET);
         }
     }
 } 

@@ -1,18 +1,12 @@
 /**
  * Shared Health Bar Rendering Utility
- *
+ * 
  * Provides consistent health bar rendering across all game entities.
  * Health bars are:
  * - Uniformly sized (not scaled with entity size)
  * - Positioned as VERTICAL bars on the OPPOSITE side from the player
  * - Fade out after a duration since last hit
- *
- * OPTIMISTIC UPDATES: When entityType + entityId are passed, we merge with
- * optimistic overlay (from registerOptimisticHit) for instant feedback on attack.
- * Server state overwrites when it arrives.
  */
-import type { OptimisticEntityType } from '../optimisticHealthOverlays';
-import { mergeWithOptimisticOverlay } from '../optimisticHealthOverlays';
 
 // === CONSTANTS ===
 // Uniform sizing for ALL health bars
@@ -237,15 +231,10 @@ export interface HealthBarEntity {
 /**
  * Simplified health bar rendering for standard entities.
  * Call directly from render functions - no wrapper needed.
- *
- * When entityType + entityId are provided, merges with optimistic overlay for
- * instant feedback when the local player attacks (no server round-trip delay).
- *
+ * 
  * @example
  * // In render function:
  * renderEntityHealthBar(ctx, campfire, CAMPFIRE_WIDTH, CAMPFIRE_HEIGHT, nowMs, playerX, playerY, -RENDER_Y_OFFSET);
- * // With optimistic overlay (for combat targets):
- * renderEntityHealthBar(ctx, tree, W, H, nowMs, playerX, playerY, 0, 'tree', tree.id);
  */
 export function renderEntityHealthBar(
     ctx: CanvasRenderingContext2D,
@@ -255,36 +244,21 @@ export function renderEntityHealthBar(
     nowMs: number,
     playerX: number,
     playerY: number,
-    entityDrawYOffset: number = 0,
-    entityType?: OptimisticEntityType,
-    entityId?: bigint | number | string
+    entityDrawYOffset: number = 0
 ): boolean {
     // Skip if destroyed or missing required properties
     if (entity.isDestroyed) return false;
-    const maxHealth = entity.maxHealth ?? 100;
-    if (entity.health === undefined && !(entityType && entityId)) return false;
-
-    // Merge with optimistic overlay when we have type+id (combat targets)
-    let health: number;
-    let lastHitTimeMs: number | null;
-    if (entityType !== undefined && entityId !== undefined) {
-        const merged = mergeWithOptimisticOverlay(entityType, entityId, entity);
-        health = merged.health;
-        lastHitTimeMs = merged.lastHitTimeMs;
-    } else {
-        health = entity.health ?? maxHealth;
-        lastHitTimeMs = getLastHitTimeMs(entity.lastHitTime);
-    }
-
+    if (entity.health === undefined || entity.maxHealth === undefined) return false;
+    
     return renderHealthBar({
         ctx,
         entityX: entity.posX,
         entityY: entity.posY,
         entityWidth,
         entityHeight,
-        health,
-        maxHealth,
-        lastHitTimeMs,
+        health: entity.health,
+        maxHealth: entity.maxHealth,
+        lastHitTimeMs: getLastHitTimeMs(entity.lastHitTime),
         nowMs,
         playerX,
         playerY,

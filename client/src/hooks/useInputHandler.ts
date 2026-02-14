@@ -43,8 +43,6 @@ import { Cairn as SpacetimeDBCairn } from '../generated';
 import { createCairnLoreAudio, isCairnAudioPlaying, getTotalCairnLoreCount, stopCairnLoreAudio } from '../utils/cairnAudioUtils';
 import { CairnNotification } from '../components/CairnUnlockNotification';
 import { registerLocalPlayerSwing } from '../utils/renderers/equippedItemRenderingUtils';
-import { registerOptimisticHit } from '../utils/optimisticHealthOverlays';
-import type { OptimisticHit } from '../utils/optimisticHealthOverlays';
 
 // Ensure HOLD_INTERACTION_DURATION_MS is defined locally if not already present
 // If it was already defined (e.g., as `const HOLD_INTERACTION_DURATION_MS = 250;`), this won't change it.
@@ -102,8 +100,6 @@ interface InputHandlerProps {
     targetedFoundation: any | null; // ADDED: Targeted foundation for upgrade menu
     targetedWall: any | null; // ADDED: Targeted wall for upgrade menu
     targetedFence: any | null; // ADDED: Targeted fence for repair/demolish
-    /** Called when melee swing is initiated - use to register optimistic health bar overlay */
-    onMeleeSwing?: (registerOptimisticHit: (hit: OptimisticHit) => void) => void;
 }
 
 // --- Hook Return Value Interface ---
@@ -196,7 +192,6 @@ export const useInputHandler = ({
     targetedWall, // ADDED: Targeted wall
     targetedFence, // ADDED: Targeted fence
     rangedWeaponStats, // ADDED: For auto-fire detection
-    onMeleeSwing, // ADDED: Optimistic health bar on combat swing
 }: InputHandlerProps): InputHandlerState => {
     // console.log('[useInputHandler IS RUNNING] isInventoryOpen:', isInventoryOpen);
     // Get player actions from the context instead of props
@@ -559,8 +554,9 @@ export const useInputHandler = ({
             try {
                 // 🎬 CLIENT-AUTHORITATIVE ANIMATION: Register swing immediately for smooth visuals
                 registerLocalPlayerSwing();
+                // 🔊 IMMEDIATE SOUND: Play weapon swing sound for instant feedback
+                // playWeaponSwingSound(0.8);
                 connectionRef.current.reducers.useEquippedItem();
-                onMeleeSwing?.(registerOptimisticHit);
                 lastClientSwingAttemptRef.current = nowUnarmed;
                 lastServerSwingTimestampRef.current = nowUnarmed;
             } catch (err) {
@@ -598,14 +594,13 @@ export const useInputHandler = ({
                     // playWeaponSwingSound(0.8);
                 }
                 connectionRef.current.reducers.useEquippedItem();
-                onMeleeSwing?.(registerOptimisticHit);
                 lastClientSwingAttemptRef.current = now;
                 lastServerSwingTimestampRef.current = now;
             } catch (err) {
                 console.error("[attemptSwing Armed] Error calling useEquippedItem reducer:", err);
             }
         }
-    }, [localPlayerId, isFishing, onMeleeSwing]); // 🎣 FISHING INPUT FIX: Add isFishing dependency
+    }, [localPlayerId, isFishing]); // 🎣 FISHING INPUT FIX: Add isFishing dependency
 
     // --- Input Event Handlers ---
     useEffect(() => {
@@ -1846,8 +1841,9 @@ export const useInputHandler = ({
                 try {
                     // 🎬 CLIENT-AUTHORITATIVE ANIMATION: Register swing immediately for smooth visuals
                     registerLocalPlayerSwing();
+                    // 🔊 IMMEDIATE SOUND: Play unarmed swing sound
+                    // playWeaponSwingSound(0.8);
                     connectionRef.current.reducers.useEquippedItem();
-                    onMeleeSwing?.(registerOptimisticHit);
                     lastClientSwingAttemptRef.current = nowUnarmed;
                     lastServerSwingTimestampRef.current = nowUnarmed;
                 } catch (err) { console.error("[CanvasClick Unarmed] Error calling useEquippedItem reducer:", err); }
@@ -1879,9 +1875,9 @@ export const useInputHandler = ({
                     
                     if (!isResourceTool) {
                         // Play immediate sound for combat weapons and other tools
+                        // playWeaponSwingSound(0.8);
                     }
                     connectionRef.current.reducers.useEquippedItem();
-                    onMeleeSwing?.(registerOptimisticHit);
                     lastClientSwingAttemptRef.current = now;
                     lastServerSwingTimestampRef.current = now;
                 } catch (err) { console.error("[CanvasClick Armed] Error calling useEquippedItem reducer:", err); }

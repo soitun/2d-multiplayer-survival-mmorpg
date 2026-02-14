@@ -1971,31 +1971,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [isAutoAttacking, onAutoActionStatesChange]);
 
   // Use the particle hooks - they now run independently
-  // Compute static campfire positions from fishing village and hunting village (always burning)
-  const staticCampfires = useMemo(() => {
-    if (!monumentParts || monumentParts.size === 0) return [];
-    const campfires: { id: string; posX: number; posY: number }[] = [];
-    monumentParts.forEach((part: any) => {
-      // Fishing village center has the functional campfire
-      if (part.monumentType?.tag === 'FishingVillage' && part.isCenter) {
-        campfires.push({
-          id: `fv_campfire_${part.id}`,
-          posX: part.worldX,
-          posY: part.worldY,
-        });
-      }
-      // Hunting village campfire (partType === 'campfire')
-      if (part.monumentType?.tag === 'HuntingVillage' && part.partType === 'campfire') {
-        campfires.push({ id: part.id.toString(), posX: part.worldX, posY: part.worldY });
-      }
-    });
-    return campfires;
-  }, [monumentParts]);
-
+  // Village campfires (fishing/hunting) use animated spritesheet - no particles needed (more performant)
   const campfireParticles = useCampfireParticles({
     visibleCampfiresMap,
     deltaTime: 0, // Not used anymore, but kept for compatibility
-    staticCampfires, // Fishing village and hunting village campfires (always burning)
+    staticCampfires: [], // Village campfires use fv_campfire_animated.png spritesheet - fire built into sprite
   });
 
   const torchParticles = useTorchParticles({

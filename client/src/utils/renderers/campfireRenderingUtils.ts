@@ -161,6 +161,6 @@ export function renderCampfire(
     
     // Render health bar using unified system
     if (!onlyDrawShadow && playerX !== undefined && playerY !== undefined) {
-        renderEntityHealthBar(ctx, campfire, CAMPFIRE_WIDTH, CAMPFIRE_HEIGHT, nowMs, playerX, playerY, -CAMPFIRE_RENDER_Y_OFFSET, 'campfire', campfire.id);
+        renderEntityHealthBar(ctx, campfire, CAMPFIRE_WIDTH, CAMPFIRE_HEIGHT, nowMs, playerX, playerY, -CAMPFIRE_RENDER_Y_OFFSET);
     }
 } 
