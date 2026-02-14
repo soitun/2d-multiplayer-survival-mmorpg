@@ -438,6 +438,14 @@ export function renderMonument(
         ctx.globalAlpha = transparencyAlpha;
     }
     
+    // Apply rotation if needed (e.g., dock facing water)
+    const rotationRad = (building as { rotationRad?: number }).rotationRad ?? 0;
+    if (Math.abs(rotationRad) > 0.001) {
+        ctx.translate(worldX, worldY);
+        ctx.rotate(rotationRad);
+        ctx.translate(-worldX, -worldY);
+    }
+    
     // Draw the building (transparency already applied if needed)
     ctx.drawImage(img, drawX, drawY, building.width, building.height);
     

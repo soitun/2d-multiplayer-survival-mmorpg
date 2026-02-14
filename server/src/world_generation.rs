@@ -123,6 +123,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
             part_type: "center".to_string(),
             is_center: true,
             collision_radius: 80.0, // Collision radius for center piece
+            rotation_rad: 0.0,
         });
     }
     
@@ -136,6 +137,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
             part_type: "hull".to_string(), // Generic part type for shipwreck parts
             is_center: false,
             collision_radius: 40.0, // Smaller collision radius for crash parts
+            rotation_rad: 0.0,
         });
     }
     
@@ -193,7 +195,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     // Following compound buildings pattern: client-side rendering, NO collision per user request
     if let Some((center_x, center_y)) = world_features.fishing_village_center {
         // All parts are stored (center marker is first in the parts list for zone calculations)
-        for (part_x, part_y, image_path, part_type) in &world_features.fishing_village_parts {
+        for (part_x, part_y, image_path, part_type, rotation_rad) in &world_features.fishing_village_parts {
             ctx.db.monument_part().insert(MonumentPart {
                 id: 0, // auto_inc
                 monument_type: MonumentType::FishingVillage,
@@ -203,6 +205,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 part_type: part_type.clone(),
                 is_center: *part_type == "campfire", // Campfire is the center (visual doodad)
                 collision_radius: 0.0, // NO collision per user request
+                rotation_rad: *rotation_rad,
             });
         }
         
@@ -210,7 +213,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                    world_features.fishing_village_parts.len());
         
         // Start continuous campfire sound for fishing village communal campfire (fv_campfire - always burning)
-        for (part_x, part_y, _, part_type) in &world_features.fishing_village_parts {
+        for (part_x, part_y, _, part_type, _) in &world_features.fishing_village_parts {
             if *part_type == "campfire" {
                 crate::sound_events::start_village_campfire_sound(
                     ctx,
@@ -244,6 +247,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 part_type: part_type.clone(),
                 is_center: *part_type == "hermit_hut", // Hermit hut is the center of the graveyard
                 collision_radius: 0.0, // NO collision for walkability
+                rotation_rad: 0.0,
             });
         }
         
@@ -307,6 +311,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 part_type: part_type.clone(),
                 is_center: *part_type == "lodge", // Lodge is the center of the village
                 collision_radius: 0.0, // NO collision for walkability
+                rotation_rad: 0.0,
             });
         }
         
@@ -361,6 +366,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 part_type: part_type.clone(),
                 is_center: true, // Single part is always center
                 collision_radius: 0.0, // NO collision for walkability
+                rotation_rad: 0.0,
             });
         }
         
@@ -406,6 +412,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 part_type: part_type.clone(),
                 is_center: true, // Single part is always center
                 collision_radius: 0.0, // NO collision for walkability
+                rotation_rad: 0.0,
             });
         }
         
@@ -438,6 +445,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 part_type: part_type.clone(),
                 is_center: true, // Single part per den is always center
                 collision_radius: 0.0, // NO collision for walkability
+                rotation_rad: 0.0,
             });
         }
         
@@ -549,7 +557,7 @@ struct WorldFeatures {
     shipwreck_centers: Vec<(f32, f32)>, // Shipwreck center positions (x, y) in world pixels - center piece
     shipwreck_parts: Vec<(f32, f32, String)>, // Shipwreck crash parts (x, y, image_path) in world pixels
     fishing_village_center: Option<(f32, f32)>, // Fishing village center position (campfire) in world pixels
-    fishing_village_parts: Vec<(f32, f32, String, String)>, // Fishing village parts (x, y, image_path, part_type) in world pixels
+    fishing_village_parts: Vec<(f32, f32, String, String, f32)>, // Fishing village parts (x, y, image_path, part_type, rotation_rad) in world pixels
     whale_bone_graveyard_center: Option<(f32, f32)>, // Whale bone graveyard center position (ribcage) in world pixels
     whale_bone_graveyard_parts: Vec<(f32, f32, String, String)>, // Whale bone graveyard parts (x, y, image_path, part_type) in world pixels
     hunting_village_center: Option<(f32, f32)>, // Hunting village center position (lodge) in world pixels
@@ -749,7 +757,7 @@ fn generate_village_roads(
     road_network: &[Vec<bool>],
     dirt_paths: &[Vec<bool>],
     fishing_village_center: Option<(f32, f32)>,
-    fishing_village_parts: &[(f32, f32, String, String)],
+    fishing_village_parts: &[(f32, f32, String, String, f32)],
     hunting_village_center: Option<(f32, f32)>,
     hunting_village_parts: &[(f32, f32, String, String)],
     noise: &Perlin,
@@ -781,7 +789,7 @@ fn generate_village_roads(
             }
         }
         // Add path tiles near other structures (huts, dock, smokeracks)
-        for (part_px_x, part_px_y, _, _) in fishing_village_parts {
+        for (part_px_x, part_px_y, _, _, _) in fishing_village_parts {
             let pt_tx = (part_px_x / tile_size_px).floor() as i32;
             let pt_ty = (part_px_y / tile_size_px).floor() as i32;
             for dy in -2..=2 {

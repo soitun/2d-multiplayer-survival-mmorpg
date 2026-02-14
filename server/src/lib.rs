@@ -2538,6 +2538,8 @@ pub struct MonumentPart {
     pub is_center: bool,
     /// Collision radius in pixels (0 = no collision)
     pub collision_radius: f32,
+    /// Rotation in radians (0 = default orientation). Used for docks to face water.
+    pub rotation_rad: f32,
 }
 
 /// Large quarry locations with resource type (displayed on minimap as landmarks)

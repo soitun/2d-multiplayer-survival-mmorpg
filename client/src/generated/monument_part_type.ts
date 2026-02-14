@@ -41,6 +41,7 @@ export type MonumentPart = {
   partType: string,
   isCenter: boolean,
   collisionRadius: number,
+  rotationRad: number,
 };
 let _cached_MonumentPart_type_value: __AlgebraicTypeType | null = null;
 
@@ -64,6 +65,7 @@ export const MonumentPart = {
       { name: "partType", algebraicType: __AlgebraicTypeValue.String },
       { name: "isCenter", algebraicType: __AlgebraicTypeValue.Bool },
       { name: "collisionRadius", algebraicType: __AlgebraicTypeValue.F32 },
+      { name: "rotationRad", algebraicType: __AlgebraicTypeValue.F32 },
     );
     return _cached_MonumentPart_type_value;
   },

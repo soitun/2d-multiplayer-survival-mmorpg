@@ -220,6 +220,7 @@ export interface CompoundBuildingEntity {
   imagePath: string;
   anchorYOffset: number;
   isCenter?: boolean; // For monuments: marks the center piece for building restriction overlay
+  rotationRad?: number; // Rotation in radians (for docks to face water)
 }
 
 // ===== HELPER FUNCTIONS FOR Y-SORTING =====
@@ -1403,6 +1404,7 @@ export function useEntityFiltering(
         isCenter: part.isCenter,
         collisionRadius: part.collisionRadius,
         monumentType: part.monumentType?.tag || 'Unknown',
+        rotationRad: part.rotationRad ?? 0,
       })) : [];
     const monumentBuildings = getMonumentBuildings(allMonumentParts);
     return monumentBuildings.map(building => {
@@ -1416,6 +1418,7 @@ export function useEntityFiltering(
         imagePath: building.imagePath,
         anchorYOffset: building.anchorYOffset,
         isCenter: building.isCenter,
+        rotationRad: building.rotationRad ?? 0,
       };
     }).filter(building => {
       const buffer = 500;

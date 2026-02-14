@@ -567,7 +567,7 @@ pub fn generate_shipwreck(
 /// Aleut-style fishing village with huts, dock, smoke racks, and central campfire.
 /// Returns (center_position, village_parts) where:
 /// - center_position: (x, y) in world pixels for campfire center piece
-/// - village_parts: Vec of (x, y, image_path, part_type) for all village structures
+/// - village_parts: Vec of (x, y, image_path, part_type, rotation_rad) for all village structures
 pub fn generate_fishing_village(
     noise: &Perlin,
     shore_distance: &[Vec<f64>],
@@ -577,9 +577,9 @@ pub fn generate_fishing_village(
     hot_spring_centers: &[(f32, f32, i32)], // Avoid placing near hot springs (x, y, radius)
     width: usize,
     height: usize,
-) -> (Option<(f32, f32)>, Vec<(f32, f32, String, String)>) {
+) -> (Option<(f32, f32)>, Vec<(f32, f32, String, String, f32)>) {
     let mut village_center: Option<(f32, f32)> = None;
-    let mut village_parts: Vec<(f32, f32, String, String)> = Vec::new();
+    let mut village_parts: Vec<(f32, f32, String, String, f32)> = Vec::new();
     
     log::info!("🏘️ Generating fishing village monument on south beach...");
     
@@ -796,8 +796,8 @@ pub fn generate_fishing_village(
             // Smoke racks - further from campfire, flanking it with more space
             ("smokerack", "fv_smokerack1.png", -320.0, -200.0),
             
-            // Dock - EXTENDING INTO WATER, positioned away from smokeracks
-            ("dock", "fv_dock.png", 280.0, 350.0),     // Right of campfire, extending into water
+            // Dock - placed separately with shore-aware logic (see below)
+            ("dock", "fv_dock.png", 280.0, 0.0),       // offset_along_shore used, towards_water computed
         ];
         
         // Calculate perpendicular direction (along the shore)
@@ -805,15 +805,61 @@ pub fn generate_fishing_village(
         let shore_dir_x = -water_direction_y;
         let shore_dir_y = water_direction_x;
         
+        // Dock sprite: anchor at bottom-center, extends "up" (384px) toward shore.
+        // We place anchor at shore + DOCK_ANCHOR_OFFSET into water so dock connects to shore.
+        const DOCK_ANCHOR_OFFSET: f32 = 200.0; // Anchor ~200px into water; dock extends 384px back to shore
+        
         for (part_type, image_name, offset_along_shore, offset_towards_water) in structure_configs.iter() {
-            // Transform local offsets to world coordinates using water direction
-            // offset_towards_water uses water_direction
-            // offset_along_shore uses perpendicular direction
-            let world_offset_x = water_direction_x * offset_towards_water + shore_dir_x * offset_along_shore;
-            let world_offset_y = water_direction_y * offset_towards_water + shore_dir_y * offset_along_shore;
-            
-            let part_world_x = center_world_x + world_offset_x;
-            let part_world_y = center_world_y + world_offset_y;
+            let (part_world_x, part_world_y, rotation_rad) = if *part_type == "dock" {
+                // DOCK: Find shore line, place anchor so dock extends FROM shore INTO water
+                // Walk from campfire toward water until we cross the shore (shore_dist <= 0)
+                let mut shore_tile_x = center_x as i32;
+                let mut shore_tile_y = center_y as i32;
+                let step = 1;
+                let max_steps = 15;
+                
+                for _ in 0..max_steps {
+                    let next_x = shore_tile_x + (water_direction_x * step as f32).round() as i32;
+                    let next_y = shore_tile_y + (water_direction_y * step as f32).round() as i32;
+                    let nx = next_x.clamp(0, width as i32 - 1) as usize;
+                    let ny = next_y.clamp(0, height as i32 - 1) as usize;
+                    
+                    if river_network[ny][nx] || lake_map[ny][nx] {
+                        break;
+                    }
+                    if shore_distance[ny][nx] <= 0.0 {
+                        shore_tile_x = next_x;
+                        shore_tile_y = next_y;
+                        break;
+                    }
+                    shore_tile_x = next_x;
+                    shore_tile_y = next_y;
+                }
+                
+                let shore_world_x = (shore_tile_x as f32 + 0.5) * tile_size_px;
+                let shore_world_y = (shore_tile_y as f32 + 0.5) * tile_size_px;
+                
+                // Anchor = shore position + offset into water (dock extends back to shore)
+                let anchor_x = shore_world_x + water_direction_x * DOCK_ANCHOR_OFFSET;
+                let anchor_y = shore_world_y + water_direction_y * DOCK_ANCHOR_OFFSET;
+                
+                // Apply along-shore offset (280px to the right of center when facing water)
+                let final_x = anchor_x + shore_dir_x * offset_along_shore;
+                let final_y = anchor_y + shore_dir_y * offset_along_shore;
+                
+                // Rotation: dock sprite "up" must point inland (toward shore)
+                // Inland = -water_direction. Canvas: atan2(-water_direction_x, water_direction_y) gives angle from "up"
+                let rotation_rad = (-water_direction_x).atan2(water_direction_y);
+                
+                (final_x, final_y, rotation_rad)
+            } else {
+                // Standard placement for huts, campfire, smokeracks
+                let world_offset_x = water_direction_x * offset_towards_water + shore_dir_x * offset_along_shore;
+                let world_offset_y = water_direction_y * offset_towards_water + shore_dir_y * offset_along_shore;
+                let px = center_world_x + world_offset_x;
+                let py = center_world_y + world_offset_y;
+                (px, py, 0.0)
+            };
             
             // Convert to tile coords for validation
             let part_tile_x = (part_world_x / tile_size_px) as i32;
@@ -834,14 +880,12 @@ pub fn generate_fishing_village(
             
             // Skip only if in deep water or on river/lake
             if *part_type == "dock" {
-                // Dock extends INTO water - allow up to 20 tiles into water
-                // Campfire at shore_dist 2-6 + dock offset 300px (~6.3 tiles) = dock at -0.3 to -4.3 tiles
-                // Being very permissive to ensure dock spawns reliably
-                if part_shore_dist < -20.0 || river_network[py][px] || lake_map[py][px] {
-                    log::warn!("🏘️ {} terrain invalid: shore_dist={:.1} (limit -20.0)", part_type, part_shore_dist);
+                // Dock anchor is in shallow water - allow up to 15 tiles into water
+                if part_shore_dist < -15.0 || river_network[py][px] || lake_map[py][px] {
+                    log::warn!("🏘️ {} terrain invalid: shore_dist={:.1} (limit -15.0)", part_type, part_shore_dist);
                     continue;
                 }
-                log::info!("🏘️ Dock position check passed: shore_dist={:.1}", part_shore_dist);
+                log::info!("🏘️ Dock position check passed: shore_dist={:.1}, rotation={:.2}rad", part_shore_dist, rotation_rad);
             } else {
                 // Huts and smoke racks must be on land
                 if part_shore_dist < -1.0 || river_network[py][px] || lake_map[py][px] {
@@ -851,7 +895,7 @@ pub fn generate_fishing_village(
             }
             
             // Place the structure!
-            village_parts.push((part_world_x, part_world_y, image_name.to_string(), part_type.to_string()));
+            village_parts.push((part_world_x, part_world_y, image_name.to_string(), part_type.to_string(), rotation_rad));
             
             log::info!("🏘️✨ PLACED {} ({}) at ({:.0}, {:.0}), offset=({:.0}, {:.0}) ✨",
                        part_type.to_uppercase(), image_name, part_world_x, part_world_y,

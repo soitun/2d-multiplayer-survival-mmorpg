@@ -81,6 +81,13 @@ export interface CompoundBuilding {
    */
   isCenter?: boolean;
   
+  // === ROTATION (optional) ===
+  /**
+   * Rotation in radians for parts that need orientation (e.g., dock facing water).
+   * Default 0 = no rotation.
+   */
+  rotationRad?: number;
+  
   // === LIGHT SOURCE (optional) ===
   /** 
    * Light source for buildings that emit light at night.
@@ -371,6 +378,7 @@ export interface MonumentPartData {
   isCenter: boolean;
   collisionRadius: number;
   monumentType: string; // Tag from MonumentType enum (e.g., 'Shipwreck', 'FishingVillage')
+  rotationRad?: number; // Rotation in radians (for docks to face water)
 }
 
 /**
@@ -407,6 +415,7 @@ export function getMonumentBuildings(monumentParts: MonumentPartData[]): Compoun
         collisionRadius: part.collisionRadius,
         collisionYOffset: 0,
         isCenter: part.isCenter,
+        rotationRad: part.rotationRad ?? 0,
       };
     });
 }

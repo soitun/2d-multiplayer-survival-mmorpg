@@ -1719,6 +1719,7 @@ export const renderYSortedEntities = ({
               anchorYOffset: buildingEntity.anchorYOffset,
               collisionRadius: 0, // Not used for rendering
               collisionYOffset: 0,
+              rotationRad: buildingEntity.rotationRad ?? 0,
           };
           
           // renderMonument expects world position, so we need to pass it directly

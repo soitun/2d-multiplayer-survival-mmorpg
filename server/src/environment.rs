@@ -2569,6 +2569,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             part_type: "shack".to_string(),
             is_center: false, // Not the center of the hot spring
             collision_radius: 0.0, // No collision for walkability
+            rotation_rad: 0.0,
         });
         hot_spring_shack_count += 1;
         
