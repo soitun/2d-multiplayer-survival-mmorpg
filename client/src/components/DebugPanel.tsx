@@ -96,11 +96,19 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
         });
     }, [itemDefinitions]);
 
-    // Filtered items for dropdown (case-insensitive search)
+    // Filtered items for dropdown (case-insensitive search, exact matches first)
     const filteredItems = useMemo(() => {
         const q = itemSearchQuery.trim().toLowerCase();
         if (!q) return allItems;
-        return allItems.filter(item => (item.name ?? '').toLowerCase().includes(q));
+        const exact: ItemDefinition[] = [];
+        const partial: ItemDefinition[] = [];
+        for (const item of allItems) {
+            const name = (item.name ?? '').toLowerCase();
+            if (!name.includes(q)) continue;
+            if (name === q) exact.push(item);
+            else partial.push(item);
+        }
+        return [...exact, ...partial];
     }, [allItems, itemSearchQuery]);
 
     // Close dropdown when clicking outside

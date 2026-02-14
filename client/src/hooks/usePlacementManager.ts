@@ -4,6 +4,8 @@ import { TILE_SIZE } from '../config/gameConfig';
 import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement, isPineconeBlockedOnBeach, isBirchCatkinBlockedOnAlpine, requiresTemperateOnlyPlacement } from '../utils/plantsUtils';
 import { HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from '../utils/renderers/hearthRenderingUtils'; // For Matron's Chest placement adjustment
 import { playImmediateSound } from './useSoundSystem';
+import { getPlacementConfig, snapToPlacementGrid, shouldUseGridSnapping } from '../config/placeablePlacementConfig';
+import { checkPlacementOverlap } from '../utils/renderers/placementRenderingUtils';
 
 // Minimum distance between planted seeds (in pixels)
 const MIN_SEED_DISTANCE = 20;
@@ -21,6 +23,7 @@ export interface PlacementState {
   isPlacing: boolean;
   placementInfo: PlacementItemInfo | null;
   placementError: string | null;
+  placementWarning: string | null;
 }
 
 // Type for the functions returned by the hook
@@ -28,6 +31,7 @@ export interface PlacementActions {
   startPlacement: (itemInfo: PlacementItemInfo) => void;
   cancelPlacement: () => void;
   attemptPlacement: (worldX: number, worldY: number, isPlacementTooFar?: boolean) => void;
+  setPlacementWarning: (warning: string | null) => void;
 }
 
 /**
@@ -772,6 +776,7 @@ function isMonumentZonePlacementBlocked(connection: DbConnection | null, worldX:
 export const usePlacementManager = (connection: DbConnection | null): [PlacementState, PlacementActions] => {
   const [placementInfo, setPlacementInfo] = useState<PlacementItemInfo | null>(null);
   const [placementError, setPlacementError] = useState<string | null>(null);
+  const [placementWarning, setPlacementWarning] = useState<string | null>(null);
 
   const isPlacing = placementInfo !== null;
 
@@ -794,7 +799,8 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
   const startPlacement = useCallback((itemInfo: PlacementItemInfo) => {
     // console.log(`[PlacementManager] Starting placement for: ${itemInfo.itemName} (ID: ${itemInfo.itemDefId})`);
     setPlacementInfo(itemInfo);
-    setPlacementError(null); // Clear errors on new placement start
+    setPlacementError(null);
+    setPlacementWarning(null);
   }, []);
 
   // --- Cancel Placement --- 
@@ -803,6 +809,7 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
       // console.log("[PlacementManager] Cancelling placement mode.");
       setPlacementInfo(null);
       setPlacementError(null);
+      setPlacementWarning(null);
     }
   }, [placementInfo]); // Depend on placementInfo to check if cancelling is needed
 
@@ -998,8 +1005,28 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
       return; // Don't proceed with placement
     }
 
-    // Check for monument zone restriction
-    if (isMonumentZonePlacementBlocked(connection, worldX, worldY)) {
+    // Snap to placement grid for items that use it (preview will match server placement exactly)
+    let placeX = worldX;
+    let placeY = worldY;
+    if (shouldUseGridSnapping(placementInfo)) {
+      const config = getPlacementConfig(placementInfo);
+      if (config) {
+        const snapped = snapToPlacementGrid(worldX, worldY, config);
+        placeX = snapped.x;
+        placeY = snapped.y;
+      }
+    }
+
+    // Check for overlap with existing placeables (grid-snapping items only)
+    const { overlaps: isOverlapping } = checkPlacementOverlap(connection, placementInfo, placeX, placeY);
+    if (isOverlapping) {
+      setPlacementError('Blocked by existing structure');
+      playImmediateSound('construction_placement_error', 1.0);
+      return;
+    }
+
+    // Check for monument zone restriction (use snapped position for grid-snapping items)
+    if (isMonumentZonePlacementBlocked(connection, placeX, placeY)) {
       // setPlacementError("Cannot place in monument zones");
       // Play monument-specific error sound based on item type
       if (isSeedItemValid(placementInfo.itemName)) {
@@ -1012,8 +1039,8 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
       return; // Don't proceed with placement
     }
 
-    // Check for water placement restriction
-    if (isWaterPlacementBlocked(connection, placementInfo, worldX, worldY)) {
+    // Check for water placement restriction (use snapped position for grid-snapping items)
+    if (isWaterPlacementBlocked(connection, placementInfo, placeX, placeY)) {
       // setPlacementError("Cannot place on water");
       // Play error sound for invalid tile type placement
       if (isSeedItemValid(placementInfo.itemName)) {
@@ -1024,7 +1051,7 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
     }
 
     // Check for one-seed-per-tile restriction
-    if (isSeedPlacementOnOccupiedTile(connection, placementInfo, worldX, worldY)) {
+    if (isSeedPlacementOnOccupiedTile(connection, placementInfo, placeX, placeY)) {
       console.log('[PlacementManager] Client-side validation: Tile already has a seed, playing error sound');
       playImmediateSound('error_seed_occupied', 1.0);
       return; // Don't proceed with placement
@@ -1038,45 +1065,35 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
       // This needs to be expanded as more placeable items are added
       switch (placementInfo.itemName) {
         case 'Camp Fire':
-          // console.log(`[PlacementManager] Calling placeCampfire reducer with instance ID: ${placementInfo.instanceId}`);
-          connection.reducers.placeCampfire(placementInfo.instanceId, worldX, worldY);
+          connection.reducers.placeCampfire(placementInfo.instanceId, placeX, placeY);
           // Note: We don't call cancelPlacement here. 
           // App.tsx's handleCampfireInsert callback will call it upon success.
           break;
-        case 'Furnace': // ADDED: Furnace placement support
-        case 'Large Furnace': // ADDED: Large Furnace placement support (uses same reducer)
-          // console.log(`[PlacementManager] Calling placeFurnace reducer with instance ID: ${placementInfo.instanceId}`);
-          connection.reducers.placeFurnace(placementInfo.instanceId, worldX, worldY);
+        case 'Furnace':
+        case 'Large Furnace':
+          connection.reducers.placeFurnace(placementInfo.instanceId, placeX, placeY);
           // Note: We don't call cancelPlacement here. 
           // App.tsx's handleFurnaceInsert callback will call it upon success.
           break;
-        case 'Barbecue': // ADDED: Barbecue placement support
-          // console.log(`[PlacementManager] Calling placeBarbecue reducer with instance ID: ${placementInfo.instanceId}`);
-          connection.reducers.placeBarbecue(placementInfo.instanceId, worldX, worldY);
+        case 'Barbecue':
+          connection.reducers.placeBarbecue(placementInfo.instanceId, placeX, placeY);
           // Note: We don't call cancelPlacement here. 
           // App.tsx's handleBarbecueInsert callback will call it upon success.
           break;
         case 'Lantern':
-          // Regular lanterns: 56px tall sprite, rendered at posY - 56 - 6
-          // For cursor at center: server needs posY = cursorY + 34 (56/2 + 6)
-          connection.reducers.placeLantern(placementInfo.instanceId, worldX, worldY + 34, 0);
+          connection.reducers.placeLantern(placementInfo.instanceId, placeX, placeY + 34, 0);
           break;
         case 'Ancestral Ward':
-          // Wards: 256px tall sprites, rendered at posY - 256 - 6
-          // For cursor at center: server needs posY = cursorY + 134 (256/2 + 6)
-          connection.reducers.placeLantern(placementInfo.instanceId, worldX, worldY + 134, 1);
+          connection.reducers.placeLantern(placementInfo.instanceId, placeX, placeY + 134, 1);
           break;
         case 'Signal Disruptor':
-          // Same offset as Ancestral Ward
-          connection.reducers.placeLantern(placementInfo.instanceId, worldX, worldY + 134, 2);
+          connection.reducers.placeLantern(placementInfo.instanceId, placeX, placeY + 134, 2);
           break;
         case 'Memory Resonance Beacon':
-          // Same offset as Ancestral Ward
-          connection.reducers.placeLantern(placementInfo.instanceId, worldX, worldY + 134, 3);
+          connection.reducers.placeLantern(placementInfo.instanceId, placeX, placeY + 134, 3);
           break;
         case 'Tallow Steam Turret':
-          // Turret sprite centered on posX/posY - no offset needed
-          connection.reducers.placeTurret(placementInfo.instanceId, worldX, worldY);
+          connection.reducers.placeTurret(placementInfo.instanceId, placeX, placeY);
           break;
         case 'Wooden Storage Box':
         case 'Large Wooden Storage Box':
@@ -1085,64 +1102,41 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
         case 'Scarecrow':
         case 'Fish Trap':
         case 'Wooden Beehive':
-          // console.log(`[PlacementManager] Calling placeWoodenStorageBox reducer with instance ID: ${placementInfo.instanceId}`);
-          connection.reducers.placeWoodenStorageBox(placementInfo.instanceId, worldX, worldY);
+          connection.reducers.placeWoodenStorageBox(placementInfo.instanceId, placeX, placeY);
           // Assume App.tsx will have a handleWoodenStorageBoxInsert similar to campfire
           break;
         case 'Sleeping Bag':
-          // console.log(`[PlacementManager] Calling placeSleepingBag reducer with instance ID: ${placementInfo.instanceId}`);
-          connection.reducers.placeSleepingBag(placementInfo.instanceId, worldX, worldY);
+          connection.reducers.placeSleepingBag(placementInfo.instanceId, placeX, placeY);
           // Assume App.tsx needs a handleSleepingBagInsert callback to cancel placement on success
           break;
         case 'Stash':
-          // console.log(`[PlacementManager] Calling placeStash reducer with instance ID: ${placementInfo.instanceId}`);
-          connection.reducers.placeStash(placementInfo.instanceId, worldX, worldY);
+          connection.reducers.placeStash(placementInfo.instanceId, placeX, placeY);
           // Assume App.tsx will need a handleStashInsert callback to cancel placement on success
           break;
         case "Babushka's Surprise":
-        case "Matriarch's Wrath": {
-          // Explosive placement - player places explosive which starts fuse countdown
-          // DEBUG: Calculate expected chunk index for the placement position
-          const CHUNK_SIZE_TILES = 16;
-          const TILE_SIZE_PX = 48;
-          const WORLD_WIDTH_CHUNKS = 38;
-          const placementTileX = Math.floor(worldX / TILE_SIZE_PX);
-          const placementTileY = Math.floor(worldY / TILE_SIZE_PX);
-          const placementChunkX = Math.floor(placementTileX / CHUNK_SIZE_TILES);
-          const placementChunkY = Math.floor(placementTileY / CHUNK_SIZE_TILES);
-          const expectedChunkIndex = placementChunkY * WORLD_WIDTH_CHUNKS + placementChunkX;
-          console.log(`[PlacementManager] Calling placeExplosive at PIXEL (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`);
-          console.log(`[PlacementManager] → Tile: (${placementTileX}, ${placementTileY}), Chunk: (${placementChunkX}, ${placementChunkY}), Expected chunk_index: ${expectedChunkIndex}`);
-          connection.reducers.placeExplosive(placementInfo.instanceId, worldX, worldY);
-          // Placement cancelled when PlacedExplosive entity is inserted
+        case "Matriarch's Wrath":
+          connection.reducers.placeExplosive(placementInfo.instanceId, placeX, placeY);
           break;
-        }
         case 'Shelter':
-          // console.log(`[PlacementManager] Calling placeShelter reducer with instance ID: ${placementInfo.instanceId}`);
-          connection.reducers.placeShelter(placementInfo.instanceId, worldX, worldY);
+          connection.reducers.placeShelter(placementInfo.instanceId, placeX, placeY);
           // Assume App.tsx will need a handleShelterInsert callback (added in useSpacetimeTables)
           // which should call cancelPlacement on success.
           break;
         case 'Reed Rain Collector':
-          // console.log(`[PlacementManager] Calling placeRainCollector reducer with instance ID: ${placementInfo.instanceId}`);
-          connection.reducers.placeRainCollector(placementInfo.instanceId, worldX, worldY);
+          connection.reducers.placeRainCollector(placementInfo.instanceId, placeX, placeY);
           // Assume App.tsx will need a handleRainCollectorInsert callback to cancel placement on success
           break;
         case 'Repair Bench':
-          connection.reducers.placeRepairBench(placementInfo.instanceId, worldX, worldY);
+          connection.reducers.placeRepairBench(placementInfo.instanceId, placeX, placeY);
           // Placement will be cancelled when the WoodenStorageBox (boxType=5) is inserted
           break;
         case 'Cooking Station':
-          connection.reducers.placeCookingStation(placementInfo.instanceId, worldX, worldY);
+          connection.reducers.placeCookingStation(placementInfo.instanceId, placeX, placeY);
           // Placement will be cancelled when the WoodenStorageBox (boxType=6) is inserted
           break;
         case "Matron's Chest":
-          // Adjust Y coordinate to account for entity rendering offset
-          // Entity renders at: drawY = posY - HEARTH_HEIGHT - HEARTH_RENDER_Y_OFFSET
-          // To center visual on cursor, we need: posY = cursorY + HEARTH_HEIGHT/2 + HEARTH_RENDER_Y_OFFSET
-          const adjustedHearthY = worldY + HEARTH_HEIGHT / 2 + HEARTH_RENDER_Y_OFFSET;
-          // console.log(`[PlacementManager] Calling placeHomesteadHearth reducer with instance ID: ${placementInfo.instanceId}, adjusted Y: ${worldY} -> ${adjustedHearthY}`);
-          connection.reducers.placeHomesteadHearth(placementInfo.instanceId, worldX, adjustedHearthY);
+          const adjustedHearthY = placeY + HEARTH_HEIGHT / 2 + HEARTH_RENDER_Y_OFFSET;
+          connection.reducers.placeHomesteadHearth(placementInfo.instanceId, placeX, adjustedHearthY);
           // Note: We don't call cancelPlacement here.
           // App.tsx's handleHomesteadHearthInsert callback will call it upon success.
           break;
@@ -1225,8 +1219,8 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
             const foundationCenterX = foundation.cellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
             const foundationCenterY = foundation.cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
             
-            const dx = worldX - foundationCenterX;
-            const dy = worldY - foundationCenterY;
+            const dx = placeX - foundationCenterX;
+            const dy = placeY - foundationCenterY;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             // Only consider foundations within interaction range
@@ -1244,7 +1238,7 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
           
           // Determine which edge (North=0, South=2) based on cursor Y position relative to foundation
           const foundationCenterY = nearestFoundation.cellY * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
-          const edge = worldY < foundationCenterY ? 0 : 2; // 0 = North, 2 = South
+          const edge = placeY < foundationCenterY ? 0 : 2; // 0 = North, 2 = South
           
           // Check for existing wall or door on this edge
           let hasWallOnEdge = false;
@@ -1282,8 +1276,8 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
           connection.reducers.placeDoor(
             BigInt(nearestFoundation.cellX),
             BigInt(nearestFoundation.cellY),
-            worldX,
-            worldY,
+            placeX,
+            placeY,
             doorType
           );
           break;
@@ -1292,7 +1286,7 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
           // Check if it's a plantable seed using dynamic detection
           if (isSeedItemValid(placementInfo.itemName)) {
             console.log(`[PlacementManager] Calling plantSeed reducer with instance ID: ${placementInfo.instanceId}`);
-            connection.reducers.plantSeed(placementInfo.instanceId, worldX, worldY);
+            connection.reducers.plantSeed(placementInfo.instanceId, placeX, placeY);
             // Note: Don't auto-cancel placement for seeds - let the system check if there are more seeds
             // The placement will be cancelled externally when the stack is empty or user switches slots
           } else {
@@ -1313,8 +1307,8 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
   }, [connection, placementInfo, checkPlacementItemStillExists, cancelPlacement]); // Dependencies
 
   // Consolidate state and actions for return
-  const placementState: PlacementState = { isPlacing, placementInfo, placementError };
-  const placementActions: PlacementActions = { startPlacement, cancelPlacement, attemptPlacement };
+  const placementState: PlacementState = { isPlacing, placementInfo, placementError, placementWarning };
+  const placementActions: PlacementActions = { startPlacement, cancelPlacement, attemptPlacement, setPlacementWarning };
 
   return [placementState, placementActions];
 };

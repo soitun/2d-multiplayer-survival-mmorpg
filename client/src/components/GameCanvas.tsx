@@ -98,6 +98,7 @@ import { useBarbecueParticles } from '../hooks/useBarbecueParticles';
 import { playImmediateSound } from '../hooks/useSoundSystem';
 import { useDamageEffects, shakeOffsetXRef, shakeOffsetYRef, vignetteOpacityRef } from '../hooks/useDamageEffects';
 import { useSettings } from '../contexts/SettingsContext';
+import { useErrorDisplay } from '../contexts/ErrorDisplayContext';
 
 // --- Rendering Utilities ---
 import { renderWorldBackground, renderShorelineOverlay } from '../utils/renderers/worldRenderingUtils';
@@ -238,6 +239,8 @@ interface GameCanvasProps {
   placementInfo: PlacementItemInfo | null;
   placementActions: PlacementActions;
   placementError: string | null;
+  placementWarning: string | null;
+  setPlacementWarning: (warning: string | null) => void;
   onSetInteractingWith: (target: { type: string; id: number | bigint } | null) => void;
   isMinimapOpen: boolean;
   setIsMinimapOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -400,6 +403,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   placementInfo,
   placementActions,
   placementError,
+  placementWarning,
+  setPlacementWarning,
   onSetInteractingWith,
   isMinimapOpen,
   setIsMinimapOpen,
@@ -497,10 +502,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     alwaysShowPlayerNames,
   } = useSettings();
 
+  const { showError } = useErrorDisplay();
+
   // --- Refs ---
   const frameNumber = useRef(0);
   const lastPositionsRef = useRef<Map<string, { x: number, y: number }>>(new Map());
   const placementActionsRef = useRef(placementActions);
+  const lastPlacementWarningRef = useRef<string | null>(null);
   const prevPlayerHealthRef = useRef<number | undefined>(undefined);
   const [damagingCampfireIds, setDamagingCampfireIds] = useState<Set<string>>(new Set());
   const burnSoundPlayedRef = useRef<Set<string>>(new Set()); // Track which burn effects we've played sounds for
@@ -1419,7 +1427,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         const audio = new Audio('/sounds/sova_error_mobile_capability.mp3');
         audio.volume = 0.8;
         showSovaSoundBox(audio, 'SOVA');
-        audio.play().catch((e) => console.warn('[Mobile] Failed to play capability error:', e));
+        audio.play().catch((e) => {
+          console.warn('[Mobile] Failed to play capability error:', e);
+          showError('Voice feedback unavailable on this device.');
+        });
       }
       return;
     }
@@ -1445,7 +1456,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           break;
       }
     }
-  }, [mobileInteractTrigger, isMobile, unifiedInteractableTarget, connection, onSetInteractingWith, showSovaSoundBox]);
+  }, [mobileInteractTrigger, isMobile, unifiedInteractableTarget, connection, onSetInteractingWith, showSovaSoundBox, showError]);
 
   // Store the foundation/wall/fence when upgrade menu opens (prevents flickering)
   const upgradeMenuFoundationRef = useRef<FoundationCell | null>(null);
@@ -1581,12 +1592,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             audio.volume = 0.7;
             audio.play().catch(err => {
               console.warn(`[GameCanvas] Failed to play SOVA brew cooldown sound:`, err);
+              showError('Brew cooldown feedback failed.');
             });
           } catch (err) {
             console.warn(`[GameCanvas] Error creating brew cooldown audio:`, err);
+            showError('Brew cooldown feedback failed.');
           }
         } else {
           console.error(`[GameCanvas] ❌ consumeItem failed for instance ${itemInstanceId.toString()}:`, errorMsg);
+          showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
         }
       } else if (ctx.event?.status?.tag === 'Committed') {
         console.log(`[GameCanvas] ✅ consumeItem succeeded for instance ${itemInstanceId.toString()}`);
@@ -1600,7 +1614,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     return () => {
       connection.reducers.removeOnConsumeItem(handleConsumeItemResult);
     };
-  }, [connection]);
+  }, [connection, showError]);
 
   // Register error handlers for applyFertilizer reducer
   useEffect(() => {
@@ -3912,7 +3926,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       });
     }
 
-    renderPlacementPreview({
+    const placementWarningResult = renderPlacementPreview({
       ctx, placementInfo, buildingState, itemImagesRef, shelterImageRef, worldMouseX: currentWorldMouseX,
       worldMouseY: currentWorldMouseY, isPlacementTooFar: isPlacementTooFarValue, placementError, connection,
       doodadImagesRef,
@@ -3925,6 +3939,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       itemDefinitions,
       foundationTileImagesRef,
     });
+    if (placementWarningResult !== lastPlacementWarningRef.current) {
+      lastPlacementWarningRef.current = placementWarningResult;
+      setPlacementWarning(placementWarningResult);
+    }
 
     // --- Render Clouds on Canvas --- (NEW POSITION)
     // Clouds are rendered after all other world-anchored entities and UI,

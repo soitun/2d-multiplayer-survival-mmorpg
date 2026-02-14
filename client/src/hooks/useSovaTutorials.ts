@@ -19,7 +19,8 @@
  * The server is the source of truth for "has player seen this tutorial".
  */
 
-import { useEffect, useRef, MutableRefObject } from 'react';
+import { useEffect, useRef, useCallback, MutableRefObject } from 'react';
+import { useErrorDisplay, getErrorMessageForError } from '../contexts/ErrorDisplayContext';
 
 // ============================================================================
 // Types
@@ -272,10 +273,11 @@ function playSovaTutorial(
     options?: {
         skipAudioIfIntroPlaying?: boolean;
         onAudioStart?: () => void;
+        onError?: (err: unknown) => void;
     }
 ): void {
     const { audioFile, soundBoxLabel, message, messageId } = config;
-    const { skipAudioIfIntroPlaying = false, onAudioStart } = options || {};
+    const { skipAudioIfIntroPlaying = false, onAudioStart, onError } = options || {};
 
     // Check if we should skip audio due to intro still playing
     if (skipAudioIfIntroPlaying && isIntroStillPlaying()) {
@@ -321,6 +323,7 @@ function playSovaTutorial(
             })
             .catch(err => {
                 console.warn(`[SovaTutorials] Failed to play ${soundBoxLabel}:`, err);
+                onError?.(err);
                 // Still send message even if audio fails
                 if (sovaMessageAdder) {
                     sovaMessageAdder({
@@ -334,6 +337,7 @@ function playSovaTutorial(
             });
     } catch (err) {
         console.warn(`[SovaTutorials] Error creating audio for ${soundBoxLabel}:`, err);
+        onError?.(err);
         // Still send message on error
         if (sovaMessageAdder) {
             sovaMessageAdder({
@@ -380,7 +384,9 @@ export function useSovaTutorials({
     alkStations,
     monumentParts,
 }: UseSovaTutorialsProps): void {
-    
+    const { showError } = useErrorDisplay();
+    const onSovaError = useCallback((err: unknown) => showError(getErrorMessageForError(err)), [showError]);
+
     // Track if component is mounted to avoid state updates after unmount
     const isMountedRef = useRef(true);
     
@@ -455,13 +461,14 @@ export function useSovaTutorials({
                             console.log('[SovaTutorials] 🚢 Marking intro as seen on server');
                             onMarkSovaIntroSeen();
                         }
-                    }
+                    },
+                    onError: onSovaError,
                 }
             );
         }, delayMs);
 
         return () => clearTimeout(timer);
-    }, [localPlayerId, hasSeenSovaIntro, showSovaSoundBoxRef, sovaMessageAdderRef, onMarkSovaIntroSeen]);
+    }, [localPlayerId, hasSeenSovaIntro, showSovaSoundBoxRef, sovaMessageAdderRef, onMarkSovaIntroSeen, onSovaError]);
 
     // ========================================================================
     // Part 2: SOVA Tutorial Hint (3.5 minutes after spawn)
@@ -506,13 +513,14 @@ export function useSovaTutorials({
                             console.log('[SovaTutorials] 🎓 Marking tutorial hint as seen on server');
                             onMarkTutorialHintSeen();
                         }
-                    }
+                    },
+                    onError: onSovaError,
                 }
             );
         }, delayMs);
 
         return () => clearTimeout(timer);
-    }, [localPlayerId, hasSeenTutorialHint, showSovaSoundBoxRef, sovaMessageAdderRef, onMarkTutorialHintSeen]);
+    }, [localPlayerId, hasSeenTutorialHint, showSovaSoundBoxRef, sovaMessageAdderRef, onMarkTutorialHintSeen, onSovaError]);
 
     // ========================================================================
     // Part 3: Memory Shard Tutorial (Event-driven)
@@ -545,13 +553,14 @@ export function useSovaTutorials({
                     messageId: `sova-memory-shard-tutorial-${Date.now()}`,
                 },
                 showSovaSoundBoxRef.current,
-                sovaMessageAdderRef.current
+                sovaMessageAdderRef.current,
+                { onError: onSovaError }
             );
         };
 
         window.addEventListener(eventName!, handleEvent as EventListener);
         return () => window.removeEventListener(eventName!, handleEvent as EventListener);
-    }, [showSovaSoundBoxRef, sovaMessageAdderRef]);
+    }, [showSovaSoundBoxRef, sovaMessageAdderRef, onSovaError]);
 
     // ========================================================================
     // Part 4: First Hostile Encounter Tutorial (Event-driven)
@@ -594,14 +603,15 @@ export function useSovaTutorials({
                             console.log('[SovaTutorials] 👹 Marking hostile encounter tutorial as seen on server');
                             onMarkHostileEncounterTutorialSeen();
                         }
-                    }
+                    },
+                    onError: onSovaError,
                 }
             );
         };
 
         window.addEventListener(eventName!, handleEvent as EventListener);
         return () => window.removeEventListener(eventName!, handleEvent as EventListener);
-    }, [hasSeenHostileEncounterTutorial, onMarkHostileEncounterTutorialSeen, showSovaSoundBoxRef, sovaMessageAdderRef]);
+    }, [hasSeenHostileEncounterTutorial, onMarkHostileEncounterTutorialSeen, showSovaSoundBoxRef, sovaMessageAdderRef, onSovaError]);
 
     // ========================================================================
     // Part 5: Rune Stone Tutorial (Event-driven)
@@ -642,14 +652,15 @@ export function useSovaTutorials({
                             console.log('[SovaTutorials] 🪨 Marking rune stone tutorial as seen on server');
                             onMarkRuneStoneTutorialSeen();
                         }
-                    }
+                    },
+                    onError: onSovaError,
                 }
             );
         };
 
         window.addEventListener(eventName!, handleEvent as EventListener);
         return () => window.removeEventListener(eventName!, handleEvent as EventListener);
-    }, [hasSeenRuneStoneTutorial, onMarkRuneStoneTutorialSeen, showSovaSoundBoxRef, sovaMessageAdderRef]);
+    }, [hasSeenRuneStoneTutorial, onMarkRuneStoneTutorialSeen, showSovaSoundBoxRef, sovaMessageAdderRef, onSovaError]);
 
     // ========================================================================
     // Part 6: ALK Station Tutorial (Event-driven)
@@ -690,14 +701,15 @@ export function useSovaTutorials({
                             console.log('[SovaTutorials] 🏭 Marking ALK station tutorial as seen on server');
                             onMarkAlkStationTutorialSeen();
                         }
-                    }
+                    },
+                    onError: onSovaError,
                 }
             );
         };
 
         window.addEventListener(eventName!, handleEvent as EventListener);
         return () => window.removeEventListener(eventName!, handleEvent as EventListener);
-    }, [hasSeenAlkStationTutorial, onMarkAlkStationTutorialSeen, showSovaSoundBoxRef, sovaMessageAdderRef]);
+    }, [hasSeenAlkStationTutorial, onMarkAlkStationTutorialSeen, showSovaSoundBoxRef, sovaMessageAdderRef, onSovaError]);
 
     // ========================================================================
     // Part 6b: Crashed Research Drone Tutorial (Event-driven)
@@ -738,14 +750,15 @@ export function useSovaTutorials({
                             console.log('[SovaTutorials] 🛸 Marking crashed drone tutorial as seen on server');
                             onMarkCrashedDroneTutorialSeen();
                         }
-                    }
+                    },
+                    onError: onSovaError,
                 }
             );
         };
 
         window.addEventListener(eventName!, handleEvent as EventListener);
         return () => window.removeEventListener(eventName!, handleEvent as EventListener);
-    }, [hasSeenCrashedDroneTutorial, onMarkCrashedDroneTutorialSeen, showSovaSoundBoxRef, sovaMessageAdderRef]);
+    }, [hasSeenCrashedDroneTutorial, onMarkCrashedDroneTutorialSeen, showSovaSoundBoxRef, sovaMessageAdderRef, onSovaError]);
 
     // ========================================================================
     // Part 7: Proximity Detection for Rune Stones, ALK Stations, and Monuments

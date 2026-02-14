@@ -16,7 +16,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 // Components
 import LoginScreen from './components/LoginScreen';
 import GameScreen from './components/GameScreen';
-import CyberpunkLoadingScreen, { CyberpunkErrorBar } from './components/CyberpunkLoadingScreen';
+import CyberpunkLoadingScreen from './components/CyberpunkLoadingScreen';
 
 // Blog Components
 import BlogPage from './blog/BlogPage';
@@ -48,6 +48,7 @@ import { useSoundSystem, playImmediateSound } from './hooks/useSoundSystem';
 import { useSovaSoundBox } from './hooks/useSovaSoundBox';
 import { useMusicSystem } from './hooks/useMusicSystem';
 import { useMobileDetection } from './hooks/useMobileDetection';
+import { useErrorDisplay } from './contexts/ErrorDisplayContext';
 import { useSettings } from './contexts/SettingsContext';
 
 // Asset Preloading
@@ -132,8 +133,9 @@ function AppContent() {
     } = usePlayerActions();
 
     const [placementState, placementActions] = usePlacementManager(connection);
-    const { placementInfo, placementError } = placementState; // Destructure state
-    const { cancelPlacement, startPlacement } = placementActions; // Destructure actions
+    const { placementInfo, placementError, placementWarning } = placementState; // Destructure state
+    const { cancelPlacement, startPlacement, setPlacementWarning } = placementActions; // Destructure actions
+    const { showError } = useErrorDisplay();
 
     const { interactingWith, handleSetInteractingWith } = useInteractionManager(connection);
 
@@ -890,8 +892,15 @@ function AppContent() {
 
     // Reset sequence completion when loading starts again - will be moved after shouldShowLoadingScreen is defined
 
-    // --- Determine combined error message ---
-    const displayError = connectionError || uiError || placementError || dropError;
+    // Show placement overlap error in red box above hotbar (ErrorDisplay)
+    const overlapMessage = placementWarning === 'Blocked by existing structure' || placementError === 'Blocked by existing structure'
+        ? 'Blocked by existing structure'
+        : null;
+    useEffect(() => {
+        if (overlapMessage) {
+            showError(overlapMessage);
+        }
+    }, [overlapMessage, showError]);
     
     // Debug logging for connection error
     // if (connectionError) {
@@ -1060,9 +1069,6 @@ function AppContent() {
     // console.log("[AppContent] Rendering. Hemps map:", hemps); // <<< TEMP DEBUG LOG
     return (
         <div className="App" style={{ backgroundColor: '#111' }}>
-            {/* Display combined errors */} 
-            {displayError && <CyberpunkErrorBar message={displayError} />}
-
             {/* Show loading screen only when needed */} 
             {shouldShowLoadingScreen && (
                 <CyberpunkLoadingScreen 
@@ -1158,6 +1164,8 @@ function AppContent() {
                             placementInfo={placementInfo}
                             placementActions={placementActions}
                             placementError={placementError}
+                            placementWarning={placementWarning}
+                            setPlacementWarning={setPlacementWarning}
                             startPlacement={startPlacement}
                             cancelPlacement={cancelPlacement}
                             interactingWith={interactingWith}

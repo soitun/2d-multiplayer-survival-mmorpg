@@ -34,6 +34,7 @@ import CairnUnlockNotification, { CairnNotification } from './CairnUnlockNotific
 // SovaDirectivesIndicator has been merged into DayNightCycleTracker
 import QuestsPanel from './QuestsPanel'; // ADDED: Quest panel overlay
 import UplinkNotifications from './UplinkNotifications'; // Unified notifications in uplink style
+import ErrorDisplay from './ErrorDisplay'; // In-game error feedback above XP bar
 import * as SpacetimeDB from '../generated';
 
 // Import types used by props
@@ -219,6 +220,8 @@ interface GameScreenProps {
     placementInfo: PlacementItemInfo | null;
     placementActions: PlacementActions; // Pass whole object if GameCanvas needs more than cancel
     placementError: string | null;
+    placementWarning: string | null;
+    setPlacementWarning: (warning: string | null) => void;
     startPlacement: (itemInfo: PlacementItemInfo) => void;
     cancelPlacement: () => void;
 
@@ -428,7 +431,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         activeConnections,
         localPlayerId, playerIdentity, connection,
         predictedPosition, getCurrentPositionNow, canvasRef,
-        placementInfo, placementActions, placementError, startPlacement, cancelPlacement,
+        placementInfo, placementActions, placementError, placementWarning, setPlacementWarning, startPlacement, cancelPlacement,
         interactingWith, handleSetInteractingWith,
         draggedItemInfo, onItemDragStart, onItemDrop,
         isMinimapOpen,
@@ -1158,6 +1161,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 placementInfo={placementInfo}
                 placementActions={placementActions}
                 placementError={placementError}
+                placementWarning={placementWarning}
+                setPlacementWarning={setPlacementWarning}
                 onSetInteractingWith={handleSetInteractingWith}
                 isMinimapOpen={isMinimapOpen}
                 setIsMinimapOpen={setIsMinimapOpen}
@@ -1478,6 +1483,9 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             )}
 
             {/* Hotbar is now rendered in PlayerUI with hot loot support */}
+
+            {/* Error Display - Red rectangle above XP bar, fades in 2s or on click */}
+            <ErrorDisplay isMobile={props.isMobile} />
 
             {/* ALK Delivery Panel - Shows when interacting with an ALK station */}
             {interactingWith?.type === 'alk_station' && props.alkStations && (

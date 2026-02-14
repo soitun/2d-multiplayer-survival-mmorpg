@@ -7,6 +7,7 @@
 
 import { gameConfig } from '../../config/gameConfig';
 import { WorldTile } from '../../generated/world_tile_type';
+import { getDualGridTileInfoMultiLayer } from '../dualGridAutotile';
 
 // ============================================================================
 // Configuration Types
@@ -197,6 +198,26 @@ export class TileDoodadRenderer {
     }
     
     /**
+     * Check if the tile is on a transition (boundary between terrains).
+     * Doodads should never spawn on transition tiles - they would overlap transition textures.
+     */
+    private isTransitionTile(tileX: number, tileY: number, tileCache: Map<string, WorldTile>): boolean {
+        // Tile (x,y) is a corner of 4 dual grid cells: (x,y), (x-1,y), (x,y-1), (x-1,y-1)
+        const cells = [
+            [tileX, tileY],
+            [tileX - 1, tileY],
+            [tileX, tileY - 1],
+            [tileX - 1, tileY - 1],
+        ];
+        for (const [cx, cy] of cells) {
+            if (getDualGridTileInfoMultiLayer(cx, cy, tileCache).length > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Check if a doodad should spawn at the given tile position
      */
     private shouldSpawnDoodad(tileX: number, tileY: number, spawnRate: number): boolean {
@@ -252,6 +273,9 @@ export class TileDoodadRenderer {
                 const tileTypeName = tile.tileType?.tag;
                 if (!tileTypeName) continue;
                 
+                // Never spawn doodads on transition tiles (boundaries between terrains)
+                if (this.isTransitionTile(x, y, tileCache)) continue;
+
                 // Get doodad config for this tile type
                 const config = TILE_DOODAD_CONFIG[tileTypeName];
                 if (!config) continue;

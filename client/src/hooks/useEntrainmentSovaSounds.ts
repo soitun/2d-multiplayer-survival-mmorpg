@@ -15,6 +15,7 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
 import type { ActiveConsumableEffect } from '../generated';
 import { insanity100SoundRef } from './useInsanitySovaSounds';
+import { useErrorDisplay, getErrorMessageForError } from '../contexts/ErrorDisplayContext';
 
 interface UseEntrainmentSovaSoundsProps {
   activeConsumableEffects: Map<string, ActiveConsumableEffect> | undefined;
@@ -61,9 +62,11 @@ function hasEntrainmentEffect(
  * Plays a random Entrainment quote
  * @param onBeforePlay Optional callback to call BEFORE audio.play() - used to set up SovaSoundBox
  *                     to prevent race conditions with notification sounds
+ * @param onError Optional callback when playback fails
  */
 function playEntrainmentQuote(
-  onBeforePlay?: (audio: HTMLAudioElement) => void
+  onBeforePlay?: (audio: HTMLAudioElement) => void,
+  onError?: (err: unknown) => void
 ): HTMLAudioElement | null {
   const quoteNumber = Math.floor(Math.random() * ENTRAINMENT_QUOTE_COUNT) + 1;
   const soundFilename = `sova_entrainment_${quoteNumber}.mp3`;
@@ -78,6 +81,7 @@ function playEntrainmentQuote(
     // Add error handlers for debugging
     audio.addEventListener('error', (e) => {
       console.error(`[SOVA Entrainment] Audio error for ${soundFilename}:`, e);
+      onError?.(e);
       const error = (audio as any).error;
       if (error) {
         console.error(`[SOVA Entrainment] Audio error details:`, {
@@ -109,6 +113,7 @@ function playEntrainmentQuote(
       // console.log(`[SOVA Entrainment] Successfully started playing quote ${quoteNumber}`);
     }).catch((error) => {
       console.error(`[SOVA Entrainment] Failed to play quote ${soundFilename}:`, error);
+      onError?.(error);
       const audioError = (audio as any).error;
       if (audioError) {
         console.error(`[SOVA Entrainment] Error details:`, {
@@ -122,6 +127,7 @@ function playEntrainmentQuote(
     return audio; // Return audio element to track playback
   } catch (error) {
     console.error(`[SOVA Entrainment] Failed to create audio for quote ${soundFilename}:`, error);
+    onError?.(error);
     return null;
   }
 }
@@ -132,6 +138,8 @@ export function useEntrainmentSovaSounds({
   onSoundPlay,
   onAddMessage
 }: UseEntrainmentSovaSoundsProps): void {
+  const { showError } = useErrorDisplay();
+  const onSovaError = useCallback((err: unknown) => showError(getErrorMessageForError(err)), [showError]);
   const quoteTimerRef = useRef<number | null>(null);
   const currentQuoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const hasEntrainmentRef = useRef<boolean>(false);
@@ -205,7 +213,7 @@ export function useEntrainmentSovaSounds({
         if (onSoundPlayRef.current) {
           onSoundPlayRef.current(audioElement, 'SOVA: Entrainment');
         }
-      });
+      }, onSovaError);
       currentQuoteAudioRef.current = audio;
       
       // Add message to SOVA chat tab (switches to tab and flashes it)
@@ -260,7 +268,7 @@ export function useEntrainmentSovaSounds({
         if (onSoundPlayRef.current) {
           onSoundPlayRef.current(audioElement, 'SOVA: Entrainment');
         }
-      });
+      }, onSovaError);
       currentQuoteAudioRef.current = audio;
       // console.log(`[SOVA Entrainment] Audio created: ${!!audio}`);
       

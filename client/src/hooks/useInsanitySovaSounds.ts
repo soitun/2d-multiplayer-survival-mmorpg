@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import type { Player } from '../generated';
+import { useErrorDisplay, getErrorMessageForError } from '../contexts/ErrorDisplayContext';
 
 interface UseInsanitySovaSoundsProps {
   localPlayer: Player | undefined;
@@ -33,10 +34,12 @@ const SOUND_VARIATIONS_PER_THRESHOLD = 3;
  * @param threshold The insanity threshold (25, 50, 75, 90, or 100)
  * @param onBeforePlay Optional callback to call BEFORE audio.play() - used to set up SovaSoundBox
  *                     to prevent race conditions with notification sounds
+ * @param onError Optional callback when playback fails
  */
 function playInsanitySovaSound(
   threshold: number,
-  onBeforePlay?: (audio: HTMLAudioElement) => void
+  onBeforePlay?: (audio: HTMLAudioElement) => void,
+  onError?: (err: unknown) => void
 ): HTMLAudioElement | null {
   // Randomly select one of the variations for this threshold
   const variation = Math.floor(Math.random() * SOUND_VARIATIONS_PER_THRESHOLD) + 1;
@@ -55,12 +58,14 @@ function playInsanitySovaSound(
     
     audio.play().catch((error) => {
       console.warn(`Failed to play SOVA insanity sound ${soundFilename}:`, error);
+      onError?.(error);
       return null;
     });
     
     return audio; // Return audio element to track playback
   } catch (error) {
     console.warn(`Failed to create audio for SOVA insanity sound ${soundFilename}:`, error);
+    onError?.(error);
     return null;
   }
 }
@@ -69,6 +74,8 @@ function playInsanitySovaSound(
 export const insanity100SoundRef = { current: null as HTMLAudioElement | null };
 
 export function useInsanitySovaSounds({ localPlayer, onSoundPlay, onAddMessage }: UseInsanitySovaSoundsProps): void {
+  const { showError } = useErrorDisplay();
+  const onSovaError = useCallback((err: unknown) => showError(getErrorMessageForError(err)), [showError]);
   const lastThresholdRef = useRef<number>(0.0);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const pendingThresholdRef = useRef<number | null>(null); // Queue for sounds that couldn't play immediately
@@ -142,7 +149,7 @@ export function useInsanitySovaSounds({ localPlayer, onSoundPlay, onAddMessage }
               if (onSoundPlayRef.current) {
                 onSoundPlayRef.current(audioElement, getInsanityLabel(threshold));
               }
-            });
+            }, onSovaError);
             currentAudioRef.current = audio;
             
             // Add message to SOVA chat tab (switches to tab and flashes it)
@@ -181,7 +188,7 @@ export function useInsanitySovaSounds({ localPlayer, onSoundPlay, onAddMessage }
                     if (onSoundPlayRef.current) {
                       onSoundPlayRef.current(audioElement, getInsanityLabel(pendingThreshold));
                     }
-                  });
+                  }, onSovaError);
                   currentAudioRef.current = nextAudio;
                   
                   // Add message to SOVA chat tab for queued sound
@@ -219,7 +226,7 @@ export function useInsanitySovaSounds({ localPlayer, onSoundPlay, onAddMessage }
                           if (onSoundPlayRef.current) {
                             onSoundPlayRef.current(audioElement, getInsanityLabel(nextPending));
                           }
-                        });
+                        }, onSovaError);
                         currentAudioRef.current = finalAudio;
                         
                         // Add message to SOVA chat tab for final queued sound

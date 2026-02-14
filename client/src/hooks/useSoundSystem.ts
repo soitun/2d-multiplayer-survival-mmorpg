@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import * as SpacetimeDB from '../generated';
 import { Identity } from 'spacetimedb';
 import { calculateChunkIndex } from '../utils/chunkUtils';
+import { useErrorDisplay, getErrorMessageForError } from '../contexts/ErrorDisplayContext';
 
 interface SoundSystemProps {
     soundEvents: Map<string, SpacetimeDB.SoundEvent>;
@@ -1259,6 +1260,8 @@ const activeViewportCappedSounds = new Map<string, {
 }>();
 
 // Main sound system hook
+const SOVA_SOUND_PATTERN = /sova|error_tilling|error_mobile|error_memory|tutorial_memory/;
+
 export const useSoundSystem = ({ 
     soundEvents,
     continuousSounds,
@@ -1269,6 +1272,7 @@ export const useSoundSystem = ({
     chunkWeather,
     currentSeason
 }: SoundSystemProps) => {
+    const { showError } = useErrorDisplay();
     const processedSoundEventsRef = useRef<Set<string>>(new Set());
     const isInitializedRef = useRef(false);
     const lastSoundProcessTimeRef = useRef<number>(0);
@@ -1478,6 +1482,9 @@ export const useSoundSystem = ({
                 pitchMultiplier
             ).catch(err => {
                 console.warn(`🔊 Failed to play server sound: ${soundEvent.filename}`, err);
+                if (SOVA_SOUND_PATTERN.test(soundEvent.filename)) {
+                    showError(getErrorMessageForError(err));
+                }
             });
         });
         

@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import { GameConnectionProvider } from './GameConnectionContext';
 import { PlayerActionsProvider } from './PlayerActionsContext';
 import { SettingsProvider } from './SettingsContext';
+import { ErrorDisplayProvider } from './ErrorDisplayContext';
 
 interface GameContextsProviderProps {
     children: ReactNode;
@@ -17,7 +18,9 @@ export const GameContextsProvider: React.FC<GameContextsProviderProps> = ({ chil
         <SettingsProvider>
             <GameConnectionProvider>
                 <PlayerActionsProvider>
-                    {children}
+                    <ErrorDisplayProvider>
+                        {children}
+                    </ErrorDisplayProvider>
                 </PlayerActionsProvider>
             </GameConnectionProvider>
         </SettingsProvider>

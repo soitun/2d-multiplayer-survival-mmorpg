@@ -18,6 +18,7 @@ import { SHELTER_RENDER_WIDTH, SHELTER_RENDER_HEIGHT } from './shelterRenderingU
 import { HEARTH_WIDTH, HEARTH_HEIGHT, HEARTH_RENDER_Y_OFFSET } from './hearthRenderingUtils'; // ADDED: Hearth dimensions
 import { COMPOST_WIDTH, COMPOST_HEIGHT, REFRIGERATOR_WIDTH, REFRIGERATOR_HEIGHT, LARGE_BOX_WIDTH, LARGE_BOX_HEIGHT, REPAIR_BENCH_WIDTH, REPAIR_BENCH_HEIGHT, COOKING_STATION_WIDTH, COOKING_STATION_HEIGHT, PLAYER_BEEHIVE_WIDTH, PLAYER_BEEHIVE_HEIGHT, SCARECROW_WIDTH, SCARECROW_HEIGHT } from './woodenStorageBoxRenderingUtils'; // ADDED: Compost, Refrigerator, Large Box, Repair Bench, Cooking Station, Scarecrow, and Beehive dimensions
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, worldPixelsToFoundationCell, foundationCellToWorldCenter } from '../../config/gameConfig';
+import { getPlacementConfig, snapToPlacementGrid, shouldUseGridSnapping, getPlacementSquareBounds, getBoxTypePlacementConfig, type PlaceablePlacementConfig } from '../../config/placeablePlacementConfig';
 import { DbConnection } from '../../generated';
 import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement, isPineconeBlockedOnBeach, isBirchCatkinBlockedOnAlpine, requiresTemperateOnlyPlacement } from '../plantsUtils';
 import { renderFoundationPreview, renderWallPreview, renderFencePreview } from './foundationRenderingUtils';
@@ -884,6 +885,112 @@ function isPositionOnWall(
     return false;
 }
 
+/** AABB overlap: rects overlap iff they intersect */
+function rectsOverlap(
+    a: { x: number; y: number; width: number; height: number },
+    b: { x: number; y: number; width: number; height: number }
+): boolean {
+    return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+/**
+ * Check if placing at (centerX, centerY) would overlap existing placeables.
+ * Returns overlap status and warning message. Only applies to grid-snapping placeables.
+ */
+export function checkPlacementOverlap(
+    connection: DbConnection | null,
+    placementInfo: PlacementItemInfo | null,
+    centerX: number,
+    centerY: number
+): { overlaps: boolean; message: string | null } {
+    if (!connection || !placementInfo) return { overlaps: false, message: null };
+    const config = getPlacementConfig(placementInfo);
+    if (!config) return { overlaps: false, message: null }; // Excluded items (broth pot, doors, fish trap) - skip
+
+    const newBounds = getPlacementSquareBounds(centerX, centerY, config);
+
+    const getExistingBounds = (posX: number, posY: number, c: PlaceablePlacementConfig) =>
+        getPlacementSquareBounds(posX, posY, c);
+
+    // Campfires
+    for (const e of connection.db.campfire.iter()) {
+        const c = getPlacementConfig({ itemName: 'Camp Fire', iconAssetName: 'campfire.png' });
+        if (c && rectsOverlap(newBounds, getExistingBounds(e.posX, e.posY, c)))
+            return { overlaps: true, message: 'Blocked by existing structure' };
+    }
+    // Furnaces
+    for (const e of connection.db.furnace.iter()) {
+        const c = getPlacementConfig({ itemName: 'Furnace', iconAssetName: 'furnace.png' });
+        if (c && rectsOverlap(newBounds, getExistingBounds(e.posX, e.posY, c)))
+            return { overlaps: true, message: 'Blocked by existing structure' };
+    }
+    // Barbecues
+    for (const e of connection.db.barbecue.iter()) {
+        const c = getPlacementConfig({ itemName: 'Barbecue', iconAssetName: 'barbecue.png' });
+        if (c && rectsOverlap(newBounds, getExistingBounds(e.posX, e.posY, c)))
+            return { overlaps: true, message: 'Blocked by existing structure' };
+    }
+    // Lanterns
+    for (const e of connection.db.lantern.iter()) {
+        const c = getPlacementConfig({ itemName: 'Lantern', iconAssetName: 'lantern.png' });
+        if (c && rectsOverlap(newBounds, getExistingBounds(e.posX, e.posY, c)))
+            return { overlaps: true, message: 'Blocked by existing structure' };
+    }
+    // Turrets
+    for (const e of connection.db.turret.iter()) {
+        const c = getPlacementConfig({ itemName: 'Tallow Steam Turret', iconAssetName: 'turret_tallow.png' });
+        if (c && rectsOverlap(newBounds, getExistingBounds(e.posX, e.posY, c)))
+            return { overlaps: true, message: 'Blocked by existing structure' };
+    }
+    // Stashes
+    for (const e of connection.db.stash.iter()) {
+        const c = getPlacementConfig({ itemName: 'Stash', iconAssetName: 'stash.png' });
+        if (c && rectsOverlap(newBounds, getExistingBounds(e.posX, e.posY, c)))
+            return { overlaps: true, message: 'Blocked by existing structure' };
+    }
+    // Sleeping bags
+    for (const e of connection.db.sleepingBag.iter()) {
+        const c = getPlacementConfig({ itemName: 'Sleeping Bag', iconAssetName: 'sleeping_bag.png' });
+        if (c && rectsOverlap(newBounds, getExistingBounds(e.posX, e.posY, c)))
+            return { overlaps: true, message: 'Blocked by existing structure' };
+    }
+    // Rain collectors
+    for (const e of connection.db.rainCollector.iter()) {
+        const c = getPlacementConfig({ itemName: 'Reed Rain Collector', iconAssetName: 'reed_rain_collector.png' });
+        if (c && rectsOverlap(newBounds, getExistingBounds(e.posX, e.posY, c)))
+            return { overlaps: true, message: 'Blocked by existing structure' };
+    }
+    // Homestead hearths (Matron's Chest)
+    for (const e of connection.db.homesteadHearth.iter()) {
+        const c = getPlacementConfig({ itemName: "Matron's Chest", iconAssetName: 'hearth.png' });
+        if (c && rectsOverlap(newBounds, getExistingBounds(e.posX, e.posY, c)))
+            return { overlaps: true, message: 'Blocked by existing structure' };
+    }
+    // Wooden storage boxes (various box types)
+    for (const e of connection.db.woodenStorageBox.iter()) {
+        const c = getBoxTypePlacementConfig(e.boxType);
+        if (c && rectsOverlap(newBounds, getExistingBounds(e.posX, e.posY, c)))
+            return { overlaps: true, message: 'Blocked by existing structure' };
+    }
+    // Shelters
+    for (const e of connection.db.shelter.iter()) {
+        const c = getPlacementConfig({ itemName: 'Shelter', iconAssetName: 'shelter.png' });
+        if (c && rectsOverlap(newBounds, getExistingBounds(e.posX, e.posY, c)))
+            return { overlaps: true, message: 'Blocked by existing structure' };
+    }
+    // Broth pots (placed on campfires - have position)
+    for (const e of connection.db.brothPot.iter()) {
+        const c = getPlacementConfig({ itemName: 'Camp Fire', iconAssetName: 'campfire.png' });
+        if (c) {
+            const potBounds = getPlacementSquareBounds(e.posX, e.posY, c);
+            if (rectsOverlap(newBounds, potBounds))
+                return { overlaps: true, message: 'Blocked by existing structure' };
+        }
+    }
+
+    return { overlaps: false, message: null };
+}
+
 export function isPlacementTooFar(
     placementInfo: PlacementItemInfo | null, 
     playerX: number, 
@@ -1644,7 +1751,7 @@ export function renderPlacementPreview({
     inventoryItems,
     itemDefinitions,
     foundationTileImagesRef,
-}: RenderPlacementPreviewParams): void {
+}: RenderPlacementPreviewParams): string | null {
     // Handle building preview first
     if (buildingState?.isBuilding && worldMouseX !== null && worldMouseY !== null) {
         // Convert mouse position to foundation cell coordinates (96px grid)
@@ -1757,12 +1864,12 @@ export function renderPlacementPreview({
                 doodadImagesRef, // Pass for fence sprite images
             });
         }
-        return; // Building preview rendered, exit early
+        return null; // Building preview rendered, exit early
     }
 
     // Handle item placement preview (existing logic)
     if (!placementInfo || worldMouseX === null || worldMouseY === null) {
-        return; // Nothing to render
+        return null; // Nothing to render
     }
 
     // Check if this is a seed placement
@@ -2041,9 +2148,17 @@ export function renderPlacementPreview({
 
     ctx.save();
 
-    // Special handling for broth pot - snap to nearest heat source (campfire or fumarole)
+    // Snap to placement grid for items that use it (preview matches server placement exactly)
     let snappedX = worldMouseX;
     let snappedY = worldMouseY;
+    const placementConfig = shouldUseGridSnapping(placementInfo) ? getPlacementConfig(placementInfo) : null;
+    if (placementConfig && placementInfo.iconAssetName !== 'field_cauldron.png' && !isDoorPlacement) {
+      const snapped = snapToPlacementGrid(worldMouseX, worldMouseY, placementConfig);
+      snappedX = snapped.x;
+      snappedY = snapped.y;
+    }
+
+    // Special handling for broth pot - snap to nearest heat source (campfire or fumarole)
     let nearestHeatSource: any = null;
     let heatSourceType: 'campfire' | 'fumarole' | null = null;
     
@@ -2190,8 +2305,8 @@ export function renderPlacementPreview({
     const isOnFoundation = placementInfo.itemName === 'Shelter' && connection && 
         (() => {
             const FOUNDATION_TILE_SIZE = 96;
-            const centerCellX = Math.floor(worldMouseX / FOUNDATION_TILE_SIZE);
-            const centerCellY = Math.floor(worldMouseY / FOUNDATION_TILE_SIZE);
+            const centerCellX = Math.floor(snappedX / FOUNDATION_TILE_SIZE);
+            const centerCellY = Math.floor(snappedY / FOUNDATION_TILE_SIZE);
             
             // Check 5x5 grid around center (±2 cells in each direction)
             for (let offsetX = -2; offsetX <= 2; offsetX++) {
@@ -2213,19 +2328,18 @@ export function renderPlacementPreview({
     const isNotOnFoundation = placementInfo.itemName === "Matron's Chest" && connection && 
         (() => {
             const FOUNDATION_TILE_SIZE = 96;
-            const centerCellX = Math.floor(worldMouseX / FOUNDATION_TILE_SIZE);
-            const centerCellY = Math.floor(worldMouseY / FOUNDATION_TILE_SIZE);
+            const centerCellX = Math.floor(snappedX / FOUNDATION_TILE_SIZE);
+            const centerCellY = Math.floor(snappedY / FOUNDATION_TILE_SIZE);
             
             const foundationsAtCell = foundationSpatialIndex.get(`${centerCellX},${centerCellY}`);
             return !foundationsAtCell?.some(f => !f.isDestroyed); // True if no foundation = invalid placement
         })();
     
     // Check if placement position is on a wall
-    const isOnWall = connection ? isPositionOnWall(connection, worldMouseX, worldMouseY) : false;
+    const isOnWall = connection ? isPositionOnWall(connection, snappedX, snappedY) : false;
     
     // Check if placement position is in a monument zone (ALK stations, rune stones, hot springs, quarries, asphalt)
-    // This now matches the server-side check_monument_zone_placement validation
-    const isInMonumentZone = connection ? isPositionInMonumentZone(connection, worldMouseX, worldMouseY) : false;
+    const isInMonumentZone = connection ? isPositionInMonumentZone(connection, snappedX, snappedY) : false;
     
     // Check if broth pot is being placed without a nearby heat source or on one that already has a pot
     const isBrothPotInvalid = placementInfo.iconAssetName === 'field_cauldron.png' && (() => {
@@ -2279,12 +2393,15 @@ export function renderPlacementPreview({
     // For broth pot, only invalid if no campfire or campfire has pot - distance doesn't matter if snapping
     // For door, only invalid if no foundation or edge has existing wall/door
     let isInvalidPlacement: boolean;
+    let placementWarning: string | null = null;
     if (placementInfo.iconAssetName === 'field_cauldron.png') {
         isInvalidPlacement = isBrothPotInvalid || isInMonumentZone; // Check both campfire validity and monument zone
     } else if (isDoorPlacement) {
         isInvalidPlacement = isDoorInvalid || isInMonumentZone; // Check both foundation edge validity and monument zone
     } else {
-        isInvalidPlacement = isPlacementTooFar || isOnWater || isTileOccupiedBySeed || isOnFoundation || isNotOnFoundation || isOnWall || isInMonumentZone || !!placementError;
+        const { overlaps: isOverlappingPlaceable, message: overlapMessage } = checkPlacementOverlap(connection, placementInfo, snappedX, snappedY);
+        isInvalidPlacement = isPlacementTooFar || isOnWater || isTileOccupiedBySeed || isOnFoundation || isNotOnFoundation || isOnWall || isInMonumentZone || isOverlappingPlaceable || !!placementError;
+        placementWarning = isOverlappingPlaceable ? overlapMessage : null;
         // NOTE: Removed hasStorageBoxCollision - let server handle collision validation consistently for all items (like furnaces)
     }
     
@@ -2430,6 +2547,14 @@ export function renderPlacementPreview({
         adjustedY = snappedY - drawHeight / 2;
     }
 
+    // Draw placement square beneath preview for grid-snapping items
+    if (placementConfig) {
+        const bounds = getPlacementSquareBounds(snappedX, snappedY, placementConfig);
+        ctx.strokeStyle = isInvalidPlacement ? 'rgba(255, 0, 255, 0.5)' : 'rgba(0, 255, 255, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    }
+
     // Draw the preview image or fallback
     if (previewImg && previewImg.complete && previewImg.naturalHeight !== 0) {
         ctx.drawImage(previewImg, adjustedX, adjustedY, drawWidth, drawHeight);
@@ -2440,4 +2565,5 @@ export function renderPlacementPreview({
     }
 
     ctx.restore(); // Restore original context state
+    return placementWarning;
 } 
