@@ -1624,7 +1624,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (ctx.event?.status?.tag === 'Failed') {
         const errorMsg = ctx.event.status.value || 'Unknown error';
         console.error(`[GameCanvas] ❌ applyFertilizer failed for instance ${fertilizerInstanceId.toString()}:`, errorMsg);
-        // TODO: Show error message to player (toast notification or similar)
+        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
       } else if (ctx.event?.status?.tag === 'Committed') {
         console.log(`[GameCanvas] ✅ applyFertilizer succeeded for instance ${fertilizerInstanceId.toString()}`);
       } else {
@@ -1637,7 +1637,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     return () => {
       connection.reducers.removeOnApplyFertilizer(handleApplyFertilizerResult);
     };
-  }, [connection]);
+  }, [connection, showError]);
 
   // Register error handlers for destroy reducers
   useEffect(() => {
@@ -1648,8 +1648,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (ctx.event?.status?.tag === 'Failed') {
         const errorMsg = ctx.event.status.value || 'Failed to destroy foundation';
         console.error('[GameCanvas] destroyFoundation failed:', errorMsg);
-        console.log('[GameCanvas] Failed destruction details:', { foundationId, errorMsg });
-        // TODO: Show error message to user (e.g., toast notification)
+        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
       } else if (ctx.event?.status?.tag === 'Committed') {
         console.log('[GameCanvas] destroyFoundation succeeded! Foundation', foundationId, 'destroyed');
       }
@@ -1660,8 +1659,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (ctx.event?.status?.tag === 'Failed') {
         const errorMsg = ctx.event.status.value || 'Failed to destroy wall';
         console.error('[GameCanvas] destroyWall failed:', errorMsg);
-        console.log('[GameCanvas] Failed destruction details:', { wallId, errorMsg });
-        // TODO: Show error message to user (e.g., toast notification)
+        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
       } else if (ctx.event?.status?.tag === 'Committed') {
         console.log('[GameCanvas] destroyWall succeeded! Wall', wallId, 'destroyed');
       }
@@ -1691,9 +1689,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
         // Play the error sound for legitimate loading failures
         if (errorMsg.includes('need at least 1 arrow')) {
-          console.log('[LoadRangedWeapon] Playing error sound for no arrows');
           playImmediateSound('error_arrows', 1.0);
         }
+        showError(errorMsg || 'Failed to load weapon');
       }
     };
 
@@ -1702,14 +1700,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         const errorMsg = ctx.event.status.value || '';
         // Check if error is about building privilege
         if (errorMsg.includes('Building privilege') || errorMsg.includes('building privilege')) {
-          // Play building privilege error sound for instant feedback
           playImmediateSound('error_building_privilege', 1.0);
         }
         // Check if error is about tier upgrade (cannot downgrade or already at tier)
         else if (errorMsg.includes('Cannot downgrade') ||
           errorMsg.includes('Current tier') ||
           errorMsg.includes('Target tier')) {
-          // Play tier upgrade error sound for instant feedback
           playImmediateSound('error_tier_upgrade', 1.0);
         }
         // Check if error is about insufficient resources
@@ -1718,19 +1714,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           errorMsg.includes('stone') ||
           errorMsg.includes('metal fragments') ||
           errorMsg.includes('Required:')) {
-          // Play error sound for instant feedback
           playImmediateSound('error_resources', 1.0);
         }
+        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
       }
     };
 
     // Generic placement error handler for all placeable items (campfire, furnace, lantern, etc.)
     const handlePlacementError = (ctx: any, itemName: string) => {
       if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || '';
+        const errorMsg = ctx.event.status.value || `${itemName} placement failed`;
         console.log(`[GameCanvas] ${itemName} placement failed:`, errorMsg);
-        // Play error sound for invalid placement (water, too far, etc.)
         playImmediateSound('error_placement_failed', 1.0);
+        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
       }
     };
 
@@ -1798,7 +1794,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       connection.reducers.removeOnPlaceRainCollector(handlePlaceRainCollectorResult);
       connection.reducers.removeOnPlaceHomesteadHearth(handlePlaceHomesteadHearthResult);
     };
-  }, [connection]);
+  }, [connection, showError]);
 
   useEffect(() => {
     // Iterate over all known icons in itemIconUtils.ts to ensure they are preloaded
@@ -1925,14 +1921,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         console.error('[GameCanvas] upgradeWall failed:', errorMsg);
         // Check if error is about building privilege
         if (errorMsg.includes('Building privilege') || errorMsg.includes('building privilege')) {
-          // Play building privilege error sound for instant feedback
           playImmediateSound('error_building_privilege', 1.0);
         }
         // Check if error is about tier upgrade (cannot downgrade or already at tier)
         else if (errorMsg.includes('Cannot downgrade') ||
           errorMsg.includes('Current tier') ||
           errorMsg.includes('Target tier')) {
-          // Play tier upgrade error sound for instant feedback
           playImmediateSound('error_tier_upgrade', 1.0);
         }
         // Check if error is about insufficient resources
@@ -1941,9 +1935,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           errorMsg.includes('stone') ||
           errorMsg.includes('metal fragments') ||
           errorMsg.includes('Required:')) {
-          // Play error sound for instant feedback
           playImmediateSound('error_resources', 1.0);
         }
+        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
       } else if (ctx.event?.status?.tag === 'Committed') {
         console.log('[GameCanvas] upgradeWall succeeded! Wall', wallId, 'upgraded to tier', newTier);
         // The wall tier update will come through SpacetimeDB subscriptions automatically
@@ -1956,7 +1950,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     return () => {
       connection.reducers.removeOnUpgradeWall(handleUpgradeWallResult);
     };
-  }, [connection]);
+  }, [connection, showError]);
 
   // Preload images
   useEffect(() => {
@@ -4926,20 +4920,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (!connection) return;
 
     const handleRespawnRandomlyResult = (ctx: any) => {
-      console.log('[GameCanvas] Respawn randomly result:', ctx);
-      if (ctx.event?.status === 'Committed') {
-        console.log('[GameCanvas] Respawn randomly successful!');
-      } else if (ctx.event?.status?.Failed) {
-        console.error('[GameCanvas] Respawn randomly failed:', ctx.event.status.Failed);
+      if (ctx.event?.status?.tag === 'Failed') {
+        const errorMsg = ctx.event.status.value || 'Respawn failed';
+        console.error('[GameCanvas] Respawn randomly failed:', errorMsg);
+        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
       }
     };
 
     const handleRespawnAtBagResult = (ctx: any, bagId: number) => {
-      console.log('[GameCanvas] Respawn at bag result:', ctx, 'bagId:', bagId);
-      if (ctx.event?.status === 'Committed') {
-        console.log('[GameCanvas] Respawn at bag successful!');
-      } else if (ctx.event?.status?.Failed) {
-        console.error('[GameCanvas] Respawn at bag failed:', ctx.event.status.Failed);
+      if (ctx.event?.status?.tag === 'Failed') {
+        const errorMsg = ctx.event.status.value || 'Respawn at sleeping bag failed';
+        console.error('[GameCanvas] Respawn at bag failed:', errorMsg);
+        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
       }
     };
 
@@ -4952,7 +4944,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       connection.reducers?.removeOnRespawnRandomly?.(handleRespawnRandomlyResult);
       connection.reducers?.removeOnRespawnAtSleepingBag?.(handleRespawnAtBagResult);
     };
-  }, [connection]);
+  }, [connection, showError]);
 
   // --- Dynamically resize canvas to fill container (both mobile and desktop) ---
   // This ensures the canvas logical size matches the display size, eliminating CSS scaling distortion

@@ -505,23 +505,22 @@ function AppContent() {
     });
 
     // --- Register Refrigerator Reducer Error Callbacks ---
-    // Play error sound when refrigerator reducers fail (e.g., invalid item deposit)
+    // Play error sound and show error when refrigerator/compost/harvestable reducers fail
     useEffect(() => {
         if (!connection?.reducers) return;
 
-        const handleContainerValidationError = (containerType: string) => {
-            console.log(`[App] ${containerType} validation failed - playing error sound`);
+        const handleContainerError = (containerType: string, errorMsg: string) => {
+            console.log(`[App] ${containerType} validation failed:`, errorMsg);
             playImmediateSound('construction_placement_error', 1.0);
+            showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
         };
 
-        // Register error callbacks for all refrigerator reducers   
-        // Check if status is Failed (reducer errors come back with status.tag === 'Failed')
+        // Register error callbacks for all refrigerator reducers
         if (connection.reducers.onMoveItemToRefrigerator) {
             connection.reducers.onMoveItemToRefrigerator((ctx: any, boxId: number, targetSlotIndex: number, itemInstanceId: bigint) => {
                 const status = ctx.event?.status;
                 if (status?.tag === 'Failed') {
-                    console.log(`[App] moveItemToRefrigerator failed:`, status.value);
-                    handleContainerValidationError('Refrigerator');
+                    handleContainerError('Refrigerator', status.value || 'Cannot move item to refrigerator');
                 }
             });
         }
@@ -530,8 +529,7 @@ function AppContent() {
             connection.reducers.onQuickMoveToRefrigerator((ctx: any, boxId: number, itemInstanceId: bigint) => {
                 const status = ctx.event?.status;
                 if (status?.tag === 'Failed') {
-                    console.log(`[App] quickMoveToRefrigerator failed:`, status.value);
-                    handleContainerValidationError('Refrigerator');
+                    handleContainerError('Refrigerator', status.value || 'Cannot move item to refrigerator');
                 }
             });
         }
@@ -540,8 +538,7 @@ function AppContent() {
             connection.reducers.onSplitStackIntoRefrigerator((ctx: any, boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) => {
                 const status = ctx.event?.status;
                 if (status?.tag === 'Failed') {
-                    console.log(`[App] splitStackIntoRefrigerator failed:`, status.value);
-                    handleContainerValidationError('Refrigerator');
+                    handleContainerError('Refrigerator', status.value || 'Cannot split into refrigerator');
                 }
             });
         }
@@ -551,8 +548,7 @@ function AppContent() {
             connection.reducers.onMoveItemToCompost((ctx: any, boxId: number, targetSlotIndex: number, itemInstanceId: bigint) => {
                 const status = ctx.event?.status;
                 if (status?.tag === 'Failed') {
-                    console.log(`[App] moveItemToCompost failed:`, status.value);
-                    handleContainerValidationError('Compost');
+                    handleContainerError('Compost', status.value || 'Cannot move item to compost');
                 }
             });
         }
@@ -561,8 +557,7 @@ function AppContent() {
             connection.reducers.onQuickMoveToCompost((ctx: any, boxId: number, itemInstanceId: bigint) => {
                 const status = ctx.event?.status;
                 if (status?.tag === 'Failed') {
-                    console.log(`[App] quickMoveToCompost failed:`, status.value);
-                    handleContainerValidationError('Compost');
+                    handleContainerError('Compost', status.value || 'Cannot move item to compost');
                 }
             });
         }
@@ -571,8 +566,7 @@ function AppContent() {
             connection.reducers.onSplitStackIntoCompost((ctx: any, boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) => {
                 const status = ctx.event?.status;
                 if (status?.tag === 'Failed') {
-                    console.log(`[App] splitStackIntoCompost failed:`, status.value);
-                    handleContainerValidationError('Compost');
+                    handleContainerError('Compost', status.value || 'Cannot split into compost');
                 }
             });
         }
@@ -582,16 +576,16 @@ function AppContent() {
             connection.reducers.onInteractWithHarvestableResource((ctx: any, resourceId: bigint) => {
                 const status = ctx.event?.status;
                 if (status?.tag === 'Failed') {
-                    const errorMsg = status.value || '';
+                    const errorMsg = status.value || 'Cannot harvest resource';
                     console.log(`[App] interactWithHarvestableResource failed:`, errorMsg);
-                    // Play specific error sound for seaweed/underwater harvesting
                     if (errorMsg.includes('underwater') || errorMsg.includes('snorkeling') || errorMsg.includes('seaweed')) {
                         playImmediateSound('error_seaweed_above_water', 1.0);
                     }
+                    showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
                 }
             });
         }
-    }, [connection]);
+    }, [connection, showError]);
 
     // --- Music System ---
     // Get player position for zone-based music (uses predicted position if available)
@@ -892,15 +886,14 @@ function AppContent() {
 
     // Reset sequence completion when loading starts again - will be moved after shouldShowLoadingScreen is defined
 
-    // Show placement overlap error in red box above hotbar (ErrorDisplay)
-    const overlapMessage = placementWarning === 'Blocked by existing structure' || placementError === 'Blocked by existing structure'
-        ? 'Blocked by existing structure'
-        : null;
+    // Show placement errors in red box above hotbar (ErrorDisplay)
+    // Includes overlap ("Blocked by existing structure"), unknown item type, and client-side placement failures
+    const placementMessage = (placementWarning || placementError || '').trim() || null;
     useEffect(() => {
-        if (overlapMessage) {
-            showError(overlapMessage);
+        if (placementMessage) {
+            showError(placementMessage);
         }
-    }, [overlapMessage, showError]);
+    }, [placementMessage, showError]);
     
     // Debug logging for connection error
     // if (connectionError) {
