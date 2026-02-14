@@ -15,7 +15,8 @@ import { WorldTile } from '../../generated/world_tile_type';
 interface DoodadConfig {
     folder: string;
     spawnRate: number;  // 0.0 to 1.0 (e.g., 0.10 = 10%)
-    requiresSnorkeling?: boolean;  // Only visible when player is snorkeling
+    /** When snorkeling, only underwater doodads are shown. When not snorkeling, underwater doodads render with a "viewing through water" effect. */
+    isUnderwaterOnly?: boolean;
 }
 
 // ============================================================================
@@ -26,7 +27,7 @@ const TILE_DOODAD_CONFIG: Record<string, DoodadConfig> = {
     'Grass':       { folder: 'grass',        spawnRate: 0.03 },  // Reduced: existing grass entities provide coverage
     'Tundra':      { folder: 'tundra',       spawnRate: 0.04 },  // Sparse for arctic feel
     'Beach':       { folder: 'beach',        spawnRate: 0.04 },  // Light scatter of shells/debris
-    'Sea':         { folder: 'underwater',   spawnRate: 0.08, requiresSnorkeling: true },  // Only visible when diving
+    'Sea':         { folder: 'underwater',   spawnRate: 0.08, isUnderwaterOnly: true },  // Visible always; blur effect when viewed from above
     'Alpine':      { folder: 'alpine',       spawnRate: 0.03 },  // Rocky areas mostly bare
     'TundraGrass': { folder: 'tundra_grass', spawnRate: 0.05 },  // Similar to grass
     'Forest':      { folder: 'forest',       spawnRate: 0.05 },  // Trees provide visual interest
@@ -255,11 +256,8 @@ export class TileDoodadRenderer {
                 const config = TILE_DOODAD_CONFIG[tileTypeName];
                 if (!config) continue;
                 
-                // Check if this doodad requires snorkeling
-                if (config.requiresSnorkeling && !isSnorkeling) continue;
-                
-                // Skip if snorkeling and this is NOT an underwater doodad (we only show underwater when snorkeling)
-                if (isSnorkeling && !config.requiresSnorkeling) continue;
+                // When snorkeling: only show underwater doodads (land tiles appear as dark underwater view)
+                if (isSnorkeling && !config.isUnderwaterOnly) continue;
                 
                 // Get images for this folder
                 const images = this.imageCache.get(config.folder);
@@ -279,12 +277,24 @@ export class TileDoodadRenderer {
                 const pixelY = Math.floor(y * tileSize);
                 
                 // Draw doodad centered on tile
-                // Doodads are rendered at tile size, centered on the tile
                 const doodadSize = tileSize;
                 const drawX = pixelX + (tileSize - doodadSize) / 2;
                 const drawY = pixelY + (tileSize - doodadSize) / 2;
                 
-                ctx.drawImage(image, drawX, drawY, doodadSize, doodadSize);
+                const isUnderwaterDoodad = config.isUnderwaterOnly;
+                
+                if (isUnderwaterDoodad && !isSnorkeling) {
+                    // Viewing through water surface - subtle blur and transparency (like submerged fumaroles, living coral)
+                    const savedFilter = ctx.filter;
+                    const savedAlpha = ctx.globalAlpha;
+                    ctx.filter = 'blur(2px)';
+                    ctx.globalAlpha = 0.65;
+                    ctx.drawImage(image, drawX, drawY, doodadSize, doodadSize);
+                    ctx.filter = savedFilter;
+                    ctx.globalAlpha = savedAlpha;
+                } else {
+                    ctx.drawImage(image, drawX, drawY, doodadSize, doodadSize);
+                }
             }
         }
     }
