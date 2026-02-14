@@ -131,7 +131,7 @@ export const TUTORIALS: Record<string, TutorialDefinition> = {
         displayName: 'Crystalline Substrate Detected',
         emoji: '🔮',
         description: 'First encounter with a crystalline shard and its unknown effects.',
-        message: `I'm picking up something on you—crystalline substrate, resonance is fragmented—echoes of something I can't resolve. The pattern resembles neural memory encoding though. I'm calling it a memory shard. I don't know where they come from. Hold on—my systems are responding to the substrate. There's some kind of compatibility. I think I can interface with it. I'm also picking up elevated neural activity from you—stress markers. I don't know what this thing is doing to you. If something feels off, drop it.`,
+        message: `I'm picking up something on you—crystalline substrate. The pattern it's emitting resembles neural memory encoding. Hold on—my systems are responding to the substrate. There's some kind of compatibility. I think I can interface with it. I'm also picking up elevated neural activity from you—stress markers. I don't know what this thing is doing to you. If something feels off, drop it.`,
     },
     firstHostileEncounter: {
         id: 'firstHostileEncounter',
