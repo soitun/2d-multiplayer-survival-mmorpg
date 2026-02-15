@@ -28,41 +28,41 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-import { CampfireProcessingSchedule } from "./campfire_processing_schedule_type";
+import { SpawnZoneSchedule } from "./spawn_zone_schedule_type";
 // Mark import as potentially unused
-declare type __keep_CampfireProcessingSchedule = CampfireProcessingSchedule;
+declare type __keep_SpawnZoneSchedule = SpawnZoneSchedule;
 
-export type ProcessCampfireLogicScheduled = {
-  scheduleArgs: CampfireProcessingSchedule,
+export type ProcessSpawnZoneMaintenance = {
+  schedule: SpawnZoneSchedule,
 };
-let _cached_ProcessCampfireLogicScheduled_type_value: __AlgebraicTypeType | null = null;
+let _cached_ProcessSpawnZoneMaintenance_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const ProcessCampfireLogicScheduled = {
+export const ProcessSpawnZoneMaintenance = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_ProcessCampfireLogicScheduled_type_value) return _cached_ProcessCampfireLogicScheduled_type_value;
-    _cached_ProcessCampfireLogicScheduled_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_ProcessCampfireLogicScheduled_type_value.value.elements.push(
-      { name: "scheduleArgs", algebraicType: CampfireProcessingSchedule.getTypeScriptAlgebraicType() },
+    if (_cached_ProcessSpawnZoneMaintenance_type_value) return _cached_ProcessSpawnZoneMaintenance_type_value;
+    _cached_ProcessSpawnZoneMaintenance_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_ProcessSpawnZoneMaintenance_type_value.value.elements.push(
+      { name: "schedule", algebraicType: SpawnZoneSchedule.getTypeScriptAlgebraicType() },
     );
-    return _cached_ProcessCampfireLogicScheduled_type_value;
+    return _cached_ProcessSpawnZoneMaintenance_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: ProcessCampfireLogicScheduled): void {
-    __AlgebraicTypeValue.serializeValue(writer, ProcessCampfireLogicScheduled.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: ProcessSpawnZoneMaintenance): void {
+    __AlgebraicTypeValue.serializeValue(writer, ProcessSpawnZoneMaintenance.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): ProcessCampfireLogicScheduled {
-    return __AlgebraicTypeValue.deserializeValue(reader, ProcessCampfireLogicScheduled.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): ProcessSpawnZoneMaintenance {
+    return __AlgebraicTypeValue.deserializeValue(reader, ProcessSpawnZoneMaintenance.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default ProcessCampfireLogicScheduled;
+export default ProcessSpawnZoneMaintenance;
 

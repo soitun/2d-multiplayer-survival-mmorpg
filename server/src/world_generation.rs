@@ -788,7 +788,7 @@ fn generate_village_roads(
                 }
             }
         }
-        // Add path tiles near other structures (huts, dock, smokeracks)
+        // Add path tiles near other structures (huts, smokeracks)
         for (part_px_x, part_px_y, _, _, _) in fishing_village_parts {
             let pt_tx = (part_px_x / tile_size_px).floor() as i32;
             let pt_ty = (part_px_y / tile_size_px).floor() as i32;

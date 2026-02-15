@@ -11,7 +11,6 @@ import memoryBeaconImage from '../../assets/doodads/memory_beacon.png';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { imageManager } from './imageManager'; // Import image manager
-import { renderEntityHealthBar } from './healthBarUtils';
 
 // === LANTERN TYPE CONSTANTS ===
 // Must match server-side constants in lantern.rs
@@ -315,10 +314,7 @@ export function renderLantern(
         ctx.restore();
     }
     
-    // Render health bar using unified system with dynamic dimensions
-    if (!onlyDrawShadow && playerX !== undefined && playerY !== undefined) {
-        renderEntityHealthBar(ctx, lantern, width, height, nowMs, playerX, playerY, -LANTERN_RENDER_Y_OFFSET);
-    }
+    // Health bar rendered via renderHealthBarOverlay (on top of world objects)
     
     // Render countdown timer for Memory Beacons (shows remaining time before auto-destruct)
     if (!onlyDrawShadow && lantern.lanternType === LANTERN_TYPE_MEMORY_BEACON) {

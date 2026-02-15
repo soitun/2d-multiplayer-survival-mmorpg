@@ -15,7 +15,7 @@ use crate::player as PlayerTableTrait;
 use crate::items::{inventory_item as InventoryItemTableTrait, item_definition as ItemDefinitionTableTrait};
 use crate::planted_seeds::planted_seed as PlantedSeedTableTrait;
 use crate::environment::calculate_chunk_index;
-use crate::campfire::{campfire as CampfireTableTrait, campfire_processing_schedule as CampfireProcessingScheduleTableTrait, Campfire, PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED};
+use crate::campfire::{campfire as CampfireTableTrait, Campfire, PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED};
 use crate::broth_pot::{broth_pot as BrothPotTableTrait, BrothPot, PLAYER_BROTH_POT_INTERACTION_DISTANCE_SQUARED, schedule_next_broth_pot_processing};
 use crate::sound_events::{stop_campfire_sound, emit_filling_container_sound};
 
@@ -267,8 +267,6 @@ pub fn water_crops(ctx: &ReducerContext, container_instance_id: u64) -> Result<(
             
             stop_campfire_sound(ctx, campfire.id as u64);
             ctx.db.campfire().id().update(campfire.clone());
-            ctx.db.campfire_processing_schedule().campfire_id().delete(campfire.id as u64);
-            
             log::info!("Player {} extinguished campfire {} by splashing water at ({:.1}, {:.1})", 
                        player_id, campfire.id, water_x, water_y);
             

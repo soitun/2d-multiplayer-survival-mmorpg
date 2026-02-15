@@ -483,6 +483,47 @@ use crate::wild_animal_npc::caribou::caribou_rut_state as CaribouRutStateTableTr
 use crate::barrel::barrel as BarrelTableTrait; // <<< ADDED: Import Barrel table trait
 use crate::barrel::barrel_respawn_schedule as BarrelRespawnScheduleTableTrait; // <<< ADDED: Import BarrelRespawnSchedule table trait
 use crate::wild_animal_npc::respawn::spawn_zone_schedule as SpawnZoneScheduleTableTrait; // <<< Spawn zone respawn (wolves/wolverines/terns at monuments)
+use crate::turret::turret_processing_schedule as TurretProcessingScheduleTableTrait; // <<< For pause/resume game systems
+use crate::wild_animal_npc::hostile_spawning::hostile_spawn_schedule as HostileSpawnScheduleTableTrait; // <<< For pause/resume game systems
+use crate::wild_animal_npc::hostile_spawning::hostile_dawn_cleanup_schedule as HostileDawnCleanupScheduleTableTrait; // <<< For pause/resume game systems
+use crate::fumarole::fumarole_global_schedule as FumaroleGlobalScheduleTableTrait; // <<< For pause/resume game systems (top CPU consumer)
+use crate::active_effects::process_effects_schedule as ProcessEffectsScheduleTableTrait; // <<< For pause/resume game systems
+use crate::player_stats::player_stat_schedule as PlayerStatScheduleTableTrait; // <<< For pause/resume game systems
+use crate::cloud::cloud_update_schedule as CloudUpdateScheduleTableTrait; // <<< For pause/resume game systems
+use crate::cloud::cloud_intensity_schedule as CloudIntensityScheduleTableTrait; // <<< For pause/resume game systems
+use crate::campfire::campfire_global_schedule as CampfireGlobalScheduleTableTrait; // <<< For pause/resume
+use crate::furnace::furnace_processing_schedule as FurnaceProcessingScheduleTableTrait; // <<< For pause/resume
+use crate::barbecue::barbecue_processing_schedule as BarbecueProcessingScheduleTableTrait; // <<< For pause/resume
+use crate::broth_pot::broth_pot_processing_schedule as BrothPotProcessingScheduleTableTrait; // <<< For pause/resume
+use crate::lantern::lantern_processing_schedule as LanternProcessingScheduleTableTrait; // <<< For pause/resume
+use crate::global_tick::global_tick_schedule; // <<< Trait for ctx.db.global_tick_schedule()
+use crate::world_state::seasonal_plant_management_schedule as SeasonalPlantManagementScheduleTableTrait; // <<< For pause/resume
+use crate::drone::drone_daily_schedule as DroneDailyScheduleTableTrait; // <<< For pause/resume
+use crate::drone::drone_flight_schedule as DroneFlightScheduleTableTrait; // <<< For pause/resume
+use crate::durability::torch_durability_schedule as TorchDurabilityScheduleTableTrait; // <<< For pause/resume
+use crate::durability::food_spoilage_schedule as FoodSpoilageScheduleTableTrait; // <<< For pause/resume
+use crate::planted_seeds::planted_seed_growth_schedule as PlantedSeedGrowthScheduleTableTrait; // <<< For pause/resume
+use crate::grass::grass_respawn_batch_schedule as GrassRespawnBatchScheduleTableTrait; // <<< For pause/resume
+use crate::fire_patch::fire_patch_cleanup_schedule as FirePatchCleanupScheduleTableTrait; // <<< For pause/resume
+use crate::fire_patch::fire_patch_damage_schedule as FirePatchDamageScheduleTableTrait; // <<< For pause/resume
+use crate::fish_trap::fish_trap_process_schedule as FishTrapProcessScheduleTableTrait; // <<< For pause/resume
+use crate::homestead_hearth::building_privilege_check_schedule as BuildingPrivilegeCheckScheduleTableTrait; // <<< For pause/resume
+use crate::homestead_hearth::hearth_upkeep_schedule as HearthUpkeepScheduleTableTrait; // <<< For pause/resume
+use crate::building_decay::building_decay_schedule as BuildingDecayScheduleTableTrait; // <<< For pause/resume
+use crate::fertilizer_patch::fertilizer_patch_cleanup_schedule as FertilizerPatchCleanupScheduleTableTrait; // <<< For pause/resume
+use crate::active_equipment::water_container_fill_schedule as WaterContainerFillScheduleTableTrait; // <<< For pause/resume
+use crate::matronage::matronage_payout_schedule as MatronagePayoutScheduleTableTrait; // <<< For pause/resume
+use crate::alk::alk_contract_refresh_schedule as AlkContractRefreshScheduleTableTrait; // <<< For pause/resume
+use crate::wild_animal_npc::walrus::walrus_breeding_schedule as WalrusBreedingScheduleTableTrait; // <<< For pause/resume
+use crate::water_patch::water_patch_cleanup_schedule as WaterPatchCleanupScheduleTableTrait; // <<< For pause/resume
+use crate::barbecue::barbecue as BarbecueTableTrait; // <<< For resume iteration
+use crate::broth_pot::broth_pot as BrothPotTableTrait; // <<< For resume iteration
+use crate::rune_stone::rune_stone_shard_spawn_schedule as RuneStoneShardSpawnScheduleTableTrait; // <<< For pause/resume
+use crate::rune_stone::rune_stone_item_spawn_schedule as RuneStoneItemSpawnScheduleTableTrait; // <<< For pause/resume
+use crate::rune_stone::rune_stone_seed_spawn_schedule as RuneStoneSeedSpawnScheduleTableTrait; // <<< For pause/resume
+use crate::backpack::backpack_consolidation_schedule as BackpackConsolidationScheduleTableTrait; // <<< For pause/resume
+use crate::explosive::explosive_detonation_schedule as ExplosiveDetonationScheduleTableTrait; // <<< For pause/resume
+use crate::beehive::beehive_process_schedule as BeehiveProcessScheduleTableTrait; // <<< For pause/resume
 use crate::sea_stack::sea_stack as SeaStackTableTrait; // <<< ADDED: Import SeaStack table trait
 use crate::player_corpse::player_corpse as PlayerCorpseTableTrait; // <<< ADDED: Import PlayerCorpse table trait
 use crate::player_progression::player_stats as PlayerStatsTableTrait; // <<< ADDED: Import PlayerStats table trait
@@ -500,6 +541,7 @@ use crate::player_progression::leaderboard_entry as LeaderboardEntryTableTrait; 
 use crate::crafting::Recipe as RecipeTableTrait;
 use crate::crafting_queue::CraftingQueueItem as CraftingQueueItemTableTrait;
 use crate::crafting_queue::CraftingFinishSchedule as CraftingFinishScheduleTableTrait;
+use crate::crafting_queue::crafting_finish_schedule; // Trait for ctx.db.crafting_finish_schedule()
 use crate::global_tick::GlobalTickSchedule as GlobalTickScheduleTableTrait;
 use crate::PlayerLastAttackTimestamp as PlayerLastAttackTimestampTableTrait; // Import for the new table
 
@@ -864,6 +906,8 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
 
     // ADD: Initialize global fumarole processing (1 tx/sec for all fumaroles, replaces per-fumarole schedules)
     crate::fumarole::init_fumarole_global_schedule(ctx)?;
+    // ADD: Initialize global campfire processing (1 tx/sec for all campfires, replaces per-campfire schedules)
+    crate::campfire::init_campfire_global_schedule(ctx)?;
     
     // ADD: Initialize water container fill system for rain collection
     crate::active_equipment::init_water_container_fill_schedule(ctx)?;
@@ -1004,9 +1048,11 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
 
 /// Reducer that handles client connection events.
 /// Pause game systems when no players are online to save reducer transactions.
-/// Deletes schedule rows for projectiles, wild animal AI, and dodge roll cleanup.
+/// Deletes schedule rows for projectiles, wild animal AI, dodge roll cleanup,
+/// turrets, hostile spawning, dawn cleanup, fumaroles, effects, crafting,
+/// player stats, clouds, and spawn zone.
 fn pause_game_systems(ctx: &ReducerContext) {
-    log::info!("[GameSystems] Pausing projectiles, wild animal AI, dodge roll cleanup (no players online)");
+    log::info!("[GameSystems] Pausing game systems (no players online)");
     let projectile_ids: Vec<u64> = ctx.db.projectile_update_schedule().iter().map(|r| r.id).collect();
     for id in projectile_ids {
         ctx.db.projectile_update_schedule().id().delete(id);
@@ -1019,14 +1065,269 @@ fn pause_game_systems(ctx: &ReducerContext) {
     for id in dodge_ids {
         ctx.db.dodge_roll_cleanup_schedule().id().delete(id);
     }
+    let turret_ids: Vec<u64> = ctx.db.turret_processing_schedule().iter().map(|r| r.id).collect();
+    for id in turret_ids {
+        ctx.db.turret_processing_schedule().id().delete(id);
+    }
+    let spawn_ids: Vec<u64> = ctx.db.hostile_spawn_schedule().iter().map(|r| r.scheduled_id).collect();
+    for id in spawn_ids {
+        ctx.db.hostile_spawn_schedule().scheduled_id().delete(&id);
+    }
+    let dawn_ids: Vec<u64> = ctx.db.hostile_dawn_cleanup_schedule().iter().map(|r| r.scheduled_id).collect();
+    for id in dawn_ids {
+        ctx.db.hostile_dawn_cleanup_schedule().scheduled_id().delete(&id);
+    }
+    let fumarole_ids: Vec<u64> = ctx.db.fumarole_global_schedule().iter().map(|r| r.id).collect();
+    for id in fumarole_ids {
+        ctx.db.fumarole_global_schedule().id().delete(id);
+    }
+    let effects_ids: Vec<u64> = ctx.db.process_effects_schedule().iter().map(|r| r.job_id).collect();
+    for id in effects_ids {
+        ctx.db.process_effects_schedule().job_id().delete(&id);
+    }
+    let crafting_ids: Vec<u64> = ctx.db.crafting_finish_schedule().iter().map(|r| r.id).collect();
+    for id in crafting_ids {
+        ctx.db.crafting_finish_schedule().id().delete(id);
+    }
+    let player_stat_ids: Vec<u64> = ctx.db.player_stat_schedule().iter().map(|r| r.id).collect();
+    for id in player_stat_ids {
+        ctx.db.player_stat_schedule().id().delete(id);
+    }
+    let cloud_update_ids: Vec<u64> = ctx.db.cloud_update_schedule().iter().map(|r| r.schedule_id).collect();
+    for id in cloud_update_ids {
+        ctx.db.cloud_update_schedule().schedule_id().delete(&id);
+    }
+    let cloud_intensity_ids: Vec<u64> = ctx.db.cloud_intensity_schedule().iter().map(|r| r.schedule_id).collect();
+    for id in cloud_intensity_ids {
+        ctx.db.cloud_intensity_schedule().schedule_id().delete(&id);
+    }
+    let spawn_zone_ids: Vec<u64> = ctx.db.spawn_zone_schedule().iter().map(|r| r.id).collect();
+    for id in spawn_zone_ids {
+        ctx.db.spawn_zone_schedule().id().delete(id);
+    }
+    // Global schedules (campfire, furnace, barbecue, broth_pot, lantern - converted from per-entity)
+    let campfire_global_ids: Vec<u64> = ctx.db.campfire_global_schedule().iter().map(|r| r.id).collect();
+    for id in campfire_global_ids {
+        ctx.db.campfire_global_schedule().id().delete(id);
+    }
+    let furnace_ids: Vec<u64> = ctx.db.furnace_processing_schedule().iter().map(|r| r.furnace_id).collect();
+    for id in furnace_ids {
+        ctx.db.furnace_processing_schedule().furnace_id().delete(id);
+    }
+    let barbecue_ids: Vec<u64> = ctx.db.barbecue_processing_schedule().iter().map(|r| r.barbecue_id).collect();
+    for id in barbecue_ids {
+        ctx.db.barbecue_processing_schedule().barbecue_id().delete(id);
+    }
+    let broth_pot_ids: Vec<u64> = ctx.db.broth_pot_processing_schedule().iter().map(|r| r.broth_pot_id).collect();
+    for id in broth_pot_ids {
+        ctx.db.broth_pot_processing_schedule().broth_pot_id().delete(id);
+    }
+    let lantern_ids: Vec<u64> = ctx.db.lantern_processing_schedule().iter().map(|r| r.lantern_id).collect();
+    for id in lantern_ids {
+        ctx.db.lantern_processing_schedule().lantern_id().delete(id);
+    }
+    // Global schedules
+    let global_tick_ids: Vec<u64> = ctx.db.global_tick_schedule().iter().map(|r| r.id).collect();
+    for id in global_tick_ids {
+        ctx.db.global_tick_schedule().id().delete(id);
+    }
+    let dropped_item_ids: Vec<u64> = ctx.db.dropped_item_despawn_schedule().iter().map(|r| r.id).collect();
+    for id in dropped_item_ids {
+        ctx.db.dropped_item_despawn_schedule().id().delete(id);
+    }
+    let alk_ids: Vec<u64> = ctx.db.alk_contract_refresh_schedule().iter().map(|r| r.schedule_id).collect();
+    for id in alk_ids {
+        ctx.db.alk_contract_refresh_schedule().schedule_id().delete(&id);
+    }
+    let sound_ids: Vec<u64> = ctx.db.sound_event_cleanup_schedule().iter().map(|r| r.schedule_id).collect();
+    for id in sound_ids {
+        ctx.db.sound_event_cleanup_schedule().schedule_id().delete(&id);
+    }
+    let thunder_cleanup_ids: Vec<u64> = ctx.db.thunder_event_cleanup_schedule().iter().map(|r| r.schedule_id).collect();
+    for id in thunder_cleanup_ids {
+        ctx.db.thunder_event_cleanup_schedule().schedule_id().delete(&id);
+    }
+    let thunder_sound_ids: Vec<u64> = ctx.db.thunder_sound_schedule().iter().map(|r| r.schedule_id).collect();
+    for id in thunder_sound_ids {
+        ctx.db.thunder_sound_schedule().schedule_id().delete(&id);
+    }
+    let seasonal_ids: Vec<u64> = ctx.db.seasonal_plant_management_schedule().iter().map(|r| r.schedule_id).collect();
+    for id in seasonal_ids {
+        ctx.db.seasonal_plant_management_schedule().schedule_id().delete(&id);
+    }
+    let drone_daily_ids: Vec<u64> = ctx.db.drone_daily_schedule().iter().map(|r| r.schedule_id).collect();
+    for id in drone_daily_ids {
+        ctx.db.drone_daily_schedule().schedule_id().delete(&id);
+    }
+    let drone_flight_ids: Vec<u64> = ctx.db.drone_flight_schedule().iter().map(|r| r.schedule_id).collect();
+    for id in drone_flight_ids {
+        ctx.db.drone_flight_schedule().schedule_id().delete(&id);
+    }
+    let compost_ids: Vec<u64> = ctx.db.compost_process_schedule().iter().map(|r| r.id).collect();
+    for id in compost_ids {
+        ctx.db.compost_process_schedule().id().delete(id);
+    }
+    let torch_ids: Vec<u64> = ctx.db.torch_durability_schedule().iter().map(|r| r.schedule_id).collect();
+    for id in torch_ids {
+        ctx.db.torch_durability_schedule().schedule_id().delete(&id);
+    }
+    let food_spoilage_ids: Vec<u64> = ctx.db.food_spoilage_schedule().iter().map(|r| r.schedule_id).collect();
+    for id in food_spoilage_ids {
+        ctx.db.food_spoilage_schedule().schedule_id().delete(&id);
+    }
+    let barrel_ids: Vec<u64> = ctx.db.barrel_respawn_schedule().iter().map(|r| r.id).collect();
+    for id in barrel_ids {
+        ctx.db.barrel_respawn_schedule().id().delete(id);
+    }
+    let caribou_ids: Vec<u64> = ctx.db.caribou_breeding_schedule().iter().map(|r| r.schedule_id).collect();
+    for id in caribou_ids {
+        ctx.db.caribou_breeding_schedule().schedule_id().delete(&id);
+    }
+    let walrus_ids: Vec<u64> = ctx.db.walrus_breeding_schedule().iter().map(|r| r.schedule_id).collect();
+    for id in walrus_ids {
+        ctx.db.walrus_breeding_schedule().schedule_id().delete(&id);
+    }
+    let beehive_ids: Vec<u64> = ctx.db.beehive_process_schedule().iter().map(|r| r.id).collect();
+    for id in beehive_ids {
+        ctx.db.beehive_process_schedule().id().delete(id);
+    }
+    let planted_seed_ids: Vec<u64> = ctx.db.planted_seed_growth_schedule().iter().map(|r| r.id).collect();
+    for id in planted_seed_ids {
+        ctx.db.planted_seed_growth_schedule().id().delete(id);
+    }
+    let explosive_ids: Vec<u64> = ctx.db.explosive_detonation_schedule().iter().map(|r| r.id).collect();
+    for id in explosive_ids {
+        ctx.db.explosive_detonation_schedule().id().delete(id);
+    }
+    let grass_ids: Vec<u64> = ctx.db.grass_respawn_batch_schedule().iter().map(|r| r.schedule_id).collect();
+    for id in grass_ids {
+        ctx.db.grass_respawn_batch_schedule().schedule_id().delete(&id);
+    }
+    let fire_cleanup_ids: Vec<u64> = ctx.db.fire_patch_cleanup_schedule().iter().map(|r| r.id).collect();
+    for id in fire_cleanup_ids {
+        ctx.db.fire_patch_cleanup_schedule().id().delete(id);
+    }
+    let fire_damage_ids: Vec<u64> = ctx.db.fire_patch_damage_schedule().iter().map(|r| r.id).collect();
+    for id in fire_damage_ids {
+        ctx.db.fire_patch_damage_schedule().id().delete(id);
+    }
+    let fish_trap_ids: Vec<u64> = ctx.db.fish_trap_process_schedule().iter().map(|r| r.id).collect();
+    for id in fish_trap_ids {
+        ctx.db.fish_trap_process_schedule().id().delete(id);
+    }
+    let backpack_ids: Vec<u64> = ctx.db.backpack_consolidation_schedule().iter().map(|r| r.id).collect();
+    for id in backpack_ids {
+        ctx.db.backpack_consolidation_schedule().id().delete(id);
+    }
+    let building_priv_ids: Vec<u64> = ctx.db.building_privilege_check_schedule().iter().map(|r| r.id).collect();
+    for id in building_priv_ids {
+        ctx.db.building_privilege_check_schedule().id().delete(id);
+    }
+    let hearth_ids: Vec<u64> = ctx.db.hearth_upkeep_schedule().iter().map(|r| r.id).collect();
+    for id in hearth_ids {
+        ctx.db.hearth_upkeep_schedule().id().delete(id);
+    }
+    let decay_ids: Vec<u64> = ctx.db.building_decay_schedule().iter().map(|r| r.id).collect();
+    for id in decay_ids {
+        ctx.db.building_decay_schedule().id().delete(id);
+    }
+    let water_patch_ids: Vec<u64> = ctx.db.water_patch_cleanup_schedule().iter().map(|r| r.id).collect();
+    for id in water_patch_ids {
+        ctx.db.water_patch_cleanup_schedule().id().delete(id);
+    }
+    let fertilizer_ids: Vec<u64> = ctx.db.fertilizer_patch_cleanup_schedule().iter().map(|r| r.id).collect();
+    for id in fertilizer_ids {
+        ctx.db.fertilizer_patch_cleanup_schedule().id().delete(id);
+    }
+    let tilled_ids: Vec<u64> = ctx.db.tilled_tile_reversion_schedule().iter().map(|r| r.id).collect();
+    for id in tilled_ids {
+        ctx.db.tilled_tile_reversion_schedule().id().delete(id);
+    }
+    let water_container_ids: Vec<u64> = ctx.db.water_container_fill_schedule().iter().map(|r| r.schedule_id).collect();
+    for id in water_container_ids {
+        ctx.db.water_container_fill_schedule().schedule_id().delete(&id);
+    }
+    let matronage_ids: Vec<u64> = ctx.db.matronage_payout_schedule().iter().map(|r| r.id).collect();
+    for id in matronage_ids {
+        ctx.db.matronage_payout_schedule().id().delete(id);
+    }
+    let rune_shard_ids: Vec<u64> = ctx.db.rune_stone_shard_spawn_schedule().iter().map(|r| r.id).collect();
+    for id in rune_shard_ids {
+        ctx.db.rune_stone_shard_spawn_schedule().id().delete(id);
+    }
+    let rune_item_ids: Vec<u64> = ctx.db.rune_stone_item_spawn_schedule().iter().map(|r| r.id).collect();
+    for id in rune_item_ids {
+        ctx.db.rune_stone_item_spawn_schedule().id().delete(id);
+    }
+    let rune_seed_ids: Vec<u64> = ctx.db.rune_stone_seed_spawn_schedule().iter().map(|r| r.id).collect();
+    for id in rune_seed_ids {
+        ctx.db.rune_stone_seed_spawn_schedule().id().delete(id);
+    }
 }
 
 /// Resume game systems when first player connects.
 fn resume_game_systems(ctx: &ReducerContext) -> Result<(), String> {
-    log::info!("[GameSystems] Resuming projectiles, wild animal AI, dodge roll cleanup");
+    log::info!("[GameSystems] Resuming game systems");
+    // Already-paused systems (from previous implementation)
     crate::projectile::init_projectile_system(ctx)?;
     crate::wild_animal_npc::init_wild_animal_ai_schedule(ctx)?;
     crate::player_movement::init_dodge_roll_cleanup_system(ctx)?;
+    crate::turret::init_turret_system(ctx)?;
+    crate::wild_animal_npc::init_hostile_spawning_system(ctx)?;
+    crate::fumarole::init_fumarole_global_schedule(ctx)?;
+    crate::campfire::init_campfire_global_schedule(ctx)?;
+    crate::active_effects::schedule_effect_processing(ctx)?;
+    crate::crafting_queue::init_crafting_schedule(ctx)?;
+    crate::player_stats::init_player_stat_schedule(ctx)?;
+    crate::cloud::init_cloud_update_schedule(ctx)?;
+    crate::cloud::init_cloud_intensity_system(ctx)?;
+    crate::wild_animal_npc::respawn::init_spawn_zone_schedule(ctx)?;
+    // Per-entity schedules: reschedule each entity that needs processing
+    // Campfire uses global schedule (init_campfire_global_schedule called above with fumarole)
+    for furnace in ctx.db.furnace().iter() {
+        let _ = crate::furnace::schedule_next_furnace_processing(ctx, furnace.id);
+    }
+    for barbecue in ctx.db.barbecue().iter() {
+        let _ = crate::barbecue::schedule_next_barbecue_processing(ctx, barbecue.id);
+    }
+    for broth_pot in ctx.db.broth_pot().iter() {
+        let _ = crate::broth_pot::schedule_next_broth_pot_processing(ctx, broth_pot.id);
+    }
+    for lantern in ctx.db.lantern().iter() {
+        let _ = crate::lantern::schedule_next_lantern_processing(ctx, lantern.id);
+    }
+    // Global schedules
+    crate::global_tick::init_global_tick_schedule(ctx)?;
+    crate::dropped_item::init_dropped_item_schedule(ctx)?;
+    crate::alk::init_alk_system(ctx)?;
+    crate::sound_events::init_sound_cleanup_system(ctx)?;
+    crate::world_state::init_thunder_event_cleanup_schedule(ctx)?;
+    // Note: seasonal_plant_management_schedule is created dynamically during tick_world_state when season changes
+    crate::drone::init_drone_system(ctx);
+    crate::compost::init_compost_system(ctx)?;
+    crate::durability::init_torch_durability_schedule(ctx)?;
+    crate::durability::init_food_spoilage_schedule(ctx)?;
+    crate::barrel::init_barrel_system(ctx)?;
+    crate::wild_animal_npc::caribou::init_caribou_breeding_schedule(ctx)?;
+    crate::wild_animal_npc::walrus::init_walrus_breeding_schedule(ctx)?;
+    crate::beehive::init_beehive_system(ctx)?;
+    crate::planted_seeds::init_plant_growth_system(ctx)?;
+    crate::explosive::init_explosive_system(ctx)?;
+    crate::grass::init_grass_respawn_scheduler(ctx);
+    crate::fire_patch::init_fire_patch_system(ctx)?;
+    crate::fish_trap::init_fish_trap_system(ctx)?;
+    crate::backpack::init_backpack_consolidation_schedule(ctx)?;
+    crate::homestead_hearth::init_building_privilege_check_schedule(ctx)?;
+    crate::homestead_hearth::init_hearth_upkeep_schedule(ctx)?;
+    crate::building_decay::init_building_decay_schedule(ctx)?;
+    crate::water_patch::init_water_patch_system(ctx)?;
+    crate::fertilizer_patch::init_fertilizer_patch_system(ctx)?;
+    crate::tilled_tiles::init_tilled_tile_system(ctx)?;
+    crate::active_equipment::init_water_container_fill_schedule(ctx)?;
+    crate::matronage::init_matronage_system(ctx)?;
+    crate::rune_stone::init_rune_stone_shard_spawning(ctx)?;
+    crate::rune_stone::init_rune_stone_item_spawning(ctx)?;
+    crate::rune_stone::init_rune_stone_seed_spawning(ctx)?;
     Ok(())
 }
 

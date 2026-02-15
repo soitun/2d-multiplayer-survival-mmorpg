@@ -18,7 +18,6 @@ import alkCompostImage from '../../assets/doodads/alk_compost.png'; // Monument 
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';
-import { renderEntityHealthBar } from './healthBarUtils';
 import { renderDecorativeBees } from './decorativeBeeRenderingUtils';
 import { isCompoundMonument } from '../../config/compoundBuildings';
 
@@ -57,7 +56,7 @@ export const MONUMENT_REPAIR_BENCH_WIDTH = 384;
 export const MONUMENT_REPAIR_BENCH_HEIGHT = 384;
 export const MONUMENT_COMPOST_WIDTH = 384;
 export const MONUMENT_COMPOST_HEIGHT = 384;
-const MONUMENT_BOX_ANCHOR_Y_OFFSET = 96; // Same anchor as other monument buildings
+export const MONUMENT_BOX_ANCHOR_Y_OFFSET = 96; // Same anchor as other monument buildings
 
 // Box type constants (must match server)
 export const BOX_TYPE_NORMAL = 0;
@@ -77,7 +76,7 @@ export const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Added int
 export const PLAYER_BEEHIVE_INTERACTION_DISTANCE_SQUARED = 140.0 * 140.0; // Tall structures - allow interaction from bottom
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 10; // Make boxes shake a bit more
-const BOX_RENDER_Y_OFFSET = 20; // Matches calculateDrawPosition offset
+export const BOX_RENDER_Y_OFFSET = 20; // Matches calculateDrawPosition offset
 
 // --- Client-side animation tracking for wooden storage box shakes ---
 const clientBoxShakeStartTimes = new Map<string, number>(); // boxId -> client timestamp when shake started
@@ -494,10 +493,7 @@ function renderFishTrapWithWaterEffects(
     
     ctx.restore(); // Restore from rotation transform
     
-    // Render health bar for fish trap
-    if (playerX !== undefined && playerY !== undefined) {
-        renderEntityHealthBar(ctx, box, drawWidth, drawHeight, nowMs, playerX, playerY, -yOffset);
-    }
+    // Health bar rendered via renderHealthBarOverlay (on top of world objects)
 }
 
 // --- Rendering Function (Refactored) ---
@@ -630,16 +626,5 @@ export function renderWoodenStorageBox(
         renderDecorativeBees(ctx, box, nowMs, inventoryItems, itemDefinitions);
     }
     
-    // Render health bar using unified system (with type-specific dimensions)
-    if (playerX !== undefined && playerY !== undefined) {
-        if (isCompoundBldg && (box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_REPAIR_BENCH || box.boxType === BOX_TYPE_COMPOST)) {
-            // Monument buildings: larger sprite with monument anchor
-            const w = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_WIDTH : box.boxType === BOX_TYPE_COMPOST ? MONUMENT_COMPOST_WIDTH : MONUMENT_REPAIR_BENCH_WIDTH;
-            const h = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_HEIGHT : box.boxType === BOX_TYPE_COMPOST ? MONUMENT_COMPOST_HEIGHT : MONUMENT_REPAIR_BENCH_HEIGHT;
-            renderEntityHealthBar(ctx, box, w, h, nowMs, playerX, playerY, h - MONUMENT_BOX_ANCHOR_Y_OFFSET);
-        } else {
-            const dims = getBoxDimensions(box.boxType);
-            renderEntityHealthBar(ctx, box, dims.width, dims.height, nowMs, playerX, playerY, -BOX_RENDER_Y_OFFSET);
-        }
-    }
+    // Health bar rendered via renderHealthBarOverlay (on top of world objects)
 } 

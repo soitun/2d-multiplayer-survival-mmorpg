@@ -86,7 +86,6 @@ export function preloadMonumentImages(): void {
     loadImage('fv_lodge.png', import('../../assets/doodads/fv_lodge.png?url'));
     loadImage('fv_hut2.png', import('../../assets/doodads/fv_hut2.png?url'));
     loadImage('fv_hut3.png', import('../../assets/doodads/fv_hut3.png?url'));
-    loadImage('fv_dock.png', import('../../assets/doodads/fv_dock.png?url'));
     loadImage('fv_smokerack1.png', import('../../assets/doodads/fv_smokerack1.png?url'));
     
     // Whale Bone Graveyard monument images (ancient whale bone graveyard on beach)
@@ -159,7 +158,6 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             'fv_lodge.png': () => import('../../assets/doodads/fv_lodge.png?url'),
             'fv_hut2.png': () => import('../../assets/doodads/fv_hut2.png?url'),
             'fv_hut3.png': () => import('../../assets/doodads/fv_hut3.png?url'),
-            'fv_dock.png': () => import('../../assets/doodads/fv_dock.png?url'),
             'fv_smokerack1.png': () => import('../../assets/doodads/fv_smokerack1.png?url'),
             
             // Whale Bone Graveyard monument images (ancient whale bone graveyard on beach)
@@ -438,7 +436,7 @@ export function renderMonument(
         ctx.globalAlpha = transparencyAlpha;
     }
     
-    // Apply rotation if needed (e.g., dock facing water)
+    // Apply rotation if needed (e.g., monument parts with custom orientation)
     const rotationRad = (building as { rotationRad?: number }).rotationRad ?? 0;
     if (Math.abs(rotationRad) > 0.001) {
         ctx.translate(worldX, worldY);

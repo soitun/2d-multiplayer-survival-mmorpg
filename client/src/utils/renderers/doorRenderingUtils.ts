@@ -1,6 +1,5 @@
 import { Door as SpacetimeDBDoor } from '../../generated';
 import { FOUNDATION_TILE_SIZE } from '../../config/gameConfig';
-import { renderHealthBar, getLastHitTimeMs } from './healthBarUtils';
 
 // Door rendering dimensions
 export const DOOR_RENDER_WIDTH = FOUNDATION_TILE_SIZE; // 96px to span foundation edge
@@ -173,25 +172,7 @@ export const renderDoor = ({
 
   ctx.restore();
 
-  // Draw health bar if door has taken damage (using unified health bar system)
-  const healthPercent = door.health / door.maxHealth;
-  if (healthPercent < 1.0 && localPlayerPosition) {
-    renderHealthBar({
-      ctx,
-      entityX: door.posX,
-      entityY: door.posY,
-      entityWidth: DOOR_RENDER_WIDTH,
-      entityHeight: DOOR_RENDER_HEIGHT,
-      health: door.health,
-      maxHealth: door.maxHealth,
-      // Use current time - door health bars don't fade
-      lastHitTimeMs: nowMs - 1000, // Always show if damaged
-      nowMs,
-      playerX: localPlayerPosition.x,
-      playerY: localPlayerPosition.y,
-      entityDrawYOffset: -44, // Door Y offset
-    });
-  }
+  // Health bar rendered via renderHealthBarOverlay (on top of world objects)
 };
 
 /**

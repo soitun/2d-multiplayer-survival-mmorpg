@@ -928,13 +928,15 @@ pub fn emit_hostile_death_sound(
 
 /// Initialize hostile NPC spawning system
 pub fn init_hostile_spawning_system(ctx: &ReducerContext) -> Result<(), String> {
-    // Start the spawn schedule
+    if ctx.db.hostile_spawn_schedule().iter().count() > 0 {
+        log::debug!("[HostileNPC] Spawn schedule already exists, skipping init");
+        return Ok(());
+    }
     let spawn_interval = TimeDuration::from_micros((SPAWN_ATTEMPT_INTERVAL_MS * 1000) as i64);
     ctx.db.hostile_spawn_schedule().insert(HostileSpawnSchedule {
         scheduled_id: 0,
         scheduled_at: spawn_interval.into(),
     });
-    
     log::info!("[HostileNPC] Initialized hostile NPC spawning system");
     Ok(())
 }
@@ -1543,7 +1545,11 @@ pub fn process_dawn_cleanup(ctx: &ReducerContext, args: HostileDawnCleanupSchedu
     // If it's night again, STOP the cleanup schedule entirely
     if night_phase != NightPhase::NotNight {
         log::info!("🌙 [HostileNPC] Dawn cleanup stopped - night has returned (phase: {})", night_phase.name());
-        // Don't reschedule - let the schedule die
+        // CRITICAL: Delete schedule rows to stop transactions. Rows accumulate if not deleted.
+        let ids: Vec<u64> = ctx.db.hostile_dawn_cleanup_schedule().iter().map(|r| r.scheduled_id).collect();
+        for id in ids {
+            ctx.db.hostile_dawn_cleanup_schedule().scheduled_id().delete(&id);
+        }
         return Ok(());
     }
     
@@ -1571,7 +1577,11 @@ pub fn process_dawn_cleanup(ctx: &ReducerContext, args: HostileDawnCleanupSchedu
             log::info!("🌅 [HostileNPC] Dawn cleanup complete - removed {} remaining hostiles (beacon zone hostiles preserved)", hostile_ids.len());
         }
         
-        // Cleanup complete - don't reschedule
+        // CRITICAL: Delete schedule rows to stop transactions. Rows accumulate if not deleted.
+        let ids: Vec<u64> = ctx.db.hostile_dawn_cleanup_schedule().iter().map(|r| r.scheduled_id).collect();
+        for id in ids {
+            ctx.db.hostile_dawn_cleanup_schedule().scheduled_id().delete(&id);
+        }
         return Ok(());
     }
     
@@ -1611,14 +1621,9 @@ pub fn process_dawn_cleanup(ctx: &ReducerContext, args: HostileDawnCleanupSchedu
         }
     }
     
-    // Reschedule for next cleanup tick (manually control the interval)
-    let check_interval = TimeDuration::from_micros((DAWN_CLEANUP_CHECK_INTERVAL_MS * 1000) as i64);
-    ctx.db.hostile_dawn_cleanup_schedule().insert(HostileDawnCleanupSchedule {
-        scheduled_id: 0,
-        scheduled_at: check_interval.into(),
-        cleanup_start_time: args.cleanup_start_time, // Keep original start time
-    });
-    
+    // No insert needed: the single schedule row from start_dawn_cleanup_if_needed uses Interval
+    // and will auto-fire again in 2 seconds. Inserting here caused row accumulation (each row
+    // fires every 2s, so N rows = Nx transaction rate) and rows were never deleted on completion.
     Ok(())
 }
 

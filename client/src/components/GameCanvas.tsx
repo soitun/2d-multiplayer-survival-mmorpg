@@ -649,25 +649,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Add a state to track when images are loaded to trigger re-renders
   const [imageLoadTrigger, setImageLoadTrigger] = useState(0);
-  const imageLoadTriggeredRef = useRef(false);
+  const lastTriggeredSizeRef = useRef(0);
 
-  // Effect to trigger re-render when images are loaded (ONE TIME ONLY)
+  // Effect to trigger re-render when item images load (including death_marker.png for death screen)
+  // Must trigger when death_marker.png arrives - it may load after burlap_sack, so we trigger on each new image
   useEffect(() => {
-    // If already triggered, don't set up another interval
-    if (imageLoadTriggeredRef.current) return;
-
     const checkImages = () => {
-      if (itemImagesRef.current && itemImagesRef.current.size > 0 && !imageLoadTriggeredRef.current) {
-        imageLoadTriggeredRef.current = true;
-        setImageLoadTrigger(1); // Just set to 1, no increment needed
-        clearInterval(interval);
+      const currentSize = itemImagesRef.current?.size ?? 0;
+      if (currentSize > lastTriggeredSizeRef.current && currentSize > 0) {
+        lastTriggeredSizeRef.current = currentSize;
+        setImageLoadTrigger((prev) => prev + 1);
       }
     };
 
-    // Check immediately
     checkImages();
-
-    // Set up an interval to check periodically (cleared when images are loaded)
     const interval = setInterval(checkImages, 100);
 
     return () => clearInterval(interval);
@@ -1970,12 +1965,26 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
   }, [isAutoAttacking, onAutoActionStatesChange]);
 
+  // Village campfire positions for fire/smoke particles (fishing village center + hunting village campfire)
+  const villageCampfirePositions = useMemo(() => {
+    if (!monumentParts || monumentParts.size === 0) return [];
+    const positions: { id: string; posX: number; posY: number }[] = [];
+    monumentParts.forEach((part: { id: bigint; worldX: number; worldY: number; imagePath?: string; monumentType?: { tag?: string }; partType?: string; isCenter?: boolean }) => {
+      const tag = part.monumentType?.tag ?? '';
+      const isFishingVillageCampfire = tag === 'FishingVillage' && part.isCenter;
+      const isHuntingVillageCampfire = tag === 'HuntingVillage' && part.partType === 'campfire';
+      if ((isFishingVillageCampfire || isHuntingVillageCampfire) && part.imagePath === 'fv_campfire.png') {
+        positions.push({ id: part.id.toString(), posX: part.worldX, posY: part.worldY });
+      }
+    });
+    return positions;
+  }, [monumentParts, monumentParts?.size]);
+
   // Use the particle hooks - they now run independently
-  // Village campfires (fishing/hunting) use animated spritesheet - no particles needed (more performant)
   const campfireParticles = useCampfireParticles({
     visibleCampfiresMap,
     deltaTime: 0, // Not used anymore, but kept for compatibility
-    staticCampfires: [], // Village campfires use fv_campfire_animated.png spritesheet - fire built into sprite
+    staticCampfires: villageCampfirePositions, // Fire/smoke particles for village campfires (fishing + hunting)
   });
 
   const torchParticles = useTorchParticles({

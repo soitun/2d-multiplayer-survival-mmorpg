@@ -4,7 +4,6 @@ import barbecueOnImage from '../../assets/doodads/barbecue_on.png'; // Direct im
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { imageManager } from './imageManager'; // Import image manager
-import { renderEntityHealthBar } from './healthBarUtils';
 
 // --- Constants directly used by this module or exported ---
 export const BARBECUE_WIDTH = 128;
@@ -147,9 +146,5 @@ export function renderBarbecue(
         skipDrawingShadow
     });
     
-    // Render health bar using unified system (barbecue is center-anchored)
-    // Health bar offset: sprite center is at posY, so offset is height/2
-    if (!onlyDrawShadow && playerX !== undefined && playerY !== undefined) {
-        renderEntityHealthBar(ctx, barbecue, BARBECUE_WIDTH, BARBECUE_HEIGHT, nowMs, playerX, playerY, BARBECUE_HEIGHT / 2);
-    }
+    // Health bar rendered via renderHealthBarOverlay (on top of world objects)
 }

@@ -1,6 +1,5 @@
 import { Shelter as SpacetimeDBShelter, Player as SpacetimeDBPlayer } from '../../generated';
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
-import { renderHealthBar, getLastHitTimeMs } from './healthBarUtils';
 
 // Import terrain-specific shelter images
 import shelterDefaultImage from '../../assets/doodads/shelter.png';
@@ -94,9 +93,9 @@ const lastKnownServerShelterShakeTimes = new Map<string, number>();
 const SHELTER_OUTLINE_THICKNESS = 1; // Thinner debug outline
 const SHELTER_OUTLINE_COLOR = 'rgba(92, 62, 33, 0.6)'; // Earthy brown tone
 // DEBUG: Server-side AABB collision constants (mirror what's in server/src/shelter.rs)
-const DEBUG_SHELTER_COLLISION_WIDTH = 300.0;
-const DEBUG_SHELTER_COLLISION_HEIGHT = 125.0;
-const DEBUG_SHELTER_AABB_CENTER_Y_FROM_BASE = 200.0;
+export const DEBUG_SHELTER_COLLISION_WIDTH = 300.0;
+export const DEBUG_SHELTER_COLLISION_HEIGHT = 125.0;
+export const DEBUG_SHELTER_AABB_CENTER_Y_FROM_BASE = 200.0;
 
 export const renderShelter = ({
   ctx,
@@ -229,26 +228,5 @@ export const renderShelter = ({
 
   ctx.restore(); // Restore original context (alpha, strokeStyle, etc.)
 
-  // --- Health Bar Rendering (using unified system) ---
-  // Use AABB center position and dimensions for health bar positioning (matches attack detection)
-  // This ensures the health bar appears on the opposite side from where the player is attacking
-  if (localPlayerPosition && !shelter.isDestroyed) {
-    const aabbCenterX = shelter.posX;
-    const aabbCenterY = shelter.posY - DEBUG_SHELTER_AABB_CENTER_Y_FROM_BASE;
-    
-    renderHealthBar({
-      ctx,
-      entityX: aabbCenterX, // Use AABB center X
-      entityY: aabbCenterY, // Use AABB center Y (where attacks actually hit)
-      entityWidth: DEBUG_SHELTER_COLLISION_WIDTH, // Use AABB width (300px)
-      entityHeight: DEBUG_SHELTER_COLLISION_HEIGHT, // Use AABB height (125px)
-      health: shelter.health,
-      maxHealth: shelter.maxHealth,
-      lastHitTimeMs: getLastHitTimeMs(shelter.lastHitTime),
-      nowMs,
-      playerX: localPlayerPosition.x,
-      playerY: localPlayerPosition.y,
-      entityDrawYOffset: 0, // AABB center is already the reference point
-    });
-  }
+  // Health bar rendered via renderHealthBarOverlay (on top of world objects)
 };

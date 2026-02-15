@@ -45,7 +45,7 @@ import { renderStone, renderStoneDestructionEffects, renderStoneHitEffects } fro
 import { renderRuneStone } from './runeStoneRenderingUtils';
 import { renderCairn } from './cairnRenderingUtils';
 import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MINE_CART, BOX_TYPE_FISH_TRAP, BOX_TYPE_WILD_BEEHIVE, BOX_TYPE_PLAYER_BEEHIVE } from './woodenStorageBoxRenderingUtils';
-import { renderEquippedItem } from './equippedItemRenderingUtils';
+import { renderEquippedItem, renderMeleeSwipeArcIfSwinging } from './equippedItemRenderingUtils';
 // Import the extracted player renderer
 import { renderPlayer, isPlayerHovered } from './playerRenderingUtils';
 // Import underwater shadow renderer for early rendering pass
@@ -97,6 +97,7 @@ import { renderMonument, getBuildingImage } from './monumentRenderingUtils';
 import { CompoundBuildingEntity } from '../../hooks/useEntityFiltering';
 // Import building restriction overlay for monument zones
 import { renderBuildingRestrictionOverlay, BuildingRestrictionZoneConfig } from './buildingRestrictionOverlayUtils';
+import { renderHealthBarOverlay } from './healthBarOverlayUtils';
 import { COMPOUND_BUILDINGS, isCompoundMonument } from '../../config/compoundBuildings';
 // Import sea stack renderer
 import { renderSeaStackSingle } from './seaStackRenderingUtils';
@@ -1005,6 +1006,10 @@ export const renderYSortedEntities = ({
                 playerActiveTitle // NEW: pass player's active title for name label
               );
             }
+            // Swipe arc drawn AFTER player so it's visible on top (up/left: item beneath player)
+            if (canRenderItem && equipment && !isSwimmingSplitRender) {
+              renderMeleeSwipeArcIfSwinging(ctx, playerForRendering, equipment, itemDef!, nowMs, jumpOffset, localPlayerId);
+            }
             // heroImg not loaded yet - skip rendering silently (will render once loaded)
           } else { // This covers 'down' or 'right'
               // For DOWN or RIGHT, item should be rendered ABOVE the player
@@ -1078,6 +1083,7 @@ export const renderYSortedEntities = ({
                   // Pass snorkeling state for underwater teal tint effect
                   const playerIsSnorkelingForItem = isLocalPlayer ? isLocalPlayerSnorkeling : playerForRendering.isSnorkeling;
                   renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, playerEffects, localPlayerId, player.direction, playerIsSnorkelingForItem);
+                  renderMeleeSwipeArcIfSwinging(ctx, playerForRendering, equipment, itemDef!, nowMs, jumpOffset, localPlayerId);
             }
             
             // Ghost trail disabled for cleaner dodge roll experience
@@ -1707,6 +1713,13 @@ export const renderYSortedEntities = ({
           // compound_building: static ALK compound (barracks, garage, shed). monument_doodad: monument parts (shipwreck, fishing village, etc.)
           const buildingEntity = entity as CompoundBuildingEntity;
           
+          // Village campfires (fv_campfire) render in a separate overlay pass so fire/smoke appears on top of huts, smokeracks, etc.
+          const isVillageCampfire = buildingEntity.imagePath === 'fv_campfire.png' &&
+              ((buildingEntity.monumentType === 'FishingVillage' && buildingEntity.isCenter) ||
+               (buildingEntity.monumentType === 'HuntingVillage' && buildingEntity.partType === 'campfire'));
+          if (isVillageCampfire) {
+              // Skip initial render - will be drawn in village campfire overlay pass below
+          } else {
           // The entity already has all the data we need from useEntityFiltering
           // Convert it to CompoundBuilding format for renderMonument
           const buildingForRendering = {
@@ -1731,8 +1744,10 @@ export const renderYSortedEntities = ({
           };
           
           renderMonument(ctx, buildingWithWorldPos as any, cycleProgress, localPlayerPosition, doodadImagesRef);
+          }
           
           // Check if local player has Blueprint equipped OR is placing a placeable item to show building restriction overlay
+          // (Runs for all monument_doodad including village campfires that were skipped for overlay pass)
           // Only show for monuments with building restrictions (shipwrecks, fishing villages, whale bone graveyards)
           let showBuildingRestriction = false;
           // First check: Is any placeable item currently being placed? (placementInfo is non-null)
@@ -1802,6 +1817,34 @@ export const renderYSortedEntities = ({
       } else {
           console.warn('Unhandled entity type for Y-sorting (first pass):', type, entity);
       } 
+  });
+
+  // PASS 1.25: Village campfire overlay - render fire/smoke ON TOP of huts, smokeracks, etc.
+  // Fishing village center and hunting village campfire use fv_campfire.png; draw them last so they're never obscured
+  ySortedEntities.forEach(({ type, entity }) => {
+      if (type === 'monument_doodad') {
+          const buildingEntity = entity as CompoundBuildingEntity;
+          const isVillageCampfire = buildingEntity.imagePath === 'fv_campfire.png' &&
+              ((buildingEntity.monumentType === 'FishingVillage' && buildingEntity.isCenter) ||
+               (buildingEntity.monumentType === 'HuntingVillage' && buildingEntity.partType === 'campfire'));
+          if (isVillageCampfire) {
+              const buildingWithWorldPos = {
+                  id: buildingEntity.id,
+                  offsetX: 0,
+                  offsetY: 0,
+                  imagePath: buildingEntity.imagePath,
+                  width: buildingEntity.width,
+                  height: buildingEntity.height,
+                  anchorYOffset: buildingEntity.anchorYOffset,
+                  collisionRadius: 0,
+                  collisionYOffset: 0,
+                  rotationRad: buildingEntity.rotationRad ?? 0,
+                  worldX: buildingEntity.worldX,
+                  worldY: buildingEntity.worldY,
+              };
+              renderMonument(ctx, buildingWithWorldPos as any, cycleProgress, localPlayerPosition, doodadImagesRef);
+          }
+      }
   });
 
   // PASS 1.5: Render particle effects (AFTER entities so particles appear on top)
@@ -2079,4 +2122,9 @@ export const renderYSortedEntities = ({
           });
       }
   }
+
+  // PASS: Health bar overlay - render ON TOP of barrels, doodads, and other world objects
+  const playerX = localPlayerPosition?.x ?? 0;
+  const playerY = localPlayerPosition?.y ?? 0;
+  renderHealthBarOverlay({ ctx, ySortedEntities, nowMs: nowMs, playerX, playerY });
 };

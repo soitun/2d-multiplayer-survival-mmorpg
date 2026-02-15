@@ -2,7 +2,6 @@ import { SleepingBag } from '../../generated';
 import sleepingBagImageSrc from '../../assets/doodads/sleeping_bag.png';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';
-import { renderEntityHealthBar } from './healthBarUtils';
 
 // --- Constants ---
 export const SLEEPING_BAG_WIDTH = 96;
@@ -59,8 +58,5 @@ export function renderSleepingBag(
         cycleProgress,
     });
     
-    // Render health bar using unified system
-    if (playerX !== undefined && playerY !== undefined) {
-        renderEntityHealthBar(ctx, bag, SLEEPING_BAG_WIDTH, SLEEPING_BAG_HEIGHT, nowMs, playerX, playerY);
-    }
+    // Health bar rendered via renderHealthBarOverlay (on top of world objects)
 } 

@@ -7,12 +7,13 @@ const SWING_DURATION_MS = 150;
 
 // === ATTACK RANGE CONSTANTS (must match server/src/active_equipment.rs) ===
 const MELEE_ATTACK_RANGE = PLAYER_RADIUS * 4.5;   // ~144px - default melee range
-const SPEAR_ATTACK_RANGE = PLAYER_RADIUS * 6.0;   // ~192px - spear extended range
+const SPEAR_ATTACK_RANGE = PLAYER_RADIUS * 8.0;   // ~256px - spear thrust range (server uses 8.0)
 const SCYTHE_ATTACK_RANGE = PLAYER_RADIUS * 7.0;  // ~224px - scythe VERY extended range
 
 // Attack arc angles (must match server)
 const DEFAULT_ATTACK_ARC_DEGREES = 90;   // Standard 90° arc
-const SCYTHE_ATTACK_ARC_DEGREES = 150;   // Scythe's massive 150° arc
+const SPEAR_ATTACK_ARC_DEGREES = 60;     // Spear narrow thrust cone (server override)
+const SCYTHE_ATTACK_ARC_DEGREES = 150;  // Scythe's massive 150° arc (server override)
 
 // Helper to get swing angle from item definition
 // Items with attackArcDegrees defined use that, otherwise default to 90°
@@ -89,6 +90,148 @@ export function getLocalPlayerSwingElapsed(): number {
  */
 export function shouldIgnoreServerSwing(): boolean {
   return performance.now() < localPlayerSwingGracePeriodEnd;
+}
+
+// --- Melee Swipe Arc (server-pixel-perfect hitbox indicator) ---
+/** Facing direction to radians. Must match server get_player_forward_vector. */
+const getFacingAngleRad = (dir: string): number => {
+  const d = dir?.toLowerCase() ?? 'down';
+  switch (d) {
+    case 'up': return -Math.PI / 2;
+    case 'down': return Math.PI / 2;
+    case 'left': return Math.PI;
+    case 'right': return 0;
+    default: return Math.PI / 2;
+  }
+};
+
+/** Weapon-specific range and arc. Must match server active_equipment.rs. */
+const getWeaponAttackParams = (itemDef: SpacetimeDBItemDefinition): { range: number; arcDegrees: number; isSpear: boolean } => {
+  const name = itemDef.name;
+  if (name === 'Wooden Spear' || name === 'Stone Spear' || name === 'Reed Harpoon') {
+    return { range: SPEAR_ATTACK_RANGE, arcDegrees: SPEAR_ATTACK_ARC_DEGREES, isSpear: true };
+  }
+  if (name === 'Scythe') {
+    return { range: SCYTHE_ATTACK_RANGE, arcDegrees: SCYTHE_ATTACK_ARC_DEGREES, isSpear: false };
+  }
+  const arc = itemDef.attackArcDegrees ?? DEFAULT_ATTACK_ARC_DEGREES;
+  return { range: MELEE_ATTACK_RANGE, arcDegrees: arc, isSpear: false };
+};
+
+/**
+ * Draws a subtle swipe arc that reflects the server's exact attack hitbox.
+ * Arc flashes at impact moment (peak of swing). Stroke-only to avoid tacky fills.
+ */
+const drawMeleeSwipeArc = (
+  ctx: CanvasRenderingContext2D,
+  originX: number,
+  originY: number,
+  direction: string,
+  itemDef: SpacetimeDBItemDefinition,
+  swingProgress: number,
+  isSpearThrusting: boolean,
+  thrustDistance: number
+): void => {
+  const params = getWeaponAttackParams(itemDef);
+  const facingAngle = getFacingAngleRad(direction);
+  const halfArcRad = (params.arcDegrees / 2) * (Math.PI / 180);
+  const startAngle = facingAngle - halfArcRad;
+  const endAngle = facingAngle + halfArcRad;
+
+  // Peak visibility at impact (~progress 0.5).
+  const opacity = Math.sin(swingProgress * Math.PI) * 0.32;
+  if (opacity < 0.03) return;
+
+  ctx.save();
+
+  const range = params.isSpear
+    ? Math.max(thrustDistance, params.range * 0.2)  // Spear: cone extends with thrust
+    : params.range;
+
+  ctx.beginPath();
+  ctx.moveTo(originX, originY);
+  ctx.arc(originX, originY, range, startAngle, endAngle);
+  ctx.closePath();
+
+  ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.restore();
+};
+
+/**
+ * Draws the melee swipe arc for a swinging player. Call this AFTER renderPlayer
+ * so the arc appears on top (not hidden behind the player when facing up/left).
+ */
+export function renderMeleeSwipeArcIfSwinging(
+  ctx: CanvasRenderingContext2D,
+  player: SpacetimeDBPlayer,
+  equipment: SpacetimeDBActiveEquipment,
+  itemDef: SpacetimeDBItemDefinition,
+  now_ms: number,
+  jumpOffset: number,
+  localPlayerId?: string
+): void {
+  const isRangedWeapon = ['Hunting Bow', 'Crossbow', 'Reed Harpoon Gun', 'Makarov PM', 'PP-91 KEDR'].includes(itemDef.name ?? '');
+  const isMeleeWeapon = itemDef.category?.tag === 'Weapon' && !isRangedWeapon;
+  const isSpearItem = ['Wooden Spear', 'Stone Spear', 'Reed Harpoon'].includes(itemDef.name ?? '');
+  if (!isMeleeWeapon && !isSpearItem) return;
+
+  const swingStartTime = Number(equipment.swingStartTimeMs);
+  const playerId = player.identity.toHexString();
+  const isLocalPlayer = localPlayerId && playerId === localPlayerId;
+  let elapsedSwingTime = 0;
+  let thrustDistance = 0;
+
+  if (isLocalPlayer) {
+    const clientSwingElapsed = getLocalPlayerSwingElapsed();
+    const isInGracePeriod = shouldIgnoreServerSwing();
+    if (clientSwingElapsed >= 0) {
+      elapsedSwingTime = clientSwingElapsed;
+    } else if (isInGracePeriod) {
+      return;
+    } else if (swingStartTime > 0) {
+      const clientStartTime = clientSwingStartTimes.get(playerId);
+      const lastKnownServerTime = lastKnownServerSwingTimes.get(playerId) || 0;
+      if (swingStartTime !== lastKnownServerTime) {
+        clientSwingStartTimes.set(playerId, now_ms);
+        lastKnownServerSwingTimes.set(playerId, swingStartTime);
+        elapsedSwingTime = 0;
+      } else if (clientStartTime) {
+        elapsedSwingTime = now_ms - clientStartTime;
+      } else {
+        return;
+      }
+    } else {
+      return;
+    }
+  } else {
+    if (swingStartTime <= 0) return;
+    const clientStartTime = clientSwingStartTimes.get(playerId);
+    const lastKnownServerTime = lastKnownServerSwingTimes.get(playerId) || 0;
+    if (swingStartTime !== lastKnownServerTime) {
+      lastKnownServerSwingTimes.set(playerId, swingStartTime);
+      clientSwingStartTimes.set(playerId, now_ms);
+      elapsedSwingTime = 0;
+    } else if (clientStartTime) {
+      elapsedSwingTime = now_ms - clientStartTime;
+    } else {
+      return;
+    }
+  }
+
+  if (elapsedSwingTime >= SWING_DURATION_MS) return;
+
+  const swingProgress = elapsedSwingTime / SWING_DURATION_MS;
+  const isSpearThrusting = isSpearItem;
+  if (isSpearThrusting) {
+    thrustDistance = Math.sin(swingProgress * Math.PI) * SPEAR_ATTACK_RANGE;
+  }
+
+  const originX = player.positionX;
+  const originY = player.positionY - jumpOffset;
+  drawMeleeSwipeArc(ctx, originX, originY, player.direction, itemDef, swingProgress, isSpearThrusting, thrustDistance);
 }
 
 // --- Helper Function for Rendering Equipped Item ---
@@ -581,8 +724,7 @@ export const renderEquippedItem = (
       
       if (itemDef.name === "Wooden Spear" || itemDef.name === "Stone Spear" || itemDef.name === "Reed Harpoon") {
           isSpearThrusting = true;
-          const SPEAR_MAX_THRUST_EXTENSION = (itemDef as any).attackRange || 100; 
-          thrustDistance = Math.sin(swingProgress * Math.PI) * SPEAR_MAX_THRUST_EXTENSION;
+          thrustDistance = Math.sin(swingProgress * Math.PI) * SPEAR_ATTACK_RANGE;
           
           // Apply thrust directly to pivotX/pivotY based on world direction
           // The `rotation` variable (which is spearRotation) is for the visual angle.
@@ -929,6 +1071,9 @@ export const renderEquippedItem = (
   }
 
   ctx.restore(); // Restore overall item rendering context (matches the first ctx.save() in this block)
+
+  // Note: Melee swipe arc is drawn by renderMeleeSwipeArcIfSwinging() from renderingUtils
+  // AFTER the player sprite, so it's always visible on top (not hidden behind player for up/left).
 
   // Note: Underwater tinting for equipped items now uses CSS filter (ctx.filter) applied at the start
   // of this function. This approach is consistent with other underwater entities (coral, fumaroles,

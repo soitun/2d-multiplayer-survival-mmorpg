@@ -27,26 +27,26 @@ import {
   type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
   type TableHandle as __TableHandle,
 } from "spacetimedb";
-import { CampfireProcessingSchedule } from "./campfire_processing_schedule_type";
+import { SpawnZoneSchedule } from "./spawn_zone_schedule_type";
 import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
 declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
 /**
- * Table handle for the table `campfire_processing_schedule`.
+ * Table handle for the table `spawn_zone_schedule`.
  *
- * Obtain a handle from the [`campfireProcessingSchedule`] property on [`RemoteTables`],
- * like `ctx.db.campfireProcessingSchedule`.
+ * Obtain a handle from the [`spawnZoneSchedule`] property on [`RemoteTables`],
+ * like `ctx.db.spawnZoneSchedule`.
  *
  * Users are encouraged not to explicitly reference this type,
  * but to directly chain method calls,
- * like `ctx.db.campfireProcessingSchedule.on_insert(...)`.
+ * like `ctx.db.spawnZoneSchedule.on_insert(...)`.
  */
-export class CampfireProcessingScheduleTableHandle<TableName extends string> implements __TableHandle<TableName> {
+export class SpawnZoneScheduleTableHandle<TableName extends string> implements __TableHandle<TableName> {
   // phantom type to track the table name
   readonly tableName!: TableName;
-  tableCache: __TableCache<CampfireProcessingSchedule>;
+  tableCache: __TableCache<SpawnZoneSchedule>;
 
-  constructor(tableCache: __TableCache<CampfireProcessingSchedule>) {
+  constructor(tableCache: __TableCache<SpawnZoneSchedule>) {
     this.tableCache = tableCache;
   }
 
@@ -54,53 +54,53 @@ export class CampfireProcessingScheduleTableHandle<TableName extends string> imp
     return this.tableCache.count();
   }
 
-  iter(): Iterable<CampfireProcessingSchedule> {
+  iter(): Iterable<SpawnZoneSchedule> {
     return this.tableCache.iter();
   }
   /**
-   * Access to the `campfireId` unique index on the table `campfire_processing_schedule`,
+   * Access to the `id` unique index on the table `spawn_zone_schedule`,
    * which allows point queries on the field of the same name
-   * via the [`CampfireProcessingScheduleCampfireIdUnique.find`] method.
+   * via the [`SpawnZoneScheduleIdUnique.find`] method.
    *
    * Users are encouraged not to explicitly reference this type,
    * but to directly chain method calls,
-   * like `ctx.db.campfireProcessingSchedule.campfireId().find(...)`.
+   * like `ctx.db.spawnZoneSchedule.id().find(...)`.
    *
-   * Get a handle on the `campfireId` unique index on the table `campfire_processing_schedule`.
+   * Get a handle on the `id` unique index on the table `spawn_zone_schedule`.
    */
-  campfireId = {
-    // Find the subscribed row whose `campfireId` column value is equal to `col_val`,
+  id = {
+    // Find the subscribed row whose `id` column value is equal to `col_val`,
     // if such a row is present in the client cache.
-    find: (col_val: bigint): CampfireProcessingSchedule | undefined => {
+    find: (col_val: bigint): SpawnZoneSchedule | undefined => {
       for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.campfireId, col_val)) {
+        if (__deepEqual(row.id, col_val)) {
           return row;
         }
       }
     },
   };
 
-  onInsert = (cb: (ctx: EventContext, row: CampfireProcessingSchedule) => void) => {
+  onInsert = (cb: (ctx: EventContext, row: SpawnZoneSchedule) => void) => {
     return this.tableCache.onInsert(cb);
   }
 
-  removeOnInsert = (cb: (ctx: EventContext, row: CampfireProcessingSchedule) => void) => {
+  removeOnInsert = (cb: (ctx: EventContext, row: SpawnZoneSchedule) => void) => {
     return this.tableCache.removeOnInsert(cb);
   }
 
-  onDelete = (cb: (ctx: EventContext, row: CampfireProcessingSchedule) => void) => {
+  onDelete = (cb: (ctx: EventContext, row: SpawnZoneSchedule) => void) => {
     return this.tableCache.onDelete(cb);
   }
 
-  removeOnDelete = (cb: (ctx: EventContext, row: CampfireProcessingSchedule) => void) => {
+  removeOnDelete = (cb: (ctx: EventContext, row: SpawnZoneSchedule) => void) => {
     return this.tableCache.removeOnDelete(cb);
   }
 
   // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: CampfireProcessingSchedule, newRow: CampfireProcessingSchedule) => void) => {
+  onUpdate = (cb: (ctx: EventContext, oldRow: SpawnZoneSchedule, newRow: SpawnZoneSchedule) => void) => {
     return this.tableCache.onUpdate(cb);
   }
 
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: CampfireProcessingSchedule, newRow: CampfireProcessingSchedule) => void) => {
+  removeOnUpdate = (cb: (ctx: EventContext, onRow: SpawnZoneSchedule, newRow: SpawnZoneSchedule) => void) => {
     return this.tableCache.removeOnUpdate(cb);
   }}

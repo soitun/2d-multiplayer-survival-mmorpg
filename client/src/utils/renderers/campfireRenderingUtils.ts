@@ -4,8 +4,6 @@ import campfireOffImage from '../../assets/doodads/campfire_off.png'; // Direct 
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { imageManager } from './imageManager'; // Import image manager
-import { renderEntityHealthBar } from './healthBarUtils';
-
 // --- Constants directly used by this module or exported ---
 export const CAMPFIRE_WIDTH = 64;
 export const CAMPFIRE_HEIGHT = 64;
@@ -159,8 +157,5 @@ export function renderCampfire(
         skipDrawingShadow
     });
     
-    // Render health bar using unified system
-    if (!onlyDrawShadow && playerX !== undefined && playerY !== undefined) {
-        renderEntityHealthBar(ctx, campfire, CAMPFIRE_WIDTH, CAMPFIRE_HEIGHT, nowMs, playerX, playerY, -CAMPFIRE_RENDER_Y_OFFSET);
-    }
+    // Health bar rendered via renderHealthBarOverlay (on top of world objects)
 } 

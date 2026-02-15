@@ -11,7 +11,7 @@ import seaBarrel3Image from '../../assets/doodads/barrel6.png'; // Variant 5 (pl
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { imageManager } from './imageManager'; // Import image manager
-import { renderHealthBar, getLastHitTimeMs } from './healthBarUtils';
+import { renderHealthBar, getLastHitTimeMs } from './healthBarUtils'; // Used by renderBarrelHealthBar (called from overlay)
 
 // --- Constants --- (Keep exportable if used elsewhere)
 export const BARREL_WIDTH = 86; // Standard barrel size (increased from 72)
@@ -157,19 +157,6 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
     fallbackColor: '#8B4513', // Saddle brown for wooden barrel
 };
 
-// Store player position for health bar rendering (set by renderBarrel)
-let currentPlayerX = 0;
-let currentPlayerY = 0;
-
-/**
- * Set player position for health bar positioning.
- * Called before rendering barrels.
- */
-export function setPlayerPositionForBarrelHealthBars(playerX: number, playerY: number): void {
-    currentPlayerX = playerX;
-    currentPlayerY = playerY;
-}
-
 /**
  * Get barrel dimensions based on variant (variant 4 is larger)
  */
@@ -191,15 +178,13 @@ export function renderBarrelHealthBar(
     ctx: CanvasRenderingContext2D,
     barrel: Barrel,
     nowMs: number,
-    playerX?: number,
-    playerY?: number
+    playerX: number,
+    playerY: number
 ): void {
     // Don't render health bar if barrel is respawning (destroyed)
     if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) return;
     
     const dims = getBarrelDimensions(Number(barrel.variant ?? 0));
-    const pX = playerX ?? currentPlayerX;
-    const pY = playerY ?? currentPlayerY;
     
     // Use renderHealthBar directly since barrels don't have maxHealth field
     renderHealthBar({
@@ -212,8 +197,8 @@ export function renderBarrelHealthBar(
         maxHealth: BARREL_MAX_HEALTH,
         lastHitTimeMs: getLastHitTimeMs(barrel.lastHitTime),
         nowMs,
-        playerX: pX,
-        playerY: pY,
+        playerX,
+        playerY,
         entityDrawYOffset: -dims.yOffset,
     });
 }
@@ -429,9 +414,7 @@ function renderSeaBarrelWithWaterEffects(
     ctx.stroke();
     
     ctx.restore(); // Restore from rotation transform
-    
-    // Render health bar for sea barrels (on opposite side from player)
-    renderBarrelHealthBar(ctx, barrel, nowMs);
+    // Health bar rendered via renderHealthBarOverlay (on top of world objects)
 }
 
 // --- Rendering Function (Refactored) ---
@@ -455,11 +438,6 @@ export function renderBarrel(
     playerX?: number,
     playerY?: number
 ) {
-    // Store player position for health bar rendering
-    if (playerX !== undefined && playerY !== undefined) {
-        setPlayerPositionForBarrelHealthBars(playerX, playerY);
-    }
-    
     const variantIndex = Number(barrel.variant ?? 0);
     
     // Sea barrels get special water effects rendering ONLY if actually on a sea tile
@@ -485,10 +463,7 @@ export function renderBarrel(
         cycleProgress,
     });
     
-    // Render health bar for land barrels (sea barrels render their own in renderSeaBarrelWithWaterEffects)
-    if (!barrel.respawnAt || barrel.respawnAt.microsSinceUnixEpoch === 0n) {
-        renderBarrelHealthBar(ctx, barrel, nowMs, playerX, playerY);
-    }
+    // Health bar rendered via renderHealthBarOverlay (on top of world objects)
 }
 
 // === UNDERWATER SNORKELING MODE ===

@@ -4,7 +4,6 @@ import alkWaterReservoirImage from '../../assets/doodads/alk_water_reservoir.png
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';
-import { renderEntityHealthBar } from './healthBarUtils';
 import { isCompoundMonument } from '../../config/compoundBuildings';
 
 // --- Constants ---
@@ -218,14 +217,5 @@ export function renderRainCollector(
         ctx.restore();
     }
     
-    // Render health bar using unified system (bottom-anchored positioning)
-    if (playerX !== undefined && playerY !== undefined) {
-        if (isCompound) {
-            // Monument: 480x480 sprite with 96px anchor offset
-            renderEntityHealthBar(ctx, rainCollector, MONUMENT_RAIN_COLLECTOR_WIDTH, MONUMENT_RAIN_COLLECTOR_HEIGHT, nowMs, playerX, playerY, MONUMENT_RAIN_COLLECTOR_HEIGHT - 96);
-        } else {
-            // Regular: 256x256 sprite with 36px anchor offset
-            renderEntityHealthBar(ctx, rainCollector, RAIN_COLLECTOR_WIDTH, RAIN_COLLECTOR_HEIGHT, nowMs, playerX, playerY, RAIN_COLLECTOR_HEIGHT - 36);
-        }
-    }
+    // Health bar rendered via renderHealthBarOverlay (on top of world objects)
 } 

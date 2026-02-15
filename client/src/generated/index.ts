@@ -437,6 +437,8 @@ import { ProcessActiveConsumableEffectsTick } from "./process_active_consumable_
 export { ProcessActiveConsumableEffectsTick };
 import { ProcessAlkContractRefresh } from "./process_alk_contract_refresh_reducer.ts";
 export { ProcessAlkContractRefresh };
+import { ProcessAllCampfiresScheduled } from "./process_all_campfires_scheduled_reducer.ts";
+export { ProcessAllCampfiresScheduled };
 import { ProcessAllFumarolesScheduled } from "./process_all_fumaroles_scheduled_reducer.ts";
 export { ProcessAllFumarolesScheduled };
 import { ProcessBarbecueLogicScheduled } from "./process_barbecue_logic_scheduled_reducer.ts";
@@ -447,8 +449,6 @@ import { ProcessBrothPotLogicScheduled } from "./process_broth_pot_logic_schedul
 export { ProcessBrothPotLogicScheduled };
 import { ProcessBuildingDecay } from "./process_building_decay_reducer.ts";
 export { ProcessBuildingDecay };
-import { ProcessCampfireLogicScheduled } from "./process_campfire_logic_scheduled_reducer.ts";
-export { ProcessCampfireLogicScheduled };
 import { ProcessCaribouBreeding } from "./process_caribou_breeding_reducer.ts";
 export { ProcessCaribouBreeding };
 import { ProcessCompostConversion } from "./process_compost_conversion_reducer.ts";
@@ -487,6 +487,8 @@ import { ProcessPlayerStats } from "./process_player_stats_reducer.ts";
 export { ProcessPlayerStats };
 import { ProcessSleepingBagDeterioration } from "./process_sleeping_bag_deterioration_reducer.ts";
 export { ProcessSleepingBagDeterioration };
+import { ProcessSpawnZoneMaintenance } from "./process_spawn_zone_maintenance_reducer.ts";
+export { ProcessSpawnZoneMaintenance };
 import { ProcessTilledTileReversions } from "./process_tilled_tile_reversions_reducer.ts";
 export { ProcessTilledTileReversions };
 import { ProcessTorchDurability } from "./process_torch_durability_reducer.ts";
@@ -611,8 +613,6 @@ import { ScheduleNextBarbecueProcessing } from "./schedule_next_barbecue_process
 export { ScheduleNextBarbecueProcessing };
 import { ScheduleNextBrothPotProcessing } from "./schedule_next_broth_pot_processing_reducer.ts";
 export { ScheduleNextBrothPotProcessing };
-import { ScheduleNextCampfireProcessing } from "./schedule_next_campfire_processing_reducer.ts";
-export { ScheduleNextCampfireProcessing };
 import { SeedEnvironment } from "./seed_environment_reducer.ts";
 export { SeedEnvironment };
 import { SeedFoodPoisoningRisks } from "./seed_food_poisoning_risks_reducer.ts";
@@ -883,8 +883,8 @@ import { CairnTableHandle } from "./cairn_table.ts";
 export { CairnTableHandle };
 import { CampfireTableHandle } from "./campfire_table.ts";
 export { CampfireTableHandle };
-import { CampfireProcessingScheduleTableHandle } from "./campfire_processing_schedule_table.ts";
-export { CampfireProcessingScheduleTableHandle };
+import { CampfireGlobalScheduleTableHandle } from "./campfire_global_schedule_table.ts";
+export { CampfireGlobalScheduleTableHandle };
 import { CaribouBreedingDataTableHandle } from "./caribou_breeding_data_table.ts";
 export { CaribouBreedingDataTableHandle };
 import { CaribouBreedingScheduleTableHandle } from "./caribou_breeding_schedule_table.ts";
@@ -1129,6 +1129,8 @@ import { SoundEventCleanupScheduleTableHandle } from "./sound_event_cleanup_sche
 export { SoundEventCleanupScheduleTableHandle };
 import { SovaQuestMessageTableHandle } from "./sova_quest_message_table.ts";
 export { SovaQuestMessageTableHandle };
+import { SpawnZoneScheduleTableHandle } from "./spawn_zone_schedule_table.ts";
+export { SpawnZoneScheduleTableHandle };
 import { StashTableHandle } from "./stash_table.ts";
 export { StashTableHandle };
 import { StatThresholdsConfigTableHandle } from "./stat_thresholds_config_table.ts";
@@ -1267,8 +1269,8 @@ import { Cairn } from "./cairn_type.ts";
 export { Cairn };
 import { Campfire } from "./campfire_type.ts";
 export { Campfire };
-import { CampfireProcessingSchedule } from "./campfire_processing_schedule_type.ts";
-export { CampfireProcessingSchedule };
+import { CampfireGlobalSchedule } from "./campfire_global_schedule_type.ts";
+export { CampfireGlobalSchedule };
 import { CaribouAgeStage } from "./caribou_age_stage_type.ts";
 export { CaribouAgeStage };
 import { CaribouBreedingData } from "./caribou_breeding_data_type.ts";
@@ -1593,6 +1595,8 @@ import { SoundType } from "./sound_type_type.ts";
 export { SoundType };
 import { SovaQuestMessage } from "./sova_quest_message_type.ts";
 export { SovaQuestMessage };
+import { SpawnZoneSchedule } from "./spawn_zone_schedule_type.ts";
+export { SpawnZoneSchedule };
 import { Stash } from "./stash_type.ts";
 export { Stash };
 import { StatThresholdsConfig } from "./stat_thresholds_config_type.ts";
@@ -1922,13 +1926,13 @@ const REMOTE_MODULE = {
         colType: (Campfire.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
-    campfire_processing_schedule: {
-      tableName: "campfire_processing_schedule" as const,
-      rowType: CampfireProcessingSchedule.getTypeScriptAlgebraicType(),
-      primaryKey: "campfireId",
+    campfire_global_schedule: {
+      tableName: "campfire_global_schedule" as const,
+      rowType: CampfireGlobalSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
       primaryKeyInfo: {
-        colName: "campfireId",
-        colType: (CampfireProcessingSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+        colName: "id",
+        colType: (CampfireGlobalSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     caribou_breeding_data: {
@@ -3029,6 +3033,15 @@ const REMOTE_MODULE = {
         colType: (SovaQuestMessage.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    spawn_zone_schedule: {
+      tableName: "spawn_zone_schedule" as const,
+      rowType: SpawnZoneSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (SpawnZoneSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     stash: {
       tableName: "stash" as const,
       rowType: Stash.getTypeScriptAlgebraicType(),
@@ -4104,6 +4117,10 @@ const REMOTE_MODULE = {
       reducerName: "process_alk_contract_refresh",
       argsType: ProcessAlkContractRefresh.getTypeScriptAlgebraicType(),
     },
+    process_all_campfires_scheduled: {
+      reducerName: "process_all_campfires_scheduled",
+      argsType: ProcessAllCampfiresScheduled.getTypeScriptAlgebraicType(),
+    },
     process_all_fumaroles_scheduled: {
       reducerName: "process_all_fumaroles_scheduled",
       argsType: ProcessAllFumarolesScheduled.getTypeScriptAlgebraicType(),
@@ -4123,10 +4140,6 @@ const REMOTE_MODULE = {
     process_building_decay: {
       reducerName: "process_building_decay",
       argsType: ProcessBuildingDecay.getTypeScriptAlgebraicType(),
-    },
-    process_campfire_logic_scheduled: {
-      reducerName: "process_campfire_logic_scheduled",
-      argsType: ProcessCampfireLogicScheduled.getTypeScriptAlgebraicType(),
     },
     process_caribou_breeding: {
       reducerName: "process_caribou_breeding",
@@ -4203,6 +4216,10 @@ const REMOTE_MODULE = {
     process_sleeping_bag_deterioration: {
       reducerName: "process_sleeping_bag_deterioration",
       argsType: ProcessSleepingBagDeterioration.getTypeScriptAlgebraicType(),
+    },
+    process_spawn_zone_maintenance: {
+      reducerName: "process_spawn_zone_maintenance",
+      argsType: ProcessSpawnZoneMaintenance.getTypeScriptAlgebraicType(),
     },
     process_tilled_tile_reversions: {
       reducerName: "process_tilled_tile_reversions",
@@ -4451,10 +4468,6 @@ const REMOTE_MODULE = {
     schedule_next_broth_pot_processing: {
       reducerName: "schedule_next_broth_pot_processing",
       argsType: ScheduleNextBrothPotProcessing.getTypeScriptAlgebraicType(),
-    },
-    schedule_next_campfire_processing: {
-      reducerName: "schedule_next_campfire_processing",
-      argsType: ScheduleNextCampfireProcessing.getTypeScriptAlgebraicType(),
     },
     seed_environment: {
       reducerName: "seed_environment",
@@ -5113,12 +5126,12 @@ export type Reducer = never
 | { name: "PlantSeed", args: PlantSeed }
 | { name: "ProcessActiveConsumableEffectsTick", args: ProcessActiveConsumableEffectsTick }
 | { name: "ProcessAlkContractRefresh", args: ProcessAlkContractRefresh }
+| { name: "ProcessAllCampfiresScheduled", args: ProcessAllCampfiresScheduled }
 | { name: "ProcessAllFumarolesScheduled", args: ProcessAllFumarolesScheduled }
 | { name: "ProcessBarbecueLogicScheduled", args: ProcessBarbecueLogicScheduled }
 | { name: "ProcessBeehiveProduction", args: ProcessBeehiveProduction }
 | { name: "ProcessBrothPotLogicScheduled", args: ProcessBrothPotLogicScheduled }
 | { name: "ProcessBuildingDecay", args: ProcessBuildingDecay }
-| { name: "ProcessCampfireLogicScheduled", args: ProcessCampfireLogicScheduled }
 | { name: "ProcessCaribouBreeding", args: ProcessCaribouBreeding }
 | { name: "ProcessCompostConversion", args: ProcessCompostConversion }
 | { name: "ProcessCorpseDespawn", args: ProcessCorpseDespawn }
@@ -5138,6 +5151,7 @@ export type Reducer = never
 | { name: "ProcessMatronagePayout", args: ProcessMatronagePayout }
 | { name: "ProcessPlayerStats", args: ProcessPlayerStats }
 | { name: "ProcessSleepingBagDeterioration", args: ProcessSleepingBagDeterioration }
+| { name: "ProcessSpawnZoneMaintenance", args: ProcessSpawnZoneMaintenance }
 | { name: "ProcessTilledTileReversions", args: ProcessTilledTileReversions }
 | { name: "ProcessTorchDurability", args: ProcessTorchDurability }
 | { name: "ProcessTurretLogicScheduled", args: ProcessTurretLogicScheduled }
@@ -5200,7 +5214,6 @@ export type Reducer = never
 | { name: "RevokePlayerBuildingPrivilege", args: RevokePlayerBuildingPrivilege }
 | { name: "ScheduleNextBarbecueProcessing", args: ScheduleNextBarbecueProcessing }
 | { name: "ScheduleNextBrothPotProcessing", args: ScheduleNextBrothPotProcessing }
-| { name: "ScheduleNextCampfireProcessing", args: ScheduleNextCampfireProcessing }
 | { name: "SeedEnvironment", args: SeedEnvironment }
 | { name: "SeedFoodPoisoningRisks", args: SeedFoodPoisoningRisks }
 | { name: "SeedItems", args: SeedItems }
@@ -8432,6 +8445,22 @@ export class RemoteReducers {
     this.connection.offReducer("process_alk_contract_refresh", callback);
   }
 
+  processAllCampfiresScheduled(schedule: CampfireGlobalSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    ProcessAllCampfiresScheduled.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_all_campfires_scheduled", __argsBuffer, this.setCallReducerFlags.processAllCampfiresScheduledFlags);
+  }
+
+  onProcessAllCampfiresScheduled(callback: (ctx: ReducerEventContext, schedule: CampfireGlobalSchedule) => void) {
+    this.connection.onReducer("process_all_campfires_scheduled", callback);
+  }
+
+  removeOnProcessAllCampfiresScheduled(callback: (ctx: ReducerEventContext, schedule: CampfireGlobalSchedule) => void) {
+    this.connection.offReducer("process_all_campfires_scheduled", callback);
+  }
+
   processAllFumarolesScheduled(schedule: FumaroleGlobalSchedule) {
     const __args = { schedule };
     let __writer = new __BinaryWriter(1024);
@@ -8510,22 +8539,6 @@ export class RemoteReducers {
 
   removeOnProcessBuildingDecay(callback: (ctx: ReducerEventContext, schedule: BuildingDecaySchedule) => void) {
     this.connection.offReducer("process_building_decay", callback);
-  }
-
-  processCampfireLogicScheduled(scheduleArgs: CampfireProcessingSchedule) {
-    const __args = { scheduleArgs };
-    let __writer = new __BinaryWriter(1024);
-    ProcessCampfireLogicScheduled.serialize(__writer, __args);
-    let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("process_campfire_logic_scheduled", __argsBuffer, this.setCallReducerFlags.processCampfireLogicScheduledFlags);
-  }
-
-  onProcessCampfireLogicScheduled(callback: (ctx: ReducerEventContext, scheduleArgs: CampfireProcessingSchedule) => void) {
-    this.connection.onReducer("process_campfire_logic_scheduled", callback);
-  }
-
-  removeOnProcessCampfireLogicScheduled(callback: (ctx: ReducerEventContext, scheduleArgs: CampfireProcessingSchedule) => void) {
-    this.connection.offReducer("process_campfire_logic_scheduled", callback);
   }
 
   processCaribouBreeding(schedule: CaribouBreedingSchedule) {
@@ -8830,6 +8843,22 @@ export class RemoteReducers {
 
   removeOnProcessSleepingBagDeterioration(callback: (ctx: ReducerEventContext, scheduleArgs: SleepingBagDeteriorationSchedule) => void) {
     this.connection.offReducer("process_sleeping_bag_deterioration", callback);
+  }
+
+  processSpawnZoneMaintenance(schedule: SpawnZoneSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    ProcessSpawnZoneMaintenance.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_spawn_zone_maintenance", __argsBuffer, this.setCallReducerFlags.processSpawnZoneMaintenanceFlags);
+  }
+
+  onProcessSpawnZoneMaintenance(callback: (ctx: ReducerEventContext, schedule: SpawnZoneSchedule) => void) {
+    this.connection.onReducer("process_spawn_zone_maintenance", callback);
+  }
+
+  removeOnProcessSpawnZoneMaintenance(callback: (ctx: ReducerEventContext, schedule: SpawnZoneSchedule) => void) {
+    this.connection.offReducer("process_spawn_zone_maintenance", callback);
   }
 
   processTilledTileReversions(schedule: TilledTileReversionSchedule) {
@@ -9802,22 +9831,6 @@ export class RemoteReducers {
 
   removeOnScheduleNextBrothPotProcessing(callback: (ctx: ReducerEventContext, brothPotId: number) => void) {
     this.connection.offReducer("schedule_next_broth_pot_processing", callback);
-  }
-
-  scheduleNextCampfireProcessing(campfireId: number) {
-    const __args = { campfireId };
-    let __writer = new __BinaryWriter(1024);
-    ScheduleNextCampfireProcessing.serialize(__writer, __args);
-    let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("schedule_next_campfire_processing", __argsBuffer, this.setCallReducerFlags.scheduleNextCampfireProcessingFlags);
-  }
-
-  onScheduleNextCampfireProcessing(callback: (ctx: ReducerEventContext, campfireId: number) => void) {
-    this.connection.onReducer("schedule_next_campfire_processing", callback);
-  }
-
-  removeOnScheduleNextCampfireProcessing(callback: (ctx: ReducerEventContext, campfireId: number) => void) {
-    this.connection.offReducer("schedule_next_campfire_processing", callback);
   }
 
   seedEnvironment() {
@@ -12456,6 +12469,11 @@ export class SetReducerFlags {
     this.processAlkContractRefreshFlags = flags;
   }
 
+  processAllCampfiresScheduledFlags: __CallReducerFlags = 'FullUpdate';
+  processAllCampfiresScheduled(flags: __CallReducerFlags) {
+    this.processAllCampfiresScheduledFlags = flags;
+  }
+
   processAllFumarolesScheduledFlags: __CallReducerFlags = 'FullUpdate';
   processAllFumarolesScheduled(flags: __CallReducerFlags) {
     this.processAllFumarolesScheduledFlags = flags;
@@ -12479,11 +12497,6 @@ export class SetReducerFlags {
   processBuildingDecayFlags: __CallReducerFlags = 'FullUpdate';
   processBuildingDecay(flags: __CallReducerFlags) {
     this.processBuildingDecayFlags = flags;
-  }
-
-  processCampfireLogicScheduledFlags: __CallReducerFlags = 'FullUpdate';
-  processCampfireLogicScheduled(flags: __CallReducerFlags) {
-    this.processCampfireLogicScheduledFlags = flags;
   }
 
   processCaribouBreedingFlags: __CallReducerFlags = 'FullUpdate';
@@ -12579,6 +12592,11 @@ export class SetReducerFlags {
   processSleepingBagDeteriorationFlags: __CallReducerFlags = 'FullUpdate';
   processSleepingBagDeterioration(flags: __CallReducerFlags) {
     this.processSleepingBagDeteriorationFlags = flags;
+  }
+
+  processSpawnZoneMaintenanceFlags: __CallReducerFlags = 'FullUpdate';
+  processSpawnZoneMaintenance(flags: __CallReducerFlags) {
+    this.processSpawnZoneMaintenanceFlags = flags;
   }
 
   processTilledTileReversionsFlags: __CallReducerFlags = 'FullUpdate';
@@ -12889,11 +12907,6 @@ export class SetReducerFlags {
   scheduleNextBrothPotProcessingFlags: __CallReducerFlags = 'FullUpdate';
   scheduleNextBrothPotProcessing(flags: __CallReducerFlags) {
     this.scheduleNextBrothPotProcessingFlags = flags;
-  }
-
-  scheduleNextCampfireProcessingFlags: __CallReducerFlags = 'FullUpdate';
-  scheduleNextCampfireProcessing(flags: __CallReducerFlags) {
-    this.scheduleNextCampfireProcessingFlags = flags;
   }
 
   seedEnvironmentFlags: __CallReducerFlags = 'FullUpdate';
@@ -13571,9 +13584,9 @@ export class RemoteTables {
     return new CampfireTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Campfire>(REMOTE_MODULE.tables.campfire));
   }
 
-  get campfireProcessingSchedule(): CampfireProcessingScheduleTableHandle<'campfire_processing_schedule'> {
+  get campfireGlobalSchedule(): CampfireGlobalScheduleTableHandle<'campfire_global_schedule'> {
     // clientCache is a private property
-    return new CampfireProcessingScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<CampfireProcessingSchedule>(REMOTE_MODULE.tables.campfire_processing_schedule));
+    return new CampfireGlobalScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<CampfireGlobalSchedule>(REMOTE_MODULE.tables.campfire_global_schedule));
   }
 
   get caribouBreedingData(): CaribouBreedingDataTableHandle<'caribou_breeding_data'> {
@@ -14184,6 +14197,11 @@ export class RemoteTables {
   get sovaQuestMessage(): SovaQuestMessageTableHandle<'sova_quest_message'> {
     // clientCache is a private property
     return new SovaQuestMessageTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<SovaQuestMessage>(REMOTE_MODULE.tables.sova_quest_message));
+  }
+
+  get spawnZoneSchedule(): SpawnZoneScheduleTableHandle<'spawn_zone_schedule'> {
+    // clientCache is a private property
+    return new SpawnZoneScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<SpawnZoneSchedule>(REMOTE_MODULE.tables.spawn_zone_schedule));
   }
 
   get stash(): StashTableHandle<'stash'> {

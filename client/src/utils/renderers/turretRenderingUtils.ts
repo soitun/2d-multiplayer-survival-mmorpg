@@ -4,7 +4,6 @@ import alkTurretImage from '../../assets/doodads/alk_turret.png';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { imageManager } from './imageManager';
-import { renderEntityHealthBar } from './healthBarUtils';
 
 // === TURRET TYPE CONSTANTS ===
 // Must match server-side constants in turret.rs
@@ -212,12 +211,8 @@ export function renderTurret(
         ctx.restore();
     }
     
-    // Render health bar using unified system (turret is center-anchored)
-    // Health bar offset: sprite center is at posY, so offset is height/2
-    // Skip health bar for monument turrets (they are indestructible)
-    if (playerX !== undefined && playerY !== undefined && !turret.isMonument) {
-        renderEntityHealthBar(ctx, turret, TURRET_WIDTH, TURRET_HEIGHT, nowMs, playerX, playerY, TURRET_HEIGHT / 2);
-    }
+    // Health bar rendered via renderHealthBarOverlay (on top of world objects)
+    // Monument turrets are indestructible - overlay skips them
 }
 
 /**

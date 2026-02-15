@@ -28,37 +28,40 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type ScheduleNextCampfireProcessing = {
-  campfireId: number,
+export type SpawnZoneSchedule = {
+  id: bigint,
+  scheduledAt: { tag: "Interval", value: __TimeDuration } | { tag: "Time", value: __Timestamp },
 };
-let _cached_ScheduleNextCampfireProcessing_type_value: __AlgebraicTypeType | null = null;
+let _cached_SpawnZoneSchedule_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const ScheduleNextCampfireProcessing = {
+export const SpawnZoneSchedule = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_ScheduleNextCampfireProcessing_type_value) return _cached_ScheduleNextCampfireProcessing_type_value;
-    _cached_ScheduleNextCampfireProcessing_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_ScheduleNextCampfireProcessing_type_value.value.elements.push(
-      { name: "campfireId", algebraicType: __AlgebraicTypeValue.U32 },
+    if (_cached_SpawnZoneSchedule_type_value) return _cached_SpawnZoneSchedule_type_value;
+    _cached_SpawnZoneSchedule_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_SpawnZoneSchedule_type_value.value.elements.push(
+      { name: "id", algebraicType: __AlgebraicTypeValue.U64 },
+      { name: "scheduledAt", algebraicType: __AlgebraicTypeValue.createScheduleAtType() },
     );
-    return _cached_ScheduleNextCampfireProcessing_type_value;
+    return _cached_SpawnZoneSchedule_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: ScheduleNextCampfireProcessing): void {
-    __AlgebraicTypeValue.serializeValue(writer, ScheduleNextCampfireProcessing.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: SpawnZoneSchedule): void {
+    __AlgebraicTypeValue.serializeValue(writer, SpawnZoneSchedule.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): ScheduleNextCampfireProcessing {
-    return __AlgebraicTypeValue.deserializeValue(reader, ScheduleNextCampfireProcessing.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): SpawnZoneSchedule {
+    return __AlgebraicTypeValue.deserializeValue(reader, SpawnZoneSchedule.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default ScheduleNextCampfireProcessing;
+export default SpawnZoneSchedule;
+
 

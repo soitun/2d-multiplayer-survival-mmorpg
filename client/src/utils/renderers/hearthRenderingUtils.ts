@@ -3,7 +3,6 @@ import hearthImage from '../../assets/doodads/hearth.png';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { imageManager } from './imageManager';
-import { renderEntityHealthBar } from './healthBarUtils';
 
 // --- Constants directly used by this module or exported ---
 export const HEARTH_WIDTH = 125;
@@ -138,9 +137,6 @@ export function renderHearth(
         skipDrawingShadow
     });
     
-    // Render health bar using unified system
-    if (!onlyDrawShadow && playerX !== undefined && playerY !== undefined) {
-        renderEntityHealthBar(ctx, hearth, HEARTH_WIDTH, HEARTH_HEIGHT, nowMs, playerX, playerY, -HEARTH_RENDER_Y_OFFSET);
-    }
+    // Health bar rendered via renderHealthBarOverlay (on top of world objects)
 } 
 

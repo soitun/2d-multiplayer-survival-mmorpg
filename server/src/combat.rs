@@ -54,7 +54,7 @@ use crate::dropped_item;
 use crate::player_corpse::{PlayerCorpse, PlayerCorpseDespawnSchedule, NUM_CORPSE_SLOTS, create_player_corpse, player_corpse as PlayerCorpseTableTrait, player_corpse_despawn_schedule as PlayerCorpseDespawnScheduleTableTrait};
 use crate::inventory_management::ItemContainer;
 use crate::environment::calculate_chunk_index;
-use crate::campfire::{Campfire, CAMPFIRE_COLLISION_RADIUS, CAMPFIRE_COLLISION_Y_OFFSET, campfire as CampfireTableTrait, campfire_processing_schedule as CampfireProcessingScheduleTableTrait};
+use crate::campfire::{Campfire, CAMPFIRE_COLLISION_RADIUS, CAMPFIRE_COLLISION_Y_OFFSET, campfire as CampfireTableTrait};
 use crate::lantern::{Lantern, lantern as LanternTableTrait};
 use crate::turret::{Turret, turret as TurretTableTrait, NUM_AMMO_SLOTS};
 use crate::stash::{Stash, stash as StashTableTrait};
@@ -1945,9 +1945,6 @@ pub fn damage_tree(
                     
                     // Update the campfire in the database
                     ctx.db.campfire().id().update(campfire.clone());
-                    
-                    // Cancel any scheduled processing for this campfire
-                    ctx.db.campfire_processing_schedule().campfire_id().delete(campfire.id as u64);
                     
                     log::info!("Campfire {} extinguished after tree {} was cut down (no longer protected)", 
                               campfire.id, tree_id);

@@ -83,10 +83,14 @@ export interface CompoundBuilding {
   
   // === ROTATION (optional) ===
   /**
-   * Rotation in radians for parts that need orientation (e.g., dock facing water).
+   * Rotation in radians for monument parts with custom orientation.
    * Default 0 = no rotation.
    */
   rotationRad?: number;
+  
+  // === MONUMENT METADATA (optional, for monument parts only) ===
+  monumentType?: string;
+  partType?: string;
   
   // === LIGHT SOURCE (optional) ===
   /** 
@@ -416,6 +420,8 @@ export function getMonumentBuildings(monumentParts: MonumentPartData[]): Compoun
         collisionYOffset: 0,
         isCenter: part.isCenter,
         rotationRad: part.rotationRad ?? 0,
+        monumentType: part.monumentType,
+        partType: part.partType,
       };
     });
 }

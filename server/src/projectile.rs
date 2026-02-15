@@ -45,6 +45,7 @@ use crate::basalt_column::{BasaltColumn, basalt_column as BasaltColumnTableTrait
 // Import wild animal module for collision detection
 use crate::wild_animal_npc::{wild_animal as WildAnimalTableTrait};
 use crate::turret::{self, TALLOW_PROJECTILE_DAMAGE};
+use crate::environment::{calculate_chunk_index, WORLD_WIDTH_CHUNKS, WORLD_HEIGHT_CHUNKS};
 
 const GRAVITY: f32 = 600.0; // Adjust this value to change the arc. Positive values pull downwards.
 
@@ -226,8 +227,9 @@ pub fn init_projectile_system(ctx: &ReducerContext) -> Result<(), String> {
     // Only schedule if not already scheduled
     let schedule_table = ctx.db.projectile_update_schedule();
     if schedule_table.iter().count() == 0 {
-        // Schedule projectile collision detection every 50ms
-        let update_interval = TimeDuration::from_micros(50_000); // 50ms = 0.05 seconds
+        // Schedule projectile collision detection every 75ms (13.3 tx/sec)
+        // 75ms balances performance with combat feel; segment length matches tick to avoid tunneling
+        let update_interval = TimeDuration::from_micros(75_000); // 75ms = 0.075 seconds
         crate::try_insert_schedule!(
             schedule_table,
             ProjectileUpdateSchedule {
@@ -1130,11 +1132,6 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
     let mut projectiles_to_delete = Vec::new();
     let mut missed_projectiles_for_drops = Vec::new(); // Store missed projectiles for drop creation
 
-    let projectile_count = ctx.db.projectile().iter().count();
-    if projectile_count > 0 {
-        log::info!("DEBUG: update_projectiles running with {} active projectiles", projectile_count);
-    }
-
     for projectile in ctx.db.projectile().iter() {
         let start_time_secs = projectile.start_time.to_micros_since_unix_epoch() as f64 / 1_000_000.0;
         let current_time_secs = current_time.to_micros_since_unix_epoch() as f64 / 1_000_000.0; // Moved here for correct scope
@@ -1168,8 +1165,8 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         let current_x = projectile.start_pos_x + projectile.velocity_x * elapsed_time as f32;
         let current_y = projectile.start_pos_y + projectile.velocity_y * elapsed_time as f32 + 0.5 * GRAVITY * final_gravity_multiplier * (elapsed_time as f32).powi(2);
         
-        // Calculate previous position (50ms ago) for line segment collision detection
-        let prev_time = (elapsed_time - 0.05).max(0.0); // 50ms ago, but not negative
+        // Calculate previous position (75ms ago) for line segment collision detection
+        let prev_time = (elapsed_time - 0.075).max(0.0); // 75ms ago, matches tick interval
         let prev_x = projectile.start_pos_x + projectile.velocity_x * prev_time as f32;
         let prev_y = projectile.start_pos_y + projectile.velocity_y * prev_time as f32 + 0.5 * GRAVITY * final_gravity_multiplier * (prev_time as f32).powi(2);
         
@@ -1461,39 +1458,59 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         
         } // End of structure collision skip for monument turret projectiles
         
+        // Chunk-based spatial filtering: collect 3x3 chunks around segment midpoint
+        // Reduces full-table scans to ~9 chunks per entity type (trees, stones, etc.)
+        let mid_x = (prev_x + current_x) * 0.5;
+        let mid_y = (prev_y + current_y) * 0.5;
+        let center_chunk = calculate_chunk_index(mid_x, mid_y);
+        let center_cx = center_chunk % WORLD_WIDTH_CHUNKS;
+        let center_cy = center_chunk / WORLD_WIDTH_CHUNKS;
+        let mut chunk_indices: [u32; 9] = [0; 9];
+        let mut chunk_count = 0usize;
+        for dy in -1i32..=1 {
+            for dx in -1i32..=1 {
+                let cx = (center_cx as i32 + dx).max(0).min(WORLD_WIDTH_CHUNKS as i32 - 1) as u32;
+                let cy = (center_cy as i32 + dy).max(0).min(WORLD_HEIGHT_CHUNKS as i32 - 1) as u32;
+                chunk_indices[chunk_count] = cy * WORLD_WIDTH_CHUNKS + cx;
+                chunk_count += 1;
+            }
+        }
+        
         // Check for natural obstacle collisions (trees and stones)
         let mut hit_natural_obstacle_this_tick = false;
         
-        // Check tree collisions
-        for tree in ctx.db.tree().iter() {
-            // Skip dead/respawning trees (respawn_at > UNIX_EPOCH when tree is destroyed)
-            if tree.respawn_at > Timestamp::UNIX_EPOCH {
-                continue;
-            }
-            
-            // Trees have a generous collision radius for projectiles
-            const PROJECTILE_TREE_HIT_RADIUS: f32 = 30.0; // Generous radius for tree trunks
-            const PROJECTILE_TREE_Y_OFFSET: f32 = 10.0; // Slight offset for tree base
-            
-            let tree_hit_y = tree.pos_y - PROJECTILE_TREE_Y_OFFSET;
-            
-            // Use line segment collision detection for trees
-            if line_intersects_circle(prev_x, prev_y, current_x, current_y, tree.pos_x, tree_hit_y, PROJECTILE_TREE_HIT_RADIUS) {
-                log::info!(
-                    "[ProjectileUpdate] Projectile {} from owner {:?} hit Tree {} along path from ({:.1}, {:.1}) to ({:.1}, {:.1})",
-                    projectile.id, projectile.owner_id, tree.id, prev_x, prev_y, current_x, current_y
-                );
-                
-                // Create fire patch if this is a fire arrow (100% chance)
-                if let Some(ammo_item_def) = item_defs_table.id().find(projectile.ammo_def_id) {
-                    create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
+        // Check tree collisions (chunk-filtered)
+        'tree_chunks: for chunk_idx in &chunk_indices[..chunk_count] {
+            for tree in ctx.db.tree().chunk_index().filter(*chunk_idx) {
+                // Skip dead/respawning trees (respawn_at > UNIX_EPOCH when tree is destroyed)
+                if tree.respawn_at > Timestamp::UNIX_EPOCH {
+                    continue;
                 }
                 
-                // Trees block projectiles but don't take damage - projectile becomes dropped item
-                missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
-                projectiles_to_delete.push(projectile.id);
-                hit_natural_obstacle_this_tick = true;
-                break;
+                // Trees have a generous collision radius for projectiles
+                const PROJECTILE_TREE_HIT_RADIUS: f32 = 30.0; // Generous radius for tree trunks
+                const PROJECTILE_TREE_Y_OFFSET: f32 = 10.0; // Slight offset for tree base
+                
+                let tree_hit_y = tree.pos_y - PROJECTILE_TREE_Y_OFFSET;
+                
+                // Use line segment collision detection for trees
+                if line_intersects_circle(prev_x, prev_y, current_x, current_y, tree.pos_x, tree_hit_y, PROJECTILE_TREE_HIT_RADIUS) {
+                    log::info!(
+                        "[ProjectileUpdate] Projectile {} from owner {:?} hit Tree {} along path from ({:.1}, {:.1}) to ({:.1}, {:.1})",
+                        projectile.id, projectile.owner_id, tree.id, prev_x, prev_y, current_x, current_y
+                    );
+                    
+                    // Create fire patch if this is a fire arrow (100% chance)
+                    if let Some(ammo_item_def) = item_defs_table.id().find(projectile.ammo_def_id) {
+                        create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
+                    }
+                    
+                    // Trees block projectiles but don't take damage - projectile becomes dropped item
+                    missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
+                    projectiles_to_delete.push(projectile.id);
+                    hit_natural_obstacle_this_tick = true;
+                    break 'tree_chunks;
+                }
             }
         }
         
@@ -1501,64 +1518,68 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             continue;
         }
         
-        // Check stone collisions
-        for stone in ctx.db.stone().iter() {
-            // Skip dead/respawning stones (respawn_at > UNIX_EPOCH when stone is destroyed)
-            if stone.respawn_at > Timestamp::UNIX_EPOCH {
-                continue;
-            }
-            
-            // Stones have a generous collision radius for projectiles
-            const PROJECTILE_STONE_HIT_RADIUS: f32 = 25.0; // Generous radius for stone rocks
-            const PROJECTILE_STONE_Y_OFFSET: f32 = 5.0; // Slight offset for stone base
-            
-            let stone_hit_y = stone.pos_y - PROJECTILE_STONE_Y_OFFSET;
-            
-            // Use line segment collision detection for stones
-            if line_intersects_circle(prev_x, prev_y, current_x, current_y, stone.pos_x, stone_hit_y, PROJECTILE_STONE_HIT_RADIUS) {
-                log::info!(
-                    "[ProjectileUpdate] Projectile {} from owner {:?} hit Stone {} along path from ({:.1}, {:.1}) to ({:.1}, {:.1})",
-                    projectile.id, projectile.owner_id, stone.id, prev_x, prev_y, current_x, current_y
-                );
-                
-                // Create fire patch if this is a fire arrow (100% chance)
-                if let Some(ammo_item_def) = item_defs_table.id().find(projectile.ammo_def_id) {
-                    create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
+        // Check stone collisions (chunk-filtered)
+        'stone_chunks: for chunk_idx in &chunk_indices[..chunk_count] {
+            for stone in ctx.db.stone().chunk_index().filter(*chunk_idx) {
+                // Skip dead/respawning stones (respawn_at > UNIX_EPOCH when stone is destroyed)
+                if stone.respawn_at > Timestamp::UNIX_EPOCH {
+                    continue;
                 }
                 
-                // Stones block projectiles but don't take damage - projectile becomes dropped item
-                missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
-                projectiles_to_delete.push(projectile.id);
-                hit_natural_obstacle_this_tick = true;
-                break;
+                // Stones have a generous collision radius for projectiles
+                const PROJECTILE_STONE_HIT_RADIUS: f32 = 25.0; // Generous radius for stone rocks
+                const PROJECTILE_STONE_Y_OFFSET: f32 = 5.0; // Slight offset for stone base
+                
+                let stone_hit_y = stone.pos_y - PROJECTILE_STONE_Y_OFFSET;
+                
+                // Use line segment collision detection for stones
+                if line_intersects_circle(prev_x, prev_y, current_x, current_y, stone.pos_x, stone_hit_y, PROJECTILE_STONE_HIT_RADIUS) {
+                    log::info!(
+                        "[ProjectileUpdate] Projectile {} from owner {:?} hit Stone {} along path from ({:.1}, {:.1}) to ({:.1}, {:.1})",
+                        projectile.id, projectile.owner_id, stone.id, prev_x, prev_y, current_x, current_y
+                    );
+                    
+                    // Create fire patch if this is a fire arrow (100% chance)
+                    if let Some(ammo_item_def) = item_defs_table.id().find(projectile.ammo_def_id) {
+                        create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
+                    }
+                    
+                    // Stones block projectiles but don't take damage - projectile becomes dropped item
+                    missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
+                    projectiles_to_delete.push(projectile.id);
+                    hit_natural_obstacle_this_tick = true;
+                    break 'stone_chunks;
+                }
             }
         }
         
-        // Check rune stone collisions
-        for rune_stone in ctx.db.rune_stone().iter() {
-            // Rune stones have a generous collision radius for projectiles (doubled to match visual size)
-            const PROJECTILE_RUNE_STONE_HIT_RADIUS: f32 = 80.0; // Doubled from 40.0 to match doubled visual size
-            const PROJECTILE_RUNE_STONE_Y_OFFSET: f32 = 100.0; // Doubled from 50.0 to match doubled visual size
-            
-            let rune_stone_hit_y = rune_stone.pos_y - PROJECTILE_RUNE_STONE_Y_OFFSET;
-            
-            // Use line segment collision detection for rune stones
-            if line_intersects_circle(prev_x, prev_y, current_x, current_y, rune_stone.pos_x, rune_stone_hit_y, PROJECTILE_RUNE_STONE_HIT_RADIUS) {
-                log::info!(
-                    "[ProjectileUpdate] Projectile {} from owner {:?} hit RuneStone {} along path from ({:.1}, {:.1}) to ({:.1}, {:.1})",
-                    projectile.id, projectile.owner_id, rune_stone.id, prev_x, prev_y, current_x, current_y
-                );
+        // Check rune stone collisions (chunk-filtered)
+        'rune_chunks: for chunk_idx in &chunk_indices[..chunk_count] {
+            for rune_stone in ctx.db.rune_stone().chunk_index().filter(*chunk_idx) {
+                // Rune stones have a generous collision radius for projectiles (doubled to match visual size)
+                const PROJECTILE_RUNE_STONE_HIT_RADIUS: f32 = 80.0; // Doubled from 40.0 to match doubled visual size
+                const PROJECTILE_RUNE_STONE_Y_OFFSET: f32 = 100.0; // Doubled from 50.0 to match doubled visual size
                 
-                // Create fire patch if this is a fire arrow (100% chance)
-                if let Some(ammo_item_def) = item_defs_table.id().find(projectile.ammo_def_id) {
-                    create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
+                let rune_stone_hit_y = rune_stone.pos_y - PROJECTILE_RUNE_STONE_Y_OFFSET;
+                
+                // Use line segment collision detection for rune stones
+                if line_intersects_circle(prev_x, prev_y, current_x, current_y, rune_stone.pos_x, rune_stone_hit_y, PROJECTILE_RUNE_STONE_HIT_RADIUS) {
+                    log::info!(
+                        "[ProjectileUpdate] Projectile {} from owner {:?} hit RuneStone {} along path from ({:.1}, {:.1}) to ({:.1}, {:.1})",
+                        projectile.id, projectile.owner_id, rune_stone.id, prev_x, prev_y, current_x, current_y
+                    );
+                    
+                    // Create fire patch if this is a fire arrow (100% chance)
+                    if let Some(ammo_item_def) = item_defs_table.id().find(projectile.ammo_def_id) {
+                        create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
+                    }
+                    
+                    // Rune stones block projectiles but don't take damage - projectile becomes dropped item
+                    missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
+                    projectiles_to_delete.push(projectile.id);
+                    hit_natural_obstacle_this_tick = true;
+                    break 'rune_chunks;
                 }
-                
-                // Rune stones block projectiles but don't take damage - projectile becomes dropped item
-                missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
-                projectiles_to_delete.push(projectile.id);
-                hit_natural_obstacle_this_tick = true;
-                break;
             }
         }
         
@@ -1566,32 +1587,33 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             continue;
         }
         
-        // Check basalt column collisions (permanent rock obstacles in quarries)
-        for basalt in ctx.db.basalt_column().iter() {
-            // Basalt columns are permanent obstacles (no health/respawn check needed)
-            
-            const PROJECTILE_BASALT_HIT_RADIUS: f32 = 35.0;
-            const PROJECTILE_BASALT_Y_OFFSET: f32 = 40.0;
-            
-            let basalt_hit_y = basalt.pos_y - PROJECTILE_BASALT_Y_OFFSET;
-            
-            // Use line segment collision detection for basalt columns
-            if line_intersects_circle(prev_x, prev_y, current_x, current_y, basalt.pos_x, basalt_hit_y, PROJECTILE_BASALT_HIT_RADIUS) {
-                log::info!(
-                    "[ProjectileUpdate] Projectile {} from owner {:?} hit BasaltColumn {} along path from ({:.1}, {:.1}) to ({:.1}, {:.1})",
-                    projectile.id, projectile.owner_id, basalt.id, prev_x, prev_y, current_x, current_y
-                );
+        // Check basalt column collisions (chunk-filtered, permanent rock obstacles in quarries)
+        'basalt_chunks: for chunk_idx in &chunk_indices[..chunk_count] {
+            for basalt in ctx.db.basalt_column().chunk_index().filter(*chunk_idx) {
+                // Basalt columns are permanent obstacles (no health/respawn check needed)
+                const PROJECTILE_BASALT_HIT_RADIUS: f32 = 35.0;
+                const PROJECTILE_BASALT_Y_OFFSET: f32 = 40.0;
                 
-                // Create fire patch if this is a fire arrow (100% chance)
-                if let Some(ammo_item_def) = item_defs_table.id().find(projectile.ammo_def_id) {
-                    create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
+                let basalt_hit_y = basalt.pos_y - PROJECTILE_BASALT_Y_OFFSET;
+                
+                // Use line segment collision detection for basalt columns
+                if line_intersects_circle(prev_x, prev_y, current_x, current_y, basalt.pos_x, basalt_hit_y, PROJECTILE_BASALT_HIT_RADIUS) {
+                    log::info!(
+                        "[ProjectileUpdate] Projectile {} from owner {:?} hit BasaltColumn {} along path from ({:.1}, {:.1}) to ({:.1}, {:.1})",
+                        projectile.id, projectile.owner_id, basalt.id, prev_x, prev_y, current_x, current_y
+                    );
+                    
+                    // Create fire patch if this is a fire arrow (100% chance)
+                    if let Some(ammo_item_def) = item_defs_table.id().find(projectile.ammo_def_id) {
+                        create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
+                    }
+                    
+                    // Basalt columns block projectiles but don't take damage - projectile becomes dropped item
+                    missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
+                    projectiles_to_delete.push(projectile.id);
+                    hit_natural_obstacle_this_tick = true;
+                    break 'basalt_chunks;
                 }
-                
-                // Basalt columns block projectiles but don't take damage - projectile becomes dropped item
-                missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
-                projectiles_to_delete.push(projectile.id);
-                hit_natural_obstacle_this_tick = true;
-                break;
             }
         }
         
@@ -1602,8 +1624,9 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         // Check deployable entity collisions (campfires, boxes, stashes, sleeping bags)
         let mut hit_deployable_this_tick = false;
         
-        // Check campfire collisions
-        for campfire in ctx.db.campfire().iter() {
+        // Check campfire collisions (chunk-filtered)
+        'campfire_chunks: for chunk_idx in &chunk_indices[..chunk_count] {
+            for campfire in ctx.db.campfire().chunk_index().filter(*chunk_idx) {
             if campfire.is_destroyed {
                 continue;
             }
@@ -1656,7 +1679,8 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
                 projectiles_to_delete.push(projectile.id);
                 hit_deployable_this_tick = true;
-                break;
+                break 'campfire_chunks;
+            }
             }
         }
         

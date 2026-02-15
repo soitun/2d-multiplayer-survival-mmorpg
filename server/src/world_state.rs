@@ -4,7 +4,6 @@ use std::f32::consts::PI;
 use rand::Rng;
 use crate::campfire::Campfire;
 use crate::campfire::campfire as CampfireTableTrait;
-use crate::campfire::campfire_processing_schedule as CampfireProcessingScheduleTableTrait;
 use crate::items::inventory_item as InventoryItemTableTrait;
 use crate::items::InventoryItem;
 use crate::shelter::shelter as ShelterTableTrait;
@@ -488,6 +487,23 @@ pub fn seed_world_state(ctx: &ReducerContext) -> Result<(), String> {
         log::info!("🗑️ Cleaned up {} accumulated thunder events on startup", cleanup_count);
     }
     
+    Ok(())
+}
+
+/// Initialize thunder event cleanup schedule. Called on resume when no players were online.
+/// Idempotent: only inserts if table is empty.
+pub fn init_thunder_event_cleanup_schedule(ctx: &ReducerContext) -> Result<(), String> {
+    if ctx.db.thunder_event_cleanup_schedule().iter().next().is_some() {
+        return Ok(());
+    }
+    let cleanup_interval = TimeDuration::from_micros(5_000_000); // 5 seconds
+    let cleanup_schedule = ThunderEventCleanupSchedule {
+        schedule_id: 0,
+        scheduled_at: ScheduleAt::Interval(cleanup_interval),
+    };
+    ctx.db.thunder_event_cleanup_schedule().try_insert(cleanup_schedule)
+        .map_err(|e| format!("Failed to init thunder cleanup: {:?}", e))?;
+    log::info!("⚡ Thunder event cleanup schedule resumed");
     Ok(())
 }
 
@@ -1801,7 +1817,6 @@ fn extinguish_campfires_in_chunk(ctx: &ReducerContext, chunk_index: u32, weather
             
             crate::sound_events::stop_campfire_sound(ctx, campfire.id as u64);
             ctx.db.campfire().id().update(campfire.clone());
-            ctx.db.campfire_processing_schedule().campfire_id().delete(campfire.id as u64);
             
             extinguished_count += 1;
         }
@@ -1908,7 +1923,6 @@ fn extinguish_unprotected_campfires(ctx: &ReducerContext, weather_type: &Weather
             
             crate::sound_events::stop_campfire_sound(ctx, campfire.id as u64);
             ctx.db.campfire().id().update(campfire.clone());
-            ctx.db.campfire_processing_schedule().campfire_id().delete(campfire.id as u64);
             
             extinguished_count += 1;
         }

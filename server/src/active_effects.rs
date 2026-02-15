@@ -275,9 +275,11 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
         return Err("process_active_consumable_effects_tick can only be called by the scheduler.".to_string());
     }
 
-    // ALWAYS update indoor status for all players, regardless of active effects
-    // This ensures the is_inside_building flag is properly cleared when leaving protected areas
-    update_all_players_indoor_status(ctx);
+    // Update indoor status only when players are online (needed for hostile AI, player stats warmth)
+    // Skip when empty to avoid expensive shelter/building checks
+    if ctx.db.player().iter().any(|p| p.is_online) {
+        update_all_players_indoor_status(ctx);
+    }
 
     // Process hot combat ladle: apply self-burn if holding hot ladle without gloves
     process_hot_combat_ladle_self_burn(ctx);

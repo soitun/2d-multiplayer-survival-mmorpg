@@ -6,7 +6,6 @@ import largeFurnaceOnImage from '../../assets/doodads/large_furnace_on.png'; // 
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { imageManager } from './imageManager'; // Import image manager
-import { renderEntityHealthBar } from './healthBarUtils';
 import { isCompoundMonument } from '../../config/compoundBuildings';
 
 // --- Furnace Type Constants ---
@@ -376,10 +375,7 @@ export function renderFurnace(
         ctx.restore();
     }
     
-    // Render health bar using unified system
-    if (!onlyDrawShadow && playerX !== undefined && playerY !== undefined) {
-        renderEntityHealthBar(ctx, furnace, dimensions.width, dimensions.height, nowMs, playerX, playerY, -dimensions.yOffset);
-    }
+    // Health bar rendered via renderHealthBarOverlay (on top of world objects)
 } 
 
  

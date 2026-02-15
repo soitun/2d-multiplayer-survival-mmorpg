@@ -3,7 +3,6 @@ import stashImageSrc from '../../assets/doodads/stash.png';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { imageManager } from './imageManager';
-import { renderEntityHealthBar } from './healthBarUtils';
 
 // --- Constants ---
 export const STASH_WIDTH = 48; // Adjust as needed
@@ -118,8 +117,5 @@ export function renderStash(
         cycleProgress,
     });
     
-    // Render health bar using unified system (skip if hidden)
-    if (!stash.isHidden && playerX !== undefined && playerY !== undefined) {
-        renderEntityHealthBar(ctx, stash, STASH_WIDTH, STASH_HEIGHT, nowMs, playerX, playerY);
-    }
+    // Health bar rendered via renderHealthBarOverlay (on top of world objects)
 } 

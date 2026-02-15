@@ -15,10 +15,10 @@ import { PLAYER_RADIUS } from '../clientCollision';
 
 // ===== CONSTANTS =====
 // Server-side attack range constants (from server/src/active_equipment.rs)
-// Must match: PLAYER_RADIUS * 4.5 for default, PLAYER_RADIUS * 6.0 for spear, PLAYER_RADIUS * 7.0 for scythe
+// Must match: PLAYER_RADIUS * 4.5 for default, PLAYER_RADIUS * 8.0 for spear, PLAYER_RADIUS * 7.0 for scythe
 export const DEFAULT_ATTACK_RANGE = PLAYER_RADIUS * 4.5; // ~144px
-export const SPEAR_ATTACK_RANGE = PLAYER_RADIUS * 6.0;   // ~192px
-export const SCYTHE_ATTACK_RANGE = PLAYER_RADIUS * 7.0;  // ~224px - LONGEST melee range!
+export const SPEAR_ATTACK_RANGE = PLAYER_RADIUS * 8.0;   // ~256px - spear thrust range
+export const SCYTHE_ATTACK_RANGE = PLAYER_RADIUS * 7.0;  // ~224px - scythe sweep range
 
 // Attack arc angles (from server/src/active_equipment.rs)
 export const DEFAULT_ATTACK_ARC_DEGREES = 90; // Standard 90° arc
@@ -104,9 +104,9 @@ function getWeaponRangeAndArc(itemDef: SpacetimeDBItemDefinition | null | undefi
     return { range: SCYTHE_ATTACK_RANGE, arcDegrees: SCYTHE_ATTACK_ARC_DEGREES, color: 'rgba(0, 255, 128, 0.4)', label: 'Scythe' };
   }
   
-  // Spears - extended range, default arc
+  // Spears - extended range, narrow thrust cone (60°)
   if (name === 'Wooden Spear' || name === 'Stone Spear' || name === 'Reed Harpoon') {
-    return { range: SPEAR_ATTACK_RANGE, arcDegrees: DEFAULT_ATTACK_ARC_DEGREES, color: 'rgba(255, 200, 0, 0.4)', label: 'Spear' };
+    return { range: SPEAR_ATTACK_RANGE, arcDegrees: 60, color: 'rgba(255, 200, 0, 0.4)', label: 'Spear' };
   }
   
   // All other weapons/tools use default melee range

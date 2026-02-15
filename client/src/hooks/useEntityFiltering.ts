@@ -220,7 +220,9 @@ export interface CompoundBuildingEntity {
   imagePath: string;
   anchorYOffset: number;
   isCenter?: boolean; // For monuments: marks the center piece for building restriction overlay
-  rotationRad?: number; // Rotation in radians (for docks to face water)
+  rotationRad?: number; // Rotation in radians for monument parts with custom orientation
+  monumentType?: string; // For monument doodads: FishingVillage, HuntingVillage, etc.
+  partType?: string; // For monument doodads: campfire, hut, lodge, etc.
 }
 
 // ===== HELPER FUNCTIONS FOR Y-SORTING =====
@@ -1419,6 +1421,8 @@ export function useEntityFiltering(
         anchorYOffset: building.anchorYOffset,
         isCenter: building.isCenter,
         rotationRad: building.rotationRad ?? 0,
+        monumentType: building.monumentType,
+        partType: building.partType,
       };
     }).filter(building => {
       const buffer = 500;

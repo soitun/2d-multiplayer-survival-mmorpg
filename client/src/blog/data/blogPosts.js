@@ -1,5 +1,6 @@
 // Import all blog posts
 import redditAigamedevFeedbackFebruary2026 from './posts/reddit-aigamedev-feedback-february-2026';
+import spacetimedbMaincloudVsSelfHostingGuide from './posts/spacetimedb-maincloud-vs-self-hosting-guide';
 import brothBulletsFebruary2026Update from './posts/broth-bullets-february-2026-update';
 import alkCentralCompoundAdmiraltyLogisticsKernel from './posts/alk-central-compound-admiralty-logistics-kernel';
 import brothBulletsJanuary2026Update from './posts/broth-bullets-january-2026-update';
@@ -38,6 +39,7 @@ import brothBulletsCookingSystemEmergentGameplay from './posts/broth-bullets-coo
 export const blogPosts = [
   // February 2026 Posts
   redditAigamedevFeedbackFebruary2026, // February 15, 2026 - Reddit r/aigamedev feedback
+  spacetimedbMaincloudVsSelfHostingGuide, // February 15, 2026 - Maincloud vs self-hosting, EU, optimization
   brothBulletsFebruary2026Update, // February 2, 2026 - Development Update
   alkCentralCompoundAdmiraltyLogisticsKernel, // February 10, 2026 - ALK Central Compound & Lore
   // January 2026 Posts

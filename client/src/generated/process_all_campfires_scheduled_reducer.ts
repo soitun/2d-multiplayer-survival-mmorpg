@@ -28,40 +28,41 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type CampfireProcessingSchedule = {
-  campfireId: bigint,
-  scheduledAt: { tag: "Interval", value: __TimeDuration } | { tag: "Time", value: __Timestamp },
+import { CampfireGlobalSchedule } from "./campfire_global_schedule_type";
+// Mark import as potentially unused
+declare type __keep_CampfireGlobalSchedule = CampfireGlobalSchedule;
+
+export type ProcessAllCampfiresScheduled = {
+  schedule: CampfireGlobalSchedule,
 };
-let _cached_CampfireProcessingSchedule_type_value: __AlgebraicTypeType | null = null;
+let _cached_ProcessAllCampfiresScheduled_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const CampfireProcessingSchedule = {
+export const ProcessAllCampfiresScheduled = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_CampfireProcessingSchedule_type_value) return _cached_CampfireProcessingSchedule_type_value;
-    _cached_CampfireProcessingSchedule_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_CampfireProcessingSchedule_type_value.value.elements.push(
-      { name: "campfireId", algebraicType: __AlgebraicTypeValue.U64 },
-      { name: "scheduledAt", algebraicType: __AlgebraicTypeValue.createScheduleAtType() },
+    if (_cached_ProcessAllCampfiresScheduled_type_value) return _cached_ProcessAllCampfiresScheduled_type_value;
+    _cached_ProcessAllCampfiresScheduled_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_ProcessAllCampfiresScheduled_type_value.value.elements.push(
+      { name: "schedule", algebraicType: CampfireGlobalSchedule.getTypeScriptAlgebraicType() },
     );
-    return _cached_CampfireProcessingSchedule_type_value;
+    return _cached_ProcessAllCampfiresScheduled_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: CampfireProcessingSchedule): void {
-    __AlgebraicTypeValue.serializeValue(writer, CampfireProcessingSchedule.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: ProcessAllCampfiresScheduled): void {
+    __AlgebraicTypeValue.serializeValue(writer, ProcessAllCampfiresScheduled.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): CampfireProcessingSchedule {
-    return __AlgebraicTypeValue.deserializeValue(reader, CampfireProcessingSchedule.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): ProcessAllCampfiresScheduled {
+    return __AlgebraicTypeValue.deserializeValue(reader, ProcessAllCampfiresScheduled.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default CampfireProcessingSchedule;
-
+export default ProcessAllCampfiresScheduled;
 

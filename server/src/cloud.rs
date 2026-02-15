@@ -418,6 +418,28 @@ pub fn update_cloud_intensities(ctx: &ReducerContext, _schedule_args: CloudInten
     Ok(())
 }
 
+/// Initialize the cloud position update schedule (for resume after pause).
+/// Only adds schedule if clouds exist and schedule is empty.
+pub fn init_cloud_update_schedule(ctx: &ReducerContext) -> Result<(), String> {
+    if ctx.db.cloud_update_schedule().iter().next().is_some() {
+        return Ok(());
+    }
+    if ctx.db.cloud().iter().next().is_none() {
+        return Ok(());
+    }
+    let update_interval_seconds = 5.0;
+    crate::try_insert_schedule!(
+        ctx.db.cloud_update_schedule(),
+        CloudUpdateSchedule {
+            schedule_id: 0,
+            scheduled_at: ScheduleAt::Interval(TimeDuration::from_micros((update_interval_seconds * 1_000_000.0) as i64)),
+            delta_time_seconds: update_interval_seconds,
+        },
+        "Cloud update"
+    );
+    Ok(())
+}
+
 /// Initialize the cloud intensity update system
 pub fn init_cloud_intensity_system(ctx: &ReducerContext) -> Result<(), String> {
     // Check if intensity schedule already exists

@@ -183,8 +183,8 @@ export function useCampfireParticles({
                     const isStaticCampfireSmoke = p.id && p.id.startsWith('smoke_static_');
                     if (isStaticCampfireSmoke) {
                         // Strong upward acceleration - smoke extends much higher
-                        newVy -= 0.008 * deltaTimeFactor;
-                        newSize = Math.min(p.size + PARTICLE_SMOKE_GROWTH_RATE * deltaTimeFactor * 2.0, PARTICLE_SMOKE_SIZE_MAX * 2.0);
+                        newVy -= 0.022 * deltaTimeFactor;
+                        newSize = Math.min(p.size + PARTICLE_SMOKE_GROWTH_RATE * deltaTimeFactor * 2.5, PARTICLE_SMOKE_SIZE_MAX * 3.0);
                     } else {
                         newVy -= 0.003 * deltaTimeFactor;
                         newSize = Math.min(p.size + PARTICLE_SMOKE_GROWTH_RATE * deltaTimeFactor, PARTICLE_SMOKE_SIZE_MAX);
@@ -361,13 +361,14 @@ export function useCampfireParticles({
                 });
             }
 
-            // Static campfires (fishing village, hunting village) - start lower, extend much higher
+            // Static campfires (fishing village, hunting village) - wider and taller fire, smoke unchanged
             const STATIC_CAMPFIRE_SCALE = 2.0;
-            // Fire zones: base starts higher, lots more fire
+            const STATIC_FIRE_HEIGHT_MULT = 1.8; // Taller flames (stronger upward vy)
+            // Fire zones: wider spread, taller flames
             const STATIC_FIRE_ZONES = [
-                { name: 'base', yOffset: CAMPFIRE_HEIGHT * 0.05, emissionRate: 0.6, spread: { x: 12, y: 6 }, speedMultiplier: 0.5 },
-                { name: 'middle', yOffset: CAMPFIRE_HEIGHT * -0.10, emissionRate: 1.0, spread: { x: 10, y: 5 }, speedMultiplier: 0.75 },
-                { name: 'top', yOffset: CAMPFIRE_HEIGHT * -0.25, emissionRate: 1.2, spread: { x: 6, y: 3 }, speedMultiplier: 1.0 },
+                { name: 'base', yOffset: CAMPFIRE_HEIGHT * 0.05, emissionRate: 0.6, spread: { x: 44, y: 22 }, speedMultiplier: 0.5 },
+                { name: 'middle', yOffset: CAMPFIRE_HEIGHT * -0.10, emissionRate: 1.0, spread: { x: 38, y: 19 }, speedMultiplier: 0.75 },
+                { name: 'top', yOffset: CAMPFIRE_HEIGHT * -0.25, emissionRate: 1.2, spread: { x: 30, y: 15 }, speedMultiplier: 1.0 },
             ];
             if (staticCampfires && staticCampfires.length > 0) {
                 staticCampfires.forEach((campfire) => {
@@ -389,10 +390,10 @@ export function useCampfireParticles({
                             const lifetime = (PARTICLE_FIRE_LIFETIME_MIN * 1.5) + Math.random() * (PARTICLE_FIRE_LIFETIME_MAX - PARTICLE_FIRE_LIFETIME_MIN);
                             const zoneEmissionX = visualCenterX;
                             const zoneEmissionY = visualCenterY + zone.yOffset;
-                            const spreadX = zone.spread.x * STATIC_CAMPFIRE_SCALE;
-                            const spreadY = zone.spread.y * STATIC_CAMPFIRE_SCALE;
+                            const spreadX = zone.spread.x;
+                            const spreadY = zone.spread.y;
                             const fireSize = Math.floor((PARTICLE_FIRE_SIZE_MIN + Math.random() * (PARTICLE_FIRE_SIZE_MAX - PARTICLE_FIRE_SIZE_MIN)) * STATIC_CAMPFIRE_SCALE) + 1;
-                            const vyMult = zone.speedMultiplier * 1.4; // Stronger upward - extends higher
+                            const vyMult = zone.speedMultiplier * STATIC_FIRE_HEIGHT_MULT; // Taller flames
                             
                             newGeneratedParticles.push({
                                 id: `fire_static_${zone.name}_${now}_${Math.random()}`, 
@@ -417,11 +418,11 @@ export function useCampfireParticles({
                     smokeAcc += SMOKE_PARTICLES_PER_CAMPFIRE_FRAME * STATIC_CAMPFIRE_SCALE * deltaTimeFactor;
                     while (smokeAcc >= 1) {
                         smokeAcc -= 1;
-                        const lifetime = (PARTICLE_SMOKE_LIFETIME_MIN * 2.5) + Math.random() * (PARTICLE_SMOKE_LIFETIME_MAX * 2.0 - PARTICLE_SMOKE_LIFETIME_MIN * 2.5);
+                        const lifetime = (PARTICLE_SMOKE_LIFETIME_MIN * 4.0) + Math.random() * (PARTICLE_SMOKE_LIFETIME_MAX * 3.5 - PARTICLE_SMOKE_LIFETIME_MIN * 4.0);
                         const smokeSpreadX = 8 * STATIC_CAMPFIRE_SCALE;
                         const smokeSpreadY = 6 * STATIC_CAMPFIRE_SCALE;
                         const smokeSize = Math.floor((PARTICLE_SMOKE_SIZE_MIN + Math.random() * (PARTICLE_SMOKE_SIZE_MAX - PARTICLE_SMOKE_SIZE_MIN)) * STATIC_CAMPFIRE_SCALE) + 1;
-                        const smokeVy = (PARTICLE_SMOKE_SPEED_Y_MIN * 3.0) + Math.random() * ((PARTICLE_SMOKE_SPEED_Y_MAX * 3.0) - (PARTICLE_SMOKE_SPEED_Y_MIN * 3.0));
+                        const smokeVy = (PARTICLE_SMOKE_SPEED_Y_MIN * 6.0) + Math.random() * ((PARTICLE_SMOKE_SPEED_Y_MAX * 6.0) - (PARTICLE_SMOKE_SPEED_Y_MIN * 6.0));
                         
                         newGeneratedParticles.push({
                             id: `smoke_static_${now}_${Math.random()}`, type: 'smoke',
@@ -482,7 +483,7 @@ export function useCampfireParticles({
                 cancelAnimationFrame(animationFrameRef.current);
             }
         };
-    }, [visibleCampfiresMap]); // Only depend on visibleCampfiresMap, NOT deltaTime
+    }, [visibleCampfiresMap, staticCampfires]); // Re-run when campfires or static positions change
 
     return particlesRef.current;
 } 
