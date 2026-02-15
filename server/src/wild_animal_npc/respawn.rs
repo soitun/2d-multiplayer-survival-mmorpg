@@ -201,17 +201,6 @@ pub fn maintain_spawn_zone_populations(ctx: &ReducerContext) -> Result<(), Strin
     Ok(())
 }
 
-/// Check if any spawn zones exist for the given species (so we skip them in general random spawn)
-fn has_spawn_zones_for_species(ctx: &ReducerContext, species: AnimalSpecies) -> bool {
-    match species {
-        AnimalSpecies::TundraWolf => ctx.db.monument_part().iter()
-            .any(|p| p.monument_type == MonumentType::WolfDen && p.is_center),
-        AnimalSpecies::Wolverine => whale_bone_graveyard::get_whale_bone_graveyard_center(ctx).is_some(),
-        AnimalSpecies::Tern => ctx.db.reed_marsh().iter().next().is_some(),
-        _ => false,
-    }
-}
-
 /// Maintains minimum wild animal population levels by spawning new animals when population drops too low.
 /// Uses similar validation logic to resource respawning with collision detection.
 /// Implements a Rust-like gradual respawn system rather than instant full population.
@@ -258,12 +247,7 @@ pub fn maintain_wild_animal_population(ctx: &ReducerContext) -> Result<(), Strin
         (AnimalSpecies::Hare, 10),           // 10% - Common alpine prey animal
         (AnimalSpecies::SnowyOwl, 5),        // 5% - Uncommon alpine flying predator
     ];
-    // Filter out species that have dedicated spawn zones (they respawn at monuments, not randomly)
-    let filtered_weights: Vec<_> = species_weights.iter()
-        .filter(|(s, _)| !has_spawn_zones_for_species(ctx, *s))
-        .copied()
-        .collect();
-    let total_weight: u32 = filtered_weights.iter().map(|(_, weight)| weight).sum();
+    let total_weight: u32 = species_weights.iter().map(|(_, weight)| weight).sum();
     
     // Get existing positions for collision avoidance
     let existing_positions = get_existing_positions(ctx);
@@ -280,18 +264,11 @@ pub fn maintain_wild_animal_population(ctx: &ReducerContext) -> Result<(), Strin
     let (min_tile_x, max_tile_x, min_tile_y, max_tile_y) = 
         calculate_tile_bounds(WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES, margin_tiles);
     
-    // If all species have spawn zones (filtered empty), use full weights as fallback
-    let (weights_for_selection, weight_for_selection) = if total_weight > 0 {
-        (filtered_weights.as_slice(), total_weight)
-    } else {
-        (species_weights.as_slice(), species_weights.iter().map(|(_, w)| w).sum::<u32>())
-    };
-
     while spawned_count < animals_needed && spawn_attempts < max_spawn_attempts {
         spawn_attempts += 1;
         
-        // Choose species using weighted random selection (excludes spawn-zone species when zones exist)
-        let chosen_species = choose_random_species(weights_for_selection, weight_for_selection, &mut ctx.rng());
+        // Choose species using weighted random selection
+        let chosen_species = choose_random_species(&species_weights, total_weight, &mut ctx.rng());
         
         // Aquatic animals (sharks, jellyfish) ONLY spawn on Sea tiles. Retry until we find water.
         let is_aquatic = matches!(chosen_species, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish);
