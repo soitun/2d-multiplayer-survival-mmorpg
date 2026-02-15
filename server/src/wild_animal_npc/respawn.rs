@@ -1,6 +1,8 @@
 use spacetimedb::{ReducerContext, Timestamp, Table};
+use spacetimedb::spacetimedb_lib::{ScheduleAt, TimeDuration};
 use rand::Rng;
 use log;
+use std::time::Duration;
 
 use crate::{TILE_SIZE_PX, WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES};
 use crate::environment::{calculate_chunk_index, is_wild_animal_location_suitable, is_position_on_water, is_position_in_central_compound};
@@ -28,9 +30,49 @@ const WOLVERINE_GRAVEYARD_SPAWN_MAX: f32 = 800.0;
 
 const TERN_MARSH_TARGET_PER_MARSH: u32 = 2;
 
+/// Interval for spawn zone respawn checks. Predators (wolves, wolverines) respawn slowly so clearing
+/// a den/graveyard feels meaningful. Full wolf pack ~32 min, wolverines ~32 min, terns ~16 min per marsh.
+const SPAWN_ZONE_CHECK_INTERVAL_SECS: u64 = 480; // 8 minutes
+
+#[spacetimedb::table(name = spawn_zone_schedule, scheduled(process_spawn_zone_maintenance))]
+#[derive(Clone)]
+pub struct SpawnZoneSchedule {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    pub scheduled_at: ScheduleAt,
+}
+
+/// Scheduled reducer - only callable by scheduler. Runs spawn zone maintenance.
+#[spacetimedb::reducer]
+pub fn process_spawn_zone_maintenance(ctx: &ReducerContext, _schedule: SpawnZoneSchedule) -> Result<(), String> {
+    if ctx.sender != ctx.identity() {
+        return Err("process_spawn_zone_maintenance may only be called by the scheduler.".into());
+    }
+    maintain_spawn_zone_populations(ctx)
+}
+
+/// Initialize spawn zone respawn schedule. Called from lib.rs init.
+pub fn init_spawn_zone_schedule(ctx: &ReducerContext) -> Result<(), String> {
+    let schedule_table = ctx.db.spawn_zone_schedule();
+    if schedule_table.iter().count() == 0 {
+        let interval = Duration::from_secs(SPAWN_ZONE_CHECK_INTERVAL_SECS);
+        log::info!("Initializing spawn zone respawn (wolves/wolverines/terns at monuments) - check every {} min", SPAWN_ZONE_CHECK_INTERVAL_SECS / 60);
+        crate::try_insert_schedule!(
+            schedule_table,
+            SpawnZoneSchedule {
+                id: 0,
+                scheduled_at: ScheduleAt::Interval(TimeDuration::from(interval)),
+            },
+            "Spawn zone respawn"
+        );
+    }
+    Ok(())
+}
+
 /// Maintains spawn zone populations: wolves at wolf dens, wolverines at whale bone graveyard,
 /// terns at reed marshes. These species respawn at their allocated monument locations rather than randomly.
-/// Runs on the same schedule as general animal respawn.
+/// Runs on a dedicated 8-minute schedule (not every 15s) for balance - clearing a den should feel meaningful.
 pub fn maintain_spawn_zone_populations(ctx: &ReducerContext) -> Result<(), String> {
     let existing_positions = get_existing_positions(ctx);
     let mut total_spawned = 0u32;

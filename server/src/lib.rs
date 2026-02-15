@@ -482,6 +482,7 @@ use crate::wild_animal_npc::caribou::caribou_breeding_schedule as CaribouBreedin
 use crate::wild_animal_npc::caribou::caribou_rut_state as CaribouRutStateTableTrait; // <<< ADDED: Caribou breeding system
 use crate::barrel::barrel as BarrelTableTrait; // <<< ADDED: Import Barrel table trait
 use crate::barrel::barrel_respawn_schedule as BarrelRespawnScheduleTableTrait; // <<< ADDED: Import BarrelRespawnSchedule table trait
+use crate::wild_animal_npc::respawn::spawn_zone_schedule as SpawnZoneScheduleTableTrait; // <<< Spawn zone respawn (wolves/wolverines/terns at monuments)
 use crate::sea_stack::sea_stack as SeaStackTableTrait; // <<< ADDED: Import SeaStack table trait
 use crate::player_corpse::player_corpse as PlayerCorpseTableTrait; // <<< ADDED: Import PlayerCorpse table trait
 use crate::player_progression::player_stats as PlayerStatsTableTrait; // <<< ADDED: Import PlayerStats table trait
@@ -820,6 +821,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     
     // ADD: Initialize wild animal AI system
     crate::wild_animal_npc::init_wild_animal_ai_schedule(ctx)?;
+    
+    // ADD: Initialize spawn zone respawn (wolves at dens, wolverines at graveyard, terns at marshes - 8 min interval)
+    crate::wild_animal_npc::respawn::init_spawn_zone_schedule(ctx)?;
     
     // ADD: Initialize hostile NPC spawning system (night-only enemies)
     crate::wild_animal_npc::init_hostile_spawning_system(ctx)?;
