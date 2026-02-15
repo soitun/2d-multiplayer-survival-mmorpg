@@ -7,7 +7,7 @@ export default {
   authorImage: "/images/blog/author-marty.jpg",
   authorTwitter: "seloslav",
   excerpt: "A few days ago we shared Broth & Bullets on r/aigamedev — our SpacetimeDB-powered, AI-generated-asset 2D survival game. The community responded with enthusiasm, technical questions, and encouragement. Here's what happened and why the repository keeps growing.",
-  coverImage: "/images/blog/february-2026-update-cover.jpg",
+  coverImage: "/images/blog/reddit-aigamedev-feedback-february-2026-cover.jpg",
   content: `
     <p>Earlier this month we decided to share Broth & Bullets with the r/aigamedev community on Reddit. The post covered our full stack — React 19 + Vite 6 + TypeScript on the frontend, SpacetimeDB for authoritative multiplayer, Rust compiled to WebAssembly for game logic — plus spatial subscriptions, procedural world generation, dynamic weather, the SOVA voice assistant, and our AI-generated art pipeline. We kept it technical and honest about costs, architecture, and what's still in progress.</p>
 
