@@ -6,7 +6,7 @@ import type { MonumentPart } from '../generated';
 import type { CollisionShape } from './clientCollision';
 
 // --- Village campfire collision ---
-const VILLAGE_CAMPFIRE_COLLISION_RADIUS = 60;
+const VILLAGE_CAMPFIRE_COLLISION_RADIUS = 70;
 const VILLAGE_CAMPFIRE_CULL_DISTANCE_SQ = 250 * 250; // Only check within 250px
 const MAX_VILLAGE_CAMPFIRES_TO_CHECK = 5;
 // fv_campfire.png is 256x256, anchor at bottom; collision center at fire pit (half-height up)
@@ -19,7 +19,7 @@ function isVillageCampfirePart(part: MonumentPart): boolean {
 }
 
 /**
- * Returns collision shapes for fishing/hunting village campfires (60px radius circle).
+ * Returns collision shapes for fishing/hunting village campfires (70px radius circle).
  * Culled by distance from player for performance.
  */
 export function getVillageCampfireCollisionShapes(

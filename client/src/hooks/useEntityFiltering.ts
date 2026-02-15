@@ -2203,18 +2203,24 @@ export function useEntityFiltering(
         return 1;
       }
 
-      // Player vs Monument Doodad - 75% threshold (player in front when in bottom 25% of sprite)
+      // Player vs Monument Doodad - ground-level campfires use generous threshold so player head doesn't clip behind stones
+      // Formula: sortThresholdY = worldY - (height * fractionFromTop). fractionFromTop = distance from top as fraction of height.
+      // For campfire: 0.75 = threshold at 75% from top = bottom 75% in front. For huts: 0.25 = bottom 25% in front.
       if (a.type === 'player' && b.type === 'monument_doodad') {
         const playerY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer);
         const doodad = b.entity as CompoundBuildingEntity;
-        const sortThresholdY = doodad.worldY - (doodad.height * 0.25) + (doodad.anchorYOffset || 0);
-        if (playerY >= sortThresholdY) return 1; // Player in bottom 25% - player in front
-        return -1; // Player in top 75% - player behind
+        const isGroundCampfire = doodad.imagePath === 'fv_campfire.png';
+        const fractionFromTop = isGroundCampfire ? 0.75 : 0.25; // Campfire: bottom 75% in front. Huts: bottom 25% in front.
+        const sortThresholdY = doodad.worldY - (doodad.height * fractionFromTop) + (doodad.anchorYOffset || 0);
+        if (playerY >= sortThresholdY) return 1; // Player in front
+        return -1; // Player behind
       }
       if (a.type === 'monument_doodad' && b.type === 'player') {
         const doodad = a.entity as CompoundBuildingEntity;
         const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer);
-        const sortThresholdY = doodad.worldY - (doodad.height * 0.25) + (doodad.anchorYOffset || 0);
+        const isGroundCampfire = doodad.imagePath === 'fv_campfire.png';
+        const fractionFromTop = isGroundCampfire ? 0.75 : 0.25;
+        const sortThresholdY = doodad.worldY - (doodad.height * fractionFromTop) + (doodad.anchorYOffset || 0);
         if (playerY >= sortThresholdY) return -1; // Player in front (inverted)
         return 1; // Player behind (inverted)
       }

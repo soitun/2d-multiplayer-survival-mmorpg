@@ -1119,7 +1119,7 @@ function getCollisionCandidates(
     }
   }
 
-  // Monument buildings (village campfires - 60px radius circle)
+  // Monument buildings (village campfires - 70px radius circle)
   if (entities.monumentParts && entities.monumentParts.size > 0) {
     const monumentShapes = getVillageCampfireCollisionShapes(entities.monumentParts, playerX, playerY);
     shapes.push(...monumentShapes);

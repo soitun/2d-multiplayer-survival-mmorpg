@@ -1713,13 +1713,8 @@ export const renderYSortedEntities = ({
           // compound_building: static ALK compound (barracks, garage, shed). monument_doodad: monument parts (shipwreck, fishing village, etc.)
           const buildingEntity = entity as CompoundBuildingEntity;
           
-          // Village campfires (fv_campfire) render in a separate overlay pass so fire/smoke appears on top of huts, smokeracks, etc.
-          const isVillageCampfire = buildingEntity.imagePath === 'fv_campfire.png' &&
-              ((buildingEntity.monumentType === 'FishingVillage' && buildingEntity.isCenter) ||
-               (buildingEntity.monumentType === 'HuntingVillage' && buildingEntity.partType === 'campfire'));
-          if (isVillageCampfire) {
-              // Skip initial render - will be drawn in village campfire overlay pass below
-          } else {
+          // Draw all monument doodads (including village campfires) in main loop for correct Y-sorting with player.
+          // Fire/smoke particles render in a separate pass and appear on top.
           // The entity already has all the data we need from useEntityFiltering
           // Convert it to CompoundBuilding format for renderMonument
           const buildingForRendering = {
@@ -1744,7 +1739,6 @@ export const renderYSortedEntities = ({
           };
           
           renderMonument(ctx, buildingWithWorldPos as any, cycleProgress, localPlayerPosition, doodadImagesRef);
-          }
           
           // Check if local player has Blueprint equipped OR is placing a placeable item to show building restriction overlay
           // (Runs for all monument_doodad including village campfires that were skipped for overlay pass)
@@ -1817,34 +1811,6 @@ export const renderYSortedEntities = ({
       } else {
           console.warn('Unhandled entity type for Y-sorting (first pass):', type, entity);
       } 
-  });
-
-  // PASS 1.25: Village campfire overlay - render fire/smoke ON TOP of huts, smokeracks, etc.
-  // Fishing village center and hunting village campfire use fv_campfire.png; draw them last so they're never obscured
-  ySortedEntities.forEach(({ type, entity }) => {
-      if (type === 'monument_doodad') {
-          const buildingEntity = entity as CompoundBuildingEntity;
-          const isVillageCampfire = buildingEntity.imagePath === 'fv_campfire.png' &&
-              ((buildingEntity.monumentType === 'FishingVillage' && buildingEntity.isCenter) ||
-               (buildingEntity.monumentType === 'HuntingVillage' && buildingEntity.partType === 'campfire'));
-          if (isVillageCampfire) {
-              const buildingWithWorldPos = {
-                  id: buildingEntity.id,
-                  offsetX: 0,
-                  offsetY: 0,
-                  imagePath: buildingEntity.imagePath,
-                  width: buildingEntity.width,
-                  height: buildingEntity.height,
-                  anchorYOffset: buildingEntity.anchorYOffset,
-                  collisionRadius: 0,
-                  collisionYOffset: 0,
-                  rotationRad: buildingEntity.rotationRad ?? 0,
-                  worldX: buildingEntity.worldX,
-                  worldY: buildingEntity.worldY,
-              };
-              renderMonument(ctx, buildingWithWorldPos as any, cycleProgress, localPlayerPosition, doodadImagesRef);
-          }
-      }
   });
 
   // PASS 1.5: Render particle effects (AFTER entities so particles appear on top)

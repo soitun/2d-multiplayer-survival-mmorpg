@@ -3369,18 +3369,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           return 1; // Player north of building - player behind (inverted)
         }
 
-        // Player vs Monument Doodad - player in front when in bottom 25% of sprite
+        // Player vs Monument Doodad - campfire: bottom 75% in front; huts: bottom 25% in front (match useEntityFiltering)
         if (aType === 'player' && bType === 'monument_doodad') {
           const playerY = getPlayerY(aEntity);
           const doodad = bEntity as any;
-          const sortThresholdY = (doodad?.worldY ?? 0) - ((doodad?.height ?? 0) * 0.25) + (doodad?.anchorYOffset ?? 0);
-          if (playerY >= sortThresholdY) return 1; // Player in bottom 25% - player in front
-          return -1; // Player in top 75% - player behind
+          const isGroundCampfire = doodad?.imagePath === 'fv_campfire.png';
+          const fractionFromTop = isGroundCampfire ? 0.75 : 0.25; // Campfire: bottom 75% in front. Huts: bottom 25%.
+          const sortThresholdY = (doodad?.worldY ?? 0) - ((doodad?.height ?? 0) * fractionFromTop) + (doodad?.anchorYOffset ?? 0);
+          if (playerY >= sortThresholdY) return 1; // Player in front
+          return -1; // Player behind
         }
         if (aType === 'monument_doodad' && bType === 'player') {
           const playerY = getPlayerY(bEntity);
           const doodad = aEntity as any;
-          const sortThresholdY = (doodad?.worldY ?? 0) - ((doodad?.height ?? 0) * 0.25) + (doodad?.anchorYOffset ?? 0);
+          const isGroundCampfire = doodad?.imagePath === 'fv_campfire.png';
+          const fractionFromTop = isGroundCampfire ? 0.75 : 0.25;
+          const sortThresholdY = (doodad?.worldY ?? 0) - ((doodad?.height ?? 0) * fractionFromTop) + (doodad?.anchorYOffset ?? 0);
           if (playerY >= sortThresholdY) return -1; // Player in front (inverted)
           return 1; // Player behind (inverted)
         }
