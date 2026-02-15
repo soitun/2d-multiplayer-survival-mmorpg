@@ -16,6 +16,7 @@ I've committed to open sourcing the entire project and providing the best docume
 ## Table of Contents
 
 *   [⚡ Quick Local Setup](#️-quick-local-setup)
+*   [🐳 Docker Compose (Alternative)](#-docker-compose-alternative)
 *   [🗺️ Roadmap](#️-roadmap)
 *   [🛠️ Tech Stack](#️-tech-stack)
 *   [🔐 Authentication Setup](#-authentication-setup)
@@ -101,6 +102,30 @@ spacetime generate --lang typescript --out-dir ../client/src/generated --project
 ```
 
 🎉 **That's it! Your multiplayer survival game is up and running!** 🎮✨
+
+---
+
+### 🐳 Docker Compose (Alternative)
+
+For rapid local setup without managing multiple terminals. **Does not affect Railway deployments** (Railway uses per-service configs).
+
+**Prerequisites:** Docker, Docker Compose, SpacetimeDB CLI (for database deploy step)
+
+```bash
+# 1. Clone & start services
+git clone https://github.com/SeloSlav/vibe-coding-starter-pack-2d-multiplayer-survival.git
+cd vibe-coding-starter-pack-2d-multiplayer-survival
+docker compose up --build
+
+# 2. Deploy database (run in a new terminal, one-time or after server changes)
+cd server
+spacetime publish --project-path . broth-bullets-local
+spacetime generate --lang typescript --out-dir ../client/src/generated --project-path .
+
+# 3. Open http://localhost:3008
+```
+
+Services: SpacetimeDB (3000), Auth Server (4001), Client (3008). Optional services (API proxy, Kokoro TTS) can be started separately.
 
 ---
 

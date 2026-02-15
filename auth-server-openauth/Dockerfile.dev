@@ -1,0 +1,13 @@
+# Local development only - Railway uses tts-backend/Dockerfile, not this file
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+
+EXPOSE 4001
+
+CMD ["npm", "run", "dev"]
