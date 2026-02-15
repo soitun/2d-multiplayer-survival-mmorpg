@@ -368,7 +368,7 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                         )}
                     </button>
 
-                    {/* Daily Training Tab */}
+                    {/* Daily Training Tab - locked until calibration complete */}
                     <button
                         onClick={() => setActiveTab('daily')}
                         style={{
@@ -381,7 +381,7 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                             borderBottom: activeTab === 'daily' 
                                 ? `3px solid ${SOVA_CYAN}`
                                 : '3px solid transparent',
-                            color: activeTab === 'daily' ? SOVA_CYAN : '#6b7280',
+                            color: activeTab === 'daily' ? SOVA_CYAN : (tutorialProgress?.tutorialCompleted ? '#6b7280' : '#4b5563'),
                             fontSize: isMobile ? '11px' : '14px',
                             fontWeight: 'bold',
                             fontFamily: UI_FONT_FAMILY,
@@ -408,19 +408,34 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                             }
                         }}
                     >
-                        <span style={{ fontSize: isMobile ? '16px' : '18px' }}>📋</span>
-                        <span>Daily Training</span>
-                        <span style={{ 
-                            color: dailyQuestsWithDefs.filter(d => d.quest.status.tag === 'Completed').length === dailyQuestsWithDefs.length && dailyQuestsWithDefs.length > 0
-                                ? '#4ade80' 
-                                : '#9ca3af', 
-                            fontSize: isMobile ? '10px' : '12px',
-                            padding: '2px 8px',
-                            background: 'rgba(0, 0, 0, 0.4)',
-                            borderRadius: '3px',
-                        }}>
-                            {dailyQuestsWithDefs.filter(d => d.quest.status.tag === 'Completed').length}/{dailyQuestsWithDefs.length}
+                        <span style={{ fontSize: isMobile ? '16px' : '18px' }}>
+                            {tutorialProgress?.tutorialCompleted ? '📋' : '🔒'}
                         </span>
+                        <span>Daily Training</span>
+                        {tutorialProgress?.tutorialCompleted ? (
+                            <span style={{ 
+                                color: dailyQuestsWithDefs.filter(d => d.quest.status.tag === 'Completed').length === dailyQuestsWithDefs.length && dailyQuestsWithDefs.length > 0
+                                    ? '#4ade80' 
+                                    : '#9ca3af', 
+                                fontSize: isMobile ? '10px' : '12px',
+                                padding: '2px 8px',
+                                background: 'rgba(0, 0, 0, 0.4)',
+                                borderRadius: '3px',
+                            }}>
+                                {dailyQuestsWithDefs.filter(d => d.quest.status.tag === 'Completed').length}/{dailyQuestsWithDefs.length}
+                            </span>
+                        ) : (
+                            <span style={{ 
+                                color: '#f59e0b', 
+                                fontSize: isMobile ? '8px' : '9px',
+                                padding: '2px 6px',
+                                background: 'rgba(245, 158, 11, 0.2)',
+                                borderRadius: '3px',
+                                whiteSpace: 'nowrap',
+                            }}>
+                                UNAVAILABLE
+                            </span>
+                        )}
                     </button>
 
                     {/* Audio Tutorials Tab */}
@@ -714,7 +729,73 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                     {/* Daily Training Tab Content */}
                     {activeTab === 'daily' && (
                         <>
-                        {dailyQuestsWithDefs.length > 0 ? (
+                        {!tutorialProgress?.tutorialCompleted ? (
+                            <div style={{ 
+                                padding: '32px 24px',
+                                textAlign: 'center',
+                                background: 'linear-gradient(135deg, rgba(107, 114, 128, 0.15), rgba(75, 85, 99, 0.1))',
+                                borderRadius: '12px',
+                                border: '2px dashed rgba(107, 114, 128, 0.5)',
+                                marginBottom: '20px',
+                            }}>
+                                <div style={{ 
+                                    fontSize: isMobile ? '28px' : '40px', 
+                                    marginBottom: '16px',
+                                    opacity: 0.7,
+                                }}>
+                                    🔒
+                                </div>
+                                <div style={{ 
+                                    color: '#9ca3af', 
+                                    fontSize: isMobile ? '14px' : '16px', 
+                                    fontWeight: 'bold',
+                                    marginBottom: '12px',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1px',
+                                }}>
+                                    Daily Training Unavailable
+                                </div>
+                                <div style={{ 
+                                    color: '#6b7280', 
+                                    fontSize: isMobile ? '11px' : '13px', 
+                                    lineHeight: 1.6,
+                                    maxWidth: '400px',
+                                    margin: '0 auto',
+                                }}>
+                                    Complete the Primary Mission (calibration) to unlock daily training objectives. 
+                                    Finish all calibration protocols in the Primary Mission tab first.
+                                </div>
+                                <button
+                                    onClick={() => setActiveTab('mission')}
+                                    style={{
+                                        marginTop: '20px',
+                                        padding: '12px 24px',
+                                        background: 'linear-gradient(135deg, rgba(192, 132, 252, 0.3), rgba(0, 170, 255, 0.2))',
+                                        border: `2px solid ${SOVA_PURPLE}`,
+                                        borderRadius: '8px',
+                                        color: SOVA_PURPLE,
+                                        fontSize: isMobile ? '11px' : '13px',
+                                        fontFamily: UI_FONT_FAMILY,
+                                        cursor: 'pointer',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '1px',
+                                        transition: 'all 0.2s ease',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = SOVA_PURPLE;
+                                        e.currentTarget.style.color = '#fff';
+                                        e.currentTarget.style.boxShadow = '0 0 20px rgba(192, 132, 252, 0.5)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(192, 132, 252, 0.3), rgba(0, 170, 255, 0.2))';
+                                        e.currentTarget.style.color = SOVA_PURPLE;
+                                        e.currentTarget.style.boxShadow = 'none';
+                                    }}
+                                >
+                                    Go to Primary Mission →
+                                </button>
+                            </div>
+                        ) : dailyQuestsWithDefs.length > 0 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                 {dailyQuestsWithDefs.map(({ quest, definition }) => {
                                     const isCompleted = quest.status.tag === 'Completed';

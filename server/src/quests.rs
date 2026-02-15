@@ -456,6 +456,10 @@ fn track_tutorial_progress(
                 "tutorial_complete",
                 Some("sova_tutorial_complete.mp3"),
             );
+            // Unlock daily training - assign quests immediately
+            if let Err(e) = assign_daily_quests(ctx, player_id) {
+                log::warn!("[Quests] Failed to assign daily quests after calibration: {}", e);
+            }
             return Ok(());
         }
     };
@@ -705,6 +709,10 @@ fn complete_tutorial_quest(
             "tutorial_complete",
             Some("sova_tutorial_complete.mp3"),
         );
+        // Unlock daily training - assign quests immediately
+        if let Err(e) = assign_daily_quests(ctx, player_id) {
+            log::warn!("[Quests] Failed to assign daily quests after calibration: {}", e);
+        }
     }
     
     progress_table.player_id().update(progress.clone());
@@ -810,7 +818,15 @@ fn track_daily_progress(
 // ============================================================================
 
 /// Assign daily quests to a player (called on login or day change)
+/// Daily training is only available after completing all primary missions (calibration).
 pub fn assign_daily_quests(ctx: &ReducerContext, player_id: Identity) -> Result<(), String> {
+    // Require calibration (all primary/tutorial quests) complete before assigning daily quests
+    let progress = get_or_init_tutorial_progress(ctx, player_id);
+    if !progress.tutorial_completed {
+        log::info!("[Quests] Skipping daily quest assignment for {:?} - calibration not complete", player_id);
+        return Ok(());
+    }
+    
     let daily_table = ctx.db.player_daily_quest();
     let def_table = ctx.db.daily_quest_definition();
     
