@@ -6,11 +6,169 @@ use crate::{TILE_SIZE_PX, WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES};
 use crate::environment::{calculate_chunk_index, is_wild_animal_location_suitable, is_position_on_water, is_position_in_central_compound};
 use crate::utils::calculate_tile_bounds;
 use super::core::{AnimalSpecies, AnimalState, MovementPattern, WildAnimal, AnimalBehavior, init_wild_animal_ai_schedule};
+use crate::{MonumentType, monument_part as MonumentPartTableTrait};
+use crate::whale_bone_graveyard;
+use crate::reed_marsh as ReedMarshTableTrait;
 
 // Table trait imports
 use crate::wild_animal_npc::core::wild_animal;
 use crate::tree::tree;
 use crate::stone::stone;
+
+// Spawn zone constants - match initial world generation
+const WOLF_DEN_ZONE_RADIUS_SQ: f32 = 250.0 * 250.0;   // Wolves spawn 80-180px from den
+const WOLF_DEN_TARGET: u32 = 4;
+const WOLF_DEN_SPAWN_MIN: f32 = 80.0;
+const WOLF_DEN_SPAWN_MAX: f32 = 180.0;
+
+const WOLVERINE_GRAVEYARD_ZONE_RADIUS_SQ: f32 = 900.0 * 900.0;  // Wolverines spawn 400-800px from center
+const WOLVERINE_GRAVEYARD_TARGET: u32 = 4;
+const WOLVERINE_GRAVEYARD_SPAWN_MIN: f32 = 400.0;
+const WOLVERINE_GRAVEYARD_SPAWN_MAX: f32 = 800.0;
+
+const TERN_MARSH_TARGET_PER_MARSH: u32 = 2;
+
+/// Maintains spawn zone populations: wolves at wolf dens, wolverines at whale bone graveyard,
+/// terns at reed marshes. These species respawn at their allocated monument locations rather than randomly.
+/// Runs on the same schedule as general animal respawn.
+pub fn maintain_spawn_zone_populations(ctx: &ReducerContext) -> Result<(), String> {
+    let existing_positions = get_existing_positions(ctx);
+    let mut total_spawned = 0u32;
+
+    // 1. Wolf dens - each den maintains 3-4 wolves
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::WolfDen || !part.is_center {
+            continue;
+        }
+        let center_x = part.world_x;
+        let center_y = part.world_y;
+
+        let wolf_count = ctx.db.wild_animal().iter()
+            .filter(|a| a.species == AnimalSpecies::TundraWolf)
+            .filter(|a| {
+                let dx = a.pos_x - center_x;
+                let dy = a.pos_y - center_y;
+                dx * dx + dy * dy <= WOLF_DEN_ZONE_RADIUS_SQ
+            })
+            .count() as u32;
+
+        if wolf_count >= WOLF_DEN_TARGET {
+            continue;
+        }
+
+        // Spawn up to 1 wolf per den per cycle (gradual respawn)
+        for _ in 0..(WOLF_DEN_TARGET - wolf_count).min(1) {
+            let angle = ctx.rng().gen::<f32>() * 2.0 * std::f32::consts::PI;
+            let distance = ctx.rng().gen_range(WOLF_DEN_SPAWN_MIN..WOLF_DEN_SPAWN_MAX);
+            let spawn_x = center_x + angle.cos() * distance;
+            let spawn_y = center_y + angle.sin() * distance;
+
+            if !is_valid_spawn_position(ctx, spawn_x, spawn_y, AnimalSpecies::TundraWolf, &existing_positions) {
+                continue;
+            }
+
+            let chunk_idx = calculate_chunk_index(spawn_x, spawn_y);
+            match spawn_single_animal(ctx, AnimalSpecies::TundraWolf, spawn_x, spawn_y, chunk_idx) {
+                Ok(inserted) => {
+                    total_spawned += 1;
+                    log::info!("🐺 Spawn zone: respawned Tundra Wolf #{} at wolf den ({:.1}, {:.1})", inserted.id, spawn_x, spawn_y);
+                }
+                Err(e) => log::warn!("Failed to spawn wolf at den: {}", e),
+            }
+        }
+    }
+
+    // 2. Whale bone graveyard - maintains 2-4 wolverines
+    if let Some((graveyard_x, graveyard_y)) = whale_bone_graveyard::get_whale_bone_graveyard_center(ctx) {
+        let wolverine_count = ctx.db.wild_animal().iter()
+            .filter(|a| a.species == AnimalSpecies::Wolverine)
+            .filter(|a| {
+                let dx = a.pos_x - graveyard_x;
+                let dy = a.pos_y - graveyard_y;
+                dx * dx + dy * dy <= WOLVERINE_GRAVEYARD_ZONE_RADIUS_SQ
+            })
+            .count() as u32;
+
+        if wolverine_count < WOLVERINE_GRAVEYARD_TARGET {
+            for _ in 0..(WOLVERINE_GRAVEYARD_TARGET - wolverine_count).min(1) {
+                let angle = ctx.rng().gen::<f32>() * 2.0 * std::f32::consts::PI;
+                let distance = ctx.rng().gen_range(WOLVERINE_GRAVEYARD_SPAWN_MIN..WOLVERINE_GRAVEYARD_SPAWN_MAX);
+                let spawn_x = graveyard_x + angle.cos() * distance;
+                let spawn_y = graveyard_y + angle.sin() * distance;
+
+                if !is_valid_spawn_position(ctx, spawn_x, spawn_y, AnimalSpecies::Wolverine, &existing_positions) {
+                    continue;
+                }
+
+                let chunk_idx = calculate_chunk_index(spawn_x, spawn_y);
+                match spawn_single_animal(ctx, AnimalSpecies::Wolverine, spawn_x, spawn_y, chunk_idx) {
+                    Ok(inserted) => {
+                        total_spawned += 1;
+                        log::info!("🦡 Spawn zone: respawned Wolverine #{} at whale bone graveyard ({:.1}, {:.1})", inserted.id, spawn_x, spawn_y);
+                    }
+                    Err(e) => log::warn!("Failed to spawn wolverine at graveyard: {}", e),
+                }
+            }
+        }
+    }
+
+    // 3. Reed marshes - each marsh maintains 1-2 terns
+    for marsh in ctx.db.reed_marsh().iter() {
+        let zone_radius_sq = (marsh.radius_px * 1.5) * (marsh.radius_px * 1.5);
+
+        let tern_count = ctx.db.wild_animal().iter()
+            .filter(|a| a.species == AnimalSpecies::Tern)
+            .filter(|a| {
+                let dx = a.pos_x - marsh.world_x;
+                let dy = a.pos_y - marsh.world_y;
+                dx * dx + dy * dy <= zone_radius_sq
+            })
+            .count() as u32;
+
+        if tern_count >= TERN_MARSH_TARGET_PER_MARSH {
+            continue;
+        }
+
+        for _ in 0..(TERN_MARSH_TARGET_PER_MARSH - tern_count).min(1) {
+            let angle = ctx.rng().gen::<f32>() * 2.0 * std::f32::consts::PI;
+            let distance = ctx.rng().gen_range(50.0..marsh.radius_px * 1.2);
+            let spawn_x = marsh.world_x + angle.cos() * distance;
+            let spawn_y = marsh.world_y + angle.sin() * distance;
+
+            if !is_valid_spawn_position(ctx, spawn_x, spawn_y, AnimalSpecies::Tern, &existing_positions) {
+                continue;
+            }
+
+            let chunk_idx = calculate_chunk_index(spawn_x, spawn_y);
+            match spawn_single_animal(ctx, AnimalSpecies::Tern, spawn_x, spawn_y, chunk_idx) {
+                Ok(inserted) => {
+                    total_spawned += 1;
+                    log::info!("🐦 Spawn zone: respawned Tern #{} at reed marsh ({:.1}, {:.1})", inserted.id, spawn_x, spawn_y);
+                }
+                Err(e) => log::warn!("Failed to spawn tern at marsh: {}", e),
+            }
+        }
+    }
+
+    if total_spawned > 0 {
+        if let Err(e) = init_wild_animal_ai_schedule(ctx) {
+            log::warn!("Failed to restart AI schedule after spawn zone respawn: {}", e);
+        }
+    }
+
+    Ok(())
+}
+
+/// Check if any spawn zones exist for the given species (so we skip them in general random spawn)
+fn has_spawn_zones_for_species(ctx: &ReducerContext, species: AnimalSpecies) -> bool {
+    match species {
+        AnimalSpecies::TundraWolf => ctx.db.monument_part().iter()
+            .any(|p| p.monument_type == MonumentType::WolfDen && p.is_center),
+        AnimalSpecies::Wolverine => whale_bone_graveyard::get_whale_bone_graveyard_center(ctx).is_some(),
+        AnimalSpecies::Tern => ctx.db.reed_marsh().iter().next().is_some(),
+        _ => false,
+    }
+}
 
 /// Maintains minimum wild animal population levels by spawning new animals when population drops too low.
 /// Uses similar validation logic to resource respawning with collision detection.
@@ -58,7 +216,12 @@ pub fn maintain_wild_animal_population(ctx: &ReducerContext) -> Result<(), Strin
         (AnimalSpecies::Hare, 10),           // 10% - Common alpine prey animal
         (AnimalSpecies::SnowyOwl, 5),        // 5% - Uncommon alpine flying predator
     ];
-    let total_weight: u32 = species_weights.iter().map(|(_, weight)| weight).sum();
+    // Filter out species that have dedicated spawn zones (they respawn at monuments, not randomly)
+    let filtered_weights: Vec<_> = species_weights.iter()
+        .filter(|(s, _)| !has_spawn_zones_for_species(ctx, *s))
+        .copied()
+        .collect();
+    let total_weight: u32 = filtered_weights.iter().map(|(_, weight)| weight).sum();
     
     // Get existing positions for collision avoidance
     let existing_positions = get_existing_positions(ctx);
@@ -75,11 +238,18 @@ pub fn maintain_wild_animal_population(ctx: &ReducerContext) -> Result<(), Strin
     let (min_tile_x, max_tile_x, min_tile_y, max_tile_y) = 
         calculate_tile_bounds(WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES, margin_tiles);
     
+    // If all species have spawn zones (filtered empty), use full weights as fallback
+    let (weights_for_selection, weight_for_selection) = if total_weight > 0 {
+        (filtered_weights.as_slice(), total_weight)
+    } else {
+        (species_weights.as_slice(), species_weights.iter().map(|(_, w)| w).sum::<u32>())
+    };
+
     while spawned_count < animals_needed && spawn_attempts < max_spawn_attempts {
         spawn_attempts += 1;
         
-        // Choose species using weighted random selection
-        let chosen_species = choose_random_species(&species_weights, total_weight, &mut ctx.rng());
+        // Choose species using weighted random selection (excludes spawn-zone species when zones exist)
+        let chosen_species = choose_random_species(weights_for_selection, weight_for_selection, &mut ctx.rng());
         
         // Aquatic animals (sharks, jellyfish) ONLY spawn on Sea tiles. Retry until we find water.
         let is_aquatic = matches!(chosen_species, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish);

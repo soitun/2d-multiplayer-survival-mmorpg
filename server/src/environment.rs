@@ -5269,9 +5269,15 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
     // If they were to drift or change, a similar `check_and_respawn_resource!` or a dedicated
     // scheduled reducer would be needed here or in `cloud.rs`.
 
-    // --- DISABLED: Wild Animal Population Maintenance ---
-    // Completely disabled for performance testing - no animals will respawn
-    // crate::wild_animal_npc::respawn::maintain_wild_animal_population(ctx)?;
+    // --- Spawn Zone Maintenance (wolves at dens, wolverines at graveyard, terns at marshes) ---
+    if let Err(e) = crate::wild_animal_npc::respawn::maintain_spawn_zone_populations(ctx) {
+        log::warn!("Spawn zone population maintenance failed: {}", e);
+    }
+
+    // --- Wild Animal Population Maintenance ---
+    if let Err(e) = crate::wild_animal_npc::respawn::maintain_wild_animal_population(ctx) {
+        log::warn!("Wild animal population maintenance failed: {}", e);
+    }
 
     Ok(())
 }
