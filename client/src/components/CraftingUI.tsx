@@ -203,6 +203,15 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
         }
     };
 
+    const handleMoveToFront = (queueItemId: bigint) => {
+        if (!connection?.reducers) return;
+        try {
+            connection.reducers.moveCraftingQueueItemToFront(queueItemId);
+        } catch (err) {
+            console.error("Error calling moveCraftingQueueItemToFront reducer:", err);
+        }
+    };
+
     // --- Helper to get flexible ingredient info for a recipe ---
     // Returns a map of item_def_id (first option) -> { groupName, validItemDefIds[], totalRequired }
     const getFlexibleIngredientInfo = useCallback((recipe: Recipe): Map<string, { groupName: string; validItemDefIds: string[]; totalRequired: number }> => {
@@ -592,12 +601,20 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
                 </h4>
                  {/* Added scrollable class and data-attribute */}
                 <div data-scrollable-region="crafting-queue" className={`${styles.craftingQueueList} ${styles.scrollableSection}`}> 
-                    {playerQueue.map((item) => {
+                    {playerQueue.map((item, index) => {
                         const outputDef = itemDefinitions.get(item.outputItemDefId.toString());
                         const remainingTime = calculateRemainingTime(Number(item.finishTime.microsSinceUnixEpoch / 1000n), currentTime);
+                        const isFirst = index === 0;
 
                         return (
-                            <div key={item.queueItemId.toString()} style={{
+                            <div
+                                key={item.queueItemId.toString()}
+                                onContextMenu={(e) => {
+                                    e.preventDefault();
+                                    if (!isFirst) handleMoveToFront(item.queueItemId);
+                                }}
+                                title={isFirst ? 'Already first in queue' : 'Right-click to move to front'}
+                                style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '12px',

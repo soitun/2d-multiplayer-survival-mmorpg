@@ -271,6 +271,8 @@ import { MashStarch } from "./mash_starch_reducer.ts";
 export { MashStarch };
 import { MilkAnimal } from "./milk_animal_reducer.ts";
 export { MilkAnimal };
+import { MoveCraftingQueueItemToFront } from "./move_crafting_queue_item_to_front_reducer.ts";
+export { MoveCraftingQueueItemToFront };
 import { MoveItemFromBarbecueToPlayerSlot } from "./move_item_from_barbecue_to_player_slot_reducer.ts";
 export { MoveItemFromBarbecueToPlayerSlot };
 import { MoveItemFromBox } from "./move_item_from_box_reducer.ts";
@@ -3770,6 +3772,10 @@ const REMOTE_MODULE = {
       reducerName: "milk_animal",
       argsType: MilkAnimal.getTypeScriptAlgebraicType(),
     },
+    move_crafting_queue_item_to_front: {
+      reducerName: "move_crafting_queue_item_to_front",
+      argsType: MoveCraftingQueueItemToFront.getTypeScriptAlgebraicType(),
+    },
     move_item_from_barbecue_to_player_slot: {
       reducerName: "move_item_from_barbecue_to_player_slot",
       argsType: MoveItemFromBarbecueToPlayerSlot.getTypeScriptAlgebraicType(),
@@ -5024,6 +5030,7 @@ export type Reducer = never
 | { name: "MashBerries", args: MashBerries }
 | { name: "MashStarch", args: MashStarch }
 | { name: "MilkAnimal", args: MilkAnimal }
+| { name: "MoveCraftingQueueItemToFront", args: MoveCraftingQueueItemToFront }
 | { name: "MoveItemFromBarbecueToPlayerSlot", args: MoveItemFromBarbecueToPlayerSlot }
 | { name: "MoveItemFromBox", args: MoveItemFromBox }
 | { name: "MoveItemFromBrothPot", args: MoveItemFromBrothPot }
@@ -7095,6 +7102,22 @@ export class RemoteReducers {
 
   removeOnMilkAnimal(callback: (ctx: ReducerEventContext, animalId: bigint) => void) {
     this.connection.offReducer("milk_animal", callback);
+  }
+
+  moveCraftingQueueItemToFront(queueItemId: bigint) {
+    const __args = { queueItemId };
+    let __writer = new __BinaryWriter(1024);
+    MoveCraftingQueueItemToFront.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("move_crafting_queue_item_to_front", __argsBuffer, this.setCallReducerFlags.moveCraftingQueueItemToFrontFlags);
+  }
+
+  onMoveCraftingQueueItemToFront(callback: (ctx: ReducerEventContext, queueItemId: bigint) => void) {
+    this.connection.onReducer("move_crafting_queue_item_to_front", callback);
+  }
+
+  removeOnMoveCraftingQueueItemToFront(callback: (ctx: ReducerEventContext, queueItemId: bigint) => void) {
+    this.connection.offReducer("move_crafting_queue_item_to_front", callback);
   }
 
   moveItemFromBarbecueToPlayerSlot(barbecueId: number, sourceSlotIndex: number, targetSlotType: string, targetSlotIndex: number) {
@@ -12016,6 +12039,11 @@ export class SetReducerFlags {
   milkAnimalFlags: __CallReducerFlags = 'FullUpdate';
   milkAnimal(flags: __CallReducerFlags) {
     this.milkAnimalFlags = flags;
+  }
+
+  moveCraftingQueueItemToFrontFlags: __CallReducerFlags = 'FullUpdate';
+  moveCraftingQueueItemToFront(flags: __CallReducerFlags) {
+    this.moveCraftingQueueItemToFrontFlags = flags;
   }
 
   moveItemFromBarbecueToPlayerSlotFlags: __CallReducerFlags = 'FullUpdate';

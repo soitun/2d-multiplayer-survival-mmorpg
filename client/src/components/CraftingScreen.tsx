@@ -410,6 +410,15 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
         }
     };
 
+    const handleMoveToFront = (queueItemId: bigint) => {
+        if (!connection?.reducers) return;
+        try {
+            connection.reducers.moveCraftingQueueItemToFront(queueItemId);
+        } catch (err) {
+            console.error("Error calling moveCraftingQueueItemToFront reducer:", err);
+        }
+    };
+
     const handleCancelAllCrafting = () => {
         if (!connection?.reducers) return;
         try {
@@ -821,15 +830,24 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
                             )}
                         </div>
                         <div className={styles.queueList}>
-                            {playerQueue.map((item) => {
+                            {playerQueue.map((item, index) => {
                                 const outputDef = itemDefinitions.get(item.outputItemDefId.toString());
                                 const remainingTime = calculateRemainingTime(
                                     Number(item.finishTime.microsSinceUnixEpoch / 1000n),
                                     currentTime
                                 );
+                                const isFirst = index === 0;
 
                                 return (
-                                    <div key={item.queueItemId.toString()} className={styles.queueItem}>
+                                    <div
+                                        key={item.queueItemId.toString()}
+                                        className={styles.queueItem}
+                                        onContextMenu={(e) => {
+                                            e.preventDefault();
+                                            if (!isFirst) handleMoveToFront(item.queueItemId);
+                                        }}
+                                        title={isFirst ? 'Already first in queue' : 'Right-click to move to front'}
+                                    >
                                         <div className={styles.queueItemIcon}>
                                             {outputDef && (
                                                 <img

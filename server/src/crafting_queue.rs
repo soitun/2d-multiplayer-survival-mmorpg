@@ -892,6 +892,53 @@ fn refund_crafting_materials_to_inventory_or_drop(ctx: &ReducerContext, player_i
     }
 }
 
+/// Moves a crafting queue item to the front of the queue by swapping its start/finish times with the first item.
+/// Right-click on a queue item to prioritize it. Does not refund or lose any items.
+#[spacetimedb::reducer]
+pub fn move_crafting_queue_item_to_front(ctx: &ReducerContext, queue_item_id: u64) -> Result<(), String> {
+    let sender_id = ctx.sender;
+    let queue_table = ctx.db.crafting_queue_item();
+
+    // 1. Find the queue item
+    let mut target_item = queue_table.queue_item_id().find(&queue_item_id)
+        .ok_or(format!("Crafting queue item {} not found.", queue_item_id))?;
+
+    // 2. Verify ownership
+    if target_item.player_identity != sender_id {
+        return Err("Cannot reorder crafting items for another player.".to_string());
+    }
+
+    // 3. Find the first item in this player's queue (earliest finish_time)
+    let first_item = queue_table.iter()
+        .filter(|q| q.player_identity == sender_id)
+        .min_by_key(|q| q.finish_time);
+
+    let Some(mut first_item) = first_item else {
+        return Err("No items in crafting queue.".to_string());
+    };
+
+    // 4. If target is already first, nothing to do
+    if first_item.queue_item_id == target_item.queue_item_id {
+        return Ok(());
+    }
+
+    // 5. Swap start_time and finish_time between the two items
+    let (target_start, target_finish) = (target_item.start_time, target_item.finish_time);
+    let (first_start, first_finish) = (first_item.start_time, first_item.finish_time);
+
+    target_item.start_time = first_start;
+    target_item.finish_time = first_finish;
+    first_item.start_time = target_start;
+    first_item.finish_time = target_finish;
+
+    // 6. Update both rows
+    queue_table.queue_item_id().update(target_item);
+    queue_table.queue_item_id().update(first_item);
+
+    log::info!("[Crafting Reorder] Player {:?} moved queue item {} to front.", sender_id, queue_item_id);
+    Ok(())
+}
+
 /// Cancels all items in the player's crafting queue and refunds all resources.
 #[spacetimedb::reducer]
 pub fn cancel_all_crafting(ctx: &ReducerContext) -> Result<(), String> {
