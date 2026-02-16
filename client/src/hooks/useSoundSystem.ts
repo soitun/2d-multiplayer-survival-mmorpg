@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import * as SpacetimeDB from '../generated';
 import { Identity } from 'spacetimedb';
 import { calculateChunkIndex } from '../utils/chunkUtils';
+import { isAnySovaAudioPlaying } from './useSovaSoundBox';
 
 interface SoundSystemProps {
     soundEvents: Map<string, SpacetimeDB.SoundEvent>;
@@ -546,6 +547,12 @@ const playSpatialAudio = async (
     pitchMultiplier: number = 1.0 // Pitch multiplier from server (default 1.0 for backward compatibility)
 ): Promise<void> => {
     try {
+        // Skip SOVA error sounds when tutorials/rune stones/narrative are playing
+        const isSovaErrorFile = /^(error_|sova_error|construction_placement_error)/.test(filename.replace(/\.mp3$/, ''));
+        if (isSovaErrorFile && isAnySovaAudioPlaying()) {
+            return;
+        }
+        
         const distance = calculateDistance(soundX, soundY, listenerX, listenerY);
         const volume = calculateSpatialVolume(distance, baseVolume, maxDistance) * masterVolume;
         if (volume <= 0.01) return; // Skip very quiet sounds
@@ -623,6 +630,12 @@ const playLocalSound = async (
         const definition = SOUND_DEFINITIONS[soundType];
         if (!definition) {
             console.warn(`🔊 Unknown sound type: ${soundType}`);
+            return;
+        }
+        
+        // Skip SOVA error sounds when tutorials/rune stones/narrative are playing - show red box only
+        const isSovaErrorSound = NO_PITCH_VARIATION_SOUNDS.has(soundType) || soundType === 'construction_placement_error';
+        if (isSovaErrorSound && isAnySovaAudioPlaying()) {
             return;
         }
         

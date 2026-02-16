@@ -99,6 +99,7 @@ import { playImmediateSound } from '../hooks/useSoundSystem';
 import { useDamageEffects, shakeOffsetXRef, shakeOffsetYRef, vignetteOpacityRef } from '../hooks/useDamageEffects';
 import { useSettings } from '../contexts/SettingsContext';
 import { useErrorDisplay } from '../contexts/ErrorDisplayContext';
+import { isAnySovaAudioPlaying } from '../hooks/useSovaSoundBox';
 
 // --- Rendering Utilities ---
 import { renderWorldBackground, renderShorelineOverlay } from '../utils/renderers/worldRenderingUtils';
@@ -1448,7 +1449,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       'rain_collector', 'homestead_hearth', 'fumarole', 'broth_pot', 'alk_station', 'door',
     ]);
     if (MOBILE_BLOCKED_TYPES.has(target.type)) {
-      if (showSovaSoundBox) {
+      if (isAnySovaAudioPlaying()) {
+        showError('Not available on mobile.');
+      } else if (showSovaSoundBox) {
         const audio = new Audio('/sounds/sova_error_mobile_capability.mp3');
         audio.volume = 0.8;
         showSovaSoundBox(audio, 'SOVA');
@@ -1480,7 +1483,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           break;
       }
     }
-  }, [mobileInteractTrigger, isMobile, unifiedInteractableTarget, connection, onSetInteractingWith, showSovaSoundBox]);
+  }, [mobileInteractTrigger, isMobile, unifiedInteractableTarget, connection, onSetInteractingWith, showSovaSoundBox, showError]);
 
   // Store the foundation/wall/fence when upgrade menu opens (prevents flickering)
   const upgradeMenuFoundationRef = useRef<FoundationCell | null>(null);
@@ -1598,27 +1601,27 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (ctx.event?.status?.tag === 'Failed') {
         const errorMsg = ctx.event.status.value || 'Unknown error';
 
-        // Check for brew cooldown error - play SOVA voice feedback instead of showing error
+        // Check for brew cooldown error - SOVA voice or red box when narrative playing
         if (errorMsg === 'BREW_COOLDOWN') {
-          console.log(`[GameCanvas] 🍲 Brew cooldown active - playing SOVA feedback`);
-
-          // Play random SOVA brew cooldown voice line
-          const brewCooldownSounds = [
-            '/sounds/sova_brew_cooldown.mp3',
-            '/sounds/sova_brew_cooldown1.mp3',
-            '/sounds/sova_brew_cooldown2.mp3',
-            '/sounds/sova_brew_cooldown3.mp3'
-          ];
-          const randomSound = brewCooldownSounds[Math.floor(Math.random() * brewCooldownSounds.length)];
-
-          try {
-            const audio = new Audio(randomSound);
-            audio.volume = 0.7;
-            audio.play().catch(err => {
-              console.warn(`[GameCanvas] Failed to play SOVA brew cooldown sound:`, err);
-            });
-          } catch (err) {
-            console.warn(`[GameCanvas] Error creating brew cooldown audio:`, err);
+          if (isAnySovaAudioPlaying()) {
+            showError('Brew cooldown active.');
+          } else {
+            const brewCooldownSounds = [
+              '/sounds/sova_brew_cooldown.mp3',
+              '/sounds/sova_brew_cooldown1.mp3',
+              '/sounds/sova_brew_cooldown2.mp3',
+              '/sounds/sova_brew_cooldown3.mp3'
+            ];
+            const randomSound = brewCooldownSounds[Math.floor(Math.random() * brewCooldownSounds.length)];
+            try {
+              const audio = new Audio(randomSound);
+              audio.volume = 0.7;
+              audio.play().catch(err => {
+                console.warn(`[GameCanvas] Failed to play SOVA brew cooldown sound:`, err);
+              });
+            } catch (err) {
+              console.warn(`[GameCanvas] Error creating brew cooldown audio:`, err);
+            }
           }
         } else {
           console.error(`[GameCanvas] ❌ consumeItem failed for instance ${itemInstanceId.toString()}:`, errorMsg);

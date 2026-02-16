@@ -123,6 +123,8 @@ import { useMusicSystem } from '../hooks/useMusicSystem';
 
 // Import debug context
 import { useDebug } from '../contexts/DebugContext';
+import { useErrorDisplay } from '../contexts/ErrorDisplayContext';
+import { isAnySovaAudioPlaying } from '../hooks/useSovaSoundBox';
 
 // Define props required by GameScreen and its children
 interface GameScreenProps {
@@ -412,6 +414,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
 
     // Debug context
     const { showAutotileDebug, toggleAutotileDebug, showMusicDebug, toggleMusicDebug, showChunkBoundaries, toggleChunkBoundaries, showInteriorDebug, toggleInteriorDebug, showCollisionDebug, toggleCollisionDebug, showAttackRangeDebug, toggleAttackRangeDebug, showYSortDebug, toggleYSortDebug, showShipwreckDebug, toggleShipwreckDebug } = useDebug();
+    const { showError } = useErrorDisplay();
 
 
 
@@ -1293,8 +1296,10 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 onCraftingSearchFocusChange={setIsCraftingSearchFocused}
                 onToggleInventory={() => {
                     if (props.isMobile && !showInventoryState) {
-                        // Block opening inventory on mobile - play SOVA capability error
-                        if (showSovaSoundBox) {
+                        // Block opening inventory on mobile - SOVA error or red box when narrative playing
+                        if (isAnySovaAudioPlaying()) {
+                            showError('Not available on mobile.');
+                        } else if (showSovaSoundBox) {
                             const audio = new Audio('/sounds/sova_error_mobile_capability.mp3');
                             audio.volume = 0.8;
                             showSovaSoundBox(audio, 'SOVA');
@@ -1314,8 +1319,10 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 showCraftingScreen={showCraftingScreenState}
                 onToggleCraftingScreen={() => {
                     if (props.isMobile && !showCraftingScreenState) {
-                        // Block opening crafting on mobile - play SOVA capability error
-                        if (showSovaSoundBox) {
+                        // Block opening crafting on mobile - SOVA error or red box when narrative playing
+                        if (isAnySovaAudioPlaying()) {
+                            showError('Not available on mobile.');
+                        } else if (showSovaSoundBox) {
                             const audio = new Audio('/sounds/sova_error_mobile_capability.mp3');
                             audio.volume = 0.8;
                             showSovaSoundBox(audio, 'SOVA');
