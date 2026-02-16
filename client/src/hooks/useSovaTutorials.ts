@@ -536,13 +536,8 @@ export function useSovaTutorials({
         const handleEvent = () => {
             console.log('[SovaTutorials] 🔮 Memory shard tutorial event received from server');
             
-            // Intro still playing? Skip this time - server will re-trigger on next pickup
-            if (isIntroStillPlaying()) {
-                console.log('[SovaTutorials] 🔮 Intro still playing - skipping memory shard tutorial audio (will play next time)');
-                return;
-            }
-            
-            // Server already marked this as seen, just play the audio
+            // ALWAYS play - the server only triggers this once per player (first memory shard pickup).
+            // Skipping when intro plays would mean the player never hears it. Overlap is acceptable.
             console.log('[SovaTutorials] 🔮 Playing memory shard tutorial NOW');
             
             playSovaTutorial(

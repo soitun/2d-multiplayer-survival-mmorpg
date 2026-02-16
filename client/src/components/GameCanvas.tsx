@@ -3315,6 +3315,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           return -1; // Swimming player top renders after (above) fumarole
         }
 
+        // Sleeping bag ALWAYS renders under the player - no y-sorting
+        if (aType === 'sleeping_bag' && (bType === 'player' || b._isSwimmingTop)) {
+          return -1; // Sleeping bag renders before (under) player
+        }
+        if ((aType === 'player' || a._isSwimmingTop) && bType === 'sleeping_bag') {
+          return 1; // Player renders after (above) sleeping bag
+        }
+
         // CRITICAL: Helper to get effective Y for a player entity.
         // Uses predicted position for local player (matches rendering position).
         const getPlayerY = (entity: any): number => {

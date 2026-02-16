@@ -401,6 +401,8 @@ const PRELOAD_SOUNDS = [
     'cairn_unlock.mp3',                                      // 1 cairn unlock variation (when discovering new cairn)
     'error_seaweed_above_water.mp3',                         // 1 seaweed harvest error variation (when above water)
     'sova_error_mobile_capability.mp3',                     // 1 SOVA mobile capability error (no pitch variation - voice line)
+    'sova_tutorial_memory_shard.mp3',                       // SOVA memory shard tutorial (first pickup)
+    'sova_mission_complete.mp3',                            // SOVA quest complete voice
     'stun.mp3',                                               // 1 stun effect variation (when stunned by blunt weapon)
     'thunder.mp3',                                             // 4 thunder variations
     'thunder1.mp3',
@@ -1341,7 +1343,9 @@ export const useSoundSystem = ({
                 soundType = tag.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '') as SoundType;
             } else {
                 // Fallback: extract from filename
-                soundType = soundEvent.filename.replace(/\d*\.mp3$/, '') as SoundType;
+                const fromFilename = soundEvent.filename.replace(/\d*\.mp3$/, '');
+                // Alias: server uses sova_tutorial_memory_shard.mp3, we check for sova_memory_shard_tutorial
+                soundType = (fromFilename === 'sova_tutorial_memory_shard' ? 'sova_memory_shard_tutorial' : fromFilename) as SoundType;
             }
             const definition = SOUND_DEFINITIONS[soundType];
             
@@ -1377,9 +1381,11 @@ export const useSoundSystem = ({
                 if (localPlayerIdentity && soundEvent.triggeredBy.toHexString() === localPlayerIdentity.toHexString()) {
                     console.log(`🔮 [SOVA Tutorial] Memory shard tutorial triggered for local player`);
                     
-                    // Emit event for useSovaTutorials.ts to handle
-                    // (audio file, message, and sound box label are defined there)
-                    window.dispatchEvent(new CustomEvent('sova-memory-shard-tutorial'));
+                    // CRITICAL: Defer dispatch so useSovaTutorials' listener is guaranteed to be attached.
+                    // React effects run in declaration order; without deferral, we may fire before the listener exists.
+                    queueMicrotask(() => {
+                        window.dispatchEvent(new CustomEvent('sova-memory-shard-tutorial'));
+                    });
                 }
                 // Don't play through sound system - useSovaTutorials handles this with SovaSoundBox
                 return;

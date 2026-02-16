@@ -27,6 +27,8 @@ use crate::player_progression::{award_xp, get_or_init_player_stats};
 use crate::alk::player_shard_balance as PlayerShardBalanceTableTrait;
 use crate::world_state::world_state as WorldStateTableTrait;
 use crate::player as PlayerTableTrait;
+use crate::items::{inventory_item as InventoryItemTableTrait, item_definition as ItemDefinitionTableTrait};
+use crate::models::ItemLocation;
 
 // ============================================================================
 // CONSTANTS
@@ -313,6 +315,120 @@ fn get_difficulty_multiplier(difficulty: &QuestDifficulty) -> f32 {
         QuestDifficulty::Hard => 2.0,
         QuestDifficulty::Expert => 3.0,
     }
+}
+
+/// Count how many of a specific item (by name) the player has in inventory, hotbar, or equipped.
+fn count_player_item_by_name(ctx: &ReducerContext, player_id: Identity, item_name: &str) -> u32 {
+    let item_defs = ctx.db.item_definition();
+    let item_def = match item_defs.iter().find(|d| d.name == item_name) {
+        Some(d) => d,
+        None => return 0,
+    };
+    let item_def_id = item_def.id;
+    let inventory_table = ctx.db.inventory_item();
+    inventory_table.iter()
+        .filter(|item| {
+            let owner = match &item.location {
+                ItemLocation::Inventory(data) => data.owner_id,
+                ItemLocation::Hotbar(data) => data.owner_id,
+                ItemLocation::Equipped(data) => data.owner_id,
+                _ => return false,
+            };
+            owner == player_id && item.item_def_id == item_def_id
+        })
+        .map(|item| item.quantity)
+        .sum()
+}
+
+/// Reconcile tutorial quest progress with player's current inventory.
+/// If the current quest requires items (Wood, Stone, specific items, crafted items),
+/// count what the player already has and update progress so they get credit without re-gathering.
+/// Called on client connect so returning players with existing inventory progress immediately.
+pub fn reconcile_tutorial_quest_progress(ctx: &ReducerContext, player_id: Identity) -> Result<(), String> {
+    let progress_table = ctx.db.player_tutorial_progress();
+    let mut progress = get_or_init_tutorial_progress(ctx, player_id);
+    if progress.tutorial_completed {
+        return Ok(());
+    }
+    let quest_defs: Vec<TutorialQuestDefinition> = ctx.db.tutorial_quest_definition().iter().collect();
+    let current_quest = match quest_defs.iter().find(|q| q.order_index == progress.current_quest_index) {
+        Some(q) => q,
+        None => return Ok(()),
+    };
+    let mut updated = false;
+    // Primary: GatherWood, GatherStone, CollectSpecificItem, CraftSpecificItem
+    let primary_item_name = match &current_quest.objective_type {
+        QuestObjectiveType::GatherWood => Some("Wood"),
+        QuestObjectiveType::GatherStone => Some("Stone"),
+        QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => current_quest.target_id.as_deref(),
+        _ => None,
+    };
+    if let Some(name) = primary_item_name {
+        let count = count_player_item_by_name(ctx, player_id, name);
+        if count > progress.current_quest_progress {
+            progress.current_quest_progress = count.min(current_quest.target_amount);
+            updated = true;
+        }
+    }
+    // Secondary
+    if let (Some(ref obj_type), Some(target)) = (&current_quest.secondary_objective_type, current_quest.secondary_target_id.as_deref()) {
+        let sec_item_name = match obj_type {
+            QuestObjectiveType::GatherWood => Some("Wood"),
+            QuestObjectiveType::GatherStone => Some("Stone"),
+            QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => Some(target),
+            _ => None,
+        };
+        if let (Some(name), Some(sec_target)) = (sec_item_name, current_quest.secondary_target_amount) {
+            let count = count_player_item_by_name(ctx, player_id, name);
+            if count > progress.secondary_quest_progress {
+                progress.secondary_quest_progress = count.min(sec_target);
+                updated = true;
+            }
+        }
+    }
+    // Tertiary
+    if let (Some(ref obj_type), Some(target)) = (&current_quest.tertiary_objective_type, current_quest.tertiary_target_id.as_deref()) {
+        let tert_item_name = match obj_type {
+            QuestObjectiveType::GatherWood => Some("Wood"),
+            QuestObjectiveType::GatherStone => Some("Stone"),
+            QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => Some(target),
+            _ => None,
+        };
+        if let (Some(name), Some(tert_target)) = (tert_item_name, current_quest.tertiary_target_amount) {
+            let count = count_player_item_by_name(ctx, player_id, name);
+            if count > progress.tertiary_quest_progress {
+                progress.tertiary_quest_progress = count.min(tert_target);
+                updated = true;
+            }
+        }
+    }
+    if !updated {
+        return Ok(());
+    }
+    progress.updated_at = ctx.timestamp;
+    // Check completion
+    let primary_complete = progress.current_quest_progress >= current_quest.target_amount;
+    let secondary_complete = match current_quest.secondary_target_amount {
+        Some(t) => progress.secondary_quest_progress >= t,
+        None => true,
+    };
+    let tertiary_complete = match current_quest.tertiary_target_amount {
+        Some(t) => progress.tertiary_quest_progress >= t,
+        None => true,
+    };
+    let secondary_satisfied = current_quest.secondary_optional || secondary_complete;
+    let tertiary_satisfied = current_quest.tertiary_optional || tertiary_complete;
+    let quest_complete = match current_quest.objective_logic {
+        ObjectiveLogic::And => primary_complete && secondary_satisfied && tertiary_satisfied,
+        ObjectiveLogic::Or => primary_complete || secondary_complete || tertiary_complete,
+        ObjectiveLogic::PrimaryOnly => primary_complete,
+    };
+    if quest_complete {
+        complete_tutorial_quest(ctx, player_id, &mut progress, current_quest)?;
+    } else {
+        progress_table.player_id().update(progress);
+    }
+    Ok(())
 }
 
 /// Get or initialize player tutorial progress
@@ -687,7 +803,7 @@ fn complete_tutorial_quest(
     progress.tertiary_quest_progress = 0;   // Reset tertiary progress for next quest
     progress.updated_at = ctx.timestamp;
     
-    // Check if there's a next quest and announce it
+    // Check if there's a next quest and announce it (text only - quest_complete sound already played)
     let quest_defs: Vec<TutorialQuestDefinition> = ctx.db.tutorial_quest_definition().iter().collect();
     if let Some(next_quest) = quest_defs.iter().find(|q| q.order_index == progress.current_quest_index) {
         send_sova_quest_message(
@@ -695,8 +811,12 @@ fn complete_tutorial_quest(
             player_id,
             &next_quest.sova_start_message,
             "quest_start",
-            Some("sova_mission_complete.mp3"),
+            None, // No audio - quest_complete sound already played, text is sufficient
         );
+        // Reconcile immediately - player may already have items for the new quest (e.g. 400 wood, 200 stone)
+        if let Err(e) = reconcile_tutorial_quest_progress(ctx, player_id) {
+            log::warn!("[Quests] Failed to reconcile after quest advance: {}", e);
+        }
     } else {
         // Tutorial complete!
         progress.tutorial_completed = true;
@@ -705,7 +825,7 @@ fn complete_tutorial_quest(
             player_id,
             "Outstanding work, agent. Tutorial complete. You're ready for the real challenges ahead.",
             "tutorial_complete",
-            Some("sova_mission_complete.mp3"),
+            None, // No audio - quest_complete sound already played
         );
         // Unlock daily training - assign quests immediately
         if let Err(e) = assign_daily_quests(ctx, player_id) {
@@ -1077,30 +1197,30 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
         // PHASE 1: GETTING TO SHELTER FAST
         // ===========================================
         
-        // Quest 1: Harvest Beach Lyme Grass (introduces foraging - no tools required, ensures adequate cloth for rope)
+        // Quest 1: Harvest 3 Beach Lyme Grass OR collect 45 Plant Fiber (from any source: grass, chopping, etc.)
         TutorialQuestDefinition {
             id: "tutorial_01_harvest_plants".to_string(),
             order_index: 0,
             name: "Coastal Foraging".to_string(),
-            description: "Harvest 3 Beach Lyme Grass by pressing E near the coastal grass.".to_string(),
+            description: "Harvest 3 Beach Lyme Grass from the shore, OR collect 45 Plant Fiber from any source (grass, chopping, etc.).".to_string(),
             objective_type: QuestObjectiveType::HarvestSpecificPlant,
             target_id: Some("Beach Lyme Grass".to_string()),
             target_amount: 3,
-            secondary_objective_type: None,
-            secondary_target_id: None,
-            secondary_target_amount: None,
+            secondary_objective_type: Some(QuestObjectiveType::CollectSpecificItem),
+            secondary_target_id: Some("Plant Fiber".to_string()),
+            secondary_target_amount: Some(45),
             tertiary_objective_type: None,
             tertiary_target_id: None,
             tertiary_target_amount: None,
             secondary_optional: false,
             tertiary_optional: false,
-            objective_logic: ObjectiveLogic::And,
+            objective_logic: ObjectiveLogic::Or,  // Either 3 Beach Lyme Grass OR 45 Plant Fiber completes the quest
             xp_reward: 15,
             shard_reward: 5,
             unlock_recipe: None,
-            sova_start_message: "Agent, welcome to the island. First, gather some Beach Lyme Grass from the shore. Look for the tall grass near the water - press E to harvest it. You'll need the fiber for rope.".to_string(),
-            sova_complete_message: "Good instincts. Beach Lyme Grass is an excellent fiber source. You'll have enough for rope and more.".to_string(),
-            sova_hint_message: "Look along the beach for tall grass. Press E when you see the interaction prompt.".to_string(),
+            sova_start_message: "Agent, welcome to the island. First, gather plant fiber. Harvest 3 Beach Lyme Grass from the shore, or collect 45 Plant Fiber from any source - chopping grass, harvesting plants, or unraveling rope.".to_string(),
+            sova_complete_message: "Good instincts. Plant fiber is essential for rope and cloth. You'll have enough for what's next.".to_string(),
+            sova_hint_message: "Beach Lyme Grass grows along the shore - press E to harvest. Or chop grass, harvest other plants, or unravel rope for Plant Fiber.".to_string(),
         },
         
         // Quest 2: Craft Rope (needed for shelter)

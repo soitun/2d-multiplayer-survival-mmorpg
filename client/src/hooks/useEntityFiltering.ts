@@ -289,13 +289,15 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       }
       return entity.posY - 100;
     }
+    case 'sleeping_bag':
+      // Sleeping bags ALWAYS render under the player - no y-sorting. Use constant so they sort first.
+      return -1e9;
     case 'rain_collector':
     case 'animal_corpse':
     case 'player_corpse':
     case 'wild_animal':
     case 'barrel':
     case 'road_lamppost': // ADDED: Aleutian whale oil lampposts (same as barrels - tall road structures)
-    case 'sleeping_bag':
     case 'basalt_column': // ADDED: Basalt columns sort by Y position (tall obstacles)
     // storm_pile removed - storms now spawn HarvestableResources and DroppedItems directly
     case 'living_coral': // Living coral reefs sort by Y position (uses combat system)
@@ -2137,6 +2139,14 @@ export function useEntityFiltering(
       }
       if (b.type === 'player' && a.type === 'fumarole') {
         return -1; // Player renders after (above) fumarole
+      }
+
+      // Sleeping bag ALWAYS renders under the player - no y-sorting
+      if (a.type === 'sleeping_bag' && b.type === 'player') {
+        return -1; // Sleeping bag renders before (under) player
+      }
+      if (a.type === 'player' && b.type === 'sleeping_bag') {
+        return 1; // Player renders after (above) sleeping bag
       }
 
       // PERFORMANCE: Fast path for type pairs that only need numeric Y-sort (no special rules)

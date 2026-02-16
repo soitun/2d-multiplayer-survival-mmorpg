@@ -1441,6 +1441,12 @@ pub fn identity_connected(ctx: &ReducerContext) -> Result<(), String> {
             players.identity().update(player);
         }
         
+        // Reconcile tutorial quest progress with current inventory (count existing items)
+        // So players who already have 400 wood, 200 stone, Stone Hatchet, etc. get credit on connect
+        if let Err(e) = crate::quests::reconcile_tutorial_quest_progress(ctx, client_identity) {
+            log::warn!("[Connect] Failed to reconcile tutorial quest progress for {:?}: {}", client_identity, e);
+        }
+        
         // Check for daily login rewards
         if let Some(world_state) = ctx.db.world_state().iter().next() {
             let current_day = world_state.day_of_year;

@@ -97,71 +97,30 @@ const SOVA_MESSAGE_PRIORITY: Record<string, number> = {
 };
 
 // ============================================================================
-// Session-Based Notification Filtering
+// Session-Based Notification Filtering (NO localStorage)
 // ============================================================================
-// 
-// IMPORTANT: We now filter notifications by SESSION TIMESTAMP instead of relying
-// on localStorage alone. This ensures that clearing browser cache does NOT replay
-// old quest completion notifications.
 //
-// How it works:
-// 1. When this module loads, we capture the current timestamp as SESSION_START_TIME
-// 2. Notifications with sentAt/completedAt BEFORE this time are considered "old"
-// 3. Old notifications are automatically marked as "seen" and not displayed
-// 4. Only notifications created AFTER the session started are shown
+// We do NOT persist seen notification IDs to localStorage. Persisting caused a bug:
+// when the database is reset (spacetime publish -c), notification IDs restart at
+// 1, 2, 3... but the client still had those IDs in localStorage from the previous
+// DB state, so new notifications were skipped. Sounds only played after clearing
+// cookies (which cleared localStorage).
 //
-// This is combined with localStorage tracking (for in-session deduplication)
-// to provide airtight protection against notification replay.
+// The server is the source of truth for quest state. We use:
+// 1. SESSION_START_TIME - skip notifications created before this page loaded
+// 2. In-memory seen IDs - dedupe within the same session only
 // ============================================================================
 
-// Session start time - captured once when module loads
 const SESSION_START_TIME = Date.now();
-console.log(`[useQuestNotifications] Session started at ${new Date(SESSION_START_TIME).toISOString()}`);
 
-// Convert SpacetimeDB timestamp to milliseconds
 function timestampToMs(timestamp: { microsSinceUnixEpoch: bigint } | undefined): number {
     if (!timestamp) return 0;
     return Number(timestamp.microsSinceUnixEpoch / 1000n);
 }
 
-// Check if a notification is from BEFORE this session started
 function isOldNotification(sentAt: { microsSinceUnixEpoch: bigint } | undefined): boolean {
     const notificationTimeMs = timestampToMs(sentAt);
-    // Add 5 second grace period to handle clock skew and notification creation delay
-    return notificationTimeMs < (SESSION_START_TIME - 5000);
-}
-
-// LocalStorage keys for persisting seen notifications across page refreshes
-// (Still used for in-session deduplication, but timestamp filtering is primary defense)
-const SEEN_QUEST_COMPLETIONS_KEY = 'broth_seen_quest_completions';
-const SEEN_SOVA_MESSAGES_KEY = 'broth_seen_sova_messages';
-
-// Load seen IDs from localStorage
-function loadSeenIds(key: string): Set<string> {
-    try {
-        const stored = localStorage.getItem(key);
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed)) {
-                return new Set(parsed);
-            }
-        }
-    } catch (e) {
-        console.warn(`[useQuestNotifications] Failed to load ${key} from localStorage:`, e);
-    }
-    return new Set();
-}
-
-// Save seen IDs to localStorage
-function saveSeenIds(key: string, ids: Set<string>): void {
-    try {
-        // Limit to last 200 entries to prevent localStorage bloat
-        const idsArray = [...ids];
-        const limitedArray = idsArray.slice(-200);
-        localStorage.setItem(key, JSON.stringify(limitedArray));
-    } catch (e) {
-        console.warn(`[useQuestNotifications] Failed to save ${key} to localStorage:`, e);
-    }
+    return notificationTimeMs < (SESSION_START_TIME - 1000);
 }
 
 // ============================================================================
@@ -177,9 +136,9 @@ export function useQuestNotifications({
     sovaMessageAdderRef,
 }: UseQuestNotificationsProps): UseQuestNotificationsReturn {
     
-    // State for tracking seen notifications - persisted to localStorage to survive page refreshes
-    const [seenSovaQuestMessageIds, setSeenSovaQuestMessageIds] = useState<Set<string>>(() => loadSeenIds(SEEN_SOVA_MESSAGES_KEY));
-    const [seenQuestCompletionIds, setSeenQuestCompletionIds] = useState<Set<string>>(() => loadSeenIds(SEEN_QUEST_COMPLETIONS_KEY));
+    // In-memory only - no localStorage. Prevents stale IDs when DB is reset.
+    const [seenSovaQuestMessageIds, setSeenSovaQuestMessageIds] = useState<Set<string>>(() => new Set());
+    const [seenQuestCompletionIds, setSeenQuestCompletionIds] = useState<Set<string>>(() => new Set());
     const [seenQuestProgressIds, setSeenQuestProgressIds] = useState<Set<string>>(() => new Set());
     
     // State for UI
@@ -193,11 +152,14 @@ export function useQuestNotifications({
 
     // ========================================================================
     // Handle SOVA Quest Messages - route to SOVA chat tab
-    // Now filters by session timestamp to prevent replay after cache clear
     // Processes messages SEQUENTIALLY to avoid AbortError (play interrupted by pause)
     // when quest_complete + quest_start arrive in same batch
     // ========================================================================
     const sovaAudioQueueRef = useRef<boolean>(false);
+    // Cooldown: server sends quest_complete + quest_start (or tutorial_complete) with SAME audio file
+    // - prevents hearing mission complete sound twice (full play + beginning again)
+    const lastPlayedAudioRef = useRef<{ file: string; at: number } | null>(null);
+    const SAME_AUDIO_COOLDOWN_MS = 2500;
     
     useEffect(() => {
         if (!sovaQuestMessages || sovaQuestMessages.size === 0) return;
@@ -223,11 +185,10 @@ export function useQuestNotifications({
             return prioA - prioB;
         });
         
-        // Mark all as seen immediately (we'll process them)
+        // Mark all as seen immediately (we'll process them) - in-memory only
         setSeenSovaQuestMessageIds(prev => {
             const newSet = new Set(prev);
             newMessages.forEach(({ id }) => newSet.add(id));
-            saveSeenIds(SEEN_SOVA_MESSAGES_KEY, newSet);
             return newSet;
         });
         
@@ -260,8 +221,17 @@ export function useQuestNotifications({
                     return;
                 }
                 
+                // Skip audio if we just played the same file (quest_complete + quest_start use same file)
+                const audioFile = message.audioFile;
+                const now = Date.now();
+                const last = lastPlayedAudioRef.current;
+                if (last && audioFile && last.file === audioFile && (now - last.at) < SAME_AUDIO_COOLDOWN_MS) {
+                    processNext(index + 1);
+                    return;
+                }
+                
                 try {
-                    const audio = new Audio(`/sounds/${message.audioFile}`);
+                    const audio = new Audio(`/sounds/${audioFile}`);
                     audio.volume = 0.8;
                     audio.preload = 'auto';
                     
@@ -270,7 +240,7 @@ export function useQuestNotifications({
                     const onEndedOrError = () => {
                         audio.removeEventListener('ended', onEndedOrError);
                         audio.removeEventListener('error', onEndedOrError);
-                        audio.removeEventListener('canplaythrough', tryPlay);
+                        audio.removeEventListener('canplay', tryPlay);
                         processNext(index + 1);
                     };
                     
@@ -279,13 +249,13 @@ export function useQuestNotifications({
                     
                     sovaAudioQueueRef.current = true;
                     
-                    // CRITICAL: Wait for audio to load before play() - fixes NotSupportedError
-                    // "Failed to load because no supported source was found" occurs when
-                    // play() is called before the browser has fetched/decoded the file
+                    // Use 'canplay' for fastest start (fires when enough data to begin playback)
+                    // - quest complete should play immediately when the player completes a quest
                     let loadTimeout: ReturnType<typeof setTimeout> | undefined;
                     const tryPlay = () => {
                         if (loadTimeout) clearTimeout(loadTimeout);
-                        audio.removeEventListener('canplaythrough', tryPlay);
+                        audio.removeEventListener('canplay', tryPlay);
+                        lastPlayedAudioRef.current = { file: audioFile, at: Date.now() };
                         if (showSovaSoundBoxRef.current) {
                             showSovaSoundBoxRef.current(audio, label);
                         }
@@ -300,19 +270,18 @@ export function useQuestNotifications({
                         }
                     };
                     
-                    if (audio.readyState >= 3) {
-                        // HAVE_FUTURE_DATA or HAVE_ENOUGH_DATA - safe to play
+                    // readyState 2+ = HAVE_CURRENT_DATA or better - safe to play
+                    if (audio.readyState >= 2) {
                         tryPlay();
                     } else {
-                        audio.addEventListener('canplaythrough', tryPlay);
-                        // Timeout: if not loaded in 8s, skip (file may be missing or network issue)
+                        audio.addEventListener('canplay', tryPlay);
                         loadTimeout = setTimeout(() => {
-                            if (audio.readyState < 3) {
-                                audio.removeEventListener('canplaythrough', tryPlay);
-                                console.warn('[QuestNotifications] SOVA audio load timeout:', message.audioFile);
+                            if (audio.readyState < 2) {
+                                audio.removeEventListener('canplay', tryPlay);
+                                console.warn('[QuestNotifications] SOVA audio load timeout:', audioFile);
                                 onEndedOrError();
                             }
-                        }, 8000);
+                        }, 4000);
                     }
                 } catch (err) {
                     console.warn('[QuestNotifications] Error creating SOVA quest audio:', err);
@@ -320,8 +289,12 @@ export function useQuestNotifications({
                 }
             };
             
-            // Only wait if a PREVIOUS batch is still playing (index 0 = starting new batch)
-            if (index === 0 && sovaAudioQueueRef.current) {
+            // Quest complete and tutorial complete play IMMEDIATELY - never wait for previous batch.
+            // These are critical feedback sounds that must play right away when the player completes a quest.
+            const isUrgentMessage = message.messageType === 'quest_complete' || message.messageType === 'tutorial_complete';
+            
+            // Only wait if a PREVIOUS batch is still playing (index 0 = starting new batch) AND not urgent
+            if (index === 0 && sovaAudioQueueRef.current && !isUrgentMessage) {
                 const checkInterval = setInterval(() => {
                     if (!sovaAudioQueueRef.current) {
                         clearInterval(checkInterval);
@@ -370,12 +343,8 @@ export function useQuestNotifications({
             
             console.log('[QuestNotifications] 🆕 NEW quest completion to display:', id, notification.questName, notification.questType);
             
-            // Mark as seen and persist to localStorage
-            setSeenQuestCompletionIds(prev => {
-                const newSet = new Set(prev).add(id);
-                saveSeenIds(SEEN_QUEST_COMPLETIONS_KEY, newSet);
-                return newSet;
-            });
+            // Mark as seen (in-memory only)
+            setSeenQuestCompletionIds(prev => new Set(prev).add(id));
             
             console.log('[QuestNotifications] 🎉 Quest completion:', notification.questName, 'type:', notification.questType);
             
@@ -389,11 +358,12 @@ export function useQuestNotifications({
                 unlockedRecipe: notification.unlockedRecipe || undefined,
             });
             
-            // Queue mission complete sound - the queue manager handles:
-            // - Not playing over other SOVA sounds (tutorials, cairn lore, intro)
-            // - Not playing over other notification sounds (level ups, achievements)
-            // - Playing SFX with debounce
-            queueNotificationSound('mission_complete');
+            // Queue mission complete sound ONLY for daily quests.
+            // Tutorial quests send a SovaQuestMessage with quest_complete that plays the same sound
+            // via showSovaSoundBox - calling both would cause double play or the queue to skip.
+            if (notification.questType !== 'tutorial') {
+                queueNotificationSound('mission_complete');
+            }
         });
     }, [questCompletionNotifications, playerIdentity, seenQuestCompletionIds]);
 

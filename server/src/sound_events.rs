@@ -494,7 +494,7 @@ pub fn cleanup_old_sound_events(ctx: &ReducerContext, _args: SoundEventCleanupSc
         return Ok(());
     }
 
-    let cutoff_time = ctx.timestamp - TimeDuration::from_micros(5_000_000); // 5 seconds ago
+    let cutoff_time = ctx.timestamp - TimeDuration::from_micros(10_000_000); // 10 seconds - ensures clients have time to process SOVA/tutorial sounds
     let old_events: Vec<u64> = sound_events_table.iter()
         .filter(|event| event.timestamp < cutoff_time)
         .map(|event| event.id)

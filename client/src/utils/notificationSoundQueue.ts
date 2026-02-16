@@ -50,7 +50,7 @@ const SFX_DEBOUNCE_MS = 500;
 const MAX_SOUND_DURATION_MS = 5000;
 
 // Maximum age of a queued sound before it's considered stale and skipped
-const MAX_QUEUE_AGE_MS = 3000;
+const MAX_QUEUE_AGE_MS = 6000;
 
 /**
  * Play a notification sound if not blocked by SOVA.

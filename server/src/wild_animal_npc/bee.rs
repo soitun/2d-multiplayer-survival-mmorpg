@@ -22,6 +22,7 @@ use log;
 use crate::Player;
 use crate::utils::get_distance_squared;
 use crate::wooden_storage_box::BOX_TYPE_WILD_BEEHIVE;
+use crate::environment::calculate_chunk_index;
 
 // Table trait imports  
 use crate::player as PlayerTableTrait;
@@ -425,7 +426,7 @@ pub fn spawn_bees_at_hive(
             patrol_phase: 0.0,
             scent_ping_timer: 0,
             movement_pattern: MovementPattern::Wander,
-            chunk_index: 0,
+            chunk_index: calculate_chunk_index(spawn_x, spawn_y), // Must match hive chunk for AI processing
             created_at: current_time,
             last_hit_time: None,
             is_pack_leader: false,

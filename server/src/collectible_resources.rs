@@ -99,6 +99,16 @@ where
     // Use our new system that automatically drops items if inventory is full
     match crate::dropped_item::try_give_item_to_player(ctx, player_id, primary_item_def.id, primary_quantity_to_grant) {
         Ok(added_to_inventory) => {
+            // Track CollectSpecificItem for quests (e.g., "collect 45 Plant Fiber" - fiber from harvesting counts)
+            if let Err(e) = crate::quests::track_quest_progress(
+                ctx,
+                player_id,
+                crate::quests::QuestObjectiveType::CollectSpecificItem,
+                Some(primary_resource_name),
+                primary_quantity_to_grant,
+            ) {
+                log::warn!("Failed to track CollectSpecificItem for harvest: {}", e);
+            }
             if added_to_inventory {
                 log::info!("Player {:?} collected {} of primary resource: {} (added to inventory).", player_id, primary_quantity_to_grant, primary_resource_name);
                 
@@ -150,6 +160,16 @@ where
                     // Use our new system that automatically drops items if inventory is full
                     match crate::dropped_item::try_give_item_to_player(ctx, player_id, secondary_item_def.id, secondary_amount_to_grant) {
                         Ok(added_to_inventory) => {
+                            // Track CollectSpecificItem for quests
+                            if let Err(e) = crate::quests::track_quest_progress(
+                                ctx,
+                                player_id,
+                                crate::quests::QuestObjectiveType::CollectSpecificItem,
+                                Some(sec_item_name),
+                                secondary_amount_to_grant,
+                            ) {
+                                log::warn!("Failed to track CollectSpecificItem for harvest secondary: {}", e);
+                            }
                             if added_to_inventory {
                                 log::info!("Player {:?} also collected {} of secondary resource: {} (added to inventory).", player_id, secondary_amount_to_grant, sec_item_name);
                             } else {

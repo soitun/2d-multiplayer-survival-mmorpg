@@ -543,8 +543,10 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                                         textTransform: 'uppercase',
                                         letterSpacing: '1px',
                                     }}>
-                                        {/* Show "Primary Objective" label only if there's a secondary */}
-                                        {(currentTutorialQuest as any).secondaryObjectiveType ? 'Primary Objective' : 'Objective'}
+                                        {/* Show "Primary Objective" or "Option A" when OR logic */}
+                                        {(currentTutorialQuest as any).secondaryObjectiveType 
+                                            ? ((currentTutorialQuest as any).objectiveLogic?.tag === 'Or' ? 'Option A' : 'Primary Objective')
+                                            : 'Objective'}
                                     </div>
                                     <div style={{
                                         width: '100%',
@@ -569,9 +571,14 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                                     </div>
                                 </div>
 
-                                {/* Secondary Objective Progress Bar (if exists) */}
+                                {/* Secondary Objective Progress Bar (if exists) - show "OR" when alternative path */}
                                 {(currentTutorialQuest as any).secondaryObjectiveType && (currentTutorialQuest as any).secondaryTargetAmount > 0 && (
                                     <div style={{ marginBottom: '12px' }}>
+                                        {(currentTutorialQuest as any).objectiveLogic?.tag === 'Or' && (
+                                            <div style={{ color: '#fbbf24', fontSize: isMobile ? '10px' : '12px', marginBottom: '8px', fontWeight: 'bold', textAlign: 'center' }}>
+                                                — OR —
+                                            </div>
+                                        )}
                                         <div style={{
                                             color: '#9ca3af',
                                             fontSize: isMobile ? '9px' : '11px',
@@ -579,7 +586,7 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                                             textTransform: 'uppercase',
                                             letterSpacing: '1px',
                                         }}>
-                                            Secondary Objective
+                                            {(currentTutorialQuest as any).objectiveLogic?.tag === 'Or' ? 'Option B' : 'Secondary Objective'}
                                         </div>
                                         <div style={{
                                             width: '100%',

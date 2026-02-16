@@ -6,7 +6,6 @@
  */
 
 import { renderHealthBar, renderEntityHealthBar, getLastHitTimeMs } from './healthBarUtils';
-import { renderBarrelHealthBar } from './barrelRenderingUtils';
 import { CAMPFIRE_WIDTH, CAMPFIRE_HEIGHT, CAMPFIRE_RENDER_Y_OFFSET } from './campfireRenderingUtils';
 import {
   getBoxDimensions,
@@ -61,12 +60,8 @@ export function renderHealthBarOverlay(params: HealthBarOverlayParams): void {
   const { ctx, ySortedEntities, nowMs, playerX, playerY } = params;
 
   ySortedEntities.forEach(({ type, entity }) => {
-    if (type === 'barrel') {
-      const barrel = entity as any;
-      if (!barrel.respawnAt || barrel.respawnAt.microsSinceUnixEpoch === 0n) {
-        renderBarrelHealthBar(ctx, barrel, nowMs, playerX, playerY);
-      }
-    } else if (type === 'campfire') {
+    // Barrels: no health bar (only structures/walls/placeables show health when hit)
+    if (type === 'campfire') {
       renderEntityHealthBar(ctx, entity as any, CAMPFIRE_WIDTH, CAMPFIRE_HEIGHT, nowMs, playerX, playerY, -CAMPFIRE_RENDER_Y_OFFSET);
     } else if (type === 'wooden_storage_box') {
       const box = entity as any;

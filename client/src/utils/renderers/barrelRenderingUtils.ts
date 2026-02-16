@@ -11,7 +11,6 @@ import seaBarrel3Image from '../../assets/doodads/barrel6.png'; // Variant 5 (pl
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { imageManager } from './imageManager'; // Import image manager
-import { renderHealthBar, getLastHitTimeMs } from './healthBarUtils'; // Used by renderBarrelHealthBar (called from overlay)
 
 // --- Constants --- (Keep exportable if used elsewhere)
 export const BARREL_WIDTH = 86; // Standard barrel size (increased from 72)
@@ -21,8 +20,6 @@ export const BARREL5_HEIGHT = 172;
 export const PLAYER_BARREL_INTERACTION_DISTANCE_SQUARED = 64.0 * 64.0; // Barrel interaction distance
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 8; // Moderate shake for barrels
-const BARREL_MAX_HEALTH = 50.0; // BARREL_INITIAL_HEALTH from server
-
 // --- Barrel Variant Images Array ---
 // Variants 0-2: Road barrels
 // Variants 3-5: Sea barrels (flotsam/cargo crates)
@@ -150,58 +147,10 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
         };
     },
 
-    // Health bar is now rendered separately via renderBarrelHealthBar()
-    // to support player-position-aware vertical bars on the opposite side
     drawOverlay: undefined,
 
     fallbackColor: '#8B4513', // Saddle brown for wooden barrel
 };
-
-/**
- * Get barrel dimensions based on variant (variant 4 is larger)
- */
-function getBarrelDimensions(variant: number): { width: number; height: number; yOffset: number } {
-    const isLargeVariant = variant === 4;
-    return {
-        width: isLargeVariant ? BARREL5_WIDTH : BARREL_WIDTH,
-        height: isLargeVariant ? BARREL5_HEIGHT : BARREL_HEIGHT,
-        yOffset: isLargeVariant ? 24 : 12,
-    };
-}
-
-/**
- * Renders the health bar for a barrel using the unified health bar system.
- * Exported for use by sea barrel rendering (which needs to call this separately).
- * Note: Barrels don't have maxHealth field - they use constant BARREL_MAX_HEALTH.
- */
-export function renderBarrelHealthBar(
-    ctx: CanvasRenderingContext2D,
-    barrel: Barrel,
-    nowMs: number,
-    playerX: number,
-    playerY: number
-): void {
-    // Don't render health bar if barrel is respawning (destroyed)
-    if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) return;
-    
-    const dims = getBarrelDimensions(Number(barrel.variant ?? 0));
-    
-    // Use renderHealthBar directly since barrels don't have maxHealth field
-    renderHealthBar({
-        ctx,
-        entityX: barrel.posX,
-        entityY: barrel.posY,
-        entityWidth: dims.width,
-        entityHeight: dims.height,
-        health: barrel.health,
-        maxHealth: BARREL_MAX_HEALTH,
-        lastHitTimeMs: getLastHitTimeMs(barrel.lastHitTime),
-        nowMs,
-        playerX,
-        playerY,
-        entityDrawYOffset: -dims.yOffset,
-    });
-}
 
 // Preload all barrel variant images
 BARREL_VARIANT_IMAGES.forEach(barrelImg => {
@@ -414,7 +363,6 @@ function renderSeaBarrelWithWaterEffects(
     ctx.stroke();
     
     ctx.restore(); // Restore from rotation transform
-    // Health bar rendered via renderHealthBarOverlay (on top of world objects)
 }
 
 // --- Rendering Function (Refactored) ---
@@ -462,8 +410,6 @@ export function renderBarrel(
         entityPosY: barrel.posY,
         cycleProgress,
     });
-    
-    // Health bar rendered via renderHealthBarOverlay (on top of world objects)
 }
 
 // === UNDERWATER SNORKELING MODE ===
