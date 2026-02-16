@@ -21,6 +21,14 @@ const VERTEX_SHAKE_SEGMENTS = 6;  // Number of vertical segments for vertex-base
 const clientCoralShakeStartTimes = new Map<string, number>(); // coralId -> client timestamp when shake started
 const lastKnownServerCoralShakeTimes = new Map<string, number>(); // coralId -> last known server timestamp
 
+/** Trigger coral shake immediately (optimistic feedback) when player initiates a hit. */
+export function triggerCoralShakeOptimistic(coralId: string, posX: number, posY: number, variantIndex: number = 0): void {
+  const now = Date.now();
+  clientCoralShakeStartTimes.set(coralId, now);
+  lastKnownServerCoralShakeTimes.set(coralId, now);
+  triggerCoralHitEffect(coralId, posX, posY, variantIndex);
+}
+
 // ============================================================================
 // CORAL HIT PARTICLES - Small fragments and bubbles on each hit
 // ============================================================================
@@ -680,13 +688,14 @@ const livingCoralConfig: GroundEntityConfig<LivingCoral> = {
             const lastKnownServerTime = lastKnownServerCoralShakeTimes.get(coralId) || 0;
             
             if (serverShakeTime !== lastKnownServerTime) {
-                // NEW shake detected! Record both server time and client time
+                const clientStartTime = clientCoralShakeStartTimes.get(coralId);
+                const alreadyShaking = clientStartTime && (Date.now() - clientStartTime < SHAKE_DURATION_MS);
                 lastKnownServerCoralShakeTimes.set(coralId, serverShakeTime);
-                clientCoralShakeStartTimes.set(coralId, Date.now());
-                
-                // Trigger hit impact particles!
-                const variantIndex = Number(entity.id) % 4;
-                triggerCoralHitEffect(coralId, entity.posX, entity.posY, variantIndex);
+                if (!alreadyShaking) {
+                    clientCoralShakeStartTimes.set(coralId, Date.now());
+                    const variantIndex = Number(entity.id) % 4;
+                    triggerCoralHitEffect(coralId, entity.posX, entity.posY, variantIndex);
+                }
             }
             
             const clientStartTime = clientCoralShakeStartTimes.get(coralId);

@@ -49,6 +49,14 @@ const playerHitStates = new Map<string, PlayerHitState>();
 
 const playerVisualKnockbackState = new Map<string, PlayerVisualKnockbackState>();
 
+// --- Optimistic shake: when local player hits another player, trigger immediately ---
+const clientPlayerShakeStartTimes = new Map<string, number>();
+
+/** Trigger player shake immediately (optimistic feedback) when local player hits them. */
+export function triggerPlayerShakeOptimistic(identityHex: string): void {
+  clientPlayerShakeStartTimes.set(identityHex, Date.now());
+}
+
 
 
 // Linear interpolation function
@@ -485,7 +493,15 @@ export const renderPlayer = (
   let hitState = playerHitStates.get(playerHexId);
   let isCurrentlyHit = false;
   let hitEffectElapsed = 0;
-  
+
+  // --- Optimistic shake: check if we (local player) just hit this player ---
+  const optimisticStart = clientPlayerShakeStartTimes.get(playerHexId);
+  const hasActiveOptimisticShake = optimisticStart !== undefined && (nowMs - optimisticStart < PLAYER_SHAKE_DURATION_MS);
+  const recentlyHadOptimisticShake = optimisticStart !== undefined && (nowMs - optimisticStart < 2000);
+  if (optimisticStart !== undefined && nowMs - optimisticStart > 2000) {
+    clientPlayerShakeStartTimes.delete(playerHexId); // Clean up expired optimistic entries
+  }
+
   if (serverLastHitTimePropMicros > 0n) {
     // --- IMPROVED: Use threshold-based comparison to prevent spurious re-detections ---
     const DETECTION_THRESHOLD_MICROS = 1000n; // 1ms threshold to account for minor server timing variations
@@ -494,12 +510,12 @@ export const renderPlayer = (
                      (serverLastHitTimePropMicros - hitState.lastProcessedHitTime) > DETECTION_THRESHOLD_MICROS);
     
     if (isNewHit) {
-      // NEW HIT DETECTED! Set up effect timing based on client time
-      const oldHitTime = hitState?.lastProcessedHitTime || 0n;
+      // NEW HIT DETECTED! Don't restart if we recently had optimistic shake (avoid double-shake)
+      const effectStartTime = recentlyHadOptimisticShake && optimisticStart ? optimisticStart : nowMs;
       hitState = {
         lastProcessedHitTime: serverLastHitTimePropMicros,
         clientDetectionTime: nowMs,
-        effectStartTime: nowMs
+        effectStartTime
       };
       playerHitStates.set(playerHexId, hitState);
       // console.log(`🎯 [COMBAT] Hit detected for player ${playerHexId} at client time ${nowMs} (server: ${serverLastHitTimePropMicros}, old: ${oldHitTime}, diff: ${serverLastHitTimePropMicros - oldHitTime})`);
@@ -529,6 +545,10 @@ export const renderPlayer = (
         // }
       }
     }
+  } else if (hasActiveOptimisticShake && optimisticStart !== undefined) {
+    // No server hit yet, but we have optimistic shake (we just hit them)
+    hitEffectElapsed = nowMs - optimisticStart;
+    isCurrentlyHit = hitEffectElapsed < PLAYER_SHAKE_DURATION_MS;
   } else {
     // No hit time from server - clear hit state
     if (hitState) {
@@ -541,9 +561,9 @@ export const renderPlayer = (
   const serverLastHitTimeMs = serverLastHitTimePropMicros > 0n ? Number(serverLastHitTimePropMicros / 1000n) : 0;
   const elapsedSinceServerHitMs = serverLastHitTimeMs > 0 ? (nowMs - serverLastHitTimeMs) : Infinity;
   
-  // Use new hit detection if available, otherwise fall back to old system
-  const effectiveHitElapsed = isCurrentlyHit ? hitEffectElapsed : elapsedSinceServerHitMs;
-  const shouldShowCombatEffects = isCurrentlyHit || elapsedSinceServerHitMs < PLAYER_SHAKE_DURATION_MS;
+  // Use new hit detection if available, otherwise fall back to old system (include optimistic)
+  const effectiveHitElapsed = isCurrentlyHit ? hitEffectElapsed : (hasActiveOptimisticShake && optimisticStart ? nowMs - optimisticStart : elapsedSinceServerHitMs);
+  const shouldShowCombatEffects = isCurrentlyHit || hasActiveOptimisticShake || elapsedSinceServerHitMs < PLAYER_SHAKE_DURATION_MS;
   // --- END NEW hit detection ---
 
   // Only apply knockback interpolation for NON-local players

@@ -417,6 +417,22 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
   const currentTimeOfDay = worldState?.timeOfDay.tag || 'Noon';
   const isMushroomPlant = isMushroom();
 
+  // Format time of day for display (TwilightMorning → Twilight, etc.)
+  const getTimeOfDayDisplay = (tag: string): string => {
+    switch (tag) {
+      case 'Dawn': return 'Dawn';
+      case 'TwilightMorning': return 'Twilight';
+      case 'Morning': return 'Morning';
+      case 'Noon': return 'Noon';
+      case 'Afternoon': return 'Afternoon';
+      case 'Dusk': return 'Dusk';
+      case 'TwilightEvening': return 'Twilight';
+      case 'Night': return 'Night';
+      case 'Midnight': return 'Midnight';
+      default: return tag || 'Unknown';
+    }
+  };
+
   // --- Growth Multiplier Calculations (matching server logic) ---
 
   // Time of day growth multiplier (matches server get_time_of_day_growth_multiplier)
@@ -681,7 +697,7 @@ const PlantedSeedTooltip: React.FC<PlantedSeedTooltipProps> = ({
                 ? (currentTimeOfDay === 'Night' || currentTimeOfDay === 'Midnight' ? styles.positive : styles.neutral)
                 : (currentTimeOfDay === 'Night' || currentTimeOfDay === 'Midnight' ? styles.negative : styles.neutral)
             }`}>
-              {currentTimeOfDay}
+              {getTimeOfDayDisplay(currentTimeOfDay)}
               {isMushroomPlant ? (
                 (currentTimeOfDay === 'Night' || currentTimeOfDay === 'Midnight') && ' 🌙 +50%'
               ) : (

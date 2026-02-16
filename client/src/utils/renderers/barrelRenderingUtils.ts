@@ -20,7 +20,7 @@ export const BARREL5_WIDTH = 172; // Variant 4 (barrel5.png) rendered at larger 
 export const BARREL5_HEIGHT = 172;
 export const PLAYER_BARREL_INTERACTION_DISTANCE_SQUARED = 64.0 * 64.0; // Barrel interaction distance
 const SHAKE_DURATION_MS = 150; 
-const SHAKE_INTENSITY_PX = 8; // Moderate shake for barrels
+const SHAKE_INTENSITY_PX = 4; // Subtle shake for barrels
 // --- Barrel Variant Images Array ---
 // Variants 0-2: Road barrels
 // Variants 3-5: Sea barrels (flotsam/cargo crates)
@@ -42,6 +42,12 @@ const SEA_BARREL_VARIANT_END = 7; // Exclusive end (3, 4, 5, 6 - includes buoy)
 // --- Client-side animation tracking for barrel shakes ---
 const clientBarrelShakeStartTimes = new Map<string, number>(); // barrelId -> client timestamp when shake started
 const lastKnownServerBarrelShakeTimes = new Map<string, number>();
+
+/** Trigger barrel shake immediately (optimistic feedback) when player initiates a hit. */
+export function triggerBarrelShakeOptimistic(barrelId: string): void {
+  const now = Date.now();
+  clientBarrelShakeStartTimes.set(barrelId, now);
+}
 
 // --- Define Configuration --- 
 const barrelConfig: GroundEntityConfig<Barrel> = {
@@ -100,7 +106,9 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
                     lastKnownServerTimes: lastKnownServerBarrelShakeTimes
                 },
                 SHAKE_DURATION_MS,
-                SHAKE_INTENSITY_PX
+                SHAKE_INTENSITY_PX,
+                undefined,
+                { suppressRestartIfRecentClientShake: true }
             );
 
             // Scale pivotYOffset based on barrel size (variant 4 is 2x larger)
@@ -139,7 +147,9 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
                     lastKnownServerTimes: lastKnownServerBarrelShakeTimes
                 },
                 SHAKE_DURATION_MS,
-                SHAKE_INTENSITY_PX
+                SHAKE_INTENSITY_PX,
+                undefined,
+                { suppressRestartIfRecentClientShake: true }
             );
             return { offsetX: shakeOffsetX, offsetY: shakeOffsetY };
         }

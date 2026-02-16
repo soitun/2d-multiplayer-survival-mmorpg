@@ -1368,7 +1368,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                         Broth and Bullets runs in your browser and shares CPU, GPU, and memory with other apps. For best performance:
                                     </p>
                                     <ul style={{ margin: '0 0 16px 0', paddingLeft: '20px', textAlign: 'left' }}>
-                                        <li style={{ marginBottom: '8px' }}>Close other games (e.g. Steam, Rust, etc.) in the background</li>
+                                        <li style={{ marginBottom: '8px' }}>Close other games in the background</li>
                                         <li style={{ marginBottom: '8px' }}>Close unnecessary browser tabs</li>
                                         <li style={{ marginBottom: '8px' }}>Close heavy apps (video editors, IDEs, etc.)</li>
                                         <li style={{ marginBottom: '8px' }}>Use a wired connection if possible</li>

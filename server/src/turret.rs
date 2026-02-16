@@ -376,7 +376,9 @@ pub fn place_turret(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, w
             return Err("Too close to another turret.".to_string());
         }
     }
-    
+
+    crate::placeable_collision::check_placeable_overlap(ctx, world_x, world_y, 48.0, 48.0)?;
+
     // Create turret
     let chunk_index = calculate_chunk_index(world_x, world_y);
     let new_turret = Turret {

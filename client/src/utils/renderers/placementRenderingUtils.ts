@@ -41,6 +41,7 @@ interface RenderPlacementPreviewParams {
     worldMouseY: number | null;
     isPlacementTooFar: boolean;
     placementError: string | null;
+    onClearPlacementError?: () => void; // Called when cursor moves to valid position so preview can turn blue again
     connection: DbConnection | null;
     worldScale: number; // NEW: World scale for building previews
     viewOffsetX: number; // NEW: View offset for building previews
@@ -1742,6 +1743,7 @@ export function renderPlacementPreview({
     worldMouseY,
     isPlacementTooFar,
     placementError,
+    onClearPlacementError,
     connection,
     worldScale,
     viewOffsetX,
@@ -2393,18 +2395,28 @@ export function renderPlacementPreview({
     // For broth pot, only invalid if no campfire or campfire has pot - distance doesn't matter if snapping
     // For door, only invalid if no foundation or edge has existing wall/door
     let isInvalidPlacement: boolean;
+    let isPositionValid: boolean; // Position-based validity (excludes placementError) - used to clear stale errors
     let placementWarning: string | null = null;
     if (placementInfo.iconAssetName === 'field_cauldron.png') {
         isInvalidPlacement = isBrothPotInvalid || isInMonumentZone; // Check both campfire validity and monument zone
+        isPositionValid = !isInvalidPlacement;
     } else if (isDoorPlacement) {
         isInvalidPlacement = isDoorInvalid || isInMonumentZone; // Check both foundation edge validity and monument zone
+        isPositionValid = !isInvalidPlacement;
     } else {
-        const { overlaps: isOverlappingPlaceable, message: overlapMessage } = checkPlacementOverlap(connection, placementInfo, snappedX, snappedY);
-        isInvalidPlacement = isPlacementTooFar || isOnWater || isTileOccupiedBySeed || isOnFoundation || isNotOnFoundation || isOnWall || isInMonumentZone || isOverlappingPlaceable || !!placementError;
-        placementWarning = isOverlappingPlaceable ? overlapMessage : null;
+        const { overlaps: isOverlappingPlaceable } = checkPlacementOverlap(connection, placementInfo, snappedX, snappedY);
+        isPositionValid = !(isPlacementTooFar || isOnWater || isTileOccupiedBySeed || isOnFoundation || isNotOnFoundation || isOnWall || isInMonumentZone || isOverlappingPlaceable);
+        isInvalidPlacement = !isPositionValid || !!placementError;
+        // Don't show "Blocked by existing structure" on hover - only on placement action (attemptPlacement)
+        placementWarning = null;
         // NOTE: Removed hasStorageBoxCollision - let server handle collision validation consistently for all items (like furnaces)
     }
     
+    // When position becomes valid, clear any stale placement error so preview turns blue again
+    if (isPositionValid && placementError && onClearPlacementError) {
+        onClearPlacementError();
+    }
+
     if (isInvalidPlacement) {
         // Strong red tint for all invalid placements
         ctx.filter = 'sepia(100%) hue-rotate(320deg) saturate(400%) brightness(1.0) contrast(120%)';

@@ -37,6 +37,18 @@ const clientTreeShakeStartTimes = new Map<string, number>(); // treeId -> client
 const lastKnownServerTreeShakeTimes = new Map<string, number>(); // treeId -> last known server timestamp
 
 /**
+ * Trigger tree shake immediately (optimistic feedback) when player initiates a hit.
+ * Call when the player swings an axe at a tree, before server response.
+ */
+export function triggerTreeShakeOptimistic(treeId: string, posX: number, posY: number): void {
+  const now = Date.now();
+  clientTreeShakeStartTimes.set(treeId, now);
+  // Don't set lastKnownServerTimes here - let server update sync it. Prevents double shake
+  // when server confirms (alreadyShaking blocks onNewShake, but we avoid timestamp confusion).
+  triggerTreeHitEffect(treeId, posX, posY);
+}
+
+/**
  * Draws a circular/elliptical canopy shadow directly under the tree.
  * This creates an ambient occlusion effect that darkens the trunk area and ground
  * directly beneath the tree's foliage, adding visual depth independent of sun position.
@@ -1009,7 +1021,8 @@ const treeConfig: GroundEntityConfig<Tree> = {
             SHAKE_DURATION_MS,
             SHAKE_INTENSITY_PX,
             // Callback when new shake detected - trigger hit particles!
-            () => triggerTreeHitEffect(treeId, entity.posX, entity.posY)
+            () => triggerTreeHitEffect(treeId, entity.posX, entity.posY),
+            { suppressRestartIfRecentClientShake: true }
         );
 
         // NOTE: Canopy shadow is now rendered as an OVERLAY pass after all Y-sorted entities
@@ -1052,33 +1065,32 @@ const treeConfig: GroundEntityConfig<Tree> = {
         let shakeDirectionX = 0;
         let shakeDirectionY = 0;
 
-        if (entity.lastHitTime) { 
+        const treeId = entity.id.toString();
+        const clientStartTime = clientTreeShakeStartTimes.get(treeId);
+        // Support BOTH server lastHitTime AND optimistic client shake (triggered before server responds)
+        const hasActiveClientShake = clientStartTime !== undefined && (nowMs - clientStartTime < SHAKE_DURATION_MS);
+        const hasServerHit = !!entity.lastHitTime;
+
+        if (hasServerHit || hasActiveClientShake) {
             // NOTE: Hit effect is triggered in drawCustomGroundShadow via calculateShakeOffsets callback
             // This block handles the shake animation for the tree sprite
-            const treeId = entity.id.toString();
-            
-            // Calculate animation based on client time (Maps are updated in drawCustomGroundShadow)
-            const clientStartTime = clientTreeShakeStartTimes.get(treeId);
-            if (clientStartTime) {
-                const elapsedSinceShake = nowMs - clientStartTime;
-                
-                if (elapsedSinceShake >= 0 && elapsedSinceShake < SHAKE_DURATION_MS) {
-                    shakeFactor = 1.0 - (elapsedSinceShake / SHAKE_DURATION_MS); 
-                    baseShakeIntensity = SHAKE_INTENSITY_PX * shakeFactor;
-                    
-                    // Generate smooth, time-based shake direction using sine waves
-                    // This creates a more natural swaying motion
-                    const timePhase = elapsedSinceShake / 50; // Faster oscillation (50ms per cycle)
-                    const treeSeed = treeId.charCodeAt(0) % 100; // Unique phase offset per tree
-                    
-                    // Use sine/cosine for smooth circular motion
-                    shakeDirectionX = Math.sin(timePhase + treeSeed);
-                    shakeDirectionY = Math.cos(timePhase + treeSeed) * 0.5; // Less vertical movement
-                }
+            // Use clientStartTime (from optimistic trigger or from calculateShakeOffsets) for smooth animation
+            const effectiveStartTime = clientStartTime ?? (entity.lastHitTime ? Number(entity.lastHitTime.microsSinceUnixEpoch / 1000n) : nowMs);
+            const elapsedSinceShake = nowMs - effectiveStartTime;
+
+            if (elapsedSinceShake >= 0 && elapsedSinceShake < SHAKE_DURATION_MS) {
+                shakeFactor = 1.0 - (elapsedSinceShake / SHAKE_DURATION_MS);
+                baseShakeIntensity = SHAKE_INTENSITY_PX * shakeFactor;
+
+                // Generate smooth, time-based shake direction using sine waves
+                const timePhase = elapsedSinceShake / 50; // Faster oscillation (50ms per cycle)
+                const treeSeed = treeId.charCodeAt(0) % 100; // Unique phase offset per tree
+
+                shakeDirectionX = Math.sin(timePhase + treeSeed);
+                shakeDirectionY = Math.cos(timePhase + treeSeed) * 0.5; // Less vertical movement
             }
         } else {
-            // Clean up tracking when tree is not being hit
-            const treeId = entity.id.toString();
+            // Clean up tracking when tree is not being hit and no active shake
             clientTreeShakeStartTimes.delete(treeId);
             lastKnownServerTreeShakeTimes.delete(treeId);
         }

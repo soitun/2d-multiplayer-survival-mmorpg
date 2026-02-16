@@ -166,6 +166,7 @@ mod bone_carving; // <<< ADDED: Bone carving system for Aleutian spirit totems
 mod transistor_radio; // <<< ADDED: Transistor Radio spawn/respawn system
 pub mod monument; // <<< ADDED: Generic monument system for clearance zones (shipwrecks, ruins, crash sites, etc.)
 mod durability; // <<< ADDED: Item durability system for weapons, tools, and torches
+mod placeable_collision; // <<< ADDED: Shared placeable overlap prevention
 mod repair_bench; // <<< ADDED: Repair bench for item repair
 mod cooking_station; // <<< ADDED: Cooking station for advanced food recipes
 mod player_progression; // <<< ADDED: Player progression system (XP, achievements, leaderboards)

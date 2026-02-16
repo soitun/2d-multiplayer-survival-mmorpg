@@ -692,6 +692,8 @@ pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         }
     }
 
+    crate::placeable_collision::check_placeable_overlap(ctx, world_x, world_y, 48.0, 48.0)?;
+
     // Remove the furnace item from inventory
     ctx.db.inventory_item().instance_id().delete(item_instance_id);
 

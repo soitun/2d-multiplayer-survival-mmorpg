@@ -833,6 +833,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleSleepingBagsMap,
     visibleTrees,
     visibleTreesMap,
+    visibleStonesMap,
     ySortedEntities,
     visibleGrass,
     visibleGrassMap,
@@ -1339,14 +1340,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     worldMousePos,
     // UNIFIED INTERACTION TARGET - single source of truth (includes water fallback)
     closestInteractableTarget: unifiedInteractableTarget,
-    // Essential entity maps for validation and data lookup
+    // Essential entity maps for validation and data lookup (optimistic shake on hit)
+    trees: visibleTreesMap,
+    stones: visibleStonesMap,
+    livingCorals: visibleLivingCoralsMap,
+    barrels: visibleBarrelsMap,
+    animalCorpses: visibleAnimalCorpsesMap,
+    wildAnimals: visibleWildAnimalsMap,
     woodenStorageBoxes,
     turrets: visibleTurretsMap, // ADDED: Turrets for pickup check (use visible map)
     stashes,
     players,
     cairns, // ADDED: Cairns for lore lookup
     playerDiscoveredCairns, // ADDED: Player discovery tracking
-    playerCorpses, // ADDED: Player corpses for protection check
+    playerCorpses: visiblePlayerCorpsesMap, // Visible map for optimistic shake + protection check
     addSOVAMessage, // ADDED: SOVA message adder for cairn lore
     showSovaSoundBox, // ADDED: SOVA sound box for cairn lore audio with waveform
     onCairnNotification, // ADDED: Cairn unlock notification callback
@@ -1720,9 +1727,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     };
 
     // Generic placement error handler for all placeable items (campfire, furnace, lantern, etc.)
+    // Always shows server errors (e.g. "Placement location is too far away") in the red error box
     const handlePlacementError = (ctx: any, itemName: string) => {
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || `${itemName} placement failed`;
+      const status = ctx.event?.status;
+      const isFailed = status?.tag === 'Failed' || (status && typeof status === 'object' && 'Failed' in status);
+      if (isFailed) {
+        // Extract error message - try multiple possible SDK structures
+        let errorMsg =
+          (status?.tag === 'Failed' && status?.value) ||
+          status?.Failed ||
+          ctx.event?.message ||
+          `${itemName} placement failed`;
+        if (typeof errorMsg !== 'string') errorMsg = String(errorMsg);
         console.log(`[GameCanvas] ${itemName} placement failed:`, errorMsg);
         playImmediateSound('error_placement_failed', 1.0);
         showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
@@ -1757,6 +1773,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const handlePlaceHomesteadHearthResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
       handlePlacementError(ctx, "Matron's Chest");
     };
+    const handlePlaceBarbecueResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
+      handlePlacementError(ctx, 'Barbecue');
+    };
+    const handlePlaceTurretResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
+      handlePlacementError(ctx, 'Turret');
+    };
+    const handlePlaceExplosiveResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
+      handlePlacementError(ctx, 'Explosive');
+    };
 
     connection.reducers.onDestroyFoundation(handleDestroyFoundationResult);
     connection.reducers.onDestroyWall(handleDestroyWallResult);
@@ -1764,7 +1789,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     connection.reducers.onLoadRangedWeapon(handleLoadRangedWeaponResult);
     connection.reducers.onUpgradeFoundation(handleUpgradeFoundationResult);
 
-    // Register placement error handlers
+    // Register placement error handlers (all placement errors, including "too far away", show in red box)
     connection.reducers.onPlaceCampfire(handlePlaceCampfireResult);
     connection.reducers.onPlaceFurnace(handlePlaceFurnaceResult);
     connection.reducers.onPlaceLantern(handlePlaceLanternResult);
@@ -1774,6 +1799,62 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     connection.reducers.onPlaceShelter(handlePlaceShelterResult);
     connection.reducers.onPlaceRainCollector(handlePlaceRainCollectorResult);
     connection.reducers.onPlaceHomesteadHearth(handlePlaceHomesteadHearthResult);
+    connection.reducers.onPlaceBarbecue(handlePlaceBarbecueResult);
+    connection.reducers.onPlaceTurret(handlePlaceTurretResult);
+    connection.reducers.onPlaceExplosive(handlePlaceExplosiveResult);
+
+    // --- Gameplay interaction error handlers (pickup, doors, cairns, milking, fishing) ---
+    // Skip sync/edge-case errors: "too far", "not found" (race), "no active session"
+    const handlePickupDroppedItemResult = (ctx: any, droppedItemId: bigint) => {
+      if (ctx.event?.status?.tag === 'Failed') {
+        const errorMsg = ctx.event.status.value || 'Cannot pick up item';
+        if (errorMsg.toLowerCase().includes('too far')) return;
+        if (errorMsg.toLowerCase().includes('not found')) return; // Someone else picked it up
+        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
+      }
+    };
+    const handleInteractDoorResult = (ctx: any, doorId: bigint) => {
+      if (ctx.event?.status?.tag === 'Failed') {
+        const errorMsg = ctx.event.status.value || 'Cannot interact with door';
+        if (errorMsg.toLowerCase().includes('too far')) return;
+        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
+      }
+    };
+    const handleInteractWithCairnResult = (ctx: any, cairnId: bigint) => {
+      if (ctx.event?.status?.tag === 'Failed') {
+        const errorMsg = ctx.event.status.value || 'Cannot interact with cairn';
+        if (errorMsg.toLowerCase().includes('too far')) return;
+        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
+      }
+    };
+    const handleMilkAnimalResult = (ctx: any, animalId: bigint) => {
+      if (ctx.event?.status?.tag === 'Failed') {
+        const errorMsg = ctx.event.status.value || 'Cannot milk animal';
+        if (errorMsg.toLowerCase().includes('too far')) return;
+        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
+      }
+    };
+    const handleCastFishingLineResult = (ctx: any, targetX: number, targetY: number) => {
+      if (ctx.event?.status?.tag === 'Failed') {
+        const errorMsg = ctx.event.status.value || 'Cannot cast fishing line';
+        if (errorMsg.toLowerCase().includes('too far')) return;
+        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
+      }
+    };
+    const handleFinishFishingResult = (ctx: any, success: boolean, caughtItems: string[]) => {
+      if (ctx.event?.status?.tag === 'Failed') {
+        const errorMsg = ctx.event.status.value || 'Fishing failed';
+        if (errorMsg.toLowerCase().includes('no active') || errorMsg.toLowerCase().includes('session is not active')) return;
+        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
+      }
+    };
+
+    if (connection.reducers.onPickupDroppedItem) connection.reducers.onPickupDroppedItem(handlePickupDroppedItemResult);
+    if (connection.reducers.onInteractDoor) connection.reducers.onInteractDoor(handleInteractDoorResult);
+    if (connection.reducers.onInteractWithCairn) connection.reducers.onInteractWithCairn(handleInteractWithCairnResult);
+    if (connection.reducers.onMilkAnimal) connection.reducers.onMilkAnimal(handleMilkAnimalResult);
+    if (connection.reducers.onCastFishingLine) connection.reducers.onCastFishingLine(handleCastFishingLineResult);
+    if (connection.reducers.onFinishFishing) connection.reducers.onFinishFishing(handleFinishFishingResult);
 
     return () => {
       connection.reducers.removeOnDestroyFoundation(handleDestroyFoundationResult);
@@ -1792,6 +1873,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       connection.reducers.removeOnPlaceShelter(handlePlaceShelterResult);
       connection.reducers.removeOnPlaceRainCollector(handlePlaceRainCollectorResult);
       connection.reducers.removeOnPlaceHomesteadHearth(handlePlaceHomesteadHearthResult);
+      connection.reducers.removeOnPlaceBarbecue(handlePlaceBarbecueResult);
+      connection.reducers.removeOnPlaceTurret(handlePlaceTurretResult);
+      connection.reducers.removeOnPlaceExplosive(handlePlaceExplosiveResult);
+
+      if (connection.reducers.removeOnPickupDroppedItem) connection.reducers.removeOnPickupDroppedItem(handlePickupDroppedItemResult);
+      if (connection.reducers.removeOnInteractDoor) connection.reducers.removeOnInteractDoor(handleInteractDoorResult);
+      if (connection.reducers.removeOnInteractWithCairn) connection.reducers.removeOnInteractWithCairn(handleInteractWithCairnResult);
+      if (connection.reducers.removeOnMilkAnimal) connection.reducers.removeOnMilkAnimal(handleMilkAnimalResult);
+      if (connection.reducers.removeOnCastFishingLine) connection.reducers.removeOnCastFishingLine(handleCastFishingLineResult);
+      if (connection.reducers.removeOnFinishFishing) connection.reducers.removeOnFinishFishing(handleFinishFishingResult);
     };
   }, [connection, showError]);
 
@@ -3926,7 +4017,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     const placementWarningResult = renderPlacementPreview({
       ctx, placementInfo, buildingState, itemImagesRef, shelterImageRef, worldMouseX: currentWorldMouseX,
-      worldMouseY: currentWorldMouseY, isPlacementTooFar: isPlacementTooFarValue, placementError, connection,
+      worldMouseY: currentWorldMouseY, isPlacementTooFar: isPlacementTooFarValue, placementError,
+      onClearPlacementError: placementActions.clearPlacementError,
+      connection,
       doodadImagesRef,
       worldScale: 1,
       viewOffsetX: -currentCameraOffsetX,
@@ -4107,6 +4200,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         woodenStorageBoxes,
         barbecues,
         furnaces,
+        campfires,
+        sleepingBags,
+        stashes,
         trees,
         stones,
         wildAnimals,

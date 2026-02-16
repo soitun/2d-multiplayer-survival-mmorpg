@@ -1,5 +1,6 @@
 import { AnimalCorpse as SpacetimeDBAnimalCorpse } from '../../generated';
 import { imageManager } from './imageManager';
+import { calculateShakeOffsets } from './shadowUtils';
 
 // Import legacy 3x3 sprite sheets (CableViper only - no release spritesheet)
 import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
@@ -56,6 +57,18 @@ const CORPSE_DIRECTION_4X4 = 0; // Down-facing (row 0)
 // Animal corpse dimensions and rendering constants
 export const ANIMAL_CORPSE_HEIGHT = 96; // Height for interaction indicators
 export const ANIMAL_CORPSE_COLLISION_RADIUS = 16; // From server-side constant
+
+// --- Client-side animation tracking for animal corpse shakes (optimistic) ---
+const clientAnimalCorpseShakeStartTimes = new Map<string, number>();
+const lastKnownServerAnimalCorpseShakeTimes = new Map<string, number>();
+
+const SHAKE_DURATION_MS = 200;
+const SHAKE_INTENSITY_PX = 6;
+
+/** Trigger animal corpse shake immediately (optimistic feedback) when player initiates a hit. */
+export function triggerAnimalCorpseShakeOptimistic(corpseId: string): void {
+  clientAnimalCorpseShakeStartTimes.set(corpseId, Date.now());
+}
 
 // Map species to their sprite sheets
 // Animals using 4x4 release pattern: Most animals (fox, wolf, walrus, tern, wolverine, caribou, shark, crow, alpine animals, BeachCrab, Vole)
@@ -196,27 +209,20 @@ export const renderAnimalCorpse = (
 
   ctx.save();
 
-  // Calculate shaking offset if corpse was recently damaged
-  let shakeX = 0;
-  let shakeY = 0;
-  
-  // Check if corpse was damaged recently (within last 200ms)
-  // Handle both timestamp property names for compatibility
-  const SHAKE_DURATION_MS = 200;
-  if (corpse.lastHitTime) {
-    const lastHitTimeMs = Number(
-      (corpse.lastHitTime as any).microsSinceUnixEpoch || 
-      (corpse.lastHitTime as any).__timestamp_micros_since_unix_epoch__ || 
-      0n
-    ) / 1000;
-    const timeSinceLastDamage = currentTime - lastHitTimeMs;
-    
-    if (timeSinceLastDamage >= 0 && timeSinceLastDamage < SHAKE_DURATION_MS) {
-      const shakeIntensity = Math.max(0, 3 - (timeSinceLastDamage / SHAKE_DURATION_MS) * 3);
-      shakeX = (Math.random() - 0.5) * shakeIntensity * 2;
-      shakeY = (Math.random() - 0.5) * shakeIntensity * 2;
-    }
-  }
+  // Use calculateShakeOffsets for server + optimistic shake (consistent with barrels/trees)
+  const entityWithLastHit = { lastHitTime: corpse.lastHitTime ?? null };
+  const { shakeOffsetX: shakeX, shakeOffsetY: shakeY } = calculateShakeOffsets(
+    entityWithLastHit,
+    corpse.id.toString(),
+    {
+      clientStartTimes: clientAnimalCorpseShakeStartTimes,
+      lastKnownServerTimes: lastKnownServerAnimalCorpseShakeTimes
+    },
+    SHAKE_DURATION_MS,
+    SHAKE_INTENSITY_PX,
+    undefined,
+    { suppressRestartIfRecentClientShake: true }
+  );
 
   // Move to corpse position with shake offset
   ctx.translate(screenX + shakeX, screenY + shakeY);

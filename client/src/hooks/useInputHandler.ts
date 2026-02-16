@@ -43,6 +43,14 @@ import { Cairn as SpacetimeDBCairn } from '../generated';
 import { createCairnLoreAudio, isCairnAudioPlaying, getTotalCairnLoreCount, stopCairnLoreAudio } from '../utils/cairnAudioUtils';
 import { CairnNotification } from '../components/CairnUnlockNotification';
 import { registerLocalPlayerSwing } from '../utils/renderers/equippedItemRenderingUtils';
+import { triggerTreeShakeOptimistic } from '../utils/renderers/treeRenderingUtils';
+import { triggerStoneShakeOptimistic, getStoneOreType } from '../utils/renderers/stoneRenderingUtils';
+import { triggerCoralShakeOptimistic } from '../utils/renderers/livingCoralRenderingUtils';
+import { triggerBarrelShakeOptimistic } from '../utils/renderers/barrelRenderingUtils';
+import { triggerAnimalCorpseShakeOptimistic } from '../utils/renderers/animalCorpseRenderingUtils';
+import { triggerPlayerCorpseShakeOptimistic } from '../utils/renderers/playerCorpseRenderingUtils';
+import { triggerPlayerShakeOptimistic } from '../utils/renderers/playerRenderingUtils';
+import { triggerAnimalShakeOptimistic } from '../utils/renderers/wildAnimalRenderingUtils';
 
 // Ensure HOLD_INTERACTION_DURATION_MS is defined locally if not already present
 // If it was already defined (e.g., as `const HOLD_INTERACTION_DURATION_MS = 250;`), this won't change it.
@@ -51,6 +59,11 @@ export const REVIVE_HOLD_DURATION_MS = 3000; // 3 seconds for reviving knocked o
 
 // --- Constants (Copied from GameCanvas) ---
 const SWING_COOLDOWN_MS = 500;
+const PLAYER_RADIUS = 32;
+const TREE_COLLISION_Y_OFFSET = 60; // Match server tree.rs
+const OPTIMISTIC_AXE_RANGE = PLAYER_RADIUS * 4.5; // ~144px - match server active_equipment.rs
+const OPTIMISTIC_PICK_RANGE = PLAYER_RADIUS * 4.5; // ~144px
+const OPTIMISTIC_SPEAR_RANGE = PLAYER_RADIUS * 8; // ~256px - spears have longest reach
 
 // Define a comprehensive props interface for the hook
 interface InputHandlerProps {
@@ -74,7 +87,13 @@ interface InputHandlerProps {
     // UNIFIED INTERACTION TARGET - replaces all individual closestInteractable* props
     closestInteractableTarget: InteractableTarget | null;
     
-    // Essential entity maps for validation and data lookup
+    // Essential entity maps for validation and data lookup (for optimistic shake on hit)
+    trees?: Map<string, { id: bigint; posX: number; posY: number; health?: number }>;
+    stones?: Map<string, { id: bigint; posX: number; posY: number; health?: number; oreType?: { tag?: string } | unknown }>;
+    livingCorals?: Map<string, { id: bigint; posX: number; posY: number }>;
+    barrels?: Map<string, { id: bigint; posX: number; posY: number; health?: number }>;
+    animalCorpses?: Map<string, { id: number; posX: number; posY: number; health?: number }>;
+    wildAnimals?: Map<string, { id: bigint; posX: number; posY: number; health?: number }>;
     woodenStorageBoxes: Map<string, WoodenStorageBox>;
     stashes: Map<string, Stash>;
     players: Map<string, Player>;
@@ -128,6 +147,25 @@ interface InteractionProgressState {
     startTime: number;
 }
 
+/** Check if target (tx, ty) is in player's attack cone. Matches server combat::find_targets_in_cone. */
+function isInAttackCone(
+  playerX: number, playerY: number, playerDir: string,
+  targetX: number, targetY: number, targetYOffset: number,
+  attackRange: number, attackAngleDeg: number
+): { inCone: boolean; distSq: number } {
+  const dx = targetX - playerX;
+  const ty = targetY - targetYOffset;
+  const dy = ty - playerY;
+  const distSq = dx * dx + dy * dy;
+  if (distSq >= attackRange * attackRange || distSq <= 0) return { inCone: false, distSq };
+  const { dx: fwdX, dy: fwdY } = getDirectionVector(playerDir);
+  const dist = Math.sqrt(distSq);
+  const dot = (fwdX * dx + fwdY * dy) / dist;
+  const angleRad = Math.acos(Math.max(-1, Math.min(1, dot)));
+  const halfAngleRad = (attackAngleDeg * Math.PI / 180) / 2;
+  return { inCone: angleRad <= halfAngleRad, distSq };
+}
+
 // Helper function to convert direction string to vector
 const getDirectionVector = (direction: string): { dx: number; dy: number } => {
     switch (direction) {
@@ -167,6 +205,12 @@ export const useInputHandler = ({
     closestInteractableTarget,
     
     // Essential entity maps for validation
+    trees,
+    stones,
+    livingCorals,
+    barrels,
+    animalCorpses,
+    wildAnimals,
     woodenStorageBoxes,
     stashes,
     players,
@@ -235,6 +279,13 @@ export const useInputHandler = ({
     const closestTargetRef = useLatest(closestInteractableTarget);
     const onSetInteractingWithRef = useLatest(onSetInteractingWith);
     const worldMousePosRefInternal = useLatest(worldMousePos); // Shadow prop name
+    const treesRef = useLatest(trees);
+    const stonesRef = useLatest(stones);
+    const livingCoralsRef = useLatest(livingCorals);
+    const barrelsRef = useLatest(barrels);
+    const animalCorpsesRef = useLatest(animalCorpses);
+    const playerCorpsesRef = useLatest(playerCorpses);
+    const wildAnimalsRef = useLatest(wildAnimals);
     const woodenStorageBoxesRef = useLatest(woodenStorageBoxes);
     const stashesRef = useLatest(stashes);
     const playersRef = useLatest(players);
@@ -588,10 +639,76 @@ export const useInputHandler = ({
                     itemDef.name.toLowerCase().includes('pickaxe') ||
                     itemDef.name.toLowerCase().includes('pick')
                 );
-                
                 if (!isResourceTool) {
-                    // Play immediate sound for combat weapons and other tools
                     // playWeaponSwingSound(0.8);
+                }
+                // Optimistic shake: any melee weapon can damage trees/stones/corals - find closest in attack cone
+                const player = localPlayerRef.current;
+                if (player) {
+                    const px = predictedPositionRef.current?.x ?? player.positionX;
+                    const py = predictedPositionRef.current?.y ?? player.positionY;
+                    const dir = player.direction ?? 'down';
+                    let best: { d2: number; trigger: () => void } | null = null;
+                    const attackAngle = 90;
+                    const attackRange = OPTIMISTIC_AXE_RANGE; // Default melee range
+                    // Trees - any weapon can hit
+                    treesRef.current?.forEach((tree) => {
+                        if (tree.health === 0) return;
+                        const { inCone, distSq } = isInAttackCone(px, py, dir, tree.posX, tree.posY, TREE_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerTreeShakeOptimistic(tree.id.toString(), tree.posX, tree.posY) };
+                    });
+                    // Stones - any weapon can hit
+                    const STONE_COLLISION_Y_OFFSET = 50;
+                    stonesRef.current?.forEach((stone) => {
+                        if (stone.health === 0) return;
+                        const { inCone, distSq } = isInAttackCone(px, py, dir, stone.posX, stone.posY, STONE_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerStoneShakeOptimistic(stone.id.toString(), stone.posX, stone.posY, getStoneOreType(stone as any)) };
+                    });
+                    // Corals - only when snorkeling (underwater)
+                    if (player.isSnorkeling) {
+                        const CORAL_COLLISION_Y_OFFSET = 60;
+                        livingCoralsRef.current?.forEach((coral) => {
+                            const { inCone, distSq } = isInAttackCone(px, py, dir, coral.posX, coral.posY, CORAL_COLLISION_Y_OFFSET, OPTIMISTIC_SPEAR_RANGE, 60);
+                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerCoralShakeOptimistic(coral.id.toString(), coral.posX, coral.posY, Number(coral.id) % 4) };
+                        });
+                    }
+                    // Barrels - any weapon can hit
+                    const BARREL_COLLISION_Y_OFFSET = 48;
+                    barrelsRef.current?.forEach((barrel) => {
+                        if (barrel.health === 0) return;
+                        const { inCone, distSq } = isInAttackCone(px, py, dir, barrel.posX, barrel.posY, BARREL_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerBarrelShakeOptimistic(barrel.id.toString()) };
+                    });
+                    // Animal corpses - any weapon can hit
+                    const ANIMAL_CORPSE_COLLISION_Y_OFFSET = 8;
+                    animalCorpsesRef.current?.forEach((corpse) => {
+                        if (corpse.health === 0) return;
+                        const { inCone, distSq } = isInAttackCone(px, py, dir, corpse.posX, corpse.posY, ANIMAL_CORPSE_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerAnimalCorpseShakeOptimistic(corpse.id.toString()) };
+                    });
+                    // Player corpses - any weapon can hit
+                    const PLAYER_CORPSE_COLLISION_Y_OFFSET = 10;
+                    playerCorpsesRef.current?.forEach((corpse) => {
+                        if (corpse.health === 0) return;
+                        const { inCone, distSq } = isInAttackCone(px, py, dir, corpse.posX, corpse.posY, PLAYER_CORPSE_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerPlayerCorpseShakeOptimistic(corpse.id.toString()) };
+                    });
+                    // Other players (PvP) - exclude local player
+                    const PLAYER_COLLISION_Y_OFFSET = 0;
+                    playersRef.current?.forEach((p) => {
+                        if (p.identity.toHexString() === localPlayerId) return;
+                        if (p.isDead) return;
+                        const { inCone, distSq } = isInAttackCone(px, py, dir, p.positionX, p.positionY, PLAYER_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerPlayerShakeOptimistic(p.identity.toHexString()) };
+                    });
+                    // Wild animals
+                    const WILD_ANIMAL_COLLISION_Y_OFFSET = 40;
+                    wildAnimalsRef.current?.forEach((animal) => {
+                        if (animal.health === 0) return;
+                        const { inCone, distSq } = isInAttackCone(px, py, dir, animal.posX, animal.posY, WILD_ANIMAL_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerAnimalShakeOptimistic(animal.id.toString()) };
+                    });
+                    (best as { trigger: () => void } | null)?.trigger();
                 }
                 connectionRef.current.reducers.useEquippedItem();
                 lastClientSwingAttemptRef.current = now;
@@ -1872,10 +1989,68 @@ export const useInputHandler = ({
                         itemDef.name.toLowerCase().includes('pickaxe') ||
                         itemDef.name.toLowerCase().includes('pick')
                     );
-                    
                     if (!isResourceTool) {
-                        // Play immediate sound for combat weapons and other tools
                         // playWeaponSwingSound(0.8);
+                    }
+                    // Optimistic shake: any melee weapon can damage trees/stones/corals
+                    const clickPlayer = localPlayerRef.current;
+                    if (clickPlayer) {
+                        const px = predictedPositionRef.current?.x ?? clickPlayer.positionX;
+                        const py = predictedPositionRef.current?.y ?? clickPlayer.positionY;
+                        const dir = clickPlayer.direction ?? 'down';
+                        let best: { d2: number; trigger: () => void } | null = null;
+                        const attackAngle = 90;
+                        const attackRange = OPTIMISTIC_AXE_RANGE;
+                        treesRef.current?.forEach((tree) => {
+                            if (tree.health === 0) return;
+                            const { inCone, distSq } = isInAttackCone(px, py, dir, tree.posX, tree.posY, TREE_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerTreeShakeOptimistic(tree.id.toString(), tree.posX, tree.posY) };
+                        });
+                        const STONE_COLLISION_Y_OFFSET = 50;
+                        stonesRef.current?.forEach((stone) => {
+                            if (stone.health === 0) return;
+                            const { inCone, distSq } = isInAttackCone(px, py, dir, stone.posX, stone.posY, STONE_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerStoneShakeOptimistic(stone.id.toString(), stone.posX, stone.posY, getStoneOreType(stone as any)) };
+                        });
+                        if (clickPlayer.isSnorkeling) {
+                            const CORAL_COLLISION_Y_OFFSET = 60;
+                            livingCoralsRef.current?.forEach((coral) => {
+                                const { inCone, distSq } = isInAttackCone(px, py, dir, coral.posX, coral.posY, CORAL_COLLISION_Y_OFFSET, OPTIMISTIC_SPEAR_RANGE, 60);
+                                if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerCoralShakeOptimistic(coral.id.toString(), coral.posX, coral.posY, Number(coral.id) % 4) };
+                            });
+                        }
+                        const BARREL_COLLISION_Y_OFFSET = 48;
+                        barrelsRef.current?.forEach((barrel) => {
+                            if (barrel.health === 0) return;
+                            const { inCone, distSq } = isInAttackCone(px, py, dir, barrel.posX, barrel.posY, BARREL_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerBarrelShakeOptimistic(barrel.id.toString()) };
+                        });
+                        const ANIMAL_CORPSE_COLLISION_Y_OFFSET = 8;
+                        animalCorpsesRef.current?.forEach((corpse) => {
+                            if (corpse.health === 0) return;
+                            const { inCone, distSq } = isInAttackCone(px, py, dir, corpse.posX, corpse.posY, ANIMAL_CORPSE_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerAnimalCorpseShakeOptimistic(corpse.id.toString()) };
+                        });
+                        const PLAYER_CORPSE_COLLISION_Y_OFFSET = 10;
+                        playerCorpsesRef.current?.forEach((corpse) => {
+                            if (corpse.health === 0) return;
+                            const { inCone, distSq } = isInAttackCone(px, py, dir, corpse.posX, corpse.posY, PLAYER_CORPSE_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerPlayerCorpseShakeOptimistic(corpse.id.toString()) };
+                        });
+                        const PLAYER_COLLISION_Y_OFFSET = 0;
+                        playersRef.current?.forEach((p) => {
+                            if (p.identity.toHexString() === localPlayerId) return;
+                            if (p.isDead) return;
+                            const { inCone, distSq } = isInAttackCone(px, py, dir, p.positionX, p.positionY, PLAYER_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerPlayerShakeOptimistic(p.identity.toHexString()) };
+                        });
+                        const WILD_ANIMAL_COLLISION_Y_OFFSET = 40;
+                        wildAnimalsRef.current?.forEach((animal) => {
+                            if (animal.health === 0) return;
+                            const { inCone, distSq } = isInAttackCone(px, py, dir, animal.posX, animal.posY, WILD_ANIMAL_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerAnimalShakeOptimistic(animal.id.toString()) };
+                        });
+                        (best as { trigger: () => void } | null)?.trigger();
                     }
                     connectionRef.current.reducers.useEquippedItem();
                     lastClientSwingAttemptRef.current = now;

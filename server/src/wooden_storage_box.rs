@@ -881,7 +881,8 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
     }) {
         return Err("Too close to another structure.".to_string());
     }
-    // Add other collision checks as needed (e.g., with players, other entities)
+
+    crate::placeable_collision::check_placeable_overlap(ctx, world_x, world_y, new_box_radius, new_box_radius)?;
 
     // 4. Create the WoodenStorageBox entity
     // Determine health based on box type

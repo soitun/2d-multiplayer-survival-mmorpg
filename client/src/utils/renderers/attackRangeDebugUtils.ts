@@ -9,7 +9,7 @@
  * - Color-coded indicators (green = in range, yellow = spear range, red = out of range)
  */
 
-import { Player, WoodenStorageBox, Barbecue, Furnace, Tree, Stone, WildAnimal, Barrel, Grass, ItemDefinition as SpacetimeDBItemDefinition } from '../../generated';
+import { Player, WoodenStorageBox, Barbecue, Furnace, Tree, Stone, WildAnimal, Barrel, Grass, Campfire, SleepingBag, Stash, ItemDefinition as SpacetimeDBItemDefinition } from '../../generated';
 import { InterpolatedGrassData } from '../../hooks/useGrassInterpolation'; // Merged grass+grassState data
 import { PLAYER_RADIUS } from '../clientCollision';
 
@@ -24,8 +24,10 @@ export const SCYTHE_ATTACK_RANGE = PLAYER_RADIUS * 7.0;  // ~224px - scythe swee
 export const DEFAULT_ATTACK_ARC_DEGREES = 90; // Standard 90° arc
 export const SCYTHE_ATTACK_ARC_DEGREES = 150; // Scythe's massive 150° arc
 
-// Server-side collision offsets (from server/src/wooden_storage_box.rs, combat.rs)
+// Server-side collision offsets (from server combat.rs, campfire.rs, sleeping_bag.rs)
 const SERVER_BOX_Y_OFFSET = 52; // BOX_COLLISION_Y_OFFSET
+const CAMPFIRE_VISUAL_CENTER_Y_OFFSET = 42; // (CAMPFIRE_HEIGHT/2) + CAMPFIRE_RENDER_Y_OFFSET
+const SLEEPING_BAG_COLLISION_Y_OFFSET = 5; // Low profile
 
 // Max distance to render attack lines (performance optimization)
 const MAX_RENDER_DISTANCE = 400;
@@ -35,6 +37,9 @@ export interface AttackRangeDebugEntities {
   woodenStorageBoxes?: Map<string, WoodenStorageBox>;
   barbecues?: Map<string, Barbecue>;
   furnaces?: Map<string, Furnace>;
+  campfires?: Map<string, Campfire>;
+  sleepingBags?: Map<string, SleepingBag>;
+  stashes?: Map<string, Stash>;
   trees?: Map<string, Tree>;
   stones?: Map<string, Stone>;
   wildAnimals?: Map<string, WildAnimal>;
@@ -261,7 +266,7 @@ export function renderAttackRangeDebug(
   entities: AttackRangeDebugEntities
 ): void {
   const { playerX, playerY, facingDirection, localPlayerId, equippedItemDef } = options;
-  const { woodenStorageBoxes, barbecues, furnaces, trees, stones, wildAnimals, players, barrels, grass } = entities;
+  const { woodenStorageBoxes, barbecues, furnaces, campfires, sleepingBags, stashes, trees, stones, wildAnimals, players, barrels, grass } = entities;
 
   // Only render if an item is equipped
   if (!equippedItemDef) {
@@ -307,6 +312,32 @@ export function renderAttackRangeDebug(
       if (furnace.isDestroyed) return;
       const targetY = furnace.posY - SERVER_BOX_Y_OFFSET;
       drawAttackLine(ctx, playerX, playerY, furnace.posX, targetY, equippedRange, facingAngle, equippedHalfArc);
+    });
+  }
+
+  // Draw attack lines to campfires (server uses visual center for targeting)
+  if (campfires) {
+    campfires.forEach((campfire) => {
+      if (campfire.isDestroyed) return;
+      const targetY = campfire.posY - CAMPFIRE_VISUAL_CENTER_Y_OFFSET;
+      drawAttackLine(ctx, playerX, playerY, campfire.posX, targetY, equippedRange, facingAngle, equippedHalfArc);
+    });
+  }
+
+  // Draw attack lines to sleeping bags
+  if (sleepingBags) {
+    sleepingBags.forEach((bag) => {
+      if (bag.isDestroyed) return;
+      const targetY = bag.posY - SLEEPING_BAG_COLLISION_Y_OFFSET;
+      drawAttackLine(ctx, playerX, playerY, bag.posX, targetY, equippedRange, facingAngle, equippedHalfArc);
+    });
+  }
+
+  // Draw attack lines to stashes (server uses pos directly, no Y offset)
+  if (stashes) {
+    stashes.forEach((stash) => {
+      if (stash.isDestroyed || stash.isHidden) return;
+      drawAttackLine(ctx, playerX, playerY, stash.posX, stash.posY, equippedRange, facingAngle, equippedHalfArc);
     });
   }
 

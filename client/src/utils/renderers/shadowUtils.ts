@@ -514,6 +514,12 @@ export function drawDynamicGroundShadow({
   ctx.restore();
 } 
 
+/** Options for shake offset calculation. */
+export interface CalculateShakeOffsetsOptions {
+  /** When true, don't restart shake when server confirms if we recently had an optimistic shake (trees/stones/corals). When false/undefined, always restart on new server hit (barrels). */
+  suppressRestartIfRecentClientShake?: boolean;
+}
+
 /**
  * Helper function to calculate shake offsets for shadow synchronization.
  * This reduces code duplication across all object rendering utilities.
@@ -523,6 +529,7 @@ export function drawDynamicGroundShadow({
  * @param shakeDurationMs Duration of the shake effect in milliseconds
  * @param shakeIntensityPx Maximum shake intensity in pixels
  * @param onNewShake Optional callback when a NEW shake is detected (useful for triggering hit particles)
+ * @param options Optional: suppressRestartIfRecentClientShake - only for entities with optimistic shake (trees/stones/corals)
  * @returns Object with shakeOffsetX and shakeOffsetY values
  */
 export function calculateShakeOffsets(
@@ -534,33 +541,41 @@ export function calculateShakeOffsets(
   },
   shakeDurationMs: number = 300,
   shakeIntensityPx: number = 6,
-  onNewShake?: () => void
+  onNewShake?: () => void,
+  options?: CalculateShakeOffsetsOptions
 ): { shakeOffsetX: number; shakeOffsetY: number } {
   let shakeOffsetX = 0;
   let shakeOffsetY = 0;
 
+  const now = Date.now();
+  const clientStartTime = shakeTrackingMaps.clientStartTimes.get(entityId);
+  const hasActiveClientShake = clientStartTime !== undefined && (now - clientStartTime < shakeDurationMs);
+
   if (entity.lastHitTime) {
     const serverShakeTime = Number(entity.lastHitTime.microsSinceUnixEpoch / 1000n);
-    
+
     // Check if this is a NEW shake by comparing server timestamps
     const lastKnownServerTime = shakeTrackingMaps.lastKnownServerTimes.get(entityId) || 0;
-    
+
     if (serverShakeTime !== lastKnownServerTime) {
-      // NEW shake detected! Record both server time and client time
+      // NEW shake from server - don't restart if we already showed it (optimistic case)
+      const alreadyShaking = clientStartTime && (now - clientStartTime < shakeDurationMs);
+      // Only suppress restart for entities that use optimistic shake (trees/stones/corals)
+      // Barrels don't use optimistic - they get shake from server only, so we always restart
+      const RECENT_OPTIMISTIC_WINDOW_MS = 2000; // Cover round-trip latency
+      const recentlyHadOptimisticShake = options?.suppressRestartIfRecentClientShake && clientStartTime && (now - clientStartTime < RECENT_OPTIMISTIC_WINDOW_MS);
       shakeTrackingMaps.lastKnownServerTimes.set(entityId, serverShakeTime);
-      shakeTrackingMaps.clientStartTimes.set(entityId, Date.now());
-      
-      // Trigger callback if provided (e.g., to spawn hit particles)
-      if (onNewShake) {
-        onNewShake();
+      if (!alreadyShaking && !recentlyHadOptimisticShake) {
+        shakeTrackingMaps.clientStartTimes.set(entityId, now);
+        if (onNewShake) onNewShake();
       }
     }
-    
+
     // Calculate animation based on client time
-    const clientStartTime = shakeTrackingMaps.clientStartTimes.get(entityId);
-    if (clientStartTime) {
-      const elapsedSinceShake = Date.now() - clientStartTime;
-      
+    const effectiveStartTime = shakeTrackingMaps.clientStartTimes.get(entityId);
+    if (effectiveStartTime) {
+      const elapsedSinceShake = now - effectiveStartTime;
+
       if (elapsedSinceShake >= 0 && elapsedSinceShake < shakeDurationMs) {
         const shakeFactor = 1.0 - (elapsedSinceShake / shakeDurationMs);
         const currentShakeIntensity = shakeIntensityPx * shakeFactor;
@@ -568,8 +583,17 @@ export function calculateShakeOffsets(
         shakeOffsetY = (Math.random() - 0.5) * 2 * currentShakeIntensity;
       }
     }
+  } else if (hasActiveClientShake && clientStartTime !== undefined) {
+    // Optimistic shake: no server lastHitTime yet, but client triggered shake (e.g. tree/stone/coral hit)
+    const elapsedSinceShake = now - clientStartTime;
+    if (elapsedSinceShake >= 0 && elapsedSinceShake < shakeDurationMs) {
+      const shakeFactor = 1.0 - (elapsedSinceShake / shakeDurationMs);
+      const currentShakeIntensity = shakeIntensityPx * shakeFactor;
+      shakeOffsetX = (Math.random() - 0.5) * 2 * currentShakeIntensity;
+      shakeOffsetY = (Math.random() - 0.5) * 2 * currentShakeIntensity;
+    }
   } else {
-    // Clean up tracking when entity is not being hit
+    // Clean up tracking when entity is not being hit and no active client shake
     shakeTrackingMaps.clientStartTimes.delete(entityId);
     shakeTrackingMaps.lastKnownServerTimes.delete(entityId);
   }

@@ -54,7 +54,7 @@ use crate::dropped_item;
 use crate::player_corpse::{PlayerCorpse, PlayerCorpseDespawnSchedule, NUM_CORPSE_SLOTS, create_player_corpse, player_corpse as PlayerCorpseTableTrait, player_corpse_despawn_schedule as PlayerCorpseDespawnScheduleTableTrait};
 use crate::inventory_management::ItemContainer;
 use crate::environment::calculate_chunk_index;
-use crate::campfire::{Campfire, CAMPFIRE_COLLISION_RADIUS, CAMPFIRE_COLLISION_Y_OFFSET, campfire as CampfireTableTrait};
+use crate::campfire::{Campfire, campfire as CampfireTableTrait};
 use crate::lantern::{Lantern, lantern as LanternTableTrait};
 use crate::turret::{Turret, turret as TurretTableTrait, NUM_AMMO_SLOTS};
 use crate::stash::{Stash, stash as StashTableTrait};
@@ -455,9 +455,11 @@ pub fn find_targets_in_cone(
         let dy = target_y - player.position_y;
         let dist_sq = dx * dx + dy * dy;
 
-        // Use smaller radius for campfire targeting (campfires are smaller objects)
-        let campfire_target_range = (CAMPFIRE_COLLISION_RADIUS + 30.0).min(attack_range); // Max 50px targeting range
-        if dist_sq < (campfire_target_range * campfire_target_range) && dist_sq > 0.0 {
+        // Campfire gets +24px range buffer: client attack debug uses predicted position, server uses
+        // authoritative position. Small desync makes server reject hits that look in-range on client.
+        const CAMPFIRE_RANGE_BUFFER: f32 = 24.0;
+        let effective_range = attack_range + CAMPFIRE_RANGE_BUFFER;
+        if dist_sq < (effective_range * effective_range) && dist_sq > 0.0 {
             let distance = dist_sq.sqrt();
             let target_vec_x = dx / distance;
             let target_vec_y = dy / distance;
@@ -3284,12 +3286,12 @@ pub fn damage_campfire(
         attacker_id, campfire_id, damage, old_health, campfire.health
     );
 
-    // Play hit sound for all hits
-    sound_events::emit_barrel_hit_sound(ctx, campfire.pos_x, campfire.pos_y, attacker_id);
+    // Play hit sound - same as barrel4.png (wooden crate) for logs/sticks feel
+    sound_events::emit_wood_hit_sound(ctx, campfire.pos_x, campfire.pos_y, attacker_id);
 
     if campfire.health <= 0.0 {
-        // Play destroyed sound
-        sound_events::emit_barrel_destroyed_sound(ctx, campfire.pos_x, campfire.pos_y, attacker_id);
+        // Play destroyed sound - same as barrel4.png
+        sound_events::emit_box_destroyed_sound(ctx, campfire.pos_x, campfire.pos_y, attacker_id);
         campfire.is_destroyed = true;
         campfire.destroyed_at = Some(timestamp);
         
@@ -3606,12 +3608,12 @@ pub fn damage_stash(
         attacker_id, stash_id, damage, old_health, stash.health
     );
 
-    // Play hit sound for all hits
-    sound_events::emit_barrel_hit_sound(ctx, stash.pos_x, stash.pos_y, attacker_id);
+    // Play hit sound - same as barrel5.png (marine debris/trash pile) for cloth/buried stash feel
+    sound_events::emit_trash_hit_sound(ctx, stash.pos_x, stash.pos_y, attacker_id);
 
     if stash.health <= 0.0 {
-        // Play destroyed sound
-        sound_events::emit_barrel_destroyed_sound(ctx, stash.pos_x, stash.pos_y, attacker_id);
+        // Play destroyed sound - same as barrel5.png
+        sound_events::emit_box_destroyed_sound(ctx, stash.pos_x, stash.pos_y, attacker_id);
         stash.is_destroyed = true;
         stash.destroyed_at = Some(timestamp);
 
@@ -3704,12 +3706,12 @@ pub fn damage_sleeping_bag(
         attacker_id, bag_id, damage, old_health, bag.health
     );
 
-    // Play hit sound for all hits
-    sound_events::emit_barrel_hit_sound(ctx, bag.pos_x, bag.pos_y, attacker_id);
+    // Play hit sound - same as barrel5.png (marine debris) for cloth/fabric feel
+    sound_events::emit_trash_hit_sound(ctx, bag.pos_x, bag.pos_y, attacker_id);
 
     if bag.health <= 0.0 {
-        // Play destroyed sound
-        sound_events::emit_barrel_destroyed_sound(ctx, bag.pos_x, bag.pos_y, attacker_id);
+        // Play destroyed sound - same as barrel5.png (marine debris) for cloth/fabric feel
+        sound_events::emit_box_destroyed_sound(ctx, bag.pos_x, bag.pos_y, attacker_id);
         bag.is_destroyed = true;
         bag.destroyed_at = Some(timestamp);
         

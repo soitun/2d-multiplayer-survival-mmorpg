@@ -13,6 +13,7 @@ import {
   BOX_TYPE_REPAIR_BENCH,
   BOX_TYPE_COMPOST,
   BOX_TYPE_FISH_TRAP,
+  BOX_TYPE_MILITARY_RATION,
   BOX_RENDER_Y_OFFSET,
   MONUMENT_COOKING_STATION_WIDTH,
   MONUMENT_COOKING_STATION_HEIGHT,
@@ -66,6 +67,7 @@ export function renderHealthBarOverlay(params: HealthBarOverlayParams): void {
     } else if (type === 'wooden_storage_box') {
       const box = entity as any;
       if (box.isDestroyed) return;
+      if (box.boxType === BOX_TYPE_MILITARY_RATION) return; // No health bar for military ration
       const isCompoundBldg = isCompoundMonument(box.isMonument, box.posX, box.posY);
       if (isCompoundBldg && (box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_REPAIR_BENCH || box.boxType === BOX_TYPE_COMPOST)) {
         const w = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_WIDTH : box.boxType === BOX_TYPE_COMPOST ? MONUMENT_COMPOST_WIDTH : MONUMENT_REPAIR_BENCH_WIDTH;

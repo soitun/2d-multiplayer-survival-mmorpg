@@ -121,6 +121,7 @@ interface EntityFilteringResult {
   visibleStashesMap: Map<string, SpacetimeDBStash>;
   visibleSleepingBagsMap: Map<string, SpacetimeDBSleepingBag>;
   visibleTreesMap: Map<string, SpacetimeDBTree>;
+  visibleStonesMap: Map<string, SpacetimeDBStone>;
   visibleRuneStonesMap: Map<string, SpacetimeDBRuneStone>;
   groundItems: (SpacetimeDBSleepingBag)[];
   ySortedEntities: YSortedEntityType[];
@@ -2885,6 +2886,7 @@ export function useEntityFiltering(
     visibleStashesMap,
     visibleSleepingBagsMap,
     visibleTreesMap,
+    visibleStonesMap,
     groundItems,
     ySortedEntities,
     visibleGrass,

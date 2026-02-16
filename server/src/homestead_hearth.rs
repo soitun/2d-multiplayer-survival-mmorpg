@@ -1072,6 +1072,8 @@ pub fn place_homestead_hearth(
         }
     }
 
+    crate::placeable_collision::check_placeable_overlap(ctx, world_x, world_y, 48.0, 48.0)?;
+
     // 4. Find the specific item instance and validate
     let item_to_consume = inventory_items.instance_id().find(item_instance_id)
         .ok_or_else(|| format!("Item instance {} not found.", item_instance_id))?;

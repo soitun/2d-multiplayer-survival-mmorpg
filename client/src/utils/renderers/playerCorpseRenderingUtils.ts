@@ -2,10 +2,20 @@ import { PlayerCorpse as SpacetimeDBPlayerCorpse } from '../../generated/player_
 import { Player as SpacetimeDBPlayer } from '../../generated/player_type';
 import { renderPlayer, IDLE_FRAME_INDEX } from './playerRenderingUtils';
 import { Identity, Timestamp } from 'spacetimedb';
+import { calculateShakeOffsets } from './shadowUtils';
 
 // Constants for shake effect
 const SHAKE_DURATION_MS = 150;     // How long the shake effect lasts
 const SHAKE_INTENSITY_PX = 8;     // Max pixel offset for corpse shake
+
+// --- Client-side animation tracking for player corpse shakes (optimistic) ---
+const clientPlayerCorpseShakeStartTimes = new Map<string, number>();
+const lastKnownServerPlayerCorpseShakeTimes = new Map<string, number>();
+
+/** Trigger player corpse shake immediately (optimistic feedback) when player initiates a hit. */
+export function triggerPlayerCorpseShakeOptimistic(corpseId: string): void {
+  clientPlayerCorpseShakeStartTimes.set(corpseId, Date.now());
+}
 
 interface RenderPlayerCorpseProps {
   ctx: CanvasRenderingContext2D;
@@ -68,28 +78,23 @@ export function renderPlayerCorpse({
   // Default timestamp for mock player fields that require a Timestamp value
   const defaultTimestamp: Timestamp = { __timestamp_micros_since_unix_epoch__: 0n } as Timestamp;
 
-  let renderPosX = corpse.posX;
-  let renderPosY = corpse.posY;
+  // 2. Shake Effect - use calculateShakeOffsets for server + optimistic shake
+  const entityWithLastHit = { lastHitTime: corpse.lastHitTime ?? null };
+  const { shakeOffsetX, shakeOffsetY } = calculateShakeOffsets(
+    entityWithLastHit,
+    corpse.id.toString(),
+    {
+      clientStartTimes: clientPlayerCorpseShakeStartTimes,
+      lastKnownServerTimes: lastKnownServerPlayerCorpseShakeTimes
+    },
+    SHAKE_DURATION_MS,
+    SHAKE_INTENSITY_PX,
+    undefined,
+    { suppressRestartIfRecentClientShake: true }
+  );
 
-  // 2. Shake Effect
-  // Handle both timestamp property names for compatibility
-  if (corpse.lastHitTime) {
-    const lastHitTimeMs = Number(
-      (corpse.lastHitTime as any).microsSinceUnixEpoch || 
-      (corpse.lastHitTime as any).__timestamp_micros_since_unix_epoch__ || 
-      0n
-    ) / 1000;
-    const elapsedSinceHit = nowMs - lastHitTimeMs;
-
-    if (elapsedSinceHit >= 0 && elapsedSinceHit < SHAKE_DURATION_MS) {
-      const shakeFactor = 1.0 - (elapsedSinceHit / SHAKE_DURATION_MS); 
-      const currentShakeIntensity = SHAKE_INTENSITY_PX * shakeFactor;
-      const shakeOffsetX = (Math.random() - 0.5) * 2 * currentShakeIntensity;
-      const shakeOffsetY = (Math.random() - 0.5) * 2 * currentShakeIntensity;
-      renderPosX += shakeOffsetX;
-      renderPosY += shakeOffsetY;
-    }
-  }
+  let renderPosX = corpse.posX + shakeOffsetX;
+  let renderPosY = corpse.posY + shakeOffsetY;
 
   // For now, we'll assume corpses don't change their water status - they use normal sprite
   // In the future, we could add water detection logic for corpses if needed
@@ -133,6 +138,7 @@ export function renderPlayerCorpse({
     isSnorkeling: false, // Corpses are not snorkeling
     isAimingThrow: false, // Corpses are not aiming throws
     hasSeenMemoryShardTutorial: false, // Corpses don't need tutorials
+    hasSeenMemoryShard200Tutorial: false, // Corpses don't need tutorials
     hasSeenSovaIntro: false, // Corpses don't need tutorials
     hasSeenTutorialHint: false, // Corpses don't need tutorials
     hasSeenHostileEncounterTutorial: false, // Corpses don't need tutorials

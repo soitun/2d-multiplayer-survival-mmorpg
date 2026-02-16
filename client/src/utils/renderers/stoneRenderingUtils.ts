@@ -17,6 +17,14 @@ const VERTEX_SHAKE_SEGMENTS = 6; // Number of vertical segments for vertex-based
 const clientStoneShakeStartTimes = new Map<string, number>(); // stoneId -> client timestamp when shake started
 const lastKnownServerStoneShakeTimes = new Map<string, number>(); // stoneId -> last known server timestamp
 
+/** Trigger stone shake immediately (optimistic feedback) when player initiates a hit. */
+export function triggerStoneShakeOptimistic(stoneId: string, posX: number, posY: number, oreType?: string): void {
+  const now = Date.now();
+  clientStoneShakeStartTimes.set(stoneId, now);
+  lastKnownServerStoneShakeTimes.set(stoneId, now);
+  triggerStoneHitEffect(stoneId, posX, posY, oreType ?? 'Stone');
+}
+
 // ============================================================================
 // STONE DESTRUCTION DEBRIS SYSTEM - AAA Pixel Art Quality
 // ============================================================================
@@ -680,13 +688,14 @@ const stoneConfig: GroundEntityConfig<Stone> = {
             const lastKnownServerTime = lastKnownServerStoneShakeTimes.get(stoneId) || 0;
             
             if (serverShakeTime !== lastKnownServerTime) {
-                // NEW shake detected! Update tracking and trigger hit effect
+                const clientStartTime = clientStoneShakeStartTimes.get(stoneId);
+                const alreadyShaking = clientStartTime && (Date.now() - clientStartTime < SHAKE_DURATION_MS);
                 lastKnownServerStoneShakeTimes.set(stoneId, serverShakeTime);
-                clientStoneShakeStartTimes.set(stoneId, Date.now());
-                
-                // Trigger hit impact particles! (This runs before applyEffects)
-                const oreType = getStoneOreType(entity);
-                triggerStoneHitEffect(stoneId, entity.posX, entity.posY, oreType);
+                if (!alreadyShaking) {
+                    clientStoneShakeStartTimes.set(stoneId, Date.now());
+                    const oreType = getStoneOreType(entity);
+                    triggerStoneHitEffect(stoneId, entity.posX, entity.posY, oreType);
+                }
             }
             
             const clientStartTime = clientStoneShakeStartTimes.get(stoneId);

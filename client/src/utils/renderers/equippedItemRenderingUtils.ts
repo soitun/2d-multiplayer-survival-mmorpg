@@ -149,12 +149,10 @@ const drawMeleeSwipeArc = (
     : params.range;
 
   ctx.beginPath();
-  ctx.moveTo(originX, originY);
   ctx.arc(originX, originY, range, startAngle, endAngle);
-  ctx.closePath();
 
   ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 6;
   ctx.stroke();
 
   ctx.restore();
@@ -176,7 +174,8 @@ export function renderMeleeSwipeArcIfSwinging(
   const isRangedWeapon = ['Hunting Bow', 'Crossbow', 'Reed Harpoon Gun', 'Makarov PM', 'PP-91 KEDR'].includes(itemDef.name ?? '');
   const isMeleeWeapon = itemDef.category?.tag === 'Weapon' && !isRangedWeapon;
   const isSpearItem = ['Wooden Spear', 'Stone Spear', 'Reed Harpoon'].includes(itemDef.name ?? '');
-  if (!isMeleeWeapon && !isSpearItem) return;
+  const isTool = itemDef.category?.tag === 'Tool';
+  if (!isMeleeWeapon && !isSpearItem && !isTool) return;
 
   const swingStartTime = Number(equipment.swingStartTimeMs);
   const playerId = player.identity.toHexString();

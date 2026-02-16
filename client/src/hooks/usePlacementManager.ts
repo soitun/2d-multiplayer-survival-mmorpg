@@ -32,6 +32,7 @@ export interface PlacementActions {
   cancelPlacement: () => void;
   attemptPlacement: (worldX: number, worldY: number, isPlacementTooFar?: boolean) => void;
   setPlacementWarning: (warning: string | null) => void;
+  clearPlacementError: () => void;
 }
 
 /**
@@ -1001,7 +1002,8 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
 
     // Check for distance restriction first
     if (isPlacementTooFar) {
-      // setPlacementError("Too far away");
+      setPlacementError('Placement location is too far away.');
+      playImmediateSound('error_placement_failed', 1.0);
       return; // Don't proceed with placement
     }
 
@@ -1021,13 +1023,13 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
     const { overlaps: isOverlapping } = checkPlacementOverlap(connection, placementInfo, placeX, placeY);
     if (isOverlapping) {
       setPlacementError('Blocked by existing structure');
-      playImmediateSound('construction_placement_error', 1.0);
+      playImmediateSound('error_placement_failed', 1.0);
       return;
     }
 
     // Check for monument zone restriction (use snapped position for grid-snapping items)
     if (isMonumentZonePlacementBlocked(connection, placeX, placeY)) {
-      // setPlacementError("Cannot place in monument zones");
+      setPlacementError('Too close to monument');
       // Play monument-specific error sound based on item type
       if (isSeedItemValid(placementInfo.itemName)) {
         console.log('[PlacementManager] Client-side validation: Cannot plant in protected monument zone, playing planting monument error sound');
@@ -1309,9 +1311,14 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
     }
   }, [connection, placementInfo, checkPlacementItemStillExists, cancelPlacement]); // Dependencies
 
+  // Clear placement error when user moves to a valid location (allows preview to turn blue again)
+  const clearPlacementError = useCallback(() => {
+    setPlacementError(null);
+  }, []);
+
   // Consolidate state and actions for return
   const placementState: PlacementState = { isPlacing, placementInfo, placementError, placementWarning };
-  const placementActions: PlacementActions = { startPlacement, cancelPlacement, attemptPlacement, setPlacementWarning };
+  const placementActions: PlacementActions = { startPlacement, cancelPlacement, attemptPlacement, setPlacementWarning, clearPlacementError };
 
   return [placementState, placementActions];
 };

@@ -399,6 +399,14 @@ interface AnimalHitState {
 
 const animalHitStates = new Map<string, AnimalHitState>();
 
+// --- Optimistic shake: when local player hits an animal, trigger immediately ---
+const clientAnimalShakeStartTimes = new Map<string, number>();
+
+/** Trigger animal shake immediately (optimistic feedback) when local player hits them. */
+export function triggerAnimalShakeOptimistic(animalId: string): void {
+  clientAnimalShakeStartTimes.set(animalId, Date.now());
+}
+
 // --- Burrow effect tracking for visual feedback when animals burrow underground ---
 const BURROW_EFFECT_DURATION_MS = 800; // How long the dirt particles last
 const BURROW_PARTICLE_COUNT = 12; // Number of dirt particles to spawn
@@ -944,13 +952,22 @@ export function renderWildAnimal({
     let isCurrentlyHit = false;
     let hitEffectElapsed = 0;
 
+    // --- Optimistic shake: check if we (local player) just hit this animal ---
+    const optimisticStart = clientAnimalShakeStartTimes.get(animalId);
+    const hasActiveOptimisticShake = optimisticStart !== undefined && (nowMs - optimisticStart < ANIMAL_SHAKE_DURATION_MS);
+    const recentlyHadOptimisticShake = optimisticStart !== undefined && (nowMs - optimisticStart < 2000);
+    if (optimisticStart !== undefined && nowMs - optimisticStart > 2000) {
+        clientAnimalShakeStartTimes.delete(animalId); // Clean up expired optimistic entries
+    }
+
     if (serverLastHitTimePropMicros > 0n) {
         if (!hitState || serverLastHitTimePropMicros > hitState.lastProcessedHitTime) {
-            // NEW HIT DETECTED! Set up effect timing based on client time
+            // NEW HIT DETECTED! Don't restart if we recently had optimistic shake (avoid double-shake)
+            const effectStartTime = recentlyHadOptimisticShake && optimisticStart ? optimisticStart : nowMs;
             hitState = {
                 lastProcessedHitTime: serverLastHitTimePropMicros,
                 clientDetectionTime: nowMs,
-                effectStartTime: nowMs
+                effectStartTime
             };
             animalHitStates.set(animalId, hitState);
         }
@@ -960,6 +977,10 @@ export function renderWildAnimal({
             hitEffectElapsed = nowMs - hitState.effectStartTime;
             isCurrentlyHit = hitEffectElapsed < ANIMAL_SHAKE_DURATION_MS;
         }
+    } else if (hasActiveOptimisticShake && optimisticStart !== undefined) {
+        // No server hit yet, but we have optimistic shake (we just hit them)
+        hitEffectElapsed = nowMs - optimisticStart;
+        isCurrentlyHit = hitEffectElapsed < ANIMAL_SHAKE_DURATION_MS;
     } else {
         // No hit time from server - clear hit state
         if (hitState) {
@@ -971,9 +992,9 @@ export function renderWildAnimal({
     const serverLastHitTimeMs = serverLastHitTimePropMicros > 0n ? Number(serverLastHitTimePropMicros / 1000n) : 0;
     const elapsedSinceServerHitMs = serverLastHitTimeMs > 0 ? (nowMs - serverLastHitTimeMs) : Infinity;
 
-    // Use new hit detection if available, otherwise fall back to old system
-    const effectiveHitElapsed = isCurrentlyHit ? hitEffectElapsed : elapsedSinceServerHitMs;
-    const shouldShowCombatEffects = isCurrentlyHit || elapsedSinceServerHitMs < ANIMAL_SHAKE_DURATION_MS;
+    // Use new hit detection if available, otherwise fall back to old system (include optimistic)
+    const effectiveHitElapsed = isCurrentlyHit ? hitEffectElapsed : (hasActiveOptimisticShake && optimisticStart ? nowMs - optimisticStart : elapsedSinceServerHitMs);
+    const shouldShowCombatEffects = isCurrentlyHit || hasActiveOptimisticShake || elapsedSinceServerHitMs < ANIMAL_SHAKE_DURATION_MS;
 
     // --- Shake Logic ---
     let shakeX = 0;
