@@ -3473,6 +3473,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           return 1; // Player north of building - player behind (inverted)
         }
 
+        // CRITICAL: Player vs Shelter - tall structure Y-sorting (match useEntityFiltering)
+        // Player in front only when near the bottom of the shelter; otherwise underneath
+        const SHELTER_YSORT_BUFFER = 120;
+        if (aType === 'player' && bType === 'shelter') {
+          const playerY = getPlayerY(aEntity);
+          const shelterY = (bEntity as any)?.posY ?? 0;
+          if (playerY >= shelterY - SHELTER_YSORT_BUFFER) return 1; // Player in front
+          return -1; // Player behind
+        }
+        if (aType === 'shelter' && bType === 'player') {
+          const playerY = getPlayerY(bEntity);
+          const shelterY = (aEntity as any)?.posY ?? 0;
+          if (playerY >= shelterY - SHELTER_YSORT_BUFFER) return -1; // Player in front (inverted)
+          return 1; // Player behind (inverted)
+        }
+
         // Player vs Monument Doodad - campfire: bottom 75% in front; huts: bottom 25% in front (match useEntityFiltering)
         if (aType === 'player' && bType === 'monument_doodad') {
           const playerY = getPlayerY(aEntity);

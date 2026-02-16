@@ -1460,9 +1460,10 @@ pub fn calculate_damage_and_yield(
     target_type: TargetType,
     rng: &mut impl Rng,
 ) -> (f32, u32, String) {
-    // Water containers can swing but deal no damage
+    // Water containers and Broken Lighter can swing but deal no damage
     if item_def.name == "Reed Water Bottle" 
-        || item_def.name == "Plastic Water Jug" {
+        || item_def.name == "Plastic Water Jug"
+        || item_def.name == "Broken Lighter" {
         return (0.0, 0, "".to_string());
     }
     
@@ -1547,6 +1548,7 @@ pub fn calculate_damage_and_yield(
             "Bone Knife",       // Specialized for corpse harvesting only
             "Bandage",          // Medical tool, not for harvesting
             "Torch",            // Light source, not for harvesting
+            "Broken Lighter",   // Junk tool - right-click only plays sound, no harvest
             "Reed Water Bottle", // Water container - can swing but no damage/harvest
             "Plastic Water Jug", // Water container - can swing but no damage/harvest
         ];

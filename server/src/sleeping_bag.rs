@@ -165,7 +165,7 @@ pub fn place_sleeping_bag(ctx: &ReducerContext, item_instance_id: u64, world_x: 
         }
     }
     // 5b. Check overlap with ALL placeables (campfires, furnaces, stashes, etc.)
-    crate::placeable_collision::check_placeable_overlap(ctx, world_x, world_y, 48.0, 48.0)?;
+    crate::placeable_collision::check_placeable_overlap(ctx, world_x, world_y, 48.0, 48.0, true)?;
 
     // 6. Consume the Item
     log::info!(

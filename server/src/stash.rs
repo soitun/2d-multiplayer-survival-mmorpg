@@ -260,7 +260,7 @@ pub fn place_stash(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, wo
         return Err("Cannot place stash on water.".to_string());
     }
 
-    crate::placeable_collision::check_placeable_overlap(ctx, world_x, world_y, 24.0, 24.0)?;
+    crate::placeable_collision::check_placeable_overlap(ctx, world_x, world_y, 24.0, 24.0, true)?;
 
     // 4. Create the Stash entity
     let new_chunk_index = calculate_chunk_index(world_x, world_y);

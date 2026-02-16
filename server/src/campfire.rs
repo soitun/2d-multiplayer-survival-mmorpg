@@ -672,7 +672,7 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
             return Err("Cannot place campfire too close to another campfire.".to_string());
         }
     }
-    crate::placeable_collision::check_placeable_overlap(ctx, world_x, world_y, 24.0, 24.0)?;
+    crate::placeable_collision::check_placeable_overlap(ctx, world_x, world_y, 24.0, 24.0, true)?;
 
     // --- 3. Find the specific item instance and validate ---
     let item_to_consume = inventory_items.instance_id().find(item_instance_id)

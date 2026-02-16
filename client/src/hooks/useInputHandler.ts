@@ -1569,6 +1569,10 @@ export const useInputHandler = ({
                             // console.log("[InputHandler MOUSEDOWN] Torch equipped. Left-click does nothing (use Right-Click to toggle).");
                             return; // Torch has no default left-click action here
                         }
+                        // 2b. Broken Lighter: Prevent left-click (right-click only plays sound)
+                        else if (equippedItemDef.name === "Broken Lighter") {
+                            return;
+                        }
                         // 3. Bandage: Prevent left-click swing (already handled by right-click)
                         else if (equippedItemDef.name === "Bandage") {
                             // console.log("[InputHandler MOUSEDOWN] Bandage equipped. Left-click does nothing. Use Right-Click.");
@@ -2110,6 +2114,12 @@ export const useInputHandler = ({
                         } else {
                             console.warn("[InputHandler CTXMENU] No connection or reducers to call toggleFlashlight.");
                         }
+                        return;
+                    } else if (equippedItemDef.name === "Broken Lighter") {
+                        // Broken Lighter right-click: play flick sound only (client-side, no server call)
+                        event.preventDefault();
+                        const audio = new Audio('/sounds/light_lighter.mp3');
+                        audio.play().catch(err => console.warn('Failed to play lighter sound:', err));
                         return;
                     } else if (equippedItemDef.name === "Blueprint") {
                         // ADDED: Blueprint right-click - prevent context menu, radial menu is handled in mousedown

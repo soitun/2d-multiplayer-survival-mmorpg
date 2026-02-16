@@ -2214,6 +2214,27 @@ export function useEntityFiltering(
         return 1;
       }
 
+      // CRITICAL: Player vs Shelter - tall structure Y-sorting (same pattern as ALK station)
+      // Shelter posY is the bottom/base. Player in front only when near the bottom (south of shelter).
+      // Otherwise player is underneath/behind the shelter roof.
+      const SHELTER_YSORT_BUFFER = 120; // Visual foot offset - player in front when south of this threshold
+      if (a.type === 'player' && b.type === 'shelter') {
+        const playerY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer);
+        const shelter = b.entity as SpacetimeDBShelter;
+        if (playerY >= shelter.posY - SHELTER_YSORT_BUFFER) {
+          return 1; // Player at/near/south of shelter's visual base - player in front
+        }
+        return -1; // Player north of shelter base - player behind (shelter on top)
+      }
+      if (a.type === 'shelter' && b.type === 'player') {
+        const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer);
+        const shelter = a.entity as SpacetimeDBShelter;
+        if (playerY >= shelter.posY - SHELTER_YSORT_BUFFER) {
+          return -1; // Player at/near/south of shelter's visual base - player in front (inverted)
+        }
+        return 1; // Player north of shelter base - player behind (inverted)
+      }
+
       // Player vs Monument Doodad - ground-level campfires use generous threshold so player head doesn't clip behind stones
       // Formula: sortThresholdY = worldY - (height * fractionFromTop). fractionFromTop = distance from top as fraction of height.
       // For campfire: 0.75 = threshold at 75% from top = bottom 75% in front. For huts: 0.25 = bottom 25% in front.

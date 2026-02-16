@@ -359,55 +359,65 @@ pub fn reconcile_tutorial_quest_progress(ctx: &ReducerContext, player_id: Identi
         };
         let mut updated = false;
         // Primary: GatherWood, GatherStone, CollectSpecificItem, CraftSpecificItem
-        let primary_item_name = match &current_quest.objective_type {
-            QuestObjectiveType::GatherWood => Some("Wood"),
-            QuestObjectiveType::GatherStone => Some("Stone"),
-            QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => current_quest.target_id.as_deref(),
-            _ => None,
+        // ChopTree/MineStoneNode: credit from wood/stone as heuristic (having resources implies prior gathering)
+        let (primary_item_name, primary_credit_from_count) = match &current_quest.objective_type {
+            QuestObjectiveType::GatherWood => (Some("Wood"), true),
+            QuestObjectiveType::GatherStone => (Some("Stone"), true),
+            QuestObjectiveType::ChopTree => (Some("Wood"), true),  // Heuristic: wood implies trees chopped
+            QuestObjectiveType::MineStoneNode => (Some("Stone"), true),  // Heuristic: stone implies nodes mined
+            QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => (current_quest.target_id.as_deref(), true),
+            _ => (None, false),
         };
-        if let Some(name) = primary_item_name {
+        if let (Some(name), true) = (primary_item_name, primary_credit_from_count) {
             let count = count_player_item_by_name(ctx, player_id, name);
-            if count > progress.current_quest_progress {
-                progress.current_quest_progress = count.min(current_quest.target_amount);
+            // ChopTree/MineStoneNode: heuristic - ~40 wood/tree, ~50 stone/node; any amount credits at least 1
+            let credit = match &current_quest.objective_type {
+                QuestObjectiveType::ChopTree => (count / 40).max(if count > 0 { 1 } else { 0 }).min(current_quest.target_amount),
+                QuestObjectiveType::MineStoneNode => (count / 50).max(if count > 0 { 1 } else { 0 }).min(current_quest.target_amount),
+                _ => count.min(current_quest.target_amount),
+            };
+            if credit > progress.current_quest_progress {
+                progress.current_quest_progress = credit;
                 updated = true;
             }
         }
-        // Secondary
-        if let (Some(ref obj_type), Some(target)) = (&current_quest.secondary_objective_type, current_quest.secondary_target_id.as_deref()) {
+        // Secondary - GatherWood/GatherStone use implicit target; Collect/Craft use secondary_target_id
+        if let Some(ref obj_type) = &current_quest.secondary_objective_type {
             let sec_item_name = match obj_type {
                 QuestObjectiveType::GatherWood => Some("Wood"),
                 QuestObjectiveType::GatherStone => Some("Stone"),
-                QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => Some(target),
+                QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => current_quest.secondary_target_id.as_deref(),
                 _ => None,
             };
             if let (Some(name), Some(sec_target)) = (sec_item_name, current_quest.secondary_target_amount) {
                 let count = count_player_item_by_name(ctx, player_id, name);
-                if count > progress.secondary_quest_progress {
-                    progress.secondary_quest_progress = count.min(sec_target);
+                let credit = count.min(sec_target);
+                if credit > progress.secondary_quest_progress {
+                    progress.secondary_quest_progress = credit;
                     updated = true;
                 }
             }
         }
-        // Tertiary
-        if let (Some(ref obj_type), Some(target)) = (&current_quest.tertiary_objective_type, current_quest.tertiary_target_id.as_deref()) {
+        // Tertiary - same pattern
+        if let Some(ref obj_type) = &current_quest.tertiary_objective_type {
             let tert_item_name = match obj_type {
                 QuestObjectiveType::GatherWood => Some("Wood"),
                 QuestObjectiveType::GatherStone => Some("Stone"),
-                QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => Some(target),
+                QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => current_quest.tertiary_target_id.as_deref(),
                 _ => None,
             };
             if let (Some(name), Some(tert_target)) = (tert_item_name, current_quest.tertiary_target_amount) {
                 let count = count_player_item_by_name(ctx, player_id, name);
-                if count > progress.tertiary_quest_progress {
-                    progress.tertiary_quest_progress = count.min(tert_target);
+                let credit = count.min(tert_target);
+                if credit > progress.tertiary_quest_progress {
+                    progress.tertiary_quest_progress = credit;
                     updated = true;
                 }
             }
         }
-        if !updated {
-            return Ok(());
+        if updated {
+            progress.updated_at = ctx.timestamp;
         }
-        progress.updated_at = ctx.timestamp;
         // Check completion
         let primary_complete = progress.current_quest_progress >= current_quest.target_amount;
         let secondary_complete = match current_quest.secondary_target_amount {
@@ -429,7 +439,9 @@ pub fn reconcile_tutorial_quest_progress(ctx: &ReducerContext, player_id: Identi
             complete_tutorial_quest(ctx, player_id, &mut progress, current_quest)?;
             // Loop to check next quest - player may have items for it too (no recursion)
         } else {
-            progress_table.player_id().update(progress);
+            if updated {
+                progress_table.player_id().update(progress);
+            }
             return Ok(());
         }
     }

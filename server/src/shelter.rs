@@ -203,7 +203,7 @@ pub fn place_shelter(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         let dist_sq_shelter = dx_shelter * dx_shelter + dy_shelter * dy_shelter;
     }
 
-    crate::placeable_collision::check_placeable_overlap(ctx, world_x, world_y, 192.0, 192.0)?;
+    crate::placeable_collision::check_placeable_overlap(ctx, world_x, world_y, 192.0, 192.0, false)?;
     
     // Check if shelter would be placed on or near a foundation (not allowed)
     // Shelter is 384x384px, which covers 4x4 foundation cells (96px each)

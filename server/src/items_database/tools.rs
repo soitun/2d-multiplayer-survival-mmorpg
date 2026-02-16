@@ -212,6 +212,13 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .respawn_time(600)
             .build(),
 
+        // Broken Lighter - Non-functional junk tool, right-click plays flick sound (loot only, not craftable)
+        ItemBuilder::new("Broken Lighter", "A rusted, non-functional lighter. The flint is worn out. Right-click to flick it—it won't light, but it makes a satisfying click.", ItemCategory::Tool)
+            .icon("broken_lighter.png")
+            .equippable(None)
+            .respawn_time(300)
+            .build(),
+
         // Medical Tools
         ItemBuilder::new("Bandage", "A simple bandage to patch up wounds. Stops bleeding and restores health.", ItemCategory::Tool)
             .icon("bandage.png")

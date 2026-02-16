@@ -505,7 +505,7 @@ pub fn place_lantern(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
         }
     }
 
-    crate::placeable_collision::check_placeable_overlap(ctx, world_x, world_y, 24.0, 24.0)?;
+    crate::placeable_collision::check_placeable_overlap(ctx, world_x, world_y, 24.0, 24.0, true)?;
 
     // Find and validate the item instance
     let item_to_consume = inventory_items.instance_id().find(item_instance_id)

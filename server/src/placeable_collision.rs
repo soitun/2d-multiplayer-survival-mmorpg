@@ -41,12 +41,15 @@ fn rects_overlap(
 /// Check if the given placement rect overlaps any existing placeable.
 /// center_x, center_y = center of new placement (use same coords the client sends).
 /// half_width, half_height = half of the placement footprint (e.g. 48, 48 for 96x96).
+/// allow_shelter_overlap: when true, overlap with shelters is allowed (placeables render beneath shelters anyway).
+/// Use true for campfires, furnaces, sleeping bags, etc. Use false when placing a shelter itself.
 pub fn check_placeable_overlap(
     ctx: &ReducerContext,
     center_x: f32,
     center_y: f32,
     half_width: f32,
     half_height: f32,
+    allow_shelter_overlap: bool,
 ) -> Result<(), String> {
     // Campfires: pos is center-ish (pos_y has offset)
     for e in ctx.db.campfire().iter() {
@@ -140,13 +143,15 @@ pub fn check_placeable_overlap(
             return Err("Blocked by existing structure.".to_string());
         }
     }
-    // Shelters
-    for e in ctx.db.shelter().iter() {
-        if e.is_destroyed { continue; }
-        let ex = e.pos_x;
-        let ey = e.pos_y - SHELTER_AABB_CENTER_Y_OFFSET_FROM_POS_Y;
-        if rects_overlap(center_x, center_y, half_width, half_height, ex, ey, SHELTER_AABB_HALF_WIDTH, SHELTER_AABB_HALF_HEIGHT) {
-            return Err("Blocked by existing structure.".to_string());
+    // Shelters - skip if allow_shelter_overlap (placeables like campfires render beneath shelters)
+    if !allow_shelter_overlap {
+        for e in ctx.db.shelter().iter() {
+            if e.is_destroyed { continue; }
+            let ex = e.pos_x;
+            let ey = e.pos_y - SHELTER_AABB_CENTER_Y_OFFSET_FROM_POS_Y;
+            if rects_overlap(center_x, center_y, half_width, half_height, ex, ey, SHELTER_AABB_HALF_WIDTH, SHELTER_AABB_HALF_HEIGHT) {
+                return Err("Blocked by existing structure.".to_string());
+            }
         }
     }
     // Broth pots (on campfires - have position)

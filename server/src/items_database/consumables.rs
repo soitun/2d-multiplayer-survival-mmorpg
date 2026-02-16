@@ -1757,12 +1757,6 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // Junk items - minimal or no effects, can be composted or discarded
-        ItemBuilder::new("Broken Lighter", "A rusted, non-functional lighter. The flint is worn out. Junk.", ItemCategory::Material)
-            .icon("broken_lighter.png")
-            .stackable(10)
-            .respawn_time(300)
-            .build(),
-
         ItemBuilder::new("Wet Wipes Pack", "A small pack of military-issue wet wipes. Useful for hygiene, worthless for survival.", ItemCategory::Material)
             .icon("wet_wipes.png")
             .stackable(15)
