@@ -177,7 +177,7 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
         ItemBuilder::new("Sleeping Bag", "A rolled-up bag for sleeping outdoors. Sets a respawn point.", ItemCategory::Placeable)
             .icon("sleeping_bag.png")
             .crafting_cost(vec![
-                CostIngredient { item_name: "Cloth".to_string(), quantity: 15 }, // Reduced from 25 to 15 for easier early game
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 10 }, // Reduced for easier early game
             ])
             .crafting_output(1, 5)
             .respawn_time(420)

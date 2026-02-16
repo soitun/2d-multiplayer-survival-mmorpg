@@ -47,6 +47,10 @@ const SPECIES_PARTICLE_COUNT: Record<string, number> = {
     'DrownedWatch': 80, // Large brute - big explosion
 };
 
+// Cap total particles to prevent performance degradation during mass hostile encounters
+const MAX_PARTICLES = 800;
+const PROCESSED_EVENTS_MAX = 50; // Cap processed event IDs to prevent unbounded memory growth
+
 // Death event from useSpacetimeTables (client-side, no server subscription)
 export interface HostileDeathEvent {
     id: string;
@@ -206,23 +210,37 @@ export function useHostileDeathEffects({
             }
             currentParticles.length = liveParticleCount;
 
-            // Check for new death events
-            for (const event of hostileDeathEvents) {
-                if (!processedEventsRef.current.has(event.id)) {
-                    // New death event - generate particles
-                    const newParticles = generateDeathParticles(event);
-                    particlesRef.current.push(...newParticles);
-                    processedEventsRef.current.add(event.id);
+            // Check for new death events (skip if at particle cap to prevent lag during mass encounters)
+            let particleCount = particlesRef.current.length;
+            if (particleCount < MAX_PARTICLES) {
+                for (const event of hostileDeathEvents) {
+                    if (!processedEventsRef.current.has(event.id)) {
+                        const newParticles = generateDeathParticles(event);
+                        const spaceLeft = MAX_PARTICLES - particleCount;
+                        const toAdd = newParticles.length <= spaceLeft
+                            ? newParticles
+                            : newParticles.slice(0, spaceLeft);
+                        particlesRef.current.push(...toAdd);
+                        particleCount += toAdd.length;
+                        processedEventsRef.current.add(event.id);
+                        if (particleCount >= MAX_PARTICLES) break;
+                    }
                 }
             }
 
             // Cleanup old processed events (keep memory bounded)
-            if (processedEventsRef.current.size > 100) {
+            if (processedEventsRef.current.size > PROCESSED_EVENTS_MAX) {
                 const currentEventIds = new Set(hostileDeathEvents.map(e => e.id));
                 for (const id of Array.from(processedEventsRef.current)) {
                     if (!currentEventIds.has(id)) {
                         processedEventsRef.current.delete(id);
                     }
+                }
+                // If still over cap, drop oldest (arbitrary: keep most recent by clearing all not in current)
+                if (processedEventsRef.current.size > PROCESSED_EVENTS_MAX) {
+                    const toKeep = Array.from(processedEventsRef.current).slice(-PROCESSED_EVENTS_MAX);
+                    processedEventsRef.current.clear();
+                    toKeep.forEach(id => processedEventsRef.current.add(id));
                 }
             }
 

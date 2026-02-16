@@ -2402,15 +2402,17 @@ pub fn spawn_monument_harvestables(
 /// Spawns hunting village harvestables in a dedicated garden grid south of the lodge.
 /// Places crops/berries in a neat row or square grid so they don't overlap buildings.
 /// Garden is positioned south of center (positive Y) - clear of lodge, huts, campfire, drying rack.
+/// Scarecrow uses smaller exclusion (50) so crops can spawn around it - it's decorative, not a large building.
 pub fn spawn_hunting_village_harvestables(
     ctx: &ReducerContext,
     center_x: f32,
     center_y: f32,
-    monument_part_positions: &[(f32, f32)],
+    monument_part_positions: &[(f32, f32, &str)],
     harvestable_configs: &[MonumentHarvestableConfig],
 ) -> Result<u32, String> {
     const HARVESTABLE_RADIUS: f32 = 30.0;
     const BUILDING_EXCLUSION_RADIUS: f32 = 220.0; // Keep harvestables away from building sprites
+    const SCARECROW_EXCLUSION_RADIUS: f32 = 50.0; // Small - scarecrow is decorative, crops spawn around it
     const GRID_COLS: i32 = 4;
     const GRID_ROWS: i32 = 3;
     const GRID_SPACING: f32 = 56.0; // One tile between plants
@@ -2418,10 +2420,13 @@ pub fn spawn_hunting_village_harvestables(
     // Pre-populate occupied with all building positions so garden stays clear
     let mut occupied: Vec<OccupiedPosition> = monument_part_positions
         .iter()
-        .map(|&(px, py)| OccupiedPosition {
-            x: px,
-            y: py,
-            radius: BUILDING_EXCLUSION_RADIUS,
+        .map(|&(px, py, part_type)| {
+            let radius = if part_type == "scarecrow" {
+                SCARECROW_EXCLUSION_RADIUS
+            } else {
+                BUILDING_EXCLUSION_RADIUS
+            };
+            OccupiedPosition { x: px, y: py, radius }
         })
         .collect();
 

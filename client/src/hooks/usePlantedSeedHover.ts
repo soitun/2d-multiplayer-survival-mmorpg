@@ -55,6 +55,16 @@ export function usePlantedSeedHover(
   useEffect(() => {
     const [newSeedId] = closestSeed || [null];
     
+    // Clear immediately when mouse leaves canvas (worldMouse null) - prevents stuck tooltip
+    if (worldMouseX === null || worldMouseY === null) {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
+      }
+      setHoveredSeedId(null);
+      return;
+    }
+    
     if (newSeedId) {
       // Clear any existing timeout
       if (hoverTimeoutRef.current) {
@@ -71,13 +81,20 @@ export function usePlantedSeedHover(
         hoverTimeoutRef.current = setTimeout(() => {
           setHoveredSeedId(null);
           hoverTimeoutRef.current = null;
-        }, 300); // Keep hover state for 300ms after mouse leaves
+        }, 150); // Reduced from 300ms - faster clear when moving away
       }
     }
-  }, [closestSeed, hoveredSeedId]);
+  }, [closestSeed, hoveredSeedId, worldMouseX, worldMouseY]);
   
-  // Get the currently hovered seed data
+  // Get the currently hovered seed data - clear if seed was harvested/removed
   const hoveredSeed = hoveredSeedId ? plantedSeeds.get(hoveredSeedId) : null;
+  
+  // Clear hover when seed no longer exists (harvested, etc.) - prevents stuck tooltip
+  useEffect(() => {
+    if (hoveredSeedId && !hoveredSeed) {
+      setHoveredSeedId(null);
+    }
+  }, [hoveredSeedId, hoveredSeed]);
   
   return {
     hoveredSeed,

@@ -92,11 +92,19 @@ const RING_B_MAX_PX: f32 = RING_B_MAX_TILES * TILE_SIZE;
 const RING_C_MIN_PX: f32 = RING_C_MIN_TILES * TILE_SIZE;
 const RING_C_MAX_PX: f32 = RING_C_MAX_TILES * TILE_SIZE;
 
-// Population caps (per player area) - Increased for better night intensity
-const MAX_TOTAL_HOSTILES_NEAR_PLAYER: usize = 12;   // Slightly higher cap for more action
-const MAX_SHOREBOUND_NEAR_PLAYER: usize = 4;        // Maximum 4 stalkers
-const MAX_SHARDKIN_NEAR_PLAYER: usize = 8;          // Medium swarms
-const MAX_DROWNED_WATCH_NEAR_PLAYER: usize = 2;     // Up to 2 brutes for intense fights
+// Population caps (per player area)
+// TUNED: Reduced for solo play - unless you have a gun or friends, you shouldn't see 3+ at a time
+const MAX_TOTAL_HOSTILES_NEAR_PLAYER: usize = 10;   // Cap for grouped play
+const MAX_SHOREBOUND_NEAR_PLAYER: usize = 3;        // Maximum 3 stalkers
+const MAX_SHARDKIN_NEAR_PLAYER: usize = 6;          // Swarms
+const MAX_DROWNED_WATCH_NEAR_PLAYER: usize = 2;     // Up to 2 brutes
+
+// Solo player caps - significantly reduced when playing alone (no friends nearby)
+const SOLO_MAX_TOTAL_HOSTILES: usize = 5;            // ~1-2 visible at a time for solo
+const SOLO_MAX_SHOREBOUND: usize = 2;                // Max 2 stalkers when solo
+const SOLO_MAX_SHARDKIN: usize = 3;                 // Max 3 swarmers when solo
+const SOLO_MAX_DROWNED_WATCH: usize = 1;            // Max 1 brute when solo
+const SOLO_SPAWN_MULTIPLIER: f32 = 0.55;            // 45% fewer spawn attempts when solo
 
 // Spawn timing - Faster spawning for more constant pressure
 const SPAWN_ATTEMPT_INTERVAL_MS: u64 = 6_000; // Every 6 seconds
@@ -1103,7 +1111,7 @@ pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule)
         // Use PeakNight phase for daytime beacon spawns (full spawn rates!)
         let effective_phase = if is_daytime { NightPhase::PeakNight } else { night_phase };
         
-        try_spawn_hostiles_for_player(ctx, player, current_time, is_camping, effective_phase, settlement_multiplier, beacon_attraction_multiplier, combat_score, &mut rng);
+        try_spawn_hostiles_for_player(ctx, player, current_time, is_camping, effective_phase, settlement_multiplier, beacon_attraction_multiplier, combat_score, nearby_player_count, &mut rng);
     }
     
     Ok(())
@@ -1163,25 +1171,34 @@ fn try_spawn_hostiles_for_player(
     settlement_multiplier: f32,
     beacon_attraction_multiplier: f32,
     combat_score: f32,  // Pre-calculated combat score passed in from caller
+    nearby_player_count: usize,  // 0 = solo, 1+ = with friends
     rng: &mut impl Rng,
 ) {
     let player_x = player.position_x;
     let player_y = player.position_y;
+    let is_solo = nearby_player_count == 0;
     
     // Count nearby hostiles
     let (total_hostiles, shorebound_count, shardkin_count, drowned_watch_count) = 
         count_nearby_hostiles(ctx, player_x, player_y);
     
-    // Check hard cap (increased if Memory Beacon is active - more monsters to farm!)
-    let effective_cap = if beacon_attraction_multiplier > 1.0 {
-        MAX_TOTAL_HOSTILES_NEAR_PLAYER + 6  // +50% cap when farming with beacon
+    // Check hard cap - solo players get much lower caps; beacon farming gets higher
+    let (effective_cap, effective_shorebound_cap, effective_shardkin_cap, effective_drowned_cap) = if beacon_attraction_multiplier > 1.0 {
+        // Memory Beacon: farming mode - higher caps
+        (MAX_TOTAL_HOSTILES_NEAR_PLAYER + 6, MAX_SHOREBOUND_NEAR_PLAYER + 2, MAX_SHARDKIN_NEAR_PLAYER + 4, MAX_DROWNED_WATCH_NEAR_PLAYER + 2)
+    } else if is_solo {
+        // Solo: significantly reduced - you shouldn't see 3+ at a time without a gun or friends
+        (SOLO_MAX_TOTAL_HOSTILES, SOLO_MAX_SHOREBOUND, SOLO_MAX_SHARDKIN, SOLO_MAX_DROWNED_WATCH)
     } else {
-        MAX_TOTAL_HOSTILES_NEAR_PLAYER
+        (MAX_TOTAL_HOSTILES_NEAR_PLAYER, MAX_SHOREBOUND_NEAR_PLAYER, MAX_SHARDKIN_NEAR_PLAYER, MAX_DROWNED_WATCH_NEAR_PLAYER)
     };
     
     if total_hostiles >= effective_cap {
         return;
     }
+    
+    // Solo players get reduced spawn rate - fewer attempts = fewer apparitions
+    let solo_mult = if is_solo { SOLO_SPAWN_MULTIPLIER } else { 1.0 };
     
     // Calculate combat multiplier from pre-calculated combat score
     let combat_multiplier = calculate_combat_multiplier(combat_score);
@@ -1214,11 +1231,11 @@ fn try_spawn_hostiles_for_player(
                player.identity, combat_score, combat_multiplier);
     
     // 1. Try Shorebound (stalker) - Primary threat, scouts early, pressures throughout
-    // Base: 55% chance, modified by phase, camping, settlement intensity, beacon attraction, and combat readiness
-    if shorebound_count < MAX_SHOREBOUND_NEAR_PLAYER && total_hostiles < effective_cap {
-        let base_chance = 0.55;
-        let camping_bonus = if is_camping { 0.15 } else { 0.0 };
-        let final_chance = (base_chance + camping_bonus) * shorebound_mult * settlement_multiplier * beacon_attraction_multiplier * combat_multiplier;
+    // Base: 45% chance, modified by phase, camping, settlement, beacon, combat readiness, and solo scaling
+    if shorebound_count < effective_shorebound_cap && total_hostiles < effective_cap {
+        let base_chance = 0.45;
+        let camping_bonus = if is_camping { 0.12 } else { 0.0 };
+        let final_chance = (base_chance + camping_bonus) * shorebound_mult * settlement_multiplier * beacon_attraction_multiplier * combat_multiplier * solo_mult;
         
         if rng.gen::<f32>() < final_chance {
             if let Some((x, y)) = find_spawn_position(ctx, player_x, player_y, RING_B_MIN_PX, RING_B_MAX_PX, rng) {
@@ -1229,30 +1246,28 @@ fn try_spawn_hostiles_for_player(
     }
     
     // 2. Try Shardkin (swarmer) - Swarms emerge mid-night, peak during desperate hour
-    // Base: 40% chance, modified by phase, camping, settlement intensity, beacon attraction, and combat readiness
-    let effective_shardkin_cap = if beacon_attraction_multiplier > 1.0 {
-        MAX_SHARDKIN_NEAR_PLAYER + 4  // More swarmers when farming
-    } else {
-        MAX_SHARDKIN_NEAR_PLAYER
-    };
+    // Base: 35% chance, modified by phase, camping, settlement, beacon, combat readiness, and solo scaling
     if shardkin_count < effective_shardkin_cap && total_hostiles + 1 < effective_cap {
-        let base_chance = 0.40;
-        let camping_bonus = if is_camping { 0.20 } else { 0.0 };
-        let final_chance = (base_chance + camping_bonus) * shardkin_mult * settlement_multiplier * beacon_attraction_multiplier * combat_multiplier;
+        let base_chance = 0.35;
+        let camping_bonus = if is_camping { 0.15 } else { 0.0 };
+        let final_chance = (base_chance + camping_bonus) * shardkin_mult * settlement_multiplier * beacon_attraction_multiplier * combat_multiplier * solo_mult;
         
         if rng.gen::<f32>() < final_chance {
-            // Group size scales with phase - bigger swarms later in night
-            let min_group = match night_phase {
-                NightPhase::EarlyNight => 1,
-                NightPhase::PeakNight => 2,
-                NightPhase::DesperateHour => 3,
-                NightPhase::NotNight => 1,
-            };
-            let max_group = match night_phase {
-                NightPhase::EarlyNight => 2,
-                NightPhase::PeakNight => 4,
-                NightPhase::DesperateHour => 5,
-                NightPhase::NotNight => 2,
+            // Group size scales with phase - solo players get smaller groups (max 2 at a time)
+            let (min_group, max_group) = if is_solo {
+                match night_phase {
+                    NightPhase::EarlyNight => (1, 1),
+                    NightPhase::PeakNight => (1, 2),
+                    NightPhase::DesperateHour => (1, 2),
+                    NightPhase::NotNight => (1, 1),
+                }
+            } else {
+                match night_phase {
+                    NightPhase::EarlyNight => (1, 2),
+                    NightPhase::PeakNight => (2, 4),
+                    NightPhase::DesperateHour => (2, 4),
+                    NightPhase::NotNight => (1, 2),
+                }
             };
             
             let group_size = rng.gen_range(min_group..=max_group) as usize;
@@ -1284,18 +1299,12 @@ fn try_spawn_hostiles_for_player(
     }
     
     // 3. Try Drowned Watch (brute) - Only emerges late night, terrifying finale
-    // Base: 15% chance, modified by phase, camping, settlement intensity, beacon attraction, and combat readiness
-    // Camping bonus: +20% - large settlements attract the big ones!
-    // Memory Beacon doubles Drowned Watch cap for serious farming
-    let effective_drowned_cap = if beacon_attraction_multiplier > 1.0 {
-        MAX_DROWNED_WATCH_NEAR_PLAYER + 2  // Up to 4 brutes when farming (scary!)
-    } else {
-        MAX_DROWNED_WATCH_NEAR_PLAYER
-    };
+    // Base: 12% chance, modified by phase, camping, settlement, beacon, combat readiness, and solo scaling
+    // Solo: max 1 brute; with friends or beacon: up to 2-4
     if drowned_watch_count < effective_drowned_cap && total_hostiles + 1 <= effective_cap {
-        let base_chance = 0.15;
-        let camping_bonus = if is_camping { 0.20 } else { 0.0 };
-        let final_chance = (base_chance + camping_bonus) * drowned_mult * settlement_multiplier * beacon_attraction_multiplier * combat_multiplier;
+        let base_chance = 0.12;
+        let camping_bonus = if is_camping { 0.15 } else { 0.0 };
+        let final_chance = (base_chance + camping_bonus) * drowned_mult * settlement_multiplier * beacon_attraction_multiplier * combat_multiplier * solo_mult;
         
         if rng.gen::<f32>() < final_chance {
             if let Some((x, y)) = find_spawn_position(ctx, player_x, player_y, RING_C_MIN_PX, RING_C_MAX_PX, rng) {

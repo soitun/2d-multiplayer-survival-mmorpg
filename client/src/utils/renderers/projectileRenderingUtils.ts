@@ -503,10 +503,26 @@ export const renderProjectile = ({
   ctx.restore();
 };
 
-// Add cleanup function to prevent memory leaks
+// Cleanup entries for projectiles that no longer exist (hit something, max range, etc.)
+// Call with current projectile IDs from useSpacetimeTables - prevents unbounded growth during combat
+export const cleanupProjectileTrackingForDeleted = (currentProjectileIds: Set<string>) => {
+  let removed = 0;
+  for (const projectileId of Array.from(clientProjectileStartTimes.keys())) {
+    if (!currentProjectileIds.has(projectileId)) {
+      clientProjectileStartTimes.delete(projectileId);
+      lastKnownServerProjectileTimes.delete(projectileId);
+      removed++;
+    }
+  }
+  if (removed > 0) {
+    console.log(`🏹 [CLIENT CLEANUP] Removed ${removed} stale projectile tracking entries`);
+  }
+};
+
+// Fallback: Remove entries older than max lifetime (in case cleanupProjectileTrackingForDeleted isn't called)
 export const cleanupOldProjectileTracking = () => {
   const currentTime = performance.now();
-  const toDelete = [];
+  const toDelete: string[] = [];
   
   for (const [projectileId, startTime] of clientProjectileStartTimes.entries()) {
     if (currentTime - startTime > MAX_PROJECTILE_LIFETIME_MS) {
@@ -520,6 +536,6 @@ export const cleanupOldProjectileTracking = () => {
   }
   
   if (toDelete.length > 0) {
-    console.log(`🏹 [CLIENT CLEANUP] Removed ${toDelete.length} old projectile tracking entries`);
+    console.log(`🏹 [CLIENT CLEANUP] Removed ${toDelete.length} old projectile tracking entries (time-based)`);
   }
 };

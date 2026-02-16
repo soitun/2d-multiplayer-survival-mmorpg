@@ -335,7 +335,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .equippable(None)
             .crafting_cost(vec![
                 CostIngredient { item_name: "Wood".to_string(), quantity: 200 },
-                CostIngredient { item_name: "Cloth".to_string(), quantity: 30 },
+                CostIngredient { item_name: "Cloth".to_string(), quantity: 15 },
             ])
             .crafting_output(1, 5)
             .respawn_time(600)

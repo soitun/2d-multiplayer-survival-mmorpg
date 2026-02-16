@@ -99,6 +99,25 @@ export function useFireArrowParticles({
     // --- End derived state ---
 
     useEffect(() => {
+        // Cleanup stale projectile entries at start of each run (projectiles deleted since last run)
+        const currentProjectileIds = new Set<string>();
+        projectiles.forEach((_, id) => currentProjectileIds.add(id));
+        for (const key of Array.from(projectileEmissionAccumulatorRef.current.keys())) {
+            if (!currentProjectileIds.has(key)) {
+                projectileEmissionAccumulatorRef.current.delete(key);
+            }
+        }
+        for (const key of Array.from(clientProjectileStartTimes.current.keys())) {
+            if (!currentProjectileIds.has(key)) {
+                clientProjectileStartTimes.current.delete(key);
+            }
+        }
+        for (const key of Array.from(lastKnownServerProjectileTimes.current.keys())) {
+            if (!currentProjectileIds.has(key)) {
+                lastKnownServerProjectileTimes.current.delete(key);
+            }
+        }
+
         const updateParticles = () => {
             const now = performance.now();
             const deltaTime = now - lastUpdateTimeRef.current;
@@ -401,20 +420,6 @@ export function useFireArrowParticles({
         return () => {
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
-            }
-            // Cleanup projectile timing Maps to prevent unbounded memory growth
-            // Remove entries for projectiles that no longer exist
-            const currentProjectileIds = new Set<string>();
-            projectiles.forEach((_, id) => currentProjectileIds.add(id));
-            for (const key of clientProjectileStartTimes.current.keys()) {
-                if (!currentProjectileIds.has(key)) {
-                    clientProjectileStartTimes.current.delete(key);
-                }
-            }
-            for (const key of lastKnownServerProjectileTimes.current.keys()) {
-                if (!currentProjectileIds.has(key)) {
-                    lastKnownServerProjectileTimes.current.delete(key);
-                }
             }
         };
     }, [players, activeEquipments, itemDefinitions, projectiles, fireArrowStatesKey]); // Added projectiles to dependencies

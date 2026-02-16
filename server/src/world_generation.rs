@@ -302,6 +302,12 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     if let Some((center_x, center_y)) = world_features.hunting_village_center {
         // All parts are stored (lodge is the center piece)
         for (part_x, part_y, image_path, part_type) in &world_features.hunting_village_parts {
+            // Scarecrow has collision like the placeable one (matches SCARECROW_COLLISION_RADIUS)
+            let collision_radius = if *part_type == "scarecrow" {
+                crate::wooden_storage_box::SCARECROW_COLLISION_RADIUS
+            } else {
+                0.0 // NO collision for walkability (lodge, huts, campfire, etc.)
+            };
             ctx.db.monument_part().insert(MonumentPart {
                 id: 0, // auto_inc
                 monument_type: MonumentType::HuntingVillage,
@@ -310,7 +316,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 image_path: image_path.clone(),
                 part_type: part_type.clone(),
                 is_center: *part_type == "lodge", // Lodge is the center of the village
-                collision_radius: 0.0, // NO collision for walkability
+                collision_radius,
                 rotation_rad: 0.0,
             });
         }
@@ -333,12 +339,13 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         
         // Spawn harvestable resources in a dedicated garden grid (south of lodge)
         // Avoids overlap with buildings - neat row/grid layout like a little garden
-        let mut village_positions = Vec::new();
-        for (part_x, part_y, _, _) in &world_features.hunting_village_parts {
-            village_positions.push((*part_x, *part_y));
+        // Scarecrow uses smaller exclusion (50) so crops can spawn around it
+        let mut village_positions_with_types = Vec::new();
+        for (part_x, part_y, _, part_type) in &world_features.hunting_village_parts {
+            village_positions_with_types.push((*part_x, *part_y, part_type.as_str()));
         }
         let harvestable_configs = crate::monument::get_hunting_village_harvestables();
-        match crate::monument::spawn_hunting_village_harvestables(ctx, center_x, center_y, &village_positions, &harvestable_configs) {
+        match crate::monument::spawn_hunting_village_harvestables(ctx, center_x, center_y, &village_positions_with_types, &harvestable_configs) {
             Ok(count) => log::info!("🏕️ Spawned {} harvestables in hunting village garden", count),
             Err(e) => log::warn!("Failed to spawn hunting village harvestables: {}", e),
         }

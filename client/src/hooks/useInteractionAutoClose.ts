@@ -14,7 +14,7 @@ import { useEffect } from 'react';
 import { Identity } from 'spacetimedb';
 import { Player, Campfire, Furnace, Fumarole, WoodenStorageBox, Stash, PlayerCorpse, RainCollector } from '../generated';
 import { InteractionTarget } from './useInteractionManager';
-import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, PLAYER_TALL_BOX_INTERACTION_DISTANCE_SQUARED, getBoxDimensions, BOX_TYPE_COMPOST, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH, MONUMENT_COMPOST_HEIGHT, MONUMENT_COOKING_STATION_HEIGHT, MONUMENT_REPAIR_BENCH_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
+import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, PLAYER_TALL_BOX_INTERACTION_DISTANCE_SQUARED, PLAYER_BEEHIVE_INTERACTION_DISTANCE_SQUARED, getBoxDimensions, BOX_TYPE_COMPOST, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_WILD_BEEHIVE, MONUMENT_COMPOST_HEIGHT, MONUMENT_COOKING_STATION_HEIGHT, MONUMENT_REPAIR_BENCH_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { PLAYER_MONUMENT_BOX_INTERACTION_DISTANCE_SQUARED } from './useInteractionFinder';
 import { PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED, CAMPFIRE_HEIGHT, CAMPFIRE_RENDER_Y_OFFSET } from '../utils/renderers/campfireRenderingUtils';
 import {
@@ -59,6 +59,8 @@ const AUTO_CLOSE_DELAY_MS = 100;
 const AUTO_CLOSE_BUFFER = 1.5;
 /** Wooden storage boxes use 1.0 so UI closes before server would reject (server and client must match) */
 const WOODEN_STORAGE_BOX_AUTO_CLOSE_BUFFER = 1.0;
+/** Beehives (wild + player) use 1.4 - they close too aggressively otherwise (tall sprites, interaction from bottom) */
+const BEEHIVE_AUTO_CLOSE_BUFFER = 1.4;
 
 /**
  * Check if the player is within auto-close range of the entity they're interacting with.
@@ -96,13 +98,19 @@ function isPlayerOutOfRange(
             } else {
                 const dims = getBoxDimensions(box.boxType);
                 centerY = box.posY - (dims.height / 2) - 20;
+                const isBeehive = box.boxType === BOX_TYPE_PLAYER_BEEHIVE || box.boxType === BOX_TYPE_WILD_BEEHIVE;
                 const isTallBox = box.boxType === BOX_TYPE_REPAIR_BENCH || box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_COMPOST;
-                maxDistSq = isTallBox ? PLAYER_TALL_BOX_INTERACTION_DISTANCE_SQUARED : PLAYER_BOX_INTERACTION_DISTANCE_SQUARED;
+                maxDistSq = isBeehive ? PLAYER_BEEHIVE_INTERACTION_DISTANCE_SQUARED
+                    : isTallBox ? PLAYER_TALL_BOX_INTERACTION_DISTANCE_SQUARED
+                    : PLAYER_BOX_INTERACTION_DISTANCE_SQUARED;
             }
             
             const dx = playerX - box.posX;
             const dy = playerY - centerY;
-            const buffer = WOODEN_STORAGE_BOX_AUTO_CLOSE_BUFFER;
+            // Beehives need more lenient buffer - tall sprites, interaction from bottom, often close too soon
+            const buffer = (box.boxType === BOX_TYPE_PLAYER_BEEHIVE || box.boxType === BOX_TYPE_WILD_BEEHIVE)
+                ? BEEHIVE_AUTO_CLOSE_BUFFER
+                : WOODEN_STORAGE_BOX_AUTO_CLOSE_BUFFER;
             return (dx * dx + dy * dy) > maxDistSq * buffer;
         }
 

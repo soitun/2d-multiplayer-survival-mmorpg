@@ -879,16 +879,9 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
           }
         });
         
+        // Play error_planting for tile type/biome errors (water, beach, alpine, etc.) - NOT for overlap ("already a seed planted")
         if (isPlantingLocationError) {
-          console.log('[PlacementManager] Playing error_planting sound for tile type error:', errorMsg);
-          try {
-            playImmediateSound('error_planting', 1.0);
-            console.log('[PlacementManager] playImmediateSound called successfully');
-          } catch (error) {
-            console.error('[PlacementManager] Error calling playImmediateSound:', error);
-          }
-        } else {
-          console.log('[PlacementManager] Not a tile type error, skipping error_planting sound:', errorMsg);
+          playImmediateSound('error_planting', 1.0);
         }
       } else {
         console.log('[PlacementManager] plantSeed succeeded or status not Failed:', status);
@@ -1043,19 +1036,16 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
 
     // Check for water placement restriction (use snapped position for grid-snapping items)
     if (isWaterPlacementBlocked(connection, placementInfo, placeX, placeY)) {
-      // setPlacementError("Cannot place on water");
-      // Play error sound for invalid tile type placement
       if (isSeedItemValid(placementInfo.itemName)) {
-        console.log('[PlacementManager] Client-side validation: Invalid tile type for planting, playing error sound');
+        setPlacementError('Invalid location for planting');
         playImmediateSound('error_planting', 1.0);
       }
       return; // Don't proceed with placement
     }
 
-    // Check for one-seed-per-tile restriction
+    // Check for one-seed-per-tile restriction (e.g. reed rhizomes on top of each other)
     if (isSeedPlacementOnOccupiedTile(connection, placementInfo, placeX, placeY)) {
-      console.log('[PlacementManager] Client-side validation: Tile already has a seed, playing error sound');
-      playImmediateSound('error_seed_occupied', 1.0);
+      setPlacementError('Blocked by existing structure');
       return; // Don't proceed with placement
     }
 

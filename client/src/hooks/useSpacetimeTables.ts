@@ -355,6 +355,10 @@ export const useSpacetimeTables = ({
     const projectilesUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const PROJECTILE_BATCH_INTERVAL_MS = 50; // Flush at 20fps - needs to be responsive for combat
 
+    // PERF: Track hostile death cleanup timeouts to clear on unmount (prevents memory leak during big fights)
+    const hostileDeathCleanupTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+    const HOSTILE_DEATH_EVENTS_MAX = 30; // Cap to prevent unbounded growth during mass encounters
+
     // Get local player identity for sound system
     const localPlayerIdentity = connection?.identity || null;
 
@@ -1852,12 +1856,18 @@ export const useSpacetimeTables = ({
                         species: String(animal.species), // Convert AnimalSpecies enum to string
                         timestamp: Date.now(),
                     };
-                    setHostileDeathEvents(prev => [...prev, deathEvent]);
+                    setHostileDeathEvents(prev => {
+                        const next = [...prev, deathEvent];
+                        // Cap size to prevent memory/performance degradation during mass encounters
+                        return next.length > HOSTILE_DEATH_EVENTS_MAX ? next.slice(-HOSTILE_DEATH_EVENTS_MAX) : next;
+                    });
                     
                     // Auto-cleanup after 3 seconds (particle system will have consumed this)
-                    setTimeout(() => {
+                    const timeoutId = setTimeout(() => {
+                        hostileDeathCleanupTimeoutsRef.current.delete(timeoutId);
                         setHostileDeathEvents(prev => prev.filter(e => e.id !== deathEvent.id));
                     }, 3000);
+                    hostileDeathCleanupTimeoutsRef.current.add(timeoutId);
                 }
                 
                 wildAnimalsRef.current.delete(animal.id.toString());
@@ -3115,6 +3125,10 @@ export const useSpacetimeTables = ({
                     clearTimeout(wildAnimalsUpdateTimeoutRef.current);
                     wildAnimalsUpdateTimeoutRef.current = null;
                 }
+                // Clear hostile death events and cancel pending cleanup timeouts (prevents memory leak)
+                hostileDeathCleanupTimeoutsRef.current.forEach(t => clearTimeout(t));
+                hostileDeathCleanupTimeoutsRef.current.clear();
+                setHostileDeathEvents([]);
                 setAnimalCorpses(new Map());
                 setSeaStacks(new Map());
                 setChunkWeather(new Map());

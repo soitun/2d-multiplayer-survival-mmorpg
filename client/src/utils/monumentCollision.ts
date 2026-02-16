@@ -1,9 +1,54 @@
 /**
  * Client-side collision shapes for monument buildings.
- * Abstraction layer for monument-specific collision (village campfires, etc.).
+ * Abstraction layer for monument-specific collision (village campfires, scarecrow, etc.).
  */
 import type { MonumentPart } from '../generated';
 import type { CollisionShape } from './clientCollision';
+
+// --- Monument scarecrow collision (matches placeable scarecrow - 64px radius) ---
+const MONUMENT_SCARECROW_CULL_DISTANCE_SQ = 200 * 200; // Only check within 200px
+const MAX_MONUMENT_SCARECROWS_TO_CHECK = 3;
+
+function isMonumentScarecrowPart(part: MonumentPart): boolean {
+  return part.monumentType?.tag === 'HuntingVillage' && part.partType === 'scarecrow' && (part.collisionRadius ?? 0) > 0;
+}
+
+/**
+ * Returns collision shapes for hunting village monument scarecrow (matches placeable scarecrow).
+ * Uses part.collisionRadius from server (64px) when set.
+ */
+export function getMonumentScarecrowCollisionShapes(
+  monumentParts: Map<string, MonumentPart> | undefined,
+  playerX: number,
+  playerY: number
+): CollisionShape[] {
+  if (!monumentParts || monumentParts.size === 0) return [];
+
+  const shapes: CollisionShape[] = [];
+  let count = 0;
+
+  for (const part of monumentParts.values()) {
+    if (count >= MAX_MONUMENT_SCARECROWS_TO_CHECK) break;
+    if (!isMonumentScarecrowPart(part)) continue;
+
+    const dx = part.worldX - playerX;
+    const dy = part.worldY - playerY;
+    const distSq = dx * dx + dy * dy;
+    if (distSq > MONUMENT_SCARECROW_CULL_DISTANCE_SQ) continue;
+
+    const radius = part.collisionRadius ?? 64;
+    shapes.push({
+      id: `monument_scarecrow_${part.id}`,
+      type: `monument_scarecrow-${part.id}`,
+      x: part.worldX,
+      y: part.worldY,
+      radius,
+    });
+    count++;
+  }
+
+  return shapes;
+}
 
 // --- Village campfire collision ---
 const VILLAGE_CAMPFIRE_COLLISION_RADIUS = 70;

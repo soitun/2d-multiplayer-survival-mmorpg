@@ -1577,9 +1577,7 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
         
         // Quest 13: Obtain Tallow (prepares for furnace)
         // PRIMARY: Obtain 25 Tallow (REQUIRED) - can craft it OR find in barrels
-        // SECONDARY: Craft 10 Cloth (OPTIONAL guidance) 
-        // TERTIARY: Collect 15 Animal Fat (OPTIONAL guidance)
-        // Tallow recipe: 3 Animal Fat + 2 Cloth = 5 Tallow (for 25: need 15 fat + 10 cloth)
+        // No secondary/tertiary - only 25 Tallow required
         TutorialQuestDefinition {
             id: "tutorial_13_tallow_prep".to_string(),
             order_index: 12,
@@ -1589,17 +1587,15 @@ fn seed_tutorial_quests(ctx: &ReducerContext) -> Result<(), String> {
             objective_type: QuestObjectiveType::CollectSpecificItem,
             target_id: Some("Tallow".to_string()),
             target_amount: 25,
-            // SECONDARY: Craft Cloth (optional guidance for crafting path)
-            secondary_objective_type: Some(QuestObjectiveType::CraftSpecificItem),
-            secondary_target_id: Some("Cloth".to_string()),
-            secondary_target_amount: Some(10),
-            // TERTIARY: Collect Animal Fat (optional guidance for crafting path)
-            tertiary_objective_type: Some(QuestObjectiveType::CollectSpecificItem),
-            tertiary_target_id: Some("Animal Fat".to_string()),
-            tertiary_target_amount: Some(15),
-            secondary_optional: true,  // Cloth is just guidance - not required
-            tertiary_optional: true,   // Animal Fat is just guidance - not required
-            objective_logic: ObjectiveLogic::And,  // Only primary (Tallow) required due to optional flags
+            secondary_objective_type: None,
+            secondary_target_id: None,
+            secondary_target_amount: None,
+            tertiary_objective_type: None,
+            tertiary_target_id: None,
+            tertiary_target_amount: None,
+            secondary_optional: false,
+            tertiary_optional: false,
+            objective_logic: ObjectiveLogic::And,
             xp_reward: 50,
             shard_reward: 20,
             unlock_recipe: None,

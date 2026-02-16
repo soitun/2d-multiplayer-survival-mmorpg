@@ -143,7 +143,7 @@ import { renderTillerPreview } from '../utils/renderers/tillerPreviewRenderingUt
 import { renderCloudsDirectly } from '../utils/renderers/cloudRenderingUtils';
 import { renderDronesDirectly, getInterpolatedDrones } from '../utils/renderers/droneRenderingUtils';
 import { useFallingTreeAnimations } from '../hooks/useFallingTreeAnimations';
-import { renderProjectile } from '../utils/renderers/projectileRenderingUtils';
+import { renderProjectile, cleanupProjectileTrackingForDeleted } from '../utils/renderers/projectileRenderingUtils';
 import { renderShelter } from '../utils/renderers/shelterRenderingUtils';
 import { setShelterClippingData } from '../utils/renderers/shadowUtils';
 import { renderRain } from '../utils/renderers/rainRenderingUtils';
@@ -953,6 +953,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Sync ySortedEntities to ref (reduces renderGame dependency array churn)
   useEffect(() => { ySortedEntitiesRef.current = ySortedEntities; }, [ySortedEntities]);
+
+  // Cleanup projectile tracking for deleted projectiles (player, hostile, turret - all types)
+  // Prevents unbounded Map growth during long combat sessions
+  useEffect(() => {
+    const ids = new Set<string>();
+    projectiles.forEach((_, id) => ids.add(id));
+    cleanupProjectileTrackingForDeleted(ids);
+  }, [projectiles]);
 
   // Filter shipwreck parts from unified monument parts (for night lights rendering)
   const shipwreckPartsMap = useMemo(() => {

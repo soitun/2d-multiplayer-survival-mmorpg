@@ -141,8 +141,8 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
             });
         }
 
-        // Check if item can be pulverized into plant fiber (tree bark)
-        if (itemName === "Pine Bark" || itemName === "Birch Bark") {
+        // Check if item can be pulverized into plant fiber (tree bark, common reed stalk)
+        if (itemName === "Pine Bark" || itemName === "Birch Bark" || itemName === "Common Reed Stalk") {
             actions.push({
                 label: 'Pulverize',
                 action: 'pulverize',

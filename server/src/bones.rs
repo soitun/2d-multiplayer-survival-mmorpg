@@ -202,11 +202,14 @@ const MIN_FIBER_PER_PINE_BARK: u32 = 2;  // Rough bark yields less
 const MAX_FIBER_PER_PINE_BARK: u32 = 3;
 const MIN_FIBER_PER_BIRCH_BARK: u32 = 3; // Paper-thin birch yields more
 const MAX_FIBER_PER_BIRCH_BARK: u32 = 4;
+const MIN_FIBER_PER_COMMON_REED_STALK: u32 = 2;  // Hollow reed yields moderate fiber
+const MAX_FIBER_PER_COMMON_REED_STALK: u32 = 3;
 
-/// Bark items that can be pulverized into plant fiber
+/// Bark and reed items that can be pulverized into plant fiber
 const PULVERIZABLE_BARK: &[&str] = &[
     "Pine Bark",
     "Birch Bark",
+    "Common Reed Stalk",
 ];
 
 /// Pulverizes starchy plants/seeds into flour.
@@ -241,6 +244,7 @@ pub fn pulverize_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(),
         let fiber_to_create = match item_name {
             "Pine Bark" => ctx.rng().gen_range(MIN_FIBER_PER_PINE_BARK..=MAX_FIBER_PER_PINE_BARK),
             "Birch Bark" => ctx.rng().gen_range(MIN_FIBER_PER_BIRCH_BARK..=MAX_FIBER_PER_BIRCH_BARK),
+            "Common Reed Stalk" => ctx.rng().gen_range(MIN_FIBER_PER_COMMON_REED_STALK..=MAX_FIBER_PER_COMMON_REED_STALK),
             _ => unreachable!(),
         };
         ("Plant Fiber", fiber_to_create)
