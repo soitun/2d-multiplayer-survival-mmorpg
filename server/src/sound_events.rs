@@ -101,6 +101,7 @@ pub enum SoundType {
     ExplosiveDud,            // explosive_dud.mp3 (1 variation - fizzle sound when explosive fails to detonate)
     DoorDestroyed,           // door_destroyed.mp3 (1 variation - when door is destroyed)
     SovaMemoryShardTutorial, // sova_tutorial_memory_shard.mp3 (SOVA explains memory shards on first pickup)
+    SovaMemoryShard200Tutorial, // sova_tutorial_memory_shard_200.mp3 (SOVA warns about 200 shards, mind instability, Memory Grid)
     TillDirt,                // till_dirt.mp3 (1 variation - when player tills soil with Stone Tiller)
     ErrorTillingFailed,      // error_tilling_failed.mp3 (SOVA: "This ground cannot be tilled")
     ErrorTillingDirt,        // error_tilling_dirt.mp3 (SOVA: "This soil has already been prepared")
@@ -233,6 +234,7 @@ impl SoundType {
             SoundType::ExplosiveDud => "explosive_dud",
             SoundType::DoorDestroyed => "door_destroyed",
             SoundType::SovaMemoryShardTutorial => "sova_tutorial_memory_shard",
+            SoundType::SovaMemoryShard200Tutorial => "sova_tutorial_memory_shard_200",
             SoundType::TillDirt => "till_dirt",
             SoundType::ErrorTillingFailed => "error_tilling_failed",
             SoundType::ErrorTillingDirt => "error_tilling_dirt",
@@ -364,6 +366,7 @@ impl SoundType {
             SoundType::ExplosiveDud => 1, // explosive_dud.mp3 (single variation)
             SoundType::DoorDestroyed => 1, // door_destroyed.mp3 (single variation)
             SoundType::SovaMemoryShardTutorial => 1, // sova_memory_shard_tutorial.mp3 (SOVA tutorial - single)
+            SoundType::SovaMemoryShard200Tutorial => 1, // sova_tutorial_memory_shard_200.mp3 (SOVA 200 shards warning - single)
             SoundType::TillDirt => 1, // till_dirt.mp3 (tilling soil with Stone Tiller)
             SoundType::ErrorTillingFailed => 1, // error_tilling_failed.mp3 (SOVA error for non-tillable ground)
             SoundType::ErrorTillingDirt => 1, // error_tilling_dirt.mp3 (SOVA error for already-tilled ground)
@@ -1636,6 +1639,15 @@ pub fn emit_sova_memory_shard_tutorial_sound(ctx: &ReducerContext, pos_x: f32, p
         log::warn!("Failed to emit SOVA memory shard tutorial sound: {}", e);
     }
     log::info!("[SOVA Tutorial] Memory shard tutorial triggered for player {:?}", player_id);
+}
+
+/// Emit SOVA 200 memory shards tutorial sound (first time player holds 200+ shards)
+/// Warns about mind instability, purple vision, dropping/storing shards, and using Memory Grid (G key)
+pub fn emit_sova_memory_shard_200_tutorial_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    if let Err(e) = emit_sound_at_position_with_distance(ctx, SoundType::SovaMemoryShard200Tutorial, pos_x, pos_y, 1.0, 10000.0, player_id) {
+        log::warn!("Failed to emit SOVA memory shard 200 tutorial sound: {}", e);
+    }
+    log::info!("[SOVA Tutorial] Memory shard 200 tutorial triggered for player {:?}", player_id);
 }
 
 // --- Client-Callable Rain Sound Reducers ---

@@ -89,6 +89,7 @@ const SOUND_DEFINITIONS = {
     unravel_rope: { strategy: SoundStrategy.IMMEDIATE, volume: 1.2 }, // Unraveling rope into plant fiber
     // SOVA tutorial sounds - special handling (triggers chat message as well as audio)
     sova_memory_shard_tutorial: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 10000 }, // SOVA explains memory shards on first pickup
+    sova_memory_shard_200_tutorial: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 10000 }, // SOVA warns about 200 shards, mind instability, Memory Grid
     till_dirt: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 200 }, // Tilling soil with Stone Tiller
     error_tilling_failed: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 50 }, // SOVA: "This ground cannot be tilled"
     error_tilling_dirt: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 50 }, // SOVA: "This soil has already been prepared"
@@ -402,6 +403,7 @@ const PRELOAD_SOUNDS = [
     'error_seaweed_above_water.mp3',                         // 1 seaweed harvest error variation (when above water)
     'sova_error_mobile_capability.mp3',                     // 1 SOVA mobile capability error (no pitch variation - voice line)
     'sova_tutorial_memory_shard.mp3',                       // SOVA memory shard tutorial (first pickup)
+    'sova_tutorial_memory_shard_200.mp3',                  // SOVA 200 shards warning (mind instability, Memory Grid)
     'sova_mission_complete.mp3',                            // SOVA quest complete voice
     'stun.mp3',                                               // 1 stun effect variation (when stunned by blunt weapon)
     'thunder.mp3',                                             // 4 thunder variations
@@ -1344,8 +1346,10 @@ export const useSoundSystem = ({
             } else {
                 // Fallback: extract from filename
                 const fromFilename = soundEvent.filename.replace(/\d*\.mp3$/, '');
-                // Alias: server uses sova_tutorial_memory_shard.mp3, we check for sova_memory_shard_tutorial
-                soundType = (fromFilename === 'sova_tutorial_memory_shard' ? 'sova_memory_shard_tutorial' : fromFilename) as SoundType;
+                // Aliases: server filenames -> client sound types
+                if (fromFilename === 'sova_tutorial_memory_shard') soundType = 'sova_memory_shard_tutorial' as SoundType;
+                else if (fromFilename === 'sova_tutorial_memory_shard_200') soundType = 'sova_memory_shard_200_tutorial' as SoundType;
+                else soundType = fromFilename as SoundType;
             }
             const definition = SOUND_DEFINITIONS[soundType];
             
@@ -1388,6 +1392,17 @@ export const useSoundSystem = ({
                     });
                 }
                 // Don't play through sound system - useSovaTutorials handles this with SovaSoundBox
+                return;
+            }
+
+            // Special handling for SOVA 200 memory shards tutorial - emit event for useSovaTutorials
+            if (soundType === 'sova_memory_shard_200_tutorial') {
+                if (localPlayerIdentity && soundEvent.triggeredBy.toHexString() === localPlayerIdentity.toHexString()) {
+                    console.log(`🔮 [SOVA Tutorial] 200 memory shards tutorial triggered for local player`);
+                    queueMicrotask(() => {
+                        window.dispatchEvent(new CustomEvent('sova-memory-shard-200-tutorial'));
+                    });
+                }
                 return;
             }
             

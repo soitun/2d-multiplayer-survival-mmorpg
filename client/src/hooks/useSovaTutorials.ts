@@ -33,7 +33,7 @@ export interface SovaMessage {
     flashTab?: boolean;
 }
 
-export type ShowSovaSoundBoxFn = (audio: HTMLAudioElement, label: string) => void;
+export type ShowSovaSoundBoxFn = (audio: HTMLAudioElement, label: string, options?: import('./useSovaSoundBox').SovaSoundBoxOptions) => void;
 export type SovaMessageAdderFn = (message: SovaMessage) => void;
 
 // Minimal interfaces for the entity types we need (just position data)
@@ -177,6 +177,17 @@ export const TUTORIALS: Record<string, TutorialDefinition> = {
         description: 'Investigation of the crashed research drone and abandoned camp.',
         message: `Hold up — I'm detecting residual electromagnetic signatures from that wreckage. Scanning... It's a research drone. Pre-collapse tech, military-grade sensors. Someone already tried to salvage it — there's an abandoned camp nearby. Furnace, rain collector, repair station... whoever set this up knew what they were doing. They were probably trying to extract the drone's CPU. The good news? They left their equipment behind. The bad news? They left everything behind. No body, no trail. Just... gone. Be careful out here, agent. I'm detecting memory shards, sulfur compounds, metal fragments — the wreckage is rich with salvage. But don't linger. Whatever happened to that survivor... I don't think they saw it coming.`,
     },
+    memoryShard200: {
+        id: 'memoryShard200',
+        storageKey: 'broth_memory_shard_200_tutorial_played',
+        audioFile: '/sounds/sova_tutorial_memory_shard_200.mp3',
+        soundBoxLabel: 'SOVA: Neural Load Warning',
+        eventName: 'sova-memory-shard-200-tutorial',
+        displayName: '200 Memory Shards Warning',
+        emoji: '⚠️',
+        description: 'SOVA warns about mind instability when carrying 200+ memory shards.',
+        message: `Agent — your neural load is critical. I'm picking up elevated stress markers. Your mind is getting more unstable the longer you carry this many shards. If your vision goes purple, don't worry — just drop the shards or store them for safe keeping. But you should probably use them. Press G, then click the Memory Grid tab in your ocular interface. I'll scan the memory shard weights and help you upgrade your loadout.`,
+    },
 };
 
 // Intro audio duration check (for skipping overlapping audio)
@@ -272,11 +283,14 @@ function playSovaTutorial(
     options?: {
         skipAudioIfIntroPlaying?: boolean;
         onAudioStart?: () => void;
+        onAudioEnd?: () => void;
         onError?: (err: unknown) => void;
+        /** When true, this audio cannot be interrupted by other SOVA tutorials (e.g. crash intro) */
+        isIntro?: boolean;
     }
 ): void {
     const { audioFile, soundBoxLabel, message, messageId } = config;
-    const { skipAudioIfIntroPlaying = false, onAudioStart, onError } = options || {};
+    const { skipAudioIfIntroPlaying = false, onAudioStart, onAudioEnd, onError, isIntro = false } = options || {};
 
     // Check if we should skip audio due to intro still playing
     if (skipAudioIfIntroPlaying && isIntroStillPlaying()) {
@@ -301,7 +315,10 @@ function playSovaTutorial(
         // CRITICAL: Show sound box BEFORE calling play() to set the __SOVA_SOUNDBOX_IS_ACTIVE__ flag
         // This prevents notification sounds from sneaking in during the async play() window
         if (showSovaSoundBox) {
-            showSovaSoundBox(audio, soundBoxLabel);
+            const soundBoxOptions = isIntro
+                ? { priority: 'intro' as const, onEnded: () => onAudioEnd?.() }
+                : undefined;
+            showSovaSoundBox(audio, soundBoxLabel, soundBoxOptions);
         }
         
         audio.play()
@@ -455,10 +472,12 @@ export function useSovaTutorials({
                 showSovaSoundBoxRef.current,
                 sovaMessageAdderRef.current,
                 {
-                    onAudioStart: () => {
-                        // Mark as seen on the server AFTER audio starts successfully
+                    isIntro: true,
+                    onAudioEnd: () => {
+                        // Mark as seen on the server AFTER intro audio finishes (not when it starts)
+                        // This ensures other tutorials (memory shard, quest complete) won't trigger until intro is done
                         if (onMarkSovaIntroSeen) {
-                            console.log('[SovaTutorials] 🚢 Marking intro as seen on server');
+                            console.log('[SovaTutorials] 🚢 Intro finished - marking as seen on server');
                             onMarkSovaIntroSeen();
                         }
                     },
@@ -754,6 +773,40 @@ export function useSovaTutorials({
         window.addEventListener(eventName!, handleEvent as EventListener);
         return () => window.removeEventListener(eventName!, handleEvent as EventListener);
     }, [hasSeenCrashedDroneTutorial, onMarkCrashedDroneTutorialSeen, showSovaSoundBoxRef, sovaMessageAdderRef, onSovaError]);
+
+    // ========================================================================
+    // Part 6c: 200 Memory Shards Tutorial (Event-driven, server-triggered)
+    // Server emits when player first holds 200+ shards - warns about mind instability, Memory Grid
+    // ========================================================================
+    useEffect(() => {
+        const { audioFile, soundBoxLabel, eventName, message } = TUTORIALS.memoryShard200;
+        
+        const handleEvent = () => {
+            console.log('[SovaTutorials] ⚠️ 200 memory shards tutorial event received');
+            
+            if (isIntroStillPlaying()) {
+                console.log('[SovaTutorials] ⚠️ Intro still playing - skipping 200 shards tutorial (will play next time)');
+                return;
+            }
+            
+            console.log('[SovaTutorials] ⚠️ Playing 200 memory shards tutorial NOW');
+            
+            playSovaTutorial(
+                {
+                    audioFile,
+                    soundBoxLabel,
+                    message,
+                    messageId: `sova-memory-shard-200-tutorial-${Date.now()}`,
+                },
+                showSovaSoundBoxRef.current,
+                sovaMessageAdderRef.current,
+                { onError: onSovaError }
+            );
+        };
+
+        window.addEventListener(eventName!, handleEvent as EventListener);
+        return () => window.removeEventListener(eventName!, handleEvent as EventListener);
+    }, [showSovaSoundBoxRef, sovaMessageAdderRef, onSovaError]);
 
     // ========================================================================
     // Part 7: Proximity Detection for Rune Stones, ALK Stations, and Monuments

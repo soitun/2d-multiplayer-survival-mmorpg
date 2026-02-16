@@ -344,91 +344,95 @@ fn count_player_item_by_name(ctx: &ReducerContext, player_id: Identity, item_nam
 /// If the current quest requires items (Wood, Stone, specific items, crafted items),
 /// count what the player already has and update progress so they get credit without re-gathering.
 /// Called on client connect so returning players with existing inventory progress immediately.
+/// Uses a loop (not recursion) to handle players who have items for multiple quests - avoids Wasm stack overflow.
 pub fn reconcile_tutorial_quest_progress(ctx: &ReducerContext, player_id: Identity) -> Result<(), String> {
     let progress_table = ctx.db.player_tutorial_progress();
-    let mut progress = get_or_init_tutorial_progress(ctx, player_id);
-    if progress.tutorial_completed {
-        return Ok(());
-    }
     let quest_defs: Vec<TutorialQuestDefinition> = ctx.db.tutorial_quest_definition().iter().collect();
-    let current_quest = match quest_defs.iter().find(|q| q.order_index == progress.current_quest_index) {
-        Some(q) => q,
-        None => return Ok(()),
-    };
-    let mut updated = false;
-    // Primary: GatherWood, GatherStone, CollectSpecificItem, CraftSpecificItem
-    let primary_item_name = match &current_quest.objective_type {
-        QuestObjectiveType::GatherWood => Some("Wood"),
-        QuestObjectiveType::GatherStone => Some("Stone"),
-        QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => current_quest.target_id.as_deref(),
-        _ => None,
-    };
-    if let Some(name) = primary_item_name {
-        let count = count_player_item_by_name(ctx, player_id, name);
-        if count > progress.current_quest_progress {
-            progress.current_quest_progress = count.min(current_quest.target_amount);
-            updated = true;
+    loop {
+        let mut progress = get_or_init_tutorial_progress(ctx, player_id);
+        if progress.tutorial_completed {
+            return Ok(());
         }
-    }
-    // Secondary
-    if let (Some(ref obj_type), Some(target)) = (&current_quest.secondary_objective_type, current_quest.secondary_target_id.as_deref()) {
-        let sec_item_name = match obj_type {
+        let current_quest = match quest_defs.iter().find(|q| q.order_index == progress.current_quest_index) {
+            Some(q) => q,
+            None => return Ok(()),
+        };
+        let mut updated = false;
+        // Primary: GatherWood, GatherStone, CollectSpecificItem, CraftSpecificItem
+        let primary_item_name = match &current_quest.objective_type {
             QuestObjectiveType::GatherWood => Some("Wood"),
             QuestObjectiveType::GatherStone => Some("Stone"),
-            QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => Some(target),
+            QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => current_quest.target_id.as_deref(),
             _ => None,
         };
-        if let (Some(name), Some(sec_target)) = (sec_item_name, current_quest.secondary_target_amount) {
+        if let Some(name) = primary_item_name {
             let count = count_player_item_by_name(ctx, player_id, name);
-            if count > progress.secondary_quest_progress {
-                progress.secondary_quest_progress = count.min(sec_target);
+            if count > progress.current_quest_progress {
+                progress.current_quest_progress = count.min(current_quest.target_amount);
                 updated = true;
             }
         }
-    }
-    // Tertiary
-    if let (Some(ref obj_type), Some(target)) = (&current_quest.tertiary_objective_type, current_quest.tertiary_target_id.as_deref()) {
-        let tert_item_name = match obj_type {
-            QuestObjectiveType::GatherWood => Some("Wood"),
-            QuestObjectiveType::GatherStone => Some("Stone"),
-            QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => Some(target),
-            _ => None,
-        };
-        if let (Some(name), Some(tert_target)) = (tert_item_name, current_quest.tertiary_target_amount) {
-            let count = count_player_item_by_name(ctx, player_id, name);
-            if count > progress.tertiary_quest_progress {
-                progress.tertiary_quest_progress = count.min(tert_target);
-                updated = true;
+        // Secondary
+        if let (Some(ref obj_type), Some(target)) = (&current_quest.secondary_objective_type, current_quest.secondary_target_id.as_deref()) {
+            let sec_item_name = match obj_type {
+                QuestObjectiveType::GatherWood => Some("Wood"),
+                QuestObjectiveType::GatherStone => Some("Stone"),
+                QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => Some(target),
+                _ => None,
+            };
+            if let (Some(name), Some(sec_target)) = (sec_item_name, current_quest.secondary_target_amount) {
+                let count = count_player_item_by_name(ctx, player_id, name);
+                if count > progress.secondary_quest_progress {
+                    progress.secondary_quest_progress = count.min(sec_target);
+                    updated = true;
+                }
             }
         }
+        // Tertiary
+        if let (Some(ref obj_type), Some(target)) = (&current_quest.tertiary_objective_type, current_quest.tertiary_target_id.as_deref()) {
+            let tert_item_name = match obj_type {
+                QuestObjectiveType::GatherWood => Some("Wood"),
+                QuestObjectiveType::GatherStone => Some("Stone"),
+                QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => Some(target),
+                _ => None,
+            };
+            if let (Some(name), Some(tert_target)) = (tert_item_name, current_quest.tertiary_target_amount) {
+                let count = count_player_item_by_name(ctx, player_id, name);
+                if count > progress.tertiary_quest_progress {
+                    progress.tertiary_quest_progress = count.min(tert_target);
+                    updated = true;
+                }
+            }
+        }
+        if !updated {
+            return Ok(());
+        }
+        progress.updated_at = ctx.timestamp;
+        // Check completion
+        let primary_complete = progress.current_quest_progress >= current_quest.target_amount;
+        let secondary_complete = match current_quest.secondary_target_amount {
+            Some(t) => progress.secondary_quest_progress >= t,
+            None => true,
+        };
+        let tertiary_complete = match current_quest.tertiary_target_amount {
+            Some(t) => progress.tertiary_quest_progress >= t,
+            None => true,
+        };
+        let secondary_satisfied = current_quest.secondary_optional || secondary_complete;
+        let tertiary_satisfied = current_quest.tertiary_optional || tertiary_complete;
+        let quest_complete = match current_quest.objective_logic {
+            ObjectiveLogic::And => primary_complete && secondary_satisfied && tertiary_satisfied,
+            ObjectiveLogic::Or => primary_complete || secondary_complete || tertiary_complete,
+            ObjectiveLogic::PrimaryOnly => primary_complete,
+        };
+        if quest_complete {
+            complete_tutorial_quest(ctx, player_id, &mut progress, current_quest)?;
+            // Loop to check next quest - player may have items for it too (no recursion)
+        } else {
+            progress_table.player_id().update(progress);
+            return Ok(());
+        }
     }
-    if !updated {
-        return Ok(());
-    }
-    progress.updated_at = ctx.timestamp;
-    // Check completion
-    let primary_complete = progress.current_quest_progress >= current_quest.target_amount;
-    let secondary_complete = match current_quest.secondary_target_amount {
-        Some(t) => progress.secondary_quest_progress >= t,
-        None => true,
-    };
-    let tertiary_complete = match current_quest.tertiary_target_amount {
-        Some(t) => progress.tertiary_quest_progress >= t,
-        None => true,
-    };
-    let secondary_satisfied = current_quest.secondary_optional || secondary_complete;
-    let tertiary_satisfied = current_quest.tertiary_optional || tertiary_complete;
-    let quest_complete = match current_quest.objective_logic {
-        ObjectiveLogic::And => primary_complete && secondary_satisfied && tertiary_satisfied,
-        ObjectiveLogic::Or => primary_complete || secondary_complete || tertiary_complete,
-        ObjectiveLogic::PrimaryOnly => primary_complete,
-    };
-    if quest_complete {
-        complete_tutorial_quest(ctx, player_id, &mut progress, current_quest)?;
-    } else {
-        progress_table.player_id().update(progress);
-    }
-    Ok(())
 }
 
 /// Get or initialize player tutorial progress
@@ -813,10 +817,8 @@ fn complete_tutorial_quest(
             "quest_start",
             None, // No audio - quest_complete sound already played, text is sufficient
         );
-        // Reconcile immediately - player may already have items for the new quest (e.g. 400 wood, 200 stone)
-        if let Err(e) = reconcile_tutorial_quest_progress(ctx, player_id) {
-            log::warn!("[Quests] Failed to reconcile after quest advance: {}", e);
-        }
+        // NOTE: Do NOT call reconcile from here - causes recursion/stack overflow when player
+        // has items for multiple quests. Reconcile runs on client_connect instead.
     } else {
         // Tutorial complete!
         progress.tutorial_completed = true;

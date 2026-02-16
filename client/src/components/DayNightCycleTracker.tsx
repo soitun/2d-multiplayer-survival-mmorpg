@@ -49,6 +49,28 @@ const SEASON_COLORS = {
 const DAYS_PER_SEASON = 240;
 const DAYS_PER_YEAR = 960;
 
+// Max chars for objective labels in compact uplink (truncate with ... if longer)
+const OBJECTIVE_LABEL_MAX_LEN = 14;
+
+/** Get human-readable label for quest objective (e.g. "Beach Lyme Grass", "Plant Fiber", "Wood") */
+function getObjectiveLabel(quest: TutorialQuestDefinition, which: 'primary' | 'secondary' | 'tertiary'): string {
+    const objType = which === 'primary' ? quest.objectiveType : which === 'secondary' ? quest.secondaryObjectiveType : quest.tertiaryObjectiveType;
+    const targetId = which === 'primary' ? quest.targetId : which === 'secondary' ? quest.secondaryTargetId : quest.tertiaryTargetId;
+    if (!objType) return which === 'primary' ? 'Mission' : `Obj_${which === 'secondary' ? '2' : '3'}`;
+    const tag = (objType as { tag?: string }).tag;
+    if (tag === 'GatherWood') return 'Wood';
+    if (tag === 'GatherStone') return 'Stone';
+    if (tag === 'GatherFiber') return 'Plant Fiber';
+    if (targetId) return targetId;
+    return which === 'primary' ? 'Mission' : `Obj_${which === 'secondary' ? '2' : '3'}`;
+}
+
+/** Truncate label with ... if too long for compact display */
+function truncateLabel(label: string, maxLen: number = OBJECTIVE_LABEL_MAX_LEN): string {
+    if (label.length <= maxLen) return label;
+    return label.slice(0, maxLen - 3) + '...';
+}
+
 interface DayNightCycleTrackerProps {
     worldState: WorldState | null;
     chunkWeather: Map<string, any>;
@@ -798,7 +820,7 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
                                             textShadow: progressFlash ? `0 0 10px ${ACCENT_GREEN}` : 'none',
                                             transition: 'all 0.2s ease',
                                         }}>
-                                            {hasMultipleObjectives ? 'OBJ_1:' : 'MISSION:'} {tutorialProgressText}
+                                            {truncateLabel(getObjectiveLabel(currentTutorialQuest, 'primary'))}: {tutorialProgressText}
                                         </span>
                                     </div>
                                     
@@ -819,7 +841,7 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
                                                 textShadow: secondaryProgressFlash ? `0 0 10px ${ACCENT_CYAN}` : 'none',
                                                 transition: 'all 0.2s ease',
                                             }}>
-                                                OBJ_2: {secondaryProgressText}
+                                                {truncateLabel(getObjectiveLabel(currentTutorialQuest, 'secondary'))}: {secondaryProgressText}
                                             </span>
                                         </div>
                                     )}
@@ -841,7 +863,7 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
                                                 textShadow: tertiaryProgressFlash ? `0 0 10px ${ACCENT_PINK}` : 'none',
                                                 transition: 'all 0.2s ease',
                                             }}>
-                                                OBJ_3: {tertiaryProgressText}
+                                                {truncateLabel(getObjectiveLabel(currentTutorialQuest, 'tertiary'))}: {tertiaryProgressText}
                                             </span>
                                         </div>
                                     )}

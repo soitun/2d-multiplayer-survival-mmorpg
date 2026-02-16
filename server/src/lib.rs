@@ -740,6 +740,7 @@ pub struct Player {
     pub offline_corpse_id: Option<u32>, // Links to corpse created when player went offline
     pub is_aiming_throw: bool, // NEW: Tracks if player is in throw-aiming state (right mouse held)
     pub has_seen_memory_shard_tutorial: bool, // Tracks if player has seen SOVA's memory shard explanation
+    pub has_seen_memory_shard_200_tutorial: bool, // Tracks if player has seen SOVA's 200 shards warning (mind instability, Memory Grid)
     pub has_seen_sova_intro: bool, // Tracks if player has seen SOVA's crash intro
     // Additional SOVA tutorial flags (for Audio Logs replay feature)
     pub has_seen_tutorial_hint: bool, // "Press V to Talk" hint after 3.5 minutes
@@ -2223,6 +2224,7 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         shard_carry_start_time: None, // NEW: Not carrying shards initially
         offline_corpse_id: None, // No offline corpse for new players
         has_seen_memory_shard_tutorial: false, // Player hasn't seen SOVA's memory shard explanation yet
+        has_seen_memory_shard_200_tutorial: false, // Player hasn't seen SOVA's 200 shards warning yet
         has_seen_sova_intro: false, // Player hasn't seen SOVA's crash intro yet
         has_seen_tutorial_hint: false, // Player hasn't seen "Press V" hint yet
         has_seen_hostile_encounter_tutorial: false, // Player hasn't seen night apparition warning yet
@@ -2393,6 +2395,7 @@ pub fn register_npc(ctx: &ReducerContext, username: String, role: String) -> Res
         shard_carry_start_time: None,
         offline_corpse_id: None,
         has_seen_memory_shard_tutorial: true, // NPCs don't need tutorials
+        has_seen_memory_shard_200_tutorial: true, // NPCs don't need tutorials
         has_seen_sova_intro: true,
         has_seen_tutorial_hint: true,
         has_seen_hostile_encounter_tutorial: true,

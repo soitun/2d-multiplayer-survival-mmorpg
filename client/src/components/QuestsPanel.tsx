@@ -15,6 +15,19 @@ import {
     SovaMessageAdderFn
 } from '../hooks/useSovaTutorials';
 
+// Helper: get human-readable label for quest objective (e.g. "Beach Lyme Grass", "Plant Fiber", "Wood")
+function getObjectiveLabel(quest: TutorialQuestDefinition, which: 'primary' | 'secondary'): string {
+    const objType = which === 'primary' ? quest.objectiveType : quest.secondaryObjectiveType;
+    const targetId = which === 'primary' ? quest.targetId : quest.secondaryTargetId;
+    if (!objType) return which === 'primary' ? 'Objective' : 'Secondary Objective';
+    const tag = (objType as { tag?: string }).tag;
+    if (tag === 'GatherWood') return 'Wood';
+    if (tag === 'GatherStone') return 'Stone';
+    if (tag === 'GatherFiber') return 'Plant Fiber';
+    if (targetId) return targetId; // HarvestSpecificPlant, CollectSpecificItem, CraftSpecificItem
+    return which === 'primary' ? 'Objective' : 'Secondary Objective';
+}
+
 // Style constants - Cyberpunk theme
 const UI_BG_COLOR = 'linear-gradient(135deg, rgba(10, 5, 20, 0.98), rgba(15, 8, 30, 0.99))';
 const UI_BORDER_COLOR = '#00aaff';
@@ -543,10 +556,8 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                                         textTransform: 'uppercase',
                                         letterSpacing: '1px',
                                     }}>
-                                        {/* Show "Primary Objective" or "Option A" when OR logic */}
-                                        {(currentTutorialQuest as any).secondaryObjectiveType 
-                                            ? ((currentTutorialQuest as any).objectiveLogic?.tag === 'Or' ? 'Option A' : 'Primary Objective')
-                                            : 'Objective'}
+                                        {/* Show item name (e.g. "Beach Lyme Grass", "Wood") for clarity */}
+                                        {getObjectiveLabel(currentTutorialQuest, 'primary')}
                                     </div>
                                     <div style={{
                                         width: '100%',
@@ -586,7 +597,7 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                                             textTransform: 'uppercase',
                                             letterSpacing: '1px',
                                         }}>
-                                            {(currentTutorialQuest as any).objectiveLogic?.tag === 'Or' ? 'Option B' : 'Secondary Objective'}
+                                            {getObjectiveLabel(currentTutorialQuest, 'secondary')}
                                         </div>
                                         <div style={{
                                             width: '100%',

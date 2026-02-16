@@ -121,12 +121,12 @@ pub fn pickup_dropped_item(ctx: &ReducerContext, dropped_item_id: u64) -> Result
             crate::sound_events::emit_pickup_item_sound(ctx, dropped_item.pos_x, dropped_item.pos_y, sender_id);
             
             // 6. Check if this is a Memory Shard and trigger tutorial if player hasn't seen it
+            // IMPORTANT: Only trigger AFTER SOVA intro is done - intro is non-interruptable
             if added_to_inventory && item_name == "Memory Shard" {
                 // Re-fetch player to get fresh state
                 if let Some(mut player_for_tutorial) = players_table.identity().find(sender_id) {
-                    if !player_for_tutorial.has_seen_memory_shard_tutorial {
-                        // First time picking up a memory shard - trigger SOVA tutorial!
-                        // Note: Client will skip audio if intro is still playing
+                    if player_for_tutorial.has_seen_sova_intro && !player_for_tutorial.has_seen_memory_shard_tutorial {
+                        // First memory shard pickup after intro - trigger SOVA tutorial!
                         crate::sound_events::emit_sova_memory_shard_tutorial_sound(
                             ctx, 
                             player_for_tutorial.position_x, 

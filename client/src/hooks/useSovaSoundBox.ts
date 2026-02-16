@@ -111,9 +111,17 @@ export interface SovaSoundState {
   isVisible: boolean;
 }
 
+/** Options for showSovaSoundBox - intro cannot be interrupted by other SOVA audio */
+export interface SovaSoundBoxOptions {
+  /** When 'intro', this audio cannot be interrupted - other tutorials will be skipped until it ends */
+  priority?: 'intro';
+  /** Called when this audio finishes playing */
+  onEnded?: () => void;
+}
+
 interface UseSovaSoundBoxReturn {
   /** Show the SOVA sound box with the given audio and label */
-  showSovaSoundBox: (audio: HTMLAudioElement, label?: string) => void;
+  showSovaSoundBox: (audio: HTMLAudioElement, label?: string, options?: SovaSoundBoxOptions) => void;
   /** Hide the current SOVA sound box and stop audio */
   hideSovaSoundBox: () => void;
   /** Current state of the SOVA sound */
@@ -125,6 +133,8 @@ interface UseSovaSoundBoxReturn {
 export function useSovaSoundBox(): UseSovaSoundBoxReturn {
   const [soundState, setSoundState] = useState<SovaSoundState | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const introPlayingRef = useRef(false);
+  const introOnEndedRef = useRef<(() => void) | null>(null);
 
   // Expose global function to check if SOVA is playing
   // This allows achievement/level up/mission notifications to check before playing
@@ -155,7 +165,14 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
     window.__SOVA_SOUNDBOX_AUDIO_REF__ = audioRef.current;
   }, [soundState]);
 
-  const showSovaSoundBox = useCallback((audio: HTMLAudioElement, label: string = 'SOVA') => {
+  const showSovaSoundBox = useCallback((audio: HTMLAudioElement, label: string = 'SOVA', options?: SovaSoundBoxOptions) => {
+    // SOVA INTRO IS NON-INTERRUPTABLE: If intro is playing, skip any other SOVA audio
+    // This prevents quest complete, memory shard tutorial, etc. from cutting off the crash intro
+    if (introPlayingRef.current && options?.priority !== 'intro') {
+      console.log('[SovaSoundBox] ⏸️ Skipping - SOVA intro is playing and cannot be interrupted');
+      return;
+    }
+
     // CRITICAL: Set active flag IMMEDIATELY before any async operations
     // This prevents race conditions where notification sounds could sneak in
     // during the time between showSovaSoundBox being called and audio.play() completing
@@ -165,10 +182,18 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
     // SOVA always takes priority over achievement/level-up/mission sounds
     stopNotificationSound();
     
-    // Stop any existing SovaSoundBox audio first
+    // Stop any existing SovaSoundBox audio first (unless we're the intro replacing something - shouldn't happen)
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
+    }
+
+    // Track intro state for non-interruptable behavior
+    if (options?.priority === 'intro') {
+      introPlayingRef.current = true;
+      introOnEndedRef.current = options.onEnded ?? null;
+    } else {
+      introOnEndedRef.current = null;
     }
 
     // IMPORTANT: Also stop any loading screen SOVA audio that might be playing
@@ -188,6 +213,12 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
       window.__SOVA_SOUNDBOX_IS_ACTIVE__ = false;
       audio.removeEventListener('ended', clearActiveFlag);
       audio.removeEventListener('error', clearActiveFlag);
+      // If this was the intro, clear intro state and call onEnded (e.g. mark intro as seen on server)
+      if (introPlayingRef.current) {
+        introPlayingRef.current = false;
+        introOnEndedRef.current?.();
+        introOnEndedRef.current = null;
+      }
     };
     audio.addEventListener('ended', clearActiveFlag);
     audio.addEventListener('error', clearActiveFlag);

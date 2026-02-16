@@ -640,6 +640,20 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
             }
         }
         
+        // SOVA 200 Memory Shards Tutorial: First time player holds 200+ shards
+        // Warns about mind instability, purple vision, dropping/storing, and Memory Grid (G key)
+        let mut triggered_200_shard_tutorial = false;
+        if memory_shard_count >= 200 && !player.has_seen_memory_shard_200_tutorial {
+            crate::sound_events::emit_sova_memory_shard_200_tutorial_sound(
+                ctx,
+                player.position_x,
+                player.position_y,
+                player_id,
+            );
+            triggered_200_shard_tutorial = true;
+            log::info!("[SOVA Tutorial] 200 memory shards tutorial triggered for player {:?}", player_id);
+        }
+
         // Track shard carry start time for time-based insanity scaling
         // NOTE: Only track time when carrying ENOUGH shards to trigger insanity (100+)
         let mut shard_carry_start_time_to_update = player.shard_carry_start_time;
@@ -1106,6 +1120,9 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
             current_player.insanity = new_insanity;
             current_player.last_insanity_threshold = new_threshold;
             current_player.shard_carry_start_time = shard_carry_start_time_to_update;
+            if triggered_200_shard_tutorial {
+                current_player.has_seen_memory_shard_200_tutorial = true;
+            }
             current_player.is_dead = player.is_dead;
             current_player.death_timestamp = player.death_timestamp;
             current_player.last_stat_update = current_time;
@@ -1134,6 +1151,9 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
              let mut current_player = players.identity().find(&player_id)
                  .expect("Player should exist during stats update");
              current_player.last_stat_update = current_time;
+             if triggered_200_shard_tutorial {
+                 current_player.has_seen_memory_shard_200_tutorial = true;
+             }
              // Only clear last_hit_time if we explicitly marked it for clearing (stale hit time)
              // AND the current value is still stale - don't overwrite NEW hits from other reducers
              // Use 2500ms threshold to match burn tick interval (2s) + buffer

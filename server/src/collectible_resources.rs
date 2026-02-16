@@ -113,11 +113,11 @@ where
                 log::info!("Player {:?} collected {} of primary resource: {} (added to inventory).", player_id, primary_quantity_to_grant, primary_resource_name);
                 
                 // Check if this is a Memory Shard and trigger tutorial if player hasn't seen it
+                // IMPORTANT: Only trigger AFTER SOVA intro is done - intro is non-interruptable
                 if primary_resource_name == "Memory Shard" {
                     if let Some(mut player) = ctx.db.player().identity().find(player_id) {
-                        if !player.has_seen_memory_shard_tutorial {
-                            // First time harvesting a memory shard - trigger SOVA tutorial!
-                            // Note: Client will skip audio if intro is still playing
+                        if player.has_seen_sova_intro && !player.has_seen_memory_shard_tutorial {
+                            // First memory shard harvest after intro - trigger SOVA tutorial!
                             crate::sound_events::emit_sova_memory_shard_tutorial_sound(
                                 ctx, 
                                 player.position_x, 
