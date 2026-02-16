@@ -1406,7 +1406,8 @@ export const useAmbientSounds = ({
         const oceanMaxDist = 'maxProximityDistance' in oceanDef ? oceanDef.maxProximityDistance : 800;
         const deepOceanDef = AMBIENT_SOUND_DEFINITIONS.deep_ocean_ambience;
         const deepOceanMaxDist = 'maxProximityDistance' in deepOceanDef ? deepOceanDef.maxProximityDistance : 600;
-        if (distanceToMapEdge < deepOceanMaxDist) {
+        const inDeepOcean = distanceToMapEdge < deepOceanMaxDist;
+        if (inDeepOcean) {
             // At map edge = deep ocean (ambient water, no waves)
             sounds.push('deep_ocean_ambience');
         } else if (distanceToShore < oceanMaxDist) {
@@ -1414,28 +1415,30 @@ export const useAmbientSounds = ({
             sounds.push('ocean_ambience');
         }
         
-        // 🦗 Night crickets - only at night, not in winter (insects are dormant)
+        // 🦗 Night crickets - only at night, not in winter (insects are dormant), not in deep ocean
         const isNightTime = timeOfDay?.tag === 'Night' || timeOfDay?.tag === 'Midnight';
         const isWinter = currentSeason?.tag === 'Winter';
-        if (isNightTime && !isWinter) {
+        if (isNightTime && !isWinter && !inDeepOcean) {
             sounds.push('night_crickets');
         }
         
-        // 🐦 Dawn chorus - morning birds during dawn period
+        // 🐦 Dawn chorus - morning birds during dawn period, not in deep ocean
         const isDawn = timeOfDay?.tag === 'Dawn';
-        if (isDawn) {
+        if (isDawn && !inDeepOcean) {
             sounds.push('dawn_chorus');
         }
         
-        // General nature ambience (always present but quiet)
+        // General nature ambience (always present but quiet), not in deep ocean (no land = no birds/insects)
         // When underwater, this gets heavily muffled (birds, insects become very faint)
-        sounds.push('nature_general');
+        if (!inDeepOcean) {
+            sounds.push('nature_general');
+        }
         
-        // 🐝 Bee buzzing - proximity-based, only plays ONE loop even for multiple bees
+        // 🐝 Bee buzzing - proximity-based, only plays ONE loop even for multiple bees, not in deep ocean
         const distanceToBee = getDistanceToNearestBee();
         const beeDef = AMBIENT_SOUND_DEFINITIONS.bee_buzzing;
         const beeMaxDist = 'maxProximityDistance' in beeDef ? beeDef.maxProximityDistance : 350;
-        if (distanceToBee < beeMaxDist && !isUnderwater) {
+        if (distanceToBee < beeMaxDist && !isUnderwater && !inDeepOcean) {
             sounds.push('bee_buzzing');
         }
         
