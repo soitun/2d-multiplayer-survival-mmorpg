@@ -39,7 +39,7 @@ const SOUND_DEFINITIONS = {
     // Continuous/looping sounds - server managed
     campfire_looping: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 525, isLooping: true },
     lantern_looping: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 525, isLooping: true },
-    bees_buzzing: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.5, maxDistance: 525, isLooping: true }, // Subtle ambient buzz
+    bees_buzzing: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.25, maxDistance: 525, isLooping: true }, // Subtle ambient buzz (wild + wooden beehives)
     // Repair sounds - server only (triggered by repair actions)
     repair: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.2, maxDistance: 525 },
     repair_fail: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 525 },

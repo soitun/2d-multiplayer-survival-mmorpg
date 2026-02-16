@@ -95,8 +95,8 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
     getShadowParams: undefined,
 
     drawCustomGroundShadow: (ctx, entity, entityImage, entityPosX, entityPosY, imageDrawWidth, imageDrawHeight, cycleProgress) => {
-        // Draw DYNAMIC ground shadow if not destroyed/respawning
-        // Uses same offset/scale/rotate as swimming player shadow (offset right+down, scaled, angled)
+        // Draw NORMAL dynamic ground shadow for barrels on land (road barrels + sea barrels on beach)
+        // Sea barrels on water use special shadow in renderSeaBarrelWithWaterEffects
         if (!entity.respawnAt || entity.respawnAt.microsSinceUnixEpoch === 0n) {
             const { shakeOffsetX, shakeOffsetY } = calculateShakeOffsets(
                 entity,
@@ -112,35 +112,30 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
             );
 
             const variantIndex = Number(entity.variant ?? 0);
-            const yOffset = variantIndex === 4 ? 24 : variantIndex === 6 ? 28 : 12;
-            const centerY = entityPosY - imageDrawHeight / 2 - yOffset;
-            const shadowOffsetX = imageDrawWidth * 0.28;
-            const shadowOffsetY = imageDrawHeight * 0.9;
-            const shadowX = entityPosX + shadowOffsetX;
-            const shadowY = centerY + shadowOffsetY;
-
-            ctx.save();
-            ctx.translate(shadowX, shadowY);
-            ctx.scale(0.85, 0.75);
-            ctx.rotate(Math.PI / 6);
-            ctx.translate(-shadowX, -shadowY);
+            const pivotYOffsetBase = variantIndex === 4 ? 50 : variantIndex === 6 ? 55 : 35;
+            // NOON FIX: At noon, shadows appear too far below (detached from entity)
+            let noonExtraOffset = 0;
+            if (cycleProgress >= 0.35 && cycleProgress < 0.55) {
+                const noonT = (cycleProgress - 0.35) / 0.20;
+                const noonFactor = 1.0 - Math.abs(noonT - 0.5) * 2.0;
+                noonExtraOffset = noonFactor * imageDrawHeight * 0.25;
+            }
 
             drawDynamicGroundShadow({
                 ctx,
                 entityImage,
-                entityCenterX: shadowX,
-                entityBaseY: shadowY,
+                entityCenterX: entityPosX,
+                entityBaseY: entityPosY,
                 imageDrawWidth,
                 imageDrawHeight,
                 cycleProgress,
-                maxStretchFactor: 1.1,
-                minStretchFactor: 0.15,
+                maxStretchFactor: 1.2,
+                minStretchFactor: 0.1,
                 shadowBlur: 2,
-                pivotYOffset: 0,
+                pivotYOffset: pivotYOffsetBase + noonExtraOffset,
                 shakeOffsetX,
                 shakeOffsetY,
             });
-            ctx.restore();
         }
     },
 
