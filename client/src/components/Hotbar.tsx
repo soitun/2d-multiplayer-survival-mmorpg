@@ -331,7 +331,8 @@ const Hotbar: React.FC<HotbarProps> = ({
       'Plastic Water Jug',
       'Reed Harpoon', // Allow reed harpoon melee weapon to be used in water
       'Reed Harpoon Gun', // Allow reed harpoon gun ranged weapon in water
-      'Diving Pick' // Allow diving pick for underwater coral harvesting
+      'Diving Pick', // Allow diving pick for underwater coral harvesting
+      'Tidebreaker Blade' // Allow Tidebreaker Blade in water for harvesting jellyfish/shark corpses
     ];
     // Torch is only allowed in water when NOT snorkeling (can't light a torch underwater!)
     if (!localPlayer?.isSnorkeling && itemInSlot.definition.name === 'Torch') return false;
@@ -740,7 +741,8 @@ const Hotbar: React.FC<HotbarProps> = ({
       'Plastic Water Jug',
       'Reed Harpoon', // Allow reed harpoon melee weapon to stay equipped in water
       'Reed Harpoon Gun', // Allow reed harpoon gun ranged weapon in water
-      'Diving Pick' // Allow diving pick for underwater coral harvesting
+      'Diving Pick', // Allow diving pick for underwater coral harvesting
+      'Tidebreaker Blade' // Allow Tidebreaker Blade in water for harvesting jellyfish/shark corpses
     ];
           // Torch is only allowed in water when NOT snorkeling (can't use underwater!)
           if (!localPlayer.isSnorkeling && currentItem.definition.name === 'Torch') {
@@ -932,7 +934,8 @@ const Hotbar: React.FC<HotbarProps> = ({
       'Plastic Water Jug',
       'Reed Harpoon', // Allow reed harpoon melee weapon to be used in water
       'Reed Harpoon Gun', // Allow reed harpoon gun ranged weapon in water
-      'Diving Pick' // Allow diving pick for underwater coral harvesting
+      'Diving Pick', // Allow diving pick for underwater coral harvesting
+      'Tidebreaker Blade' // Allow Tidebreaker Blade in water for harvesting jellyfish/shark corpses
     ];
     
     // Check if torch is allowed (only in water, NOT when snorkeling underwater)

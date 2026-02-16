@@ -68,8 +68,8 @@ const speciesSpriteSheets: Record<string, string> = {
     'Tern': ternWalkingAnimatedSheet,
     'Wolverine': wolverineWalkingAnimatedSheet,
     'Caribou': caribouWalkingAnimatedSheet,
-    'SalmonShark': salmonSharkWalkingAnimatedSheet, // 256x256 frames
-    'Jellyfish': jellyfishWalkingAnimatedSheet, // 256x256 frames
+    'SalmonShark': salmonSharkWalkingAnimatedSheet,
+    'Jellyfish': jellyfishWalkingAnimatedSheet,
     'Crow': crowWalkingAnimatedSheet,
     // Alpine animals (4x4 release pattern)
     'PolarBear': polarBearWalkingAnimatedSheet,
@@ -91,8 +91,8 @@ const usesReleasePattern: Record<string, boolean> = {
     'Tern': true,
     'Wolverine': true,
     'Caribou': true,
-    'SalmonShark': true, // 256x256 frames, 1024x1024 sheet
-    'Jellyfish': true, // 256x256 frames, 1024x1024 sheet
+    'SalmonShark': true,
+    'Jellyfish': true,
     'Crow': true,
     // Alpine animals (4x4 release pattern)
     'PolarBear': true,
@@ -104,10 +104,6 @@ const usesReleasePattern: Record<string, boolean> = {
     // 3x3 legacy pattern (CableViper only - no release spritesheet)
     'CableViper': false,
 };
-
-// Special large frame config for SalmonShark (256x256 frames instead of 80x80)
-const FRAME_WIDTH_SHARK = 256;
-const FRAME_HEIGHT_SHARK = 256;
 
 // Get corpse render size based on species (match live animal sizes)
 function getCorpseRenderSize(species: any): { width: number; height: number } {
@@ -239,18 +235,11 @@ export const renderAnimalCorpse = (
   if (isReleasePattern) {
     // 4x4 release pattern: use frame 0, direction 0 (down-facing)
     // Then flip upside down for corpse effect
-    // SalmonShark and Jellyfish have larger frames (256x256) compared to other animals (80x80)
-    if (corpse.animalSpecies.tag === 'SalmonShark' || corpse.animalSpecies.tag === 'Jellyfish') {
-      sx = CORPSE_FRAME_4X4 * FRAME_WIDTH_SHARK;
-      sy = CORPSE_DIRECTION_4X4 * FRAME_HEIGHT_SHARK;
-      frameWidth = FRAME_WIDTH_SHARK;
-      frameHeight = FRAME_HEIGHT_SHARK;
-    } else {
-      sx = CORPSE_FRAME_4X4 * FRAME_WIDTH_4X4;
-      sy = CORPSE_DIRECTION_4X4 * FRAME_HEIGHT_4X4;
-      frameWidth = FRAME_WIDTH_4X4;
-      frameHeight = FRAME_HEIGHT_4X4;
-    }
+    // SalmonShark and Jellyfish use same 320x320 sheet with 80x80 frames as other animals
+    sx = CORPSE_FRAME_4X4 * FRAME_WIDTH_4X4;
+    sy = CORPSE_DIRECTION_4X4 * FRAME_HEIGHT_4X4;
+    frameWidth = FRAME_WIDTH_4X4;
+    frameHeight = FRAME_HEIGHT_4X4;
   } else {
     // 3x3 pattern: use right-facing sprite (col 0, row 1)
     sx = RIGHT_FACING_COL_3X3 * FRAME_WIDTH_3X3;

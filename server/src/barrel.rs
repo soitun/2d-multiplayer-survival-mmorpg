@@ -191,6 +191,29 @@ pub fn get_barrel_loot_table(ctx: &ReducerContext) -> Vec<BarrelLootEntry> {
 
 // --- Helper Functions ---
 
+/// Checks if a position has collision with existing buoys only.
+/// Used for buoy spawning - 4000px spacing is between buoys, not all barrels.
+/// Sea barrels in outer ocean should not block buoy spawns.
+fn has_buoy_collision(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    for barrel in ctx.db.barrel().iter() {
+        if barrel.health == 0.0 { continue; }
+        if barrel.variant != BUOY_VARIANT { continue; } // Only check other buoys
+        
+        let collision_y_offset = BARREL_COLLISION_Y_OFFSET;
+        let collision_radius = BARREL_COLLISION_RADIUS;
+        let buoy_collision_distance_sq = (collision_radius * 2.0 + 20.0) * (collision_radius * 2.0 + 20.0);
+        
+        let dx = pos_x - barrel.pos_x;
+        let dy = pos_y - (barrel.pos_y - collision_y_offset);
+        let distance_sq = dx * dx + dy * dy;
+        
+        if distance_sq < buoy_collision_distance_sq {
+            return true;
+        }
+    }
+    false
+}
+
 /// Checks if a position has collision with existing barrels
 pub fn has_barrel_collision(ctx: &ReducerContext, pos_x: f32, pos_y: f32, exclude_id: Option<u64>) -> bool {
     for barrel in ctx.db.barrel().iter() {
@@ -1382,7 +1405,7 @@ pub fn spawn_buoy_barrels(ctx: &ReducerContext) -> Result<(), String> {
                     continue;
                 }
 
-                if has_barrel_collision(ctx, barrel_x, barrel_y, None) || has_player_barrel_collision(ctx, barrel_x, barrel_y) {
+                if has_buoy_collision(ctx, barrel_x, barrel_y) || has_player_barrel_collision(ctx, barrel_x, barrel_y) {
                     continue;
                 }
 

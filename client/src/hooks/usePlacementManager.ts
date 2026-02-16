@@ -1178,6 +1178,7 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
               // Check if campfire already has a broth pot
               if (nearestHeatSource.attachedBrothPotId !== null && nearestHeatSource.attachedBrothPotId !== undefined) {
                 console.log('[PlacementManager] Campfire already has a broth pot attached');
+                setPlacementError('Campfire already has a Field Cauldron');
                 playImmediateSound('error_field_cauldron_placement', 1.0);
                 return;
               }
@@ -1192,6 +1193,7 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
               
               if (existingPotOnFumarole) {
                 console.log('[PlacementManager] Fumarole already has a broth pot attached');
+                setPlacementError('Fumarole already has a Field Cauldron');
                 playImmediateSound('error_field_cauldron_placement', 1.0);
                 return;
               }
@@ -1201,6 +1203,7 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
             }
           } else {
             console.log('[PlacementManager] No heat source (campfire or fumarole) nearby to place broth pot');
+            setPlacementError('Place on a campfire or fumarole');
             playImmediateSound('error_field_cauldron_placement', 1.0);
           }
           break;

@@ -578,6 +578,8 @@ function AppContent() {
                 if (status?.tag === 'Failed') {
                     const errorMsg = status.value || 'Cannot harvest resource';
                     console.log(`[App] interactWithHarvestableResource failed:`, errorMsg);
+                    // Skip "too far away" - player can't reach this state through normal interaction (E only shows when in range)
+                    if (errorMsg.toLowerCase().includes('too far')) return;
                     if (errorMsg.includes('underwater') || errorMsg.includes('snorkeling') || errorMsg.includes('seaweed')) {
                         playImmediateSound('error_seaweed_above_water', 1.0);
                     }

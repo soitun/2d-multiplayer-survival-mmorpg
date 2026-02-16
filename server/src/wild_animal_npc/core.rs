@@ -2453,7 +2453,7 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
         let start_x = animal.pos_x;
         let start_y = animal.pos_y;
         
-        let is_attacking = matches!(animal.state, AnimalState::Attacking | AnimalState::Chasing | AnimalState::FlyingChase);
+        let is_attacking = matches!(animal.state, AnimalState::Attacking | AnimalState::Chasing | AnimalState::SwimmingChase | AnimalState::FlyingChase);
         let (mut final_x, mut final_y) = resolve_animal_collision(
             ctx,
             animal.id,
