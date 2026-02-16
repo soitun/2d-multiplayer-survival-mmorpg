@@ -270,6 +270,7 @@ export function useQuestNotifications({
                     const onEndedOrError = () => {
                         audio.removeEventListener('ended', onEndedOrError);
                         audio.removeEventListener('error', onEndedOrError);
+                        audio.removeEventListener('canplaythrough', tryPlay);
                         processNext(index + 1);
                     };
                     
@@ -278,18 +279,40 @@ export function useQuestNotifications({
                     
                     sovaAudioQueueRef.current = true;
                     
-                    if (showSovaSoundBoxRef.current) {
-                        showSovaSoundBoxRef.current(audio, label);
-                    }
-                    
-                    const playPromise = audio.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch(err => {
-                            console.warn('[QuestNotifications] Failed to play SOVA quest audio:', err);
+                    // CRITICAL: Wait for audio to load before play() - fixes NotSupportedError
+                    // "Failed to load because no supported source was found" occurs when
+                    // play() is called before the browser has fetched/decoded the file
+                    let loadTimeout: ReturnType<typeof setTimeout> | undefined;
+                    const tryPlay = () => {
+                        if (loadTimeout) clearTimeout(loadTimeout);
+                        audio.removeEventListener('canplaythrough', tryPlay);
+                        if (showSovaSoundBoxRef.current) {
+                            showSovaSoundBoxRef.current(audio, label);
+                        }
+                        const playPromise = audio.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch(err => {
+                                console.warn('[QuestNotifications] Failed to play SOVA quest audio:', err);
+                                onEndedOrError();
+                            });
+                        } else {
                             onEndedOrError();
-                        });
+                        }
+                    };
+                    
+                    if (audio.readyState >= 3) {
+                        // HAVE_FUTURE_DATA or HAVE_ENOUGH_DATA - safe to play
+                        tryPlay();
                     } else {
-                        onEndedOrError();
+                        audio.addEventListener('canplaythrough', tryPlay);
+                        // Timeout: if not loaded in 8s, skip (file may be missing or network issue)
+                        loadTimeout = setTimeout(() => {
+                            if (audio.readyState < 3) {
+                                audio.removeEventListener('canplaythrough', tryPlay);
+                                console.warn('[QuestNotifications] SOVA audio load timeout:', message.audioFile);
+                                onEndedOrError();
+                            }
+                        }, 8000);
                     }
                 } catch (err) {
                     console.warn('[QuestNotifications] Error creating SOVA quest audio:', err);

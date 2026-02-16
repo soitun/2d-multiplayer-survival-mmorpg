@@ -468,6 +468,7 @@ pub struct SoundEventCleanupSchedule {
 }
 
 /// Schedule table for delayed thunder sound (0.5-2.5s after lightning flash)
+/// chunk_index is used to emit positional sound so only players within range hear it
 #[table(name = thunder_sound_schedule, scheduled(emit_delayed_thunder_sound))]
 #[derive(Clone, Debug)]
 pub struct ThunderSoundSchedule {
@@ -475,6 +476,7 @@ pub struct ThunderSoundSchedule {
     #[auto_inc]
     pub schedule_id: u64,
     pub scheduled_at: ScheduleAt,
+    pub chunk_index: u32,
 }
 
 /// Clean up sound events older than 5 seconds to prevent table bloat
@@ -510,18 +512,20 @@ pub fn cleanup_old_sound_events(ctx: &ReducerContext, _args: SoundEventCleanupSc
     Ok(())
 }
 
-/// Emit thunder sound when scheduled (called 0.5-2.5s after lightning flash)
+/// Emit thunder sound when scheduled (called 0.5-2.5s after lightning flash).
+/// Uses positional sound at chunk center so only players within THUNDER_HEARING_CHUNKS hear it.
 #[reducer]
-pub fn emit_delayed_thunder_sound(ctx: &ReducerContext, _args: ThunderSoundSchedule) -> Result<(), String> {
+pub fn emit_delayed_thunder_sound(ctx: &ReducerContext, args: ThunderSoundSchedule) -> Result<(), String> {
     if ctx.sender != ctx.identity() {
         return Err("Delayed thunder sound can only be run by scheduler".to_string());
     }
-    emit_thunder_sound(ctx, 1.2);
+    emit_thunder_sound_at_chunk(ctx, args.chunk_index, 1.2);
     Ok(())
 }
 
-/// Schedule thunder sound to play 0.5-2.5 seconds from now (simulates sound travel delay)
-pub fn schedule_delayed_thunder_sound(ctx: &ReducerContext, rng: &mut impl Rng) -> Result<(), String> {
+/// Schedule thunder sound to play 0.5-2.5 seconds from now (simulates sound travel delay).
+/// chunk_index is used to emit positional sound so only players within range hear it.
+pub fn schedule_delayed_thunder_sound(ctx: &ReducerContext, chunk_index: u32, rng: &mut impl Rng) -> Result<(), String> {
     // Random delay 0.5-2.5 seconds (sound travels ~343 m/s, lightning is visible instantly)
     let delay_secs = 0.5 + rng.gen::<f32>() * 2.0;
     let delay_micros = (delay_secs * 1_000_000.0) as i64;
@@ -530,6 +534,7 @@ pub fn schedule_delayed_thunder_sound(ctx: &ReducerContext, rng: &mut impl Rng) 
     let schedule = ThunderSoundSchedule {
         schedule_id: 0,
         scheduled_at: ScheduleAt::Time(scheduled_time),
+        chunk_index,
     };
 
     match ctx.db.thunder_sound_schedule().try_insert(schedule) {
@@ -1674,5 +1679,29 @@ pub fn stop_normal_rain_sound_reducer(ctx: &ReducerContext) -> Result<(), String
 pub fn emit_thunder_sound(ctx: &ReducerContext, volume: f32) {
     if let Err(e) = emit_global_sound(ctx, SoundType::Thunder, volume) {
         log::warn!("Failed to emit thunder sound: {}", e);
+    }
+}
+
+/// Thunder hearing range in chunks - players beyond this don't hear the rumble
+const THUNDER_HEARING_CHUNKS: f32 = 4.0;
+
+/// Emit thunder sound at chunk position (only players within THUNDER_HEARING_CHUNKS hear it)
+pub fn emit_thunder_sound_at_chunk(ctx: &ReducerContext, chunk_index: u32, volume: f32) {
+    use crate::environment::{CHUNK_SIZE_PX, WORLD_WIDTH_CHUNKS};
+    let chunk_x = (chunk_index % WORLD_WIDTH_CHUNKS) as f32;
+    let chunk_y = (chunk_index / WORLD_WIDTH_CHUNKS) as f32;
+    let pos_x = (chunk_x + 0.5) * CHUNK_SIZE_PX;
+    let pos_y = (chunk_y + 0.5) * CHUNK_SIZE_PX;
+    let max_distance = THUNDER_HEARING_CHUNKS * CHUNK_SIZE_PX;
+    if let Err(e) = emit_sound_at_position_with_distance(
+        ctx,
+        SoundType::Thunder,
+        pos_x,
+        pos_y,
+        volume,
+        max_distance,
+        ctx.identity(),
+    ) {
+        log::warn!("Failed to emit positional thunder sound: {}", e);
     }
 }

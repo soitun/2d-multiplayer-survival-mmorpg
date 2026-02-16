@@ -1565,11 +1565,13 @@ fn update_single_chunk_weather(
     let current_weather = chunk_weather.current_weather.clone();
     let seasonal_config = SeasonalWeatherConfig::for_season(&world_state.current_season);
 
-    // === STEP 0: THUNDER/LIGHTNING (HeavyStorm only) ===
-    // Lightning flash + delayed thunder sound in heavy storm zones
+    // === STEP 0: THUNDER/LIGHTNING (HeavyStorm only, never in winter/snowstorms) ===
+    // Lightning flash + delayed thunder sound in heavy storm zones.
+    // Snowstorms (winter) never have thunder - only rain storms do.
     const MIN_THUNDER_INTERVAL_SECS: f32 = 8.0;
     const MAX_THUNDER_INTERVAL_SECS: f32 = 25.0;
-    if matches!(current_weather, WeatherType::HeavyStorm) {
+    let is_winter = matches!(world_state.current_season, Season::Winter);
+    if matches!(current_weather, WeatherType::HeavyStorm) && !is_winter {
         // Schedule first thunder if not yet set
         if chunk_weather.next_thunder_time.is_none() {
             let interval_secs = rng.gen_range(MIN_THUNDER_INTERVAL_SECS..=MAX_THUNDER_INTERVAL_SECS);
@@ -1591,8 +1593,8 @@ fn update_single_chunk_weather(
                     log::debug!("⚡ Thunder in chunk {} intensity {:.2}", chunk_index, intensity);
                 }
 
-                // 2. Schedule delayed thunder sound (0.5-2.5s after flash)
-                if let Err(e) = sound_events::schedule_delayed_thunder_sound(ctx, rng) {
+                // 2. Schedule delayed thunder sound (0.5-2.5s after flash, positional at chunk)
+                if let Err(e) = sound_events::schedule_delayed_thunder_sound(ctx, chunk_index, rng) {
                     log::warn!("Failed to schedule thunder sound: {}", e);
                 }
 

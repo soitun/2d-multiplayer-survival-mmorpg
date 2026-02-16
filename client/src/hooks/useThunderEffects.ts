@@ -1,31 +1,47 @@
 import { useEffect, useRef } from 'react';
 import { handleServerThunderEvent } from '../utils/renderers/rainRenderingUtils';
 import { calculateChunkIndex } from '../utils/chunkUtils';
+import { gameConfig } from '../config/gameConfig';
+
+/** Thunder flash and sound only visible/audible within this many chunks of the lightning */
+const THUNDER_RANGE_CHUNKS = 4;
 
 interface UseThunderEffectsProps {
   connection: any | null;
   localPlayer: any | undefined;
 }
 
+function isWithinThunderRange(playerChunkIndex: number, thunderChunkIndex: number): boolean {
+  const { worldWidthChunks } = gameConfig;
+  const playerChunkX = playerChunkIndex % worldWidthChunks;
+  const playerChunkY = Math.floor(playerChunkIndex / worldWidthChunks);
+  const thunderChunkX = thunderChunkIndex % worldWidthChunks;
+  const thunderChunkY = Math.floor(thunderChunkIndex / worldWidthChunks);
+  const dx = Math.abs(playerChunkX - thunderChunkX);
+  const dy = Math.abs(playerChunkY - thunderChunkY);
+  return Math.max(dx, dy) <= THUNDER_RANGE_CHUNKS;
+}
+
 export function useThunderEffects({ connection, localPlayer }: UseThunderEffectsProps) {
-  // Track processed thunder event IDs to prevent duplicate processing
   const processedThunderIds = useRef<Set<string>>(new Set());
-  // Ref so handler always reads latest player without re-subscribing on every localPlayer change
   const localPlayerRef = useRef(localPlayer);
   localPlayerRef.current = localPlayer;
 
   useEffect(() => {
     if (!connection?.db?.thunderEvent) return;
 
-    const handleThunderEvent = (ctx: any, thunderEvent: any) => {
+    const handleThunderEvent = (_ctx: any, thunderEvent: any) => {
       const thunderId = thunderEvent.id?.toString();
       if (!thunderId || processedThunderIds.current.has(thunderId)) return;
 
       const player = localPlayerRef.current;
-      if (!player) return;
-
-      const playerChunkIndex = calculateChunkIndex(player.positionX, player.positionY);
-      if (thunderEvent.chunkIndex !== playerChunkIndex) return;
+      const thunderChunkIndex = thunderEvent.chunkIndex ?? thunderEvent.chunk_index ?? 0;
+      if (player?.positionX != null && player?.positionY != null) {
+        const playerChunkIndex = calculateChunkIndex(player.positionX, player.positionY);
+        if (!isWithinThunderRange(playerChunkIndex, thunderChunkIndex)) {
+          return; // Too far - no flash, no sound (sound is also positional on server)
+        }
+      }
 
       processedThunderIds.current.add(thunderId);
       if (processedThunderIds.current.size > 100) {
@@ -33,7 +49,6 @@ export function useThunderEffects({ connection, localPlayer }: UseThunderEffects
         processedThunderIds.current = new Set(idsArray.slice(-50));
       }
 
-      // Lightning flash happens instantly; thunder sound is delayed on server
       handleServerThunderEvent(thunderEvent);
     };
 

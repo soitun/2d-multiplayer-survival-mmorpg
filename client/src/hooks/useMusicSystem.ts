@@ -120,10 +120,13 @@ const MUSIC_TRACKS = NORMAL_TRACKS;
 const DEFAULT_CONFIG: MusicSystemConfig = {
     enabled: true,
     volume: 0.5, // 50% volume for background music (0.5 out of 1.0 max)
-    crossfadeDuration: 2000, // 2 second crossfade
+    crossfadeDuration: 3000, // 3 second crossfade for seamless zone transitions
     shuffleMode: true,
     preloadAll: true,
 };
+
+// Zone must be stable for this long before switching (prevents boundary flicker)
+const ZONE_DEBOUNCE_MS = 1500;
 
 // Random pause configuration
 const PAUSE_PROBABILITY = 0.4; // 40% chance of pausing between songs
@@ -599,7 +602,15 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
     }, []);
 
     // Play a specific track (using index within current zone's tracklist)
+    const playTrackTransitionLockRef = useRef<Promise<void> | null>(null);
     const playTrack = useCallback(async (trackIndex: number, crossfade = true, zone?: MusicZone): Promise<void> => {
+        // Wait for any in-progress transition to complete before starting a new one
+        // This prevents overlapping crossfades and abrupt cutoffs
+        if (playTrackTransitionLockRef.current) {
+            await playTrackTransitionLockRef.current;
+        }
+
+        const transitionPromise = (async () => {
         try {
             const zoneToUse = zone ?? stateRef.current.currentZone;
             const zoneTracks = ZONE_TRACKS[zoneToUse] || NORMAL_TRACKS;
@@ -635,11 +646,11 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
                 const isZoneTransition = currentZone !== targetZone;
                 
                 // Use longer fade for zone transitions, especially when leaving special zones
-                // This creates a more immersive, less jarring transition
-                const fadeOutDuration = isLeavingSpecialZone ? baseDuration * 2.0 : 
-                                       isZoneTransition ? baseDuration * 1.5 : 
+                // Leaving feels more natural with a gradual fade-out; entering can be quicker
+                const fadeOutDuration = isLeavingSpecialZone ? baseDuration * 1.8 : 
+                                       isZoneTransition ? baseDuration * 1.4 : 
                                        baseDuration;
-                const fadeInDuration = isEnteringSpecialZone ? baseDuration * 1.5 : baseDuration;
+                const fadeInDuration = isEnteringSpecialZone ? baseDuration * 1.3 : baseDuration;
                 
                 // Use equal-power crossfade for zone transitions (prevents volume dip)
                 // Use exponential for same-zone track changes (sounds more natural)
@@ -722,7 +733,13 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
                 ...prev, 
                 error: `Failed to play track: ${(error as Error).message || 'Unknown error'}` 
             }));
+        } finally {
+            playTrackTransitionLockRef.current = null;
         }
+        })();
+
+        playTrackTransitionLockRef.current = transitionPromise;
+        return transitionPromise;
     }, [cleanupEventListeners]);
 
     // Start music system (with optional zone override)
@@ -776,14 +793,25 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
         await playTrack(firstTrackIndex, false, zoneToUse); // No crossfade for first track
     }, [playTrack]); // Removed state dependencies to prevent stale closures
 
-    // Stop music
-    const stopMusic = useCallback(() => {
+    // Stop music (with optional smooth fade-out to avoid abrupt cutoff)
+    const stopMusic = useCallback(async () => {
         // console.log('🎵 Stopping music...');
         
         // Clear any active pause timeout
         if (pauseTimeoutRef.current) {
             clearTimeout(pauseTimeoutRef.current);
             pauseTimeoutRef.current = null;
+        }
+        
+        const audioToFade = currentAudioRef.current;
+        if (audioToFade && configRef.current.crossfadeDuration > 0) {
+            // Smooth fade-out over 2.5 seconds before stopping
+            const fadeOutMs = Math.min(2500, configRef.current.crossfadeDuration * 1.2);
+            try {
+                await fadeAudio(audioToFade, audioToFade.volume, 0, fadeOutMs, 'exponential');
+            } catch {
+                // Ignore - we're stopping anyway
+            }
         }
         
         if (currentAudioRef.current) {
@@ -1049,6 +1077,10 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
                 clearTimeout(pauseTimeoutRef.current);
                 pauseTimeoutRef.current = null;
             }
+            if (zoneDebounceRef.current) {
+                clearTimeout(zoneDebounceRef.current);
+                zoneDebounceRef.current = null;
+            }
             if (currentAudioRef.current) {
                 currentAudioRef.current.pause();
             }
@@ -1059,50 +1091,79 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
         };
     }, [finalConfig.enabled, preloadAllTracks, cleanupEventListeners]);
 
-    // Zone detection and switching
+    // Zone detection and switching with debouncing to prevent boundary flicker
     const detectedZone = useMemo(() => {
         return detectMusicZone(playerPosition ?? null, monumentParts ?? null, alkStations ?? null);
     }, [playerPosition?.x, playerPosition?.y, monumentParts, alkStations]);
 
-    // Switch zones when detected zone changes and music is playing
-    const previousZoneRef = useRef<MusicZone>('normal');
+    // Debounced zone: only switch when zone has been stable for ZONE_DEBOUNCE_MS
+    const [debouncedZone, setDebouncedZone] = useState<MusicZone>(() => detectedZone);
+    const zoneDebounceRef = useRef<NodeJS.Timeout | null>(null);
+    const previousZoneRef = useRef<MusicZone>(detectedZone);
+
+    useEffect(() => {
+        if (detectedZone === previousZoneRef.current) {
+            // Zone unchanged - clear any pending debounce
+            if (zoneDebounceRef.current) {
+                clearTimeout(zoneDebounceRef.current);
+                zoneDebounceRef.current = null;
+            }
+            return;
+        }
+
+        // Zone changed - start debounce timer
+        if (zoneDebounceRef.current) {
+            clearTimeout(zoneDebounceRef.current);
+        }
+
+        zoneDebounceRef.current = setTimeout(() => {
+            zoneDebounceRef.current = null;
+            previousZoneRef.current = detectedZone;
+            setDebouncedZone(detectedZone);
+        }, ZONE_DEBOUNCE_MS);
+
+        return () => {
+            if (zoneDebounceRef.current) {
+                clearTimeout(zoneDebounceRef.current);
+            }
+        };
+    }, [detectedZone]);
+
+    // Switch zones when debounced zone changes and music is playing
+    const previousDebouncedZoneRef = useRef<MusicZone>(debouncedZone);
+
     useEffect(() => {
         const currentState = stateRef.current;
         
-        // Only switch if the zone actually changed
-        if (detectedZone !== previousZoneRef.current) {
-            // console.log(`🎵 Zone changed: ${previousZoneRef.current} → ${detectedZone}`);
-            previousZoneRef.current = detectedZone;
+        if (debouncedZone !== previousDebouncedZoneRef.current) {
+            previousDebouncedZoneRef.current = debouncedZone;
             
-            // If music is playing, switch to the new zone's playlist
             if (currentState.isPlaying) {
-                const newZoneTracks = ZONE_TRACKS[detectedZone] || NORMAL_TRACKS;
+                const newZoneTracks = ZONE_TRACKS[debouncedZone] || NORMAL_TRACKS;
                 const newPlaylist = createShuffledPlaylist(newZoneTracks.length);
                 const randomStart = Math.floor(Math.random() * newPlaylist.length);
                 
                 setState(prev => ({
                     ...prev,
-                    currentZone: detectedZone,
+                    currentZone: debouncedZone,
                     playlist: newPlaylist,
                     playlistPosition: randomStart,
                 }));
                 
-                // Play the first track of the new zone's playlist with crossfade
                 const firstTrackIndex = newPlaylist[randomStart];
-                playTrack(firstTrackIndex, true, detectedZone).catch(err => {
-                    console.error('🎵 Failed to switch zone music:', err);
-                });
+                playTrack(firstTrackIndex, true, debouncedZone).catch(err =>
+                    console.error('🎵 Failed to switch zone music:', err)
+                );
             } else {
-                // Just update the zone without playing
                 setState(prev => ({
                     ...prev,
-                    currentZone: detectedZone,
+                    currentZone: debouncedZone,
                     playlist: [],
                     playlistPosition: 0,
                 }));
             }
         }
-    }, [detectedZone, playTrack]);
+    }, [debouncedZone, playTrack]);
 
     // Get the current zone's tracklist for UI
     const currentZoneTracks = useMemo(() => {

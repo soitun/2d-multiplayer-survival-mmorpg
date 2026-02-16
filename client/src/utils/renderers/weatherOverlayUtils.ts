@@ -15,7 +15,9 @@
 let previousRainIntensity = 0;
 
 let transitionStartTime = 0;
-const TRANSITION_DURATION_MS = 1000; // 1.0 seconds for smooth fade
+// Longer fade when leaving storm zones (high -> low) for seamless feel
+const TRANSITION_DURATION_ENTER_MS = 1500;  // Entering rain: 1.5s
+const TRANSITION_DURATION_LEAVE_MS = 2500;  // Leaving rain: 2.5s (especially when exiting storm)
 
 /**
  * Smoothly interpolates between two values using ease-in-out cubic function.
@@ -35,8 +37,9 @@ function easeInOutCubic(t: number): number {
  * @param timeOfDayProgress - Current time of day progress (0.0 to 1.0) for blending with day/night
  * @param currentTime - Current timestamp in milliseconds (for transition timing)
  */
-// Track target intensity to detect actual changes
+// Track target intensity and last transition duration for continuity
 let lastTargetIntensity = 0;
+let lastTransitionDurationMs = TRANSITION_DURATION_ENTER_MS;
 
 export function renderWeatherOverlay(
   ctx: CanvasRenderingContext2D,
@@ -48,16 +51,28 @@ export function renderWeatherOverlay(
 ): void {
   // Detect if target intensity actually changed (not just re-rendering)
   const targetChanged = Math.abs(targetRainIntensity - lastTargetIntensity) > 0.01;
-  
+
   if (targetChanged) {
-    // Start new transition from wherever we currently are
+    // Compute current visual state (where we are in the ongoing transition)
+    // Use this as the starting point for the new transition - prevents abrupt jumps
+    const timeSinceTransition = currentTime - transitionStartTime;
+    const prevProgress = Math.min(timeSinceTransition / lastTransitionDurationMs, 1.0);
+    const prevEased = easeInOutCubic(prevProgress);
+    const currentVisualIntensity = previousRainIntensity + (lastTargetIntensity - previousRainIntensity) * prevEased;
+
     transitionStartTime = currentTime;
+    previousRainIntensity = currentVisualIntensity;
     lastTargetIntensity = targetRainIntensity;
   }
 
+  // Use longer duration when leaving storm (high -> low) for seamless exit
+  const isLeavingStorm = targetRainIntensity < previousRainIntensity && previousRainIntensity > 0.3;
+  const transitionDuration = isLeavingStorm ? TRANSITION_DURATION_LEAVE_MS : TRANSITION_DURATION_ENTER_MS;
+  lastTransitionDurationMs = transitionDuration;
+
   // Calculate transition progress
   const timeSinceTransition = currentTime - transitionStartTime;
-  const transitionProgress = Math.min(timeSinceTransition / TRANSITION_DURATION_MS, 1.0);
+  const transitionProgress = Math.min(timeSinceTransition / transitionDuration, 1.0);
   const easedProgress = easeInOutCubic(transitionProgress);
 
   // Interpolate between previous and target intensity

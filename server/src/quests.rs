@@ -296,7 +296,7 @@ pub struct SovaQuestMessage {
     pub player_id: Identity,
     pub message: String,
     pub message_type: String,         // "quest_start", "quest_complete", "quest_hint", "quest_unlock"
-    pub audio_file: Option<String>,   // Path to SOVA voice file (e.g., "sova_tutorial_01_start.mp3")
+    pub audio_file: Option<String>,   // Path to SOVA voice file (e.g., "sova_mission_complete.mp3")
     pub sent_at: Timestamp,
 }
 
@@ -454,7 +454,7 @@ fn track_tutorial_progress(
                 player_id,
                 "Tutorial complete, agent. You're ready for the real challenges ahead. Good luck out there.",
                 "tutorial_complete",
-                Some("sova_tutorial_complete.mp3"),
+                Some("sova_mission_complete.mp3"),
             );
             // Unlock daily training - assign quests immediately
             if let Err(e) = assign_daily_quests(ctx, player_id) {
@@ -672,13 +672,12 @@ fn complete_tutorial_quest(
     ctx.db.quest_completion_notification().insert(completion_notif);
     
     // Send SOVA completion message
-    let audio_file = format!("sova_tutorial_{:02}_complete.mp3", quest.order_index + 1);
     send_sova_quest_message(
         ctx,
         player_id,
         &quest.sova_complete_message,
         "quest_complete",
-        Some(&audio_file),
+        Some("sova_mission_complete.mp3"),
     );
     
     // Move to next quest
@@ -691,13 +690,12 @@ fn complete_tutorial_quest(
     // Check if there's a next quest and announce it
     let quest_defs: Vec<TutorialQuestDefinition> = ctx.db.tutorial_quest_definition().iter().collect();
     if let Some(next_quest) = quest_defs.iter().find(|q| q.order_index == progress.current_quest_index) {
-        let audio_file = format!("sova_tutorial_{:02}_start.mp3", next_quest.order_index + 1);
         send_sova_quest_message(
             ctx,
             player_id,
             &next_quest.sova_start_message,
             "quest_start",
-            Some(&audio_file),
+            Some("sova_mission_complete.mp3"),
         );
     } else {
         // Tutorial complete!
@@ -707,7 +705,7 @@ fn complete_tutorial_quest(
             player_id,
             "Outstanding work, agent. Tutorial complete. You're ready for the real challenges ahead.",
             "tutorial_complete",
-            Some("sova_tutorial_complete.mp3"),
+            Some("sova_mission_complete.mp3"),
         );
         // Unlock daily training - assign quests immediately
         if let Err(e) = assign_daily_quests(ctx, player_id) {
@@ -964,7 +962,7 @@ pub fn request_tutorial_hint(ctx: &ReducerContext) -> Result<(), String> {
                 player_id,
                 &q.sova_hint_message,
                 "quest_hint",
-                Some(&format!("sova_tutorial_{:02}_hint.mp3", q.order_index + 1)),
+                Some("sova_achievement_unlocked.mp3"),
             );
             
             Ok(())
@@ -1052,7 +1050,7 @@ pub fn initialize_my_quests(ctx: &ReducerContext) -> Result<(), String> {
                 player_id,
                 &first_quest.sova_start_message,
                 "quest_start",
-                Some("sova_tutorial_01_start.mp3"),
+                Some("sova_mission_complete.mp3"),
             );
         }
     }

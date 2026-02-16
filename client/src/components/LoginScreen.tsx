@@ -41,9 +41,12 @@ interface MobileNavMenuProps {
     navItems: Array<{ label: string; selector: string }>;
     onNavigate: (selector: string) => void;
     onPlayClick: () => void;
+    /** When provided, shows signed-in email and logout at top of menu */
+    userEmail?: string | null;
+    onLogout?: () => void;
 }
 
-const MobileNavMenu: React.FC<MobileNavMenuProps> = ({ navItems, onNavigate, onPlayClick }) => {
+const MobileNavMenu: React.FC<MobileNavMenuProps> = ({ navItems, onNavigate, onPlayClick, userEmail, onLogout }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     const handleNavClick = (selector: string) => {
@@ -123,6 +126,62 @@ const MobileNavMenu: React.FC<MobileNavMenuProps> = ({ navItems, onNavigate, onP
                             overflowY: 'auto',
                         }}
                     >
+                        {/* Account section - when signed in */}
+                        {userEmail && onLogout && (
+                            <div style={{
+                                padding: '0 24px 16px',
+                                marginBottom: '12px',
+                                borderBottom: '1px solid rgba(255, 140, 0, 0.2)',
+                            }}>
+                                <p style={{
+                                    fontSize: '11px',
+                                    color: 'rgba(255, 255, 255, 0.5)',
+                                    margin: '0 0 4px 0',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1px',
+                                }}>
+                                    Signed in as
+                                </p>
+                                <p style={{
+                                    fontSize: '13px',
+                                    color: 'rgba(0, 212, 255, 0.95)',
+                                    margin: '0 0 12px 0',
+                                    wordBreak: 'break-all',
+                                    fontFamily: 'monospace',
+                                }}>
+                                    {userEmail}
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => { setIsOpen(false); onLogout(); }}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 16px',
+                                        background: 'rgba(255, 0, 100, 0.15)',
+                                        border: '1px solid rgba(255, 0, 100, 0.4)',
+                                        borderRadius: '6px',
+                                        color: 'rgba(255, 150, 180, 0.95)',
+                                        fontSize: '12px',
+                                        fontFamily: 'monospace',
+                                        cursor: 'pointer',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '1px',
+                                        transition: 'all 0.2s ease',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = 'rgba(255, 0, 100, 0.25)';
+                                        e.currentTarget.style.borderColor = 'rgba(255, 0, 100, 0.6)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'rgba(255, 0, 100, 0.15)';
+                                        e.currentTarget.style.borderColor = 'rgba(255, 0, 100, 0.4)';
+                                    }}
+                                >
+                                    Log out
+                                </button>
+                            </div>
+                        )}
+
                         {navItems.map((item) => (
                             <button
                                 key={item.label}
@@ -505,8 +564,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
 
     return (
         <>
-            {/* Fixed Header with Email and Logout - Only on Landing Page */}
-            {isAuthenticated && userProfile && (
+            {/* Fixed Header with Email and Logout - Desktop only; on mobile we show it below JOIN GAME */}
+            {isAuthenticated && userProfile && !isMobile && (
                 <div 
                     className="fixed-auth-header"
                     style={{
@@ -682,6 +741,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                 ]}
                                 onNavigate={smoothScrollTo}
                                 onPlayClick={scrollToTop}
+                                userEmail={isAuthenticated && userProfile ? (userProfile.email || null) : null}
+                                onLogout={isAuthenticated ? logout : undefined}
                             />
                         </div>
                     ) : (
@@ -1096,6 +1157,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                     return 'Join Game';
                                 })()}
                             </button>
+
+                            {/* Mobile: Account info lives in hamburger menu - keeps main area clean */}
 
                             {/* Version Text with Learn More */}
                             <div style={{

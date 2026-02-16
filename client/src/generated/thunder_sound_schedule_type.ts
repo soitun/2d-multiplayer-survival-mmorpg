@@ -31,6 +31,7 @@ import {
 export type ThunderSoundSchedule = {
   scheduleId: bigint,
   scheduledAt: { tag: "Interval", value: __TimeDuration } | { tag: "Time", value: __Timestamp },
+  chunkIndex: number,
 };
 let _cached_ThunderSoundSchedule_type_value: __AlgebraicTypeType | null = null;
 
@@ -48,6 +49,7 @@ export const ThunderSoundSchedule = {
     _cached_ThunderSoundSchedule_type_value.value.elements.push(
       { name: "scheduleId", algebraicType: __AlgebraicTypeValue.U64 },
       { name: "scheduledAt", algebraicType: __AlgebraicTypeValue.createScheduleAtType() },
+      { name: "chunkIndex", algebraicType: __AlgebraicTypeValue.U32 },
     );
     return _cached_ThunderSoundSchedule_type_value;
   },

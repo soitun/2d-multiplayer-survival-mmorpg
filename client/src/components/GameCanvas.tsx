@@ -4129,8 +4129,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Only render rain/snow if weather overlay is enabled (performance toggle)
     // Don't render rain when snorkeling - player is underwater!
     // In winter, render snow instead of rain (same server mechanics, different visuals)
+    // IMPORTANT: Call renderRain even when rainIntensity is 0 so thunder flash can show
+    // (thunder can occur in clear weather; flash is rendered inside renderRain)
     const isWinter = worldState?.currentSeason?.tag === 'Winter';
-    if (showWeatherOverlay && rainIntensity > 0 && !isSnorkeling) {
+    if (showWeatherOverlay && !isSnorkeling) {
       renderRain(
         ctx,
         -currentCameraOffsetX, // Convert screen offset to world camera position
