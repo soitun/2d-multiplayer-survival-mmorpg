@@ -1925,14 +1925,14 @@ export const useSpacetimeTables = ({
             // Barrel handlers
             const handleBarrelInsert = (ctx: any, barrel: SpacetimeDB.Barrel) => setBarrels(prev => new Map(prev).set(barrel.id.toString(), barrel));
             const handleBarrelUpdate = (ctx: any, oldBarrel: SpacetimeDB.Barrel, newBarrel: SpacetimeDB.Barrel) => {
-                // PERFORMANCE FIX: Only update for visually significant changes
-                // Ignore lastHitTime micro-updates that cause excessive re-renders
+                // Update for visually significant changes including lastHitTime (needed for shake on each hit)
                 const visuallySignificant =
                     Math.abs(oldBarrel.posX - newBarrel.posX) > 0.1 ||  // Position changed significantly
                     Math.abs(oldBarrel.posY - newBarrel.posY) > 0.1 ||  // Position changed significantly
                     Math.abs(oldBarrel.health - newBarrel.health) > 0.1 || // Health changed significantly
                     oldBarrel.variant !== newBarrel.variant ||           // Barrel variant changed
-                    (oldBarrel.respawnAt?.microsSinceUnixEpoch ?? 0n) !== (newBarrel.respawnAt?.microsSinceUnixEpoch ?? 0n); // Respawn state changed
+                    (oldBarrel.respawnAt?.microsSinceUnixEpoch ?? 0n) !== (newBarrel.respawnAt?.microsSinceUnixEpoch ?? 0n) || // Respawn state changed
+                    (oldBarrel.lastHitTime?.microsSinceUnixEpoch ?? 0n) !== (newBarrel.lastHitTime?.microsSinceUnixEpoch ?? 0n); // lastHitTime changed (shake on each hit)
 
                 if (visuallySignificant) {
                     setBarrels(prev => new Map(prev).set(newBarrel.id.toString(), newBarrel));

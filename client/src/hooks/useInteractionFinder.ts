@@ -70,7 +70,7 @@ import {
 } from '../utils/renderers/hearthRenderingUtils'; // ADDED: Hearth interaction constants
 import { PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/playerCorpseRenderingUtils';
 import { PLAYER_TURRET_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/turretRenderingUtils';
-import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, PLAYER_BEEHIVE_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT, getBoxDimensions, BOX_TYPE_SCARECROW, BOX_TYPE_COMPOST, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_WILD_BEEHIVE, MONUMENT_COOKING_STATION_WIDTH, MONUMENT_COOKING_STATION_HEIGHT, MONUMENT_REPAIR_BENCH_WIDTH, MONUMENT_REPAIR_BENCH_HEIGHT, MONUMENT_COMPOST_WIDTH, MONUMENT_COMPOST_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
+import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, PLAYER_BEEHIVE_INTERACTION_DISTANCE_SQUARED, PLAYER_TALL_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT, getBoxDimensions, BOX_TYPE_SCARECROW, BOX_TYPE_COMPOST, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_WILD_BEEHIVE, MONUMENT_COOKING_STATION_WIDTH, MONUMENT_COOKING_STATION_HEIGHT, MONUMENT_REPAIR_BENCH_WIDTH, MONUMENT_REPAIR_BENCH_HEIGHT, MONUMENT_COMPOST_WIDTH, MONUMENT_COMPOST_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { isCompoundMonument } from '../config/compoundBuildings';
 import { PLAYER_DOOR_INTERACTION_DISTANCE_SQUARED, DOOR_RENDER_Y_OFFSET } from '../utils/renderers/doorRenderingUtils'; // ADDED: Door interaction distance and render offset
 import { PLAYER_ALK_STATION_INTERACTION_DISTANCE_SQUARED, ALK_STATION_Y_OFFSET } from '../utils/renderers/alkStationRenderingUtils'; // ADDED: ALK station interaction distance
@@ -666,9 +666,12 @@ export function useInteractionFinder({
                         // Regular boxes: drawY = posY - height - 20
                         const dims = getBoxDimensions(box.boxType);
                         visualCenterY = box.posY - (dims.height / 2) - 20;
+                        const isTallBox = box.boxType === BOX_TYPE_REPAIR_BENCH || box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_COMPOST;
                         maxDistSq = (box.boxType === BOX_TYPE_PLAYER_BEEHIVE || box.boxType === BOX_TYPE_WILD_BEEHIVE)
                             ? PLAYER_BEEHIVE_INTERACTION_DISTANCE_SQUARED
-                            : PLAYER_BOX_INTERACTION_DISTANCE_SQUARED;
+                            : isTallBox
+                                ? PLAYER_TALL_BOX_INTERACTION_DISTANCE_SQUARED
+                                : PLAYER_BOX_INTERACTION_DISTANCE_SQUARED;
                     }
                     
                     const dx = playerX - box.posX;

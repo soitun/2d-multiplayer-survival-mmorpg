@@ -122,6 +122,13 @@ export function canItemBeRepaired(item: InventoryItem, itemDef: ItemDefinition):
         return false;
     }
     
+    // Don't allow repair if it would DROP effective durability (e.g. 95% -> 75% after repair)
+    // Each repair reduces max by 25%, so post-repair max = maxDurability * 0.75
+    const postRepairMax = Math.max(maxDurability - 25, MIN_MAX_DURABILITY);
+    if (currentDurability >= postRepairMax) {
+        return false;
+    }
+    
     // Must have crafting cost defined (needed to calculate repair cost)
     if (!itemDef.craftingCost || itemDef.craftingCost.length === 0) {
         return false;
@@ -152,6 +159,12 @@ export function getRepairBlockedReason(item: InventoryItem, itemDef: ItemDefinit
     const currentDurability = getDurability(item) ?? MAX_DURABILITY;
     if (currentDurability >= maxDurability) {
         return "Item doesn't need repair - durability is at maximum";
+    }
+    
+    // Don't allow repair if it would drop effective durability (e.g. 95% -> 75%)
+    const postRepairMax = Math.max(maxDurability - 25, MIN_MAX_DURABILITY);
+    if (currentDurability >= postRepairMax) {
+        return "Item is above 75% durability - repair would reduce max. Wait until below 75%.";
     }
     
     // Must have crafting cost defined (needed to calculate repair cost)

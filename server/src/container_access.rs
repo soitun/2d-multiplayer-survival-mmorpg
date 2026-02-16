@@ -6,7 +6,7 @@ use spacetimedb::ReducerContext;
 use crate::models::{ItemLocation, ContainerType};
 use crate::items::InventoryItem;
 use crate::player;
-use crate::wooden_storage_box::wooden_storage_box;
+use crate::wooden_storage_box::{wooden_storage_box, validate_box_interaction};
 use crate::campfire::campfire;
 use crate::furnace::furnace;
 use crate::fumarole::fumarole;
@@ -53,15 +53,13 @@ fn validate_container_access(
     let player = ctx.db.player().identity().find(&ctx.sender)
         .ok_or_else(|| "Player not found".to_string())?;
 
+    // Wooden storage boxes use validate_box_interaction for correct distance/center (tall boxes, monument buildings)
+    if matches!(container_type, ContainerType::WoodenStorageBox) {
+        return validate_box_interaction(ctx, container_id_u32).map(|_| ());
+    }
+
     let (pos_x, pos_y) = match container_type {
-        ContainerType::WoodenStorageBox => {
-            let box_entity = ctx.db.wooden_storage_box().id().find(container_id_u32)
-                .ok_or_else(|| format!("Container {} not found", container_id))?;
-            if box_entity.is_destroyed {
-                return Err("Container is destroyed.".to_string());
-            }
-            (box_entity.pos_x, box_entity.pos_y)
-        }
+        ContainerType::WoodenStorageBox => unreachable!(), // Handled above with validate_box_interaction
         ContainerType::Campfire => {
             let campfire = ctx.db.campfire().id().find(container_id_u32)
                 .ok_or_else(|| format!("Campfire {} not found", container_id))?;

@@ -125,26 +125,22 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
 
     applyEffects: (ctx, entity, nowMs, baseDrawX, baseDrawY, cycleProgress) => {
         // Dynamic shadow is now handled in drawCustomGroundShadow
-        // Handle shake effects
-
-        let shakeOffsetX = 0;
-        let shakeOffsetY = 0;
-
-        if (entity.lastHitTime && (!entity.respawnAt || entity.respawnAt.microsSinceUnixEpoch === 0n)) {
-            const lastHitTimeMs = Number(entity.lastHitTime.microsSinceUnixEpoch / 1000n);
-            const elapsedSinceHit = nowMs - lastHitTimeMs;
-
-            if (elapsedSinceHit >= 0 && elapsedSinceHit < SHAKE_DURATION_MS) {
-                const shakeFactor = 1.0 - (elapsedSinceHit / SHAKE_DURATION_MS);
-                const currentShakeIntensity = SHAKE_INTENSITY_PX * shakeFactor;
-                shakeOffsetX = (Math.random() - 0.5) * 2 * currentShakeIntensity;
-                shakeOffsetY = (Math.random() - 0.5) * 2 * currentShakeIntensity;
-            }
+        // Use calculateShakeOffsets so shake starts from client detection time (not server time)
+        // This ensures full shake on each hit regardless of network latency
+        if (!entity.respawnAt || entity.respawnAt.microsSinceUnixEpoch === 0n) {
+            const { shakeOffsetX, shakeOffsetY } = calculateShakeOffsets(
+                entity,
+                entity.id.toString(),
+                {
+                    clientStartTimes: clientBarrelShakeStartTimes,
+                    lastKnownServerTimes: lastKnownServerBarrelShakeTimes
+                },
+                SHAKE_DURATION_MS,
+                SHAKE_INTENSITY_PX
+            );
+            return { offsetX: shakeOffsetX, offsetY: shakeOffsetY };
         }
-        return {
-            offsetX: shakeOffsetX,
-            offsetY: shakeOffsetY,
-        };
+        return { offsetX: 0, offsetY: 0 };
     },
 
     drawOverlay: undefined,

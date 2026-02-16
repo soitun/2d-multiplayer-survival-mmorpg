@@ -311,6 +311,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
 
     // Gleam animation hook for "Learn More" button
     const [isGleaming, setIsGleaming] = useState(false);
+    const [showSystemRequirements, setShowSystemRequirements] = useState(false);
     useEffect(() => {
         const interval = 3200;
         const duration = 600;
@@ -1242,41 +1243,44 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                     </button>
                                 </div>
                                 
-                                {/* Second row: AI Disclosure button */}
+                                {/* Second row: System Requirements button */}
                                 <button
                                     type="button"
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        navigate('/ai-disclosure');
+                                        setShowSystemRequirements(true);
                                     }}
                                     style={{
-                                        background: 'transparent',
-                                        border: '1px solid rgba(255, 255, 255, 0.3)',
-                                        color: 'rgba(255, 255, 255, 0.8)',
+                                        background: 'rgba(0, 0, 0, 0.5)',
+                                        border: '1px solid rgba(255, 140, 0, 0.6)',
+                                        color: '#ffb366',
                                         fontWeight: 600,
                                         padding: '6px 16px',
                                         fontSize: '11px',
                                         borderRadius: '14px',
                                         cursor: 'pointer',
                                         fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
-                                        textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
+                                        textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                                        boxShadow: '0 0 12px rgba(255, 140, 0, 0.2)',
                                         transition: 'all 0.2s ease',
                                         letterSpacing: '0.8px',
                                         textTransform: 'uppercase',
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.borderColor = 'rgba(255, 140, 0, 0.6)';
-                                        e.currentTarget.style.color = '#ff8c00';
-                                        e.currentTarget.style.background = 'rgba(255, 140, 0, 0.1)';
+                                        e.currentTarget.style.borderColor = 'rgba(255, 140, 0, 0.9)';
+                                        e.currentTarget.style.color = '#ffcc99';
+                                        e.currentTarget.style.background = 'rgba(255, 140, 0, 0.25)';
+                                        e.currentTarget.style.boxShadow = '0 0 16px rgba(255, 140, 0, 0.35)';
                                     }}
                                     onMouseLeave={(e) => {
-                                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                                        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
-                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.borderColor = 'rgba(255, 140, 0, 0.6)';
+                                        e.currentTarget.style.color = '#ffb366';
+                                        e.currentTarget.style.background = 'rgba(0, 0, 0, 0.5)';
+                                        e.currentTarget.style.boxShadow = '0 0 12px rgba(255, 140, 0, 0.2)';
                                     }}
                                 >
-                                    AI Disclosure
+                                    System Requirements
                                 </button>
                                 
                                 <style>{`
@@ -1307,6 +1311,93 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                 </style>
                             </div>
                         </form>
+                    )}
+
+                    {/* System Requirements popup */}
+                    {showSystemRequirements && (
+                        <div
+                            style={{
+                                position: 'fixed',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                                zIndex: 9999,
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                backdropFilter: 'blur(8px)',
+                            }}
+                            onClick={() => setShowSystemRequirements(false)}
+                        >
+                            <div
+                                style={{
+                                    width: isMobile ? '95%' : '520px',
+                                    maxWidth: '95vw',
+                                    maxHeight: '85vh',
+                                    background: 'rgba(40, 40, 60, 0.98)',
+                                    border: '2px solid rgba(255, 140, 0, 0.4)',
+                                    borderRadius: '16px',
+                                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+                                    fontFamily: UI_FONT_FAMILY,
+                                    overflow: 'auto',
+                                    padding: '28px 32px',
+                                    position: 'relative',
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <h3 style={{
+                                    margin: '0 0 20px 0',
+                                    color: '#ff8c00',
+                                    fontSize: '20px',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1.2px',
+                                }}>
+                                    System Requirements & Best Practices
+                                </h3>
+                                <div style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px', lineHeight: 1.6, textAlign: 'left' }}>
+                                    <p style={{ marginTop: 0, marginBottom: '12px' }}>
+                                        <strong>Minimum:</strong> Modern browser (Chrome, Firefox, Edge), 4GB RAM, stable internet connection.
+                                    </p>
+                                    <p style={{ marginBottom: '12px' }}>
+                                        <strong>Recommended:</strong> 8GB+ RAM, GPU for faster canvas rendering, broadband connection.
+                                    </p>
+                                    <p style={{ marginBottom: '16px' }}>
+                                        Broth and Bullets runs in your browser and shares CPU, GPU, and memory with other apps. For best performance:
+                                    </p>
+                                    <ul style={{ margin: '0 0 16px 0', paddingLeft: '20px', textAlign: 'left' }}>
+                                        <li style={{ marginBottom: '8px' }}>Close other games (e.g. Steam, Rust, etc.) in the background</li>
+                                        <li style={{ marginBottom: '8px' }}>Close unnecessary browser tabs</li>
+                                        <li style={{ marginBottom: '8px' }}>Close heavy apps (video editors, IDEs, etc.)</li>
+                                        <li style={{ marginBottom: '8px' }}>Use a wired connection if possible</li>
+                                        <li style={{ marginBottom: '8px' }}>Close other games even when minimized</li>
+                                    </ul>
+                                    <p style={{ marginBottom: 0, fontSize: '13px', color: 'rgba(255, 255, 255, 0.75)' }}>
+                                        Running multiple heavy applications at once will cause noticeable slowdown. For the smoothest experience, play Broth and Bullets when no other demanding games are running.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSystemRequirements(false)}
+                                    style={{
+                                        marginTop: '16px',
+                                        padding: '10px 24px',
+                                        background: 'linear-gradient(90deg, #ffe0b2, #ff8c00 90%, #cc6400)',
+                                        border: 'none',
+                                        color: '#852100',
+                                        fontWeight: 700,
+                                        fontSize: '13px',
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        fontFamily: UI_FONT_FAMILY,
+                                    }}
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
                     )}
 
                     {/* Show error state with Refresh button for connection-related localErrors */}

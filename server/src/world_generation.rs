@@ -571,7 +571,9 @@ struct WorldFeatures {
     coral_reef_zones: Vec<Vec<bool>>, // Coral reef zones (deep sea areas for living coral)
     reed_marsh_centers: Vec<(f32, f32)>, // Reed marsh center positions (x, y) in world pixels
     fishing_village_roads: Vec<Vec<bool>>, // Dirt road tiles in fishing village (for lampposts)
-    hunting_village_roads: Vec<Vec<bool>>, // Dirt road tiles in hunting village (circle + spur)
+    hunting_village_roads: Vec<Vec<bool>>, // Dirt road tiles in hunting village (ring + spur - paths leading to center)
+    hunting_village_center_dirt: Vec<Vec<bool>>, // Center plaza dirt (campfire, houses) - distinct from dirt road
+    hunting_village_farm_dirt: Vec<Vec<bool>>, // Farm area dirt (crops) - distinct from dirt road
     width: usize,
     height: usize,
 }
@@ -695,17 +697,19 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     let reed_marsh_centers = generate_reed_marsh_centers(config, noise, &river_network, &lake_map, &shore_distance, width, height);
     
     // Generate village dirt roads (fishing + hunting) - for lampposts and village atmosphere
-    let (fishing_village_roads, hunting_village_roads) = generate_village_roads(
-        &road_network,
-        &dirt_paths,
-        fishing_village_center,
-        &fishing_village_parts,
-        hunting_village_center,
-        &hunting_village_parts,
-        noise,
-        width,
-        height,
-    );
+    // Hunting village: center dirt (plaza) + farm dirt (crops) + roads (paths leading to center)
+    let (fishing_village_roads, hunting_village_roads, hunting_village_center_dirt, hunting_village_farm_dirt) =
+        generate_village_roads(
+            &road_network,
+            &dirt_paths,
+            fishing_village_center,
+            &fishing_village_parts,
+            hunting_village_center,
+            &hunting_village_parts,
+            noise,
+            width,
+            height,
+        );
     
     WorldFeatures {
         heightmap,
@@ -745,6 +749,8 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         reed_marsh_centers,
         fishing_village_roads,
         hunting_village_roads,
+        hunting_village_center_dirt,
+        hunting_village_farm_dirt,
         width,
         height,
     }
@@ -752,7 +758,7 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
 
 /// Generate dirt road tiles for fishing and hunting villages.
 /// - Fishing village: small path around campfire and along structures
-/// - Hunting village: rough circular plaza + spur road leading toward main road network
+/// - Hunting village: center dirt (plaza with campfire/houses), farm dirt (crops), roads (ring + spur leading to center)
 fn generate_village_roads(
     road_network: &[Vec<bool>],
     dirt_paths: &[Vec<bool>],
@@ -763,10 +769,12 @@ fn generate_village_roads(
     noise: &Perlin,
     width: usize,
     height: usize,
-) -> (Vec<Vec<bool>>, Vec<Vec<bool>>) {
+) -> (Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>) {
     let tile_size_px = crate::TILE_SIZE_PX as f32;
     let mut fishing_roads = vec![vec![false; width]; height];
     let mut hunting_roads = vec![vec![false; width]; height];
+    let mut hunting_center_dirt = vec![vec![false; width]; height];
+    let mut hunting_farm_dirt = vec![vec![false; width]; height];
 
     // --- Fishing village: small dirt path around campfire and between structures ---
     if let Some((center_px_x, center_px_y)) = fishing_village_center {
@@ -805,23 +813,64 @@ fn generate_village_roads(
         log::info!("🏘️ Generated fishing village dirt roads (campfire + structure paths)");
     }
 
-    // --- Hunting village: rough circular plaza + spur road leading toward main road ---
+    // --- Hunting village: center dirt (plaza), farm dirt (crops), roads (ring + spur) ---
+    // Center = dirt (campfire, houses). Farm = dirt (crops). Roads = paths leading up to center.
     if let Some((center_px_x, center_px_y)) = hunting_village_center {
         let center_tx = (center_px_x / tile_size_px).floor() as i32;
         let center_ty = (center_px_y / tile_size_px).floor() as i32;
 
-        // Rough circle in center (~10-12 tiles radius) - buildings sit on it
-        let circle_radius = 12i32;
-        for dy in -circle_radius..=circle_radius {
-            for dx in -circle_radius..=circle_radius {
+        // 1. Center dirt: plaza where campfire and houses sit (~8 tiles radius, organic edge)
+        let center_dirt_radius = 9i32;
+        for dy in -center_dirt_radius..=center_dirt_radius {
+            for dx in -center_dirt_radius..=center_dirt_radius {
                 let tx = center_tx + dx;
                 let ty = center_ty + dy;
                 if tx >= 0 && ty >= 0 && (tx as usize) < width && (ty as usize) < height {
                     let dist = ((dx * dx + dy * dy) as f64).sqrt();
                     let shape_noise = noise.get([tx as f64 * 0.12, ty as f64 * 0.12, 60000.0]);
-                    let adjusted_radius = circle_radius as f64 + shape_noise * 2.0;
+                    let adjusted_radius = center_dirt_radius as f64 + shape_noise * 1.5;
                     if dist < adjusted_radius {
-                        hunting_roads[ty as usize][tx as usize] = true;
+                        hunting_center_dirt[ty as usize][tx as usize] = true;
+                    }
+                }
+            }
+        }
+
+        // 2. Farm dirt: clump south of center for crops (aligned with garden at center_y + 300px ≈ +6 tiles)
+        let farm_center_ty = center_ty + 7;
+        let farm_half_w = 3i32;
+        let farm_half_h = 3i32;
+        for dy in -farm_half_h..=farm_half_h {
+            for dx in -farm_half_w..=farm_half_w {
+                let tx = center_tx + dx;
+                let ty = farm_center_ty + dy;
+                if tx >= 0 && ty >= 0 && (ty as usize) < height && (tx as usize) < width {
+                    let shape_noise = noise.get([tx as f64 * 0.15, ty as f64 * 0.15, 70000.0]);
+                    if shape_noise > -0.3 {
+                        hunting_farm_dirt[ty as usize][tx as usize] = true;
+                    }
+                }
+            }
+        }
+
+        // 3. Dirt roads: ring around center (paths leading to plaza) + spur to main road
+        let road_ring_inner = 9i32;
+        let road_ring_outer = 13i32;
+        for dy in -road_ring_outer..=road_ring_outer {
+            for dx in -road_ring_outer..=road_ring_outer {
+                let tx = center_tx + dx;
+                let ty = center_ty + dy;
+                if tx >= 0 && ty >= 0 && (tx as usize) < width && (ty as usize) < height {
+                    let dist = ((dx * dx + dy * dy) as f64).sqrt();
+                    let shape_noise = noise.get([tx as f64 * 0.1, ty as f64 * 0.1, 61000.0]);
+                    let adj_inner = road_ring_inner as f64 + shape_noise;
+                    let adj_outer = road_ring_outer as f64 + shape_noise * 1.5;
+                    if dist >= adj_inner && dist < adj_outer {
+                        if !hunting_center_dirt[ty as usize][tx as usize]
+                            && !hunting_farm_dirt[ty as usize][tx as usize]
+                        {
+                            hunting_roads[ty as usize][tx as usize] = true;
+                        }
                     }
                 }
             }
@@ -855,20 +904,29 @@ fn generate_village_roads(
             let dx = road_x - center_tx;
             let dy = road_y - center_ty;
             let angle = (dy as f32).atan2(dx as f32);
-            let start_tx = center_tx + (angle.cos() * circle_radius as f32) as i32;
-            let start_ty = center_ty + (angle.sin() * circle_radius as f32) as i32;
+            let start_tx = center_tx + (angle.cos() * road_ring_outer as f32) as i32;
+            let start_ty = center_ty + (angle.sin() * road_ring_outer as f32) as i32;
             draw_village_road_spur(&mut hunting_roads, start_tx, start_ty, road_x, road_y, width, height);
         } else {
-            // No main road nearby - draw spur south for ~15 tiles (toward map center / beach)
             let spur_len = 15i32;
             let end_tx = center_tx;
             let end_ty = (center_ty + spur_len).min(height as i32 - 1);
             draw_village_road_spur(&mut hunting_roads, center_tx, center_ty, end_tx, end_ty, width, height);
         }
-        log::info!("🏕️ Generated hunting village dirt roads (circle + spur)");
+
+        // Ensure spur doesn't overwrite center or farm dirt
+        for y in 0..height {
+            for x in 0..width {
+                if hunting_center_dirt[y][x] || hunting_farm_dirt[y][x] {
+                    hunting_roads[y][x] = false;
+                }
+            }
+        }
+
+        log::info!("🏕️ Generated hunting village (center dirt + farm dirt + ring roads + spur)");
     }
 
-    (fishing_roads, hunting_roads)
+    (fishing_roads, hunting_roads, hunting_center_dirt, hunting_farm_dirt)
 }
 
 /// Draw a narrow (3x3) dirt road spur between two points
@@ -3180,6 +3238,10 @@ fn determine_realistic_tile_type(
     // Village dirt roads - fishing and hunting villages (for lampposts and atmosphere)
     if features.fishing_village_roads[y][x] {
         return TileType::DirtRoad;
+    }
+    // Hunting village: center dirt and farm dirt are distinct from dirt roads (more natural)
+    if features.hunting_village_center_dirt[y][x] || features.hunting_village_farm_dirt[y][x] {
+        return TileType::Dirt;
     }
     if features.hunting_village_roads[y][x] {
         return TileType::DirtRoad;

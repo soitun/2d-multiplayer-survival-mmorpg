@@ -74,6 +74,7 @@ export const BOX_TYPE_WILD_BEEHIVE = 11;
 export const BOX_TYPE_PLAYER_BEEHIVE = 12;
 export const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Added interaction distance
 export const PLAYER_BEEHIVE_INTERACTION_DISTANCE_SQUARED = 140.0 * 140.0; // Tall structures - allow interaction from bottom
+export const PLAYER_TALL_BOX_INTERACTION_DISTANCE_SQUARED = 140.0 * 140.0; // Repair bench, cooking station, compost - allow interaction from bottom (192px sprites)
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 10; // Make boxes shake a bit more
 export const BOX_RENDER_Y_OFFSET = 20; // Matches calculateDrawPosition offset

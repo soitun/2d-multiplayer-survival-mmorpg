@@ -160,7 +160,7 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
   
   repair_bench: {
     centerOffsetX: 0,
-    centerOffsetY: -116,  // Relative to stored posY: -(192/2 + 20) = -116
+    centerOffsetY: -80,   // Lowered from -116: bench content in lower portion, allows interaction from bottom
     width: 192,           // Match actual sprite size
     height: 192,
     placementYOffset: -64, // -192/2 + 32 = -64
@@ -366,12 +366,13 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
     spriteHeight: 384,
   },
   
-  // Monument repair bench (ALK Weapons Depot) - 384x384 building sprite
+  // Monument repair bench (ALK Weapons Depot) - 384x384 building sprite, base-anchored (96px offset)
+  // Same pattern as monument_cooking_station: building content in lower portion, box centered on bench
   monument_repair_bench: {
     centerOffsetX: 0,
-    centerOffsetY: -100,  // Similar to monument_rain_collector centering
-    width: 360,           // Interaction box matching building content width
-    height: 360,          // Square interaction box
+    centerOffsetY: -55,   // Lowered from -100: base-anchored content sits near ground level (matches monument_cooking_station)
+    width: 320,           // Interaction box matching visible building content width (matches monument_cooking_station)
+    height: 280,          // Covers actual building content, not empty top of sprite
     placementYOffset: 0,
     spriteWidth: 384,
     spriteHeight: 384,

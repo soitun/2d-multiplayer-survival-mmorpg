@@ -34,6 +34,7 @@ use crate::inventory_management;
 use crate::models::{ContainerType, ItemLocation, ContainerLocationData};
 use crate::environment::calculate_chunk_index;
 use crate::player as PlayerTableTrait;
+use crate::sound_events;
 
 /// Validates that a box is a repair bench and item has durability system
 /// (For depositing items - allows items that don't currently need repair)
@@ -351,6 +352,9 @@ pub fn repair_item(
         get_repair_count(&item_to_repair),
         MAX_REPAIR_COUNT
     );
+    
+    // Emit repair sound for clients (positioned at repair bench)
+    sound_events::emit_repair_sound(ctx, storage_box.pos_x, storage_box.pos_y, ctx.sender);
     
     Ok(())
 }

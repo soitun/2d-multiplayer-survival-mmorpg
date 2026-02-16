@@ -16,6 +16,8 @@ pub(crate) const BOX_COLLISION_Y_OFFSET: f32 = 52.0; // Match the placement offs
 pub(crate) const PLAYER_BOX_COLLISION_DISTANCE_SQUARED: f32 = (super::PLAYER_RADIUS + BOX_COLLISION_RADIUS) * (super::PLAYER_RADIUS + BOX_COLLISION_RADIUS);
 const BOX_INTERACTION_DISTANCE_SQUARED: f32 = 96.0 * 96.0; // Increased from 64.0 * 64.0 for more lenient interaction
 const BEEHIVE_INTERACTION_DISTANCE_SQUARED: f32 = 140.0 * 140.0; // Tall structures - allow interaction from bottom
+const TALL_BOX_INTERACTION_DISTANCE_SQUARED: f32 = 140.0 * 140.0; // Repair bench, cooking station, compost - allow interaction from bottom (192px sprites)
+const MONUMENT_BOX_INTERACTION_DISTANCE_SQUARED: f32 = 250.0 * 250.0; // Compound monument buildings (384px) - ALK Food Processor, Weapons Depot, Bio Processor
 // Placement distance limits per box type (server-side enforcement)
 const BOX_PLACEMENT_MAX_DISTANCE: f32 = 96.0;          // Small boxes (normal, refrigerator, military ration, mine cart)
 const LARGE_BOX_PLACEMENT_MAX_DISTANCE: f32 = 128.0;   // Large boxes
@@ -42,6 +44,22 @@ pub(crate) const REFRIGERATOR_COLLISION_RADIUS: f32 = 48.0;   // 96x96 visual ->
 pub(crate) fn get_box_collision_y_offset(box_type: u8) -> f32 {
     match box_type {
         BOX_TYPE_PLAYER_BEEHIVE | BOX_TYPE_WILD_BEEHIVE => BOX_COLLISION_Y_OFFSET + 30.0, // 82px - collision 30px higher
+        _ => BOX_COLLISION_Y_OFFSET,
+    }
+}
+
+/// Get the interaction center Y offset for distance checks. Must match client's visual center.
+/// Tall boxes (192px): center at pos_y - 116. Compound monument (384px): center at pos_y - 96.
+fn get_box_interaction_center_y_offset(box_type: u8, is_monument: bool, pos_x: f32, pos_y: f32) -> f32 {
+    match box_type {
+        BOX_TYPE_PLAYER_BEEHIVE | BOX_TYPE_WILD_BEEHIVE => get_box_collision_y_offset(box_type),
+        BOX_TYPE_REPAIR_BENCH | BOX_TYPE_COOKING_STATION | BOX_TYPE_COMPOST => {
+            if is_monument && crate::environment::is_position_in_central_compound(pos_x, pos_y) {
+                96.0 // 384px sprite: drawY = posY - 384 + 96, center = posY - 96
+            } else {
+                116.0 // 192px sprite: drawY = posY - 192 - 20, center = posY - 116
+            }
+        }
         _ => BOX_COLLISION_Y_OFFSET,
     }
 }
@@ -1494,13 +1512,24 @@ pub fn validate_box_interaction(
     }
 
     // Check distance between the interacting player and the box
-    // Account for the visual center offset (type-specific for beehives)
-    let interaction_center_y = storage_box.pos_y - get_box_collision_y_offset(storage_box.box_type);
+    // Use interaction center that matches client's visual center for consistent range checks
+    let interaction_center_y = storage_box.pos_y
+        - get_box_interaction_center_y_offset(storage_box.box_type, storage_box.is_monument, storage_box.pos_x, storage_box.pos_y);
     let dx = player.position_x - storage_box.pos_x;
     let dy = player.position_y - interaction_center_y;
     let dist_sq = dx * dx + dy * dy;
     let max_dist_sq = if storage_box.box_type == BOX_TYPE_PLAYER_BEEHIVE || storage_box.box_type == BOX_TYPE_WILD_BEEHIVE {
         BEEHIVE_INTERACTION_DISTANCE_SQUARED
+    } else if storage_box.box_type == BOX_TYPE_REPAIR_BENCH
+        || storage_box.box_type == BOX_TYPE_COOKING_STATION
+        || storage_box.box_type == BOX_TYPE_COMPOST
+    {
+        // Compound monument buildings (ALK compound) use larger radius; others use tall box radius
+        if storage_box.is_monument && crate::environment::is_position_in_central_compound(storage_box.pos_x, storage_box.pos_y) {
+            MONUMENT_BOX_INTERACTION_DISTANCE_SQUARED
+        } else {
+            TALL_BOX_INTERACTION_DISTANCE_SQUARED
+        }
     } else {
         BOX_INTERACTION_DISTANCE_SQUARED
     };

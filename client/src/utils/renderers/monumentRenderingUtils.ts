@@ -22,6 +22,8 @@ const ISOMETRIC_DOODAD_IMAGES = new Set([
   'fv_lodge.png', 'fv_hut2.png', 'fv_hut3.png',
   'hv_lodge.png', 'hv_hut2.png', 'hv_hut3.png',
   'wbg_hermit_hut.png', 'hs_shack.png',
+  // Whale Bone Graveyard monument parts (ancient whale bones on beach)
+  'wbg_ribcage.png', 'wbg_skull.png', 'wbg_spine.png', 'wbg_jawbone.png',
 ]);
 
 // Image cache for compound buildings (same pattern as alkStationRenderingUtils.ts)
@@ -102,6 +104,7 @@ export function preloadMonumentImages(): void {
     loadImage('hv_hut2.png', import('../../assets/doodads/hv_hut2.png?url'));
     loadImage('hv_hut3.png', import('../../assets/doodads/hv_hut3.png?url'));
     loadImage('hv_drying_rack.png', import('../../assets/doodads/hv_drying_rack.png?url'));
+    loadImage('scarecrow.png', import('../../assets/doodads/scarecrow.png?url'));
     
     // Crashed Research Drone monument images (tundra crash site)
     loadImage('cd_drone.png', import('../../assets/doodads/cd_drone.png?url'));
@@ -174,6 +177,7 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             'hv_hut2.png': () => import('../../assets/doodads/hv_hut2.png?url'),
             'hv_hut3.png': () => import('../../assets/doodads/hv_hut3.png?url'),
             'hv_drying_rack.png': () => import('../../assets/doodads/hv_drying_rack.png?url'),
+            'scarecrow.png': () => import('../../assets/doodads/scarecrow.png?url'),
             
             // Crashed Research Drone monument images (tundra crash site)
             'cd_drone.png': () => import('../../assets/doodads/cd_drone.png?url'),

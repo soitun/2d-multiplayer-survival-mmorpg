@@ -1072,6 +1072,14 @@ pub fn can_item_be_repaired(item: &InventoryItem, item_def: &ItemDefinition) -> 
         return Err("Item doesn't need repair - durability is already at maximum".to_string());
     }
     
+    // Don't allow repair if it would DROP effective durability (e.g. 95% -> 75% after repair)
+    // Each repair reduces max by 25%, so post-repair max = max_durability * 0.75
+    // Only repair if current < post_repair_max (repair would actually improve the item)
+    let post_repair_max = (max_durability - DURABILITY_REDUCTION_PER_REPAIR).max(MIN_MAX_DURABILITY);
+    if current_durability >= post_repair_max {
+        return Err("Item is above 75% of max durability - repair would reduce max and drop you lower. Wait until durability is below 75%.".to_string());
+    }
+    
     // Check if item has a crafting cost (needed to calculate repair cost)
     if item_def.crafting_cost.is_none() || item_def.crafting_cost.as_ref().map(|c| c.is_empty()).unwrap_or(true) {
         return Err("Item cannot be repaired - no crafting cost defined".to_string());

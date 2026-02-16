@@ -1266,7 +1266,7 @@ pub fn generate_hunting_village(
         // =============================================================================
         
         // Structure definitions: (part_type, image_name, offset_x, offset_y)
-        let structure_configs: [(&str, &str, f32, f32); 5] = [
+        let structure_configs: [(&str, &str, f32, f32); 6] = [
             // Main lodge - CENTER PIECE - the heart of the hunting village (zone anchor)
             ("lodge", "hv_lodge.png", -250.0, 0.0),
             
@@ -1279,6 +1279,9 @@ pub fn generate_hunting_village(
             
             // Drying rack for pelts and meat - west side of courtyard, pushed further up
             ("drying_rack", "hv_drying_rack.png", -200.0, -400.0),
+            
+            // Scarecrow - monument version by the crops (south of lodge, guards the farm)
+            ("scarecrow", "scarecrow.png", 20.0, 250.0),
         ];
         
         for (part_type, image_name, offset_x, offset_y) in structure_configs.iter() {
@@ -3517,13 +3520,7 @@ pub fn get_hunting_village_harvestables() -> Vec<MonumentHarvestableConfig> {
             min_distance: 75.0,
             max_distance: 200.0,
         },
-        // Wood pile - forest resources near the village (fuel, crafting)
-        MonumentHarvestableConfig {
-            plant_type: crate::plants_database::PlantType::WoodPile,
-            spawn_chance: 0.40,
-            min_distance: 80.0,
-            max_distance: 200.0,
-        },
+        // No wood piles in farm section - keep it natural with crops/berries only
     ]
 }
 
