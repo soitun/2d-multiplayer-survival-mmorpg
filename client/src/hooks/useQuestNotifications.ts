@@ -9,7 +9,7 @@
  * Abstracts notification handling logic from GameScreen.
  */
 
-import { useEffect, useState, useCallback, MutableRefObject } from 'react';
+import { useEffect, useState, useCallback, MutableRefObject, useRef } from 'react';
 import { Identity } from 'spacetimedb';
 import { QuestCompletionData } from '../components/QuestNotifications';
 import { queueNotificationSound } from '../utils/notificationSoundQueue';
@@ -85,6 +85,15 @@ const SOVA_LABEL_MAP: Record<string, string> = {
     'quest_complete': 'SOVA: Mission Complete',
     'quest_hint': 'SOVA: Hint',
     'daily_quests_assigned': 'SOVA: Daily Training',
+};
+
+// Priority for sequencing when multiple SOVA messages arrive in same batch (lower = play first)
+const SOVA_MESSAGE_PRIORITY: Record<string, number> = {
+    'quest_complete': 0,
+    'tutorial_complete': 1,
+    'quest_start': 2,
+    'quest_hint': 3,
+    'daily_quests_assigned': 4,
 };
 
 // ============================================================================
@@ -185,54 +194,56 @@ export function useQuestNotifications({
     // ========================================================================
     // Handle SOVA Quest Messages - route to SOVA chat tab
     // Now filters by session timestamp to prevent replay after cache clear
+    // Processes messages SEQUENTIALLY to avoid AbortError (play interrupted by pause)
+    // when quest_complete + quest_start arrive in same batch
     // ========================================================================
+    const sovaAudioQueueRef = useRef<boolean>(false);
+    
     useEffect(() => {
         if (!sovaQuestMessages || sovaQuestMessages.size === 0) return;
         if (!sovaMessageAdderRef.current) return;
         
+        // Collect new messages, sorted by priority (quest_complete before quest_start)
+        const newMessages: Array<{ id: string; message: SovaQuestMessage }> = [];
         sovaQuestMessages.forEach((message, id) => {
-            // Skip if already seen this session
             if (seenSovaQuestMessageIds.has(id)) return;
-            
-            // CRITICAL: Skip old notifications from before this session started
-            // This prevents replaying notifications after browser cache is cleared
             if (isOldNotification(message.sentAt)) {
-                // Silently mark as seen without displaying
                 setSeenSovaQuestMessageIds(prev => new Set(prev).add(id));
                 return;
             }
-            
-            // Mark as seen and persist to localStorage
-            setSeenSovaQuestMessageIds(prev => {
-                const newSet = new Set(prev).add(id);
-                saveSeenIds(SEEN_SOVA_MESSAGES_KEY, newSet);
-                return newSet;
-            });
-            
-            console.log('[QuestNotifications] 📡 New SOVA quest message:', message.message);
-            
-            // Play audio if provided
-            if (message.audioFile) {
-                try {
-                    const audio = new Audio(`/sounds/${message.audioFile}`);
-                    audio.volume = 0.8;
-                    
-                    // CRITICAL: Show sound box BEFORE calling play() to set the __SOVA_SOUNDBOX_IS_ACTIVE__ flag
-                    // This prevents notification sounds from sneaking in during the async play() window
-                    if (showSovaSoundBoxRef.current) {
-                        const label = SOVA_LABEL_MAP[message.messageType] || 'SOVA: Quest Update';
-                        showSovaSoundBoxRef.current(audio, label);
-                    }
-                    
-                    audio.play().catch(err => {
-                        console.warn('[QuestNotifications] Failed to play SOVA quest audio:', err);
-                    });
-                } catch (err) {
-                    console.warn('[QuestNotifications] Error creating SOVA quest audio:', err);
-                }
+            newMessages.push({ id, message });
+        });
+        
+        if (newMessages.length === 0) return;
+        
+        // Sort: quest_complete first, then quest_start, etc.
+        newMessages.sort((a, b) => {
+            const prioA = SOVA_MESSAGE_PRIORITY[a.message.messageType] ?? 99;
+            const prioB = SOVA_MESSAGE_PRIORITY[b.message.messageType] ?? 99;
+            return prioA - prioB;
+        });
+        
+        // Mark all as seen immediately (we'll process them)
+        setSeenSovaQuestMessageIds(prev => {
+            const newSet = new Set(prev);
+            newMessages.forEach(({ id }) => newSet.add(id));
+            saveSeenIds(SEEN_SOVA_MESSAGES_KEY, newSet);
+            return newSet;
+        });
+        
+        setHasNewQuestNotification(true);
+        setTimeout(() => setHasNewQuestNotification(false), 5000);
+        
+        const processNext = (index: number) => {
+            if (index >= newMessages.length) {
+                sovaAudioQueueRef.current = false;
+                return;
             }
             
-            // Send message to SOVA chat
+            const { id, message } = newMessages[index];
+            console.log('[QuestNotifications] 📡 New SOVA quest message:', message.message);
+            
+            // Add to chat immediately (no audio delay)
             if (sovaMessageAdderRef.current) {
                 sovaMessageAdderRef.current({
                     id: `sova-quest-${id}-${Date.now()}`,
@@ -243,10 +254,70 @@ export function useQuestNotifications({
                 });
             }
             
-            // Trigger notification indicator
-            setHasNewQuestNotification(true);
-            setTimeout(() => setHasNewQuestNotification(false), 5000);
-        });
+            const playAndContinue = () => {
+                if (!message.audioFile) {
+                    processNext(index + 1);
+                    return;
+                }
+                
+                try {
+                    const audio = new Audio(`/sounds/${message.audioFile}`);
+                    audio.volume = 0.8;
+                    audio.preload = 'auto';
+                    
+                    const label = SOVA_LABEL_MAP[message.messageType] || 'SOVA: Quest Update';
+                    
+                    const onEndedOrError = () => {
+                        audio.removeEventListener('ended', onEndedOrError);
+                        audio.removeEventListener('error', onEndedOrError);
+                        processNext(index + 1);
+                    };
+                    
+                    audio.addEventListener('ended', onEndedOrError);
+                    audio.addEventListener('error', onEndedOrError);
+                    
+                    sovaAudioQueueRef.current = true;
+                    
+                    if (showSovaSoundBoxRef.current) {
+                        showSovaSoundBoxRef.current(audio, label);
+                    }
+                    
+                    const playPromise = audio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(err => {
+                            console.warn('[QuestNotifications] Failed to play SOVA quest audio:', err);
+                            onEndedOrError();
+                        });
+                    } else {
+                        onEndedOrError();
+                    }
+                } catch (err) {
+                    console.warn('[QuestNotifications] Error creating SOVA quest audio:', err);
+                    processNext(index + 1);
+                }
+            };
+            
+            // Only wait if a PREVIOUS batch is still playing (index 0 = starting new batch)
+            if (index === 0 && sovaAudioQueueRef.current) {
+                const checkInterval = setInterval(() => {
+                    if (!sovaAudioQueueRef.current) {
+                        clearInterval(checkInterval);
+                        playAndContinue();
+                    }
+                }, 100);
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    if (sovaAudioQueueRef.current) {
+                        sovaAudioQueueRef.current = false;
+                        playAndContinue();
+                    }
+                }, 6000);
+            } else {
+                playAndContinue();
+            }
+        };
+        
+        processNext(0);
     }, [sovaQuestMessages, seenSovaQuestMessageIds, showSovaSoundBoxRef, sovaMessageAdderRef]);
 
     // ========================================================================

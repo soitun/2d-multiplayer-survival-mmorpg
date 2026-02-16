@@ -310,7 +310,7 @@ const UplinkNotifications: React.FC<UplinkNotificationsProps> = ({
         className={`uplink-notif-container ${isFadingOut ? 'fade-out' : 'fade-in'}`}
         style={{
           padding: '2px',
-          background: colors.gradient,
+          backgroundImage: colors.gradient,
           backgroundSize: '300% 300%',
           animation: `uplinkNotifGradient 3s ease infinite${isFadingOut ? ', uplinkNotifFadeOut 0.4s ease-out forwards' : ''}`,
           borderRadius: '10px',

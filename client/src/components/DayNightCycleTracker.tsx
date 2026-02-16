@@ -362,7 +362,7 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
             }}>
                 <div className="uplink-glow-container" style={{
                     padding: '2px',
-                    background: UI_BORDER_GRADIENT,
+                    backgroundImage: UI_BORDER_GRADIENT,
                     backgroundSize: '300% 300%',
                     animation: 'uplinkGradientShift 4s ease infinite',
                     borderRadius: '10px',
@@ -479,7 +479,7 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
             >
                 <div className="uplink-glow-container minimized" style={{
                     padding: '2px',
-                    background: anyProgressFlash ? `linear-gradient(135deg, ${ACCENT_GREEN}, ${ACCENT_CYAN}, ${ACCENT_GREEN})` : UI_BORDER_GRADIENT,
+                    backgroundImage: anyProgressFlash ? `linear-gradient(135deg, ${ACCENT_GREEN}, ${ACCENT_CYAN}, ${ACCENT_GREEN})` : UI_BORDER_GRADIENT,
                     backgroundSize: '300% 300%',
                     animation: anyProgressFlash ? 'progressFlashBorder 0.8s ease-out' : 'uplinkGradientShift 4s ease infinite',
                     borderRadius: '8px',
@@ -644,7 +644,7 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
             {/* Gradient border container */}
             <div className="uplink-glow-container" style={{
                 padding: '2px',
-                background: anyProgressFlash ? `linear-gradient(135deg, ${ACCENT_GREEN}, ${ACCENT_CYAN}, ${ACCENT_GREEN})` : (pulseAnimation ? `linear-gradient(135deg, ${ACCENT_PURPLE}, ${ACCENT_CYAN}, ${ACCENT_PURPLE})` : UI_BORDER_GRADIENT),
+                backgroundImage: anyProgressFlash ? `linear-gradient(135deg, ${ACCENT_GREEN}, ${ACCENT_CYAN}, ${ACCENT_GREEN})` : (pulseAnimation ? `linear-gradient(135deg, ${ACCENT_PURPLE}, ${ACCENT_CYAN}, ${ACCENT_PURPLE})` : UI_BORDER_GRADIENT),
                 backgroundSize: '300% 300%',
                 animation: anyProgressFlash ? 'progressFlashBorder 0.8s ease-out' : (pulseAnimation ? 'uplinkPulse 1s ease-in-out infinite' : 'uplinkGradientShift 4s ease infinite'),
                 borderRadius: '10px',
