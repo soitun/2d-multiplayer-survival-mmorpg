@@ -37,6 +37,9 @@ use crate::environment::calculate_chunk_index;
 pub const BARREL_INITIAL_HEALTH: f32 = 50.0; // Less health than storage boxes
 pub const BARREL_COLLISION_RADIUS: f32 = 25.0; // Collision radius in pixels (tighter for better accuracy)
 pub const BARREL_COLLISION_Y_OFFSET: f32 = 48.0; // Y-offset for collision detection (visual center)
+// Buoy (variant 6) is 192x192 - same collision size as standard barrel, offset for visual center
+pub const BUOY_COLLISION_RADIUS: f32 = 25.0; // Same as BARREL_COLLISION_RADIUS
+pub const BUOY_COLLISION_Y_OFFSET: f32 = 110.0; // Moved down a bit from 124 for better alignment
 pub const PLAYER_BARREL_COLLISION_DISTANCE_SQUARED: f32 = (PLAYER_RADIUS + BARREL_COLLISION_RADIUS) * (PLAYER_RADIUS + BARREL_COLLISION_RADIUS);
 pub const PLAYER_BARREL_INTERACTION_DISTANCE_SQUARED: f32 = 64.0 * 64.0; // 64 pixels interaction range
 pub const BARREL_BARREL_COLLISION_DISTANCE_SQUARED: f32 = (BARREL_COLLISION_RADIUS * 2.0 + 20.0) * (BARREL_COLLISION_RADIUS * 2.0 + 20.0); // Barrels can't overlap
@@ -61,11 +64,11 @@ pub const MIN_SEA_BARREL_DISTANCE_SQ: f32 = 80.0 * 80.0; // Minimum distance bet
 pub const BEACH_BARREL_SPAWN_DENSITY_PERCENT: f32 = 0.0003; // 0.03% of beach tiles get a barrel (washed up flotsam is common)
 pub const MIN_BEACH_BARREL_DISTANCE_SQ: f32 = 120.0 * 120.0; // Minimum distance between beach barrels
 
-// Buoy constants (indestructible, no loot, spawn in outer ocean only)
-pub const BUOY_SPAWN_CELL_SIZE_PX: f32 = 4000.0; // ~1 buoy per 4000x4000 px area
-pub const BUOY_MIN_DISTANCE_FROM_CENTER_RATIO: f32 = 0.55; // Must be in outer 45% of map (distance from center > 55% of half-diagonal)
-pub const BUOY_MIN_DEEP_SEA_TILES: f32 = 12.0; // Must be at least 12 tiles from shore (deep ocean)
-pub const MIN_BUOY_DISTANCE_SQ: f32 = 200.0 * 200.0; // Minimum distance between buoys
+// Buoy constants (indestructible, no loot, spawn in outer ocean)
+// Relaxed: map has scattered islands; use ocean water only (no deep-sea distance check)
+pub const BUOY_SPAWN_CELL_SIZE_PX: f32 = 2500.0; // ~1 buoy per 2500x2500 px
+pub const BUOY_MIN_DISTANCE_FROM_CENTER_RATIO: f32 = 0.35; // Outer 65% of map (exclude only innermost)
+pub const MIN_BUOY_DISTANCE_SQ: f32 = 150.0 * 150.0; // Min 150px between buoys
 
 // Damage constants
 // Note: Damage is determined by weapon type through the combat system
@@ -192,21 +195,17 @@ pub fn get_barrel_loot_table(ctx: &ReducerContext) -> Vec<BarrelLootEntry> {
 // --- Helper Functions ---
 
 /// Checks if a position has collision with existing buoys only.
-/// Used for buoy spawning - 4000px spacing is between buoys, not all barrels.
-/// Sea barrels in outer ocean should not block buoy spawns.
+/// Uses BUOY_COLLISION_RADIUS for proportional 144x144 buoy size.
 fn has_buoy_collision(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
     for barrel in ctx.db.barrel().iter() {
         if barrel.health == 0.0 { continue; }
-        if barrel.variant != BUOY_VARIANT { continue; } // Only check other buoys
+        if barrel.variant != BUOY_VARIANT { continue; }
         
-        let collision_y_offset = BARREL_COLLISION_Y_OFFSET;
-        let collision_radius = BARREL_COLLISION_RADIUS;
-        let buoy_collision_distance_sq = (collision_radius * 2.0 + 20.0) * (collision_radius * 2.0 + 20.0);
-        
+        let buoy_collision_distance_sq =
+            (BUOY_COLLISION_RADIUS * 2.0 + 20.0) * (BUOY_COLLISION_RADIUS * 2.0 + 20.0);
         let dx = pos_x - barrel.pos_x;
-        let dy = pos_y - (barrel.pos_y - collision_y_offset);
+        let dy = pos_y - (barrel.pos_y - BUOY_COLLISION_Y_OFFSET);
         let distance_sq = dx * dx + dy * dy;
-        
         if distance_sq < buoy_collision_distance_sq {
             return true;
         }
@@ -222,16 +221,12 @@ pub fn has_barrel_collision(ctx: &ReducerContext, pos_x: f32, pos_y: f32, exclud
             if barrel.id == exclude { continue; } // Skip the barrel we're checking against
         }
         
-        // Variant 4 (barrel5.png) is 2x larger, so scale collision accordingly
-        let collision_y_offset = if barrel.variant == 4 {
-            BARREL_COLLISION_Y_OFFSET * 2.0 // 96.0 for variant 4
+        let (collision_radius, collision_y_offset) = if barrel.variant == BUOY_VARIANT {
+            (BUOY_COLLISION_RADIUS, BUOY_COLLISION_Y_OFFSET)
+        } else if barrel.variant == 4 {
+            (BARREL_COLLISION_RADIUS * 2.0, BARREL_COLLISION_Y_OFFSET * 2.0)
         } else {
-            BARREL_COLLISION_Y_OFFSET // 48.0 for others
-        };
-        let collision_radius = if barrel.variant == 4 {
-            BARREL_COLLISION_RADIUS * 2.0 // 50.0 for variant 4
-        } else {
-            BARREL_COLLISION_RADIUS // 25.0 for others
+            (BARREL_COLLISION_RADIUS, BARREL_COLLISION_Y_OFFSET)
         };
         let barrel_barrel_collision_distance_sq = (collision_radius * 2.0 + 20.0) * (collision_radius * 2.0 + 20.0);
         
@@ -246,16 +241,29 @@ pub fn has_barrel_collision(ctx: &ReducerContext, pos_x: f32, pos_y: f32, exclud
     false
 }
 
-/// Checks if a position has collision with a player
+/// Checks if a position has collision with a player (standard barrel size)
 pub fn has_player_barrel_collision(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    has_player_barrel_collision_with_size(ctx, pos_x, pos_y, BARREL_COLLISION_RADIUS, BARREL_COLLISION_Y_OFFSET)
+}
+
+/// Checks if a position has collision with a player (for buoy spawn - uses buoy size)
+pub fn has_player_buoy_collision(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    has_player_barrel_collision_with_size(ctx, pos_x, pos_y, BUOY_COLLISION_RADIUS, BUOY_COLLISION_Y_OFFSET)
+}
+
+fn has_player_barrel_collision_with_size(
+    ctx: &ReducerContext,
+    pos_x: f32,
+    pos_y: f32,
+    collision_radius: f32,
+    collision_y_offset: f32,
+) -> bool {
+    let min_dist_sq = (PLAYER_RADIUS + collision_radius) * (PLAYER_RADIUS + collision_radius);
     for player in ctx.db.player().iter() {
         if player.is_dead { continue; }
-        
         let dx = pos_x - player.position_x;
-        let dy = pos_y - (player.position_y - BARREL_COLLISION_Y_OFFSET);
-        let distance_sq = dx * dx + dy * dy;
-        
-        if distance_sq < PLAYER_BARREL_COLLISION_DISTANCE_SQUARED {
+        let dy = pos_y - (player.position_y - collision_y_offset);
+        if dx * dx + dy * dy < min_dist_sq {
             return true;
         }
     }
@@ -1324,10 +1332,9 @@ pub fn spawn_hot_spring_barrels(
 }
 
 /// Spawns indestructible buoys (variant 6) in outer ocean water.
-/// ~1 per 4000px, only in deep sea closer to map edges. No loot, decorative/navigational.
+/// No loot, decorative/navigational. Uses is_position_on_ocean_water only (no deep-sea check).
 pub fn spawn_buoy_barrels(ctx: &ReducerContext) -> Result<(), String> {
     use crate::{WORLD_WIDTH_PX, WORLD_HEIGHT_PX};
-    use crate::environment::is_position_in_deep_sea;
 
     log::info!("[BuoySpawn] Starting buoy barrel spawning...");
 
@@ -1356,7 +1363,7 @@ pub fn spawn_buoy_barrels(ctx: &ReducerContext) -> Result<(), String> {
             }
 
             let mut attempts = 0;
-            const MAX_ATTEMPTS: u32 = 15;
+            const MAX_ATTEMPTS: u32 = 30; // More attempts per cell (was 15) - ocean valid spots can be sparse
             while attempts < MAX_ATTEMPTS {
                 attempts += 1;
                 let offset_x = ctx.rng().gen_range(-cell_size * 0.4..cell_size * 0.4);
@@ -1368,10 +1375,8 @@ pub fn spawn_buoy_barrels(ctx: &ReducerContext) -> Result<(), String> {
                     continue;
                 }
 
+                // Ocean water only (excludes rivers, lakes, beach-adjacent) - no deep-sea check
                 if !crate::environment::is_position_on_ocean_water(ctx, barrel_x, barrel_y) {
-                    continue;
-                }
-                if !is_position_in_deep_sea(ctx, barrel_x, barrel_y, BUOY_MIN_DEEP_SEA_TILES) {
                     continue;
                 }
 
@@ -1405,7 +1410,7 @@ pub fn spawn_buoy_barrels(ctx: &ReducerContext) -> Result<(), String> {
                     continue;
                 }
 
-                if has_buoy_collision(ctx, barrel_x, barrel_y) || has_player_barrel_collision(ctx, barrel_x, barrel_y) {
+                if has_buoy_collision(ctx, barrel_x, barrel_y) || has_player_buoy_collision(ctx, barrel_x, barrel_y) {
                     continue;
                 }
 

@@ -32,6 +32,23 @@ const SOVA_SOUNDS: Record<NotificationSoundType, string> = {
 
 const SFX_SOUND = '/sounds/progress_unlocked.mp3';
 
+/**
+ * Play only the "gamey" SFX (progress_unlocked.mp3) without the SOVA voice.
+ * Use when SOVA tutorial is playing - we skip the voice but still give audio feedback.
+ */
+export function playNotificationSfxOnly(): void {
+  const now = Date.now();
+  if (now - lastSfxPlayedAt < SFX_DEBOUNCE_MS) return;
+  lastSfxPlayedAt = now;
+  try {
+    const sfxAudio = new Audio(SFX_SOUND);
+    sfxAudio.volume = 0.5;
+    sfxAudio.play().catch(() => {});
+  } catch {
+    // Ignore
+  }
+}
+
 // Queue state - only for sounds triggered at same time (not for waiting on SOVA)
 interface QueuedSound {
   type: NotificationSoundType;
@@ -71,7 +88,8 @@ export function queueNotificationSound(type: NotificationSoundType): void {
   // 4. Cairn audio (both pending and playing states)
   const sovaPlaying = isAnySovaAudioPlaying();
   if (sovaPlaying) {
-    console.log(`[NotificationSoundQueue] ⏸️ SKIPPING ${type} sound - SOVA is speaking (checked: SovaSoundBox active/playing, LoadingScreen, CairnAudio)`);
+    console.log(`[NotificationSoundQueue] ⏸️ Skipping SOVA voice for ${type} - SOVA is speaking, playing gamey SFX only`);
+    playNotificationSfxOnly();
     return;
   }
   
@@ -112,11 +130,10 @@ async function processQueue(): Promise<void> {
       continue;
     }
     
-    // If SOVA started speaking while we were processing, skip remaining sounds
-    // This can happen if cairn/tutorial audio starts during queue processing
+    // If SOVA started speaking while we were processing, skip SOVA voice but play gamey SFX
     if (isAnySovaAudioPlaying()) {
-      console.log(`[NotificationSoundQueue] ⏸️ SKIPPING ${nextSound.type} - SOVA started speaking during queue processing`);
-      // Clear the rest of the queue too
+      console.log(`[NotificationSoundQueue] ⏸️ Skipping SOVA voice for ${nextSound.type} - SOVA speaking, playing gamey SFX only`);
+      playNotificationSfxOnly();
       soundQueue = [];
       break;
     }

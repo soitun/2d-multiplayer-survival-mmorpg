@@ -317,7 +317,8 @@ fn get_difficulty_multiplier(difficulty: &QuestDifficulty) -> f32 {
     }
 }
 
-/// Count how many of a specific item (by name) the player has in inventory, hotbar, or equipped.
+/// Count how many of a specific item (by name) the player has in their actual inventory (inventory slots, hotbar, equipped).
+/// Does NOT include items in containers (campfires, furnaces, storage boxes, etc.).
 fn count_player_item_by_name(ctx: &ReducerContext, player_id: Identity, item_name: &str) -> u32 {
     let item_defs = ctx.db.item_definition();
     let item_def = match item_defs.iter().find(|d| d.name == item_name) {
@@ -332,7 +333,7 @@ fn count_player_item_by_name(ctx: &ReducerContext, player_id: Identity, item_nam
                 ItemLocation::Inventory(data) => data.owner_id,
                 ItemLocation::Hotbar(data) => data.owner_id,
                 ItemLocation::Equipped(data) => data.owner_id,
-                _ => return false,
+                ItemLocation::Container(_) | ItemLocation::Dropped(_) | ItemLocation::Unknown => return false,
             };
             owner == player_id && item.item_def_id == item_def_id
         })
@@ -358,23 +359,29 @@ pub fn reconcile_tutorial_quest_progress(ctx: &ReducerContext, player_id: Identi
             None => return Ok(()),
         };
         let mut updated = false;
-        // Primary: GatherWood, GatherStone, CollectSpecificItem, CraftSpecificItem
+        // Primary: GatherWood, GatherStone, CollectSpecificItem, CraftSpecificItem, HarvestSpecificPlant
         // ChopTree/MineStoneNode: credit from wood/stone as heuristic (having resources implies prior gathering)
-        let (primary_item_name, primary_credit_from_count) = match &current_quest.objective_type {
-            QuestObjectiveType::GatherWood => (Some("Wood"), true),
-            QuestObjectiveType::GatherStone => (Some("Stone"), true),
-            QuestObjectiveType::ChopTree => (Some("Wood"), true),  // Heuristic: wood implies trees chopped
-            QuestObjectiveType::MineStoneNode => (Some("Stone"), true),  // Heuristic: stone implies nodes mined
-            QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => (current_quest.target_id.as_deref(), true),
-            _ => (None, false),
+        // HarvestSpecificPlant "Beach Lyme Grass": credit from Plant Fiber count (45 fiber ≈ 3 harvests @ 15 each)
+        let (primary_item_name, primary_credit_from_count, primary_credit_divisor) = match &current_quest.objective_type {
+            QuestObjectiveType::GatherWood => (Some("Wood"), true, 1u32),
+            QuestObjectiveType::GatherStone => (Some("Stone"), true, 1u32),
+            QuestObjectiveType::ChopTree => (Some("Wood"), true, 40u32),  // Heuristic: ~40 wood/tree
+            QuestObjectiveType::MineStoneNode => (Some("Stone"), true, 50u32),  // Heuristic: ~50 stone/node
+            QuestObjectiveType::CollectSpecificItem | QuestObjectiveType::CraftSpecificItem => (current_quest.target_id.as_deref(), true, 1u32),
+            QuestObjectiveType::HarvestSpecificPlant if current_quest.target_id.as_deref() == Some("Beach Lyme Grass") => {
+                // 3 Beach Lyme Grass ≈ 45 Plant Fiber (15 per harvest); credit primary from fiber count
+                (Some("Plant Fiber"), true, 15u32)
+            }
+            _ => (None, false, 1u32),
         };
-        if let (Some(name), true) = (primary_item_name, primary_credit_from_count) {
+        if let (Some(name), true, divisor) = (primary_item_name, primary_credit_from_count, primary_credit_divisor) {
             let count = count_player_item_by_name(ctx, player_id, name);
-            // ChopTree/MineStoneNode: heuristic - ~40 wood/tree, ~50 stone/node; any amount credits at least 1
-            let credit = match &current_quest.objective_type {
-                QuestObjectiveType::ChopTree => (count / 40).max(if count > 0 { 1 } else { 0 }).min(current_quest.target_amount),
-                QuestObjectiveType::MineStoneNode => (count / 50).max(if count > 0 { 1 } else { 0 }).min(current_quest.target_amount),
-                _ => count.min(current_quest.target_amount),
+            // ChopTree/MineStoneNode: heuristic - divisor credits per unit; any amount credits at least 1
+            // HarvestSpecificPlant "Beach Lyme Grass": 45 fiber / 15 = 3 harvests
+            let credit = if divisor > 1 {
+                (count / divisor).max(if count > 0 { 1 } else { 0 }).min(current_quest.target_amount)
+            } else {
+                count.min(current_quest.target_amount)
             };
             if credit > progress.current_quest_progress {
                 progress.current_quest_progress = credit;
@@ -418,7 +425,7 @@ pub fn reconcile_tutorial_quest_progress(ctx: &ReducerContext, player_id: Identi
         if updated {
             progress.updated_at = ctx.timestamp;
         }
-        // Check completion
+        // Check completion (Or logic: only consider objectives that exist - same fix as track_tutorial_progress)
         let primary_complete = progress.current_quest_progress >= current_quest.target_amount;
         let secondary_complete = match current_quest.secondary_target_amount {
             Some(t) => progress.secondary_quest_progress >= t,
@@ -432,7 +439,11 @@ pub fn reconcile_tutorial_quest_progress(ctx: &ReducerContext, player_id: Identi
         let tertiary_satisfied = current_quest.tertiary_optional || tertiary_complete;
         let quest_complete = match current_quest.objective_logic {
             ObjectiveLogic::And => primary_complete && secondary_satisfied && tertiary_satisfied,
-            ObjectiveLogic::Or => primary_complete || secondary_complete || tertiary_complete,
+            ObjectiveLogic::Or => {
+                let sec = current_quest.secondary_target_amount.map_or(false, |t| progress.secondary_quest_progress >= t);
+                let tert = current_quest.tertiary_target_amount.map_or(false, |t| progress.tertiary_quest_progress >= t);
+                primary_complete || sec || tert
+            }
             ObjectiveLogic::PrimaryOnly => primary_complete,
         };
         if quest_complete {
@@ -722,25 +733,33 @@ fn track_tutorial_progress(
     let primary_complete = progress.current_quest_progress >= quest.target_amount;
     let secondary_complete = match quest.secondary_target_amount {
         Some(target) => progress.secondary_quest_progress >= target,
-        None => true, // No secondary objective = automatically complete
+        None => true, // No secondary objective = doesn't block And; for Or, we exclude it
     };
     let tertiary_complete = match quest.tertiary_target_amount {
         Some(target) => progress.tertiary_quest_progress >= target,
-        None => true, // No tertiary objective = automatically complete
+        None => true, // No tertiary objective = doesn't block And; for Or, we exclude it
     };
     
     // For And logic, respect optional flags - optional objectives don't block completion
     let secondary_satisfied = quest.secondary_optional || secondary_complete;
     let tertiary_satisfied = quest.tertiary_optional || tertiary_complete;
     
+    // Or logic: only consider objectives that EXIST. "None => true" above would incorrectly
+    // make quests with no tertiary complete instantly (e.g. Coastal Foraging).
     let quest_complete = match quest.objective_logic {
         ObjectiveLogic::And => primary_complete && secondary_satisfied && tertiary_satisfied,  // Required objectives must complete
-        ObjectiveLogic::Or => primary_complete || secondary_complete || tertiary_complete,   // Any completes it
+        ObjectiveLogic::Or => {
+            let sec = quest.secondary_target_amount.map_or(false, |t| progress.secondary_quest_progress >= t);
+            let tert = quest.tertiary_target_amount.map_or(false, |t| progress.tertiary_quest_progress >= t);
+            primary_complete || sec || tert
+        }
         ObjectiveLogic::PrimaryOnly => primary_complete,  // Only primary required (legacy, prefer using optional flags)
     };
     
     if quest_complete {
         complete_tutorial_quest(ctx, player_id, &mut progress, quest)?;
+        // Reconcile the NEW quest so existing inventory (Rope, hatchets, pickaxes, etc.) gets credited
+        reconcile_tutorial_quest_progress(ctx, player_id)?;
     } else {
         progress_table.player_id().update(progress);
     }
@@ -755,9 +774,30 @@ fn matches_objective(
     objective_type: &QuestObjectiveType,
     objective_target: Option<&str>,
 ) -> bool {
+    // CollectSpecificItem (pickup/find) also satisfies CraftSpecificItem - having the item counts
+    // e.g. Rope from barrel, Stone Hatchet from loot, etc.
+    if *action_type == QuestObjectiveType::CollectSpecificItem
+        && *objective_type == QuestObjectiveType::CraftSpecificItem
+    {
+        if let (Some(at), Some(ot)) = (action_target, objective_target) {
+            return at == ot;
+        }
+    }
     // Must match objective type
     if action_type != objective_type {
         return false;
+    }
+    
+    // GatherStone and GatherWood have IMPLICIT targets - only "Stone" and "Wood" count
+    // (Metal Ore, Sulfur Ore, Memory Shard, etc. must NOT credit GatherStone)
+    match objective_type {
+        QuestObjectiveType::GatherStone => {
+            return matches!(action_target, Some("Stone"));
+        }
+        QuestObjectiveType::GatherWood => {
+            return matches!(action_target, Some("Wood"));
+        }
+        _ => {}
     }
     
     // If objective requires a specific target, check it

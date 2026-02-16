@@ -17,12 +17,20 @@ const VERTEX_SHAKE_SEGMENTS = 6; // Number of vertical segments for vertex-based
 const clientStoneShakeStartTimes = new Map<string, number>(); // stoneId -> client timestamp when shake started
 const lastKnownServerStoneShakeTimes = new Map<string, number>(); // stoneId -> last known server timestamp
 
+type StoneOreType = 'stone' | 'metal' | 'sulfur' | 'memory';
+
+function normalizeOreType(oreType: string | undefined): StoneOreType {
+  const s = (oreType ?? 'stone').toLowerCase();
+  if (s === 'metal' || s === 'sulfur' || s === 'memory') return s;
+  return 'stone';
+}
+
 /** Trigger stone shake immediately (optimistic feedback) when player initiates a hit. */
 export function triggerStoneShakeOptimistic(stoneId: string, posX: number, posY: number, oreType?: string): void {
   const now = Date.now();
   clientStoneShakeStartTimes.set(stoneId, now);
   lastKnownServerStoneShakeTimes.set(stoneId, now);
-  triggerStoneHitEffect(stoneId, posX, posY, oreType ?? 'Stone');
+  triggerStoneHitEffect(stoneId, posX, posY, normalizeOreType(oreType));
 }
 
 // ============================================================================

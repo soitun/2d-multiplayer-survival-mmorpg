@@ -16,8 +16,10 @@ import { imageManager } from './imageManager'; // Import image manager
 // --- Constants --- (Keep exportable if used elsewhere)
 export const BARREL_WIDTH = 86; // Standard barrel size (increased from 72)
 export const BARREL_HEIGHT = 86;
-export const BARREL5_WIDTH = 172; // Variant 4 (barrel5.png) rendered at larger size (increased from 144)
+export const BARREL5_WIDTH = 172; // Variant 4 (barrel5.png) rendered at larger size
 export const BARREL5_HEIGHT = 172;
+export const BUOY_WIDTH = 192; // Variant 6 (buoy) - large navigational marker (~4x player height)
+export const BUOY_HEIGHT = 192;
 export const PLAYER_BARREL_INTERACTION_DISTANCE_SQUARED = 64.0 * 64.0; // Barrel interaction distance
 const SHAKE_DURATION_MS = 150; 
 const SHAKE_INTENSITY_PX = 4; // Subtle shake for barrels
@@ -68,13 +70,12 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
     },
 
     getTargetDimensions: (img, entity) => {
-        // Variant 4 (barrel5.png) renders at 144x144px, all others at 72x72px
         const variantIndex = Number(entity.variant ?? 0);
         if (variantIndex === 4) {
-            return {
-                width: BARREL5_WIDTH,
-                height: BARREL5_HEIGHT,
-            };
+            return { width: BARREL5_WIDTH, height: BARREL5_HEIGHT };
+        }
+        if (variantIndex === 6) {
+            return { width: BUOY_WIDTH, height: BUOY_HEIGHT };
         }
         return {
             width: BARREL_WIDTH,
@@ -83,9 +84,8 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
     },
 
     calculateDrawPosition: (entity, drawWidth, drawHeight) => {
-        // Scale Y offset for variant 4 (barrel5.png - 2x larger barrel)
         const variantIndex = Number(entity.variant ?? 0);
-        const yOffset = variantIndex === 4 ? 24 : 12; // Double offset for variant 4
+        const yOffset = variantIndex === 4 ? 24 : variantIndex === 6 ? 28 : 12; // Buoy (6) 192px, large barrel (4)
         return {
             drawX: entity.posX - drawWidth / 2,
             drawY: entity.posY - drawHeight - yOffset, // Slight Y adjustment for centering
@@ -96,8 +96,8 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
 
     drawCustomGroundShadow: (ctx, entity, entityImage, entityPosX, entityPosY, imageDrawWidth, imageDrawHeight, cycleProgress) => {
         // Draw DYNAMIC ground shadow if not destroyed/respawning
+        // Uses same offset/scale/rotate as swimming player shadow (offset right+down, scaled, angled)
         if (!entity.respawnAt || entity.respawnAt.microsSinceUnixEpoch === 0n) {
-            // Calculate shake offsets for shadow synchronization using helper function
             const { shakeOffsetX, shakeOffsetY } = calculateShakeOffsets(
                 entity,
                 entity.id.toString(),
@@ -108,29 +108,39 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
                 SHAKE_DURATION_MS,
                 SHAKE_INTENSITY_PX,
                 undefined,
-                { suppressRestartIfRecentClientShake: true }
+                { suppressRestartIfRecentClientShake: false } // Always restart on new hit so subsequent hits shake
             );
 
-            // Scale pivotYOffset based on barrel size (variant 4 is 2x larger)
             const variantIndex = Number(entity.variant ?? 0);
-            const pivotYOffset = variantIndex === 4 ? 60 : 30; // Double for variant 4
+            const yOffset = variantIndex === 4 ? 24 : variantIndex === 6 ? 28 : 12;
+            const centerY = entityPosY - imageDrawHeight / 2 - yOffset;
+            const shadowOffsetX = imageDrawWidth * 0.28;
+            const shadowOffsetY = imageDrawHeight * 0.9;
+            const shadowX = entityPosX + shadowOffsetX;
+            const shadowY = centerY + shadowOffsetY;
+
+            ctx.save();
+            ctx.translate(shadowX, shadowY);
+            ctx.scale(0.85, 0.75);
+            ctx.rotate(Math.PI / 6);
+            ctx.translate(-shadowX, -shadowY);
 
             drawDynamicGroundShadow({
                 ctx,
                 entityImage,
-                entityCenterX: entityPosX,
-                entityBaseY: entityPosY,
+                entityCenterX: shadowX,
+                entityBaseY: shadowY,
                 imageDrawWidth,
                 imageDrawHeight,
                 cycleProgress,
-                maxStretchFactor: 1.1, 
-                minStretchFactor: 0.15,  
-                shadowBlur: 2,         
-                pivotYOffset,
-                // Pass shake offsets so shadow moves with the barrel
+                maxStretchFactor: 1.1,
+                minStretchFactor: 0.15,
+                shadowBlur: 2,
+                pivotYOffset: 0,
                 shakeOffsetX,
-                shakeOffsetY       
+                shakeOffsetY,
             });
+            ctx.restore();
         }
     },
 
@@ -149,7 +159,7 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
                 SHAKE_DURATION_MS,
                 SHAKE_INTENSITY_PX,
                 undefined,
-                { suppressRestartIfRecentClientShake: true }
+                { suppressRestartIfRecentClientShake: false } // Always restart on new hit so subsequent hits shake
             );
             return { offsetX: shakeOffsetX, offsetY: shakeOffsetY };
         }
@@ -238,11 +248,10 @@ function renderSeaBarrelWithWaterEffects(
         return;
     }
     
-    // Get dimensions
-    const isLargeVariant = variantIndex === 4;
-    const drawWidth = isLargeVariant ? BARREL5_WIDTH : BARREL_WIDTH;
-    const drawHeight = isLargeVariant ? BARREL5_HEIGHT : BARREL_HEIGHT;
-    const yOffset = isLargeVariant ? 24 : 12;
+    // Get dimensions - variant 4 (large barrel) 172x172, variant 6 (buoy) 144x144
+    const drawWidth = variantIndex === 4 ? BARREL5_WIDTH : variantIndex === 6 ? BUOY_WIDTH : BARREL_WIDTH;
+    const drawHeight = variantIndex === 4 ? BARREL5_HEIGHT : variantIndex === 6 ? BUOY_HEIGHT : BARREL_HEIGHT;
+    const yOffset = variantIndex === 4 ? 24 : variantIndex === 6 ? 28 : 12;
     
     // Calculate sway animation (gentle rotation)
     const swayPrimary = Math.sin(nowMs * SEA_BARREL_WATER_CONFIG.SWAY_FREQUENCY + barrel.posX * 0.01) 
@@ -260,6 +269,50 @@ function renderSeaBarrelWithWaterEffects(
     const baseY = barrel.posY + bobOffset;
     const drawX = baseX - drawWidth / 2;
     const drawY = baseY - drawHeight - yOffset;
+    
+    // --- Draw dynamic ground shadow (on water surface) - same offset/scale/rotate as swimming player ---
+    const { shakeOffsetX, shakeOffsetY } = calculateShakeOffsets(
+        barrel,
+        barrel.id.toString(),
+        {
+            clientStartTimes: clientBarrelShakeStartTimes,
+            lastKnownServerTimes: lastKnownServerBarrelShakeTimes
+        },
+        SHAKE_DURATION_MS,
+        SHAKE_INTENSITY_PX,
+        undefined,
+        { suppressRestartIfRecentClientShake: false } // Always restart on new hit so subsequent hits shake
+    );
+    const centerY = barrel.posY - drawHeight / 2 - yOffset;
+    const shadowOffsetX = drawWidth * 0.28;
+    const shadowOffsetY = drawHeight * 0.9;
+    const shadowX = baseX + shadowOffsetX;
+    const shadowY = centerY + shadowOffsetY;
+
+    ctx.save();
+    ctx.translate(shadowX, shadowY);
+    ctx.scale(0.85, 0.75);
+    ctx.rotate(Math.PI / 6);
+    ctx.translate(-shadowX, -shadowY);
+
+    drawDynamicGroundShadow({
+        ctx,
+        entityImage: img,
+        entityCenterX: shadowX,
+        entityBaseY: shadowY,
+        imageDrawWidth: drawWidth,
+        imageDrawHeight: drawHeight,
+        cycleProgress: 0.5, // Fixed noon like swimming (underwater shadow)
+        baseShadowColor: '6, 30, 38',
+        maxShadowAlpha: 0.75,
+        maxStretchFactor: 1.0,
+        minStretchFactor: 0.9,
+        shadowBlur: 2,
+        pivotYOffset: 0,
+        shakeOffsetX,
+        shakeOffsetY,
+    });
+    ctx.restore();
     
     // Calculate water line position (in local sprite coordinates)
     const waterLineLocalY = drawHeight * SEA_BARREL_WATER_CONFIG.WATER_LINE_OFFSET;
@@ -455,8 +508,8 @@ export function renderBarrelUnderwaterSilhouette(
         return;
     }
     
-    // Variant 4 (barrel5.png) is 2x larger
-    const scaleFactor = variantIndex === 4 ? 2 : 1;
+    // Variant 4 (barrel5.png) 2x, variant 6 (buoy) 144/86 ≈ 1.67
+    const scaleFactor = variantIndex === 4 ? 2 : variantIndex === 6 ? BUOY_WIDTH / BARREL_WIDTH : 1;
     
     // Calculate radius to match actual collision system
     const radius = UNDERWATER_BARREL_CONFIG.BASE_RADIUS * scaleFactor;

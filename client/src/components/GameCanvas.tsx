@@ -1239,6 +1239,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     return 9999;
   }, [localPlayer, waterTileLookup]);
 
+  // 🌊 AMBIENT SOUND: Distance to nearest map edge for deep ocean (open water, no waves)
+  // Simple check - when player is near map boundary, play ambient ocean instead of shore waves
+  const distanceToMapEdge = useMemo(() => {
+    if (!localPlayer) return Infinity;
+    const playerX = localPlayer.positionX ?? 0;
+    const playerY = localPlayer.positionY ?? 0;
+    const worldW = gameConfig.worldWidthPx;
+    const worldH = gameConfig.worldHeightPx;
+    return Math.min(playerX, worldW - playerX, playerY, worldH - playerY);
+  }, [localPlayer]);
+
   // --- Interaction Finding System ---
   const {
     closestInteractableTarget,
@@ -2171,6 +2182,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     currentSeason: worldState?.currentSeason, // Season affects crickets (silent in winter)
     isIndoors: localPlayer?.isInsideBuilding ?? false, // Muffle outdoor sounds when inside buildings
     distanceToShore, // Distance to water for ocean sound proximity fading
+    distanceToMapEdge, // Distance to map edge for deep ocean (open water, no waves)
     wildAnimals: visibleWildAnimalsMap, // Pass wild animals for bee buzzing proximity
   });
 
@@ -3366,6 +3378,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           // Compound buildings: use sprite BOTTOM (worldY + anchor) for Y-sort
           const e = entity.entity as any;
           return (e.worldY ?? 0) + (e.anchorYOffset ?? 0);
+        } else if (entity.type === 'barrel' && 'posY' in entity.entity && entity.entity.posY !== undefined) {
+          // Barrels: Y-sort by visual base - buoy (variant 6) needs correct base for player overlap
+          const barrel = entity.entity as { posY: number; variant?: number };
+          const baseYOffset = (barrel.variant ?? 0) === 4 ? 24 : (barrel.variant ?? 0) === 6 ? 28 : 12;
+          return barrel.posY - baseYOffset;
         } else if ('posY' in entity.entity && entity.entity.posY !== undefined) {
           return entity.entity.posY;
         }
@@ -3451,6 +3468,27 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             return -1; // Player at/near/south of building's visual base - player in front (inverted)
           }
           return 1; // Player clearly north of building - player behind (inverted)
+        }
+
+        // CRITICAL: Player vs Buoy (barrel variant 6) - 192px tall, use HEAD position like walls
+        const BUOY_BASE_Y_OFFSET = 28;
+        const PLAYER_HEAD_OFFSET_PX = 48;
+        const getPlayerHeadY = (e: any) => (e ? getPlayerY(e) - PLAYER_HEAD_OFFSET_PX : 0);
+        if ((aType === 'player' || a._isSwimmingTop) && bType === 'barrel') {
+          const barrel = bEntity as { posY?: number; variant?: number };
+          if ((barrel?.variant ?? 0) === 6) {
+            const playerHeadY = a._isSwimmingTop ? getPlayerY((a as any).entity) - PLAYER_HEAD_OFFSET_PX : getPlayerHeadY(aEntity);
+            const buoyBaseY = (barrel?.posY ?? 0) - BUOY_BASE_Y_OFFSET;
+            if (playerHeadY >= buoyBaseY) return 1; // Player in front - render on top
+          }
+        }
+        if (aType === 'barrel' && (bType === 'player' || b._isSwimmingTop)) {
+          const barrel = aEntity as { posY?: number; variant?: number };
+          if ((barrel?.variant ?? 0) === 6) {
+            const playerHeadY = b._isSwimmingTop ? getPlayerY((b as any).entity) - PLAYER_HEAD_OFFSET_PX : getPlayerHeadY(bEntity);
+            const buoyBaseY = (barrel?.posY ?? 0) - BUOY_BASE_Y_OFFSET;
+            if (playerHeadY >= buoyBaseY) return -1; // Player in front - barrel renders behind
+          }
         }
 
         // CRITICAL: Player vs Compound Building - tall structure Y-sorting (same pattern as ALK station)

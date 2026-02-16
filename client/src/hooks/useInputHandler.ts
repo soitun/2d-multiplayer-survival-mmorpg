@@ -672,11 +672,12 @@ export const useInputHandler = ({
                             if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerCoralShakeOptimistic(coral.id.toString(), coral.posX, coral.posY, Number(coral.id) % 4) };
                         });
                     }
-                    // Barrels - any weapon can hit
-                    const BARREL_COLLISION_Y_OFFSET = 48;
+                    // Barrels - any weapon can hit (variant 6 = buoy uses different collision offset)
                     barrelsRef.current?.forEach((barrel) => {
                         if (barrel.health === 0) return;
-                        const { inCone, distSq } = isInAttackCone(px, py, dir, barrel.posX, barrel.posY, BARREL_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                        const barrelVariant = (barrel as { variant?: number }).variant ?? 0;
+                        const barrelCollisionYOffset = barrelVariant === 6 ? 110 : barrelVariant === 4 ? 96 : 48;
+                        const { inCone, distSq } = isInAttackCone(px, py, dir, barrel.posX, barrel.posY, barrelCollisionYOffset, attackRange, attackAngle);
                         if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerBarrelShakeOptimistic(barrel.id.toString()) };
                     });
                     // Animal corpses - any weapon can hit
@@ -2023,10 +2024,11 @@ export const useInputHandler = ({
                                 if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerCoralShakeOptimistic(coral.id.toString(), coral.posX, coral.posY, Number(coral.id) % 4) };
                             });
                         }
-                        const BARREL_COLLISION_Y_OFFSET = 48;
                         barrelsRef.current?.forEach((barrel) => {
                             if (barrel.health === 0) return;
-                            const { inCone, distSq } = isInAttackCone(px, py, dir, barrel.posX, barrel.posY, BARREL_COLLISION_Y_OFFSET, attackRange, attackAngle);
+                            const barrelVariant = (barrel as { variant?: number }).variant ?? 0;
+                        const barrelCollisionYOffset = barrelVariant === 6 ? 110 : barrelVariant === 4 ? 96 : 48;
+                            const { inCone, distSq } = isInAttackCone(px, py, dir, barrel.posX, barrel.posY, barrelCollisionYOffset, attackRange, attackAngle);
                             if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerBarrelShakeOptimistic(barrel.id.toString()) };
                         });
                         const ANIMAL_CORPSE_COLLISION_Y_OFFSET = 8;

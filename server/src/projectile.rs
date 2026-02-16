@@ -1873,16 +1873,12 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 continue; // Skip destroyed barrels
             }
             
-            // Variant 4 (barrel5.png) is 2x larger, so scale collision accordingly
-            let projectile_barrel_hit_radius = if barrel.variant == 4 {
-                64.0 // 2x larger hit radius for variant 4
+            let (projectile_barrel_hit_radius, projectile_barrel_y_offset) = if barrel.variant == crate::barrel::BUOY_VARIANT {
+                (32.0, 110.0) // Buoy - standard hit radius, offset moved down a bit
+            } else if barrel.variant == 4 {
+                (64.0, 96.0) // Variant 4 (barrel5.png) 2x larger
             } else {
-                32.0 // Standard hit radius
-            };
-            let projectile_barrel_y_offset = if barrel.variant == 4 {
-                96.0 // 2x larger Y offset for variant 4
-            } else {
-                48.0 // Standard Y offset
+                (32.0, 48.0) // Standard
             };
             
             let barrel_hit_y = barrel.pos_y - projectile_barrel_y_offset;

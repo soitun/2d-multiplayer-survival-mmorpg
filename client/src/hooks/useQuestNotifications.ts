@@ -12,7 +12,8 @@
 import { useEffect, useState, useCallback, MutableRefObject, useRef } from 'react';
 import { Identity } from 'spacetimedb';
 import { QuestCompletionData } from '../components/QuestNotifications';
-import { queueNotificationSound } from '../utils/notificationSoundQueue';
+import { queueNotificationSound, playNotificationSfxOnly } from '../utils/notificationSoundQueue';
+import { isAnySovaAudioPlaying } from './useSovaSoundBox';
 
 // ============================================================================
 // Types
@@ -217,6 +218,13 @@ export function useQuestNotifications({
             
             const playAndContinue = () => {
                 if (!message.audioFile) {
+                    processNext(index + 1);
+                    return;
+                }
+                
+                // Skip SOVA voice when tutorial is playing, but still play gamey SFX
+                if (isAnySovaAudioPlaying()) {
+                    playNotificationSfxOnly();
                     processNext(index + 1);
                     return;
                 }

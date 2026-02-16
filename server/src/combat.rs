@@ -92,7 +92,7 @@ use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait;
 // Import animal corpse types
 use crate::wild_animal_npc::animal_corpse::{AnimalCorpse, ANIMAL_CORPSE_COLLISION_Y_OFFSET, animal_corpse as AnimalCorpseTableTrait};
 // Import barrel types
-use crate::barrel::{Barrel, BARREL_COLLISION_Y_OFFSET, barrel as BarrelTableTrait};
+use crate::barrel::{Barrel, BARREL_COLLISION_Y_OFFSET, BUOY_COLLISION_Y_OFFSET, BUOY_VARIANT, barrel as BarrelTableTrait};
 use crate::homestead_hearth::{HomesteadHearth, HEARTH_COLLISION_Y_OFFSET, homestead_hearth as HomesteadHearthTableTrait};
 use crate::coral::{LivingCoral, LIVING_CORAL_COLLISION_Y_OFFSET, LIVING_CORAL_RADIUS, living_coral as LivingCoralTableTrait};
 // --- Game Balance Constants ---
@@ -1058,11 +1058,12 @@ pub fn find_targets_in_cone(
             continue;
         }
         
-        // Variant 4 (barrel5.png) is 2x larger, so scale collision accordingly
-        let collision_y_offset = if barrel.variant == 4 {
-            crate::barrel::BARREL_COLLISION_Y_OFFSET * 2.0 // 96.0 for variant 4
+        let collision_y_offset = if barrel.variant == BUOY_VARIANT {
+            BUOY_COLLISION_Y_OFFSET
+        } else if barrel.variant == 4 {
+            crate::barrel::BARREL_COLLISION_Y_OFFSET * 2.0
         } else {
-            crate::barrel::BARREL_COLLISION_Y_OFFSET // 48.0 for others
+            crate::barrel::BARREL_COLLISION_Y_OFFSET
         };
         
         let dx = barrel.pos_x - player.position_x;
@@ -1693,7 +1694,7 @@ pub fn damage_tree(
             ctx,
             attacker_id,
             crate::quests::QuestObjectiveType::GatherWood,
-            None,
+            Some("Wood"),
             actual_yield,
         ) {
             log::error!("Failed to track quest progress for wood gathering: {}", e);
@@ -1868,7 +1869,7 @@ pub fn damage_tree(
                     ctx,
                     attacker_id,
                     crate::quests::QuestObjectiveType::GatherWood,
-                    None,
+                    Some("Wood"),
                     final_chop_bonus,
                 ) {
                     log::error!("Failed to track quest progress for final wood bonus: {}", e);
@@ -2061,12 +2062,12 @@ pub fn damage_stone(
             log::debug!("[damage_stone] Successfully granted {} {} to player {:?}", actual_yield, resource_name, attacker_id);
         }
         
-        // Track quest progress for stone gathering - track ACTUAL stone collected per hit
+        // Track quest progress for stone gathering - ONLY "Stone" counts (not Metal Ore, Sulfur, etc.)
         if let Err(e) = crate::quests::track_quest_progress(
             ctx,
             attacker_id,
             crate::quests::QuestObjectiveType::GatherStone,
-            None,
+            Some(resource_name),
             actual_yield,
         ) {
             log::error!("Failed to track quest progress for stone gathering: {}", e);
@@ -2114,12 +2115,12 @@ pub fn damage_stone(
                          attacker_id, final_hit_bonus, resource_name, (bonus_percentage * 100.0) as u32);
                 // Bonus notification is now handled by the item acquisition system via grant_resource()
                 
-                // Track final bonus stone for quest progress
+                // Track final bonus for quest progress - ONLY "Stone" counts (not Metal Ore, Sulfur, etc.)
                 if let Err(e) = crate::quests::track_quest_progress(
                     ctx,
                     attacker_id,
                     crate::quests::QuestObjectiveType::GatherStone,
-                    None,
+                    Some(resource_name),
                     final_hit_bonus,
                 ) {
                     log::error!("Failed to track quest progress for final stone bonus: {}", e);
@@ -4169,7 +4170,14 @@ pub fn process_attack(
         },
         TargetId::Barrel(barrel_id) => {
             if let Some(barrel) = ctx.db.barrel().id().find(barrel_id) {
-                (barrel.pos_x, barrel.pos_y - BARREL_COLLISION_Y_OFFSET, None)
+                let y_offset = if barrel.variant == crate::barrel::BUOY_VARIANT {
+                    crate::barrel::BUOY_COLLISION_Y_OFFSET
+                } else if barrel.variant == 4 {
+                    BARREL_COLLISION_Y_OFFSET * 2.0
+                } else {
+                    BARREL_COLLISION_Y_OFFSET
+                };
+                (barrel.pos_x, barrel.pos_y - y_offset, None)
             } else {
                 return Err("Target barrel not found".to_string());
             }

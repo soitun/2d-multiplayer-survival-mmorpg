@@ -375,10 +375,10 @@ function getCollisionCandidates(
     // Skip destroyed barrels (respawning)
     if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) continue;
     
-    // Variant 4 (barrel5.png) is 2x larger, so scale collision accordingly
     const variantIndex = Number(barrel.variant ?? 0);
-    const collisionYOffset = variantIndex === 4 ? COLLISION_OFFSETS.BARREL.y * 2 : COLLISION_OFFSETS.BARREL.y;
-    const collisionRadius = variantIndex === 4 ? COLLISION_RADII.BARREL * 2 : COLLISION_RADII.BARREL;
+    const isBuoy = variantIndex === 6;
+    const collisionYOffset = isBuoy ? -110 : variantIndex === 4 ? COLLISION_OFFSETS.BARREL.y * 2 : COLLISION_OFFSETS.BARREL.y;
+    const collisionRadius = isBuoy ? COLLISION_RADII.BARREL : variantIndex === 4 ? COLLISION_RADII.BARREL * 2 : COLLISION_RADII.BARREL;
     
     shapes.push({
       id: barrel.id.toString(),

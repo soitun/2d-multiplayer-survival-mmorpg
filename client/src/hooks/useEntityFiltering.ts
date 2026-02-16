@@ -297,15 +297,18 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
     case 'animal_corpse':
     case 'player_corpse':
     case 'wild_animal':
-    case 'barrel':
     case 'road_lamppost': // ADDED: Aleutian whale oil lampposts (same as barrels - tall road structures)
     case 'basalt_column': // ADDED: Basalt columns sort by Y position (tall obstacles)
     // storm_pile removed - storms now spawn HarvestableResources and DroppedItems directly
     case 'living_coral': // Living coral reefs sort by Y position (uses combat system)
       // CRITICAL FIX: Use actual Y position for proper depth sorting relative to players
-      // The +10000 offset was causing everything to always render above players
-      // Now placeables sort correctly based on their actual world Y position
       return entity.posY;
+    case 'barrel': {
+      // Barrels: Y-sort by visual base (where sprite meets ground) - matches barrelRenderingUtils draw position
+      const variantIndex = Number((entity as { variant?: number }).variant ?? 0);
+      const baseYOffset = variantIndex === 4 ? 24 : variantIndex === 6 ? 28 : 12; // Buoy 192px, large barrel 172px
+      return entity.posY - baseYOffset;
+    }
     case 'fumarole': {
       // HARD SAFETY RULE: players should never appear under fumaroles.
       // Push fumaroles far back in Y-sort so they consistently render beneath players.
@@ -2295,6 +2298,27 @@ export function useEntityFiltering(
         if (box.boxType === BOX_TYPE_PLAYER_BEEHIVE || box.boxType === BOX_TYPE_WILD_BEEHIVE) {
           const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer) + PLAYER_SORT_FEET_OFFSET_PX;
           return playerY >= box.posY ? -1 : 1;
+        }
+      }
+
+      // Player vs Buoy (barrel variant 6): 192px tall - use HEAD position like walls
+      // Player renders on top when their head is at or below buoy base (player in front)
+      const BUOY_BASE_Y_OFFSET = 28;
+      const PLAYER_HEAD_OFFSET_PX = 48;
+      if (a.type === 'player' && b.type === 'barrel') {
+        const barrel = b.entity as SpacetimeDBBarrel & { variant?: number };
+        if ((barrel.variant ?? 0) === 6) {
+          const playerHeadY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer) - PLAYER_HEAD_OFFSET_PX;
+          const buoyBaseY = barrel.posY - BUOY_BASE_Y_OFFSET;
+          if (playerHeadY >= buoyBaseY) return 1; // Player in front - render on top
+        }
+      }
+      if (a.type === 'barrel' && b.type === 'player') {
+        const barrel = a.entity as SpacetimeDBBarrel & { variant?: number };
+        if ((barrel.variant ?? 0) === 6) {
+          const playerHeadY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer) - PLAYER_HEAD_OFFSET_PX;
+          const buoyBaseY = barrel.posY - BUOY_BASE_Y_OFFSET;
+          if (playerHeadY >= buoyBaseY) return -1; // Player in front - barrel renders behind
         }
       }
       

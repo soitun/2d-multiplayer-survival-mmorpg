@@ -26,6 +26,7 @@ interface AmbientSoundProps {
     currentSeason?: Season; // Current game season - affects ambient sounds (no crickets in winter)
     isIndoors?: boolean; // Whether player is inside a building - muffles outdoor sounds
     distanceToShore?: number; // Distance in pixels to nearest shore/water - fades ocean sounds
+    distanceToMapEdge?: number; // Distance in pixels to nearest map boundary - for deep ocean (open water, no waves)
     wildAnimals?: Map<string, any>; // Wild animals for bee buzzing proximity sound
 }
 
@@ -66,6 +67,17 @@ const AMBIENT_SOUND_DEFINITIONS = {
         maxProximityDistance: 800, // Pixels - beyond this, volume is 0
         minProximityDistance: 50, // Pixels - at this distance or closer, full volume
         description: 'Ocean waves and surf - louder near shore, fades inland'
+    },
+    deep_ocean_ambience: {
+        type: 'continuous',
+        filename: 'ambient_ocean2.mp3',
+        baseVolume: 0.22, // Slightly quieter than shore waves - ambient open water
+        isLooping: true,
+        useSeamlessLooping: true,
+        mapEdgeBased: true, // Volume fades based on distance to map boundary
+        maxProximityDistance: 600, // Pixels - beyond this from edge, volume is 0
+        minProximityDistance: 80, // Pixels - at edge or closer, full volume
+        description: 'Deep ocean ambient - open water at map edge, no waves lapping'
     },
     nature_general: { 
         type: 'continuous', 
@@ -1277,6 +1289,7 @@ export const useAmbientSounds = ({
     currentSeason, // Season affects ambient sounds (no crickets in winter)
     isIndoors = false, // Whether player is inside a building - muffles outdoor sounds
     distanceToShore = 0, // Distance in pixels to nearest water - affects ocean sound volume
+    distanceToMapEdge = Infinity, // Distance in pixels to nearest map boundary - for deep ocean
     wildAnimals, // Wild animals for bee buzzing proximity
 }: AmbientSoundProps = {}) => {
     // Use a fallback only if environmentalVolume is completely undefined, but allow 0
@@ -1288,6 +1301,8 @@ export const useAmbientSounds = ({
     const lastUnderwaterStateRef = useRef(false);
     const lastIndoorStateRef = useRef(false);
     const lastDistanceToShoreRef = useRef(distanceToShore);
+    const lastDistanceToMapEdgeRef = useRef(distanceToMapEdge);
+    lastDistanceToMapEdgeRef.current = distanceToMapEdge; // Keep current for random sound checks (e.g. no crow in deep ocean)
     const lastDistanceToBeeRef = useRef<number>(Infinity);
 
     // 🐝 Calculate distance to nearest bee (for single buzzing loop for all bees)
@@ -1385,11 +1400,17 @@ export const useAmbientSounds = ({
             sounds.push('wind_light');
         }
         
-        // 🌊 Ocean sounds - only play when near shore (proximity-based)
-        // If distanceToShore is provided and within range, include ocean ambience
+        // 🌊 Ocean sounds - shore vs deep ocean (mutually exclusive)
+        // Near shore: waves lapping (ocean_ambience). Near map edge: open water, no waves (deep_ocean_ambience)
         const oceanDef = AMBIENT_SOUND_DEFINITIONS.ocean_ambience;
-        const maxDist = 'maxProximityDistance' in oceanDef ? oceanDef.maxProximityDistance : 800;
-        if (distanceToShore < maxDist) {
+        const oceanMaxDist = 'maxProximityDistance' in oceanDef ? oceanDef.maxProximityDistance : 800;
+        const deepOceanDef = AMBIENT_SOUND_DEFINITIONS.deep_ocean_ambience;
+        const deepOceanMaxDist = 'maxProximityDistance' in deepOceanDef ? deepOceanDef.maxProximityDistance : 600;
+        if (distanceToMapEdge < deepOceanMaxDist) {
+            // At map edge = deep ocean (ambient water, no waves)
+            sounds.push('deep_ocean_ambience');
+        } else if (distanceToShore < oceanMaxDist) {
+            // Near shore = waves lapping
             sounds.push('ocean_ambience');
         }
         
@@ -1419,7 +1440,7 @@ export const useAmbientSounds = ({
         }
         
         return sounds;
-    }, [getCurrentWindIntensity, hasEntrainmentEffect, isUnderwater, distanceToShore, timeOfDay, currentSeason, getDistanceToNearestBee]);
+    }, [getCurrentWindIntensity, hasEntrainmentEffect, isUnderwater, distanceToShore, distanceToMapEdge, timeOfDay, currentSeason, getDistanceToNearestBee]);
 
     // Calculate volume modifier for proximity-based sounds (ocean, bee buzzing)
     const getProximityVolumeModifier = useCallback((soundType: AmbientSoundType): number => {
@@ -1444,6 +1465,17 @@ export const useAmbientSounds = ({
             return 1.0 - fadeProgress;
         }
         
+        // Map-edge proximity (deep ocean - open water at map boundary)
+        if ('mapEdgeBased' in definition && (definition as any).mapEdgeBased) {
+            const maxDist = 'maxProximityDistance' in definition ? (definition as any).maxProximityDistance : 600;
+            const minDist = 'minProximityDistance' in definition ? (definition as any).minProximityDistance : 80;
+            if (distanceToMapEdge <= minDist) return 1.0; // Full volume at map edge
+            if (distanceToMapEdge >= maxDist) return 0.0; // Silent far from edge
+            const fadeRange = maxDist - minDist;
+            const fadeProgress = (distanceToMapEdge - minDist) / fadeRange;
+            return 1.0 - fadeProgress;
+        }
+        
         // Shore-based proximity (ocean, seagulls)
         if (!('proximityBased' in definition) || !definition.proximityBased) {
             return 1.0; // Full volume for non-proximity sounds
@@ -1463,7 +1495,7 @@ export const useAmbientSounds = ({
         const fadeRange = maxDist - minDist;
         const fadeProgress = (distanceToShore - minDist) / fadeRange;
         return 1.0 - fadeProgress;
-    }, [distanceToShore, getDistanceToNearestBee]);
+    }, [distanceToShore, distanceToMapEdge, getDistanceToNearestBee]);
 
     // Start a seamless continuous ambient sound
     const startContinuousSound = useCallback(async (soundType: AmbientSoundType) => {
@@ -1555,6 +1587,12 @@ export const useAmbientSounds = ({
                 // Limit concurrent random sounds
                 if (activeRandomSounds.size >= AMBIENT_CONFIG.MAX_CONCURRENT_RANDOM) {
                     return;
+                }
+
+                // 🌊 Don't play raven/crow in deep ocean (inland birds, not seabirds)
+                const deepOceanMaxDist = AMBIENT_SOUND_DEFINITIONS.deep_ocean_ambience.maxProximityDistance ?? 600;
+                if (soundType === 'raven_caw' && lastDistanceToMapEdgeRef.current < deepOceanMaxDist) {
+                    return; // Skip - crows/ravens don't venture to open ocean
                 }
                 
                 // 🌊 Proximity-based sounds: skip entirely if too far from shore
@@ -1988,37 +2026,57 @@ export const useAmbientSounds = ({
         }
     }, [isIndoors, isUnderwater]);
 
-    // 🌊 Handle ocean proximity changes - update volume dynamically
+    // 🌊 Handle ocean/deep ocean proximity changes - update volume dynamically
     useEffect(() => {
-        if (lastDistanceToShoreRef.current !== distanceToShore) {
-            lastDistanceToShoreRef.current = distanceToShore;
-            
-            // Update ocean_ambience volume based on proximity
-            const seamlessSound = activeSeamlessLoopingSounds.get('ocean_ambience');
-            if (seamlessSound) {
+        const shoreChanged = lastDistanceToShoreRef.current !== distanceToShore;
+        const edgeChanged = lastDistanceToMapEdgeRef.current !== distanceToMapEdge;
+        if (shoreChanged) lastDistanceToShoreRef.current = distanceToShore;
+        if (edgeChanged) lastDistanceToMapEdgeRef.current = distanceToMapEdge;
+        if (!shoreChanged && !edgeChanged) return;
+
+        // Update ocean_ambience volume based on shore proximity
+        const seamlessOcean = activeSeamlessLoopingSounds.get('ocean_ambience');
+        if (seamlessOcean) {
+            const definition = AMBIENT_SOUND_DEFINITIONS.ocean_ambience;
+            const proximityModifier = getProximityVolumeModifier('ocean_ambience');
+            const targetVolume = definition.baseVolume * effectiveEnvironmentalVolume * masterVolume * proximityModifier;
+            const clampedVolume = Math.max(0, Math.min(1.0, targetVolume));
+            seamlessOcean.primary.volume = clampedVolume;
+            seamlessOcean.secondary.volume = clampedVolume;
+            seamlessOcean.volume = clampedVolume;
+        }
+
+        // Update deep_ocean_ambience volume based on map edge proximity
+        const seamlessDeepOcean = activeSeamlessLoopingSounds.get('deep_ocean_ambience');
+        if (seamlessDeepOcean) {
+            const definition = AMBIENT_SOUND_DEFINITIONS.deep_ocean_ambience;
+            const proximityModifier = getProximityVolumeModifier('deep_ocean_ambience');
+            const targetVolume = definition.baseVolume * effectiveEnvironmentalVolume * masterVolume * proximityModifier;
+            const clampedVolume = Math.max(0, Math.min(1.0, targetVolume));
+            seamlessDeepOcean.primary.volume = clampedVolume;
+            seamlessDeepOcean.secondary.volume = clampedVolume;
+            seamlessDeepOcean.volume = clampedVolume;
+        }
+
+        // Also update simple looping sounds if fallback is in use
+        const simpleLoopingSounds = (window as any).simpleLoopingSounds;
+        if (simpleLoopingSounds instanceof Map) {
+            const simpleOcean = simpleLoopingSounds.get('ocean_ambience');
+            if (simpleOcean) {
                 const definition = AMBIENT_SOUND_DEFINITIONS.ocean_ambience;
                 const proximityModifier = getProximityVolumeModifier('ocean_ambience');
                 const targetVolume = definition.baseVolume * effectiveEnvironmentalVolume * masterVolume * proximityModifier;
-                const clampedVolume = Math.max(0, Math.min(1.0, targetVolume));
-                
-                seamlessSound.primary.volume = clampedVolume;
-                seamlessSound.secondary.volume = clampedVolume;
-                seamlessSound.volume = clampedVolume;
+                simpleOcean.volume = Math.max(0, Math.min(1.0, targetVolume));
             }
-            
-            // Also update simple looping sound if fallback is in use
-            const simpleLoopingSounds = (window as any).simpleLoopingSounds;
-            if (simpleLoopingSounds instanceof Map) {
-                const simpleOcean = simpleLoopingSounds.get('ocean_ambience');
-                if (simpleOcean) {
-                    const definition = AMBIENT_SOUND_DEFINITIONS.ocean_ambience;
-                    const proximityModifier = getProximityVolumeModifier('ocean_ambience');
-                    const targetVolume = definition.baseVolume * effectiveEnvironmentalVolume * masterVolume * proximityModifier;
-                    simpleOcean.volume = Math.max(0, Math.min(1.0, targetVolume));
-                }
+            const simpleDeepOcean = simpleLoopingSounds.get('deep_ocean_ambience');
+            if (simpleDeepOcean) {
+                const definition = AMBIENT_SOUND_DEFINITIONS.deep_ocean_ambience;
+                const proximityModifier = getProximityVolumeModifier('deep_ocean_ambience');
+                const targetVolume = definition.baseVolume * effectiveEnvironmentalVolume * masterVolume * proximityModifier;
+                simpleDeepOcean.volume = Math.max(0, Math.min(1.0, targetVolume));
             }
         }
-    }, [distanceToShore, effectiveEnvironmentalVolume, masterVolume, getProximityVolumeModifier]);
+    }, [distanceToShore, distanceToMapEdge, effectiveEnvironmentalVolume, masterVolume, getProximityVolumeModifier]);
 
     // 🐝 Handle bee proximity changes - update buzzing volume dynamically (single loop for all bees)
     useEffect(() => {
