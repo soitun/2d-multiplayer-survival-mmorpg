@@ -1589,10 +1589,19 @@ export const useAmbientSounds = ({
                     return;
                 }
 
-                // 🌊 Don't play raven/crow in deep ocean (inland birds, not seabirds)
+                // 🌊 Don't play land-based sounds in deep ocean (open water, no land animals/vegetation)
                 const deepOceanMaxDist = AMBIENT_SOUND_DEFINITIONS.deep_ocean_ambience.maxProximityDistance ?? 600;
-                if (soundType === 'raven_caw' && lastDistanceToMapEdgeRef.current < deepOceanMaxDist) {
-                    return; // Skip - crows/ravens don't venture to open ocean
+                const inDeepOcean = lastDistanceToMapEdgeRef.current < deepOceanMaxDist;
+                const DEEP_OCEAN_EXCLUDED_SOUNDS: AmbientSoundType[] = [
+                    'raven_caw',       // Inland birds
+                    'owl_hoot',        // Land birds
+                    'wolf_howl',       // Land animals
+                    'structure_creak', // No structures in open ocean
+                    'grass_rustle',    // No vegetation in open ocean
+                    'seagull_cry',     // Seagulls are coastal, not far out to sea
+                ];
+                if (inDeepOcean && (DEEP_OCEAN_EXCLUDED_SOUNDS as string[]).includes(soundType)) {
+                    return;
                 }
                 
                 // 🌊 Proximity-based sounds: skip entirely if too far from shore
