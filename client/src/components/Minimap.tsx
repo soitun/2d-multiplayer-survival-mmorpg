@@ -97,10 +97,11 @@ const WEATHER_STATION_GLOW_COLOR = '#4169E1'; // Royal blue glow (scientific/col
 // NOTE: Wolf Den removed from minimap - minor monument (wolf spawn point)
 
 // Drone flyover constants - EERIE SKY DRONE (periodic flyover)
-const DRONE_ICON_SIZE = 14; // Small plane/drone icon
-const DRONE_ICON_COLOR = '#8080A0'; // Muted gray-purple (eerie, distant)
-const DRONE_ICON_GLOW_COLOR = '#A0A0C0'; // Soft glow
+const DRONE_ICON_SIZE = 24; // Large for high visibility (matches beacon events)
+const DRONE_ICON_COLOR = '#00FFFF'; // Bright cyan - stands out like tech surveillance
+const DRONE_ICON_GLOW_COLOR = '#00FFFF'; // Strong cyan glow
 const DRONE_ICON_OUTLINE_COLOR = '#000000';
+const DRONE_ICON_OUTLINE_WIDTH = 2.5; // Thick outline for contrast
 
 // Memory Beacon Event constants - SERVER EVENT MARKERS (airdrop-style)
 const BEACON_EVENT_ICON_SIZE = 24; // Large for high visibility as major event
@@ -1634,7 +1635,7 @@ export function drawMinimapOntoCanvas({
   }
 
   // --- Draw Drone Flyover Events (PERIODIC SKY DRONE - MOVING ICON) ---
-  // Drone flies across the island; position interpolated from start/end and time
+  // Position interpolated client-side from start/end/speed (no server polling)
   if (droneEvents && droneEvents.size > 0) {
     const nowMs = Date.now();
     droneEvents.forEach((drone: SpacetimeDBDroneEvent) => {
@@ -1655,12 +1656,20 @@ export function drawMinimapOntoCanvas({
 
         ctx.save();
 
+        // Pulsing glow - eerie surveillance vibe
+        const pulseTime = nowMs / 400;
+        const pulseIntensity = 0.6 + 0.4 * Math.sin(pulseTime);
+        ctx.shadowColor = DRONE_ICON_GLOW_COLOR;
+        ctx.shadowBlur = 12 + 8 * pulseIntensity;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+
         ctx.translate(x, y);
         ctx.rotate(angleRad);
 
-        // Draw outline
+        // Draw outline (thick for contrast)
         ctx.strokeStyle = DRONE_ICON_OUTLINE_COLOR;
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = DRONE_ICON_OUTLINE_WIDTH;
         ctx.beginPath();
         ctx.moveTo(-halfSize, -halfSize * 0.5);
         ctx.lineTo(halfSize, 0);

@@ -29,7 +29,7 @@ use crate::building::FOUNDATION_TILE_SIZE_PX;
 use crate::door::door as DoorTableTrait;
 use crate::fence::fence as FenceTableTrait;
 use crate::fence::{check_fence_collision, FENCE_COLLISION_THICKNESS};
-use crate::wild_animal_npc::{WildAnimal, wild_animal as WildAnimalTableTrait};
+use crate::wild_animal_npc::{WildAnimal, wild_animal as WildAnimalTableTrait, AnimalSpecies};
 use crate::fishing::is_water_tile;
 use crate::TILE_SIZE_PX;
 
@@ -1071,13 +1071,16 @@ pub fn check_foundation_collision<DB: FoundationCellTableTrait>(
 }
 
 /// Validates if a spawn position is suitable for an animal
+/// species: When Some, used to allow aquatic species (SalmonShark, Jellyfish) to spawn on water tiles
 pub fn validate_animal_spawn_position(
     ctx: &ReducerContext,
     pos_x: f32,
     pos_y: f32,
+    species: Option<AnimalSpecies>,
 ) -> Result<(), String> {
-    // Check water collision - animals still can't spawn ON water tiles
-    if is_water_tile(ctx, pos_x, pos_y) {
+    // Check water collision - land animals can't spawn on water; aquatic species REQUIRE water
+    let is_aquatic = species.map(|s| matches!(s, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish)).unwrap_or(false);
+    if is_water_tile(ctx, pos_x, pos_y) && !is_aquatic {
         return Err(format!("Cannot spawn animal on water tile at ({:.1}, {:.1})", pos_x, pos_y));
     }
     

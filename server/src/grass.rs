@@ -44,15 +44,6 @@ pub(crate) const GRASS_INITIAL_HEALTH: u32 = 1; // Changed to 1 for one-hit dest
 pub(crate) const MIN_GRASS_RESPAWN_TIME_SECS: u64 = 60; // 1 minute
 pub(crate) const MAX_GRASS_RESPAWN_TIME_SECS: u64 = 180; // 3 minutes
 
-// NEW: Grass disturbance constants
-pub(crate) const GRASS_DISTURBANCE_RADIUS: f32 = 48.0; // Doubled from 24.0 - Radius around player to check for grass disturbance
-pub(crate) const GRASS_DISTURBANCE_RADIUS_SQ: f32 = GRASS_DISTURBANCE_RADIUS * GRASS_DISTURBANCE_RADIUS;
-pub(crate) const GRASS_DISTURBANCE_DURATION_SECS: f32 = 1.5; // How long the disturbance effect lasts
-pub(crate) const GRASS_DISTURBANCE_STRENGTH: f32 = 2.0; // Multiplier for disturbance sway intensity
-
-// PERFORMANCE FLAG: Disable grass disturbance entirely for testing
-pub(crate) const DISABLE_GRASS_DISTURBANCE: bool = true; // TESTING: Completely disable grass disturbance to isolate lag source
-
 // --- Grass Enums and Structs ---
 
 // Define different types/visuals of grass if needed later
@@ -115,7 +106,7 @@ pub fn is_grass_type_bramble(appearance_type: &GrassAppearanceType) -> bool {
 // ============================================================================
 // SpacetimeDB sends entire rows on any field change. By splitting:
 // - Grass (static): ~28 bytes, written ONCE at spawn, never updated
-// - GrassState (dynamic): ~40 bytes, updated on damage/disturbance
+// - GrassState (dynamic): ~24 bytes, updated on damage/respawn
 // 
 // This reduces network traffic by ~40% when grass state changes frequently.
 // ============================================================================
@@ -138,7 +129,7 @@ pub struct Grass {
     pub sway_speed: f32,
 }
 
-/// Dynamic grass state - updated when damaged, disturbed, or respawning
+/// Dynamic grass state - updated when damaged or respawning
 /// Linked to Grass via grass_id (1:1 relationship)
 /// 
 /// SUBSCRIPTION INDEX OPTIMIZATION:
@@ -162,10 +153,6 @@ pub struct GrassState {
     /// This allows efficient btree index range queries: .respawn_at().filter(1..=now)
     #[index(btree)]
     pub respawn_at: Timestamp,
-    // Player disturbance tracking
-    pub disturbed_at: Option<Timestamp>, // When grass was last disturbed by player movement
-    pub disturbance_direction_x: f32,    // X component of disturbance direction
-    pub disturbance_direction_y: f32,    // Y component of disturbance direction
 } 
 
 // --- GRASS RESPAWN: BATCH SCHEDULER ---
@@ -374,9 +361,6 @@ pub fn process_grass_respawn_batch(ctx: &spacetimedb::ReducerContext, _schedule:
         state.is_alive = true; // Mark as alive for subscription filtering
         state.respawn_at = Timestamp::UNIX_EPOCH;
         state.last_hit_time = None;
-        state.disturbed_at = None;
-        state.disturbance_direction_x = 0.0;
-        state.disturbance_direction_y = 0.0;
         grass_state_table.grass_id().update(state);
         respawned_count += 1;
     }
@@ -538,9 +522,6 @@ pub fn spawn_grass_entity(
         is_alive: true, // Grass starts alive
         last_hit_time: None,
         respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
-        disturbed_at: None,
-        disturbance_direction_x: 0.0,
-        disturbance_direction_y: 0.0,
     };
     
     grass_state_table.try_insert(new_state)

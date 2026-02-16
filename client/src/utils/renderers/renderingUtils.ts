@@ -463,6 +463,7 @@ foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADD
   // Animal breeding system data for age-based rendering and pregnancy indicators
   caribouBreedingData?: Map<string, CaribouBreedingData>; // ADDED: Caribou breeding data (sex, age, pregnancy)
   walrusBreedingData?: Map<string, WalrusBreedingData>; // ADDED: Walrus breeding data (sex, age, pregnancy)
+  chunkWeather?: Map<string, { currentWeather?: { tag?: string } }>; // ADDED: Chunk weather for grass sway (Clear=minimal, storm=dramatic)
   // Note: viewBounds for terrain footprints has been moved to GameCanvas.tsx
   // Footprints are now rendered once before any renderYSortedEntities calls
 }
@@ -543,6 +544,7 @@ export const renderYSortedEntities = ({
   placementInfo, // ADDED: Current placement info for showing restriction zones when placing items
   caribouBreedingData, // ADDED: Caribou breeding data (sex, age, pregnancy)
   walrusBreedingData, // ADDED: Walrus breeding data (sex, age, pregnancy)
+  chunkWeather, // ADDED: Chunk weather for grass sway (Clear=minimal, storm=dramatic)
 }: RenderYSortedEntitiesProps) => {
   // PERFORMANCE: Clean up memory caches periodically
   cleanupCaches();
@@ -1406,7 +1408,8 @@ export const renderYSortedEntities = ({
           }
       } else if (type === 'grass') {
           // Grass rendered from Y-sorted entities - use 'near' LOD since it's already visibility filtered
-          renderGrass(ctx, entity as InterpolatedGrassData, nowMs, cycleProgress, false, true, 'near');
+          // Sway scales with chunk weather: Clear=minimal gentle sway, storms=dramatic
+          renderGrass(ctx, entity as InterpolatedGrassData, nowMs, cycleProgress, false, true, 'near', chunkWeather);
       } else if (type === 'projectile') {
           const projectile = entity as SpacetimeDBProjectile;
           

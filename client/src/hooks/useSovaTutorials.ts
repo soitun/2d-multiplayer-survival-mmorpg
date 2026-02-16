@@ -821,64 +821,65 @@ export function useSovaTutorials({
         const playerY = localPlayerPosition.y;
         
         // Check rune stone proximity - use server flag
-        if (runeStones && runeStones.size > 0 && !hasFiredRuneStoneEvent.current) {
-            // Don't fire if server says already seen
-            if (hasSeenRuneStoneTutorial !== true) {
-                for (const runeStone of runeStones.values()) {
-                    const dx = playerX - runeStone.posX;
-                    const dy = playerY - runeStone.posY;
-                    const distSq = dx * dx + dy * dy;
-                    
-                    if (distSq < TUTORIAL_PROXIMITY_DISTANCE_SQ) {
+        let runeStoneInRange = false;
+        if (runeStones && runeStones.size > 0 && hasSeenRuneStoneTutorial !== true) {
+            for (const runeStone of runeStones.values()) {
+                const dx = playerX - runeStone.posX;
+                const dy = playerY - runeStone.posY;
+                const distSq = dx * dx + dy * dy;
+                if (distSq < TUTORIAL_PROXIMITY_DISTANCE_SQ) {
+                    runeStoneInRange = true;
+                    if (!hasFiredRuneStoneEvent.current) {
                         console.log('[SovaTutorials] 🪨 Player approached rune stone - firing tutorial event');
                         hasFiredRuneStoneEvent.current = true;
                         window.dispatchEvent(new Event(TUTORIALS.runeStone.eventName!));
-                        break;
                     }
+                    break;
                 }
             }
         }
-        
+        if (!runeStoneInRange) hasFiredRuneStoneEvent.current = false;
+
         // Check ALK station proximity - use server flag
-        if (alkStations && alkStations.size > 0 && !hasFiredAlkStationEvent.current) {
-            // Don't fire if server says already seen
-            if (hasSeenAlkStationTutorial !== true) {
-                for (const alkStation of alkStations.values()) {
-                    const dx = playerX - alkStation.worldPosX;
-                    const dy = playerY - alkStation.worldPosY;
-                    const distSq = dx * dx + dy * dy;
-                    
-                    if (distSq < TUTORIAL_PROXIMITY_DISTANCE_SQ) {
+        let alkStationInRange = false;
+        if (alkStations && alkStations.size > 0 && hasSeenAlkStationTutorial !== true) {
+            for (const alkStation of alkStations.values()) {
+                const dx = playerX - alkStation.worldPosX;
+                const dy = playerY - alkStation.worldPosY;
+                const distSq = dx * dx + dy * dy;
+                if (distSq < TUTORIAL_PROXIMITY_DISTANCE_SQ) {
+                    alkStationInRange = true;
+                    if (!hasFiredAlkStationEvent.current) {
                         console.log('[SovaTutorials] 🏭 Player approached ALK station - firing tutorial event');
                         hasFiredAlkStationEvent.current = true;
                         window.dispatchEvent(new Event(TUTORIALS.alkStation.eventName!));
-                        break;
                     }
+                    break;
                 }
             }
         }
-        
+        if (!alkStationInRange) hasFiredAlkStationEvent.current = false;
+
         // Check crashed research drone proximity - use server flag
-        if (monumentParts && monumentParts.size > 0 && !hasFiredCrashedDroneEvent.current) {
-            // Don't fire if server says already seen
-            if (hasSeenCrashedDroneTutorial !== true) {
-                for (const part of monumentParts.values()) {
-                    // Only check crashed research drone parts
-                    if (part.monumentType?.tag !== 'CrashedResearchDrone') continue;
-                    
-                    const dx = playerX - part.worldX;
-                    const dy = playerY - part.worldY;
-                    const distSq = dx * dx + dy * dy;
-                    
-                    if (distSq < TUTORIAL_PROXIMITY_DISTANCE_SQ) {
+        let crashedDroneInRange = false;
+        if (monumentParts && monumentParts.size > 0 && hasSeenCrashedDroneTutorial !== true) {
+            for (const part of monumentParts.values()) {
+                if (part.monumentType?.tag !== 'CrashedResearchDrone') continue;
+                const dx = playerX - part.worldX;
+                const dy = playerY - part.worldY;
+                const distSq = dx * dx + dy * dy;
+                if (distSq < TUTORIAL_PROXIMITY_DISTANCE_SQ) {
+                    crashedDroneInRange = true;
+                    if (!hasFiredCrashedDroneEvent.current) {
                         console.log('[SovaTutorials] 🛸 Player approached crashed research drone - firing tutorial event');
                         hasFiredCrashedDroneEvent.current = true;
                         window.dispatchEvent(new Event(TUTORIALS.crashedDrone.eventName!));
-                        break;
                     }
+                    break;
                 }
             }
         }
+        if (!crashedDroneInRange) hasFiredCrashedDroneEvent.current = false;
     }, [localPlayerPosition, localPlayerId, runeStones, alkStations, monumentParts, hasSeenRuneStoneTutorial, hasSeenAlkStationTutorial, hasSeenCrashedDroneTutorial]);
 }
 

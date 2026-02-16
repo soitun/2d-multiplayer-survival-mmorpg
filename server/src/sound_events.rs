@@ -1450,12 +1450,27 @@ pub fn stop_lantern_sound(ctx: &ReducerContext, lantern_id: u64) {
     }
 }
 
-/// Start beehive buzzing sound (when Queen Bee is present)
+/// Volume for beehive container sounds (wild + player-placed). Bees inside hives are muffled.
+/// Actual bee NPCs emit stronger buzzing when flying - client handles that.
+const BEEHIVE_CONTAINER_VOLUME: f32 = 0.5;
+const BEEHIVE_CONTAINER_MAX_DISTANCE: f32 = 525.0;
+
+/// Start beehive buzzing sound (when Queen Bee is present or bees guard a wild hive).
+/// Uses attenuated volume (50%) since bees are inside the hive structure - actual bee NPCs
+/// emit the stronger sound when flying.
 pub fn start_beehive_sound(ctx: &ReducerContext, beehive_id: u64, pos_x: f32, pos_y: f32) {
     let unique_id = create_unique_object_id("beehive", beehive_id);
     log::info!("🐝 STARTING BEEHIVE SOUND for beehive {} (unique_id: {}) at ({:.1}, {:.1})", 
               beehive_id, unique_id, pos_x, pos_y);
-    if let Err(e) = start_continuous_sound(ctx, unique_id, SoundType::BeehiveLooping, pos_x, pos_y, 1.0, 525.0) {
+    if let Err(e) = start_continuous_sound(
+        ctx,
+        unique_id,
+        SoundType::BeehiveLooping,
+        pos_x,
+        pos_y,
+        BEEHIVE_CONTAINER_VOLUME,
+        BEEHIVE_CONTAINER_MAX_DISTANCE,
+    ) {
         log::error!("Failed to start beehive sound: {}", e);
     }
 }

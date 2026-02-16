@@ -15,7 +15,7 @@ import { Timestamp as SpacetimeDBTimestamp } from 'spacetimedb';
 //
 // With table normalization, grass data is split into:
 // - Grass: Static geometry (position, appearance, sway params) - rarely changes
-// - GrassState: Dynamic state (health, respawn, disturbance) - updates on damage
+// - GrassState: Dynamic state (health, respawn) - updates on damage
 //
 // This hook merges both tables into InterpolatedGrassData for rendering.
 // ============================================================================
@@ -51,9 +51,6 @@ interface GrassInterpolationState {
   health: number;
   lastHitTime: SpacetimeDBTimestamp | null;
   respawnAt: SpacetimeDBTimestamp | null;
-  disturbedAt: SpacetimeDBTimestamp | null;
-  disturbanceDirectionX: number;
-  disturbanceDirectionY: number;
 }
 
 // Output structure, including current render position (which is server position for grass)
@@ -119,10 +116,7 @@ export const useGrassInterpolation = ({
       const dynamicDataChanged = !grassState || !prevGrassState ||
         prevGrassState.isAlive !== grassState.isAlive ||
         !Object.is(prevGrassState.lastHitTime, grassState.lastHitTime) ||
-        !Object.is(prevGrassState.respawnAt, grassState.respawnAt) ||
-        !Object.is(prevGrassState.disturbedAt, grassState.disturbedAt) ||
-        prevGrassState.disturbanceDirectionX !== grassState.disturbanceDirectionX ||
-        prevGrassState.disturbanceDirectionY !== grassState.disturbanceDirectionY;
+        !Object.is(prevGrassState.respawnAt, grassState.respawnAt);
 
       // Determine if grass is alive:
       // - If grassState exists: use its isAlive boolean
@@ -168,9 +162,6 @@ export const useGrassInterpolation = ({
           health: grassState?.health ?? 0,
           lastHitTime: grassState?.lastHitTime ?? null,
           respawnAt: grassState?.respawnAt ?? null,
-          disturbedAt: grassState?.disturbedAt ?? null,
-          disturbanceDirectionX: grassState?.disturbanceDirectionX ?? 0,
-          disturbanceDirectionY: grassState?.disturbanceDirectionY ?? 0,
         };
         states.set(id, newState);
         

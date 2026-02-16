@@ -141,6 +141,16 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
             });
         }
 
+        // Check if item can be pulverized into plant fiber (tree bark)
+        if (itemName === "Pine Bark" || itemName === "Birch Bark") {
+            actions.push({
+                label: 'Pulverize',
+                action: 'pulverize',
+                description: 'Grind into plant fiber',
+                buttonStyle: 'crushButton'
+            });
+        }
+
         // Check if item can be mashed into Berry Mash
         if (itemName === "Lingonberries" ||
             itemName === "Cloudberries" ||

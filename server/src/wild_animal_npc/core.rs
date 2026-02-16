@@ -16,8 +16,9 @@ use log;
 use rand::{Rng, SeedableRng};
 
 // Core game imports
-use crate::{Player, PLAYER_RADIUS, WORLD_WIDTH_PX, WORLD_HEIGHT_PX};
+use crate::{Player, PLAYER_RADIUS, WORLD_WIDTH_PX, WORLD_HEIGHT_PX, TILE_SIZE_PX, WORLD_WIDTH_TILES};
 use crate::environment::{calculate_chunk_index, CHUNK_SIZE_PX, WORLD_WIDTH_CHUNKS, WORLD_HEIGHT_CHUNKS};
+use crate::{get_tile_type_at_position, TileType};
 use crate::utils::get_distance_squared;
 use crate::sound_events::{self, SoundType};
 use crate::fishing::is_water_tile;
@@ -960,8 +961,8 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
                 }
             }
             
-            // Check for and execute MELEE attacks (Chasing state only)
-            if animal.state == AnimalState::Chasing {
+            // Check for and execute MELEE attacks (Chasing or SwimmingChase - salmon shark underwater pursuit)
+            if matches!(animal.state, AnimalState::Chasing | AnimalState::SwimmingChase) {
                 if let Some(target_id) = animal.target_player_id {
                     if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
                         // CRITICAL FIX: Don't attack dead players - prevents duplicate corpse creation
@@ -2237,12 +2238,17 @@ fn find_detected_player(ctx: &ReducerContext, animal: &WildAnimal, stats: &Anima
             continue; // Skip this player entirely - they're protected by the shipwreck
         }
         
-        // 🤿 SNORKEL STEALTH: Players using snorkel are completely hidden underwater
-        // Animals cannot detect snorkeling players at all - they're invisible beneath the surface
-        if player.is_snorkeling {
+        // 🤿 SNORKEL STEALTH: Players using snorkel are hidden from LAND animals (invisible beneath surface)
+        // 🦈 AQUATIC EXCEPTION: Salmon sharks and jellyfish ONLY detect snorkeling players - they hunt underwater
+        let is_aquatic_predator = matches!(animal.species, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish);
+        if is_aquatic_predator {
+            if !player.is_snorkeling {
+                continue; // Aquatic species only care about players in the water with them
+            }
+        } else if player.is_snorkeling {
             log::debug!("🤿 {:?} {} cannot detect player {} - snorkeling underwater",
                        animal.species, animal.id, player.identity);
-            continue; // Skip this player entirely - they're hidden underwater
+            continue; // Land animals cannot detect snorkeling players - they're hidden
         }
 
         // 🐺 WOLF FUR INTIMIDATION: Animals are intimidated by players wearing full wolf fur set
@@ -2739,7 +2745,7 @@ pub fn spawn_wild_animal(
     pos_x: f32,
     pos_y: f32,
 ) -> Result<(), String> {
-    if let Err(validation_error) = validate_animal_spawn_position(ctx, pos_x, pos_y) {
+    if let Err(validation_error) = validate_animal_spawn_position(ctx, pos_x, pos_y, Some(species)) {
         return Err(format!("Cannot spawn {:?}: {}", species, validation_error));
     }
     
@@ -2857,40 +2863,71 @@ pub fn debug_spawn_animal(ctx: &ReducerContext, species_str: String) -> Result<(
     let player = ctx.db.player().identity().find(&ctx.sender)
         .ok_or_else(|| "Player not found".to_string())?;
     
-    // Determine spawn distance based on whether the creature is hostile
-    // Hostile creatures spawn further away (400-600 pixels) to give player time to prepare
-    // Passive/neutral creatures spawn closer (100-200 pixels)
-    let is_hostile = matches!(
-        species,
-        AnimalSpecies::TundraWolf 
-        | AnimalSpecies::CableViper 
-        | AnimalSpecies::Wolverine
-        | AnimalSpecies::SalmonShark
-        | AnimalSpecies::Shorebound 
-        | AnimalSpecies::Shardkin 
-        | AnimalSpecies::DrownedWatch
-    );
-    
-    let mut rng = ctx.rng();
-    let angle = rng.gen::<f32>() * std::f32::consts::PI * 2.0;
-    let distance = if is_hostile {
-        400.0 + rng.gen::<f32>() * 200.0 // 400-600 pixels for hostile
+    let (spawn_x, spawn_y) = if matches!(species, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish) {
+        // Aquatic species REQUIRE Sea tiles - search for nearest water near player
+        let player_tile_x = (player.position_x / TILE_SIZE_PX as f32).floor() as i32;
+        let player_tile_y = (player.position_y / TILE_SIZE_PX as f32).floor() as i32;
+        const SEARCH_RADIUS: i32 = 25; // tiles (~1200px) - enough to reach ocean from most inland positions
+        let mut rng = ctx.rng();
+        let mut candidates: Vec<(i32, i32)> = Vec::new();
+        for dy in -SEARCH_RADIUS..=SEARCH_RADIUS {
+            for dx in -SEARCH_RADIUS..=SEARCH_RADIUS {
+                let check_x = player_tile_x + dx;
+                let check_y = player_tile_y + dy;
+                if check_x < 0 || check_y < 0
+                    || check_x >= WORLD_WIDTH_TILES as i32
+                    || check_y >= crate::WORLD_HEIGHT_TILES as i32
+                {
+                    continue;
+                }
+                if let Some(tile_type) = get_tile_type_at_position(ctx, check_x, check_y) {
+                    if tile_type == TileType::Sea {
+                        candidates.push((check_x, check_y));
+                    }
+                }
+            }
+        }
+        if candidates.is_empty() {
+            return Err(format!(
+                "No Sea tiles found within {} tiles of player. Move closer to the ocean to spawn {:?}.",
+                SEARCH_RADIUS, species
+            ));
+        }
+        let (tx, ty) = candidates[rng.gen_range(0..candidates.len())];
+        let px = (tx as f32 + 0.5) * TILE_SIZE_PX as f32;
+        let py = (ty as f32 + 0.5) * TILE_SIZE_PX as f32;
+        (px, py)
     } else {
-        100.0 + rng.gen::<f32>() * 100.0 // 100-200 pixels for passive
+        // Land/non-aquatic: use random offset from player
+        let is_hostile = matches!(
+            species,
+            AnimalSpecies::TundraWolf
+                | AnimalSpecies::CableViper
+                | AnimalSpecies::Wolverine
+                | AnimalSpecies::Shorebound
+                | AnimalSpecies::Shardkin
+                | AnimalSpecies::DrownedWatch
+        );
+        let mut rng = ctx.rng();
+        let angle = rng.gen::<f32>() * std::f32::consts::PI * 2.0;
+        let distance = if is_hostile {
+            400.0 + rng.gen::<f32>() * 200.0 // 400-600 pixels for hostile
+        } else {
+            100.0 + rng.gen::<f32>() * 100.0 // 100-200 pixels for passive
+        };
+        (
+            player.position_x + angle.cos() * distance,
+            player.position_y + angle.sin() * distance,
+        )
     };
-    let spawn_x = player.position_x + angle.cos() * distance;
-    let spawn_y = player.position_y + angle.sin() * distance;
     
     log::info!(
-        "🐾 Debug spawning {:?} {} at ({:.0}, {:.0}) - {:.0}px from player", 
-        species, 
-        if is_hostile { "(hostile)" } else { "(passive)" },
-        spawn_x, 
-        spawn_y,
-        distance
+        "🐾 Debug spawning {:?} at ({:.0}, {:.0})",
+        species,
+        spawn_x,
+        spawn_y
     );
     
-    // Call the existing spawn function
     spawn_wild_animal(ctx, species, spawn_x, spawn_y)
 }
 

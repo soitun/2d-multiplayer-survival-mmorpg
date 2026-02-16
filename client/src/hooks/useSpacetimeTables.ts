@@ -1492,8 +1492,7 @@ export const useSpacetimeTables = ({
                 // console.log(`[GrassState] UPDATE: grassId=${newItem.grassId}, isAlive: ${oldItem.isAlive} -> ${newItem.isAlive}`);
                 // Only update if relevant fields changed (is_alive, respawn)
                 const hasChanges = oldItem.isAlive !== newItem.isAlive || 
-                                   oldItem.respawnAt !== newItem.respawnAt ||
-                                   oldItem.disturbedAt !== newItem.disturbedAt;
+                                   oldItem.respawnAt !== newItem.respawnAt;
                 if (hasChanges) {
                     setGrassState(prev => new Map(prev).set(newItem.grassId.toString(), newItem));
                 }
@@ -3157,7 +3156,7 @@ export const useSpacetimeTables = ({
                     // Split tables: subscribe to both static (grass) and dynamic (grass_state)
                     const grassQueries = [`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`];
                     if (GRASS_PERFORMANCE_MODE) {
-                        grassQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND health > 0`);
+                        grassQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND is_alive = true`);
                     } else {
                         grassQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`);
                     }

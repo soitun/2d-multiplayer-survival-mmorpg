@@ -265,14 +265,14 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
         // Secondary and tertiary yields from tree harvesting
 
         // Pine Bark - Secondary yield from conifer trees (pine, spruce, hemlock)
-        basic_material("Pine Bark", "Rough, resinous bark stripped from pine trees. Used for tanning, crafting, and as kindling. Rich in tannins and aromatic oils.", 500)
+        basic_material("Pine Bark", "Rough, resinous bark stripped from pine trees. Used for tanning, crafting, and as kindling. Can be pulverized into plant fiber. Rich in tannins and aromatic oils.", 500)
             .icon("tree_bark.png")
             .fuel(3.0)  // Burns slower than wood due to oils
             .respawn_time(300)
             .build(),
 
         // Birch Bark - Secondary yield from deciduous trees (oak, ash, willow)
-        basic_material("Birch Bark", "Paper-thin, flexible bark from deciduous trees. Prized for waterproof crafting, writing surfaces, and fire-starting. Burns hot and clean.", 500)
+        basic_material("Birch Bark", "Paper-thin, flexible bark from deciduous trees. Prized for waterproof crafting, writing surfaces, and fire-starting. Can be pulverized into plant fiber. Burns hot and clean.", 500)
             .icon("tree_bark_birch.png")
             .fuel(4.0)  // Burns hotter than regular bark
             .respawn_time(300)

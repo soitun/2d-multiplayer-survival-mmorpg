@@ -35,9 +35,6 @@ export type GrassState = {
   isAlive: boolean,
   lastHitTime: __Timestamp | undefined,
   respawnAt: __Timestamp,
-  disturbedAt: __Timestamp | undefined,
-  disturbanceDirectionX: number,
-  disturbanceDirectionY: number,
 };
 let _cached_GrassState_type_value: __AlgebraicTypeType | null = null;
 
@@ -59,9 +56,6 @@ export const GrassState = {
       { name: "isAlive", algebraicType: __AlgebraicTypeValue.Bool },
       { name: "lastHitTime", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
       { name: "respawnAt", algebraicType: __AlgebraicTypeValue.createTimestampType() },
-      { name: "disturbedAt", algebraicType: __AlgebraicTypeValue.createOptionType(__AlgebraicTypeValue.createTimestampType()) },
-      { name: "disturbanceDirectionX", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "disturbanceDirectionY", algebraicType: __AlgebraicTypeValue.F32 },
     );
     return _cached_GrassState_type_value;
   },

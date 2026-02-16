@@ -34,7 +34,7 @@ import tallGrassBeachATextureUrl from '../../assets/doodads/tall_grass_beach_a.p
 // =============================================================================
 
 // Animation & Visual Constants
-const SWAY_AMPLITUDE_DEG = 1.2; // Reduced from 3 to 1.2 for more subtle sway
+const SWAY_AMPLITUDE_DEG = 1.2; // Base amplitude - scaled by weather (clear=minimal, storm=strong)
 const STATIC_ROTATION_DEG = 5;
 const SWAY_VARIATION_FACTOR = 0.5;
 const Y_SORT_OFFSET_GRASS = 5;
@@ -46,12 +46,6 @@ const DEFAULT_FALLBACK_SWAY_SPEED = 0.1;
 // PERFORMANCE: Skip expensive transforms for minor visual effects
 const ENABLE_GRASS_SWAY_TRANSFORMS = true; // Set to true for full quality, false for performance
 const ENABLE_GRASS_SCALE_VARIATION = true; // Scale variation is barely noticeable, skip it
-
-// Disturbance effect constants (disabled by default for performance)
-const DISTURBANCE_DURATION_MS = 1500;
-const DISTURBANCE_SWAY_AMPLITUDE_DEG = 15;
-const DISTURBANCE_FADE_FACTOR = 0.8;
-const DISTURBANCE_CACHE_DURATION_MS = 50;
 
 // Viewport culling
 const VIEWPORT_MARGIN_PX = 100;
@@ -78,8 +72,6 @@ const MAX_GRASS_PER_LOD = {
 // =============================================================================
 // PERFORMANCE FLAGS - Toggle for testing
 // =============================================================================
-// Enabling disturbance allows grass to shake when drone passes over (and player walks)
-const DISABLE_CLIENT_DISTURBANCE_EFFECTS = false;
 const ENABLE_AGGRESSIVE_CULLING = true;
 const ENABLE_GRASS_PERF_LOGGING = false;
 
@@ -89,13 +81,6 @@ const ENABLE_GRASS_PERF_LOGGING = false;
 
 // Frame counter for throttling (updated only in batch render)
 let frameCounter = 0;
-
-// Disturbance calculation cache - uses numeric key for faster lookup
-const disturbanceCache = new Map<number, {
-    lastCalculatedMs: number;
-    disturbedAtKey: number;
-    result: { isDisturbed: boolean; disturbanceStrength: number; disturbanceDirectionX: number; disturbanceDirectionY: number; };
-}>();
 
 // LOD level type
 type LODLevel = 'near' | 'mid' | 'far' | 'cull';
@@ -115,7 +100,6 @@ let grassBatchCount = 0;
 
 // Pre-computed constants
 const DEG_TO_RAD = Math.PI / 180;
-const RAD_TO_DEG = 180 / Math.PI;
 
 // =============================================================================
 // GRASS TYPE CONFIGURATION
@@ -153,70 +137,32 @@ const NO_ROTATION_TYPES = new Set<string>([
 const shouldGrassSway = (tag: string): boolean => SWAYING_GRASS_TYPES.has(tag);
 const shouldHaveStaticRotation = (tag: string): boolean => !NO_ROTATION_TYPES.has(tag);
 
-// =============================================================================
-// DISTURBANCE EFFECT (CACHED)
-// =============================================================================
+// Weather sway multipliers - lookup table avoids switch in hot path
+const SWAY_BY_TAG: Record<string, number> = {
+    Clear: 0.15, LightRain: 0.45, ModerateRain: 0.75, HeavyRain: 1.0, HeavyStorm: 1.35
+};
+const DEFAULT_SWAY_MULT = 0.15;
 
-const NO_DISTURBANCE = { isDisturbed: false, disturbanceStrength: 0, disturbanceDirectionX: 0, disturbanceDirectionY: 0 };
+// PERF: Lazy per-chunk cache - avoids chunkIndex.toString() per grass (was 115 allocs/frame)
+// Many grass share same chunk, so we only do 1 lookup per unique chunk per frame
+const SWAY_CACHE_MAX_SIZE = 64; // Limit growth when traveling across many chunks
+let swayCacheChunkWeatherRef: Map<string, unknown> | undefined;
+const swayMultiplierCache = new Map<number, number>();
 
-// Reusable result object to avoid allocation in hot path
-const tempDisturbanceResult = { isDisturbed: true, disturbanceStrength: 0, disturbanceDirectionX: 0, disturbanceDirectionY: 0 };
-
-function calculateDisturbanceEffect(grass: InterpolatedGrassData, nowMs: number): typeof NO_DISTURBANCE {
-    // Quick exit if disabled
-    if (DISABLE_CLIENT_DISTURBANCE_EFFECTS || !grass.disturbedAt) {
-        return NO_DISTURBANCE;
+function getWeatherSwayMultiplier(chunkWeather: Map<string, { currentWeather?: { tag?: string } }> | undefined, chunkIndex: number): number {
+    if (!chunkWeather) return 1.0;
+    if (swayCacheChunkWeatherRef !== chunkWeather) {
+        swayCacheChunkWeatherRef = chunkWeather;
+        swayMultiplierCache.clear();
     }
-    
-    // Use numeric ID as cache key (faster than string concatenation)
-    const grassId = typeof grass.id === 'bigint' ? Number(grass.id & BigInt(0x7FFFFFFF)) : Number(grass.id);
-    const disturbedAtMicros = (grass.disturbedAt as any)?.microsSinceUnixEpoch || 0;
-    const disturbedAtKey = typeof disturbedAtMicros === 'bigint' 
-        ? Number(disturbedAtMicros & BigInt(0x7FFFFFFF)) 
-        : Number(disturbedAtMicros);
-    
-    // Check cache using numeric key
-    const cached = disturbanceCache.get(grassId);
-    if (cached && cached.disturbedAtKey === disturbedAtKey && 
-        (nowMs - cached.lastCalculatedMs) < DISTURBANCE_CACHE_DURATION_MS) {
-        return cached.result;
-    }
-    
-    // Calculate disturbance time
-    const disturbedAtMs = disturbedAtMicros 
-        ? (typeof disturbedAtMicros === 'bigint' ? Number(disturbedAtMicros) / 1000 : disturbedAtMicros / 1000)
-        : 0;
-    
-    if (disturbedAtMs === 0) {
-        disturbanceCache.set(grassId, { lastCalculatedMs: nowMs, disturbedAtKey, result: NO_DISTURBANCE });
-        return NO_DISTURBANCE;
-    }
-    
-    const timeSinceMs = nowMs - disturbedAtMs;
-    if (timeSinceMs > DISTURBANCE_DURATION_MS) {
-        disturbanceCache.set(grassId, { lastCalculatedMs: nowMs, disturbedAtKey, result: NO_DISTURBANCE });
-        return NO_DISTURBANCE;
-    }
-    
-    // Calculate fade-out strength
-    const fadeProgress = timeSinceMs / DISTURBANCE_DURATION_MS;
-    const strength = Math.pow(1.0 - fadeProgress, DISTURBANCE_FADE_FACTOR);
-    
-    // Reuse temp object to avoid allocation
-    tempDisturbanceResult.disturbanceStrength = strength;
-    tempDisturbanceResult.disturbanceDirectionX = grass.disturbanceDirectionX;
-    tempDisturbanceResult.disturbanceDirectionY = grass.disturbanceDirectionY;
-    
-    // Store a copy in cache (cache needs its own object)
-    const result = {
-        isDisturbed: true,
-        disturbanceStrength: strength,
-        disturbanceDirectionX: grass.disturbanceDirectionX,
-        disturbanceDirectionY: grass.disturbanceDirectionY,
-    };
-    disturbanceCache.set(grassId, { lastCalculatedMs: nowMs, disturbedAtKey, result });
-    
-    return tempDisturbanceResult;
+    const cached = swayMultiplierCache.get(chunkIndex);
+    if (cached !== undefined) return cached;
+    if (swayMultiplierCache.size >= SWAY_CACHE_MAX_SIZE) swayMultiplierCache.clear();
+    const weather = chunkWeather.get(String(chunkIndex));
+    const tag = weather?.currentWeather?.tag ?? 'Clear';
+    const mult = SWAY_BY_TAG[tag] ?? DEFAULT_SWAY_MULT;
+    swayMultiplierCache.set(chunkIndex, mult);
+    return mult;
 }
 
 // =============================================================================
@@ -322,13 +268,8 @@ function isInViewport(
 
 /**
  * Renders a single grass entity with LOD-based optimizations.
- * @param ctx - Canvas 2D context
- * @param grass - Interpolated grass data
- * @param nowMs - Current time in milliseconds
- * @param cycleProgress - Animation cycle progress (unused for grass currently)
- * @param onlyDrawShadow - If true, only draw shadow (grass has no shadows)
- * @param skipDrawingShadow - If true, skip shadow drawing
- * @param lodLevel - Pre-calculated LOD level (pass from batch for efficiency)
+ * Sway amplitude scales with chunk weather: Clear = minimal, storms = dramatic.
+ * @param chunkWeather - Optional map of chunk weather for weather-dependent sway (chunkIndex -> weather)
  */
 export function renderGrass(
     ctx: CanvasRenderingContext2D,
@@ -337,7 +278,8 @@ export function renderGrass(
     cycleProgress: number,
     onlyDrawShadow?: boolean,
     _skipDrawingShadow?: boolean,
-    lodLevel: LODLevel = 'near'
+    lodLevel: LODLevel = 'near',
+    chunkWeather?: Map<string, { currentWeather?: { tag?: string } }>
 ) {
     // Early exits
     if (grass.health <= 0 || onlyDrawShadow || lodLevel === 'cull') return;
@@ -396,31 +338,25 @@ export function renderGrass(
 
     // === FULL QUALITY MODE (only if ENABLE_GRASS_SWAY_TRANSFORMS is true) ===
     
+    // Weather-dependent sway: Clear = minimal, storms = dramatic. No sway when multiplier is 0.
+    // PERF: Skip function call when no weather data (common when chunkWeather not passed)
+    const weatherSwayMult = chunkWeather ? getWeatherSwayMultiplier(chunkWeather, grass.chunkIndex) : 1.0;
+    
     // Calculate sway animation (only for near/mid LOD and swaying types)
-    const canSway = shouldGrassSway(tag);
+    const canSway = shouldGrassSway(tag) && weatherSwayMult > 0;
     const swayOffset = (seed % 1000) / 1000.0;
     let swayAngleDeg = 0;
     
     if (canSway) {
-        // Check for disturbance effect
-        const disturbance = calculateDisturbanceEffect(grass, nowMs);
-        
-        if (disturbance.isDisturbed) {
-            // Strong sway in disturbance direction
-            const swaySpeed = grass.swaySpeed ?? DEFAULT_FALLBACK_SWAY_SPEED;
-            const cycle = (nowMs * 0.001) * swaySpeed * Math.PI * 6;
-            const dirAngle = Math.atan2(disturbance.disturbanceDirectionY, disturbance.disturbanceDirectionX) * RAD_TO_DEG;
-            const oscillation = Math.sin(cycle) * 0.5 + 0.5;
-            swayAngleDeg = dirAngle * (DISTURBANCE_SWAY_AMPLITUDE_DEG / 90) * disturbance.disturbanceStrength * oscillation;
-        } else if (lodLevel === 'near') {
-            // Full sway for near grass
+        if (lodLevel === 'near') {
+            // Full sway for near grass - scaled by weather
             const swaySpeed = grass.swaySpeed ?? DEFAULT_FALLBACK_SWAY_SPEED;
             const PI2 = Math.PI * 2;
             const cycle = (nowMs * 0.001) * swaySpeed * PI2 + swayOffset * PI2 * SWAY_VARIATION_FACTOR;
-            swayAngleDeg = Math.sin(cycle) * SWAY_AMPLITUDE_DEG * (1 + (swayOffset - 0.5) * SWAY_VARIATION_FACTOR);
+            swayAngleDeg = Math.sin(cycle) * SWAY_AMPLITUDE_DEG * weatherSwayMult * (1 + (swayOffset - 0.5) * SWAY_VARIATION_FACTOR);
         } else {
-            // Simplified sway for mid LOD
-            swayAngleDeg = Math.sin((nowMs * 0.0005) + swayOffset) * SWAY_AMPLITUDE_DEG * 0.5;
+            // Simplified sway for mid LOD - scaled by weather
+            swayAngleDeg = Math.sin((nowMs * 0.0005) + swayOffset) * SWAY_AMPLITUDE_DEG * 0.5 * weatherSwayMult;
         }
     }
     
@@ -470,6 +406,7 @@ function compareByDistanceSq(a: GrassWithLOD, b: GrassWithLOD): number {
  * Batch renders multiple grass entities with LOD-based optimizations.
  * This is the primary function to use when rendering visible grass from the Y-sorted entities list.
  * OPTIMIZED: Uses pre-allocated arrays, traditional for loops, and inline viewport checks.
+ * Sway scales with chunk weather when chunkWeather is provided.
  */
 export function renderGrassEntities(
     ctx: CanvasRenderingContext2D,
@@ -481,7 +418,8 @@ export function renderGrassEntities(
     viewportWidth: number,
     viewportHeight: number,
     onlyDrawShadow?: boolean,
-    _skipDrawingShadow?: boolean
+    _skipDrawingShadow?: boolean,
+    chunkWeather?: Map<string, { currentWeather?: { tag?: string } }>
 ) {
     // Update frame counter (single increment per batch)
     frameCounter++;
@@ -607,7 +545,7 @@ export function renderGrassEntities(
             ctx.imageSmoothingEnabled = lodLevel !== 'far';
         }
         
-        renderGrass(ctx, item.grass, nowMs, cycleProgress, false, false, lodLevel);
+        renderGrass(ctx, item.grass, nowMs, cycleProgress, false, false, lodLevel, chunkWeather);
     }
     
     // Reset canvas state
@@ -636,7 +574,8 @@ export function renderGrassFromInterpolation(
     cameraX?: number,
     cameraY?: number,
     _viewportWidth?: number,
-    _viewportHeight?: number
+    _viewportHeight?: number,
+    chunkWeather?: Map<string, { currentWeather?: { tag?: string } }>
 ) {
     // Calculate LOD if camera position provided
     let lodLevel: LODLevel = 'near';
@@ -646,7 +585,7 @@ export function renderGrassFromInterpolation(
         lodLevel = getLODLevel(dx * dx + dy * dy);
     }
     
-    renderGrass(ctx, grass, nowMs, cycleProgress, onlyDrawShadow, skipDrawingShadow, lodLevel);
+    renderGrass(ctx, grass, nowMs, cycleProgress, onlyDrawShadow, skipDrawingShadow, lodLevel, chunkWeather);
 }
 
 // PERFORMANCE: Utility to optimize canvas state for grass rendering
@@ -661,28 +600,8 @@ export function optimizeCanvasForGrassRendering(ctx: CanvasRenderingContext2D) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
-// PERFORMANCE: Clean up after grass rendering session
-// Pre-allocated array for keys to delete (avoids allocation during iteration)
-const keysToDelete: number[] = [];
-
 export function cleanupGrassRenderingOptimizations() {
-    // Clear old disturbance cache entries periodically
-    const now = Date.now();
-    const oldestAllowed = now - (DISTURBANCE_CACHE_DURATION_MS * 10);
-    
-    // Collect keys to delete (can't modify Map during iteration)
-    keysToDelete.length = 0;
-    
-    disturbanceCache.forEach((entry, key) => {
-        if (entry.lastCalculatedMs < oldestAllowed) {
-            keysToDelete.push(key);
-        }
-    });
-    
-    // Delete collected keys
-    for (let i = 0; i < keysToDelete.length; i++) {
-        disturbanceCache.delete(keysToDelete[i]);
-    }
+    // No-op: disturbance cache removed - grass sway is weather-only now
 }
 
 /*
@@ -695,7 +614,7 @@ export function cleanupGrassRenderingOptimizations() {
  * 5. **Transform Optimization**: Single setTransform() call instead of multiple operations
  * 6. **Batch Processing**: Sort and filter grass entities before rendering
  * 7. **Conditional Rendering**: Skip complex effects for distant grass
- * 8. **Cache Management**: Optimized disturbance effect caching with cleanup
+ * 8. **Weather Sway**: Per-chunk cache for weather-based sway multiplier
  * 9. **Direct Drawing**: Skip transforms entirely for simple far grass
  * 10. **Size Scaling**: Reduce texture size for distant grass
  * 

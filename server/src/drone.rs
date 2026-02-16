@@ -1,6 +1,6 @@
 /*!
  * Drone flyover event - periodic eerie drone that crosses the island.
- * Renders as a shadow (like clouds), emits high-distance sound, disturbs grass.
+ * Renders as a shadow (like clouds), emits high-distance sound.
  */
 
 use spacetimedb::{ReducerContext, Table, Timestamp, TimeDuration, ScheduleAt, reducer};
@@ -10,8 +10,6 @@ use log;
 use crate::{WORLD_WIDTH_PX, WORLD_HEIGHT_PX};
 use crate::player as PlayerTableTrait;
 use crate::sound_events::{emit_sound_at_position_with_distance_and_velocity, SoundType};
-use crate::grass::{grass as GrassTableTrait, grass_state as GrassStateTableTrait};
-use crate::environment::calculate_chunk_index;
 
 // --- Constants ---
 
@@ -21,9 +19,6 @@ const DRONE_SPEED_PX_PER_SEC: f32 = 1400.0;
 const DEBUG_DRONE_START_OFFSET: f32 = 8000.0;
 /// Sound emit interval during flight (seconds) - more frequent for smoother approach/recede
 const DRONE_SOUND_INTERVAL_SECS: f32 = 1.0;
-/// Grass disturbance radius when drone flies over
-const DRONE_GRASS_DISTURBANCE_RADIUS: f32 = 100.0;
-const DRONE_GRASS_DISTURBANCE_RADIUS_SQ: f32 = DRONE_GRASS_DISTURBANCE_RADIUS * DRONE_GRASS_DISTURBANCE_RADIUS;
 /// Max hearing distance for drone sound - very high for eerie distant effect
 const DRONE_SOUND_MAX_DISTANCE: f32 = 3500.0;
 /// Real-time seconds per in-game day (30 min)
@@ -43,7 +38,7 @@ pub struct DroneEvent {
     pub end_y: f32,
     pub start_time: Timestamp,
     pub duration_micros: i64,
-    /// Direction X (normalized) for grass disturbance
+    /// Direction X (normalized) for flight path
     pub direction_x: f32,
     pub direction_y: f32,
 }
@@ -204,7 +199,7 @@ pub fn spawn_drone_event(
 
     let inserted = ctx.db.drone_event().try_insert(drone).map_err(|e| format!("{:?}", e))?;
 
-    // Schedule first flight tick (sound + grass disturbance)
+    // Schedule first flight tick (sound)
     let first_tick_delay = TimeDuration::from_micros((DRONE_SOUND_INTERVAL_SECS * 500_000.0) as i64); // 0.5s for first tick
     ctx.db.drone_flight_schedule().insert(DroneFlightSchedule {
         schedule_id: 0,
@@ -283,55 +278,6 @@ pub fn process_drone_flight_tick(ctx: &ReducerContext, schedule: DroneFlightSche
             vel_x,
             vel_y,
         );
-    }
-
-    // Disturb grass under the drone
-    let grass_table = ctx.db.grass();
-    let grass_state_table = ctx.db.grass_state();
-    let chunk_idx = calculate_chunk_index(pos_x, pos_y);
-
-    for grass in grass_table.chunk_index().filter(chunk_idx) {
-        let gs = match grass_state_table.grass_id().find(grass.id) {
-            Some(s) if s.is_alive => s,
-            _ => continue,
-        };
-        let dx = pos_x - grass.pos_x;
-        let dy = pos_y - grass.pos_y;
-        if dx * dx + dy * dy <= DRONE_GRASS_DISTURBANCE_RADIUS_SQ {
-            let mut state = gs.clone();
-            state.disturbed_at = Some(now);
-            state.disturbance_direction_x = drone.direction_x;
-            state.disturbance_direction_y = drone.direction_y;
-            grass_state_table.grass_id().update(state);
-        }
-    }
-
-    // Check neighboring chunks
-    let chunk_size = crate::environment::CHUNK_SIZE_PX as f32;
-    for offset_cx in -1..=1 {
-        for offset_cy in -1..=1 {
-            if offset_cx == 0 && offset_cy == 0 {
-                continue;
-            }
-            let check_x = pos_x + offset_cx as f32 * chunk_size;
-            let check_y = pos_y + offset_cy as f32 * chunk_size;
-            let neighbor_chunk = calculate_chunk_index(check_x, check_y);
-            for grass in grass_table.chunk_index().filter(neighbor_chunk) {
-                let gs = match grass_state_table.grass_id().find(grass.id) {
-                    Some(s) if s.is_alive => s,
-                    _ => continue,
-                };
-                let dx = pos_x - grass.pos_x;
-                let dy = pos_y - grass.pos_y;
-                if dx * dx + dy * dy <= DRONE_GRASS_DISTURBANCE_RADIUS_SQ {
-                    let mut state = gs.clone();
-                    state.disturbed_at = Some(now);
-                    state.disturbance_direction_x = drone.direction_x;
-                    state.disturbance_direction_y = drone.direction_y;
-                    grass_state_table.grass_id().update(state);
-                }
-            }
-        }
     }
 
     // Reschedule next tick

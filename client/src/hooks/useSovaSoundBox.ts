@@ -173,6 +173,14 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
       return;
     }
 
+    // If SOVA is already playing (non-intro), skip - don't queue. The tutorial will trigger again
+    // when the player returns to that event/location and no other tutorial is playing.
+    const isCurrentlyPlaying = audioRef.current && !audioRef.current.paused && !audioRef.current.ended;
+    if (isCurrentlyPlaying && options?.priority !== 'intro') {
+      console.log(`[SovaSoundBox] ⏸️ Skipping ${label} - another tutorial is playing`);
+      return;
+    }
+
     // CRITICAL: Set active flag IMMEDIATELY before any async operations
     // This prevents race conditions where notification sounds could sneak in
     // during the time between showSovaSoundBox being called and audio.play() completing

@@ -197,6 +197,18 @@ const PULVERIZABLE_ITEMS: &[&str] = &[
     "Beach Lyme Grass Seeds",
 ];
 
+// Constants for pulverizing bark into plant fiber
+const MIN_FIBER_PER_PINE_BARK: u32 = 2;  // Rough bark yields less
+const MAX_FIBER_PER_PINE_BARK: u32 = 3;
+const MIN_FIBER_PER_BIRCH_BARK: u32 = 3; // Paper-thin birch yields more
+const MAX_FIBER_PER_BIRCH_BARK: u32 = 4;
+
+/// Bark items that can be pulverized into plant fiber
+const PULVERIZABLE_BARK: &[&str] = &[
+    "Pine Bark",
+    "Birch Bark",
+];
+
 /// Pulverizes starchy plants/seeds into flour.
 /// Traditional Aleut method of creating flour from native plants.
 /// If inventory is full, flour will be dropped near the player.
@@ -213,34 +225,44 @@ pub fn pulverize_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(),
     let item_def = item_def_table.id().find(item_to_pulverize.item_def_id)
         .ok_or_else(|| format!("Item definition {} not found", item_to_pulverize.item_def_id))?;
 
-    // 2. Validate item is pulverizable
+    // 2. Validate item is pulverizable (flour or plant fiber)
     let item_name = item_def.name.as_str();
-    if !PULVERIZABLE_ITEMS.contains(&item_name) {
-        return Err(format!("Cannot pulverize '{}'. Only starchy roots, bulbs, and certain seeds can be ground into flour.", item_def.name));
+    let is_flour_source = PULVERIZABLE_ITEMS.contains(&item_name);
+    let is_bark_source = PULVERIZABLE_BARK.contains(&item_name);
+
+    if !is_flour_source && !is_bark_source {
+        return Err(format!("Cannot pulverize '{}'. Only starchy roots, bulbs, seeds (into flour) or tree bark (into plant fiber) can be pulverized.", item_def.name));
     }
 
     crate::container_access::validate_player_can_use_item(ctx, &item_to_pulverize)?;
 
-    // 3. Calculate flour yield based on item type
-    let flour_to_create = match item_name {
-        "Kamchatka Lily Bulb" | "Silverweed Root" | "Bistort Bulbils" => {
-            // Bulbs and roots yield more flour
-            ctx.rng().gen_range(MIN_FLOUR_PER_BULB..=MAX_FLOUR_PER_BULB)
-        },
-        "Angelica Seeds" | "Beach Lyme Grass Seeds" => {
-            // Seeds yield less flour
-            ctx.rng().gen_range(MIN_FLOUR_PER_SEEDS..=MAX_FLOUR_PER_SEEDS)
-        },
-        _ => unreachable!(), // Already validated above
+    // 3. Determine output: flour or plant fiber, and yield
+    let (output_def_name, output_quantity) = if is_bark_source {
+        let fiber_to_create = match item_name {
+            "Pine Bark" => ctx.rng().gen_range(MIN_FIBER_PER_PINE_BARK..=MAX_FIBER_PER_PINE_BARK),
+            "Birch Bark" => ctx.rng().gen_range(MIN_FIBER_PER_BIRCH_BARK..=MAX_FIBER_PER_BIRCH_BARK),
+            _ => unreachable!(),
+        };
+        ("Plant Fiber", fiber_to_create)
+    } else {
+        let flour_to_create = match item_name {
+            "Kamchatka Lily Bulb" | "Silverweed Root" | "Bistort Bulbils" => {
+                ctx.rng().gen_range(MIN_FLOUR_PER_BULB..=MAX_FLOUR_PER_BULB)
+            },
+            "Angelica Seeds" | "Beach Lyme Grass Seeds" => {
+                ctx.rng().gen_range(MIN_FLOUR_PER_SEEDS..=MAX_FLOUR_PER_SEEDS)
+            },
+            _ => unreachable!(),
+        };
+        ("Flour", flour_to_create)
     };
 
-    // Find the Flour item definition by name
-    let flour_def = item_def_table.iter()
-        .find(|def| def.name == "Flour")
-        .ok_or_else(|| "Flour item definition not found".to_string())?;
+    let output_def = item_def_table.iter()
+        .find(|def| def.name == output_def_name)
+        .ok_or_else(|| format!("{} item definition not found", output_def_name))?;
 
-    log::info!("[PulverizeItem] Player {} pulverizing {} into {} flour", 
-             sender_id, item_def.name, flour_to_create);
+    log::info!("[PulverizeItem] Player {} pulverizing {} into {} {}", 
+             sender_id, item_def.name, output_quantity, output_def_name);
 
     // 4. Update item quantity or delete if last one
     if item_to_pulverize.quantity > 1 {
@@ -256,17 +278,17 @@ pub fn pulverize_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(),
         inventory_table.instance_id().delete(item_instance_id);
     }
 
-    // 5. Give flour to player (or drop near them if inventory full)
-    match try_give_item_to_player(ctx, sender_id, flour_def.id, flour_to_create) {
+    // 5. Give output to player (or drop near them if inventory full)
+    match try_give_item_to_player(ctx, sender_id, output_def.id, output_quantity) {
         Ok(added_to_inventory) => {
             if added_to_inventory {
-                log::info!("[PulverizeItem] Added {} flour to inventory for player {}", flour_to_create, sender_id);
+                log::info!("[PulverizeItem] Added {} {} to inventory for player {}", output_quantity, output_def_name, sender_id);
             } else {
-                log::info!("[PulverizeItem] Inventory full, dropped {} flour near player {}", flour_to_create, sender_id);
+                log::info!("[PulverizeItem] Inventory full, dropped {} {} near player {}", output_quantity, output_def_name, sender_id);
             }
             Ok(())
         },
-        Err(e) => Err(format!("Failed to give flour to player: {}", e))
+        Err(e) => Err(format!("Failed to give {} to player: {}", output_def_name, e))
     }
 }
 

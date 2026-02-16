@@ -1414,7 +1414,8 @@ fn is_valid_spawn_position(
     }
     
     // Check general spawn validation (water, collisions, etc.)
-    if validate_animal_spawn_position(ctx, spawn_x, spawn_y).is_err() {
+    // Hostile NPCs spawn on land - pass None (blocks water)
+    if validate_animal_spawn_position(ctx, spawn_x, spawn_y, None).is_err() {
         return false;
     }
     

@@ -133,7 +133,6 @@ export function renderPlayerCorpse({
     isSnorkeling: false, // Corpses are not snorkeling
     isAimingThrow: false, // Corpses are not aiming throws
     hasSeenMemoryShardTutorial: false, // Corpses don't need tutorials
-    hasSeenMemoryShard200Tutorial: false, // Corpses don't need tutorials
     hasSeenSovaIntro: false, // Corpses don't need tutorials
     hasSeenTutorialHint: false, // Corpses don't need tutorials
     hasSeenHostileEncounterTutorial: false, // Corpses don't need tutorials

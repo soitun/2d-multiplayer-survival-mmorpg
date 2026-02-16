@@ -533,6 +533,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     return saved !== null ? saved === 'true' : true; // Default to true (show by default)
   });
 
+  // Drone flyover animation tick - forces minimap redraw every frame when drones are active
+  // (position is interpolated client-side from start/end/speed, no server polling needed)
+  const [minimapDroneFrame, setMinimapDroneFrame] = useState(0);
+
   // Particle system refs
   const campfireParticlesRef = useRef<Particle[]>([]);
   const torchParticlesRef = useRef<Particle[]>([]);
@@ -3176,6 +3180,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
         caribouBreedingData, // ADDED: Pass caribou breeding data for age-based size scaling and pregnancy indicators
         walrusBreedingData, // ADDED: Pass walrus breeding data for age-based size scaling and pregnancy indicators
+        chunkWeather, // ADDED: Chunk weather for grass sway (Clear=minimal, storm=dramatic)
       });
     } else {
       // --- Swimming players exist, need full merge/sort ---
@@ -3710,6 +3715,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
             caribouBreedingData, // ADDED: Pass caribou breeding data for age-based size scaling and pregnancy indicators
             walrusBreedingData, // ADDED: Pass walrus breeding data for age-based size scaling and pregnancy indicators
+            chunkWeather, // ADDED: Chunk weather for grass sway (Clear=minimal, storm=dramatic)
           });
           currentBatch = [];
         }
@@ -4988,6 +4994,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     };
   }, [isMinimapOpen, isMobile]);
 
+  // --- Drone flyover: RAF loop for smooth minimap interpolation ---
+  // When drones are active, redraw minimap every frame so interpolated position is smooth
+  useEffect(() => {
+    if (!isMinimapOpen || !droneEvents || droneEvents.size === 0) return;
+    let rafId: number;
+    const loop = () => {
+      setMinimapDroneFrame((n) => n + 1);
+      rafId = requestAnimationFrame(loop);
+    };
+    rafId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafId);
+  }, [isMinimapOpen, droneEvents?.size ?? 0]);
+
   // --- Minimap rendering effect ---
   useEffect(() => {
     if (!isMinimapOpen || !minimapCanvasRef.current) return;
@@ -5105,6 +5124,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     matronages,
     beaconDropEvents,
     droneEvents,
+    minimapDroneFrame, // tick when drones active (RAF-driven smooth interpolation)
   ]);
 
   // PERFORMANCE FIX: Removed duplicate useGameLoop(processInputsAndActions)
