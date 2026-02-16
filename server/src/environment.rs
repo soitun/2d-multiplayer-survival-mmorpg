@@ -2524,6 +2524,19 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             log::error!("Failed to spawn hot spring barrels: {}", e);
         }
     }
+
+    // --- Seed Buoy Barrels (Variant 6) in Outer Ocean ---
+    // Indestructible navigational buoys, ~1 per 4000px, deep water near map edges
+    log::info!("Seeding Buoy Barrels (indestructible, outer ocean)...");
+    match barrel::spawn_buoy_barrels(ctx) {
+        Ok(_) => {
+            let buoy_count = ctx.db.barrel().iter().filter(|b| b.variant == barrel::BUOY_VARIANT).count();
+            log::info!("Successfully spawned {} buoys", buoy_count);
+        }
+        Err(e) => {
+            log::error!("Failed to spawn buoy barrels: {}", e);
+        }
+    }
     
     // Spawn a campfire at each hot spring
     let mut hot_spring_campfire_count = 0u32;

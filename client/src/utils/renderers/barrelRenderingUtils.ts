@@ -8,6 +8,7 @@ import barrel3Image from '../../assets/doodads/barrel3.png'; // Variant 2
 import seaBarrelImage from '../../assets/doodads/barrel4.png'; // Variant 3 (placeholder)
 import seaBarrel2Image from '../../assets/doodads/barrel5.png'; // Variant 4 (placeholder)
 import seaBarrel3Image from '../../assets/doodads/barrel6.png'; // Variant 5 (placeholder)
+import buoyImage from '../../assets/doodads/buoy.png'; // Variant 6 (indestructible buoy)
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { imageManager } from './imageManager'; // Import image manager
@@ -23,6 +24,7 @@ const SHAKE_INTENSITY_PX = 8; // Moderate shake for barrels
 // --- Barrel Variant Images Array ---
 // Variants 0-2: Road barrels
 // Variants 3-5: Sea barrels (flotsam/cargo crates)
+// Variant 6: Buoy (indestructible, outer ocean)
 const BARREL_VARIANT_IMAGES = [
     barrelImage,       // Variant 0 (road barrel)
     barrel2Image,      // Variant 1 (road barrel)
@@ -30,11 +32,12 @@ const BARREL_VARIANT_IMAGES = [
     seaBarrelImage,    // Variant 3 (sea flotsam/cargo crate - placeholder)
     seaBarrel2Image,   // Variant 4 (sea flotsam/cargo crate - placeholder)
     seaBarrel3Image,   // Variant 5 (sea flotsam/cargo crate - placeholder)
+    buoyImage,         // Variant 6 (indestructible buoy)
 ];
 
-// Constants for sea barrel variants
+// Constants for sea barrel variants (water overlay, sway, bob)
 const SEA_BARREL_VARIANT_START = 3;
-const SEA_BARREL_VARIANT_END = 6; // Exclusive end
+const SEA_BARREL_VARIANT_END = 7; // Exclusive end (3, 4, 5, 6 - includes buoy)
 
 // --- Client-side animation tracking for barrel shakes ---
 const clientBarrelShakeStartTimes = new Map<string, number>(); // barrelId -> client timestamp when shake started

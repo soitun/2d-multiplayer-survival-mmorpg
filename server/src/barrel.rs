@@ -49,8 +49,9 @@ pub const MIN_BARREL_DISTANCE_SQ: f32 = 60.0 * 60.0; // Minimum distance between
 pub const BARREL_RESPAWN_TIME_SECONDS: u32 = 600; // 10 minutes respawn time
 
 // Sea barrel (flotsam/cargo crate) constants
-pub const SEA_BARREL_VARIANT_START: u8 = 3; // Variants 3, 4, 5 are sea barrels
-pub const SEA_BARREL_VARIANT_END: u8 = 6; // Exclusive end (so 3, 4, 5)
+pub const SEA_BARREL_VARIANT_START: u8 = 3; // Variants 3, 4, 5 are sea barrels (with loot)
+pub const SEA_BARREL_VARIANT_END: u8 = 6; // Exclusive end for loot barrels (3, 4, 5)
+pub const BUOY_VARIANT: u8 = 6; // Indestructible navigational buoy, spawns in outer ocean, no loot
 pub const SEA_BARREL_SPAWN_CHANCE_PER_STACK: f32 = 0.35; // 35% chance to spawn 1-3 sea barrels near each sea stack (balanced: visible loot around coastal landmarks)
 pub const MIN_SEA_BARREL_DISTANCE_FROM_STACK: f32 = 100.0; // Minimum distance from sea stack center (closer for better density)
 pub const MAX_SEA_BARREL_DISTANCE_FROM_STACK: f32 = 350.0; // Maximum distance from sea stack center (wider spread)
@@ -59,6 +60,12 @@ pub const MIN_SEA_BARREL_DISTANCE_SQ: f32 = 80.0 * 80.0; // Minimum distance bet
 // Beach barrel constants (all sea variants 3, 4, 5 can spawn on beaches)
 pub const BEACH_BARREL_SPAWN_DENSITY_PERCENT: f32 = 0.0003; // 0.03% of beach tiles get a barrel (washed up flotsam is common)
 pub const MIN_BEACH_BARREL_DISTANCE_SQ: f32 = 120.0 * 120.0; // Minimum distance between beach barrels
+
+// Buoy constants (indestructible, no loot, spawn in outer ocean only)
+pub const BUOY_SPAWN_CELL_SIZE_PX: f32 = 4000.0; // ~1 buoy per 4000x4000 px area
+pub const BUOY_MIN_DISTANCE_FROM_CENTER_RATIO: f32 = 0.55; // Must be in outer 45% of map (distance from center > 55% of half-diagonal)
+pub const BUOY_MIN_DEEP_SEA_TILES: f32 = 12.0; // Must be at least 12 tiles from shore (deep ocean)
+pub const MIN_BUOY_DISTANCE_SQ: f32 = 200.0 * 200.0; // Minimum distance between buoys
 
 // Damage constants
 // Note: Damage is determined by weapon type through the combat system
@@ -350,6 +357,11 @@ pub fn damage_barrel(
     // Monument barrels are indestructible
     if barrel.is_monument {
         return Err("This barrel is indestructible.".to_string());
+    }
+
+    // Buoys (variant 6) are indestructible navigational markers - no loot
+    if barrel.variant == BUOY_VARIANT {
+        return Err("The buoy is indestructible.".to_string());
     }
     
     let old_health = barrel.health;
@@ -1286,4 +1298,126 @@ pub fn spawn_hot_spring_barrels(
     log::info!("[HotSpringBarrelSpawn] Total: spawned {} barrels around {} hot springs", 
         total_spawned, hot_spring_centers.len());
     Ok(total_spawned)
+}
+
+/// Spawns indestructible buoys (variant 6) in outer ocean water.
+/// ~1 per 4000px, only in deep sea closer to map edges. No loot, decorative/navigational.
+pub fn spawn_buoy_barrels(ctx: &ReducerContext) -> Result<(), String> {
+    use crate::{WORLD_WIDTH_PX, WORLD_HEIGHT_PX};
+    use crate::environment::is_position_in_deep_sea;
+
+    log::info!("[BuoySpawn] Starting buoy barrel spawning...");
+
+    let center_x = WORLD_WIDTH_PX / 2.0;
+    let center_y = WORLD_HEIGHT_PX / 2.0;
+    let half_diagonal = ((center_x * center_x + center_y * center_y).sqrt()) * BUOY_MIN_DISTANCE_FROM_CENTER_RATIO;
+
+    let cell_size = BUOY_SPAWN_CELL_SIZE_PX;
+    let cols = (WORLD_WIDTH_PX / cell_size).ceil() as i32;
+    let rows = (WORLD_HEIGHT_PX / cell_size).ceil() as i32;
+
+    let mut spawned_count = 0u32;
+    let barrels = ctx.db.barrel();
+    let mut spawned_positions = Vec::<(f32, f32)>::new();
+
+    for cell_row in 0..rows {
+        for cell_col in 0..cols {
+            let cell_center_x = (cell_col as f32 + 0.5) * cell_size;
+            let cell_center_y = (cell_row as f32 + 0.5) * cell_size;
+
+            let dx = cell_center_x - center_x;
+            let dy = cell_center_y - center_y;
+            let dist_from_center = (dx * dx + dy * dy).sqrt();
+            if dist_from_center < half_diagonal {
+                continue;
+            }
+
+            let mut attempts = 0;
+            const MAX_ATTEMPTS: u32 = 15;
+            while attempts < MAX_ATTEMPTS {
+                attempts += 1;
+                let offset_x = ctx.rng().gen_range(-cell_size * 0.4..cell_size * 0.4);
+                let offset_y = ctx.rng().gen_range(-cell_size * 0.4..cell_size * 0.4);
+                let barrel_x = cell_center_x + offset_x;
+                let barrel_y = cell_center_y + offset_y;
+
+                if barrel_x < 0.0 || barrel_x >= WORLD_WIDTH_PX || barrel_y < 0.0 || barrel_y >= WORLD_HEIGHT_PX {
+                    continue;
+                }
+
+                if !crate::environment::is_position_on_ocean_water(ctx, barrel_x, barrel_y) {
+                    continue;
+                }
+                if !is_position_in_deep_sea(ctx, barrel_x, barrel_y, BUOY_MIN_DEEP_SEA_TILES) {
+                    continue;
+                }
+
+                let mut too_close = false;
+                for &(ox, oy) in &spawned_positions {
+                    let ddx = barrel_x - ox;
+                    let ddy = barrel_y - oy;
+                    if ddx * ddx + ddy * ddy < MIN_BUOY_DISTANCE_SQ {
+                        too_close = true;
+                        break;
+                    }
+                }
+                if too_close {
+                    continue;
+                }
+
+                for existing in barrels.iter() {
+                    if existing.health == 0.0 {
+                        continue;
+                    }
+                    if existing.variant == BUOY_VARIANT {
+                        let ddx = barrel_x - existing.pos_x;
+                        let ddy = barrel_y - existing.pos_y;
+                        if ddx * ddx + ddy * ddy < MIN_BUOY_DISTANCE_SQ {
+                            too_close = true;
+                            break;
+                        }
+                    }
+                }
+                if too_close {
+                    continue;
+                }
+
+                if has_barrel_collision(ctx, barrel_x, barrel_y, None) || has_player_barrel_collision(ctx, barrel_x, barrel_y) {
+                    continue;
+                }
+
+                let chunk_idx = crate::environment::calculate_chunk_index(barrel_x, barrel_y);
+                let new_barrel = Barrel {
+                    id: 0,
+                    pos_x: barrel_x,
+                    pos_y: barrel_y,
+                    chunk_index: chunk_idx,
+                    health: BARREL_INITIAL_HEALTH,
+                    variant: BUOY_VARIANT,
+                    last_hit_time: None,
+                    respawn_at: Timestamp::UNIX_EPOCH,
+                    cluster_id: 0,
+                    is_monument: false,
+                };
+
+                match barrels.try_insert(new_barrel) {
+                    Ok(inserted) => {
+                        spawned_positions.push((barrel_x, barrel_y));
+                        spawned_count += 1;
+                        log::info!(
+                            "[BuoySpawn] Spawned buoy #{} at ({:.1}, {:.1})",
+                            inserted.id, barrel_x, barrel_y
+                        );
+                        break;
+                    }
+                    Err(e) => {
+                        log::warn!("[BuoySpawn] Failed to insert buoy: {}", e);
+                    }
+                }
+            }
+        }
+    }
+
+    log::info!("[BuoySpawn] Finished spawning {} buoys", spawned_count);
+    Ok(())
 }
