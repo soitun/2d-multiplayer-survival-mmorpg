@@ -1,47 +1,51 @@
 import React, { useState, useEffect } from 'react';
-import persistentOpenWorld from '../assets/persistent_open_world.png';
-import buildGovern from '../assets/build_govern.png';
-import chooseCombat from '../assets/choose_combat.png';
-import livingEconomy from '../assets/living_economy.png';
-import dynamicSeasons from '../assets/dynamic_seasons.png';
-import endlessBrewing from '../assets/endless_brewing.png';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faGlobe,
+    faBuilding,
+    faCoins,
+    faCloudSunRain,
+    faMoon,
+    faMugHot,
+} from '@fortawesome/free-solid-svg-icons';
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 
 interface CarouselItem {
     title: string;
     description: string;
-    icon: string;
+    icon: IconDefinition;
 }
 
 const carouselItems: CarouselItem[] = [
     {
         title: "Persistent Open World",
         description: "Explore one massive, persistent world where your actions matter. Every structure built, every tree chopped, and every alliance forged remains forever. The world evolves even when you're offline as other players continue shaping the landscape.",
-        icon: persistentOpenWorld,
+        icon: faGlobe,
     },
     {
         title: "Build & Govern",
         description: "Start with simple shelters and grow into sprawling bases. Found towns, establish trade routes, and build defensive fortifications. Start babushka clans and elect Pra Matrons to govern large swathes of land through regional politics.",
-        icon: buildGovern,
+        icon: faBuilding,
     },
     {
         title: "Living Economy",
         description: "Master a dynamic economy where prices shift based on real supply and demand. No auction houses here, just raw market forces. Sell surplus when prices peak, stock up when they crash. Seasonal harvests and weather events create opportunities for clever traders.",
-        icon: livingEconomy,
+        icon: faCoins,
     },
     {
         title: "Dynamic Seasons",
         description: "Experience realistic weather patterns and seasonal changes with a dynamic cloud system. Crops grow differently in each season, harsh winters test your food stores, and spring rains bring abundant harvests.",
-        icon: dynamicSeasons,
+        icon: faCloudSunRain,
     },
     {
         title: "Survive the Night",
         description: "Days last 20 minutes, time to farm, trade, and prepare. But when the 10-minute night falls, memory apparitions emerge from the darkness. These corrupted echoes of something ancient hunt the living. Work together, build defenses, and keep your weapons ready.",
-        icon: chooseCombat,
+        icon: faMoon,
     },
     {
         title: "Endless Brewing",
         description: "Combine plant materials and foods to create unique broths with endless procedural recipes. Discover rare ingredient combinations that produce powerful stat bonuses, unique effects, and legendary rarities sought by all survivors.",
-        icon: endlessBrewing,
+        icon: faMugHot,
     },
 ];
 
@@ -145,21 +149,19 @@ const GameplayFeaturesCarousel: React.FC = () => {
                             onClick={() => !isCenter && goToSlide(index)}
                         >
                             {/* Item Icon */}
-                            <img
-                                src={item.icon}
-                                alt={item.title}
-                                style={{
-                                    width: isCenter ? 'clamp(70px, 12vw, 90px)' : 'clamp(50px, 8vw, 60px)',
-                                    height: isCenter ? 'clamp(70px, 12vw, 90px)' : 'clamp(50px, 8vw, 60px)',
-                                    objectFit: 'contain',
-                                    marginBottom: isCenter ? 'clamp(16px, 3vw, 20px)' : '16px',
-                                    filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.4))',
-                                    transition: 'all 0.3s ease',
-                                }}
-                                onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                }}
-                            />
+                            <div style={{
+                                width: isCenter ? 'clamp(70px, 12vw, 90px)' : 'clamp(50px, 8vw, 60px)',
+                                height: isCenter ? 'clamp(70px, 12vw, 90px)' : 'clamp(50px, 8vw, 60px)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                marginBottom: isCenter ? 'clamp(16px, 3vw, 20px)' : '12px',
+                                color: '#ff8c00',
+                                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.4))',
+                                transition: 'all 0.3s ease',
+                            }}>
+                                <FontAwesomeIcon icon={item.icon} style={{ fontSize: isCenter ? 'clamp(48px, 8vw, 64px)' : 'clamp(36px, 6vw, 44px)' }} />
+                            </div>
 
                             {/* Item Title */}
                             <h3 style={{
