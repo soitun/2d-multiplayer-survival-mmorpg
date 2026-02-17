@@ -64,6 +64,16 @@ pub struct FishingLoot {
     pub is_junk: bool,
 }
 
+// Water type where a fish can be caught (gates fish by fishing location)
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FishWaterType {
+    Any,      // Can be caught anywhere (fallback for ubiquitous small fish)
+    Inland,   // Rivers and lakes only
+    Shore,    // Shallow ocean (near beach)
+    Ocean,    // Any ocean (shore or deep)
+    DeepSea,  // Deep ocean only (far from shore)
+}
+
 // Fish weather preference (matches WeatherType variants)
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FishWeatherPreference {
@@ -80,9 +90,10 @@ pub struct FishEntry {
     pub name: &'static str,
     pub tier: FishTier,
     pub time_preference: FishTimePreference,
-    pub weather_preference: FishWeatherPreference, // NEW: Weather preference
-    pub base_weight: f32,      // Base spawn weight within its tier
-    pub deep_water_bonus: f32, // Extra weight when fishing in deep water (0.0 to 1.0)
+    pub weather_preference: FishWeatherPreference,
+    pub water_type: FishWaterType,  // Where this fish can be caught (gated by position)
+    pub base_weight: f32,          // Base spawn weight within its tier
+    pub deep_water_bonus: f32,      // Extra weight for cast variation (0.0 to 1.0)
 }
 
 // Map fish names to bit positions for unique fish tracking (0-15 for 16 fish types)
@@ -121,7 +132,8 @@ fn get_fish_database() -> Vec<FishEntry> {
             name: "Raw Twigfish",
             tier: FishTier::Common,
             time_preference: FishTimePreference::Any,
-            weather_preference: FishWeatherPreference::Any, // Catches anything
+            weather_preference: FishWeatherPreference::Any,
+            water_type: FishWaterType::Any, // Ubiquitous small fish, found anywhere
             base_weight: 1.0,
             deep_water_bonus: 0.0,
         },
@@ -129,7 +141,8 @@ fn get_fish_database() -> Vec<FishEntry> {
             name: "Raw Herring",
             tier: FishTier::Common,
             time_preference: FishTimePreference::DawnDusk,
-            weather_preference: FishWeatherPreference::LightRain, // Schooling fish surface during light rain
+            weather_preference: FishWeatherPreference::LightRain,
+            water_type: FishWaterType::Ocean,
             base_weight: 0.9,
             deep_water_bonus: 0.1,
         },
@@ -137,33 +150,37 @@ fn get_fish_database() -> Vec<FishEntry> {
             name: "Raw Smelt",
             tier: FishTier::Common,
             time_preference: FishTimePreference::Night,
-            weather_preference: FishWeatherPreference::Clear, // Oily "candlefish" prefer calm nights
+            weather_preference: FishWeatherPreference::Clear,
+            water_type: FishWaterType::Ocean,
             base_weight: 0.8,
             deep_water_bonus: 0.2,
         },
         FishEntry {
             name: "Raw Black Katy Chiton",
             tier: FishTier::Common,
-            time_preference: FishTimePreference::Any, // Found in intertidal zones at any time
-            weather_preference: FishWeatherPreference::Clear, // Rocky areas prefer clear conditions
+            time_preference: FishTimePreference::Any,
+            weather_preference: FishWeatherPreference::Clear,
+            water_type: FishWaterType::Shore, // Intertidal shellfish
             base_weight: 0.7,
-            deep_water_bonus: -0.3, // Prefers shallow/rocky areas, not deep water
+            deep_water_bonus: -0.3,
         },
         FishEntry {
             name: "Raw Sea Urchin",
             tier: FishTier::Common,
-            time_preference: FishTimePreference::Day, // More active during daylight
-            weather_preference: FishWeatherPreference::Clear, // Rocky coastal areas prefer clear weather
+            time_preference: FishTimePreference::Day,
+            weather_preference: FishWeatherPreference::Clear,
+            water_type: FishWaterType::Shore, // Rocky coastal shallow
             base_weight: 0.75,
-            deep_water_bonus: -0.2, // Found in rocky shallow areas
+            deep_water_bonus: -0.2,
         },
         FishEntry {
             name: "Raw Blue Mussel",
             tier: FishTier::Common,
-            time_preference: FishTimePreference::Any, // Filter feeders, always present
-            weather_preference: FishWeatherPreference::Any, // Abundant regardless of weather
-            base_weight: 0.9, // Very common coastal shellfish
-            deep_water_bonus: -0.4, // Strongly prefers shallow rocky areas near shore
+            time_preference: FishTimePreference::Any,
+            weather_preference: FishWeatherPreference::Any,
+            water_type: FishWaterType::Shore, // Intertidal filter feeders
+            base_weight: 0.9,
+            deep_water_bonus: -0.4,
         },
         
         // === TIER 2: UNCOMMON (Medium Fish) ===
@@ -171,7 +188,8 @@ fn get_fish_database() -> Vec<FishEntry> {
             name: "Raw Greenling",
             tier: FishTier::Uncommon,
             time_preference: FishTimePreference::Day,
-            weather_preference: FishWeatherPreference::Clear, // Rocky-bottom fish prefer clear days
+            weather_preference: FishWeatherPreference::Clear,
+            water_type: FishWaterType::Ocean,
             base_weight: 1.0,
             deep_water_bonus: 0.1,
         },
@@ -179,7 +197,8 @@ fn get_fish_database() -> Vec<FishEntry> {
             name: "Raw Sculpin",
             tier: FishTier::Uncommon,
             time_preference: FishTimePreference::Night,
-            weather_preference: FishWeatherPreference::HeavyStorm, // Bottom dwellers active during storms
+            weather_preference: FishWeatherPreference::HeavyStorm,
+            water_type: FishWaterType::Ocean,
             base_weight: 0.8,
             deep_water_bonus: 0.3,
         },
@@ -187,7 +206,8 @@ fn get_fish_database() -> Vec<FishEntry> {
             name: "Raw Pacific Cod",
             tier: FishTier::Uncommon,
             time_preference: FishTimePreference::Any,
-            weather_preference: FishWeatherPreference::ModerateRain, // Feed actively during steady rain
+            weather_preference: FishWeatherPreference::ModerateRain,
+            water_type: FishWaterType::DeepSea, // Offshore bottom fish
             base_weight: 0.7,
             deep_water_bonus: 0.4,
         },
@@ -197,7 +217,8 @@ fn get_fish_database() -> Vec<FishEntry> {
             name: "Raw Dolly Varden",
             tier: FishTier::Rare,
             time_preference: FishTimePreference::Twilight,
-            weather_preference: FishWeatherPreference::LightRain, // Char love misty conditions
+            weather_preference: FishWeatherPreference::LightRain,
+            water_type: FishWaterType::Inland, // Freshwater char, rivers/lakes
             base_weight: 1.0,
             deep_water_bonus: 0.2,
         },
@@ -205,15 +226,17 @@ fn get_fish_database() -> Vec<FishEntry> {
             name: "Raw Rockfish",
             tier: FishTier::Rare,
             time_preference: FishTimePreference::Night,
-            weather_preference: FishWeatherPreference::HeavyStorm, // Deep dwellers rise during storms
+            weather_preference: FishWeatherPreference::HeavyStorm,
+            water_type: FishWaterType::DeepSea, // Deep dwellers
             base_weight: 0.8,
-            deep_water_bonus: 0.5, // Strongly prefers deep water
+            deep_water_bonus: 0.5,
         },
         FishEntry {
             name: "Raw Steelhead",
             tier: FishTier::Rare,
             time_preference: FishTimePreference::DawnDusk,
-            weather_preference: FishWeatherPreference::HeavyRain, // Run upstream during heavy rain
+            weather_preference: FishWeatherPreference::HeavyRain,
+            water_type: FishWaterType::Inland, // Migratory, found in rivers when spawning
             base_weight: 0.7,
             deep_water_bonus: 0.3,
         },
@@ -223,7 +246,8 @@ fn get_fish_database() -> Vec<FishEntry> {
             name: "Raw Pink Salmon",
             tier: FishTier::Premium,
             time_preference: FishTimePreference::DawnDusk,
-            weather_preference: FishWeatherPreference::ModerateRain, // Salmon active in steady rain
+            weather_preference: FishWeatherPreference::ModerateRain,
+            water_type: FishWaterType::Ocean,
             base_weight: 1.0,
             deep_water_bonus: 0.3,
         },
@@ -231,7 +255,8 @@ fn get_fish_database() -> Vec<FishEntry> {
             name: "Raw Sockeye Salmon",
             tier: FishTier::Premium,
             time_preference: FishTimePreference::Twilight,
-            weather_preference: FishWeatherPreference::HeavyRain, // Red salmon run in heavy rain
+            weather_preference: FishWeatherPreference::HeavyRain,
+            water_type: FishWaterType::Ocean,
             base_weight: 0.7,
             deep_water_bonus: 0.4,
         },
@@ -239,19 +264,62 @@ fn get_fish_database() -> Vec<FishEntry> {
             name: "Raw King Salmon",
             tier: FishTier::Premium,
             time_preference: FishTimePreference::Dawn,
-            weather_preference: FishWeatherPreference::HeavyStorm, // The legendary king appears in storms!
-            base_weight: 0.4, // Very rare even at dawn
+            weather_preference: FishWeatherPreference::HeavyStorm,
+            water_type: FishWaterType::DeepSea, // Legendary deep-ocean king
+            base_weight: 0.4,
             deep_water_bonus: 0.5,
         },
         FishEntry {
             name: "Raw Halibut",
             tier: FishTier::Premium,
             time_preference: FishTimePreference::Any,
-            weather_preference: FishWeatherPreference::Any, // Deep flatfish don't care about surface weather
-            base_weight: 0.3, // Very rare but can be caught anytime
-            deep_water_bonus: 0.8, // Strongly prefers deep water
+            weather_preference: FishWeatherPreference::Any,
+            water_type: FishWaterType::DeepSea, // Deep flatfish, ocean floor
+            base_weight: 0.3,
+            deep_water_bonus: 0.8,
         },
     ]
+}
+
+/// Water type at the fishing position (derived from environment checks)
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum FishingWaterType {
+    Inland,   // River or lake
+    Shore,    // Shallow ocean (near beach)
+    DeepSea,  // Deep ocean (far from shore)
+}
+
+/// Returns true if the fish can be caught in this water type
+fn fish_matches_water_type(fish: &FishEntry, pos_water_type: FishingWaterType) -> bool {
+    use FishWaterType as FWT;
+    use FishingWaterType as PWT;
+    if fish.water_type == FWT::Any {
+        return true;
+    }
+    match (fish.water_type, pos_water_type) {
+        (FWT::Inland, PWT::Inland) => true,
+        (FWT::Shore, PWT::Shore) => true,
+        (FWT::Ocean, PWT::Shore) | (FWT::Ocean, PWT::DeepSea) => true,
+        (FWT::DeepSea, PWT::DeepSea) => true,
+        _ => false,
+    }
+}
+
+/// Classify water type at fishing position using environment checks
+fn get_fishing_water_type(ctx: &ReducerContext, target_x: f32, target_y: f32) -> FishingWaterType {
+    if crate::environment::is_position_on_inland_water(ctx, target_x, target_y) {
+        return FishingWaterType::Inland;
+    }
+    if !crate::environment::is_position_on_water(ctx, target_x, target_y) {
+        return FishingWaterType::Shore; // Fallback for edge cases
+    }
+    // Ocean water: check if deep or shallow (shore)
+    const DEEP_SEA_MIN_TILES: f32 = 5.0;
+    if crate::environment::is_position_in_deep_sea(ctx, target_x, target_y, DEEP_SEA_MIN_TILES) {
+        FishingWaterType::DeepSea
+    } else {
+        FishingWaterType::Shore // Shallow ocean near beach
+    }
 }
 
 // Check if a fish's time preference matches the current time of day
@@ -386,8 +454,10 @@ pub fn generate_fishing_loot(ctx: &ReducerContext, target_x: f32, target_y: f32,
     let rain_effectiveness = get_rain_fishing_multiplier(&current_weather);
     let total_effectiveness = time_effectiveness * rain_effectiveness;
     
-    // TODO: In the future, we could calculate actual depth from shore distance
-    // For now, use a random depth factor (simulates different fishing spots)
+    // Classify water type at fishing position (gates which fish can appear)
+    let pos_water_type = get_fishing_water_type(ctx, target_x, target_y);
+    
+    // Random depth factor for cast variation (affects tier chances and fish weights within allowed pool)
     let deep_water_factor = ctx.rng().gen_range(0.0..1.0);
     
     // Get all fish and their spawn data
@@ -419,10 +489,10 @@ pub fn generate_fishing_loot(ctx: &ReducerContext, target_x: f32, target_y: f32,
         }
     };
     
-    // Filter fish by selected tier and calculate weights (including weather preference!)
+    // Filter fish by selected tier and water type (gated by position), then calculate weights
     let mut eligible_fish: Vec<(&FishEntry, f32)> = fish_database
         .iter()
-        .filter(|fish| fish.tier == selected_tier)
+        .filter(|fish| fish.tier == selected_tier && fish_matches_water_type(fish, pos_water_type))
         .map(|fish| {
             let time_mult = get_time_spawn_multiplier(fish.time_preference, &time_of_day);
             let weather_mult = get_weather_spawn_multiplier(fish.weather_preference, &current_weather);
@@ -433,11 +503,11 @@ pub fn generate_fishing_loot(ctx: &ReducerContext, target_x: f32, target_y: f32,
         .filter(|(_, weight)| *weight > 0.001) // Filter out negligible weights
         .collect();
     
-    // If no fish are eligible at this tier (very unlikely), fall back to common
+    // If no fish are eligible at this tier (e.g. DeepSea + Common has no DeepSea common fish), fall back to common
     if eligible_fish.is_empty() {
         eligible_fish = fish_database
             .iter()
-            .filter(|fish| fish.tier == FishTier::Common)
+            .filter(|fish| fish.tier == FishTier::Common && fish_matches_water_type(fish, pos_water_type))
             .map(|fish| (fish, fish.base_weight))
             .collect();
     }
@@ -457,9 +527,9 @@ pub fn generate_fishing_loot(ctx: &ReducerContext, target_x: f32, target_y: f32,
     
     loot.push(selected_fish.to_string());
     
-    // Log the catch with details (including chunk weather info)
-    log::info!("🎣 Fish caught: {} (Tier: {:?}, Time: {:?}, ChunkWeather: {:?}, Effectiveness: {:.2}x, Depth: {:.2}, VillageBonus: {}, Pos: {:.0},{:.0})",
-              selected_fish, selected_tier, time_of_day, current_weather, total_effectiveness, deep_water_factor, has_fishing_village_bonus, target_x, target_y);
+    // Log the catch with details (including water type and chunk weather)
+    log::info!("🎣 Fish caught: {} (Tier: {:?}, Water: {:?}, Time: {:?}, ChunkWeather: {:?}, Effectiveness: {:.2}x, Depth: {:.2}, VillageBonus: {}, Pos: {:.0},{:.0})",
+              selected_fish, selected_tier, pos_water_type, time_of_day, current_weather, total_effectiveness, deep_water_factor, has_fishing_village_bonus, target_x, target_y);
     
     // === FISHING VILLAGE 2X HAUL BONUS ===
     // When player has fishing village bonus effect, duplicate the main catch for 2x haul
@@ -476,15 +546,17 @@ pub fn generate_fishing_loot(ctx: &ReducerContext, target_x: f32, target_y: f32,
     };
     let bonus_fish_chance = 0.15 * total_effectiveness * village_bonus_mult; // 15% base, up to ~37% in perfect conditions, 1.5x in village
     if ctx.rng().gen_range(0.0..1.0) < bonus_fish_chance {
-        // Bonus fish is always common tier (can't stack premium catches too easily)
+        // Bonus fish is always common tier, filtered by water type
         let common_fish: Vec<&FishEntry> = fish_database
             .iter()
-            .filter(|f| f.tier == FishTier::Common)
+            .filter(|f| f.tier == FishTier::Common && fish_matches_water_type(f, pos_water_type))
             .collect();
         
-        if let Some(bonus) = common_fish.get(ctx.rng().gen_range(0..common_fish.len())) {
-            loot.push(bonus.name.to_string());
-            log::info!("🐟 Bonus fish! Also caught: {}", bonus.name);
+        if !common_fish.is_empty() {
+            if let Some(bonus) = common_fish.get(ctx.rng().gen_range(0..common_fish.len())) {
+                loot.push(bonus.name.to_string());
+                log::info!("🐟 Bonus fish! Also caught: {}", bonus.name);
+            }
         }
     }
     
@@ -522,15 +594,17 @@ pub fn generate_fishing_loot(ctx: &ReducerContext, target_x: f32, target_y: f32,
     
     // Storm fishing bonus: Small chance for storm-preferring fish as extra catch
     if matches!(current_weather, WeatherType::HeavyStorm) && ctx.rng().gen_range(0.0..1.0) < 0.12 {
-        // During storms, there's a 12% chance to get an extra storm-loving fish
+        // During storms, 12% chance for extra storm-loving fish (filtered by water type)
         let storm_fish: Vec<&FishEntry> = fish_database
             .iter()
-            .filter(|f| f.weather_preference == FishWeatherPreference::HeavyStorm)
+            .filter(|f| f.weather_preference == FishWeatherPreference::HeavyStorm && fish_matches_water_type(f, pos_water_type))
             .collect();
         
-        if let Some(storm_catch) = storm_fish.get(ctx.rng().gen_range(0..storm_fish.len().max(1))) {
-            loot.push(storm_catch.name.to_string());
-            log::info!("⛈️ Storm bonus! The churning waters brought up: {}", storm_catch.name);
+        if !storm_fish.is_empty() {
+            if let Some(storm_catch) = storm_fish.get(ctx.rng().gen_range(0..storm_fish.len())) {
+                loot.push(storm_catch.name.to_string());
+                log::info!("⛈️ Storm bonus! The churning waters brought up: {}", storm_catch.name);
+            }
         }
     }
     

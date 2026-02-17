@@ -164,6 +164,7 @@ mod whale_bone_graveyard; // <<< ADDED: Whale Bone Graveyard monument collision 
 mod hunting_village; // <<< ADDED: Hunting Village monument collision system
 mod bone_carving; // <<< ADDED: Bone carving system for Aleutian spirit totems
 mod transistor_radio; // <<< ADDED: Transistor Radio spawn/respawn system
+mod tide_pool_items; // <<< ADDED: Tide pool washed-up item respawn (Coral Fragments, Plastic Water Jug, Vitamin Drink)
 pub mod monument; // <<< ADDED: Generic monument system for clearance zones (shipwrecks, ruins, crash sites, etc.)
 mod durability; // <<< ADDED: Item durability system for weapons, tools, and torches
 mod placeable_collision; // <<< ADDED: Shared placeable overlap prevention
@@ -2888,6 +2889,23 @@ pub struct ReedMarsh {
     /// World Y position in pixels (center of marsh)
     pub world_y: f32,
     /// Radius of the marsh in pixels
+    pub radius_px: f32,
+}
+
+/// Tide Pool zones - coastal inlets on ocean beaches (never inland rivers/lakes)
+/// Contains crabs, terns, reeds, coral fragments, plastic water jugs, vitamin drink (washed up)
+/// Building is restricted within these zones
+#[spacetimedb::table(name = tide_pool, public)]
+#[derive(Clone, Debug)]
+pub struct TidePool {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    /// World X position in pixels (center of tide pool inlet)
+    pub world_x: f32,
+    /// World Y position in pixels (center of tide pool inlet)
+    pub world_y: f32,
+    /// Radius of the tide pool zone in pixels
     pub radius_px: f32,
 }
 

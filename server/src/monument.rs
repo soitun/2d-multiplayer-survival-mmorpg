@@ -4414,3 +4414,135 @@ pub fn spawn_reed_marsh_resources(ctx: &ReducerContext) -> Result<(), String> {
     Ok(())
 }
 
+// =============================================================================
+// TIDE POOL RESOURCE SPAWNING
+// =============================================================================
+
+/// Spawns reeds, washed-up items (coral fragments, plastic water jug, vitamin drink), and barrels around tide pool centers
+/// Tide pools are coastal beach inlets - crabs and terns are spawned/respawned via environment and respawn systems
+pub fn spawn_tide_pool_resources(ctx: &ReducerContext) -> Result<(), String> {
+    use crate::tide_pool as TidePoolTableTrait;
+    use crate::barrel::{Barrel, BARREL_INITIAL_HEALTH, SEA_BARREL_VARIANT_START, SEA_BARREL_VARIANT_END};
+    use crate::harvestable_resource::{create_harvestable_resource};
+    use crate::plants_database::PlantType;
+    use crate::environment::calculate_chunk_index;
+    
+    let tide_pool_data: Vec<(f32, f32, f32)> = ctx.db.tide_pool()
+        .iter()
+        .map(|t| (t.world_x, t.world_y, t.radius_px))
+        .collect();
+    
+    if tide_pool_data.is_empty() {
+        log::info!("[TidePool] No tide pools found to spawn resources in");
+        return Ok(());
+    }
+    
+    let item_defs = ctx.db.item_definition();
+    let mut total_reeds = 0;
+    let mut total_barrels = 0;
+    let mut total_washed_up = 0;
+    
+    for (pool_x, pool_y, radius_px) in &tide_pool_data {
+        let mut pool_reeds = 0;
+        let mut pool_barrels = 0;
+        let mut pool_washed_up = 0;
+        
+        // Spawn reeds (3-5 per tide pool) - coastal reeds in the inlet
+        let reed_count = ctx.rng().gen_range(3..=5);
+        for _ in 0..reed_count {
+            let angle = ctx.rng().gen::<f32>() * std::f32::consts::PI * 2.0;
+            let distance = ctx.rng().gen_range(25.0..*radius_px * 0.8);
+            let spawn_x = pool_x + angle.cos() * distance;
+            let spawn_y = pool_y + angle.sin() * distance;
+            
+            if !crate::environment::is_position_on_beach_tile(ctx, spawn_x, spawn_y) {
+                continue;
+            }
+            
+            let chunk_idx = calculate_chunk_index(spawn_x, spawn_y);
+            let reed = create_harvestable_resource(PlantType::Reed, spawn_x, spawn_y, chunk_idx, false);
+            ctx.db.harvestable_resource().insert(reed);
+            pool_reeds += 1;
+        }
+        
+        // Spawn 1 sea barrel per tide pool (washed up flotsam)
+        let angle = ctx.rng().gen::<f32>() * std::f32::consts::PI * 2.0;
+        let distance = ctx.rng().gen_range(40.0..*radius_px * 0.85);
+        let barrel_x = pool_x + angle.cos() * distance;
+        let barrel_y = pool_y + angle.sin() * distance;
+        
+        if crate::environment::is_position_on_beach_tile(ctx, barrel_x, barrel_y) {
+            let chunk_idx = calculate_chunk_index(barrel_x, barrel_y);
+            let variant = ctx.rng().gen_range(SEA_BARREL_VARIANT_START..SEA_BARREL_VARIANT_END);
+            let barrel = Barrel {
+                id: 0,
+                pos_x: barrel_x,
+                pos_y: barrel_y,
+                chunk_index: chunk_idx,
+                health: BARREL_INITIAL_HEALTH,
+                variant,
+                last_hit_time: None,
+                respawn_at: spacetimedb::Timestamp::UNIX_EPOCH,
+                cluster_id: 0,
+                is_monument: false,
+            };
+            ctx.db.barrel().insert(barrel);
+            pool_barrels += 1;
+        }
+        
+        // Spawn washed-up items - beachcombing surprises (thematic: things that wash ashore)
+        let washed_up_configs = [
+            ("Coral Fragments", 1, 3, 0.65),   // Storm-washed coral - useful for Diving Pick
+            ("Sea Glass", 1, 2, 0.45),        // Frosted glass worn by tides - flavor
+            ("Shell", 1, 1, 0.25),             // Rare intact mollusk shell - valuable
+            ("Shell Fragment", 1, 2, 0.35),   // Worn smooth by tides - atmospheric
+            ("Aleut Charm", 1, 1, 0.18),       // Mysterious lost trinket - story surprise
+            ("Rusty Hook", 1, 2, 0.30),       // Fishing debris - smelts to metal
+            ("Reed Water Bottle", 1, 1, 0.22), // Portable container washed up
+            ("Old Boot", 1, 1, 0.08),          // Waterlogged boot - useless but funny
+        ];
+        
+        for (item_name, min_qty, max_qty, chance) in washed_up_configs {
+            if ctx.rng().gen::<f32>() > chance {
+                continue;
+            }
+            
+            let item_def_id = match item_defs.iter().find(|def| def.name == item_name) {
+                Some(def) => def.id,
+                None => {
+                    log::warn!("[TidePool] Item '{}' not found, skipping", item_name);
+                    continue;
+                }
+            };
+            
+            let angle = ctx.rng().gen::<f32>() * std::f32::consts::PI * 2.0;
+            let distance = ctx.rng().gen_range(30.0..*radius_px * 0.9);
+            let spawn_x = pool_x + angle.cos() * distance;
+            let spawn_y = pool_y + angle.sin() * distance;
+            
+            if !crate::environment::is_position_on_beach_tile(ctx, spawn_x, spawn_y) {
+                continue;
+            }
+            
+            let quantity = ctx.rng().gen_range(min_qty..=max_qty);
+            if let Err(e) = crate::dropped_item::create_dropped_item_entity(ctx, item_def_id, quantity, spawn_x, spawn_y) {
+                log::warn!("[TidePool] Failed to spawn {} at ({:.1}, {:.1}): {}", item_name, spawn_x, spawn_y, e);
+            } else {
+                pool_washed_up += 1;
+            }
+        }
+        
+        log::debug!("🦀 [TidePool] ({:.0}, {:.0}): {} reeds, {} barrels, {} washed-up items",
+                   pool_x, pool_y, pool_reeds, pool_barrels, pool_washed_up);
+        
+        total_reeds += pool_reeds;
+        total_barrels += pool_barrels;
+        total_washed_up += pool_washed_up;
+    }
+    
+    log::info!("🦀 [TidePool] Total spawned: {} reeds, {} barrels, {} washed-up items across {} tide pools",
+               total_reeds, total_barrels, total_washed_up, tide_pool_data.len());
+    
+    Ok(())
+}
+

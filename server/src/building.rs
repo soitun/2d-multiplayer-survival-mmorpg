@@ -25,6 +25,7 @@ use crate::alk::alk_station as AlkStationTableTrait;
 use crate::monument_part as MonumentPartTableTrait;
 use crate::MonumentType;
 use crate::reed_marsh as ReedMarshTableTrait;
+use crate::tide_pool as TidePoolTableTrait;
 use crate::planted_seeds::planted_seed as PlantedSeedTableTrait;
 use crate::harvestable_resource::harvestable_resource as HarvestableResourceTableTrait;
 
@@ -718,6 +719,18 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
         
         if distance_sq <= marsh_radius_sq {
             return Err("Cannot place items within the Reed Marsh. This natural area must remain unobstructed.".to_string());
+        }
+    }
+    
+    // Check tide pool zones (coastal beach inlets - crabs, terns, reeds)
+    for pool in ctx.db.tide_pool().iter() {
+        let dx = world_x - pool.world_x;
+        let dy = world_y - pool.world_y;
+        let distance_sq = dx * dx + dy * dy;
+        let pool_radius_sq = pool.radius_px * pool.radius_px;
+        
+        if distance_sq <= pool_radius_sq {
+            return Err("Cannot place items within the Tide Pool. This coastal inlet must remain unobstructed.".to_string());
         }
     }
     

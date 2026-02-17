@@ -71,7 +71,19 @@ const DESPAWN_CHECK_INTERVAL_SECS: u64 = 60; // Check every 1 minute
 
 /// Monument loot items that persist until picked up. They never despawn on their own;
 /// respawn is scheduled only when a player picks them up.
-const MONUMENT_LOOT_NEVER_DESPAWN: &[&str] = &["Transistor Radio", "Bone Carving Kit"];
+const MONUMENT_LOOT_NEVER_DESPAWN: &[&str] = &[
+    "Transistor Radio",
+    "Bone Carving Kit",
+    // Tide pool washed-up items (coastal beach only - persist until picked up, then respawn at tide pool)
+    "Coral Fragments",
+    "Sea Glass",
+    "Shell",
+    "Shell Fragment",
+    "Aleut Charm",
+    "Rusty Hook",
+    "Reed Water Bottle",
+    "Old Boot",
+];
 
 // --- Reducers ---
 
@@ -175,7 +187,26 @@ pub fn pickup_dropped_item(ctx: &ReducerContext, dropped_item_id: u64) -> Result
                     );
                     log::info!("[PickupDropped] Transistor Radio picked up - scheduled respawn in 30 minutes");
                 }
+                
+                // 9. Check if this is a tide pool washed-up item and schedule respawn at a random tide pool
+                if crate::tide_pool_items::is_tide_pool_washed_up_item(&item_name) {
+                    crate::tide_pool_items::schedule_tide_pool_item_respawn(
+                        ctx,
+                        dropped_item.item_def_id,
+                        crate::tide_pool_items::TIDE_POOL_ITEM_RESPAWN_DELAY_SECS,
+                    );
+                    log::info!("[PickupDropped] Tide pool item '{}' picked up - scheduled respawn in 15 minutes", item_name);
+                }
             } else {
+                // Inventory full - item was dropped near player; still schedule tide pool respawn since original is gone
+                if crate::tide_pool_items::is_tide_pool_washed_up_item(&item_name) {
+                    crate::tide_pool_items::schedule_tide_pool_item_respawn(
+                        ctx,
+                        dropped_item.item_def_id,
+                        crate::tide_pool_items::TIDE_POOL_ITEM_RESPAWN_DELAY_SECS,
+                    );
+                    log::info!("[PickupDropped] Tide pool item '{}' moved (inventory full) - scheduled respawn in 15 minutes", item_name);
+                }
                 log::info!("[PickupDropped] Inventory full, moved item '{}' (ID {}) closer to player {:?}",
                          item_name, dropped_item_id, sender_id);
             }

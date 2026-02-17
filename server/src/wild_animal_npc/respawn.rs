@@ -11,6 +11,7 @@ use super::core::{AnimalSpecies, AnimalState, MovementPattern, WildAnimal, Anima
 use crate::{MonumentType, monument_part as MonumentPartTableTrait};
 use crate::whale_bone_graveyard;
 use crate::reed_marsh as ReedMarshTableTrait;
+use crate::tide_pool as TidePoolTableTrait;
 
 // Table trait imports
 use crate::wild_animal_npc::core::wild_animal;
@@ -29,6 +30,9 @@ const WOLVERINE_GRAVEYARD_SPAWN_MIN: f32 = 400.0;
 const WOLVERINE_GRAVEYARD_SPAWN_MAX: f32 = 800.0;
 
 const TERN_MARSH_TARGET_PER_MARSH: u32 = 2;
+
+const TIDE_POOL_CRAB_TARGET: u32 = 2;   // 2 crabs per tide pool
+const TIDE_POOL_TERN_TARGET: u32 = 1;   // 1 tern per tide pool
 
 /// Interval for spawn zone respawn checks. Predators (wolves, wolverines) respawn slowly so clearing
 /// a den/graveyard feels meaningful. Full wolf pack ~32 min, wolverines ~32 min, terns ~16 min per marsh.
@@ -188,6 +192,69 @@ pub fn maintain_spawn_zone_populations(ctx: &ReducerContext) -> Result<(), Strin
                     log::info!("🐦 Spawn zone: respawned Tern #{} at reed marsh ({:.1}, {:.1})", inserted.id, spawn_x, spawn_y);
                 }
                 Err(e) => log::warn!("Failed to spawn tern at marsh: {}", e),
+            }
+        }
+    }
+
+    // 4. Tide pools - each pool maintains 2 crabs and 1 tern
+    for pool in ctx.db.tide_pool().iter() {
+        let zone_radius_sq = (pool.radius_px * 1.2) * (pool.radius_px * 1.2);
+
+        let crab_count = ctx.db.wild_animal().iter()
+            .filter(|a| a.species == AnimalSpecies::BeachCrab)
+            .filter(|a| {
+                let dx = a.pos_x - pool.world_x;
+                let dy = a.pos_y - pool.world_y;
+                dx * dx + dy * dy <= zone_radius_sq
+            })
+            .count() as u32;
+
+        if crab_count < TIDE_POOL_CRAB_TARGET {
+            for _ in 0..(TIDE_POOL_CRAB_TARGET - crab_count).min(1) {
+                let angle = ctx.rng().gen::<f32>() * 2.0 * std::f32::consts::PI;
+                let distance = ctx.rng().gen_range(40.0..pool.radius_px * 0.9);
+                let spawn_x = pool.world_x + angle.cos() * distance;
+                let spawn_y = pool.world_y + angle.sin() * distance;
+
+                if !is_valid_spawn_position(ctx, spawn_x, spawn_y, AnimalSpecies::BeachCrab, &existing_positions) {
+                    continue;
+                }
+
+                let chunk_idx = calculate_chunk_index(spawn_x, spawn_y);
+                match spawn_single_animal(ctx, AnimalSpecies::BeachCrab, spawn_x, spawn_y, chunk_idx) {
+                    Ok(inserted) => {
+                        total_spawned += 1;
+                        log::info!("🦀 Spawn zone: respawned Beach Crab #{} at tide pool ({:.1}, {:.1})", inserted.id, spawn_x, spawn_y);
+                    }
+                    Err(e) => log::warn!("Failed to spawn crab at tide pool: {}", e),
+                }
+            }
+        }
+
+        let tern_count = ctx.db.wild_animal().iter()
+            .filter(|a| a.species == AnimalSpecies::Tern)
+            .filter(|a| {
+                let dx = a.pos_x - pool.world_x;
+                let dy = a.pos_y - pool.world_y;
+                dx * dx + dy * dy <= zone_radius_sq
+            })
+            .count() as u32;
+
+        if tern_count < TIDE_POOL_TERN_TARGET {
+            let angle = ctx.rng().gen::<f32>() * 2.0 * std::f32::consts::PI;
+            let distance = ctx.rng().gen_range(50.0..pool.radius_px * 0.95);
+            let spawn_x = pool.world_x + angle.cos() * distance;
+            let spawn_y = pool.world_y + angle.sin() * distance;
+
+            if is_valid_spawn_position(ctx, spawn_x, spawn_y, AnimalSpecies::Tern, &existing_positions) {
+                let chunk_idx = calculate_chunk_index(spawn_x, spawn_y);
+                match spawn_single_animal(ctx, AnimalSpecies::Tern, spawn_x, spawn_y, chunk_idx) {
+                    Ok(inserted) => {
+                        total_spawned += 1;
+                        log::info!("🐦 Spawn zone: respawned Tern #{} at tide pool ({:.1}, {:.1})", inserted.id, spawn_x, spawn_y);
+                    }
+                    Err(e) => log::warn!("Failed to spawn tern at tide pool: {}", e),
+                }
             }
         }
     }

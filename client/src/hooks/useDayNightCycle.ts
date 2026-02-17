@@ -12,9 +12,12 @@ import {
     Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole
     Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue
     RoadLamppost as SpacetimeDBRoadLamppost, // ADDED: Aleutian whale oil lampposts
+    Barrel as SpacetimeDBBarrel, // ADDED: Barrels (buoys for night light cutouts)
 } from '../generated';
 import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT, BARBECUE_LIGHT_RADIUS_BASE, BARBECUE_FLICKER_AMOUNT, SOVA_AURA_RADIUS_BASE } from '../utils/renderers/lightRenderingUtils';
 import { ROAD_LAMP_LIGHT_RADIUS_BASE, ROAD_LAMP_LIGHT_Y_OFFSET } from '../utils/renderers/roadLamppostRenderingUtils';
+import { BUOY_HEIGHT } from '../utils/renderers/barrelRenderingUtils';
+import { BUOY_LIGHT_RADIUS_BASE } from '../utils/renderers/lightRenderingUtils';
 import { isNightTime, NIGHT_LIGHTS_ON, LIGHT_FADE_FULL_AT, TWILIGHT_MORNING_FADE_START, TWILIGHT_MORNING_END } from '../config/dayNightConstants';
 import { CAMPFIRE_HEIGHT } from '../utils/renderers/campfireRenderingUtils';
 import { LANTERN_HEIGHT, LANTERN_RENDER_Y_OFFSET, LANTERN_TYPE_LANTERN } from '../utils/renderers/lanternRenderingUtils';
@@ -427,6 +430,7 @@ interface UseDayNightCycleProps {
     furnaces: Map<string, SpacetimeDBFurnace>;
     barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues for night light cutouts
     roadLampposts: Map<string, SpacetimeDBRoadLamppost>; // ADDED: Aleutian whale oil lampposts along roads
+    barrels: Map<string, SpacetimeDBBarrel>; // ADDED: Barrels (buoys for night light cutouts)
     runeStones: Map<string, SpacetimeDBRuneStone>; // ADDED: RuneStones for night light cutouts
     firePatches: Map<string, SpacetimeDBFirePatch>; // ADDED: Fire patches for night light cutouts
     fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles for heat glow at night
@@ -460,6 +464,7 @@ export function useDayNightCycle({
     furnaces,
     barbecues, // ADDED: Barbecues
     roadLampposts, // ADDED: Aleutian whale oil lampposts
+    barrels, // ADDED: Barrels (buoys for night light cutouts)
     runeStones, // ADDED: RuneStones
     firePatches, // ADDED: Fire patches
     fumaroles, // ADDED: Fumaroles
@@ -920,6 +925,32 @@ export function useDayNightCycle({
             maskCtx.arc(screenX, screenY, lightRadius, 0, Math.PI * 2);
             maskCtx.fill();
         });
+
+        // Render buoy light cutouts (variant 6 - red LED navigational markers, same "lights on" as road lamps)
+        const cp = currentCycleProgress;
+        if (typeof cp === 'number' && isNightTime(cp)) {
+            const BUOY_VARIANT = 6;
+            const BUOY_Y_OFFSET = 28;
+            const BUOY_LIGHT_Y_OFFSET = -(BUOY_HEIGHT + BUOY_Y_OFFSET) + BUOY_HEIGHT * 0.12 + 20; // LED position, dropped 20px
+            barrels.forEach(barrel => {
+                if ((barrel.variant ?? 0) !== BUOY_VARIANT) return;
+                if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) return;
+                const lightCenterWorldY = barrel.posY + BUOY_LIGHT_Y_OFFSET;
+                const screenX = barrel.posX + cameraOffsetX;
+                const screenY = lightCenterWorldY + cameraOffsetY;
+                const lightRadius = BUOY_LIGHT_RADIUS_BASE * 2.0; // Double for cutout visibility
+                const maskGradient = maskCtx.createRadialGradient(screenX, screenY, lightRadius * 0.05, screenX, screenY, lightRadius);
+                maskGradient.addColorStop(0, 'rgba(0,0,0,1)'); // Full cutout at center
+                maskGradient.addColorStop(0.2, 'rgba(0,0,0,0.9)'); // Strong cutout zone
+                maskGradient.addColorStop(0.5, 'rgba(0,0,0,0.6)'); // Red LED fade
+                maskGradient.addColorStop(0.8, 'rgba(0,0,0,0.2)'); // Soft edge
+                maskGradient.addColorStop(1, 'rgba(0,0,0,0)'); // Fade to darkness
+                maskCtx.fillStyle = maskGradient;
+                maskCtx.beginPath();
+                maskCtx.arc(screenX, screenY, lightRadius, 0, Math.PI * 2);
+                maskCtx.fill();
+            });
+        }
 
         // Render torch light cutouts
         players.forEach((player, playerId) => {

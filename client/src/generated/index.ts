@@ -601,6 +601,8 @@ import { RespawnMineCarts } from "./respawn_mine_carts_reducer.ts";
 export { RespawnMineCarts };
 import { RespawnRandomly } from "./respawn_randomly_reducer.ts";
 export { RespawnRandomly };
+import { RespawnTidePoolItem } from "./respawn_tide_pool_item_reducer.ts";
+export { RespawnTidePoolItem };
 import { RespawnTransistorRadio } from "./respawn_transistor_radio_reducer.ts";
 export { RespawnTransistorRadio };
 import { RespawnWildBeehives } from "./respawn_wild_beehives_reducer.ts";
@@ -1145,6 +1147,10 @@ import { ThunderEventCleanupScheduleTableHandle } from "./thunder_event_cleanup_
 export { ThunderEventCleanupScheduleTableHandle };
 import { ThunderSoundScheduleTableHandle } from "./thunder_sound_schedule_table.ts";
 export { ThunderSoundScheduleTableHandle };
+import { TidePoolTableHandle } from "./tide_pool_table.ts";
+export { TidePoolTableHandle };
+import { TidePoolItemRespawnTableHandle } from "./tide_pool_item_respawn_table.ts";
+export { TidePoolItemRespawnTableHandle };
 import { TilledTileMetadataTableHandle } from "./tilled_tile_metadata_table.ts";
 export { TilledTileMetadataTableHandle };
 import { TilledTileReversionScheduleTableHandle } from "./tilled_tile_reversion_schedule_table.ts";
@@ -1613,6 +1619,10 @@ import { ThunderEventCleanupSchedule } from "./thunder_event_cleanup_schedule_ty
 export { ThunderEventCleanupSchedule };
 import { ThunderSoundSchedule } from "./thunder_sound_schedule_type.ts";
 export { ThunderSoundSchedule };
+import { TidePool } from "./tide_pool_type.ts";
+export { TidePool };
+import { TidePoolItemRespawn } from "./tide_pool_item_respawn_type.ts";
+export { TidePoolItemRespawn };
 import { TileType } from "./tile_type_type.ts";
 export { TileType };
 import { TilledTileMetadata } from "./tilled_tile_metadata_type.ts";
@@ -3105,6 +3115,24 @@ const REMOTE_MODULE = {
         colType: (ThunderSoundSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    tide_pool: {
+      tableName: "tide_pool" as const,
+      rowType: TidePool.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (TidePool.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    tide_pool_item_respawn: {
+      tableName: "tide_pool_item_respawn" as const,
+      rowType: TidePoolItemRespawn.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (TidePoolItemRespawn.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     tilled_tile_metadata: {
       tableName: "tilled_tile_metadata" as const,
       rowType: TilledTileMetadata.getTypeScriptAlgebraicType(),
@@ -4445,6 +4473,10 @@ const REMOTE_MODULE = {
       reducerName: "respawn_randomly",
       argsType: RespawnRandomly.getTypeScriptAlgebraicType(),
     },
+    respawn_tide_pool_item: {
+      reducerName: "respawn_tide_pool_item",
+      argsType: RespawnTidePoolItem.getTypeScriptAlgebraicType(),
+    },
     respawn_transistor_radio: {
       reducerName: "respawn_transistor_radio",
       argsType: RespawnTransistorRadio.getTypeScriptAlgebraicType(),
@@ -5208,6 +5240,7 @@ export type Reducer = never
 | { name: "RespawnMilitaryRations", args: RespawnMilitaryRations }
 | { name: "RespawnMineCarts", args: RespawnMineCarts }
 | { name: "RespawnRandomly", args: RespawnRandomly }
+| { name: "RespawnTidePoolItem", args: RespawnTidePoolItem }
 | { name: "RespawnTransistorRadio", args: RespawnTransistorRadio }
 | { name: "RespawnWildBeehives", args: RespawnWildBeehives }
 | { name: "ReviveKnockedOutPlayer", args: ReviveKnockedOutPlayer }
@@ -9737,6 +9770,22 @@ export class RemoteReducers {
     this.connection.offReducer("respawn_randomly", callback);
   }
 
+  respawnTidePoolItem(args: TidePoolItemRespawn) {
+    const __args = { args };
+    let __writer = new __BinaryWriter(1024);
+    RespawnTidePoolItem.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("respawn_tide_pool_item", __argsBuffer, this.setCallReducerFlags.respawnTidePoolItemFlags);
+  }
+
+  onRespawnTidePoolItem(callback: (ctx: ReducerEventContext, args: TidePoolItemRespawn) => void) {
+    this.connection.onReducer("respawn_tide_pool_item", callback);
+  }
+
+  removeOnRespawnTidePoolItem(callback: (ctx: ReducerEventContext, args: TidePoolItemRespawn) => void) {
+    this.connection.offReducer("respawn_tide_pool_item", callback);
+  }
+
   respawnTransistorRadio(args: TransistorRadioRespawn) {
     const __args = { args };
     let __writer = new __BinaryWriter(1024);
@@ -12879,6 +12928,11 @@ export class SetReducerFlags {
     this.respawnRandomlyFlags = flags;
   }
 
+  respawnTidePoolItemFlags: __CallReducerFlags = 'FullUpdate';
+  respawnTidePoolItem(flags: __CallReducerFlags) {
+    this.respawnTidePoolItemFlags = flags;
+  }
+
   respawnTransistorRadioFlags: __CallReducerFlags = 'FullUpdate';
   respawnTransistorRadio(flags: __CallReducerFlags) {
     this.respawnTransistorRadioFlags = flags;
@@ -14237,6 +14291,16 @@ export class RemoteTables {
   get thunderSoundSchedule(): ThunderSoundScheduleTableHandle<'thunder_sound_schedule'> {
     // clientCache is a private property
     return new ThunderSoundScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<ThunderSoundSchedule>(REMOTE_MODULE.tables.thunder_sound_schedule));
+  }
+
+  get tidePool(): TidePoolTableHandle<'tide_pool'> {
+    // clientCache is a private property
+    return new TidePoolTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<TidePool>(REMOTE_MODULE.tables.tide_pool));
+  }
+
+  get tidePoolItemRespawn(): TidePoolItemRespawnTableHandle<'tide_pool_item_respawn'> {
+    // clientCache is a private property
+    return new TidePoolItemRespawnTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<TidePoolItemRespawn>(REMOTE_MODULE.tables.tide_pool_item_respawn));
   }
 
   get tilledTileMetadata(): TilledTileMetadataTableHandle<'tilled_tile_metadata'> {

@@ -12,6 +12,7 @@ import buoyImage from '../../assets/doodads/buoy.png'; // Variant 6 (indestructi
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { imageManager } from './imageManager'; // Import image manager
+import { isNightTime } from '../../config/dayNightConstants';
 
 // --- Constants --- (Keep exportable if used elsewhere)
 export const BARREL_WIDTH = 86; // Standard barrel size (increased from 72)
@@ -220,14 +221,71 @@ function getBarrelOffscreenCanvas(width: number, height: number): { canvas: Offs
 }
 
 /**
+ * Renders ONLY the water shadow for a sea barrel (buoy).
+ * Called in an early pass so swimming player bottom halves render ON TOP of it.
+ */
+export function renderSeaBarrelWaterShadowOnly(
+    ctx: CanvasRenderingContext2D,
+    barrel: Barrel,
+    nowMs: number,
+    cycleProgress: number,
+    isOnSeaTile?: (worldX: number, worldY: number) => boolean
+): void {
+    if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) return;
+    const variantIndex = Number(barrel.variant ?? 0);
+    if (!isSeaBarrelVariant(variantIndex)) return;
+    if (isOnSeaTile && !isOnSeaTile(barrel.posX, barrel.posY)) return;
+
+    const imageSource = BARREL_VARIANT_IMAGES[variantIndex] || BARREL_VARIANT_IMAGES[0];
+    const img = imageManager.getImage(imageSource);
+    if (!img || !img.complete || img.naturalWidth === 0) return;
+
+    const drawWidth = variantIndex === 4 ? BARREL5_WIDTH : variantIndex === 6 ? BUOY_WIDTH : BARREL_WIDTH;
+    const drawHeight = variantIndex === 4 ? BARREL5_HEIGHT : variantIndex === 6 ? BUOY_HEIGHT : BARREL_HEIGHT;
+    const yOffset = variantIndex === 4 ? 24 : variantIndex === 6 ? 28 : 12;
+    const bobOffset = Math.sin(nowMs * SEA_BARREL_WATER_CONFIG.BOB_FREQUENCY + barrel.posX * 0.02)
+        * SEA_BARREL_WATER_CONFIG.BOB_AMPLITUDE;
+    const baseX = barrel.posX;
+    const baseY = barrel.posY + bobOffset;
+    const centerY = barrel.posY - drawHeight / 2 - yOffset;
+    const shadowOffsetX = drawWidth * 0.28;
+    const shadowOffsetY = drawHeight * 0.9;
+    const shadowX = baseX + shadowOffsetX;
+    const shadowY = centerY + shadowOffsetY;
+
+    const { shakeOffsetX, shakeOffsetY } = calculateShakeOffsets(
+        barrel, barrel.id.toString(),
+        { clientStartTimes: clientBarrelShakeStartTimes, lastKnownServerTimes: lastKnownServerBarrelShakeTimes },
+        SHAKE_DURATION_MS, SHAKE_INTENSITY_PX, undefined,
+        { suppressRestartIfRecentClientShake: false }
+    );
+
+    ctx.save();
+    ctx.translate(shadowX, shadowY);
+    ctx.scale(0.85, 0.75);
+    ctx.rotate(Math.PI / 6);
+    ctx.translate(-shadowX, -shadowY);
+    drawDynamicGroundShadow({
+        ctx, entityImage: img, entityCenterX: shadowX, entityBaseY: shadowY,
+        imageDrawWidth: drawWidth, imageDrawHeight: drawHeight,
+        cycleProgress: 0.5, baseShadowColor: '6, 30, 38', maxShadowAlpha: 0.75,
+        maxStretchFactor: 1.0, minStretchFactor: 0.9, shadowBlur: 2, pivotYOffset: 0,
+        shakeOffsetX, shakeOffsetY,
+    });
+    ctx.restore();
+}
+
+/**
  * Renders a sea barrel with water effects (water line, underwater tinting, swaying)
  * Uses offscreen canvas and proper compositing to respect PNG transparency
+ * @param skipWaterShadow - When true, skip drawing the water shadow (already drawn in early pass for swimming player overlap)
  */
 function renderSeaBarrelWithWaterEffects(
     ctx: CanvasRenderingContext2D,
     barrel: Barrel,
     nowMs: number,
-    cycleProgress: number
+    cycleProgress: number,
+    skipWaterShadow?: boolean
 ): void {
     // Don't render if barrel is respawning (destroyed)
     if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) return;
@@ -265,49 +323,51 @@ function renderSeaBarrelWithWaterEffects(
     const drawX = baseX - drawWidth / 2;
     const drawY = baseY - drawHeight - yOffset;
     
-    // --- Draw dynamic ground shadow (on water surface) - same offset/scale/rotate as swimming player ---
-    const { shakeOffsetX, shakeOffsetY } = calculateShakeOffsets(
-        barrel,
-        barrel.id.toString(),
-        {
-            clientStartTimes: clientBarrelShakeStartTimes,
-            lastKnownServerTimes: lastKnownServerBarrelShakeTimes
-        },
-        SHAKE_DURATION_MS,
-        SHAKE_INTENSITY_PX,
-        undefined,
-        { suppressRestartIfRecentClientShake: false } // Always restart on new hit so subsequent hits shake
-    );
-    const centerY = barrel.posY - drawHeight / 2 - yOffset;
-    const shadowOffsetX = drawWidth * 0.28;
-    const shadowOffsetY = drawHeight * 0.9;
-    const shadowX = baseX + shadowOffsetX;
-    const shadowY = centerY + shadowOffsetY;
+    // --- Draw dynamic ground shadow (on water surface) - skipped when drawn in early pass for swimming player overlap ---
+    if (!skipWaterShadow) {
+        const { shakeOffsetX, shakeOffsetY } = calculateShakeOffsets(
+            barrel,
+            barrel.id.toString(),
+            {
+                clientStartTimes: clientBarrelShakeStartTimes,
+                lastKnownServerTimes: lastKnownServerBarrelShakeTimes
+            },
+            SHAKE_DURATION_MS,
+            SHAKE_INTENSITY_PX,
+            undefined,
+            { suppressRestartIfRecentClientShake: false } // Always restart on new hit so subsequent hits shake
+        );
+        const centerY = barrel.posY - drawHeight / 2 - yOffset;
+        const shadowOffsetX = drawWidth * 0.28;
+        const shadowOffsetY = drawHeight * 0.9;
+        const shadowX = baseX + shadowOffsetX;
+        const shadowY = centerY + shadowOffsetY;
 
-    ctx.save();
-    ctx.translate(shadowX, shadowY);
-    ctx.scale(0.85, 0.75);
-    ctx.rotate(Math.PI / 6);
-    ctx.translate(-shadowX, -shadowY);
+        ctx.save();
+        ctx.translate(shadowX, shadowY);
+        ctx.scale(0.85, 0.75);
+        ctx.rotate(Math.PI / 6);
+        ctx.translate(-shadowX, -shadowY);
 
-    drawDynamicGroundShadow({
-        ctx,
-        entityImage: img,
-        entityCenterX: shadowX,
-        entityBaseY: shadowY,
-        imageDrawWidth: drawWidth,
-        imageDrawHeight: drawHeight,
-        cycleProgress: 0.5, // Fixed noon like swimming (underwater shadow)
-        baseShadowColor: '6, 30, 38',
-        maxShadowAlpha: 0.75,
-        maxStretchFactor: 1.0,
-        minStretchFactor: 0.9,
-        shadowBlur: 2,
-        pivotYOffset: 0,
-        shakeOffsetX,
-        shakeOffsetY,
-    });
-    ctx.restore();
+        drawDynamicGroundShadow({
+            ctx,
+            entityImage: img,
+            entityCenterX: shadowX,
+            entityBaseY: shadowY,
+            imageDrawWidth: drawWidth,
+            imageDrawHeight: drawHeight,
+            cycleProgress: 0.5, // Fixed noon like swimming (underwater shadow)
+            baseShadowColor: '6, 30, 38',
+            maxShadowAlpha: 0.75,
+            maxStretchFactor: 1.0,
+            minStretchFactor: 0.9,
+            shadowBlur: 2,
+            pivotYOffset: 0,
+            shakeOffsetX,
+            shakeOffsetY,
+        });
+        ctx.restore();
+    }
     
     // Calculate water line position (in local sprite coordinates)
     const waterLineLocalY = drawHeight * SEA_BARREL_WATER_CONFIG.WATER_LINE_OFFSET;
@@ -419,6 +479,27 @@ function renderSeaBarrelWithWaterEffects(
     }
     ctx.stroke();
     
+    // --- Buoy (variant 6) night-only red LED at top (same "lights on" as road lamps) ---
+    if (variantIndex === 6 && isNightTime(cycleProgress)) {
+        const ledX = drawX + drawWidth / 2;
+        const ledY = drawY + drawHeight * 0.12 + 20; // Near top of buoy, dropped 20px to align with pic
+        const ledRadius = 5;
+        // Outer glow (subtle)
+        const glowGradient = ctx.createRadialGradient(ledX, ledY, 0, ledX, ledY, ledRadius * 3);
+        glowGradient.addColorStop(0, 'rgba(255, 60, 60, 0.65)');
+        glowGradient.addColorStop(0.5, 'rgba(220, 40, 40, 0.3)');
+        glowGradient.addColorStop(1, 'rgba(180, 20, 20, 0)');
+        ctx.fillStyle = glowGradient;
+        ctx.beginPath();
+        ctx.arc(ledX, ledY, ledRadius * 3, 0, Math.PI * 2);
+        ctx.fill();
+        // Bright LED center
+        ctx.fillStyle = '#ff4040';
+        ctx.beginPath();
+        ctx.arc(ledX, ledY, ledRadius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
     ctx.restore(); // Restore from rotation transform
 }
 
@@ -441,7 +522,8 @@ export function renderBarrel(
     cycleProgress: number,
     isOnSeaTile?: (worldX: number, worldY: number) => boolean,
     playerX?: number,
-    playerY?: number
+    playerY?: number,
+    skipWaterShadow?: boolean
 ) {
     const variantIndex = Number(barrel.variant ?? 0);
     
@@ -452,8 +534,8 @@ export function renderBarrel(
     const actuallyOnSea = isOnSeaTile ? isOnSeaTile(barrel.posX, barrel.posY) : isSeaVariant;
     
     if (isSeaVariant && actuallyOnSea && (!barrel.respawnAt || barrel.respawnAt.microsSinceUnixEpoch === 0n)) {
-        // Sea barrel rendering includes health bar
-        renderSeaBarrelWithWaterEffects(ctx, barrel, nowMs, cycleProgress);
+        // Sea barrel rendering - skip water shadow when drawn in early pass (swimming player overlap)
+        renderSeaBarrelWithWaterEffects(ctx, barrel, nowMs, cycleProgress, skipWaterShadow);
         return;
     }
     

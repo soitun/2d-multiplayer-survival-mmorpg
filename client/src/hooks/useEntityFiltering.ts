@@ -2153,6 +2153,29 @@ export function useEntityFiltering(
         return 1; // Player renders after (above) sleeping bag
       }
 
+      // Swimming player ALWAYS renders above sea barrel water shadows
+      // Sea barrels (variants 3-6) cast shadows on the water surface; swimming players are in the water above those shadows
+      const SEA_BARREL_VARIANT_START = 3;
+      const SEA_BARREL_VARIANT_END = 7; // Exclusive: 3, 4, 5, 6
+      const isSeaBarrel = (barrel: { variant?: number }) => {
+        const v = barrel.variant ?? 0;
+        return v >= SEA_BARREL_VARIANT_START && v < SEA_BARREL_VARIANT_END;
+      };
+      if (a.type === 'player' && b.type === 'barrel') {
+        const player = a.entity as SpacetimeDBPlayer;
+        const barrel = b.entity as SpacetimeDBBarrel & { variant?: number };
+        if (player.isOnWater && isSeaBarrel(barrel)) {
+          return 1; // Swimming player renders on top of barrel's water shadow
+        }
+      }
+      if (a.type === 'barrel' && b.type === 'player') {
+        const barrel = a.entity as SpacetimeDBBarrel & { variant?: number };
+        const player = b.entity as SpacetimeDBPlayer;
+        if (player.isOnWater && isSeaBarrel(barrel)) {
+          return -1; // Swimming player renders on top (barrel behind)
+        }
+      }
+
       // PERFORMANCE: Fast path for type pairs that only need numeric Y-sort (no special rules)
       // Skips ~50 type checks for common pairs like (dropped_item, harvestable_resource)
       const SIMPLE_YSORT_TYPES = new Set<YSortedEntityType['type']>([

@@ -133,7 +133,7 @@ import { getFurnaceDimensions, FURNACE_TYPE_LARGE } from '../utils/renderers/fur
 import { isCompoundMonument } from '../config/compoundBuildings';
 import { renderPlayerCorpse } from '../utils/renderers/playerCorpseRenderingUtils';
 import { renderStash } from '../utils/renderers/stashRenderingUtils';
-import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarbecueLight, renderRoadLamppostLight, renderAllPlayerLights, renderFishingVillageCampfireLight, renderSovaAura } from '../utils/renderers/lightRenderingUtils';
+import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarbecueLight, renderRoadLamppostLight, renderBuoyLight, renderAllPlayerLights, renderFishingVillageCampfireLight, renderSovaAura } from '../utils/renderers/lightRenderingUtils';
 import { renderRuneStoneNightLight } from '../utils/renderers/runeStoneRenderingUtils';
 import { renderAllShipwreckNightLights, renderAllShipwreckDebugZones } from '../utils/renderers/shipwreckRenderingUtils';
 import { renderCompoundEerieLights } from '../utils/renderers/compoundEerieLightUtils';
@@ -156,12 +156,13 @@ import { calculateChunkIndex } from '../utils/chunkUtils';
 import { renderWaterOverlay } from '../utils/renderers/waterOverlayUtils';
 import { renderPlayer, isPlayerHovered, getSpriteCoordinates } from '../utils/renderers/playerRenderingUtils';
 import { renderSeaStackSingle, renderSeaStackShadowOnly, renderSeaStackBottomOnly, renderSeaStackUnderwaterSilhouette, renderSeaStackShadowsOverlay } from '../utils/renderers/seaStackRenderingUtils';
-import { renderBarrelUnderwaterSilhouette } from '../utils/renderers/barrelRenderingUtils';
+import { renderBarrelUnderwaterSilhouette, renderSeaBarrelWaterShadowOnly } from '../utils/renderers/barrelRenderingUtils';
 import { renderWaterPatches } from '../utils/renderers/waterPatchRenderingUtils';
 import { renderFertilizerPatches } from '../utils/renderers/fertilizerPatchRenderingUtils';
 import { renderFirePatches } from '../utils/renderers/firePatchRenderingUtils';
 import { renderPlacedExplosives, preloadExplosiveImages } from '../utils/renderers/explosiveRenderingUtils';
 import { drawUnderwaterShadowOnly } from '../utils/renderers/swimmingEffectsUtils';
+import { getTileTypeFromChunkData, worldPosToTileCoords } from '../utils/renderers/placementRenderingUtils';
 import { updateUnderwaterEffects, renderUnderwaterEffectsUnder, renderUnderwaterEffectsOver, renderUnderwaterVignette, clearUnderwaterEffects } from '../utils/renderers/underwaterEffectsUtils';
 import { renderWildAnimal, preloadWildAnimalImages, renderBurrowEffects, cleanupBurrowTracking, processWildAnimalsForBurrowEffects } from '../utils/renderers/wildAnimalRenderingUtils';
 import { renderAnimalCorpse, preloadAnimalCorpseImages } from '../utils/renderers/animalCorpseRenderingUtils';
@@ -931,6 +932,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     furnaces, // Add furnaces for darkness cutouts
     barbecues, // ADDED: Barbecues for night light cutouts
     roadLampposts: roadLampposts ?? new Map(), // ADDED: Aleutian whale oil lampposts for night light cutouts
+    barrels: barrels ?? new Map(), // ADDED: Barrels (buoys for night light cutouts)
     runeStones, // ADDED: RuneStones for night light cutouts
     firePatches, // ADDED: Fire patches for night light cutouts
     fumaroles, // ADDED: Fumaroles for heat glow at night
@@ -2826,6 +2828,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // Now players render OVER the rock, water gradient
 
+    // --- STEP 0.75: Render sea barrel/buoy water shadows (BEFORE swimming bottom halves so player renders on top) ---
+    const isOnSeaTileForBarrels = (worldX: number, worldY: number): boolean => {
+      if (!connection) return false;
+      const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
+      const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
+      return tileType === 'Sea';
+    };
+    visibleBarrels.forEach(barrel => {
+      renderSeaBarrelWaterShadowOnly(ctx, barrel, now_ms, currentCycleProgress, isOnSeaTileForBarrels);
+    });
+    // --- END SEA BARREL WATER SHADOWS ---
+
     // --- STEP 1: Render ONLY swimming player bottom halves ---
     // Filter out swimming players and render them manually with exact same logic as renderYSortedEntities
     // EXCEPTION: Snorkeling players (local OR remote) should NOT be split - they render as full sprite
@@ -4685,6 +4699,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         cameraOffsetY: currentCameraOffsetY,
         cycleProgress: currentCycleProgress,
       });
+    });
+
+    // Buoy Night Lights - Red LED glow on navigational buoys (same "lights on" as road lamps)
+    visibleBarrelsMap.forEach((barrel: SpacetimeDBBarrel) => {
+      if ((barrel.variant ?? 0) === 6) {
+        renderBuoyLight({
+          ctx,
+          barrel,
+          cameraOffsetX: currentCameraOffsetX,
+          cameraOffsetY: currentCameraOffsetY,
+          cycleProgress: currentCycleProgress,
+        });
+      }
     });
 
     // Rune Stone Night Lights - Light cutouts handled by useDayNightCycle hook

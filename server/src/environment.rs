@@ -59,6 +59,7 @@ use crate::fumarole::fumarole as FumaroleTableTrait;
 use crate::basalt_column::basalt_column as BasaltColumnTableTrait;
 use crate::large_quarry as LargeQuarryTableTrait;
 use crate::reed_marsh as ReedMarshTableTrait;
+use crate::tide_pool as TidePoolTableTrait;
 use crate::coral::living_coral as LivingCoralTableTrait;
 // Monument table traits for cairn avoidance checks
 use crate::alk::alk_station as AlkStationTableTrait;
@@ -3953,6 +3954,11 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     let wolverines_spawned = spawn_wolverines_near_whale_bone_graveyard(ctx, &mut rng, &spawned_wild_animal_positions);
     log::info!("🦡 Spawned {} wolverines near whale bone graveyard", wolverines_spawned);
 
+    // --- Seed Crabs and Terns near Tide Pools ---
+    // Tide pools are coastal inlets - crabs and terns spawn here (focus on crabs, a few terns)
+    let (crabs_spawned, terns_at_pools) = spawn_crabs_and_terns_near_tide_pools(ctx, &mut rng, &spawned_wild_animal_positions);
+    log::info!("🦀 Spawned {} crabs and {} terns near tide pools", crabs_spawned, terns_at_pools);
+
     // --- Seed Grass --- OPTIMIZED: Simple noise-based spawning on Grass/Forest tiles
     // REVERTED from plains detection (too intensive) back to efficient random sampling
     log::info!("Seeding Grass (optimized - Grass/Forest tiles only)...");
@@ -5425,6 +5431,183 @@ fn spawn_terns_near_reed_marshes(
     }
     
     spawned_count
+}
+
+// =============================================================================
+// TIDE POOL CRAB AND TERN SPAWNING
+// =============================================================================
+
+/// Spawn crabs and terns near tide pool zones (coastal beach inlets)
+/// Tide pools focus on crabs (2-3 per pool) with a few terns (1 per pool)
+fn spawn_crabs_and_terns_near_tide_pools(
+    ctx: &ReducerContext,
+    rng: &mut StdRng,
+    existing_animal_positions: &[(f32, f32)],
+) -> (u32, u32) {
+    use crate::wild_animal_npc::core::{WildAnimal, AnimalSpecies, AnimalState, MovementPattern};
+    use crate::wild_animal_npc::wild_animal as WildAnimalTableTrait;
+    
+    let mut crabs_spawned = 0u32;
+    let mut terns_spawned = 0u32;
+    let current_time = ctx.timestamp;
+    
+    let pool_data: Vec<(f32, f32, f32)> = ctx.db.tide_pool()
+        .iter()
+        .map(|t| (t.world_x, t.world_y, t.radius_px))
+        .collect();
+    
+    if pool_data.is_empty() {
+        return (0, 0);
+    }
+    
+    let min_animal_dist_sq = 120.0 * 120.0;
+    
+    for (pool_x, pool_y, radius_px) in &pool_data {
+        // Spawn 2-3 crabs per tide pool (focus on crabs)
+        let crab_count = rng.gen_range(2..=3);
+        for _ in 0..crab_count {
+            let angle = rng.gen::<f32>() * std::f32::consts::PI * 2.0;
+            let distance = rng.gen_range(40.0..*radius_px * 0.9);
+            let spawn_x = pool_x + angle.cos() * distance;
+            let spawn_y = pool_y + angle.sin() * distance;
+            
+            if !is_position_on_beach_tile(ctx, spawn_x, spawn_y) {
+                continue;
+            }
+            
+            let too_close = existing_animal_positions.iter()
+                .any(|(ax, ay)| (spawn_x - ax).powi(2) + (spawn_y - ay).powi(2) < min_animal_dist_sq);
+            if too_close {
+                continue;
+            }
+            
+            let chunk_idx = calculate_chunk_index(spawn_x, spawn_y);
+            let crab = WildAnimal {
+                id: 0,
+                species: AnimalSpecies::BeachCrab,
+                pos_x: spawn_x,
+                pos_y: spawn_y,
+                direction_x: 1.0,
+                direction_y: 0.0,
+                facing_direction: "down".to_string(),
+                state: AnimalState::Grounded,
+                health: 60.0, // BeachCrab max health
+                spawn_x,
+                spawn_y,
+                target_player_id: None,
+                last_attack_time: None,
+                state_change_time: current_time,
+                hide_until: None,
+                investigation_x: None,
+                investigation_y: None,
+                patrol_phase: rng.gen::<f32>(),
+                scent_ping_timer: 0,
+                movement_pattern: MovementPattern::Wander,
+                chunk_index: chunk_idx,
+                created_at: current_time,
+                last_hit_time: None,
+                pack_id: None,
+                is_pack_leader: false,
+                pack_join_time: None,
+                last_pack_check: None,
+                fire_fear_overridden_by: None,
+                tamed_by: None,
+                tamed_at: None,
+                heart_effect_until: None,
+                crying_effect_until: None,
+                last_food_check: None,
+                held_item_name: None,
+                held_item_quantity: None,
+                flying_target_x: None,
+                flying_target_y: None,
+                is_flying: false,
+                is_hostile_npc: false,
+                target_structure_id: None,
+                target_structure_type: None,
+                stalk_angle: 0.0,
+                stalk_distance: 0.0,
+                despawn_at: None,
+                shock_active_until: None,
+                last_shock_time: None,
+            };
+            
+            if ctx.db.wild_animal().try_insert(crab).is_ok() {
+                crabs_spawned += 1;
+            }
+        }
+        
+        // Spawn 1 tern per tide pool (a few terns)
+        let angle = rng.gen::<f32>() * std::f32::consts::PI * 2.0;
+        let distance = rng.gen_range(50.0..*radius_px * 0.95);
+        let spawn_x = pool_x + angle.cos() * distance;
+        let spawn_y = pool_y + angle.sin() * distance;
+        
+        if !is_position_on_beach_tile(ctx, spawn_x, spawn_y) {
+            continue;
+        }
+        
+        let too_close = existing_animal_positions.iter()
+            .any(|(ax, ay)| (spawn_x - ax).powi(2) + (spawn_y - ay).powi(2) < min_animal_dist_sq);
+        if too_close {
+            continue;
+        }
+        
+        let chunk_idx = calculate_chunk_index(spawn_x, spawn_y);
+        let tern = WildAnimal {
+            id: 0,
+            species: AnimalSpecies::Tern,
+            pos_x: spawn_x,
+            pos_y: spawn_y,
+            direction_x: 1.0,
+            direction_y: 0.0,
+            facing_direction: "down".to_string(),
+            state: AnimalState::Grounded,
+            health: 80.0, // Tern max health
+            spawn_x,
+            spawn_y,
+            target_player_id: None,
+            last_attack_time: None,
+            state_change_time: current_time,
+            hide_until: None,
+            investigation_x: None,
+            investigation_y: None,
+            patrol_phase: rng.gen::<f32>(),
+            scent_ping_timer: 0,
+            movement_pattern: MovementPattern::Wander,
+            chunk_index: chunk_idx,
+            created_at: current_time,
+            last_hit_time: None,
+            pack_id: None,
+            is_pack_leader: false,
+            pack_join_time: None,
+            last_pack_check: None,
+            fire_fear_overridden_by: None,
+            tamed_by: None,
+            tamed_at: None,
+            heart_effect_until: None,
+            crying_effect_until: None,
+            last_food_check: None,
+            held_item_name: None,
+            held_item_quantity: None,
+            flying_target_x: None,
+            flying_target_y: None,
+            is_flying: false,
+            is_hostile_npc: false,
+            target_structure_id: None,
+            target_structure_type: None,
+            stalk_angle: 0.0,
+            stalk_distance: 0.0,
+            despawn_at: None,
+            shock_active_until: None,
+            last_shock_time: None,
+        };
+        
+        if ctx.db.wild_animal().try_insert(tern).is_ok() {
+            terns_spawned += 1;
+        }
+    }
+    
+    (crabs_spawned, terns_spawned)
 }
 
 // =============================================================================

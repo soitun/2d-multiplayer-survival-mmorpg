@@ -1586,9 +1586,8 @@ export const renderYSortedEntities = ({
               return tileType === 'Sea';
           };
           
-          // Render barrel using imported function with sea tile check
-          // Pass player position for health bar positioning (shows on opposite side from player)
-          renderBarrel(ctx, barrel, nowMs, cycleProgress, isOnSeaTile, localPlayerPosition?.x, localPlayerPosition?.y);
+          // Render barrel - skip water shadow (drawn in early pass so swimming player bottom half renders on top)
+          renderBarrel(ctx, barrel, nowMs, cycleProgress, isOnSeaTile, localPlayerPosition?.x, localPlayerPosition?.y, true);
           
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {

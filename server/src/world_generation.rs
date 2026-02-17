@@ -1,7 +1,7 @@
 use spacetimedb::{ReducerContext, Table, Timestamp, Identity};
 use noise::{NoiseFn, Perlin, Seedable};
 use log;
-use crate::{WorldTile, TileType, WorldGenConfig, MinimapCache, MonumentPart, MonumentType, LargeQuarry, LargeQuarryType, ReedMarsh, WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES};
+use crate::{WorldTile, TileType, WorldGenConfig, MinimapCache, MonumentPart, MonumentType, LargeQuarry, LargeQuarryType, ReedMarsh, TidePool, WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES};
 
 // Import the table trait
 use crate::world_tile as WorldTileTableTrait;
@@ -10,6 +10,7 @@ use crate::world_chunk_data as WorldChunkDataTableTrait;
 use crate::monument_part as MonumentPartTableTrait;
 use crate::large_quarry as LargeQuarryTableTrait;
 use crate::reed_marsh as ReedMarshTableTrait;
+use crate::tide_pool as TidePoolTableTrait;
 
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
@@ -48,6 +49,17 @@ const REED_MARSH_RADIUS_PX: f32 = 250.0; // ~5 tiles radius - smaller for denser
 const MIN_REED_MARSH_DISTANCE: f32 = 350.0; // Allow marshes to cluster organically
 /// Minimum distance for same-waterway marshes (even closer for river chains)
 const MIN_REED_MARSH_CHAIN_DISTANCE: f32 = 200.0;
+
+// --- Tide Pool Constants ---
+/// Base count for 600x600 map - coastal inlets on ocean beaches
+const TIDE_POOL_BASE_COUNT: u32 = 8;
+/// Radius of tide pool zone in pixels (building restriction area)
+const TIDE_POOL_RADIUS_PX: f32 = 200.0;
+/// Minimum distance between tide pools in pixels
+const MIN_TIDE_POOL_DISTANCE: f32 = 400.0;
+/// Beach tile range for tide pools (shore_distance 0-15 = ocean beach, NOT river/lake)
+const TIDE_POOL_MIN_SHORE_DIST: f64 = 1.0;   // At least 1 tile from water (on beach)
+const TIDE_POOL_MAX_SHORE_DIST: f64 = 15.0;  // At most 15 tiles inland (beach zone)
 
 #[spacetimedb::reducer]
 pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<(), String> {
@@ -534,6 +546,25 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
         }
     }
     
+    // Store tide pool positions in database for building restrictions and resource spawning
+    for (world_x, world_y) in &world_features.tide_pool_centers {
+        ctx.db.tide_pool().insert(TidePool {
+            id: 0, // auto_inc
+            world_x: *world_x,
+            world_y: *world_y,
+            radius_px: TIDE_POOL_RADIUS_PX,
+        });
+    }
+    
+    if !world_features.tide_pool_centers.is_empty() {
+        log::info!("🦀 Stored {} tide pool locations in database", world_features.tide_pool_centers.len());
+        
+        // Spawn resources in tide pools (reeds, crabs, terns, coral fragments, plastic water jug, vitamin drink)
+        if let Err(e) = crate::monument::spawn_tide_pool_resources(ctx) {
+            log::warn!("Failed to spawn tide pool resources: {}", e);
+        }
+    }
+    
     // Sea stacks will be generated in environment.rs alongside trees and stones
     
     log::info!("World generation complete!");
@@ -577,6 +608,7 @@ struct WorldFeatures {
     wolf_den_parts: Vec<(f32, f32, String, String)>, // Wolf den parts (x, y, image_path, part_type) in world pixels
     coral_reef_zones: Vec<Vec<bool>>, // Coral reef zones (deep sea areas for living coral)
     reed_marsh_centers: Vec<(f32, f32)>, // Reed marsh center positions (x, y) in world pixels
+    tide_pool_centers: Vec<(f32, f32)>, // Tide pool center positions (x, y) - coastal beach inlets only
     fishing_village_roads: Vec<Vec<bool>>, // Dirt road tiles in fishing village (for lampposts)
     hunting_village_roads: Vec<Vec<bool>>, // Dirt road tiles in hunting village (ring + spur - paths leading to center)
     hunting_village_center_dirt: Vec<Vec<bool>>, // Center plaza dirt (campfire, houses) - distinct from dirt road
@@ -703,6 +735,9 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     // Generate reed marsh centers (wide river sections for tern hunting and reed collection)
     let reed_marsh_centers = generate_reed_marsh_centers(config, noise, &river_network, &lake_map, &shore_distance, width, height);
     
+    // Generate tide pool centers (coastal beach inlets - crabs, terns, reeds, washed-up items)
+    let tide_pool_centers = generate_tide_pool_centers(config, noise, &river_network, &lake_map, &shore_distance, width, height);
+    
     // Generate village dirt roads (fishing + hunting) - for lampposts and village atmosphere
     // Hunting village: center dirt (plaza) + farm dirt (crops) + roads (paths leading to center)
     let (fishing_village_roads, hunting_village_roads, hunting_village_center_dirt, hunting_village_farm_dirt) =
@@ -754,6 +789,7 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         wolf_den_parts,
         coral_reef_zones,
         reed_marsh_centers,
+        tide_pool_centers,
         fishing_village_roads,
         hunting_village_roads,
         hunting_village_center_dirt,
@@ -3102,6 +3138,109 @@ fn generate_reed_marsh_centers(
     log::info!("🌾 Generated {} organic reed marsh zones ({} along rivers, {} around lakes)", 
                marsh_centers.len(), river_marshes, lake_marshes);
     marsh_centers
+}
+
+/// Generate tide pool centers on coastal ocean beaches (never inland rivers/lakes)
+/// Tide pools are small inlets where crabs, terns, reeds, and washed-up debris spawn
+fn generate_tide_pool_centers(
+    config: &WorldGenConfig,
+    noise: &Perlin,
+    river_network: &[Vec<bool>],
+    lake_map: &[Vec<bool>],
+    shore_distance: &[Vec<f64>],
+    width: usize,
+    height: usize,
+) -> Vec<(f32, f32)> {
+    let mut tide_pool_centers: Vec<(f32, f32)> = Vec::new();
+    
+    let map_area_tiles = (width * height) as f32;
+    let base_area_tiles = 360_000.0;
+    let scale_factor = (map_area_tiles / base_area_tiles).sqrt();
+    
+    let target_count = ((TIDE_POOL_BASE_COUNT as f32) * scale_factor.powf(0.9))
+        .round()
+        .max(4.0) as usize;
+    
+    log::info!("🦀 Generating tide pool distribution on coastal beaches (target: {}, scale: {:.2}x)", target_count, scale_factor);
+    
+    let scan_step = 6;
+    let check_radius = 4;
+    let mut candidates: Vec<(f32, f32, f64, f64)> = Vec::new(); // (world_x, world_y, shore_dist, noise_score)
+    
+    for scan_y in (check_radius..height.saturating_sub(check_radius)).step_by(scan_step) {
+        for scan_x in (check_radius..width.saturating_sub(check_radius)).step_by(scan_step) {
+            let shore_dist = shore_distance[scan_y][scan_x];
+            let is_river = river_network[scan_y][scan_x];
+            let is_lake = lake_map[scan_y][scan_x];
+            
+            // CRITICAL: Must be on OCEAN beach - NOT river or lake
+            if is_river || is_lake {
+                continue;
+            }
+            
+            // Must be in beach zone (0-15 tiles from ocean shore)
+            if shore_dist < TIDE_POOL_MIN_SHORE_DIST || shore_dist > TIDE_POOL_MAX_SHORE_DIST {
+                continue;
+            }
+            
+            // Verify adjacent to ocean (at least one neighbor has negative shore_distance = water)
+            let mut adjacent_to_ocean = false;
+            for dy in -1..=1i32 {
+                for dx in -1..=1i32 {
+                    if dx == 0 && dy == 0 { continue; }
+                    let check_x = (scan_x as i32 + dx) as usize;
+                    let check_y = (scan_y as i32 + dy) as usize;
+                    if check_x < width && check_y < height {
+                        let neighbor_shore = shore_distance[check_y][check_x];
+                        if neighbor_shore < 0.0 && !river_network[check_y][check_x] && !lake_map[check_y][check_x] {
+                            adjacent_to_ocean = true;
+                            break;
+                        }
+                    }
+                }
+                if adjacent_to_ocean { break; }
+            }
+            
+            if !adjacent_to_ocean {
+                continue;
+            }
+            
+            let world_x_px = (scan_x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+            let world_y_px = (scan_y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+            let noise_val = noise.get([scan_x as f64 * 0.015, scan_y as f64 * 0.015, 88.0]) as f64;
+            let noise_score = (noise_val + 1.0) * 0.5;
+            
+            candidates.push((world_x_px, world_y_px, shore_dist, noise_score));
+        }
+    }
+    
+    candidates.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
+    
+    let min_dist_sq = MIN_TIDE_POOL_DISTANCE * MIN_TIDE_POOL_DISTANCE;
+    
+    for (world_x, world_y, _shore_dist, _noise) in candidates {
+        if tide_pool_centers.len() >= target_count {
+            break;
+        }
+        
+        let mut too_close = false;
+        for &(px, py) in &tide_pool_centers {
+            let dx = world_x - px;
+            let dy = world_y - py;
+            if dx * dx + dy * dy < min_dist_sq {
+                too_close = true;
+                break;
+            }
+        }
+        
+        if !too_close {
+            tide_pool_centers.push((world_x, world_y));
+            log::info!("🦀 Tide Pool #{}: ({:.0}, {:.0})", tide_pool_centers.len(), world_x, world_y);
+        }
+    }
+    
+    log::info!("🦀 Generated {} tide pool zones on coastal beaches", tide_pool_centers.len());
+    tide_pool_centers
 }
 
 fn generate_chunk(

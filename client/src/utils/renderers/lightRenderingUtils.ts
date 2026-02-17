@@ -1,8 +1,9 @@
-import { Player as SpacetimeDBPlayer, ItemDefinition as SpacetimeDBItemDefinition, ActiveEquipment as SpacetimeDBActiveEquipment, Lantern as SpacetimeDBLantern, Furnace as SpacetimeDBFurnace, Campfire as SpacetimeDBCampfire, Barbecue as SpacetimeDBBarbecue, RoadLamppost as SpacetimeDBRoadLamppost } from '../../generated';
+import { Player as SpacetimeDBPlayer, ItemDefinition as SpacetimeDBItemDefinition, ActiveEquipment as SpacetimeDBActiveEquipment, Lantern as SpacetimeDBLantern, Furnace as SpacetimeDBFurnace, Campfire as SpacetimeDBCampfire, Barbecue as SpacetimeDBBarbecue, RoadLamppost as SpacetimeDBRoadLamppost, Barrel as SpacetimeDBBarrel } from '../../generated';
 
 // Import rendering constants
 import { CAMPFIRE_RENDER_Y_OFFSET, CAMPFIRE_HEIGHT } from '../renderers/campfireRenderingUtils';
 import { ROAD_LAMP_LIGHT_Y_OFFSET, ROAD_LAMP_LIGHT_RADIUS_BASE } from '../renderers/roadLamppostRenderingUtils';
+import { BUOY_HEIGHT } from '../renderers/barrelRenderingUtils';
 import { isNightTime } from '../../config/dayNightConstants';
 import { LANTERN_RENDER_Y_OFFSET, LANTERN_HEIGHT, LANTERN_TYPE_LANTERN } from '../renderers/lanternRenderingUtils';
 import { FURNACE_RENDER_Y_OFFSET, FURNACE_HEIGHT, getFurnaceDimensions, FURNACE_TYPE_LARGE } from '../renderers/furnaceRenderingUtils';
@@ -963,6 +964,81 @@ export const renderRoadLamppostLight = ({
     coreGradient.addColorStop(0.3, 'rgba(235, 205, 155, 0.18)');
     coreGradient.addColorStop(0.6, 'rgba(220, 180, 125, 0.12)');
     coreGradient.addColorStop(1, 'rgba(205, 155, 95, 0)');
+    ctx.fillStyle = coreGradient;
+    ctx.beginPath();
+    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
+    ctx.fill();
+};
+
+// --- Buoy (Barrel variant 6) Night Light - Red LED glow (same "lights on" as road lamps) ---
+const BUOY_VARIANT = 6;
+const BUOY_Y_OFFSET = 28; // From barrelRenderingUtils calculateDrawPosition
+const BUOY_LIGHT_Y_OFFSET = -(BUOY_HEIGHT + BUOY_Y_OFFSET) + BUOY_HEIGHT * 0.12 + 20; // LED at ~12% from top, dropped 20px to align with pic
+export const BUOY_LIGHT_RADIUS_BASE = ROAD_LAMP_LIGHT_RADIUS_BASE * 0.5; // Subtle red glow
+
+interface RenderBuoyLightProps {
+    ctx: CanvasRenderingContext2D;
+    barrel: SpacetimeDBBarrel;
+    cameraOffsetX: number;
+    cameraOffsetY: number;
+    cycleProgress: number;
+}
+
+export const renderBuoyLight = ({
+    ctx,
+    barrel,
+    cameraOffsetX,
+    cameraOffsetY,
+    cycleProgress,
+}: RenderBuoyLightProps) => {
+    const variantIndex = Number(barrel.variant ?? 0);
+    if (variantIndex !== BUOY_VARIANT || !isNightTime(cycleProgress)) return;
+    if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) return;
+
+    const lightCenterX = barrel.posX;
+    const lightCenterY = barrel.posY + BUOY_LIGHT_Y_OFFSET;
+
+    const lightScreenX = lightCenterX + cameraOffsetX;
+    const lightScreenY = lightCenterY + cameraOffsetY;
+    const baseFlicker = (Math.random() - 0.5) * 2 * ROAD_LAMP_FLICKER_AMOUNT * 0.5; // Very stable red LED
+
+    const lampX = lightScreenX + (Math.random() - 0.5) * baseFlicker * 0.2;
+    const lampY = lightScreenY + (Math.random() - 0.5) * baseFlicker * 0.1;
+
+    const BUOY_SCALE = 0.7; // Subtle glow for navigational marker
+
+    // Layer 1: Ambient glow (red LED - subtle)
+    const ambientRadius = Math.max(0, BUOY_LIGHT_RADIUS_BASE * 3.5 * BUOY_SCALE + baseFlicker * 0.1);
+    const ambientGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, ambientRadius);
+    ambientGradient.addColorStop(0, 'rgba(255, 80, 80, 0.05)');
+    ambientGradient.addColorStop(0.2, 'rgba(220, 50, 50, 0.04)');
+    ambientGradient.addColorStop(0.6, 'rgba(180, 30, 30, 0.02)');
+    ambientGradient.addColorStop(1, 'rgba(140, 20, 20, 0)');
+    ctx.fillStyle = ambientGradient;
+    ctx.beginPath();
+    ctx.arc(lampX, lampY, ambientRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Layer 2: Main illumination (red LED warmth)
+    const mainRadius = Math.max(0, BUOY_LIGHT_RADIUS_BASE * 2.2 * BUOY_SCALE + baseFlicker * 0.3);
+    const mainGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, mainRadius);
+    mainGradient.addColorStop(0, 'rgba(255, 90, 90, 0.14)');
+    mainGradient.addColorStop(0.2, 'rgba(240, 60, 60, 0.11)');
+    mainGradient.addColorStop(0.5, 'rgba(200, 40, 40, 0.07)');
+    mainGradient.addColorStop(0.8, 'rgba(160, 30, 30, 0.03)');
+    mainGradient.addColorStop(1, 'rgba(120, 20, 20, 0)');
+    ctx.fillStyle = mainGradient;
+    ctx.beginPath();
+    ctx.arc(lampX, lampY, mainRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Layer 3: Core bright light (red LED center)
+    const coreRadius = Math.max(0, BUOY_LIGHT_RADIUS_BASE * 0.9 * BUOY_SCALE + baseFlicker * 0.8);
+    const coreGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, coreRadius);
+    coreGradient.addColorStop(0, 'rgba(255, 100, 100, 0.20)');
+    coreGradient.addColorStop(0.3, 'rgba(240, 70, 70, 0.16)');
+    coreGradient.addColorStop(0.6, 'rgba(200, 50, 50, 0.10)');
+    coreGradient.addColorStop(1, 'rgba(160, 30, 30, 0)');
     ctx.fillStyle = coreGradient;
     ctx.beginPath();
     ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
