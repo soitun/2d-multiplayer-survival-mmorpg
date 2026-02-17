@@ -1,18 +1,19 @@
 import { TILE_SIZE } from '../../config/gameConfig';
+import {
+  initWaterOverlayWebGL,
+  renderWaterOverlayWebGL,
+  clearWaterOverlayWebGL,
+  setWaterOverlayContextLostCallback,
+} from './waterOverlayWebGL';
 
 /**
  * Water Overlay Rendering Utilities
  *
- * 4-cell voronoi noise shader with sine-wave cell animation, caustic
- * interference, and per-tile shoreline feathering.  Computed at 1/4
- * resolution and bilinear-scaled for smooth output.
+ * GPU path: WebGL renders voronoi/caustics/ripple for the entire viewport,
+ * then a cheap CPU-built alpha mask (grid + feathering) is composited via
+ * 2D-canvas 'source-in' to restrict the pattern to water tiles.
  *
- * Performance budget (1080p, 50 % water): ~5 ms
- *   • 4-cell voronoi (vs 9-cell): 2.25× fewer hash/sin lookups
- *   • Squared-distance edge detection: no sqrt
- *   • 1 hash + 1 fsin per cell (correlated XY drift): halved vs 2+2
- *   • Per-row UV distortion pre-computation
- *   • Bilinear upscale: GPU-free smooth edges at 1/4 pixel count
+ * CPU fallback: full per-pixel loop with inline voronoi when WebGL unavailable.
  */
 
 // ============================================================================
@@ -23,11 +24,11 @@ const TWO_PI = 6.283185307179586;
 const PX = 4; // shader texel size — bilinear-scaled up
 
 // --- Voronoi ---
-const VS  = 0.013;   // cell scale (smaller → bigger cells)
-const VA  = 0.55;    // cell animation speed
-const VW  = 0.35;    // cell wander radius
-const VE  = 0.08;    // edge threshold (squared-distance space)
-const VCS = 0.35;    // cell shade range (squared-distance space)
+const VS  = 0.013;
+const VA  = 0.55;
+const VW  = 0.35;
+const VE  = 0.08;
+const VCS = 0.35;
 
 // --- Caustic sine-interference ---
 const CA1X = 0.031; const CA1Y = 0.013; const CA1S = 1.40;
@@ -41,10 +42,10 @@ const DFY = 0.014; const DSY = 1.20; const DAY = 2.5;
 const RFX = 0.042; const RFY = 0.016; const RS = 2.00;
 
 // --- Layer weights ---
-const WCR = 0.55;  // crest edges
-const WCA = 0.28;  // caustics
-const WRI = 0.16;  // ripple
-const WCS = 0.06;  // cell interior shading
+const WCR = 0.55;
+const WCA = 0.28;
+const WRI = 0.16;
+const WCS = 0.06;
 
 // --- Output ---
 const BR = 225; const RR = 30;
@@ -113,7 +114,7 @@ function rebuildSet(wt: Map<string, any>): void {
 }
 
 // ============================================================================
-// OFFSCREEN CANVAS
+// OFFSCREEN CANVAS (CPU fallback)
 // ============================================================================
 
 let _oc: HTMLCanvasElement | null = null;
@@ -122,15 +123,38 @@ let _oi: ImageData | null = null;
 let _op: Uint8ClampedArray | null = null;
 let _bw = 0, _bh = 0;
 
-// Throttle: update shader at ~30fps, reuse cached frame on skipped frames (no visual downgrade)
 const WATER_OVERLAY_THROTTLE_MS = 34;
 let _lastRenderTime = 0;
 let _lastRenderCw = 0;
 let _lastRenderCh = 0;
 
+// ============================================================================
+// WEBGL PATH: compositing canvases
+// ============================================================================
+
+let _webglCtx: ReturnType<typeof initWaterOverlayWebGL> | undefined = undefined;
+
+// Compositing canvas: receives WebGL output then gets masked via 'source-in'
+let _glCompCanvas: HTMLCanvasElement | null = null;
+let _glCompCtx: CanvasRenderingContext2D | null = null;
+let _glMaskData: ImageData | null = null;
+let _glCompW = 0;
+let _glCompH = 0;
+
+function ensureGlComp(w: number, h: number): void {
+  if (_glCompCanvas && _glCompW === w && _glCompH === h) return;
+  if (_glCompCanvas) { _glCompCanvas.width = 0; _glCompCanvas.height = 0; }
+  _glCompCanvas = document.createElement('canvas');
+  _glCompCanvas.width = w;
+  _glCompCanvas.height = h;
+  _glCompCtx = _glCompCanvas.getContext('2d')!;
+  _glMaskData = new ImageData(w, h);
+  _glCompW = w;
+  _glCompH = h;
+}
+
 function ensureBuf(w: number, h: number): void {
   if (_oc && _bw === w && _bh === h) return;
-  // Release GPU memory from old canvas before creating new one
   if (_oc) { _oc.width = 0; _oc.height = 0; }
   _oc = document.createElement('canvas');
   _oc.width = w; _oc.height = h;
@@ -144,7 +168,7 @@ function ensureBuf(w: number, h: number): void {
 // TILE GRID  (0 = land, TG_I = interior water, bits 0-3 = water edge adjacency)
 // ============================================================================
 
-const TG_I = 0x80;       // interior water
+const TG_I = 0x80;
 let _tg: Uint8Array | null = null;
 let _tC = 0, _tMx = 0, _tMy = 0, _tRw = 0;
 
@@ -179,13 +203,72 @@ function buildGrid(wt: Map<string, any>, ox: number, oy: number, vw: number, vh:
 }
 
 // ============================================================================
+// WATER MASK BUILDER  (cheap — grid lookup + feathering only, no voronoi)
+// ============================================================================
+
+/**
+ * Fills maskPx with an alpha-only mask at PX resolution.
+ * Returns true if any water pixel was found.
+ */
+function buildWaterMask(
+  maskPx: Uint8ClampedArray,
+  bw: number, bh: number,
+  camX: number, camY: number,
+  grid: Uint8Array, gC: number, gMx: number, gMy: number,
+): boolean {
+  const ts = TILE_SIZE;
+  const invTS = 1.0 / ts;
+  let hasWater = false;
+
+  for (let py = 0; py < bh; py++) {
+    const wy = camY + py * PX;
+    const tileRowY = Math.floor(wy * invTS);
+    const gridRowO = (tileRowY - gMy) * gC;
+    const lyBase   = wy - tileRowY * ts;
+
+    for (let px = 0; px < bw; px++) {
+      const wx = camX + px * PX;
+      const idx = (py * bw + px) << 2;
+
+      const tileColX = Math.floor(wx * invTS);
+      const gc = tileColX - gMx;
+      const v = grid[gridRowO + gc];
+
+      if (v === 0) {
+        maskPx[idx] = 0; maskPx[idx + 1] = 0; maskPx[idx + 2] = 0; maskPx[idx + 3] = 0;
+        continue;
+      }
+
+      hasWater = true;
+      let feather = 1.0;
+      const edgeFlags = v & 15;
+
+      if (edgeFlags !== 0) {
+        const lx = wx - tileColX * ts;
+        const ly = lyBase;
+        if (edgeFlags & 1) { const d = lx * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
+        if (edgeFlags & 2) { const d = (ts - lx) * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
+        if (edgeFlags & 4) { const d = ly * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
+        if (edgeFlags & 8) { const d = (ts - ly) * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
+      }
+
+      // RGB = white (irrelevant for source-in, only alpha matters), A = feathered alpha
+      maskPx[idx] = 255; maskPx[idx + 1] = 255; maskPx[idx + 2] = 255;
+      maskPx[idx + 3] = feather * 255 + 0.5 | 0;
+    }
+  }
+
+  return hasWater;
+}
+
+// ============================================================================
 // INTENSITY
 // ============================================================================
 
 let _int = 1.0;
 
 // ============================================================================
-// MAIN SHADER
+// MAIN RENDER
 // ============================================================================
 
 function renderShader(
@@ -195,6 +278,71 @@ function renderShader(
   tMs: number,
   wt: Map<string, any>,
 ): void {
+  if (cw <= 0 || ch <= 0) return;
+
+  // --- WebGL (GPU) path ---
+  if (_webglCtx === undefined) {
+    setWaterOverlayContextLostCallback(() => { _webglCtx = undefined; });
+    _webglCtx = initWaterOverlayWebGL();
+    if (_webglCtx) {
+      console.log('[WaterOverlay] Using WebGL (GPU) path');
+    } else {
+      console.log('[WaterOverlay] WebGL unavailable, using CPU fallback');
+      setWaterOverlayContextLostCallback(null);
+    }
+  }
+
+  if (_webglCtx) {
+    buildGrid(wt, camX, camY, cw, ch);
+    const grid = _tg!;
+    if (grid.length === 0) return;
+
+    // 1. GPU: render voronoi + caustics + ripple for entire viewport
+    const ok = renderWaterOverlayWebGL(
+      _webglCtx,
+      camX, camY, cw, ch,
+      tMs, _int,
+    );
+    if (!ok) {
+      _webglCtx = undefined;
+      clearWaterOverlayWebGL();
+      // fall through to CPU path
+    } else {
+      // 2. CPU: build water alpha mask (cheap — grid lookup + feathering only)
+      const bw = Math.ceil(cw / PX);
+      const bh = Math.ceil(ch / PX);
+      ensureGlComp(bw, bh);
+
+      const hasWater = buildWaterMask(
+        _glMaskData!.data, bw, bh,
+        camX, camY,
+        grid, _tC, _tMx, _tMy,
+      );
+      if (!hasWater) return;
+
+      // 3. Composite: put mask on comp canvas, then draw voronoi through it
+      const cctx = _glCompCtx!;
+      cctx.globalCompositeOperation = 'source-over';
+      cctx.clearRect(0, 0, bw, bh);
+      // Put mask pixels directly (putImageData ignores composite/transform state)
+      cctx.putImageData(_glMaskData!, 0, 0);
+      // Draw voronoi, keeping only where mask alpha > 0
+      cctx.globalCompositeOperation = 'source-in';
+      cctx.drawImage(_webglCtx.canvas, 0, 0, _webglCtx.canvas.width, _webglCtx.canvas.height, 0, 0, bw, bh);
+      cctx.globalCompositeOperation = 'source-over';
+
+      // 4. Draw composited result onto main canvas (scale up from PX resolution)
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'low';
+      ctx.drawImage(_glCompCanvas!, 0, 0, bw, bh, 0, 0, cw, ch);
+      ctx.restore();
+      return;
+    }
+  }
+
+  // --- CPU fallback ---
   const bw = Math.ceil(cw / PX), bh = Math.ceil(ch / PX);
   if (bw <= 0 || bh <= 0) return;
   ensureBuf(bw, bh);
@@ -219,7 +367,6 @@ function renderShader(
   const ts = TILE_SIZE;
   const invTS = 1.0 / ts;
 
-  // Frame-constant time products
   const tAnim = t * VA;
   const tCa1 = t * CA1S, tCa2 = t * CA2S;
   const tDX = t * DSX, tDY = t * DSY;
@@ -232,17 +379,15 @@ function renderShader(
     const wy = camY + py * PX;
     const rowOff = py * bw;
 
-    // ---- Per-row pre-computation ----
     const tileRowY  = Math.floor(wy * invTS);
     const gridRowO  = (tileRowY - gMy) * gC;
     const lyBase    = wy - tileRowY * ts;
-    const distRowX  = fsin(wy * DFX + tDX) * DAX;  // UV distort X
+    const distRowX  = fsin(wy * DFX + tDX) * DAX;
 
     for (let ppx = 0; ppx < bw; ppx++) {
       const wx  = camX + ppx * PX;
       const idx = (rowOff + ppx) << 2;
 
-      // ---- Tile grid (inlined) ----
       const tileColX = Math.floor(wx * invTS);
       const gc = tileColX - gMx;
       const v  = grid[gridRowO + gc];
@@ -252,14 +397,12 @@ function renderShader(
         continue;
       }
 
-      // ---- Feather ----
       const lx = wx - tileColX * ts;
       const ly = lyBase;
       let feather = 1.0;
       const edgeFlags = v & 15;
 
       if (edgeFlags !== 0) {
-        // Water tile at shore: fade at water/land edge
         if (edgeFlags & 1) { const d = lx * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
         if (edgeFlags & 2) { const d = (ts - lx) * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
         if (edgeFlags & 4) { const d = ly * INV_F; if (d < 1) feather *= d * d * (3 - 2 * d); }
@@ -271,16 +414,13 @@ function renderShader(
         continue;
       }
 
-      // ---- UV distortion ----
       const dX = wx + distRowX;
       const dY = wy + fsin(wx * DFY + tDY) * DAY;
 
-      // ---- 4-cell voronoi (squared distances, no sqrt) ----
       const sx = dX * VS, sy = dY * VS;
       const ix = Math.floor(sx), iy = Math.floor(sy);
       const fx = sx - ix, fy = sy - iy;
 
-      // Pick the 2×2 block closest to the point
       const i0 = fx < 0.5 ? -1 : 0;
       const j0 = fy < 0.5 ? -1 : 0;
 
@@ -291,7 +431,6 @@ function renderShader(
         for (let ci = i0; ci <= i0 + 1; ci++) {
           const ncx = ix + ci;
 
-          // Single hash → derive X & Y offsets + animation phase
           const h  = jh((ncx * 1597 + ncy * 51749) | 0);
           const hy = (h * 7.931) % 1.0;
           const drift = fsin(tAnim + h * TWO_PI) * VW;
@@ -307,24 +446,18 @@ function renderShader(
         }
       }
 
-      // Crest: bright lines at cell edges (squared-distance space)
       const crest    = 1.0 - sst(0.0, VE, d2sq - d1sq);
-      // Cell shade: subtle depth within cells
       const cellShade = sst(0.0, VCS, d1sq);
 
-      // ---- Caustics (2-fsin interference) ----
       const caustic = sst(0.3, 0.7,
         fsin(wx * CA1X + wy * CA1Y + tCa1) *
         fsin(wx * CA2X - wy * CA2Y + tCa2) + 0.5);
 
-      // ---- Ripple band ----
       const ripple = sst(0.83, 1.0,
         fsin(wx * RFX + wy * RFY + tR) * 0.5 + 0.5);
 
-      // ---- Combine ----
       const bright = crest * WCR + caustic * WCA + ripple * WRI + cellShade * WCS;
 
-      // ---- Write RGBA ----
       const a = (BA + bright * RA) * intA * feather;
       px[idx]     = BR + bright * RR;
       px[idx + 1] = BG + bright * RG;
@@ -369,6 +502,10 @@ export function clearWaterOverlay(): void {
   _lastRenderTime = 0;
   _lastRenderCw = 0;
   _lastRenderCh = 0;
+  _glCompCanvas = null; _glCompCtx = null; _glMaskData = null; _glCompW = 0; _glCompH = 0;
+  _webglCtx = undefined;
+  setWaterOverlayContextLostCallback(null);
+  clearWaterOverlayWebGL();
 }
 export function getWaterLineCount(): number { return _bw * _bh; }
 export function getWaterSparkleCount(): number { return 0; }

@@ -539,11 +539,6 @@ export function renderSeaStackBottomOnly(
 // Offscreen canvas for sea stack shadow compositing (reused to avoid allocation)
 let seaStackShadowCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
 let seaStackShadowCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
-// Throttle: update at ~30fps to reduce cost when swimming (shadows are soft - imperceptible)
-const SEA_STACK_SHADOW_THROTTLE_MS = 34;
-let _lastSeaStackShadowTime = 0;
-let _lastSeaStackShadowCw = 0;
-let _lastSeaStackShadowCh = 0;
 
 function getSeaStackShadowCanvas(width: number, height: number): { canvas: OffscreenCanvas | HTMLCanvasElement, ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } | null {
   if (!seaStackShadowCanvas || seaStackShadowCanvas.width !== width || seaStackShadowCanvas.height !== height) {
@@ -579,10 +574,13 @@ function getSeaStackImageIndex(seaStack: any): number {
  * Uses an offscreen canvas to composite shadows with sea stack body cutouts,
  * so shadows appear on players/ground but NOT on the sea stack rock itself.
  * 
- * This is the same approach used by tree canopy shadow overlays:
- * 1. Draw all shadows to offscreen canvas
- * 2. Cut out sea stack body regions (destination-out)
- * 3. Composite onto main canvas
+ * Y-sorting: Sea stacks are drawn back-to-front (lowest posY first) so that
+ * when stacks overlap, the front stack's shadow correctly appears on top.
+ * 
+ * 1. Y-sort sea stacks by posY ascending (back to front)
+ * 2. Draw all shadows to offscreen canvas in Y order
+ * 3. Cut out sea stack body regions (destination-out)
+ * 4. Composite onto main canvas
  */
 export function renderSeaStackShadowsOverlay(
   ctx: CanvasRenderingContext2D,
@@ -596,23 +594,15 @@ export function renderSeaStackShadowsOverlay(
 
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
-  const now = performance.now();
-  const canSkip = seaStackShadowCanvas && seaStackShadowCtx &&
-    (now - _lastSeaStackShadowTime) < SEA_STACK_SHADOW_THROTTLE_MS &&
-    _lastSeaStackShadowCw === canvasWidth && _lastSeaStackShadowCh === canvasHeight;
 
-  if (canSkip) {
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(seaStackShadowCanvas!, 0, 0);
-    ctx.restore();
-    return;
-  }
+  // Y-sort sea stacks: back (lower Y) first, front (higher Y) last.
+  // This ensures overlapping shadows render correctly - front stack's shadow on top.
+  const ySortedStacks = [...seaStacks].sort((a, b) => (a.posY ?? 0) - (b.posY ?? 0));
 
   const offscreen = getSeaStackShadowCanvas(canvasWidth, canvasHeight);
   if (!offscreen) {
     // Fallback: render shadows directly (will show on sea stacks, but better than nothing)
-    seaStacks.forEach(seaStack => {
+    ySortedStacks.forEach(seaStack => {
       renderSeaStackShadowOnly(ctx, seaStack, doodadImages, cycleProgress);
     });
     return;
@@ -630,8 +620,8 @@ export function renderSeaStackShadowsOverlay(
   offCtx.save();
   offCtx.setTransform(ctx.getTransform());
 
-  // Step 1: Draw all sea stack shadows onto offscreen canvas
-  seaStacks.forEach(seaStack => {
+  // Step 1: Draw all sea stack shadows onto offscreen canvas (Y-sorted: back to front)
+  ySortedStacks.forEach(seaStack => {
     const imageIndex = getSeaStackImageIndex(seaStack);
     const stackImage = preloadedImages[imageIndex];
     if (!stackImage || !stackImage.complete) return;
@@ -654,7 +644,7 @@ export function renderSeaStackShadowsOverlay(
   // preventing the shadow from appearing on top of the rock itself.
   offCtx.globalCompositeOperation = 'destination-out';
 
-  seaStacks.forEach(seaStack => {
+  ySortedStacks.forEach(seaStack => {
     const imageIndex = getSeaStackImageIndex(seaStack);
     const stackImage = preloadedImages[imageIndex];
     if (!stackImage || !stackImage.complete) return;
@@ -683,10 +673,6 @@ export function renderSeaStackShadowsOverlay(
 
   offCtx.globalCompositeOperation = 'source-over';
   offCtx.restore();
-
-  _lastSeaStackShadowTime = now;
-  _lastSeaStackShadowCw = canvasWidth;
-  _lastSeaStackShadowCh = canvasHeight;
 
   // Step 3: Composite the shadow layer (with cutouts) onto the main canvas
   ctx.save();
