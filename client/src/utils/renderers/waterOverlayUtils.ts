@@ -122,6 +122,12 @@ let _oi: ImageData | null = null;
 let _op: Uint8ClampedArray | null = null;
 let _bw = 0, _bh = 0;
 
+// Throttle: update shader at ~30fps, reuse cached frame on skipped frames (no visual downgrade)
+const WATER_OVERLAY_THROTTLE_MS = 34;
+let _lastRenderTime = 0;
+let _lastRenderCw = 0;
+let _lastRenderCh = 0;
+
 function ensureBuf(w: number, h: number): void {
   if (_oc && _bw === w && _bh === h) return;
   // Release GPU memory from old canvas before creating new one
@@ -192,6 +198,20 @@ function renderShader(
   const bw = Math.ceil(cw / PX), bh = Math.ceil(ch / PX);
   if (bw <= 0 || bh <= 0) return;
   ensureBuf(bw, bh);
+
+  const now = tMs;
+  const canSkip = _oc && _ox &&
+    (now - _lastRenderTime) < WATER_OVERLAY_THROTTLE_MS &&
+    _lastRenderCw === cw && _lastRenderCh === ch;
+  if (canSkip) {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'low';
+    ctx.drawImage(_oc!, 0, 0, cw, ch);
+    ctx.restore();
+    return;
+  }
 
   const px = _op!;
   const t  = tMs * 0.001;
@@ -315,6 +335,10 @@ function renderShader(
 
   _ox!.putImageData(_oi!, 0, 0);
 
+  _lastRenderTime = now;
+  _lastRenderCw = cw;
+  _lastRenderCh = ch;
+
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.imageSmoothingEnabled = true;
@@ -342,6 +366,9 @@ export function renderWaterOverlay(
 
 export function clearWaterOverlay(): void {
   _oc = null; _ox = null; _oi = null; _op = null; _bw = 0; _bh = 0;
+  _lastRenderTime = 0;
+  _lastRenderCw = 0;
+  _lastRenderCh = 0;
 }
 export function getWaterLineCount(): number { return _bw * _bh; }
 export function getWaterSparkleCount(): number { return 0; }

@@ -119,6 +119,7 @@ interface InputHandlerProps {
     targetedFoundation: any | null; // ADDED: Targeted foundation for upgrade menu
     targetedWall: any | null; // ADDED: Targeted wall for upgrade menu
     targetedFence: any | null; // ADDED: Targeted fence for repair/demolish
+    onProfilerRecordClick?: (canvasX: number, canvasY: number) => boolean; // Profiler Record button hit test
 }
 
 // --- Hook Return Value Interface ---
@@ -236,6 +237,7 @@ export const useInputHandler = ({
     targetedWall, // ADDED: Targeted wall
     targetedFence, // ADDED: Targeted fence
     rangedWeaponStats, // ADDED: For auto-fire detection
+    onProfilerRecordClick,
 }: InputHandlerProps): InputHandlerState => {
     // console.log('[useInputHandler IS RUNNING] isInventoryOpen:', isInventoryOpen);
     // Get player actions from the context instead of props
@@ -1892,6 +1894,20 @@ export const useInputHandler = ({
         const handleCanvasClick = (event: MouseEvent) => {
             if (isPlayerDead) return;
 
+            // Profiler Record button hit test (must run before other handlers)
+            if (onProfilerRecordClick && canvasRef?.current) {
+                const canvas = canvasRef.current;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const canvasX = (event.clientX - rect.left) * scaleX;
+                const canvasY = (event.clientY - rect.top) * scaleY;
+                if (onProfilerRecordClick(canvasX, canvasY)) {
+                    event.preventDefault();
+                    return;
+                }
+            }
+
             // 🎣 FISHING INPUT FIX: Disable canvas click actions while fishing
             if (isFishing) {
                 // console.log('[Input] Canvas click blocked - player is fishing');
@@ -2408,7 +2424,7 @@ export const useInputHandler = ({
             //     eKeyHoldTimerRef.current = null;
             // }
         };
-    }, [canvasRef, localPlayer?.isDead, placementInfo, jump, attemptSwing, setIsMinimapOpen, isChatting, isSearchingCraftRecipes, isInventoryOpen, isGameMenuOpen, isFishing, movementDirection]);
+    }, [canvasRef, localPlayer?.isDead, placementInfo, jump, attemptSwing, setIsMinimapOpen, isChatting, isSearchingCraftRecipes, isInventoryOpen, isGameMenuOpen, isFishing, movementDirection, onProfilerRecordClick]);
 
     // Auto-walk functionality removed - movement handled by usePredictedMovement hook
 

@@ -413,8 +413,13 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     }, []);
 
     // Debug context
-    const { showAutotileDebug, toggleAutotileDebug, showMusicDebug, toggleMusicDebug, showChunkBoundaries, toggleChunkBoundaries, showInteriorDebug, toggleInteriorDebug, showCollisionDebug, toggleCollisionDebug, showAttackRangeDebug, toggleAttackRangeDebug, showYSortDebug, toggleYSortDebug, showShipwreckDebug, toggleShipwreckDebug } = useDebug();
+    const { showAutotileDebug, toggleAutotileDebug, showMusicDebug, toggleMusicDebug, showChunkBoundaries, toggleChunkBoundaries, showInteriorDebug, toggleInteriorDebug, showCollisionDebug, toggleCollisionDebug, showAttackRangeDebug, toggleAttackRangeDebug, showYSortDebug, toggleYSortDebug, showShipwreckDebug, toggleShipwreckDebug, showFpsProfiler, isProfilerRecording, startProfilerRecording, stopProfilerRecording } = useDebug();
     const { showError } = useErrorDisplay();
+    const [profilerCopyToast, setProfilerCopyToast] = useState(false);
+    const onProfilerCopied = useCallback(() => {
+        setProfilerCopyToast(true);
+        setTimeout(() => setProfilerCopyToast(false), 2000);
+    }, []);
 
 
 
@@ -1191,6 +1196,11 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 showAttackRangeDebug={showAttackRangeDebug}
                 showYSortDebug={showYSortDebug}
                 showShipwreckDebug={showShipwreckDebug}
+                showFpsProfiler={showFpsProfiler}
+                isProfilerRecording={isProfilerRecording}
+                startProfilerRecording={startProfilerRecording}
+                stopProfilerRecording={stopProfilerRecording}
+                onProfilerCopied={onProfilerCopied}
                 minimapCache={minimapCache}
                 isGameMenuOpen={currentMenu !== null}
                 onAutoActionStatesChange={handleAutoActionStatesChange}
@@ -1493,6 +1503,32 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
 
             {/* Error Display - Red rectangle above XP bar, fades in 2s or on click */}
             <ErrorDisplay isMobile={props.isMobile} />
+
+            {/* Profiler copy toast - shows when Stop & Copy succeeds */}
+            {profilerCopyToast && (
+                <div
+                    role="status"
+                    aria-live="polite"
+                    style={{
+                        position: 'fixed',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        bottom: '80px',
+                        padding: '10px 18px',
+                        background: 'rgba(40, 180, 80, 0.95)',
+                        border: '1px solid rgba(80, 255, 120, 0.6)',
+                        borderRadius: '6px',
+                        color: '#ffffff',
+                        fontSize: '11px',
+                        fontFamily: '"Press Start 2P", monospace',
+                        textAlign: 'center',
+                        zIndex: 1001,
+                        boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+                    }}
+                >
+                    Copied to clipboard
+                </div>
+            )}
 
             {/* ALK Delivery Panel - Shows when interacting with an ALK station */}
             {interactingWith?.type === 'alk_station' && props.alkStations && (

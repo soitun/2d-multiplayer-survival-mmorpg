@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import * as profilerRecording from '../utils/profilerRecording';
 
 interface DebugContextType {
     showAutotileDebug: boolean;
@@ -17,6 +18,11 @@ interface DebugContextType {
     toggleYSortDebug: () => void;
     showShipwreckDebug: boolean;
     toggleShipwreckDebug: () => void;
+    showFpsProfiler: boolean;
+    toggleFpsProfiler: () => void;
+    isProfilerRecording: boolean;
+    startProfilerRecording: () => void;
+    stopProfilerRecording: () => Promise<boolean>;
 }
 
 const DebugContext = createContext<DebugContextType | undefined>(undefined);
@@ -42,6 +48,8 @@ export const DebugProvider: React.FC<DebugProviderProps> = ({ children }) => {
     const [showAttackRangeDebug, setShowAttackRangeDebug] = useState(false);
     const [showYSortDebug, setShowYSortDebug] = useState(false);
     const [showShipwreckDebug, setShowShipwreckDebug] = useState(false);
+    const [showFpsProfiler, setShowFpsProfiler] = useState(false);
+    const [isProfilerRecording, setIsProfilerRecording] = useState(false);
 
     const toggleAutotileDebug = () => {
         setShowAutotileDebug(prev => !prev);
@@ -83,6 +91,25 @@ export const DebugProvider: React.FC<DebugProviderProps> = ({ children }) => {
         console.log('[DebugContext] Shipwreck protection debug overlay:', !showShipwreckDebug ? 'enabled' : 'disabled');
     };
 
+    const toggleFpsProfiler = () => {
+        setShowFpsProfiler(prev => !prev);
+        console.log('[DebugContext] FPS profiler overlay:', !showFpsProfiler ? 'enabled' : 'disabled');
+    };
+
+    const startProfilerRecording = useCallback(() => {
+        profilerRecording.startRecording();
+        setIsProfilerRecording(true);
+        console.log('[DebugContext] Profiler recording started');
+    }, []);
+
+    const stopProfilerRecording = useCallback(async (): Promise<boolean> => {
+        profilerRecording.stopRecording();
+        setIsProfilerRecording(false);
+        const ok = await profilerRecording.copyToClipboard();
+        console.log('[DebugContext] Profiler recording stopped, copied to clipboard:', ok);
+        return ok;
+    }, []);
+
     const value = {
         showAutotileDebug,
         toggleAutotileDebug,
@@ -100,6 +127,11 @@ export const DebugProvider: React.FC<DebugProviderProps> = ({ children }) => {
         toggleYSortDebug,
         showShipwreckDebug,
         toggleShipwreckDebug,
+        showFpsProfiler,
+        toggleFpsProfiler,
+        isProfilerRecording,
+        startProfilerRecording,
+        stopProfilerRecording,
     };
 
     return (

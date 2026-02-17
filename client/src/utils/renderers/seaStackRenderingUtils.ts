@@ -539,6 +539,11 @@ export function renderSeaStackBottomOnly(
 // Offscreen canvas for sea stack shadow compositing (reused to avoid allocation)
 let seaStackShadowCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
 let seaStackShadowCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
+// Throttle: update at ~30fps to reduce cost when swimming (shadows are soft - imperceptible)
+const SEA_STACK_SHADOW_THROTTLE_MS = 34;
+let _lastSeaStackShadowTime = 0;
+let _lastSeaStackShadowCw = 0;
+let _lastSeaStackShadowCh = 0;
 
 function getSeaStackShadowCanvas(width: number, height: number): { canvas: OffscreenCanvas | HTMLCanvasElement, ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } | null {
   if (!seaStackShadowCanvas || seaStackShadowCanvas.width !== width || seaStackShadowCanvas.height !== height) {
@@ -591,6 +596,18 @@ export function renderSeaStackShadowsOverlay(
 
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
+  const now = performance.now();
+  const canSkip = seaStackShadowCanvas && seaStackShadowCtx &&
+    (now - _lastSeaStackShadowTime) < SEA_STACK_SHADOW_THROTTLE_MS &&
+    _lastSeaStackShadowCw === canvasWidth && _lastSeaStackShadowCh === canvasHeight;
+
+  if (canSkip) {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(seaStackShadowCanvas!, 0, 0);
+    ctx.restore();
+    return;
+  }
 
   const offscreen = getSeaStackShadowCanvas(canvasWidth, canvasHeight);
   if (!offscreen) {
@@ -666,6 +683,10 @@ export function renderSeaStackShadowsOverlay(
 
   offCtx.globalCompositeOperation = 'source-over';
   offCtx.restore();
+
+  _lastSeaStackShadowTime = now;
+  _lastSeaStackShadowCw = canvasWidth;
+  _lastSeaStackShadowCh = canvasHeight;
 
   // Step 3: Composite the shadow layer (with cutouts) onto the main canvas
   ctx.save();

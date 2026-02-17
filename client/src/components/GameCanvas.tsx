@@ -154,6 +154,7 @@ import { renderInsanityOverlay } from '../utils/renderers/insanityOverlayUtils';
 import { renderWeatherOverlay } from '../utils/renderers/weatherOverlayUtils';
 import { calculateChunkIndex } from '../utils/chunkUtils';
 import { renderWaterOverlay } from '../utils/renderers/waterOverlayUtils';
+import { FpsProfiler, mark, getRecordButtonBounds } from '../utils/profiler';
 import { renderPlayer, isPlayerHovered, getSpriteCoordinates } from '../utils/renderers/playerRenderingUtils';
 import { renderSeaStackSingle, renderSeaStackShadowOnly, renderSeaStackBottomOnly, renderSeaStackUnderwaterSilhouette, renderSeaStackShadowsOverlay } from '../utils/renderers/seaStackRenderingUtils';
 import { renderBarrelUnderwaterSilhouette, renderSeaBarrelWaterShadowOnly } from '../utils/renderers/barrelRenderingUtils';
@@ -271,6 +272,11 @@ interface GameCanvasProps {
   showAttackRangeDebug: boolean;
   showYSortDebug: boolean;
   showShipwreckDebug: boolean;
+  showFpsProfiler?: boolean; // FPS profiler overlay - lightweight, no extra lag when enabled
+  isProfilerRecording?: boolean; // Show REC indicator when recording
+  startProfilerRecording?: () => void;
+  stopProfilerRecording?: () => Promise<boolean>;
+  onProfilerCopied?: () => void; // Toast callback when stop & copy succeeds
   minimapCache: any; // Add this for minimapCache
   isGameMenuOpen: boolean; // Add this prop
   onAutoActionStatesChange?: (isAutoAttacking: boolean) => void;
@@ -431,6 +437,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   showAttackRangeDebug,
   showYSortDebug,
   showShipwreckDebug,
+  showFpsProfiler = false,
+  isProfilerRecording = false,
+  startProfilerRecording,
+  stopProfilerRecording,
+  onProfilerCopied,
   minimapCache,
   isGameMenuOpen,
   onAutoActionStatesChange,
@@ -1331,6 +1342,23 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     return null;
   }, [closestInteractableTarget, closestInteractableWaterPosition]);
 
+  // Profiler Record button click handler (only when profiler visible)
+  const onProfilerRecordClick = useCallback((canvasX: number, canvasY: number): boolean => {
+    if (!showFpsProfiler || !startProfilerRecording || !stopProfilerRecording) return false;
+    const bounds = getRecordButtonBounds(canvasSize.width);
+    if (!bounds) return false;
+    const { x, y, w, h } = bounds;
+    if (canvasX < x || canvasX > x + w || canvasY < y || canvasY > y + h) return false;
+    if (isProfilerRecording) {
+      stopProfilerRecording().then((ok) => {
+        if (ok) onProfilerCopied?.();
+      });
+    } else {
+      startProfilerRecording();
+    }
+    return true;
+  }, [showFpsProfiler, isProfilerRecording, canvasSize.width, startProfilerRecording, stopProfilerRecording, onProfilerCopied]);
+
   // --- Action Input Handler ---
   const {
     interactionProgress: holdInteractionProgress,
@@ -1394,7 +1422,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     targetedWall, // ADDED: Pass targeted wall to input handler
     targetedFence, // ADDED: Pass targeted fence to input handler
     rangedWeaponStats, // ADDED: Pass ranged weapon stats for auto-fire detection
-    // Individual entity IDs for consistency and backward compatibility
+    onProfilerRecordClick,
   });
 
   // --- Mobile Interaction Support ---
@@ -1446,11 +1474,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const target = unifiedInteractableTarget;
 
     // Mobile: block containers, placeables, inventory - play SOVA error instead
-    const MOBILE_BLOCKED_TYPES = new Set([
-      'campfire', 'furnace', 'lantern', 'box', 'stash', 'corpse', 'sleeping_bag',
-      'rain_collector', 'homestead_hearth', 'fumarole', 'broth_pot', 'alk_station', 'door',
-    ]);
-    if (MOBILE_BLOCKED_TYPES.has(target.type)) {
+    const blocked = ['campfire', 'furnace', 'lantern', 'box', 'stash', 'corpse', 'sleeping_bag', 'rain_collector', 'homestead_hearth', 'fumarole', 'broth_pot', 'alk_station', 'door'];
+    if (blocked.includes(target.type)) {
       if (isAnySovaAudioPlaying()) {
         showError('Not available on mobile.');
       } else if (showSovaSoundBox) {
@@ -2483,6 +2508,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     renderCallCount: 0,
   });
 
+  const fpsProfilerRef = useRef(new FpsProfiler());
+
   // Track server updates via player position changes
   const lastKnownPlayerPosRef = useRef<{ x: number; y: number; timestamp: number } | null>(null);
 
@@ -2639,6 +2666,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     ctx.save();
     ctx.translate(currentCameraOffsetX, currentCameraOffsetY);
+    const _t0 = mark(showFpsProfiler);
 
     // Set shelter clipping data for shadow rendering
     setShelterClippingData(shelterClippingData);
@@ -2704,6 +2732,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       now_ms
     );
     // --- End Placed Explosives ---
+    const _t1 = mark(showFpsProfiler);
 
     // --- Render Sea Stacks (SERVER-AUTHORITATIVE SYSTEM) ---
     // DISABLED: Sea stacks are now rendered through the Y-sorted entities system for proper depth layering
@@ -2799,6 +2828,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       // --- END SEA STACK BOTTOMS ---
     }
     // --- END SEA STACK RENDERING ---
+    const _t1a = mark(showFpsProfiler);
 
     // --- UNDERWATER CAUSTIC EFFECTS (snorkeling mode) ---
     // Render caustic light patterns on the sea floor when snorkeling
@@ -2823,6 +2853,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       );
     }
     // --- END UNDERWATER CAUSTIC EFFECTS ---
+    const _t1b = mark(showFpsProfiler);
 
     // MOVED: Water line now renders AFTER sea stack tops (see below after Y-sorted entities)
 
@@ -3207,6 +3238,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         }
       });
     // --- END UNDERWATER SHADOWS ---
+    const _t1c = mark(showFpsProfiler);
 
     // --- Render water overlay (ABOVE underwater shadows and sea stack bottoms, BELOW sea stack tops and player heads) ---
     // Skip water overlay when snorkeling - player is underwater so surface effects aren't visible
@@ -3231,6 +3263,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       );
     }
     // --- END WATER OVERLAY ---
+    const _t2 = mark(showFpsProfiler);
 
     // --- STEP 2.5 & 3 COMBINED: Render Y-sorted entities AND swimming player top halves together ---
     // This ensures swimming player tops are properly Y-sorted with sea stacks and other tall entities
@@ -3419,15 +3452,32 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         | (typeof nonSwimmingEntities[number] & { _ySort: number; _isSwimmingTop: false })
         | (typeof swimmingPlayerTopHalves[number] & { _ySort: number; _isSwimmingTop: true });
 
-      const mergedEntities: MergedEntityType[] = [
-        ...nonSwimmingEntities.map(e => ({ ...e, _ySort: getEntityYSort(e), _isSwimmingTop: false as const })),
-        ...swimmingPlayerTopHalves.map(e => ({ ...e, _ySort: e.yPosition, _isSwimmingTop: true as const }))
-      ].sort((a, b) => {
+      // Pre-allocate merged array to avoid spread allocations; build in place
+      const mergedEntities: MergedEntityType[] = [];
+      mergedEntities.length = nonSwimmingEntities.length + swimmingPlayerTopHalves.length;
+      let mergeIdx = 0;
+      for (const e of nonSwimmingEntities) {
+        mergedEntities[mergeIdx++] = { ...e, _ySort: getEntityYSort(e), _isSwimmingTop: false as const };
+      }
+      for (const e of swimmingPlayerTopHalves) {
+        mergedEntities[mergeIdx++] = { ...e, _ySort: e.yPosition, _isSwimmingTop: true as const };
+      }
+      const needsSpecialSort = (x: MergedEntityType) => {
+        const t = !x._isSwimmingTop && 'type' in x ? x.type : null;
+        return x._isSwimmingTop ||
+          t === 'player' || t === 'fumarole' || t === 'broth_pot' || t === 'campfire' ||
+          t === 'sleeping_bag' || t === 'alk_station' || t === 'compound_building' ||
+          (t === 'barrel' && (x as any).entity?.variant === 6);
+      };
+      mergedEntities.sort((a, b) => {
         // CRITICAL: This sort can undo the useEntityFiltering sort, so we must duplicate key checks here
         const aType = !a._isSwimmingTop && 'type' in a ? a.type : null;
         const bType = !b._isSwimmingTop && 'type' in b ? b.type : null;
         const aEntity = !a._isSwimmingTop && 'entity' in a ? a.entity : null;
         const bEntity = !b._isSwimmingTop && 'entity' in b ? b.entity : null;
+
+        // Fast path: both entities use simple Y-sort (grass, tree, rock, mushroom, etc.)
+        if (!needsSpecialSort(a) && !needsSpecialSort(b)) return a._ySort - b._ySort;
 
         // ABSOLUTE FIRST CHECK: Broth pot MUST ALWAYS render above campfires and fumaroles
         // Broth pots sit ON TOP of heat sources - no exceptions, no situation where they don't
@@ -3908,6 +3958,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       flushBatch();
     } // End of else block for swimming players exist
     // --- END Y-SORTED ENTITIES AND SWIMMING PLAYER TOP HALVES ---
+    const _t3 = mark(showFpsProfiler);
 
     // --- Render Tree Canopy Shadow Overlays ---
     // These render AFTER all Y-sorted entities so shadows appear ON TOP of all entities under tree canopies.
@@ -3930,6 +3981,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       renderSeaStackShadowsOverlay(ctx, visibleSeaStacks, doodadImagesRef.current, currentCycleProgress);
     }
     // --- END SEA STACK GROUND SHADOW OVERLAYS ---
+    const _t3a = mark(showFpsProfiler);
 
     // --- Render animal burrow effects (dirt particles when animals burrow underground) ---
     // Process all wild animals to detect newly burrowed animals
@@ -4620,6 +4672,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         drawIndicatorIfNeeded('door', door.id, door.posX, door.posY, DOOR_HEIGHT, true);
       }
     });
+    const _t4 = mark(showFpsProfiler);
 
     // Campfire Lights - Only draw for visible campfires
     ctx.save();
@@ -4816,6 +4869,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- End SOVA Aura ---
 
     ctx.restore(); // Restore from 'lighter' blend mode for lights
+    const _t5 = mark(showFpsProfiler);
 
     // --- Mobile Tap Animation ---
     if (isMobile && tapAnimation) {
@@ -4853,6 +4907,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const frameEndTime = performance.now();
     const frameTime = frameEndTime - frameStartTime;
     perfProfilingRef.current.totalFrameTime += frameTime;
+
+    // === FPS Profiler Overlay (delegated to FpsProfiler module) ===
+    if (showFpsProfiler) {
+      const timings = { t0: _t0, t1: _t1, t1a: _t1a, t1b: _t1b, t1c: _t1c, t2: _t2, t3: _t3, t3a: _t3a, t4: _t4, t5: _t5 };
+      const profiler = fpsProfilerRef.current;
+      profiler.update(timings, frameTime, currentYSortedEntities.length);
+      profiler.recordIfActive(timings, frameTime, currentYSortedEntities.length);
+      profiler.render(ctx, currentCanvasWidth, isProfilerRecording ?? false);
+    }
     perfProfilingRef.current.renderCallCount++;
     if (frameTime > perfProfilingRef.current.maxFrameTime) {
       perfProfilingRef.current.maxFrameTime = frameTime;
@@ -5005,6 +5068,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     clouds, // Only need clouds prop for the size check, interpolation is via ref
     droneEvents,
     droneImageRef,
+    showFpsProfiler,
   ]);
 
   const gameLoopCallback = useCallback((frameInfo: FrameInfo) => {

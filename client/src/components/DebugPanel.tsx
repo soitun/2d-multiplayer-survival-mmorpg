@@ -70,7 +70,7 @@ const ANIMAL_SPECIES = [
 const ITEM_CATEGORY_ORDER = ['Tool', 'Weapon', 'RangedWeapon', 'Ammunition', 'Armor', 'Consumable', 'Material', 'Placeable'];
 
 const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connection, itemDefinitions }) => {
-    const { showAutotileDebug, toggleAutotileDebug, showChunkBoundaries, toggleChunkBoundaries, showInteriorDebug, toggleInteriorDebug, showCollisionDebug, toggleCollisionDebug, showAttackRangeDebug, toggleAttackRangeDebug, showYSortDebug, toggleYSortDebug, showShipwreckDebug, toggleShipwreckDebug } = useDebug();
+    const { showAutotileDebug, toggleAutotileDebug, showChunkBoundaries, toggleChunkBoundaries, showInteriorDebug, toggleInteriorDebug, showCollisionDebug, toggleCollisionDebug, showAttackRangeDebug, toggleAttackRangeDebug, showYSortDebug, toggleYSortDebug, showShipwreckDebug, toggleShipwreckDebug, showFpsProfiler, toggleFpsProfiler } = useDebug();
     const [isMinimized, setIsMinimized] = useState(false);
     const [selectedAnimal, setSelectedAnimal] = useState(ANIMAL_SPECIES[0].value);
     
@@ -649,6 +649,47 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                         }}
                     >
                         SHIPWRECK: {showShipwreckDebug ? 'ON' : 'OFF'}
+                    </button>
+
+                    {/* FPS Profiler Toggle */}
+                    <button
+                        onClick={(e) => {
+                            toggleFpsProfiler();
+                            e.currentTarget.blur();
+                        }}
+                        onFocus={(e) => e.currentTarget.blur()}
+                        style={{
+                            background: showFpsProfiler
+                                ? 'linear-gradient(135deg, rgba(0, 255, 127, 0.3), rgba(0, 200, 100, 0.4))'
+                                : 'linear-gradient(135deg, rgba(60, 30, 30, 0.6), rgba(40, 20, 20, 0.7))',
+                            color: showFpsProfiler ? '#00ff7f' : '#ff6b6b',
+                            border: showFpsProfiler ? '1px solid #00ff7f' : '1px solid #ff6b6b',
+                            padding: '8px 12px',
+                            borderRadius: '4px',
+                            fontSize: '10px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            textShadow: showFpsProfiler ? '0 0 5px #00ff7f' : '0 0 5px #ff6b6b',
+                            boxShadow: showFpsProfiler
+                                ? '0 0 10px rgba(0, 255, 127, 0.3)'
+                                : '0 0 10px rgba(255, 107, 107, 0.2)',
+                            fontFamily: 'inherit',
+                            letterSpacing: '0.5px'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.boxShadow = showFpsProfiler
+                                ? '0 0 15px rgba(0, 255, 127, 0.5)'
+                                : '0 0 15px rgba(255, 107, 107, 0.4)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = showFpsProfiler
+                                ? '0 0 10px rgba(0, 255, 127, 0.3)'
+                                : '0 0 10px rgba(255, 107, 107, 0.2)';
+                        }}
+                    >
+                        FPS PROFILER: {showFpsProfiler ? 'ON' : 'OFF'}
                     </button>
 
                     {/* Position Display */}
