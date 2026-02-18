@@ -118,10 +118,10 @@ class AIService {
     };
 
     try {
-      const authToken = import.meta.env.VITE_PROXY_AUTH_TOKEN;
+      const idToken = localStorage.getItem('oidc_id_token');
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
-        ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
+        ...(idToken && { 'Authorization': `Bearer ${idToken}` }),
       };
 
       const messages = [

@@ -11,10 +11,10 @@ const GEMINI_BREW_URL = `${PROXY_URL}/api/gemini/brew`;
 const GEMINI_ICON_URL = `${PROXY_URL}/api/gemini/icon`;
 
 function proxyHeaders(): HeadersInit {
-  const authToken = import.meta.env.VITE_PROXY_AUTH_TOKEN;
+  const idToken = localStorage.getItem('oidc_id_token');
   return {
     'Content-Type': 'application/json',
-    ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
+    ...(idToken && { 'Authorization': `Bearer ${idToken}` }),
   };
 }
 

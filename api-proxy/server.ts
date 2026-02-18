@@ -7,6 +7,8 @@
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
+import jwt from 'jsonwebtoken';
+import jwksClient from 'jwks-rsa';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
 import FormData from 'form-data';
@@ -116,23 +118,55 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GROK_API_KEY = process.env.GROK_API_KEY;
 const RETRO_DIFFUSION_API_KEY = process.env.RETRO_DIFFUSION_API_KEY;
-const PROXY_AUTH_TOKEN = process.env.PROXY_AUTH_TOKEN;
 
 if (!OPENAI_API_KEY && !GEMINI_API_KEY && !GROK_API_KEY && !RETRO_DIFFUSION_API_KEY) {
   console.error('❌ No AI API keys found in environment variables');
   console.error(`   Please ensure at least one of OPENAI_API_KEY, GEMINI_API_KEY, GROK_API_KEY, or RETRO_DIFFUSION_API_KEY is set`);
 }
 
-// Bearer token auth middleware — applied to all /api/* routes
+// JWT auth via the OpenAuth server's JWKS endpoint
+const AUTH_SERVER_URL = process.env.AUTH_SERVER_URL
+  || (process.env.NODE_ENV === 'production'
+    ? 'https://broth-and-bullets-production.up.railway.app'
+    : 'http://localhost:4001');
+
+const jwks = jwksClient({
+  jwksUri: `${AUTH_SERVER_URL}/.well-known/jwks.json`,
+  cache: true,
+  cacheMaxAge: 600_000, // 10 min
+  rateLimit: true,
+  jwksRequestsPerMinute: 5,
+});
+
+function getSigningKey(header: jwt.JwtHeader, callback: jwt.SigningKeyCallback) {
+  if (!header.kid) {
+    return callback(new Error('JWT has no kid'));
+  }
+  jwks.getSigningKey(header.kid, (err, key) => {
+    if (err) return callback(err);
+    callback(null, key?.getPublicKey());
+  });
+}
+
 function requireAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
-  if (!PROXY_AUTH_TOKEN) {
-    return next(); // Auth disabled if no token configured (local dev)
-  }
   const header = req.headers.authorization;
-  if (!header || header !== `Bearer ${PROXY_AUTH_TOKEN}`) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  if (!header || !header.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing or malformed Authorization header' });
   }
-  next();
+
+  const token = header.slice(7);
+  jwt.verify(token, getSigningKey, {
+    issuer: AUTH_SERVER_URL,
+    audience: 'vibe-survival-game-client',
+    algorithms: ['RS256'],
+  }, (err, decoded) => {
+    if (err) {
+      console.error('[Auth] JWT verification failed:', err.message);
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+    (req as any).user = decoded;
+    next();
+  });
 }
 
 // Rate limiters per endpoint tier
@@ -175,7 +209,7 @@ if (GEMINI_API_KEY) {
 }
 
 console.log('✅ API Proxy Server starting...');
-console.log(`   Auth: ${PROXY_AUTH_TOKEN ? 'Enabled (bearer token)' : 'Disabled (no PROXY_AUTH_TOKEN set)'}`);
+console.log(`   Auth: JWT via ${AUTH_SERVER_URL}/.well-known/jwks.json`);
 console.log(`   OpenAI API: ${OPENAI_API_KEY ? 'Ready' : 'Not configured'}`);
 console.log(`   Gemini API: ${GEMINI_API_KEY ? 'Ready' : 'Not configured'}`);
 console.log(`   Grok API: ${GROK_API_KEY ? 'Ready' : 'Not configured'}`);
