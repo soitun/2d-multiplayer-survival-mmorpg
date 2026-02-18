@@ -10,6 +10,14 @@ const PROXY_URL = import.meta.env.VITE_API_PROXY_URL || 'http://localhost:8002';
 const GEMINI_BREW_URL = `${PROXY_URL}/api/gemini/brew`;
 const GEMINI_ICON_URL = `${PROXY_URL}/api/gemini/icon`;
 
+function proxyHeaders(): HeadersInit {
+  const authToken = import.meta.env.VITE_PROXY_AUTH_TOKEN;
+  return {
+    'Content-Type': 'application/json',
+    ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
+  };
+}
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -168,9 +176,7 @@ export async function generateBrewRecipe(
     console.log('[BrewingAI] Sending fetch request...');
     const response = await fetch(GEMINI_BREW_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: proxyHeaders(),
       body: JSON.stringify({
         ingredients,
         ingredient_rarities: ingredientRarities,
@@ -225,9 +231,7 @@ export async function generateBrewIcon(subject: string): Promise<string | null> 
     console.log('[BrewingAI] Sending icon request to:', GEMINI_ICON_URL);
     const response = await fetch(GEMINI_ICON_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: proxyHeaders(),
       body: JSON.stringify({ subject }),
       signal: controller.signal,
     });

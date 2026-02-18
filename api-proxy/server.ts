@@ -6,6 +6,7 @@
 
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
 import FormData from 'form-data';
@@ -115,14 +116,57 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GROK_API_KEY = process.env.GROK_API_KEY;
 const RETRO_DIFFUSION_API_KEY = process.env.RETRO_DIFFUSION_API_KEY;
+const PROXY_AUTH_TOKEN = process.env.PROXY_AUTH_TOKEN;
 
-// At least one API key should be configured
 if (!OPENAI_API_KEY && !GEMINI_API_KEY && !GROK_API_KEY && !RETRO_DIFFUSION_API_KEY) {
   console.error('❌ No AI API keys found in environment variables');
   console.error(`   Please ensure at least one of OPENAI_API_KEY, GEMINI_API_KEY, GROK_API_KEY, or RETRO_DIFFUSION_API_KEY is set`);
-  console.error(`   Current working directory: ${process.cwd()}`);
-  // Don't exit - allow server to start but endpoints will return errors
 }
+
+// Bearer token auth middleware — applied to all /api/* routes
+function requireAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (!PROXY_AUTH_TOKEN) {
+    return next(); // Auth disabled if no token configured (local dev)
+  }
+  const header = req.headers.authorization;
+  if (!header || header !== `Bearer ${PROXY_AUTH_TOKEN}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+// Rate limiters per endpoint tier
+const chatLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests — try again in a minute' },
+});
+
+const whisperLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many transcription requests — try again in a minute' },
+});
+
+const brewLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many brew requests — try again in a minute' },
+});
+
+const iconLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many icon requests — try again in a minute' },
+});
 
 // Initialize Gemini client if API key is available
 let genAI: GoogleGenerativeAI | null = null;
@@ -131,11 +175,11 @@ if (GEMINI_API_KEY) {
 }
 
 console.log('✅ API Proxy Server starting...');
+console.log(`   Auth: ${PROXY_AUTH_TOKEN ? 'Enabled (bearer token)' : 'Disabled (no PROXY_AUTH_TOKEN set)'}`);
 console.log(`   OpenAI API: ${OPENAI_API_KEY ? 'Ready' : 'Not configured'}`);
 console.log(`   Gemini API: ${GEMINI_API_KEY ? 'Ready' : 'Not configured'}`);
 console.log(`   Grok API: ${GROK_API_KEY ? 'Ready' : 'Not configured'}`);
 console.log(`   Retro Diffusion API: ${RETRO_DIFFUSION_API_KEY ? 'Ready' : 'Not configured'}`);
-console.log(`   Note: Kokoro TTS runs locally (no proxy needed)`);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -149,7 +193,7 @@ app.get('/health', (req, res) => {
 });
 
 // OpenAI Whisper transcription proxy
-app.post('/api/whisper/transcribe', async (req, res) => {
+app.post('/api/whisper/transcribe', requireAuth, whisperLimiter, async (req, res) => {
   try {
     if (!OPENAI_API_KEY) {
       return res.status(500).json({ error: 'OpenAI API key not configured' });
@@ -239,7 +283,7 @@ app.post('/api/whisper/transcribe', async (req, res) => {
 });
 
 // OpenAI Chat completion proxy (for SOVA)
-app.post('/api/openai/chat', async (req, res) => {
+app.post('/api/openai/chat', requireAuth, chatLimiter, async (req, res) => {
   try {
     if (!OPENAI_API_KEY) {
       return res.status(500).json({ error: 'OpenAI API key not configured' });
@@ -264,7 +308,7 @@ app.post('/api/openai/chat', async (req, res) => {
 });
 
 // Grok Chat completion proxy (for SOVA)
-app.post('/api/grok/chat', async (req, res) => {
+app.post('/api/grok/chat', requireAuth, chatLimiter, async (req, res) => {
   try {
     if (!GROK_API_KEY) {
       return res.status(500).json({ error: 'Grok API key not configured' });
@@ -308,7 +352,7 @@ app.post('/api/grok/chat', async (req, res) => {
 });
 
 // Gemini Chat completion proxy (for SOVA)
-app.post('/api/gemini/chat', async (req, res) => {
+app.post('/api/gemini/chat', requireAuth, chatLimiter, async (req, res) => {
   try {
     if (!genAI || !GEMINI_API_KEY) {
       return res.status(500).json({ error: 'Gemini API key not configured' });
@@ -456,7 +500,7 @@ RARITY TIERS affect stats:
 IMPORTANT: Return ONLY valid JSON, no markdown formatting or code blocks.`;
 
 // Gemini Brew Recipe Generation
-app.post('/api/gemini/brew', async (req, res) => {
+app.post('/api/gemini/brew', requireAuth, brewLimiter, async (req, res) => {
   try {
     if (!genAI || !GEMINI_API_KEY) {
       return res.status(500).json({ error: 'Gemini API key not configured' });
@@ -579,7 +623,7 @@ const STATIC_BREW_ICON_ASSET = 'broth_pot_icon.png';
 
 // Retro Diffusion Icon Generation (specialized for pixel art game icons)
 // Uses rd_plus__mc_item prompt style for Minecraft-style game item icons
-app.post('/api/gemini/icon', async (req, res) => {
+app.post('/api/gemini/icon', requireAuth, iconLimiter, async (req, res) => {
   try {
     const { subject } = req.body;
 

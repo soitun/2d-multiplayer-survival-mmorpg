@@ -316,8 +316,10 @@ class WhisperService {
         reader.readAsDataURL(audioBlob);
       });
 
+      const authToken = import.meta.env.VITE_PROXY_AUTH_TOKEN;
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
+        ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
       };
       
       const proxyBody = {
