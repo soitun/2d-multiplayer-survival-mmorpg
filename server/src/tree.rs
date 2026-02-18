@@ -18,11 +18,12 @@ pub(crate) const TREE_SPAWN_WORLD_MARGIN_TILES: u32 = 3;
 pub(crate) const MAX_TREE_SEEDING_ATTEMPTS_FACTOR: u32 = 5;
 pub(crate) const MIN_TREE_DISTANCE_PX: f32 = 200.0;
 pub(crate) const MIN_TREE_DISTANCE_SQ: f32 = MIN_TREE_DISTANCE_PX * MIN_TREE_DISTANCE_PX;
-pub(crate) const TREE_INITIAL_HEALTH: u32 = 800; // Reduced from 2000 - faster chopping
+/// Default health for trees (used when tree type is unknown). Most trees use type-specific values.
+pub(crate) const TREE_INITIAL_HEALTH: u32 = 800;
 
-// NEW: Resource depletion system - each tree has a random amount of resources
-pub(crate) const TREE_MIN_RESOURCES: u32 = 150; // Minimum wood per tree (reduced from 300)
-pub(crate) const TREE_MAX_RESOURCES: u32 = 500; // Maximum wood per tree (reduced from 1000)
+// Legacy constants - kept for compatibility. Prefer tree_type_stats() for type-specific values.
+pub(crate) const TREE_MIN_RESOURCES: u32 = 150;
+pub(crate) const TREE_MAX_RESOURCES: u32 = 500;
 
 // NEW Respawn Time Constants for Trees
 pub(crate) const MIN_TREE_RESPAWN_TIME_SECS: u64 = 600;  // 10 minutes
@@ -58,6 +59,33 @@ pub enum TreeType {
     CrabAppleTree,      // crab_apple_tree.png - small fruit tree, drops Crab Apples
     HazelnutTree,       // hazelnut_tree.png - nut-bearing shrub-tree, drops Hazelnuts
     RowanberryTree,     // rowanberry_tree.png - mountain ash tree, drops Rowan Berries
+}
+
+/// Per-tree-type stats: health and wood yield range.
+/// Small trees (alpine, beach, shrub) give less wood; some are tougher (more health).
+pub fn tree_type_stats(tree_type: &TreeType) -> (u32, u32, u32) {
+    // (health, min_wood, max_wood)
+    match tree_type {
+        // --- SMALL: Shrubs, stunted alpine, beach trees ---
+        // Less wood, often tougher (gnarled/dense) or quicker (thin) to chop
+        TreeType::DwarfPine => (900, 80, 160),           // Stunted alpine - tough, little wood
+        TreeType::ArcticWillow => (600, 60, 120),        // Short tundra shrub - quick chop, minimal wood
+        TreeType::MountainHemlockSnow => (850, 90, 170), // Snow-covered alpine - hardy
+        TreeType::KrummholzSpruce => (950, 85, 165),     // Twisted wind-sculpted - very tough, sparse wood
+        TreeType::SitkaAlder => (550, 70, 140),          // Beach alder variant A - smaller coastal
+        TreeType::SitkaAlder2 => (550, 70, 140),         // Beach alder variant B
+        TreeType::CrabAppleTree => (500, 80, 150),       // Small fruit tree
+        TreeType::HazelnutTree => (450, 50, 100),        // Nut-bearing shrub-tree - smallest
+        TreeType::RowanberryTree => (550, 70, 130),      // Mountain ash - small ornamental
+
+        // --- MEDIUM: Mountain hemlock, birch ---
+        TreeType::MountainHemlock => (800, 200, 350),
+        TreeType::MountainHemlock2 => (800, 200, 350),
+        TreeType::SiberianBirch => (750, 220, 380),     // White bark birch
+
+        // --- LARGE: Tall conifers ---
+        TreeType::SitkaSpruce => (900, 300, 500),       // Classic tall spruce - most wood
+    }
 }
 
 #[spacetimedb::table(name = tree, public)]

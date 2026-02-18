@@ -1997,11 +1997,10 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         while spawned_tree_count < target_tree_count && tree_attempts < max_tree_attempts {
         tree_attempts += 1;
 
-        // Determine tree type roll *before* calling attempt_single_spawn
+        // Determine tree type roll and resource roll *before* calling attempt_single_spawn
+        // Resource amount is computed inside closure from tree type + resource_roll
         let tree_type_roll_for_this_attempt: f64 = rng.gen_range(0.0..1.0);
-        
-        // Generate random resource amount *before* calling attempt_single_spawn
-        let tree_resource_amount = rng.gen_range(crate::tree::TREE_MIN_RESOURCES..=crate::tree::TREE_MAX_RESOURCES);
+        let resource_roll: f64 = rng.gen_range(0.0..1.0);
 
         // Create threshold function that checks position and returns appropriate threshold
         // This allows Forest tiles to have much denser tree spawning
@@ -2064,7 +2063,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             crate::tree::MIN_TREE_DISTANCE_SQ, // Base distance (will be overridden by distance_fn)
             0.0,
             0.0,
-            |pos_x, pos_y, (tree_type_roll, resource_amount): (f64, u32)| { // Closure now accepts both values
+            |pos_x, pos_y, (tree_type_roll, resource_roll): (f64, f64)| {
                 // Calculate chunk index for the tree
                 let chunk_idx = calculate_chunk_index(pos_x, pos_y);
                 
@@ -2112,20 +2111,24 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     }
                 };
                 
+                let (health, min_wood, max_wood) = crate::tree::tree_type_stats(&tree_type);
+                let range = (max_wood - min_wood) as f64;
+                let resource_amount = min_wood + (resource_roll * range).round() as u32;
+                
                 crate::tree::Tree {
                     id: 0,
                     pos_x,
                     pos_y,
-                    health: crate::tree::TREE_INITIAL_HEALTH,
-                    resource_remaining: resource_amount, // Use the passed-in resource amount
-                    tree_type, // Assign the chosen type
+                    health,
+                    resource_remaining: resource_amount,
+                    tree_type,
                     chunk_index: chunk_idx, // Set the chunk index
                     last_hit_time: None,
                     respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
                     is_player_planted: false, // Wild trees respawn and yield full resources
                 }
             },
-            (tree_type_roll_for_this_attempt, tree_resource_amount), // Pass both values as extra_args
+            (tree_type_roll_for_this_attempt, resource_roll),
             |pos_x, pos_y| is_position_on_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) || is_position_in_hot_spring_area(ctx, pos_x, pos_y) || monument::is_position_near_monument(ctx, pos_x, pos_y), // Block water, central compound, hot springs, and monuments
             threshold_fn, // Position-based threshold function
             distance_fn, // Position-based distance function
@@ -5125,9 +5128,9 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
             t.health == 0 && !is_winter
         },
         |t: &mut crate::tree::Tree| {
-            t.health = crate::tree::TREE_INITIAL_HEALTH;
-            // Generate new random resource amount for respawned tree
-            t.resource_remaining = ctx.rng().gen_range(crate::tree::TREE_MIN_RESOURCES..=crate::tree::TREE_MAX_RESOURCES);
+            let (health, min_wood, max_wood) = crate::tree::tree_type_stats(&t.tree_type);
+            t.health = health;
+            t.resource_remaining = ctx.rng().gen_range(min_wood..=max_wood);
             t.respawn_at = Timestamp::UNIX_EPOCH; // 0 = not respawning
             t.last_hit_time = None;
             // Position doesn't change during respawn, so chunk_index stays the same

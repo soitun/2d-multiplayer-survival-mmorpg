@@ -1678,7 +1678,7 @@ fn grow_plant_to_resource(ctx: &ReducerContext, plant: &PlantedSeed) -> Result<(
 /// - Yield 60% of normal wood
 /// Tree type was determined at planting time and stored in target_tree_type
 fn grow_tree_sapling_to_tree(ctx: &ReducerContext, plant: &PlantedSeed) -> Result<(), String> {
-    use crate::tree::{Tree, PLAYER_PLANTED_RESOURCES_MIN, PLAYER_PLANTED_RESOURCES_MAX, TREE_INITIAL_HEALTH};
+    use crate::tree::{Tree, tree_type_stats, PLAYER_PLANTED_YIELD_PERCENT};
     use rand::Rng;
     
     // Use the tree type that was determined at planting time
@@ -1692,15 +1692,17 @@ fn grow_tree_sapling_to_tree(ctx: &ReducerContext, plant: &PlantedSeed) -> Resul
         tree_type, plant.pos_x, plant.pos_y
     );
     
-    // Calculate reduced resources for player-planted trees (60% of normal)
-    let resource_amount = ctx.rng().gen_range(PLAYER_PLANTED_RESOURCES_MIN..=PLAYER_PLANTED_RESOURCES_MAX);
+    let (health, min_wood, max_wood) = tree_type_stats(&tree_type);
+    let player_min = ((min_wood as f32) * PLAYER_PLANTED_YIELD_PERCENT).round() as u32;
+    let player_max = ((max_wood as f32) * PLAYER_PLANTED_YIELD_PERCENT).round() as u32;
+    let resource_amount = ctx.rng().gen_range(player_min..=player_max.max(player_min));
     
     // Create the tree entity
     let new_tree = Tree {
         id: 0, // Auto-inc
         pos_x: plant.pos_x,
         pos_y: plant.pos_y,
-        health: TREE_INITIAL_HEALTH,
+        health,
         resource_remaining: resource_amount,
         tree_type: tree_type.clone(),
         chunk_index: plant.chunk_index,

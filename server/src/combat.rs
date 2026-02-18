@@ -32,7 +32,7 @@ use crate::broth_pot::{broth_pot, broth_pot_processing_schedule};
 use crate::grass; // RE-ADDED: grass module for destroyable grass
 
 // Specific constants needed
-use crate::tree::{MIN_TREE_RESPAWN_TIME_SECS, MAX_TREE_RESPAWN_TIME_SECS, TREE_COLLISION_Y_OFFSET, PLAYER_TREE_COLLISION_DISTANCE_SQUARED, TREE_INITIAL_HEALTH};
+use crate::tree::{MIN_TREE_RESPAWN_TIME_SECS, MAX_TREE_RESPAWN_TIME_SECS, TREE_COLLISION_Y_OFFSET, PLAYER_TREE_COLLISION_DISTANCE_SQUARED, tree_type_stats};
 use crate::stone::{MIN_STONE_RESPAWN_TIME_SECS, MAX_STONE_RESPAWN_TIME_SECS, STONE_COLLISION_Y_OFFSET, PLAYER_STONE_COLLISION_DISTANCE_SQUARED};
 use crate::rune_stone::{RUNE_STONE_AABB_HALF_WIDTH, RUNE_STONE_AABB_HALF_HEIGHT, RUNE_STONE_COLLISION_Y_OFFSET};
 use crate::wooden_storage_box::{WoodenStorageBox, get_box_player_collision_radius, get_box_collision_y_offset, wooden_storage_box as WoodenStorageBoxTableTrait};
@@ -1843,11 +1843,11 @@ pub fn damage_tree(
     
     if tree_destroyed {
         // Final chop bonus: Reward players for completing the tree with a MASSIVE bonus!
-        // Bonus is 20-40% of the tree's INITIAL health converted to resources - always feels rewarding!
-        // This means ~20-40 wood for a standard tree (100 HP), regardless of tool quality
+        // Bonus is 20-40% of the tree's initial health (type-specific) converted to resources
         // Player-planted trees get reduced bonus (60% of normal)
+        let (initial_health, _, _) = tree_type_stats(&tree.tree_type);
         let bonus_percentage = rng.gen_range(0.20..=0.40); // 20-40% of tree's initial health
-        let mut final_chop_bonus = ((TREE_INITIAL_HEALTH as f32) * bonus_percentage).ceil() as u32;
+        let mut final_chop_bonus = ((initial_health as f32) * bonus_percentage).ceil() as u32;
         
         // Reduce final bonus for player-planted trees (consistent with overall yield reduction)
         if tree.is_player_planted {
