@@ -42,72 +42,41 @@ const allowedOrigins = [
   'http://localhost:3009',
   'http://localhost:8002',
   'http://localhost:5173',
-  // Production URLs - Railway and custom domain
   'https://broth-and-bullets-production-client-production.up.railway.app',
   'https://www.brothandbullets.com',
-  'https://brothandbullets.com', // Also allow without www
-  // Allow additional CLIENT_URL from env if set
+  'https://brothandbullets.com',
   process.env.CLIENT_URL
-].filter(Boolean); // Remove any undefined values
+].filter(Boolean) as string[];
 
-console.log('🔒 CORS Configuration:');
-console.log('   Allowed origins:', allowedOrigins);
-console.log('   CLIENT_URL env var:', process.env.CLIENT_URL);
-console.log('   NODE_ENV:', process.env.NODE_ENV);
+console.log('🔒 CORS Configuration:', { allowedOrigins, CLIENT_URL: process.env.CLIENT_URL });
 
-// Handle preflight OPTIONS requests explicitly (must be before other middleware)
-app.use((req, res, next) => {
-  if (req.method === 'OPTIONS') {
-    const origin = req.headers.origin as string | undefined;
-    console.log(`[CORS OPTIONS] Preflight request from: ${origin}`);
-    
-    // In development, allow all origins; in production, check allowlist
-    if (process.env.NODE_ENV !== 'production' || !origin || allowedOrigins.includes(origin)) {
-      res.header('Access-Control-Allow-Origin', origin || '*');
-      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-      res.header('Access-Control-Allow-Credentials', 'true');
-      res.header('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
-      console.log(`[CORS OPTIONS] ✅ Preflight approved for: ${origin}`);
-      return res.sendStatus(204);
-    } else {
-      console.error(`[CORS OPTIONS] ❌ Preflight rejected for: ${origin}`);
-      return res.sendStatus(403);
-    }
+// Explicit preflight handler - MUST run before anything that could block
+app.options('*', (req, res) => {
+  const origin = (req.headers.origin || '') as string;
+  const allow = !origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production';
+  if (allow) {
+    // credentials:true requires a specific origin, not *
+    const allowOrigin = origin || allowedOrigins[0] || 'https://www.brothandbullets.com';
+    res.setHeader('Access-Control-Allow-Origin', allowOrigin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Max-Age', '86400');
   }
-  next();
+  res.sendStatus(204);
 });
 
-// Middleware
+// CORS for non-OPTIONS requests
 app.use(cors({
   origin: (origin, callback) => {
-    console.log(`[CORS] Request from origin: ${origin}`);
-    
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) {
-      console.log('[CORS] ✅ Allowing request with no origin');
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.includes(origin)) {
-      console.log(`[CORS] ✅ Origin allowed: ${origin}`);
-      callback(null, true);
-    } else {
-      // In production, be more strict; in dev, allow all
-      if (process.env.NODE_ENV === 'production') {
-        console.error(`[CORS] ❌ Origin blocked: ${origin}`);
-        console.error(`[CORS] Allowed origins are: ${allowedOrigins.join(', ')}`);
-        callback(new Error('Not allowed by CORS'));
-      } else {
-        console.log(`[CORS] ✅ Development mode - allowing origin: ${origin}`);
-        callback(null, true); // Allow in development
-      }
-    }
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (process.env.NODE_ENV !== 'production') return callback(null, true);
+    callback(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  preflightContinue: false,
   optionsSuccessStatus: 204
 }));
 app.use(express.json({ limit: '50mb' }));
