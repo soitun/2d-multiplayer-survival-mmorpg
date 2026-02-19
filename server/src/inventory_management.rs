@@ -484,8 +484,26 @@ pub(crate) fn handle_move_within_container<C: ItemContainer>(
     if source_slot_index == target_slot_index { return Ok(()); } // Moving onto itself
 
     // --- Get Items --- 
-    let source_id_opt = container.get_slot_instance_id(source_slot_index);
-    let target_id_opt = container.get_slot_instance_id(target_slot_index);
+    let mut source_id_opt = container.get_slot_instance_id(source_slot_index);
+    let mut target_id_opt = container.get_slot_instance_id(target_slot_index);
+
+    // --- Sanitize orphaned slot references ---
+    // If container says a slot has an item but that item doesn't exist in DB (e.g. consumed by furnace processing),
+    // clear the slot and treat as empty to recover from inconsistent state.
+    if let Some(id) = source_id_opt {
+        if inventory_table.instance_id().find(id).is_none() {
+            log::warn!("[InvManager WithinContainer] Source slot {} references orphaned item {} - clearing.", source_slot_index, id);
+            container.set_slot(source_slot_index, None, None);
+            source_id_opt = None;
+        }
+    }
+    if let Some(id) = target_id_opt {
+        if inventory_table.instance_id().find(id).is_none() {
+            log::warn!("[InvManager WithinContainer] Target slot {} references orphaned item {} - clearing.", target_slot_index, id);
+            container.set_slot(target_slot_index, None, None);
+            target_id_opt = None;
+        }
+    }
 
     // --- Logic --- 
     match (source_id_opt, target_id_opt) {

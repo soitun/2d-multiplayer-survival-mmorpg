@@ -9,7 +9,7 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import styles from './InventoryUI.module.css'; // Reuse styles for now
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowUp, faArrowDown, faDroplet, faArrowRight, faSortAlphaDown } from '@fortawesome/free-solid-svg-icons';
+import { faArrowUp, faArrowDown, faDroplet, faArrowRight, faSortAlphaDown, faRightLeft } from '@fortawesome/free-solid-svg-icons';
 
 // Import Custom Components
 import ContainerSlots from './ContainerSlots';
@@ -1285,10 +1285,19 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         connection?.reducers &&
         container.containerId !== null;
 
+    // Whether to show the split button (furnaces with 2+ slots and at least one stackable smeltable ore)
+    const hasSplittableOre = container.containerType === 'furnace' &&
+        container.items.some(item => item && item.definition?.isStackable && item.definition?.cookedItemDefName);
+    const showSplitButton = container.containerType === 'furnace' &&
+        config.slots > 1 &&
+        hasSplittableOre &&
+        connection?.reducers &&
+        container.containerId !== null;
+
     return (
         <div className={styles.externalInventorySection}>
-            {/* Dynamic Title with optional Sort button for storage boxes */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Dynamic Title with optional Sort/Split buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
                 <h3 className={styles.sectionTitle} style={{ margin: 0, flex: 1 }}>{container.containerTitle}</h3>
                 {showSortButton && (
                     <button
@@ -1317,6 +1326,35 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         title="Sort items by type (alphabetically). Same item types will appear next to each other."
                     >
                         <FontAwesomeIcon icon={faSortAlphaDown} /> Sort
+                    </button>
+                )}
+                {showSplitButton && (
+                    <button
+                        onClick={() => {
+                            if (!connection?.reducers || container.containerId === null) return;
+                            const furnaceId = typeof container.containerId === 'bigint' ? Number(container.containerId) : container.containerId;
+                            try {
+                                connection.reducers.splitFurnaceOreEvenly(furnaceId);
+                                playImmediateSound('item_pickup');
+                            } catch (e: any) {
+                                console.error('Error splitting furnace ore:', e);
+                            }
+                        }}
+                        className={styles.interactionButton}
+                        style={{
+                            padding: '4px 10px',
+                            fontSize: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'linear-gradient(135deg, rgba(150, 120, 80, 0.3), rgba(120, 90, 60, 0.2))',
+                            border: '1px solid rgba(180, 140, 90, 0.5)',
+                            color: '#e8d4a8',
+                            flexShrink: 0,
+                        }}
+                        title="Split ore evenly across all slots (same ore type + empty). Maximizes burn rate when furnace is lit."
+                    >
+                        <FontAwesomeIcon icon={faRightLeft} /> Split
                     </button>
                 )}
             </div>

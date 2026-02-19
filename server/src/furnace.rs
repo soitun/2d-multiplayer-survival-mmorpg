@@ -551,6 +551,115 @@ pub fn split_and_drop_item_from_furnace_slot_to_world(
     Ok(())
 }
 
+/// --- Split Furnace Ore Evenly ---
+/// Distributes the chosen ore type evenly across all slots that have that ore + empty slots.
+/// Picks the ore type with the largest total quantity (or first by slot order if tie).
+/// Use case: Deposit a stack of Metal Ore, click Split, then light furnace to maximize burn rate.
+#[spacetimedb::reducer]
+pub fn split_furnace_ore_evenly(ctx: &ReducerContext, furnace_id: u32) -> Result<(), String> {
+    use crate::cooking::CookableAppliance;
+
+    let (_player, mut furnace) = validate_furnace_interaction(ctx, furnace_id)?;
+    let item_defs = ctx.db.item_definition();
+    let inventory_items = ctx.db.inventory_item();
+    let num_slots = furnace.num_slots() as u8;
+
+    // 1. Find stackable smeltable items (ore) - items with cooked_item_def_name that are stackable
+    let mut def_totals: std::collections::HashMap<u64, (u32, u8)> = std::collections::HashMap::new(); // def_id -> (total_qty, first_slot)
+    for slot in 0..num_slots {
+        if let (Some(inst_id), Some(def_id)) = (
+            furnace.get_slot_instance_id(slot),
+            furnace.get_slot_def_id(slot),
+        ) {
+            let item = inventory_items.instance_id().find(inst_id);
+            let def = item_defs.id().find(def_id);
+            if let (Some(item), Some(def)) = (item, def) {
+                if def.is_stackable && def.cooked_item_def_name.is_some() && item.quantity > 0 {
+                    let entry = def_totals.entry(def_id).or_insert((0, slot));
+                    entry.0 += item.quantity;
+                    if slot < entry.1 {
+                        entry.1 = slot;
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Pick ore type with largest total (tie: lowest slot index)
+    let (chosen_def_id, (total_qty, _)) = def_totals
+        .into_iter()
+        .max_by(|a, b| a.1 .0.cmp(&b.1 .0).then_with(|| b.1 .1.cmp(&a.1 .1)))
+        .ok_or("No stackable smeltable ore found in furnace.")?;
+
+    // 3. Target slots: same def_id + empty
+    let mut target_slots: Vec<u8> = Vec::new();
+    for slot in 0..num_slots {
+        let slot_def = furnace.get_slot_def_id(slot);
+        let is_empty = furnace.get_slot_instance_id(slot).is_none();
+        let is_same_ore = slot_def == Some(chosen_def_id);
+        if is_empty || is_same_ore {
+            target_slots.push(slot);
+        }
+    }
+
+    let n = target_slots.len();
+    if n < 2 || total_qty < 2 {
+        return Err("Need at least 2 slots and 2 ore to split.".to_string());
+    }
+
+    // 4. Desired amount per slot: first (total % n) slots get +1 extra
+    let per_slot = total_qty / n as u32;
+    let remainder = (total_qty % n as u32) as usize;
+    let mut desired: Vec<(u8, u32)> = target_slots
+        .iter()
+        .enumerate()
+        .map(|(i, &s)| (s, per_slot + if i < remainder { 1 } else { 0 }))
+        .collect();
+
+    // 5. Iteratively balance using handle_split_within_container
+    let max_iterations = (n * 2) as usize; // Safety limit
+    for _ in 0..max_iterations {
+        // Find slot with excess and slot with deficit
+        let mut excess_slot: Option<(u8, u32)> = None;
+        let mut deficit_slot: Option<(u8, u32)> = None;
+        for &(slot, want) in &desired {
+            let current = furnace
+                .get_slot_instance_id(slot)
+                .and_then(|id| inventory_items.instance_id().find(id))
+                .map(|i| i.quantity)
+                .unwrap_or(0);
+            if current > want {
+                excess_slot = Some((slot, current - want));
+            } else if current < want {
+                deficit_slot = Some((slot, want - current));
+            }
+        }
+        let (src, to_split) = match excess_slot {
+            Some(x) => x,
+            None => break, // Balanced
+        };
+        let (dst, need) = match deficit_slot {
+            Some(x) => x,
+            None => break,
+        };
+        let qty = min(to_split, need);
+        if qty == 0 {
+            break;
+        }
+        inventory_management::handle_split_within_container(ctx, &mut furnace, src, dst, qty)?;
+        // Clear cooking progress: target gets fresh ore; source if emptied
+        furnace.set_slot_cooking_progress(dst, None);
+        if furnace.get_slot_instance_id(src).is_none() {
+            furnace.set_slot_cooking_progress(src, None);
+        }
+    }
+
+    ctx.db.furnace().id().update(furnace.clone());
+    schedule_next_furnace_processing(ctx, furnace_id);
+    log::debug!("Player {:?} split furnace {} ore evenly.", ctx.sender, furnace_id);
+    Ok(())
+}
+
 /******************************************************************************
  *                       REDUCERS (Furnace-Specific Logic)                   *
  ******************************************************************************/
@@ -928,10 +1037,13 @@ pub fn process_furnace_logic_scheduled(ctx: &ReducerContext, schedule_args: Furn
                                     }
                                 }
                                 break; 
-                            } else { 
-                                furnace.current_fuel_def_id = None; 
-                                furnace.remaining_fuel_burn_time_secs = None; 
-                                needs_update = true; 
+                            } else {
+                                // Item was deleted elsewhere (e.g. by another reducer) but slot still references it - clear orphaned slot
+                                log::warn!("Furnace {} slot {} references item {} which is not in DB - clearing orphaned slot.", furnace_id, i, instance_id);
+                                furnace.set_slot(i, None, None);
+                                furnace.current_fuel_def_id = None;
+                                furnace.remaining_fuel_burn_time_secs = None;
+                                needs_update = true;
                                 break;
                             }
                         }
@@ -1350,6 +1462,10 @@ fn find_and_consume_next_fuel(ctx: &ReducerContext, furnace: &mut Furnace) -> bo
                                    furnace.id, slot_index, remaining_quantity);
                         return true;
                     }
+                } else {
+                    // Slot references wood that no longer exists in DB - clear orphaned slot
+                    log::warn!("Furnace {} slot {} references item {} which is not in DB - clearing orphaned slot.", furnace.id, slot_index, instance_id);
+                    furnace.set_slot(slot_index as u8, None, None);
                 }
             }
         }

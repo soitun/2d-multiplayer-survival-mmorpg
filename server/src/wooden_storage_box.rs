@@ -1580,28 +1580,52 @@ pub fn sort_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<(), String>
         return Err("Container has too few slots to sort.".to_string());
     }
 
-    // Collect all items with their slot index, instance ID, def ID, and item name
-    let mut items_with_names: Vec<(u8, u64, u64, String)> = Vec::new();
+    // Collect all items with their slot index, instance ID, def ID, category, and item name
+    let mut items_with_meta: Vec<(u8, u64, u64, crate::items::ItemCategory, String)> = Vec::new();
     for slot in 0..num_slots as u8 {
         if let (Some(inst_id), Some(def_id)) = (
             storage_box.get_slot_instance_id(slot),
             storage_box.get_slot_def_id(slot),
         ) {
-            let item_name = item_defs
+            let (category, item_name) = item_defs
                 .id()
                 .find(def_id)
-                .map(|def| def.name.clone())
-                .unwrap_or_else(|| format!("def_{}", def_id));
-            items_with_names.push((slot, inst_id, def_id, item_name));
+                .map(|def| (def.category.clone(), def.name.clone()))
+                .unwrap_or_else(|| {
+                    (
+                        crate::items::ItemCategory::Material,
+                        format!("def_{}", def_id),
+                    )
+                });
+            items_with_meta.push((slot, inst_id, def_id, category, item_name));
         }
     }
 
-    if items_with_names.is_empty() {
+    if items_with_meta.is_empty() {
         return Ok(()); // Nothing to sort
     }
 
-    // Sort by item name (alphabetically)
-    items_with_names.sort_by(|a, b| a.3.cmp(&b.3));
+    // Category sort order: Materials first, then Consumables, Ammunition, Tools, Weapons, Armor, Placeables
+    fn category_sort_order(cat: &crate::items::ItemCategory) -> u8 {
+        use crate::items::ItemCategory;
+        match cat {
+            ItemCategory::Material => 0,
+            ItemCategory::Consumable => 1,
+            ItemCategory::Ammunition => 2,
+            ItemCategory::Tool => 3,
+            ItemCategory::Weapon => 4,
+            ItemCategory::RangedWeapon => 5,
+            ItemCategory::Armor => 6,
+            ItemCategory::Placeable => 7,
+        }
+    }
+
+    // Sort by category first, then alphabetically by name within category
+    items_with_meta.sort_by(|a, b| {
+        let cat_a = category_sort_order(&a.3);
+        let cat_b = category_sort_order(&b.3);
+        cat_a.cmp(&cat_b).then_with(|| a.4.cmp(&b.4))
+    });
 
     // Clear all slots
     for slot in 0..num_slots as u8 {
@@ -1612,7 +1636,7 @@ pub fn sort_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<(), String>
     let container_id = storage_box.id as u64;
     let container_type = storage_box.get_container_type();
 
-    for (new_slot, (_, inst_id, def_id, _)) in items_with_names.into_iter().enumerate() {
+    for (new_slot, (_, inst_id, def_id, _, _)) in items_with_meta.into_iter().enumerate() {
         let new_slot = new_slot as u8;
         storage_box.set_slot(new_slot, Some(inst_id), Some(def_id));
 

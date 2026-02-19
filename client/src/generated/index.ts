@@ -665,6 +665,8 @@ import { SplitAndMoveFromFumarole } from "./split_and_move_from_fumarole_reducer
 export { SplitAndMoveFromFumarole };
 import { SplitAndMoveFromFurnace } from "./split_and_move_from_furnace_reducer.ts";
 export { SplitAndMoveFromFurnace };
+import { SplitFurnaceOreEvenly } from "./split_furnace_ore_evenly_reducer.ts";
+export { SplitFurnaceOreEvenly };
 import { SplitStack } from "./split_stack_reducer.ts";
 export { SplitStack };
 import { SplitStackFromBarbecue } from "./split_stack_from_barbecue_reducer.ts";
@@ -4591,6 +4593,10 @@ const REMOTE_MODULE = {
       reducerName: "split_and_move_from_furnace",
       argsType: SplitAndMoveFromFurnace.getTypeScriptAlgebraicType(),
     },
+    split_furnace_ore_evenly: {
+      reducerName: "split_furnace_ore_evenly",
+      argsType: SplitFurnaceOreEvenly.getTypeScriptAlgebraicType(),
+    },
     split_stack: {
       reducerName: "split_stack",
       argsType: SplitStack.getTypeScriptAlgebraicType(),
@@ -5242,6 +5248,7 @@ export type Reducer = never
 | { name: "SplitAndMoveFromCampfire", args: SplitAndMoveFromCampfire }
 | { name: "SplitAndMoveFromFumarole", args: SplitAndMoveFromFumarole }
 | { name: "SplitAndMoveFromFurnace", args: SplitAndMoveFromFurnace }
+| { name: "SplitFurnaceOreEvenly", args: SplitFurnaceOreEvenly }
 | { name: "SplitStack", args: SplitStack }
 | { name: "SplitStackFromBarbecue", args: SplitStackFromBarbecue }
 | { name: "SplitStackFromBox", args: SplitStackFromBox }
@@ -10223,6 +10230,22 @@ export class RemoteReducers {
     this.connection.offReducer("split_and_move_from_furnace", callback);
   }
 
+  splitFurnaceOreEvenly(furnaceId: number) {
+    const __args = { furnaceId };
+    let __writer = new __BinaryWriter(1024);
+    SplitFurnaceOreEvenly.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("split_furnace_ore_evenly", __argsBuffer, this.setCallReducerFlags.splitFurnaceOreEvenlyFlags);
+  }
+
+  onSplitFurnaceOreEvenly(callback: (ctx: ReducerEventContext, furnaceId: number) => void) {
+    this.connection.onReducer("split_furnace_ore_evenly", callback);
+  }
+
+  removeOnSplitFurnaceOreEvenly(callback: (ctx: ReducerEventContext, furnaceId: number) => void) {
+    this.connection.offReducer("split_furnace_ore_evenly", callback);
+  }
+
   splitStack(sourceItemInstanceId: bigint, quantityToSplit: number, targetSlotType: string, targetSlotIndex: number) {
     const __args = { sourceItemInstanceId, quantityToSplit, targetSlotType, targetSlotIndex };
     let __writer = new __BinaryWriter(1024);
@@ -12971,6 +12994,11 @@ export class SetReducerFlags {
   splitAndMoveFromFurnaceFlags: __CallReducerFlags = 'FullUpdate';
   splitAndMoveFromFurnace(flags: __CallReducerFlags) {
     this.splitAndMoveFromFurnaceFlags = flags;
+  }
+
+  splitFurnaceOreEvenlyFlags: __CallReducerFlags = 'FullUpdate';
+  splitFurnaceOreEvenly(flags: __CallReducerFlags) {
+    this.splitFurnaceOreEvenlyFlags = flags;
   }
 
   splitStackFlags: __CallReducerFlags = 'FullUpdate';
