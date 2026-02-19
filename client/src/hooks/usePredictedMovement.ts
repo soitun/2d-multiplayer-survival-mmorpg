@@ -349,7 +349,14 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
           }
         }
         
-        // PERFORMANCE: Camera reads from predictedPositionRef in GameCanvas - no React re-render needed
+        // SMOOTH DODGE ROLL: Throttled re-render so camera and predictedPositionRef stay in sync.
+        // Without this, predictedPosition stays stale (no re-render) and camera lags during roll.
+        // ~30Hz during dodge roll balances smoothness vs avoiding 60fps React cascades.
+        const now = performance.now();
+        if (now - lastForceUpdateTime.current > 33) {
+          lastForceUpdateTime.current = now;
+          forceUpdate({});
+        }
         
         // Skip normal movement processing during dodge roll
         movementMonitor.logUpdate(performance.now() - updateStartTime, true);

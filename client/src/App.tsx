@@ -580,6 +580,8 @@ function AppContent() {
                     console.log(`[App] interactWithHarvestableResource failed:`, errorMsg);
                     // Skip "too far away" - player can't reach this state through normal interaction (E only shows when in range)
                     if (errorMsg.toLowerCase().includes('too far')) return;
+                    // Skip "already harvested" - not useful for gameplay; player can see the resource is depleted
+                    if (errorMsg.toLowerCase().includes('already been harvested') || errorMsg.toLowerCase().includes('respawning')) return;
                     if (errorMsg.includes('underwater') || errorMsg.includes('snorkeling') || errorMsg.includes('seaweed')) {
                         playImmediateSound('error_seaweed_above_water', 1.0);
                     }
