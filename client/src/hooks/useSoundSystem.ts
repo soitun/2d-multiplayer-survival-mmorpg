@@ -88,6 +88,7 @@ const SOUND_DEFINITIONS = {
     pulverize_flour: { strategy: SoundStrategy.IMMEDIATE, volume: 1.2 }, // Grinding items into flour
     extract_queen_bee: { strategy: SoundStrategy.IMMEDIATE, volume: 1.2 }, // Extracting queen bee from honeycomb
     unravel_rope: { strategy: SoundStrategy.IMMEDIATE, volume: 1.2 }, // Unraveling rope into plant fiber
+    gut_fish: { strategy: SoundStrategy.IMMEDIATE, volume: 1.2 }, // Gutting raw fish for Animal Fat (uses melee slash sound)
     // SOVA tutorial sounds - special handling (triggers chat message as well as audio)
     sova_memory_shard_tutorial: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 10000 }, // SOVA explains memory shards on first pickup
     sova_memory_shard_200_tutorial: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 10000 }, // SOVA warns about 200 shards, mind instability, Memory Grid
@@ -712,6 +713,8 @@ const playLocalSound = async (
                 variationCount = 1; // extract_queen_bee.mp3
             } else if (soundType === 'unravel_rope') {
                 variationCount = 1; // unravel_rope.mp3
+            } else if (soundType === 'gut_fish') {
+                variationCount = 1; // Uses melee_hit_sharp.mp3 (cutting/slashing sound)
             } else if (soundType === 'construction_placement_error') {
                 variationCount = 1; // construction_placement_error.mp3
             } else if (soundType === 'error_arrows') {
@@ -808,6 +811,11 @@ const playLocalSound = async (
             } else {
                 filename = `${soundType}${randomVariation}.mp3`;
             }
+        }
+
+        // Alias: gut_fish reuses melee slash sound (cutting fish open)
+        if (soundType === 'gut_fish') {
+            filename = 'melee_hit_sharp.mp3';
         }
         
         // Check if this is an error sound (no pitch variation sounds) - prevent multiple from playing at once

@@ -198,6 +198,22 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
             });
         }
 
+        // Check if item is raw fish that can be gutted for Animal Fat
+        const guttableRawFish = [
+            "Raw Twigfish", "Raw Herring", "Raw Smelt", "Raw Greenling", "Raw Sculpin",
+            "Raw Pacific Cod", "Raw Dolly Varden", "Raw Rockfish", "Raw Steelhead",
+            "Raw Pink Salmon", "Raw Sockeye Salmon", "Raw King Salmon", "Raw Halibut",
+            "Raw Black Katy Chiton", "Raw Sea Urchin", "Raw Blue Mussel"
+        ];
+        if (guttableRawFish.includes(itemName)) {
+            actions.push({
+                label: 'Gut',
+                action: 'gut_fish',
+                description: 'Extract Animal Fat (destroys fish)',
+                buttonStyle: 'crushButton'
+            });
+        }
+
         // Check if item can be extracted (honeycomb -> queen bee or yeast)
         if (itemName === "Honeycomb") {
             actions.push({
@@ -293,6 +309,10 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
                 case 'extract_yeast':
                     connection.reducers.extractYeast(itemInstanceId);
                     playImmediateSound('extract_queen_bee'); // Same extraction sound as honeycomb
+                    break;
+                case 'gut_fish':
+                    connection.reducers.gutFish(itemInstanceId);
+                    playImmediateSound('gut_fish');
                     break;
                 case 'consume':
                     // console.log(`Consuming item ${itemInstanceId}: ${selectedItem.definition.name}`);

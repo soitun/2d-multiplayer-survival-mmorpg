@@ -203,6 +203,8 @@ import { GetShardBalance } from "./get_shard_balance_reducer.ts";
 export { GetShardBalance };
 import { GrantBuildingPrivilegeFromHearth } from "./grant_building_privilege_from_hearth_reducer.ts";
 export { GrantBuildingPrivilegeFromHearth };
+import { GutFish } from "./gut_fish_reducer.ts";
+export { GutFish };
 import { IdentityConnected } from "./identity_connected_reducer.ts";
 export { IdentityConnected };
 import { IdentityDisconnected } from "./identity_disconnected_reducer.ts";
@@ -3677,6 +3679,10 @@ const REMOTE_MODULE = {
       reducerName: "grant_building_privilege_from_hearth",
       argsType: GrantBuildingPrivilegeFromHearth.getTypeScriptAlgebraicType(),
     },
+    gut_fish: {
+      reducerName: "gut_fish",
+      argsType: GutFish.getTypeScriptAlgebraicType(),
+    },
     identity_connected: {
       reducerName: "identity_connected",
       argsType: IdentityConnected.getTypeScriptAlgebraicType(),
@@ -5041,6 +5047,7 @@ export type Reducer = never
 | { name: "GetMinimapData", args: GetMinimapData }
 | { name: "GetShardBalance", args: GetShardBalance }
 | { name: "GrantBuildingPrivilegeFromHearth", args: GrantBuildingPrivilegeFromHearth }
+| { name: "GutFish", args: GutFish }
 | { name: "IdentityConnected", args: IdentityConnected }
 | { name: "IdentityDisconnected", args: IdentityDisconnected }
 | { name: "InitProjectileSystem", args: InitProjectileSystem }
@@ -6676,6 +6683,22 @@ export class RemoteReducers {
 
   removeOnGrantBuildingPrivilegeFromHearth(callback: (ctx: ReducerEventContext, hearthId: number) => void) {
     this.connection.offReducer("grant_building_privilege_from_hearth", callback);
+  }
+
+  gutFish(itemInstanceId: bigint) {
+    const __args = { itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    GutFish.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("gut_fish", __argsBuffer, this.setCallReducerFlags.gutFishFlags);
+  }
+
+  onGutFish(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("gut_fish", callback);
+  }
+
+  removeOnGutFish(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("gut_fish", callback);
   }
 
   onIdentityConnected(callback: (ctx: ReducerEventContext) => void) {
@@ -11941,6 +11964,11 @@ export class SetReducerFlags {
   grantBuildingPrivilegeFromHearthFlags: __CallReducerFlags = 'FullUpdate';
   grantBuildingPrivilegeFromHearth(flags: __CallReducerFlags) {
     this.grantBuildingPrivilegeFromHearthFlags = flags;
+  }
+
+  gutFishFlags: __CallReducerFlags = 'FullUpdate';
+  gutFish(flags: __CallReducerFlags) {
+    this.gutFishFlags = flags;
   }
 
   initProjectileSystemFlags: __CallReducerFlags = 'FullUpdate';

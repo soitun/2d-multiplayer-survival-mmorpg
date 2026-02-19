@@ -4,6 +4,16 @@
  * Note: Kokoro TTS runs locally and doesn't need this proxy
  */
 
+// Process-level error handlers - must run before any imports that could throw
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught exception:', err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[FATAL] Unhandled rejection at', promise, 'reason:', reason);
+  process.exit(1);
+});
+
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
@@ -51,7 +61,8 @@ const allowedOrigins = [
 console.log('🔒 CORS Configuration:', { allowedOrigins, CLIENT_URL: process.env.CLIENT_URL });
 
 // Explicit preflight handler - MUST run before anything that could block
-app.options('*', (req, res) => {
+// Express 5: '*' is invalid; use /(.*) for catch-all (path-to-regexp v8 breaking change)
+app.options(/(.*)/, (req, res) => {
   const origin = (req.headers.origin || '') as string;
   const allow = !origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production';
   if (allow) {
@@ -808,7 +819,7 @@ app.post('/api/gemini/icon', requireAuth, iconLimiter, async (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Secure API Proxy Server running on port ${PORT}`);
   console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`   OpenAI Whisper: POST /api/whisper/transcribe`);
@@ -818,5 +829,13 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   Gemini Brew: POST /api/gemini/brew`);
   console.log(`   Retro Diffusion Icon: POST /api/gemini/icon`);
   console.log(`   Health Check: GET /health`);
+});
+
+server.on('error', (err: NodeJS.ErrnoException) => {
+  console.error('[FATAL] Server listen error:', err);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use`);
+  }
+  process.exit(1);
 });
 

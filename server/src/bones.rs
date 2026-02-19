@@ -607,3 +607,101 @@ pub fn extract_from_honeycomb(ctx: &ReducerContext, item_instance_id: u64) -> Re
     
     Ok(())
 }
+
+// =============================================================================
+// GUT FISH - Extract Animal Fat from Raw Fish
+// =============================================================================
+
+/// Raw fish (and oily shellfish) that can be gutted for Animal Fat.
+/// Fish are destroyed; yield scales with size (small fish = less fat, large = more).
+const GUTTABLE_RAW_FISH: &[&str] = &[
+    // Small fish
+    "Raw Twigfish",
+    "Raw Herring",
+    "Raw Smelt",
+    // Medium fish
+    "Raw Greenling",
+    "Raw Sculpin",
+    "Raw Pacific Cod",
+    "Raw Dolly Varden",
+    "Raw Rockfish",
+    // Large fish
+    "Raw Steelhead",
+    "Raw Pink Salmon",
+    "Raw Sockeye Salmon",
+    "Raw King Salmon",
+    "Raw Halibut",
+    // Shellfish (oily - less fat than fish)
+    "Raw Black Katy Chiton",
+    "Raw Sea Urchin",
+    "Raw Blue Mussel",
+];
+
+/// Gut a raw fish to extract Animal Fat. Destroys the fish.
+/// Yield: small fish 1-2, medium 2-3, large 3-5, shellfish 1-2.
+/// If inventory is full, fat will be dropped near the player.
+#[spacetimedb::reducer]
+pub fn gut_fish(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
+    let sender_id = ctx.sender;
+    let inventory_table = ctx.db.inventory_item();
+    let item_def_table = ctx.db.item_definition();
+
+    let item_to_gut = inventory_table.instance_id().find(item_instance_id)
+        .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
+
+    let item_def = item_def_table.id().find(item_to_gut.item_def_id)
+        .ok_or_else(|| format!("Item definition {} not found", item_to_gut.item_def_id))?;
+
+    let item_name = item_def.name.as_str();
+    if !GUTTABLE_RAW_FISH.contains(&item_name) {
+        return Err(format!(
+            "Cannot gut '{}'. Only raw fish and shellfish can be gutted for Animal Fat.",
+            item_def.name
+        ));
+    }
+
+    crate::container_access::validate_player_can_use_item(ctx, &item_to_gut)?;
+
+    let animal_fat_def = item_def_table.iter()
+        .find(|def| def.name == "Animal Fat")
+        .ok_or_else(|| "Animal Fat item definition not found".to_string())?;
+
+    let fat_to_create = match item_name {
+        "Raw Twigfish" | "Raw Herring" | "Raw Smelt" => ctx.rng().gen_range(1..=2),
+        "Raw Greenling" | "Raw Sculpin" | "Raw Pacific Cod" | "Raw Dolly Varden" | "Raw Rockfish" => {
+            ctx.rng().gen_range(2..=3)
+        }
+        "Raw Steelhead" | "Raw Pink Salmon" | "Raw Sockeye Salmon" | "Raw King Salmon" | "Raw Halibut" => {
+            ctx.rng().gen_range(3..=5)
+        }
+        "Raw Black Katy Chiton" | "Raw Sea Urchin" | "Raw Blue Mussel" => ctx.rng().gen_range(1..=2),
+        _ => 1,
+    };
+
+    log::info!("[GutFish] Player {} gutting {} for {} Animal Fat", sender_id, item_def.name, fat_to_create);
+
+    if item_to_gut.quantity > 1 {
+        let mut updated_item = item_to_gut.clone();
+        updated_item.quantity -= 1;
+        inventory_table.instance_id().update(updated_item);
+    } else {
+        if let crate::models::ItemLocation::Container(ref loc) = &item_to_gut.location {
+            if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
+                crate::items::clear_item_from_any_container(ctx, item_instance_id);
+            }
+        }
+        inventory_table.instance_id().delete(item_instance_id);
+    }
+
+    match try_give_item_to_player(ctx, sender_id, animal_fat_def.id, fat_to_create) {
+        Ok(added_to_inventory) => {
+            if added_to_inventory {
+                log::info!("[GutFish] Added {} Animal Fat to inventory for player {}", fat_to_create, sender_id);
+            } else {
+                log::info!("[GutFish] Inventory full, dropped {} Animal Fat near player {}", fat_to_create, sender_id);
+            }
+            Ok(())
+        }
+        Err(e) => Err(format!("Failed to give Animal Fat to player: {}", e))
+    }
+}
