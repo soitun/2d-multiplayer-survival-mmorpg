@@ -4447,15 +4447,15 @@ pub fn spawn_tide_pool_resources(ctx: &ReducerContext) -> Result<(), String> {
         let mut pool_barrels = 0;
         let mut pool_washed_up = 0;
         
-        // Spawn reeds (3-5 per tide pool) - coastal reeds in the inlet
+        // Spawn reeds (3-5 per tide pool) - coastal reeds grow IN the water inlet (not on sand)
         let reed_count = ctx.rng().gen_range(3..=5);
         for _ in 0..reed_count {
             let angle = ctx.rng().gen::<f32>() * std::f32::consts::PI * 2.0;
-            let distance = ctx.rng().gen_range(25.0..*radius_px * 0.8);
+            let distance = ctx.rng().gen_range(25.0..*radius_px * 0.6); // Closer to center = in the water
             let spawn_x = pool_x + angle.cos() * distance;
             let spawn_y = pool_y + angle.sin() * distance;
             
-            if !crate::environment::is_position_on_beach_tile(ctx, spawn_x, spawn_y) {
+            if !crate::environment::is_position_on_water(ctx, spawn_x, spawn_y) {
                 continue;
             }
             

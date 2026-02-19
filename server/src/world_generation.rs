@@ -60,6 +60,8 @@ const MIN_TIDE_POOL_DISTANCE: f32 = 400.0;
 /// Beach tile range for tide pools (shore_distance 0-15 = ocean beach, NOT river/lake)
 const TIDE_POOL_MIN_SHORE_DIST: f64 = 1.0;   // At least 1 tile from water (on beach)
 const TIDE_POOL_MAX_SHORE_DIST: f64 = 15.0;  // At most 15 tiles inland (beach zone)
+/// Radius of water inlet in center of tide pool (pixels) - creates actual water tiles like a coastal inlet
+const TIDE_POOL_INLET_RADIUS_PX: f32 = 90.0;
 
 #[spacetimedb::reducer]
 pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<(), String> {
@@ -3330,6 +3332,18 @@ fn determine_realistic_tile_type(
     // Hot spring beach (shore) - just like regular beaches
     if features.hot_spring_beach[y][x] {
         return TileType::Beach;
+    }
+    
+    // TIDE POOL INLETS: Carve water tiles in center of each tide pool (coastal inlet)
+    // Creates actual water in the middle - reeds grow in water, crabs can swim
+    let tile_center_x = (world_x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+    let tile_center_y = (world_y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+    for &(pool_x, pool_y) in &features.tide_pool_centers {
+        let dx = tile_center_x - pool_x;
+        let dy = tile_center_y - pool_y;
+        if dx * dx + dy * dy <= TIDE_POOL_INLET_RADIUS_PX * TIDE_POOL_INLET_RADIUS_PX {
+            return TileType::Sea;
+        }
     }
     
     // Beach areas around water - CHECK AFTER rivers/lakes/hot springs

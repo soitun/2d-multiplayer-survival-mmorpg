@@ -258,6 +258,68 @@ pub fn is_position_on_beach_tile(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -
     false
 }
 
+/// Checks if position is within any tide pool zone (coastal inlet - crabs, reeds, terns)
+pub fn is_position_in_tide_pool(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    for pool in ctx.db.tide_pool().iter() {
+        let dx = pos_x - pool.world_x;
+        let dy = pos_y - pool.world_y;
+        if dx * dx + dy * dy <= pool.radius_px * pool.radius_px {
+            return true;
+        }
+    }
+    false
+}
+
+/// Checks if position is within any reed marsh zone
+pub fn is_position_in_reed_marsh(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    for marsh in ctx.db.reed_marsh().iter() {
+        let dx = pos_x - marsh.world_x;
+        let dy = pos_y - marsh.world_y;
+        if dx * dx + dy * dy <= marsh.radius_px * marsh.radius_px {
+            return true;
+        }
+    }
+    false
+}
+
+/// Wolf den zone radius (matches respawn WOLF_DEN_ZONE_RADIUS_SQ = 250^2)
+const WOLF_DEN_ZONE_RADIUS_PX: f32 = 250.0;
+
+/// Checks if position is within any wolf den zone
+pub fn is_position_in_wolf_den_zone(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    let radius_sq = WOLF_DEN_ZONE_RADIUS_PX * WOLF_DEN_ZONE_RADIUS_PX;
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::WolfDen || !part.is_center {
+            continue;
+        }
+        let dx = pos_x - part.world_x;
+        let dy = pos_y - part.world_y;
+        if dx * dx + dy * dy <= radius_sq {
+            return true;
+        }
+    }
+    false
+}
+
+/// Find the wolf den center closest to the given spawn position (for wolves that spawn at dens)
+pub fn find_nearest_wolf_den_center(ctx: &ReducerContext, spawn_x: f32, spawn_y: f32) -> Option<(f32, f32)> {
+    let mut closest: Option<(f32, f32)> = None;
+    let mut closest_dist_sq = f32::MAX;
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::WolfDen || !part.is_center {
+            continue;
+        }
+        let dx = spawn_x - part.world_x;
+        let dy = spawn_y - part.world_y;
+        let dist_sq = dx * dx + dy * dy;
+        if dist_sq < closest_dist_sq {
+            closest_dist_sq = dist_sq;
+            closest = Some((part.world_x, part.world_y));
+        }
+    }
+    closest
+}
+
 /// Checks if position is on a Forest tile (dense forested area)
 /// Forest tiles have much higher tree density and darker ground texture
 pub fn is_position_on_forest_tile(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
@@ -955,8 +1017,11 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
     
     // Block water tiles for NON-AQUATIC animals only.
     // SalmonShark and Jellyfish REQUIRE Sea tiles to spawn - they must reach their species-specific logic.
+    // BeachCrab and Tern can spawn on water within tide pools (coastal inlets - they stick to these zones)
     let is_aquatic_species = matches!(species, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish);
-    if tile_type.is_water() && !is_aquatic_species {
+    let is_tide_pool_species = matches!(species, AnimalSpecies::BeachCrab | AnimalSpecies::Tern);
+    let in_tide_pool = is_tide_pool_species && is_position_in_tide_pool(ctx, pos_x, pos_y);
+    if tile_type.is_water() && !is_aquatic_species && !(is_tide_pool_species && in_tide_pool) {
         return false;
     }
     
@@ -1027,7 +1092,10 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
         }
         
         AnimalSpecies::BeachCrab => {
-            // 🦀 CRAB BEACH REQUIREMENT: Must spawn on beach tiles only (stricter than walrus)
+            // 🦀 CRAB TIDE POOL: Spawn on beach OR water within tide pool (they can swim in the inlet)
+            if in_tide_pool && tile_type.is_water() {
+                return true; // Water in tide pool inlet - crabs swim here
+            }
             if matches!(tile_type, TileType::Beach) {
                 return true; // Perfect beach habitat for crabs
             }
@@ -1062,7 +1130,10 @@ pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y:
         }
         
         AnimalSpecies::Tern => {
-            // 🐦 TERN BEACH REQUIREMENT: Terns spawn on beaches and coastal areas
+            // 🐦 TERN TIDE POOL: Spawn on beach OR water within tide pool (like crabs)
+            if in_tide_pool && tile_type.is_water() {
+                return true; // Water in tide pool - terns hunt here
+            }
             if matches!(tile_type, TileType::Beach) {
                 return true; // Perfect beach habitat for terns
             }
@@ -5474,7 +5545,10 @@ fn spawn_crabs_and_terns_near_tide_pools(
             let spawn_x = pool_x + angle.cos() * distance;
             let spawn_y = pool_y + angle.sin() * distance;
             
-            if !is_position_on_beach_tile(ctx, spawn_x, spawn_y) {
+            // Crabs spawn on beach OR water within tide pool (they can swim in the inlet)
+            let on_beach = is_position_on_beach_tile(ctx, spawn_x, spawn_y);
+            let on_water = is_position_on_water(ctx, spawn_x, spawn_y);
+            if !on_beach && !on_water {
                 continue;
             }
             
@@ -5545,7 +5619,10 @@ fn spawn_crabs_and_terns_near_tide_pools(
         let spawn_x = pool_x + angle.cos() * distance;
         let spawn_y = pool_y + angle.sin() * distance;
         
-        if !is_position_on_beach_tile(ctx, spawn_x, spawn_y) {
+        // Terns spawn on beach OR water within tide pool (like crabs)
+        let on_beach = is_position_on_beach_tile(ctx, spawn_x, spawn_y);
+        let on_water = is_position_on_water(ctx, spawn_x, spawn_y);
+        if !on_beach && !on_water {
             continue;
         }
         

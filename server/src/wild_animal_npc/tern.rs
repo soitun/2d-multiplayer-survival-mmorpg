@@ -20,6 +20,8 @@ use crate::utils::get_distance_squared;
 // Table trait imports
 use crate::player as PlayerTableTrait;
 use crate::dropped_item::dropped_item as DroppedItemTableTrait;
+use crate::reed_marsh as ReedMarshTableTrait;
+use crate::tide_pool as TidePoolTableTrait;
 use super::core::{
     AnimalBehavior, AnimalStats, AnimalState, MovementPattern, WildAnimal, wild_animal as WildAnimalTableTrait,
     move_towards_target, transition_to_state, emit_species_sound,
@@ -239,12 +241,41 @@ impl AnimalBehavior for TernBehavior {
         dt: f32,
         rng: &mut impl Rng,
     ) {
+        // Zone sticking: Terns that spawn at marsh/tide pool stick to their zone (random spawns don't)
+        // When attacked, flee logic runs instead - they can flee away
+        if rng.gen::<f32>() < 0.08 {
+            let spawn_in_zone = crate::environment::is_position_in_reed_marsh(ctx, animal.spawn_x, animal.spawn_y)
+                || crate::environment::is_position_in_tide_pool(ctx, animal.spawn_x, animal.spawn_y);
+            let in_marsh = crate::environment::is_position_in_reed_marsh(ctx, animal.pos_x, animal.pos_y);
+            let in_tide_pool = crate::environment::is_position_in_tide_pool(ctx, animal.pos_x, animal.pos_y);
+            if spawn_in_zone && !in_marsh && !in_tide_pool {
+                if let Some((zone_x, zone_y)) = find_nearest_tern_home_zone(ctx, animal.spawn_x, animal.spawn_y) {
+                    let dx = zone_x - animal.pos_x;
+                    let dy = zone_y - animal.pos_y;
+                    let distance = (dx * dx + dy * dy).sqrt();
+                    if distance > 0.0 {
+                        let zone_angle = dy.atan2(dx);
+                        if animal.is_flying {
+                            // Set flying target toward zone center
+                            let fly_distance = 150.0 + rng.gen::<f32>() * 100.0;
+                            animal.flying_target_x = Some(animal.pos_x + fly_distance * zone_angle.cos());
+                            animal.flying_target_y = Some(animal.pos_y + fly_distance * zone_angle.sin());
+                            log::debug!("Tern {} flying back toward marsh/tide pool", animal.id);
+                        } else {
+                            // Grounded - bias walking direction
+                            animal.direction_x = zone_angle.cos();
+                            animal.direction_y = zone_angle.sin();
+                            log::debug!("Tern {} walking back toward marsh/tide pool", animal.id);
+                        }
+                    }
+                }
+            }
+        }
+
         // Terns use is_flying flag to determine animation/movement type
-        // This flag is the source of truth for sprite selection on client
         if animal.is_flying {
             execute_flying_patrol(ctx, animal, stats, dt, rng);
         } else {
-            // Grounded - use direction-based walking patrol like crabs
             execute_grounded_idle(ctx, animal, stats, dt, rng);
         }
     }
@@ -295,6 +326,31 @@ impl AnimalBehavior for TernBehavior {
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
+
+/// Find the nearest marsh or tide pool center to the given spawn position (for terns that spawn at marsh/tide pool)
+fn find_nearest_tern_home_zone(ctx: &ReducerContext, spawn_x: f32, spawn_y: f32) -> Option<(f32, f32)> {
+    let mut closest: Option<(f32, f32)> = None;
+    let mut closest_dist_sq = f32::MAX;
+    for marsh in ctx.db.reed_marsh().iter() {
+        let dx = spawn_x - marsh.world_x;
+        let dy = spawn_y - marsh.world_y;
+        let dist_sq = dx * dx + dy * dy;
+        if dist_sq < closest_dist_sq {
+            closest_dist_sq = dist_sq;
+            closest = Some((marsh.world_x, marsh.world_y));
+        }
+    }
+    for pool in ctx.db.tide_pool().iter() {
+        let dx = spawn_x - pool.world_x;
+        let dy = spawn_y - pool.world_y;
+        let dist_sq = dx * dx + dy * dy;
+        if dist_sq < closest_dist_sq {
+            closest_dist_sq = dist_sq;
+            closest = Some((pool.world_x, pool.world_y));
+        }
+    }
+    closest
+}
 
 /// Find a nearby dropped item for scavenging
 fn find_nearby_dropped_item(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> Option<(u64, f32, f32)> {

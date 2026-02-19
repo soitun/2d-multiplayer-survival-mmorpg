@@ -18,6 +18,7 @@ use crate::utils::get_distance_squared;
 
 // Table trait imports
 use crate::player as PlayerTableTrait;
+use crate::tide_pool as TidePoolTableTrait;
 use super::core::{
     AnimalBehavior, AnimalStats, AnimalState, MovementPattern, WildAnimal, AnimalSpecies,
     move_towards_target, can_attack, transition_to_state, emit_species_sound,
@@ -210,7 +211,8 @@ impl AnimalBehavior for BeachCrabBehavior {
         dt: f32,
         rng: &mut impl Rng,
     ) {
-        // MODIFIED PATROL: Crabs move slowly and stay on beaches
+        // MODIFIED PATROL: Crabs move slowly and stick to their tide pool (bias back when outside)
+        // When attacked, flee logic runs instead - animals can flee away from their zone
         let modified_stats = AnimalStats {
             patrol_radius: 60.0, // Very small patrol radius
             movement_speed: stats.movement_speed * 0.7, // Move 30% slower during patrol
@@ -219,23 +221,24 @@ impl AnimalBehavior for BeachCrabBehavior {
         
         execute_standard_patrol(ctx, animal, &modified_stats, dt, rng);
         
-        // Additional check to keep crabs on beaches/coastal areas
-        if rng.gen::<f32>() < 0.08 { // 8% chance per tick to check beach proximity
-            if !is_position_on_beach_or_coastal(ctx, animal.pos_x, animal.pos_y) {
-                // Find direction toward nearest beach and bias movement
-                if let Some((beach_x, beach_y)) = find_nearest_beach_tile(ctx, animal.pos_x, animal.pos_y) {
-                    let dx = beach_x - animal.pos_x;
-                    let dy = beach_y - animal.pos_y;
+        // Tide pool sticking: Only for crabs that SPAWNED in a tide pool (random beach spawns don't get bias)
+        if rng.gen::<f32>() < 0.08 { // 8% chance per tick to check tide pool proximity
+            let spawn_in_tide_pool = crate::environment::is_position_in_tide_pool(ctx, animal.spawn_x, animal.spawn_y);
+            if spawn_in_tide_pool && !is_position_in_tide_pool(ctx, animal.pos_x, animal.pos_y) {
+                // Find nearest tide pool and bias movement back toward it
+                if let Some((pool_x, pool_y)) = find_nearest_tide_pool(ctx, animal.pos_x, animal.pos_y) {
+                    let dx = pool_x - animal.pos_x;
+                    let dy = pool_y - animal.pos_y;
                     let distance = (dx * dx + dy * dy).sqrt();
                     
                     if distance > 0.0 {
-                        // Bias direction toward beach
-                        let beach_weight = 0.8; // 80% toward beach, 20% random
+                        // Bias direction toward tide pool center
+                        let pool_weight = 0.8; // 80% toward pool, 20% random
                         let random_angle = rng.gen::<f32>() * 2.0 * PI;
-                        let beach_angle = dy.atan2(dx);
+                        let pool_angle = dy.atan2(dx);
                         
-                        animal.direction_x = beach_weight * beach_angle.cos() + (1.0 - beach_weight) * random_angle.cos();
-                        animal.direction_y = beach_weight * beach_angle.sin() + (1.0 - beach_weight) * random_angle.sin();
+                        animal.direction_x = pool_weight * pool_angle.cos() + (1.0 - pool_weight) * random_angle.cos();
+                        animal.direction_y = pool_weight * pool_angle.sin() + (1.0 - pool_weight) * random_angle.sin();
                         
                         // Normalize the direction
                         let length = (animal.direction_x * animal.direction_x + animal.direction_y * animal.direction_y).sqrt();
@@ -244,7 +247,7 @@ impl AnimalBehavior for BeachCrabBehavior {
                             animal.direction_y /= length;
                         }
                         
-                        log::debug!("Beach Crab {} guided back toward beach area", animal.id);
+                        log::debug!("Beach Crab {} guided back toward tide pool", animal.id);
                     }
                 }
             }
@@ -306,83 +309,23 @@ impl AnimalBehavior for BeachCrabBehavior {
     }
 }
 
-// Helper functions for beach navigation (similar to walrus.rs)
-
-/// Check if position is on beach or coastal area (beach tile or adjacent to water)
-fn is_position_on_beach_or_coastal(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
-    // Convert pixel position to tile coordinates
-    let tile_x = (pos_x / crate::TILE_SIZE_PX as f32).floor() as i32;
-    let tile_y = (pos_y / crate::TILE_SIZE_PX as f32).floor() as i32;
-    
-    // Check if current tile is beach
-    if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
-        if tile_type == crate::TileType::Beach {
-            return true;
-        }
-        
-        // If not beach, check if it's adjacent to water (coastal area)
-        if tile_type == crate::TileType::Grass || tile_type == crate::TileType::Dirt || tile_type == crate::TileType::Sand {
-            // Check surrounding tiles for water
-            for dy in -1..=1 {
-                for dx in -1..=1 {
-                    if dx == 0 && dy == 0 { continue; }
-                    
-                    let check_x = tile_x + dx;
-                    let check_y = tile_y + dy;
-                    
-                    if let Some(adjacent_tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
-                        if adjacent_tile_type.is_water() || adjacent_tile_type == crate::TileType::Beach {
-                            return true; // Adjacent to water/beach = coastal
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    false
+fn is_position_in_tide_pool(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    crate::environment::is_position_in_tide_pool(ctx, pos_x, pos_y)
 }
 
-/// Find the nearest beach tile to guide crab movement
-fn find_nearest_beach_tile(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> Option<(f32, f32)> {
-    let current_tile_x = (pos_x / crate::TILE_SIZE_PX as f32).floor() as i32;
-    let current_tile_y = (pos_y / crate::TILE_SIZE_PX as f32).floor() as i32;
-    
-    let search_radius = 8; // Search within 8 tiles
-    let mut closest_beach: Option<(i32, i32)> = None;
+fn find_nearest_tide_pool(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> Option<(f32, f32)> {
+    let mut closest_pool: Option<(f32, f32)> = None;
     let mut closest_distance_sq = f32::MAX;
-    
-    // Search in expanding radius for beach tiles
-    for dy in -search_radius..=search_radius {
-        for dx in -search_radius..=search_radius {
-            let check_x = current_tile_x + dx;
-            let check_y = current_tile_y + dy;
-            
-            // Check bounds
-            if check_x < 0 || check_y < 0 || 
-               check_x >= crate::WORLD_WIDTH_TILES as i32 || check_y >= crate::WORLD_HEIGHT_TILES as i32 {
-                continue;
-            }
-            
-            if let Some(tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
-                if tile_type == crate::TileType::Beach {
-                    let distance_sq = (dx * dx + dy * dy) as f32;
-                    if distance_sq < closest_distance_sq {
-                        closest_distance_sq = distance_sq;
-                        closest_beach = Some((check_x, check_y));
-                    }
-                }
-            }
+    for pool in ctx.db.tide_pool().iter() {
+        let dx = pos_x - pool.world_x;
+        let dy = pos_y - pool.world_y;
+        let distance_sq = dx * dx + dy * dy;
+        if distance_sq < closest_distance_sq {
+            closest_distance_sq = distance_sq;
+            closest_pool = Some((pool.world_x, pool.world_y));
         }
     }
-    
-    // Convert tile coordinates back to world position
-    if let Some((beach_tile_x, beach_tile_y)) = closest_beach {
-        let beach_world_x = (beach_tile_x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
-        let beach_world_y = (beach_tile_y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
-        Some((beach_world_x, beach_world_y))
-    } else {
-        None
-    }
+    closest_pool
 }
+
 

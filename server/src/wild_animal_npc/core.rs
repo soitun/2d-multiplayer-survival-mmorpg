@@ -4990,8 +4990,9 @@ pub fn execute_standard_patrol(
     let target_y = animal.pos_y + animal.direction_y * stats.movement_speed * dt;
     
     // Check if target position is safe (avoid shelters and water)
-    if !is_position_in_shelter(ctx, target_x, target_y) &&
-       !crate::fishing::is_water_tile(ctx, target_x, target_y) {
+    // BeachCrab can swim in water (tide pool inlets) - allow water movement
+    let water_blocks = animal.species != AnimalSpecies::BeachCrab && crate::fishing::is_water_tile(ctx, target_x, target_y);
+    if !is_position_in_shelter(ctx, target_x, target_y) && !water_blocks {
         move_towards_target(ctx, animal, target_x, target_y, stats.movement_speed, dt);
         
         // Check if stuck and recover

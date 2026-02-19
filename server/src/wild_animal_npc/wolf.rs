@@ -308,6 +308,33 @@ impl AnimalBehavior for TundraWolfBehavior {
             }
         }
         
+        // 🐺 DEN STICKING: Wolves that spawn at dens stay near their den (like crabs/terns at their zones)
+        // When attacked, flee logic runs instead - they can flee away
+        if rng.gen::<f32>() < 0.08 {
+            let in_den_zone = crate::environment::is_position_in_wolf_den_zone(ctx, animal.pos_x, animal.pos_y);
+            let spawn_in_den_zone = crate::environment::is_position_in_wolf_den_zone(ctx, animal.spawn_x, animal.spawn_y);
+            if spawn_in_den_zone && !in_den_zone {
+                if let Some((den_x, den_y)) = crate::environment::find_nearest_wolf_den_center(ctx, animal.spawn_x, animal.spawn_y) {
+                    let dx = den_x - animal.pos_x;
+                    let dy = den_y - animal.pos_y;
+                    let distance = (dx * dx + dy * dy).sqrt();
+                    if distance > 0.0 {
+                        let den_angle = dy.atan2(dx);
+                        let pool_weight = 0.8;
+                        let random_angle = rng.gen::<f32>() * 2.0 * PI;
+                        animal.direction_x = pool_weight * den_angle.cos() + (1.0 - pool_weight) * random_angle.cos();
+                        animal.direction_y = pool_weight * den_angle.sin() + (1.0 - pool_weight) * random_angle.sin();
+                        let length = (animal.direction_x * animal.direction_x + animal.direction_y * animal.direction_y).sqrt();
+                        if length > 0.0 {
+                            animal.direction_x /= length;
+                            animal.direction_y /= length;
+                        }
+                        log::debug!("Tundra Wolf {} guided back toward den", animal.id);
+                    }
+                }
+            }
+        }
+
         // Store previous position to detect if stuck
         let prev_x = animal.pos_x;
         let prev_y = animal.pos_y;

@@ -5,7 +5,7 @@ use log;
 use std::time::Duration;
 
 use crate::{TILE_SIZE_PX, WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES};
-use crate::environment::{calculate_chunk_index, is_wild_animal_location_suitable, is_position_on_water, is_position_in_central_compound};
+use crate::environment::{calculate_chunk_index, is_wild_animal_location_suitable, is_position_on_water, is_position_in_central_compound, is_position_in_tide_pool};
 use crate::utils::calculate_tile_bounds;
 use super::core::{AnimalSpecies, AnimalState, MovementPattern, WildAnimal, AnimalBehavior, init_wild_animal_ai_schedule};
 use crate::{MonumentType, monument_part as MonumentPartTableTrait};
@@ -490,8 +490,11 @@ fn is_valid_spawn_position(
     }
     
     // Check water - aquatic species REQUIRE water, non-aquatic species are BLOCKED from water
+    // Exception: BeachCrab and Tern can spawn on water within tide pools (coastal inlets)
     let is_aquatic_species = matches!(species, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish);
+    let is_tide_pool_species = matches!(species, AnimalSpecies::BeachCrab | AnimalSpecies::Tern);
     let is_on_water = is_position_on_water(ctx, pos_x, pos_y);
+    let in_tide_pool = is_tide_pool_species && is_position_in_tide_pool(ctx, pos_x, pos_y);
     
     if is_aquatic_species {
         // Aquatic animals MUST spawn on water
@@ -512,8 +515,8 @@ fn is_valid_spawn_position(
         // Skip tree/stone/respawn position checks for aquatic animals (they're in water)
         return true;
     } else {
-        // Non-aquatic animals must NOT spawn on water
-        if is_on_water {
+        // Non-aquatic animals must NOT spawn on water (except tide pool species in their zone)
+        if is_on_water && !in_tide_pool {
             return false;
         }
     }
