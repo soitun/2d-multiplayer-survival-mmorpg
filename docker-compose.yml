@@ -2,7 +2,11 @@
 # Does NOT affect Railway deployments (Railway uses per-service configs: railway.toml, Dockerfile in service dirs)
 #
 # Quick start:
-#   1. docker compose up --build
+#   1. Create .env from .env.example and add API keys (OPENAI_API_KEY, GROK_API_KEY, etc.)
+#   2. docker compose up --build
+#   Note: .env must exist for api-proxy (copy .env.example to .env first)
+#
+# After starting:
 #   2. Deploy database (one-time or after server changes): cd server && spacetime publish --project-path . broth-bullets-local && spacetime generate --lang typescript --out-dir ../client/src/generated --project-path .
 #   3. Open http://localhost:3008
 
@@ -49,3 +53,32 @@ services:
       - auth-server
     stdin_open: true
     tty: true
+
+  api-proxy:
+    build:
+      context: ./api-proxy
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8002:8002"
+    environment:
+      PORT: 8002
+      PROXY_PORT: 8002
+      NODE_ENV: development
+    env_file:
+      - .env
+    volumes:
+      - ./api-proxy:/app
+      - /app/node_modules
+    depends_on:
+      - auth-server
+
+  tts-backend:
+    build:
+      context: ./tts-backend
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      PORT: 8001
+    depends_on:
+      - auth-server

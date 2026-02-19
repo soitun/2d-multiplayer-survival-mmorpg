@@ -971,6 +971,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     fences, // ADDED: Building fences
     localPlayerId, // ADDED: Local player ID for building visibility
     localPlayer?.isSnorkeling ?? false, // Phase 3c: Swimming player split-render (snorkeling = full sprite)
+    predictedPosition ? { x: predictedPosition.x, y: predictedPosition.y } : null, // Phase 3c fix: Predicted position for swimming top half Y-sort
     isTreeFalling, // NEW: Pass falling tree checker so falling trees stay visible
     worldChunkDataMap, // PERFORMANCE FIX: Use memoized Map instead of creating new one every render
     alkStations, // ADDED: ALK delivery stations
@@ -2995,7 +2996,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         playerForRendering = {
           ...player,
           positionX: currentPredictedPosition.x,
-          positionY: currentPredictedPosition.y
+          positionY: currentPredictedPosition.y,
+          direction: (localFacingDirection ?? player.direction) as any
         };
       } else if (!isLocalPlayer && remotePlayerInterpolation) {
         const interpolatedPosition = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
@@ -3467,13 +3469,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
       let currentAnimFrame: number;
       if (player.isOnWater) {
-        if (!isPlayerMoving) {
-          currentAnimFrame = currentIdleAnimationFrame;
-        } else if (player.isSprinting) {
-          currentAnimFrame = currentSprintAnimationFrame;
-        } else {
-          currentAnimFrame = currentAnimationFrame;
-        }
+        // Swimming: use idle frames for ALL swimming movement (matches bottom half - Phase 3c fix)
+        currentAnimFrame = currentIdleAnimationFrame;
       } else {
         if (!isPlayerMoving) {
           currentAnimFrame = currentIdleAnimationFrame;
@@ -3577,6 +3574,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           Object.assign(scratch, item.entity);
           scratch.positionX = currentPredictedPosition.x;
           scratch.positionY = currentPredictedPosition.y;
+          scratch.direction = localFacingDirection ?? item.entity.direction;
           playerForRendering = scratch as SpacetimeDBPlayer;
         } else if (remotePlayerInterpolation) {
           const interp = remotePlayerInterpolation.updateAndGetSmoothedPosition(item.entity, localPlayerId);
@@ -3924,6 +3922,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         ySortedEntities: currentYSortedEntities,
         viewMinX: -currentCameraOffsetX,
         viewMaxX: -currentCameraOffsetX + currentCanvasWidth,
+        localPlayerId: localPlayer.identity?.toHexString?.(),
       });
     }
     // --- End Render Y-Sort Debug Overlay ---

@@ -318,7 +318,9 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       // Barrels: Y-sort by visual base (where sprite meets ground) - matches barrelRenderingUtils draw position
       const variantIndex = Number((entity as { variant?: number }).variant ?? 0);
       const baseYOffset = variantIndex === 4 ? 24 : variantIndex === 6 ? 28 : 12; // Buoy 192px, large barrel 172px
-      return entity.posY - baseYOffset;
+      // Buoy (6): move pink Y-sort line up - use midpoint of buoy (96px above base) so it sorts correctly with swimming players
+      const buoySortUp = variantIndex === 6 ? 96 : 0;
+      return entity.posY - baseYOffset - buoySortUp;
     }
     case 'fumarole': {
       // HARD SAFETY RULE: players should never appear under fumaroles.
@@ -775,6 +777,7 @@ export function useEntityFiltering(
   fences: Map<string, SpacetimeDBFence>, // ADDED: Building fences
   localPlayerId: string | undefined, // ADDED: Local player ID for building visibility
   isLocalPlayerSnorkeling?: boolean, // Phase 3c: Local player snorkeling (swimming players split-render when false)
+  localPlayerPredictedPosition?: { x: number; y: number } | null, // Phase 3c fix: Use for swimming top half Y-sort (matches render position)
   isTreeFalling?: (treeId: string) => boolean, // NEW: Check if tree is falling
   worldChunkData?: Map<string, any>, // ADDED: World chunk data for tile type lookups
   alkStations?: Map<string, SpacetimeDBAlkStation>, // ADDED: ALK delivery stations
@@ -1987,12 +1990,18 @@ export function useEntityFiltering(
       const isLocalAndSnorkeling = isSnorkeling && localPlayerId && e.identity?.toHexString() === localPlayerId;
       const isRemoteSnorkeling = e.isSnorkeling;
       if (isSwimming && !isLocalAndSnorkeling && !isRemoteSnorkeling) {
+        // Use predicted position for local player so Y-sort matches render position (Phase 3c fix)
+        // Sort by water line (center) not feet - pushes sort line up so top half goes behind when north
+        const isLocal = localPlayerId && e.identity?.toHexString() === localPlayerId;
+        const sortY = (isLocal && localPlayerPredictedPosition)
+          ? localPlayerPredictedPosition.y
+          : e.positionY;
         const swimItem = {
           type: 'swimmingPlayerTopHalf' as const,
           entity: e,
-          yPosition: e.positionY + PLAYER_SORT_FEET_OFFSET_PX,
+          yPosition: sortY,
           playerId: e.identity?.toHexString() ?? '',
-          _ySortKey: e.positionY + PLAYER_SORT_FEET_OFFSET_PX,
+          _ySortKey: sortY,
           _priority: 21
         };
         allEntities[index++] = swimItem as YSortedEntityWithKey;
@@ -2163,25 +2172,42 @@ export function useEntityFiltering(
         return 1; // Player renders after (above) sleeping bag
       }
 
-      // Swimming player ALWAYS renders above sea barrel water shadows
-      // Sea barrels (variants 3-6) cast shadows on the water surface; swimming players are in the water above those shadows
-      const SEA_BARREL_VARIANT_START = 3;
-      const SEA_BARREL_VARIANT_END = 7; // Exclusive: 3, 4, 5, 6
-      const isSeaBarrel = (barrel: { variant?: number }) => {
+      // Buoy (variant 6) FIRST: 192px tall - pink Y-sort line moved up to buoy midpoint (matches getEntityY)
+      // Player in front when south of buoy midpoint, behind when north
+      const BUOY_BASE_Y_OFFSET = 28;
+      const BUOY_SORT_UP_PX = 96; // pink line at midpoint (matches getEntityY for barrel variant 6)
+      if (isPlayerLike(a.type) && b.type === 'barrel') {
+        const barrel = b.entity as SpacetimeDBBarrel & { variant?: number };
+        if ((barrel.variant ?? 0) === 6) {
+          const playerCenterY = getPlayerOrSwimY(a);
+          const buoySortY = barrel.posY - BUOY_BASE_Y_OFFSET - BUOY_SORT_UP_PX; // posY - 124
+          return playerCenterY >= buoySortY ? 1 : -1; // Player in front when south of buoy midpoint
+        }
+      }
+      if (a.type === 'barrel' && isPlayerLike(b.type)) {
+        const barrel = a.entity as SpacetimeDBBarrel & { variant?: number };
+        if ((barrel.variant ?? 0) === 6) {
+          const playerCenterY = getPlayerOrSwimY(b);
+          const buoySortY = barrel.posY - BUOY_BASE_Y_OFFSET - BUOY_SORT_UP_PX;
+          return playerCenterY >= buoySortY ? -1 : 1; // Inverted
+        }
+      }
+      // Sea barrels (variants 3-5 only): swimming player always above water shadows (buoy excluded - has tall top)
+      const isSeaBarrelWaterShadow = (barrel: { variant?: number }) => {
         const v = barrel.variant ?? 0;
-        return v >= SEA_BARREL_VARIANT_START && v < SEA_BARREL_VARIANT_END;
+        return v >= 3 && v < 6; // 3, 4, 5 - excludes buoy (6)
       };
       if (isPlayerLike(a.type) && b.type === 'barrel') {
         const player = a.entity as SpacetimeDBPlayer;
         const barrel = b.entity as SpacetimeDBBarrel & { variant?: number };
-        if (player.isOnWater && isSeaBarrel(barrel)) {
+        if (player.isOnWater && isSeaBarrelWaterShadow(barrel)) {
           return 1; // Swimming player renders on top of barrel's water shadow
         }
       }
       if (a.type === 'barrel' && isPlayerLike(b.type)) {
         const barrel = a.entity as SpacetimeDBBarrel & { variant?: number };
         const player = b.entity as SpacetimeDBPlayer;
-        if (player.isOnWater && isSeaBarrel(barrel)) {
+        if (player.isOnWater && isSeaBarrelWaterShadow(barrel)) {
           return -1; // Swimming player renders on top (barrel behind)
         }
       }
@@ -2318,6 +2344,18 @@ export function useEntityFiltering(
         return playerY >= stone.posY ? -1 : 1;
       }
 
+      // Player vs Sea Stack: tall rock - player north of base renders behind
+      if (isPlayerLike(a.type) && b.type === 'sea_stack') {
+        const playerY = getPlayerOrSwimY(a) + PLAYER_SORT_FEET_OFFSET_PX;
+        const stack = b.entity as { posY?: number };
+        return playerY >= (stack.posY ?? 0) ? 1 : -1;
+      }
+      if (a.type === 'sea_stack' && isPlayerLike(b.type)) {
+        const stack = a.entity as { posY?: number };
+        const playerY = getPlayerOrSwimY(b) + PLAYER_SORT_FEET_OFFSET_PX;
+        return playerY >= (stack.posY ?? 0) ? -1 : 1;
+      }
+
       // Player vs tall beehive (wooden_storage_box): same as trees - player north of beehive renders behind
       if (isPlayerLike(a.type) && b.type === 'wooden_storage_box') {
         const box = b.entity as SpacetimeDBWoodenStorageBox;
@@ -2334,27 +2372,6 @@ export function useEntityFiltering(
         }
       }
 
-      // Player vs Buoy (barrel variant 6): 192px tall - use HEAD position like walls
-      // Player renders on top when their head is at or below buoy base (player in front)
-      const BUOY_BASE_Y_OFFSET = 28;
-      const PLAYER_HEAD_OFFSET_PX = 48;
-      if (isPlayerLike(a.type) && b.type === 'barrel') {
-        const barrel = b.entity as SpacetimeDBBarrel & { variant?: number };
-        if ((barrel.variant ?? 0) === 6) {
-          const playerHeadY = getPlayerOrSwimY(a) - PLAYER_HEAD_OFFSET_PX;
-          const buoyBaseY = barrel.posY - BUOY_BASE_Y_OFFSET;
-          if (playerHeadY >= buoyBaseY) return 1; // Player in front - render on top
-        }
-      }
-      if (a.type === 'barrel' && isPlayerLike(b.type)) {
-        const barrel = a.entity as SpacetimeDBBarrel & { variant?: number };
-        if ((barrel.variant ?? 0) === 6) {
-          const playerHeadY = getPlayerOrSwimY(b) - PLAYER_HEAD_OFFSET_PX;
-          const buoyBaseY = barrel.posY - BUOY_BASE_Y_OFFSET;
-          if (playerHeadY >= buoyBaseY) return -1; // Player in front - barrel renders behind
-        }
-      }
-      
       // CRITICAL: Small ground entities vs tall structures - CONSISTENT sorting regardless of player position.
       // Visibility sets change with player (harvestables: 80 closest; grass: viewport). Use spatial footprint
       // so the SAME pair always sorts the same way. For monuments: entities within footprint ALWAYS render

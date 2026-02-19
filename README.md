@@ -112,20 +112,30 @@ For rapid local setup without managing multiple terminals. **Does not affect Rai
 **Prerequisites:** Docker, Docker Compose, SpacetimeDB CLI (for database deploy step)
 
 ```bash
-# 1. Clone & start services
+# 1. Clone & create .env
 git clone https://github.com/SeloSlav/vibe-coding-starter-pack-2d-multiplayer-survival.git
 cd vibe-coding-starter-pack-2d-multiplayer-survival
+copy .env.example .env   # Windows (or cp .env.example .env on macOS/Linux)
+# Add API keys to .env for SOVA (OPENAI_API_KEY, GROK_API_KEY, etc.)
+
+# 2. Start all services
 docker compose up --build
 
-# 2. Deploy database (run in a new terminal, one-time or after server changes)
+# 3. Deploy database (run in a new terminal, one-time or after server changes)
 cd server
 spacetime publish --project-path . broth-bullets-local
 spacetime generate --lang typescript --out-dir ../client/src/generated --project-path .
 
-# 3. Open http://localhost:3008
+# 4. Open http://localhost:3008
 ```
 
-Services: SpacetimeDB (3000), Auth Server (4001), Client (3008). Optional services (API proxy, Kokoro TTS) can be started separately.
+Services: SpacetimeDB (3000), Auth Server (4001), Client (3008), API Proxy (8002), Kokoro TTS (8001).
+
+Create `.env` from `.env.example` and add API keys before first run:
+```bash
+copy .env.example .env   # Windows
+# cp .env.example .env   # macOS/Linux
+```
 
 ---
 

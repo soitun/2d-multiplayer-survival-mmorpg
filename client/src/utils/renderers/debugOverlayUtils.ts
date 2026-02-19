@@ -85,6 +85,8 @@ export interface YSortDebugOptions {
   ySortedEntities: YSortedEntityType[];
   viewMinX: number;
   viewMaxX: number;
+  /** Local player identity (hex) - used to derive actual sort Y from ySortedEntities */
+  localPlayerId?: string;
 }
 
 export interface ProjectileCollisionDebugOptions {
@@ -421,101 +423,8 @@ export function renderCollisionDebug(
 }
 
 // ===== Y-SORT DEBUG =====
-
-/**
- * Gets the Y-sort key for an entity (the Y value used for depth sorting)
- * This replicates the logic from useEntityFiltering's getEntityY function
- */
-function getYSortKeyForEntity(item: YSortedEntityType, timestamp: number): number {
-  const { entity, type } = item;
-  switch (type) {
-    case 'player': {
-      const player = entity as Player;
-      const playerY = player.positionY;
-      if (playerY === undefined || playerY === null || isNaN(playerY)) {
-        return 0;
-      }
-      return playerY + 48 + 2.0; // Player head position + offset
-    }
-    case 'tree':
-    case 'stone':
-    case 'wooden_storage_box':
-    case 'stash':
-    case 'campfire':
-    case 'furnace':
-    case 'barbecue':
-    case 'lantern':
-    case 'homestead_hearth':
-    case 'planted_seed':
-    case 'dropped_item':
-    case 'harvestable_resource':
-    case 'rain_collector':
-    case 'broth_pot':
-    case 'animal_corpse':
-    case 'player_corpse':
-    case 'wild_animal':
-    case 'barrel':
-    case 'sleeping_bag':
-    case 'fumarole':
-    case 'basalt_column':
-    case 'living_coral':
-      return (entity as any).posY;
-    case 'cairn':
-      return (entity as Cairn).posY;
-    case 'rune_stone':
-      return (entity as RuneStone).posY;
-    case 'alk_station': {
-      const alkStation = entity as AlkStation;
-      const ALK_STATION_VISUAL_FOOT_OFFSET = 170;
-      return alkStation.worldPosY - ALK_STATION_VISUAL_FOOT_OFFSET;
-    }
-    case 'compound_building': {
-      const building = entity as CompoundBuildingEntity;
-      return building.worldY;
-    }
-    case 'monument_doodad': {
-      const doodad = entity as CompoundBuildingEntity;
-      return doodad.worldY - (doodad.height * 0.25) + (doodad.anchorYOffset || 0); // Bottom 25% threshold
-    }
-    case 'shelter':
-      return (entity as Shelter).posY - 100;
-    case 'sea_stack':
-      return (entity as any).posY;
-    case 'grass':
-      return (entity as any).serverPosY;
-    case 'foundation_cell': {
-      const foundation = entity as FoundationCell;
-      return foundation.cellY * 48;
-    }
-    case 'wall_cell': {
-      const wall = entity as WallCell;
-      const FOUNDATION_TILE_SIZE = 96;
-      const baseY = wall.cellY * FOUNDATION_TILE_SIZE;
-      const isTriangle = wall.foundationShape >= 2 && wall.foundationShape <= 5;
-      if (isTriangle) {
-        return baseY + FOUNDATION_TILE_SIZE / 2;
-      } else if (wall.edge === 0) {
-        return baseY; // North wall
-      } else if (wall.edge === 2) {
-        return baseY + FOUNDATION_TILE_SIZE + 48; // South wall
-      } else {
-        return baseY; // East/west
-      }
-    }
-    case 'door': {
-      const door = entity as Door;
-      const FOUNDATION_TILE_SIZE = 96;
-      const foundationTopY = door.cellY * FOUNDATION_TILE_SIZE;
-      if (door.edge === 0) {
-        return foundationTopY;
-      } else {
-        return foundationTopY + FOUNDATION_TILE_SIZE + 48;
-      }
-    }
-    default:
-      return 0;
-  }
-}
+// All Y-sort values come from _ySortKey on ySortedEntities (computed in useEntityFiltering).
+// No duplicate logic - debug overlay reflects actual sort data.
 
 /**
  * Gets the entity's X position for drawing the line
@@ -571,6 +480,7 @@ function getEntityWidth(item: YSortedEntityType): number {
     case 'lantern': return 24;
     case 'homestead_hearth': return 64;
     case 'barrel': return 40;
+    case 'grass': return 24;
     case 'rain_collector': return 40;
     case 'broth_pot': return 36;
     case 'wild_animal': return 48;
@@ -601,6 +511,8 @@ function getYSortColor(type: string): string {
     case 'basalt_column': return '#36454f'; // Charcoal
     case 'wild_animal': return '#ffa500'; // Orange for animals
     case 'living_coral': return '#ff7fc8'; // Pink for underwater coral
+    case 'barrel': return '#ff69b4'; // Hot pink for barrels/buoys
+    case 'grass': return '#90ee90'; // Light green for grass
     default: return '#ff00ff'; // Magenta for unknown
   }
 }
@@ -613,13 +525,22 @@ export function renderYSortDebug(
   ctx: CanvasRenderingContext2D,
   options: YSortDebugOptions
 ): void {
-  const { playerX, playerY, ySortedEntities, viewMinX, viewMaxX } = options;
-  const timestamp = Date.now();
+  const { playerX, playerY, ySortedEntities, localPlayerId } = options;
 
-  // Draw player Y-sort line first (most important reference)
-  const playerYSort = playerY + 48 + 2.0;
-  const lineExtent = 300; // How far the line extends from entity center
+  // Derive player sort Y from actual sort data - no manual/hardcoded values
+  let playerYSort: number;
+  const localPlayerEntry = localPlayerId && ySortedEntities.find(
+    (item) => (item.type === 'player' || item.type === 'swimmingPlayerTopHalf') &&
+      (item.entity as { identity?: { toHexString?: () => string } })?.identity?.toHexString?.() === localPlayerId
+  );
+  const keyed = localPlayerEntry as (typeof localPlayerEntry) & { _ySortKey?: number };
+  if (keyed?._ySortKey != null && !isNaN(keyed._ySortKey)) {
+    playerYSort = keyed._ySortKey;
+  } else {
+    playerYSort = playerY + 48 + 2.0; // Fallback only when local player not in sorted list
+  }
 
+  const lineExtent = 300;
   // Draw player's Y-sort line prominently
   ctx.strokeStyle = '#ffff00';
   ctx.lineWidth = 3;
@@ -645,15 +566,14 @@ export function renderYSortDebug(
 
   for (const item of ySortedEntities) {
     // Skip player (already drawn) and certain types that don't need lines
-    if (item.type === 'player' || item.type === 'grass' || item.type === 'projectile' || item.type === 'dropped_item' || item.type === 'fog_overlay') {
+    if (item.type === 'player' || item.type === 'swimmingPlayerTopHalf' || item.type === 'projectile' || item.type === 'dropped_item' || item.type === 'fog_overlay') {
       continue;
     }
 
     const entityX = getEntityX(item);
-    const entityYSort = getYSortKeyForEntity(item, timestamp);
-
-    // Skip if invalid Y
-    if (isNaN(entityYSort) || entityYSort === 0) continue;
+    // Use actual _ySortKey from sort data - no manual/duplicate logic
+    const entityYSort = (item as { _ySortKey?: number })._ySortKey;
+    if (entityYSort == null || isNaN(entityYSort)) continue;
 
     // Skip if too far from player
     const dx = entityX - playerX;
@@ -698,17 +618,7 @@ export function renderYSortDebug(
     ctx.fillText(label, entityX, entityYSort - 7);
   }
 
-  // Reset line dash
   ctx.setLineDash([]);
-
-  // Draw legend in corner
-  ctx.font = 'bold 10px monospace';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  
-  // Legend background (positioned in screen space, not world space)
-  // This will be drawn relative to the current transform, which is world space
-  // We need to temporarily reset transform or position it properly
 }
 
 // ===== PROJECTILE COLLISION DEBUG =====
