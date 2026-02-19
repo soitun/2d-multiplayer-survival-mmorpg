@@ -110,6 +110,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .respawn_time(400) // ~7 minutes
             .consumable(25.0, 35.0, 5.0) // High health/hunger - nutritious raw bulb
             .cookable(40.0, "Cooked Kamchatka Lily Bulb") // Cooks to food, pulverize for flour
+            .extractable("Flour", 2, 3, "Pulverize")
             .build(),
 
         // === NEW ALEUTIAN PLANTS ===
@@ -121,6 +122,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .respawn_time(400)
             .consumable(2.0, 2.0, 0.0) // Slightly medicinal/aromatic
             .cookable(25.0, "Charcoal") // Seeds char when cooked, pulverize for flour
+            .extractable("Flour", 1, 2, "Pulverize")
             .build(),
         
         // Silverweed Root - starchy coastal root, both food AND seed
@@ -131,6 +133,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .respawn_time(350)
             .consumable(15.0, 25.0, 5.0) // Good nutrition - starchy root
             .cookable(35.0, "Cooked Silverweed Root") // Cooks to food, pulverize for flour
+            .extractable("Flour", 2, 3, "Pulverize")
             .build(),
         
         // Nagoonberry Seeds - for planting Arctic raspberries
@@ -150,6 +153,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .respawn_time(380)
             .consumable(10.0, 18.0, 3.0) // Good nutrition - starchy
             .cookable(30.0, "Cooked Bistort Bulbils") // Cooks to food, pulverize for flour
+            .extractable("Flour", 2, 3, "Pulverize")
             .build(),
 
         // === ADDITIONAL VEGETABLE SEEDS ===
@@ -364,6 +368,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .respawn_time(180)
             .consumable(5.0, 8.0, 5.0) // health, hunger, thirst
             .cookable(15.0, "Charcoal")
+            .extractable("Berry Mash", 1, 1, "Mash")
             .build(),
 
         // Rowan Seeds - Mountain ash seeds
@@ -535,6 +540,7 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .respawn_time(480) // 8 minutes - fast-growing coastal grass
             .consumable(0.5, 0.5, 0.0) // health, hunger, thirst - minimal nutrition
             .cookable(22.0, "Charcoal") // Seeds char when cooked, pulverize for flour
+            .extractable("Flour", 1, 2, "Pulverize")
             .build(),
 
         // === ALPINE PLANT SPORES/SEEDS ===

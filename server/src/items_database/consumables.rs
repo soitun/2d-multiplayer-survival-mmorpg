@@ -19,6 +19,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(35.0, 55.0, 35.0) // Increased health/hunger/thirst to compensate for removed stamina
             .cookable(45.0, "Burnt Pumpkin")
             .respawn_time(360)
+            .extractable("Starchy Mash", 1, 1, "Mash")
             .build(),
 
         ItemBuilder::new("Burnt Pumpkin", "A blackened, mushy mess. Not recommended for eating, but can be processed into charcoal.", ItemCategory::Consumable)
@@ -39,6 +40,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(25.0, 70.0, 15.0) // Increased values to compensate for removed stamina
             .cookable(40.0, "Burnt Potato")
             .respawn_time(260)
+            .extractable("Starchy Mash", 1, 1, "Mash")
             .build(),
 
         ItemBuilder::new("Burnt Potato", "Charred and bitter. Barely edible, but can be processed into charcoal.", ItemCategory::Consumable)
@@ -119,6 +121,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(8.0, 12.0, 10.0)
             .cookable(22.0, "Charcoal") // Burns directly - small berries just char
             .respawn_time(180)
+            .extractable("Berry Mash", 1, 1, "Mash")
             .build(),
 
         ItemBuilder::new("Sea Plantain", "Maritime plant with year-round edible leaves. Salty flavor from growing near the ocean.", ItemCategory::Consumable)
@@ -151,6 +154,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(38.0, 55.0, 30.0) // Increased to compensate for removed 20 stamina
             .cookable(50.0, "Burnt Beet")
             .respawn_time(300)
+            .extractable("Starchy Mash", 1, 1, "Mash")
             .build(),
 
         ItemBuilder::new("Burnt Beet", "Overcooked beet that has turned black and bitter. Can be processed into charcoal.", ItemCategory::Consumable)
@@ -224,6 +228,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(15.0, 25.0, 12.0)
             .cookable(50.0, "Burnt Salsify Root")
             .respawn_time(280)
+            .extractable("Starchy Mash", 1, 1, "Mash")
             .build(),
 
         ItemBuilder::new("Burnt Salsify Root", "Overcooked salsify that has turned black and bitter. Can be processed into charcoal.", ItemCategory::Consumable)
@@ -307,6 +312,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(45.0, 70.0, 15.0) // Excellent nutrition when cooked
             .cookable(50.0, "Burnt Kamchatka Lily Bulb")
             .respawn_time(300)
+            .extractable("Starchy Mash", 1, 1, "Mash")
             .build(),
 
         ItemBuilder::new("Burnt Kamchatka Lily Bulb", "Overcooked lily bulb that has turned black and bitter. Can be processed into charcoal.", ItemCategory::Consumable)
@@ -326,6 +332,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(35.0, 55.0, 12.0) // Good nutrition when cooked
             .cookable(45.0, "Burnt Silverweed Root")
             .respawn_time(280)
+            .extractable("Starchy Mash", 1, 1, "Mash")
             .build(),
 
         ItemBuilder::new("Burnt Silverweed Root", "Overcooked silverweed root that has charred. Can be processed into charcoal.", ItemCategory::Consumable)
@@ -345,6 +352,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(28.0, 45.0, 10.0) // Good nutrition when cooked
             .cookable(40.0, "Burnt Bistort Bulbils")
             .respawn_time(260)
+            .extractable("Starchy Mash", 1, 1, "Mash")
             .build(),
 
         ItemBuilder::new("Burnt Bistort Bulbils", "Overcooked bistort bulbils that have charred. Can be processed into charcoal.", ItemCategory::Consumable)
@@ -393,6 +401,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(15.0, 18.0, 15.0) // Excellent berry - high value
             .cookable(20.0, "Charcoal") // Berries just char when cooked
             .respawn_time(300)
+            .extractable("Berry Mash", 1, 1, "Mash")
             .build(),
 
         // Fireweed Shoots - Edible tundra plant shoots
@@ -620,6 +629,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(10)
             .consumable(5.0, 5.0, 0.0)
             .cookable(45.0, "Cooked Twigfish")
+            .extractable("Animal Fat", 1, 2, "Gut")
             .respawn_time(180)
             .build(),
 
@@ -645,6 +655,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(15)
             .consumable(6.0, 8.0, -2.0)
             .cookable(35.0, "Cooked Herring")
+            .extractable("Animal Fat", 1, 2, "Gut")
             .respawn_time(160)
             .build(),
 
@@ -668,6 +679,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(15)
             .consumable(5.0, 10.0, -3.0)
             .cookable(30.0, "Cooked Smelt")
+            .extractable("Animal Fat", 1, 2, "Gut")
             .respawn_time(150)
             .build(),
 
@@ -693,6 +705,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(10)
             .consumable(8.0, 12.0, -2.0)
             .cookable(40.0, "Cooked Greenling")
+            .extractable("Animal Fat", 2, 3, "Gut")
             .respawn_time(200)
             .build(),
 
@@ -716,6 +729,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(10)
             .consumable(6.0, 10.0, -4.0)
             .cookable(45.0, "Cooked Sculpin")
+            .extractable("Animal Fat", 2, 3, "Gut")
             .respawn_time(220)
             .build(),
 
@@ -739,6 +753,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(8)
             .consumable(10.0, 15.0, -2.0)
             .cookable(50.0, "Cooked Pacific Cod")
+            .extractable("Animal Fat", 2, 3, "Gut")
             .respawn_time(240)
             .build(),
 
@@ -764,6 +779,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(8)
             .consumable(12.0, 18.0, -1.0)
             .cookable(45.0, "Cooked Dolly Varden")
+            .extractable("Animal Fat", 2, 3, "Gut")
             .respawn_time(280)
             .build(),
 
@@ -787,6 +803,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(6)
             .consumable(14.0, 20.0, -3.0)
             .cookable(50.0, "Cooked Rockfish")
+            .extractable("Animal Fat", 2, 3, "Gut")
             .respawn_time(300)
             .build(),
 
@@ -810,6 +827,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(6)
             .consumable(15.0, 22.0, 0.0)
             .cookable(48.0, "Cooked Steelhead")
+            .extractable("Animal Fat", 3, 5, "Gut")
             .respawn_time(320)
             .build(),
 
@@ -835,6 +853,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(5)
             .consumable(16.0, 25.0, 2.0)
             .cookable(52.0, "Cooked Pink Salmon")
+            .extractable("Animal Fat", 3, 5, "Gut")
             .respawn_time(360)
             .build(),
 
@@ -858,6 +877,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(5)
             .consumable(18.0, 28.0, 3.0)
             .cookable(55.0, "Cooked Sockeye Salmon")
+            .extractable("Animal Fat", 3, 5, "Gut")
             .respawn_time(400)
             .build(),
 
@@ -881,6 +901,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(3)
             .consumable(22.0, 35.0, 5.0)
             .cookable(60.0, "Cooked King Salmon")
+            .extractable("Animal Fat", 3, 5, "Gut")
             .respawn_time(480)
             .build(),
 
@@ -904,6 +925,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(3)
             .consumable(20.0, 32.0, 2.0)
             .cookable(58.0, "Cooked Halibut")
+            .extractable("Animal Fat", 3, 5, "Gut")
             .respawn_time(450)
             .build(),
 
@@ -929,6 +951,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(15)
             .consumable(4.0, 6.0, -1.0)
             .cookable(40.0, "Cooked Black Katy Chiton")
+            .extractable("Animal Fat", 1, 2, "Gut")
             .respawn_time(140)
             .build(),
 
@@ -952,6 +975,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(15)
             .consumable(5.0, 8.0, -2.0)
             .cookable(35.0, "Cooked Sea Urchin")
+            .extractable("Animal Fat", 1, 2, "Gut")
             .respawn_time(150)
             .build(),
 
@@ -975,6 +999,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .stackable(20)
             .consumable(3.0, 5.0, 0.0)
             .cookable(30.0, "Cooked Blue Mussel")
+            .extractable("Animal Fat", 1, 2, "Gut")
             .respawn_time(120)
             .build(),
 
@@ -1342,6 +1367,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(15.0, 25.0, 35.0) // health, hunger, thirst - good nutrition and very hydrating
             .cookable(40.0, "Warm Milk") // Overcooking ruins it
             .respawn_time(300)
+            .extractable("Yeast", 1, 2, "Extract Yeast")
             .build(),
 
         ItemBuilder::new("Warm Milk", "Gently heated milk. Comforting and soothing, perfect for cold nights. More nutritious and easier to digest than cold milk.", ItemCategory::Consumable)
@@ -1394,6 +1420,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("berry_mash.png")
             .stackable(10)
             .consumable(10.0, 15.0, 25.0) // Sweet and hydrating
+            .extractable("Yeast", 1, 2, "Extract Yeast")
             // Created via mash_berries reducer - no crafting recipe
             .build(),
 
@@ -1404,6 +1431,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .icon("root_mash.png") // Reuse root_mash icon
             .stackable(10)
             .consumable(15.0, 25.0, 10.0) // Starchy and filling
+            .extractable("Yeast", 1, 1, "Extract Yeast")
             // Created via mash_starch reducer - no crafting recipe
             .build(),
 
@@ -1925,6 +1953,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(8.0, 12.0, 8.0)
             .cookable(20.0, "Charcoal") // Berries just char when cooked
             .respawn_time(240)
+            .extractable("Berry Mash", 1, 1, "Mash")
             .build(),
 
         ItemBuilder::new("Cloudberries", "Rare orange berries with a complex sweet-tart flavor. Highly prized for their exceptional nutritional value.", ItemCategory::Consumable)
@@ -1933,6 +1962,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(12.0, 15.0, 12.0)
             .cookable(22.0, "Charcoal") // Berries just char when cooked
             .respawn_time(360)
+            .extractable("Berry Mash", 1, 1, "Mash")
             .build(),
 
         ItemBuilder::new("Bilberries", "Small dark blue berries with intense flavor. Excellent source of antioxidants and natural sugars.", ItemCategory::Consumable)
@@ -1941,6 +1971,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(6.0, 10.0, 6.0)
             .cookable(18.0, "Charcoal") // Berries just char when cooked
             .respawn_time(200)
+            .extractable("Berry Mash", 1, 1, "Mash")
             .build(),
 
         // NOTE: "Wild Strawberries" is defined in seeds.rs as a Placeable (like Potato) so it can be planted directly
@@ -1951,6 +1982,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(4.0, 6.0, 3.0)
             .cookable(18.0, "Charcoal") // Berries just char when cooked
             .respawn_time(220)
+            .extractable("Berry Mash", 1, 1, "Mash")
             .build(),
 
         ItemBuilder::new("Cranberries", "Tart, sour red berries. Rich in vitamin C and natural preservatives. Excellent for long-term storage.", ItemCategory::Consumable)
@@ -1959,6 +1991,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .consumable(6.0, 8.0, 6.0)
             .cookable(20.0, "Charcoal") // Berries just char when cooked
             .respawn_time(250)
+            .extractable("Berry Mash", 1, 1, "Mash")
             .build(),
 
 

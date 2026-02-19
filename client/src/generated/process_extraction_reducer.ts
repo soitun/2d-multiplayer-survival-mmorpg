@@ -28,37 +28,37 @@ import {
   type TableHandle as __TableHandle,
 } from "spacetimedb";
 
-export type MashStarch = {
+export type ProcessExtraction = {
   itemInstanceId: bigint,
 };
-let _cached_MashStarch_type_value: __AlgebraicTypeType | null = null;
+let _cached_ProcessExtraction_type_value: __AlgebraicTypeType | null = null;
 
 /**
  * An object for generated helper functions.
  */
-export const MashStarch = {
+export const ProcessExtraction = {
   /**
   * A function which returns this type represented as an AlgebraicType.
   * This function is derived from the AlgebraicType used to generate this type.
   */
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_MashStarch_type_value) return _cached_MashStarch_type_value;
-    _cached_MashStarch_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_MashStarch_type_value.value.elements.push(
+    if (_cached_ProcessExtraction_type_value) return _cached_ProcessExtraction_type_value;
+    _cached_ProcessExtraction_type_value = __AlgebraicTypeValue.Product({ elements: [] });
+    _cached_ProcessExtraction_type_value.value.elements.push(
       { name: "itemInstanceId", algebraicType: __AlgebraicTypeValue.U64 },
     );
-    return _cached_MashStarch_type_value;
+    return _cached_ProcessExtraction_type_value;
   },
 
-  serialize(writer: __BinaryWriter, value: MashStarch): void {
-    __AlgebraicTypeValue.serializeValue(writer, MashStarch.getTypeScriptAlgebraicType(), value);
+  serialize(writer: __BinaryWriter, value: ProcessExtraction): void {
+    __AlgebraicTypeValue.serializeValue(writer, ProcessExtraction.getTypeScriptAlgebraicType(), value);
   },
 
-  deserialize(reader: __BinaryReader): MashStarch {
-    return __AlgebraicTypeValue.deserializeValue(reader, MashStarch.getTypeScriptAlgebraicType());
+  deserialize(reader: __BinaryReader): ProcessExtraction {
+    return __AlgebraicTypeValue.deserializeValue(reader, ProcessExtraction.getTypeScriptAlgebraicType());
   },
 
 }
 
-export default MashStarch;
+export default ProcessExtraction;
 

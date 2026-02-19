@@ -97,8 +97,6 @@ import { ConsumeItem } from "./consume_item_reducer.ts";
 export { ConsumeItem };
 import { CreateGeneratedBrew } from "./create_generated_brew_reducer.ts";
 export { CreateGeneratedBrew };
-import { CrushBoneItem } from "./crush_bone_item_reducer.ts";
-export { CrushBoneItem };
 import { DamageGrass } from "./damage_grass_reducer.ts";
 export { DamageGrass };
 import { DamageWildAnimal } from "./damage_wild_animal_reducer.ts";
@@ -175,8 +173,6 @@ import { ExtinguishLantern } from "./extinguish_lantern_reducer.ts";
 export { ExtinguishLantern };
 import { ExtractFromHoneycomb } from "./extract_from_honeycomb_reducer.ts";
 export { ExtractFromHoneycomb };
-import { ExtractYeast } from "./extract_yeast_reducer.ts";
-export { ExtractYeast };
 import { FillEquippedWaterContainers } from "./fill_equipped_water_containers_reducer.ts";
 export { FillEquippedWaterContainers };
 import { FillWaterContainer } from "./fill_water_container_reducer.ts";
@@ -203,8 +199,6 @@ import { GetShardBalance } from "./get_shard_balance_reducer.ts";
 export { GetShardBalance };
 import { GrantBuildingPrivilegeFromHearth } from "./grant_building_privilege_from_hearth_reducer.ts";
 export { GrantBuildingPrivilegeFromHearth };
-import { GutFish } from "./gut_fish_reducer.ts";
-export { GutFish };
 import { IdentityConnected } from "./identity_connected_reducer.ts";
 export { IdentityConnected };
 import { IdentityDisconnected } from "./identity_disconnected_reducer.ts";
@@ -267,10 +261,6 @@ import { MarkSovaIntroSeen } from "./mark_sova_intro_seen_reducer.ts";
 export { MarkSovaIntroSeen };
 import { MarkTutorialHintSeen } from "./mark_tutorial_hint_seen_reducer.ts";
 export { MarkTutorialHintSeen };
-import { MashBerries } from "./mash_berries_reducer.ts";
-export { MashBerries };
-import { MashStarch } from "./mash_starch_reducer.ts";
-export { MashStarch };
 import { MilkAnimal } from "./milk_animal_reducer.ts";
 export { MilkAnimal };
 import { MoveCraftingQueueItemToFront } from "./move_crafting_queue_item_to_front_reducer.ts";
@@ -463,6 +453,8 @@ import { ProcessDroneDaily } from "./process_drone_daily_reducer.ts";
 export { ProcessDroneDaily };
 import { ProcessDroneFlightTick } from "./process_drone_flight_tick_reducer.ts";
 export { ProcessDroneFlightTick };
+import { ProcessExtraction } from "./process_extraction_reducer.ts";
+export { ProcessExtraction };
 import { ProcessFirePatchDamage } from "./process_fire_patch_damage_reducer.ts";
 export { ProcessFirePatchDamage };
 import { ProcessFishTrapConversion } from "./process_fish_trap_conversion_reducer.ts";
@@ -503,8 +495,6 @@ import { ProcessWildAnimalAi } from "./process_wild_animal_ai_reducer.ts";
 export { ProcessWildAnimalAi };
 import { PromoteToPraMatron } from "./promote_to_pra_matron_reducer.ts";
 export { PromoteToPraMatron };
-import { PulverizeItem } from "./pulverize_item_reducer.ts";
-export { PulverizeItem };
 import { PurchaseFromAlk } from "./purchase_from_alk_reducer.ts";
 export { PurchaseFromAlk };
 import { PurchaseMemoryGridNode } from "./purchase_memory_grid_node_reducer.ts";
@@ -795,8 +785,6 @@ import { TransferWaterFromContainerToPot } from "./transfer_water_from_container
 export { TransferWaterFromContainerToPot };
 import { TransferWaterFromPotToContainer } from "./transfer_water_from_pot_to_container_reducer.ts";
 export { TransferWaterFromPotToContainer };
-import { UnravelRope } from "./unravel_rope_reducer.ts";
-export { UnravelRope };
 import { UpdateCloudIntensities } from "./update_cloud_intensities_reducer.ts";
 export { UpdateCloudIntensities };
 import { UpdateCloudPositions } from "./update_cloud_positions_reducer.ts";
@@ -3467,10 +3455,6 @@ const REMOTE_MODULE = {
       reducerName: "create_generated_brew",
       argsType: CreateGeneratedBrew.getTypeScriptAlgebraicType(),
     },
-    crush_bone_item: {
-      reducerName: "crush_bone_item",
-      argsType: CrushBoneItem.getTypeScriptAlgebraicType(),
-    },
     damage_grass: {
       reducerName: "damage_grass",
       argsType: DamageGrass.getTypeScriptAlgebraicType(),
@@ -3623,10 +3607,6 @@ const REMOTE_MODULE = {
       reducerName: "extract_from_honeycomb",
       argsType: ExtractFromHoneycomb.getTypeScriptAlgebraicType(),
     },
-    extract_yeast: {
-      reducerName: "extract_yeast",
-      argsType: ExtractYeast.getTypeScriptAlgebraicType(),
-    },
     fill_equipped_water_containers: {
       reducerName: "fill_equipped_water_containers",
       argsType: FillEquippedWaterContainers.getTypeScriptAlgebraicType(),
@@ -3678,10 +3658,6 @@ const REMOTE_MODULE = {
     grant_building_privilege_from_hearth: {
       reducerName: "grant_building_privilege_from_hearth",
       argsType: GrantBuildingPrivilegeFromHearth.getTypeScriptAlgebraicType(),
-    },
-    gut_fish: {
-      reducerName: "gut_fish",
-      argsType: GutFish.getTypeScriptAlgebraicType(),
     },
     identity_connected: {
       reducerName: "identity_connected",
@@ -3806,14 +3782,6 @@ const REMOTE_MODULE = {
     mark_tutorial_hint_seen: {
       reducerName: "mark_tutorial_hint_seen",
       argsType: MarkTutorialHintSeen.getTypeScriptAlgebraicType(),
-    },
-    mash_berries: {
-      reducerName: "mash_berries",
-      argsType: MashBerries.getTypeScriptAlgebraicType(),
-    },
-    mash_starch: {
-      reducerName: "mash_starch",
-      argsType: MashStarch.getTypeScriptAlgebraicType(),
     },
     milk_animal: {
       reducerName: "milk_animal",
@@ -4199,6 +4167,10 @@ const REMOTE_MODULE = {
       reducerName: "process_drone_flight_tick",
       argsType: ProcessDroneFlightTick.getTypeScriptAlgebraicType(),
     },
+    process_extraction: {
+      reducerName: "process_extraction",
+      argsType: ProcessExtraction.getTypeScriptAlgebraicType(),
+    },
     process_fire_patch_damage: {
       reducerName: "process_fire_patch_damage",
       argsType: ProcessFirePatchDamage.getTypeScriptAlgebraicType(),
@@ -4278,10 +4250,6 @@ const REMOTE_MODULE = {
     promote_to_pra_matron: {
       reducerName: "promote_to_pra_matron",
       argsType: PromoteToPraMatron.getTypeScriptAlgebraicType(),
-    },
-    pulverize_item: {
-      reducerName: "pulverize_item",
-      argsType: PulverizeItem.getTypeScriptAlgebraicType(),
     },
     purchase_from_alk: {
       reducerName: "purchase_from_alk",
@@ -4863,10 +4831,6 @@ const REMOTE_MODULE = {
       reducerName: "transfer_water_from_pot_to_container",
       argsType: TransferWaterFromPotToContainer.getTypeScriptAlgebraicType(),
     },
-    unravel_rope: {
-      reducerName: "unravel_rope",
-      argsType: UnravelRope.getTypeScriptAlgebraicType(),
-    },
     update_cloud_intensities: {
       reducerName: "update_cloud_intensities",
       argsType: UpdateCloudIntensities.getTypeScriptAlgebraicType(),
@@ -4994,7 +4958,6 @@ export type Reducer = never
 | { name: "ConsumeFilledWaterContainer", args: ConsumeFilledWaterContainer }
 | { name: "ConsumeItem", args: ConsumeItem }
 | { name: "CreateGeneratedBrew", args: CreateGeneratedBrew }
-| { name: "CrushBoneItem", args: CrushBoneItem }
 | { name: "DamageGrass", args: DamageGrass }
 | { name: "DamageWildAnimal", args: DamageWildAnimal }
 | { name: "DebugGrantShards", args: DebugGrantShards }
@@ -5033,7 +4996,6 @@ export type Reducer = never
 | { name: "EquipArmorFromInventory", args: EquipArmorFromInventory }
 | { name: "ExtinguishLantern", args: ExtinguishLantern }
 | { name: "ExtractFromHoneycomb", args: ExtractFromHoneycomb }
-| { name: "ExtractYeast", args: ExtractYeast }
 | { name: "FillEquippedWaterContainers", args: FillEquippedWaterContainers }
 | { name: "FillWaterContainer", args: FillWaterContainer }
 | { name: "FillWaterContainerFromNaturalSource", args: FillWaterContainerFromNaturalSource }
@@ -5047,7 +5009,6 @@ export type Reducer = never
 | { name: "GetMinimapData", args: GetMinimapData }
 | { name: "GetShardBalance", args: GetShardBalance }
 | { name: "GrantBuildingPrivilegeFromHearth", args: GrantBuildingPrivilegeFromHearth }
-| { name: "GutFish", args: GutFish }
 | { name: "IdentityConnected", args: IdentityConnected }
 | { name: "IdentityDisconnected", args: IdentityDisconnected }
 | { name: "InitProjectileSystem", args: InitProjectileSystem }
@@ -5079,8 +5040,6 @@ export type Reducer = never
 | { name: "MarkRuneStoneTutorialSeen", args: MarkRuneStoneTutorialSeen }
 | { name: "MarkSovaIntroSeen", args: MarkSovaIntroSeen }
 | { name: "MarkTutorialHintSeen", args: MarkTutorialHintSeen }
-| { name: "MashBerries", args: MashBerries }
-| { name: "MashStarch", args: MashStarch }
 | { name: "MilkAnimal", args: MilkAnimal }
 | { name: "MoveCraftingQueueItemToFront", args: MoveCraftingQueueItemToFront }
 | { name: "MoveItemFromBarbecueToPlayerSlot", args: MoveItemFromBarbecueToPlayerSlot }
@@ -5177,6 +5136,7 @@ export type Reducer = never
 | { name: "ProcessDawnCleanup", args: ProcessDawnCleanup }
 | { name: "ProcessDroneDaily", args: ProcessDroneDaily }
 | { name: "ProcessDroneFlightTick", args: ProcessDroneFlightTick }
+| { name: "ProcessExtraction", args: ProcessExtraction }
 | { name: "ProcessFirePatchDamage", args: ProcessFirePatchDamage }
 | { name: "ProcessFishTrapConversion", args: ProcessFishTrapConversion }
 | { name: "ProcessFoodSpoilage", args: ProcessFoodSpoilage }
@@ -5197,7 +5157,6 @@ export type Reducer = never
 | { name: "ProcessWalrusBreeding", args: ProcessWalrusBreeding }
 | { name: "ProcessWildAnimalAi", args: ProcessWildAnimalAi }
 | { name: "PromoteToPraMatron", args: PromoteToPraMatron }
-| { name: "PulverizeItem", args: PulverizeItem }
 | { name: "PurchaseFromAlk", args: PurchaseFromAlk }
 | { name: "PurchaseMemoryGridNode", args: PurchaseMemoryGridNode }
 | { name: "QueryHearthUpkeepCosts", args: QueryHearthUpkeepCosts }
@@ -5343,7 +5302,6 @@ export type Reducer = never
 | { name: "TransferWaterFromContainerToCollector", args: TransferWaterFromContainerToCollector }
 | { name: "TransferWaterFromContainerToPot", args: TransferWaterFromContainerToPot }
 | { name: "TransferWaterFromPotToContainer", args: TransferWaterFromPotToContainer }
-| { name: "UnravelRope", args: UnravelRope }
 | { name: "UpdateCloudIntensities", args: UpdateCloudIntensities }
 | { name: "UpdateCloudPositions", args: UpdateCloudPositions }
 | { name: "UpdateFlashlightAim", args: UpdateFlashlightAim }
@@ -5871,22 +5829,6 @@ export class RemoteReducers {
 
   removeOnCreateGeneratedBrew(callback: (ctx: ReducerEventContext, recipeJson: string, iconBase64: string | undefined) => void) {
     this.connection.offReducer("create_generated_brew", callback);
-  }
-
-  crushBoneItem(itemInstanceId: bigint) {
-    const __args = { itemInstanceId };
-    let __writer = new __BinaryWriter(1024);
-    CrushBoneItem.serialize(__writer, __args);
-    let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("crush_bone_item", __argsBuffer, this.setCallReducerFlags.crushBoneItemFlags);
-  }
-
-  onCrushBoneItem(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.onReducer("crush_bone_item", callback);
-  }
-
-  removeOnCrushBoneItem(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.offReducer("crush_bone_item", callback);
   }
 
   damageGrass(grassId: bigint) {
@@ -6477,22 +6419,6 @@ export class RemoteReducers {
     this.connection.offReducer("extract_from_honeycomb", callback);
   }
 
-  extractYeast(itemInstanceId: bigint) {
-    const __args = { itemInstanceId };
-    let __writer = new __BinaryWriter(1024);
-    ExtractYeast.serialize(__writer, __args);
-    let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("extract_yeast", __argsBuffer, this.setCallReducerFlags.extractYeastFlags);
-  }
-
-  onExtractYeast(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.onReducer("extract_yeast", callback);
-  }
-
-  removeOnExtractYeast(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.offReducer("extract_yeast", callback);
-  }
-
   fillEquippedWaterContainers(args: WaterContainerFillSchedule) {
     const __args = { args };
     let __writer = new __BinaryWriter(1024);
@@ -6683,22 +6609,6 @@ export class RemoteReducers {
 
   removeOnGrantBuildingPrivilegeFromHearth(callback: (ctx: ReducerEventContext, hearthId: number) => void) {
     this.connection.offReducer("grant_building_privilege_from_hearth", callback);
-  }
-
-  gutFish(itemInstanceId: bigint) {
-    const __args = { itemInstanceId };
-    let __writer = new __BinaryWriter(1024);
-    GutFish.serialize(__writer, __args);
-    let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("gut_fish", __argsBuffer, this.setCallReducerFlags.gutFishFlags);
-  }
-
-  onGutFish(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.onReducer("gut_fish", callback);
-  }
-
-  removeOnGutFish(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.offReducer("gut_fish", callback);
   }
 
   onIdentityConnected(callback: (ctx: ReducerEventContext) => void) {
@@ -7123,38 +7033,6 @@ export class RemoteReducers {
 
   removeOnMarkTutorialHintSeen(callback: (ctx: ReducerEventContext) => void) {
     this.connection.offReducer("mark_tutorial_hint_seen", callback);
-  }
-
-  mashBerries(itemInstanceId: bigint) {
-    const __args = { itemInstanceId };
-    let __writer = new __BinaryWriter(1024);
-    MashBerries.serialize(__writer, __args);
-    let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("mash_berries", __argsBuffer, this.setCallReducerFlags.mashBerriesFlags);
-  }
-
-  onMashBerries(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.onReducer("mash_berries", callback);
-  }
-
-  removeOnMashBerries(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.offReducer("mash_berries", callback);
-  }
-
-  mashStarch(itemInstanceId: bigint) {
-    const __args = { itemInstanceId };
-    let __writer = new __BinaryWriter(1024);
-    MashStarch.serialize(__writer, __args);
-    let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("mash_starch", __argsBuffer, this.setCallReducerFlags.mashStarchFlags);
-  }
-
-  onMashStarch(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.onReducer("mash_starch", callback);
-  }
-
-  removeOnMashStarch(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.offReducer("mash_starch", callback);
   }
 
   milkAnimal(animalId: bigint) {
@@ -8693,6 +8571,22 @@ export class RemoteReducers {
     this.connection.offReducer("process_drone_flight_tick", callback);
   }
 
+  processExtraction(itemInstanceId: bigint) {
+    const __args = { itemInstanceId };
+    let __writer = new __BinaryWriter(1024);
+    ProcessExtraction.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("process_extraction", __argsBuffer, this.setCallReducerFlags.processExtractionFlags);
+  }
+
+  onProcessExtraction(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.onReducer("process_extraction", callback);
+  }
+
+  removeOnProcessExtraction(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
+    this.connection.offReducer("process_extraction", callback);
+  }
+
   processFirePatchDamage(args: FirePatchDamageSchedule) {
     const __args = { args };
     let __writer = new __BinaryWriter(1024);
@@ -9011,22 +8905,6 @@ export class RemoteReducers {
 
   removeOnPromoteToPraMatron(callback: (ctx: ReducerEventContext, targetPlayerId: __Identity) => void) {
     this.connection.offReducer("promote_to_pra_matron", callback);
-  }
-
-  pulverizeItem(itemInstanceId: bigint) {
-    const __args = { itemInstanceId };
-    let __writer = new __BinaryWriter(1024);
-    PulverizeItem.serialize(__writer, __args);
-    let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("pulverize_item", __argsBuffer, this.setCallReducerFlags.pulverizeItemFlags);
-  }
-
-  onPulverizeItem(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.onReducer("pulverize_item", callback);
-  }
-
-  removeOnPulverizeItem(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.offReducer("pulverize_item", callback);
   }
 
   purchaseFromAlk(contractId: bigint, bundlesToBuy: number) {
@@ -11269,22 +11147,6 @@ export class RemoteReducers {
     this.connection.offReducer("transfer_water_from_pot_to_container", callback);
   }
 
-  unravelRope(itemInstanceId: bigint) {
-    const __args = { itemInstanceId };
-    let __writer = new __BinaryWriter(1024);
-    UnravelRope.serialize(__writer, __args);
-    let __argsBuffer = __writer.getBuffer();
-    this.connection.callReducer("unravel_rope", __argsBuffer, this.setCallReducerFlags.unravelRopeFlags);
-  }
-
-  onUnravelRope(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.onReducer("unravel_rope", callback);
-  }
-
-  removeOnUnravelRope(callback: (ctx: ReducerEventContext, itemInstanceId: bigint) => void) {
-    this.connection.offReducer("unravel_rope", callback);
-  }
-
   updateCloudIntensities(scheduleArgs: CloudIntensitySchedule) {
     const __args = { scheduleArgs };
     let __writer = new __BinaryWriter(1024);
@@ -11701,11 +11563,6 @@ export class SetReducerFlags {
     this.createGeneratedBrewFlags = flags;
   }
 
-  crushBoneItemFlags: __CallReducerFlags = 'FullUpdate';
-  crushBoneItem(flags: __CallReducerFlags) {
-    this.crushBoneItemFlags = flags;
-  }
-
   damageGrassFlags: __CallReducerFlags = 'FullUpdate';
   damageGrass(flags: __CallReducerFlags) {
     this.damageGrassFlags = flags;
@@ -11896,11 +11753,6 @@ export class SetReducerFlags {
     this.extractFromHoneycombFlags = flags;
   }
 
-  extractYeastFlags: __CallReducerFlags = 'FullUpdate';
-  extractYeast(flags: __CallReducerFlags) {
-    this.extractYeastFlags = flags;
-  }
-
   fillEquippedWaterContainersFlags: __CallReducerFlags = 'FullUpdate';
   fillEquippedWaterContainers(flags: __CallReducerFlags) {
     this.fillEquippedWaterContainersFlags = flags;
@@ -11964,11 +11816,6 @@ export class SetReducerFlags {
   grantBuildingPrivilegeFromHearthFlags: __CallReducerFlags = 'FullUpdate';
   grantBuildingPrivilegeFromHearth(flags: __CallReducerFlags) {
     this.grantBuildingPrivilegeFromHearthFlags = flags;
-  }
-
-  gutFishFlags: __CallReducerFlags = 'FullUpdate';
-  gutFish(flags: __CallReducerFlags) {
-    this.gutFishFlags = flags;
   }
 
   initProjectileSystemFlags: __CallReducerFlags = 'FullUpdate';
@@ -12114,16 +11961,6 @@ export class SetReducerFlags {
   markTutorialHintSeenFlags: __CallReducerFlags = 'FullUpdate';
   markTutorialHintSeen(flags: __CallReducerFlags) {
     this.markTutorialHintSeenFlags = flags;
-  }
-
-  mashBerriesFlags: __CallReducerFlags = 'FullUpdate';
-  mashBerries(flags: __CallReducerFlags) {
-    this.mashBerriesFlags = flags;
-  }
-
-  mashStarchFlags: __CallReducerFlags = 'FullUpdate';
-  mashStarch(flags: __CallReducerFlags) {
-    this.mashStarchFlags = flags;
   }
 
   milkAnimalFlags: __CallReducerFlags = 'FullUpdate';
@@ -12606,6 +12443,11 @@ export class SetReducerFlags {
     this.processDroneFlightTickFlags = flags;
   }
 
+  processExtractionFlags: __CallReducerFlags = 'FullUpdate';
+  processExtraction(flags: __CallReducerFlags) {
+    this.processExtractionFlags = flags;
+  }
+
   processFirePatchDamageFlags: __CallReducerFlags = 'FullUpdate';
   processFirePatchDamage(flags: __CallReducerFlags) {
     this.processFirePatchDamageFlags = flags;
@@ -12704,11 +12546,6 @@ export class SetReducerFlags {
   promoteToPraMatronFlags: __CallReducerFlags = 'FullUpdate';
   promoteToPraMatron(flags: __CallReducerFlags) {
     this.promoteToPraMatronFlags = flags;
-  }
-
-  pulverizeItemFlags: __CallReducerFlags = 'FullUpdate';
-  pulverizeItem(flags: __CallReducerFlags) {
-    this.pulverizeItemFlags = flags;
   }
 
   purchaseFromAlkFlags: __CallReducerFlags = 'FullUpdate';
@@ -13434,11 +13271,6 @@ export class SetReducerFlags {
   transferWaterFromPotToContainerFlags: __CallReducerFlags = 'FullUpdate';
   transferWaterFromPotToContainer(flags: __CallReducerFlags) {
     this.transferWaterFromPotToContainerFlags = flags;
-  }
-
-  unravelRopeFlags: __CallReducerFlags = 'FullUpdate';
-  unravelRope(flags: __CallReducerFlags) {
-    this.unravelRopeFlags = flags;
   }
 
   updateCloudIntensitiesFlags: __CallReducerFlags = 'FullUpdate';

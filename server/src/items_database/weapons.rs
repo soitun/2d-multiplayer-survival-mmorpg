@@ -47,6 +47,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .icon("skull.png")
             .weapon(30, 30, 2.0) // Fixed damage, very slow
             .damage_type(DamageType::Blunt) // Blunt weapon
+            .extractable("Bone Fragments", 25, 25, "Crush")
             .build(),
 
         // Fox Skull - Light but cunning weapon
@@ -55,6 +56,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .stackable(10)
             .weapon(25, 25, 1.8) // Lighter/faster than human skull
             .damage_type(DamageType::Blunt) // Blunt weapon
+            .extractable("Bone Fragments", 15, 15, "Crush")
             .build(),
 
         // Wolf Skull - Fierce predator weapon
@@ -63,6 +65,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .stackable(10)
             .weapon(35, 35, 2.2) // Stronger but slower than human skull
             .damage_type(DamageType::Blunt) // Blunt weapon
+            .extractable("Bone Fragments", 20, 20, "Crush")
             .build(),
 
         // Viper Skull - Venomous weapon with bleed effect
@@ -72,6 +75,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .weapon(28, 28, 1.9) // Moderate damage and speed
             .damage_type(DamageType::Pierce) // Pierce weapon (fangs)
             .bleed_effect(2.0, 6.0, 1.0) // Venom effect - moderate bleed
+            .extractable("Bone Fragments", 22, 22, "Crush")
             .build(),
 
         // Walrus Skull - Heavy, imposing weapon with tusks
@@ -80,6 +84,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .stackable(10)
             .weapon(40, 40, 2.5) // High damage but very slow due to weight
             .damage_type(DamageType::Pierce) // Pierce weapon (tusks)
+            .extractable("Bone Fragments", 30, 30, "Crush")
             .build(),
 
         // Vole Skull - Tiny novelty trophy
@@ -88,6 +93,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .stackable(20)
             .weapon(8, 10, 2.5) // Very weak but very fast - novelty weapon
             .damage_type(DamageType::Blunt) // Blunt weapon
+            .extractable("Bone Fragments", 5, 5, "Crush")
             .build(),
 
         // Wolverine Skull - Fierce predator trophy with powerful jaws
@@ -96,6 +102,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .stackable(10)
             .weapon(32, 35, 2.0) // Good damage, moderate speed - fierce predator
             .damage_type(DamageType::Pierce) // Pierce weapon (teeth)
+            .extractable("Bone Fragments", 18, 18, "Crush")
             .build(),
 
         // Polar Bear Skull - Massive apex predator trophy
@@ -104,6 +111,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .stackable(10)
             .weapon(42, 42, 2.5) // Very high damage but very slow - largest skull
             .damage_type(DamageType::Blunt) // Blunt weapon
+            .extractable("Bone Fragments", 30, 30, "Crush")
             .build(),
 
         // Hare Skull - Small prey trophy
@@ -112,6 +120,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .stackable(20)
             .weapon(10, 12, 1.4) // Weak but very fast - novelty weapon
             .damage_type(DamageType::Blunt) // Blunt weapon
+            .extractable("Bone Fragments", 6, 6, "Crush")
             .build(),
 
         // Owl Skull - Silent hunter trophy
@@ -120,6 +129,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .stackable(15)
             .weapon(22, 24, 1.7) // Moderate damage, decent speed - bird skull
             .damage_type(DamageType::Blunt) // Blunt weapon
+            .extractable("Bone Fragments", 10, 10, "Crush")
             .build(),
 
         // Tern Skull - Coastal seabird trophy
@@ -128,6 +138,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .stackable(15)
             .weapon(18, 20, 1.5) // Lower damage but very fast - small agile bird
             .damage_type(DamageType::Pierce) // Pierce weapon (sharp beak)
+            .extractable("Bone Fragments", 8, 8, "Crush")
             .build(),
 
         // Crow Skull - Clever scavenger trophy
@@ -136,6 +147,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .stackable(15)
             .weapon(16, 18, 1.6) // Weak but fast - small bird skull
             .damage_type(DamageType::Blunt) // Blunt weapon
+            .extractable("Bone Fragments", 8, 8, "Crush")
             .build(),
 
         // Shark Skull - Aquatic predator trophy with serrated teeth
@@ -145,6 +157,7 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .weapon(38, 42, 1.9) // High damage - apex aquatic predator
             .damage_type(DamageType::Pierce) // Pierce weapon (teeth)
             .bleed_effect(3.0, 8.0, 1.0) // Serrated teeth cause serious bleeding
+            .extractable("Bone Fragments", 25, 25, "Crush")
             .build(),
 
         // === CRAFTABLE CLUBS & MACES ===

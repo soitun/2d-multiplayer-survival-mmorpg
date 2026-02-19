@@ -1,280 +1,58 @@
-use spacetimedb::{ReducerContext, Identity, Table};
+use spacetimedb::{ReducerContext, Table};
 use log;
 use rand::Rng;
 
-use crate::items::{InventoryItem, ItemDefinition};
 use crate::items::{inventory_item as InventoryItemTableTrait, item_definition as ItemDefinitionTableTrait};
 use crate::dropped_item::try_give_item_to_player;
 
-// Constants for bone crushing
-const MIN_FRAGMENTS_PER_BONE: u32 = 8; // New min value
-const MAX_FRAGMENTS_PER_BONE: u32 = 12; // New max value
+// =============================================================================
+// GENERIC EXTRACTION - Single reducer for all extractable items
+// =============================================================================
+// Items with extraction_output_name, extraction_output_min, extraction_output_max set
+// in ItemDefinition can be processed. Covers: crush bones, unravel rope, pulverize,
+// mash berries/starch, extract yeast, gut fish. Honeycomb uses extract_from_honeycomb
+// (probabilistic 15% Queen Bee / 85% Yeast).
 
-// Constants for rope unraveling (deconstruction with penalty)
-// Rope costs 20 Plant Fiber to make, so we return 50-70% (10-14)
-const MIN_FIBER_PER_ROPE: u32 = 10;
-const MAX_FIBER_PER_ROPE: u32 = 14;
-
-// Skull-specific fragment amounts (larger skulls yield more material)
-const VOLE_SKULL_FRAGMENTS: u32 = 5;     // Tiny skull - smallest
-const FOX_SKULL_FRAGMENTS: u32 = 15;     // Small skull
-const WOLVERINE_SKULL_FRAGMENTS: u32 = 18; // Medium-sized fierce predator
-const WOLF_SKULL_FRAGMENTS: u32 = 20;    // Baseline 
-const VIPER_SKULL_FRAGMENTS: u32 = 22;   // Moderate
-const HUMAN_SKULL_FRAGMENTS: u32 = 25;   // Strong
-const WALRUS_SKULL_FRAGMENTS: u32 = 30;  // Largest skull, most material
-const WHALE_BONE_FRAGMENT_FRAGMENTS: u32 = 3; // Small fishing junk, yields fewer fragments
-// Alpine animal skulls
-const POLAR_BEAR_SKULL_FRAGMENTS: u32 = 30; // Massive skull - same as walrus
-const HARE_SKULL_FRAGMENTS: u32 = 6;     // Small prey skull
-const OWL_SKULL_FRAGMENTS: u32 = 10;     // Medium bird skull
-// Coastal bird skulls
-const TERN_SKULL_FRAGMENTS: u32 = 8;     // Small seabird skull
-const CROW_SKULL_FRAGMENTS: u32 = 8;     // Small scavenger bird skull
-// Aquatic animal skull
-const SHARK_SKULL_FRAGMENTS: u32 = 25;   // Large cartilaginous skull
-
-/// Crushes a bone or skull item into bone fragments.
-/// If inventory is full, fragments will be dropped near the player.
+/// Process any extractable item: crush, unravel, pulverize, mash, extract yeast, gut.
+/// Uses ItemDefinition extraction_output_name, extraction_output_min, extraction_output_max.
+/// If inventory is full, output will be dropped near the player.
 #[spacetimedb::reducer]
-pub fn crush_bone_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
+pub fn process_extraction(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
     let sender_id = ctx.sender;
     let inventory_table = ctx.db.inventory_item();
     let item_def_table = ctx.db.item_definition();
 
-    // 1. Fetch and validate the item to crush
-    let item_to_crush = inventory_table.instance_id().find(item_instance_id)
+    let item = inventory_table.instance_id().find(item_instance_id)
         .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
 
-    let item_def = item_def_table.id().find(item_to_crush.item_def_id)
-        .ok_or_else(|| format!("Item definition {} not found", item_to_crush.item_def_id))?;
+    let item_def = item_def_table.id().find(item.item_def_id)
+        .ok_or_else(|| format!("Item definition {} not found", item.item_def_id))?;
 
-    // 2. Validate item type and access (player possession OR accessible container)
-    match item_def.name.as_str() {
-        "Animal Bone" | "Human Skull" | "Fox Skull" | "Wolf Skull" | "Viper Skull" | "Walrus Skull" | "Vole Skull" | "Wolverine Skull" | "Whale Bone Fragment" | "Polar Bear Skull" | "Hare Skull" | "Owl Skull" | "Tern Skull" | "Crow Skull" | "Shark Skull" => {
-            crate::container_access::validate_player_can_use_item(ctx, &item_to_crush)?;
-        },
-        _ => return Err(format!("Cannot crush item '{}'. Only bones and skulls can be crushed.", item_def.name)),
-    }
+    let output_name = item_def.extraction_output_name.as_ref()
+        .ok_or_else(|| format!("Cannot process '{}'. Item is not extractable.", item_def.name))?;
 
-    // 3. Calculate number of fragments to create based on bone/skull size
-    let fragments_to_create = match item_def.name.as_str() {
-        "Animal Bone" => {
-            // Use gen_range for a more idiomatic way to generate random numbers
-            ctx.rng().gen_range(MIN_FRAGMENTS_PER_BONE..=MAX_FRAGMENTS_PER_BONE)
-        },
-        "Vole Skull" => VOLE_SKULL_FRAGMENTS,       // Tiny skull
-        "Fox Skull" => FOX_SKULL_FRAGMENTS,
-        "Wolverine Skull" => WOLVERINE_SKULL_FRAGMENTS, // Medium fierce predator
-        "Wolf Skull" => WOLF_SKULL_FRAGMENTS, 
-        "Viper Skull" => VIPER_SKULL_FRAGMENTS,
-        "Human Skull" => HUMAN_SKULL_FRAGMENTS,
-        "Walrus Skull" => WALRUS_SKULL_FRAGMENTS,
-        "Whale Bone Fragment" => WHALE_BONE_FRAGMENT_FRAGMENTS, // Small fishing junk
-        // Alpine animal skulls
-        "Polar Bear Skull" => POLAR_BEAR_SKULL_FRAGMENTS,
-        "Hare Skull" => HARE_SKULL_FRAGMENTS,
-        "Owl Skull" => OWL_SKULL_FRAGMENTS,
-        // Coastal bird skulls
-        "Tern Skull" => TERN_SKULL_FRAGMENTS,
-        "Crow Skull" => CROW_SKULL_FRAGMENTS,
-        // Aquatic animal skull
-        "Shark Skull" => SHARK_SKULL_FRAGMENTS,
-        _ => unreachable!(), // We already validated the item type
+    let (min_out, max_out) = match (item_def.extraction_output_min, item_def.extraction_output_max) {
+        (Some(min), Some(max)) if min <= max => (min, max),
+        _ => return Err(format!("Invalid extraction config for '{}'.", item_def.name)),
     };
 
-    // Find the Bone Fragments item definition by name
-    let bone_fragments_def = item_def_table.iter()
-        .find(|def| def.name == "Bone Fragments")
-        .ok_or_else(|| "Bone Fragments item definition not found".to_string())?;
-
-    // log::info!("[CrushBone] Player {} crushing {} into {} bone fragments", 
-    //          sender_id, item_def.name, fragments_to_create);
-
-    // 4. Update item quantity or delete if last one
-    if item_to_crush.quantity > 1 {
-        let mut updated_item = item_to_crush.clone();
-        updated_item.quantity -= 1;
-        inventory_table.instance_id().update(updated_item);
-    } else {
-        // Clear from container slot if item was in a container (optimized O(1) when location known)
-        if let crate::models::ItemLocation::Container(ref loc) = &item_to_crush.location {
-            if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
-                crate::items::clear_item_from_any_container(ctx, item_instance_id);
-            }
-        }
-        inventory_table.instance_id().delete(item_instance_id);
-    }
-
-    // 5. Give fragments to player (or drop near them if inventory full)
-    match try_give_item_to_player(ctx, sender_id, bone_fragments_def.id, fragments_to_create) {
-        Ok(added_to_inventory) => {
-            if added_to_inventory {
-                // log::info!("[CrushBone] Added {} bone fragments to inventory for player {}", fragments_to_create, sender_id);
-            } else {
-                // log::info!("[CrushBone] Inventory full, dropped {} bone fragments near player {}", fragments_to_create, sender_id);
-            }
-            Ok(())
-        },
-        Err(e) => Err(format!("Failed to give bone fragments to player: {}", e))
-    }
-}
-
-/// Unravels rope back into plant fiber with a penalty.
-/// Rope costs 20 Plant Fiber to make, but unraveling only returns 10-14 (50-70%).
-/// If inventory is full, fiber will be dropped near the player.
-#[spacetimedb::reducer]
-pub fn unravel_rope(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
-    let inventory_table = ctx.db.inventory_item();
-    let item_def_table = ctx.db.item_definition();
-
-    // 1. Fetch and validate the item to unravel
-    let item_to_unravel = inventory_table.instance_id().find(item_instance_id)
-        .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
-
-    let item_def = item_def_table.id().find(item_to_unravel.item_def_id)
-        .ok_or_else(|| format!("Item definition {} not found", item_to_unravel.item_def_id))?;
-
-    // 2. Validate item is Rope and player owns it
-    if item_def.name != "Rope" {
-        return Err(format!("Cannot unravel '{}'. Only Rope can be unraveled into Plant Fiber.", item_def.name));
-    }
-
-    crate::container_access::validate_player_can_use_item(ctx, &item_to_unravel)?;
-
-    // 3. Calculate fiber to return (with penalty - 50-70% of original 20 cost)
-    let fiber_to_create = ctx.rng().gen_range(MIN_FIBER_PER_ROPE..=MAX_FIBER_PER_ROPE);
-
-    // Find the Plant Fiber item definition by name
-    let plant_fiber_def = item_def_table.iter()
-        .find(|def| def.name == "Plant Fiber")
-        .ok_or_else(|| "Plant Fiber item definition not found".to_string())?;
-
-    log::info!("[UnravelRope] Player {} unraveling rope into {} plant fiber (penalty applied)", 
-             sender_id, fiber_to_create);
-
-    // 4. Update item quantity or delete if last one
-    if item_to_unravel.quantity > 1 {
-        let mut updated_item = item_to_unravel.clone();
-        updated_item.quantity -= 1;
-        inventory_table.instance_id().update(updated_item);
-    } else {
-        if let crate::models::ItemLocation::Container(ref loc) = &item_to_unravel.location {
-            if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
-                crate::items::clear_item_from_any_container(ctx, item_instance_id);
-            }
-        }
-        inventory_table.instance_id().delete(item_instance_id);
-    }
-
-    // 5. Give plant fiber to player (or drop near them if inventory full)
-    match try_give_item_to_player(ctx, sender_id, plant_fiber_def.id, fiber_to_create) {
-        Ok(added_to_inventory) => {
-            if added_to_inventory {
-                log::info!("[UnravelRope] Added {} plant fiber to inventory for player {}", fiber_to_create, sender_id);
-            } else {
-                log::info!("[UnravelRope] Inventory full, dropped {} plant fiber near player {}", fiber_to_create, sender_id);
-            }
-            Ok(())
-        },
-        Err(e) => Err(format!("Failed to give plant fiber to player: {}", e))
-    }
-}
-
-// Constants for pulverizing items into flour
-const MIN_FLOUR_PER_BULB: u32 = 2;  // Bulbs/roots yield 2-3 flour each
-const MAX_FLOUR_PER_BULB: u32 = 3;
-const MIN_FLOUR_PER_SEEDS: u32 = 1; // Seeds yield 1-2 flour each
-const MAX_FLOUR_PER_SEEDS: u32 = 2;
-
-/// Items that can be pulverized into flour (traditional Aleut flour sources)
-const PULVERIZABLE_ITEMS: &[&str] = &[
-    "Kamchatka Lily Bulb",
-    "Silverweed Root",
-    "Bistort Bulbils",
-    "Angelica Seeds",
-    "Beach Lyme Grass Seeds",
-];
-
-// Constants for pulverizing bark into plant fiber
-const MIN_FIBER_PER_PINE_BARK: u32 = 2;  // Rough bark yields less
-const MAX_FIBER_PER_PINE_BARK: u32 = 3;
-const MIN_FIBER_PER_BIRCH_BARK: u32 = 3; // Paper-thin birch yields more
-const MAX_FIBER_PER_BIRCH_BARK: u32 = 4;
-const MIN_FIBER_PER_COMMON_REED_STALK: u32 = 2;  // Hollow reed yields moderate fiber
-const MAX_FIBER_PER_COMMON_REED_STALK: u32 = 3;
-
-/// Bark and reed items that can be pulverized into plant fiber
-const PULVERIZABLE_BARK: &[&str] = &[
-    "Pine Bark",
-    "Birch Bark",
-    "Common Reed Stalk",
-];
-
-/// Pulverizes starchy plants/seeds into flour.
-/// Traditional Aleut method of creating flour from native plants.
-/// If inventory is full, flour will be dropped near the player.
-#[spacetimedb::reducer]
-pub fn pulverize_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
-    let inventory_table = ctx.db.inventory_item();
-    let item_def_table = ctx.db.item_definition();
-
-    // 1. Fetch and validate the item to pulverize
-    let item_to_pulverize = inventory_table.instance_id().find(item_instance_id)
-        .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
-
-    let item_def = item_def_table.id().find(item_to_pulverize.item_def_id)
-        .ok_or_else(|| format!("Item definition {} not found", item_to_pulverize.item_def_id))?;
-
-    // 2. Validate item is pulverizable (flour or plant fiber)
-    let item_name = item_def.name.as_str();
-    let is_flour_source = PULVERIZABLE_ITEMS.contains(&item_name);
-    let is_bark_source = PULVERIZABLE_BARK.contains(&item_name);
-
-    if !is_flour_source && !is_bark_source {
-        return Err(format!("Cannot pulverize '{}'. Only starchy roots, bulbs, seeds (into flour) or tree bark (into plant fiber) can be pulverized.", item_def.name));
-    }
-
-    crate::container_access::validate_player_can_use_item(ctx, &item_to_pulverize)?;
-
-    // 3. Determine output: flour or plant fiber, and yield
-    let (output_def_name, output_quantity) = if is_bark_source {
-        let fiber_to_create = match item_name {
-            "Pine Bark" => ctx.rng().gen_range(MIN_FIBER_PER_PINE_BARK..=MAX_FIBER_PER_PINE_BARK),
-            "Birch Bark" => ctx.rng().gen_range(MIN_FIBER_PER_BIRCH_BARK..=MAX_FIBER_PER_BIRCH_BARK),
-            "Common Reed Stalk" => ctx.rng().gen_range(MIN_FIBER_PER_COMMON_REED_STALK..=MAX_FIBER_PER_COMMON_REED_STALK),
-            _ => unreachable!(),
-        };
-        ("Plant Fiber", fiber_to_create)
-    } else {
-        let flour_to_create = match item_name {
-            "Kamchatka Lily Bulb" | "Silverweed Root" | "Bistort Bulbils" => {
-                ctx.rng().gen_range(MIN_FLOUR_PER_BULB..=MAX_FLOUR_PER_BULB)
-            },
-            "Angelica Seeds" | "Beach Lyme Grass Seeds" => {
-                ctx.rng().gen_range(MIN_FLOUR_PER_SEEDS..=MAX_FLOUR_PER_SEEDS)
-            },
-            _ => unreachable!(),
-        };
-        ("Flour", flour_to_create)
-    };
+    crate::container_access::validate_player_can_use_item(ctx, &item)?;
 
     let output_def = item_def_table.iter()
-        .find(|def| def.name == output_def_name)
-        .ok_or_else(|| format!("{} item definition not found", output_def_name))?;
+        .find(|def| def.name == *output_name)
+        .ok_or_else(|| format!("Output item '{}' not found", output_name))?;
 
-    log::info!("[PulverizeItem] Player {} pulverizing {} into {} {}", 
-             sender_id, item_def.name, output_quantity, output_def_name);
+    let output_quantity = ctx.rng().gen_range(min_out..=max_out);
 
-    // 4. Update item quantity or delete if last one
-    if item_to_pulverize.quantity > 1 {
-        let mut updated_item = item_to_pulverize.clone();
-        updated_item.quantity -= 1;
-        inventory_table.instance_id().update(updated_item);
+    log::info!("[ProcessExtraction] Player {} processing {} into {} {}",
+        sender_id, item_def.name, output_quantity, output_name);
+
+    if item.quantity > 1 {
+        let mut updated = item.clone();
+        updated.quantity -= 1;
+        inventory_table.instance_id().update(updated);
     } else {
-        if let crate::models::ItemLocation::Container(ref loc) = &item_to_pulverize.location {
+        if let crate::models::ItemLocation::Container(ref loc) = &item.location {
             if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
                 crate::items::clear_item_from_any_container(ctx, item_instance_id);
             }
@@ -282,243 +60,9 @@ pub fn pulverize_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(),
         inventory_table.instance_id().delete(item_instance_id);
     }
 
-    // 5. Give output to player (or drop near them if inventory full)
     match try_give_item_to_player(ctx, sender_id, output_def.id, output_quantity) {
-        Ok(added_to_inventory) => {
-            if added_to_inventory {
-                log::info!("[PulverizeItem] Added {} {} to inventory for player {}", output_quantity, output_def_name, sender_id);
-            } else {
-                log::info!("[PulverizeItem] Inventory full, dropped {} {} near player {}", output_quantity, output_def_name, sender_id);
-            }
-            Ok(())
-        },
-        Err(e) => Err(format!("Failed to give {} to player: {}", output_def_name, e))
-    }
-}
-
-// =============================================================================
-// FERMENTATION PREPARATION - Mashing & Yeast Extraction
-// =============================================================================
-// These reducers simplify the fermentation workflow by allowing direct conversion
-// of raw materials into fermentation bases via the ItemInteractionPanel.
-
-/// Berries that can be mashed into Berry Mash (1:1 conversion)
-const MASHABLE_BERRIES: &[&str] = &[
-    "Lingonberries",
-    "Cloudberries",
-    "Crowberries",
-    "Crowberry",  // Singular form
-    "Bilberries",
-    "Wild Strawberries",
-    "Rowan Berries",
-    "Cranberries",
-    "Nagoonberries",
-];
-
-/// Mashes berries into Berry Mash.
-/// Simple 1:1 conversion - one berry becomes one berry mash.
-/// If inventory is full, berry mash will be dropped near the player.
-#[spacetimedb::reducer]
-pub fn mash_berries(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
-    let inventory_table = ctx.db.inventory_item();
-    let item_def_table = ctx.db.item_definition();
-
-    // 1. Fetch and validate the item to mash
-    let item_to_mash = inventory_table.instance_id().find(item_instance_id)
-        .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
-
-    let item_def = item_def_table.id().find(item_to_mash.item_def_id)
-        .ok_or_else(|| format!("Item definition {} not found", item_to_mash.item_def_id))?;
-
-    // 2. Validate item is a mashable berry
-    let item_name = item_def.name.as_str();
-    if !MASHABLE_BERRIES.contains(&item_name) {
-        return Err(format!("Cannot mash '{}'. Only berries can be mashed into Berry Mash.", item_def.name));
-    }
-
-    crate::container_access::validate_player_can_use_item(ctx, &item_to_mash)?;
-
-    // Find the Berry Mash item definition
-    let berry_mash_def = item_def_table.iter()
-        .find(|def| def.name == "Berry Mash")
-        .ok_or_else(|| "Berry Mash item definition not found".to_string())?;
-
-    log::info!("[MashBerries] Player {} mashing {} into Berry Mash", sender_id, item_def.name);
-
-    // 3. Update item quantity or delete if last one
-    if item_to_mash.quantity > 1 {
-        let mut updated_item = item_to_mash.clone();
-        updated_item.quantity -= 1;
-        inventory_table.instance_id().update(updated_item);
-    } else {
-        if let crate::models::ItemLocation::Container(ref loc) = &item_to_mash.location {
-            if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
-                crate::items::clear_item_from_any_container(ctx, item_instance_id);
-            }
-        }
-        inventory_table.instance_id().delete(item_instance_id);
-    }
-
-    // 4. Give berry mash to player (1:1 conversion)
-    match try_give_item_to_player(ctx, sender_id, berry_mash_def.id, 1) {
-        Ok(added_to_inventory) => {
-            if added_to_inventory {
-                log::info!("[MashBerries] Added 1 Berry Mash to inventory for player {}", sender_id);
-            } else {
-                log::info!("[MashBerries] Inventory full, dropped 1 Berry Mash near player {}", sender_id);
-            }
-            Ok(())
-        },
-        Err(e) => Err(format!("Failed to give Berry Mash to player: {}", e))
-    }
-}
-
-// NOTE: mash_flour reducer removed - flour is for baking bread, not brewing.
-// Cooked starchy items are mashed directly into Starchy Mash via mash_starch reducer below.
-
-/// Cooked starchy items that can be mashed into Starchy Mash (1:1 conversion)
-/// Includes roots, bulbs, and other starchy foods once cooked
-const MASHABLE_STARCH: &[&str] = &[
-    "Cooked Potato",
-    "Cooked Beet",
-    "Cooked Pumpkin",
-    "Cooked Kamchatka Lily Bulb",
-    "Cooked Silverweed Root",
-    "Cooked Bistort Bulbils",
-    "Cooked Salsify Root",
-];
-
-/// Mashes cooked starchy items into Starchy Mash.
-/// Simple 1:1 conversion - one cooked starchy item becomes one starchy mash.
-/// If inventory is full, starchy mash will be dropped near the player.
-#[spacetimedb::reducer]
-pub fn mash_starch(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
-    let inventory_table = ctx.db.inventory_item();
-    let item_def_table = ctx.db.item_definition();
-
-    // 1. Fetch and validate the item to mash
-    let item_to_mash = inventory_table.instance_id().find(item_instance_id)
-        .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
-
-    let item_def = item_def_table.id().find(item_to_mash.item_def_id)
-        .ok_or_else(|| format!("Item definition {} not found", item_to_mash.item_def_id))?;
-
-    // 2. Validate item is a mashable cooked starchy item
-    let item_name = item_def.name.as_str();
-    if !MASHABLE_STARCH.contains(&item_name) {
-        return Err(format!("Cannot mash '{}'. Only cooked starchy roots and bulbs can be mashed into Starchy Mash.", item_def.name));
-    }
-
-    crate::container_access::validate_player_can_use_item(ctx, &item_to_mash)?;
-
-    // Find the Starchy Mash item definition
-    let starchy_mash_def = item_def_table.iter()
-        .find(|def| def.name == "Starchy Mash")
-        .ok_or_else(|| "Starchy Mash item definition not found".to_string())?;
-
-    log::info!("[MashStarch] Player {} mashing {} into Starchy Mash", sender_id, item_def.name);
-
-    // 3. Update item quantity or delete if last one
-    if item_to_mash.quantity > 1 {
-        let mut updated_item = item_to_mash.clone();
-        updated_item.quantity -= 1;
-        inventory_table.instance_id().update(updated_item);
-    } else {
-        if let crate::models::ItemLocation::Container(ref loc) = &item_to_mash.location {
-            if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
-                crate::items::clear_item_from_any_container(ctx, item_instance_id);
-            }
-        }
-        inventory_table.instance_id().delete(item_instance_id);
-    }
-
-    // 4. Give starchy mash to player (1:1 conversion)
-    match try_give_item_to_player(ctx, sender_id, starchy_mash_def.id, 1) {
-        Ok(added_to_inventory) => {
-            if added_to_inventory {
-                log::info!("[MashStarch] Added 1 Starchy Mash to inventory for player {}", sender_id);
-            } else {
-                log::info!("[MashStarch] Inventory full, dropped 1 Starchy Mash near player {}", sender_id);
-            }
-            Ok(())
-        },
-        Err(e) => Err(format!("Failed to give Starchy Mash to player: {}", e))
-    }
-}
-
-/// Items from which yeast can be extracted (fermentable bases)
-const YEAST_EXTRACTABLE: &[&str] = &[
-    "Berry Mash",
-    "Starchy Mash",
-    "Raw Milk",
-];
-
-/// Extracts yeast from fermentable bases (mashes or raw milk).
-/// Yields 1-2 yeast per extraction - the natural yeasts in the ingredients.
-/// If inventory is full, yeast will be dropped near the player.
-#[spacetimedb::reducer]
-pub fn extract_yeast(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
-    let inventory_table = ctx.db.inventory_item();
-    let item_def_table = ctx.db.item_definition();
-
-    // 1. Fetch and validate the item to extract from
-    let item_to_extract = inventory_table.instance_id().find(item_instance_id)
-        .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
-
-    let item_def = item_def_table.id().find(item_to_extract.item_def_id)
-        .ok_or_else(|| format!("Item definition {} not found", item_to_extract.item_def_id))?;
-
-    // 2. Validate item is a yeast-extractable source
-    let item_name = item_def.name.as_str();
-    if !YEAST_EXTRACTABLE.contains(&item_name) {
-        return Err(format!("Cannot extract yeast from '{}'. Only mashes and raw milk contain natural yeasts.", item_def.name));
-    }
-
-    crate::container_access::validate_player_can_use_item(ctx, &item_to_extract)?;
-
-    // Find the Yeast item definition
-    let yeast_def = item_def_table.iter()
-        .find(|def| def.name == "Yeast")
-        .ok_or_else(|| "Yeast item definition not found".to_string())?;
-
-    // 3. Calculate yeast yield (1-2 based on source richness)
-    let yeast_to_create = match item_name {
-        "Raw Milk" => ctx.rng().gen_range(1..=2),  // Milk is rich in lactobacillus
-        "Berry Mash" => ctx.rng().gen_range(1..=2), // Wild yeasts on berry skins
-        "Starchy Mash" => 1, // Less natural yeast than berry mash
-        _ => 1,
-    };
-
-    log::info!("[ExtractYeast] Player {} extracting {} yeast from {}", sender_id, yeast_to_create, item_def.name);
-
-    // 4. Update item quantity or delete if last one
-    if item_to_extract.quantity > 1 {
-        let mut updated_item = item_to_extract.clone();
-        updated_item.quantity -= 1;
-        inventory_table.instance_id().update(updated_item);
-    } else {
-        if let crate::models::ItemLocation::Container(ref loc) = &item_to_extract.location {
-            if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
-                crate::items::clear_item_from_any_container(ctx, item_instance_id);
-            }
-        }
-        inventory_table.instance_id().delete(item_instance_id);
-    }
-
-    // 5. Give yeast to player
-    match try_give_item_to_player(ctx, sender_id, yeast_def.id, yeast_to_create) {
-        Ok(added_to_inventory) => {
-            if added_to_inventory {
-                log::info!("[ExtractYeast] Added {} Yeast to inventory for player {}", yeast_to_create, sender_id);
-            } else {
-                log::info!("[ExtractYeast] Inventory full, dropped {} Yeast near player {}", yeast_to_create, sender_id);
-            }
-            Ok(())
-        },
-        Err(e) => Err(format!("Failed to give Yeast to player: {}", e))
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Failed to give {} to player: {}", output_name, e))
     }
 }
 
@@ -606,102 +150,4 @@ pub fn extract_from_honeycomb(ctx: &ReducerContext, item_instance_id: u64) -> Re
     }
     
     Ok(())
-}
-
-// =============================================================================
-// GUT FISH - Extract Animal Fat from Raw Fish
-// =============================================================================
-
-/// Raw fish (and oily shellfish) that can be gutted for Animal Fat.
-/// Fish are destroyed; yield scales with size (small fish = less fat, large = more).
-const GUTTABLE_RAW_FISH: &[&str] = &[
-    // Small fish
-    "Raw Twigfish",
-    "Raw Herring",
-    "Raw Smelt",
-    // Medium fish
-    "Raw Greenling",
-    "Raw Sculpin",
-    "Raw Pacific Cod",
-    "Raw Dolly Varden",
-    "Raw Rockfish",
-    // Large fish
-    "Raw Steelhead",
-    "Raw Pink Salmon",
-    "Raw Sockeye Salmon",
-    "Raw King Salmon",
-    "Raw Halibut",
-    // Shellfish (oily - less fat than fish)
-    "Raw Black Katy Chiton",
-    "Raw Sea Urchin",
-    "Raw Blue Mussel",
-];
-
-/// Gut a raw fish to extract Animal Fat. Destroys the fish.
-/// Yield: small fish 1-2, medium 2-3, large 3-5, shellfish 1-2.
-/// If inventory is full, fat will be dropped near the player.
-#[spacetimedb::reducer]
-pub fn gut_fish(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
-    let inventory_table = ctx.db.inventory_item();
-    let item_def_table = ctx.db.item_definition();
-
-    let item_to_gut = inventory_table.instance_id().find(item_instance_id)
-        .ok_or_else(|| format!("Item {} not found", item_instance_id))?;
-
-    let item_def = item_def_table.id().find(item_to_gut.item_def_id)
-        .ok_or_else(|| format!("Item definition {} not found", item_to_gut.item_def_id))?;
-
-    let item_name = item_def.name.as_str();
-    if !GUTTABLE_RAW_FISH.contains(&item_name) {
-        return Err(format!(
-            "Cannot gut '{}'. Only raw fish and shellfish can be gutted for Animal Fat.",
-            item_def.name
-        ));
-    }
-
-    crate::container_access::validate_player_can_use_item(ctx, &item_to_gut)?;
-
-    let animal_fat_def = item_def_table.iter()
-        .find(|def| def.name == "Animal Fat")
-        .ok_or_else(|| "Animal Fat item definition not found".to_string())?;
-
-    let fat_to_create = match item_name {
-        "Raw Twigfish" | "Raw Herring" | "Raw Smelt" => ctx.rng().gen_range(1..=2),
-        "Raw Greenling" | "Raw Sculpin" | "Raw Pacific Cod" | "Raw Dolly Varden" | "Raw Rockfish" => {
-            ctx.rng().gen_range(2..=3)
-        }
-        "Raw Steelhead" | "Raw Pink Salmon" | "Raw Sockeye Salmon" | "Raw King Salmon" | "Raw Halibut" => {
-            ctx.rng().gen_range(3..=5)
-        }
-        "Raw Black Katy Chiton" | "Raw Sea Urchin" | "Raw Blue Mussel" => ctx.rng().gen_range(1..=2),
-        _ => 1,
-    };
-
-    log::info!("[GutFish] Player {} gutting {} for {} Animal Fat", sender_id, item_def.name, fat_to_create);
-
-    if item_to_gut.quantity > 1 {
-        let mut updated_item = item_to_gut.clone();
-        updated_item.quantity -= 1;
-        inventory_table.instance_id().update(updated_item);
-    } else {
-        if let crate::models::ItemLocation::Container(ref loc) = &item_to_gut.location {
-            if !crate::items::clear_item_from_container_by_location(ctx, loc, item_instance_id) {
-                crate::items::clear_item_from_any_container(ctx, item_instance_id);
-            }
-        }
-        inventory_table.instance_id().delete(item_instance_id);
-    }
-
-    match try_give_item_to_player(ctx, sender_id, animal_fat_def.id, fat_to_create) {
-        Ok(added_to_inventory) => {
-            if added_to_inventory {
-                log::info!("[GutFish] Added {} Animal Fat to inventory for player {}", fat_to_create, sender_id);
-            } else {
-                log::info!("[GutFish] Inventory full, dropped {} Animal Fat near player {}", fat_to_create, sender_id);
-            }
-            Ok(())
-        }
-        Err(e) => Err(format!("Failed to give Animal Fat to player: {}", e))
-    }
 }

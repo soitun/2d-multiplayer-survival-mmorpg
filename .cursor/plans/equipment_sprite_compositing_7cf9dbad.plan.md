@@ -33,6 +33,7 @@ todos:
   - id: remaining-sets
     content: Draw remaining armor sets (Bone, Wood, Scale, Fox Fur, Wolf Fur, Special)
     status: pending
+isProject: false
 ---
 
 # Procedural Equipment Sprite Compositing Plan
@@ -62,29 +63,35 @@ flowchart LR
     end
 ```
 
+
+
 ---
 
 ## Art Assets to Create
 
 ### Current Sprite Specifications
+
 - **Frame size:** 48x48 pixels
 - **Display size:** 96x96 pixels (2x scale)
 - **Directions:** 4 rows (Down, Right, Left, Up)
 
 ### Animation Layouts (frames x directions)
 
+
 | Animation | Columns | Rows | Sheet Size | Required For |
-|-----------|---------|------|------------|--------------|
-| Walk | 6 | 4 | 288x192 | All armor |
-| Sprint | 8 | 4 | 384x192 | All armor |
-| Idle | 4 | 4 | 192x192 | All armor |
-| Crouch | 3 | 4 | 144x192 | Optional |
-| Swim | 6 | 4 | 288x192 | Optional |
-| Dodge | 7 | 4 | 336x192 | Optional |
+| --------- | ------- | ---- | ---------- | ------------ |
+| Walk      | 6       | 4    | 288x192    | All armor    |
+| Sprint    | 8       | 4    | 384x192    | All armor    |
+| Idle      | 4       | 4    | 192x192    | All armor    |
+| Crouch    | 3       | 4    | 144x192    | Optional     |
+| Swim      | 6       | 4    | 288x192    | Optional     |
+| Dodge     | 7       | 4    | 336x192    | Optional     |
+
 
 ### Armor Sets to Create Overlays For
 
 **Priority 1 - Common Armor (ship first):**
+
 1. **Cloth Set** (6 pieces): Hood, Shirt, Pants, Gloves, Boots, Cape
 2. **Leather Set** (6 pieces): Helmet, Chestplate, Leggings, Gauntlets, Boots, Cape
 
@@ -132,6 +139,7 @@ client/src/assets/equipment/
 4. **Direction row order:** Row 0 = Down, Row 1 = Right, Row 2 = Left, Row 3 = Up
 
 **Example frame grid for walk animation (6x4):**
+
 ```
 [D0][D1][D2][D3][D4][D5]  <- Down direction
 [R0][R1][R2][R3][R4][R5]  <- Right direction
@@ -238,9 +246,11 @@ pub overlay_sprite_id: Option<String>, // e.g., "cloth_hood", "bone_helmet"
 ## Asset Count Summary
 
 **Minimum viable (Walk + Sprint + Idle for Cloth and Leather):**
+
 - 12 armor pieces x 3 animations = **36 spritesheets**
 
 **Full implementation (all 7 sets + 3 special items):**
+
 - 38 armor pieces x 3 animations = **114 spritesheets**
 - Plus optional crouch/swim/dodge: up to **228 spritesheets**
 
@@ -257,3 +267,4 @@ pub overlay_sprite_id: Option<String>, // e.g., "cloth_hood", "bone_helmet"
 5. Test with Cloth set
 6. Draw remaining armor sets in priority order
 7. Add crouch/swim/dodge animations as needed
+

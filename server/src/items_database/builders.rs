@@ -42,6 +42,10 @@ impl ItemBuilder {
                 consumable_duration_secs: None,
                 cook_time_secs: None,
                 cooked_item_def_name: None,
+                extraction_output_name: None,
+                extraction_output_min: None,
+                extraction_output_max: None,
+                extraction_action_label: None,
                 damage_resistance: None,
                 warmth_bonus: None,
                 respawn_time_seconds: None,
@@ -264,6 +268,16 @@ impl ItemBuilder {
     pub fn cookable(mut self, cook_time: f32, cooked_item: &str) -> Self {
         self.inner.cook_time_secs = Some(cook_time);
         self.inner.cooked_item_def_name = Some(cooked_item.to_string());
+        self
+    }
+
+    /// Mark item as extractable/processable. Destroys item, yields output_item (min..=max).
+    /// action_label: UI button text e.g. "Crush", "Unravel", "Pulverize", "Mash", "Extract Yeast", "Gut"
+    pub fn extractable(mut self, output_item: &str, min: u32, max: u32, action_label: &str) -> Self {
+        self.inner.extraction_output_name = Some(output_item.to_string());
+        self.inner.extraction_output_min = Some(min);
+        self.inner.extraction_output_max = Some(max);
+        self.inner.extraction_action_label = Some(action_label.to_string());
         self
     }
 

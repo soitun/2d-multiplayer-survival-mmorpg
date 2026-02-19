@@ -73,6 +73,7 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
         // Animal Bone - Whole bones
         basic_material("Animal Bone", "A sturdy animal bone. Useful for crafting basic tools and weapons.", 250)
             .icon("bone.png")
+            .extractable("Bone Fragments", 8, 12, "Crush")
             .build(),
 
         // Animal Fat - Used for crafting tallow and other items
@@ -204,6 +205,7 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
         // Whale Bone Fragment - Small bone piece from Aleutian waters, can be crushed into bone fragments
         basic_material("Whale Bone Fragment", "A small fragment of whale bone pulled from the Aleutian depths. Can be crushed into bone fragments.", 20)
             .icon("whale_bone_fragment.png")
+            .extractable("Bone Fragments", 3, 3, "Crush")
             .build(),
 
         // === AQUATIC CREATURE MATERIALS ===
@@ -246,12 +248,14 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
                 CostIngredient { item_name: "Plant Fiber".to_string(), quantity: 20 },
             ])
             .crafting_output(1, 3)
+            .extractable("Plant Fiber", 10, 14, "Unravel")
             .respawn_time(360)
             .build(),
 
         // Common Reed Stalk - Water plant material
         basic_material("Common Reed Stalk", "A hollow reed stalk found near water sources. The natural tube makes it useful for crafting breathing apparatus.", 100)
             .icon("reed_stalk.png")
+            .extractable("Plant Fiber", 2, 3, "Pulverize")
             .respawn_time(240)
             .build(),
 
@@ -268,6 +272,7 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
         basic_material("Pine Bark", "Rough, resinous bark stripped from pine trees. Used for tanning, crafting, and as kindling. Can be pulverized into plant fiber. Rich in tannins and aromatic oils.", 500)
             .icon("tree_bark.png")
             .fuel(3.0)  // Burns slower than wood due to oils
+            .extractable("Plant Fiber", 2, 3, "Pulverize")
             .respawn_time(300)
             .build(),
 
@@ -275,6 +280,7 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
         basic_material("Birch Bark", "Paper-thin, flexible bark from deciduous trees. Prized for waterproof crafting, writing surfaces, and fire-starting. Can be pulverized into plant fiber. Burns hot and clean.", 500)
             .icon("tree_bark_birch.png")
             .fuel(4.0)  // Burns hotter than regular bark
+            .extractable("Plant Fiber", 3, 4, "Pulverize")
             .respawn_time(300)
             .build(),
 

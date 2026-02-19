@@ -419,9 +419,7 @@ pub use knocked_out::revive_knocked_out_player; // For client bindings
 pub use knocked_out::get_knocked_out_status; // For client bindings
 
 // Re-export bones reducers for client bindings
-pub use bones::crush_bone_item;
-pub use bones::unravel_rope;
-pub use bones::gut_fish;
+pub use bones::process_extraction;
 
 // ADD: Re-export torch reducer for client bindings
 pub use torch::toggle_torch;

@@ -129,6 +129,12 @@ pub struct ItemDefinition {
     pub consumable_duration_secs: Option<f32>, // For effects over time, 0 or None for instant
     pub cook_time_secs: Option<f32>,           // Time to cook this item if it's cookable
     pub cooked_item_def_name: Option<String>, // Name of the ItemDefinition this item cooks into
+    /// Generic extraction: crush bones, unravel rope, pulverize, mash, extract yeast, gut fish.
+    /// When set, item can be processed into output_item (min..=max). Action label for UI: "Crush", "Unravel", etc.
+    pub extraction_output_name: Option<String>,
+    pub extraction_output_min: Option<u32>,
+    pub extraction_output_max: Option<u32>,
+    pub extraction_action_label: Option<String>,
     pub damage_resistance: Option<f32>, // <<< DEPRECATED: Use armor_resistances instead
     pub warmth_bonus: Option<f32>,      // <<< ADDED: e.g., 0.2 warmth points per effect interval
     pub respawn_time_seconds: Option<u32>, // Time for the item/resource node to respawn in the world

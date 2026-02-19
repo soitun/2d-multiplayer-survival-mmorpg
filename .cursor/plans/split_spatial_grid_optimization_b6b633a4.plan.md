@@ -25,6 +25,7 @@ todos:
     status: pending
     dependencies:
       - refactor-spatial-grid
+isProject: false
 ---
 
 # Split Static/Dynamic Spatial Grid for Collision Detection
@@ -66,6 +67,8 @@ flowchart TB
     DynamicGrid --> Merge
 ```
 
+
+
 ## Entity Classification
 
 | Grid Type | Entities | Change Frequency |
@@ -83,6 +86,7 @@ flowchart TB
 **File: [server/src/spatial_grid.rs](server/src/spatial_grid.rs)**
 
 1. Add new static grid cache alongside existing dynamic cache:
+
 ```rust
 // Static grid - built once, invalidated on entity destruction/placement
 static mut STATIC_GRID: Option<SpatialGrid> = None;
@@ -92,7 +96,8 @@ static mut STATIC_GRID_NEEDS_REBUILD: bool = true;
 static mut DYNAMIC_GRID: Option<CachedDynamicGrid> = None;
 ```
 
-2. Create separate entity type enums:
+1. Create separate entity type enums:
+
 ```rust
 pub enum StaticEntityType {
     Tree(u64),
@@ -115,19 +120,16 @@ pub enum DynamicEntityType {
 }
 ```
 
-3. Create `populate_static_grid()` function that:
+1. Create `populate_static_grid()` function that:
+  - Iterates ALL trees, stones, monuments (no emergency capping)
+  - Only called when `STATIC_GRID_NEEDS_REBUILD` is true
+  - Sets flag to false after rebuild
+2. Create `populate_dynamic_grid()` function that:
+  - Iterates only dynamic entities (players, animals, items)
+  - Much faster since fewer entities
+  - Can use shorter refresh interval (500ms instead of 1000ms)
+3. Create merged query function:
 
-   - Iterates ALL trees, stones, monuments (no emergency capping)
-   - Only called when `STATIC_GRID_NEEDS_REBUILD` is true
-   - Sets flag to false after rebuild
-
-4. Create `populate_dynamic_grid()` function that:
-
-   - Iterates only dynamic entities (players, animals, items)
-   - Much faster since fewer entities
-   - Can use shorter refresh interval (500ms instead of 1000ms)
-
-5. Create merged query function:
 ```rust
 pub fn get_entities_in_range_merged(x: f32, y: f32) -> Vec<EntityType> {
     let static_entities = get_static_grid().get_entities_in_range(x, y);
@@ -136,13 +138,13 @@ pub fn get_entities_in_range_merged(x: f32, y: f32) -> Vec<EntityType> {
 }
 ```
 
-6. Add invalidation function:
+1. Add invalidation function:
+
 ```rust
 pub fn invalidate_static_grid() {
     unsafe { STATIC_GRID_NEEDS_REBUILD = true; }
 }
 ```
-
 
 ### Phase 2: Add Invalidation Hooks
 
@@ -227,9 +229,10 @@ pub fn get_collision_grid(db, timestamp) -> MergedSpatialGridView
 
 1. `server/src/spatial_grid.rs` - Main refactor (largest change)
 2. `server/src/tree.rs` - Add invalidation hook
-3. `server/src/stone.rs` - Add invalidation hook  
+3. `server/src/stone.rs` - Add invalidation hook
 4. `server/src/shelter.rs` - Add invalidation hook
 5. `server/src/player_collision.rs` - Update to use merged grid
 6. `server/src/animal_collision.rs` - Update to use merged grid
 7. `server/src/projectile.rs` - Update to use merged grid (if using spatial grid)
 8. `server/src/lib.rs` - Update spawn collision checks
+
