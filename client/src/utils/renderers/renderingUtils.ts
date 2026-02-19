@@ -1807,6 +1807,9 @@ export const renderYSortedEntities = ({
               foundationTileImagesRef: foundationTileImagesRef,
               allFoundations: allFoundations, // Pass all foundations to check for adjacent foundations
           });
+      } else if (type === 'swimmingPlayerTopHalf') {
+          // Phase 3c: Rendered by GameCanvas before batching - never in renderYSortedEntities batch
+          return;
       } else if (type === 'shelter') {
           // Shelters are fully rendered in the first pass, including shadows.
           // No action needed in this second (shadow-only) pass.

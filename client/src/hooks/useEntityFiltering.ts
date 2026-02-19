@@ -85,6 +85,16 @@ export interface ViewportBounds {
   viewMaxY: number;
 }
 
+// PERFORMANCE: Typed AABB check - avoids isEntityInView type-detection chain when dimensions are known
+export function isInView(x: number, y: number, width: number, height: number, bounds: ViewportBounds): boolean {
+  return (
+    x + width / 2 > bounds.viewMinX &&
+    x - width / 2 < bounds.viewMaxX &&
+    y + height / 2 > bounds.viewMinY &&
+    y - height / 2 < bounds.viewMaxY
+  );
+}
+
 // Import building visibility utilities
 import { getBuildingClusters, getPlayerBuildingClusterId, shouldMaskFoundation, detectEntranceWayFoundations, detectNorthWallFoundations, detectSouthWallFoundations, type BuildingCluster } from '../utils/buildingVisibilityUtils';
 
@@ -209,7 +219,8 @@ export type YSortedEntityType =
   | { type: 'compound_building'; entity: CompoundBuildingEntity } // ADDED: Static ALK compound buildings
   | { type: 'monument_doodad'; entity: CompoundBuildingEntity } // ADDED: Monument parts - player in front when in bottom 25% of sprite
   // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
-  | { type: 'living_coral'; entity: SpacetimeDBLivingCoral }; // Living coral reefs (uses combat system)
+  | { type: 'living_coral'; entity: SpacetimeDBLivingCoral } // Living coral reefs (uses combat system)
+  | { type: 'swimmingPlayerTopHalf'; entity: SpacetimeDBPlayer; yPosition: number; playerId: string }; // Phase 3c: swimming player top half (pre-merged in useEntityFiltering)
 
 // Type for compound buildings in Y-sorted system
 export interface CompoundBuildingEntity {
@@ -425,6 +436,8 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       return entity.posY - 100;
     case 'rune_stone':
       return entity.posY;
+    case 'swimmingPlayerTopHalf':
+      return (item as { yPosition: number }).yPosition;
     default:
       return 0;
   }
@@ -472,6 +485,7 @@ const getEntityPriority = (item: YSortedEntityType): number => {
     case 'animal_corpse': return 20;
     case 'player_corpse': return 20;
     case 'player': return 21; // Players render before fog overlays (below ceiling tiles)
+    case 'swimmingPlayerTopHalf': return 21; // Same as player (swimming top half)
     case 'fog_overlay': return 21.5; // ADDED: Fog overlays render above players (21) but below walls (22+)
     case 'wall_cell': {
       const wall = item.entity as SpacetimeDBWallCell;
@@ -660,6 +674,16 @@ function filterEntitiesByDistance<T extends { posX: number; posY: number }>(
   return withDistance;
 }
 
+// PERFORMANCE: Direct iteration - avoids Array.from() intermediate allocation
+function filterMapToArray<T>(map: Map<string, T> | undefined, predicate: (e: T) => boolean): T[] {
+  if (!map) return [];
+  const result: T[] = [];
+  for (const e of map.values()) {
+    if (predicate(e)) result.push(e);
+  }
+  return result;
+}
+
 // Cached entity filtering with frame-based throttling
 function getCachedFilteredEntities<T extends { posX: number; posY: number }>(
   entities: Map<string, T> | undefined,
@@ -750,6 +774,7 @@ export function useEntityFiltering(
   doors: Map<string, SpacetimeDBDoor>, // ADDED: Building doors
   fences: Map<string, SpacetimeDBFence>, // ADDED: Building fences
   localPlayerId: string | undefined, // ADDED: Local player ID for building visibility
+  isLocalPlayerSnorkeling?: boolean, // Phase 3c: Local player snorkeling (swimming players split-render when false)
   isTreeFalling?: (treeId: string) => boolean, // NEW: Check if tree is falling
   worldChunkData?: Map<string, any>, // ADDED: World chunk data for tile type lookups
   alkStations?: Map<string, SpacetimeDBAlkStation>, // ADDED: ALK delivery stations
@@ -953,18 +978,23 @@ export function useEntityFiltering(
     }
 
     if (x === undefined || y === undefined) return false;
-
-    // AABB overlap check
-    return (
-      x + width / 2 > bounds.viewMinX &&
-      x - width / 2 < bounds.viewMaxX &&
-      y + height / 2 > bounds.viewMinY &&
-      y - height / 2 < bounds.viewMaxY
-    );
+    return isInView(x, y, width, height, bounds);
   }, []);
 
-  // Get viewport bounds
-  const viewBounds = useMemo(() => getViewportBounds(), [getViewportBounds]);
+  // PERFORMANCE: Stabilize viewBounds with 16px threshold - skip ~40 useMemo recalculations on small camera moves
+  const VIEW_BOUNDS_THRESHOLD = 16;
+  const viewBoundsRef = useRef<ViewportBounds | null>(null);
+  const viewBounds = useMemo(() => {
+    const fresh = getViewportBounds();
+    const prev = viewBoundsRef.current;
+    if (prev &&
+        Math.abs(fresh.viewMinX - prev.viewMinX) < VIEW_BOUNDS_THRESHOLD &&
+        Math.abs(fresh.viewMinY - prev.viewMinY) < VIEW_BOUNDS_THRESHOLD) {
+      return prev;
+    }
+    viewBoundsRef.current = fresh;
+    return fresh;
+  }, [getViewportBounds]);
 
   // PERFORMANCE: Use cached filtering for expensive entity types
   let cachedVisibleTrees = useMemo(() => {
@@ -1029,45 +1059,35 @@ export function useEntityFiltering(
   // Use cached results instead of original filtering
   let visibleTrees = cachedVisibleTrees;
   const visibleStones = cachedVisibleStones;
-  const visibleRuneStones = useMemo(() => 
-    runeStones ? Array.from(runeStones.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))
-    : [],
-    [runeStones, isEntityInView, viewBounds, stableTimestamp]
+  const visibleRuneStones = useMemo(() =>
+    filterMapToArray(runeStones, e => isInView(e.posX, e.posY, 150, 150, viewBounds)),
+    [runeStones, viewBounds]
   );
-  const visibleCairns = useMemo(() => 
-    cairns ? Array.from(cairns.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))
-    : [],
-    [cairns, isEntityInView, viewBounds, stableTimestamp]
+  const visibleCairns = useMemo(() =>
+    filterMapToArray(cairns, e => isInView(e.posX, e.posY, 256, 256, viewBounds)),
+    [cairns, viewBounds]
   );
   let visibleHarvestableResources = cachedVisibleResources;
 
   // Keep original filtering for less expensive entity types
-  const visibleDroppedItems = useMemo(() => 
-    // Check source map
-          droppedItems ? Array.from(droppedItems.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))
-    : [],
-    [droppedItems, isEntityInView, viewBounds, stableTimestamp]
+  const visibleDroppedItems = useMemo(() =>
+    filterMapToArray(droppedItems, e => isInView(e.posX, e.posY, 32, 32, viewBounds)),
+    [droppedItems, viewBounds]
   );
 
-  const visibleCampfires = useMemo(() => 
-    // Check source map
-          campfires ? Array.from(campfires.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp) && !e.isDestroyed)
-    : [],
-    [campfires, isEntityInView, viewBounds, stableTimestamp]
+  const visibleCampfires = useMemo(() =>
+    filterMapToArray(campfires, e => !e.isDestroyed && isInView(e.posX, e.posY, 64, 64, viewBounds)),
+    [campfires, viewBounds]
   );
 
-  const visibleFurnaces = useMemo(() => 
-    // Check source map - same filtering as campfires
-          furnaces ? Array.from(furnaces.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp) && !e.isDestroyed)
-    : [],
-    [furnaces, isEntityInView, viewBounds, stableTimestamp]
+  const visibleFurnaces = useMemo(() =>
+    filterMapToArray(furnaces, e => !e.isDestroyed && isInView(e.posX, e.posY, 144, 144, viewBounds)),
+    [furnaces, viewBounds]
   );
 
-  const visibleBarbecues = useMemo(() => 
-    // Check source map - same filtering as campfires
-          barbecues ? Array.from(barbecues.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp) && !e.isDestroyed)
-    : [],
-    [barbecues, isEntityInView, viewBounds, stableTimestamp]
+  const visibleBarbecues = useMemo(() =>
+    filterMapToArray(barbecues, e => !e.isDestroyed && isInView(e.posX, e.posY, 64, 64, viewBounds)),
+    [barbecues, viewBounds]
   );
 
   const visibleLanterns = useMemo(() => {
@@ -1118,45 +1138,37 @@ export function useEntityFiltering(
   }, [turrets, isEntityInView, viewBounds, stableTimestamp]);
 
   const visibleHomesteadHearths = useMemo(() => 
-    // Check source map - same filtering as campfires
-          homesteadHearths ? Array.from(homesteadHearths.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp) && !e.isDestroyed)
-    : [],
-    [homesteadHearths, isEntityInView, viewBounds, stableTimestamp]
+    filterMapToArray(homesteadHearths, e => !e.isDestroyed && isInView(e.posX, e.posY, 96, 96, viewBounds)),
+    [homesteadHearths, viewBounds]
   );
 
   const visiblePlayers = useMemo(() => {
     if (!players) return [];
-    // Filter out offline players - they're represented by their corpse instead
-    return Array.from(players.values()).filter(e => e.isOnline && isEntityInView(e, viewBounds, stableTimestamp));
-  }, [players, isEntityInView, viewBounds, stableTimestamp]);
+    const result: SpacetimeDBPlayer[] = [];
+    for (const e of players.values()) {
+      if (e.isOnline && isInView(e.positionX, e.positionY, 64, 64, viewBounds)) result.push(e);
+    }
+    return result;
+  }, [players, viewBounds]);
 
-  const visibleWoodenStorageBoxes = useMemo(() => 
-    // Check source map
-          woodenStorageBoxes ? Array.from(woodenStorageBoxes.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))
-    : [],
-    [woodenStorageBoxes, isEntityInView, viewBounds, stableTimestamp]
+  const visibleWoodenStorageBoxes = useMemo(() =>
+    filterMapToArray(woodenStorageBoxes, e => isInView(e.posX, e.posY, 64, 64, viewBounds)),
+    [woodenStorageBoxes, viewBounds]
   );
   
-  const visibleSleepingBags = useMemo(() => 
-    // Check source map
-    sleepingBags ? Array.from(sleepingBags.values())
-      .filter(e => isEntityInView(e, viewBounds, stableTimestamp))
-      : []
-    ,[sleepingBags, isEntityInView, viewBounds, stableTimestamp]
+  const visibleSleepingBags = useMemo(() =>
+    filterMapToArray(sleepingBags, e => isInView(e.posX, e.posY, 64, 32, viewBounds)),
+    [sleepingBags, viewBounds]
   );
 
-  const visiblePlayerCorpses = useMemo(() => 
-    // Add check: If playerCorpses is undefined or null, return empty array
-    playerCorpses ? Array.from(playerCorpses.values())
-      .filter(e => isEntityInView(e, viewBounds, stableTimestamp))
-      : []
-    ,[playerCorpses, isEntityInView, viewBounds, stableTimestamp]
+  const visiblePlayerCorpses = useMemo(() =>
+    filterMapToArray(playerCorpses, e => isInView(e.posX, e.posY, 64, 64, viewBounds)),
+    [playerCorpses, viewBounds]
   );
 
-  const visibleStashes = useMemo(() => 
-    stashes ? Array.from(stashes.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))
-    : [],
-    [stashes, isEntityInView, viewBounds, stableTimestamp]
+  const visibleStashes = useMemo(() =>
+    filterMapToArray(stashes, e => isInView(e.posX, e.posY, 32, 32, viewBounds)),
+    [stashes, viewBounds]
   );
 
   const visibleProjectiles = useMemo(() => {
@@ -1249,16 +1261,14 @@ export function useEntityFiltering(
   }, [grass, playerPos, viewBounds, stableTimestamp, frameCounter, worldChunkData]);
 
   // ADDED: Filter visible shelters
-  const visibleShelters = useMemo(() => {
-    const filtered = shelters ? Array.from(shelters.values()).filter(e => !e.isDestroyed && isEntityInView(e, viewBounds, stableTimestamp)) : [];
-    // console.log('[useEntityFiltering] Filtered visibleShelters count:', filtered.length, filtered); // DEBUG LOG 2
-    return filtered;
-  }, [shelters, isEntityInView, viewBounds, stableTimestamp]);
+  const visibleShelters = useMemo(() =>
+    filterMapToArray(shelters, e => !e.isDestroyed && isInView(e.posX, e.posY, 384, 384, viewBounds)),
+    [shelters, viewBounds]
+  );
 
-  const visibleClouds = useMemo(() => 
-    clouds ? Array.from(clouds.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))
-    : [],
-    [clouds, isEntityInView, viewBounds, stableTimestamp]
+  const visibleClouds = useMemo(() =>
+    filterMapToArray(clouds, e => isInView(e.posX, e.posY, 96, 96, viewBounds)),
+    [clouds, viewBounds]
   );
 
   const visiblePlantedSeeds = useMemo(() => {
@@ -1271,16 +1281,14 @@ export function useEntityFiltering(
     return filtered;
   }, [plantedSeeds, plantedSeeds?.size, isEntityInView, viewBounds, stableTimestamp]);
 
-  const visibleRainCollectors = useMemo(() => 
-    rainCollectors ? Array.from(rainCollectors.values()).filter(e => !e.isDestroyed && isEntityInView(e, viewBounds, stableTimestamp))
-    : [],
-    [rainCollectors, isEntityInView, viewBounds, stableTimestamp]
+  const visibleRainCollectors = useMemo(() =>
+    filterMapToArray(rainCollectors, e => !e.isDestroyed && isInView(e.posX, e.posY, 256, 256, viewBounds)),
+    [rainCollectors, viewBounds]
   );
 
-  const visibleBrothPots = useMemo(() => 
-    brothPots ? Array.from(brothPots.values()).filter(e => !e.isDestroyed && isEntityInView(e, viewBounds, stableTimestamp))
-    : [],
-    [brothPots, isEntityInView, viewBounds, stableTimestamp]
+  const visibleBrothPots = useMemo(() =>
+    filterMapToArray(brothPots, e => !e.isDestroyed && isInView(e.posX, e.posY, 64, 64, viewBounds)),
+    [brothPots, viewBounds]
   );
 
   const visibleWildAnimals = useMemo(() => {
@@ -1291,71 +1299,51 @@ export function useEntityFiltering(
     // outside the normal viewport bounds during transitions
     const animalPadding = 200; // Generous padding for fast-moving animals
     
-    return Array.from(wildAnimals.values()).filter(e => {
-      // Always show animals that are alive (health > 0)
-      // This ensures animals transitioning between chunks remain visible
-      if (e.health <= 0) return false;
-      
-      // BURROWED STATE: Animals that are burrowed underground are invisible and should be filtered out
-      // This prevents them from appearing in visible lists and being targeted
-      if (e.state.tag === 'Burrowed') return false;
-      
-      // Check viewport with generous padding for animals
+    const result: SpacetimeDBWildAnimal[] = [];
+    for (const e of wildAnimals.values()) {
+      if (e.health <= 0) continue;
+      if (e.state.tag === 'Burrowed') continue;
       const paddedBounds = {
         viewMinX: viewBounds.viewMinX - animalPadding,
         viewMaxX: viewBounds.viewMaxX + animalPadding,
         viewMinY: viewBounds.viewMinY - animalPadding,
         viewMaxY: viewBounds.viewMaxY + animalPadding,
       };
-      
-      return isEntityInView(e, paddedBounds, stableTimestamp);
-    });
-  }, [wildAnimals, isEntityInView, viewBounds, stableTimestamp]);
+      if (isInView(e.posX, e.posY, 96, 96, paddedBounds)) result.push(e);
+    }
+    return result;
+  }, [wildAnimals, viewBounds]);
 
   const visibleAnimalCorpses = useMemo(() => {
-    const result = animalCorpses ? Array.from(animalCorpses.values()).filter(e => {
-      const inView = isEntityInView(e, viewBounds, stableTimestamp);
-      // Convert microseconds to milliseconds for proper comparison
+    if (!animalCorpses) return [];
+    const result: SpacetimeDBAnimalCorpse[] = [];
+    for (const e of animalCorpses.values()) {
       const despawnTimeMs = Number(e.despawnAt.__timestamp_micros_since_unix_epoch__ / 1000n);
-              const notDespawned = stableTimestamp < despawnTimeMs; // Check if current time is before despawn time
-      return inView && notDespawned;
-    }) : [];
-    // console.log(`🦴 [ANIMAL CORPSE FILTERING] Total corpses: ${animalCorpses?.size || 0}, Visible after filtering: ${result.length}, IDs: [${result.map(c => c.id).join(', ')}]`);
+      const notDespawned = stableTimestamp < despawnTimeMs;
+      if (isInView(e.posX, e.posY, 96, 96, viewBounds) && notDespawned) result.push(e);
+    }
     return result;
-  }, [animalCorpses, isEntityInView, viewBounds, stableTimestamp]);
+  }, [animalCorpses, viewBounds, stableTimestamp]);
 
-  const visibleBarrels = useMemo(() => 
-    barrels ? Array.from(barrels.values()).filter(e => 
-      isNotRespawning(e.respawnAt) && isEntityInView(e, viewBounds, stableTimestamp) // Don't show if respawning (destroyed)
-    ) : [],
-    [barrels, isEntityInView, viewBounds, stableTimestamp]
+  const visibleBarrels = useMemo(() =>
+    filterMapToArray(barrels, e => isNotRespawning(e.respawnAt) && isInView(e.posX, e.posY, 48, 48, viewBounds)),
+    [barrels, viewBounds]
   );
 
   const visibleRoadLampposts = useMemo(() =>
-    roadLampposts ? Array.from(roadLampposts.values()).filter(e =>
-      isEntityInView(e, viewBounds, stableTimestamp)
-    ) : [],
-    [roadLampposts, isEntityInView, viewBounds, stableTimestamp]
+    filterMapToArray(roadLampposts, e => isInView(e.posX, e.posY, 128, 192, viewBounds)),
+    [roadLampposts, viewBounds]
   );
 
-  const visibleFumaroles = useMemo(() => {
-    // console.log('🔥 [FUMAROLE FILTER] Running filter. fumaroles:', fumaroles ? `Map with ${fumaroles.size} entries` : 'null/undefined');
-    const visible = fumaroles ? Array.from(fumaroles.values()).filter(e => 
-      isEntityInView(e, viewBounds, stableTimestamp) // Fumaroles don't respawn
-    ) : [];
-    // console.log('🔥 [FUMAROLE FILTER] Total fumaroles:', fumaroles?.size || 0, 'Visible:', visible.length);
-    return visible;
-  }, [fumaroles, isEntityInView, viewBounds, stableTimestamp]);
+  const visibleFumaroles = useMemo(() =>
+    filterMapToArray(fumaroles, e => isInView(e.posX, e.posY, 96, 96, viewBounds)),
+    [fumaroles, viewBounds]
+  );
 
-  const visibleBasaltColumns = useMemo(() => {
-    const visible = basaltColumns ? Array.from(basaltColumns.values()).filter(e => 
-      isEntityInView(e, viewBounds, stableTimestamp) // Basalt columns don't respawn
-    ) : [];
-    if (basaltColumns && basaltColumns.size > 0) {
-      // console.log('🗿 [BASALT FILTER] Total basalt columns:', basaltColumns.size, 'Visible:', visible.length);
-    }
-    return visible;
-  }, [basaltColumns, isEntityInView, viewBounds, stableTimestamp]);
+  const visibleBasaltColumns = useMemo(() =>
+    filterMapToArray(basaltColumns, e => isInView(e.posX, e.posY, 200, 300, viewBounds)),
+    [basaltColumns, viewBounds]
+  );
 
   // ALK delivery stations filtering - use worldPosX/worldPosY instead of posX/posY
   const visibleAlkStations = useMemo(() => {
@@ -1443,10 +1431,9 @@ export function useEntityFiltering(
     });
   }, [viewBounds, monumentParts]);
 
-  const visibleSeaStacks = useMemo(() => 
-    seaStacks ? Array.from(seaStacks.values()).filter(e => isEntityInView(e, viewBounds, stableTimestamp))
-    : [],
-    [seaStacks, isEntityInView, viewBounds, stableTimestamp]
+  const visibleSeaStacks = useMemo(() =>
+    filterMapToArray(seaStacks, e => isInView(e.posX, e.posY, 400, 600, viewBounds)),
+    [seaStacks, viewBounds]
   );
 
   // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
@@ -1454,10 +1441,10 @@ export function useEntityFiltering(
   // Living corals filtering - underwater coral reefs (uses combat system)
   // Include corals that are not respawning OR have active destruction effects
   const visibleLivingCorals = useMemo(() =>
-    livingCorals ? Array.from(livingCorals.values()).filter(e =>
-      (isNotRespawning(e.respawnAt) || hasActiveCoralDestruction(e.id.toString())) && isEntityInView(e, viewBounds, stableTimestamp)
-    ) : [],
-    [livingCorals, isEntityInView, viewBounds, stableTimestamp]
+    filterMapToArray(livingCorals, e =>
+      (isNotRespawning(e.respawnAt) || hasActiveCoralDestruction(e.id.toString())) && isInView(e.posX, e.posY, 64, 64, viewBounds)
+    ),
+    [livingCorals, viewBounds]
   );
 
   // ADDED: Filter visible foundation cells
@@ -1993,7 +1980,26 @@ export function useEntityFiltering(
     // but previously sorted at the SERVER position (player.positionY). When these diverge
     // (e.g., during movement), the player can appear at a different Y than their sort position,
     // causing incorrect rendering order relative to grass and other entities.
-    visiblePlayers.forEach(e => addEntity('player', e));
+    // Phase 3c: Split swimming players into swimmingPlayerTopHalf (bottom half rendered separately in GameCanvas)
+    const isSnorkeling = isLocalPlayerSnorkeling ?? false;
+    visiblePlayers.forEach(e => {
+      const isSwimming = e.isOnWater && !e.isDead && !e.isKnockedOut && !e.isSnorkeling;
+      const isLocalAndSnorkeling = isSnorkeling && localPlayerId && e.identity?.toHexString() === localPlayerId;
+      const isRemoteSnorkeling = e.isSnorkeling;
+      if (isSwimming && !isLocalAndSnorkeling && !isRemoteSnorkeling) {
+        const swimItem = {
+          type: 'swimmingPlayerTopHalf' as const,
+          entity: e,
+          yPosition: e.positionY + PLAYER_SORT_FEET_OFFSET_PX,
+          playerId: e.identity?.toHexString() ?? '',
+          _ySortKey: e.positionY + PLAYER_SORT_FEET_OFFSET_PX,
+          _priority: 21
+        };
+        allEntities[index++] = swimItem as YSortedEntityWithKey;
+      } else {
+        addEntity('player', e);
+      }
+    });
     visibleTrees.forEach(e => addEntity('tree', e));
     // Include stones with health > 0 OR stones with active destruction effects
     visibleStones.forEach(e => { if (e.health > 0 || hasActiveStoneDestruction(e.id.toString())) addEntity('stone', e); });
@@ -2123,7 +2129,11 @@ export function useEntityFiltering(
     const getPlayerEffectiveY = (player: SpacetimeDBPlayer): number => {
       return player.positionY;
     };
-    
+    const isPlayerLike = (t: string) => t === 'player' || t === 'swimmingPlayerTopHalf';
+    const getPlayerOrSwimY = (item: YSortedEntityWithKey): number => {
+      if (item.type === 'swimmingPlayerTopHalf') return (item as { yPosition: number }).yPosition;
+      return getPlayerEffectiveY(item.entity as SpacetimeDBPlayer);
+    };
     
     allEntities.sort((a, b) => {
       // ABSOLUTE FIRST CHECK: Broth pot MUST ALWAYS render above campfires and fumaroles
@@ -2138,18 +2148,18 @@ export function useEntityFiltering(
       
       // ABSOLUTE SECOND CHECK: Player vs Fumarole - players ALWAYS render above fumaroles
       // Applies to both land and water (fumaroles in quarries). Must run before any Y/priority fallback.
-      if (a.type === 'player' && b.type === 'fumarole') {
+      if (isPlayerLike(a.type) && b.type === 'fumarole') {
         return 1; // Player renders after (above) fumarole
       }
-      if (b.type === 'player' && a.type === 'fumarole') {
+      if (isPlayerLike(b.type) && a.type === 'fumarole') {
         return -1; // Player renders after (above) fumarole
       }
 
       // Sleeping bag ALWAYS renders under the player - no y-sorting
-      if (a.type === 'sleeping_bag' && b.type === 'player') {
+      if (a.type === 'sleeping_bag' && isPlayerLike(b.type)) {
         return -1; // Sleeping bag renders before (under) player
       }
-      if (a.type === 'player' && b.type === 'sleeping_bag') {
+      if (isPlayerLike(a.type) && b.type === 'sleeping_bag') {
         return 1; // Player renders after (above) sleeping bag
       }
 
@@ -2161,14 +2171,14 @@ export function useEntityFiltering(
         const v = barrel.variant ?? 0;
         return v >= SEA_BARREL_VARIANT_START && v < SEA_BARREL_VARIANT_END;
       };
-      if (a.type === 'player' && b.type === 'barrel') {
+      if (isPlayerLike(a.type) && b.type === 'barrel') {
         const player = a.entity as SpacetimeDBPlayer;
         const barrel = b.entity as SpacetimeDBBarrel & { variant?: number };
         if (player.isOnWater && isSeaBarrel(barrel)) {
           return 1; // Swimming player renders on top of barrel's water shadow
         }
       }
-      if (a.type === 'barrel' && b.type === 'player') {
+      if (a.type === 'barrel' && isPlayerLike(b.type)) {
         const barrel = a.entity as SpacetimeDBBarrel & { variant?: number };
         const player = b.entity as SpacetimeDBPlayer;
         if (player.isOnWater && isSeaBarrel(barrel)) {
@@ -2196,8 +2206,8 @@ export function useEntityFiltering(
       // The top ~24% is transparent PNG. When rendered at 480px, ~115px is transparent at top.
       // The visual "foot" of the building is NOT at worldPosY - it's higher up.
       // We need a large buffer to account for: transparent sprite top (~115px) + player height (48px)
-      if (a.type === 'player' && b.type === 'alk_station') {
-        const playerY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer);
+      if (isPlayerLike(a.type) && b.type === 'alk_station') {
+        const playerY = getPlayerOrSwimY(a);
         const station = b.entity as SpacetimeDBAlkStation;
         // Buffer accounts for: transparent top of sprite (~115px) + player height (48px) + safety margin
         const ALK_STATION_YSORT_BUFFER = 170; // Matches collision Y offset - where building visually sits
@@ -2207,8 +2217,8 @@ export function useEntityFiltering(
         }
         return -1; // Player clearly north of building - player behind (station on top)
       }
-      if (a.type === 'alk_station' && b.type === 'player') {
-        const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer);
+      if (a.type === 'alk_station' && isPlayerLike(b.type)) {
+        const playerY = getPlayerOrSwimY(b);
         const station = a.entity as SpacetimeDBAlkStation;
         const ALK_STATION_YSORT_BUFFER = 170; // Matches collision Y offset - where building visually sits
         if (playerY >= station.worldPosY - ALK_STATION_YSORT_BUFFER) {
@@ -2222,8 +2232,8 @@ export function useEntityFiltering(
       // Monument images are squares (256x256) but actual content is in bottom portion
       // Sprite bounds: top = worldY - height + anchorYOffset, bottom = worldY + anchorYOffset
       // 87.5% threshold = worldY - (height * 0.125) + anchorYOffset (only bottom 12.5% = player in front)
-      if (a.type === 'player' && b.type === 'compound_building') {
-        const playerY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer);
+      if (isPlayerLike(a.type) && b.type === 'compound_building') {
+        const playerY = getPlayerOrSwimY(a);
         const building = b.entity as CompoundBuildingEntity;
         // Calculate 87.5% Y threshold for sorting (player in front only in bottom 12.5%)
         const sortThresholdY = building.worldY - (building.height * 0.125) + (building.anchorYOffset || 0);
@@ -2232,9 +2242,9 @@ export function useEntityFiltering(
         }
         return -1; // Player in top 87.5% of monument - player behind (building on top)
       }
-      if (a.type === 'compound_building' && b.type === 'player') {
+      if (a.type === 'compound_building' && isPlayerLike(b.type)) {
         const building = a.entity as CompoundBuildingEntity;
-        const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer);
+        const playerY = getPlayerOrSwimY(b);
         const sortThresholdY = building.worldY - (building.height * 0.125) + (building.anchorYOffset || 0);
         if (playerY >= sortThresholdY) return -1;
         return 1;
@@ -2244,16 +2254,16 @@ export function useEntityFiltering(
       // Shelter posY is the bottom/base. Player in front only when near the bottom (south of shelter).
       // Otherwise player is underneath/behind the shelter roof.
       const SHELTER_YSORT_BUFFER = 120; // Visual foot offset - player in front when south of this threshold
-      if (a.type === 'player' && b.type === 'shelter') {
-        const playerY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer);
+      if (isPlayerLike(a.type) && b.type === 'shelter') {
+        const playerY = getPlayerOrSwimY(a);
         const shelter = b.entity as SpacetimeDBShelter;
         if (playerY >= shelter.posY - SHELTER_YSORT_BUFFER) {
           return 1; // Player at/near/south of shelter's visual base - player in front
         }
         return -1; // Player north of shelter base - player behind (shelter on top)
       }
-      if (a.type === 'shelter' && b.type === 'player') {
-        const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer);
+      if (a.type === 'shelter' && isPlayerLike(b.type)) {
+        const playerY = getPlayerOrSwimY(b);
         const shelter = a.entity as SpacetimeDBShelter;
         if (playerY >= shelter.posY - SHELTER_YSORT_BUFFER) {
           return -1; // Player at/near/south of shelter's visual base - player in front (inverted)
@@ -2264,8 +2274,8 @@ export function useEntityFiltering(
       // Player vs Monument Doodad - ground-level campfires use generous threshold so player head doesn't clip behind stones
       // Formula: sortThresholdY = worldY - (height * fractionFromTop). fractionFromTop = distance from top as fraction of height.
       // For campfire: 0.75 = threshold at 75% from top = bottom 75% in front. For huts: 0.25 = bottom 25% in front.
-      if (a.type === 'player' && b.type === 'monument_doodad') {
-        const playerY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer);
+      if (isPlayerLike(a.type) && b.type === 'monument_doodad') {
+        const playerY = getPlayerOrSwimY(a);
         const doodad = b.entity as CompoundBuildingEntity;
         const isGroundCampfire = doodad.imagePath === 'fv_campfire.png';
         const fractionFromTop = isGroundCampfire ? 0.75 : 0.25; // Campfire: bottom 75% in front. Huts: bottom 25% in front.
@@ -2273,9 +2283,9 @@ export function useEntityFiltering(
         if (playerY >= sortThresholdY) return 1; // Player in front
         return -1; // Player behind
       }
-      if (a.type === 'monument_doodad' && b.type === 'player') {
+      if (a.type === 'monument_doodad' && isPlayerLike(b.type)) {
         const doodad = a.entity as CompoundBuildingEntity;
-        const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer);
+        const playerY = getPlayerOrSwimY(b);
         const isGroundCampfire = doodad.imagePath === 'fv_campfire.png';
         const fractionFromTop = isGroundCampfire ? 0.75 : 0.25;
         const sortThresholdY = doodad.worldY - (doodad.height * fractionFromTop) + (doodad.anchorYOffset || 0);
@@ -2285,41 +2295,41 @@ export function useEntityFiltering(
       
       // Player vs Tree: force stable tree-base layering.
       // Player north of tree base renders behind; south renders in front.
-      if (a.type === 'player' && b.type === 'tree') {
-        const playerY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer) + PLAYER_SORT_FEET_OFFSET_PX;
+      if (isPlayerLike(a.type) && b.type === 'tree') {
+        const playerY = getPlayerOrSwimY(a) + PLAYER_SORT_FEET_OFFSET_PX;
         const tree = b.entity as SpacetimeDBTree;
         return playerY >= tree.posY ? 1 : -1;
       }
-      if (a.type === 'tree' && b.type === 'player') {
+      if (a.type === 'tree' && isPlayerLike(b.type)) {
         const tree = a.entity as SpacetimeDBTree;
-        const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer) + PLAYER_SORT_FEET_OFFSET_PX;
+        const playerY = getPlayerOrSwimY(b) + PLAYER_SORT_FEET_OFFSET_PX;
         return playerY >= tree.posY ? -1 : 1;
       }
 
       // Player vs Stone: same as trees - player north of stone base renders behind top half.
-      if (a.type === 'player' && b.type === 'stone') {
-        const playerY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer) + PLAYER_SORT_FEET_OFFSET_PX;
+      if (isPlayerLike(a.type) && b.type === 'stone') {
+        const playerY = getPlayerOrSwimY(a) + PLAYER_SORT_FEET_OFFSET_PX;
         const stone = b.entity as SpacetimeDBStone;
         return playerY >= stone.posY ? 1 : -1;
       }
-      if (a.type === 'stone' && b.type === 'player') {
+      if (a.type === 'stone' && isPlayerLike(b.type)) {
         const stone = a.entity as SpacetimeDBStone;
-        const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer) + PLAYER_SORT_FEET_OFFSET_PX;
+        const playerY = getPlayerOrSwimY(b) + PLAYER_SORT_FEET_OFFSET_PX;
         return playerY >= stone.posY ? -1 : 1;
       }
 
       // Player vs tall beehive (wooden_storage_box): same as trees - player north of beehive renders behind
-      if (a.type === 'player' && b.type === 'wooden_storage_box') {
+      if (isPlayerLike(a.type) && b.type === 'wooden_storage_box') {
         const box = b.entity as SpacetimeDBWoodenStorageBox;
         if (box.boxType === BOX_TYPE_PLAYER_BEEHIVE || box.boxType === BOX_TYPE_WILD_BEEHIVE) {
-          const playerY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer) + PLAYER_SORT_FEET_OFFSET_PX;
+          const playerY = getPlayerOrSwimY(a) + PLAYER_SORT_FEET_OFFSET_PX;
           return playerY >= box.posY ? 1 : -1;
         }
       }
-      if (a.type === 'wooden_storage_box' && b.type === 'player') {
+      if (a.type === 'wooden_storage_box' && isPlayerLike(b.type)) {
         const box = a.entity as SpacetimeDBWoodenStorageBox;
         if (box.boxType === BOX_TYPE_PLAYER_BEEHIVE || box.boxType === BOX_TYPE_WILD_BEEHIVE) {
-          const playerY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer) + PLAYER_SORT_FEET_OFFSET_PX;
+          const playerY = getPlayerOrSwimY(b) + PLAYER_SORT_FEET_OFFSET_PX;
           return playerY >= box.posY ? -1 : 1;
         }
       }
@@ -2328,18 +2338,18 @@ export function useEntityFiltering(
       // Player renders on top when their head is at or below buoy base (player in front)
       const BUOY_BASE_Y_OFFSET = 28;
       const PLAYER_HEAD_OFFSET_PX = 48;
-      if (a.type === 'player' && b.type === 'barrel') {
+      if (isPlayerLike(a.type) && b.type === 'barrel') {
         const barrel = b.entity as SpacetimeDBBarrel & { variant?: number };
         if ((barrel.variant ?? 0) === 6) {
-          const playerHeadY = getPlayerEffectiveY(a.entity as SpacetimeDBPlayer) - PLAYER_HEAD_OFFSET_PX;
+          const playerHeadY = getPlayerOrSwimY(a) - PLAYER_HEAD_OFFSET_PX;
           const buoyBaseY = barrel.posY - BUOY_BASE_Y_OFFSET;
           if (playerHeadY >= buoyBaseY) return 1; // Player in front - render on top
         }
       }
-      if (a.type === 'barrel' && b.type === 'player') {
+      if (a.type === 'barrel' && isPlayerLike(b.type)) {
         const barrel = a.entity as SpacetimeDBBarrel & { variant?: number };
         if ((barrel.variant ?? 0) === 6) {
-          const playerHeadY = getPlayerEffectiveY(b.entity as SpacetimeDBPlayer) - PLAYER_HEAD_OFFSET_PX;
+          const playerHeadY = getPlayerOrSwimY(b) - PLAYER_HEAD_OFFSET_PX;
           const buoyBaseY = barrel.posY - BUOY_BASE_Y_OFFSET;
           if (playerHeadY >= buoyBaseY) return -1; // Player in front - barrel renders behind
         }
@@ -2411,10 +2421,10 @@ export function useEntityFiltering(
         bAnimal.isFlying === true;
       
       // Explicit checks for common ground entities that flying birds should render above
-      if (aIsFlyingBird && (b.type === 'tree' || b.type === 'stone' || b.type === 'player' || b.type === 'rune_stone' || b.type === 'wild_animal')) {
+      if (aIsFlyingBird && (b.type === 'tree' || b.type === 'stone' || isPlayerLike(b.type) || b.type === 'rune_stone' || b.type === 'wild_animal')) {
         return 1; // Flying bird renders after (above) ground entity
       }
-      if (bIsFlyingBird && (a.type === 'tree' || a.type === 'stone' || a.type === 'player' || a.type === 'rune_stone' || a.type === 'wild_animal')) {
+      if (bIsFlyingBird && (a.type === 'tree' || a.type === 'stone' || isPlayerLike(a.type) || a.type === 'rune_stone' || a.type === 'wild_animal')) {
         return -1; // Flying bird renders after (above) ground entity
       }
       
@@ -2470,10 +2480,10 @@ export function useEntityFiltering(
       
       // CRITICAL: Ensure fog ALWAYS renders above players - SECOND CHECK (right after walls)
       // Players must always render below ceiling tiles/fog of war
-      if (aIsFog && b.type === 'player') {
+      if (aIsFog && isPlayerLike(b.type)) {
         return 1; // Fog renders after (above) player - absolute precedence
       }
-      if (bIsFog && a.type === 'player') {
+      if (bIsFog && isPlayerLike(a.type)) {
         return -1; // Fog renders after (above) player - absolute precedence
       }
       
@@ -2515,7 +2525,7 @@ export function useEntityFiltering(
       // CRITICAL FIX: Explicitly check if a player is on the same tile as a foundation/wall
       // For foundations and east/west walls: player ALWAYS renders after (above)
       // For north/south walls: wall renders after (above) player ONLY when player is on the correct side
-      if (a.type === 'player' && b.type === 'wall_cell') {
+      if (isPlayerLike(a.type) && b.type === 'wall_cell') {
         const player = a.entity as SpacetimeDBPlayer;
         const wall = b.entity as SpacetimeDBWallCell;
         const FOUNDATION_TILE_SIZE = 96;
@@ -2595,7 +2605,7 @@ export function useEntityFiltering(
           }
         }
       }
-      if (b.type === 'player' && a.type === 'wall_cell') {
+      if (isPlayerLike(b.type) && a.type === 'wall_cell') {
         const player = b.entity as SpacetimeDBPlayer;
         const wall = a.entity as SpacetimeDBWallCell;
         const FOUNDATION_TILE_SIZE = 96;
@@ -2695,7 +2705,7 @@ export function useEntityFiltering(
       }
       
       // DOOR vs PLAYER Y-sorting
-      if (a.type === 'player' && b.type === 'door') {
+      if (isPlayerLike(a.type) && b.type === 'door') {
         const player = a.entity as SpacetimeDBPlayer;
         const door = b.entity as SpacetimeDBDoor;
         const FOUNDATION_TILE_SIZE = 96;
@@ -2720,7 +2730,7 @@ export function useEntityFiltering(
           }
         }
       }
-      if (b.type === 'player' && a.type === 'door') {
+      if (isPlayerLike(b.type) && a.type === 'door') {
         const player = b.entity as SpacetimeDBPlayer;
         const door = a.entity as SpacetimeDBDoor;
         const FOUNDATION_TILE_SIZE = 96;
@@ -2746,14 +2756,14 @@ export function useEntityFiltering(
         }
       }
       
-      if (a.type === 'player' && b.type === 'foundation_cell') {
+      if (isPlayerLike(a.type) && b.type === 'foundation_cell') {
         const player = a.entity as SpacetimeDBPlayer;
         const foundation = b.entity as SpacetimeDBFoundationCell;
         if (isPlayerOnSameTileAsBuilding(player, foundation)) {
           return 1; // Player renders after (above) foundation
         }
       }
-      if (b.type === 'player' && a.type === 'foundation_cell') {
+      if (isPlayerLike(b.type) && a.type === 'foundation_cell') {
         const player = b.entity as SpacetimeDBPlayer;
         const foundation = a.entity as SpacetimeDBFoundationCell;
         if (isPlayerOnSameTileAsBuilding(player, foundation)) {

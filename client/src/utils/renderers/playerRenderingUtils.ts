@@ -2,6 +2,7 @@ import { Player as SpacetimeDBPlayer, ActiveEquipment as SpacetimeDBActiveEquipm
 import { gameConfig } from '../../config/gameConfig';
 import { drawShadow, drawDynamicGroundShadow } from './shadowUtils';
 import { drawSwimmingEffectsUnder, drawSwimmingEffectsOver } from './swimmingEffectsUtils';
+import { getCachedRadialGradient, getCachedLinearGradient } from './gradientCacheUtils';
 import { JUMP_DURATION_MS } from '../../config/gameConfig'; // Import the constant
 
 // --- Constants --- 
@@ -79,6 +80,21 @@ if (!shadowSpriteCtx) {
 let shadowSpriteCanvasInitialized = false;
 
 const PLAYER_NAME_FONT = '12px "Courier New", Consolas, Monaco, monospace'; // 🎯 CYBERPUNK: Match interaction label styling
+
+// --- Text measurement cache (Phase 3b: avoid measureText per player per frame) ---
+const textWidthCache = new Map<string, number>();
+const PVP_FONT = 'bold 10px Arial';
+
+function getCachedTextWidth(ctx: CanvasRenderingContext2D, font: string, text: string): number {
+  const cacheKey = `${font}\0${text}`;
+  let cached = textWidthCache.get(cacheKey);
+  if (cached === undefined) {
+    ctx.font = font;
+    cached = ctx.measureText(text).width;
+    textWidthCache.set(cacheKey, cached);
+  }
+  return cached;
+}
 
 // --- Client-side animation tracking ---
 const clientJumpStartTimes = new Map<string, number>(); // playerId -> client timestamp when jump started
@@ -269,10 +285,10 @@ const drawPvpIndicator = (
   tagY: number // Position of the name tag
 ) => {
   const pvpText = 'PvP';
-  ctx.font = 'bold 10px Arial';
+  ctx.font = PVP_FONT;
   ctx.textAlign = 'center';
   
-  const pvpTextWidth = ctx.measureText(pvpText).width;
+  const pvpTextWidth = getCachedTextWidth(ctx, PVP_FONT, pvpText);
   const pvpPadding = 4;
   const pvpHeight = 14;
   const pvpWidth = pvpTextWidth + pvpPadding * 2;
@@ -326,7 +342,7 @@ export const drawNameTag = (
 
   ctx.font = PLAYER_NAME_FONT;
   ctx.textAlign = 'center';
-  const textWidth = ctx.measureText(displayText).width;
+  const textWidth = getCachedTextWidth(ctx, PLAYER_NAME_FONT, displayText);
   const tagPadding = 4;
   const tagHeight = 16;
   const tagWidth = textWidth + tagPadding * 2;
@@ -345,8 +361,8 @@ export const drawNameTag = (
   if (activeTitle && isOnline) {
     // Draw title in gold
     const titleText = `«${activeTitle}» `;
-    const titleWidth = ctx.measureText(titleText).width;
-    const usernameWidth = ctx.measureText(player.username).width;
+    const titleWidth = getCachedTextWidth(ctx, PLAYER_NAME_FONT, titleText);
+    const usernameWidth = getCachedTextWidth(ctx, PLAYER_NAME_FONT, player.username);
     const totalWidth = titleWidth + usernameWidth;
     const startX = spriteX - totalWidth / 2;
     
@@ -393,16 +409,17 @@ export const drawThrowIndicatorBubble = (
   // Draw chat bubble background
   const bubbleRadius = 18;
   
-  // Main bubble with gradient
-  const gradient = ctx.createRadialGradient(bubbleX, finalY, 0, bubbleX, finalY, bubbleRadius);
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-  gradient.addColorStop(1, 'rgba(240, 240, 255, 0.9)');
-  
+  // Main bubble with gradient (Phase 3a: cached)
+  const { gradient, x: gx, y: gy, r: gr } = getCachedRadialGradient(
+    ctx, bubbleX, finalY, bubbleRadius,
+    [[0, 'rgba(255, 255, 255, 0.95)'], [1, 'rgba(240, 240, 255, 0.9)']],
+    2
+  );
   ctx.fillStyle = gradient;
   ctx.strokeStyle = 'rgba(100, 100, 150, 0.7)';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(bubbleX, finalY, bubbleRadius, 0, Math.PI * 2);
+  ctx.arc(gx, gy, gr, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
   
@@ -410,9 +427,9 @@ export const drawThrowIndicatorBubble = (
   ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
   ctx.strokeStyle = 'rgba(100, 100, 150, 0.7)';
   ctx.beginPath();
-  ctx.moveTo(bubbleX - 5, finalY + bubbleRadius - 2);
-  ctx.lineTo(bubbleX, finalY + bubbleRadius + 10);
-  ctx.lineTo(bubbleX + 5, finalY + bubbleRadius - 2);
+  ctx.moveTo(gx - 5, gy + gr - 2);
+  ctx.lineTo(gx, gy + gr + 10);
+  ctx.lineTo(gx + 5, gy + gr - 2);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -421,7 +438,7 @@ export const drawThrowIndicatorBubble = (
   ctx.font = '20px Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🤾', bubbleX, finalY);
+  ctx.fillText('🤾', gx, gy);
   
   ctx.restore();
 };
@@ -1095,11 +1112,13 @@ export const renderPlayer = (
           offscreenCtx.fillStyle = 'rgba(0, 65, 100, 0.58)';
           offscreenCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
         } else {
-          // Gradient teal tint for bottom half (swimming) — deeper = more teal
-          // Mimics the original depth-based gradient from water line to feet
-          const gradient = offscreenCtx.createLinearGradient(0, startY, 0, offscreenCanvas.height);
-          gradient.addColorStop(0, 'rgba(0, 50, 75, 0.25)');   // Light teal at water line
-          gradient.addColorStop(1, 'rgba(0, 75, 110, 0.52)');  // Deep teal at bottom
+          // Gradient teal tint for bottom half (swimming) — deeper = more teal (Phase 3a: cached)
+          const gradient = getCachedLinearGradient(
+            offscreenCtx, 0, startY, 0, offscreenCanvas.height,
+            [[0, 'rgba(0, 50, 75, 0.25)'], [1, 'rgba(0, 75, 110, 0.52)']],
+            1,
+            'swim'
+          );
           offscreenCtx.fillStyle = gradient;
           offscreenCtx.fillRect(0, startY, offscreenCanvas.width, tintHeight);
         }

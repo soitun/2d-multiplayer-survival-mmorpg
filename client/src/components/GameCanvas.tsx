@@ -546,9 +546,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     return saved !== null ? saved === 'true' : true; // Default to true (show by default)
   });
 
-  // Drone flyover animation tick - forces minimap redraw every frame when drones are active
-  // (position is interpolated client-side from start/end/speed, no server polling needed)
-  const [minimapDroneFrame, setMinimapDroneFrame] = useState(0);
+  // PERFORMANCE: Ref instead of state - avoids React re-render every frame when drones active
+  // Minimap RAF loop calls drawMinimapRef directly instead of triggering useEffect via setState
+  const minimapDrawRef = useRef<() => void>(() => {});
 
   // Particle system refs
   const campfireParticlesRef = useRef<Particle[]>([]);
@@ -563,6 +563,56 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const interpolatedCloudsRef = useRef<Map<string, any>>(new Map());
   const cycleProgressRef = useRef<number>(0.375);
   const ySortedEntitiesRef = useRef<any[]>([]);
+
+  // Phase 3d: Reusable scratch objects for render hot path (avoid spread-operator allocation)
+  const swimmingPlayerScratchRef = useRef<Partial<SpacetimeDBPlayer> & { positionX: number; positionY: number }>({ positionX: 0, positionY: 0 });
+  const swimmingPlayerTopHalfScratchRef = useRef<{ entity: SpacetimeDBPlayer; playerId: string; yPosition: number }>({ entity: null as any, playerId: '', yPosition: 0 });
+  const localPlayerScratchRef = useRef<Record<string, unknown>>({ positionX: 0, positionY: 0, direction: 0 });
+
+  // Phase 4b: Ref for frequently-changing renderGame deps (reduces callback recreation)
+  const renderGameDepsRef = useRef<{
+    messages: any;
+    projectiles: Map<string, SpacetimeDBProjectile>;
+    holdInteractionProgress: { targetId: string | number | bigint | null; targetType: string; startTime: number } | null;
+    isActivelyHolding: boolean;
+    closestInteractableHarvestableResourceId: bigint | null;
+    closestInteractableCampfireId: number | bigint | null;
+    closestInteractableDroppedItemId: number | bigint | null;
+    closestInteractableBoxId: number | bigint | null;
+    isClosestInteractableBoxEmpty: boolean;
+    closestInteractableWaterPosition: { x: number; y: number } | null;
+    closestInteractableStashId: number | bigint | null;
+    closestInteractableSleepingBagId: number | bigint | null;
+    closestInteractableDoorId: number | bigint | null;
+    closestInteractableTarget: any;
+    unifiedInteractableTarget: any;
+    closestInteractableKnockedOutPlayerId: string | null;
+    closestInteractableCorpseId: number | bigint | null;
+    closestInteractableAlkStationId: number | bigint | null;
+    closestInteractableCairnId: number | bigint | null;
+    closestInteractableMilkableAnimalId: number | bigint | null;
+  }>({
+    messages: new Map(),
+    projectiles: new Map(),
+    holdInteractionProgress: null,
+    isActivelyHolding: false,
+    closestInteractableHarvestableResourceId: null,
+    closestInteractableCampfireId: null,
+    closestInteractableDroppedItemId: null,
+    closestInteractableBoxId: null,
+    isClosestInteractableBoxEmpty: false,
+    closestInteractableWaterPosition: null,
+    closestInteractableStashId: null,
+    closestInteractableSleepingBagId: null,
+    closestInteractableDoorId: null,
+    closestInteractableTarget: null,
+    unifiedInteractableTarget: null,
+    closestInteractableKnockedOutPlayerId: null,
+    closestInteractableCorpseId: null,
+    closestInteractableAlkStationId: null,
+    closestInteractableCairnId: null,
+    closestInteractableMilkableAnimalId: null,
+  });
 
   useEffect(() => {
     placementActionsRef.current = placementActions;
@@ -920,6 +970,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     doors, // ADDED: Building doors
     fences, // ADDED: Building fences
     localPlayerId, // ADDED: Local player ID for building visibility
+    localPlayer?.isSnorkeling ?? false, // Phase 3c: Swimming player split-render (snorkeling = full sprite)
     isTreeFalling, // NEW: Pass falling tree checker so falling trees stay visible
     worldChunkDataMap, // PERFORMANCE FIX: Use memoized Map instead of creating new one every render
     alkStations, // ADDED: ALK delivery stations
@@ -1424,6 +1475,52 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     rangedWeaponStats, // ADDED: Pass ranged weapon stats for auto-fire detection
     onProfilerRecordClick,
   });
+
+  // Phase 4b: Sync frequently-changing values to ref (reduces renderGame dependency array churn)
+  useEffect(() => {
+    const d = renderGameDepsRef.current;
+    d.messages = messages;
+    d.projectiles = projectiles;
+    d.holdInteractionProgress = holdInteractionProgress;
+    d.isActivelyHolding = isActivelyHolding;
+    d.closestInteractableHarvestableResourceId = closestInteractableHarvestableResourceId;
+    d.closestInteractableCampfireId = closestInteractableCampfireId;
+    d.closestInteractableDroppedItemId = closestInteractableDroppedItemId;
+    d.closestInteractableBoxId = closestInteractableBoxId;
+    d.isClosestInteractableBoxEmpty = isClosestInteractableBoxEmpty;
+    d.closestInteractableWaterPosition = closestInteractableWaterPosition;
+    d.closestInteractableStashId = closestInteractableStashId;
+    d.closestInteractableSleepingBagId = closestInteractableSleepingBagId;
+    d.closestInteractableDoorId = closestInteractableDoorId;
+    d.closestInteractableTarget = closestInteractableTarget;
+    d.unifiedInteractableTarget = unifiedInteractableTarget;
+    d.closestInteractableKnockedOutPlayerId = closestInteractableKnockedOutPlayerId;
+    d.closestInteractableCorpseId = closestInteractableCorpseId;
+    d.closestInteractableAlkStationId = closestInteractableAlkStationId;
+    d.closestInteractableCairnId = closestInteractableCairnId;
+    d.closestInteractableMilkableAnimalId = closestInteractableMilkableAnimalId;
+  }, [
+    messages,
+    projectiles,
+    holdInteractionProgress,
+    isActivelyHolding,
+    closestInteractableHarvestableResourceId,
+    closestInteractableCampfireId,
+    closestInteractableDroppedItemId,
+    closestInteractableBoxId,
+    isClosestInteractableBoxEmpty,
+    closestInteractableWaterPosition,
+    closestInteractableStashId,
+    closestInteractableSleepingBagId,
+    closestInteractableDoorId,
+    closestInteractableTarget,
+    unifiedInteractableTarget,
+    closestInteractableKnockedOutPlayerId,
+    closestInteractableCorpseId,
+    closestInteractableAlkStationId,
+    closestInteractableCairnId,
+    closestInteractableMilkableAnimalId,
+  ]);
 
   // --- Mobile Interaction Support ---
   // Helper to get human-readable label for interaction targets
@@ -2570,6 +2667,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const currentYSortedEntities = ySortedEntitiesRef.current;
     const currentCanvasWidth = canvasSize.width;
     const currentCanvasHeight = canvasSize.height;
+    // Phase 4b: Read frequently-changing deps from ref
+    const rd = renderGameDepsRef.current;
 
     // Y-sort debug logging (throttled). Helps diagnose order mismatches in real time.
     if (ENABLE_YSORT_DEBUG && localPlayerId) {
@@ -3105,10 +3204,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           isPlayerMoving = dx > positionThreshold || dy > positionThreshold;
         }
 
-        // Calculate animated sprite coordinates for swimming/snorkeling
+        // Calculate animated sprite coordinates for swimming/snorkeling (Phase 3d: use scratch to avoid allocation)
         const totalSwimmingFrames = 24;
+        const localScratch = localPlayerScratchRef.current;
+        Object.assign(localScratch, localPlayer);
+        localScratch.positionX = currentPredictedPosition.x;
+        localScratch.positionY = currentPredictedPosition.y;
+        localScratch.direction = localFacingDirection ?? localPlayer.direction;
         const { sx, sy } = getSpriteCoordinates(
-          { ...localPlayer, positionX: currentPredictedPosition.x, positionY: currentPredictedPosition.y, direction: localFacingDirection || localPlayer.direction },
+          localScratch as SpacetimeDBPlayer,
           isPlayerMoving,
           currentIdleAnimationFrame,
           false, // isUsingItem
@@ -3273,13 +3377,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // how many times renderYSortedEntities is called (e.g. batched swimming player rendering).
     renderAllFootprints(ctx, viewBounds, now_ms);
 
-    // PERFORMANCE OPTIMIZATION: Skip complex merging when no swimming players
-    // This is the common case and saves significant object creation/sorting overhead
-    if (swimmingPlayersForBottomHalf.length === 0) {
-      // No swimming players - render Y-sorted entities directly (already sorted by useEntityFiltering)
-      renderYSortedEntities({
-        ctx,
-        ySortedEntities: currentYSortedEntities,
+    // Phase 3c: useEntityFiltering now pre-merges swimmingPlayerTopHalf into ySortedEntities.
+    // Single loop: batch non-swimming entities, flush and render swimming tops when encountered.
+    const flushBatch = (batch: typeof currentYSortedEntities) => {
+      if (batch.length > 0) {
+        renderYSortedEntities({
+          ctx,
+          ySortedEntities: batch,
         heroImageRef,
         heroSprintImageRef,
         heroIdleImageRef,
@@ -3310,14 +3414,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         playerDodgeRollStates,
         remotePlayerInterpolation,
         localPlayerIsCrouching,
-        closestInteractableCampfireId,
-        closestInteractableBoxId,
-        closestInteractableStashId,
-        closestInteractableSleepingBagId,
-        closestInteractableHarvestableResourceId,
-        closestInteractableDroppedItemId,
-        closestInteractableDoorId,
-        closestInteractableTarget,
+        closestInteractableCampfireId: rd.closestInteractableCampfireId as number | null,
+        closestInteractableBoxId: rd.closestInteractableBoxId as number | null,
+        closestInteractableStashId: rd.closestInteractableStashId as number | null,
+        closestInteractableSleepingBagId: rd.closestInteractableSleepingBagId as number | null,
+        closestInteractableHarvestableResourceId: rd.closestInteractableHarvestableResourceId as bigint | null,
+        closestInteractableDroppedItemId: rd.closestInteractableDroppedItemId as bigint | null,
+        closestInteractableDoorId: rd.closestInteractableDoorId as bigint | null,
+        closestInteractableTarget: rd.closestInteractableTarget,
         shelterClippingData,
         localFacingDirection,
         treeShadowsEnabled,
@@ -3342,621 +3446,154 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         caribouBreedingData, // ADDED: Pass caribou breeding data for age-based size scaling and pregnancy indicators
         walrusBreedingData, // ADDED: Pass walrus breeding data for age-based size scaling and pregnancy indicators
         chunkWeather, // ADDED: Chunk weather for grass sway (Clear=minimal, storm=dramatic)
-      });
-    } else {
-      // --- Swimming players exist, need full merge/sort ---
-
-      // Filter out swimming players from Y-sorted entities (their bottom halves were rendered earlier)
-      // EXCEPTION: Keep snorkeling players (local OR remote) - they render as a full sprite with teal tint, not split
-      const nonSwimmingEntities = currentYSortedEntities.filter(entity => {
-        // Keep non-swimming entities
-        if (!(entity.type === 'player' && entity.entity.isOnWater && !entity.entity.isDead && !entity.entity.isKnockedOut)) {
-          return true;
-        }
-        // Keep snorkeling local player - they render as full sprite underwater
-        if (isSnorkeling && entity.type === 'player' && entity.entity.identity.toHexString() === localPlayerId) {
-          return true;
-        }
-        // Keep ANY snorkeling player (remote players who are underwater) - they render as full sprite
-        if (entity.type === 'player' && entity.entity.isSnorkeling) {
-          return true;
-        }
-        return false;
-      });
-
-      // Create swimming player top half entries with Y position for sorting
-      // Reuse swimmingPlayersForBottomHalf array instead of filtering again
-      const swimmingPlayerTopHalves = swimmingPlayersForBottomHalf
-        .map(player => {
-          const playerId = player.identity.toHexString();
-          const isLocalPlayer = localPlayerId === playerId;
-
-          let playerForRendering = player;
-          if (isLocalPlayer && currentPredictedPosition) {
-            playerForRendering = {
-              ...player,
-              positionX: currentPredictedPosition.x,
-              positionY: currentPredictedPosition.y
-            };
-          } else if (!isLocalPlayer && remotePlayerInterpolation) {
-            const interpolatedPosition = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
-            playerForRendering = {
-              ...player,
-              positionX: interpolatedPosition.x,
-              positionY: interpolatedPosition.y
-            };
-          }
-
-          return {
-            type: 'swimmingPlayerTopHalf' as const,
-            entity: playerForRendering,
-            // Use foot position for Y-sorting (same as other players)
-            yPosition: playerForRendering.positionY + PLAYER_SORT_FEET_OFFSET_PX,
-            playerId
-          };
         });
-
-      // Helper function to get Y sort position from an entity
-      const getEntityYSort = (entity: typeof nonSwimmingEntities[number]): number => {
-        // Keep this in sync with grassRenderingUtils.ts render anchor math.
-        const GRASS_RENDER_Y_SORT_OFFSET = 5;
-        if ('positionY' in entity.entity && entity.entity.positionY !== undefined) {
-          // CRITICAL FIX: For local player, use predicted position (matches rendering position)
-          // to prevent sort/render position mismatch when player is moving
-          if (entity.type === 'player') {
-            const player = entity.entity as any;
-            const playerId = player.identity?.toHexString?.();
-            if (playerId === localPlayerId && currentPredictedPosition) {
-              return currentPredictedPosition.y + PLAYER_SORT_FEET_OFFSET_PX; // Predicted foot position
-            }
-          }
-          return entity.entity.positionY + PLAYER_SORT_FEET_OFFSET_PX; // Player/other foot position
-        }
-        // Grass: use same +48 offset as player so offsets cancel out in comparisons,
-        // giving correct raw-Y-based sorting without needing explicit overrides
-        // that would break sort transitivity.
-        if (entity.type === 'grass' && 'serverPosY' in entity.entity) {
-          const grass = entity.entity as any;
-          const grassVisualAnchorY = Number(grass.serverPosY ?? 0) + GRASS_RENDER_Y_SORT_OFFSET;
-          return grassVisualAnchorY + PLAYER_SORT_FEET_OFFSET_PX;
-        }
-        if (entity.type === 'fumarole' && 'posY' in entity.entity) {
-          // HARD SAFETY RULE: keep fumaroles behind players in this re-sort path too.
-          const FUMAROLE_SORT_BACK_OFFSET_PX = 1000;
-          return Number((entity.entity as any).posY ?? 0) - FUMAROLE_SORT_BACK_OFFSET_PX;
-        }
-        if ('worldPosY' in entity.entity && (entity.entity as any).worldPosY !== undefined) {
-          // ALK stations use worldPosY for their base position
-          return (entity.entity as any).worldPosY;
-        } else if (entity.type === 'monument_doodad' && 'worldY' in entity.entity) {
-          // Use sprite BOTTOM for Y-sort so monument renders on top of entities at its base
-          const e = entity.entity as any;
-          return (e.worldY ?? 0) + (e.anchorYOffset ?? 0);
-        } else if ('worldY' in entity.entity && (entity.entity as any).worldY !== undefined) {
-          // Compound buildings: use sprite BOTTOM (worldY + anchor) for Y-sort
-          const e = entity.entity as any;
-          return (e.worldY ?? 0) + (e.anchorYOffset ?? 0);
-        } else if (entity.type === 'barrel' && 'posY' in entity.entity && entity.entity.posY !== undefined) {
-          // Barrels: Y-sort by visual base - buoy (variant 6) needs correct base for player overlap
-          const barrel = entity.entity as { posY: number; variant?: number };
-          const baseYOffset = (barrel.variant ?? 0) === 4 ? 24 : (barrel.variant ?? 0) === 6 ? 28 : 12;
-          return barrel.posY - baseYOffset;
-        } else if ('posY' in entity.entity && entity.entity.posY !== undefined) {
-          return entity.entity.posY;
-        }
-        return 0;
-      };
-
-      // Merge and sort all entities together
-      type MergedEntityType =
-        | (typeof nonSwimmingEntities[number] & { _ySort: number; _isSwimmingTop: false })
-        | (typeof swimmingPlayerTopHalves[number] & { _ySort: number; _isSwimmingTop: true });
-
-      // Pre-allocate merged array to avoid spread allocations; build in place
-      const mergedEntities: MergedEntityType[] = [];
-      mergedEntities.length = nonSwimmingEntities.length + swimmingPlayerTopHalves.length;
-      let mergeIdx = 0;
-      for (const e of nonSwimmingEntities) {
-        mergedEntities[mergeIdx++] = { ...e, _ySort: getEntityYSort(e), _isSwimmingTop: false as const };
       }
-      for (const e of swimmingPlayerTopHalves) {
-        mergedEntities[mergeIdx++] = { ...e, _ySort: e.yPosition, _isSwimmingTop: true as const };
+    };
+
+    // Helper to render swimming player top half (Phase 3c: entity has interpolated position when called)
+    const renderSwimmingPlayerTopHalf = (item: { entity: SpacetimeDBPlayer; playerId: string; yPosition: number }) => {
+      const player = item.entity;
+      const playerId = item.playerId;
+
+      const lastPos = lastPositionsRef.current?.get(playerId);
+      let isPlayerMoving = false;
+
+      if (lastPos) {
+        const positionThreshold = 0.1;
+        const dx = Math.abs(player.positionX - lastPos.x);
+        const dy = Math.abs(player.positionY - lastPos.y);
+        isPlayerMoving = dx > positionThreshold || dy > positionThreshold;
       }
-      const needsSpecialSort = (x: MergedEntityType) => {
-        const t = !x._isSwimmingTop && 'type' in x ? x.type : null;
-        return x._isSwimmingTop ||
-          t === 'player' || t === 'fumarole' || t === 'broth_pot' || t === 'campfire' ||
-          t === 'sleeping_bag' || t === 'alk_station' || t === 'compound_building' ||
-          (t === 'barrel' && (x as any).entity?.variant === 6);
-      };
-      mergedEntities.sort((a, b) => {
-        // CRITICAL: This sort can undo the useEntityFiltering sort, so we must duplicate key checks here
-        const aType = !a._isSwimmingTop && 'type' in a ? a.type : null;
-        const bType = !b._isSwimmingTop && 'type' in b ? b.type : null;
-        const aEntity = !a._isSwimmingTop && 'entity' in a ? a.entity : null;
-        const bEntity = !b._isSwimmingTop && 'entity' in b ? b.entity : null;
 
-        // Fast path: both entities use simple Y-sort (grass, tree, rock, mushroom, etc.)
-        if (!needsSpecialSort(a) && !needsSpecialSort(b)) return a._ySort - b._ySort;
+      let currentAnimFrame: number;
+      if (player.isOnWater) {
+        if (!isPlayerMoving) {
+          currentAnimFrame = currentIdleAnimationFrame;
+        } else if (player.isSprinting) {
+          currentAnimFrame = currentSprintAnimationFrame;
+        } else {
+          currentAnimFrame = currentAnimationFrame;
+        }
+      } else {
+        if (!isPlayerMoving) {
+          currentAnimFrame = currentIdleAnimationFrame;
+        } else if (player.isSprinting) {
+          currentAnimFrame = currentSprintAnimationFrame;
+        } else {
+          currentAnimFrame = currentAnimationFrame;
+        }
+      }
 
-        // ABSOLUTE FIRST CHECK: Broth pot MUST ALWAYS render above campfires and fumaroles
-        // Broth pots sit ON TOP of heat sources - no exceptions, no situation where they don't
-        if (aType === 'broth_pot' && (bType === 'campfire' || bType === 'fumarole')) {
-          return 1; // Broth pot renders after (above) campfire/fumarole
-        }
-        if (bType === 'broth_pot' && (aType === 'campfire' || aType === 'fumarole')) {
-          return -1; // Broth pot renders after (above) campfire/fumarole
-        }
+      // FIX: Add fallbacks to ensure we render with available sprite
+      let heroImg: HTMLImageElement | null;
+      if (player.isOnWater) {
+        heroImg = heroWaterImageRef.current || heroImageRef.current;
+      } else if (player.isCrouching) {
+        heroImg = heroCrouchImageRef.current || heroImageRef.current;
+      } else {
+        heroImg = heroImageRef.current;
+      }
 
-        // ABSOLUTE SECOND CHECK: Player vs Fumarole - players ALWAYS render above fumaroles
-        // Applies to both land players and swimming player top halves (when in water near fumaroles).
-        if (aType === 'player' && bType === 'fumarole') {
-          return 1; // Player renders after (above) fumarole
-        }
-        if (bType === 'player' && aType === 'fumarole') {
-          return -1; // Player renders after (above) fumarole
-        }
-        if (a._isSwimmingTop && bType === 'fumarole') {
-          return 1; // Swimming player top renders after (above) fumarole
-        }
-        if (b._isSwimmingTop && aType === 'fumarole') {
-          return -1; // Swimming player top renders after (above) fumarole
-        }
+      if (heroImg) {
+        const isOnline = activeConnections ? activeConnections.has(playerId) : false;
+        const isHovered = worldMousePos ? isPlayerHovered(worldMousePos.x, worldMousePos.y, player) : false;
 
-        // Sleeping bag ALWAYS renders under the player - no y-sorting
-        if (aType === 'sleeping_bag' && (bType === 'player' || b._isSwimmingTop)) {
-          return -1; // Sleeping bag renders before (under) player
-        }
-        if ((aType === 'player' || a._isSwimmingTop) && bType === 'sleeping_bag') {
-          return 1; // Player renders after (above) sleeping bag
-        }
+        const equipment = activeEquipments.get(playerId);
+        let itemDef: SpacetimeDBItemDefinition | null = null;
+        let itemImg: HTMLImageElement | null = null;
 
-        // CRITICAL: Helper to get effective Y for a player entity.
-        // Uses predicted position for local player (matches rendering position).
-        const getPlayerY = (entity: any): number => {
-          const playerId = entity?.identity?.toHexString?.();
-          if (playerId === localPlayerId && currentPredictedPosition) {
-            return currentPredictedPosition.y;
-          }
-          return entity?.positionY ?? 0;
-        };
-
-
-        // CRITICAL: Player vs ALK Station - tall structure Y-sorting
-        // The ALK station sprite has ~24% transparent space at top. The visual "foot level"
-        // (where players walk) is about 170px ABOVE worldPosY. Must use offset for correct sorting.
-        if (aType === 'player' && bType === 'alk_station') {
-          const playerY = getPlayerY(aEntity);
-          const stationY = (bEntity as any)?.worldPosY ?? 0;
-          const ALK_VISUAL_FOOT_OFFSET = 170; // Match collision Y offset - where building visually sits
-          // Player renders in front if at or south of the building's visual foot level
-          if (playerY >= stationY - ALK_VISUAL_FOOT_OFFSET) {
-            return 1; // Player at/near/south of building's visual base - player in front
-          }
-          return -1; // Player clearly north of building - player behind (station on top)
-        }
-        if (aType === 'alk_station' && bType === 'player') {
-          const playerY = getPlayerY(bEntity);
-          const stationY = (aEntity as any)?.worldPosY ?? 0;
-          const ALK_VISUAL_FOOT_OFFSET = 170;
-          if (playerY >= stationY - ALK_VISUAL_FOOT_OFFSET) {
-            return -1; // Player at/near/south of building's visual base - player in front (inverted)
-          }
-          return 1; // Player clearly north of building - player behind (inverted)
-        }
-
-        // CRITICAL: Player vs Buoy (barrel variant 6) - 192px tall, use HEAD position like walls
-        const BUOY_BASE_Y_OFFSET = 28;
-        const PLAYER_HEAD_OFFSET_PX = 48;
-        const getPlayerHeadY = (e: any) => (e ? getPlayerY(e) - PLAYER_HEAD_OFFSET_PX : 0);
-        if ((aType === 'player' || a._isSwimmingTop) && bType === 'barrel') {
-          const barrel = bEntity as { posY?: number; variant?: number };
-          if ((barrel?.variant ?? 0) === 6) {
-            const playerHeadY = a._isSwimmingTop ? getPlayerY((a as any).entity) - PLAYER_HEAD_OFFSET_PX : getPlayerHeadY(aEntity);
-            const buoyBaseY = (barrel?.posY ?? 0) - BUOY_BASE_Y_OFFSET;
-            if (playerHeadY >= buoyBaseY) return 1; // Player in front - render on top
-          }
-        }
-        if (aType === 'barrel' && (bType === 'player' || b._isSwimmingTop)) {
-          const barrel = aEntity as { posY?: number; variant?: number };
-          if ((barrel?.variant ?? 0) === 6) {
-            const playerHeadY = b._isSwimmingTop ? getPlayerY((b as any).entity) - PLAYER_HEAD_OFFSET_PX : getPlayerHeadY(bEntity);
-            const buoyBaseY = (barrel?.posY ?? 0) - BUOY_BASE_Y_OFFSET;
-            if (playerHeadY >= buoyBaseY) return -1; // Player in front - barrel renders behind
+        if (equipment && equipment.equippedItemDefId && equipment.equippedItemInstanceId) {
+          const equippedItemInstance = inventoryItems.get(equipment.equippedItemInstanceId.toString());
+          if (equippedItemInstance && equippedItemInstance.quantity > 0) {
+            itemDef = itemDefinitions.get(equipment.equippedItemDefId.toString()) || null;
+            itemImg = (itemDef ? itemImagesRef.current.get(itemDef.iconAssetName) : null) || null;
           }
         }
 
-        // CRITICAL: Player vs Compound Building - tall structure Y-sorting (same pattern as ALK station)
-        // Compound buildings use worldY as their visual foot/anchor point (no offset needed)
-        if (aType === 'player' && bType === 'compound_building') {
-          const playerY = getPlayerY(aEntity);
-          const buildingY = (bEntity as any)?.worldY ?? 0;
-          // Player renders in front if at or south of the building's visual foot level
-          if (playerY >= buildingY) {
-            return 1; // Player at/south of building's visual base - player in front
-          }
-          return -1; // Player north of building - player behind (building on top)
-        }
-        if (aType === 'compound_building' && bType === 'player') {
-          const playerY = getPlayerY(bEntity);
-          const buildingY = (aEntity as any)?.worldY ?? 0;
-          if (playerY >= buildingY) {
-            return -1; // Player at/south of building's visual base - player in front (inverted)
-          }
-          return 1; // Player north of building - player behind (inverted)
-        }
+        const canRenderItem = itemDef && itemImg && itemImg.complete && itemImg.naturalHeight !== 0;
+        const itemBehindPlayer = player.direction === 'up' || player.direction === 'left';
 
-        // CRITICAL: Player vs Shelter - tall structure Y-sorting (match useEntityFiltering)
-        // Player in front only when near the bottom of the shelter; otherwise underneath
-        const SHELTER_YSORT_BUFFER = 120;
-        if (aType === 'player' && bType === 'shelter') {
-          const playerY = getPlayerY(aEntity);
-          const shelterY = (bEntity as any)?.posY ?? 0;
-          if (playerY >= shelterY - SHELTER_YSORT_BUFFER) return 1; // Player in front
-          return -1; // Player behind
-        }
-        if (aType === 'shelter' && bType === 'player') {
-          const playerY = getPlayerY(bEntity);
-          const shelterY = (aEntity as any)?.posY ?? 0;
-          if (playerY >= shelterY - SHELTER_YSORT_BUFFER) return -1; // Player in front (inverted)
-          return 1; // Player behind (inverted)
-        }
-
-        // Player vs Monument Doodad - campfire: bottom 75% in front; huts: bottom 25% in front (match useEntityFiltering)
-        if (aType === 'player' && bType === 'monument_doodad') {
-          const playerY = getPlayerY(aEntity);
-          const doodad = bEntity as any;
-          const isGroundCampfire = doodad?.imagePath === 'fv_campfire.png';
-          const fractionFromTop = isGroundCampfire ? 0.75 : 0.25; // Campfire: bottom 75% in front. Huts: bottom 25%.
-          const sortThresholdY = (doodad?.worldY ?? 0) - ((doodad?.height ?? 0) * fractionFromTop) + (doodad?.anchorYOffset ?? 0);
-          if (playerY >= sortThresholdY) return 1; // Player in front
-          return -1; // Player behind
-        }
-        if (aType === 'monument_doodad' && bType === 'player') {
-          const playerY = getPlayerY(bEntity);
-          const doodad = aEntity as any;
-          const isGroundCampfire = doodad?.imagePath === 'fv_campfire.png';
-          const fractionFromTop = isGroundCampfire ? 0.75 : 0.25;
-          const sortThresholdY = (doodad?.worldY ?? 0) - ((doodad?.height ?? 0) * fractionFromTop) + (doodad?.anchorYOffset ?? 0);
-          if (playerY >= sortThresholdY) return -1; // Player in front (inverted)
-          return 1; // Player behind (inverted)
-        }
-
-        // Player vs Tree: force stable tree-base layering.
-        // Player north of tree base renders behind; south renders in front.
-        if (aType === 'player' && bType === 'tree') {
-          const playerY = getPlayerY(aEntity) + PLAYER_SORT_FEET_OFFSET_PX;
-          const treeY = (bEntity as any)?.posY ?? 0;
-          return playerY >= treeY ? 1 : -1;
-        }
-        if (aType === 'tree' && bType === 'player') {
-          const playerY = getPlayerY(bEntity) + PLAYER_SORT_FEET_OFFSET_PX;
-          const treeY = (aEntity as any)?.posY ?? 0;
-          return playerY >= treeY ? -1 : 1;
-        }
-
-        // Player vs Stone: same as trees - player north of stone base renders behind top half.
-        if (aType === 'player' && bType === 'stone') {
-          const playerY = getPlayerY(aEntity) + PLAYER_SORT_FEET_OFFSET_PX;
-          const stoneY = (bEntity as any)?.posY ?? 0;
-          return playerY >= stoneY ? 1 : -1;
-        }
-        if (aType === 'stone' && bType === 'player') {
-          const playerY = getPlayerY(bEntity) + PLAYER_SORT_FEET_OFFSET_PX;
-          const stoneY = (aEntity as any)?.posY ?? 0;
-          return playerY >= stoneY ? -1 : 1;
-        }
-
-        // Player vs tall beehive (wooden_storage_box): same as trees - player north of beehive renders behind
-        if (aType === 'player' && bType === 'wooden_storage_box') {
-          const box = bEntity as SpacetimeDBWoodenStorageBox;
-          if (box.boxType === BOX_TYPE_PLAYER_BEEHIVE || box.boxType === BOX_TYPE_WILD_BEEHIVE) {
-            const playerY = getPlayerY(aEntity) + PLAYER_SORT_FEET_OFFSET_PX;
-            const boxY = box.posY;
-            return playerY >= boxY ? 1 : -1;
-          }
-        }
-        if (aType === 'wooden_storage_box' && bType === 'player') {
-          const box = aEntity as SpacetimeDBWoodenStorageBox;
-          if (box.boxType === BOX_TYPE_PLAYER_BEEHIVE || box.boxType === BOX_TYPE_WILD_BEEHIVE) {
-            const playerY = getPlayerY(bEntity) + PLAYER_SORT_FEET_OFFSET_PX;
-            const boxY = box.posY;
-            return playerY >= boxY ? -1 : 1;
-          }
-        }
-
-        // CRITICAL: Small ground entities vs tall structures - CONSISTENT sorting regardless of player position.
-        // Mirrors useEntityFiltering. For monuments: entities within footprint ALWAYS render BEHIND (inside).
-        const SMALL_GROUND_TYPES = ['barrel', 'road_lamppost', 'harvestable_resource', 'grass'];
-        const TALL_STRUCTURE_TYPES = ['tree', 'stone', 'monument_doodad', 'compound_building'];
-        const TREE_STONE_Y_OVERLAP_PX = 120;
-        const MONUMENT_FOOTPRINT_PADDING = 24;
-        const getSmallPos = (e: any, t: string | null) => {
-          if (t === 'grass' && e && 'serverPosX' in e) return { x: (e as any).serverPosX ?? 0, y: (e as any).serverPosY ?? 0 };
-          return { x: e?.posX ?? e?.positionX ?? 0, y: e?.posY ?? e?.positionY ?? 0 };
-        };
-        const isSmallWithinMonumentFootprint = (small: { x: number; y: number }, tall: any, pad: number) => {
-          const w = tall?.width ?? 0, h = tall?.height ?? 0, anchor = tall?.anchorYOffset ?? 0;
-          const worldX = tall?.worldX ?? 0, worldY = tall?.worldY ?? 0;
-          const left = worldX - w / 2 - pad, right = worldX + w / 2 + pad;
-          const top = worldY - h + anchor - pad, bottom = worldY + anchor + pad;
-          return small.x >= left && small.x <= right && small.y >= top && small.y <= bottom;
-        };
-        const isSmallNearTreeOrStone = (smallY: number, tallY: number) => Math.abs(smallY - tallY) < TREE_STONE_Y_OVERLAP_PX;
-        if (SMALL_GROUND_TYPES.includes(aType ?? '') && TALL_STRUCTURE_TYPES.includes(bType ?? '')) {
-          const smallPos = getSmallPos(aEntity, aType);
-          const tall = bEntity as any;
-          if (bType === 'monument_doodad' || bType === 'compound_building') {
-            if (isSmallWithinMonumentFootprint(smallPos, tall, MONUMENT_FOOTPRINT_PADDING)) return -1; // Monument always on top
-          } else if (isSmallNearTreeOrStone(smallPos.y, tall?.posY ?? 0)) return -1;
-        }
-        if (TALL_STRUCTURE_TYPES.includes(aType ?? '') && SMALL_GROUND_TYPES.includes(bType ?? '')) {
-          const smallPos = getSmallPos(bEntity, bType);
-          const tall = aEntity as any;
-          if (aType === 'monument_doodad' || aType === 'compound_building') {
-            if (isSmallWithinMonumentFootprint(smallPos, tall, MONUMENT_FOOTPRINT_PADDING)) return 1; // Monument always on top (inverted)
-          } else if (isSmallNearTreeOrStone(smallPos.y, tall?.posY ?? 0)) return 1;
-        }
-
-        // Grass vs Tree: use relative Y so north grass is behind tree, south grass is in front.
-        // Keep this mirrored with useEntityFiltering to avoid re-sort mismatches.
-        if (aType === 'grass' && bType === 'tree') {
-          const grassBaseY = Number((aEntity as any)?.serverPosY ?? 0) + 5;
-          const treeY = Number((bEntity as any)?.posY ?? 0);
-          return grassBaseY >= treeY ? 1 : -1;
-        }
-        if (aType === 'tree' && bType === 'grass') {
-          const treeY = Number((aEntity as any)?.posY ?? 0);
-          const grassBaseY = Number((bEntity as any)?.serverPosY ?? 0) + 5;
-          return grassBaseY >= treeY ? -1 : 1;
-        }
-
-        // Grass vs other tall structures: keep grass behind.
-        if (aType === 'grass' && (bType === 'stone' || bType === 'basalt_column' || bType === 'rune_stone' || bType === 'sea_stack')) {
-          return -1; // Grass renders before (behind) tall structure
-        }
-        if (bType === 'grass' && (aType === 'stone' || aType === 'basalt_column' || aType === 'rune_stone' || aType === 'sea_stack')) {
-          return 1; // Grass renders before (behind) tall structure
-        }
-
-        // Flying birds MUST render above everything (trees, stones, players, etc.)
-        const aIsFlyingBird = aType === 'wild_animal' && aEntity &&
-          'species' in aEntity && 'isFlying' in aEntity &&
-          (aEntity.species?.tag === 'Tern' || aEntity.species?.tag === 'Crow') &&
-          aEntity.isFlying === true;
-        const bIsFlyingBird = bType === 'wild_animal' && bEntity &&
-          'species' in bEntity && 'isFlying' in bEntity &&
-          (bEntity.species?.tag === 'Tern' || bEntity.species?.tag === 'Crow') &&
-          bEntity.isFlying === true;
-
-        // Flying bird vs any non-flying entity
-        if (aIsFlyingBird && !bIsFlyingBird) {
-          return 1; // Flying bird renders after (above) non-flying entities
-        }
-        if (bIsFlyingBird && !aIsFlyingBird) {
-          return -1; // Flying bird renders after (above) non-flying entities
-        }
-
-        // NOTE: Broth pot vs campfire/fumarole moved to ABSOLUTE FIRST CHECK at top of comparator
-        // NOTE: Player vs fumarole moved to ABSOLUTE SECOND CHECK at top of comparator
-
-        return a._ySort - b._ySort;
-      });
-
-      // Helper to render a swimming player top half
-      const renderSwimmingPlayerTopHalf = (item: typeof swimmingPlayerTopHalves[number]) => {
-        const player = item.entity;
-        const playerId = item.playerId;
-
-        const lastPos = lastPositionsRef.current?.get(playerId);
-        let isPlayerMoving = false;
-
-        if (lastPos) {
-          const positionThreshold = 0.1;
-          const dx = Math.abs(player.positionX - lastPos.x);
-          const dy = Math.abs(player.positionY - lastPos.y);
-          isPlayerMoving = dx > positionThreshold || dy > positionThreshold;
-        }
-
-        let currentAnimFrame: number;
-        if (player.isOnWater) {
-          if (!isPlayerMoving) {
-            currentAnimFrame = currentIdleAnimationFrame;
-          } else if (player.isSprinting) {
-            currentAnimFrame = currentSprintAnimationFrame;
+        const renderSwimmingEquippedItem = () => {
+          if (player.direction === 'up') {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(player.positionX - 2000, player.positionY - 2000, 4000, 2000);
+            ctx.clip();
+            renderEquippedItem(ctx, player, equipment!, itemDef!, itemDefinitions, itemImg!, now_ms, 0, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction);
+            ctx.restore();
           } else {
-            currentAnimFrame = currentAnimationFrame;
+            renderEquippedItem(ctx, player, equipment!, itemDef!, itemDefinitions, itemImg!, now_ms, 0, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction);
           }
-        } else {
-          if (!isPlayerMoving) {
-            currentAnimFrame = currentIdleAnimationFrame;
-          } else if (player.isSprinting) {
-            currentAnimFrame = currentSprintAnimationFrame;
-          } else {
-            currentAnimFrame = currentAnimationFrame;
-          }
+        };
+
+        if (itemBehindPlayer && canRenderItem && equipment) {
+          renderSwimmingEquippedItem();
         }
 
-        // FIX: Add fallbacks to ensure we render with available sprite
-        let heroImg: HTMLImageElement | null;
-        if (player.isOnWater) {
-          heroImg = heroWaterImageRef.current || heroImageRef.current;
-        } else if (player.isCrouching) {
-          heroImg = heroCrouchImageRef.current || heroImageRef.current;
-        } else {
-          heroImg = heroImageRef.current;
-        }
+        renderPlayer(
+          ctx,
+          player,
+          heroImg,
+          heroSprintImageRef.current || heroImg,
+          heroIdleImageRef.current || heroImg,
+          heroCrouchImageRef.current || heroImg,
+          heroWaterImageRef.current || heroImageRef.current || heroImg,
+          heroDodgeImageRef.current || heroImg,
+          isOnline,
+          isPlayerMoving,
+          isHovered,
+          currentAnimFrame,
+          now_ms,
+          0,
+          alwaysShowPlayerNames || isHovered,
+          activeConsumableEffects,
+          localPlayerId,
+          false,
+          currentCycleProgress,
+          localPlayerIsCrouching,
+          'top',
+          false,
+          0,
+          false,
+          isSnorkeling
+        );
 
-        if (heroImg) {
-          const isOnline = activeConnections ? activeConnections.has(playerId) : false;
-          const isHovered = worldMousePos ? isPlayerHovered(worldMousePos.x, worldMousePos.y, player) : false;
-
-          // Resolve equipped item data once (used for direction-based render order)
-          const equipment = activeEquipments.get(playerId);
-          let itemDef: SpacetimeDBItemDefinition | null = null;
-          let itemImg: HTMLImageElement | null = null;
-
-          if (equipment && equipment.equippedItemDefId && equipment.equippedItemInstanceId) {
-            const equippedItemInstance = inventoryItems.get(equipment.equippedItemInstanceId.toString());
-            if (equippedItemInstance && equippedItemInstance.quantity > 0) {
-              itemDef = itemDefinitions.get(equipment.equippedItemDefId.toString()) || null;
-              itemImg = (itemDef ? itemImagesRef.current.get(itemDef.iconAssetName) : null) || null;
-            }
-          }
-
-          const canRenderItem = itemDef && itemImg && itemImg.complete && itemImg.naturalHeight !== 0;
-
-          // Render order must match land rendering (renderingUtils.ts):
-          // UP/LEFT  -> item FIRST (behind player)
-          // DOWN/RIGHT -> player FIRST (item in front)
-          const itemBehindPlayer = player.direction === 'up' || player.direction === 'left';
-
-          // Helper: render equipped item for swimming players.
-          // When facing UP, clip at the waterline so the weapon doesn't overlap the
-          // bottom-half pass. For other directions the weapon sits at/below the
-          // waterline and clipping would hide it entirely, so render unclipped.
-          const renderSwimmingEquippedItem = () => {
-            if (player.direction === 'up') {
-              ctx.save();
-              ctx.beginPath();
-              ctx.rect(player.positionX - 2000, player.positionY - 2000, 4000, 2000);
-              ctx.clip();
-              renderEquippedItem(ctx, player, equipment!, itemDef!, itemDefinitions, itemImg!, now_ms, 0, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction);
-              ctx.restore();
-            } else {
-              renderEquippedItem(ctx, player, equipment!, itemDef!, itemDefinitions, itemImg!, now_ms, 0, itemImagesRef.current, activeConsumableEffects, localPlayerId, player.direction);
-            }
-          };
-
-          if (itemBehindPlayer && canRenderItem && equipment) {
-            renderSwimmingEquippedItem();
-          }
-
-          renderPlayer(
-            ctx,
-            player,
-            heroImg,
-            heroSprintImageRef.current || heroImg,
-            heroIdleImageRef.current || heroImg,
-            heroCrouchImageRef.current || heroImg,
-            heroWaterImageRef.current || heroImageRef.current || heroImg, // with fallback chain
-            heroDodgeImageRef.current || heroImg,
-            isOnline,
-            isPlayerMoving,
-            isHovered,
-            currentAnimFrame,
-            now_ms,
-            0,
-            alwaysShowPlayerNames || isHovered, // show label if setting enabled or hovered
-            activeConsumableEffects,
-            localPlayerId,
-            false,
-            currentCycleProgress,
-            localPlayerIsCrouching,
-            'top',
-            false, // isDodgeRolling - swimming players don't dodge roll
-            0, // dodgeRollProgress
-            false, // isSnorkeling - these are regular swimming players (snorkeling ones are excluded)
-            isSnorkeling // isViewerUnderwater - pass local player's snorkeling state
-          );
-
-          if (!itemBehindPlayer && canRenderItem && equipment) {
-            renderSwimmingEquippedItem();
-          }
-        }
-      };
-
-      // Render entities in Y-sorted order, batching non-swimming entities for performance
-      let currentBatch: typeof nonSwimmingEntities = [];
-
-      const flushBatch = () => {
-        if (currentBatch.length > 0) {
-          renderYSortedEntities({
-            ctx,
-            ySortedEntities: currentBatch,
-            heroImageRef,
-            heroSprintImageRef,
-            heroIdleImageRef,
-            heroWaterImageRef,
-            heroCrouchImageRef,
-            heroDodgeImageRef,
-            lastPositionsRef,
-            activeConnections,
-            activeEquipments,
-            activeConsumableEffects,
-            itemDefinitions,
-            inventoryItems,
-            itemImagesRef,
-            doodadImagesRef,
-            shelterImage: shelterImageRef.current,
-            worldMouseX: currentWorldMouseX,
-            worldMouseY: currentWorldMouseY,
-            localPlayerId: localPlayerId,
-            animationFrame: currentAnimationFrame,
-            sprintAnimationFrame: currentSprintAnimationFrame,
-            idleAnimationFrame: currentIdleAnimationFrame,
-            nowMs: now_ms,
-            hoveredPlayerIds,
-            onPlayerHover: handlePlayerHover,
-            cycleProgress: currentCycleProgress,
-            renderPlayerCorpse: (props) => renderPlayerCorpse({ ...props, cycleProgress: currentCycleProgress, heroImageRef: heroImageRef, heroWaterImageRef: heroWaterImageRef, heroCrouchImageRef: heroCrouchImageRef }),
-            localPlayerPosition: currentPredictedPosition ?? { x: localPlayer?.positionX ?? 0, y: localPlayer?.positionY ?? 0 },
-            playerDodgeRollStates,
-            remotePlayerInterpolation,
-            localPlayerIsCrouching,
-            closestInteractableCampfireId,
-            closestInteractableBoxId,
-            closestInteractableStashId,
-            closestInteractableSleepingBagId,
-            closestInteractableHarvestableResourceId,
-            closestInteractableDroppedItemId,
-            closestInteractableDoorId,
-            closestInteractableTarget,
-            shelterClippingData,
-            localFacingDirection,
-            treeShadowsEnabled,
-            isTreeFalling,
-            getFallProgress,
-            cameraOffsetX: currentCameraOffsetX,
-            cameraOffsetY: currentCameraOffsetY,
-            foundationTileImagesRef,
-            allWalls: wallCells,
-            allFoundations: foundationCells,
-            allFences: visibleFences, // ADDED: All fences for smart sprite selection based on neighbors
-            buildingClusters,
-            playerBuildingClusterId,
-            connection, // ADDED: Pass connection for cairn biome lookup
-            isLocalPlayerSnorkeling: isSnorkeling, // ADDED: Pass snorkeling state for underwater rendering
-            alwaysShowPlayerNames, // ADDED: Pass setting for always showing player names
-            playerStats, // ADDED: Pass player stats for title display on name labels
-            largeQuarries, // ADDED: Pass large quarry locations for building restriction zones
-            detectedHotSprings, // ADDED: Pass hot spring locations for building restriction zones
-            detectedQuarries, // ADDED: Pass small quarry locations for building restriction zones
-            placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
-            caribouBreedingData, // ADDED: Pass caribou breeding data for age-based size scaling and pregnancy indicators
-            walrusBreedingData, // ADDED: Pass walrus breeding data for age-based size scaling and pregnancy indicators
-            chunkWeather, // ADDED: Chunk weather for grass sway (Clear=minimal, storm=dramatic)
-          });
-          currentBatch = [];
-        }
-      };
-
-      // Process merged entities in Y-sorted order
-      for (const item of mergedEntities) {
-        if (item._isSwimmingTop) {
-          // Flush batch before rendering swimming player
-          flushBatch();
-          // Render swimming player top half at correct Y position
-          renderSwimmingPlayerTopHalf(item as typeof swimmingPlayerTopHalves[number] & { _ySort: number; _isSwimmingTop: true });
-        } else {
-          // Add to batch
-          const { _ySort, _isSwimmingTop, ...entityWithoutMeta } = item;
-          currentBatch.push(entityWithoutMeta as typeof nonSwimmingEntities[number]);
+        if (!itemBehindPlayer && canRenderItem && equipment) {
+          renderSwimmingEquippedItem();
         }
       }
-      // Flush remaining batch
-      flushBatch();
-    } // End of else block for swimming players exist
+    };
+
+    // Phase 3c: Iterate over pre-merged ySortedEntities from useEntityFiltering
+    let currentBatch: typeof currentYSortedEntities = [];
+    for (const item of currentYSortedEntities) {
+      if (item.type === 'swimmingPlayerTopHalf') {
+        flushBatch(currentBatch);
+        currentBatch = [];
+        const scratch = swimmingPlayerScratchRef.current;
+        const topHalfScratch = swimmingPlayerTopHalfScratchRef.current;
+        let playerForRendering: SpacetimeDBPlayer = item.entity;
+        if (item.playerId === localPlayerId && currentPredictedPosition) {
+          Object.assign(scratch, item.entity);
+          scratch.positionX = currentPredictedPosition.x;
+          scratch.positionY = currentPredictedPosition.y;
+          playerForRendering = scratch as SpacetimeDBPlayer;
+        } else if (remotePlayerInterpolation) {
+          const interp = remotePlayerInterpolation.updateAndGetSmoothedPosition(item.entity, localPlayerId);
+          Object.assign(scratch, item.entity);
+          scratch.positionX = interp.x;
+          scratch.positionY = interp.y;
+          playerForRendering = scratch as SpacetimeDBPlayer;
+        }
+        topHalfScratch.entity = playerForRendering;
+        topHalfScratch.playerId = item.playerId;
+        topHalfScratch.yPosition = item.yPosition;
+        renderSwimmingPlayerTopHalf(topHalfScratch);
+      } else {
+        currentBatch.push(item);
+      }
+    }
+    flushBatch(currentBatch);
     // --- END Y-SORTED ENTITIES AND SWIMMING PLAYER TOP HALVES ---
     const _t3 = mark(showFpsProfiler);
 
@@ -4120,7 +3757,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       sleepingBags: visibleSleepingBagsMap,
       players: players,
       itemDefinitions,
-      closestInteractableTarget: unifiedInteractableTarget as any,
+      closestInteractableTarget: rd.unifiedInteractableTarget as any,
       lanterns: visibleLanternsMap,
       turrets: visibleTurretsMap, // ADDED: Turrets to interaction labels
       rainCollectors: rainCollectors,
@@ -4268,7 +3905,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
       // Render projectile collision debug (hit radii for projectiles)
       renderProjectileCollisionDebug(ctx, {
-        projectiles,
+        projectiles: rd.projectiles,
         playerX,
         playerY,
         currentTimeMs: performance.now(),
@@ -4530,9 +4167,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Interaction indicators - Draw only for visible entities that are interactable
     // Uses centralized ENTITY_VISUAL_CONFIG to position indicator at center of blue box
     const drawIndicatorIfNeeded = (entityType: 'campfire' | 'furnace' | 'barbecue' | 'fumarole' | 'lantern' | 'box' | 'stash' | 'corpse' | 'knocked_out_player' | 'water' | 'homestead_hearth' | 'door', entityId: number | bigint | string, entityPosX: number, entityPosY: number, entityHeight: number, isInView: boolean, boxType?: number) => {
+      const hip = rd.holdInteractionProgress;
       // If holdInteractionProgress is null (meaning no interaction is even being tracked by the state object),
       // or if the entity is not in view, do nothing.
-      if (!isInView || !holdInteractionProgress) {
+      if (!isInView || !hip) {
         return;
       }
 
@@ -4540,22 +4178,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (typeof entityId === 'string') {
         targetId = entityId; // For knocked out players (hex string) or water ('water')
       } else if (typeof entityId === 'bigint') {
-        targetId = BigInt(holdInteractionProgress.targetId ?? 0);
+        targetId = BigInt(hip.targetId ?? 0);
       } else {
-        targetId = Number(holdInteractionProgress.targetId ?? 0);
+        targetId = Number(hip.targetId ?? 0);
       }
 
       // Check if the current entity being processed is the target of the (potentially stale) holdInteractionProgress object.
-      if (holdInteractionProgress.targetType === entityType && targetId === entityId) {
+      if (hip.targetType === entityType && targetId === entityId) {
 
         // IMPORTANT: Only draw the indicator if the hold is *currently active* (isActivelyHolding is true).
         // If isActivelyHolding is false, it means the hold was just released/cancelled.
         // In this case, we don't draw anything for this entity, not even the background circle.
         // The indicator will completely disappear once holdInteractionProgress becomes null in the next state update.
-        if (isActivelyHolding) {
+        if (rd.isActivelyHolding) {
           // Use appropriate duration based on interaction type
           const interactionDuration = entityType === 'knocked_out_player' ? REVIVE_HOLD_DURATION_MS : HOLD_INTERACTION_DURATION_MS;
-          const currentProgress = Math.min(Math.max((Date.now() - holdInteractionProgress.startTime) / interactionDuration, 0), 1);
+          const currentProgress = Math.min(Math.max((Date.now() - hip.startTime) / interactionDuration, 0), 1);
 
           // Map entity type to config key - use appropriate config for each box type
           let configKey: string;
@@ -4618,14 +4256,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Lantern interaction indicators
     visibleLanternsMap.forEach((lantern: SpacetimeDBLantern) => {
       // For lanterns, the indicator is only relevant if a hold action is in progress (e.g., picking up an empty lantern)
-      if (holdInteractionProgress && holdInteractionProgress.targetId === lantern.id && holdInteractionProgress.targetType === 'lantern') {
+      if (rd.holdInteractionProgress && rd.holdInteractionProgress.targetId === lantern.id && rd.holdInteractionProgress.targetType === 'lantern') {
         drawIndicatorIfNeeded('lantern', lantern.id, lantern.posX, lantern.posY, 56, true); // 56px height for lanterns
       }
     });
 
     visibleBoxesMap.forEach((box: SpacetimeDBWoodenStorageBox) => {
       // For boxes, the indicator is only relevant if a hold action is in progress (e.g., picking up an empty box)
-      if (holdInteractionProgress && holdInteractionProgress.targetId === box.id && holdInteractionProgress.targetType === 'box') {
+      if (rd.holdInteractionProgress && rd.holdInteractionProgress.targetId === box.id && rd.holdInteractionProgress.targetType === 'box') {
         drawIndicatorIfNeeded('box', box.id, box.posX, box.posY, BOX_HEIGHT, true, box.boxType);
       }
     });
@@ -4636,7 +4274,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (stashes instanceof Map) { // Ensure stashes is a Map
       stashes.forEach((stash: SpacetimeDBStash) => {
         // Check if this stash is the one currently being interacted with for a hold action
-        if (holdInteractionProgress && holdInteractionProgress.targetId === stash.id && holdInteractionProgress.targetType === 'stash') {
+        if (rd.holdInteractionProgress && rd.holdInteractionProgress.targetId === stash.id && rd.holdInteractionProgress.targetType === 'stash') {
           // For a hidden stash being surfaced, we want to draw the indicator.
           // The 'true' for isInView might need refinement if stashes can be off-screen 
           // but still the closest interactable (though unlikely for a hold interaction).
@@ -4647,27 +4285,27 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
 
     // Knocked Out Player Indicators
-    if (closestInteractableKnockedOutPlayerId && players instanceof Map) {
-      const knockedOutPlayer = players.get(closestInteractableKnockedOutPlayerId);
+    if (rd.closestInteractableKnockedOutPlayerId && players instanceof Map) {
+      const knockedOutPlayer = players.get(rd.closestInteractableKnockedOutPlayerId);
       if (knockedOutPlayer && knockedOutPlayer.isKnockedOut && !knockedOutPlayer.isDead) {
         // Check if this knocked out player is the one currently being revived
-        if (holdInteractionProgress && holdInteractionProgress.targetId === closestInteractableKnockedOutPlayerId && holdInteractionProgress.targetType === 'knocked_out_player') {
+        if (rd.holdInteractionProgress && String(rd.holdInteractionProgress.targetId) === rd.closestInteractableKnockedOutPlayerId && rd.holdInteractionProgress.targetType === 'knocked_out_player') {
           const playerHeight = 48; // Approximate player sprite height
-          drawIndicatorIfNeeded('knocked_out_player', closestInteractableKnockedOutPlayerId, knockedOutPlayer.positionX, knockedOutPlayer.positionY, playerHeight, true);
+          drawIndicatorIfNeeded('knocked_out_player', rd.closestInteractableKnockedOutPlayerId, knockedOutPlayer.positionX, knockedOutPlayer.positionY, playerHeight, true);
         }
       }
     }
 
     // Water Drinking Indicators
-    if (closestInteractableWaterPosition && holdInteractionProgress && holdInteractionProgress.targetType === 'water') {
+    if (rd.closestInteractableWaterPosition && rd.holdInteractionProgress && rd.holdInteractionProgress.targetType === 'water') {
       // Draw indicator at the water position
-      drawIndicatorIfNeeded('water', 'water', closestInteractableWaterPosition.x, closestInteractableWaterPosition.y, 0, true);
+      drawIndicatorIfNeeded('water', 'water', rd.closestInteractableWaterPosition.x, rd.closestInteractableWaterPosition.y, 0, true);
     }
 
     // Door Pickup Indicators (hold E to pickup)
     visibleDoorsMap.forEach((door: any) => {
       // For doors, the indicator is only relevant if a hold action is in progress (picking up the door)
-      if (holdInteractionProgress && holdInteractionProgress.targetId === door.id && holdInteractionProgress.targetType === 'door') {
+      if (rd.holdInteractionProgress && rd.holdInteractionProgress.targetId === door.id && rd.holdInteractionProgress.targetType === 'door') {
         const DOOR_HEIGHT = 96; // Standard door height
         drawIndicatorIfNeeded('door', door.id, door.posX, door.posY, DOOR_HEIGHT, true);
       }
@@ -5040,10 +4678,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     itemImagesRef, heroImageRef, heroSprintImageRef, heroWaterImageRef, heroCrouchImageRef, heroDodgeImageRef, cloudImagesRef,
     canvasSize.width, canvasSize.height,
     placementInfo, placementError, overlayRgba, maskCanvasRef,
-    closestInteractableHarvestableResourceId,
-    closestInteractableCampfireId, closestInteractableDroppedItemId, closestInteractableBoxId, isClosestInteractableBoxEmpty,
-    closestInteractableWaterPosition,
-    holdInteractionProgress, hoveredPlayerIds, handlePlayerHover, messages,
+    // Phase 4b: messages, projectiles, holdInteractionProgress, closestInteractable* moved to renderGameDepsRef
+    hoveredPlayerIds, handlePlayerHover,
     isMinimapOpen, isMouseOverMinimap, minimapZoom,
     activeConnections,
     activeConsumableEffects,
@@ -5056,7 +4692,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     playerCorpses,
     showInventory,
     gameCanvasRef,
-    projectiles,
     deathMarkerImg,
     localPlayerDeathMarker,
     shelters,
@@ -5247,12 +4882,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [isMinimapOpen, isMobile]);
 
   // --- Drone flyover: RAF loop for smooth minimap interpolation ---
-  // When drones are active, redraw minimap every frame so interpolated position is smooth
+  // PERFORMANCE: Call draw directly via ref - no setState, no React re-renders every frame
   useEffect(() => {
     if (!isMinimapOpen || !droneEvents || droneEvents.size === 0) return;
     let rafId: number;
     const loop = () => {
-      setMinimapDroneFrame((n) => n + 1);
+      minimapDrawRef.current();
       rafId = requestAnimationFrame(loop);
     };
     rafId = requestAnimationFrame(loop);
@@ -5267,81 +4902,76 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Clear the canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const doDraw = () => {
+      if (!minimapCanvasRef.current) return;
+      const c = minimapCanvasRef.current;
+      const context = c.getContext('2d');
+      if (!context) return;
 
-    // Ensure props are valid Maps before passing
-    const validPlayers = players instanceof Map ? players : new Map();
-    const validTrees = trees instanceof Map ? trees : new Map();
-    const validStones = stones instanceof Map ? stones : new Map();
-    const validRuneStones = runeStones instanceof Map ? runeStones : new Map();
-    const validSleepingBags = sleepingBags instanceof Map ? sleepingBags : new Map();
-    const validCampfires = campfires instanceof Map ? campfires : new Map();
+      context.clearRect(0, 0, c.width, c.height);
 
-    // Read grid coordinates preference from localStorage
-    const savedGridPref = localStorage.getItem('minimap_show_grid_coordinates');
-    const showGridCoordinates = savedGridPref !== null ? savedGridPref === 'true' : true;
+      const validPlayers = players instanceof Map ? players : new Map();
+      const validTrees = trees instanceof Map ? trees : new Map();
+      const validStones = stones instanceof Map ? stones : new Map();
+      const validRuneStones = runeStones instanceof Map ? runeStones : new Map();
+      const validSleepingBags = sleepingBags instanceof Map ? sleepingBags : new Map();
+      const validCampfires = campfires instanceof Map ? campfires : new Map();
 
-    // Convert chunkWeather Map<string, any> to Map<number, ChunkWeather> for minimap
-    const chunkWeatherForMinimap = new Map<number, any>();
-    if (chunkWeather) {
-      chunkWeather.forEach((weather, chunkIndexStr) => {
-        const chunkIndex = parseInt(chunkIndexStr, 10);
-        if (!isNaN(chunkIndex)) {
-          chunkWeatherForMinimap.set(chunkIndex, weather);
-        }
+      const savedGridPref = localStorage.getItem('minimap_show_grid_coordinates');
+      const showGridCoordinates = savedGridPref !== null ? savedGridPref === 'true' : true;
+
+      const chunkWeatherForMinimap = new Map<number, any>();
+      if (chunkWeather) {
+        chunkWeather.forEach((weather, chunkIndexStr) => {
+          const chunkIndex = parseInt(chunkIndexStr, 10);
+          if (!isNaN(chunkIndex)) {
+            chunkWeatherForMinimap.set(chunkIndex, weather);
+          }
+        });
+      }
+
+      drawMinimapOntoCanvas({
+        ctx: context,
+        players: validPlayers,
+        trees: validTrees,
+        stones: validStones,
+        runeStones: validRuneStones,
+        barrels: barrels instanceof Map ? barrels : new Map(),
+        campfires: validCampfires,
+        sleepingBags: validSleepingBags,
+        localPlayer,
+        localPlayerId,
+        viewCenterOffset,
+        playerPin: localPlayerPin,
+        canvasWidth: c.width,
+        canvasHeight: c.height,
+        isMouseOverMinimap,
+        zoomLevel: minimapZoom,
+        sleepingBagImage: itemImagesRef.current?.get('sleeping_bag.png'),
+        localPlayerDeathMarker: localPlayerDeathMarker,
+        deathMarkerImage: deathMarkerImg,
+        worldState: worldState,
+        minimapCache: minimapCache,
+        pinMarkerImage: pinMarkerImg,
+        campfireWarmthImage: campfireWarmthImg,
+        torchOnImage: torchOnImg,
+        showGridCoordinates,
+        showWeatherOverlay: minimapShowWeatherOverlay,
+        chunkWeatherData: chunkWeatherForMinimap,
+        alkStations: alkStations,
+        monumentParts: monumentParts,
+        largeQuarries: largeQuarries,
+        livingCorals: visibleLivingCoralsMap,
+        showNames: minimapShowNames,
+        matronageMembers: matronageMembers,
+        matronages: matronages,
+        beaconDropEvents: beaconDropEvents,
+        droneEvents: droneEvents,
       });
-    }
+    };
 
-    drawMinimapOntoCanvas({
-      ctx,
-      players: validPlayers,
-      trees: validTrees,
-      stones: validStones,
-      runeStones: validRuneStones,
-      barrels: barrels instanceof Map ? barrels : new Map(),
-      campfires: validCampfires,
-      sleepingBags: validSleepingBags,
-      localPlayer,
-      localPlayerId,
-      viewCenterOffset,
-      playerPin: localPlayerPin,
-      canvasWidth: canvas.width,
-      canvasHeight: canvas.height,
-      isMouseOverMinimap,
-      zoomLevel: minimapZoom,
-      sleepingBagImage: itemImagesRef.current?.get('sleeping_bag.png'),
-      localPlayerDeathMarker: localPlayerDeathMarker,
-      deathMarkerImage: deathMarkerImg,
-      worldState: worldState,
-      minimapCache: minimapCache,
-      // Add the new minimap icon images
-      pinMarkerImage: pinMarkerImg,
-      campfireWarmthImage: campfireWarmthImg,
-      torchOnImage: torchOnImg,
-      // Add grid coordinates visibility preference
-      showGridCoordinates,
-      // Add minimap weather overlay props (separate from game canvas weather overlay)
-      showWeatherOverlay: minimapShowWeatherOverlay,
-      chunkWeatherData: chunkWeatherForMinimap,
-      // ALK delivery stations for minimap
-      alkStations: alkStations,
-      // Unified monument parts for minimap (will filter by type internally)
-      monumentParts: monumentParts,
-      // Large quarry locations with types for minimap labels
-      largeQuarries: largeQuarries,
-      // Living coral reefs for minimap (underwater resources)
-      livingCorals: visibleLivingCoralsMap,
-      // Show names toggle for minimap labels
-      showNames: minimapShowNames,
-      // Matronage system for player visibility
-      matronageMembers: matronageMembers,
-      matronages: matronages,
-      // Memory Beacon server events (airdrop-style)
-      beaconDropEvents: beaconDropEvents,
-      // Drone flyover events (periodic sky drone - globally subscribed)
-      droneEvents: droneEvents,
-    });
+    minimapDrawRef.current = doDraw;
+    doDraw();
   }, [
     isMinimapOpen,
     players,
@@ -5376,7 +5006,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     matronages,
     beaconDropEvents,
     droneEvents,
-    minimapDroneFrame, // tick when drones active (RAF-driven smooth interpolation)
   ]);
 
   // PERFORMANCE FIX: Removed duplicate useGameLoop(processInputsAndActions)

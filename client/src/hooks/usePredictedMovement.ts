@@ -349,11 +349,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
           }
         }
         
-        // Force update every frame during dodge roll for smooth camera tracking.
-        // Dodge rolls are short (500ms) and infrequent, so ~30 re-renders is acceptable.
-        // Unlike normal movement (throttled to 500ms), dodge rolls need per-frame camera
-        // updates because the player position changes rapidly and the camera must follow.
-        forceUpdate({});
+        // PERFORMANCE: Camera reads from predictedPositionRef in GameCanvas - no React re-render needed
         
         // Skip normal movement processing during dodge roll
         movementMonitor.logUpdate(performance.now() - updateStartTime, true);

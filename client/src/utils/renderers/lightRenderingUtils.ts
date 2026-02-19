@@ -11,6 +11,7 @@ import { BARBECUE_RENDER_Y_OFFSET, BARBECUE_HEIGHT } from '../renderers/barbecue
 import { BuildingCluster } from '../buildingVisibilityUtils';
 import { isCompoundMonument } from '../../config/compoundBuildings';
 import { FOUNDATION_TILE_SIZE } from '../../config/gameConfig';
+import { getCachedRadialGradient } from './gradientCacheUtils';
 
 // --- Indoor Light Containment Utilities ---
 
@@ -183,49 +184,32 @@ export const renderPlayerTorchLight = ({
             const rustixLightX = lightScreenX + asymmetryX;
             const rustixLightY = lightScreenY + asymmetryY;
 
-            // Layer 1: Large ambient glow (pitch/tar burning - golden yellow-orange)
+            // Layer 1: Large ambient glow (pitch/tar burning - golden yellow-orange) (Phase 3a: cached)
             const ambientRadius = Math.max(0, TORCH_LIGHT_RADIUS_BASE * 2.8 + baseFlicker * 0.4);
-            const ambientGradient = ctx.createRadialGradient(
-                rustixLightX, rustixLightY, 0,
-                rustixLightX, rustixLightY, ambientRadius
-            );
-            ambientGradient.addColorStop(0, 'rgba(240, 160, 80, 0.04)'); // More natural pitch/tar golden
-            ambientGradient.addColorStop(0.3, 'rgba(220, 130, 60, 0.025)'); // Warmer natural orange
-            ambientGradient.addColorStop(1, 'rgba(200, 100, 40, 0)'); // Natural golden fade
-            
-            ctx.fillStyle = ambientGradient;
+            const amb = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, ambientRadius,
+                [[0, 'rgba(240, 160, 80, 0.04)'], [0.3, 'rgba(220, 130, 60, 0.025)'], [1, 'rgba(200, 100, 40, 0)']],
+                4, 'torch_amb');
+            ctx.fillStyle = amb.gradient;
             ctx.beginPath();
-            ctx.arc(rustixLightX, rustixLightY, ambientRadius, 0, Math.PI * 2);
+            ctx.arc(amb.x, amb.y, amb.r, 0, Math.PI * 2);
             ctx.fill();
 
-            // Layer 2: Main illumination (pitch/tar characteristic glow)
+            // Layer 2: Main illumination (pitch/tar characteristic glow) (Phase 3a: cached)
             const mainRadius = Math.max(0, TORCH_LIGHT_RADIUS_BASE * 1.8 + baseFlicker * 0.8);
-            const mainGradient = ctx.createRadialGradient(
-                rustixLightX, rustixLightY, 0,
-                rustixLightX, rustixLightY, mainRadius
-            );
-            mainGradient.addColorStop(0, 'rgba(240, 200, 120, 0.16)'); // Natural pitch/tar golden
-            mainGradient.addColorStop(0.2, 'rgba(230, 170, 90, 0.13)'); // Rich natural amber
-            mainGradient.addColorStop(0.5, 'rgba(220, 140, 70, 0.08)'); // Warm natural orange
-            mainGradient.addColorStop(0.8, 'rgba(210, 120, 50, 0.04)'); // Natural golden orange
-            mainGradient.addColorStop(1, 'rgba(190, 100, 40, 0)'); // Natural golden fade
-            
-            ctx.fillStyle = mainGradient;
+            const main = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, mainRadius,
+                [[0, 'rgba(240, 200, 120, 0.16)'], [0.2, 'rgba(230, 170, 90, 0.13)'], [0.5, 'rgba(220, 140, 70, 0.08)'], [0.8, 'rgba(210, 120, 50, 0.04)'], [1, 'rgba(190, 100, 40, 0)']],
+                4, 'torch_main');
+            ctx.fillStyle = main.gradient;
             ctx.beginPath();
-            ctx.arc(rustixLightX, rustixLightY, mainRadius, 0, Math.PI * 2);
+            ctx.arc(main.x, main.y, main.r, 0, Math.PI * 2);
             ctx.fill();
 
-            // Layer 3: Core bright light (pitch/tar flame center)
+            // Layer 3: Core bright light (pitch/tar flame center) (Phase 3a: cached)
             const coreRadius = Math.max(0, TORCH_LIGHT_RADIUS_BASE * 0.5 + baseFlicker * 1.2);
-            const coreGradient = ctx.createRadialGradient(
-                rustixLightX, rustixLightY, 0,
-                rustixLightX, rustixLightY, coreRadius
-            );
-            coreGradient.addColorStop(0, 'rgba(245, 220, 160, 0.24)'); // Natural pitch/tar flame center
-            coreGradient.addColorStop(0.4, 'rgba(235, 190, 110, 0.16)'); // Natural golden yellow
-            coreGradient.addColorStop(1, 'rgba(220, 150, 80, 0)'); // Natural golden fade
-            
-            ctx.fillStyle = coreGradient;
+            const core = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, coreRadius,
+                [[0, 'rgba(245, 220, 160, 0.24)'], [0.4, 'rgba(235, 190, 110, 0.16)'], [1, 'rgba(220, 150, 80, 0)']],
+                4, 'torch_core');
+            ctx.fillStyle = core.gradient;
             ctx.beginPath();
             ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
             ctx.fill();
@@ -284,49 +268,32 @@ export const renderPlayerHeadlampLight = ({
     const rustixLightX = lightScreenX + asymmetryX;
     const rustixLightY = lightScreenY + asymmetryY;
 
-    // Layer 1: Large ambient glow (pitch/tar burning - golden yellow-orange) - same style as torch, scaled up
+    // Layer 1: Large ambient glow (pitch/tar burning - golden yellow-orange) (Phase 3a: cached)
     const ambientRadius = Math.max(0, HEADLAMP_LIGHT_RADIUS_BASE * 2.8 + baseFlicker * 0.4);
-    const ambientGradient = ctx.createRadialGradient(
-        rustixLightX, rustixLightY, 0,
-        rustixLightX, rustixLightY, ambientRadius
-    );
-    ambientGradient.addColorStop(0, 'rgba(240, 160, 80, 0.04)'); // More natural pitch/tar golden
-    ambientGradient.addColorStop(0.3, 'rgba(220, 130, 60, 0.025)'); // Warmer natural orange
-    ambientGradient.addColorStop(1, 'rgba(200, 100, 40, 0)'); // Natural golden fade
-    
-    ctx.fillStyle = ambientGradient;
+    const amb = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, ambientRadius,
+        [[0, 'rgba(240, 160, 80, 0.04)'], [0.3, 'rgba(220, 130, 60, 0.025)'], [1, 'rgba(200, 100, 40, 0)']],
+        4, 'headlamp_amb');
+    ctx.fillStyle = amb.gradient;
     ctx.beginPath();
-    ctx.arc(rustixLightX, rustixLightY, ambientRadius, 0, Math.PI * 2);
+    ctx.arc(amb.x, amb.y, amb.r, 0, Math.PI * 2);
     ctx.fill();
 
-    // Layer 2: Main illumination (pitch/tar characteristic glow) - same style as torch, scaled up
+    // Layer 2: Main illumination (pitch/tar characteristic glow) (Phase 3a: cached)
     const mainRadius = Math.max(0, HEADLAMP_LIGHT_RADIUS_BASE * 1.8 + baseFlicker * 0.8);
-    const mainGradient = ctx.createRadialGradient(
-        rustixLightX, rustixLightY, 0,
-        rustixLightX, rustixLightY, mainRadius
-    );
-    mainGradient.addColorStop(0, 'rgba(240, 200, 120, 0.16)'); // Natural pitch/tar golden
-    mainGradient.addColorStop(0.2, 'rgba(230, 170, 90, 0.13)'); // Rich natural amber
-    mainGradient.addColorStop(0.5, 'rgba(220, 140, 70, 0.08)'); // Warm natural orange
-    mainGradient.addColorStop(0.8, 'rgba(210, 120, 50, 0.04)'); // Natural golden orange
-    mainGradient.addColorStop(1, 'rgba(190, 100, 40, 0)'); // Natural golden fade
-    
-    ctx.fillStyle = mainGradient;
+    const main = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, mainRadius,
+        [[0, 'rgba(240, 200, 120, 0.16)'], [0.2, 'rgba(230, 170, 90, 0.13)'], [0.5, 'rgba(220, 140, 70, 0.08)'], [0.8, 'rgba(210, 120, 50, 0.04)'], [1, 'rgba(190, 100, 40, 0)']],
+        4, 'headlamp_main');
+    ctx.fillStyle = main.gradient;
     ctx.beginPath();
-    ctx.arc(rustixLightX, rustixLightY, mainRadius, 0, Math.PI * 2);
+    ctx.arc(main.x, main.y, main.r, 0, Math.PI * 2);
     ctx.fill();
 
-    // Layer 3: Core bright light (pitch/tar flame center) - same style as torch, scaled up
+    // Layer 3: Core bright light (pitch/tar flame center) (Phase 3a: cached)
     const coreRadius = Math.max(0, HEADLAMP_LIGHT_RADIUS_BASE * 0.5 + baseFlicker * 1.2);
-    const coreGradient = ctx.createRadialGradient(
-        rustixLightX, rustixLightY, 0,
-        rustixLightX, rustixLightY, coreRadius
-    );
-    coreGradient.addColorStop(0, 'rgba(245, 220, 160, 0.24)'); // Natural pitch/tar flame center
-    coreGradient.addColorStop(0.4, 'rgba(235, 190, 110, 0.16)'); // Natural golden yellow
-    coreGradient.addColorStop(1, 'rgba(220, 150, 80, 0)'); // Natural golden fade
-    
-    ctx.fillStyle = coreGradient;
+    const core = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, coreRadius,
+        [[0, 'rgba(245, 220, 160, 0.24)'], [0.4, 'rgba(235, 190, 110, 0.16)'], [1, 'rgba(220, 150, 80, 0)']],
+        4, 'headlamp_core');
+    ctx.fillStyle = core.gradient;
     ctx.beginPath();
     ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
     ctx.fill();

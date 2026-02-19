@@ -405,6 +405,14 @@ export const useSpacetimeTables = ({
     // Hysteresis system for delayed unsubscription
     const chunkUnsubscribeTimersRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
 
+    // Phase 4a: queueMicrotask batching for entity inserts (collapses N Map copies into 1 per microtask)
+    const treeBatchRef = useRef<SpacetimeDB.Tree[]>([]);
+    const treeFlushScheduledRef = useRef(false);
+    const stoneBatchRef = useRef<SpacetimeDB.Stone[]>([]);
+    const stoneFlushScheduledRef = useRef(false);
+    const campfireBatchRef = useRef<SpacetimeDB.Campfire[]>([]);
+    const campfireFlushScheduledRef = useRef(false);
+
     // PERF: Track chunk crossing frequency for lag spike detection
     const chunkCrossingStatsRef = useRef<{ lastCrossing: number; crossingCount: number; lastResetTime: number }>({
         lastCrossing: 0,
@@ -936,8 +944,23 @@ export const useSpacetimeTables = ({
                 }
             };
 
-            // --- Tree Subscriptions ---
-            const handleTreeInsert = (ctx: any, tree: SpacetimeDB.Tree) => setTrees(prev => new Map(prev).set(tree.id.toString(), tree));
+            // --- Tree Subscriptions (Phase 4a: batched inserts) ---
+            const handleTreeInsert = (ctx: any, tree: SpacetimeDB.Tree) => {
+                treeBatchRef.current.push(tree);
+                if (!treeFlushScheduledRef.current) {
+                    treeFlushScheduledRef.current = true;
+                    queueMicrotask(() => {
+                        const batch = treeBatchRef.current;
+                        treeBatchRef.current = [];
+                        treeFlushScheduledRef.current = false;
+                        setTrees(prev => {
+                            const next = new Map(prev);
+                            for (const t of batch) next.set(t.id.toString(), t);
+                            return next;
+                        });
+                    });
+                }
+            };
             const handleTreeUpdate = (ctx: any, oldTree: SpacetimeDB.Tree, newTree: SpacetimeDB.Tree) => {
                 // PERFORMANCE FIX: Only update for visually significant changes
                 // Ignore lastHitTime micro-updates that cause excessive re-renders
@@ -954,8 +977,23 @@ export const useSpacetimeTables = ({
             };
             const handleTreeDelete = (ctx: any, tree: SpacetimeDB.Tree) => setTrees(prev => { const newMap = new Map(prev); newMap.delete(tree.id.toString()); return newMap; });
 
-            // --- Stone Subscriptions ---
-            const handleStoneInsert = (ctx: any, stone: SpacetimeDB.Stone) => setStones(prev => new Map(prev).set(stone.id.toString(), stone));
+            // --- Stone Subscriptions (Phase 4a: batched inserts) ---
+            const handleStoneInsert = (ctx: any, stone: SpacetimeDB.Stone) => {
+                stoneBatchRef.current.push(stone);
+                if (!stoneFlushScheduledRef.current) {
+                    stoneFlushScheduledRef.current = true;
+                    queueMicrotask(() => {
+                        const batch = stoneBatchRef.current;
+                        stoneBatchRef.current = [];
+                        stoneFlushScheduledRef.current = false;
+                        setStones(prev => {
+                            const next = new Map(prev);
+                            for (const s of batch) next.set(s.id.toString(), s);
+                            return next;
+                        });
+                    });
+                }
+            };
             const handleStoneUpdate = (ctx: any, oldStone: SpacetimeDB.Stone, newStone: SpacetimeDB.Stone) => {
                 // PERFORMANCE FIX: Only update for visually significant changes
                 // Ignore lastHitTime micro-updates that cause excessive re-renders
@@ -1018,11 +1056,27 @@ export const useSpacetimeTables = ({
                 setPlayerDiscoveredCairns(prev => { const newMap = new Map(prev); newMap.delete(discovery.id.toString()); return newMap; });
             };
 
-            // --- Campfire Subscriptions ---
+            // --- Campfire Subscriptions (Phase 4a: batched inserts) ---
             const handleCampfireInsert = (ctx: any, campfire: SpacetimeDB.Campfire) => {
-                setCampfires(prev => new Map(prev).set(campfire.id.toString(), campfire));
-                if (connection.identity && campfire.placedBy && campfire.placedBy.isEqual(connection.identity)) {
-                    cancelPlacementRef.current();
+                campfireBatchRef.current.push(campfire);
+                if (!campfireFlushScheduledRef.current) {
+                    campfireFlushScheduledRef.current = true;
+                    queueMicrotask(() => {
+                        const batch = campfireBatchRef.current;
+                        campfireBatchRef.current = [];
+                        campfireFlushScheduledRef.current = false;
+                        for (const c of batch) {
+                            if (connection.identity && c.placedBy && c.placedBy.isEqual(connection.identity)) {
+                                cancelPlacementRef.current();
+                                break;
+                            }
+                        }
+                        setCampfires(prev => {
+                            const next = new Map(prev);
+                            for (const c of batch) next.set(c.id.toString(), c);
+                            return next;
+                        });
+                    });
                 }
             };
             const handleCampfireUpdate = (ctx: any, oldFire: SpacetimeDB.Campfire, newFire: SpacetimeDB.Campfire) => setCampfires(prev => new Map(prev).set(newFire.id.toString(), newFire));
