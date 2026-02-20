@@ -5,6 +5,9 @@ import { buildGameContext, type GameContextBuilderProps } from '../utils/gameCon
 import sovaIcon from '../assets/ui/sova.png';
 import './VoiceInterface.css';
 import { kokoroService } from '../services/kokoroService';
+import { parseCraftIntent, resolveRecipeByName, getCraftFeedback } from '../utils/craftIntentParser';
+import type { Recipe } from '../generated';
+import type { Identity } from 'spacetimedb';
 
 // TTS Provider selection: 'kokoro' (default) | 'auto' (auto-detect)
 const TTS_PROVIDER = import.meta.env.VITE_TTS_PROVIDER || 'kokoro';
@@ -49,6 +52,9 @@ interface VoiceInterfaceProps {
   itemDefinitions?: Map<string, any>;
   activeEquipments?: Map<string, any>;
   inventoryItems?: Map<string, any>;
+  recipes?: Map<string, Recipe>;
+  playerIdentity?: Identity | null;
+  connection?: { reducers?: { startCraftingMultiple: (recipeId: bigint, quantity: number) => void } } | null;
   // NEW: Callback to update loading states for external loading bar
   onLoadingStateChange?: (state: {
     isRecording: boolean;
@@ -83,6 +89,9 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
   itemDefinitions,
   activeEquipments,
   inventoryItems,
+  recipes,
+  playerIdentity,
+  connection,
   onLoadingStateChange,
 }) => {
   const [voiceState, setVoiceState] = useState<VoiceState>({
@@ -241,6 +250,62 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
         }
       } else {
         console.warn('[VoiceInterface] Cannot add user message - onAddSOVAMessage not available or empty text');
+      }
+
+      // Phase 5: Craft intent - intercept before LLM
+      const craftIntent = parseCraftIntent(transcribedText);
+      if (craftIntent && recipes && itemDefinitions && inventoryItems) {
+        const recipe = resolveRecipeByName(craftIntent.recipeName, recipes, itemDefinitions);
+        if (recipe) {
+          const feedback = getCraftFeedback(
+            recipe,
+            craftIntent.quantity,
+            inventoryItems,
+            itemDefinitions,
+            playerIdentity ?? null
+          );
+
+          if (feedback.success && connection?.reducers) {
+            try {
+              connection.reducers.startCraftingMultiple(recipe.recipeId, craftIntent.quantity);
+            } catch (err) {
+              console.error('[VoiceInterface] Craft reducer error:', err);
+              feedback.message = `Crafting failed: ${(err as Error).message}`;
+            }
+          }
+
+          const botResponse = {
+            id: `sova-voice-${Date.now()}`,
+            text: feedback.message,
+            isUser: false,
+            timestamp: new Date()
+          };
+          if (onAddSOVAMessage) {
+            onAddSOVAMessage(botResponse);
+          }
+          setVoiceState(prev => ({
+            ...prev,
+            isGeneratingResponse: false,
+          }));
+          processingRef.current = false;
+          return;
+        } else {
+          const unknownResponse = {
+            id: `sova-voice-${Date.now()}`,
+            text: `I don't know how to craft "${craftIntent.recipeName}". Try a different item name or check the crafting menu.`,
+            isUser: false,
+            timestamp: new Date()
+          };
+          if (onAddSOVAMessage) {
+            onAddSOVAMessage(unknownResponse);
+          }
+          setVoiceState(prev => ({
+            ...prev,
+            isGeneratingResponse: false,
+          }));
+          processingRef.current = false;
+          return;
+        }
       }
 
       // Generate AI response with comprehensive timing tracking

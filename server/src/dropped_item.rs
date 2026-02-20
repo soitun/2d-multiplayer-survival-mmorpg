@@ -13,6 +13,7 @@
 
 use spacetimedb::{Identity, ReducerContext, SpacetimeType, Table, Timestamp, TimeDuration};
 use log;
+use serde::Deserialize;
 // Use the specific import path from Blackholio
 use spacetimedb::spacetimedb_lib::ScheduleAt;
 // Import Duration for interval
@@ -61,6 +62,17 @@ pub struct DroppedItemDespawnSchedule {
     #[auto_inc]
     pub id: u64, 
     pub scheduled_at: ScheduleAt, 
+}
+
+// --- Flare Expiry Schedule ---
+// Flares on ground have a fixed lifetime; timer does NOT continue in inventory/container.
+#[spacetimedb::table(name = flare_expiry_schedule, scheduled(check_flare_expiry))]
+#[derive(Clone)]
+pub struct FlareExpirySchedule {
+    #[primary_key]
+    #[auto_inc]
+    pub id: u64,
+    pub scheduled_at: ScheduleAt,
 }
 
 // Constants
@@ -291,6 +303,62 @@ pub fn despawn_expired_items(ctx: &ReducerContext, _schedule: DroppedItemDespawn
     }
 
     Ok(())
+}
+
+#[derive(Deserialize)]
+struct FlareTimerData {
+    flare_expires_at: f64,
+}
+
+/// Expires flare DroppedItems when their ground-only timer runs out.
+/// Flare timer does NOT continue in inventory/container.
+#[spacetimedb::reducer]
+pub fn check_flare_expiry(ctx: &ReducerContext, _schedule: FlareExpirySchedule) -> Result<(), String> {
+    if ctx.sender != ctx.identity() {
+        return Err("check_flare_expiry may only be called by the scheduler.".into());
+    }
+
+    let flare_def_id = match ctx.db.item_definition().iter().find(|d| d.name == "Flare") {
+        Some(d) => d.id,
+        None => return Ok(()),
+    };
+
+    let now_secs = ctx.timestamp.to_micros_since_unix_epoch() as f64 / 1_000_000.0;
+    let to_delete: Vec<u64> = ctx.db.dropped_item().iter()
+        .filter(|d| d.item_def_id == flare_def_id)
+        .filter_map(|d| {
+            let data = d.item_data.as_ref()?;
+            let timer: FlareTimerData = serde_json::from_str(data).ok()?;
+            if timer.flare_expires_at <= now_secs {
+                Some(d.id)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    for id in to_delete {
+        ctx.db.dropped_item().id().delete(&id);
+        log::info!("[FlareExpiry] Expired flare dropped item {}", id);
+    }
+
+    Ok(())
+}
+
+/// Initialize flare expiry schedule. Call from init reducer.
+pub fn init_flare_expiry_schedule(ctx: &ReducerContext) {
+    if ctx.db.flare_expiry_schedule().iter().next().is_some() {
+        return;
+    }
+    let interval = TimeDuration::from_micros(2 * 1_000_000); // Check every 2 seconds
+    crate::try_insert_schedule!(
+        ctx.db.flare_expiry_schedule(),
+        FlareExpirySchedule {
+            id: 0,
+            scheduled_at: ScheduleAt::Interval(interval),
+        },
+        "Flare expiry check"
+    );
 }
 
 // --- Helper Functions (Internal to this module) ---

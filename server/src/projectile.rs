@@ -564,16 +564,16 @@ pub fn fire_projectile(
     let final_vx: f32;
     let final_vy: f32;
 
-    // Crossbows fire in a straight line with minimal gravity effect
-    if item_def.name == "Crossbow" {
+    // Crossbows, Grenade, and Flare fire in a straight line with no gravity (no bounce)
+    if item_def.name == "Crossbow" || item_def.name == "Grenade" || item_def.name == "Flare" {
         let distance = distance_sq.sqrt();
         let time_to_target = distance / v0;
         
-        // Direct line calculation - no gravity pre-compensation since minimal gravity will be applied during flight
+        // Direct line calculation - no gravity
         final_vx = delta_x / time_to_target;
-        final_vy = delta_y / time_to_target; // Simple straight-line trajectory
+        final_vy = delta_y / time_to_target;
         
-        log::info!("Crossbow fired: straight-line trajectory. Distance: {:.1}, Time: {:.3}s", distance, time_to_target);
+        log::info!("{} fired: straight-line trajectory. Distance: {:.1}, Time: {:.3}s", item_def.name, distance, time_to_target);
     } else if item_def.name == "Makarov PM" || item_def.name == "PP-91 KEDR" {
         // Firearms use fast arc physics - very fast projectile with reduced gravity (0.15 multiplier)
         let firearm_gravity = g * 0.15; // 15% of normal gravity for fast arc
@@ -703,6 +703,8 @@ pub fn fire_projectile(
     } else if item_def.name == "Reed Harpoon Gun" {
         // Use crossbow sound as placeholder for harpoon gun (mechanical projectile)
         sound_events::emit_shoot_crossbow_sound(ctx, spawn_x, spawn_y, player_id);
+    } else if item_def.name == "Grenade" || item_def.name == "Flare" {
+        sound_events::emit_item_thrown_sound(ctx, spawn_x, spawn_y, player_id);
     }
 
     // Update last attack timestamp
@@ -2767,8 +2769,16 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             .map(|p| p.ammo_def_id == p.item_def_id)
             .unwrap_or(false);
         
-        // Different break chances: 5% for thrown weapons, 15% for arrows/projectiles
-        let break_chance = if is_thrown_weapon {
+        // Grenade and Flare never break on impact - they always land as dropped items with timer metadata
+        let is_grenade_or_flare = ammo_item_def
+            .as_ref()
+            .map(|def| def.name == "Grenade" || def.name == "Flare")
+            .unwrap_or(false);
+
+        // Different break chances: 0% for grenade/flare, 5% for thrown weapons, 15% for arrows/projectiles
+        let break_chance = if is_grenade_or_flare {
+            0.0
+        } else if is_thrown_weapon {
             0.05 // 5% chance for thrown weapons to break
         } else {
             0.15 // 15% chance for arrows and other projectiles to break
@@ -2790,7 +2800,46 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             continue; // Skip creating dropped item - projectile is destroyed
         }
         
-        match dropped_item::create_dropped_item_entity(ctx, ammo_def_id, 1, pos_x, pos_y) {
+        // Build item_data for Grenade (fuse) and Flare (light duration) - they become dropped items with timers
+        let projectile_record_for_owner = ctx.db.projectile().id().find(&projectile_id);
+        let grenade_owner_hex = projectile_record_for_owner
+            .map(|p| p.owner_id.to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+        let item_data = if let Some(ref def) = ammo_item_def {
+            if def.name == "Grenade" {
+                let fuse_duration_secs = 5.0 + (rng.gen::<f32>() * 5.0); // 5-10 seconds
+                let detonates_at = ctx.timestamp.to_micros_since_unix_epoch() as f64 / 1_000_000.0 + fuse_duration_secs as f64;
+                Some(format!(
+                    r#"{{"fuse_started_at":{},"fuse_duration_secs":{},"fuse_detonates_at":{},"fuse_thrower":"{}"}}"#,
+                    ctx.timestamp.to_micros_since_unix_epoch() as f64 / 1_000_000.0,
+                    fuse_duration_secs,
+                    detonates_at,
+                    grenade_owner_hex
+                ))
+            } else if def.name == "Flare" {
+                const FLARE_DURATION_SECS: f64 = 60.0;
+                let started_at = ctx.timestamp.to_micros_since_unix_epoch() as f64 / 1_000_000.0;
+                let expires_at = started_at + FLARE_DURATION_SECS;
+                Some(format!(
+                    r#"{{"flare_started_at":{},"flare_duration_secs":{},"flare_expires_at":{}}}"#,
+                    started_at,
+                    FLARE_DURATION_SECS,
+                    expires_at
+                ))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        
+        let create_result = if let Some(ref data) = item_data {
+            dropped_item::create_dropped_item_entity_with_data(ctx, ammo_def_id, 1, pos_x, pos_y, Some(data.clone()))
+        } else {
+            dropped_item::create_dropped_item_entity(ctx, ammo_def_id, 1, pos_x, pos_y)
+        };
+        
+        match create_result {
             Ok(_) => {
                 log::info!("[ProjectileMiss] Created dropped '{}' (def_id: {}) at ({:.1}, {:.1}) for missed projectile {}", 
                          ammo_name, ammo_def_id, pos_x, pos_y, projectile_id);

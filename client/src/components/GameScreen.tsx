@@ -1398,6 +1398,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 itemDefinitions={itemDefinitions}
                 activeEquipments={activeEquipments}
                 inventoryItems={inventoryItems}
+                recipes={recipes}
+                playerIdentity={playerIdentity}
                 isMobile={props.isMobile}
                 isMobileChatOpen={isMobileChatOpen}
                 matronageMembers={matronageMembers}
@@ -1491,6 +1493,9 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     itemDefinitions={itemDefinitions}
                     activeEquipments={activeEquipments}
                     inventoryItems={inventoryItems}
+                    recipes={recipes}
+                    playerIdentity={playerIdentity}
+                    connection={connection}
                     onLoadingStateChange={handleSOVALoadingStateChange}
                 />
             )}

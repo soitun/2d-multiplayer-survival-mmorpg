@@ -61,6 +61,10 @@ import { CheckExplosiveDetonations } from "./check_explosive_detonations_reducer
 export { CheckExplosiveDetonations };
 import { CheckFinishedCrafting } from "./check_finished_crafting_reducer.ts";
 export { CheckFinishedCrafting };
+import { CheckFlareExpiry } from "./check_flare_expiry_reducer.ts";
+export { CheckFlareExpiry };
+import { CheckGrenadeFuses } from "./check_grenade_fuses_reducer.ts";
+export { CheckGrenadeFuses };
 import { CheckPlantGrowth } from "./check_plant_growth_reducer.ts";
 export { CheckPlantGrowth };
 import { CheckResourceRespawns } from "./check_resource_respawns_reducer.ts";
@@ -947,6 +951,8 @@ import { FishTrapProcessScheduleTableHandle } from "./fish_trap_process_schedule
 export { FishTrapProcessScheduleTableHandle };
 import { FishingSessionTableHandle } from "./fishing_session_table.ts";
 export { FishingSessionTableHandle };
+import { FlareExpiryScheduleTableHandle } from "./flare_expiry_schedule_table.ts";
+export { FlareExpiryScheduleTableHandle };
 import { FoodPoisoningRiskTableHandle } from "./food_poisoning_risk_table.ts";
 export { FoodPoisoningRiskTableHandle };
 import { FoodSpoilageScheduleTableHandle } from "./food_spoilage_schedule_table.ts";
@@ -969,6 +975,8 @@ import { GrassRespawnBatchScheduleTableHandle } from "./grass_respawn_batch_sche
 export { GrassRespawnBatchScheduleTableHandle };
 import { GrassStateTableHandle } from "./grass_state_table.ts";
 export { GrassStateTableHandle };
+import { GrenadeFuseScheduleTableHandle } from "./grenade_fuse_schedule_table.ts";
+export { GrenadeFuseScheduleTableHandle };
 import { HarvestableResourceTableHandle } from "./harvestable_resource_table.ts";
 export { HarvestableResourceTableHandle };
 import { HearthUpkeepQueryResultTableHandle } from "./hearth_upkeep_query_result_table.ts";
@@ -1365,6 +1373,8 @@ import { FishTrapProcessSchedule } from "./fish_trap_process_schedule_type.ts";
 export { FishTrapProcessSchedule };
 import { FishingSession } from "./fishing_session_type.ts";
 export { FishingSession };
+import { FlareExpirySchedule } from "./flare_expiry_schedule_type.ts";
+export { FlareExpirySchedule };
 import { FlexibleIngredient } from "./flexible_ingredient_type.ts";
 export { FlexibleIngredient };
 import { FoodPoisoningRisk } from "./food_poisoning_risk_type.ts";
@@ -1391,6 +1401,8 @@ import { GrassRespawnBatchSchedule } from "./grass_respawn_batch_schedule_type.t
 export { GrassRespawnBatchSchedule };
 import { GrassState } from "./grass_state_type.ts";
 export { GrassState };
+import { GrenadeFuseSchedule } from "./grenade_fuse_schedule_type.ts";
+export { GrenadeFuseSchedule };
 import { HarvestableResource } from "./harvestable_resource_type.ts";
 export { HarvestableResource };
 import { HearthUpkeepQueryResult } from "./hearth_upkeep_query_result_type.ts";
@@ -2243,6 +2255,15 @@ const REMOTE_MODULE = {
         colType: (FishingSession.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
+    flare_expiry_schedule: {
+      tableName: "flare_expiry_schedule" as const,
+      rowType: FlareExpirySchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (FlareExpirySchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
     food_poisoning_risk: {
       tableName: "food_poisoning_risk" as const,
       rowType: FoodPoisoningRisk.getTypeScriptAlgebraicType(),
@@ -2340,6 +2361,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "grassId",
         colType: (GrassState.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    grenade_fuse_schedule: {
+      tableName: "grenade_fuse_schedule" as const,
+      rowType: GrenadeFuseSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "id",
+      primaryKeyInfo: {
+        colName: "id",
+        colType: (GrenadeFuseSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     harvestable_resource: {
@@ -3384,6 +3414,14 @@ const REMOTE_MODULE = {
     check_finished_crafting: {
       reducerName: "check_finished_crafting",
       argsType: CheckFinishedCrafting.getTypeScriptAlgebraicType(),
+    },
+    check_flare_expiry: {
+      reducerName: "check_flare_expiry",
+      argsType: CheckFlareExpiry.getTypeScriptAlgebraicType(),
+    },
+    check_grenade_fuses: {
+      reducerName: "check_grenade_fuses",
+      argsType: CheckGrenadeFuses.getTypeScriptAlgebraicType(),
     },
     check_plant_growth: {
       reducerName: "check_plant_growth",
@@ -4946,6 +4984,8 @@ export type Reducer = never
 | { name: "CheckBuildingPrivilegeDistance", args: CheckBuildingPrivilegeDistance }
 | { name: "CheckExplosiveDetonations", args: CheckExplosiveDetonations }
 | { name: "CheckFinishedCrafting", args: CheckFinishedCrafting }
+| { name: "CheckFlareExpiry", args: CheckFlareExpiry }
+| { name: "CheckGrenadeFuses", args: CheckGrenadeFuses }
 | { name: "CheckPlantGrowth", args: CheckPlantGrowth }
 | { name: "CheckResourceRespawns", args: CheckResourceRespawns }
 | { name: "CleanupExpiredAnimalCorpses", args: CleanupExpiredAnimalCorpses }
@@ -5556,6 +5596,38 @@ export class RemoteReducers {
 
   removeOnCheckFinishedCrafting(callback: (ctx: ReducerEventContext, schedule: CraftingFinishSchedule) => void) {
     this.connection.offReducer("check_finished_crafting", callback);
+  }
+
+  checkFlareExpiry(schedule: FlareExpirySchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    CheckFlareExpiry.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("check_flare_expiry", __argsBuffer, this.setCallReducerFlags.checkFlareExpiryFlags);
+  }
+
+  onCheckFlareExpiry(callback: (ctx: ReducerEventContext, schedule: FlareExpirySchedule) => void) {
+    this.connection.onReducer("check_flare_expiry", callback);
+  }
+
+  removeOnCheckFlareExpiry(callback: (ctx: ReducerEventContext, schedule: FlareExpirySchedule) => void) {
+    this.connection.offReducer("check_flare_expiry", callback);
+  }
+
+  checkGrenadeFuses(schedule: GrenadeFuseSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    CheckGrenadeFuses.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("check_grenade_fuses", __argsBuffer, this.setCallReducerFlags.checkGrenadeFusesFlags);
+  }
+
+  onCheckGrenadeFuses(callback: (ctx: ReducerEventContext, schedule: GrenadeFuseSchedule) => void) {
+    this.connection.onReducer("check_grenade_fuses", callback);
+  }
+
+  removeOnCheckGrenadeFuses(callback: (ctx: ReducerEventContext, schedule: GrenadeFuseSchedule) => void) {
+    this.connection.offReducer("check_grenade_fuses", callback);
   }
 
   checkPlantGrowth(args: PlantedSeedGrowthSchedule) {
@@ -11496,6 +11568,16 @@ export class SetReducerFlags {
     this.checkFinishedCraftingFlags = flags;
   }
 
+  checkFlareExpiryFlags: __CallReducerFlags = 'FullUpdate';
+  checkFlareExpiry(flags: __CallReducerFlags) {
+    this.checkFlareExpiryFlags = flags;
+  }
+
+  checkGrenadeFusesFlags: __CallReducerFlags = 'FullUpdate';
+  checkGrenadeFuses(flags: __CallReducerFlags) {
+    this.checkGrenadeFusesFlags = flags;
+  }
+
   checkPlantGrowthFlags: __CallReducerFlags = 'FullUpdate';
   checkPlantGrowth(flags: __CallReducerFlags) {
     this.checkPlantGrowthFlags = flags;
@@ -13701,6 +13783,11 @@ export class RemoteTables {
     return new FishingSessionTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FishingSession>(REMOTE_MODULE.tables.fishing_session));
   }
 
+  get flareExpirySchedule(): FlareExpiryScheduleTableHandle<'flare_expiry_schedule'> {
+    // clientCache is a private property
+    return new FlareExpiryScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FlareExpirySchedule>(REMOTE_MODULE.tables.flare_expiry_schedule));
+  }
+
   get foodPoisoningRisk(): FoodPoisoningRiskTableHandle<'food_poisoning_risk'> {
     // clientCache is a private property
     return new FoodPoisoningRiskTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<FoodPoisoningRisk>(REMOTE_MODULE.tables.food_poisoning_risk));
@@ -13754,6 +13841,11 @@ export class RemoteTables {
   get grassState(): GrassStateTableHandle<'grass_state'> {
     // clientCache is a private property
     return new GrassStateTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<GrassState>(REMOTE_MODULE.tables.grass_state));
+  }
+
+  get grenadeFuseSchedule(): GrenadeFuseScheduleTableHandle<'grenade_fuse_schedule'> {
+    // clientCache is a private property
+    return new GrenadeFuseScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<GrenadeFuseSchedule>(REMOTE_MODULE.tables.grenade_fuse_schedule));
   }
 
   get harvestableResource(): HarvestableResourceTableHandle<'harvestable_resource'> {

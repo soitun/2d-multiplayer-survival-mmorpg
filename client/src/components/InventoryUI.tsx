@@ -64,6 +64,7 @@ import ItemInteractionPanel from './ItemInteractionPanel';
 import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
 // Import durability helpers
 import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, formatDurability, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining, getMaxDurability, MAX_DURABILITY } from '../utils/durabilityHelpers';
+import { formatGrenadeCountdown } from '../utils/grenadeMetadataHelpers';
 import { isCombatLadleHot } from '../utils/itemIconUtils';
 import DurabilityBar from './DurabilityBar';
 // Import arrow damage calculation helpers
@@ -544,6 +545,18 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                 }
             }
 
+            // Grenade fuse countdown (inventory/hotbar/equipped/container)
+            if (def.name === 'Grenade') {
+                const countdown = formatGrenadeCountdown(item.instance);
+                if (countdown) {
+                    stats.push({ 
+                        label: 'Fuse', 
+                        value: countdown, 
+                        color: countdown === 'Detonating…' ? '#ff4444' : '#ffaa00' 
+                    });
+                }
+            }
+
             const content: TooltipContent = {
                 name: def.name,
                 description: def.description,
@@ -993,6 +1006,18 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                         label: 'Durability', 
                         value: durabilityDisplay, 
                         color: durabilityColor.replace('0.8)', '1)')
+                    });
+                }
+            }
+
+            // Grenade fuse countdown (external container)
+            if (def.name === 'Grenade') {
+                const countdown = formatGrenadeCountdown(item.instance);
+                if (countdown) {
+                    stats.push({ 
+                        label: 'Fuse', 
+                        value: countdown, 
+                        color: countdown === 'Detonating…' ? '#ff4444' : '#ffaa00' 
                     });
                 }
             }

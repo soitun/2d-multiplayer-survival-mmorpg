@@ -385,22 +385,33 @@ fn detonate_explosive(ctx: &ReducerContext, explosive: PlacedExplosive) {
 
 // --- Explosion Damage Function ---
 fn apply_explosion_damage(ctx: &ReducerContext, explosive: &PlacedExplosive) {
-    let blast_radius_sq = explosive.blast_radius * explosive.blast_radius;
-    
-    // Damage structures (walls, doors, foundations) - pass explosive placer for PvP checks
-    damage_structures_in_radius(ctx, explosive.placed_by, explosive.pos_x, explosive.pos_y, explosive.blast_radius, blast_radius_sq, explosive.structure_damage);
-    
-    // Damage placeables (furnaces, boxes, lanterns, stashes, etc.)
-    damage_placeables_in_radius(ctx, explosive.pos_x, explosive.pos_y, explosive.blast_radius, blast_radius_sq, explosive.structure_damage);
-    
-    // Damage natural resources (trees, stones, grass, barrels, coral)
-    damage_resources_in_radius(ctx, explosive.pos_x, explosive.pos_y, explosive.blast_radius, blast_radius_sq, explosive.structure_damage);
-    
-    // Damage wild animals
-    damage_animals_in_radius(ctx, explosive.pos_x, explosive.pos_y, explosive.blast_radius, blast_radius_sq, explosive.player_damage);
-    
-    // Damage players (friendly fire!)
-    damage_players_in_radius(ctx, explosive.pos_x, explosive.pos_y, explosive.blast_radius, blast_radius_sq, explosive.player_damage);
+    apply_explosion_damage_at_position(
+        ctx,
+        explosive.placed_by,
+        explosive.pos_x,
+        explosive.pos_y,
+        explosive.blast_radius,
+        explosive.structure_damage,
+        explosive.player_damage,
+    );
+}
+
+/// Public helper for applying explosion damage at a position. Used by grenade fuse detonations.
+pub fn apply_explosion_damage_at_position(
+    ctx: &ReducerContext,
+    attacker_id: Identity,
+    center_x: f32,
+    center_y: f32,
+    blast_radius: f32,
+    structure_damage: f32,
+    player_damage: f32,
+) {
+    let blast_radius_sq = blast_radius * blast_radius;
+    damage_structures_in_radius(ctx, attacker_id, center_x, center_y, blast_radius, blast_radius_sq, structure_damage);
+    damage_placeables_in_radius(ctx, attacker_id, center_x, center_y, blast_radius, blast_radius_sq, structure_damage);
+    damage_resources_in_radius(ctx, attacker_id, center_x, center_y, blast_radius, blast_radius_sq, structure_damage);
+    damage_animals_in_radius(ctx, center_x, center_y, blast_radius, blast_radius_sq, player_damage);
+    damage_players_in_radius_with_attacker(ctx, attacker_id, center_x, center_y, blast_radius, blast_radius_sq, player_damage);
 }
 
 // --- Structure Damage ---
@@ -453,9 +464,8 @@ fn damage_structures_in_radius(ctx: &ReducerContext, attacker_id: Identity, cent
 }
 
 // --- Placeable Damage ---
-fn damage_placeables_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32, _radius: f32, radius_sq: f32, damage: f32) {
+fn damage_placeables_in_radius(ctx: &ReducerContext, attacker_id: Identity, center_x: f32, center_y: f32, _radius: f32, radius_sq: f32, damage: f32) {
     let current_time = ctx.timestamp;
-    let attacker_id = ctx.sender; // Use explosive placer as attacker
     let mut rng = ctx.rng();
     
     // Damage campfires
@@ -559,9 +569,8 @@ fn damage_placeables_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f3
 }
 
 // --- Natural Resource Damage (Trees, Stones, Grass, Barrels, Coral) ---
-fn damage_resources_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32, _radius: f32, radius_sq: f32, damage: f32) {
+fn damage_resources_in_radius(ctx: &ReducerContext, attacker_id: Identity, center_x: f32, center_y: f32, _radius: f32, radius_sq: f32, damage: f32) {
     let current_time = ctx.timestamp;
-    let attacker_id = ctx.sender;
     let mut rng = ctx.rng();
     
     // Damage trees
@@ -694,7 +703,10 @@ fn damage_animals_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32, 
 
 // --- Player Damage (Friendly Fire) ---
 fn damage_players_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32, radius: f32, radius_sq: f32, damage: f32) {
-    let attacker_id = ctx.sender;
+    damage_players_in_radius_with_attacker(ctx, ctx.sender, center_x, center_y, radius, radius_sq, damage);
+}
+
+fn damage_players_in_radius_with_attacker(ctx: &ReducerContext, attacker_id: Identity, center_x: f32, center_y: f32, _radius: f32, radius_sq: f32, damage: f32) {
     let current_time = ctx.timestamp;
     
     // Create a dummy item definition for explosion damage

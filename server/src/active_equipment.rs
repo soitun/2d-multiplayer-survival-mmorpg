@@ -295,8 +295,13 @@ pub fn set_active_item_reducer(ctx: &ReducerContext, item_instance_id: u64) -> R
     equipment.icon_asset_name = Some(item_def.icon_asset_name.clone());
     
     // --- LOAD NEW WEAPON'S AMMO STATE ---
-    // Check if this weapon was previously loaded (has ammo data stored)
-    if let Some(ammo_data) = load_weapon_ammo_from_item(&item_to_make_active) {
+    // Grenade and Flare are self-ammo RangedWeapons: the item itself is the projectile. Auto-load when equipped.
+    if item_def.name == "Grenade" || item_def.name == "Flare" {
+        equipment.loaded_ammo_def_id = Some(item_def.id);
+        equipment.loaded_ammo_count = 1;
+        equipment.is_ready_to_fire = true;
+        log::info!("[SetActiveItem] Auto-loaded {} (self-ammo) for player {:?}", item_def.name, sender_id);
+    } else if let Some(ammo_data) = load_weapon_ammo_from_item(&item_to_make_active) {
         // Restore the loaded ammo state from the weapon's item_data
         equipment.loaded_ammo_def_id = Some(ammo_data.loaded_ammo_def_id);
         equipment.loaded_ammo_count = ammo_data.loaded_ammo_count;
@@ -486,6 +491,11 @@ pub fn load_ranged_weapon(ctx: &ReducerContext) -> Result<(), String> {
     // Check if the equipped item is a ranged weapon
     if item_def.category != crate::items::ItemCategory::RangedWeapon {
         return Err("Equipped item is not a ranged weapon.".to_string());
+    }
+
+    // Grenade and Flare are self-ammo; they are auto-loaded when equipped. No manual load needed.
+    if item_def.name == "Grenade" || item_def.name == "Flare" {
+        return Ok(());
     }
 
     // Get weapon stats for magazine capacity and reload time

@@ -154,6 +154,7 @@ mod barbecue; // <<< ADDED: Barbecue cooking appliance system
 mod fire_patch; // <<< ADDED: Fire patch system for fire arrows
 mod turret; // <<< ADDED: Turret system for automated defense
 mod explosive; // <<< ADDED: Explosive system for raiding
+mod grenade; // <<< ADDED: Grenade fuse system (armed grenades as items)
 mod ai_brewing; // <<< ADDED: AI-generated brew recipes system
 mod alk; // <<< ADDED: ALK (Automated Logistics Kernel) provisioning system
 mod matronage; // <<< ADDED: Matronage pooled rewards system
@@ -813,6 +814,7 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
 
     // Initialize the dropped item despawn schedule
     crate::dropped_item::init_dropped_item_schedule(ctx)?;
+    crate::dropped_item::init_flare_expiry_schedule(ctx);
     // Initialize the crafting finish check schedules
     crate::crafting_queue::init_crafting_schedule(ctx)?;
     // Re-enable the player stat update schedule for TreeCover effects
@@ -850,6 +852,9 @@ pub fn init_module(ctx: &ReducerContext) -> Result<(), String> {
     
     // ADD: Initialize explosive system
     crate::explosive::init_explosive_system(ctx)?;
+    
+    // ADD: Initialize grenade fuse system
+    crate::grenade::init_grenade_system(ctx)?;
     
     // ADD: Initialize turret system
     crate::turret::init_turret_system(ctx)?;
@@ -1301,6 +1306,7 @@ fn resume_game_systems(ctx: &ReducerContext) -> Result<(), String> {
     // Global schedules
     crate::global_tick::init_global_tick_schedule(ctx)?;
     crate::dropped_item::init_dropped_item_schedule(ctx)?;
+    crate::dropped_item::init_flare_expiry_schedule(ctx);
     crate::alk::init_alk_system(ctx)?;
     crate::sound_events::init_sound_cleanup_system(ctx)?;
     crate::world_state::init_thunder_event_cleanup_schedule(ctx)?;
@@ -1315,6 +1321,7 @@ fn resume_game_systems(ctx: &ReducerContext) -> Result<(), String> {
     crate::beehive::init_beehive_system(ctx)?;
     crate::planted_seeds::init_plant_growth_system(ctx)?;
     crate::explosive::init_explosive_system(ctx)?;
+    crate::grenade::init_grenade_system(ctx)?;
     crate::grass::init_grass_respawn_scheduler(ctx);
     crate::fire_patch::init_fire_patch_system(ctx)?;
     crate::fish_trap::init_fish_trap_system(ctx)?;

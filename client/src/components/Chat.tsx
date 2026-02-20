@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ChatMessageHistory from './ChatMessageHistory';
 import ChatInput from './ChatInput';
-import { DbConnection, Message as SpacetimeDBMessage, Player as SpacetimeDBPlayer, PrivateMessage as SpacetimeDBPrivateMessage, TeamMessage as SpacetimeDBTeamMessage, EventContext, LastWhisperFrom } from '../generated'; // Assuming types
+import { DbConnection, Message as SpacetimeDBMessage, Player as SpacetimeDBPlayer, PrivateMessage as SpacetimeDBPrivateMessage, TeamMessage as SpacetimeDBTeamMessage, EventContext, LastWhisperFrom, Recipe } from '../generated'; // Assuming types
 import { Identity } from 'spacetimedb';
 import styles from './Chat.module.css';
 import sovaIcon from '../assets/ui/sova.png';
@@ -9,6 +9,7 @@ import { openaiService } from '../services/openaiService';
 import { buildGameContext, type GameContextBuilderProps } from '../utils/gameContextBuilder';
 import apiPerformanceService from '../services/apiPerformanceService';
 import { kokoroService } from '../services/kokoroService';
+import { parseCraftIntent, resolveRecipeByName, getCraftFeedback } from '../utils/craftIntentParser';
 
 interface ChatProps {
   connection: DbConnection | null;
@@ -24,6 +25,8 @@ interface ChatProps {
   itemDefinitions?: Map<string, any>;
   activeEquipments?: Map<string, any>;
   inventoryItems?: Map<string, any>;
+  recipes?: Map<string, Recipe>;
+  playerIdentity?: Identity | null;
   // Mobile support - when true, chat visibility is controlled externally
   isMobile?: boolean;
   isMobileChatOpen?: boolean; // Controls visibility on mobile instead of internal isMinimized
@@ -54,7 +57,7 @@ const SOVAMessage: React.FC<{message: {id: string, text: string, isUser: boolean
   </div>
 ));
 
-const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, setIsChatting, localPlayerIdentity, onSOVAMessageAdderReady, worldState, localPlayer, itemDefinitions, activeEquipments, inventoryItems, isMobile = false, isMobileChatOpen = false, matronageMembers, matronages, onSayCommand }) => {
+const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, setIsChatting, localPlayerIdentity, onSOVAMessageAdderReady, worldState, localPlayer, itemDefinitions, activeEquipments, inventoryItems, recipes, playerIdentity, isMobile = false, isMobileChatOpen = false, matronageMembers, matronages, onSayCommand }) => {
   // console.log("[Chat Component Render] Props - Connection:", !!connection, "LocalPlayerIdentity:", localPlayerIdentity);
   const [inputValue, setInputValue] = useState('');
   const [privateMessages, setPrivateMessages] = useState<Map<string, SpacetimeDBPrivateMessage>>(new Map());
@@ -196,6 +199,50 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
     setIsSOVALoading(true);
 
     try {
+      // Phase 5: Craft intent - intercept before LLM
+      const craftIntent = parseCraftIntent(userMessageText);
+      if (craftIntent && recipes && itemDefinitions && inventoryItems) {
+        const recipe = resolveRecipeByName(craftIntent.recipeName, recipes, itemDefinitions);
+        if (recipe) {
+          const feedback = getCraftFeedback(
+            recipe,
+            craftIntent.quantity,
+            inventoryItems,
+            itemDefinitions,
+            playerIdentity ?? null
+          );
+
+          if (feedback.success && connection?.reducers) {
+            try {
+              connection.reducers.startCraftingMultiple(recipe.recipeId, craftIntent.quantity);
+            } catch (err) {
+              console.error('[Chat] Craft reducer error:', err);
+              feedback.message = `Crafting failed: ${(err as Error).message}`;
+            }
+          }
+
+          const botResponse = {
+            id: `sova-${Date.now()}`,
+            text: feedback.message,
+            isUser: false,
+            timestamp: new Date()
+          };
+          setSovaMessages(prev => [...prev, botResponse]);
+          setIsSOVALoading(false);
+          return;
+        } else {
+          const unknownResponse = {
+            id: `sova-${Date.now()}`,
+            text: `I don't know how to craft "${craftIntent.recipeName}". Try a different item name or check the crafting menu.`,
+            isUser: false,
+            timestamp: new Date()
+          };
+          setSovaMessages(prev => [...prev, unknownResponse]);
+          setIsSOVALoading(false);
+          return;
+        }
+      }
+
       // Build game context for SOVA AI
       const gameContext = buildGameContext({
         worldState,

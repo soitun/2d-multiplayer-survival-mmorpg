@@ -438,5 +438,25 @@ pub fn get_weapon_definitions() -> Vec<ItemDefinition> {
             .crafting_output(1, 15)
             .respawn_time(2400)
             .build(),
+
+        // === THROWABLE RANGED (Grenade + Flare) ===
+        // Self-ammo RangedWeapons: the item itself is the projectile. Uses targeting reticle + fire_projectile.
+        // On landing, spawns DroppedItem with timer metadata (grenade: fuse, flare: light duration).
+
+        ItemBuilder::new("Grenade", "A compact explosive device. Aim with the crosshair and fire to launch. On impact it becomes a dropped item with an armed fuse. Can be picked up, moved, or stored—but the fuse keeps ticking.", ItemCategory::RangedWeapon)
+            .icon("grenade.png")
+            .stackable(5)
+            .weapon(0, 0, 0.0) // No direct damage; explosion on fuse expiry
+            .damage_type(DamageType::Projectile)
+            .equippable(None)
+            .build(),
+
+        ItemBuilder::new("Flare", "A signal flare for illumination. Aim with the crosshair and fire to launch. On impact it becomes a dropped item that emits light for a fixed duration. Ground-only timer.", ItemCategory::RangedWeapon)
+            .icon("flare.png")
+            .stackable(5)
+            .weapon(0, 0, 0.0) // No direct damage; light source only
+            .damage_type(DamageType::Projectile)
+            .equippable(None)
+            .build(),
     ]
 }

@@ -2,10 +2,8 @@ import { AnimalCorpse as SpacetimeDBAnimalCorpse } from '../../generated';
 import { imageManager } from './imageManager';
 import { calculateShakeOffsets } from './shadowUtils';
 
-// Import legacy 3x3 sprite sheets (CableViper only - no release spritesheet)
-import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
-
 // Import release pattern spritesheets (4x4 layout) - used for most animals
+import cableViperWalkingSheet from '../../assets/cable_viper_walking_release.png';
 import foxWalkingAnimatedSheet from '../../assets/fox_walking_release.png';
 import tundraWolfWalkingAnimatedSheet from '../../assets/tundra_wolf_walking_release.png';
 import walrusWalkingAnimatedSheet from '../../assets/walrus_walking_release.png';
@@ -23,33 +21,18 @@ import crowWalkingAnimatedSheet from '../../assets/crow_walking_release.png';
 import crabWalkingAnimatedSheet from '../../assets/crab_release_walking.png';
 import voleWalkingAnimatedSheet from '../../assets/vole_walking_release.png';
 
-// Sprite sheet configuration for 3x3 sheets (legacy pattern)
-const SPRITE_SHEET_CONFIG_3X3 = {
-    sheetWidth: 320,
-    sheetHeight: 320,
-    sheetCols: 3,
-    sheetRows: 3, 
-};
-
-// Sprite sheet configuration for 4x4 release pattern sheets
+// Sprite sheet configuration for 4x4 sheets (Phase 6: 256x256, all animals)
 const SPRITE_SHEET_CONFIG_4X4 = {
-    sheetWidth: 320,
-    sheetHeight: 320,
+    sheetWidth: 256,
+    sheetHeight: 256,
     sheetCols: 4,
     sheetRows: 4,
 };
 
-const FRAME_WIDTH_3X3 = Math.floor(SPRITE_SHEET_CONFIG_3X3.sheetWidth / SPRITE_SHEET_CONFIG_3X3.sheetCols);
-const FRAME_HEIGHT_3X3 = Math.floor(SPRITE_SHEET_CONFIG_3X3.sheetHeight / SPRITE_SHEET_CONFIG_3X3.sheetRows);
-
 const FRAME_WIDTH_4X4 = Math.floor(SPRITE_SHEET_CONFIG_4X4.sheetWidth / SPRITE_SHEET_CONFIG_4X4.sheetCols);
 const FRAME_HEIGHT_4X4 = Math.floor(SPRITE_SHEET_CONFIG_4X4.sheetHeight / SPRITE_SHEET_CONFIG_4X4.sheetRows);
 
-// Right-facing sprite position for 3x3 sheets (middle left of sheet - col 0, row 1)
-const RIGHT_FACING_COL_3X3 = 0;
-const RIGHT_FACING_ROW_3X3 = 1;
-
-// For 4x4 release pattern: use frame 0, direction 0 (down-facing, first frame)
+// For 4x4 pattern: use frame 0, direction 0 (down-facing, first frame)
 // This gives us a good corpse pose - then flip it upside down
 const CORPSE_FRAME_4X4 = 0; // First animation frame
 const CORPSE_DIRECTION_4X4 = 0; // Down-facing (row 0)
@@ -71,8 +54,7 @@ export function triggerAnimalCorpseShakeOptimistic(corpseId: string): void {
 }
 
 // Map species to their sprite sheets
-// Animals using 4x4 release pattern: Most animals (fox, wolf, walrus, tern, wolverine, caribou, shark, crow, alpine animals, BeachCrab, Vole)
-// Animals using 3x3 pattern: CableViper only (no release spritesheet)
+// All animals use 4x4 pattern (256x256 sheet, 64x64 frames)
 const speciesSpriteSheets: Record<string, string> = {
     // 4x4 release pattern animals
     'CinderFox': foxWalkingAnimatedSheet,
@@ -91,31 +73,8 @@ const speciesSpriteSheets: Record<string, string> = {
     // BeachCrab and Vole use 4x4 release pattern (like live animals)
     'BeachCrab': crabWalkingAnimatedSheet,
     'Vole': voleWalkingAnimatedSheet,
-    // 3x3 legacy pattern (CableViper only - no release spritesheet)
+    // CableViper uses 4x4 (same as other wildlife)
     'CableViper': cableViperWalkingSheet,
-};
-
-// Track which species use 4x4 release pattern
-const usesReleasePattern: Record<string, boolean> = {
-    // 4x4 release pattern
-    'CinderFox': true,
-    'TundraWolf': true,
-    'ArcticWalrus': true,
-    'Tern': true,
-    'Wolverine': true,
-    'Caribou': true,
-    'SalmonShark': true,
-    'Jellyfish': true,
-    'Crow': true,
-    // Alpine animals (4x4 release pattern)
-    'PolarBear': true,
-    'Hare': true,
-    'SnowyOwl': true,
-    // BeachCrab and Vole use 4x4 release pattern
-    'BeachCrab': true,
-    'Vole': true,
-    // 3x3 legacy pattern (CableViper only - no release spritesheet)
-    'CableViper': false,
 };
 
 // Get corpse render size based on species (match live animal sizes)
@@ -230,29 +189,11 @@ export const renderAnimalCorpse = (
   // Flip vertically only (upside down but still facing right)
   ctx.scale(1, -1);
   
-  // Check if this species uses the 4x4 release pattern
-  const isReleasePattern = usesReleasePattern[corpse.animalSpecies.tag] || false;
-  
-  let sx: number;
-  let sy: number;
-  let frameWidth: number;
-  let frameHeight: number;
-  
-  if (isReleasePattern) {
-    // 4x4 release pattern: use frame 0, direction 0 (down-facing)
-    // Then flip upside down for corpse effect
-    // SalmonShark and Jellyfish use same 320x320 sheet with 80x80 frames as other animals
-    sx = CORPSE_FRAME_4X4 * FRAME_WIDTH_4X4;
-    sy = CORPSE_DIRECTION_4X4 * FRAME_HEIGHT_4X4;
-    frameWidth = FRAME_WIDTH_4X4;
-    frameHeight = FRAME_HEIGHT_4X4;
-  } else {
-    // 3x3 pattern: use right-facing sprite (col 0, row 1)
-    sx = RIGHT_FACING_COL_3X3 * FRAME_WIDTH_3X3;
-    sy = RIGHT_FACING_ROW_3X3 * FRAME_HEIGHT_3X3;
-    frameWidth = FRAME_WIDTH_3X3;
-    frameHeight = FRAME_HEIGHT_3X3;
-  }
+  // 4x4 pattern: use frame 0, direction 0 (down-facing), flip upside down for corpse effect
+  const sx = CORPSE_FRAME_4X4 * FRAME_WIDTH_4X4;
+  const sy = CORPSE_DIRECTION_4X4 * FRAME_HEIGHT_4X4;
+  const frameWidth = FRAME_WIDTH_4X4;
+  const frameHeight = FRAME_HEIGHT_4X4;
   
   // Render the sprite frame (flipped vertically)
   ctx.drawImage(

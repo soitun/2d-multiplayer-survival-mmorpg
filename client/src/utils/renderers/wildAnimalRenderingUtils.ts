@@ -47,38 +47,22 @@ import drownedWatchWalkingAnimatedSheet from '../../assets/drowned_watch_walking
 // NOTE: Crab and Vole now use animated 4x4 sheets (crab_release_walking.png, vole_walking_release.png)
 // import crabWalkingSheet from '../../assets/crab_walking.png';
 // import voleWalkingSheet from '../../assets/vole_walking.png';
-import cableViperWalkingSheet from '../../assets/cable_viper_walking.png';
+import cableViperWalkingSheet from '../../assets/cable_viper_walking_release.png';
 
 
-// --- Sprite Sheet Configuration ---
-// All animal sprite sheets follow the same 3x3 grid format (320x320 sheet)
-// Only 4 directional sprites are used (no walking animation frames):
-//   [0,0]    [0,1]     [0,2]      <- Row 0: unused, DOWN facing (middle), unused
-//   [1,0]    [1,1]     [1,2]      <- Row 1: LEFT facing, unused, RIGHT facing  
-//   [2,0]    [2,1]     [2,2]      <- Row 2: unused, UP facing (middle), unused
-
+// --- Legacy fallback (unused - all animals now use ANIMATED_SPRITE_CONFIGS 4x4) ---
 const SPRITE_SHEET_CONFIG = {
-    sheetWidth: 320,
-    sheetHeight: 320,
-    sheetCols: 3,
-    sheetRows: 3,
-    // Direction to sprite position mapping (row, col) - just 4 static sprites
+    sheetWidth: 256,
+    sheetHeight: 256,
+    sheetCols: 4,
+    sheetRows: 4,
     directionMap: {
-        'down': { row: 0, col: 1 },  // Top middle
-        'up': { row: 2, col: 1 },  // Bottom middle
-        'left': { row: 1, col: 2 },  // Middle right (sprite faces left)
-        'right': { row: 1, col: 0 },  // Middle left (sprite faces right)
+        'down': { row: 0, col: 0 }, 'right': { row: 1, col: 0 },
+        'left': { row: 2, col: 0 }, 'up': { row: 3, col: 0 },
     } as Record<string, { row: number; col: number }>,
 };
-
-// Flying sprite sheet configuration - same 3x3 grid format, same 320x320 size
-// Flying sprites should match the walking sprite sheet dimensions for consistent rendering
 const FLYING_SPRITE_SHEET_CONFIG = {
-    sheetWidth: 320,
-    sheetHeight: 320,
-    sheetCols: 3,
-    sheetRows: 3,
-    // Same direction mapping as walking sprites
+    ...SPRITE_SHEET_CONFIG,
     directionMap: SPRITE_SHEET_CONFIG.directionMap,
 };
 
@@ -106,136 +90,134 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
     // ═══════════════════════════════════════════════════════════════════════════
 
     // CINDERFOX - Passive wildlife (4x4 layout: 4 frames × 4 directions)
-    // Artist spec: 80x80 per frame → 320x320 total sheet
-    // Renders at: 128x128 (1.6x scale)
+    // Phase 6: 64x64 per frame → 256x256 total sheet (nearest-neighbor from 320x320)
+    // Renders at: 128x128 (2x scale)
     'CinderFox': {
-        sheetWidth: 320,   // 80px × 4 frames
-        sheetHeight: 320,  // 80px × 4 rows
-        frameWidth: 80,
-        frameHeight: 80,
+        sheetWidth: 256,   // 64px × 4 frames
+        sheetHeight: 256,  // 64px × 4 rows
+        frameWidth: 64,
+        frameHeight: 64,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
 
     // ARCTICWALRUS - Large passive wildlife (4x4 layout: 4 frames × 4 directions)
-    // Artist spec: 80x80 per frame → 320x320 total sheet
-    // Renders at: 128x128 (1.6x scale)
+    // Phase 6: 64x64 per frame → 256x256 total sheet
     'ArcticWalrus': {
-        sheetWidth: 320,   // 80px × 4 frames
-        sheetHeight: 320,  // 80px × 4 rows
-        frameWidth: 80,
-        frameHeight: 80,
+        sheetWidth: 256,
+        sheetHeight: 256,
+        frameWidth: 64,
+        frameHeight: 64,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
 
     // TUNDRAWOLF - Large predator wildlife (4x4 layout: 4 frames × 4 directions)
-    // Artist spec: 80x80 per frame → 320x320 total sheet
-    // Renders at: 128x128 (1.6x scale)
+    // Phase 6: 64x64 per frame → 256x256 total sheet
     'TundraWolf': {
-        sheetWidth: 320,   // 80px × 4 frames
-        sheetHeight: 320,  // 80px × 4 rows
-        frameWidth: 80,
-        frameHeight: 80,
+        sheetWidth: 256,
+        sheetHeight: 256,
+        frameWidth: 64,
+        frameHeight: 64,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
 
     // TERN - Coastal seabird (4x4 layout: 4 frames × 4 directions)
-    // Artist spec: 80x80 per frame → 320x320 total sheet
-    // Renders at: 96x96 (1.2x scale) - medium-sized bird
+    // Phase 6: 64x64 per frame → 256x256 total sheet
     'Tern': {
-        sheetWidth: 320,   // 80px × 4 frames
-        sheetHeight: 320,  // 80px × 4 rows
-        frameWidth: 80,
-        frameHeight: 80,
+        sheetWidth: 256,
+        sheetHeight: 256,
+        frameWidth: 64,
+        frameHeight: 64,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
 
     // CROW - Inland scavenger bird (4x4 layout: 4 frames × 4 directions)
-    // Artist spec: 80x80 per frame → 320x320 total sheet
-    // Renders at: 64x64 (0.8x scale) - small bird, same size as tern
+    // Phase 6: 64x64 per frame → 256x256 total sheet
     'Crow': {
-        sheetWidth: 320,   // 80px × 4 frames
-        sheetHeight: 320,  // 80px × 4 rows
-        frameWidth: 80,
-        frameHeight: 80,
+        sheetWidth: 256,
+        sheetHeight: 256,
+        frameWidth: 64,
+        frameHeight: 64,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
 
     // CARIBOU - Large herd herbivore (4x4 layout: 4 frames × 4 directions)
-    // Artist spec: 80x80 per frame → 320x320 total sheet
-    // Renders at: 128x128 (1.6x scale) - large animal
+    // Phase 6: 64x64 per frame → 256x256 total sheet
     'Caribou': {
-        sheetWidth: 320,   // 80px × 4 frames
-        sheetHeight: 320,  // 80px × 4 rows
-        frameWidth: 80,
-        frameHeight: 80,
+        sheetWidth: 256,
+        sheetHeight: 256,
+        frameWidth: 64,
+        frameHeight: 64,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
 
     // SALMONSHARK - Aquatic apex predator (4x4 layout: 4 frames × 4 directions)
-    // Artist spec: 256x256 per frame → 1024x1024 total sheet
-    // Renders at: 160x160 - large aquatic predator
-    // Always rendered "underwater" with blur effect when viewed from surface
+    // Phase 6: 64x64 per frame → 256x256 total sheet
     'SalmonShark': {
-        sheetWidth: 320,  // 80px × 4 frames
-        sheetHeight: 320, // 80px × 4 rows
-        frameWidth: 80,
-        frameHeight: 80,
+        sheetWidth: 256,
+        sheetHeight: 256,
+        frameWidth: 64,
+        frameHeight: 64,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
 
     // JELLYFISH - Aquatic passive hazard (4x4 layout: 4 frames × 4 directions)
-    // Artist spec: 256x256 per frame → 1024x1024 total sheet
-    // Renders at: 96x96 - medium aquatic creature
-    // Periodic electric shock effect (yellow glow when shock_active_until is set)
+    // Phase 6: 64x64 per frame → 256x256 total sheet
     'Jellyfish': {
-        sheetWidth: 320,  // 80px × 4 frames
-        sheetHeight: 320, // 80px × 4 rows
-        frameWidth: 80,
-        frameHeight: 80,
+        sheetWidth: 256,
+        sheetHeight: 256,
+        frameWidth: 64,
+        frameHeight: 64,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
 
     // WOLVERINE - Medium-sized but stocky and muscular predator (4x4 layout: 4 frames × 4 directions)
-    // Artist spec: Check actual frame size - if clipped, may need adjustment
-    // If image is 320x320, frames should be 80x80, but sprites may overflow cells
-    // Renders at: 112x112 (1.4x scale) - medium-sized predator
+    // Phase 6: 64x64 per frame → 256x256 total sheet
     'Wolverine': {
-        sheetWidth: 320,   // Total sheet width
-        sheetHeight: 320,  // Total sheet height
-        frameWidth: 80,    // Frame width (320 / 4 = 80)
-        frameHeight: 80,   // Frame height (320 / 4 = 80)
+        sheetWidth: 256,
+        sheetHeight: 256,
+        frameWidth: 64,
+        frameHeight: 64,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
 
+    // CABLEVIPER - Snake (4x4 layout: 4 frames × 4 directions)
+    // Phase 6: 64x64 per frame → 256x256 total sheet (all animals 4x4)
+    'CableViper': {
+        sheetWidth: 256,
+        sheetHeight: 256,
+        frameWidth: 64,
+        frameHeight: 64,
+        cols: 4,
+        rows: 4,
+    },
+
     // BEACHCRAB - Small coastal crustacean (4x4 layout: 4 frames × 4 directions)
-    // Artist spec: 256x256 per frame → 1024x1024 total sheet
-    // Renders at: 64x64 (0.25x scale) - small animal
+    // Phase 6: 64x64 per frame → 256x256 total sheet
     'BeachCrab': {
-        sheetWidth: 320,  // 80px × 4 frames
-        sheetHeight: 320, // 80px × 4 rows
-        frameWidth: 80,
-        frameHeight: 80,
+        sheetWidth: 256,
+        sheetHeight: 256,
+        frameWidth: 64,
+        frameHeight: 64,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
 
     // VOLE - Tiny skittish rodent (4x4 layout: 4 frames × 4 directions)
-    // Artist spec: 256x256 per frame → 1024x1024 total sheet
-    // Renders at: 48x48 (0.1875x scale) - tiny rodent
+    // Phase 6: 64x64 per frame → 256x256 total sheet
     'Vole': {
-        sheetWidth: 320,  // 80px × 4 frames
-        sheetHeight: 320, // 80px × 4 rows
-        frameWidth: 80,
-        frameHeight: 80,
+        sheetWidth: 256,
+        sheetHeight: 256,
+        frameWidth: 64,
+        frameHeight: 64,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
@@ -246,37 +228,34 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
     // ═══════════════════════════════════════════════════════════════════════════
 
     // POLARBEAR - Massive alpine apex predator (4x4 layout: 4 frames × 4 directions)
-    // Artist spec: 80x80 per frame → 320x320 total sheet
-    // Renders at: 160x160 (2x scale) - very large predator
+    // Phase 6: 64x64 per frame → 256x256 total sheet
     'PolarBear': {
-        sheetWidth: 320,   // 80px × 4 frames
-        sheetHeight: 320,  // 80px × 4 rows
-        frameWidth: 80,
-        frameHeight: 80,
+        sheetWidth: 256,
+        sheetHeight: 256,
+        frameWidth: 64,
+        frameHeight: 64,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
 
     // HARE - Fast alpine prey animal (4x4 layout: 4 frames × 4 directions)
-    // Artist spec: 80x80 per frame → 320x320 total sheet
-    // Renders at: 80x80 (1x scale) - small prey animal
+    // Phase 6: 64x64 per frame → 256x256 total sheet
     'Hare': {
-        sheetWidth: 320,   // 80px × 4 frames
-        sheetHeight: 320,  // 80px × 4 rows
-        frameWidth: 80,
-        frameHeight: 80,
+        sheetWidth: 256,
+        sheetHeight: 256,
+        frameWidth: 64,
+        frameHeight: 64,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
 
     // SNOWYOWL - Alpine aggressive flying predator (4x4 layout: 4 frames × 4 directions)
-    // Artist spec: 80x80 per frame → 320x320 total sheet
-    // Renders at: 96x96 (1.2x scale) - medium bird
+    // Phase 6: 64x64 per frame → 256x256 total sheet
     'SnowyOwl': {
-        sheetWidth: 320,   // 80px × 4 frames
-        sheetHeight: 320,  // 80px × 4 rows
-        frameWidth: 80,
-        frameHeight: 80,
+        sheetWidth: 256,
+        sheetHeight: 256,
+        frameWidth: 64,
+        frameHeight: 64,
         cols: 4,           // 4 animation frames
         rows: 4,           // 4 directions
     },
@@ -287,37 +266,34 @@ const ANIMATED_SPRITE_CONFIGS: Record<string, AnimatedSpriteConfig> = {
     // ═══════════════════════════════════════════════════════════════════════════
 
     // SHARDKIN - Small swarmer creature
-    // Artist spec: 48x48 per frame → 288x192 total sheet
-    // Renders at: 72x72 (1.5x scale)
+    // Phase 6: 38x38 per frame → 228x152 total sheet (0.8x from 288x192)
     'Shardkin': {
-        sheetWidth: 288,   // 48px × 6 frames
-        sheetHeight: 192,  // 48px × 4 rows
-        frameWidth: 48,
-        frameHeight: 48,
-        cols: 6,           // 6 animation frames
-        rows: 4,           // 4 directions
+        sheetWidth: 228,
+        sheetHeight: 152,
+        frameWidth: 38,
+        frameHeight: 38,
+        cols: 6,
+        rows: 4,
     },
 
     // SHOREBOUND - Lean stalker, fast predator
-    // Artist spec: 64x64 per frame → 384x256 total sheet (artist's 64-bit tier)
-    // Renders at: 96x96 (1.5x scale) - same size as player
+    // Phase 6: 51x51 per frame → 306x204 total sheet (0.8x from 384x256)
     'Shorebound': {
-        sheetWidth: 384,   // 64px × 6 frames
-        sheetHeight: 256,  // 64px × 4 rows
-        frameWidth: 64,
-        frameHeight: 64,
+        sheetWidth: 306,
+        sheetHeight: 204,
+        frameWidth: 51,
+        frameHeight: 51,
         cols: 6,
         rows: 4,
     },
 
     // DROWNED WATCH - Massive brute, heavy boss-type
-    // Artist spec: 96x96 per frame → 576x384 total sheet (artist's 96-bit tier)
-    // Renders at: 192x192 (2x scale) - 2x player size, imposing "oh crap" moment
+    // Phase 6: 77x77 per frame → 462x308 total sheet (0.8x from 576x384)
     'DrownedWatch': {
-        sheetWidth: 576,   // 96px × 6 frames
-        sheetHeight: 384,  // 96px × 4 rows
-        frameWidth: 96,
-        frameHeight: 96,
+        sheetWidth: 462,
+        sheetHeight: 308,
+        frameWidth: 77,
+        frameHeight: 77,
         cols: 6,
         rows: 4,
     },

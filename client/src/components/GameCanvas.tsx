@@ -1020,6 +1020,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Must be after useEntityFiltering since it uses buildingClusters
   const { overlayRgba, maskCanvasRef } = useDayNightCycle({
     worldState,
+    droppedItems: visibleDroppedItemsMap,
     campfires,
     lanterns,
     furnaces, // Add furnaces for darkness cutouts

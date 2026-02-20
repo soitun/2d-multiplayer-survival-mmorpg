@@ -130,6 +130,7 @@ export const FURNACE_LIGHT_OUTER_COLOR = 'rgba(255, 120, 40, 0.0)'; // Bright or
 
 // --- Barbecue Light Constants (same as campfire - wood-burning cooking appliance) ---
 export const BARBECUE_LIGHT_RADIUS_BASE = CAMPFIRE_LIGHT_RADIUS_BASE; // Same as campfire
+export const FLARE_LIGHT_RADIUS_BASE = TORCH_LIGHT_RADIUS_BASE * 1.2; // Ground flare - slightly larger than torch
 export const BARBECUE_FLICKER_AMOUNT = CAMPFIRE_FLICKER_AMOUNT; // Same flicker as campfire
 export const BARBECUE_LIGHT_INNER_COLOR = CAMPFIRE_LIGHT_INNER_COLOR; // Same colors as campfire
 export const BARBECUE_LIGHT_OUTER_COLOR = CAMPFIRE_LIGHT_OUTER_COLOR; // Same colors as campfire

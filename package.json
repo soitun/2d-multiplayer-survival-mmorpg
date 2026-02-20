@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "update-sitemap": "node scripts/update-sitemap.js",
-    "generate-routes": "node scripts/generateBlogRoutes.js"
+    "generate-routes": "node scripts/generateBlogRoutes.js",
+    "convert-animal-sprites": "node scripts/convert-animal-sprites-nn.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -46,6 +47,7 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^15.15.0",
+    "sharp": "^0.33.5",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.24.1",
     "vite": "^6.2.0",

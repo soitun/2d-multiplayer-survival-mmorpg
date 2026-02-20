@@ -342,6 +342,30 @@ pub fn seed_ranged_weapon_stats(ctx: &ReducerContext) -> Result<(), String> {
             is_automatic: false,       // Semi-auto - must click for each shot
             magazine_reload_time_secs: 2.0, // 2 seconds to reload darts
         },
+
+        // Grenade - self-ammo throwable, straight-line, no bounce
+        RangedWeaponStats {
+            item_name: "Grenade".to_string(),
+            weapon_range: 450.0,
+            projectile_speed: 700.0,
+            accuracy: 1.0,
+            reload_time_secs: 0.5,
+            magazine_capacity: 0,
+            is_automatic: false,
+            magazine_reload_time_secs: 0.0,
+        },
+
+        // Flare - self-ammo throwable, straight-line, no bounce
+        RangedWeaponStats {
+            item_name: "Flare".to_string(),
+            weapon_range: 450.0,
+            projectile_speed: 700.0,
+            accuracy: 1.0,
+            reload_time_secs: 0.5,
+            magazine_capacity: 0,
+            is_automatic: false,
+            magazine_reload_time_secs: 0.0,
+        },
     ];
 
     let mut seeded_count = 0;

@@ -1177,6 +1177,8 @@ const iconMap: { [key: string]: string | undefined } = {
   
   // Explosives
   'babushka_surprise.png': babushkaSurpriseIcon,
+  'grenade.png': babushkaSurpriseIcon, // Placeholder until dedicated grenade icon exists
+  'flare.png': torchFlameIcon,        // Placeholder until dedicated flare icon exists
   'matriarch_wrath.png': matriarchWrathIcon,
   
   // Corruption Wards

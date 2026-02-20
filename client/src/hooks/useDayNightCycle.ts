@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import {
+    DroppedItem as SpacetimeDBDroppedItem,
     Campfire as SpacetimeDBCampfire,
     Lantern as SpacetimeDBLantern,
     Furnace as SpacetimeDBFurnace,
@@ -14,7 +15,7 @@ import {
     RoadLamppost as SpacetimeDBRoadLamppost, // ADDED: Aleutian whale oil lampposts
     Barrel as SpacetimeDBBarrel, // ADDED: Barrels (buoys for night light cutouts)
 } from '../generated';
-import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT, BARBECUE_LIGHT_RADIUS_BASE, BARBECUE_FLICKER_AMOUNT, SOVA_AURA_RADIUS_BASE } from '../utils/renderers/lightRenderingUtils';
+import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT, BARBECUE_LIGHT_RADIUS_BASE, BARBECUE_FLICKER_AMOUNT, SOVA_AURA_RADIUS_BASE, FLARE_LIGHT_RADIUS_BASE } from '../utils/renderers/lightRenderingUtils';
 import { ROAD_LAMP_LIGHT_RADIUS_BASE, ROAD_LAMP_LIGHT_Y_OFFSET } from '../utils/renderers/roadLamppostRenderingUtils';
 import { BUOY_HEIGHT } from '../utils/renderers/barrelRenderingUtils';
 import { BUOY_LIGHT_RADIUS_BASE } from '../utils/renderers/lightRenderingUtils';
@@ -425,6 +426,7 @@ function calculateOverlayRgbaString(
 
 interface UseDayNightCycleProps {
     worldState: SpacetimeDBWorldState | null;
+    droppedItems: Map<string, SpacetimeDBDroppedItem>;
     campfires: Map<string, SpacetimeDBCampfire>;
     lanterns: Map<string, SpacetimeDBLantern>;
     furnaces: Map<string, SpacetimeDBFurnace>;
@@ -459,6 +461,7 @@ interface UseDayNightCycleResult {
 
 export function useDayNightCycle({
     worldState,
+    droppedItems,
     campfires,
     lanterns,
     furnaces,
@@ -584,6 +587,44 @@ export function useDayNightCycle({
         }
 
         maskCtx.globalCompositeOperation = 'destination-out';
+
+        // Render flare light cutouts (ground flares - timer is ground-only)
+        const flareDef = Array.from(itemDefinitions.values()).find(d => d.name === 'Flare');
+        const nowSecs = Date.now() / 1000;
+        if (flareDef) {
+            const flareDefId = flareDef.id;
+            droppedItems.forEach(flareItem => {
+                if (flareItem.itemDefId !== flareDefId) return;
+                const data = flareItem.itemData;
+                if (!data) return;
+                try {
+                    const parsed = JSON.parse(data) as { flare_expires_at?: number };
+                    if (parsed.flare_expires_at == null || parsed.flare_expires_at <= nowSecs) return;
+                } catch {
+                    return;
+                }
+                const screenX = flareItem.posX + cameraOffsetX;
+                const screenY = flareItem.posY + cameraOffsetY;
+                const enclosingCluster = buildingClusters
+                    ? findEnclosingCluster(flareItem.posX, flareItem.posY, buildingClusters)
+                    : null;
+                renderClippedLightCutout(
+                    maskCtx,
+                    screenX,
+                    screenY,
+                    FLARE_LIGHT_RADIUS_BASE,
+                    [
+                        { stop: 0.08, alpha: 1 },
+                        { stop: 0.4, alpha: 0.7 },
+                        { stop: 0.8, alpha: 0.3 },
+                        { stop: 1, alpha: 0 },
+                    ],
+                    enclosingCluster,
+                    cameraOffsetX,
+                    cameraOffsetY
+                );
+            });
+        }
 
         // Render campfire light cutouts
         campfires.forEach(campfire => {
@@ -1541,7 +1582,7 @@ export function useDayNightCycle({
     // need to follow the player. Without these, the mask uses stale positions and lights lag behind
     // during fast movement or dodge rolls.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [worldState, campfires, lanterns, furnaces, barbecues, roadLampposts, runeStones, firePatches, fumaroles, monumentParts, players, activeEquipments, itemDefinitions, canvasSize.width, canvasSize.height, torchLitStatesKey, headlampLitStatesKey, lanternBurningStatesKey, localPlayerId, buildingClusters, cameraOffsetX, cameraOffsetY, predictedPosition, remotePlayerInterpolation, worldMouseX, worldMouseY]);
+    }, [worldState, droppedItems, campfires, lanterns, furnaces, barbecues, roadLampposts, runeStones, firePatches, fumaroles, monumentParts, players, activeEquipments, itemDefinitions, canvasSize.width, canvasSize.height, torchLitStatesKey, headlampLitStatesKey, lanternBurningStatesKey, localPlayerId, buildingClusters, cameraOffsetX, cameraOffsetY, predictedPosition, remotePlayerInterpolation, worldMouseX, worldMouseY]);
 
     return { overlayRgba, maskCanvasRef };
 } 
