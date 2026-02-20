@@ -1,4 +1,7 @@
 import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
+
+// PERFORMANCE: Stable empty Map for fallbacks - avoids per-render allocations and GC churn
+const EMPTY_MAP = new Map();
 import {
   Player as SpacetimeDBPlayer,
   Tree as SpacetimeDBTree,
@@ -163,7 +166,7 @@ import { renderFertilizerPatches } from '../utils/renderers/fertilizerPatchRende
 import { renderFirePatches } from '../utils/renderers/firePatchRenderingUtils';
 import { renderPlacedExplosives, preloadExplosiveImages } from '../utils/renderers/explosiveRenderingUtils';
 import { drawUnderwaterShadowOnly } from '../utils/renderers/swimmingEffectsUtils';
-import { getTileTypeFromChunkData, worldPosToTileCoords } from '../utils/renderers/placementRenderingUtils';
+import { worldPosToTileCoords } from '../utils/renderers/placementRenderingUtils';
 import { updateUnderwaterEffects, renderUnderwaterEffectsUnder, renderUnderwaterEffectsOver, renderUnderwaterVignette, clearUnderwaterEffects } from '../utils/renderers/underwaterEffectsUtils';
 import { renderWildAnimal, preloadWildAnimalImages, renderBurrowEffects, cleanupBurrowTracking, processWildAnimalsForBurrowEffects } from '../utils/renderers/wildAnimalRenderingUtils';
 import { renderAnimalCorpse, preloadAnimalCorpseImages } from '../utils/renderers/animalCorpseRenderingUtils';
@@ -553,6 +556,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Particle system refs
   const campfireParticlesRef = useRef<Particle[]>([]);
   const torchParticlesRef = useRef<Particle[]>([]);
+  // PERFORMANCE: Cache memory particle gradients by (color, radiusBucket) - avoids GC spikes from per-particle gradient creation
+  const memoryParticleGradientCacheRef = useRef<Map<string, CanvasGradient>>(new Map());
 
   // High-frequency value refs (to avoid renderGame dependency array churn)
   // NOTE: Animation frame refs are now imported directly from useAnimationCycle.ts
@@ -912,7 +917,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleRoadLampposts,
     visibleRoadLamppostsMap,
     visibleFumaroles, // ADDED: Fumaroles
-    visibleFumerolesMap, // ADDED: Fumaroles map
+    visibleFumarolesMap, // ADDED: Fumaroles map
     visibleBasaltColumns, // ADDED: Basalt columns
     visibleBasaltColumnsMap, // ADDED: Basalt columns map
     visibleLivingCorals, // Living corals (uses combat system)
@@ -961,7 +966,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     wildAnimals,
     animalCorpses,
     barrels,
-    roadLampposts ?? new Map(), // ADDED: Road lampposts (Aleutian whale oil lampposts along roads)
+    roadLampposts ?? EMPTY_MAP, // ADDED: Road lampposts (Aleutian whale oil lampposts along roads)
     fumaroles, // ADDED: Fumaroles
     basaltColumns, // ADDED: Basalt columns
     seaStacks,
@@ -994,12 +999,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     lanterns,
     furnaces, // Add furnaces for darkness cutouts
     barbecues, // ADDED: Barbecues for night light cutouts
-    roadLampposts: roadLampposts ?? new Map(), // ADDED: Aleutian whale oil lampposts for night light cutouts
-    barrels: barrels ?? new Map(), // ADDED: Barrels (buoys for night light cutouts)
+    roadLampposts: roadLampposts ?? EMPTY_MAP, // ADDED: Aleutian whale oil lampposts for night light cutouts
+    barrels: barrels ?? EMPTY_MAP, // ADDED: Barrels (buoys for night light cutouts)
     runeStones, // ADDED: RuneStones for night light cutouts
     firePatches, // ADDED: Fire patches for night light cutouts
     fumaroles, // ADDED: Fumaroles for heat glow at night
-    monumentParts: monumentParts ?? new Map(), // ADDED: Unified monument parts (fishing village campfire light)
+    monumentParts: monumentParts ?? EMPTY_MAP, // ADDED: Unified monument parts (fishing village campfire light)
     players, // Pass all players
     activeEquipments, // Pass all active equipments
     itemDefinitions, // Pass all item definitions
@@ -1030,7 +1035,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Filter shipwreck parts from unified monument parts (for night lights rendering)
   const shipwreckPartsMap = useMemo(() => {
-    if (!monumentParts) return new Map();
+    if (!monumentParts) return EMPTY_MAP;
     const filtered = new Map();
     monumentParts.forEach((part: any, id: string) => {
       if (part.monumentType?.tag === 'Shipwreck') {
@@ -1155,12 +1160,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Detect hot springs from world chunk data (use prop when provided, else internal cache)
   const detectedHotSprings = useMemo(() => {
-    return detectHotSprings((worldChunkDataMap ?? new Map()) as Map<string, SpacetimeDBWorldChunkData>);
+    return detectHotSprings((worldChunkDataMap ?? EMPTY_MAP) as Map<string, SpacetimeDBWorldChunkData>);
   }, [chunkCacheVersion, worldChunkDataMap]); // Recalculate when chunk data changes
 
   // Detect small quarries from world chunk data for building restriction zones
   const detectedQuarries = useMemo(() => {
-    return detectQuarries((worldChunkDataMap ?? new Map()) as Map<string, SpacetimeDBWorldChunkData>);
+    return detectQuarries((worldChunkDataMap ?? EMPTY_MAP) as Map<string, SpacetimeDBWorldChunkData>);
   }, [chunkCacheVersion, worldChunkDataMap]); // Recalculate when chunk data changes
 
   // Optimized: Memoize the integer tile coordinates for the viewport
@@ -1206,11 +1211,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     };
 
+    const chunkSource = worldChunkDataMap ?? chunkCacheRef.current;
     for (let ty = minTileY; ty < maxTileY; ty++) {
       for (let tx = minTileX; tx < maxTileX; tx++) {
         const cx = Math.floor(tx / chunkSize);
         const cy = Math.floor(ty / chunkSize);
-        const chunk = chunkCacheRef.current.get(`${cx},${cy}`);
+        const chunk = chunkSource.get(`${cx},${cy}`);
         if (!chunk) continue;
 
         const localX = tx % chunkSize;
@@ -1231,7 +1237,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     }
     return map;
-  }, [bufferedViewTileX, bufferedViewTileY, canvasSize.width, canvasSize.height, chunkCacheVersion]);
+  }, [bufferedViewTileX, bufferedViewTileY, canvasSize.width, canvasSize.height, chunkCacheVersion, worldChunkDataMap]);
 
   // Feed the renderer with only the visible tiles
   useEffect(() => {
@@ -2447,45 +2453,56 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
 
       // Render MEMORY BEACON particles as soft glowing circles (ethereal effect)
+      // PERFORMANCE: Cache gradients by (color, radiusBucket) - avoids per-particle allocations and GC spikes
       if (memoryParticles.length > 0) {
         ctx.imageSmoothingEnabled = true; // Enable smoothing for soft glow effect
+        const gradCache = memoryParticleGradientCacheRef.current;
         for (let i = 0; i < memoryParticles.length; i++) {
           const particle = memoryParticles[i];
           const isFragment = particle.id && particle.id.startsWith('memoryfrag_');
 
           ctx.globalAlpha = particle.alpha || 1;
 
-          // Create soft glowing circle with radial gradient
           const radius = Math.max(2, particle.size * (isFragment ? 1.5 : 1.2));
-          const gradient = ctx.createRadialGradient(
-            particle.x, particle.y, 0,
-            particle.x, particle.y, radius
-          );
-
-          // Parse the color and create gradient from center (bright) to edge (transparent)
+          const radiusBucket = Math.round(radius);
           const baseColor = particle.color || '#9966FF';
-          gradient.addColorStop(0, baseColor);
-          gradient.addColorStop(0.4, baseColor);
-          gradient.addColorStop(1, 'transparent');
+          const cacheKey = `${baseColor}_${radiusBucket}`;
 
+          let gradient = gradCache.get(cacheKey);
+          if (!gradient) {
+            gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radiusBucket);
+            gradient.addColorStop(0, baseColor);
+            gradient.addColorStop(0.4, baseColor);
+            gradient.addColorStop(1, 'transparent');
+            gradCache.set(cacheKey, gradient);
+          }
+
+          ctx.save();
+          ctx.translate(particle.x, particle.y);
           ctx.fillStyle = gradient;
           ctx.beginPath();
-          ctx.arc(particle.x, particle.y, radius, 0, Math.PI * 2);
+          ctx.arc(0, 0, radiusBucket, 0, Math.PI * 2);
           ctx.fill();
+          ctx.restore();
 
-          // Add inner glow for fragments (larger memory particles)
           if (isFragment) {
             ctx.globalAlpha = (particle.alpha || 1) * 0.5;
-            const innerGradient = ctx.createRadialGradient(
-              particle.x, particle.y, 0,
-              particle.x, particle.y, radius * 0.5
-            );
-            innerGradient.addColorStop(0, '#FFFFFF');
-            innerGradient.addColorStop(1, 'transparent');
+            const innerRadius = Math.round(radius * 0.5);
+            const innerKey = `inner_${innerRadius}`;
+            let innerGradient = gradCache.get(innerKey);
+            if (!innerGradient) {
+              innerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, innerRadius);
+              innerGradient.addColorStop(0, '#FFFFFF');
+              innerGradient.addColorStop(1, 'transparent');
+              gradCache.set(innerKey, innerGradient);
+            }
+            ctx.save();
+            ctx.translate(particle.x, particle.y);
             ctx.fillStyle = innerGradient;
             ctx.beginPath();
-            ctx.arc(particle.x, particle.y, radius * 0.5, 0, Math.PI * 2);
+            ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
             ctx.fill();
+            ctx.restore();
           }
         }
       }
@@ -2960,11 +2977,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Now players render OVER the rock, water gradient
 
     // --- STEP 0.75: Render sea barrel/buoy water shadows (BEFORE swimming bottom halves so player renders on top) ---
+    // PERFORMANCE: Use O(1) waterTileLookup instead of getTileTypeFromChunkData per barrel per frame
     const isOnSeaTileForBarrels = (worldX: number, worldY: number): boolean => {
-      if (!connection) return false;
       const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
-      const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
-      return tileType === 'Sea';
+      return waterTileLookup.get(`${tileX},${tileY}`) ?? false;
     };
     visibleBarrels.forEach(barrel => {
       renderSeaBarrelWaterShadowOnly(ctx, barrel, now_ms, currentCycleProgress, isOnSeaTileForBarrels);
@@ -3762,7 +3778,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       brothPots: brothPots,
       homesteadHearths: visibleHomesteadHearthsMap,
       doors: visibleDoorsMap, // ADDED: Doors
-      alkStations: alkStations || new Map(), // ADDED: ALK Stations for E label rendering
+      alkStations: alkStations || EMPTY_MAP, // ADDED: ALK Stations for E label rendering
     });
 
     // Render local player status tags (AUTO ATTACK, AUTO WALK indicators)
@@ -3861,29 +3877,29 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
       // Build the game entities map for collision debug
       const gameEntitiesForDebug = {
-        trees: trees || new Map(),
-        stones: stones || new Map(),
-        runeStones: runeStones || new Map(),
-        cairns: cairns || new Map(),
-        boxes: woodenStorageBoxes || new Map(),
-        rainCollectors: rainCollectors || new Map(),
-        furnaces: furnaces || new Map(),
-        barbecues: barbecues || new Map(),
-        shelters: shelters || new Map(),
-        players: players || new Map(),
-        wildAnimals: wildAnimals || new Map(),
-        barrels: barrels || new Map(),
-        roadLampposts: roadLampposts || new Map(),
-        seaStacks: seaStacks || new Map(),
-        wallCells: wallCells || new Map(),
-        foundationCells: foundationCells || new Map(),
-        homesteadHearths: homesteadHearths || new Map(),
-        basaltColumns: basaltColumns || new Map(),
-        doors: doors || new Map(),
-        alkStations: alkStations || new Map(),
-        lanterns: lanterns || new Map(), // Add lanterns for ward collision
-        turrets: turrets || new Map(), // ADDED: Turrets for collision
-        monumentParts: monumentParts ?? new Map(), // Village campfires, etc.
+        trees: trees || EMPTY_MAP,
+        stones: stones || EMPTY_MAP,
+        runeStones: runeStones || EMPTY_MAP,
+        cairns: cairns || EMPTY_MAP,
+        boxes: woodenStorageBoxes || EMPTY_MAP,
+        rainCollectors: rainCollectors || EMPTY_MAP,
+        furnaces: furnaces || EMPTY_MAP,
+        barbecues: barbecues || EMPTY_MAP,
+        shelters: shelters || EMPTY_MAP,
+        players: players || EMPTY_MAP,
+        wildAnimals: wildAnimals || EMPTY_MAP,
+        barrels: barrels || EMPTY_MAP,
+        roadLampposts: roadLampposts || EMPTY_MAP,
+        seaStacks: seaStacks || EMPTY_MAP,
+        wallCells: wallCells || EMPTY_MAP,
+        foundationCells: foundationCells || EMPTY_MAP,
+        homesteadHearths: homesteadHearths || EMPTY_MAP,
+        basaltColumns: basaltColumns || EMPTY_MAP,
+        doors: doors || EMPTY_MAP,
+        alkStations: alkStations || EMPTY_MAP,
+        lanterns: lanterns || EMPTY_MAP, // Add lanterns for ward collision
+        turrets: turrets || EMPTY_MAP, // ADDED: Turrets for collision
+        monumentParts: monumentParts ?? EMPTY_MAP, // Village campfires, etc.
       };
 
       // Get collision shapes from the client collision system
@@ -4909,12 +4925,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
       context.clearRect(0, 0, c.width, c.height);
 
-      const validPlayers = players instanceof Map ? players : new Map();
-      const validTrees = trees instanceof Map ? trees : new Map();
-      const validStones = stones instanceof Map ? stones : new Map();
-      const validRuneStones = runeStones instanceof Map ? runeStones : new Map();
-      const validSleepingBags = sleepingBags instanceof Map ? sleepingBags : new Map();
-      const validCampfires = campfires instanceof Map ? campfires : new Map();
+      const validPlayers = players instanceof Map ? players : EMPTY_MAP;
+      const validTrees = trees instanceof Map ? trees : EMPTY_MAP;
+      const validStones = stones instanceof Map ? stones : EMPTY_MAP;
+      const validRuneStones = runeStones instanceof Map ? runeStones : EMPTY_MAP;
+      const validSleepingBags = sleepingBags instanceof Map ? sleepingBags : EMPTY_MAP;
+      const validCampfires = campfires instanceof Map ? campfires : EMPTY_MAP;
 
       const savedGridPref = localStorage.getItem('minimap_show_grid_coordinates');
       const showGridCoordinates = savedGridPref !== null ? savedGridPref === 'true' : true;
@@ -4935,7 +4951,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         trees: validTrees,
         stones: validStones,
         runeStones: validRuneStones,
-        barrels: barrels instanceof Map ? barrels : new Map(),
+        barrels: barrels instanceof Map ? barrels : EMPTY_MAP,
         campfires: validCampfires,
         sleepingBags: validSleepingBags,
         localPlayer,

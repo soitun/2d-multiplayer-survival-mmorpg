@@ -156,7 +156,7 @@ interface EntityFilteringResult {
   visibleRoadLampposts: SpacetimeDBRoadLamppost[]; // ADDED: Road lampposts
   visibleRoadLamppostsMap: Map<string, SpacetimeDBRoadLamppost>; // ADDED: Road lampposts map
   visibleFumaroles: SpacetimeDBFumarole[]; // ADDED
-  visibleFumerolesMap: Map<string, SpacetimeDBFumarole>; // ADDED
+  visibleFumarolesMap: Map<string, SpacetimeDBFumarole>; // ADDED
   visibleBasaltColumns: SpacetimeDBBasaltColumn[]; // ADDED
   visibleBasaltColumnsMap: Map<string, SpacetimeDBBasaltColumn>; // ADDED
   visibleSeaStacks: any[]; // ADDED
@@ -1697,7 +1697,7 @@ export function useEntityFiltering(
     [visibleRoadLampposts]
   );
 
-  const visibleFumerolesMap = useMemo(() =>
+  const visibleFumarolesMap = useMemo(() =>
     new Map(visibleFumaroles.map(f => [f.id.toString(), f])),
     [visibleFumaroles]
   );
@@ -3004,7 +3004,7 @@ export function useEntityFiltering(
     visibleRoadLampposts,
     visibleRoadLamppostsMap,
     visibleFumaroles,
-    visibleFumerolesMap,
+    visibleFumarolesMap,
     visibleBasaltColumns,
     visibleBasaltColumnsMap,
     // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly

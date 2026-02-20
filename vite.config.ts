@@ -9,8 +9,9 @@ export default defineConfig(({ command, mode }) => {
   // Base plugins for all modes
   const plugins: any[] = [react()];
   
-  // Only add prerenderer during production build
-  if (command === 'build' && mode === 'production') {
+  // Only add prerenderer during production build (skip if SKIP_PRERENDER=1 to avoid statuses module resolution issues)
+  const skipPrerender = process.env.SKIP_PRERENDER === '1';
+  if (command === 'build' && mode === 'production' && !skipPrerender) {
     plugins.push(
       // Pre-render blog pages and static pages for SEO/LLEO
       Prerender({
