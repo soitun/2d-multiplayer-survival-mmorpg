@@ -2824,6 +2824,7 @@ pub enum MonumentType {
     FishingVillage,
     WhaleBoneGraveyard,
     HuntingVillage,
+    AlpineVillage,
     CrashedResearchDrone,
     HotSpring,
     WeatherStation,

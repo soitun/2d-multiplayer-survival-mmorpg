@@ -16,13 +16,14 @@ interface MusicTrack {
 }
 
 // Music zone types - extensible for future monuments
-export type MusicZone = 'normal' | 'fishing_village' | 'hunting_village' | 'alk_compound' | 'alk_substation' | 'hot_springs';
+export type MusicZone = 'normal' | 'fishing_village' | 'hunting_village' | 'alpine_village' | 'alk_compound' | 'alk_substation' | 'hot_springs';
 
 // Zone metadata for UI display
 export const MUSIC_ZONE_INFO: Record<MusicZone, { name: string; icon: string }> = {
     normal: { name: 'Wilderness', icon: '🌲' },
     fishing_village: { name: 'Fishing Village', icon: '🎣' },
     hunting_village: { name: 'Hunting Village', icon: '🏕️' },
+    alpine_village: { name: 'Alpine Village', icon: '🏔️' },
     alk_compound: { name: 'ALK Compound', icon: '🏭' },
     alk_substation: { name: 'ALK Substation', icon: '⚡' },
     hot_springs: { name: 'Hot Springs', icon: '♨️' },
@@ -37,6 +38,9 @@ const FISHING_VILLAGE_ZONE_RADIUS = 1400;
 // Server's HUNTING_VILLAGE_SAFE_ZONE_RADIUS is 600px, but music zone should be larger
 // to ensure the ambient music plays throughout the entire village experience
 const HUNTING_VILLAGE_ZONE_RADIUS = 1400;
+
+// Alpine village zone radius - single lodge, shares hunting village soundtrack
+const ALPINE_VILLAGE_ZONE_RADIUS = 1200;
 
 // ALK zone radii - matches the building restriction zones
 // Central compound: interaction_radius (250px) × multiplier (8.75) = 2188px
@@ -101,11 +105,12 @@ const HOT_SPRINGS_TRACKS: MusicTrack[] = [
     { filename: 'Steam_Over_Birchwood.mp3', displayName: 'Steam Over Birchwood', path: 'hs/Steam_Over_Birchwood.mp3' },
 ];
 
-// Zone-based track mapping
+// Zone-based track mapping (alpine village shares hunting village soundtrack)
 const ZONE_TRACKS: Record<MusicZone, MusicTrack[]> = {
     normal: NORMAL_TRACKS,
     fishing_village: FISHING_VILLAGE_TRACKS,
     hunting_village: HUNTING_VILLAGE_TRACKS,
+    alpine_village: HUNTING_VILLAGE_TRACKS, // Shares hunting village soundtrack
     alk_compound: ALK_TRACKS,
     alk_substation: ALK_TRACKS,
     hot_springs: HOT_SPRINGS_TRACKS,
@@ -470,6 +475,51 @@ const detectMusicZone = (
             
             if (distSq < HUNTING_VILLAGE_ZONE_RADIUS * HUNTING_VILLAGE_ZONE_RADIUS) {
                 return 'hunting_village';
+            }
+        }
+    }
+
+    // Check for alpine village (shares hunting village soundtrack)
+    const alpineVillageParts = Array.from(monumentParts.values())
+        .filter((part: any) => part.monumentType?.tag === 'AlpineVillage');
+    
+    if (alpineVillageParts.length > 0) {
+        let centerX: number | null = null;
+        let centerY: number | null = null;
+
+        for (const part of alpineVillageParts) {
+            const isCenter = part.is_center || part.isCenter;
+            if (isCenter) {
+                centerX = part.world_x ?? part.worldX;
+                centerY = part.world_y ?? part.worldY;
+                break;
+            }
+        }
+
+        if (centerX === null && alpineVillageParts.length > 0) {
+            let sumX = 0, sumY = 0, count = 0;
+            for (const part of alpineVillageParts) {
+                const x = part.world_x ?? part.worldX;
+                const y = part.world_y ?? part.worldY;
+                if (x !== undefined && y !== undefined) {
+                    sumX += x;
+                    sumY += y;
+                    count++;
+                }
+            }
+            if (count > 0) {
+                centerX = sumX / count;
+                centerY = sumY / count;
+            }
+        }
+
+        if (centerX !== null && centerY !== null) {
+            const dx = playerPos.x - centerX;
+            const dy = playerPos.y - centerY;
+            const distSq = dx * dx + dy * dy;
+            
+            if (distSq < ALPINE_VILLAGE_ZONE_RADIUS * ALPINE_VILLAGE_ZONE_RADIUS) {
+                return 'alpine_village';
             }
         }
     }

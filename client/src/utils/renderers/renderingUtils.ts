@@ -1827,6 +1827,8 @@ export const renderYSortedEntities = ({
                   restrictionRadius = 800; // WEATHER_STATION_RESTRICTION_RADIUS from server (800px minimum)
               } else if (buildingId.startsWith('wolf_den_')) {
                   restrictionRadius = 800; // WOLF_DEN_RESTRICTION_RADIUS from server (800px minimum)
+              } else if (buildingId.startsWith('alpine_village_')) {
+                  restrictionRadius = 600; // ALPINE_VILLAGE_RESTRICTION_RADIUS from server (600px minimum)
               }
               
               if (restrictionRadius > 0) {

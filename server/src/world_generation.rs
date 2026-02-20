@@ -212,6 +212,8 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     if let Some((center_x, center_y)) = world_features.fishing_village_center {
         // All parts are stored (center marker is first in the parts list for zone calculations)
         for (part_x, part_y, image_path, part_type, rotation_rad) in &world_features.fishing_village_parts {
+            // Campfire has collision (stone ring - 70px); other parts have no collision
+            let collision_radius = if *part_type == "campfire" { 70.0 } else { 0.0 };
             ctx.db.monument_part().insert(MonumentPart {
                 id: 0, // auto_inc
                 monument_type: MonumentType::FishingVillage,
@@ -220,7 +222,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 image_path: image_path.clone(),
                 part_type: part_type.clone(),
                 is_center: *part_type == "campfire", // Campfire is the center (visual doodad)
-                collision_radius: 0.0, // NO collision per user request
+                collision_radius,
                 rotation_rad: *rotation_rad,
             });
         }
@@ -241,11 +243,19 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
             }
         }
         
-        // Spawn monument placeables (campfires, rain collectors) at fishing village for player use
+        // Spawn monument placeables (barrels) at fishing village
         let placeable_configs = crate::monument::get_fishing_village_placeables();
         match crate::monument::spawn_monument_placeables(ctx, "Fishing Village", center_x, center_y, &placeable_configs) {
             Ok(count) => log::info!("🏘️ Spawned {} monument placeables at Fishing Village", count),
             Err(e) => log::warn!("Failed to spawn fishing village placeables: {}", e),
+        }
+        
+        // Spawn memory shards around fishing village (min 200px from campfire and buildings)
+        let fv_positions: Vec<(f32, f32)> = world_features.fishing_village_parts.iter()
+            .map(|(x, y, _, _, _)| (*x, *y)).collect();
+        let harvestable_configs = crate::monument::get_fishing_village_harvestables();
+        if let Err(e) = crate::monument::spawn_monument_harvestables(ctx, &fv_positions, &harvestable_configs) {
+            log::warn!("Failed to spawn fishing village memory shards: {}", e);
         }
     }
     
@@ -449,6 +459,41 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
             }
             Err(e) => {
                 log::warn!("Failed to spawn weather station barrels: {}", e);
+            }
+        }
+    }
+    
+    // Store alpine village positions in database table for client access
+    // Single earth-sheltered lodge in alpine - shares hunting village soundtrack
+    if let Some((center_x, center_y)) = world_features.alpine_village_center {
+        for (part_x, part_y, image_path, part_type) in &world_features.alpine_village_parts {
+            ctx.db.monument_part().insert(MonumentPart {
+                id: 0, // auto_inc
+                monument_type: MonumentType::AlpineVillage,
+                world_x: *part_x,
+                world_y: *part_y,
+                image_path: image_path.clone(),
+                part_type: part_type.clone(),
+                is_center: *part_type == "lodge",
+                collision_radius: 0.0, // NO collision for walkability
+                rotation_rad: 0.0,
+            });
+        }
+        
+        log::info!("🏔️ Stored {} alpine village parts in database - client reads once, then treats as static config",
+                   world_features.alpine_village_parts.len());
+        
+        let part_positions: Vec<(f32, f32)> = world_features.alpine_village_parts
+            .iter()
+            .map(|(px, py, _, _)| (*px, *py))
+            .collect();
+        
+        match crate::monument::spawn_alpine_village_all(ctx, center_x, center_y, &part_positions) {
+            Ok((memory_shards, barrels)) => {
+                log::info!("🏔️ Alpine Village spawned: {} memory shards, {} barrels", memory_shards, barrels);
+            }
+            Err(e) => {
+                log::warn!("Failed to spawn alpine village entities: {}", e);
             }
         }
     }
@@ -671,6 +716,11 @@ struct WorldFeatures {
     hunting_village_roads: Vec<Vec<bool>>, // Dirt road tiles in hunting village (ring + spur - paths leading to center)
     hunting_village_center_dirt: Vec<Vec<bool>>, // Center plaza dirt (campfire, houses) - distinct from dirt road
     hunting_village_farm_dirt: Vec<Vec<bool>>, // Farm area dirt (crops) - distinct from dirt road
+    alpine_village_center: Option<(f32, f32)>, // Alpine village center (lodge) in world pixels
+    alpine_village_parts: Vec<(f32, f32, String, String)>, // Alpine village parts (single lodge)
+    alpine_village_roads: Vec<Vec<bool>>, // Path leading to lodge
+    alpine_village_center_dirt: Vec<Vec<bool>>, // Dirt center in front of lodge
+    alpine_village_grass_zone: Vec<Vec<bool>>, // Overrun with grass - TundraGrass tiles around lodge
     width: usize,
     height: usize,
 }
@@ -777,6 +827,14 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         crashed_research_drone_center, &large_quarry_positions, width, height
     );
     
+    // Generate alpine village monument in alpine biome (single lodge, path + dirt center, overrun with grass)
+    // Must be away from weather station and other monuments
+    let (alpine_village_center, alpine_village_parts) = crate::monument::generate_alpine_village(
+        noise, &shore_distance, &river_network, &lake_map, &alpine_areas, &hot_spring_centers,
+        &shipwreck_centers, fishing_village_center, whale_bone_graveyard_center, hunting_village_center,
+        crashed_research_drone_center, weather_station_center, &large_quarry_positions, width, height
+    );
+    
     // Generate wolf den monuments in tundra biome (wolf pack spawn points)
     // Single wolf mound structures - spawns a pack of wolves each - NOT safe zones
     // Can spawn up to 2 wolf dens in the tundra
@@ -784,7 +842,7 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     let (wolf_den_centers, wolf_den_parts) = crate::monument::generate_wolf_den(
         noise, &shore_distance, &river_network, &lake_map, &tundra_areas, &hot_spring_centers,
         &shipwreck_centers, fishing_village_center, whale_bone_graveyard_center, hunting_village_center,
-        crashed_research_drone_center, weather_station_center, &large_quarry_positions, width, height
+        crashed_research_drone_center, weather_station_center, alpine_village_center, &large_quarry_positions, width, height
     );
     
     // Generate coral reef zones (deep sea areas for living coral spawning)
@@ -796,9 +854,11 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     // Generate tide pool centers (coastal beach inlets - crabs, terns, reeds, washed-up items)
     let tide_pool_centers = generate_tide_pool_centers(config, noise, &river_network, &lake_map, &shore_distance, width, height);
     
-    // Generate village dirt roads (fishing + hunting) - for lampposts and village atmosphere
+    // Generate village dirt roads (fishing + hunting + alpine) - for lampposts and village atmosphere
     // Hunting village: center dirt (plaza) + farm dirt (crops) + roads (paths leading to center)
-    let (fishing_village_roads, hunting_village_roads, hunting_village_center_dirt, hunting_village_farm_dirt) =
+    // Alpine village: path to lodge + dirt center + grass zone (overrun with grass)
+    let (fishing_village_roads, hunting_village_roads, hunting_village_center_dirt, hunting_village_farm_dirt,
+         alpine_village_roads, alpine_village_center_dirt, alpine_village_grass_zone) =
         generate_village_roads(
             &road_network,
             &dirt_paths,
@@ -806,6 +866,7 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
             &fishing_village_parts,
             hunting_village_center,
             &hunting_village_parts,
+            alpine_village_center,
             noise,
             width,
             height,
@@ -852,14 +913,20 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         hunting_village_roads,
         hunting_village_center_dirt,
         hunting_village_farm_dirt,
+        alpine_village_center,
+        alpine_village_parts,
+        alpine_village_roads,
+        alpine_village_center_dirt,
+        alpine_village_grass_zone,
         width,
         height,
     }
 }
 
-/// Generate dirt road tiles for fishing and hunting villages.
+/// Generate dirt road tiles for fishing, hunting, and alpine villages.
 /// - Fishing village: small path around campfire and along structures
 /// - Hunting village: center dirt (plaza with campfire/houses), farm dirt (crops), roads (ring + spur leading to center)
+/// - Alpine village: path to lodge, dirt center in front, grass zone (overrun with grass)
 fn generate_village_roads(
     road_network: &[Vec<bool>],
     dirt_paths: &[Vec<bool>],
@@ -867,15 +934,19 @@ fn generate_village_roads(
     fishing_village_parts: &[(f32, f32, String, String, f32)],
     hunting_village_center: Option<(f32, f32)>,
     hunting_village_parts: &[(f32, f32, String, String)],
+    alpine_village_center: Option<(f32, f32)>,
     noise: &Perlin,
     width: usize,
     height: usize,
-) -> (Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>) {
+) -> (Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>) {
     let tile_size_px = crate::TILE_SIZE_PX as f32;
     let mut fishing_roads = vec![vec![false; width]; height];
     let mut hunting_roads = vec![vec![false; width]; height];
     let mut hunting_center_dirt = vec![vec![false; width]; height];
     let mut hunting_farm_dirt = vec![vec![false; width]; height];
+    let mut alpine_roads = vec![vec![false; width]; height];
+    let mut alpine_center_dirt = vec![vec![false; width]; height];
+    let mut alpine_grass_zone = vec![vec![false; width]; height];
 
     // --- Fishing village: small dirt path around campfire and between structures ---
     if let Some((center_px_x, center_px_y)) = fishing_village_center {
@@ -911,7 +982,37 @@ fn generate_village_roads(
                 }
             }
         }
-        log::info!("🏘️ Generated fishing village dirt roads (campfire + structure paths)");
+        // Spur: connect fishing village to nearest main road
+        let search_radius = 60i32;
+        let mut nearest_pos: Option<(i32, i32)> = None;
+        let mut nearest_dist_sq = i32::MAX;
+        for dy in -search_radius..=search_radius {
+            for dx in -search_radius..=search_radius {
+                let check_x = center_tx + dx;
+                let check_y = center_ty + dy;
+                if check_x < 0 || check_y < 0 || (check_x as usize) >= width || (check_y as usize) >= height {
+                    continue;
+                }
+                let has_road = road_network[check_y as usize][check_x as usize]
+                    || dirt_paths[check_y as usize][check_x as usize];
+                if has_road {
+                    let dist_sq = dx * dx + dy * dy;
+                    if dist_sq < nearest_dist_sq {
+                        nearest_dist_sq = dist_sq;
+                        nearest_pos = Some((check_x, check_y));
+                    }
+                }
+            }
+        }
+        if let Some((road_x, road_y)) = nearest_pos {
+            let dx = road_x - center_tx;
+            let dy = road_y - center_ty;
+            let angle = (dy as f32).atan2(dx as f32);
+            let start_tx = center_tx + (angle.cos() * (path_radius + 1) as f32) as i32;
+            let start_ty = center_ty + (angle.sin() * (path_radius + 1) as f32) as i32;
+            draw_village_road_spur(&mut fishing_roads, start_tx, start_ty, road_x, road_y, width, height);
+        }
+        log::info!("🏘️ Generated fishing village dirt roads (campfire + structure paths + spur to road)");
     }
 
     // --- Hunting village: center dirt (plaza), farm dirt (crops), roads (ring + spur) ---
@@ -1027,7 +1128,117 @@ fn generate_village_roads(
         log::info!("🏕️ Generated hunting village (center dirt + farm dirt + ring roads + spur)");
     }
 
-    (fishing_roads, hunting_roads, hunting_center_dirt, hunting_farm_dirt)
+    // --- Alpine village: path to lodge, dirt center, grass zone (overrun with grass) ---
+    if let Some((center_px_x, center_px_y)) = alpine_village_center {
+        let center_tx = (center_px_x / tile_size_px).floor() as i32;
+        let center_ty = (center_px_y / tile_size_px).floor() as i32;
+
+        // 1. Center dirt: compact area in front of lodge (~5 tiles radius)
+        let center_dirt_radius = 5i32;
+        for dy in -center_dirt_radius..=center_dirt_radius {
+            for dx in -center_dirt_radius..=center_dirt_radius {
+                let tx = center_tx + dx;
+                let ty = center_ty + dy;
+                if tx >= 0 && ty >= 0 && (tx as usize) < width && (ty as usize) < height {
+                    let dist = ((dx * dx + dy * dy) as f64).sqrt();
+                    let shape_noise = noise.get([tx as f64 * 0.12, ty as f64 * 0.12, 80000.0]);
+                    let adjusted_radius = center_dirt_radius as f64 + shape_noise * 1.2;
+                    if dist < adjusted_radius {
+                        alpine_center_dirt[ty as usize][tx as usize] = true;
+                    }
+                }
+            }
+        }
+
+        // 2. Grass zone: ring around lodge (overrun with grass) - TundraGrass tiles for dense grass
+        let grass_inner = 6i32;
+        let grass_outer = 12i32;
+        for dy in -grass_outer..=grass_outer {
+            for dx in -grass_outer..=grass_outer {
+                let tx = center_tx + dx;
+                let ty = center_ty + dy;
+                if tx >= 0 && ty >= 0 && (tx as usize) < width && (ty as usize) < height {
+                    let dist = ((dx * dx + dy * dy) as f64).sqrt();
+                    let shape_noise = noise.get([tx as f64 * 0.1, ty as f64 * 0.1, 81000.0]);
+                    let adj_inner = grass_inner as f64 + shape_noise;
+                    let adj_outer = grass_outer as f64 + shape_noise * 1.5;
+                    if dist >= adj_inner && dist < adj_outer {
+                        if !alpine_center_dirt[ty as usize][tx as usize] {
+                            alpine_grass_zone[ty as usize][tx as usize] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Dirt roads: path leading to center (spur from main road)
+        let road_ring_inner = 5i32;
+        let road_ring_outer = 8i32;
+        for dy in -road_ring_outer..=road_ring_outer {
+            for dx in -road_ring_outer..=road_ring_outer {
+                let tx = center_tx + dx;
+                let ty = center_ty + dy;
+                if tx >= 0 && ty >= 0 && (tx as usize) < width && (ty as usize) < height {
+                    let dist = ((dx * dx + dy * dy) as f64).sqrt();
+                    let shape_noise = noise.get([tx as f64 * 0.1, ty as f64 * 0.1, 82000.0]);
+                    let adj_inner = road_ring_inner as f64 + shape_noise;
+                    let adj_outer = road_ring_outer as f64 + shape_noise * 1.5;
+                    if dist >= adj_inner && dist < adj_outer {
+                        if !alpine_center_dirt[ty as usize][tx as usize]
+                            && !alpine_grass_zone[ty as usize][tx as usize]
+                        {
+                            alpine_roads[ty as usize][tx as usize] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Spur road: path from village toward nearest road_network or dirt_paths
+        let search_radius = 60i32;
+        let mut nearest_pos: Option<(i32, i32)> = None;
+        let mut nearest_dist_sq = i32::MAX;
+
+        for dy in -search_radius..=search_radius {
+            for dx in -search_radius..=search_radius {
+                let check_x = center_tx + dx;
+                let check_y = center_ty + dy;
+                if check_x < 0 || check_y < 0 || (check_x as usize) >= width || (check_y as usize) >= height {
+                    continue;
+                }
+                let has_road = road_network[check_y as usize][check_x as usize]
+                    || dirt_paths[check_y as usize][check_x as usize];
+                if has_road {
+                    let dist_sq = dx * dx + dy * dy;
+                    if dist_sq < nearest_dist_sq {
+                        nearest_dist_sq = dist_sq;
+                        nearest_pos = Some((check_x, check_y));
+                    }
+                }
+            }
+        }
+
+        if let Some((road_x, road_y)) = nearest_pos {
+            let dx = road_x - center_tx;
+            let dy = road_y - center_ty;
+            let angle = (dy as f32).atan2(dx as f32);
+            let start_tx = center_tx + (angle.cos() * road_ring_outer as f32) as i32;
+            let start_ty = center_ty + (angle.sin() * road_ring_outer as f32) as i32;
+            draw_village_road_spur(&mut alpine_roads, start_tx, start_ty, road_x, road_y, width, height);
+        }
+
+        for y in 0..height {
+            for x in 0..width {
+                if alpine_center_dirt[y][x] || alpine_grass_zone[y][x] {
+                    alpine_roads[y][x] = false;
+                }
+            }
+        }
+
+        log::info!("🏔️ Generated alpine village (path + dirt center + grass zone)");
+    }
+
+    (fishing_roads, hunting_roads, hunting_center_dirt, hunting_farm_dirt, alpine_roads, alpine_center_dirt, alpine_grass_zone)
 }
 
 /// Draw a narrow (3x3) dirt road spur between two points
@@ -3462,11 +3673,34 @@ fn determine_realistic_tile_type(
     if features.hunting_village_roads[y][x] {
         return TileType::DirtRoad;
     }
+    // Alpine village: center dirt and path (like hunting village)
+    if features.alpine_village_center_dirt[y][x] {
+        return TileType::Dirt;
+    }
+    if features.alpine_village_roads[y][x] {
+        return TileType::DirtRoad;
+    }
+    // Alpine village grass zone: overrun with grass (TundraGrass for dense grass look)
+    if features.alpine_village_grass_zone[y][x] {
+        return TileType::TundraGrass;
+    }
     
     // ALPINE BIOME: Rocky, sparse terrain in far north
     // Check BEFORE forest since alpine has no forests
     if features.alpine_areas[y][x] {
         return TileType::Alpine;
+    }
+    
+    // Fishing village zone: override tundra with Beach (south beach village - no tundra ring)
+    if let Some((center_px_x, center_px_y)) = features.fishing_village_center {
+        let tile_size_px = crate::TILE_SIZE_PX as f32;
+        let center_tx = (center_px_x / tile_size_px).floor() as i32;
+        let center_ty = (center_px_y / tile_size_px).floor() as i32;
+        let dx = world_x - center_tx;
+        let dy = world_y - center_ty;
+        if dx * dx + dy * dy < 12 * 12 && features.tundra_areas[y][x] {
+            return TileType::Beach;
+        }
     }
     
     // TUNDRA BIOME: Arctic grassland in northern regions

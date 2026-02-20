@@ -52,6 +52,10 @@ pub mod clearance {
     /// Wolf den - clear a 8-tile radius (384px)
     /// Single wolf mound structure that spawns a pack of wolves
     pub const WOLF_DEN: f32 = 384.0;
+    
+    /// Alpine village - clear a 10-tile radius (480px)
+    /// Single earth-sheltered lodge in alpine biome
+    pub const ALPINE_VILLAGE: f32 = 480.0;
 }
 
 /// Minimum distance between monument spawns (barrels, harvestables, placeables)
@@ -118,6 +122,11 @@ pub fn is_position_near_monument(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -
     
     // Check wolf den monuments
     if is_near_wolf_den(ctx, pos_x, pos_y) {
+        return true;
+    }
+    
+    // Check alpine village monument (single lodge in alpine)
+    if is_near_alpine_village(ctx, pos_x, pos_y) {
         return true;
     }
     
@@ -258,6 +267,26 @@ fn is_near_wolf_den(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
     
     for part in ctx.db.monument_part().iter() {
         if part.monument_type != MonumentType::WolfDen {
+            continue;
+        }
+        let dx = pos_x - part.world_x;
+        let dy = pos_y - part.world_y;
+        let dist_sq = dx * dx + dy * dy;
+        
+        if dist_sq < clearance_sq {
+            return true;
+        }
+    }
+    
+    false
+}
+
+/// Checks if position is near the alpine village (single lodge center)
+fn is_near_alpine_village(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    let clearance_sq = clearance::ALPINE_VILLAGE * clearance::ALPINE_VILLAGE;
+    
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type != MonumentType::AlpineVillage || !part.is_center {
             continue;
         }
         let dx = pos_x - part.world_x;
@@ -1802,6 +1831,357 @@ pub fn generate_weather_station(
     (station_center, station_parts)
 }
 
+// =============================================================================
+// ALPINE VILLAGE MONUMENT
+// =============================================================================
+
+/// Generate alpine village monument in alpine biome
+/// Single earth-sheltered lodge (av_lodge.png) - no fire pit, no drying racks.
+/// Path and dirt center like hunting village. Overrun with grass (alpine grass zone).
+/// Returns (center_position, monument_parts) where:
+/// - center_position: Option<(x, y)> in world pixels for the lodge center
+/// - monument_parts: Vec of (x, y, image_path, part_type) for the single lodge structure
+pub fn generate_alpine_village(
+    noise: &Perlin,
+    shore_distance: &[Vec<f64>],
+    river_network: &[Vec<bool>],
+    lake_map: &[Vec<bool>],
+    alpine_areas: &[Vec<bool>],
+    hot_spring_centers: &[(f32, f32, i32)],
+    shipwreck_centers: &[(f32, f32)],
+    fishing_village_center: Option<(f32, f32)>,
+    whale_bone_graveyard_center: Option<(f32, f32)>,
+    hunting_village_center: Option<(f32, f32)>,
+    crashed_research_drone_center: Option<(f32, f32)>,
+    weather_station_center: Option<(f32, f32)>,
+    large_quarry_centers: &[(f32, f32, i32)],
+    width: usize,
+    height: usize,
+) -> (Option<(f32, f32)>, Vec<(f32, f32, String, String)>) {
+    let mut village_center: Option<(f32, f32)> = None;
+    let mut village_parts: Vec<(f32, f32, String, String)> = Vec::new();
+    
+    log::info!("🏔️ Generating alpine village monument in alpine biome (northern zone)...");
+    
+    // Restrict to TOP 20% of map (northern alpine) - guarantees spawn in far north
+    // Alpine = top 35% of map, so top 20% is deep in alpine band
+    let northern_bound = height / 5; // Top 20% (y from 0 to height/5)
+    
+    let min_shore_dist = 10.0;  // Relaxed - northern coast can have inlets
+    let min_distance_from_edge = 25;
+    let min_distance_from_other_monuments = 60.0;  // Reduced from 80 - alpine band is narrower
+    let min_distance_from_hot_spring = 40.0;
+    let min_distance_from_large_quarry = 40.0;
+    let min_distance_from_river = 5;
+    
+    let mut candidate_positions = Vec::new();
+    
+    // Search ONLY in northern alpine zone (top 20% of map)
+    for y in min_distance_from_edge..northern_bound.min(height - min_distance_from_edge) {
+        for x in min_distance_from_edge..(width - min_distance_from_edge) {
+            let shore_dist = shore_distance[y][x];
+            
+            if shore_dist >= min_shore_dist && alpine_areas[y][x] {
+                if river_network[y][x] || lake_map[y][x] {
+                    continue;
+                }
+                
+                let mut too_close_to_river = false;
+                for check_dy in -(min_distance_from_river as i32)..=(min_distance_from_river as i32) {
+                    for check_dx in -(min_distance_from_river as i32)..=(min_distance_from_river as i32) {
+                        let check_x = x as i32 + check_dx;
+                        let check_y = y as i32 + check_dy;
+                        if check_x >= 0 && check_y >= 0 &&
+                           (check_x as usize) < width && (check_y as usize) < height {
+                            if river_network[check_y as usize][check_x as usize] {
+                                too_close_to_river = true;
+                                break;
+                            }
+                        }
+                    }
+                    if too_close_to_river { break; }
+                }
+                
+                if too_close_to_river {
+                    continue;
+                }
+                
+                let tile_world_x = (x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                let tile_world_y = (y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+                
+                let mut too_close = false;
+                
+                for &(sx, sy) in shipwreck_centers {
+                    let dx = tile_world_x - sx;
+                    let dy = tile_world_y - sy;
+                    let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                    if dist_tiles < min_distance_from_other_monuments {
+                        too_close = true;
+                        break;
+                    }
+                }
+                
+                if !too_close {
+                    if let Some((fv_x, fv_y)) = fishing_village_center {
+                        let dx = tile_world_x - fv_x;
+                        let dy = tile_world_y - fv_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        if dist_tiles < min_distance_from_other_monuments {
+                            too_close = true;
+                        }
+                    }
+                }
+                
+                if !too_close {
+                    if let Some((wbg_x, wbg_y)) = whale_bone_graveyard_center {
+                        let dx = tile_world_x - wbg_x;
+                        let dy = tile_world_y - wbg_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        if dist_tiles < min_distance_from_other_monuments {
+                            too_close = true;
+                        }
+                    }
+                }
+                
+                if !too_close {
+                    if let Some((hv_x, hv_y)) = hunting_village_center {
+                        let dx = tile_world_x - hv_x;
+                        let dy = tile_world_y - hv_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        if dist_tiles < min_distance_from_other_monuments {
+                            too_close = true;
+                        }
+                    }
+                }
+                
+                if !too_close {
+                    if let Some((crd_x, crd_y)) = crashed_research_drone_center {
+                        let dx = tile_world_x - crd_x;
+                        let dy = tile_world_y - crd_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        if dist_tiles < min_distance_from_other_monuments {
+                            too_close = true;
+                        }
+                    }
+                }
+                
+                if !too_close {
+                    if let Some((ws_x, ws_y)) = weather_station_center {
+                        let dx = tile_world_x - ws_x;
+                        let dy = tile_world_y - ws_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        if dist_tiles < min_distance_from_other_monuments {
+                            too_close = true;
+                        }
+                    }
+                }
+                
+                if !too_close {
+                    for &(hs_x, hs_y, hs_radius) in hot_spring_centers {
+                        let dx = tile_world_x - hs_x;
+                        let dy = tile_world_y - hs_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        let min_dist = min_distance_from_hot_spring + hs_radius as f32;
+                        if dist_tiles < min_dist {
+                            too_close = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if !too_close {
+                    for &(qx, qy, qr) in large_quarry_centers {
+                        let qw_x = (qx + 0.5) * crate::TILE_SIZE_PX as f32;
+                        let qw_y = (qy + 0.5) * crate::TILE_SIZE_PX as f32;
+                        let dx = tile_world_x - qw_x;
+                        let dy = tile_world_y - qw_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        let min_dist = min_distance_from_large_quarry + qr as f32;
+                        if dist_tiles < min_dist {
+                            too_close = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if too_close {
+                    continue;
+                }
+                
+                candidate_positions.push((x, y, shore_dist));
+            }
+        }
+    }
+    
+    if candidate_positions.is_empty() {
+        log::warn!("🏔️ No valid alpine positions found for alpine village");
+        return (village_center, village_parts);
+    }
+    
+    log::info!("🏔️ Found {} candidate positions for alpine village in alpine biome",
+               candidate_positions.len());
+    
+    let mut best_score = f64::NEG_INFINITY;
+    let mut best_position: Option<(usize, usize)> = None;
+    
+    for &(x, y, shore_dist) in &candidate_positions {
+        let noise_val = noise.get([x as f64 * 0.01, y as f64 * 0.01, 70000.0]);
+        let inland_bonus = (shore_dist - min_shore_dist).min(25.0) / 25.0 * 0.35;
+        let score = noise_val + inland_bonus;
+        
+        if score > best_score {
+            best_score = score;
+            best_position = Some((x, y));
+        }
+    }
+    
+    if let Some((center_x, center_y)) = best_position {
+        let tile_size_px = crate::TILE_SIZE_PX as f32;
+        let center_world_x = (center_x as f32 + 0.5) * tile_size_px;
+        let center_world_y = (center_y as f32 + 0.5) * tile_size_px;
+        
+        village_center = Some((center_world_x, center_world_y));
+        
+        log::info!("🏔️✨ PLACED ALPINE VILLAGE (lodge) at tile ({}, {}) = 📍 World Position: ({:.0}, {:.0}) ✨",
+                   center_x, center_y, center_world_x, center_world_y);
+        
+        // Single structure: the earth-sheltered lodge (av_lodge.png)
+        village_parts.push((center_world_x, center_world_y, "av_lodge.png".to_string(), "lodge".to_string()));
+        
+        log::info!("🏔️ Alpine village generation complete: {} structure (lodge only)", village_parts.len());
+    } else {
+        log::warn!("🏔️ Failed to select alpine village position");
+    }
+    
+    (village_center, village_parts)
+}
+
+/// Spawn barrels and memory shards at alpine village monument
+pub fn spawn_alpine_village_all(
+    ctx: &ReducerContext,
+    center_x: f32,
+    center_y: f32,
+    part_positions: &[(f32, f32)],
+) -> Result<(u32, u32), String> {
+    let harvestable_configs = get_alpine_village_harvestables();
+    let mut occupied_positions: Vec<OccupiedPosition> = Vec::new();
+    
+    // Spawn memory shards (harvestables) with collision avoidance
+    let harvestable_count = spawn_monument_harvestables_with_collision(
+        ctx, part_positions, &harvestable_configs, &mut occupied_positions, true
+    )?;
+    
+    // Spawn barrels with collision avoidance
+    let barrel_count = spawn_alpine_village_barrels(ctx, center_x, center_y, &mut occupied_positions)?;
+    
+    log::info!("[AlpineVillageSpawn] Spawned {} memory shards, {} barrels", harvestable_count, barrel_count);
+    
+    Ok((harvestable_count, barrel_count))
+}
+
+/// Spawn barrels around alpine village lodge
+fn spawn_alpine_village_barrels(
+    ctx: &ReducerContext,
+    center_x: f32,
+    center_y: f32,
+    occupied: &mut Vec<OccupiedPosition>,
+) -> Result<u32, String> {
+    use crate::barrel::{Barrel, BARREL_INITIAL_HEALTH};
+    use crate::environment::calculate_chunk_index;
+    use crate::barrel::{has_barrel_collision, has_player_barrel_collision};
+    use rand::Rng;
+    
+    const BARREL_RADIUS: f32 = 35.0;
+    
+    let mut spawned_count = 0u32;
+    let barrel_count = ctx.rng().gen_range(3..=5);
+    
+    for barrel_idx in 0..barrel_count {
+        let mut attempts = 0;
+        const MAX_ATTEMPTS: u32 = 25;
+        
+        while attempts < MAX_ATTEMPTS {
+            attempts += 1;
+            
+            let base_angle = (barrel_idx as f32) * (2.0 * std::f32::consts::PI / barrel_count as f32);
+            let angle = base_angle + ctx.rng().gen_range(-0.7..0.7);
+            let distance = ctx.rng().gen_range(280.0..400.0);
+            let barrel_x = center_x + angle.cos() * distance;
+            let barrel_y = center_y + angle.sin() * distance;
+            
+            let tile_x = (barrel_x / crate::TILE_SIZE_PX as f32).floor() as i32;
+            let tile_y = (barrel_y / crate::TILE_SIZE_PX as f32).floor() as i32;
+            if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
+                if tile_type.is_water() {
+                    continue;
+                }
+            }
+            
+            if is_position_occupied(barrel_x, barrel_y, BARREL_RADIUS, occupied) {
+                continue;
+            }
+            
+            if has_barrel_collision(ctx, barrel_x, barrel_y, None) ||
+               has_player_barrel_collision(ctx, barrel_x, barrel_y) {
+                continue;
+            }
+            
+            let variant = ctx.rng().gen_range(0..3);
+            let chunk_idx = calculate_chunk_index(barrel_x, barrel_y);
+            
+            let new_barrel = Barrel {
+                id: 0,
+                pos_x: barrel_x,
+                pos_y: barrel_y,
+                chunk_index: chunk_idx,
+                health: BARREL_INITIAL_HEALTH,
+                variant,
+                last_hit_time: None,
+                respawn_at: Timestamp::UNIX_EPOCH,
+                cluster_id: 0,
+                is_monument: false,
+            };
+            
+            ctx.db.barrel().insert(new_barrel);
+            spawned_count += 1;
+            
+            occupied.push(OccupiedPosition {
+                x: barrel_x,
+                y: barrel_y,
+                radius: BARREL_RADIUS,
+            });
+            
+            break;
+        }
+    }
+    
+    Ok(spawned_count)
+}
+
+/// Alpine village harvestable configuration (memory shards - ancient memories)
+pub fn get_alpine_village_harvestables() -> Vec<MonumentHarvestableConfig> {
+    vec![
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::MemoryShard,
+            spawn_chance: 0.85,
+            min_distance: 80.0,
+            max_distance: 180.0,
+        },
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::MemoryShard,
+            spawn_chance: 0.55,
+            min_distance: 100.0,
+            max_distance: 220.0,
+        },
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::MemoryShard,
+            spawn_chance: 0.35,
+            min_distance: 120.0,
+            max_distance: 250.0,
+        },
+    ]
+}
+
 /// Generate wolf den monuments in tundra biome (wolf pack spawn points)
 /// Returns (center_positions, monument_parts) where:
 /// - center_positions: Vec of (x, y) in world pixels for each wolf mound
@@ -1820,6 +2200,7 @@ pub fn generate_wolf_den(
     hunting_village_center: Option<(f32, f32)>,
     crashed_research_drone_center: Option<(f32, f32)>,
     weather_station_center: Option<(f32, f32)>,
+    alpine_village_center: Option<(f32, f32)>,
     large_quarry_centers: &[(f32, f32, i32)], // Large quarry centers (x_tile, y_tile, radius)
     width: usize,
     height: usize,
@@ -1959,6 +2340,17 @@ pub fn generate_wolf_den(
                     if let Some((ws_x, ws_y)) = weather_station_center {
                         let dx = tile_world_x - ws_x;
                         let dy = tile_world_y - ws_y;
+                        let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
+                        if dist_tiles < min_distance_from_other_monuments {
+                            too_close = true;
+                        }
+                    }
+                }
+                
+                if !too_close {
+                    if let Some((av_x, av_y)) = alpine_village_center {
+                        let dx = tile_world_x - av_x;
+                        let dy = tile_world_y - av_y;
                         let dist_tiles = (dx * dx + dy * dy).sqrt() / crate::TILE_SIZE_PX as f32;
                         if dist_tiles < min_distance_from_other_monuments {
                             too_close = true;
@@ -3453,11 +3845,34 @@ pub fn get_shipwreck_placeables() -> Vec<MonumentPlaceableConfig> {
 }
 
 /// Get monument placeables for the Fishing Village monument
-/// NOTE: No functional campfire - using visual doodad fv_campfire.png instead
+/// Campfire is visual doodad (fv_campfire.png) with collision. Barrels placed away from campfire/buildings.
 pub fn get_fishing_village_placeables() -> Vec<MonumentPlaceableConfig> {
     vec![
-        // No placeables - the campfire is now a visual doodad (fv_campfire.png)
-        // This keeps the village purely decorative and allows existing campfires to work
+        // Barrels - perimeter positions, min 200px from campfire (0,0) and buildings
+        // Huts at (-480,-500), (480,-500), (0,-700); smokerack at (-320,-200)
+        MonumentPlaceableConfig::barrel(400.0, 120.0),   // East
+        MonumentPlaceableConfig::barrel(-400.0, 120.0), // West
+        MonumentPlaceableConfig::barrel(280.0, 280.0),  // East-south
+        MonumentPlaceableConfig::barrel(-280.0, 280.0),// West-south
+        MonumentPlaceableConfig::barrel(0.0, 420.0),    // South
+    ]
+}
+
+/// Fishing village harvestables (memory shards) - min 200px from campfire and buildings
+pub fn get_fishing_village_harvestables() -> Vec<MonumentHarvestableConfig> {
+    vec![
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::MemoryShard,
+            spawn_chance: 0.55,
+            min_distance: 200.0,
+            max_distance: 380.0,
+        },
+        MonumentHarvestableConfig {
+            plant_type: crate::plants_database::PlantType::MemoryShard,
+            spawn_chance: 0.35,
+            min_distance: 220.0,
+            max_distance: 400.0,
+        },
     ]
 }
 

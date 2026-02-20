@@ -66,6 +66,7 @@ interface CyberpunkLoadingScreenProps {
     authLoading: boolean;
     spacetimeLoading?: boolean; // Add SpacetimeDB loading state
     onSequenceComplete?: () => void;
+    hasSeenSovaIntro?: boolean; // Server-tracked intro completion flag
     musicPreloadProgress?: number; // 0-1 for music preload progress
     musicPreloadComplete?: boolean;
     // NEW: Real asset loading progress
@@ -119,7 +120,6 @@ window.__LOADING_SCREEN_AUDIO_IS_PLAYING__ = () => {
 
 const TOTAL_SOVA_SOUNDS = 21;
 const AUDIO_ENABLED_KEY = 'sova_audio_enabled';
-const SOVA_INTRO_CRASH_STORAGE_KEY = 'broth_sova_intro_crash_played';
 
 // Check if user previously enabled audio
 const hasUserEnabledAudio = (): boolean => {
@@ -240,6 +240,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     authLoading, 
     spacetimeLoading = false, 
     onSequenceComplete, 
+    hasSeenSovaIntro,
     musicPreloadProgress = 0, 
     musicPreloadComplete = false,
     assetProgress = null,
@@ -268,6 +269,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     const isAttemptingAutoPlay = useRef(false); // Prevent multiple simultaneous auto-play attempts
     const consoleLogsRef = useRef<HTMLDivElement>(null);
     const sovaAvatarRef = useRef<HTMLImageElement>(null);
+    const isReturningPlayer = hasSeenSovaIntro === true;
 
     const logs = React.useMemo(() => {
         const baseLogs = authLoading ? [
@@ -363,8 +365,8 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
 
     // Function to unlock audio context and play random SOVA sound
     const attemptToPlayRandomSovaSound = useCallback(async () => {
-        // Don't play loading screen sounds on first-time players (intro tutorial plays in-game)
-        if (!localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY)) return;
+        // Only play loading-screen random SOVA lines for returning players.
+        if (!isReturningPlayer) return;
         
         // Don't auto-play if we've already played something, if audio isn't ready, or if we're already attempting
         if (hasPlayedReconnect.current || !audioPreloaded || isAttemptingAutoPlay.current) return;
@@ -428,13 +430,13 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             setShowAudioPrompt(true);
             saveAudioPreference(false);
         }
-    }, [audioPreloaded]); // Only recreate if audioPreloaded changes
+    }, [audioPreloaded, isReturningPlayer]); // Re-run when server intro state becomes available
 
     // Handle Sova avatar click to play random sounds
     const handleSovaClick = async () => {
         
-        // Don't play loading screen sounds on first-time players (intro tutorial plays in-game)
-        if (!localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY)) {
+        // Don't play loading-screen random lines on first-time players.
+        if (!isReturningPlayer) {
             if (showAudioPrompt) setShowAudioPrompt(false);
             return;
         }
@@ -532,15 +534,15 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
 
     // Try to play random SOVA sound when component mounts and audio is preloaded
     useEffect(() => {
-        // Don't auto-play for first-time players (intro tutorial plays in-game)
-        if (!localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY)) return;
+        // Don't auto-play for first-time players (intro tutorial plays in-game).
+        if (!isReturningPlayer) return;
         
         // Only attempt auto-play if audio is preloaded and we haven't tried yet
         if (audioPreloaded && !hasPlayedReconnect.current) {
             const timer = setTimeout(attemptToPlayRandomSovaSound, 200);
             return () => clearTimeout(timer);
         }
-    }, [audioPreloaded, attemptToPlayRandomSovaSound]); // Include memoized function
+    }, [audioPreloaded, attemptToPlayRandomSovaSound, isReturningPlayer]); // Include server intro state
 
     // Add non-passive touch listener to prevent double-tap zoom on mobile
     useEffect(() => {
@@ -655,8 +657,8 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     const handleEnableAudioClick = async () => {
         setShowAudioPrompt(false);
         
-        // Don't play for first-time players (intro tutorial plays in-game)
-        if (!localStorage.getItem(SOVA_INTRO_CRASH_STORAGE_KEY)) {
+        // Don't play random loading-screen lines for first-time players.
+        if (!isReturningPlayer) {
             setAudioContextUnlocked(true);
             saveAudioPreference(true);
             return;

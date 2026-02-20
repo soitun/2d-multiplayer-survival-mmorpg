@@ -4353,13 +4353,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       });
     });
 
-    // Village Campfire Lights - Fishing + Hunting (same fv_campfire doodad, always burning)
-    // Renders the warm, cozy light from Aleut-style communal campfires
+    // Village Campfire Lights - Hunting only (fv_campfire doodad, cozy effect)
+    // Fishing village campfire has no light/cozy effects per user request
     if (monumentParts && monumentParts.size > 0) {
       monumentParts.forEach((part: any) => {
-        const isFishingVillageCampfire = part.monumentType?.tag === 'FishingVillage' && part.isCenter;
         const isHuntingVillageCampfire = part.monumentType?.tag === 'HuntingVillage' && part.partType === 'campfire';
-        if (isFishingVillageCampfire || isHuntingVillageCampfire) {
+        if (isHuntingVillageCampfire) {
           renderFishingVillageCampfireLight({
             ctx,
             worldX: part.worldX,

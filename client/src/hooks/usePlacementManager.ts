@@ -752,6 +752,7 @@ function isMonumentZonePlacementBlocked(connection: DbConnection | null, worldX:
         case 'WeatherStation':
         case 'WolfDen':
         case 'HuntingVillage':
+        case 'AlpineVillage':
         default:
           // 800px minimum for all other monuments
           restrictionRadiusSq = MONUMENT_MINIMUM_RESTRICTION_RADIUS_SQ;

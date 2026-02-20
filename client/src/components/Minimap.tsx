@@ -94,6 +94,10 @@ const CRASHED_DRONE_GLOW_COLOR = '#FF4500'; // Orange-red glow (dangerous/explos
 const WEATHER_STATION_COLOR = '#87CEEB'; // Sky blue for weather equipment
 const WEATHER_STATION_GLOW_COLOR = '#4169E1'; // Royal blue glow (scientific/cold)
 
+// Alpine Village constants - EARTH-SHELTERED LODGE (shares hunting village soundtrack)
+const ALPINE_VILLAGE_COLOR = '#6B8E23'; // Olive/forest green for grass-covered lodge
+const ALPINE_VILLAGE_GLOW_COLOR = '#228B22'; // Forest green glow (alpine meadow)
+
 // NOTE: Wolf Den removed from minimap - minor monument (wolf spawn point)
 
 // Drone flyover constants - EERIE SKY DRONE (periodic flyover)
@@ -1565,6 +1569,60 @@ export function drawMinimapOntoCanvas({
         // Fill with weather station color (sky blue for weather equipment)
         ctx.fillStyle = WEATHER_STATION_COLOR;
         ctx.fillText('WEATHER STATION', x, y);
+        
+        ctx.restore();
+      }
+    }
+  }
+
+  // --- Draw Alpine Village Parts (EARTH-SHELTERED LODGE) ---
+  // Show ONE representative "ALPINE VILLAGE" label for the entire structure
+  // Shares hunting village soundtrack - single lodge overrun with grass
+  // Support both camelCase (monumentType) and snake_case (monument_type) from SpacetimeDB
+  const alpineVillagePartsFiltered = monumentParts ? Array.from(monumentParts.values())
+    .filter((part: any) => {
+      const tag = part.monumentType?.tag ?? part.monument_type?.tag;
+      return tag === 'AlpineVillage';
+    }) : [];
+  
+  if (alpineVillagePartsFiltered.length > 0 && showNames === true) {
+    let representativePart: any | null = null;
+    
+    alpineVillagePartsFiltered.forEach((part: any) => {
+      if (part.isCenter || part.is_center || part.partType === 'lodge' || part.part_type === 'lodge') {
+        representativePart = part;
+      }
+    });
+    
+    if (!representativePart && alpineVillagePartsFiltered.length > 0) {
+      representativePart = alpineVillagePartsFiltered[0];
+    }
+    
+    if (representativePart) {
+      const partX = representativePart.worldX ?? representativePart.world_x ?? 0;
+      const partY = representativePart.worldY ?? representativePart.world_y ?? 0;
+      const screenCoords = worldToMinimap(partX, partY);
+      if (screenCoords) {
+        const x = screenCoords.x;
+        const y = screenCoords.y;
+        
+        ctx.save();
+        
+        ctx.font = 'bold 14px "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        ctx.shadowColor = ALPINE_VILLAGE_GLOW_COLOR;
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        ctx.strokeText('ALPINE VILLAGE', x, y);
+        
+        ctx.fillStyle = ALPINE_VILLAGE_COLOR;
+        ctx.fillText('ALPINE VILLAGE', x, y);
         
         ctx.restore();
       }

@@ -654,6 +654,8 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
     const WEATHER_STATION_RESTRICTION_RADIUS_SQ: f32 = WEATHER_STATION_RESTRICTION_RADIUS * WEATHER_STATION_RESTRICTION_RADIUS;
     const WOLF_DEN_RESTRICTION_RADIUS: f32 = 800.0; // Wolf den mound monument (800px minimum)
     const WOLF_DEN_RESTRICTION_RADIUS_SQ: f32 = WOLF_DEN_RESTRICTION_RADIUS * WOLF_DEN_RESTRICTION_RADIUS;
+    const ALPINE_VILLAGE_RESTRICTION_RADIUS: f32 = 600.0; // Alpine village lodge (600px minimum)
+    const ALPINE_VILLAGE_RESTRICTION_RADIUS_SQ: f32 = ALPINE_VILLAGE_RESTRICTION_RADIUS * ALPINE_VILLAGE_RESTRICTION_RADIUS;
     
     for part in ctx.db.monument_part().iter() {
         // Only check against center pieces for simplicity
@@ -704,6 +706,11 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
             MonumentType::WolfDen => {
                 if distance_sq <= WOLF_DEN_RESTRICTION_RADIUS_SQ {
                     return Err("Cannot place items within the Wolf Den. This monument must remain unobstructed.".to_string());
+                }
+            }
+            MonumentType::AlpineVillage => {
+                if distance_sq <= ALPINE_VILLAGE_RESTRICTION_RADIUS_SQ {
+                    return Err("Cannot place items within the Alpine Village. This monument must remain unobstructed.".to_string());
                 }
             }
         }

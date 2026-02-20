@@ -21,6 +21,7 @@ import { drawDynamicGroundShadow } from './shadowUtils';
 const ISOMETRIC_DOODAD_IMAGES = new Set([
   'fv_lodge.png', 'fv_hut2.png', 'fv_hut3.png',
   'hv_lodge.png', 'hv_hut2.png', 'hv_hut3.png',
+  'av_lodge.png', // Alpine village earth-sheltered lodge
   'wbg_hermit_hut.png', 'hs_shack.png',
   // Whale Bone Graveyard monument parts (ancient whale bones on beach)
   'wbg_ribcage.png', 'wbg_skull.png', 'wbg_spine.png', 'wbg_jawbone.png',
@@ -117,6 +118,9 @@ export function preloadMonumentImages(): void {
     
     // Wolf Den monument images (tundra wolf mound)
     loadImage('wd_mound.png', import('../../assets/doodads/wd_mound.png?url'));
+    
+    // Alpine Village monument images (earth-sheltered lodge)
+    loadImage('av_lodge.png', import('../../assets/doodads/av_lodge.png?url'));
 
     // Aleutian whale oil road lampposts (along dirt roads)
     loadImage('road_lamp.png', import('../../assets/doodads/road_lamp.png?url'));
@@ -190,6 +194,9 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             
             // Wolf Den monument images (tundra wolf mound)
             'wd_mound.png': () => import('../../assets/doodads/wd_mound.png?url'),
+            
+            // Alpine Village monument images (earth-sheltered lodge)
+            'av_lodge.png': () => import('../../assets/doodads/av_lodge.png?url'),
 
             // Aleutian whale oil road lampposts (along dirt roads)
             'road_lamp.png': () => import('../../assets/doodads/road_lamp.png?url'),

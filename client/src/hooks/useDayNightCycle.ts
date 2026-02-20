@@ -622,14 +622,12 @@ export function useDayNightCycle({
             }
         });
 
-        // Render village campfire light cutouts (fishing + hunting - same fv_campfire doodad)
-        // Aleut-style communal campfires - cozy safe zones with warm light
-        // Y offset to center light on the firepit in the 1024x1024 image (rendered at 256x256)
+        // Render village campfire light cutouts (hunting only - cozy effect)
+        // Fishing village campfire has no light per user request
         const VILLAGE_CAMPFIRE_Y_OFFSET = -150; // Dropped 100px lower for better alignment
         monumentParts.forEach(part => {
-            const isFishingVillageCampfire = part.monumentType?.tag === 'FishingVillage' && part.isCenter;
             const isHuntingVillageCampfire = part.monumentType?.tag === 'HuntingVillage' && part.partType === 'campfire';
-            if (isFishingVillageCampfire || isHuntingVillageCampfire) {
+            if (isHuntingVillageCampfire) {
                 const screenX = part.worldX + cameraOffsetX;
                 const screenY = part.worldY + cameraOffsetY + VILLAGE_CAMPFIRE_Y_OFFSET; // Apply offset
                 

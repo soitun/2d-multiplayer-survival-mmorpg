@@ -1072,6 +1072,7 @@ function AppContent() {
                     authLoading={authLoading}
                     spacetimeLoading={spacetimeLoading}
                     onSequenceComplete={handleSequenceComplete}
+                    hasSeenSovaIntro={loggedInPlayer?.hasSeenSovaIntro}
                     musicPreloadProgress={musicSystem.preloadProgress}
                     musicPreloadComplete={musicSystem.preloadProgress >= 1 && !musicSystem.isLoading}
                     assetProgress={assetProgress}

@@ -775,8 +775,9 @@ function isPositionInMonumentZone(
                 case 'WeatherStation':
                 case 'WolfDen':
                 case 'HuntingVillage':
+                case 'AlpineVillage':
                 default:
-                    // 800px minimum for all other monuments
+                    // 800px minimum for all other monuments (AlpineVillage uses 600px on server)
                     restrictionRadiusSq = MONUMENT_MINIMUM_RESTRICTION_RADIUS_SQ;
             }
             
