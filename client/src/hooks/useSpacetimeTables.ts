@@ -1,4 +1,25 @@
-import { useState, useEffect, useRef, useContext, useCallback } from 'react';
+/**
+ * useSpacetimeTables - Central SpacetimeDB subscription and state management hook
+ *
+ * This hook is the single source of truth for all game entity data from SpacetimeDB.
+ * It manages two subscription strategies:
+ *
+ * 1. NON-SPATIAL: Global subscriptions for tables that are small or not viewport-dependent
+ *    (players, inventory, world state, recipes, etc.). Subscribed once on connect.
+ *
+ * 2. SPATIAL: Chunk-based subscriptions for entities that exist in the world grid
+ *    (trees, stones, campfires, wild animals, etc.). Subscribed only for chunks
+ *    within the viewport + buffer. Uses hysteresis (delayed unsub) to prevent
+ *    rapid re-subscribe cycles when crossing chunk boundaries.
+ *
+ * Performance optimizations:
+ * - Batched subscriptions: Multiple tables per chunk combined into single queries
+ * - Throttled updates: Player position, wild animals, projectiles use refs + batched
+ *   React updates to avoid re-renders on every server tick
+ * - Microtask batching: Tree/stone/campfire inserts coalesced via queueMicrotask
+ * - Progressive loading: Chunk subscriptions spread across frames to avoid lag spikes
+ */
+import { useState, useEffect, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import * as SpacetimeDB from '../generated';
 import {
@@ -7,94 +28,42 @@ import {
     Projectile as SpacetimeDBProjectile,
 } from '../generated';
 import { Identity } from 'spacetimedb';
-import { getChunkIndicesForViewport, getChunkIndicesForViewportWithBuffer } from '../utils/chunkUtils';
+import { getChunkIndicesForViewportWithBuffer } from '../utils/chunkUtils';
 import { gameConfig } from '../config/gameConfig';
 import { triggerExplosionEffect } from '../utils/renderers/explosiveRenderingUtils';
 
+// ─── Spatial chunk-subscription strategy ─────────────────────────────────────
+// - Batch and throttle chunk subscriptions to avoid bursty update spikes.
+// - Keep configuration centralized below for easier tuning.
+// - Performance logging can be enabled temporarily when investigating issues.
 
-// ===================================================================================================
-// 🚀 PERFORMANCE OPTIMIZATION: CHUNK SUBSCRIPTION SYSTEM - FINAL OPTIMIZED VERSION
-// ===================================================================================================
-// 
-// 🧪 CHUNK SIZE TESTING: See CHUNK_SIZE_TESTING.md for guide on testing different chunk sizes
-// Performance metrics are logged every 10 seconds when ENABLE_CHUNK_PERFORMANCE_LOGGING = true
-// ===================================================================================================
-// 
-// PROBLEM: Individual table subscriptions were causing massive lag spikes:
-// - Before: 12+ individual subscriptions per chunk
-// - With buffer=3: 49 chunks × 12 subs = 588 database calls
-// - Result: 200-300ms frame times, unplayable lag spikes
-//
-// SOLUTION IMPLEMENTED (FINAL OPTIMIZED):
-// 1. 🎯 SMART BUFFER SIZE: buffer=2 (optimal balance: 1=frequent crossings, 2=perfect, 3=too many chunks)  
-// 2. 🚀 BATCHED SUBSCRIPTIONS: 12 individual → 3 batched calls per chunk (75% reduction)
-// 3. 🛡️ CHUNK COUNT LIMITING: Max 20 chunks processed per frame (prevents 195-chunk lag spikes)
-// 4. 🕐 INTELLIGENT THROTTLING: Min 150ms between chunk updates (prevents rapid-fire spam)
-// 5. 📊 ADAPTIVE MONITORING: Smart detection of crossing frequency and rapid changes
-//
-// PERFORMANCE RESULTS ACHIEVED:
-// - ✅ FPS: 95-156fps (was ~10fps with lag spikes)
-// - ✅ Frame time: 0.01ms average (was 200-300ms)
-// - ✅ Slow frames: 0% (was constant stuttering)  
-// - ✅ Chunk crossings: <8 per 5 seconds (was excessive)
-// - ✅ Smooth movement with minimal subscription overhead
-//
-// CONFIGURATION NOTES:
-// - Buffer=2: 25 chunks total (5×5 grid) - optimal for smooth movement without excessive load
-// - Batched subs: 75 subscription calls total (was 588) - 87% reduction in DB calls
-// - Throttling: Prevents rapid chunk updates during fast movement
-// ===================================================================================================
-
-// SPATIAL SUBSCRIPTION CONTROL FLAGS
-const DISABLE_ALL_SPATIAL_SUBSCRIPTIONS = false; // 🚨 EMERGENCY: Master switch - disable ALL spatial subscriptions to isolate performance issue
+// Spatial subscription control flags.
+const DISABLE_ALL_SPATIAL_SUBSCRIPTIONS = false; // Master switch for spatial subscriptions.
 const ENABLE_CLOUDS = true; // Controls cloud spatial subscriptions
 // ENABLE_GRASS is now controlled by the grassEnabled prop passed to the hook
-const ENABLE_WORLD_TILES = false; // Controls world tile spatial subscriptions (OLD SYSTEM - DEPRECATED)
-// V2 system removed - was causing massive performance issues
 
-// PERFORMANCE TESTING FLAGS
+// Performance tuning flags.
 const GRASS_PERFORMANCE_MODE = true; // If enabled, only subscribe to healthy grass (reduces update volume)
 
-// CHUNK OPTIMIZATION FLAGS - SMART ADAPTIVE BUFFER SYSTEM  
-const CHUNK_BUFFER_SIZE = 1; // 🚨 EMERGENCY FIX: Reduced from 2 to prevent 260-chunk overload (was causing 3000+ subscriptions)
+// Chunk optimization flags.
+const CHUNK_BUFFER_SIZE = 1; // Buffer radius in chunk units around viewport.
 const CHUNK_UNSUBSCRIBE_DELAY_MS = 3000; // How long to keep chunks after leaving them (prevents rapid re-sub/unsub)
 
-// 🚀 SMART ADAPTIVE THROTTLING: Adjust throttling based on movement patterns
+// Adaptive throttling based on movement patterns.
 const MIN_CHUNK_UPDATE_INTERVAL_MS = 100; // Base throttling interval (reduced from 150ms)
-const FAST_MOVEMENT_THRESHOLD = 6; // More than 6 chunk changes = fast movement
-const FAST_MOVEMENT_THROTTLE_MS = 200; // Longer throttle during fast movement
-const NORMAL_MOVEMENT_THROTTLE_MS = 75; // Shorter throttle during normal movement
-
-// 🎯 THROTTLING LOG REDUCTION: Reduce log spam for better dev experience
-const THROTTLE_LOG_THRESHOLD = 50; // Only log throttling if delay > 50ms (reduces noise)
-const ENABLE_DETAILED_THROTTLE_LOGS = false; // Set to true for debugging throttling issues
-
-// === BATCHED SUBSCRIPTION OPTIMIZATION ===
-// 🚀 PERFORMANCE BREAKTHROUGH: Batch multiple table queries into fewer subscription calls
+// Batched subscription optimization.
 const ENABLE_BATCHED_SUBSCRIPTIONS = true; // Combines similar tables into batched queries for massive performance gains
-const MAX_CHUNKS_PER_BATCH = 20; // Maximum chunks to include in a single batched query
 
 // Session-level flag to prevent duplicate event dispatches
 // (Multiple hostile NPCs spawning can trigger events before localStorage updates)
 let hasDispatchedHostileEncounterEvent = false;
 
-// 🧪 PERFORMANCE TESTING: Toggle ENABLE_BATCHED_SUBSCRIPTIONS to compare:
+// Toggle ENABLE_BATCHED_SUBSCRIPTIONS to compare:
 // - true:  ~3 batched calls per chunk (recommended for production)
 // - false: ~12 individual calls per chunk (legacy approach, for debugging only)
 
-// 🎯 CHUNK BATCHING OPTIMIZATION: Instead of subscribing to one chunk at a time,
-// batch multiple chunks into single queries to reduce subscription overhead
-const ENABLE_CHUNK_BATCHING = true; // 🔥 ULTRA PERFORMANCE: Batch multiple chunks into single queries
-const CHUNKS_PER_MEGA_BATCH = 50; // Number of chunks to batch together in a single subscription
-
-// 🎯 CHUNK UPDATE THROTTLING: Prevent rapid chunk subscription changes
+// Chunk update throttling to prevent rapid subscription churn.
 const CHUNK_UPDATE_THROTTLE_MS = 150; // Minimum time between chunk updates (prevents spam and rapid re-subscriptions)
-const CHUNK_CROSSING_COOLDOWN_MS = 50; // Minimum time between chunk crossings
-
-// 🚀 PROGRESSIVE LOADING: Load chunks gradually to prevent frame drops
-const ENABLE_PROGRESSIVE_LOADING = true; // Load chunks in small batches across multiple frames
-const CHUNKS_PER_FRAME = 5; // Maximum chunks to subscribe to per frame (prevents 195-chunk lag spikes)
-const PROGRESSIVE_LOAD_INTERVAL_MS = 16; // How often to load the next batch (16ms = ~60fps)
 
 // Define the shape of the state returned by the hook
 export interface SpacetimeTableStates {
@@ -105,12 +74,12 @@ export interface SpacetimeTableStates {
     cairns: Map<string, SpacetimeDB.Cairn>;
     playerDiscoveredCairns: Map<string, SpacetimeDB.PlayerDiscoveredCairn>;
     campfires: Map<string, SpacetimeDB.Campfire>;
-    furnaces: Map<string, SpacetimeDB.Furnace>; // ADDED: Furnace support
-    barbecues: Map<string, SpacetimeDB.Barbecue>; // ADDED: Barbecue support
+    furnaces: Map<string, SpacetimeDB.Furnace>;
+    barbecues: Map<string, SpacetimeDB.Barbecue>;
     lanterns: Map<string, SpacetimeDB.Lantern>;
-    turrets: Map<string, SpacetimeDB.Turret>; // ADDED: Turret support
-    homesteadHearths: Map<string, SpacetimeDB.HomesteadHearth>; // ADDED: Homestead Hearth support
-    brothPots: Map<string, SpacetimeDB.BrothPot>; // ADDED: Broth pot support
+    turrets: Map<string, SpacetimeDB.Turret>;
+    homesteadHearths: Map<string, SpacetimeDB.HomesteadHearth>;
+    brothPots: Map<string, SpacetimeDB.BrothPot>;
     harvestableResources: Map<string, SpacetimeDB.HarvestableResource>;
     itemDefinitions: Map<string, SpacetimeDB.ItemDefinition>;
     inventoryItems: Map<string, SpacetimeDB.InventoryItem>;
@@ -123,7 +92,7 @@ export interface SpacetimeTableStates {
     waterPatches: Map<string, SpacetimeDB.WaterPatch>;
     fertilizerPatches: Map<string, SpacetimeDB.FertilizerPatch>;
     firePatches: Map<string, SpacetimeDB.FirePatch>;
-    placedExplosives: Map<string, SpacetimeDB.PlacedExplosive>; // ADDED: Placed explosive entities (bombs)
+    placedExplosives: Map<string, SpacetimeDB.PlacedExplosive>; // Placed explosive entities (bombs)
     hotSprings: Map<string, any>; // HotSpring - placeholder (hot springs are tile-based, not entities)
     recipes: Map<string, SpacetimeDB.Recipe>;
     craftingQueueItems: Map<string, SpacetimeDB.CraftingQueueItem>;
@@ -152,62 +121,62 @@ export interface SpacetimeTableStates {
     playerDrinkingCooldowns: Map<string, SpacetimeDB.PlayerDrinkingCooldown>;
     wildAnimals: Map<string, SpacetimeDB.WildAnimal>;
     // Note: Hostile NPCs (Shorebound, Shardkin, DrownedWatch) are now part of WildAnimal with is_hostile_npc = true
-    hostileDeathEvents: Array<{id: string, x: number, y: number, species: string, timestamp: number}>; // Client-side death events for particle effects
+    hostileDeathEvents: Array<{ id: string, x: number, y: number, species: string, timestamp: number }>; // Client-side death events for particle effects
     animalCorpses: Map<string, SpacetimeDB.AnimalCorpse>;
-    barrels: Map<string, SpacetimeDB.Barrel>; // ADDED barrels
-    roadLampposts: Map<string, SpacetimeDB.RoadLamppost>; // ADDED: Aleutian whale oil lampposts along roads
-    seaStacks: Map<string, SpacetimeDB.SeaStack>; // ADDED sea stacks
-    fumaroles: Map<string, SpacetimeDB.Fumarole>; // ADDED fumaroles
-    basaltColumns: Map<string, SpacetimeDB.BasaltColumn>; // ADDED basalt columns
-    foundationCells: Map<string, SpacetimeDB.FoundationCell>; // ADDED: Building foundations
-    wallCells: Map<string, SpacetimeDB.WallCell>; // ADDED: Building walls
-    doors: Map<string, SpacetimeDB.Door>; // ADDED: Building doors
-    fences: Map<string, SpacetimeDB.Fence>; // ADDED: Building fences
-    chunkWeather: Map<string, any>; // ADDED: Chunk-based weather (types will be generated after server build)
-    alkStations: Map<string, SpacetimeDB.AlkStation>; // ADDED: ALK delivery stations for minimap
-    alkContracts: Map<string, SpacetimeDB.AlkContract>; // ADDED: ALK contracts
-    alkPlayerContracts: Map<string, SpacetimeDB.AlkPlayerContract>; // ADDED: Player's ALK contracts
-    alkState: SpacetimeDB.AlkState | null; // ADDED: ALK system state
-    playerShardBalance: Map<string, SpacetimeDB.PlayerShardBalance>; // ADDED: Player shard balances
-    memoryGridProgress: Map<string, SpacetimeDB.MemoryGridProgress>; // ADDED: Memory Grid unlocks
-    monumentParts: Map<string, any>; // ADDED: Unified monument parts (all monument types)
-    largeQuarries: Map<string, any>; // ADDED: Large quarry locations with types for minimap labels
-    // Coral system tables (StormPile removed - storms now spawn HarvestableResources and DroppedItems directly)
-    livingCorals: Map<string, SpacetimeDB.LivingCoral>; // ADDED: Living coral for underwater harvesting (uses combat system)
+    barrels: Map<string, SpacetimeDB.Barrel>;
+    roadLampposts: Map<string, SpacetimeDB.RoadLamppost>;
+    seaStacks: Map<string, SpacetimeDB.SeaStack>;
+    fumaroles: Map<string, SpacetimeDB.Fumarole>;
+    basaltColumns: Map<string, SpacetimeDB.BasaltColumn>;
+    foundationCells: Map<string, SpacetimeDB.FoundationCell>;
+    wallCells: Map<string, SpacetimeDB.WallCell>;
+    doors: Map<string, SpacetimeDB.Door>;
+    fences: Map<string, SpacetimeDB.Fence>;
+    chunkWeather: Map<string, any>; // Chunk-based weather (types generated at build-time).
+    alkStations: Map<string, SpacetimeDB.AlkStation>;
+    alkContracts: Map<string, SpacetimeDB.AlkContract>;
+    alkPlayerContracts: Map<string, SpacetimeDB.AlkPlayerContract>;
+    alkState: SpacetimeDB.AlkState | null;
+    playerShardBalance: Map<string, SpacetimeDB.PlayerShardBalance>;
+    memoryGridProgress: Map<string, SpacetimeDB.MemoryGridProgress>;
+    monumentParts: Map<string, any>;
+    largeQuarries: Map<string, any>;
+    // Coral system tables
+    livingCorals: Map<string, SpacetimeDB.LivingCoral>; // Living coral for underwater harvesting (combat system).
     // Matronage system tables
-    matronages: Map<string, any>; // ADDED: Matronage pooled rewards organizations
-    matronageMembers: Map<string, any>; // ADDED: Matronage membership tracking
-    matronageInvitations: Map<string, any>; // ADDED: Pending matronage invitations
-    matronageOwedShards: Map<string, any>; // ADDED: Owed shard balances from matronage
+    matronages: Map<string, any>;
+    matronageMembers: Map<string, any>;
+    matronageInvitations: Map<string, any>;
+    matronageOwedShards: Map<string, any>;
     // Player progression system tables
-    playerStats: Map<string, SpacetimeDB.PlayerStats>; // ADDED: Player XP, level, and stats
-    achievementDefinitions: Map<string, SpacetimeDB.AchievementDefinition>; // ADDED: Achievement definitions
-    playerAchievements: Map<string, SpacetimeDB.PlayerAchievement>; // ADDED: Unlocked achievements
-    achievementUnlockNotifications: Map<string, SpacetimeDB.AchievementUnlockNotification>; // ADDED: Achievement unlock notifications
-    levelUpNotifications: Map<string, SpacetimeDB.LevelUpNotification>; // ADDED: Level up notifications
-    dailyLoginNotifications: Map<string, SpacetimeDB.DailyLoginNotification>; // ADDED: Daily login reward notifications
-    progressNotifications: Map<string, SpacetimeDB.ProgressNotification>; // ADDED: Progress threshold notifications
-    comparativeStatNotifications: Map<string, SpacetimeDB.ComparativeStatNotification>; // ADDED: Comparative stats on death
-    leaderboardEntries: Map<string, SpacetimeDB.LeaderboardEntry>; // ADDED: Leaderboard entries
-    dailyLoginRewards: Map<string, SpacetimeDB.DailyLoginReward>; // ADDED: Daily login reward definitions
-    plantConfigDefinitions: Map<string, SpacetimeDB.PlantConfigDefinition>; // ADDED: Plant encyclopedia data
-    discoveredPlants: Map<string, SpacetimeDB.PlayerDiscoveredPlant>; // ADDED: Plants discovered by current player
+    playerStats: Map<string, SpacetimeDB.PlayerStats>;
+    achievementDefinitions: Map<string, SpacetimeDB.AchievementDefinition>;
+    playerAchievements: Map<string, SpacetimeDB.PlayerAchievement>;
+    achievementUnlockNotifications: Map<string, SpacetimeDB.AchievementUnlockNotification>;
+    levelUpNotifications: Map<string, SpacetimeDB.LevelUpNotification>;
+    dailyLoginNotifications: Map<string, SpacetimeDB.DailyLoginNotification>;
+    progressNotifications: Map<string, SpacetimeDB.ProgressNotification>;
+    comparativeStatNotifications: Map<string, SpacetimeDB.ComparativeStatNotification>;
+    leaderboardEntries: Map<string, SpacetimeDB.LeaderboardEntry>;
+    dailyLoginRewards: Map<string, SpacetimeDB.DailyLoginReward>;
+    plantConfigDefinitions: Map<string, SpacetimeDB.PlantConfigDefinition>;
+    discoveredPlants: Map<string, SpacetimeDB.PlayerDiscoveredPlant>;
     // Quest system tables
-    tutorialQuestDefinitions: Map<string, SpacetimeDB.TutorialQuestDefinition>; // ADDED: Tutorial quest definitions
-    dailyQuestDefinitions: Map<string, SpacetimeDB.DailyQuestDefinition>; // ADDED: Daily quest definitions
-    playerTutorialProgress: Map<string, SpacetimeDB.PlayerTutorialProgress>; // ADDED: Player's tutorial progress
-    playerDailyQuests: Map<string, SpacetimeDB.PlayerDailyQuest>; // ADDED: Player's daily quests
-    questCompletionNotifications: Map<string, SpacetimeDB.QuestCompletionNotification>; // ADDED: Quest completion notifications
-    questProgressNotifications: Map<string, SpacetimeDB.QuestProgressNotification>; // ADDED: Quest progress notifications
-    sovaQuestMessages: Map<string, SpacetimeDB.SovaQuestMessage>; // ADDED: SOVA quest messages
-    beaconDropEvents: Map<string, SpacetimeDB.BeaconDropEvent>; // ADDED: Memory Beacon server events (airdrop-style)
-    droneEvents: Map<string, SpacetimeDB.DroneEvent>; // ADDED: Sky drone events (periodic flyover)
+    tutorialQuestDefinitions: Map<string, SpacetimeDB.TutorialQuestDefinition>;
+    dailyQuestDefinitions: Map<string, SpacetimeDB.DailyQuestDefinition>;
+    playerTutorialProgress: Map<string, SpacetimeDB.PlayerTutorialProgress>;
+    playerDailyQuests: Map<string, SpacetimeDB.PlayerDailyQuest>;
+    questCompletionNotifications: Map<string, SpacetimeDB.QuestCompletionNotification>;
+    questProgressNotifications: Map<string, SpacetimeDB.QuestProgressNotification>;
+    sovaQuestMessages: Map<string, SpacetimeDB.SovaQuestMessage>;
+    beaconDropEvents: Map<string, SpacetimeDB.BeaconDropEvent>; // Memory Beacon server events (airdrop-style).
+    droneEvents: Map<string, SpacetimeDB.DroneEvent>; // Sky drone events (periodic flyover).
     // Animal breeding system data
-    caribouBreedingData: Map<string, SpacetimeDB.CaribouBreedingData>; // ADDED: Caribou breeding (sex, age, pregnancy)
-    walrusBreedingData: Map<string, SpacetimeDB.WalrusBreedingData>; // ADDED: Walrus breeding (sex, age, pregnancy)
+    caribouBreedingData: Map<string, SpacetimeDB.CaribouBreedingData>;
+    walrusBreedingData: Map<string, SpacetimeDB.WalrusBreedingData>;
     // Animal rut state (breeding season) - global state
-    caribouRutState: SpacetimeDB.CaribouRutState | null; // ADDED: Global caribou rut state
-    walrusRutState: SpacetimeDB.WalrusRutState | null; // ADDED: Global walrus rut state
+    caribouRutState: SpacetimeDB.CaribouRutState | null;
+    walrusRutState: SpacetimeDB.WalrusRutState | null;
 }
 
 // Define the props the hook accepts
@@ -228,7 +197,8 @@ export const useSpacetimeTables = ({
     grassEnabled = true, // Default to enabled if not provided
 }: UseSpacetimeTablesProps): SpacetimeTableStates => {
 
-    // --- State Management for Tables ---
+    // ─── Entity State (Map<id, entity>) ─────────────────────────────────────
+    // Each table is stored as a Map for O(1) lookup. Keys are string IDs (bigint.toString()).
     const [players, setPlayers] = useState<Map<string, SpacetimeDB.Player>>(() => new Map());
     const [trees, setTrees] = useState<Map<string, SpacetimeDB.Tree>>(() => new Map());
     const [stones, setStones] = useState<Map<string, SpacetimeDB.Stone>>(() => new Map());
@@ -236,12 +206,12 @@ export const useSpacetimeTables = ({
     const [cairns, setCairns] = useState<Map<string, SpacetimeDB.Cairn>>(() => new Map());
     const [playerDiscoveredCairns, setPlayerDiscoveredCairns] = useState<Map<string, SpacetimeDB.PlayerDiscoveredCairn>>(() => new Map());
     const [campfires, setCampfires] = useState<Map<string, SpacetimeDB.Campfire>>(() => new Map());
-    const [furnaces, setFurnaces] = useState<Map<string, SpacetimeDB.Furnace>>(() => new Map()); // ADDED: Furnace state
-    const [barbecues, setBarbecues] = useState<Map<string, SpacetimeDB.Barbecue>>(() => new Map()); // ADDED: Barbecue state
+    const [furnaces, setFurnaces] = useState<Map<string, SpacetimeDB.Furnace>>(() => new Map());
+    const [barbecues, setBarbecues] = useState<Map<string, SpacetimeDB.Barbecue>>(() => new Map());
     const [lanterns, setLanterns] = useState<Map<string, SpacetimeDB.Lantern>>(() => new Map());
-    const [turrets, setTurrets] = useState<Map<string, SpacetimeDB.Turret>>(() => new Map()); // ADDED: Turret state
-    const [homesteadHearths, setHomesteadHearths] = useState<Map<string, SpacetimeDB.HomesteadHearth>>(() => new Map()); // ADDED: Homestead Hearth state
-    const [brothPots, setBrothPots] = useState<Map<string, SpacetimeDB.BrothPot>>(() => new Map()); // ADDED: Broth pot state
+    const [turrets, setTurrets] = useState<Map<string, SpacetimeDB.Turret>>(() => new Map());
+    const [homesteadHearths, setHomesteadHearths] = useState<Map<string, SpacetimeDB.HomesteadHearth>>(() => new Map());
+    const [brothPots, setBrothPots] = useState<Map<string, SpacetimeDB.BrothPot>>(() => new Map());
     const [harvestableResources, setHarvestableResources] = useState<Map<string, SpacetimeDB.HarvestableResource>>(() => new Map());
     const [plantedSeeds, setPlantedSeeds] = useState<Map<string, SpacetimeDB.PlantedSeed>>(() => new Map());
     const [itemDefinitions, setItemDefinitions] = useState<Map<string, SpacetimeDB.ItemDefinition>>(() => new Map());
@@ -263,7 +233,7 @@ export const useSpacetimeTables = ({
     const [waterPatches, setWaterPatches] = useState<Map<string, SpacetimeDB.WaterPatch>>(() => new Map());
     const [fertilizerPatches, setFertilizerPatches] = useState<Map<string, SpacetimeDB.FertilizerPatch>>(() => new Map());
     const [firePatches, setFirePatches] = useState<Map<string, SpacetimeDB.FirePatch>>(() => new Map());
-    const [placedExplosives, setPlacedExplosives] = useState<Map<string, SpacetimeDB.PlacedExplosive>>(() => new Map()); // ADDED: Placed explosives
+    const [placedExplosives, setPlacedExplosives] = useState<Map<string, SpacetimeDB.PlacedExplosive>>(() => new Map());
     const [hotSprings, setHotSprings] = useState<Map<string, any>>(() => new Map()); // HotSpring - placeholder (hot springs are tile-based, not entities)
     const [activeConsumableEffects, setActiveConsumableEffects] = useState<Map<string, SpacetimeDB.ActiveConsumableEffect>>(() => new Map());
     const [clouds, setClouds] = useState<Map<string, SpacetimeDB.Cloud>>(() => new Map());
@@ -284,33 +254,32 @@ export const useSpacetimeTables = ({
     const [wildAnimals, setWildAnimals] = useState<Map<string, SpacetimeDB.WildAnimal>>(() => new Map());
     // Note: Hostile NPCs (Shorebound, Shardkin, DrownedWatch) are now part of WildAnimal table with is_hostile_npc = true
     // Track hostile death events for client-side particle effects (no server subscription needed)
-    const [hostileDeathEvents, setHostileDeathEvents] = useState<Array<{id: string, x: number, y: number, species: string, timestamp: number}>>([]);
+    const [hostileDeathEvents, setHostileDeathEvents] = useState<Array<{ id: string, x: number, y: number, species: string, timestamp: number }>>([]);
     const [animalCorpses, setAnimalCorpses] = useState<Map<string, SpacetimeDB.AnimalCorpse>>(() => new Map());
-    const [barrels, setBarrels] = useState<Map<string, SpacetimeDB.Barrel>>(() => new Map()); // ADDED barrels
-    const [roadLampposts, setRoadLampposts] = useState<Map<string, SpacetimeDB.RoadLamppost>>(() => new Map()); // ADDED: Road lampposts
-    const [seaStacks, setSeaStacks] = useState<Map<string, SpacetimeDB.SeaStack>>(() => new Map()); // ADDED sea stacks
-    const [fumaroles, setFumaroles] = useState<Map<string, SpacetimeDB.Fumarole>>(() => new Map()); // ADDED fumaroles
-    const [basaltColumns, setBasaltColumns] = useState<Map<string, SpacetimeDB.BasaltColumn>>(() => new Map()); // ADDED basalt columns
-    // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
-    const [livingCorals, setLivingCorals] = useState<Map<string, SpacetimeDB.LivingCoral>>(() => new Map()); // ADDED: Living coral for underwater harvesting (uses combat system)
-    const [foundationCells, setFoundationCells] = useState<Map<string, SpacetimeDB.FoundationCell>>(() => new Map()); // ADDED: Building foundations
-    const [wallCells, setWallCells] = useState<Map<string, SpacetimeDB.WallCell>>(() => new Map()); // ADDED: Building walls
-    const [doors, setDoors] = useState<Map<string, SpacetimeDB.Door>>(() => new Map()); // ADDED: Building doors
-    const [fences, setFences] = useState<Map<string, SpacetimeDB.Fence>>(() => new Map()); // ADDED: Building fences
-    const [chunkWeather, setChunkWeather] = useState<Map<string, any>>(() => new Map()); // ADDED: Chunk-based weather
-    const [alkStations, setAlkStations] = useState<Map<string, SpacetimeDB.AlkStation>>(() => new Map()); // ADDED: ALK delivery stations
-    const [alkContracts, setAlkContracts] = useState<Map<string, SpacetimeDB.AlkContract>>(() => new Map()); // ADDED: ALK contracts
-    const [alkPlayerContracts, setAlkPlayerContracts] = useState<Map<string, SpacetimeDB.AlkPlayerContract>>(() => new Map()); // ADDED: Player's ALK contracts
-    const [alkState, setAlkState] = useState<SpacetimeDB.AlkState | null>(null); // ADDED: ALK system state
-    const [playerShardBalance, setPlayerShardBalance] = useState<Map<string, SpacetimeDB.PlayerShardBalance>>(() => new Map()); // ADDED: Player shard balances
-    const [memoryGridProgress, setMemoryGridProgress] = useState<Map<string, SpacetimeDB.MemoryGridProgress>>(() => new Map()); // ADDED: Memory Grid unlocks
-    const [monumentParts, setMonumentParts] = useState<Map<string, any>>(() => new Map()); // ADDED: Unified monument parts (all monument types)
-    const [largeQuarries, setLargeQuarries] = useState<Map<string, any>>(() => new Map()); // ADDED: Large quarry locations with types for minimap labels
+    const [barrels, setBarrels] = useState<Map<string, SpacetimeDB.Barrel>>(() => new Map());
+    const [roadLampposts, setRoadLampposts] = useState<Map<string, SpacetimeDB.RoadLamppost>>(() => new Map());
+    const [seaStacks, setSeaStacks] = useState<Map<string, SpacetimeDB.SeaStack>>(() => new Map());
+    const [fumaroles, setFumaroles] = useState<Map<string, SpacetimeDB.Fumarole>>(() => new Map());
+    const [basaltColumns, setBasaltColumns] = useState<Map<string, SpacetimeDB.BasaltColumn>>(() => new Map());
+    const [livingCorals, setLivingCorals] = useState<Map<string, SpacetimeDB.LivingCoral>>(() => new Map());
+    const [foundationCells, setFoundationCells] = useState<Map<string, SpacetimeDB.FoundationCell>>(() => new Map());
+    const [wallCells, setWallCells] = useState<Map<string, SpacetimeDB.WallCell>>(() => new Map());
+    const [doors, setDoors] = useState<Map<string, SpacetimeDB.Door>>(() => new Map());
+    const [fences, setFences] = useState<Map<string, SpacetimeDB.Fence>>(() => new Map());
+    const [chunkWeather, setChunkWeather] = useState<Map<string, any>>(() => new Map());
+    const [alkStations, setAlkStations] = useState<Map<string, SpacetimeDB.AlkStation>>(() => new Map());
+    const [alkContracts, setAlkContracts] = useState<Map<string, SpacetimeDB.AlkContract>>(() => new Map());
+    const [alkPlayerContracts, setAlkPlayerContracts] = useState<Map<string, SpacetimeDB.AlkPlayerContract>>(() => new Map());
+    const [alkState, setAlkState] = useState<SpacetimeDB.AlkState | null>(null);
+    const [playerShardBalance, setPlayerShardBalance] = useState<Map<string, SpacetimeDB.PlayerShardBalance>>(() => new Map());
+    const [memoryGridProgress, setMemoryGridProgress] = useState<Map<string, SpacetimeDB.MemoryGridProgress>>(() => new Map());
+    const [monumentParts, setMonumentParts] = useState<Map<string, any>>(() => new Map());
+    const [largeQuarries, setLargeQuarries] = useState<Map<string, any>>(() => new Map());
     // Matronage system state
-    const [matronages, setMatronages] = useState<Map<string, any>>(() => new Map()); // ADDED: Matronage pooled rewards organizations
-    const [matronageMembers, setMatronageMembers] = useState<Map<string, any>>(() => new Map()); // ADDED: Matronage membership tracking
-    const [matronageInvitations, setMatronageInvitations] = useState<Map<string, any>>(() => new Map()); // ADDED: Pending matronage invitations
-    const [matronageOwedShards, setMatronageOwedShards] = useState<Map<string, any>>(() => new Map()); // ADDED: Owed shard balances from matronage
+    const [matronages, setMatronages] = useState<Map<string, any>>(() => new Map());
+    const [matronageMembers, setMatronageMembers] = useState<Map<string, any>>(() => new Map());
+    const [matronageInvitations, setMatronageInvitations] = useState<Map<string, any>>(() => new Map());
+    const [matronageOwedShards, setMatronageOwedShards] = useState<Map<string, any>>(() => new Map());
     // Player progression system state
     const [playerStats, setPlayerStats] = useState<Map<string, SpacetimeDB.PlayerStats>>(() => new Map());
     const [achievementDefinitions, setAchievementDefinitions] = useState<Map<string, SpacetimeDB.AchievementDefinition>>(() => new Map());
@@ -324,7 +293,7 @@ export const useSpacetimeTables = ({
     const [dailyLoginRewards, setDailyLoginRewards] = useState<Map<string, SpacetimeDB.DailyLoginReward>>(() => new Map());
     const [plantConfigDefinitions, setPlantConfigDefinitions] = useState<Map<string, SpacetimeDB.PlantConfigDefinition>>(() => new Map());
     const [discoveredPlants, setDiscoveredPlants] = useState<Map<string, SpacetimeDB.PlayerDiscoveredPlant>>(() => new Map());
-    
+
     // Quest system state
     const [tutorialQuestDefinitions, setTutorialQuestDefinitions] = useState<Map<string, SpacetimeDB.TutorialQuestDefinition>>(() => new Map());
     const [dailyQuestDefinitions, setDailyQuestDefinitions] = useState<Map<string, SpacetimeDB.DailyQuestDefinition>>(() => new Map());
@@ -341,22 +310,21 @@ export const useSpacetimeTables = ({
     const [caribouRutState, setCaribouRutState] = useState<SpacetimeDB.CaribouRutState | null>(null);
     const [walrusRutState, setWalrusRutState] = useState<SpacetimeDB.WalrusRutState | null>(null);
 
-    // OPTIMIZATION: Ref for batched weather updates
+    // ─── Performance Refs (avoid re-renders on high-frequency updates) ───────
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
     const chunkWeatherUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // OPTIMIZATION: Ref for batched wild animal updates (AI ticks 8x/sec)
-    // Batching reduces React re-renders from 8/sec/animal to ~10/sec total
+    // Batched wild animal updates (AI ticks 8x/sec) - reduces React re-renders
     const wildAnimalsRef = useRef<Map<string, SpacetimeDB.WildAnimal>>(new Map());
     const wildAnimalsUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const WILD_ANIMAL_BATCH_INTERVAL_MS = 100; // Flush at 10fps - smooth enough for animation
 
-    // OPTIMIZATION: Ref for batched projectile updates (high frequency during combat)
+    // Batched projectile updates (high frequency during combat)
     const projectilesRef = useRef<Map<string, SpacetimeDBProjectile>>(new Map());
     const projectilesUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const PROJECTILE_BATCH_INTERVAL_MS = 50; // Flush at 20fps - needs to be responsive for combat
 
-    // PERF: Track hostile death cleanup timeouts to clear on unmount (prevents memory leak during big fights)
+    // Hostile death cleanup timeouts (cleared on unmount to prevent memory leak)
     const hostileDeathCleanupTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
     const HOSTILE_DEATH_EVENTS_MAX = 30; // Cap to prevent unbounded growth during mass encounters
 
@@ -374,16 +342,14 @@ export const useSpacetimeTables = ({
     // Track current chunk indices to avoid unnecessary resubscriptions
     const currentChunksRef = useRef<number[]>([]);
 
-    // --- Refs for Subscription Management ---
+    // ─── Subscription Management Refs ─────────────────────────────────────────
     const nonSpatialHandlesRef = useRef<SubscriptionHandle[]>([]);
-    // Store spatial subs per chunk index (RESTORED FROM WORKING VERSION)
+    // Spatial subs keyed by chunk index
     const spatialSubsRef = useRef<Map<number, SubscriptionHandle[]>>(new Map());
     const subscribedChunksRef = useRef<Set<number>>(new Set());
     const isSubscribingRef = useRef(false);
 
-    // --- NEW: Refs for state that shouldn't trigger re-renders on every update ---
     const playerDodgeRollStatesRef = useRef<Map<string, SpacetimeDB.PlayerDodgeRollState>>(new Map());
-    // OPTIMIZATION: Track players in a Ref to avoid re-renders on position updates
     const playersRef = useRef<Map<string, SpacetimeDB.Player>>(new Map());
     // PERF FIX: Use a global render timestamp instead of per-player.
     // With N players sending interleaved updates, a single shared timestamp
@@ -399,10 +365,6 @@ export const useSpacetimeTables = ({
     const lastSpatialUpdateRef = useRef<number>(0);
     const pendingChunkUpdateRef = useRef<{ chunks: Set<number>; timestamp: number } | null>(null);
 
-    // 🚀 PROGRESSIVE LOADING: Queue system for gradual chunk loading
-    const progressiveLoadQueueRef = useRef<number[]>([]);
-    const progressiveLoadTimerRef = useRef<NodeJS.Timeout | null>(null);
-
     // Hysteresis system for delayed unsubscription
     const chunkUnsubscribeTimersRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
 
@@ -414,7 +376,7 @@ export const useSpacetimeTables = ({
     const campfireBatchRef = useRef<SpacetimeDB.Campfire[]>([]);
     const campfireFlushScheduledRef = useRef(false);
 
-    // PERF: Track chunk crossing frequency for lag spike detection
+    // Track chunk crossing frequency for lag spike detection
     const chunkCrossingStatsRef = useRef<{ lastCrossing: number; crossingCount: number; lastResetTime: number }>({
         lastCrossing: 0,
         crossingCount: 0,
@@ -440,8 +402,8 @@ export const useSpacetimeTables = ({
         lastMetricsLog: performance.now()
     });
 
-    // Enable/disable performance logging (set to true to enable detailed metrics)
-    const ENABLE_CHUNK_PERFORMANCE_LOGGING = true;
+    // Keep chunk perf instrumentation off during normal gameplay.
+    const ENABLE_CHUNK_PERFORMANCE_LOGGING = false;
     const CHUNK_METRICS_LOG_INTERVAL_MS = 10000; // Log metrics every 10 seconds
 
     // Helper function for safely unsubscribing
@@ -455,9 +417,91 @@ export const useSpacetimeTables = ({
         }
     };
 
-    // OPTIMIZED: Async function to process pending chunk updates with buffering + hysteresis
-    // - BUFFER ZONE: Subscribe to extra chunks around viewport to prevent boundary lag
-    // Helper function to create subscriptions for a chunk (reusable)
+    // ─── subscribeToChunk: Create spatial subscriptions for a single chunk ────
+    const chunkQuery = (tableName: string, chunkIndex: number) =>
+        `SELECT * FROM ${tableName} WHERE chunk_index = ${chunkIndex}`;
+
+    const getBatchedResourceQueries = (chunkIndex: number): string[] => [
+        chunkQuery('tree', chunkIndex),
+        chunkQuery('stone', chunkIndex),
+        chunkQuery('rune_stone', chunkIndex),
+        chunkQuery('cairn', chunkIndex),
+        chunkQuery('harvestable_resource', chunkIndex),
+        chunkQuery('campfire', chunkIndex),
+        chunkQuery('barbecue', chunkIndex),
+        chunkQuery('furnace', chunkIndex),
+        chunkQuery('lantern', chunkIndex),
+        chunkQuery('turret', chunkIndex),
+        chunkQuery('homestead_hearth', chunkIndex),
+        chunkQuery('broth_pot', chunkIndex),
+        chunkQuery('wooden_storage_box', chunkIndex),
+        chunkQuery('dropped_item', chunkIndex),
+        chunkQuery('rain_collector', chunkIndex),
+        chunkQuery('water_patch', chunkIndex),
+        chunkQuery('fertilizer_patch', chunkIndex),
+        chunkQuery('fire_patch', chunkIndex),
+        chunkQuery('placed_explosive', chunkIndex),
+        chunkQuery('barrel', chunkIndex),
+        chunkQuery('road_lamppost', chunkIndex),
+        chunkQuery('planted_seed', chunkIndex),
+        chunkQuery('sea_stack', chunkIndex),
+        chunkQuery('foundation_cell', chunkIndex),
+        chunkQuery('wall_cell', chunkIndex),
+        chunkQuery('door', chunkIndex),
+        chunkQuery('fence', chunkIndex),
+        chunkQuery('fumarole', chunkIndex),
+        chunkQuery('basalt_column', chunkIndex),
+        chunkQuery('wild_animal', chunkIndex),
+        chunkQuery('living_coral', chunkIndex),
+    ];
+
+    const getEnvironmentalQueries = (chunkIndex: number): string[] => {
+        const queries: string[] = [];
+        if (ENABLE_CLOUDS) {
+            queries.push(chunkQuery('cloud', chunkIndex));
+        }
+        if (grassEnabled) {
+            // Split tables: grass (static) + grass_state (dynamic)
+            queries.push(chunkQuery('grass', chunkIndex));
+            if (GRASS_PERFORMANCE_MODE) {
+                // Use is_alive = true for efficient index usage (boolean equality vs range query)
+                queries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND is_alive = true`);
+            } else {
+                queries.push(chunkQuery('grass_state', chunkIndex));
+            }
+        }
+        return queries;
+    };
+
+    const getUnbatchedResourceQueries = (chunkIndex: number): Array<{ queryName: string; query: string }> => [
+        { queryName: 'Tree', query: chunkQuery('tree', chunkIndex) },
+        { queryName: 'Stone', query: chunkQuery('stone', chunkIndex) },
+        { queryName: 'RuneStone', query: chunkQuery('rune_stone', chunkIndex) },
+        { queryName: 'Cairn', query: chunkQuery('cairn', chunkIndex) },
+        { queryName: 'HarvestableResource', query: chunkQuery('harvestable_resource', chunkIndex) },
+        { queryName: 'Campfire', query: chunkQuery('campfire', chunkIndex) },
+        { queryName: 'Barbecue', query: chunkQuery('barbecue', chunkIndex) },
+        { queryName: 'BrothPot', query: chunkQuery('broth_pot', chunkIndex) },
+        { queryName: 'WoodenStorageBox', query: chunkQuery('wooden_storage_box', chunkIndex) },
+        { queryName: 'DroppedItem', query: chunkQuery('dropped_item', chunkIndex) },
+        { queryName: 'RainCollector', query: chunkQuery('rain_collector', chunkIndex) },
+        { queryName: 'WaterPatch', query: chunkQuery('water_patch', chunkIndex) },
+        { queryName: 'FertilizerPatch', query: chunkQuery('fertilizer_patch', chunkIndex) },
+        { queryName: 'FirePatch', query: chunkQuery('fire_patch', chunkIndex) },
+        { queryName: 'PlacedExplosive', query: chunkQuery('placed_explosive', chunkIndex) },
+        { queryName: 'Barrel', query: chunkQuery('barrel', chunkIndex) },
+        { queryName: 'RoadLamppost', query: chunkQuery('road_lamppost', chunkIndex) },
+        { queryName: 'SeaStack', query: chunkQuery('sea_stack', chunkIndex) },
+        { queryName: 'FoundationCell', query: chunkQuery('foundation_cell', chunkIndex) },
+        { queryName: 'WallCell', query: chunkQuery('wall_cell', chunkIndex) },
+        { queryName: 'Door', query: chunkQuery('door', chunkIndex) },
+        { queryName: 'Fence', query: chunkQuery('fence', chunkIndex) },
+        { queryName: 'Fumarole', query: chunkQuery('fumarole', chunkIndex) },
+        { queryName: 'BasaltColumn', query: chunkQuery('basalt_column', chunkIndex) },
+        { queryName: 'WildAnimal', query: chunkQuery('wild_animal', chunkIndex) }, // Includes hostile NPCs (Shorebound, Shardkin, DrownedWatch) with is_hostile_npc = true
+        { queryName: 'LivingCoral', query: chunkQuery('living_coral', chunkIndex) }, // Living coral
+    ];
+
     const subscribeToChunk = (chunkIndex: number): SubscriptionHandle[] => {
         if (!connection) return [];
 
@@ -472,59 +516,10 @@ export const useSpacetimeTables = ({
                     return handle;
                 };
 
-                // DEBUG: Log that we're using batched subscriptions for this chunk
-                console.log(`[BATCHED_SUB] Using batched subscriptions for chunk ${chunkIndex} (includes placed_explosive)`);
-                const resourceQueries = [
-                    `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM cairn WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM barbecue WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM lantern WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM turret WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM homestead_hearth WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM broth_pot WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM fertilizer_patch WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM placed_explosive WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM road_lamppost WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM fence WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`, // MOVED: Now spatial - only animals in nearby chunks (includes hostile NPCs with is_hostile_npc = true)
-                    // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
-                    `SELECT * FROM living_coral WHERE chunk_index = ${chunkIndex}`, // Living coral underwater (uses combat system)
-                ];
+                const resourceQueries = getBatchedResourceQueries(chunkIndex);
                 newHandlesForChunk.push(timedBatchedSubscribe('Resources', resourceQueries));
 
-                const environmentalQueries = [];
-                if (ENABLE_CLOUDS) {
-                    environmentalQueries.push(`SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`);
-                }
-                if (grassEnabled) {
-                    // Split tables: grass (static) + grass_state (dynamic)
-                    environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`);
-                    if (GRASS_PERFORMANCE_MODE) {
-                        // Use is_alive = true for efficient index usage (boolean equality vs range query)
-                        environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND is_alive = true`);
-                    } else {
-                        environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`);
-                    }
-                }
-                // ENABLE_WORLD_TILES deprecated block removed
+                const environmentalQueries = getEnvironmentalQueries(chunkIndex);
                 if (environmentalQueries.length > 0) {
                     newHandlesForChunk.push(timedBatchedSubscribe('Environmental', environmentalQueries));
                 }
@@ -535,50 +530,23 @@ export const useSpacetimeTables = ({
                         .subscribe(query);
                 };
 
-                newHandlesForChunk.push(timedSubscribe('Tree', `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('Stone', `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('RuneStone', `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('Cairn', `SELECT * FROM cairn WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('HarvestableResource', `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('Campfire', `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('Barbecue', `SELECT * FROM barbecue WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('BrothPot', `SELECT * FROM broth_pot WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('WoodenStorageBox', `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('DroppedItem', `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('RainCollector', `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('WaterPatch', `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('FertilizerPatch', `SELECT * FROM fertilizer_patch WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('FirePatch', `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`));
-                // DEBUG: Log when PlacedExplosive subscription is made
-                console.log(`[EXPLOSIVE_SUB] Subscribing to placed_explosive for chunk ${chunkIndex}`);
-                newHandlesForChunk.push(timedSubscribe('PlacedExplosive', `SELECT * FROM placed_explosive WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('Barrel', `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('RoadLamppost', `SELECT * FROM road_lamppost WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('SeaStack', `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('FoundationCell', `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('WallCell', `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('Door', `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('Fence', `SELECT * FROM fence WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('Fumarole', `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('BasaltColumn', `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`));
-                newHandlesForChunk.push(timedSubscribe('WildAnimal', `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`)); // Includes hostile NPCs (Shorebound, Shardkin, DrownedWatch) with is_hostile_npc = true
-                // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
-                newHandlesForChunk.push(timedSubscribe('LivingCoral', `SELECT * FROM living_coral WHERE chunk_index = ${chunkIndex}`)); // Living coral
+                for (const { queryName, query } of getUnbatchedResourceQueries(chunkIndex)) {
+                    newHandlesForChunk.push(timedSubscribe(queryName, query));
+                }
 
                 if (ENABLE_CLOUDS) {
-                    newHandlesForChunk.push(timedSubscribe('Cloud', `SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`));
+                    newHandlesForChunk.push(timedSubscribe('Cloud', chunkQuery('cloud', chunkIndex)));
                 }
                 if (grassEnabled) {
                     // Split tables: grass (static) + grass_state (dynamic)
-                    newHandlesForChunk.push(timedSubscribe('Grass', `SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`));
+                    newHandlesForChunk.push(timedSubscribe('Grass', chunkQuery('grass', chunkIndex)));
                     if (GRASS_PERFORMANCE_MODE) {
                         // Use is_alive = true for efficient index usage (boolean equality vs range query)
                         newHandlesForChunk.push(timedSubscribe('GrassState(Perf)', `SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND is_alive = true`));
                     } else {
-                        newHandlesForChunk.push(timedSubscribe('GrassState(Full)', `SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`));
+                        newHandlesForChunk.push(timedSubscribe('GrassState(Full)', chunkQuery('grass_state', chunkIndex)));
                     }
                 }
-                // ENABLE_WORLD_TILES deprecated block removed
             }
         } catch (error) {
             console.error(`[CHUNK_ERROR] Failed to create subscriptions for chunk ${chunkIndex}:`, error);
@@ -604,16 +572,15 @@ export const useSpacetimeTables = ({
         return newHandlesForChunk;
     };
 
-    // - HYSTERESIS: Delay unsubscription to prevent rapid re-sub/unsub cycles  
-    // - RESULT: Smooth movement across chunk boundaries with no lag spikes
+    // ─── processPendingChunkUpdate: Apply viewport changes to spatial subs ───
+    // Hysteresis: delay unsubscription when leaving chunk to avoid rapid re-sub cycles.
     const processPendingChunkUpdate = () => {
-        const startTime = performance.now(); // PERF: Track timing
+        const startTime = performance.now();
         const pending = pendingChunkUpdateRef.current;
         if (!pending || !connection) return;
 
         // MASTER SWITCH: Early return if all spatial subscriptions are disabled
         if (DISABLE_ALL_SPATIAL_SUBSCRIPTIONS) {
-            console.log('[SPATIAL FLAGS] All spatial subscriptions are disabled');
             pendingChunkUpdateRef.current = null;
             lastSpatialUpdateRef.current = performance.now();
             return;
@@ -672,20 +639,6 @@ export const useSpacetimeTables = ({
                     ? Math.max(...metrics.subscriptionCreationTimes)
                     : 0;
 
-                // DISABLED: Performance logging for production
-                /*
-                console.log(`[CHUNK_PERF] 📊 Performance Metrics (${(timeSinceLastLog / 1000).toFixed(1)}s):`, {
-                    chunkSize: `${gameConfig.chunkSizeTiles}×${gameConfig.chunkSizeTiles} tiles (${gameConfig.chunkSizePx}px)`,
-                    totalCrossings: metrics.totalChunkCrossings,
-                    totalSubscriptions: metrics.totalSubscriptionsCreated,
-                    avgChunksVisible: avgChunksVisible.toFixed(1),
-                    avgSubscriptionTime: `${avgSubscriptionTime.toFixed(2)}ms`,
-                    maxSubscriptionTime: `${maxSubscriptionTime.toFixed(2)}ms`,
-                    totalSubscriptionTime: `${metrics.totalSubscriptionTime.toFixed(2)}ms`,
-                    crossingsPerSecond: (metrics.totalChunkCrossings / (timeSinceLastLog / 1000)).toFixed(2)
-                });
-                */
-
                 // Reset metrics for next interval
                 metrics.totalChunkCrossings = 0;
                 metrics.totalSubscriptionTime = 0;
@@ -704,12 +657,12 @@ export const useSpacetimeTables = ({
         // Only proceed if there are actual changes
         if (addedChunks.length > 0 || removedChunks.length > 0) {
 
-            // 🚀 PERFORMANCE OPTIMIZATION: Limit chunk processing to prevent frame drops
+            // Limit chunk processing to prevent frame drops
             if (addedChunks.length > 20) {
                 // console.warn(`[CHUNK_PERF] 🎯 PERFORMANCE LIMIT: Reducing ${addedChunks.length} chunks to 20 to prevent lag spike`);
                 addedChunks.splice(20); // Keep only first 20 chunks
             }
-            // PERF: Track chunk crossing frequency for lag detection
+            // Track chunk crossing frequency for lag detection
             const now = performance.now();
             const stats = chunkCrossingStatsRef.current;
             stats.crossingCount++;
@@ -717,7 +670,7 @@ export const useSpacetimeTables = ({
             // Reset counter every 5 seconds
             if (now - stats.lastResetTime > 5000) {
                 if (stats.crossingCount > 8) { // More than 8 crossings per 5 seconds (with buffer=2, should be reasonable)
-                    // console.warn(`[CHUNK_PERF] High chunk crossing frequency: ${stats.crossingCount} crossings in 5 seconds - consider smoother movement or larger buffer!`);
+                    console.warn(`[CHUNK_PERF] High chunk crossing frequency: ${stats.crossingCount} crossings in 5 seconds - consider smoother movement or larger buffer!`);
                 }
                 stats.crossingCount = 0;
                 stats.lastResetTime = now;
@@ -725,16 +678,16 @@ export const useSpacetimeTables = ({
 
             // Detect rapid chunk crossings (potential boundary jitter) - should be rare with buffer=2 and throttling
             if (now - stats.lastCrossing < MIN_CHUNK_UPDATE_INTERVAL_MS && stats.lastCrossing > 0) {
-                // console.warn(`[CHUNK_PERF] ⚡ Rapid chunk crossing detected! ${(now - stats.lastCrossing).toFixed(1)}ms since last crossing (throttling should prevent this)`);
+                console.warn(`[CHUNK_PERF] ⚡ Rapid chunk crossing detected! ${(now - stats.lastCrossing).toFixed(1)}ms since last crossing (throttling should prevent this)`);
             }
             stats.lastCrossing = now;
 
             // Log chunk changes for debugging with performance timing
             const chunkCalcTime = performance.now() - startTime;
             // Only log chunk changes if there are significant changes or performance issues
-            // if (addedChunks.length + removedChunks.length > 20 || chunkCalcTime > 2) {
-            //     console.log(`[CHUNK_BUFFER] Changes: +${addedChunks.length} chunks, -${removedChunks.length} chunks (buffer: ${CHUNK_BUFFER_SIZE}, delay: ${CHUNK_UNSUBSCRIBE_DELAY_MS}ms) [calc: ${chunkCalcTime.toFixed(2)}ms]`);
-            // }
+            if (addedChunks.length + removedChunks.length > 20 || chunkCalcTime > 2) {
+                console.log(`[CHUNK_BUFFER] Changes: +${addedChunks.length} chunks, -${removedChunks.length} chunks (buffer: ${CHUNK_BUFFER_SIZE}, delay: ${CHUNK_UNSUBSCRIBE_DELAY_MS}ms) [calc: ${chunkCalcTime.toFixed(2)}ms]`);
+            }
 
             // Make subscription changes async to avoid blocking
             setTimeout(() => {
@@ -752,7 +705,7 @@ export const useSpacetimeTables = ({
                         const handles = spatialSubsRef.current.get(chunkIndex);
                         if (handles) {
                             // Only log actual unsubscribes if debugging
-                            // console.log(`[CHUNK_BUFFER] Delayed unsubscribe from chunk ${chunkIndex} (${handles.length} subscriptions)`);
+                            console.log(`[CHUNK_BUFFER] Delayed unsubscribe from chunk ${chunkIndex} (${handles.length} subscriptions)`);
                             handles.forEach(safeUnsubscribe);
                             spatialSubsRef.current.delete(chunkIndex);
                             subscribedChunksRef.current.delete(chunkIndex); // CRITICAL FIX: Remove from subscribed set
@@ -762,7 +715,7 @@ export const useSpacetimeTables = ({
 
                     chunkUnsubscribeTimersRef.current.set(chunkIndex, unsubscribeTimer);
                     // Only log delayed unsubscribes if debugging
-                    // console.log(`[CHUNK_BUFFER] Scheduled delayed unsubscribe for chunk ${chunkIndex} in ${CHUNK_UNSUBSCRIBE_DELAY_MS}ms`);
+                    console.log(`[CHUNK_BUFFER] Scheduled delayed unsubscribe for chunk ${chunkIndex} in ${CHUNK_UNSUBSCRIBE_DELAY_MS}ms`);
                 });
 
                 // --- Handle Added Chunks ---
@@ -772,7 +725,7 @@ export const useSpacetimeTables = ({
                     if (pendingUnsubTimer) {
                         clearTimeout(pendingUnsubTimer);
                         chunkUnsubscribeTimersRef.current.delete(chunkIndex);
-                        // console.log(`[CHUNK_BUFFER] Cancelled delayed unsubscribe for chunk ${chunkIndex} (chunk came back into viewport)`);
+                        console.log(`[CHUNK_BUFFER] Cancelled delayed unsubscribe for chunk ${chunkIndex} (chunk came back into viewport)`);
                         // IMPORTANT: Even if timer was cancelled, verify we're still subscribed
                         // The timer might have fired but cleanup hasn't completed yet, or subscriptions
                         // might have been removed by another code path
@@ -789,23 +742,23 @@ export const useSpacetimeTables = ({
                         return; // Already subscribed, skip
                     }
 
-                    const subStartTime = performance.now(); // PERF: Track subscription timing
-                    // console.log(`[CHUNK_BUFFER] Creating new subscriptions for chunk ${chunkIndex} (was pending unsubscribe: ${!!existingTimer})`);
+                    const subStartTime = performance.now();
+                    console.log(`[CHUNK_BUFFER] Creating new subscriptions for chunk ${chunkIndex} (was pending unsubscribe: ${!!pendingUnsubTimer})`);
 
                     const newHandlesForChunk = subscribeToChunk(chunkIndex);
                     if (newHandlesForChunk.length > 0) {
                         spatialSubsRef.current.set(chunkIndex, newHandlesForChunk);
                         subscribedChunksRef.current.add(chunkIndex); // CRITICAL FIX: Mark as subscribed
 
-                        // PERF: Log subscription timing
+                        // Log subscription timing when slow
                         const subTime = performance.now() - subStartTime;
                         const subscriptionMethod = ENABLE_BATCHED_SUBSCRIPTIONS ? 'batched' : 'individual';
                         const expectedHandles = ENABLE_BATCHED_SUBSCRIPTIONS ? 3 : 12; // Batched: 3 batches vs Individual: ~12 subs
 
                         if (subTime > 10) { // Log if subscriptions take more than 10ms
-                            // console.warn(`[CHUNK_PERF] Chunk ${chunkIndex} ${subscriptionMethod} subscriptions took ${subTime.toFixed(2)}ms (${newHandlesForChunk.length}/${expectedHandles} subs)`);
+                            console.warn(`[CHUNK_PERF] Chunk ${chunkIndex} ${subscriptionMethod} subscriptions took ${subTime.toFixed(2)}ms (${newHandlesForChunk.length}/${expectedHandles} subs)`);
                         } else if (subTime > 5) {
-                            // console.log(`[CHUNK_PERF] Chunk ${chunkIndex} ${subscriptionMethod} subscriptions: ${subTime.toFixed(2)}ms (${newHandlesForChunk.length} subs)`);
+                            console.log(`[CHUNK_PERF] Chunk ${chunkIndex} ${subscriptionMethod} subscriptions: ${subTime.toFixed(2)}ms (${newHandlesForChunk.length} subs)`);
                         }
                     }
                 });
@@ -813,45 +766,28 @@ export const useSpacetimeTables = ({
                 // Update the current chunk reference
                 currentChunksRef.current = [...newChunkIndicesSet];
 
-                // PERF: Log total chunk update timing
+                // Log when chunk update exceeds frame budget
                 const totalTime = performance.now() - startTime;
                 if (totalTime > 16) { // Log if chunk update takes more than one frame (16ms at 60fps)
-                    // console.warn(`[CHUNK_PERF] Total chunk update took ${totalTime.toFixed(2)}ms (frame budget exceeded!)`);
+                    console.warn(`[CHUNK_PERF] Total chunk update took ${totalTime.toFixed(2)}ms (frame budget exceeded!)`);
                 }
             }, 0);
         } else {
-            // PERF: Log when no changes are needed (should be fast)
+            // Log when no-op update is unexpectedly slow
             const totalTime = performance.now() - startTime;
             if (totalTime > 5) {
-                // console.warn(`[CHUNK_PERF] No-op chunk update took ${totalTime.toFixed(2)}ms (unexpected!)`);
+                console.warn(`[CHUNK_PERF] No-op chunk update took ${totalTime.toFixed(2)}ms (unexpected!)`);
             }
         }
     };
 
-    // --- Effect for Subscriptions and Callbacks ---
-    // === SUBSCRIPTION UPDATE PROFILING ===
-    const subUpdateCountsRef = useRef<Record<string, number>>({});
-    const subUpdateLastLogRef = useRef(Date.now());
-    const trackSubUpdate = (tableName: string) => {
-        subUpdateCountsRef.current[tableName] = (subUpdateCountsRef.current[tableName] || 0) + 1;
-        // Log every 5 seconds
-        if (Date.now() - subUpdateLastLogRef.current > 5000) {
-            const counts = subUpdateCountsRef.current;
-            const total = Object.values(counts).reduce((a, b) => a + b, 0);
-            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-            // DISABLED: console.log(`[SUB_UPDATES] Total: ${total} updates in 5s. Top tables:`, sorted.slice(0, 5).map(([k, v]) => `${k}:${v}`).join(', '));
-            subUpdateCountsRef.current = {};
-            subUpdateLastLogRef.current = Date.now();
-        }
-    };
-    // === END PROFILING ===
-
+    // ─── Main Effect: Register callbacks + non-spatial subs + spatial subs ─────
     useEffect(() => {
-        // --- Callback Registration & Initial Subscriptions (Only Once Per Connection Instance) ---
+        // Callback registration and initial non-spatial subscriptions (once per connection)
         if (connection && !isSubscribingRef.current) {
-            // console.log("[useSpacetimeTables] ENTERING main useEffect for callbacks and initial subscriptions.");
+            console.log("[useSpacetimeTables] ENTERING main useEffect for callbacks and initial subscriptions.");
 
-            // --- Define Callbacks --- (Keep definitions here - Ensure all match the provided example if needed)
+            // Define table callbacks (insert/update/delete handlers that update React state)
             const upsertMapState = <T,>(setter: Dispatch<SetStateAction<Map<string, T>>>, key: string, value: T) => {
                 setter(prev => {
                     if (prev.get(key) === value) return prev;
@@ -863,7 +799,6 @@ export const useSpacetimeTables = ({
 
             // --- Player Subscriptions ---
             const handlePlayerInsert = (ctx: any, player: SpacetimeDB.Player) => {
-                trackSubUpdate('player_insert');
                 // Update Ref immediately
                 playersRef.current.set(player.identity.toHexString(), player);
 
@@ -873,12 +808,11 @@ export const useSpacetimeTables = ({
                 // Determine local player registration status within the callback
                 const localPlayerIdHex = connection?.identity?.toHexString();
                 if (localPlayerIdHex && player.identity.toHexString() === localPlayerIdHex) {
-                    // console.log('[useSpacetimeTables] Local player matched! Setting localPlayerRegistered = true.');
+                    console.log('[useSpacetimeTables] Local player matched! Setting localPlayerRegistered = true.');
                     setLocalPlayerRegistered(true);
                 }
             };
             const handlePlayerUpdate = (ctx: any, oldPlayer: SpacetimeDB.Player, newPlayer: SpacetimeDB.Player) => {
-                trackSubUpdate('player_update');
                 const playerHexId = newPlayer.identity.toHexString();
 
                 // 1. Always update the Source of Truth (Ref) immediately
@@ -947,7 +881,7 @@ export const useSpacetimeTables = ({
 
                 if (connection && connection.identity && deletedPlayer.identity && deletedPlayer.identity.isEqual(connection.identity)) {
                     if (localPlayerRegistered) {
-                        // console.warn('[useSpacetimeTables] Local player deleted from server.');
+                        console.warn('[useSpacetimeTables] Local player deleted from server.');
                         setLocalPlayerRegistered(false);
                     }
                 }
@@ -971,7 +905,7 @@ export const useSpacetimeTables = ({
                 }
             };
             const handleTreeUpdate = (ctx: any, oldTree: SpacetimeDB.Tree, newTree: SpacetimeDB.Tree) => {
-                // PERFORMANCE FIX: Only update for visually significant changes
+                // Only update for visually significant changes
                 // Ignore lastHitTime micro-updates that cause excessive re-renders
                 const visuallySignificant =
                     Math.abs(oldTree.posX - newTree.posX) > 0.1 ||  // Position changed significantly
@@ -1004,7 +938,7 @@ export const useSpacetimeTables = ({
                 }
             };
             const handleStoneUpdate = (ctx: any, oldStone: SpacetimeDB.Stone, newStone: SpacetimeDB.Stone) => {
-                // PERFORMANCE FIX: Only update for visually significant changes
+                // Only update for visually significant changes
                 // Ignore lastHitTime micro-updates that cause excessive re-renders
                 const visuallySignificant =
                     Math.abs(oldStone.posX - newStone.posX) > 0.1 ||  // Position changed significantly
@@ -1049,7 +983,7 @@ export const useSpacetimeTables = ({
 
             // --- Player Discovered Cairn Subscriptions ---
             const handlePlayerDiscoveredCairnInsert = (ctx: any, discovery: SpacetimeDB.PlayerDiscoveredCairn) => {
-                console.log(`[useSpacetimeTables] 🎉 PlayerDiscoveredCairn INSERT: id=${discovery.id}, cairnId=${discovery.cairnId}, playerIdentity=${discovery.playerIdentity?.toHexString()?.slice(0, 16)}...`);
+                console.log(`[useSpacetimeTables] PlayerDiscoveredCairn INSERT: id=${discovery.id}, cairnId=${discovery.cairnId}, playerIdentity=${discovery.playerIdentity?.toHexString()?.slice(0, 16)}...`);
                 setPlayerDiscoveredCairns(prev => {
                     const newMap = new Map(prev).set(discovery.id.toString(), discovery);
                     console.log(`[useSpacetimeTables] PlayerDiscoveredCairns map now has ${newMap.size} entries`);
@@ -1091,7 +1025,7 @@ export const useSpacetimeTables = ({
             const handleCampfireUpdate = (ctx: any, oldFire: SpacetimeDB.Campfire, newFire: SpacetimeDB.Campfire) => setCampfires(prev => new Map(prev).set(newFire.id.toString(), newFire));
             const handleCampfireDelete = (ctx: any, campfire: SpacetimeDB.Campfire) => setCampfires(prev => { const newMap = new Map(prev); newMap.delete(campfire.id.toString()); return newMap; });
 
-            // --- Barbecue Subscriptions --- ADDED: Same pattern as campfire
+            // --- Barbecue Subscriptions ---
             const handleBarbecueInsert = (ctx: any, barbecue: SpacetimeDB.Barbecue) => {
                 setBarbecues(prev => new Map(prev).set(barbecue.id.toString(), barbecue));
                 if (connection.identity && barbecue.placedBy && barbecue.placedBy.isEqual(connection.identity)) {
@@ -1101,7 +1035,7 @@ export const useSpacetimeTables = ({
             const handleBarbecueUpdate = (ctx: any, oldBarbecue: SpacetimeDB.Barbecue, newBarbecue: SpacetimeDB.Barbecue) => setBarbecues(prev => new Map(prev).set(newBarbecue.id.toString(), newBarbecue));
             const handleBarbecueDelete = (ctx: any, barbecue: SpacetimeDB.Barbecue) => setBarbecues(prev => { const newMap = new Map(prev); newMap.delete(barbecue.id.toString()); return newMap; });
 
-            // --- Furnace Subscriptions --- ADDED: Same pattern as campfire
+            // --- Furnace Subscriptions ---
             const handleFurnaceInsert = (ctx: any, furnace: SpacetimeDB.Furnace) => {
                 setFurnaces(prev => new Map(prev).set(furnace.id.toString(), furnace));
                 if (connection.identity && furnace.placedBy && furnace.placedBy.isEqual(connection.identity)) {
@@ -1121,7 +1055,7 @@ export const useSpacetimeTables = ({
             const handleLanternUpdate = (ctx: any, oldLantern: SpacetimeDB.Lantern, newLantern: SpacetimeDB.Lantern) => setLanterns(prev => new Map(prev).set(newLantern.id.toString(), newLantern));
             const handleLanternDelete = (ctx: any, lantern: SpacetimeDB.Lantern) => setLanterns(prev => { const newMap = new Map(prev); newMap.delete(lantern.id.toString()); return newMap; });
 
-            // --- Turret Subscriptions --- ADDED: Same pattern as lantern
+            // --- Turret Subscriptions ---
             const handleTurretInsert = (ctx: any, turret: SpacetimeDB.Turret) => {
                 setTurrets(prev => new Map(prev).set(turret.id.toString(), turret));
                 if (connection.identity && turret.placedBy && turret.placedBy.isEqual(connection.identity)) {
@@ -1131,7 +1065,7 @@ export const useSpacetimeTables = ({
             const handleTurretUpdate = (ctx: any, oldTurret: SpacetimeDB.Turret, newTurret: SpacetimeDB.Turret) => setTurrets(prev => new Map(prev).set(newTurret.id.toString(), newTurret));
             const handleTurretDelete = (ctx: any, turret: SpacetimeDB.Turret) => setTurrets(prev => { const newMap = new Map(prev); newMap.delete(turret.id.toString()); return newMap; });
 
-            // --- Homestead Hearth Subscriptions --- ADDED: Same pattern as campfire
+            // --- Homestead Hearth Subscriptions ---
             const handleHomesteadHearthInsert = (ctx: any, hearth: SpacetimeDB.HomesteadHearth) => {
                 setHomesteadHearths(prev => new Map(prev).set(hearth.id.toString(), hearth));
                 if (connection.identity && hearth.placedBy && hearth.placedBy.isEqual(connection.identity)) {
@@ -1141,7 +1075,7 @@ export const useSpacetimeTables = ({
             const handleHomesteadHearthUpdate = (ctx: any, oldHearth: SpacetimeDB.HomesteadHearth, newHearth: SpacetimeDB.HomesteadHearth) => setHomesteadHearths(prev => new Map(prev).set(newHearth.id.toString(), newHearth));
             const handleHomesteadHearthDelete = (ctx: any, hearth: SpacetimeDB.HomesteadHearth) => setHomesteadHearths(prev => { const newMap = new Map(prev); newMap.delete(hearth.id.toString()); return newMap; });
 
-            // --- Broth Pot Subscriptions --- ADDED: Same pattern as campfire
+            // --- Broth Pot Subscriptions ---
             const handleBrothPotInsert = (ctx: any, brothPot: SpacetimeDB.BrothPot) => {
                 setBrothPots(prev => new Map(prev).set(brothPot.id.toString(), brothPot));
                 if (connection.identity && brothPot.placedBy && brothPot.placedBy.isEqual(connection.identity)) {
@@ -1176,7 +1110,6 @@ export const useSpacetimeTables = ({
             // --- World State Subscriptions ---
             const handleWorldStateInsert = (ctx: any, state: SpacetimeDB.WorldState) => setWorldState(state);
             const handleWorldStateUpdate = (ctx: any, oldState: SpacetimeDB.WorldState, newState: SpacetimeDB.WorldState) => {
-                trackSubUpdate('worldState_update');
                 const significantChange = oldState.timeOfDay !== newState.timeOfDay || oldState.isFullMoon !== newState.isFullMoon || oldState.cycleCount !== newState.cycleCount;
                 if (significantChange) setWorldState(newState);
             };
@@ -1530,15 +1463,12 @@ export const useSpacetimeTables = ({
 
             // --- Cloud Subscriptions ---
             const handleCloudInsert = (ctx: any, cloud: SpacetimeDB.Cloud) => {
-                // console.log("[useSpacetimeTables] handleCloudInsert CALLED with cloud:", cloud); // ADDED LOG
                 setClouds(prev => new Map(prev).set(cloud.id.toString(), cloud));
             };
             const handleCloudUpdate = (ctx: any, oldCloud: SpacetimeDB.Cloud, newCloud: SpacetimeDB.Cloud) => {
-                // console.log("[useSpacetimeTables] handleCloudUpdate CALLED with newCloud:", newCloud); // ADDED LOG
                 setClouds(prev => new Map(prev).set(newCloud.id.toString(), newCloud));
             };
             const handleCloudDelete = (ctx: any, cloud: SpacetimeDB.Cloud) => {
-                // console.log("[useSpacetimeTables] handleCloudDelete CALLED for cloud ID:", cloud.id.toString()); // ADDED LOG
                 setClouds(prev => { const newMap = new Map(prev); newMap.delete(cloud.id.toString()); return newMap; });
             };
 
@@ -1548,7 +1478,7 @@ export const useSpacetimeTables = ({
             const handleGrassInsert = (ctx: any, item: SpacetimeDB.Grass) => upsertMapState(setGrass, item.id.toString(), item);
             const handleGrassUpdate = (ctx: any, oldItem: SpacetimeDB.Grass, newItem: SpacetimeDB.Grass) => upsertMapState(setGrass, newItem.id.toString(), newItem);
             const handleGrassDelete = (ctx: any, item: SpacetimeDB.Grass) => setGrass(prev => { const newMap = new Map(prev); newMap.delete(item.id.toString()); return newMap; });
-            
+
             // --- GrassState Subscriptions (Split Tables) ---
             // This table updates when grass is damaged/respawned - much smaller payload than old combined table
             const handleGrassStateInsert = (ctx: any, item: SpacetimeDB.GrassState) => {
@@ -1558,8 +1488,8 @@ export const useSpacetimeTables = ({
             const handleGrassStateUpdate = (ctx: any, oldItem: SpacetimeDB.GrassState, newItem: SpacetimeDB.GrassState) => {
                 // console.log(`[GrassState] UPDATE: grassId=${newItem.grassId}, isAlive: ${oldItem.isAlive} -> ${newItem.isAlive}`);
                 // Only update if relevant fields changed (is_alive, respawn)
-                const hasChanges = oldItem.isAlive !== newItem.isAlive || 
-                                   oldItem.respawnAt !== newItem.respawnAt;
+                const hasChanges = oldItem.isAlive !== newItem.isAlive ||
+                    oldItem.respawnAt !== newItem.respawnAt;
                 if (hasChanges) {
                     setGrassState(prev => new Map(prev).set(newItem.grassId.toString(), newItem));
                 }
@@ -1584,15 +1514,15 @@ export const useSpacetimeTables = ({
             };
 
             // --- RangedWeaponStats Callbacks ---
-            const handleRangedWeaponStatsInsert = (ctx: any, stats: SpacetimeDBRangedWeaponStats) => 
+            const handleRangedWeaponStatsInsert = (ctx: any, stats: SpacetimeDBRangedWeaponStats) =>
                 setRangedWeaponStats(prev => new Map(prev).set(stats.itemName, stats));
-            const handleRangedWeaponStatsUpdate = (ctx: any, oldStats: SpacetimeDBRangedWeaponStats, newStats: SpacetimeDBRangedWeaponStats) => 
+            const handleRangedWeaponStatsUpdate = (ctx: any, oldStats: SpacetimeDBRangedWeaponStats, newStats: SpacetimeDBRangedWeaponStats) =>
                 setRangedWeaponStats(prev => new Map(prev).set(newStats.itemName, newStats));
-            const handleRangedWeaponStatsDelete = (ctx: any, stats: SpacetimeDBRangedWeaponStats) => 
+            const handleRangedWeaponStatsDelete = (ctx: any, stats: SpacetimeDBRangedWeaponStats) =>
                 setRangedWeaponStats(prev => { const newMap = new Map(prev); newMap.delete(stats.itemName); return newMap; });
 
             // --- Projectile Callbacks --- Added
-            // OPTIMIZATION: Batched updates to reduce React re-renders during combat
+            // Batched updates to reduce React re-renders during combat
             // Projectiles update frequently when arrows/thrown items are in flight
             const scheduleProjectileUpdate = () => {
                 if (projectilesUpdateTimeoutRef.current) return; // Already scheduled
@@ -1632,7 +1562,7 @@ export const useSpacetimeTables = ({
                 setDeathMarkers(prev => { const newMap = new Map(prev); newMap.delete(marker.playerId.toHexString()); return newMap; });
             };
 
-            // --- Shelter Callbacks --- ADDED
+            // --- Shelter Callbacks ---
             const handleShelterInsert = (ctx: any, shelter: SpacetimeDB.Shelter) => {
                 setShelters(prev => new Map(prev).set(shelter.id.toString(), shelter));
                 // If this client placed the shelter, cancel placement mode
@@ -1863,7 +1793,7 @@ export const useSpacetimeTables = ({
             };
             const handlePlacedExplosiveDelete = (ctx: any, explosive: SpacetimeDB.PlacedExplosive) => {
                 setPlacedExplosives(prev => { const newMap = new Map(prev); newMap.delete(explosive.id.toString()); return newMap; });
-                
+
                 // Trigger explosion visual effect when explosive is deleted (detonated)
                 // Don't trigger for duds (they stay in the world with isDud = true)
                 if (!explosive.isDud) {
@@ -1877,7 +1807,7 @@ export const useSpacetimeTables = ({
             // Performance fix: only receive updates for animals in nearby chunks (~5-15)
             // instead of all ~100 animals on the entire map
             // 
-            // OPTIMIZATION: Batched updates to reduce React re-renders
+            // Batched updates to reduce React re-renders
             // AI ticks 8x/sec per animal - batching reduces re-renders from 8/sec/animal to ~10/sec total
             const scheduleWildAnimalUpdate = () => {
                 if (wildAnimalsUpdateTimeoutRef.current) return; // Already scheduled
@@ -1890,7 +1820,7 @@ export const useSpacetimeTables = ({
             const handleWildAnimalInsert = (ctx: any, animal: SpacetimeDB.WildAnimal) => {
                 wildAnimalsRef.current.set(animal.id.toString(), animal);
                 scheduleWildAnimalUpdate();
-                
+
                 // SOVA Tutorial: First Hostile Encounter
                 // Trigger when the player first sees a hostile NPC at night
                 if (animal.isHostileNpc) {
@@ -1905,7 +1835,6 @@ export const useSpacetimeTables = ({
                 }
             };
             const handleWildAnimalUpdate = (ctx: any, oldAnimal: SpacetimeDB.WildAnimal, newAnimal: SpacetimeDB.WildAnimal) => {
-                trackSubUpdate('wildAnimal_update');
                 wildAnimalsRef.current.set(newAnimal.id.toString(), newAnimal);
                 scheduleWildAnimalUpdate();
             };
@@ -1924,7 +1853,7 @@ export const useSpacetimeTables = ({
                         // Cap size to prevent memory/performance degradation during mass encounters
                         return next.length > HOSTILE_DEATH_EVENTS_MAX ? next.slice(-HOSTILE_DEATH_EVENTS_MAX) : next;
                     });
-                    
+
                     // Auto-cleanup after 3 seconds (particle system will have consumed this)
                     const timeoutId = setTimeout(() => {
                         hostileDeathCleanupTimeoutsRef.current.delete(timeoutId);
@@ -1932,7 +1861,7 @@ export const useSpacetimeTables = ({
                     }, 3000);
                     hostileDeathCleanupTimeoutsRef.current.add(timeoutId);
                 }
-                
+
                 wildAnimalsRef.current.delete(animal.id.toString());
                 scheduleWildAnimalUpdate();
             };
@@ -2176,8 +2105,6 @@ export const useSpacetimeTables = ({
             };
             const handleBasaltColumnDelete = (ctx: any, basaltColumn: SpacetimeDB.BasaltColumn) => setBasaltColumns(prev => { const newMap = new Map(prev); newMap.delete(basaltColumn.id.toString()); return newMap; });
 
-            // --- StormPile removed - storms now spawn HarvestableResources and DroppedItems directly ---
-
             // --- Living Coral handlers - SPATIAL (underwater coral for harvesting via combat system) ---
             const handleLivingCoralInsert = (ctx: any, coral: SpacetimeDB.LivingCoral) => setLivingCorals(prev => new Map(prev).set(coral.id.toString(), coral));
             const handleLivingCoralUpdate = (ctx: any, oldCoral: SpacetimeDB.LivingCoral, newCoral: SpacetimeDB.LivingCoral) => {
@@ -2349,162 +2276,93 @@ export const useSpacetimeTables = ({
             };
 
             // --- Register Callbacks ---
-            connection.db.player.onInsert(handlePlayerInsert); connection.db.player.onUpdate(handlePlayerUpdate); connection.db.player.onDelete(handlePlayerDelete);
-            connection.db.tree.onInsert(handleTreeInsert); connection.db.tree.onUpdate(handleTreeUpdate); connection.db.tree.onDelete(handleTreeDelete);
-            connection.db.stone.onInsert(handleStoneInsert); connection.db.stone.onUpdate(handleStoneUpdate); connection.db.stone.onDelete(handleStoneDelete);
-            connection.db.runeStone.onInsert(handleRuneStoneInsert); connection.db.runeStone.onUpdate(handleRuneStoneUpdate); connection.db.runeStone.onDelete(handleRuneStoneDelete);
-            connection.db.cairn.onInsert(handleCairnInsert); connection.db.cairn.onUpdate(handleCairnUpdate); connection.db.cairn.onDelete(handleCairnDelete);
-            connection.db.playerDiscoveredCairn.onInsert(handlePlayerDiscoveredCairnInsert); connection.db.playerDiscoveredCairn.onUpdate(handlePlayerDiscoveredCairnUpdate); connection.db.playerDiscoveredCairn.onDelete(handlePlayerDiscoveredCairnDelete);
-            connection.db.campfire.onInsert(handleCampfireInsert); connection.db.campfire.onUpdate(handleCampfireUpdate); connection.db.campfire.onDelete(handleCampfireDelete);
-            connection.db.barbecue.onInsert(handleBarbecueInsert); connection.db.barbecue.onUpdate(handleBarbecueUpdate); connection.db.barbecue.onDelete(handleBarbecueDelete); // ADDED: Barbecue event registration
-            connection.db.furnace.onInsert(handleFurnaceInsert); connection.db.furnace.onUpdate(handleFurnaceUpdate); connection.db.furnace.onDelete(handleFurnaceDelete); // ADDED: Furnace event registration
-            connection.db.lantern.onInsert(handleLanternInsert); connection.db.lantern.onUpdate(handleLanternUpdate); connection.db.lantern.onDelete(handleLanternDelete);
-            connection.db.turret.onInsert(handleTurretInsert); connection.db.turret.onUpdate(handleTurretUpdate); connection.db.turret.onDelete(handleTurretDelete); // ADDED: Turret event registration
-            connection.db.homesteadHearth.onInsert(handleHomesteadHearthInsert); connection.db.homesteadHearth.onUpdate(handleHomesteadHearthUpdate); connection.db.homesteadHearth.onDelete(handleHomesteadHearthDelete); // ADDED: Homestead Hearth event registration
-            connection.db.brothPot.onInsert(handleBrothPotInsert); connection.db.brothPot.onUpdate(handleBrothPotUpdate); connection.db.brothPot.onDelete(handleBrothPotDelete); // ADDED: Broth pot event registration
-            connection.db.itemDefinition.onInsert(handleItemDefInsert); connection.db.itemDefinition.onUpdate(handleItemDefUpdate); connection.db.itemDefinition.onDelete(handleItemDefDelete);
-            connection.db.inventoryItem.onInsert(handleInventoryInsert); connection.db.inventoryItem.onUpdate(handleInventoryUpdate); connection.db.inventoryItem.onDelete(handleInventoryDelete);
-            connection.db.worldState.onInsert(handleWorldStateInsert); connection.db.worldState.onUpdate(handleWorldStateUpdate); connection.db.worldState.onDelete(handleWorldStateDelete);
-            connection.db.activeEquipment.onInsert(handleActiveEquipmentInsert); connection.db.activeEquipment.onUpdate(handleActiveEquipmentUpdate); connection.db.activeEquipment.onDelete(handleActiveEquipmentDelete);
-            connection.db.harvestableResource.onInsert(handleHarvestableResourceInsert); connection.db.harvestableResource.onUpdate(handleHarvestableResourceUpdate); connection.db.harvestableResource.onDelete(handleHarvestableResourceDelete);
-            connection.db.plantedSeed.onInsert(handlePlantedSeedInsert); connection.db.plantedSeed.onUpdate(handlePlantedSeedUpdate); connection.db.plantedSeed.onDelete(handlePlantedSeedDelete);
-            connection.db.droppedItem.onInsert(handleDroppedItemInsert); connection.db.droppedItem.onUpdate(handleDroppedItemUpdate); connection.db.droppedItem.onDelete(handleDroppedItemDelete);
-            connection.db.woodenStorageBox.onInsert(handleWoodenStorageBoxInsert); connection.db.woodenStorageBox.onUpdate(handleWoodenStorageBoxUpdate); connection.db.woodenStorageBox.onDelete(handleWoodenStorageBoxDelete);
-            connection.db.recipe.onInsert(handleRecipeInsert); connection.db.recipe.onUpdate(handleRecipeUpdate); connection.db.recipe.onDelete(handleRecipeDelete);
-            connection.db.craftingQueueItem.onInsert(handleCraftingQueueInsert); connection.db.craftingQueueItem.onUpdate(handleCraftingQueueUpdate); connection.db.craftingQueueItem.onDelete(handleCraftingQueueDelete);
-            connection.db.message.onInsert(handleMessageInsert); connection.db.message.onUpdate(handleMessageUpdate); connection.db.message.onDelete(handleMessageDelete);
+            type TableEventHandlers = {
+                onInsert?: (...args: any[]) => void;
+                onUpdate?: (...args: any[]) => void;
+                onDelete?: (...args: any[]) => void;
+            };
+            const registerTableCallbacks = (table: any, handlers: TableEventHandlers) => {
+                if (handlers.onInsert) table.onInsert(handlers.onInsert);
+                if (handlers.onUpdate) table.onUpdate(handlers.onUpdate);
+                if (handlers.onDelete) table.onDelete(handlers.onDelete);
+            };
+
+            registerTableCallbacks(connection.db.player, { onInsert: handlePlayerInsert, onUpdate: handlePlayerUpdate, onDelete: handlePlayerDelete });
+            registerTableCallbacks(connection.db.tree, { onInsert: handleTreeInsert, onUpdate: handleTreeUpdate, onDelete: handleTreeDelete });
+            registerTableCallbacks(connection.db.stone, { onInsert: handleStoneInsert, onUpdate: handleStoneUpdate, onDelete: handleStoneDelete });
+            registerTableCallbacks(connection.db.runeStone, { onInsert: handleRuneStoneInsert, onUpdate: handleRuneStoneUpdate, onDelete: handleRuneStoneDelete });
+            registerTableCallbacks(connection.db.cairn, { onInsert: handleCairnInsert, onUpdate: handleCairnUpdate, onDelete: handleCairnDelete });
+            registerTableCallbacks(connection.db.playerDiscoveredCairn, { onInsert: handlePlayerDiscoveredCairnInsert, onUpdate: handlePlayerDiscoveredCairnUpdate, onDelete: handlePlayerDiscoveredCairnDelete });
+            registerTableCallbacks(connection.db.campfire, { onInsert: handleCampfireInsert, onUpdate: handleCampfireUpdate, onDelete: handleCampfireDelete });
+            registerTableCallbacks(connection.db.barbecue, { onInsert: handleBarbecueInsert, onUpdate: handleBarbecueUpdate, onDelete: handleBarbecueDelete });
+            registerTableCallbacks(connection.db.furnace, { onInsert: handleFurnaceInsert, onUpdate: handleFurnaceUpdate, onDelete: handleFurnaceDelete });
+            registerTableCallbacks(connection.db.lantern, { onInsert: handleLanternInsert, onUpdate: handleLanternUpdate, onDelete: handleLanternDelete });
+            registerTableCallbacks(connection.db.turret, { onInsert: handleTurretInsert, onUpdate: handleTurretUpdate, onDelete: handleTurretDelete });
+            registerTableCallbacks(connection.db.homesteadHearth, { onInsert: handleHomesteadHearthInsert, onUpdate: handleHomesteadHearthUpdate, onDelete: handleHomesteadHearthDelete });
+            registerTableCallbacks(connection.db.brothPot, { onInsert: handleBrothPotInsert, onUpdate: handleBrothPotUpdate, onDelete: handleBrothPotDelete });
+            registerTableCallbacks(connection.db.itemDefinition, { onInsert: handleItemDefInsert, onUpdate: handleItemDefUpdate, onDelete: handleItemDefDelete });
+            registerTableCallbacks(connection.db.inventoryItem, { onInsert: handleInventoryInsert, onUpdate: handleInventoryUpdate, onDelete: handleInventoryDelete });
+            registerTableCallbacks(connection.db.worldState, { onInsert: handleWorldStateInsert, onUpdate: handleWorldStateUpdate, onDelete: handleWorldStateDelete });
+            registerTableCallbacks(connection.db.activeEquipment, { onInsert: handleActiveEquipmentInsert, onUpdate: handleActiveEquipmentUpdate, onDelete: handleActiveEquipmentDelete });
+            registerTableCallbacks(connection.db.harvestableResource, { onInsert: handleHarvestableResourceInsert, onUpdate: handleHarvestableResourceUpdate, onDelete: handleHarvestableResourceDelete });
+            registerTableCallbacks(connection.db.plantedSeed, { onInsert: handlePlantedSeedInsert, onUpdate: handlePlantedSeedUpdate, onDelete: handlePlantedSeedDelete });
+            registerTableCallbacks(connection.db.droppedItem, { onInsert: handleDroppedItemInsert, onUpdate: handleDroppedItemUpdate, onDelete: handleDroppedItemDelete });
+            registerTableCallbacks(connection.db.woodenStorageBox, { onInsert: handleWoodenStorageBoxInsert, onUpdate: handleWoodenStorageBoxUpdate, onDelete: handleWoodenStorageBoxDelete });
+            registerTableCallbacks(connection.db.recipe, { onInsert: handleRecipeInsert, onUpdate: handleRecipeUpdate, onDelete: handleRecipeDelete });
+            registerTableCallbacks(connection.db.craftingQueueItem, { onInsert: handleCraftingQueueInsert, onUpdate: handleCraftingQueueUpdate, onDelete: handleCraftingQueueDelete });
+            registerTableCallbacks(connection.db.message, { onInsert: handleMessageInsert, onUpdate: handleMessageUpdate, onDelete: handleMessageDelete });
             // Player progression system subscriptions
-            connection.db.playerStats.onInsert(handlePlayerStatsInsert); connection.db.playerStats.onUpdate(handlePlayerStatsUpdate); connection.db.playerStats.onDelete(handlePlayerStatsDelete);
-            connection.db.achievementDefinition.onInsert(handleAchievementDefinitionInsert); connection.db.achievementDefinition.onUpdate(handleAchievementDefinitionUpdate); connection.db.achievementDefinition.onDelete(handleAchievementDefinitionDelete);
-            connection.db.playerAchievement.onInsert(handlePlayerAchievementInsert); connection.db.playerAchievement.onUpdate(handlePlayerAchievementUpdate); connection.db.playerAchievement.onDelete(handlePlayerAchievementDelete);
-            connection.db.achievementUnlockNotification.onInsert(handleAchievementUnlockNotificationInsert); connection.db.achievementUnlockNotification.onUpdate(handleAchievementUnlockNotificationUpdate); connection.db.achievementUnlockNotification.onDelete(handleAchievementUnlockNotificationDelete);
-            connection.db.levelUpNotification.onInsert(handleLevelUpNotificationInsert); connection.db.levelUpNotification.onUpdate(handleLevelUpNotificationUpdate); connection.db.levelUpNotification.onDelete(handleLevelUpNotificationDelete);
-            connection.db.dailyLoginNotification.onInsert(handleDailyLoginNotificationInsert); connection.db.dailyLoginNotification.onUpdate(handleDailyLoginNotificationUpdate); connection.db.dailyLoginNotification.onDelete(handleDailyLoginNotificationDelete);
-            connection.db.progressNotification.onInsert(handleProgressNotificationInsert); connection.db.progressNotification.onUpdate(handleProgressNotificationUpdate); connection.db.progressNotification.onDelete(handleProgressNotificationDelete);
-            connection.db.comparativeStatNotification.onInsert(handleComparativeStatNotificationInsert); connection.db.comparativeStatNotification.onUpdate(handleComparativeStatNotificationUpdate); connection.db.comparativeStatNotification.onDelete(handleComparativeStatNotificationDelete);
-            connection.db.leaderboardEntry.onInsert(handleLeaderboardEntryInsert); connection.db.leaderboardEntry.onUpdate(handleLeaderboardEntryUpdate); connection.db.leaderboardEntry.onDelete(handleLeaderboardEntryDelete);
-            connection.db.dailyLoginReward.onInsert(handleDailyLoginRewardInsert); connection.db.dailyLoginReward.onUpdate(handleDailyLoginRewardUpdate); connection.db.dailyLoginReward.onDelete(handleDailyLoginRewardDelete);
+            registerTableCallbacks(connection.db.playerStats, { onInsert: handlePlayerStatsInsert, onUpdate: handlePlayerStatsUpdate, onDelete: handlePlayerStatsDelete });
+            registerTableCallbacks(connection.db.achievementDefinition, { onInsert: handleAchievementDefinitionInsert, onUpdate: handleAchievementDefinitionUpdate, onDelete: handleAchievementDefinitionDelete });
+            registerTableCallbacks(connection.db.playerAchievement, { onInsert: handlePlayerAchievementInsert, onUpdate: handlePlayerAchievementUpdate, onDelete: handlePlayerAchievementDelete });
+            registerTableCallbacks(connection.db.achievementUnlockNotification, { onInsert: handleAchievementUnlockNotificationInsert, onUpdate: handleAchievementUnlockNotificationUpdate, onDelete: handleAchievementUnlockNotificationDelete });
+            registerTableCallbacks(connection.db.levelUpNotification, { onInsert: handleLevelUpNotificationInsert, onUpdate: handleLevelUpNotificationUpdate, onDelete: handleLevelUpNotificationDelete });
+            registerTableCallbacks(connection.db.dailyLoginNotification, { onInsert: handleDailyLoginNotificationInsert, onUpdate: handleDailyLoginNotificationUpdate, onDelete: handleDailyLoginNotificationDelete });
+            registerTableCallbacks(connection.db.progressNotification, { onInsert: handleProgressNotificationInsert, onUpdate: handleProgressNotificationUpdate, onDelete: handleProgressNotificationDelete });
+            registerTableCallbacks(connection.db.comparativeStatNotification, { onInsert: handleComparativeStatNotificationInsert, onUpdate: handleComparativeStatNotificationUpdate, onDelete: handleComparativeStatNotificationDelete });
+            registerTableCallbacks(connection.db.leaderboardEntry, { onInsert: handleLeaderboardEntryInsert, onUpdate: handleLeaderboardEntryUpdate, onDelete: handleLeaderboardEntryDelete });
+            registerTableCallbacks(connection.db.dailyLoginReward, { onInsert: handleDailyLoginRewardInsert, onUpdate: handleDailyLoginRewardUpdate, onDelete: handleDailyLoginRewardDelete });
             // Plant config definitions for Encyclopedia (populated on server init)
-            connection.db.plantConfigDefinition.onInsert(handlePlantConfigDefinitionInsert); connection.db.plantConfigDefinition.onUpdate(handlePlantConfigDefinitionUpdate); connection.db.plantConfigDefinition.onDelete(handlePlantConfigDefinitionDelete);
-            connection.db.playerDiscoveredPlant.onInsert(handleDiscoveredPlantInsert); connection.db.playerDiscoveredPlant.onDelete(handleDiscoveredPlantDelete);
+            registerTableCallbacks(connection.db.plantConfigDefinition, { onInsert: handlePlantConfigDefinitionInsert, onUpdate: handlePlantConfigDefinitionUpdate, onDelete: handlePlantConfigDefinitionDelete });
+            registerTableCallbacks(connection.db.playerDiscoveredPlant, { onInsert: handleDiscoveredPlantInsert, onDelete: handleDiscoveredPlantDelete });
             // Quest system subscriptions
-            connection.db.tutorialQuestDefinition.onInsert(handleTutorialQuestDefinitionInsert); connection.db.tutorialQuestDefinition.onUpdate(handleTutorialQuestDefinitionUpdate); connection.db.tutorialQuestDefinition.onDelete(handleTutorialQuestDefinitionDelete);
-            connection.db.dailyQuestDefinition.onInsert(handleDailyQuestDefinitionInsert); connection.db.dailyQuestDefinition.onUpdate(handleDailyQuestDefinitionUpdate); connection.db.dailyQuestDefinition.onDelete(handleDailyQuestDefinitionDelete);
-            connection.db.playerTutorialProgress.onInsert(handlePlayerTutorialProgressInsert); connection.db.playerTutorialProgress.onUpdate(handlePlayerTutorialProgressUpdate); connection.db.playerTutorialProgress.onDelete(handlePlayerTutorialProgressDelete);
-            connection.db.playerDailyQuest.onInsert(handlePlayerDailyQuestInsert); connection.db.playerDailyQuest.onUpdate(handlePlayerDailyQuestUpdate); connection.db.playerDailyQuest.onDelete(handlePlayerDailyQuestDelete);
-            connection.db.questCompletionNotification.onInsert(handleQuestCompletionNotificationInsert); connection.db.questCompletionNotification.onDelete(handleQuestCompletionNotificationDelete);
-            connection.db.questProgressNotification.onInsert(handleQuestProgressNotificationInsert); connection.db.questProgressNotification.onDelete(handleQuestProgressNotificationDelete);
-            connection.db.sovaQuestMessage.onInsert(handleSovaQuestMessageInsert); connection.db.sovaQuestMessage.onDelete(handleSovaQuestMessageDelete);
+            registerTableCallbacks(connection.db.tutorialQuestDefinition, { onInsert: handleTutorialQuestDefinitionInsert, onUpdate: handleTutorialQuestDefinitionUpdate, onDelete: handleTutorialQuestDefinitionDelete });
+            registerTableCallbacks(connection.db.dailyQuestDefinition, { onInsert: handleDailyQuestDefinitionInsert, onUpdate: handleDailyQuestDefinitionUpdate, onDelete: handleDailyQuestDefinitionDelete });
+            registerTableCallbacks(connection.db.playerTutorialProgress, { onInsert: handlePlayerTutorialProgressInsert, onUpdate: handlePlayerTutorialProgressUpdate, onDelete: handlePlayerTutorialProgressDelete });
+            registerTableCallbacks(connection.db.playerDailyQuest, { onInsert: handlePlayerDailyQuestInsert, onUpdate: handlePlayerDailyQuestUpdate, onDelete: handlePlayerDailyQuestDelete });
+            registerTableCallbacks(connection.db.questCompletionNotification, { onInsert: handleQuestCompletionNotificationInsert, onDelete: handleQuestCompletionNotificationDelete });
+            registerTableCallbacks(connection.db.questProgressNotification, { onInsert: handleQuestProgressNotificationInsert, onDelete: handleQuestProgressNotificationDelete });
+            registerTableCallbacks(connection.db.sovaQuestMessage, { onInsert: handleSovaQuestMessageInsert, onDelete: handleSovaQuestMessageDelete });
             // Beacon drop event subscriptions (server events for minimap markers)
-            connection.db.beaconDropEvent.onInsert(handleBeaconDropEventInsert); connection.db.beaconDropEvent.onUpdate(handleBeaconDropEventUpdate); connection.db.beaconDropEvent.onDelete(handleBeaconDropEventDelete);
-            connection.db.droneEvent.onInsert(handleDroneEventInsert); connection.db.droneEvent.onDelete(handleDroneEventDelete);
-            connection.db.playerPin.onInsert(handlePlayerPinInsert); connection.db.playerPin.onUpdate(handlePlayerPinUpdate); connection.db.playerPin.onDelete(handlePlayerPinDelete);
-            connection.db.activeConnection.onInsert(handleActiveConnectionInsert);
-            connection.db.activeConnection.onDelete(handleActiveConnectionDelete);
-            connection.db.sleepingBag.onInsert(handleSleepingBagInsert);
-            connection.db.sleepingBag.onUpdate(handleSleepingBagUpdate);
-            connection.db.sleepingBag.onDelete(handleSleepingBagDelete);
-            connection.db.playerCorpse.onInsert(handlePlayerCorpseInsert);
-            connection.db.playerCorpse.onUpdate(handlePlayerCorpseUpdate);
-            connection.db.playerCorpse.onDelete(handlePlayerCorpseDelete);
-            connection.db.stash.onInsert(handleStashInsert);
-            connection.db.stash.onUpdate(handleStashUpdate);
-            connection.db.stash.onDelete(handleStashDelete);
-            // console.log("[useSpacetimeTables] Attempting to register ActiveConsumableEffect callbacks."); // ADDED LOG
-            connection.db.activeConsumableEffect.onInsert(handleActiveConsumableEffectInsert);
-            connection.db.activeConsumableEffect.onUpdate(handleActiveConsumableEffectUpdate);
-            connection.db.activeConsumableEffect.onDelete(handleActiveConsumableEffectDelete);
-
-            // Register Cloud callbacks
-            connection.db.cloud.onInsert(handleCloudInsert);
-            connection.db.cloud.onUpdate(handleCloudUpdate);
-            connection.db.cloud.onDelete(handleCloudDelete);
-
-            // Register Grass callbacks (split tables)
-            connection.db.grass.onInsert(handleGrassInsert);
-            connection.db.grass.onUpdate(handleGrassUpdate);
-            connection.db.grass.onDelete(handleGrassDelete);
-            
-            // Register GrassState callbacks (split tables - dynamic state)
-            connection.db.grassState.onInsert(handleGrassStateInsert);
-            connection.db.grassState.onUpdate(handleGrassStateUpdate);
-            connection.db.grassState.onDelete(handleGrassStateDelete);
-
-            // Register KnockedOutStatus callbacks
-            connection.db.knockedOutStatus.onInsert(handleKnockedOutStatusInsert);
-            connection.db.knockedOutStatus.onUpdate(handleKnockedOutStatusUpdate);
-            connection.db.knockedOutStatus.onDelete(handleKnockedOutStatusDelete);
-
-            // Register RangedWeaponStats callbacks - Added
-            connection.db.rangedWeaponStats.onInsert(handleRangedWeaponStatsInsert);
-            connection.db.rangedWeaponStats.onUpdate(handleRangedWeaponStatsUpdate);
-            connection.db.rangedWeaponStats.onDelete(handleRangedWeaponStatsDelete);
-
-            // Register Projectile callbacks - Added
-            connection.db.projectile.onInsert(handleProjectileInsert);
-            connection.db.projectile.onUpdate(handleProjectileUpdate);
-            connection.db.projectile.onDelete(handleProjectileDelete);
-
-            // Register DeathMarker callbacks - Added
-            connection.db.deathMarker.onInsert(handleDeathMarkerInsert);
-            connection.db.deathMarker.onUpdate(handleDeathMarkerUpdate);
-            connection.db.deathMarker.onDelete(handleDeathMarkerDelete);
-
-            // Register Shelter callbacks - ADDED
-            connection.db.shelter.onInsert(handleShelterInsert);
-            connection.db.shelter.onUpdate(handleShelterUpdate);
-            connection.db.shelter.onDelete(handleShelterDelete);
+            registerTableCallbacks(connection.db.beaconDropEvent, { onInsert: handleBeaconDropEventInsert, onUpdate: handleBeaconDropEventUpdate, onDelete: handleBeaconDropEventDelete });
+            registerTableCallbacks(connection.db.droneEvent, { onInsert: handleDroneEventInsert, onDelete: handleDroneEventDelete });
+            registerTableCallbacks(connection.db.playerPin, { onInsert: handlePlayerPinInsert, onUpdate: handlePlayerPinUpdate, onDelete: handlePlayerPinDelete });
+            registerTableCallbacks(connection.db.activeConnection, { onInsert: handleActiveConnectionInsert, onDelete: handleActiveConnectionDelete });
+            registerTableCallbacks(connection.db.sleepingBag, { onInsert: handleSleepingBagInsert, onUpdate: handleSleepingBagUpdate, onDelete: handleSleepingBagDelete });
+            registerTableCallbacks(connection.db.playerCorpse, { onInsert: handlePlayerCorpseInsert, onUpdate: handlePlayerCorpseUpdate, onDelete: handlePlayerCorpseDelete });
+            registerTableCallbacks(connection.db.stash, { onInsert: handleStashInsert, onUpdate: handleStashUpdate, onDelete: handleStashDelete });
+            registerTableCallbacks(connection.db.activeConsumableEffect, { onInsert: handleActiveConsumableEffectInsert, onUpdate: handleActiveConsumableEffectUpdate, onDelete: handleActiveConsumableEffectDelete });
+            registerTableCallbacks(connection.db.cloud, { onInsert: handleCloudInsert, onUpdate: handleCloudUpdate, onDelete: handleCloudDelete });
+            registerTableCallbacks(connection.db.grass, { onInsert: handleGrassInsert, onUpdate: handleGrassUpdate, onDelete: handleGrassDelete });
+            registerTableCallbacks(connection.db.grassState, { onInsert: handleGrassStateInsert, onUpdate: handleGrassStateUpdate, onDelete: handleGrassStateDelete });
+            registerTableCallbacks(connection.db.knockedOutStatus, { onInsert: handleKnockedOutStatusInsert, onUpdate: handleKnockedOutStatusUpdate, onDelete: handleKnockedOutStatusDelete });
+            registerTableCallbacks(connection.db.rangedWeaponStats, { onInsert: handleRangedWeaponStatsInsert, onUpdate: handleRangedWeaponStatsUpdate, onDelete: handleRangedWeaponStatsDelete });
+            registerTableCallbacks(connection.db.projectile, { onInsert: handleProjectileInsert, onUpdate: handleProjectileUpdate, onDelete: handleProjectileDelete });
+            registerTableCallbacks(connection.db.deathMarker, { onInsert: handleDeathMarkerInsert, onUpdate: handleDeathMarkerUpdate, onDelete: handleDeathMarkerDelete });
+            registerTableCallbacks(connection.db.shelter, { onInsert: handleShelterInsert, onUpdate: handleShelterUpdate, onDelete: handleShelterDelete });
 
             // WorldTile callbacks removed – no longer subscribing to per-tile updates
 
-            // Register MinimapCache callbacks - ADDED
-            connection.db.minimapCache.onInsert(handleMinimapCacheInsert);
-            connection.db.minimapCache.onUpdate(handleMinimapCacheUpdate);
-            connection.db.minimapCache.onDelete(handleMinimapCacheDelete);
-
-            // Register PlayerDodgeRollState callbacks - ADDED
-            connection.db.playerDodgeRollState.onInsert(handlePlayerDodgeRollStateInsert);
-            connection.db.playerDodgeRollState.onUpdate(handlePlayerDodgeRollStateUpdate);
-            connection.db.playerDodgeRollState.onDelete(handlePlayerDodgeRollStateDelete);
-
-            // Register FishingSession callbacks - ADDED
-            connection.db.fishingSession.onInsert(handleFishingSessionInsert);
-            connection.db.fishingSession.onUpdate(handleFishingSessionUpdate);
-            connection.db.fishingSession.onDelete(handleFishingSessionDelete);
-
-            // Register SoundEvent callbacks - ADDED
-            connection.db.soundEvent.onInsert(handleSoundEventInsert);
-            connection.db.soundEvent.onUpdate(handleSoundEventUpdate);
-            connection.db.soundEvent.onDelete(handleSoundEventDelete);
-
-            // Register ContinuousSound callbacks - ADDED
-            connection.db.continuousSound.onInsert(handleContinuousSoundInsert);
-            connection.db.continuousSound.onUpdate(handleContinuousSoundUpdate);
-            connection.db.continuousSound.onDelete(handleContinuousSoundDelete);
-
-            // Register PlayerDrinkingCooldown callbacks - ADDED
-            connection.db.playerDrinkingCooldown.onInsert(handlePlayerDrinkingCooldownInsert);
-            connection.db.playerDrinkingCooldown.onUpdate(handlePlayerDrinkingCooldownUpdate);
-            connection.db.playerDrinkingCooldown.onDelete(handlePlayerDrinkingCooldownDelete);
-
-            // Register RainCollector callbacks - ADDED
-            connection.db.rainCollector.onInsert(handleRainCollectorInsert);
-            connection.db.rainCollector.onUpdate(handleRainCollectorUpdate);
-            connection.db.rainCollector.onDelete(handleRainCollectorDelete);
-
-            // Register WaterPatch callbacks - ADDED
-            connection.db.waterPatch.onInsert(handleWaterPatchInsert);
-            connection.db.waterPatch.onUpdate(handleWaterPatchUpdate);
-            connection.db.waterPatch.onDelete(handleWaterPatchDelete);
-            
-            connection.db.fertilizerPatch.onInsert(handleFertilizerPatchInsert);
-            connection.db.fertilizerPatch.onUpdate(handleFertilizerPatchUpdate);
-            connection.db.fertilizerPatch.onDelete(handleFertilizerPatchDelete);
-
-            // Register FirePatch callbacks - ADDED
-            connection.db.firePatch.onInsert(handleFirePatchInsert);
-            connection.db.firePatch.onUpdate(handleFirePatchUpdate);
-            connection.db.firePatch.onDelete(handleFirePatchDelete);
+            registerTableCallbacks(connection.db.minimapCache, { onInsert: handleMinimapCacheInsert, onUpdate: handleMinimapCacheUpdate, onDelete: handleMinimapCacheDelete });
+            registerTableCallbacks(connection.db.playerDodgeRollState, { onInsert: handlePlayerDodgeRollStateInsert, onUpdate: handlePlayerDodgeRollStateUpdate, onDelete: handlePlayerDodgeRollStateDelete });
+            registerTableCallbacks(connection.db.fishingSession, { onInsert: handleFishingSessionInsert, onUpdate: handleFishingSessionUpdate, onDelete: handleFishingSessionDelete });
+            registerTableCallbacks(connection.db.soundEvent, { onInsert: handleSoundEventInsert, onUpdate: handleSoundEventUpdate, onDelete: handleSoundEventDelete });
+            registerTableCallbacks(connection.db.continuousSound, { onInsert: handleContinuousSoundInsert, onUpdate: handleContinuousSoundUpdate, onDelete: handleContinuousSoundDelete });
+            registerTableCallbacks(connection.db.playerDrinkingCooldown, { onInsert: handlePlayerDrinkingCooldownInsert, onUpdate: handlePlayerDrinkingCooldownUpdate, onDelete: handlePlayerDrinkingCooldownDelete });
+            registerTableCallbacks(connection.db.rainCollector, { onInsert: handleRainCollectorInsert, onUpdate: handleRainCollectorUpdate, onDelete: handleRainCollectorDelete });
+            registerTableCallbacks(connection.db.waterPatch, { onInsert: handleWaterPatchInsert, onUpdate: handleWaterPatchUpdate, onDelete: handleWaterPatchDelete });
+            registerTableCallbacks(connection.db.fertilizerPatch, { onInsert: handleFertilizerPatchInsert, onUpdate: handleFertilizerPatchUpdate, onDelete: handleFertilizerPatchDelete });
+            registerTableCallbacks(connection.db.firePatch, { onInsert: handleFirePatchInsert, onUpdate: handleFirePatchUpdate, onDelete: handleFirePatchDelete });
 
             // CRITICAL FIX: Populate fire patches from existing cache after registering callbacks
             // This handles fire patches that arrived before callbacks were registered
@@ -2524,164 +2382,102 @@ export const useSpacetimeTables = ({
                 console.log('[FIRE_PATCH] No existing fire patches found in cache');
             }
 
-            // Register PlacedExplosive callbacks - ADDED for raiding explosives
+            // --- PlacedExplosive Callbacks (raiding explosives) ---
             console.log('[EXPLOSIVE_CALLBACKS] Registering PlacedExplosive callbacks...');
             console.log('[EXPLOSIVE_CALLBACKS] connection.db.placedExplosive exists:', !!connection.db.placedExplosive);
             if (connection.db.placedExplosive) {
-                connection.db.placedExplosive.onInsert(handlePlacedExplosiveInsert);
-                connection.db.placedExplosive.onUpdate(handlePlacedExplosiveUpdate);
-                connection.db.placedExplosive.onDelete(handlePlacedExplosiveDelete);
+                registerTableCallbacks(connection.db.placedExplosive, { onInsert: handlePlacedExplosiveInsert, onUpdate: handlePlacedExplosiveUpdate, onDelete: handlePlacedExplosiveDelete });
                 console.log('[EXPLOSIVE_CALLBACKS] PlacedExplosive callbacks registered!');
             } else {
                 console.error('[EXPLOSIVE_CALLBACKS] ERROR: connection.db.placedExplosive is undefined!');
             }
 
             // Register WildAnimal callbacks - includes hostile NPCs (Shorebound, Shardkin, DrownedWatch) with is_hostile_npc = true
-            connection.db.wildAnimal.onInsert(handleWildAnimalInsert);
-            connection.db.wildAnimal.onUpdate(handleWildAnimalUpdate);
-            connection.db.wildAnimal.onDelete(handleWildAnimalDelete);
+            registerTableCallbacks(connection.db.wildAnimal, { onInsert: handleWildAnimalInsert, onUpdate: handleWildAnimalUpdate, onDelete: handleWildAnimalDelete });
 
             // Register AnimalCorpse callbacks - NON-SPATIAL
-            connection.db.animalCorpse.onInsert(handleAnimalCorpseInsert);
-            connection.db.animalCorpse.onUpdate(handleAnimalCorpseUpdate);
-            connection.db.animalCorpse.onDelete(handleAnimalCorpseDelete);
+            registerTableCallbacks(connection.db.animalCorpse, { onInsert: handleAnimalCorpseInsert, onUpdate: handleAnimalCorpseUpdate, onDelete: handleAnimalCorpseDelete });
 
             // Register CaribouBreedingData callbacks - NON-SPATIAL (for age-based rendering and pregnancy indicators)
-            connection.db.caribouBreedingData.onInsert(handleCaribouBreedingDataInsert);
-            connection.db.caribouBreedingData.onUpdate(handleCaribouBreedingDataUpdate);
-            connection.db.caribouBreedingData.onDelete(handleCaribouBreedingDataDelete);
+            registerTableCallbacks(connection.db.caribouBreedingData, { onInsert: handleCaribouBreedingDataInsert, onUpdate: handleCaribouBreedingDataUpdate, onDelete: handleCaribouBreedingDataDelete });
 
             // Register WalrusBreedingData callbacks - NON-SPATIAL (for age-based rendering and pregnancy indicators)
-            connection.db.walrusBreedingData.onInsert(handleWalrusBreedingDataInsert);
-            connection.db.walrusBreedingData.onUpdate(handleWalrusBreedingDataUpdate);
-            connection.db.walrusBreedingData.onDelete(handleWalrusBreedingDataDelete);
+            registerTableCallbacks(connection.db.walrusBreedingData, { onInsert: handleWalrusBreedingDataInsert, onUpdate: handleWalrusBreedingDataUpdate, onDelete: handleWalrusBreedingDataDelete });
 
             // Register CaribouRutState callbacks - GLOBAL single-row table
-            connection.db.caribouRutState.onInsert(handleCaribouRutStateInsert);
-            connection.db.caribouRutState.onUpdate(handleCaribouRutStateUpdate);
-            connection.db.caribouRutState.onDelete(handleCaribouRutStateDelete);
+            registerTableCallbacks(connection.db.caribouRutState, { onInsert: handleCaribouRutStateInsert, onUpdate: handleCaribouRutStateUpdate, onDelete: handleCaribouRutStateDelete });
 
             // Register WalrusRutState callbacks - GLOBAL single-row table
-            connection.db.walrusRutState.onInsert(handleWalrusRutStateInsert);
-            connection.db.walrusRutState.onUpdate(handleWalrusRutStateUpdate);
-            connection.db.walrusRutState.onDelete(handleWalrusRutStateDelete);
+            registerTableCallbacks(connection.db.walrusRutState, { onInsert: handleWalrusRutStateInsert, onUpdate: handleWalrusRutStateUpdate, onDelete: handleWalrusRutStateDelete });
 
             // Register Barrel callbacks - SPATIAL
-            connection.db.barrel.onInsert(handleBarrelInsert);
-            connection.db.barrel.onUpdate(handleBarrelUpdate);
-            connection.db.barrel.onDelete(handleBarrelDelete);
+            registerTableCallbacks(connection.db.barrel, { onInsert: handleBarrelInsert, onUpdate: handleBarrelUpdate, onDelete: handleBarrelDelete });
 
             // Register RoadLamppost callbacks - SPATIAL
-            connection.db.roadLamppost.onInsert(handleRoadLamppostInsert);
-            connection.db.roadLamppost.onUpdate(handleRoadLamppostUpdate);
-            connection.db.roadLamppost.onDelete(handleRoadLamppostDelete);
+            registerTableCallbacks(connection.db.roadLamppost, { onInsert: handleRoadLamppostInsert, onUpdate: handleRoadLamppostUpdate, onDelete: handleRoadLamppostDelete });
 
             // Register SeaStack callbacks - SPATIAL
-            connection.db.seaStack.onInsert(handleSeaStackInsert);
-            connection.db.seaStack.onUpdate(handleSeaStackUpdate);
-            connection.db.seaStack.onDelete(handleSeaStackDelete);
+            registerTableCallbacks(connection.db.seaStack, { onInsert: handleSeaStackInsert, onUpdate: handleSeaStackUpdate, onDelete: handleSeaStackDelete });
 
             // Register FoundationCell callbacks - SPATIAL
-            connection.db.foundationCell.onInsert(handleFoundationCellInsert);
-            connection.db.foundationCell.onUpdate(handleFoundationCellUpdate);
-            connection.db.foundationCell.onDelete(handleFoundationCellDelete);
+            registerTableCallbacks(connection.db.foundationCell, { onInsert: handleFoundationCellInsert, onUpdate: handleFoundationCellUpdate, onDelete: handleFoundationCellDelete });
 
             // Register WallCell callbacks - SPATIAL
-            connection.db.wallCell.onInsert(handleWallCellInsert);
-            connection.db.wallCell.onUpdate(handleWallCellUpdate);
-            connection.db.wallCell.onDelete(handleWallCellDelete);
+            registerTableCallbacks(connection.db.wallCell, { onInsert: handleWallCellInsert, onUpdate: handleWallCellUpdate, onDelete: handleWallCellDelete });
 
             // Register Door callbacks - SPATIAL
-            connection.db.door.onInsert(handleDoorInsert);
-            connection.db.door.onUpdate(handleDoorUpdate);
-            connection.db.door.onDelete(handleDoorDelete);
+            registerTableCallbacks(connection.db.door, { onInsert: handleDoorInsert, onUpdate: handleDoorUpdate, onDelete: handleDoorDelete });
 
             // Register Fence callbacks - SPATIAL
-            connection.db.fence.onInsert(handleFenceInsert);
-            connection.db.fence.onUpdate(handleFenceUpdate);
-            connection.db.fence.onDelete(handleFenceDelete);
+            registerTableCallbacks(connection.db.fence, { onInsert: handleFenceInsert, onUpdate: handleFenceUpdate, onDelete: handleFenceDelete });
 
             // Register Fumarole callbacks - SPATIAL
-            connection.db.fumarole.onInsert(handleFumaroleInsert);
-            connection.db.fumarole.onUpdate(handleFumaroleUpdate);
-            connection.db.fumarole.onDelete(handleFumaroleDelete);
+            registerTableCallbacks(connection.db.fumarole, { onInsert: handleFumaroleInsert, onUpdate: handleFumaroleUpdate, onDelete: handleFumaroleDelete });
 
             // Register BasaltColumn callbacks - SPATIAL
-            connection.db.basaltColumn.onInsert(handleBasaltColumnInsert);
-            connection.db.basaltColumn.onUpdate(handleBasaltColumnUpdate);
-            connection.db.basaltColumn.onDelete(handleBasaltColumnDelete);
-
-            // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
+            registerTableCallbacks(connection.db.basaltColumn, { onInsert: handleBasaltColumnInsert, onUpdate: handleBasaltColumnUpdate, onDelete: handleBasaltColumnDelete });
 
             // Register LivingCoral callbacks - SPATIAL (underwater coral via combat system)
-            connection.db.livingCoral.onInsert(handleLivingCoralInsert);
-            connection.db.livingCoral.onUpdate(handleLivingCoralUpdate);
-            connection.db.livingCoral.onDelete(handleLivingCoralDelete);
+            registerTableCallbacks(connection.db.livingCoral, { onInsert: handleLivingCoralInsert, onUpdate: handleLivingCoralUpdate, onDelete: handleLivingCoralDelete });
 
             // Register ChunkWeather callbacks - NON-SPATIAL
-            connection.db.chunkWeather.onInsert(handleChunkWeatherInsert);
-            connection.db.chunkWeather.onUpdate(handleChunkWeatherUpdate);
-            connection.db.chunkWeather.onDelete(handleChunkWeatherDelete);
+            registerTableCallbacks(connection.db.chunkWeather, { onInsert: handleChunkWeatherInsert, onUpdate: handleChunkWeatherUpdate, onDelete: handleChunkWeatherDelete });
 
             // Register ALK Station callbacks - for minimap delivery points
-            connection.db.alkStation.onInsert(handleAlkStationInsert);
-            connection.db.alkStation.onUpdate(handleAlkStationUpdate);
-            connection.db.alkStation.onDelete(handleAlkStationDelete);
+            registerTableCallbacks(connection.db.alkStation, { onInsert: handleAlkStationInsert, onUpdate: handleAlkStationUpdate, onDelete: handleAlkStationDelete });
 
             // Register Monument Part callbacks - unified subscription for all monument types
-            connection.db.monumentPart.onInsert(handleMonumentPartInsert);
-            connection.db.monumentPart.onUpdate(handleMonumentPartUpdate);
-            connection.db.monumentPart.onDelete(handleMonumentPartDelete);
+            registerTableCallbacks(connection.db.monumentPart, { onInsert: handleMonumentPartInsert, onUpdate: handleMonumentPartUpdate, onDelete: handleMonumentPartDelete });
 
             // Register Large Quarry callbacks - for minimap quarry type labels
-            connection.db.largeQuarry.onInsert(handleLargeQuarryInsert);
-            connection.db.largeQuarry.onUpdate(handleLargeQuarryUpdate);
-            connection.db.largeQuarry.onDelete(handleLargeQuarryDelete);
+            registerTableCallbacks(connection.db.largeQuarry, { onInsert: handleLargeQuarryInsert, onUpdate: handleLargeQuarryUpdate, onDelete: handleLargeQuarryDelete });
 
             // Register ALK Contract callbacks
-            connection.db.alkContract.onInsert(handleAlkContractInsert);
-            connection.db.alkContract.onUpdate(handleAlkContractUpdate);
-            connection.db.alkContract.onDelete(handleAlkContractDelete);
+            registerTableCallbacks(connection.db.alkContract, { onInsert: handleAlkContractInsert, onUpdate: handleAlkContractUpdate, onDelete: handleAlkContractDelete });
 
             // Register ALK Player Contract callbacks
-            connection.db.alkPlayerContract.onInsert(handleAlkPlayerContractInsert);
-            connection.db.alkPlayerContract.onUpdate(handleAlkPlayerContractUpdate);
-            connection.db.alkPlayerContract.onDelete(handleAlkPlayerContractDelete);
+            registerTableCallbacks(connection.db.alkPlayerContract, { onInsert: handleAlkPlayerContractInsert, onUpdate: handleAlkPlayerContractUpdate, onDelete: handleAlkPlayerContractDelete });
 
             // Register ALK State callbacks
-            connection.db.alkState.onInsert(handleAlkStateInsert);
-            connection.db.alkState.onUpdate(handleAlkStateUpdate);
-            connection.db.alkState.onDelete(handleAlkStateDelete);
+            registerTableCallbacks(connection.db.alkState, { onInsert: handleAlkStateInsert, onUpdate: handleAlkStateUpdate, onDelete: handleAlkStateDelete });
 
             // Register Player Shard Balance callbacks
-            connection.db.playerShardBalance.onInsert(handlePlayerShardBalanceInsert);
-            connection.db.playerShardBalance.onUpdate(handlePlayerShardBalanceUpdate);
-            connection.db.playerShardBalance.onDelete(handlePlayerShardBalanceDelete);
+            registerTableCallbacks(connection.db.playerShardBalance, { onInsert: handlePlayerShardBalanceInsert, onUpdate: handlePlayerShardBalanceUpdate, onDelete: handlePlayerShardBalanceDelete });
 
             // Register Memory Grid Progress callbacks
-            connection.db.memoryGridProgress.onInsert(handleMemoryGridProgressInsert);
-            connection.db.memoryGridProgress.onUpdate(handleMemoryGridProgressUpdate);
-            connection.db.memoryGridProgress.onDelete(handleMemoryGridProgressDelete);
+            registerTableCallbacks(connection.db.memoryGridProgress, { onInsert: handleMemoryGridProgressInsert, onUpdate: handleMemoryGridProgressUpdate, onDelete: handleMemoryGridProgressDelete });
 
             // Register Matronage callbacks
-            connection.db.matronage.onInsert(handleMatronageInsert);
-            connection.db.matronage.onUpdate(handleMatronageUpdate);
-            connection.db.matronage.onDelete(handleMatronageDelete);
+            registerTableCallbacks(connection.db.matronage, { onInsert: handleMatronageInsert, onUpdate: handleMatronageUpdate, onDelete: handleMatronageDelete });
 
             // Register Matronage Member callbacks
-            connection.db.matronageMember.onInsert(handleMatronageMemberInsert);
-            connection.db.matronageMember.onUpdate(handleMatronageMemberUpdate);
-            connection.db.matronageMember.onDelete(handleMatronageMemberDelete);
+            registerTableCallbacks(connection.db.matronageMember, { onInsert: handleMatronageMemberInsert, onUpdate: handleMatronageMemberUpdate, onDelete: handleMatronageMemberDelete });
 
             // Register Matronage Invitation callbacks
-            connection.db.matronageInvitation.onInsert(handleMatronageInvitationInsert);
-            connection.db.matronageInvitation.onUpdate(handleMatronageInvitationUpdate);
-            connection.db.matronageInvitation.onDelete(handleMatronageInvitationDelete);
+            registerTableCallbacks(connection.db.matronageInvitation, { onInsert: handleMatronageInvitationInsert, onUpdate: handleMatronageInvitationUpdate, onDelete: handleMatronageInvitationDelete });
 
             // Register Matronage Owed Shards callbacks
-            connection.db.matronageOwedShards.onInsert(handleMatronageOwedShardsInsert);
-            connection.db.matronageOwedShards.onUpdate(handleMatronageOwedShardsUpdate);
-            connection.db.matronageOwedShards.onDelete(handleMatronageOwedShardsDelete);
+            registerTableCallbacks(connection.db.matronageOwedShards, { onInsert: handleMatronageOwedShardsInsert, onUpdate: handleMatronageOwedShardsUpdate, onDelete: handleMatronageOwedShardsDelete });
 
             isSubscribingRef.current = true;
 
@@ -2690,239 +2486,115 @@ export const useSpacetimeTables = ({
             nonSpatialHandlesRef.current = [];
 
             // console.log("[useSpacetimeTables] Setting up initial non-spatial subscriptions.");
-            const currentInitialSubs = [
-                connection.subscriptionBuilder().onError((err) => console.error("[PLAYER Sub Error]:", err))
-                    .subscribe('SELECT * FROM player'),
-                connection.subscriptionBuilder().onError((err) => console.error("[RUNE_STONE Sub Error]:", err))
-                    .subscribe('SELECT * FROM rune_stone'), // Global subscription for minimap visibility
-                connection.subscriptionBuilder().onError((err) => console.error("[CAIRN Sub Error]:", err))
-                    .subscribe('SELECT * FROM cairn'), // Global subscription for minimap visibility
-                connection.subscriptionBuilder().onError((err) => console.error("[PLAYER_DISCOVERED_CAIRN Sub Error]:", err))
-                    .subscribe('SELECT * FROM player_discovered_cairn'), // Global subscription for discovery tracking
-                connection.subscriptionBuilder().subscribe('SELECT * FROM item_definition'),
-                connection.subscriptionBuilder().subscribe('SELECT * FROM recipe'),
-                connection.subscriptionBuilder().subscribe('SELECT * FROM world_state'),
-                connection.subscriptionBuilder().onError((err) => console.error("[MINIMAP_CACHE Sub Error]:", err))
-                    .subscribe('SELECT * FROM minimap_cache'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[useSpacetimeTables] Non-spatial INVENTORY subscription error:", err))
-                    .subscribe('SELECT * FROM inventory_item'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[useSpacetimeTables] Non-spatial EQUIPMENT subscription error:", err))
-                    .subscribe('SELECT * FROM active_equipment'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[useSpacetimeTables] Non-spatial CRAFTING subscription error:", err))
-                    .subscribe('SELECT * FROM crafting_queue_item'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[useSpacetimeTables] Non-spatial MESSAGE subscription error:", err))
-                    .subscribe('SELECT * FROM message'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[useSpacetimeTables] Non-spatial PLAYER_PIN subscription error:", err))
-                    .subscribe('SELECT * FROM player_pin'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[useSpacetimeTables] Non-spatial ACTIVE_CONNECTION subscription error:", err))
-                    .subscribe('SELECT * FROM active_connection'),
-                // ADD Non-Spatial SleepingBag subscription
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[useSpacetimeTables] Non-spatial SLEEPING_BAG subscription error:", err))
-                    .subscribe('SELECT * FROM sleeping_bag'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[useSpacetimeTables] Non-spatial PLAYER_CORPSE subscription error:", err))
-                    .subscribe('SELECT * FROM player_corpse'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[useSpacetimeTables] Non-spatial MEMORY_GRID_PROGRESS subscription error:", err))
-                    .subscribe('SELECT * FROM memory_grid_progress'),
-                connection.subscriptionBuilder() // Added Stash subscription
-                    .onError((err) => console.error("[useSpacetimeTables] Non-spatial STASH subscription error:", err))
-                    .subscribe('SELECT * FROM stash'),
-                connection.subscriptionBuilder() // Added for ActiveConsumableEffect
-                    .onError((err) => console.error("[useSpacetimeTables] Subscription for 'active_consumable_effect' ERROR:", err))
-                    .subscribe('SELECT * FROM active_consumable_effect'),
-                connection.subscriptionBuilder() // Added for KnockedOutStatus
-                    .onError((err) => console.error("[useSpacetimeTables] Subscription for 'knocked_out_status' ERROR:", err))
-                    .subscribe('SELECT * FROM knocked_out_status'),
-                // Added subscriptions for new tables
-                connection.subscriptionBuilder().onError((err) => console.error("[RANGED_WEAPON_STATS Sub Error]:", err)).subscribe('SELECT * FROM ranged_weapon_stats'),
-                connection.subscriptionBuilder().onError((err) => console.error("[PROJECTILE Sub Error]:", err)).subscribe('SELECT * FROM projectile'),
-                connection.subscriptionBuilder().onError((err) => console.error("[DEATH_MARKER Sub Error]:", err)).subscribe('SELECT * FROM death_marker'),
-                // ADDED Shelter subscription (non-spatial for now, can be made spatial later if needed)
-                connection.subscriptionBuilder().onError((err) => console.error("[SHELTER Sub Error]:", err)).subscribe('SELECT * FROM shelter'),
-                // ADDED ArrowBreakEvent subscription for particle effects
-                connection.subscriptionBuilder().onError((err) => console.error("[ARROW_BREAK_EVENT Sub Error]:", err)).subscribe('SELECT * FROM arrow_break_event'),
-                // ADDED ThunderEvent subscription for thunder flash effects
-                connection.subscriptionBuilder().onError((err) => console.error("[THUNDER_EVENT Sub Error]:", err)).subscribe('SELECT * FROM thunder_event'),
-                // ADDED PlayerDodgeRollState subscription for dodge roll states
-                connection.subscriptionBuilder()
-                    .onError((errCtx) => {
-                        console.error("[PLAYER_DODGE_ROLL_STATE Sub Error] Full error details:", errCtx);
-                    })
-                    .onApplied(() => {
-                        console.log("[PLAYER_DODGE_ROLL_STATE] Subscription applied successfully!");
-                    })
-                    .subscribe('SELECT * FROM player_dodge_roll_state'),
-                // ADDED FishingSession subscription for fishing states
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[FISHING_SESSION Sub Error]:", err))
-                    .subscribe('SELECT * FROM fishing_session'),
-                // ADDED SoundEvent subscription for sound effects
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[SOUND_EVENT Sub Error]:", err))
-                    .subscribe('SELECT * FROM sound_event'),
-                // ADDED ContinuousSound subscription for looping sounds
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[CONTINUOUS_SOUND Sub Error]:", err))
-                    .subscribe('SELECT * FROM continuous_sound'),
-                // ADDED PlayerDrinkingCooldown subscription for water drinking cooldowns
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[PLAYER_DRINKING_COOLDOWN Sub Error]:", err))
-                    .subscribe('SELECT * FROM player_drinking_cooldown'),
-                // ADDED AnimalCorpse subscription - NON-SPATIAL
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[ANIMAL_CORPSE Sub Error]:", err))
-                    .subscribe('SELECT * FROM animal_corpse'),
-                // PERFORMANCE FIX: wild_animal REMOVED from global - now uses spatial chunk subscriptions
-                // This dramatically reduces updates from ~800/sec (all animals everywhere) to only nearby animals
-                // ADDED ChunkWeather subscription - NON-SPATIAL (subscribe to all chunks for weather)
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[CHUNK_WEATHER Sub Error]:", err))
-                    .subscribe('SELECT * FROM chunk_weather'),
-                // ADDED ALK Station subscription - NON-SPATIAL (subscribe to all stations for minimap)
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[ALK_STATION Sub Error]:", err))
-                    .subscribe('SELECT * FROM alk_station'),
-                // ADDED ALK Contract subscription - NON-SPATIAL (subscribe to all contracts)
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[ALK_CONTRACT Sub Error]:", err))
-                    .subscribe('SELECT * FROM alk_contract'),
-                // ADDED ALK Player Contract subscription - NON-SPATIAL (subscribe to all player contracts)
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[ALK_PLAYER_CONTRACT Sub Error]:", err))
-                    .subscribe('SELECT * FROM alk_player_contract'),
-                // ADDED ALK State subscription - NON-SPATIAL (single row table)
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[ALK_STATE Sub Error]:", err))
-                    .subscribe('SELECT * FROM alk_state'),
-                // ADDED Player Shard Balance subscription - NON-SPATIAL
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[PLAYER_SHARD_BALANCE Sub Error]:", err))
-                    .subscribe('SELECT * FROM player_shard_balance'),
-                // ADDED Monument Part subscription - NON-SPATIAL (one-time read of static world gen data)
-                // Unified table for all monument types: shipwrecks, fishing villages, whale bone graveyards
-                // Monuments are placed during world generation and never change - similar to minimap_cache.
-                // Client reads once on connect, then treats as static config like compound buildings.
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[MONUMENT_PART Sub Error]:", err))
-                    .subscribe('SELECT * FROM monument_part'),
-                // ADDED Large Quarry subscription - NON-SPATIAL (one-time read of static world gen data)
-                // Large quarries are placed during world generation and never change.
-                // Used for minimap labels (Stone Quarry, Sulfur Quarry, Metal Quarry)
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[LARGE_QUARRY Sub Error]:", err))
-                    .subscribe('SELECT * FROM large_quarry'),
-                // ADDED Matronage system subscriptions - NON-SPATIAL
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[MATRONAGE Sub Error]:", err))
-                    .subscribe('SELECT * FROM matronage'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[MATRONAGE_MEMBER Sub Error]:", err))
-                    .subscribe('SELECT * FROM matronage_member'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[MATRONAGE_INVITATION Sub Error]:", err))
-                    .subscribe('SELECT * FROM matronage_invitation'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[MATRONAGE_OWED_SHARDS Sub Error]:", err))
-                    .subscribe('SELECT * FROM matronage_owed_shards'),
-                // Animal breeding system subscriptions - NON-SPATIAL (for age/pregnancy rendering)
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[CARIBOU_BREEDING_DATA Sub Error]:", err))
-                    .subscribe('SELECT * FROM caribou_breeding_data'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[WALRUS_BREEDING_DATA Sub Error]:", err))
-                    .subscribe('SELECT * FROM walrus_breeding_data'),
-                // Animal rut state subscriptions (breeding season) - single-row global tables
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[CARIBOU_RUT_STATE Sub Error]:", err))
-                    .subscribe('SELECT * FROM caribou_rut_state'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[WALRUS_RUT_STATE Sub Error]:", err))
-                    .subscribe('SELECT * FROM walrus_rut_state'),
-                // Player progression system subscriptions
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[PLAYER_STATS Sub Error]:", err))
-                    .subscribe('SELECT * FROM player_stats'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[ACHIEVEMENT_DEFINITION Sub Error]:", err))
-                    .subscribe('SELECT * FROM achievement_definition'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[PLAYER_ACHIEVEMENT Sub Error]:", err))
-                    .subscribe('SELECT * FROM player_achievement'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[ACHIEVEMENT_UNLOCK_NOTIFICATION Sub Error]:", err))
-                    .subscribe('SELECT * FROM achievement_unlock_notification'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[LEVEL_UP_NOTIFICATION Sub Error]:", err))
-                    .subscribe('SELECT * FROM level_up_notification'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[DAILY_LOGIN_NOTIFICATION Sub Error]:", err))
-                    .subscribe('SELECT * FROM daily_login_notification'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[PROGRESS_NOTIFICATION Sub Error]:", err))
-                    .subscribe('SELECT * FROM progress_notification'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[COMPARATIVE_STAT_NOTIFICATION Sub Error]:", err))
-                    .subscribe('SELECT * FROM comparative_stat_notification'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[LEADERBOARD_ENTRY Sub Error]:", err))
-                    .subscribe('SELECT * FROM leaderboard_entry'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[DAILY_LOGIN_REWARD Sub Error]:", err))
-                    .subscribe('SELECT * FROM daily_login_reward'),
-                // Plant Encyclopedia data (static, populated on server init)
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[PLANT_CONFIG_DEFINITION Sub Error]:", err))
-                    .subscribe('SELECT * FROM plant_config_definition'),
-                // Player discovered plants (for encyclopedia filtering)
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[PLAYER_DISCOVERED_PLANT Sub Error]:", err))
-                    .subscribe('SELECT * FROM player_discovered_plant'),
-                // Quest system subscriptions
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[TUTORIAL_QUEST_DEFINITION Sub Error]:", err))
-                    .subscribe('SELECT * FROM tutorial_quest_definition'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[DAILY_QUEST_DEFINITION Sub Error]:", err))
-                    .subscribe('SELECT * FROM daily_quest_definition'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[PLAYER_TUTORIAL_PROGRESS Sub Error]:", err))
-                    .subscribe('SELECT * FROM player_tutorial_progress'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[PLAYER_DAILY_QUEST Sub Error]:", err))
-                    .subscribe('SELECT * FROM player_daily_quest'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[QUEST_COMPLETION_NOTIFICATION Sub Error]:", err))
-                    .subscribe('SELECT * FROM quest_completion_notification'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[QUEST_PROGRESS_NOTIFICATION Sub Error]:", err))
-                    .subscribe('SELECT * FROM quest_progress_notification'),
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[SOVA_QUEST_MESSAGE Sub Error]:", err))
-                    .subscribe('SELECT * FROM sova_quest_message'),
-                // Memory Beacon server events (airdrop-style) - for minimap markers
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[BEACON_DROP_EVENT Sub Error]:", err))
-                    .subscribe('SELECT * FROM beacon_drop_event'),
-                // Drone flyover events (eerie shadow across island)
-                connection.subscriptionBuilder()
-                    .onError((err) => console.error("[DRONE_EVENT Sub Error]:", err))
-                    .subscribe('SELECT * FROM drone_event'),
+            type NonSpatialSubscriptionSpec = {
+                query: string;
+                errorLabel?: string;
+                errorPrefix?: string;
+                onError?: (err: any) => void;
+                onApplied?: () => void;
+            };
+            const subscribeNonSpatial = (spec: NonSpatialSubscriptionSpec): SubscriptionHandle => {
+                const builder = connection.subscriptionBuilder();
+                if (spec.onError) {
+                    builder.onError(spec.onError);
+                } else if (spec.errorPrefix) {
+                    builder.onError((err) => console.error(spec.errorPrefix, err));
+                } else if (spec.errorLabel) {
+                    builder.onError((err) => console.error(`[${spec.errorLabel} Sub Error]:`, err));
+                }
+                if (spec.onApplied) {
+                    builder.onApplied(spec.onApplied);
+                }
+                return builder.subscribe(spec.query);
+            };
+            // Non-spatial tables: subscribe once on connect (small or global data)
+            const nonSpatialSubscriptionSpecs: NonSpatialSubscriptionSpec[] = [
+                { query: 'SELECT * FROM player', errorLabel: 'PLAYER' },
+                { query: 'SELECT * FROM rune_stone', errorLabel: 'RUNE_STONE' }, // Global subscription for minimap visibility
+                { query: 'SELECT * FROM cairn', errorLabel: 'CAIRN' }, // Global subscription for minimap visibility
+                { query: 'SELECT * FROM player_discovered_cairn', errorLabel: 'PLAYER_DISCOVERED_CAIRN' }, // Global subscription for discovery tracking
+                { query: 'SELECT * FROM item_definition' },
+                { query: 'SELECT * FROM recipe' },
+                { query: 'SELECT * FROM world_state' },
+                { query: 'SELECT * FROM minimap_cache', errorLabel: 'MINIMAP_CACHE' },
+                { query: 'SELECT * FROM inventory_item', errorPrefix: '[useSpacetimeTables] Non-spatial INVENTORY subscription error:' },
+                { query: 'SELECT * FROM active_equipment', errorPrefix: '[useSpacetimeTables] Non-spatial EQUIPMENT subscription error:' },
+                { query: 'SELECT * FROM crafting_queue_item', errorPrefix: '[useSpacetimeTables] Non-spatial CRAFTING subscription error:' },
+                { query: 'SELECT * FROM message', errorPrefix: '[useSpacetimeTables] Non-spatial MESSAGE subscription error:' },
+                { query: 'SELECT * FROM player_pin', errorPrefix: '[useSpacetimeTables] Non-spatial PLAYER_PIN subscription error:' },
+                { query: 'SELECT * FROM active_connection', errorPrefix: '[useSpacetimeTables] Non-spatial ACTIVE_CONNECTION subscription error:' },
+                { query: 'SELECT * FROM sleeping_bag', errorPrefix: '[useSpacetimeTables] Non-spatial SLEEPING_BAG subscription error:' },
+                { query: 'SELECT * FROM player_corpse', errorPrefix: '[useSpacetimeTables] Non-spatial PLAYER_CORPSE subscription error:' },
+                { query: 'SELECT * FROM memory_grid_progress', errorPrefix: '[useSpacetimeTables] Non-spatial MEMORY_GRID_PROGRESS subscription error:' },
+                { query: 'SELECT * FROM stash', errorPrefix: '[useSpacetimeTables] Non-spatial STASH subscription error:' },
+                { query: 'SELECT * FROM active_consumable_effect', errorPrefix: "[useSpacetimeTables] Subscription for 'active_consumable_effect' ERROR:" },
+                { query: 'SELECT * FROM knocked_out_status', errorPrefix: "[useSpacetimeTables] Subscription for 'knocked_out_status' ERROR:" },
+                { query: 'SELECT * FROM ranged_weapon_stats', errorLabel: 'RANGED_WEAPON_STATS' },
+                { query: 'SELECT * FROM projectile', errorLabel: 'PROJECTILE' },
+                { query: 'SELECT * FROM death_marker', errorLabel: 'DEATH_MARKER' },
+                { query: 'SELECT * FROM shelter', errorLabel: 'SHELTER' },
+                { query: 'SELECT * FROM arrow_break_event', errorLabel: 'ARROW_BREAK_EVENT' },
+                { query: 'SELECT * FROM thunder_event', errorLabel: 'THUNDER_EVENT' },
+                {
+                    query: 'SELECT * FROM player_dodge_roll_state',
+                    onError: (errCtx) => {
+                        console.error('[PLAYER_DODGE_ROLL_STATE Sub Error] Full error details:', errCtx);
+                    },
+                    onApplied: () => {
+                        console.log('[PLAYER_DODGE_ROLL_STATE] Subscription applied successfully!');
+                    },
+                },
+                { query: 'SELECT * FROM fishing_session', errorLabel: 'FISHING_SESSION' },
+                { query: 'SELECT * FROM sound_event', errorLabel: 'SOUND_EVENT' },
+                { query: 'SELECT * FROM continuous_sound', errorLabel: 'CONTINUOUS_SOUND' },
+                { query: 'SELECT * FROM player_drinking_cooldown', errorLabel: 'PLAYER_DRINKING_COOLDOWN' },
+                { query: 'SELECT * FROM animal_corpse', errorLabel: 'ANIMAL_CORPSE' },
+                // wild_animal uses spatial chunk subscriptions (see subscribeToChunk)
+                { query: 'SELECT * FROM chunk_weather', errorLabel: 'CHUNK_WEATHER' },
+                { query: 'SELECT * FROM alk_station', errorLabel: 'ALK_STATION' },
+                { query: 'SELECT * FROM alk_contract', errorLabel: 'ALK_CONTRACT' },
+                { query: 'SELECT * FROM alk_player_contract', errorLabel: 'ALK_PLAYER_CONTRACT' },
+                { query: 'SELECT * FROM alk_state', errorLabel: 'ALK_STATE' },
+                { query: 'SELECT * FROM player_shard_balance', errorLabel: 'PLAYER_SHARD_BALANCE' },
+                { query: 'SELECT * FROM monument_part', errorLabel: 'MONUMENT_PART' },
+                { query: 'SELECT * FROM large_quarry', errorLabel: 'LARGE_QUARRY' },
+                { query: 'SELECT * FROM matronage', errorLabel: 'MATRONAGE' },
+                { query: 'SELECT * FROM matronage_member', errorLabel: 'MATRONAGE_MEMBER' },
+                { query: 'SELECT * FROM matronage_invitation', errorLabel: 'MATRONAGE_INVITATION' },
+                { query: 'SELECT * FROM matronage_owed_shards', errorLabel: 'MATRONAGE_OWED_SHARDS' },
+                { query: 'SELECT * FROM caribou_breeding_data', errorLabel: 'CARIBOU_BREEDING_DATA' },
+                { query: 'SELECT * FROM walrus_breeding_data', errorLabel: 'WALRUS_BREEDING_DATA' },
+                { query: 'SELECT * FROM caribou_rut_state', errorLabel: 'CARIBOU_RUT_STATE' },
+                { query: 'SELECT * FROM walrus_rut_state', errorLabel: 'WALRUS_RUT_STATE' },
+                { query: 'SELECT * FROM player_stats', errorLabel: 'PLAYER_STATS' },
+                { query: 'SELECT * FROM achievement_definition', errorLabel: 'ACHIEVEMENT_DEFINITION' },
+                { query: 'SELECT * FROM player_achievement', errorLabel: 'PLAYER_ACHIEVEMENT' },
+                { query: 'SELECT * FROM achievement_unlock_notification', errorLabel: 'ACHIEVEMENT_UNLOCK_NOTIFICATION' },
+                { query: 'SELECT * FROM level_up_notification', errorLabel: 'LEVEL_UP_NOTIFICATION' },
+                { query: 'SELECT * FROM daily_login_notification', errorLabel: 'DAILY_LOGIN_NOTIFICATION' },
+                { query: 'SELECT * FROM progress_notification', errorLabel: 'PROGRESS_NOTIFICATION' },
+                { query: 'SELECT * FROM comparative_stat_notification', errorLabel: 'COMPARATIVE_STAT_NOTIFICATION' },
+                { query: 'SELECT * FROM leaderboard_entry', errorLabel: 'LEADERBOARD_ENTRY' },
+                { query: 'SELECT * FROM daily_login_reward', errorLabel: 'DAILY_LOGIN_REWARD' },
+                { query: 'SELECT * FROM plant_config_definition', errorLabel: 'PLANT_CONFIG_DEFINITION' },
+                { query: 'SELECT * FROM player_discovered_plant', errorLabel: 'PLAYER_DISCOVERED_PLANT' },
+                { query: 'SELECT * FROM tutorial_quest_definition', errorLabel: 'TUTORIAL_QUEST_DEFINITION' },
+                { query: 'SELECT * FROM daily_quest_definition', errorLabel: 'DAILY_QUEST_DEFINITION' },
+                { query: 'SELECT * FROM player_tutorial_progress', errorLabel: 'PLAYER_TUTORIAL_PROGRESS' },
+                { query: 'SELECT * FROM player_daily_quest', errorLabel: 'PLAYER_DAILY_QUEST' },
+                { query: 'SELECT * FROM quest_completion_notification', errorLabel: 'QUEST_COMPLETION_NOTIFICATION' },
+                { query: 'SELECT * FROM quest_progress_notification', errorLabel: 'QUEST_PROGRESS_NOTIFICATION' },
+                { query: 'SELECT * FROM sova_quest_message', errorLabel: 'SOVA_QUEST_MESSAGE' },
+                { query: 'SELECT * FROM beacon_drop_event', errorLabel: 'BEACON_DROP_EVENT' },
+                { query: 'SELECT * FROM drone_event', errorLabel: 'DRONE_EVENT' },
             ];
-            // console.log("[useSpacetimeTables] currentInitialSubs content:", currentInitialSubs); // ADDED LOG
+            const currentInitialSubs = nonSpatialSubscriptionSpecs.map(subscribeNonSpatial);
             nonSpatialHandlesRef.current = currentInitialSubs;
         }
 
-        // --- START OPTIMIZED SPATIAL SUBSCRIPTION LOGIC ---
+        // ─── Spatial subscriptions: subscribe to chunks in viewport + buffer ───
         if (connection && viewport) {
-            // 🎯 NEW: Guard for invalid viewport values to prevent crashes
+            // Guard for invalid viewport values
             if (isNaN(viewport.minX) || isNaN(viewport.minY) || isNaN(viewport.maxX) || isNaN(viewport.maxY)) {
                 console.warn('[SPATIAL] Viewport contains NaN values, skipping spatial update.', viewport);
                 return;
@@ -2944,7 +2616,6 @@ export const useSpacetimeTables = ({
             if (DISABLE_ALL_SPATIAL_SUBSCRIPTIONS) {
                 // Clean up any existing spatial subscriptions if they exist
                 if (spatialSubsRef.current.size > 0) {
-                    console.log('[SPATIAL FLAGS] Cleaning up existing spatial subscriptions (master switch disabled)');
                     spatialSubsRef.current.forEach((handles) => {
                         handles.forEach(safeUnsubscribe);
                     });
@@ -2984,7 +2655,7 @@ export const useSpacetimeTables = ({
                 // }
             }
 
-            // 🎯 NEW: Separate logic for initial subscription vs. subsequent updates
+            // Separate logic for initial subscription vs. subsequent updates
             // This prevents race conditions on startup.
             if (!subscribedChunksRef.current.size) {
                 // --- INITIAL SUBSCRIPTION ---
@@ -3012,30 +2683,29 @@ export const useSpacetimeTables = ({
                             if (ENABLE_BATCHED_SUBSCRIPTIONS) {
                                 const resourceQueries = [
                                     `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`, // ADDED: Rune stone initial spatial subscription
-                                    `SELECT * FROM cairn WHERE chunk_index = ${chunkIndex}`, // ADDED: Cairn initial spatial subscription
+                                    `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM cairn WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM barbecue WHERE chunk_index = ${chunkIndex}`, // ADDED: Barbecue initial spatial subscription
-                                    `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`, // ADDED: Furnace initial spatial subscription
+                                    `SELECT * FROM barbecue WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM lantern WHERE chunk_index = ${chunkIndex}`,
-                    `SELECT * FROM turret WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM homestead_hearth WHERE chunk_index = ${chunkIndex}`, // ADDED: Homestead Hearth initial spatial subscription
-                                    `SELECT * FROM broth_pot WHERE chunk_index = ${chunkIndex}`, // ADDED: Broth pot initial spatial subscription
+                                    `SELECT * FROM turret WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM homestead_hearth WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM broth_pot WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM fertilizer_patch WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`, // ADDED: Fire patch initial spatial subscription
-                                    `SELECT * FROM placed_explosive WHERE chunk_index = ${chunkIndex}`, // ADDED: Placed explosive initial spatial subscription
-                                    `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`, // RESTORED: Now spatial for performance - includes hostile NPCs (Shorebound, Shardkin, DrownedWatch) with is_hostile_npc = true
+                                    `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM placed_explosive WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`, // ADDED: Foundation initial spatial subscription
-                                    `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`, // ADDED: Wall initial spatial subscription
-                                    `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`, // ADDED: Door initial spatial subscription
-                                    `SELECT * FROM fence WHERE chunk_index = ${chunkIndex}`, // ADDED: Fence initial spatial subscription
-                                    `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`, // ADDED: Fumarole initial spatial subscription
-                                    `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`, // ADDED: Basalt column initial spatial subscription
-                                    // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
-                                    `SELECT * FROM living_coral WHERE chunk_index = ${chunkIndex}`, // Living coral initial subscription (uses combat)
+                                    `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM fence WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`,
+                                    `SELECT * FROM living_coral WHERE chunk_index = ${chunkIndex}`,
                                 ];
                                 // Removed excessive initial chunk debug logging
                                 newHandlesForChunk.push(connection.subscriptionBuilder().onError((err) => console.error(`Resource Batch Sub Error (Chunk ${chunkIndex}):`, err)).subscribe(resourceQueries));
@@ -3052,7 +2722,6 @@ export const useSpacetimeTables = ({
                                         environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`);
                                     }
                                 }
-                                // ENABLE_WORLD_TILES deprecated block removed
                                 if (environmentalQueries.length > 0) {
                                     newHandlesForChunk.push(connection.subscriptionBuilder().onError((err) => console.error(`Environmental Batch Sub Error (Chunk ${chunkIndex}):`, err)).subscribe(environmentalQueries));
                                 }
@@ -3109,9 +2778,7 @@ export const useSpacetimeTables = ({
                 subscribedChunksRef.current.clear();
             }
         }
-        // --- END OPTIMIZED SPATIAL SUBSCRIPTION LOGIC ---
-
-        // --- Cleanup Function --- 
+        // ─── Cleanup: unsubscribe all on connection loss or unmount ─────────── 
         return () => {
             const isConnectionLost = !connection;
             // console.log(`[useSpacetimeTables] Running cleanup. Connection Lost: ${isConnectionLost}, Viewport was present: ${!!viewport}`);
@@ -3142,46 +2809,30 @@ export const useSpacetimeTables = ({
                 currentChunksRef.current = [];
                 setLocalPlayerRegistered(false);
                 // Reset table states
-                setPlayers(new Map()); setTrees(new Map()); setStones(new Map()); setRuneStones(new Map()); setCairns(new Map()); setPlayerDiscoveredCairns(new Map()); setCampfires(new Map()); setBarbecues(new Map()); setFurnaces(new Map()); setLanterns(new Map()); setHomesteadHearths(new Map()); setBrothPots(new Map()); // ADDED: Furnace, Hearth, Broth Pot, Barbecue, Cairn cleanup
-                setHarvestableResources(new Map());
-                setItemDefinitions(new Map()); setRecipes(new Map());
-                setInventoryItems(new Map()); setWorldState(null); setActiveEquipments(new Map());
-                setDroppedItems(new Map()); setWoodenStorageBoxes(new Map()); setCraftingQueueItems(new Map());
-                setMessages(new Map());
-                setPlayerPins(new Map());
-                setActiveConnections(new Map());
-                setSleepingBags(new Map());
-                setPlayerCorpses(new Map());
-                setStashes(new Map());
-                setRainCollectors(new Map());
-                setWaterPatches(new Map());
-                setFirePatches(new Map());
-                setPlacedExplosives(new Map());
-                setHotSprings(new Map());
-                setActiveConsumableEffects(new Map());
-                setClouds(new Map());
-                setGrass(new Map()); // Split tables: clear static grass data
-                setGrassState(new Map()); // Split tables: clear dynamic grass state
-                setKnockedOutStatus(new Map());
-                setRangedWeaponStats(new Map());
-                setProjectiles(new Map());
+                const mapResetters: Array<React.Dispatch<React.SetStateAction<Map<any, any>>>> = [
+                    setPlayers, setTrees, setStones, setRuneStones, setCairns, setPlayerDiscoveredCairns,
+                    setCampfires, setBarbecues, setFurnaces, setLanterns, setHomesteadHearths, setBrothPots,
+                    setHarvestableResources, setItemDefinitions, setRecipes, setInventoryItems, setActiveEquipments,
+                    setDroppedItems, setWoodenStorageBoxes, setCraftingQueueItems, setMessages, setPlayerPins,
+                    setActiveConnections, setSleepingBags, setPlayerCorpses, setStashes, setRainCollectors,
+                    setWaterPatches, setFirePatches, setPlacedExplosives, setHotSprings, setActiveConsumableEffects,
+                    setClouds, setGrass, setGrassState, setKnockedOutStatus, setRangedWeaponStats, setProjectiles,
+                    setDeathMarkers, setShelters, setPlayerDodgeRollStates, setFishingSessions, setPlantedSeeds,
+                    setSoundEvents, setContinuousSounds, setPlayerDrinkingCooldowns, setWildAnimals, setAnimalCorpses,
+                    setSeaStacks, setChunkWeather, setFumaroles, setBasaltColumns, setLivingCorals,
+                ];
+                for (const resetMap of mapResetters) {
+                    resetMap(new Map());
+                }
+                setWorldState(null);
                 // Clear the projectiles ref and cancel pending timeout
                 projectilesRef.current.clear();
                 if (projectilesUpdateTimeoutRef.current) {
                     clearTimeout(projectilesUpdateTimeoutRef.current);
                     projectilesUpdateTimeoutRef.current = null;
                 }
-                setDeathMarkers(new Map());
-                setShelters(new Map());
-                setPlayerDodgeRollStates(new Map());
                 // Clear the playerDodgeRollStates ref as well
                 playerDodgeRollStatesRef.current.clear();
-                setFishingSessions(new Map());
-                setPlantedSeeds(new Map());
-                setSoundEvents(new Map());
-                setContinuousSounds(new Map());
-                setPlayerDrinkingCooldowns(new Map());
-                setWildAnimals(new Map());
                 // Clear the wildAnimals ref and cancel pending timeout
                 wildAnimalsRef.current.clear();
                 if (wildAnimalsUpdateTimeoutRef.current) {
@@ -3192,13 +2843,6 @@ export const useSpacetimeTables = ({
                 hostileDeathCleanupTimeoutsRef.current.forEach(t => clearTimeout(t));
                 hostileDeathCleanupTimeoutsRef.current.clear();
                 setHostileDeathEvents([]);
-                setAnimalCorpses(new Map());
-                setSeaStacks(new Map());
-                setChunkWeather(new Map());
-                setFumaroles(new Map());
-                setBasaltColumns(new Map());
-                // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
-                setLivingCorals(new Map());
             }
         };
 
@@ -3206,12 +2850,12 @@ export const useSpacetimeTables = ({
 
     // Track previous grassEnabled state to detect re-enable
     const prevGrassEnabledRef = useRef(grassEnabled);
-    
+
     // Handle grass toggle - clear when disabled, force re-subscription when re-enabled
     useEffect(() => {
         const wasDisabled = !prevGrassEnabledRef.current;
         const isNowEnabled = grassEnabled;
-        
+
         if (!grassEnabled) {
             // Grass disabled - clear both grass maps (split tables)
             console.log('[useSpacetimeTables] Grass disabled - clearing grass/grassState maps');
@@ -3222,11 +2866,11 @@ export const useSpacetimeTables = ({
             // Use currentChunksRef (the actively tracked chunks) rather than subscribedChunksRef
             const currentChunks = currentChunksRef.current;
             console.log(`[useSpacetimeTables] Grass re-enabled - subscribing to ${currentChunks.length} chunks:`, currentChunks);
-            
+
             if (currentChunks.length === 0) {
                 console.warn('[useSpacetimeTables] No current chunks found for grass re-subscription!');
             }
-            
+
             // Subscribe to grass + grass_state for all current chunks (split tables)
             currentChunks.forEach(chunkIndex => {
                 try {
@@ -3237,13 +2881,13 @@ export const useSpacetimeTables = ({
                     } else {
                         grassQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`);
                     }
-                    
+
                     console.log(`[GRASS_RESUB] Subscribing to grass/grass_state for chunk ${chunkIndex}`);
-                    
+
                     const handle = connection.subscriptionBuilder()
                         .onError((err) => console.error(`Grass Re-sub Error (Chunk ${chunkIndex}):`, err))
                         .subscribe(grassQueries);
-                    
+
                     // Add to existing chunk handles
                     const existingHandles = spatialSubsRef.current.get(chunkIndex) || [];
                     existingHandles.push(handle);
@@ -3253,23 +2897,23 @@ export const useSpacetimeTables = ({
                 }
             });
         }
-        
+
         // Update the ref for next comparison
         prevGrassEnabledRef.current = grassEnabled;
     }, [grassEnabled, connection]);
 
-    // --- Return Hook State ---
+    // ─── Return: all entity state for consumers (App.tsx → GameScreen → GameCanvas) ─
     return {
         players,
         trees,
         stones,
         campfires,
-        furnaces, // ADDED: Furnace state
-        barbecues, // ADDED: Barbecue state
+        furnaces,
+        barbecues,
         lanterns,
-        turrets, // ADDED: Turret state
-        homesteadHearths, // ADDED: Homestead Hearth state
-        brothPots, // ADDED: Broth pot state
+        turrets,
+        homesteadHearths,
+        brothPots,
         harvestableResources,
         itemDefinitions,
         inventoryItems,
@@ -3290,7 +2934,7 @@ export const useSpacetimeTables = ({
         waterPatches,
         fertilizerPatches,
         firePatches,
-        placedExplosives, // ADDED: Placed explosive entities
+        placedExplosives,
         hotSprings,
         activeConsumableEffects,
         clouds,
@@ -3308,66 +2952,60 @@ export const useSpacetimeTables = ({
         plantedSeeds,
         soundEvents,
         continuousSounds,
-        localPlayerIdentity, // Add this to the return
+        localPlayerIdentity,
         playerDrinkingCooldowns,
         wildAnimals, // Includes hostile NPCs (Shorebound, Shardkin, DrownedWatch) with is_hostile_npc = true
         hostileDeathEvents, // Client-side death events for particle effects (no server subscription)
         animalCorpses,
-        barrels, // ADDED barrels
-        roadLampposts, // ADDED: Aleutian whale oil lampposts along roads
-        seaStacks, // ADDED sea stacks
-        foundationCells, // ADDED: Building foundations
-        wallCells, // ADDED: Building walls
-        doors, // ADDED: Building doors
-        fences, // ADDED: Building fences
-        runeStones, // ADDED: Rune stones
-        cairns, // ADDED: Cairn lore monuments
-        playerDiscoveredCairns, // ADDED: Player discovery tracking
-        chunkWeather, // ADDED: Chunk-based weather
-        fumaroles, // ADDED fumaroles
-        basaltColumns, // ADDED basalt columns
-        alkStations, // ADDED: ALK delivery stations for minimap
-        alkContracts, // ADDED: ALK contracts
-        alkPlayerContracts, // ADDED: Player's ALK contracts
-        alkState, // ADDED: ALK system state
-        playerShardBalance, // ADDED: Player shard balances
-        memoryGridProgress, // ADDED: Memory Grid unlocks
-        monumentParts, // ADDED: Unified monument parts (all monument types)
-        largeQuarries, // ADDED: Large quarry locations with types for minimap labels
-        // Coral system (StormPile removed - storms now spawn HarvestableResources and DroppedItems directly)
-        livingCorals, // Living coral for underwater harvesting (uses combat system)
-        // Matronage system
-        matronages, // ADDED: Matronage pooled rewards organizations
-        matronageMembers, // ADDED: Matronage membership tracking
-        matronageInvitations, // ADDED: Pending matronage invitations
-        matronageOwedShards, // ADDED: Owed shard balances from matronage
-        // Player progression system
-        playerStats, // ADDED: Player XP, level, and stats
-        achievementDefinitions, // ADDED: Achievement definitions
-        playerAchievements, // ADDED: Unlocked achievements
-        achievementUnlockNotifications, // ADDED: Achievement unlock notifications
-        levelUpNotifications, // ADDED: Level up notifications
-        dailyLoginNotifications, // ADDED: Daily login reward notifications
-        progressNotifications, // ADDED: Progress threshold notifications
-        comparativeStatNotifications, // ADDED: Comparative stats on death
-        leaderboardEntries, // ADDED: Leaderboard entries
-        dailyLoginRewards, // ADDED: Daily login reward definitions
-        plantConfigDefinitions, // ADDED: Plant encyclopedia data
-        discoveredPlants, // ADDED: Plants discovered by current player
-        // Quest system
-        tutorialQuestDefinitions, // ADDED: Tutorial quest definitions
-        dailyQuestDefinitions, // ADDED: Daily quest definitions
-        playerTutorialProgress, // ADDED: Player's tutorial progress
-        playerDailyQuests, // ADDED: Player's daily quests
-        questCompletionNotifications, // ADDED: Quest completion notifications
-        questProgressNotifications, // ADDED: Quest progress notifications
-        sovaQuestMessages, // ADDED: SOVA quest messages
-        beaconDropEvents, // ADDED: Memory Beacon server events (airdrop-style)
-        // Animal breeding system data
-        caribouBreedingData, // ADDED: Caribou breeding (sex, age, pregnancy) for rendering
-        walrusBreedingData, // ADDED: Walrus breeding (sex, age, pregnancy) for rendering
-        // Animal rut state (breeding season) - global state
-        caribouRutState, // ADDED: Global caribou rut state
-        walrusRutState, // ADDED: Global walrus rut state
+        barrels,
+        roadLampposts,
+        seaStacks,
+        foundationCells,
+        wallCells,
+        doors,
+        fences,
+        runeStones,
+        cairns,
+        playerDiscoveredCairns,
+        chunkWeather,
+        fumaroles,
+        basaltColumns,
+        alkStations,
+        alkContracts,
+        alkPlayerContracts,
+        alkState,
+        playerShardBalance,
+        memoryGridProgress,
+        monumentParts,
+        largeQuarries,
+        livingCorals,
+        matronages,
+        matronageMembers,
+        matronageInvitations,
+        matronageOwedShards,
+        playerStats,
+        achievementDefinitions,
+        playerAchievements,
+        achievementUnlockNotifications,
+        levelUpNotifications,
+        dailyLoginNotifications,
+        progressNotifications,
+        comparativeStatNotifications,
+        leaderboardEntries,
+        dailyLoginRewards,
+        plantConfigDefinitions,
+        discoveredPlants,
+        tutorialQuestDefinitions,
+        dailyQuestDefinitions,
+        playerTutorialProgress,
+        playerDailyQuests,
+        questCompletionNotifications,
+        questProgressNotifications,
+        sovaQuestMessages,
+        beaconDropEvents,
+        caribouBreedingData,
+        walrusBreedingData,
+        caribouRutState,
+        walrusRutState,
     };
 }; 

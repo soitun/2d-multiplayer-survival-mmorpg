@@ -2,54 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Player } from '../generated';
 import { usePlayerActions } from '../contexts/PlayerActionsContext';
 
-// Performance monitoring constants
-const INPUT_LAG_THRESHOLD = 10; // More than 10ms for input processing is concerning
-const INPUT_LOG_INTERVAL = 10000; // Log every 10 seconds
-
-// Performance monitoring for input system
-class InputPerformanceMonitor {
-  private inputTimings: number[] = [];
-  private lastLogTime = 0;
-  private lagSpikes = 0;
-  private totalInputs = 0;
-  private skippedInputs = 0;
-
-  logInputTime(inputTime: number, inputType: string) {
-    this.totalInputs++;
-    this.inputTimings.push(inputTime);
-    
-    if (inputTime > INPUT_LAG_THRESHOLD) {
-      this.lagSpikes++;
-    }
-
-    const now = Date.now();
-    if (now - this.lastLogTime > INPUT_LOG_INTERVAL) {
-      this.reportPerformance();
-      this.reset();
-      this.lastLogTime = now;
-    }
-  }
-
-  logSkippedInput(reason: string) {
-    this.skippedInputs++;
-  }
-
-  private reportPerformance() {
-    if (this.inputTimings.length === 0) return;
-    const avg = this.inputTimings.reduce((a, b) => a + b, 0) / this.inputTimings.length;
-    const max = Math.max(...this.inputTimings);
-  }
-
-  private reset() {
-    this.inputTimings = [];
-    this.lagSpikes = 0;
-    this.totalInputs = 0;
-    this.skippedInputs = 0;
-  }
-}
-
-const inputMonitor = new InputPerformanceMonitor();
-
 // Convert player facing direction string to normalized movement vector
 const getDirectionVector = (facingDirection: string): { x: number; y: number } => {
   switch (facingDirection?.toLowerCase()) {
@@ -103,7 +55,6 @@ export const useMovementInput = ({
   const autoWalkDirection = useRef<{ x: number; y: number } | null>(null);
   const autoWalkSprinting = useRef<boolean>(false);
 
-  // Performance monitoring references
   const keysPressed = useRef(new Set<string>());
   const lastInputTime = useRef(0);
   const isProcessingInput = useRef(false);
@@ -113,17 +64,13 @@ export const useMovementInput = ({
 
   // Key processing with auto-walk support
   const processKeys = useCallback(() => {
-    const processStartTime = performance.now();
-    
     try {
       if (isProcessingInput.current) {
-        inputMonitor.logSkippedInput('Already processing input');
         return;
       }
       isProcessingInput.current = true;
 
       if (isUIFocused) {
-        inputMonitor.logSkippedInput('UI focused');
         return;
       }
 
@@ -146,7 +93,6 @@ export const useMovementInput = ({
       if (!hasMovementKeys && !isAutoWalking) {
         const last = lastComputedStateRef.current;
         if (last.direction.x === 0 && last.direction.y === 0 && !last.sprinting) {
-          inputMonitor.logSkippedInput('Idle fast path');
           return;
         }
       }
@@ -171,7 +117,6 @@ export const useMovementInput = ({
         // No keys pressed but auto-walk is on - use stored direction
         x = autoWalkDirection.current.x;
         y = autoWalkDirection.current.y;
-        console.log(`🚶 [AUTO-WALK ACTIVE] Using direction: (${x.toFixed(3)}, ${y.toFixed(3)})`);
       } else {
         // No keys and no auto-walk
         x = 0;
@@ -203,15 +148,12 @@ export const useMovementInput = ({
         // React state update can be slightly delayed (for UI components that need it)
         setInputState(newState);
       } else {
-        inputMonitor.logSkippedInput('No state change');
       }
 
     } catch (error) {
       console.error(`❌ [MovementInput] Error in processKeys:`, error);
     } finally {
       isProcessingInput.current = false;
-      const processTime = performance.now() - processStartTime;
-      inputMonitor.logInputTime(processTime, 'processKeys');
     }
   }, [isUIFocused, isAutoWalking]);
 
@@ -224,11 +166,8 @@ export const useMovementInput = ({
 
   // Key down handler
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    const keyStartTime = performance.now();
-    
     try {
       if (isUIFocused) {
-        inputMonitor.logSkippedInput('KeyDown - UI focused');
         return;
       }
 
@@ -241,7 +180,6 @@ export const useMovementInput = ({
         event.preventDefault();
         
         if (isFishing) {
-          console.log('[MovementInput] Space blocked - player is fishing');
           event.stopPropagation();
           event.stopImmediatePropagation();
           return;
@@ -261,7 +199,6 @@ export const useMovementInput = ({
           setIsAutoWalking(false);
           autoWalkDirection.current = null;
           autoWalkSprinting.current = false;
-          console.log(`🚶 [AUTO-WALK OFF]`);
           throttledProcessKeys();
         } else {
           // Turn ON - start with facing direction, user can change direction while auto-walking
@@ -272,13 +209,11 @@ export const useMovementInput = ({
             const facingVec = getDirectionVector(localPlayer.direction);
             currentX = facingVec.x;
             currentY = facingVec.y;
-            console.log(`🔍 [Q PRESSED] Starting with facing direction: (${currentX}, ${currentY})`);
           }
 
           if (currentX !== 0 || currentY !== 0) {
             setIsAutoWalking(true);
             autoWalkDirection.current = { x: currentX, y: currentY };
-            console.log(`🚶 [AUTO-WALK ON] Stored direction: (${currentX}, ${currentY}), isDiagonal: ${currentX !== 0 && currentY !== 0}`);
 
             // Update state
             const newState = {
@@ -289,7 +224,6 @@ export const useMovementInput = ({
             inputStateRef.current = newState;
             setInputState(newState);
           } else {
-            console.log(`🚶 [AUTO-WALK] Cannot enable - no direction`);
           }
         }
         return;
@@ -310,7 +244,6 @@ export const useMovementInput = ({
           // 🔥 AUTO-WALK: If auto-walk is ON and SHIFT is pressed, toggle sprint
           if (isAutoWalking && (key === 'ShiftLeft' || key === 'ShiftRight')) {
             autoWalkSprinting.current = !autoWalkSprinting.current;
-            console.log(`🏃 [AUTO-WALK SPRINT] Toggled to: ${autoWalkSprinting.current}`);
             throttledProcessKeys();
             return;
           }
@@ -336,7 +269,6 @@ export const useMovementInput = ({
 
             if (roundedX !== 0 || roundedY !== 0) {
               autoWalkDirection.current = { x: roundedX, y: roundedY };
-              console.log(`🔄 [AUTO-WALK UPDATED] Direction changed to: (${roundedX.toFixed(3)}, ${roundedY.toFixed(3)}), isDiagonal: ${roundedX !== 0 && roundedY !== 0}`);
             }
           }
 
@@ -345,16 +277,11 @@ export const useMovementInput = ({
       }
     } catch (error) {
       console.error(`❌ [MovementInput] Error in handleKeyDown:`, error);
-    } finally {
-      const keyTime = performance.now() - keyStartTime;
-      inputMonitor.logInputTime(keyTime, `KeyDown-${event.code}`);
     }
   }, [isUIFocused, throttledProcessKeys, jump, onToggleAutoAttack, isFishing, isAutoWalking, localPlayer]);
 
   // Key up handler
   const handleKeyUp = useCallback((event: KeyboardEvent) => {
-    const keyStartTime = performance.now();
-    
     try {
       const key = event.code;
       if (keysPressed.current.has(key)) {
@@ -364,34 +291,18 @@ export const useMovementInput = ({
       }
     } catch (error) {
       console.error(`❌ [MovementInput] Error in handleKeyUp:`, error);
-    } finally {
-      const keyTime = performance.now() - keyStartTime;
-      inputMonitor.logInputTime(keyTime, `KeyUp-${event.code}`);
     }
   }, [processKeys]);
 
   // Event listeners
   useEffect(() => {
-    const setupStartTime = performance.now();
-    
     try {
       document.addEventListener('keydown', handleKeyDown);
       document.addEventListener('keyup', handleKeyUp);
 
-      const setupTime = performance.now() - setupStartTime;
-      if (setupTime > 5) {
-        // console.warn(`🐌 [MovementInput] Slow event listener setup: ${setupTime.toFixed(2)}ms`);
-      }
-
       return () => {
-        const cleanupStartTime = performance.now();
         document.removeEventListener('keydown', handleKeyDown);
         document.removeEventListener('keyup', handleKeyUp);
-        const cleanupTime = performance.now() - cleanupStartTime;
-        
-        if (cleanupTime > 5) {
-          // console.warn(`🐌 [MovementInput] Slow event listener cleanup: ${cleanupTime.toFixed(2)}ms`);
-        }
       };
     } catch (error) {
       console.error(`❌ [MovementInput] Error in event listener setup:`, error);
@@ -401,8 +312,6 @@ export const useMovementInput = ({
   // Clear on UI focus
   useEffect(() => {
     if (isUIFocused) {
-      const clearStartTime = performance.now();
-      
       keysPressed.current.clear();
       setIsAutoWalking(false);
       autoWalkDirection.current = null;
@@ -416,11 +325,6 @@ export const useMovementInput = ({
       // PERFORMANCE FIX: Clear ref immediately too
       inputStateRef.current = clearedState;
       setInputState(clearedState);
-      
-      const clearTime = performance.now() - clearStartTime;
-      if (clearTime > 5) {
-        // console.warn(`🐌 [MovementInput] Slow input clear: ${clearTime.toFixed(2)}ms`);
-      }
     }
   }, [isUIFocused]);
 

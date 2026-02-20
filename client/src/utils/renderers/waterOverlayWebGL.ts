@@ -113,16 +113,21 @@ void main() {
   // Ripple
   float ripple = sst(0.83, 1.0, sin(worldPos.x*RFX + worldPos.y*RFY + tR)*0.5 + 0.5);
 
-  // Combine
-  float bright = crest*WCR + caustic*WCA + ripple*WRI + cellShade*WCS;
+  // Combine: water color from caustics, ripple, cell shade (crest excluded for RGB)
+  float waterBright = caustic*WCA + ripple*WRI + cellShade*WCS;
+  float bright = crest*WCR + waterBright;
   float a = (BA + bright * RA) * u_intensity / 255.0;
 
-  fragColor = vec4(
-    (BR + bright * RR) / 255.0,
-    (BG + bright * RG) / 255.0,
-    OB / 255.0,
-    a
+  // Water base color (caustics/ripple only, no crest)
+  vec3 waterColor = vec3(
+    (BR + waterBright * RR) / 255.0,
+    (BG + waterBright * RG) / 255.0,
+    OB / 255.0
   );
+  // Blend toward dark blue at Voronoi edges (crest high)
+  vec3 rgb = mix(waterColor, EDGE_COLOR, crest * 0.9);
+
+  fragColor = vec4(rgb, a);
 }
 `;
 

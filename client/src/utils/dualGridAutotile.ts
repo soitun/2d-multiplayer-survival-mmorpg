@@ -15,52 +15,103 @@
 
 import { WorldTile } from '../generated/world_tile_type';
 
+type AssetModule = { default: string };
+
+/**
+ * Enable this to automatically prefer same-named PNGs in `tiles/new/hd/`.
+ * Missing HD files gracefully fall back to `tiles/new/`.
+ */
+export const USE_HD_TILE_ASSETS = true;
+
+/**
+ * Optional per-file override when global HD is disabled.
+ * Example: ['tileset_beach_sea_autotile.png']
+ */
+const HD_TILE_FILE_OVERRIDES = new Set<string>();
+
+function extractFileName(assetPath: string): string {
+    const segments = assetPath.split('/');
+    return segments[segments.length - 1];
+}
+
+function buildAssetFileMap(modules: Record<string, AssetModule>): Map<string, string> {
+    const fileMap = new Map<string, string>();
+    for (const [assetPath, module] of Object.entries(modules)) {
+        fileMap.set(extractFileName(assetPath), module.default);
+    }
+    return fileMap;
+}
+
+const DEFAULT_TILE_ASSETS = buildAssetFileMap(
+    import.meta.glob<AssetModule>('../assets/tiles/new/*.png', { eager: true })
+);
+const HD_TILE_ASSETS = buildAssetFileMap(
+    import.meta.glob<AssetModule>('../assets/tiles/new/hd/*.png', { eager: true })
+);
+
+export function resolveTileAsset(fileName: string): string {
+    const shouldTryHd = USE_HD_TILE_ASSETS || HD_TILE_FILE_OVERRIDES.has(fileName);
+    if (shouldTryHd) {
+        const hdAsset = HD_TILE_ASSETS.get(fileName);
+        if (hdAsset) {
+            return hdAsset;
+        }
+    }
+
+    const defaultAsset = DEFAULT_TILE_ASSETS.get(fileName);
+    if (!defaultAsset) {
+        throw new Error(`[dualGridAutotile] Missing base tile asset: ${fileName}`);
+    }
+
+    return defaultAsset;
+}
+
 // Import all existing autotile images (reusing the 4x5 format)
-import grassBeachAutotile from '../assets/tiles/new/tileset_grass_beach_autotile.png';
-import beachSeaAutotile from '../assets/tiles/new/tileset_beach_sea_autotile.png';
-import grassDirtAutotile from '../assets/tiles/new/tileset_grass_dirt_autotile.png';
-import dirtBeachAutotile from '../assets/tiles/new/tileset_dirt_beach_autotile.png';
-import grassDirtRoadAutotile from '../assets/tiles/new/tileset_grass_dirtroad_autotile.png';
-import grassTundraAutotile from '../assets/tiles/new/tileset_grass_tundra_autotile.png';
-import grassTundraGrassAutotile from '../assets/tiles/new/tileset_grass_tundragrass_autotile.png';
-import grassForestAutotile from '../assets/tiles/new/tileset_grass_forest_autotile.png';
-import quarryGrassAutotile from '../assets/tiles/new/tileset_quarry_grass_autotile.png';
-import beachDirtRoadAutotile from '../assets/tiles/new/tileset_beach_dirtroad_autotile.png';
-import dirtDirtRoadAutotile from '../assets/tiles/new/tileset_dirt_dirtroad_autotile.png';
-import dirtRoadTundraAutotile from '../assets/tiles/new/tileset_dirtroad_tundra_autotile.png';
-import forestDirtRoadAutotile from '../assets/tiles/new/tileset_forest_dirtroad_autotile.png';
-import forestBeachAutotile from '../assets/tiles/new/tileset_forest_beach_autotile.png';
-import forestDirtAutotile from '../assets/tiles/new/tileset_forest_dirt_autotile.png';
-import tundraBeachAutotile from '../assets/tiles/new/tileset_tundra_beach_autotile.png';
-import dirtTundraAutotile from '../assets/tiles/new/tileset_dirt_tundra_autotile.png';
-import quarryDirtAutotile from '../assets/tiles/new/tileset_quarry_dirt_autotile.png';
-import quarryBeachAutotile from '../assets/tiles/new/tileset_quarry_beach_autotile.png';
-import quarryDirtRoadAutotile from '../assets/tiles/new/tileset_quarry_dirtroad_autotile.png';
-import quarryTundraAutotile from '../assets/tiles/new/tileset_quarry_tundra_autotile.png';
-import quarryAlpineAutotile from '../assets/tiles/new/tileset_quarry_alpine_autotile.png';
-import quarryForestAutotile from '../assets/tiles/new/tileset_quarry_forest_autotile.png';
-import asphaltDirtRoadAutotile from '../assets/tiles/new/tileset_asphalt_dirtroad_autotile.png';
-import asphaltDirtAutotile from '../assets/tiles/new/tileset_asphalt_dirt_autotile.png';
-import asphaltBeachAutotile from '../assets/tiles/new/tileset_asphalt_beach_autotile.png';
-import asphaltAlpineAutotile from '../assets/tiles/new/tileset_asphalt_alpine_autotile.png';
-import asphaltTundraAutotile from '../assets/tiles/new/tileset_asphalt_tundra_autotile.png';
-import asphaltSeaAutotile from '../assets/tiles/new/tileset_asphalt_sea_autotile.png';
-import asphaltGrassAutotile from '../assets/tiles/new/tileset_asphalt_grass_autotile.png';
-import alpineDirtRoadAutotile from '../assets/tiles/new/tileset_alpine_dirtroad_autotile.png';
-import alpineDirtAutotile from '../assets/tiles/new/tileset_alpine_dirt_autotile.png';
-import alpineBeachAutotile from '../assets/tiles/new/tileset_alpine_beach_autotile.png';
-import alpineTundraAutotile from '../assets/tiles/new/tileset_alpine_tundra_autotile.png';
-import forestTundraAutotile from '../assets/tiles/new/tileset_forest_tundra_autotile.png';
-import beachHotSpringWaterAutotile from '../assets/tiles/new/tileset_beach_hotspringwater_autotile.png';
-import tundraGrassTundraAutotile from '../assets/tiles/new/tileset_tundragrass_tundra_autotile.png';
-import alpineTundraGrassAutotile from '../assets/tiles/new/tileset_alpine_tundragrass_autotile.png';
-import tundraGrassBeachAutotile from '../assets/tiles/new/tileset_tundragrass_beach_autotile.png';
-import quarryTundraGrassAutotile from '../assets/tiles/new/tileset_quarry_tundragrass_autotile.png';
-import dirtRoadTundraGrassAutotile from '../assets/tiles/new/tileset_dirtroad_tundragrass_autotile.png';
-import forestTundraGrassAutotile from '../assets/tiles/new/tileset_forest_tundragrass_autotile.png';
-import dirtTundraGrassAutotile from '../assets/tiles/new/tileset_dirt_tundragrass_autotile.png';
+const grassBeachAutotile = resolveTileAsset('tileset_grass_beach_autotile.png');
+const beachSeaAutotile = resolveTileAsset('tileset_beach_sea_autotile.png');
+const grassDirtAutotile = resolveTileAsset('tileset_grass_dirt_autotile.png');
+const dirtBeachAutotile = resolveTileAsset('tileset_dirt_beach_autotile.png');
+const grassDirtRoadAutotile = resolveTileAsset('tileset_grass_dirtroad_autotile.png');
+const grassTundraAutotile = resolveTileAsset('tileset_grass_tundra_autotile.png');
+const grassTundraGrassAutotile = resolveTileAsset('tileset_grass_tundragrass_autotile.png');
+const grassForestAutotile = resolveTileAsset('tileset_grass_forest_autotile.png');
+const quarryGrassAutotile = resolveTileAsset('tileset_quarry_grass_autotile.png');
+const beachDirtRoadAutotile = resolveTileAsset('tileset_beach_dirtroad_autotile.png');
+const dirtDirtRoadAutotile = resolveTileAsset('tileset_dirt_dirtroad_autotile.png');
+const dirtRoadTundraAutotile = resolveTileAsset('tileset_dirtroad_tundra_autotile.png');
+const forestDirtRoadAutotile = resolveTileAsset('tileset_forest_dirtroad_autotile.png');
+const forestBeachAutotile = resolveTileAsset('tileset_forest_beach_autotile.png');
+const forestDirtAutotile = resolveTileAsset('tileset_forest_dirt_autotile.png');
+const tundraBeachAutotile = resolveTileAsset('tileset_tundra_beach_autotile.png');
+const dirtTundraAutotile = resolveTileAsset('tileset_dirt_tundra_autotile.png');
+const quarryDirtAutotile = resolveTileAsset('tileset_quarry_dirt_autotile.png');
+const quarryBeachAutotile = resolveTileAsset('tileset_quarry_beach_autotile.png');
+const quarryDirtRoadAutotile = resolveTileAsset('tileset_quarry_dirtroad_autotile.png');
+const quarryTundraAutotile = resolveTileAsset('tileset_quarry_tundra_autotile.png');
+const quarryAlpineAutotile = resolveTileAsset('tileset_quarry_alpine_autotile.png');
+const quarryForestAutotile = resolveTileAsset('tileset_quarry_forest_autotile.png');
+const asphaltDirtRoadAutotile = resolveTileAsset('tileset_asphalt_dirtroad_autotile.png');
+const asphaltDirtAutotile = resolveTileAsset('tileset_asphalt_dirt_autotile.png');
+const asphaltBeachAutotile = resolveTileAsset('tileset_asphalt_beach_autotile.png');
+const asphaltAlpineAutotile = resolveTileAsset('tileset_asphalt_alpine_autotile.png');
+const asphaltTundraAutotile = resolveTileAsset('tileset_asphalt_tundra_autotile.png');
+const asphaltSeaAutotile = resolveTileAsset('tileset_asphalt_sea_autotile.png');
+const asphaltGrassAutotile = resolveTileAsset('tileset_asphalt_grass_autotile.png');
+const alpineDirtRoadAutotile = resolveTileAsset('tileset_alpine_dirtroad_autotile.png');
+const alpineDirtAutotile = resolveTileAsset('tileset_alpine_dirt_autotile.png');
+const alpineBeachAutotile = resolveTileAsset('tileset_alpine_beach_autotile.png');
+const alpineTundraAutotile = resolveTileAsset('tileset_alpine_tundra_autotile.png');
+const forestTundraAutotile = resolveTileAsset('tileset_forest_tundra_autotile.png');
+const beachHotSpringWaterAutotile = resolveTileAsset('tileset_beach_hotspringwater_autotile.png');
+const tundraGrassTundraAutotile = resolveTileAsset('tileset_tundragrass_tundra_autotile.png');
+const alpineTundraGrassAutotile = resolveTileAsset('tileset_alpine_tundragrass_autotile.png');
+const tundraGrassBeachAutotile = resolveTileAsset('tileset_tundragrass_beach_autotile.png');
+const quarryTundraGrassAutotile = resolveTileAsset('tileset_quarry_tundragrass_autotile.png');
+const dirtRoadTundraGrassAutotile = resolveTileAsset('tileset_dirtroad_tundragrass_autotile.png');
+const forestTundraGrassAutotile = resolveTileAsset('tileset_forest_tundragrass_autotile.png');
+const dirtTundraGrassAutotile = resolveTileAsset('tileset_dirt_tundragrass_autotile.png');
 // Underwater autotile for snorkeling mode (beach/land to sea transition when underwater)
-import underwaterSeaAutotile from '../assets/tiles/new/tileset_underwater_sea_autotile.png';
+const underwaterSeaAutotile = resolveTileAsset('tileset_underwater_sea_autotile.png');
 
 // =============================================================================
 // CONSTANTS

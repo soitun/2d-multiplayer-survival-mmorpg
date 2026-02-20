@@ -1093,4 +1093,4 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
   );
 };
 
-export default InterfaceContainer;
+export default React.memo(InterfaceContainer);

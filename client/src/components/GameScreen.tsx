@@ -10,6 +10,8 @@
  * and passes them down to the relevant child components.
  */
 
+import { memo, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+
 // Import child components
 import GameCanvas from './GameCanvas';
 import PlayerUI from './PlayerUI';
@@ -28,11 +30,11 @@ import GameTipsMenu from './GameTipsMenu';
 import GameSettingsMenu from './GameSettingsMenu';
 import GameVisualSettingsMenu from './GameVisualSettingsMenu';
 import type { MenuType } from './GameMenu';
-import AlkDeliveryPanel from './AlkDeliveryPanel'; // ADDED: ALK delivery panel
-import MobileControlBar from './MobileControlBar'; // ADDED: Mobile control bar
-import CairnUnlockNotification, { CairnNotification } from './CairnUnlockNotification'; // ADDED: Cairn unlock notification
+import AlkDeliveryPanel from './AlkDeliveryPanel';
+import MobileControlBar from './MobileControlBar';
+import CairnUnlockNotification, { CairnNotification } from './CairnUnlockNotification';
 // SovaDirectivesIndicator has been merged into DayNightCycleTracker
-import QuestsPanel from './QuestsPanel'; // ADDED: Quest panel overlay
+import QuestsPanel from './QuestsPanel';
 import UplinkNotifications from './UplinkNotifications'; // Unified notifications in uplink style
 import ErrorDisplay from './ErrorDisplay'; // In-game error feedback above XP bar
 import * as SpacetimeDB from '../generated';
@@ -46,10 +48,10 @@ import {
     Cairn as SpacetimeDBCairn,
     PlayerDiscoveredCairn as SpacetimeDBPlayerDiscoveredCairn,
     Campfire as SpacetimeDBCampfire,
-    Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
-    Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
+    Furnace as SpacetimeDBFurnace,
+    Barbecue as SpacetimeDBBarbecue,
     Lantern as SpacetimeDBLantern,
-    Turret as SpacetimeDBTurret, // ADDED: Turret import
+    Turret as SpacetimeDBTurret,
     HarvestableResource as SpacetimeDBHarvestableResource,
     DroppedItem as SpacetimeDBDroppedItem,
     WoodenStorageBox as SpacetimeDBWoodenStorageBox,
@@ -85,15 +87,15 @@ import {
     PlayerDrinkingCooldown as SpacetimeDBPlayerDrinkingCooldown,
     WildAnimal as SpacetimeDBWildAnimal, // Includes hostile NPCs with is_hostile_npc = true
     AnimalCorpse as SpacetimeDBAnimalCorpse,
-    Barrel as SpacetimeDBBarrel, // ADDED Barrel import
-    HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED HomesteadHearth import
-    BrothPot as SpacetimeDBBrothPot, // ADDED BrothPot import
-    AlkStation as SpacetimeDBAlkStation, // ADDED ALK station import
-    AlkContract as SpacetimeDBAlkContract, // ADDED ALK contract import
-    AlkPlayerContract as SpacetimeDBAlkPlayerContract, // ADDED ALK player contract import
-    AlkState as SpacetimeDBAlkState, // ADDED ALK state import
-    PlayerShardBalance as SpacetimeDBPlayerShardBalance, // ADDED player shard balance import
-    MemoryGridProgress as SpacetimeDBMemoryGridProgress, // ADDED memory grid progress import
+    Barrel as SpacetimeDBBarrel,
+    HomesteadHearth as SpacetimeDBHomesteadHearth,
+    BrothPot as SpacetimeDBBrothPot,
+    AlkStation as SpacetimeDBAlkStation,
+    AlkContract as SpacetimeDBAlkContract,
+    AlkPlayerContract as SpacetimeDBAlkPlayerContract,
+    AlkState as SpacetimeDBAlkState,
+    PlayerShardBalance as SpacetimeDBPlayerShardBalance,
+    MemoryGridProgress as SpacetimeDBMemoryGridProgress,
 } from '../generated';
 // PlayerStats is accessed via SpacetimeDB namespace
 import { Identity } from 'spacetimedb';
@@ -116,7 +118,6 @@ import { useEntrainmentSovaSounds } from '../hooks/useEntrainmentSovaSounds';
 // Import other necessary imports
 import { useInteractionManager } from '../hooks/useInteractionManager';
 import { useWorldChunkDataMap, createIsWaterTile } from '../hooks/useWorldChunkDataMap';
-import { memo, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSovaTutorials } from '../hooks/useSovaTutorials';
 import { useQuestNotifications } from '../hooks/useQuestNotifications';
 import { useMusicSystem } from '../hooks/useMusicSystem';
@@ -141,10 +142,10 @@ interface GameScreenProps {
     cairns: Map<string, SpacetimeDBCairn>;
     playerDiscoveredCairns: Map<string, SpacetimeDBPlayerDiscoveredCairn>;
     campfires: Map<string, SpacetimeDBCampfire>;
-    furnaces: Map<string, SpacetimeDBFurnace>; // ADDED: Furnaces prop
-    barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues prop
+    furnaces: Map<string, SpacetimeDBFurnace>;
+    barbecues: Map<string, SpacetimeDBBarbecue>;
     lanterns: Map<string, SpacetimeDBLantern>;
-    turrets: Map<string, SpacetimeDBTurret>; // ADDED: Turret prop
+    turrets: Map<string, SpacetimeDBTurret>;
     harvestableResources: Map<string, SpacetimeDBHarvestableResource>;
     droppedItems: Map<string, SpacetimeDBDroppedItem>;
     woodenStorageBoxes: Map<string, SpacetimeDBWoodenStorageBox>;
@@ -157,18 +158,18 @@ interface GameScreenProps {
     // worldTiles removed – world background now derived client-side from compressed chunk data
     minimapCache: SpacetimeDBMinimapCache | null;
     wildAnimals: Map<string, SpacetimeDBWildAnimal>; // Includes hostile NPCs with is_hostile_npc = true
-    hostileDeathEvents: Array<{id: string, x: number, y: number, species: string, timestamp: number}>; // Client-side death events for particles
+    hostileDeathEvents: Array<{ id: string, x: number, y: number, species: string, timestamp: number }>; // Client-side death events for particles
     animalCorpses: Map<string, SpacetimeDBAnimalCorpse>;
-    barrels: Map<string, SpacetimeDBBarrel>; // ADDED barrels
-    roadLampposts: Map<string, SpacetimeDB.RoadLamppost>; // ADDED: Aleutian whale oil lampposts along roads
-    seaStacks: Map<string, any>; // ADDED sea stacks
-    homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED homesteadHearths
-    foundationCells: Map<string, any>; // ADDED: Building foundations
-    wallCells: Map<string, any>; // ADDED: Building walls
-    doors: Map<string, any>; // ADDED: Building doors
-    fences: Map<string, any>; // ADDED: Building fences
-    fumaroles: Map<string, any>; // ADDED fumaroles
-    basaltColumns: Map<string, any>; // ADDED basalt columns
+    barrels: Map<string, SpacetimeDBBarrel>;
+    roadLampposts: Map<string, SpacetimeDB.RoadLamppost>;
+    seaStacks: Map<string, any>;
+    homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>;
+    foundationCells: Map<string, any>;
+    wallCells: Map<string, any>;
+    doors: Map<string, any>;
+    fences: Map<string, any>;
+    fumaroles: Map<string, any>;
+    basaltColumns: Map<string, any>;
     livingCorals: Map<string, any>; // Living coral for underwater harvesting (uses combat system)
     inventoryItems: Map<string, SpacetimeDBInventoryItem>;
     itemDefinitions: Map<string, SpacetimeDBItemDefinition>;
@@ -184,10 +185,10 @@ interface GameScreenProps {
     knockedOutStatus: Map<string, SpacetimeDBKnockedOutStatus>;
     rangedWeaponStats: Map<string, RangedWeaponStats>;
 
-    // Add player drinking cooldowns for water interaction
+    // Player drinking cooldowns for water interaction.
     playerDrinkingCooldowns: Map<string, SpacetimeDBPlayerDrinkingCooldown>;
 
-    // Player dodge roll states for animation
+    // Player dodge-roll states for animation.
     playerDodgeRollStates: Map<string, any>; // PlayerDodgeRollState from generated types
 
     // Rain collectors
@@ -218,7 +219,7 @@ interface GameScreenProps {
 
     // Predicted Position
     predictedPosition: { x: number; y: number } | null;
-    getCurrentPositionNow: () => { x: number; y: number } | null; // ADDED: Function for exact position at firing time
+    getCurrentPositionNow: () => { x: number; y: number } | null;
     canvasRef: React.RefObject<HTMLCanvasElement | null>;
 
     // Placement State/Actions (from usePlacementManager)
@@ -256,10 +257,10 @@ interface GameScreenProps {
     setIsCraftingSearchFocused: React.Dispatch<React.SetStateAction<boolean>>;
     isCraftingSearchFocused: boolean;
 
-    // 🎣 FISHING INPUT FIX: Add callback to notify parent of fishing state changes
+    // Notify parent when fishing state changes.
     onFishingStateChange?: (isFishing: boolean) => void;
 
-    // Add fishing sessions for rendering other players' fishing
+    // Fishing sessions for rendering other players' fishing states.
     fishingSessions: Map<string, FishingSession>;
 
     // Music system for debug controls
@@ -321,7 +322,7 @@ interface GameScreenProps {
     questCompletionNotifications?: Map<string, any>;
     questProgressNotifications?: Map<string, any>;
     sovaQuestMessages?: Map<string, any>;
-    
+
     // Memory Beacon server events (airdrop-style)
     beaconDropEvents?: Map<string, any>;
 
@@ -345,7 +346,7 @@ interface GameScreenProps {
 
     // SOVA Sound Box callback (for deterministic voice notifications)
     showSovaSoundBox?: (audio: HTMLAudioElement, label: string) => void;
-    
+
     // Animal breeding system data for age-based rendering and pregnancy indicators
     caribouBreedingData?: Map<string, any>; // Caribou sex, age stage, and pregnancy
     walrusBreedingData?: Map<string, any>; // Walrus sex, age stage, and pregnancy
@@ -360,13 +361,13 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     const [showInventoryState, setShowInventoryState] = useState(false);
     const [showCraftingScreenState, setShowCraftingScreenState] = useState(false);
 
-    // Add menu state management
+    // Menu state management
     const [currentMenu, setCurrentMenu] = useState<MenuType>(null);
 
-    // Add auto-action state management
+    // Auto-action state management
     const [autoActionStates, setAutoActionStates] = useState({ isAutoAttacking: false });
 
-    // Add refresh confirmation dialog state
+    // Refresh confirmation dialog state
     const [showRefreshDialog, setShowRefreshDialog] = useState(false);
 
     // SOVA message adder function from Chat component
@@ -428,7 +429,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
 
     // Destructure props for cleaner usage
     const {
-        players, trees, stones, runeStones, cairns, playerDiscoveredCairns, campfires, furnaces, barbecues, lanterns, turrets, harvestableResources, droppedItems, woodenStorageBoxes, sleepingBags, // ADDED: furnaces, barbecues, runeStones, cairns, turrets
+        players, trees, stones, runeStones, cairns, playerDiscoveredCairns, campfires, furnaces, barbecues, lanterns, turrets, harvestableResources, droppedItems, woodenStorageBoxes, sleepingBags,
         playerPins, playerCorpses, stashes,
         shelters,
         plantedSeeds,
@@ -505,14 +506,14 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
 
     // Mobile chat visibility state (separate from isChatting which controls input focus)
     const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
-    
+
     // Local speech bubbles for /s (say) command
-    const [localBubbles, setLocalBubbles] = useState<Array<{id: string, message: string, playerId: string, timestamp: number}>>([]);
+    const [localBubbles, setLocalBubbles] = useState<Array<{ id: string, message: string, playerId: string, timestamp: number }>>([]);
 
     // ALK initial tab state - used when opening ALK panel from delivery panel
     type AlkTab = 'seasonal' | 'materials' | 'arms' | 'armor' | 'tools' | 'provisions' | 'bonus' | 'buy-orders' | 'my-contracts';
     const [alkInitialTab, setAlkInitialTab] = useState<AlkTab | undefined>(undefined);
-    
+
     // SOVA loading bar state
     const [sovaLoadingState, setSOVALoadingState] = useState({
         isRecording: false,
@@ -532,19 +533,19 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     // === SOVA Two-Part Tutorial System ===
     // Part 1: Crash Intro (30 seconds) - Introduces SOVA, lore context, stakes
     // Part 2: Press V Hint (3.5 minutes) - Teaches SOVA chat mechanic
-    
+
     const showSovaSoundBoxRef = useRef(showSovaSoundBox);
     const sovaMessageAdderRef = useRef(sovaMessageAdder);
-    
+
     // Keep refs updated
     useEffect(() => {
         showSovaSoundBoxRef.current = showSovaSoundBox;
     }, [showSovaSoundBox]);
-    
+
     useEffect(() => {
         sovaMessageAdderRef.current = sovaMessageAdder;
     }, [sovaMessageAdder]);
-    
+
     // Get local player's server-side tutorial flags (ALL tutorials now server-validated)
     const localPlayerForTutorial = localPlayerId ? props.players.get(localPlayerId) : undefined;
     const hasSeenSovaIntro = localPlayerForTutorial?.hasSeenSovaIntro;
@@ -554,74 +555,72 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     const hasSeenRuneStoneTutorial = localPlayerForTutorial?.hasSeenRuneStoneTutorial;
     const hasSeenAlkStationTutorial = localPlayerForTutorial?.hasSeenAlkStationTutorial;
     const hasSeenCrashedDroneTutorial = localPlayerForTutorial?.hasSeenCrashedDroneTutorial;
-    
+
     // Callbacks to mark tutorials as seen on the server (all tutorials now server-side)
-    const handleMarkSovaIntroSeen = useCallback(() => {
-        if (props.connection?.reducers) {
-            try {
-                props.connection.reducers.markSovaIntroSeen();
-                console.log('[GameScreen] Called markSovaIntroSeen reducer');
-            } catch (error) {
-                console.error('[GameScreen] Failed to mark SOVA intro as seen:', error);
-            }
+    const callTutorialSeenReducer = useCallback((
+        reducerName: string,
+        successLog: string,
+        failureLog: string
+    ) => {
+        const reducers = props.connection?.reducers as Record<string, (() => void) | undefined> | undefined;
+        const reducerFn = reducers?.[reducerName];
+        if (!reducerFn) return;
+        try {
+            reducerFn();
+            console.log(successLog);
+        } catch (error) {
+            console.error(failureLog, error);
         }
     }, [props.connection]);
+
+    const handleMarkSovaIntroSeen = useCallback(() => {
+        callTutorialSeenReducer(
+            'markSovaIntroSeen',
+            '[GameScreen] Called markSovaIntroSeen reducer',
+            '[GameScreen] Failed to mark SOVA intro as seen:'
+        );
+    }, [callTutorialSeenReducer]);
 
     const handleMarkTutorialHintSeen = useCallback(() => {
-        if (props.connection?.reducers) {
-            try {
-                props.connection.reducers.markTutorialHintSeen();
-                console.log('[GameScreen] Called markTutorialHintSeen reducer');
-            } catch (error) {
-                console.error('[GameScreen] Failed to mark tutorial hint as seen:', error);
-            }
-        }
-    }, [props.connection]);
+        callTutorialSeenReducer(
+            'markTutorialHintSeen',
+            '[GameScreen] Called markTutorialHintSeen reducer',
+            '[GameScreen] Failed to mark tutorial hint as seen:'
+        );
+    }, [callTutorialSeenReducer]);
 
     const handleMarkHostileEncounterTutorialSeen = useCallback(() => {
-        if (props.connection?.reducers) {
-            try {
-                props.connection.reducers.markHostileEncounterTutorialSeen();
-                console.log('[GameScreen] Called markHostileEncounterTutorialSeen reducer');
-            } catch (error) {
-                console.error('[GameScreen] Failed to mark hostile encounter tutorial as seen:', error);
-            }
-        }
-    }, [props.connection]);
+        callTutorialSeenReducer(
+            'markHostileEncounterTutorialSeen',
+            '[GameScreen] Called markHostileEncounterTutorialSeen reducer',
+            '[GameScreen] Failed to mark hostile encounter tutorial as seen:'
+        );
+    }, [callTutorialSeenReducer]);
 
     const handleMarkRuneStoneTutorialSeen = useCallback(() => {
-        if (props.connection?.reducers) {
-            try {
-                props.connection.reducers.markRuneStoneTutorialSeen();
-                console.log('[GameScreen] Called markRuneStoneTutorialSeen reducer');
-            } catch (error) {
-                console.error('[GameScreen] Failed to mark rune stone tutorial as seen:', error);
-            }
-        }
-    }, [props.connection]);
+        callTutorialSeenReducer(
+            'markRuneStoneTutorialSeen',
+            '[GameScreen] Called markRuneStoneTutorialSeen reducer',
+            '[GameScreen] Failed to mark rune stone tutorial as seen:'
+        );
+    }, [callTutorialSeenReducer]);
 
     const handleMarkAlkStationTutorialSeen = useCallback(() => {
-        if (props.connection?.reducers) {
-            try {
-                props.connection.reducers.markAlkStationTutorialSeen();
-                console.log('[GameScreen] Called markAlkStationTutorialSeen reducer');
-            } catch (error) {
-                console.error('[GameScreen] Failed to mark ALK station tutorial as seen:', error);
-            }
-        }
-    }, [props.connection]);
+        callTutorialSeenReducer(
+            'markAlkStationTutorialSeen',
+            '[GameScreen] Called markAlkStationTutorialSeen reducer',
+            '[GameScreen] Failed to mark ALK station tutorial as seen:'
+        );
+    }, [callTutorialSeenReducer]);
 
     const handleMarkCrashedDroneTutorialSeen = useCallback(() => {
-        if (props.connection?.reducers) {
-            try {
-                props.connection.reducers.markCrashedDroneTutorialSeen();
-                console.log('[GameScreen] Called markCrashedDroneTutorialSeen reducer');
-            } catch (error) {
-                console.error('[GameScreen] Failed to mark crashed drone tutorial as seen:', error);
-            }
-        }
-    }, [props.connection]);
-    
+        callTutorialSeenReducer(
+            'markCrashedDroneTutorialSeen',
+            '[GameScreen] Called markCrashedDroneTutorialSeen reducer',
+            '[GameScreen] Failed to mark crashed drone tutorial as seen:'
+        );
+    }, [callTutorialSeenReducer]);
+
     // === SOVA Tutorial Sounds (abstracted to useSovaTutorials hook) ===
     // Handles: crash intro (2.5s), tutorial hint (3.5min), memory shard, rune stone, alk station tutorials
     // ALL tutorials now use SERVER-SIDE flags (no localStorage) - survives browser cache clears
@@ -674,7 +673,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         setInterfaceInitialView?.('matronage');
         setIsMinimapOpen(true);
     }, [handleSetInteractingWith, setInterfaceInitialView, setIsMinimapOpen]);
-    
+
     // Handle opening ALK Board to a specific tab - close delivery panel and open ALK panel
     const handleOpenAlkBoard = useCallback((tab?: string) => {
         // Close the ALK delivery panel
@@ -703,14 +702,14 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     // === SOVA Insanity & Entrainment Sound Hooks ===
     // These play SOVA voice lines when player crosses insanity thresholds or has Entrainment effect
     // Moved from App.tsx to GameScreen.tsx so we have access to sovaMessageAdder for tab switching/flashing
-    useInsanitySovaSounds({ 
-        localPlayer, 
+    useInsanitySovaSounds({
+        localPlayer,
         onSoundPlay: showSovaSoundBox,
         onAddMessage: sovaMessageAdder || undefined
     });
-    
-    useEntrainmentSovaSounds({ 
-        activeConsumableEffects, 
+
+    useEntrainmentSovaSounds({
+        activeConsumableEffects,
         localPlayerId,
         onSoundPlay: showSovaSoundBox,
         onAddMessage: sovaMessageAdder || undefined
@@ -871,7 +870,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     useEffect(() => {
         // Only run if we're interacting with an ALK station
         if (interactingWith?.type !== 'alk_station') return;
-        
+
         // Check if we have the necessary data
         const station = props.alkStations?.get(String(interactingWith.id));
         if (!station) {
@@ -879,21 +878,21 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             handleSetInteractingWith(null);
             return;
         }
-        
+
         // Get player position
         const playerPos = predictedPosition || (localPlayer ? { x: localPlayer.positionX, y: localPlayer.positionY } : null);
         if (!playerPos) return;
-        
+
         // Check distance to station (using same threshold as interaction finder)
         const dx = playerPos.x - station.worldPosX;
         const dy = playerPos.y - station.worldPosY;
         const distSq = dx * dx + dy * dy;
-        
+
         // Use slightly larger threshold than interaction distance to avoid flickering
         // PLAYER_ALK_STATION_INTERACTION_DISTANCE_SQUARED = 280 * 280 = 78400
         // Use 320px (102400) for closing to give some buffer
         const closeThresholdSq = 320 * 320;
-        
+
         if (distSq > closeThresholdSq) {
             console.log('[GameScreen] Player walked out of ALK station range, closing panel');
             handleSetInteractingWith(null);
@@ -949,7 +948,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
 
             {/* Debug Panel - Hidden on mobile */}
             {!props.isMobile && process.env.NODE_ENV === 'development' && localPlayer && (
-                <DebugPanel 
+                <DebugPanel
                     localPlayer={localPlayer}
                     worldState={worldState}
                     connection={connection}
@@ -1132,8 +1131,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 cairns={cairns}
                 playerDiscoveredCairns={playerDiscoveredCairns}
                 campfires={campfires}
-                furnaces={furnaces} // ADDED: Furnaces prop to GameCanvas
-                barbecues={props.barbecues} // ADDED: Barbecues prop to GameCanvas
+                furnaces={furnaces}
+                barbecues={props.barbecues}
                 harvestableResources={harvestableResources}
                 droppedItems={droppedItems}
                 woodenStorageBoxes={woodenStorageBoxes}
@@ -1156,9 +1155,9 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 fumaroles={props.fumaroles}
                 basaltColumns={props.basaltColumns}
                 livingCorals={props.livingCorals}
-                addSOVAMessage={sovaMessageAdder || undefined} // ADDED: Pass SOVA message adder for cairn lore
-                showSovaSoundBox={showSovaSoundBox} // ADDED: Pass SOVA sound box for cairn lore audio with waveform
-                onCairnNotification={handleCairnNotification} // ADDED: Pass cairn notification callback
+                addSOVAMessage={sovaMessageAdder || undefined}
+                showSovaSoundBox={showSovaSoundBox}
+                onCairnNotification={handleCairnNotification}
                 inventoryItems={inventoryItems}
                 itemDefinitions={itemDefinitions}
                 worldState={worldState}
@@ -1240,14 +1239,14 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 playerAchievements={props.playerAchievements}
                 plantConfigs={props.plantConfigDefinitions}
                 discoveredPlants={props.discoveredPlants}
-                playerStats={props.playerStats} // ADDED: For title display on player name labels
-                rangedWeaponStats={rangedWeaponStats} // ADDED: For auto-fire detection
-                beaconDropEvents={props.beaconDropEvents} // ADDED: Memory Beacon server events
+                playerStats={props.playerStats}
+                rangedWeaponStats={rangedWeaponStats}
+                beaconDropEvents={props.beaconDropEvents}
                 // Animal breeding system data
-                caribouBreedingData={props.caribouBreedingData} // ADDED: Caribou breeding data
-                walrusBreedingData={props.walrusBreedingData} // ADDED: Walrus breeding data
-                caribouRutState={props.caribouRutState} // ADDED: Global caribou rut state
-                walrusRutState={props.walrusRutState} // ADDED: Global walrus rut state
+                caribouBreedingData={props.caribouBreedingData}
+                walrusBreedingData={props.walrusBreedingData}
+                caribouRutState={props.caribouRutState}
+                walrusRutState={props.walrusRutState}
                 // Mobile controls
                 isMobile={props.isMobile}
                 onMobileTap={props.onMobileTap}
@@ -1316,7 +1315,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                             const audio = new Audio('/sounds/sova_error_mobile_capability.mp3');
                             audio.volume = 0.8;
                             showSovaSoundBox(audio, 'SOVA');
-                            audio.play().catch(() => {});
+                            audio.play().catch(() => { });
                         }
                         return;
                     }
@@ -1339,7 +1338,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                             const audio = new Audio('/sounds/sova_error_mobile_capability.mp3');
                             audio.volume = 0.8;
                             showSovaSoundBox(audio, 'SOVA');
-                            audio.play().catch(() => {});
+                            audio.play().catch(() => { });
                         }
                         return;
                     }
@@ -1461,10 +1460,10 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     connection={connection}
                     // 🎣 FISHING INPUT FIX: Add callback to track fishing state
                     onFishingStateChange={setIsFishing}
-                    // Add fishing sessions and players for rendering other players' fishing
+                    // Fishing sessions and players for rendering other players' fishing
                     fishingSessions={fishingSessions}
                     players={players}
-                    // Add worldState for weather information
+                    // worldState for weather information
                     worldState={worldState}
                     isWaterTile={isWaterTile}
                     isInventoryOpen={showInventoryState || showCraftingScreenState}

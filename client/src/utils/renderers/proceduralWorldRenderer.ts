@@ -3,6 +3,7 @@ import { WorldTile } from '../../generated/world_tile_type';
 import { 
     getDualGridTileInfoMultiLayer, 
     getAllTransitionTilesets, 
+    resolveTileAsset,
     TILE_SIZE as AUTOTILE_SIZE,
     describeDualGridIndex,
     DualGridTileInfo,
@@ -30,7 +31,7 @@ function getTileBaseTexturePath(tileTypeName: string): string {
     };
     
     const fileName = tileNameMap[tileTypeName] || 'grass.png';
-    return new URL(`../../assets/tiles/new/${fileName}`, import.meta.url).href;
+    return resolveTileAsset(fileName);
 }
 
 interface TileCache {

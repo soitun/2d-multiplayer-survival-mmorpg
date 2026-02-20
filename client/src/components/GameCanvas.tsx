@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 
-// PERFORMANCE: Stable empty Map for fallbacks - avoids per-render allocations and GC churn
-const EMPTY_MAP = new Map();
 import {
   Player as SpacetimeDBPlayer,
   Tree as SpacetimeDBTree,
@@ -10,9 +8,9 @@ import {
   Cairn as SpacetimeDBCairn,
   PlayerDiscoveredCairn as SpacetimeDBPlayerDiscoveredCairn,
   Campfire as SpacetimeDBCampfire,
-  Furnace as SpacetimeDBFurnace, // ADDED: Furnace import
-  Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
-  RoadLamppost as SpacetimeDBRoadLamppost, // ADDED: Aleutian whale oil lampposts
+  Furnace as SpacetimeDBFurnace,
+  Barbecue as SpacetimeDBBarbecue,
+  RoadLamppost as SpacetimeDBRoadLamppost,
   Lantern as SpacetimeDBLantern,
   WorldState as SpacetimeDBWorldState,
   ActiveEquipment as SpacetimeDBActiveEquipment,
@@ -47,18 +45,18 @@ import {
   WildAnimal as SpacetimeDBWildAnimal, // Includes hostile NPCs with is_hostile_npc = true
   AnimalCorpse as SpacetimeDBAnimalCorpse,
   Barrel as SpacetimeDBBarrel,
-  Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole type
-  BasaltColumn as SpacetimeDBBasaltColumn, // ADDED: Basalt column type
+  Fumarole as SpacetimeDBFumarole,
+  BasaltColumn as SpacetimeDBBasaltColumn,
   HarvestableResource as SpacetimeDBHarvestableResource,
-  FoundationCell, // ADDED: Foundation cell type
-  HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth type
-  Turret as SpacetimeDBTurret, // ADDED: Turret type
-  AlkStation as SpacetimeDBAlkStation, // ADDED: ALK delivery stations
-  AlkContract as SpacetimeDBAlkContract, // ADDED: ALK contracts
-  AlkPlayerContract as SpacetimeDBAlkPlayerContract, // ADDED: ALK player contracts
-  AlkState as SpacetimeDBAlkState, // ADDED: ALK state
-  PlayerShardBalance as SpacetimeDBPlayerShardBalance, // ADDED: Player shard balances
-  MemoryGridProgress as SpacetimeDBMemoryGridProgress, // ADDED: Memory Grid progress
+  FoundationCell,
+  HomesteadHearth as SpacetimeDBHomesteadHearth,
+  Turret as SpacetimeDBTurret,
+  AlkStation as SpacetimeDBAlkStation,
+  AlkContract as SpacetimeDBAlkContract,
+  AlkPlayerContract as SpacetimeDBAlkPlayerContract,
+  AlkState as SpacetimeDBAlkState,
+  PlayerShardBalance as SpacetimeDBPlayerShardBalance,
+  MemoryGridProgress as SpacetimeDBMemoryGridProgress,
   DroneEvent as SpacetimeDBDroneEvent,
 } from '../generated';
 
@@ -107,32 +105,32 @@ import { isAnySovaAudioPlaying } from '../hooks/useSovaSoundBox';
 // --- Rendering Utilities ---
 import { renderWorldBackground, renderShorelineOverlay } from '../utils/renderers/worldRenderingUtils';
 import { renderCyberpunkGridBackground } from '../utils/renderers/cyberpunkGridBackground';
-import { getCollisionShapesForDebug, CollisionShape, PLAYER_RADIUS as CLIENT_PLAYER_RADIUS, COLLISION_OFFSETS } from '../utils/clientCollision'; // ADDED: Collision debug rendering
-import { renderAttackRangeDebug } from '../utils/renderers/attackRangeDebugUtils'; // Attack range debug visualization
+import { getCollisionShapesForDebug, CollisionShape, PLAYER_RADIUS as CLIENT_PLAYER_RADIUS, COLLISION_OFFSETS } from '../utils/clientCollision'; // Collision debug rendering
+import { renderAttackRangeDebug } from '../utils/renderers/attackRangeDebugUtils'; // Attack range visualization
 import { renderChunkBoundaries, renderInteriorDebug, renderCollisionDebug, renderYSortDebug, renderProjectileCollisionDebug } from '../utils/renderers/debugOverlayUtils'; // Consolidated debug overlays
 import { renderMobileTapAnimation } from '../utils/renderers/mobileRenderingUtils'; // Mobile-specific rendering
 import { renderYSortedEntities } from '../utils/renderers/renderingUtils';
 import { renderAllFootprints } from '../utils/renderers/terrainTrailUtils';
 import { renderWardRadius, LANTERN_TYPE_LANTERN } from '../utils/renderers/lanternRenderingUtils';
 import { preloadMonumentImages } from '../utils/renderers/monumentRenderingUtils';
-import { renderFoundationTargetIndicator, renderWallTargetIndicator, renderFenceTargetIndicator } from '../utils/renderers/foundationRenderingUtils'; // ADDED: Foundation, wall, and fence target indicators
+import { renderFoundationTargetIndicator, renderWallTargetIndicator, renderFenceTargetIndicator } from '../utils/renderers/foundationRenderingUtils'; // Foundation/wall/fence target indicators
 import { renderInteractionLabels, renderLocalPlayerStatusTags } from '../utils/renderers/labelRenderingUtils';
 import { renderPlacementPreview, isPlacementTooFar } from '../utils/renderers/placementRenderingUtils';
-import { detectHotSprings } from '../utils/hotSpringDetector'; // ADDED: Hot spring detection
-import { detectQuarries } from '../utils/quarryDetector'; // ADDED: Small quarry detection for building restriction zones
-import { renderHotSprings } from '../utils/renderers/hotSpringRenderingUtils'; // ADDED: Hot spring rendering
-import { useBuildingManager, BuildingMode, BuildingTier, FoundationShape } from '../hooks/useBuildingManager'; // ADDED: Building manager
-import { BuildingRadialMenu } from './BuildingRadialMenu'; // ADDED: Building radial menu
-import { UpgradeRadialMenu } from './UpgradeRadialMenu'; // ADDED: Upgrade radial menu
-import { useFoundationTargeting } from '../hooks/useFoundationTargeting'; // ADDED: Foundation targeting
-import { useWallTargeting } from '../hooks/useWallTargeting'; // ADDED: Wall targeting
-import { useFenceTargeting } from '../hooks/useFenceTargeting'; // ADDED: Fence targeting
+import { detectHotSprings } from '../utils/hotSpringDetector'; // Hot spring detection
+import { detectQuarries } from '../utils/quarryDetector'; // Small quarry detection for build restriction zones
+import { renderHotSprings } from '../utils/renderers/hotSpringRenderingUtils'; // Hot spring rendering
+import { useBuildingManager, BuildingMode, BuildingTier, FoundationShape } from '../hooks/useBuildingManager'; // Building mode manager
+import { BuildingRadialMenu } from './BuildingRadialMenu';
+import { UpgradeRadialMenu } from './UpgradeRadialMenu';
+import { useFoundationTargeting } from '../hooks/useFoundationTargeting';
+import { useWallTargeting } from '../hooks/useWallTargeting';
+import { useFenceTargeting } from '../hooks/useFenceTargeting';
 import { drawInteractionIndicator } from '../utils/interactionIndicator';
 import { ENTITY_VISUAL_CONFIG, getIndicatorPosition } from '../utils/entityVisualConfig';
 import { drawMinimapOntoCanvas } from './Minimap';
 import { renderCampfire } from '../utils/renderers/campfireRenderingUtils';
-import { renderBarbecue } from '../utils/renderers/barbecueRenderingUtils'; // ADDED: Barbecue renderer import
-import { getFurnaceDimensions, FURNACE_TYPE_LARGE } from '../utils/renderers/furnaceRenderingUtils'; // ADDED: Furnace dimensions helper
+import { renderBarbecue } from '../utils/renderers/barbecueRenderingUtils';
+import { getFurnaceDimensions, FURNACE_TYPE_LARGE } from '../utils/renderers/furnaceRenderingUtils';
 import { isCompoundMonument } from '../config/compoundBuildings';
 import { renderPlayerCorpse } from '../utils/renderers/playerCorpseRenderingUtils';
 import { renderStash } from '../utils/renderers/stashRenderingUtils';
@@ -171,8 +169,8 @@ import { updateUnderwaterEffects, renderUnderwaterEffectsUnder, renderUnderwater
 import { renderWildAnimal, preloadWildAnimalImages, renderBurrowEffects, cleanupBurrowTracking, processWildAnimalsForBurrowEffects } from '../utils/renderers/wildAnimalRenderingUtils';
 import { renderAnimalCorpse, preloadAnimalCorpseImages } from '../utils/renderers/animalCorpseRenderingUtils';
 import { renderEquippedItem } from '../utils/renderers/equippedItemRenderingUtils';
-import { renderFumarole, preloadFumaroleImages } from '../utils/renderers/fumaroleRenderingUtils'; // ADDED: Fumarole rendering
-import { renderBasaltColumn, preloadBasaltColumnImages } from '../utils/renderers/basaltColumnRenderingUtils'; // ADDED: Basalt column rendering
+import { renderFumarole, preloadFumaroleImages } from '../utils/renderers/fumaroleRenderingUtils';
+import { renderBasaltColumn, preloadBasaltColumnImages } from '../utils/renderers/basaltColumnRenderingUtils';
 
 // --- Other Components & Utils ---
 import DeathScreen from './DeathScreen.tsx';
@@ -193,12 +191,15 @@ import { useInputHandler } from '../hooks/useInputHandler';
 import { useRemotePlayerInterpolation } from '../hooks/useRemotePlayerInterpolation';
 
 
-// Define a placeholder height for Stash for indicator rendering
+// Placeholder height for stash indicator alignment.
 const STASH_HEIGHT = 40; // Adjust as needed to match stash sprite or desired indicator position
 
 // Import cut grass effect renderer
 import { renderCutGrassEffects } from '../effects/cutGrassEffect';
 import { renderArrowBreakEffects } from '../effects/arrowBreakEffect';
+
+// Stable empty Map fallback to avoid per-render allocations.
+const EMPTY_MAP = new Map();
 
 // --- Prop Interface ---
 interface GameCanvasProps {
@@ -213,10 +214,10 @@ interface GameCanvasProps {
   cairns: Map<string, SpacetimeDBCairn>;
   playerDiscoveredCairns: Map<string, SpacetimeDBPlayerDiscoveredCairn>;
   campfires: Map<string, SpacetimeDBCampfire>;
-  furnaces: Map<string, SpacetimeDBFurnace>; // ADDED: Furnaces prop
-  barbecues: Map<string, SpacetimeDBBarbecue>; // ADDED: Barbecues prop
+  furnaces: Map<string, SpacetimeDBFurnace>;
+  barbecues: Map<string, SpacetimeDBBarbecue>;
   lanterns: Map<string, SpacetimeDBLantern>;
-  turrets: Map<string, SpacetimeDBTurret>; // ADDED: Turret prop
+  turrets: Map<string, SpacetimeDBTurret>;
   harvestableResources: Map<string, SpacetimeDBHarvestableResource>;
   droppedItems: Map<string, SpacetimeDBDroppedItem>;
   woodenStorageBoxes: Map<string, SpacetimeDBWoodenStorageBox>;
@@ -238,7 +239,7 @@ interface GameCanvasProps {
   localPlayerId?: string;
   connection: any | null;
   predictedPosition: { x: number; y: number } | null;
-  getCurrentPositionNow: () => { x: number; y: number } | null; // ADDED: Function for exact position at firing time
+  getCurrentPositionNow: () => { x: number; y: number } | null; // Exact position at action time.
   activeEquipments: Map<string, SpacetimeDBActiveEquipment>;
   grass: Map<string, SpacetimeDBGrass>;
   grassState: Map<string, SpacetimeDBGrassState>; // Split tables: dynamic state
@@ -263,9 +264,9 @@ interface GameCanvasProps {
   showInventory: boolean;
   gameCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   projectiles: Map<string, SpacetimeDBProjectile>;
-  addSOVAMessage?: (message: { id: string; text: string; isUser: boolean; timestamp: Date; flashTab?: boolean }) => void; // ADDED: SOVA message adder for cairn lore
-  showSovaSoundBox?: (audio: HTMLAudioElement, label: string) => void; // ADDED: SOVA sound box for cairn lore audio with waveform
-  onCairnNotification?: (notification: { id: string; cairnNumber: number; totalCairns: number; title: string; isFirstDiscovery: boolean; timestamp: number }) => void; // ADDED: Cairn unlock notification callback
+  addSOVAMessage?: (message: { id: string; text: string; isUser: boolean; timestamp: Date; flashTab?: boolean }) => void; // SOVA message sink for cairn lore.
+  showSovaSoundBox?: (audio: HTMLAudioElement, label: string) => void; // SOVA audio visualization callback.
+  onCairnNotification?: (notification: { id: string; cairnNumber: number; totalCairns: number; title: string; isFirstDiscovery: boolean; timestamp: number }) => void;
   deathMarkers: Map<string, SpacetimeDBDeathMarker>;
   shelters: Map<string, SpacetimeDBShelter>;
   showAutotileDebug: boolean;
@@ -280,31 +281,31 @@ interface GameCanvasProps {
   startProfilerRecording?: () => void;
   stopProfilerRecording?: () => Promise<boolean>;
   onProfilerCopied?: () => void; // Toast callback when stop & copy succeeds
-  minimapCache: any; // Add this for minimapCache
-  isGameMenuOpen: boolean; // Add this prop
+  minimapCache: any;
+  isGameMenuOpen: boolean;
   onAutoActionStatesChange?: (isAutoAttacking: boolean) => void;
   isFishing: boolean;
   plantedSeeds: Map<string, SpacetimeDBPlantedSeed>;
-  playerDrinkingCooldowns: Map<string, SpacetimeDBPlayerDrinkingCooldown>; // Add player drinking cooldowns
+  playerDrinkingCooldowns: Map<string, SpacetimeDBPlayerDrinkingCooldown>;
   wildAnimals: Map<string, SpacetimeDBWildAnimal>; // Includes hostile NPCs with is_hostile_npc = true
   hostileDeathEvents: Array<{ id: string, x: number, y: number, species: string, timestamp: number }>; // Client-side death events for particles
   animalCorpses: Map<string, SpacetimeDBAnimalCorpse>;
-  barrels: Map<string, SpacetimeDBBarrel>; // Add barrels
-  roadLampposts?: Map<string, SpacetimeDBRoadLamppost>; // ADDED: Aleutian whale oil lampposts along roads
-  fumaroles: Map<string, SpacetimeDBFumarole>; // ADDED: Fumaroles
-  basaltColumns: Map<string, SpacetimeDBBasaltColumn>; // ADDED: Basalt columns
+  barrels: Map<string, SpacetimeDBBarrel>;
+  roadLampposts?: Map<string, SpacetimeDBRoadLamppost>;
+  fumaroles: Map<string, SpacetimeDBFumarole>;
+  basaltColumns: Map<string, SpacetimeDBBasaltColumn>;
   livingCorals: Map<string, any>; // Living coral for underwater harvesting (uses combat system)
-  seaStacks: Map<string, any>; // Add sea stacks
-  homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>; // ADDED: HomesteadHearths
-  foundationCells: Map<string, any>; // ADDED: Building foundations
-  wallCells: Map<string, any>; // ADDED: Building walls
-  doors: Map<string, any>; // ADDED: Building doors
-  fences: Map<string, any>; // ADDED: Building fences
+  seaStacks: Map<string, any>;
+  homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>;
+  foundationCells: Map<string, any>;
+  wallCells: Map<string, any>;
+  doors: Map<string, any>;
+  fences: Map<string, any>;
   setMusicPanelVisible: React.Dispatch<React.SetStateAction<boolean>>;
   movementDirection: { x: number; y: number };
   isAutoWalking: boolean; // Auto-walk state for dodge roll detection
   playerDodgeRollStates: Map<string, any>; // PlayerDodgeRollState from generated types
-  // ADD: Local facing direction for instant visual feedback (client-authoritative)
+  // Local facing direction for instant visual feedback (client-authoritative).
   localFacingDirection?: string;
   // Chunk-based weather data
   chunkWeather: Map<string, any>;
@@ -1143,10 +1144,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     if (!localPlayerId || !activeConsumableEffects) return;
 
-    // Find burn effects for local player
-    const localPlayerBurnEffects = Array.from(activeConsumableEffects.values()).filter(
-      effect => effect.playerId.toHexString() === localPlayerId && effect.effectType.tag === 'Burn'
-    );
+    // Find burn effects for local player without intermediate Array.from allocation
+    const localPlayerBurnEffects: any[] = [];
+    for (const effect of activeConsumableEffects.values()) {
+      if (effect.playerId.toHexString() === localPlayerId && effect.effectType.tag === 'Burn') {
+        localPlayerBurnEffects.push(effect);
+      }
+    }
 
     // Track burn effects by their end time to detect when they're extended (stacked)
     if (!burnSoundPlayedRef.current) {
@@ -1951,25 +1955,44 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       handlePlacementError(ctx, 'Explosive');
     };
 
-    connection.reducers.onDestroyFoundation(handleDestroyFoundationResult);
-    connection.reducers.onDestroyWall(handleDestroyWallResult);
-    connection.reducers.onFireProjectile(handleFireProjectileResult);
-    connection.reducers.onLoadRangedWeapon(handleLoadRangedWeaponResult);
-    connection.reducers.onUpgradeFoundation(handleUpgradeFoundationResult);
+    type ReducerBinding = {
+      on: string;
+      off: string;
+      handler: (...args: any[]) => void;
+    };
 
-    // Register placement error handlers (all placement errors, including "too far away", show in red box)
-    connection.reducers.onPlaceCampfire(handlePlaceCampfireResult);
-    connection.reducers.onPlaceFurnace(handlePlaceFurnaceResult);
-    connection.reducers.onPlaceLantern(handlePlaceLanternResult);
-    connection.reducers.onPlaceWoodenStorageBox(handlePlaceWoodenStorageBoxResult);
-    connection.reducers.onPlaceSleepingBag(handlePlaceSleepingBagResult);
-    connection.reducers.onPlaceStash(handlePlaceStashResult);
-    connection.reducers.onPlaceShelter(handlePlaceShelterResult);
-    connection.reducers.onPlaceRainCollector(handlePlaceRainCollectorResult);
-    connection.reducers.onPlaceHomesteadHearth(handlePlaceHomesteadHearthResult);
-    connection.reducers.onPlaceBarbecue(handlePlaceBarbecueResult);
-    connection.reducers.onPlaceTurret(handlePlaceTurretResult);
-    connection.reducers.onPlaceExplosive(handlePlaceExplosiveResult);
+    const registerReducerBindings = (bindings: ReducerBinding[]) => {
+      for (const binding of bindings) {
+        (connection.reducers as any)[binding.on](binding.handler);
+      }
+    };
+    const unregisterReducerBindings = (bindings: ReducerBinding[]) => {
+      for (const binding of bindings) {
+        (connection.reducers as any)[binding.off](binding.handler);
+      }
+    };
+
+    const requiredBindings: ReducerBinding[] = [
+      { on: 'onDestroyFoundation', off: 'removeOnDestroyFoundation', handler: handleDestroyFoundationResult },
+      { on: 'onDestroyWall', off: 'removeOnDestroyWall', handler: handleDestroyWallResult },
+      { on: 'onFireProjectile', off: 'removeOnFireProjectile', handler: handleFireProjectileResult },
+      { on: 'onLoadRangedWeapon', off: 'removeOnLoadRangedWeapon', handler: handleLoadRangedWeaponResult },
+      { on: 'onUpgradeFoundation', off: 'removeOnUpgradeFoundation', handler: handleUpgradeFoundationResult },
+      // Placement error handlers (all placement errors, including "too far away", show in red box).
+      { on: 'onPlaceCampfire', off: 'removeOnPlaceCampfire', handler: handlePlaceCampfireResult },
+      { on: 'onPlaceFurnace', off: 'removeOnPlaceFurnace', handler: handlePlaceFurnaceResult },
+      { on: 'onPlaceLantern', off: 'removeOnPlaceLantern', handler: handlePlaceLanternResult },
+      { on: 'onPlaceWoodenStorageBox', off: 'removeOnPlaceWoodenStorageBox', handler: handlePlaceWoodenStorageBoxResult },
+      { on: 'onPlaceSleepingBag', off: 'removeOnPlaceSleepingBag', handler: handlePlaceSleepingBagResult },
+      { on: 'onPlaceStash', off: 'removeOnPlaceStash', handler: handlePlaceStashResult },
+      { on: 'onPlaceShelter', off: 'removeOnPlaceShelter', handler: handlePlaceShelterResult },
+      { on: 'onPlaceRainCollector', off: 'removeOnPlaceRainCollector', handler: handlePlaceRainCollectorResult },
+      { on: 'onPlaceHomesteadHearth', off: 'removeOnPlaceHomesteadHearth', handler: handlePlaceHomesteadHearthResult },
+      { on: 'onPlaceBarbecue', off: 'removeOnPlaceBarbecue', handler: handlePlaceBarbecueResult },
+      { on: 'onPlaceTurret', off: 'removeOnPlaceTurret', handler: handlePlaceTurretResult },
+      { on: 'onPlaceExplosive', off: 'removeOnPlaceExplosive', handler: handlePlaceExplosiveResult },
+    ];
+    registerReducerBindings(requiredBindings);
 
     // --- Gameplay interaction error handlers (pickup, doors, cairns, milking, fishing) ---
     // Skip sync/edge-case errors: "too far", "not found" (race), "no active session"
@@ -2017,40 +2040,29 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     };
 
-    if (connection.reducers.onPickupDroppedItem) connection.reducers.onPickupDroppedItem(handlePickupDroppedItemResult);
-    if (connection.reducers.onInteractDoor) connection.reducers.onInteractDoor(handleInteractDoorResult);
-    if (connection.reducers.onInteractWithCairn) connection.reducers.onInteractWithCairn(handleInteractWithCairnResult);
-    if (connection.reducers.onMilkAnimal) connection.reducers.onMilkAnimal(handleMilkAnimalResult);
-    if (connection.reducers.onCastFishingLine) connection.reducers.onCastFishingLine(handleCastFishingLineResult);
-    if (connection.reducers.onFinishFishing) connection.reducers.onFinishFishing(handleFinishFishingResult);
+    const optionalBindings: ReducerBinding[] = [
+      { on: 'onPickupDroppedItem', off: 'removeOnPickupDroppedItem', handler: handlePickupDroppedItemResult },
+      { on: 'onInteractDoor', off: 'removeOnInteractDoor', handler: handleInteractDoorResult },
+      { on: 'onInteractWithCairn', off: 'removeOnInteractWithCairn', handler: handleInteractWithCairnResult },
+      { on: 'onMilkAnimal', off: 'removeOnMilkAnimal', handler: handleMilkAnimalResult },
+      { on: 'onCastFishingLine', off: 'removeOnCastFishingLine', handler: handleCastFishingLineResult },
+      { on: 'onFinishFishing', off: 'removeOnFinishFishing', handler: handleFinishFishingResult },
+    ];
+    for (const binding of optionalBindings) {
+      const onFn = (connection.reducers as any)[binding.on];
+      if (typeof onFn === 'function') {
+        onFn.call(connection.reducers, binding.handler);
+      }
+    }
 
     return () => {
-      connection.reducers.removeOnDestroyFoundation(handleDestroyFoundationResult);
-      connection.reducers.removeOnDestroyWall(handleDestroyWallResult);
-      connection.reducers.removeOnFireProjectile(handleFireProjectileResult);
-      connection.reducers.removeOnLoadRangedWeapon(handleLoadRangedWeaponResult);
-      connection.reducers.removeOnUpgradeFoundation(handleUpgradeFoundationResult);
-
-      // Cleanup placement error handlers
-      connection.reducers.removeOnPlaceCampfire(handlePlaceCampfireResult);
-      connection.reducers.removeOnPlaceFurnace(handlePlaceFurnaceResult);
-      connection.reducers.removeOnPlaceLantern(handlePlaceLanternResult);
-      connection.reducers.removeOnPlaceWoodenStorageBox(handlePlaceWoodenStorageBoxResult);
-      connection.reducers.removeOnPlaceSleepingBag(handlePlaceSleepingBagResult);
-      connection.reducers.removeOnPlaceStash(handlePlaceStashResult);
-      connection.reducers.removeOnPlaceShelter(handlePlaceShelterResult);
-      connection.reducers.removeOnPlaceRainCollector(handlePlaceRainCollectorResult);
-      connection.reducers.removeOnPlaceHomesteadHearth(handlePlaceHomesteadHearthResult);
-      connection.reducers.removeOnPlaceBarbecue(handlePlaceBarbecueResult);
-      connection.reducers.removeOnPlaceTurret(handlePlaceTurretResult);
-      connection.reducers.removeOnPlaceExplosive(handlePlaceExplosiveResult);
-
-      if (connection.reducers.removeOnPickupDroppedItem) connection.reducers.removeOnPickupDroppedItem(handlePickupDroppedItemResult);
-      if (connection.reducers.removeOnInteractDoor) connection.reducers.removeOnInteractDoor(handleInteractDoorResult);
-      if (connection.reducers.removeOnInteractWithCairn) connection.reducers.removeOnInteractWithCairn(handleInteractWithCairnResult);
-      if (connection.reducers.removeOnMilkAnimal) connection.reducers.removeOnMilkAnimal(handleMilkAnimalResult);
-      if (connection.reducers.removeOnCastFishingLine) connection.reducers.removeOnCastFishingLine(handleCastFishingLineResult);
-      if (connection.reducers.removeOnFinishFishing) connection.reducers.removeOnFinishFishing(handleFinishFishingResult);
+      unregisterReducerBindings(requiredBindings);
+      for (const binding of optionalBindings) {
+        const offFn = (connection.reducers as any)[binding.off];
+        if (typeof offFn === 'function') {
+          offFn.call(connection.reducers, binding.handler);
+        }
+      }
     };
   }, [connection, showError]);
 
@@ -2671,8 +2683,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const renderGame = useCallback(() => {
     const frameStartTime = performance.now();
 
-    // Track frame count for periodic logging
-    perfProfilingRef.current.frameCount++;
+    if (ENABLE_LAG_DIAGNOSTICS) {
+      // Track frame count for periodic logging
+      perfProfilingRef.current.frameCount++;
+    }
     const canvas = gameCanvasRef.current;
     const maskCanvas = maskCanvasRef.current;
     if (!canvas || !maskCanvas) return;
@@ -4172,12 +4186,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const insanityIntensity = (localPlayer.insanity ?? 0) / 100.0;
 
       // Check if player has Entrainment effect (max insanity death sentence)
-      const hasEntrainment = localPlayerId && activeConsumableEffects
-        ? Array.from(activeConsumableEffects.values()).some(
-          effect => effect.playerId.toHexString() === localPlayerId &&
-            effect.effectType.tag === 'Entrainment'
-        )
-        : false;
+      let hasEntrainment = false;
+      if (localPlayerId && activeConsumableEffects) {
+        for (const effect of activeConsumableEffects.values()) {
+          if (effect.playerId.toHexString() === localPlayerId && effect.effectType.tag === 'Entrainment') {
+            hasEntrainment = true;
+            break;
+          }
+        }
+      }
 
       // Always render (even at 0 intensity for smooth transitions)
       renderInsanityOverlay(
@@ -4570,7 +4587,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // === PERFORMANCE PROFILING - Frame time tracking ===
     const frameEndTime = performance.now();
     const frameTime = frameEndTime - frameStartTime;
-    perfProfilingRef.current.totalFrameTime += frameTime;
+    if (ENABLE_LAG_DIAGNOSTICS) {
+      perfProfilingRef.current.totalFrameTime += frameTime;
+    }
 
     // === FPS Profiler Overlay (delegated to FpsProfiler module) ===
     if (showFpsProfiler) {
@@ -4580,15 +4599,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       profiler.recordIfActive(timings, frameTime, currentYSortedEntities.length);
       profiler.render(ctx, currentCanvasWidth, isProfilerRecording ?? false);
     }
-    perfProfilingRef.current.renderCallCount++;
-    if (frameTime > perfProfilingRef.current.maxFrameTime) {
-      perfProfilingRef.current.maxFrameTime = frameTime;
-    }
-    if (frameTime > 16) {
-      perfProfilingRef.current.slowFrames++;
-    }
-    if (frameTime > 33) {
-      perfProfilingRef.current.verySlowFrames++;
+    if (ENABLE_LAG_DIAGNOSTICS) {
+      perfProfilingRef.current.renderCallCount++;
+      if (frameTime > perfProfilingRef.current.maxFrameTime) {
+        perfProfilingRef.current.maxFrameTime = frameTime;
+      }
+      if (frameTime > 16) {
+        perfProfilingRef.current.slowFrames++;
+      }
+      if (frameTime > 33) {
+        perfProfilingRef.current.verySlowFrames++;
+      }
     }
 
     // === LAG DIAGNOSTICS ===

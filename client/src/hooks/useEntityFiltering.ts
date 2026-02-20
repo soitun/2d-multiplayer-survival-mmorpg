@@ -688,6 +688,18 @@ function filterMapToArray<T>(map: Map<string, T> | undefined, predicate: (e: T) 
   return result;
 }
 
+// Build ID maps without intermediate `.map()` allocations.
+function arrayToIdMap<T, K extends string | number | bigint>(
+  entities: T[],
+  getId: (entity: T) => K
+): Map<string, T> {
+  const map = new Map<string, T>();
+  for (const entity of entities) {
+    map.set(String(getId(entity)), entity);
+  }
+  return map;
+}
+
 // Cached entity filtering with frame-based throttling
 function getCachedFilteredEntities<T extends { posX: number; posY: number }>(
   entities: Map<string, T> | undefined,
@@ -1214,21 +1226,20 @@ export function useEntityFiltering(
       return [];
     }
     
-    const allGrass = Array.from(grass.values());
     // Removed excessive logging
     
     let filteredByHealth = 0;
     let filteredByView = 0;
     let filteredByWater = 0;
-    
-    const result = allGrass.filter(e => {
+    const result: InterpolatedGrassData[] = [];
+    for (const e of grass.values()) {
       if (e.health <= 0) {
         filteredByHealth++;
-        return false;
+        continue;
       }
       if (!isEntityInView(e, viewBounds, stableTimestamp)) {
         filteredByView++;
-        return false;
+        continue;
       }
       
       // Filter out grass on water tiles
@@ -1239,6 +1250,7 @@ export function useEntityFiltering(
       const chunkSize = 16;
       const chunkX = Math.floor(tileX / chunkSize);
       const chunkY = Math.floor(tileY / chunkSize);
+      let isWaterTile = false;
       
       // Find the chunk
       for (const chunk of worldChunkData?.values() || []) {
@@ -1254,15 +1266,17 @@ export function useEntityFiltering(
             // Filter out grass on Sea (3) and HotSpringWater (6) tiles
             if (tileTypeU8 === 3 || tileTypeU8 === 6) {
               filteredByWater++;
-              return false;
+              isWaterTile = true;
             }
           }
           break;
         }
       }
       
-      return true;
-    });
+      if (!isWaterTile) {
+        result.push(e);
+      }
+    }
     
     // Only log occasionally to reduce spam
     // if (allGrass.length > 0 && (filteredByHealth > 0 || Math.random() < 0.01)) {
@@ -1589,73 +1603,73 @@ export function useEntityFiltering(
     return getPlayerBuildingClusterId(localPlayer, buildingClusters);
   }, [localPlayerId, players, buildingClusters]);
 
-  const visibleHarvestableResourcesMap = useMemo(() => 
-    new Map(visibleHarvestableResources.map(hr => [hr.id.toString(), hr])), 
+  const visibleHarvestableResourcesMap = useMemo(() =>
+    arrayToIdMap(visibleHarvestableResources, hr => hr.id),
     [visibleHarvestableResources]
   );
 
-  const visibleCampfiresMap = useMemo(() => 
-    new Map(visibleCampfires.map(c => [c.id.toString(), c])), 
+  const visibleCampfiresMap = useMemo(() =>
+    arrayToIdMap(visibleCampfires, c => c.id),
     [visibleCampfires]
   );
 
-  const visibleFurnacesMap = useMemo(() => 
-    new Map(visibleFurnaces.map(f => [f.id.toString(), f])), 
+  const visibleFurnacesMap = useMemo(() =>
+    arrayToIdMap(visibleFurnaces, f => f.id),
     [visibleFurnaces]
   );
 
-  const visibleBarbecuesMap = useMemo(() => 
-    new Map(visibleBarbecues.map(b => [b.id.toString(), b])), 
+  const visibleBarbecuesMap = useMemo(() =>
+    arrayToIdMap(visibleBarbecues, b => b.id),
     [visibleBarbecues]
   );
 
-  const visibleLanternsMap = useMemo(() => 
-    new Map(visibleLanterns.map(l => [l.id.toString(), l])), 
+  const visibleLanternsMap = useMemo(() =>
+    arrayToIdMap(visibleLanterns, l => l.id),
     [visibleLanterns]
   );
 
-  const visibleTurretsMap = useMemo(() => 
-    new Map(visibleTurrets.map(t => [t.id.toString(), t])), 
+  const visibleTurretsMap = useMemo(() =>
+    arrayToIdMap(visibleTurrets, t => t.id),
     [visibleTurrets]
   );
 
-  const visibleHomesteadHearthsMap = useMemo(() => 
-    new Map(visibleHomesteadHearths.map(h => [h.id.toString(), h])), 
+  const visibleHomesteadHearthsMap = useMemo(() =>
+    arrayToIdMap(visibleHomesteadHearths, h => h.id),
     [visibleHomesteadHearths]
   ); 
 
-  const visibleDroppedItemsMap = useMemo(() => 
-    new Map(visibleDroppedItems.map(i => [i.id.toString(), i])), 
+  const visibleDroppedItemsMap = useMemo(() =>
+    arrayToIdMap(visibleDroppedItems, i => i.id),
     [visibleDroppedItems]
   );
   
-  const visibleBoxesMap = useMemo(() => 
-    new Map(visibleWoodenStorageBoxes.map(b => [b.id.toString(), b])), 
+  const visibleBoxesMap = useMemo(() =>
+    arrayToIdMap(visibleWoodenStorageBoxes, b => b.id),
     [visibleWoodenStorageBoxes]
   );
 
-    const visiblePlantedSeedsMap = useMemo(() => 
-    new Map(visiblePlantedSeeds.map(p => [p.id.toString(), p])), 
+  const visiblePlantedSeedsMap = useMemo(() =>
+    arrayToIdMap(visiblePlantedSeeds, p => p.id),
     [visiblePlantedSeeds]
   );
 
-  const visibleRainCollectorsMap = useMemo(() => 
-    new Map(visibleRainCollectors.map(r => [r.id.toString(), r])), 
+  const visibleRainCollectorsMap = useMemo(() =>
+    arrayToIdMap(visibleRainCollectors, r => r.id),
     [visibleRainCollectors]
   );
 
-  const visibleBrothPotsMap = useMemo(() => 
-    new Map(visibleBrothPots.map(b => [b.id.toString(), b])), 
+  const visibleBrothPotsMap = useMemo(() =>
+    arrayToIdMap(visibleBrothPots, b => b.id),
     [visibleBrothPots]
   );
 
-  const visibleWildAnimalsMap = useMemo(() => 
-    new Map(visibleWildAnimals.map(w => [w.id.toString(), w])), 
+  const visibleWildAnimalsMap = useMemo(() =>
+    arrayToIdMap(visibleWildAnimals, w => w.id),
     [visibleWildAnimals]
   );
 
-  const visibleProjectilesMap = useMemo(() => 
-    new Map(visibleProjectiles.map(p => [p.id.toString(), p])), 
+  const visibleProjectilesMap = useMemo(() =>
+    arrayToIdMap(visibleProjectiles, p => p.id),
     [visibleProjectiles]
   );
 
@@ -1665,10 +1679,10 @@ export function useEntityFiltering(
     return map;
   }, [visiblePlayerCorpses]);
 
-  const visibleStashesMap = useMemo(() => new Map(visibleStashes.map(st => [st.id.toString(), st])), [visibleStashes]);
+  const visibleStashesMap = useMemo(() => arrayToIdMap(visibleStashes, st => st.id), [visibleStashes]);
 
-  const visibleSleepingBagsMap = useMemo(() => 
-    new Map(visibleSleepingBags.map(sl => [sl.id.toString(), sl])), 
+  const visibleSleepingBagsMap = useMemo(() =>
+    arrayToIdMap(visibleSleepingBags, sl => sl.id),
     [visibleSleepingBags]
   );
 
@@ -1704,53 +1718,53 @@ export function useEntityFiltering(
 
   const groundItems = useMemo(() => visibleSleepingBags, [visibleSleepingBags]);
 
-  const visibleGrassMap = useMemo(() => 
-    new Map(visibleGrass.map(g => [g.id.toString(), g])),
+  const visibleGrassMap = useMemo(() =>
+    arrayToIdMap(visibleGrass, g => g.id),
     [visibleGrass]
   ); // visibleGrass is now InterpolatedGrassData[]
 
   // ADDED: Map for visible shelters
   const visibleSheltersMap = useMemo(() =>
-    new Map(visibleShelters.map(s => [s.id.toString(), s])),
+    arrayToIdMap(visibleShelters, s => s.id),
     [visibleShelters]
   );
 
   // ADDED: Map for visible animal corpses
   const visibleAnimalCorpsesMap = useMemo(() =>
-    new Map(visibleAnimalCorpses.map(a => [a.id.toString(), a])),
+    arrayToIdMap(visibleAnimalCorpses, a => a.id),
     [visibleAnimalCorpses]
   );
 
   // ADDED: Map for visible barrels
   const visibleBarrelsMap = useMemo(() =>
-    new Map(visibleBarrels.map(b => [b.id.toString(), b])),
+    arrayToIdMap(visibleBarrels, b => b.id),
     [visibleBarrels]
   );
 
   // ADDED: Map for visible road lampposts
   const visibleRoadLamppostsMap = useMemo(() =>
-    new Map(visibleRoadLampposts.map(l => [l.id.toString(), l])),
+    arrayToIdMap(visibleRoadLampposts, l => l.id),
     [visibleRoadLampposts]
   );
 
   const visibleFumarolesMap = useMemo(() =>
-    new Map(visibleFumaroles.map(f => [f.id.toString(), f])),
+    arrayToIdMap(visibleFumaroles, f => f.id),
     [visibleFumaroles]
   );
 
   const visibleBasaltColumnsMap = useMemo(() =>
-    new Map(visibleBasaltColumns.map(b => [b.id.toString(), b])),
+    arrayToIdMap(visibleBasaltColumns, b => b.id),
     [visibleBasaltColumns]
   );
 
   const visibleAlkStationsMap = useMemo(() =>
-    new Map(visibleAlkStations.map(s => [s.stationId.toString(), s])),
+    arrayToIdMap(visibleAlkStations, s => s.stationId),
     [visibleAlkStations]
   );
 
   // ADDED: Map for visible sea stacks
   const visibleSeaStacksMap = useMemo(() =>
-    new Map(visibleSeaStacks.map(s => [s.id.toString(), s])),
+    arrayToIdMap(visibleSeaStacks, s => s.id),
     [visibleSeaStacks]
   );
 
@@ -1758,25 +1772,25 @@ export function useEntityFiltering(
 
   // ADDED: Map for visible living corals
   const visibleLivingCoralsMap = useMemo(() =>
-    new Map(visibleLivingCorals.map(c => [c.id.toString(), c])),
+    arrayToIdMap(visibleLivingCorals, c => c.id),
     [visibleLivingCorals]
   );
 
   // ADDED: Map for visible foundation cells
   const visibleFoundationCellsMap = useMemo(() =>
-    new Map(visibleFoundationCells.map(f => [f.id.toString(), f])),
+    arrayToIdMap(visibleFoundationCells, f => f.id),
     [visibleFoundationCells]
   );
 
   // ADDED: Map for visible wall cells
   const visibleWallCellsMap = useMemo(() =>
-    new Map(visibleWallCells.map(w => [w.id.toString(), w])),
+    arrayToIdMap(visibleWallCells, w => w.id),
     [visibleWallCells]
   );
 
   // ADDED: Map for visible doors
   const visibleDoorsMap = useMemo(() =>
-    new Map(visibleDoors.map(d => [d.id.toString(), d])),
+    arrayToIdMap(visibleDoors, d => d.id),
     [visibleDoors]
   );
 
@@ -1789,21 +1803,25 @@ export function useEntityFiltering(
     
     const padding = 50; // Extra padding to catch fences on edges
     
-    return Array.from(fences.values()).filter(fence => {
-      if (fence.isDestroyed) return false;
+    const result: SpacetimeDBFence[] = [];
+    for (const fence of fences.values()) {
+      if (fence.isDestroyed) continue;
       
       // Fences use world position directly (posX, posY)
       const worldX = fence.posX;
       const worldY = fence.posY;
       
-      return worldX >= viewBounds.viewMinX - padding && worldX <= viewBounds.viewMaxX + padding &&
-             worldY >= viewBounds.viewMinY - padding && worldY <= viewBounds.viewMaxY + padding;
-    });
+      if (worldX >= viewBounds.viewMinX - padding && worldX <= viewBounds.viewMaxX + padding &&
+          worldY >= viewBounds.viewMinY - padding && worldY <= viewBounds.viewMaxY + padding) {
+        result.push(fence);
+      }
+    }
+    return result;
   }, [fences, fenceMapSize, viewBounds, stableTimestamp]);
 
   // ADDED: Map for visible fences
   const visibleFencesMap = useMemo(() =>
-    new Map(visibleFences.map(f => [f.id.toString(), f])),
+    arrayToIdMap(visibleFences, f => f.id),
     [visibleFences]
   );
 
