@@ -558,6 +558,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const torchParticlesRef = useRef<Particle[]>([]);
   // PERFORMANCE: Cache memory particle gradients by (color, radiusBucket) - avoids GC spikes from per-particle gradient creation
   const memoryParticleGradientCacheRef = useRef<Map<string, CanvasGradient>>(new Map());
+  const particleBucketsRef = useRef<{
+    fire: any[];
+    ember: any[];
+    spark: any[];
+    other: any[];
+    memory: any[];
+    regularSmoke: any[];
+  }>({
+    fire: [],
+    ember: [],
+    spark: [],
+    other: [],
+    memory: [],
+    regularSmoke: [],
+  });
 
   // High-frequency value refs (to avoid renderGame dependency array churn)
   // NOTE: Animation frame refs are now imported directly from useAnimationCycle.ts
@@ -2340,33 +2355,36 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const renderParticlesToCanvas = (ctx: CanvasRenderingContext2D, particles: any[]) => {
     if (particles.length === 0) return;
 
-    // Separate particles by type for batched rendering
-    const fireParticlesLocal: any[] = [];
-    const emberParticles: any[] = [];
-    const sparkParticles: any[] = [];
-    const otherParticles: any[] = [];
+    // Separate particles by type for batched rendering (reused arrays to avoid per-frame allocations)
+    const buckets = particleBucketsRef.current;
+    buckets.fire.length = 0;
+    buckets.ember.length = 0;
+    buckets.spark.length = 0;
+    buckets.other.length = 0;
+    buckets.memory.length = 0;
+    buckets.regularSmoke.length = 0;
 
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
       if (p.type === 'fire') {
-        fireParticlesLocal.push(p);
+        buckets.fire.push(p);
       } else if (p.type === 'ember') {
-        emberParticles.push(p);
+        buckets.ember.push(p);
       } else if (p.type === 'spark') {
-        sparkParticles.push(p);
+        buckets.spark.push(p);
       } else {
-        otherParticles.push(p);
+        buckets.other.push(p);
       }
     }
 
     // Render fire particles with AAA pixel art style (Sea of Stars inspired)
     // Use square pixels instead of circles for crisp pixel art look
-    if (fireParticlesLocal.length > 0) {
+    if (buckets.fire.length > 0) {
       ctx.save();
       // Disable anti-aliasing for crisp pixel art
       ctx.imageSmoothingEnabled = false;
-      for (let i = 0; i < fireParticlesLocal.length; i++) {
-        const particle = fireParticlesLocal[i];
+      for (let i = 0; i < buckets.fire.length; i++) {
+        const particle = buckets.fire[i];
         const isStaticCampfire = particle.id && particle.id.startsWith('fire_static_');
 
         ctx.globalAlpha = particle.alpha || 1;
@@ -2392,11 +2410,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
 
     // Render ember particles - glowing floating embers with warm glow
-    if (emberParticles.length > 0) {
+    if (buckets.ember.length > 0) {
       ctx.save();
       ctx.imageSmoothingEnabled = false;
-      for (let i = 0; i < emberParticles.length; i++) {
-        const particle = emberParticles[i];
+      for (let i = 0; i < buckets.ember.length; i++) {
+        const particle = buckets.ember[i];
 
         ctx.globalAlpha = particle.alpha || 1;
         ctx.fillStyle = particle.color || '#FFE066';
@@ -2414,11 +2432,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
 
     // Render spark particles - bright, fast-moving sparks
-    if (sparkParticles.length > 0) {
+    if (buckets.spark.length > 0) {
       ctx.save();
       ctx.imageSmoothingEnabled = false;
-      for (let i = 0; i < sparkParticles.length; i++) {
-        const particle = sparkParticles[i];
+      for (let i = 0; i < buckets.spark.length; i++) {
+        const particle = buckets.spark[i];
 
         ctx.globalAlpha = particle.alpha || 1;
         ctx.fillStyle = particle.color || '#FFFFFF';
@@ -2436,29 +2454,26 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
 
     // Render other particles (smoke, smoke_burst) with AAA pixel art style
-    if (otherParticles.length > 0) {
+    if (buckets.other.length > 0) {
       ctx.save();
 
       // Separate memory particles from regular smoke for different rendering
-      const memoryParticles: any[] = [];
-      const regularSmokeParticles: any[] = [];
-
-      for (let i = 0; i < otherParticles.length; i++) {
-        const p = otherParticles[i];
+      for (let i = 0; i < buckets.other.length; i++) {
+        const p = buckets.other[i];
         if (p.id && (p.id.startsWith('memory_') || p.id.startsWith('memoryfrag_'))) {
-          memoryParticles.push(p);
+          buckets.memory.push(p);
         } else {
-          regularSmokeParticles.push(p);
+          buckets.regularSmoke.push(p);
         }
       }
 
       // Render MEMORY BEACON particles as soft glowing circles (ethereal effect)
       // PERFORMANCE: Cache gradients by (color, radiusBucket) - avoids per-particle allocations and GC spikes
-      if (memoryParticles.length > 0) {
+      if (buckets.memory.length > 0) {
         ctx.imageSmoothingEnabled = true; // Enable smoothing for soft glow effect
         const gradCache = memoryParticleGradientCacheRef.current;
-        for (let i = 0; i < memoryParticles.length; i++) {
-          const particle = memoryParticles[i];
+        for (let i = 0; i < buckets.memory.length; i++) {
+          const particle = buckets.memory[i];
           const isFragment = particle.id && particle.id.startsWith('memoryfrag_');
 
           ctx.globalAlpha = particle.alpha || 1;
@@ -2508,11 +2523,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
 
       // Render regular smoke particles with pixel art style
-      if (regularSmokeParticles.length > 0) {
+      if (buckets.regularSmoke.length > 0) {
         ctx.imageSmoothingEnabled = false;
         ctx.shadowBlur = 0; // No shadow for smoke particles
-        for (let i = 0; i < regularSmokeParticles.length; i++) {
-          const particle = regularSmokeParticles[i];
+        for (let i = 0; i < buckets.regularSmoke.length; i++) {
+          const particle = buckets.regularSmoke[i];
 
           ctx.globalAlpha = particle.alpha || 1;
           ctx.fillStyle = particle.color || '#888888';
@@ -2990,16 +3005,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- STEP 1: Render ONLY swimming player bottom halves ---
     // Filter out swimming players and render them manually with exact same logic as renderYSortedEntities
     // EXCEPTION: Snorkeling players (local OR remote) should NOT be split - they render as full sprite
-    const swimmingPlayersForBottomHalf = Array.from(players.values())
-      .filter(player => {
-        // Basic swimming conditions
-        if (!player.isOnWater || player.isDead || player.isKnockedOut) return false;
-        // Skip local player if they're snorkeling - they render as full sprite in Y-sorted entities
-        if (isSnorkeling && player.identity.toHexString() === localPlayerId) return false;
-        // Skip ANY player who is snorkeling - they render as full sprite (fully underwater)
-        if (player.isSnorkeling) return false;
-        return true;
-      });
+    const swimmingPlayersForBottomHalf: SpacetimeDBPlayer[] = [];
+    players.forEach((player) => {
+      // Basic swimming conditions
+      if (!player.isOnWater || player.isDead || player.isKnockedOut) return;
+      // Skip local player if they're snorkeling - they render as full sprite in Y-sorted entities
+      if (isSnorkeling && player.identity.toHexString() === localPlayerId) return;
+      // Skip ANY player who is snorkeling - they render as full sprite (fully underwater)
+      if (player.isSnorkeling) return;
+      swimmingPlayersForBottomHalf.push(player);
+    });
 
     // Render swimming player bottom halves using exact same logic as renderYSortedEntities
     swimmingPlayersForBottomHalf.forEach(player => {
@@ -3009,19 +3024,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       // EXACT same position logic as renderYSortedEntities
       let playerForRendering = player;
       if (isLocalPlayer && currentPredictedPosition) {
-        playerForRendering = {
-          ...player,
-          positionX: currentPredictedPosition.x,
-          positionY: currentPredictedPosition.y,
-          direction: (localFacingDirection ?? player.direction) as any
-        };
+        const scratch = swimmingPlayerScratchRef.current;
+        Object.assign(scratch, player);
+        scratch.positionX = currentPredictedPosition.x;
+        scratch.positionY = currentPredictedPosition.y;
+        scratch.direction = localFacingDirection ?? player.direction;
+        playerForRendering = scratch as SpacetimeDBPlayer;
       } else if (!isLocalPlayer && remotePlayerInterpolation) {
         const interpolatedPosition = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
-        playerForRendering = {
-          ...player,
-          positionX: interpolatedPosition.x,
-          positionY: interpolatedPosition.y
-        };
+        const scratch = swimmingPlayerScratchRef.current;
+        Object.assign(scratch, player);
+        scratch.positionX = interpolatedPosition.x;
+        scratch.positionY = interpolatedPosition.y;
+        playerForRendering = scratch as SpacetimeDBPlayer;
       }
 
       // EXACT same movement detection logic as renderYSortedEntities  
@@ -3100,20 +3115,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       // Use predicted/interpolated position so shadow tracks the sprite perfectly
       let playerForRendering = player;
       if (isLocalPlayer && currentPredictedPosition) {
-        playerForRendering = {
-          ...player,
-          positionX: currentPredictedPosition.x,
-          positionY: currentPredictedPosition.y,
-          direction: localFacingDirection || player.direction,
-        };
+        const scratch = swimmingPlayerScratchRef.current;
+        Object.assign(scratch, player);
+        scratch.positionX = currentPredictedPosition.x;
+        scratch.positionY = currentPredictedPosition.y;
+        scratch.direction = localFacingDirection || player.direction;
+        playerForRendering = scratch as SpacetimeDBPlayer;
       } else if (!isLocalPlayer && remotePlayerInterpolation) {
         // FIX: Use interpolated position for remote players so shadow doesn't lag behind sprite
         const interpolatedPosition = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
-        playerForRendering = {
-          ...player,
-          positionX: interpolatedPosition.x,
-          positionY: interpolatedPosition.y,
-        };
+        const scratch = swimmingPlayerScratchRef.current;
+        Object.assign(scratch, player);
+        scratch.positionX = interpolatedPosition.x;
+        scratch.positionY = interpolatedPosition.y;
+        playerForRendering = scratch as SpacetimeDBPlayer;
       }
 
       // Determine which sprite image to use for shadow shape
@@ -3274,15 +3289,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // --- STEP 1.7: Render underwater shadows for REMOTE snorkeling players ---
     // Remote snorkeling players are excluded from swimmingPlayersForBottomHalf but still need underwater shadows
-    Array.from(players.values())
-      .filter(player => {
-        // Only remote snorkeling players (not local, and is snorkeling)
-        if (player.identity.toHexString() === localPlayerId) return false;
-        if (!player.isSnorkeling) return false;
-        if (player.isDead || player.isKnockedOut) return false;
-        return true;
-      })
-      .forEach(player => {
+    players.forEach((player) => {
+      // Only remote snorkeling players (not local, and is snorkeling)
+      if (player.identity.toHexString() === localPlayerId) return;
+      if (!player.isSnorkeling) return;
+      if (player.isDead || player.isKnockedOut) return;
         // FIX: Add fallback to walking sprite if water sprite not loaded
         const heroImg = heroWaterImageRef.current || heroImageRef.current;
 
@@ -3293,11 +3304,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           let playerForRendering = player;
           if (remotePlayerInterpolation) {
             const interpolatedPosition = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
-            playerForRendering = {
-              ...player,
-              positionX: interpolatedPosition.x,
-              positionY: interpolatedPosition.y,
-            };
+            const scratch = swimmingPlayerScratchRef.current;
+            Object.assign(scratch, player);
+            scratch.positionX = interpolatedPosition.x;
+            scratch.positionY = interpolatedPosition.y;
+            playerForRendering = scratch as SpacetimeDBPlayer;
           }
 
           const drawWidth = gameConfig.spriteWidth * 2;
@@ -3582,7 +3593,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     for (const item of currentYSortedEntities) {
       if (item.type === 'swimmingPlayerTopHalf') {
         flushBatch(currentBatch);
-        currentBatch = [];
+        currentBatch.length = 0;
         const scratch = swimmingPlayerScratchRef.current;
         const topHalfScratch = swimmingPlayerTopHalfScratchRef.current;
         let playerForRendering: SpacetimeDBPlayer = item.entity;
@@ -3608,6 +3619,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     }
     flushBatch(currentBatch);
+    currentBatch.length = 0;
     // --- END Y-SORTED ENTITIES AND SWIMMING PLAYER TOP HALVES ---
     const _t3 = mark(showFpsProfiler);
 

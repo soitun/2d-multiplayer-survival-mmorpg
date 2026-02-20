@@ -123,6 +123,8 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     
     // REMOVED: Post-processing adjacency validation (was causing terrain artifacts)
     // The autotile system handles transitions properly, no need for strict adjacency rules
+    // Enforce tide pool inlets after base terrain pass so water is guaranteed to exist in each pool.
+    carve_tide_pool_inlets_post_pass(ctx, &noise, &world_features.tide_pool_centers);
     
     // Store shipwreck positions in database table for client access (one-time read, then static)
     // Following compound buildings pattern: client-side rendering, server-side collision only
@@ -571,6 +573,60 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     
     log::info!("World generation complete!");
     Ok(())
+}
+
+fn carve_tide_pool_inlets_post_pass(
+    ctx: &ReducerContext,
+    noise: &Perlin,
+    tide_pool_centers: &[(f32, f32)],
+) {
+    if tide_pool_centers.is_empty() {
+        return;
+    }
+
+    let inlet_radius_sq = TIDE_POOL_INLET_RADIUS_PX * TIDE_POOL_INLET_RADIUS_PX;
+    let mut updates: Vec<WorldTile> = Vec::new();
+
+    for tile in ctx.db.world_tile().iter() {
+        // Never overwrite hot spring water in this post-pass.
+        if tile.tile_type == TileType::HotSpringWater {
+            continue;
+        }
+
+        let tile_center_x = (tile.world_x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+        let tile_center_y = (tile.world_y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
+
+        let in_tide_pool_inlet = tide_pool_centers.iter().any(|(pool_x, pool_y)| {
+            let dx = tile_center_x - *pool_x;
+            let dy = tile_center_y - *pool_y;
+            dx * dx + dy * dy <= inlet_radius_sq
+        });
+
+        if !in_tide_pool_inlet || tile.tile_type == TileType::Sea {
+            continue;
+        }
+
+        let mut updated_tile = tile.clone();
+        updated_tile.tile_type = TileType::Sea;
+        updated_tile.variant = generate_tile_variant(
+            noise,
+            updated_tile.world_x,
+            updated_tile.world_y,
+            &TileType::Sea,
+        );
+        updates.push(updated_tile);
+    }
+
+    let updated_count = updates.len();
+    for updated_tile in updates {
+        ctx.db.world_tile().id().update(updated_tile);
+    }
+
+    log::info!(
+        "🦀 Tide pool inlet post-pass carved {} water tiles across {} pools",
+        updated_count,
+        tide_pool_centers.len()
+    );
 }
 
 // Structure to hold pre-generated world features

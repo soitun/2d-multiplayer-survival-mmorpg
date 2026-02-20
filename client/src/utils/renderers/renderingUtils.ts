@@ -546,8 +546,11 @@ export const renderYSortedEntities = ({
   walrusBreedingData, // ADDED: Walrus breeding data (sex, age, pregnancy)
   chunkWeather, // ADDED: Chunk weather for grass sway (Clear=minimal, storm=dramatic)
 }: RenderYSortedEntitiesProps) => {
-  // PERFORMANCE: Clean up memory caches periodically
-  cleanupCaches();
+  // PERFORMANCE: Avoid calling cleanup function unless interval elapsed
+  const nowForCleanup = performance.now();
+  if (nowForCleanup - lastCleanupTime >= CLEANUP_INTERVAL) {
+    cleanupCaches();
+  }
   
   // Precompute mapping from foundation cell coordinates to building cluster IDs and enclosure status
   const cellCoordToClusterId = new Map<string, string>();
@@ -564,19 +567,65 @@ export const renderYSortedEntities = ({
       });
   }
   
-  // Precompute ALL entrance way foundations from fog_overlay entities
-  // Walls on entrance way foundations should always be visible (no ceiling hiding them)
+  // Precompute entities used in later passes to avoid repeatedly scanning ySortedEntities
   const allEntranceWayFoundations = new Set<string>();
-  ySortedEntities.forEach(({ type, entity }) => {
-      if (type === 'fog_overlay') {
-          const fogEntity = entity as { entranceWayFoundations?: string[] };
-          if (fogEntity.entranceWayFoundations) {
-              fogEntity.entranceWayFoundations.forEach(coord => {
-                  allEntranceWayFoundations.add(coord);
-              });
-          }
+  const lanternEntities: any[] = [];
+  const wallEntities: SpacetimeDBWallCell[] = [];
+  const fogOverlayEntities: Array<{
+    clusterId: string;
+    bounds: { minX: number; minY: number; maxX: number; maxY: number };
+    entranceWayFoundations?: string[];
+    clusterFoundationCoords?: string[];
+    northWallFoundations?: string[];
+    southWallFoundations?: string[];
+    entranceWayFoundationSet?: Set<string>;
+    clusterFoundationCoordSet?: Set<string>;
+    northWallFoundationSet?: Set<string>;
+    southWallFoundationSet?: Set<string>;
+  }> = [];
+  const doorEntities: SpacetimeDBDoor[] = [];
+  for (const { type, entity } of ySortedEntities) {
+    if (type === 'lantern') {
+      lanternEntities.push(entity);
+      continue;
+    }
+    if (type === 'wall_cell') {
+      wallEntities.push(entity as SpacetimeDBWallCell);
+      continue;
+    }
+    if (type === 'fog_overlay') {
+      const fogEntity = entity as {
+        clusterId: string;
+        bounds: { minX: number; minY: number; maxX: number; maxY: number };
+        entranceWayFoundations?: string[];
+        clusterFoundationCoords?: string[];
+        northWallFoundations?: string[];
+        southWallFoundations?: string[];
+        entranceWayFoundationSet?: Set<string>;
+        clusterFoundationCoordSet?: Set<string>;
+        northWallFoundationSet?: Set<string>;
+        southWallFoundationSet?: Set<string>;
+      };
+      const entranceWayFoundationSet = fogEntity.entranceWayFoundations ? new Set(fogEntity.entranceWayFoundations) : undefined;
+      const clusterFoundationCoordSet = fogEntity.clusterFoundationCoords ? new Set(fogEntity.clusterFoundationCoords) : undefined;
+      const northWallFoundationSet = fogEntity.northWallFoundations ? new Set(fogEntity.northWallFoundations) : undefined;
+      const southWallFoundationSet = fogEntity.southWallFoundations ? new Set(fogEntity.southWallFoundations) : undefined;
+      fogOverlayEntities.push(fogEntity);
+      if (entranceWayFoundationSet) {
+        for (const coord of entranceWayFoundationSet) {
+          allEntranceWayFoundations.add(coord);
+        }
       }
-  });
+      fogEntity.entranceWayFoundationSet = entranceWayFoundationSet;
+      fogEntity.clusterFoundationCoordSet = clusterFoundationCoordSet;
+      fogEntity.northWallFoundationSet = northWallFoundationSet;
+      fogEntity.southWallFoundationSet = southWallFoundationSet;
+      continue;
+    }
+    if (type === 'door') {
+      doorEntities.push(entity as SpacetimeDBDoor);
+    }
+  }
   
   // Build fence position map for smart sprite selection (neighbor detection)
   // This allows fences to show proper end caps, center pieces, and corners
@@ -619,18 +668,12 @@ export const renderYSortedEntities = ({
   
   // Pre-Pass: Render ward deterrence radius circles BEHIND all entities
   // This shows players the safe zones created by wards (both active and inactive)
-  ySortedEntities.forEach(({ type, entity }) => {
-      if (type === 'turret') {
-          // Turrets don't have radius circles (unlike wards)
-          // They render normally in the main pass
-      } else if (type === 'lantern') {
-          const lantern = entity as any;
-          // Render radius for all wards (not regular lanterns) - both active and inactive states
-          if (lantern.lanternType !== LANTERN_TYPE_LANTERN && !lantern.isDestroyed) {
-              renderWardRadius(ctx, lantern, cycleProgress);
-          }
-      }
-  });
+  for (const lantern of lanternEntities) {
+    // Render radius for all wards (not regular lanterns) - both active and inactive states
+    if (lantern.lanternType !== LANTERN_TYPE_LANTERN && !lantern.isDestroyed) {
+      renderWardRadius(ctx, lantern, cycleProgress);
+    }
+  }
   
   // NOTE: Terrain footprints (snow/beach) are now rendered ONCE in GameCanvas.tsx before any
   // renderYSortedEntities calls. Previously they were here in Pre-Pass 2, but that
@@ -1837,13 +1880,10 @@ export const renderYSortedEntities = ({
 
   // PASS 2.5: Render north doors (edge 0) BEFORE ceiling tiles
   // North doors need to be covered by ceiling tiles to hide the interior
-  ySortedEntities.forEach(({ type, entity }) => {
-      if (type === 'door') {
-          const door = entity as SpacetimeDBDoor;
-          
+  for (const door of doorEntities) {
           // Only render north doors (edge 0) in this pass - they render before ceiling tiles
           if (door.edge !== 0) {
-              return;
+              continue;
           }
           
           // Get door sprite images based on type and edge (North)
@@ -1872,17 +1912,14 @@ export const renderYSortedEntities = ({
               metalDoorImage,
               isHighlighted,
           });
-      }
-  });
+  }
 
   // PASS 3: REMOVED - East/west/diagonal walls are now rendered in Pass 1 for correct Y-sorting
   // This ensures all non-south walls are rendered in their proper Y-sorted position relative to players/placeables
   // See Pass 1 above for the new wall_cell handling logic
 
   // PASS 4: Render exterior wall shadows BEFORE ceiling tiles so the tiles occlude them
-  ySortedEntities.forEach(({ type, entity }) => {
-      if (type === 'wall_cell') {
-          const wall = entity as SpacetimeDBWallCell;
+  for (const wall of wallEntities) {
           // Skip triangle foundations - their exterior shadows are rendered in the first pass
           const isTriangleFoundation = wall.foundationShape >= 2 && wall.foundationShape <= 5;
           // Skip north walls (edge === 0) - their exterior shadows are rendered in the first pass
@@ -1897,15 +1934,11 @@ export const renderYSortedEntities = ({
                   viewOffsetY: -cameraOffsetY,
               });
           }
-      }
-  });
+  }
 
   // PASS 5: Render ceiling tiles (AFTER east/west walls & exterior shadows, but BEFORE south walls)
   // CRITICAL: Ceiling tiles must render between east/west walls and south walls
-  ySortedEntities.forEach(({ type, entity }) => {
-      if (type === 'fog_overlay') {
-          const fogEntity = entity as { clusterId: string; bounds: { minX: number; minY: number; maxX: number; maxY: number }; entranceWayFoundations?: string[]; clusterFoundationCoords?: string[]; northWallFoundations?: string[]; southWallFoundations?: string[] };
-
+  for (const fogEntity of fogOverlayEntities) {
           // Save context and ensure ceiling tiles render with full opacity on top
           ctx.save();
           ctx.globalAlpha = 1.0; // Ensure full opacity
@@ -1920,16 +1953,15 @@ export const renderYSortedEntities = ({
               viewOffsetX: -cameraOffsetX,
               viewOffsetY: -cameraOffsetY,
               foundationTileImagesRef: foundationTileImagesRef,
-              entranceWayFoundations: fogEntity.entranceWayFoundations ? new Set(fogEntity.entranceWayFoundations) : undefined,
-              clusterFoundationCoords: fogEntity.clusterFoundationCoords ? new Set(fogEntity.clusterFoundationCoords) : undefined,
-              northWallFoundations: fogEntity.northWallFoundations ? new Set(fogEntity.northWallFoundations) : undefined,
-              southWallFoundations: fogEntity.southWallFoundations ? new Set(fogEntity.southWallFoundations) : undefined,
+              entranceWayFoundations: fogEntity.entranceWayFoundationSet,
+              clusterFoundationCoords: fogEntity.clusterFoundationCoordSet,
+              northWallFoundations: fogEntity.northWallFoundationSet,
+              southWallFoundations: fogEntity.southWallFoundationSet,
           });
           
           // Restore context
           ctx.restore();
-      }
-  });
+  }
 
   // NOTE: Pass 6 (south walls) was removed - south walls now render in Pass 1 with proper Y-sorting
   // This fixes the bug where south walls would always render on top of players/trees regardless of Y-position
@@ -1937,13 +1969,10 @@ export const renderYSortedEntities = ({
   // PASS 6: Render south doors (edge 2) AFTER ceiling tiles (so they appear ON TOP)
   // South doors need to render above ceiling tiles to be visible
   // NOTE: North doors (edge 0) were already rendered in PASS 2.5 before ceiling tiles
-  ySortedEntities.forEach(({ type, entity }) => {
-      if (type === 'door') {
-          const door = entity as SpacetimeDBDoor;
-          
+  for (const door of doorEntities) {
           // Only render south doors (edge 2) in this pass - north doors were rendered in PASS 2.5
           if (door.edge !== 2) {
-              return;
+              continue;
           }
           
           // Get door sprite images based on type (South)
@@ -1973,8 +2002,7 @@ export const renderYSortedEntities = ({
               isHighlighted,
               localPlayerPosition,
           });
-      }
-  });
+  }
 
   // PASS 7: Render large quarry building restriction zones when Blueprint equipped or placing a placeable item
   // Large quarries are monuments that should show restriction zones similar to ALK stations and rune stones

@@ -116,7 +116,7 @@ import { useEntrainmentSovaSounds } from '../hooks/useEntrainmentSovaSounds';
 // Import other necessary imports
 import { useInteractionManager } from '../hooks/useInteractionManager';
 import { useWorldChunkDataMap, createIsWaterTile } from '../hooks/useWorldChunkDataMap';
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { memo, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSovaTutorials } from '../hooks/useSovaTutorials';
 import { useQuestNotifications } from '../hooks/useQuestNotifications';
 import { useMusicSystem } from '../hooks/useMusicSystem';
@@ -125,6 +125,9 @@ import { useMusicSystem } from '../hooks/useMusicSystem';
 import { useDebug } from '../contexts/DebugContext';
 import { useErrorDisplay } from '../contexts/ErrorDisplayContext';
 import { isAnySovaAudioPlaying } from '../hooks/useSovaSoundBox';
+
+const MemoGameCanvas = memo(GameCanvas);
+const MemoPlayerUI = memo(PlayerUI);
 
 // Define props required by GameScreen and its children
 interface GameScreenProps {
@@ -1118,7 +1121,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 </div>
             )}
 
-            <GameCanvas
+            <MemoGameCanvas
                 worldChunkDataMap={worldChunkDataMap}
                 players={players}
                 trees={trees}
@@ -1266,7 +1269,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             />
 
             {/* PlayerUI - Always render for status bars, but inventory only when opened on mobile */}
-            <PlayerUI
+            <MemoPlayerUI
                 identity={playerIdentity}
                 players={players}
                 inventoryItems={inventoryItems}

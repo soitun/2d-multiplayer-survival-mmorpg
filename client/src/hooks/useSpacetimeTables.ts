@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useContext, useCallback } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import * as SpacetimeDB from '../generated';
 import {
     DbConnection,
@@ -851,6 +852,14 @@ export const useSpacetimeTables = ({
             // console.log("[useSpacetimeTables] ENTERING main useEffect for callbacks and initial subscriptions.");
 
             // --- Define Callbacks --- (Keep definitions here - Ensure all match the provided example if needed)
+            const upsertMapState = <T,>(setter: Dispatch<SetStateAction<Map<string, T>>>, key: string, value: T) => {
+                setter(prev => {
+                    if (prev.get(key) === value) return prev;
+                    const next = new Map(prev);
+                    next.set(key, value);
+                    return next;
+                });
+            };
 
             // --- Player Subscriptions ---
             const handlePlayerInsert = (ctx: any, player: SpacetimeDB.Player) => {
@@ -1160,8 +1169,8 @@ export const useSpacetimeTables = ({
             const handleItemDefDelete = (ctx: any, itemDef: SpacetimeDB.ItemDefinition) => setItemDefinitions(prev => { const newMap = new Map(prev); newMap.delete(itemDef.id.toString()); return newMap; });
 
             // --- Inventory Subscriptions ---
-            const handleInventoryInsert = (ctx: any, invItem: SpacetimeDB.InventoryItem) => setInventoryItems(prev => new Map(prev).set(invItem.instanceId.toString(), invItem));
-            const handleInventoryUpdate = (ctx: any, oldItem: SpacetimeDB.InventoryItem, newItem: SpacetimeDB.InventoryItem) => setInventoryItems(prev => new Map(prev).set(newItem.instanceId.toString(), newItem));
+            const handleInventoryInsert = (ctx: any, invItem: SpacetimeDB.InventoryItem) => upsertMapState(setInventoryItems, invItem.instanceId.toString(), invItem);
+            const handleInventoryUpdate = (ctx: any, oldItem: SpacetimeDB.InventoryItem, newItem: SpacetimeDB.InventoryItem) => upsertMapState(setInventoryItems, newItem.instanceId.toString(), newItem);
             const handleInventoryDelete = (ctx: any, invItem: SpacetimeDB.InventoryItem) => setInventoryItems(prev => { const newMap = new Map(prev); newMap.delete(invItem.instanceId.toString()); return newMap; });
 
             // --- World State Subscriptions ---
@@ -1220,8 +1229,8 @@ export const useSpacetimeTables = ({
             const handlePlantedSeedDelete = (ctx: any, seed: SpacetimeDB.PlantedSeed) => setPlantedSeeds(prev => { const newMap = new Map(prev); newMap.delete(seed.id.toString()); return newMap; });
 
             // --- Dropped Item Subscriptions ---
-            const handleDroppedItemInsert = (ctx: any, item: SpacetimeDB.DroppedItem) => setDroppedItems(prev => new Map(prev).set(item.id.toString(), item));
-            const handleDroppedItemUpdate = (ctx: any, oldItem: SpacetimeDB.DroppedItem, newItem: SpacetimeDB.DroppedItem) => setDroppedItems(prev => new Map(prev).set(newItem.id.toString(), newItem));
+            const handleDroppedItemInsert = (ctx: any, item: SpacetimeDB.DroppedItem) => upsertMapState(setDroppedItems, item.id.toString(), item);
+            const handleDroppedItemUpdate = (ctx: any, oldItem: SpacetimeDB.DroppedItem, newItem: SpacetimeDB.DroppedItem) => upsertMapState(setDroppedItems, newItem.id.toString(), newItem);
             const handleDroppedItemDelete = (ctx: any, item: SpacetimeDB.DroppedItem) => setDroppedItems(prev => { const newMap = new Map(prev); newMap.delete(item.id.toString()); return newMap; });
 
             // --- Wooden Storage Box Subscriptions ---
@@ -1536,8 +1545,8 @@ export const useSpacetimeTables = ({
             // --- Grass Subscriptions (Split Tables) ---
             // Grass (static): position, appearance - rarely changes
             // GrassState (dynamic): health, respawn - updates on damage
-            const handleGrassInsert = (ctx: any, item: SpacetimeDB.Grass) => setGrass(prev => new Map(prev).set(item.id.toString(), item));
-            const handleGrassUpdate = (ctx: any, oldItem: SpacetimeDB.Grass, newItem: SpacetimeDB.Grass) => setGrass(prev => new Map(prev).set(newItem.id.toString(), newItem));
+            const handleGrassInsert = (ctx: any, item: SpacetimeDB.Grass) => upsertMapState(setGrass, item.id.toString(), item);
+            const handleGrassUpdate = (ctx: any, oldItem: SpacetimeDB.Grass, newItem: SpacetimeDB.Grass) => upsertMapState(setGrass, newItem.id.toString(), newItem);
             const handleGrassDelete = (ctx: any, item: SpacetimeDB.Grass) => setGrass(prev => { const newMap = new Map(prev); newMap.delete(item.id.toString()); return newMap; });
             
             // --- GrassState Subscriptions (Split Tables) ---

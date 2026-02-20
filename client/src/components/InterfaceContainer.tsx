@@ -379,13 +379,31 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
     updateMemoryGridData();
   }, [updateMemoryGridData]);
   
-  // Also update when SpacetimeDB data changes
+  // Update when SpacetimeDB data changes (event-driven instead of polling)
   useEffect(() => {
-    if (connection.connection && connection.isConnected) {
-      // Set up listeners for inventory and memory grid changes
-      const updateTimer = setInterval(updateMemoryGridData, 1000); // Update every second
-      return () => clearInterval(updateTimer);
-    }
+    if (!connection.connection || !connection.isConnected) return;
+
+    const conn = connection.connection;
+    const scheduleUpdate = () => {
+      // Run on next tick to batch bursts of table events
+      queueMicrotask(() => updateMemoryGridData());
+    };
+
+    conn.db.inventoryItem.onInsert(scheduleUpdate);
+    conn.db.inventoryItem.onUpdate(scheduleUpdate);
+    conn.db.inventoryItem.onDelete(scheduleUpdate);
+    conn.db.memoryGridProgress.onInsert(scheduleUpdate);
+    conn.db.memoryGridProgress.onUpdate(scheduleUpdate);
+    conn.db.memoryGridProgress.onDelete(scheduleUpdate);
+
+    return () => {
+      conn.db.inventoryItem.removeOnInsert(scheduleUpdate);
+      conn.db.inventoryItem.removeOnUpdate(scheduleUpdate);
+      conn.db.inventoryItem.removeOnDelete(scheduleUpdate);
+      conn.db.memoryGridProgress.removeOnInsert(scheduleUpdate);
+      conn.db.memoryGridProgress.removeOnUpdate(scheduleUpdate);
+      conn.db.memoryGridProgress.removeOnDelete(scheduleUpdate);
+    };
   }, [connection.connection, connection.isConnected, updateMemoryGridData]);
 
   // Handle view changes with loading state for minimap

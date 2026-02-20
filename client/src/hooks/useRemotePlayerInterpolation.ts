@@ -19,9 +19,12 @@ interface RemotePlayerState {
   lastUpdateTime: number;
 }
 
+const STALE_PLAYER_STATE_MS = 30_000;
+const CLEANUP_INTERVAL_MS = 5_000;
+
 export const useRemotePlayerInterpolation = () => {
   const remotePlayerStates = useRef<Map<string, RemotePlayerState>>(new Map());
-  const lastFrameTime = useRef<number>(performance.now());
+  const lastCleanupTime = useRef<number>(performance.now());
 
   const updateAndGetSmoothedPosition = useCallback((player: Player, localPlayerId?: string): { x: number; y: number } => {
     const playerId = player.identity.toHexString();
@@ -32,8 +35,6 @@ export const useRemotePlayerInterpolation = () => {
     }
 
     const currentTime = performance.now();
-    const deltaTime = Math.min((currentTime - lastFrameTime.current) / 1000, 0.1); // Cap at 100ms to prevent huge jumps after tab-away
-    lastFrameTime.current = currentTime;
 
     const serverPosition = { x: player.positionX, y: player.positionY };
     let state = remotePlayerStates.current.get(playerId);
@@ -49,6 +50,18 @@ export const useRemotePlayerInterpolation = () => {
       remotePlayerStates.current.set(playerId, state);
       return serverPosition;
     }
+
+    // Cleanup stale remote players in small periodic sweeps.
+    if (currentTime - lastCleanupTime.current >= CLEANUP_INTERVAL_MS) {
+      for (const [id, playerState] of remotePlayerStates.current) {
+        if (currentTime - playerState.lastUpdateTime > STALE_PLAYER_STATE_MS) {
+          remotePlayerStates.current.delete(id);
+        }
+      }
+      lastCleanupTime.current = currentTime;
+    }
+
+    const deltaTime = Math.min((currentTime - state.lastUpdateTime) / 1000, 0.1); // Cap at 100ms to prevent huge jumps after tab-away
 
     // Check if server position changed (new update received)
     const dx = serverPosition.x - state.lastServerPosition.x;
@@ -89,6 +102,7 @@ export const useRemotePlayerInterpolation = () => {
 
     // Return sub-pixel positions for smooth rendering
     // Canvas handles sub-pixel rendering natively - rounding causes visible stutter
+    state.lastUpdateTime = currentTime;
     return {
       x: state.currentDisplayPosition.x,
       y: state.currentDisplayPosition.y

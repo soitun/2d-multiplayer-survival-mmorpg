@@ -55,10 +55,13 @@ const WATER_LINE_CONFIG = {
   FOAM_COLOR_MID: { r: 200, g: 230, b: 250 },
   FOAM_COLOR_DIM: { r: 160, g: 200, b: 235 },
 };
+// Small overlap so top+bottom passes cannot leave a transparent seam at waterline.
+const SEA_STACK_WATERLINE_OVERLAP_PX = 1.25;
 
 // Offscreen canvas for sea stack water line compositing (reused)
 let waterLineOffscreen: OffscreenCanvas | HTMLCanvasElement | null = null;
 let waterLineOffCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
+const seaStackWaveScratch: number[] = [];
 
 function getWaterLineOffscreen(w: number, h: number): { canvas: OffscreenCanvas | HTMLCanvasElement; ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } | null {
   if (!waterLineOffscreen || waterLineOffscreen.width < w || waterLineOffscreen.height < h) {
@@ -200,6 +203,11 @@ function renderSeaStack(
 
     const waveSegments = 24;
     const segW = width / waveSegments;
+    seaStackWaveScratch.length = waveSegments + 1;
+    for (let j = 0; j <= waveSegments; j++) {
+      const lx = -halfW + j * segW;
+      seaStackWaveScratch[j] = waterLineY + getWaveOffset(lx);
+    }
 
     // --- Create tinted "wet rock" on offscreen ---
     const offPad = 4;
@@ -243,7 +251,7 @@ function renderSeaStack(
         if (i === 0) {
           for (let j = 0; j <= waveSegments; j++) {
             const lx = -halfW + j * segW;
-            const wy = waterLineY + getWaveOffset(lx);
+            const wy = seaStackWaveScratch[j];
             if (j === 0) ctx.moveTo(lx, wy);
             else ctx.lineTo(lx, wy);
           }
@@ -269,7 +277,7 @@ function renderSeaStack(
         for (let i = 0; i <= waveSegments; i++) {
           const lx = -halfW + i * segW;
           const ox = lx + halfW + offPad;
-          const oy = (waterLineY + getWaveOffset(lx)) + height + offPad;
+          const oy = seaStackWaveScratch[i] + height + offPad;
           if (i === 0) oCtx.moveTo(ox, oy);
           else oCtx.lineTo(ox, oy);
         }
@@ -331,16 +339,21 @@ function renderSeaStack(
 
     const waveSegments = 24;
     const segW = width / waveSegments;
+    seaStackWaveScratch.length = waveSegments + 1;
+    for (let i = 0; i <= waveSegments; i++) {
+      const lx = -halfW + i * segW;
+      seaStackWaveScratch[i] = waterLineY + getWaveOffset(lx);
+    }
 
     // Clip to above-water region with wavy bottom edge, then draw normal rock
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(-halfW - 2, -height - 2);
     ctx.lineTo(halfW + 2, -height - 2);
-    ctx.lineTo(halfW + 2, waterLineY);
+    ctx.lineTo(halfW + 2, waterLineY + SEA_STACK_WATERLINE_OVERLAP_PX);
     for (let i = waveSegments; i >= 0; i--) {
       const lx = -halfW + i * segW;
-      ctx.lineTo(lx, waterLineY + getWaveOffset(lx));
+      ctx.lineTo(lx, seaStackWaveScratch[i] + SEA_STACK_WATERLINE_OVERLAP_PX);
     }
     ctx.closePath();
     ctx.clip();
@@ -539,6 +552,15 @@ export function renderSeaStackBottomOnly(
 // Offscreen canvas for sea stack shadow compositing (reused to avoid allocation)
 let seaStackShadowCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
 let seaStackShadowCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
+type SeaStackShadowEntry = {
+  seaStack: any;
+  stackImage: HTMLImageElement;
+  x: number;
+  y: number;
+  scale: number;
+  opacity: number;
+};
+const seaStackShadowEntriesScratch: SeaStackShadowEntry[] = [];
 
 function getSeaStackShadowCanvas(width: number, height: number): { canvas: OffscreenCanvas | HTMLCanvasElement, ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } | null {
   if (!seaStackShadowCanvas || seaStackShadowCanvas.width !== width || seaStackShadowCanvas.height !== height) {
@@ -595,16 +617,31 @@ export function renderSeaStackShadowsOverlay(
   const canvasWidth = ctx.canvas.width;
   const canvasHeight = ctx.canvas.height;
 
-  // Y-sort sea stacks: back (lower Y) first, front (higher Y) last.
-  // This ensures overlapping shadows render correctly - front stack's shadow on top.
-  const ySortedStacks = [...seaStacks].sort((a, b) => (a.posY ?? 0) - (b.posY ?? 0));
+  // Build + sort once to avoid repeated variant lookups and allocations.
+  seaStackShadowEntriesScratch.length = 0;
+  for (let i = 0; i < seaStacks.length; i++) {
+    const seaStack = seaStacks[i];
+    const imageIndex = getSeaStackImageIndex(seaStack);
+    const stackImage = preloadedImages[imageIndex];
+    if (!stackImage || !stackImage.complete) continue;
+    seaStackShadowEntriesScratch.push({
+      seaStack,
+      stackImage,
+      x: seaStack.posX,
+      y: seaStack.posY,
+      scale: seaStack.scale || 1.0,
+      opacity: seaStack.opacity || 1.0,
+    });
+  }
+  seaStackShadowEntriesScratch.sort((a, b) => a.y - b.y);
+  if (seaStackShadowEntriesScratch.length === 0) return;
 
   const offscreen = getSeaStackShadowCanvas(canvasWidth, canvasHeight);
   if (!offscreen) {
     // Fallback: render shadows directly (will show on sea stacks, but better than nothing)
-    ySortedStacks.forEach(seaStack => {
-      renderSeaStackShadowOnly(ctx, seaStack, doodadImages, cycleProgress);
-    });
+    for (let i = 0; i < seaStackShadowEntriesScratch.length; i++) {
+      renderSeaStackShadowOnly(ctx, seaStackShadowEntriesScratch[i].seaStack, doodadImages, cycleProgress);
+    }
     return;
   }
 
@@ -621,47 +658,41 @@ export function renderSeaStackShadowsOverlay(
   offCtx.setTransform(ctx.getTransform());
 
   // Step 1: Draw all sea stack shadows onto offscreen canvas (Y-sorted: back to front)
-  ySortedStacks.forEach(seaStack => {
-    const imageIndex = getSeaStackImageIndex(seaStack);
-    const stackImage = preloadedImages[imageIndex];
-    if (!stackImage || !stackImage.complete) return;
-
+  for (let i = 0; i < seaStackShadowEntriesScratch.length; i++) {
+    const entry = seaStackShadowEntriesScratch[i];
     const clientStack: SeaStack = {
-      x: seaStack.posX,
-      y: seaStack.posY,
-      scale: seaStack.scale || 1.0,
+      x: entry.x,
+      y: entry.y,
+      scale: entry.scale,
       rotation: 0.0,
-      opacity: seaStack.opacity || 1.0,
-      imageIndex
+      opacity: entry.opacity,
+      imageIndex: 0
     };
 
     // Draw shadow only (onlyDrawShadow=true, skipDrawingShadow=false)
-    renderSeaStack(offCtx as CanvasRenderingContext2D, clientStack, stackImage, cycleProgress, true, false, undefined, 'full');
-  });
+    renderSeaStack(offCtx as CanvasRenderingContext2D, clientStack, entry.stackImage, cycleProgress, true, false, undefined, 'full');
+  }
 
   // Step 2: Cut out sea stack body regions using destination-out
   // This erases shadow pixels wherever the sea stack rock image has opaque pixels,
   // preventing the shadow from appearing on top of the rock itself.
   offCtx.globalCompositeOperation = 'destination-out';
 
-  ySortedStacks.forEach(seaStack => {
-    const imageIndex = getSeaStackImageIndex(seaStack);
-    const stackImage = preloadedImages[imageIndex];
-    if (!stackImage || !stackImage.complete) return;
-
-    const scale = seaStack.scale || 1.0;
+  for (let i = 0; i < seaStackShadowEntriesScratch.length; i++) {
+    const entry = seaStackShadowEntriesScratch[i];
+    const scale = entry.scale;
     const width = SEA_STACK_CONFIG.BASE_WIDTH * scale;
-    const height = (stackImage.naturalHeight / stackImage.naturalWidth) * width;
+    const height = (entry.stackImage.naturalHeight / entry.stackImage.naturalWidth) * width;
 
     offCtx.save();
-    offCtx.translate(seaStack.posX, seaStack.posY);
+    offCtx.translate(entry.x, entry.y);
     offCtx.globalAlpha = 1.0; // Full erase where rock pixels exist
 
     // Draw the full sea stack image to cut out its silhouette from the shadow.
     // The image's alpha channel determines the cutout shape - fully opaque rock
     // pixels completely erase the shadow, transparent areas leave it intact.
     offCtx.drawImage(
-      stackImage,
+      entry.stackImage,
       -width / 2,
       -height,
       width,
@@ -669,7 +700,7 @@ export function renderSeaStackShadowsOverlay(
     );
 
     offCtx.restore();
-  });
+  }
 
   offCtx.globalCompositeOperation = 'source-over';
   offCtx.restore();

@@ -648,8 +648,10 @@ function getPlayerPosition(
   }
 
   // Fallback: use the first available player (e.g., in spectator mode)
-  const firstPlayer = Array.from(players.values())[0];
-  return firstPlayer ? { x: firstPlayer.positionX, y: firstPlayer.positionY } : null;
+  for (const firstPlayer of players.values()) {
+    return { x: firstPlayer.positionX, y: firstPlayer.positionY };
+  }
+  return null;
 }
 
 // Optimized distance-based filtering
@@ -708,12 +710,12 @@ function getCachedFilteredEntities<T extends { posX: number; posY: number }>(
     return cache.entities;
   }
   
-  // Need to update cache
-  let entityArray = Array.from(entities.values());
-  
-  // Apply additional filter if provided
-  if (additionalFilter) {
-    entityArray = entityArray.filter(additionalFilter);
+  // Need to update cache (direct iteration avoids temporary Array.from allocation)
+  const entityArray: T[] = [];
+  for (const entity of entities.values()) {
+    if (!additionalFilter || additionalFilter(entity)) {
+      entityArray.push(entity);
+    }
   }
   
   // Apply distance-based filtering
@@ -1095,16 +1097,18 @@ export function useEntityFiltering(
 
   const visibleLanterns = useMemo(() => {
     if (!lanterns) return [];
-    
-    const allLanterns = Array.from(lanterns.values());
-    
+    const visibleFiltered: SpacetimeDBLantern[] = [];
+
     // Filter lanterns, but for wards we need expanded bounds to include radius circles
-    const visibleFiltered = allLanterns.filter(e => {
-      if (e.isDestroyed) return false;
+    for (const e of lanterns.values()) {
+      if (e.isDestroyed) continue;
       
       // Regular lanterns use standard viewport filtering
       if (e.lanternType === LANTERN_TYPE_LANTERN || !e.isBurning) {
-        return isEntityInView(e, viewBounds, stableTimestamp);
+        if (isEntityInView(e, viewBounds, stableTimestamp)) {
+          visibleFiltered.push(e);
+        }
+        continue;
       }
       
       // For active wards, check if their radius circle would be visible
@@ -1122,22 +1126,26 @@ export function useEntityFiltering(
         viewMaxY: viewBounds.viewMaxY + wardRadius,
       };
       
-      return isEntityInView(e, expandedBounds, stableTimestamp);
-    });
-    
+      if (isEntityInView(e, expandedBounds, stableTimestamp)) {
+        visibleFiltered.push(e);
+      }
+    }
+
     return visibleFiltered;
   }, [lanterns, isEntityInView, viewBounds, stableTimestamp]);
 
   const visibleTurrets = useMemo(() => {
     if (!turrets) return [];
-    
-    const allTurrets = Array.from(turrets.values());
-    
+    const result: SpacetimeDBTurret[] = [];
+
     // Filter turrets - same pattern as lanterns
-    return allTurrets.filter(e => {
-      if (e.isDestroyed) return false;
-      return isEntityInView(e, viewBounds, stableTimestamp);
-    });
+    for (const e of turrets.values()) {
+      if (e.isDestroyed) continue;
+      if (isEntityInView(e, viewBounds, stableTimestamp)) {
+        result.push(e);
+      }
+    }
+    return result;
   }, [turrets, isEntityInView, viewBounds, stableTimestamp]);
 
   const visibleHomesteadHearths = useMemo(() => 
@@ -1175,11 +1183,10 @@ export function useEntityFiltering(
   );
 
   const visibleProjectiles = useMemo(() => {
-    const projectilesArray = Array.from(projectiles.values());
-    
     // For projectiles, use minimal filtering to ensure they're always visible in production
     // Skip complex timing calculations that could cause issues with network latency
-    const filtered = projectilesArray.filter(projectile => {
+    const filtered: SpacetimeDBProjectile[] = [];
+    for (const projectile of projectiles.values()) {
       // Simple bounds check using start position (no timing calculations)
       const startX = projectile.startPosX;
       const startY = projectile.startPosY;
@@ -1187,14 +1194,16 @@ export function useEntityFiltering(
       // Very generous bounds check - if the projectile started anywhere near the viewport,
       // let it through (it will be properly positioned in the render function)
       const margin = 1000; // Large margin to account for projectile travel
-      return (
+      if (
         startX > viewBounds.viewMinX - margin &&
         startX < viewBounds.viewMaxX + margin &&
         startY > viewBounds.viewMinY - margin &&
         startY < viewBounds.viewMaxY + margin
-      );
-    });
-    
+      ) {
+        filtered.push(projectile);
+      }
+    }
+
     return filtered;
   }, [projectiles, viewBounds]);
 
@@ -1276,11 +1285,12 @@ export function useEntityFiltering(
 
   const visiblePlantedSeeds = useMemo(() => {
     if (!plantedSeeds) return [];
-    
-    // Convert to array and filter
-    const seedsArray = Array.from(plantedSeeds.values());
-    const filtered = seedsArray.filter(e => isEntityInView(e, viewBounds, stableTimestamp));
-    
+    const filtered: SpacetimeDBPlantedSeed[] = [];
+    for (const e of plantedSeeds.values()) {
+      if (isEntityInView(e, viewBounds, stableTimestamp)) {
+        filtered.push(e);
+      }
+    }
     return filtered;
   }, [plantedSeeds, plantedSeeds?.size, isEntityInView, viewBounds, stableTimestamp]);
 
@@ -1351,17 +1361,21 @@ export function useEntityFiltering(
   // ALK delivery stations filtering - use worldPosX/worldPosY instead of posX/posY
   const visibleAlkStations = useMemo(() => {
     if (!alkStations) return [];
-    return Array.from(alkStations.values()).filter(station => {
-      if (!station.isActive) return false;
+    const result: SpacetimeDBAlkStation[] = [];
+    for (const station of alkStations.values()) {
+      if (!station.isActive) continue;
       // ALK stations use worldPosX/worldPosY - manually check viewport bounds
       const x = station.worldPosX;
       const y = station.worldPosY;
       const buffer = 1200; // Very large buffer for tall industrial landmarks (960px tall, 768px wide at 6x scale)
-      return x >= viewBounds.viewMinX - buffer &&
-             x <= viewBounds.viewMaxX + buffer &&
-             y >= viewBounds.viewMinY - buffer &&
-             y <= viewBounds.viewMaxY + buffer;
-    });
+      if (x >= viewBounds.viewMinX - buffer &&
+          x <= viewBounds.viewMaxX + buffer &&
+          y >= viewBounds.viewMinY - buffer &&
+          y <= viewBounds.viewMaxY + buffer) {
+        result.push(station);
+      }
+    }
+    return result;
   }, [alkStations, viewBounds]);
 
   // Static ALK compound buildings (barracks, garage, shed, etc.) - 87.5% Y-sort threshold
@@ -1393,18 +1407,22 @@ export function useEntityFiltering(
 
   // Monument doodads (shipwreck, fishing village, hunting village, etc.) - 50/50 Y-sort (sprite center)
   const visibleMonumentDoodads = useMemo(() => {
-    const allMonumentParts = monumentParts ? Array.from(monumentParts.values())
-      .map((part: any) => ({
-        id: part.id,
-        worldX: part.worldX,
-        worldY: part.worldY,
-        imagePath: part.imagePath,
-        partType: part.partType || '',
-        isCenter: part.isCenter,
-        collisionRadius: part.collisionRadius,
-        monumentType: part.monumentType?.tag || 'Unknown',
-        rotationRad: part.rotationRad ?? 0,
-      })) : [];
+    const allMonumentParts: any[] = [];
+    if (monumentParts) {
+      for (const part of monumentParts.values()) {
+        allMonumentParts.push({
+          id: part.id,
+          worldX: part.worldX,
+          worldY: part.worldY,
+          imagePath: part.imagePath,
+          partType: part.partType || '',
+          isCenter: part.isCenter,
+          collisionRadius: part.collisionRadius,
+          monumentType: part.monumentType?.tag || 'Unknown',
+          rotationRad: part.rotationRad ?? 0,
+        });
+      }
+    }
     const monumentBuildings = getMonumentBuildings(allMonumentParts);
     return monumentBuildings.map(building => {
       const worldPos = getBuildingWorldPosition(building);
@@ -1456,17 +1474,21 @@ export function useEntityFiltering(
     if (!foundationCells || typeof foundationCells.values !== 'function') return [];
     
     // Foundation cells use cell coordinates - need custom viewport check
-    return Array.from(foundationCells.values()).filter(foundation => {
-      if (foundation.isDestroyed) return false;
+    const result: SpacetimeDBFoundationCell[] = [];
+    for (const foundation of foundationCells.values()) {
+      if (foundation.isDestroyed) continue;
       
       // Convert foundation cell coordinates to world pixel coordinates (center of foundation cell)
       const worldX = (foundation.cellX * 96) + 48; // FOUNDATION_TILE_SIZE = 96
       const worldY = (foundation.cellY * 96) + 48;
       
       // Check if foundation is in viewport
-      return worldX >= viewBounds.viewMinX && worldX <= viewBounds.viewMaxX &&
-             worldY >= viewBounds.viewMinY && worldY <= viewBounds.viewMaxY;
-    });
+      if (worldX >= viewBounds.viewMinX && worldX <= viewBounds.viewMaxX &&
+          worldY >= viewBounds.viewMinY && worldY <= viewBounds.viewMaxY) {
+        result.push(foundation);
+      }
+    }
+    return result;
   }, [foundationCells, foundationCells?.size, viewBounds, stableTimestamp]);
 
   // Extract wall map size BEFORE useMemo to ensure React detects changes
@@ -1483,8 +1505,9 @@ export function useEntityFiltering(
     const padding = 50; // Extra padding to catch walls on edges
     const northSouthWallHeight = FOUNDATION_TILE_SIZE * 2; // North/south walls are 2 foundation cells tall
     
-    return Array.from(wallCells.values()).filter(wall => {
-      if (wall.isDestroyed) return false;
+    const result: SpacetimeDBWallCell[] = [];
+    for (const wall of wallCells.values()) {
+      if (wall.isDestroyed) continue;
       
       // Convert foundation cell coordinates to world pixel coordinates (center of foundation cell)
       const worldX = (wall.cellX * FOUNDATION_TILE_SIZE) + 48;
@@ -1502,21 +1525,30 @@ export function useEntityFiltering(
           // North wall - extends upward from top edge
           const minY = foundationTopY - northSouthWallHeight; // Top of wall extends upward
           const maxY = foundationTopY; // Bottom of wall is at foundation top
-          return worldX >= viewBounds.viewMinX - padding && worldX <= viewBounds.viewMaxX + padding &&
-                 maxY >= viewBounds.viewMinY - padding && minY <= viewBounds.viewMaxY + padding;
+          if (worldX >= viewBounds.viewMinX - padding && worldX <= viewBounds.viewMaxX + padding &&
+              maxY >= viewBounds.viewMinY - padding && minY <= viewBounds.viewMaxY + padding) {
+            result.push(wall);
+          }
+          continue;
         } else {
           // South wall - extends upward from bottom edge
           const minY = foundationBottomY - northSouthWallHeight; // Top of wall (extends upward from bottom)
           const maxY = foundationBottomY; // Bottom of wall is at foundation bottom
-          return worldX >= viewBounds.viewMinX - padding && worldX <= viewBounds.viewMaxX + padding &&
-                 maxY >= viewBounds.viewMinY - padding && minY <= viewBounds.viewMaxY + padding;
+          if (worldX >= viewBounds.viewMinX - padding && worldX <= viewBounds.viewMaxX + padding &&
+              maxY >= viewBounds.viewMinY - padding && minY <= viewBounds.viewMaxY + padding) {
+            result.push(wall);
+          }
+          continue;
         }
       } else {
         // East/west walls - standard padding
-      return worldX >= viewBounds.viewMinX - padding && worldX <= viewBounds.viewMaxX + padding &&
-             worldY >= viewBounds.viewMinY - padding && worldY <= viewBounds.viewMaxY + padding;
+        if (worldX >= viewBounds.viewMinX - padding && worldX <= viewBounds.viewMaxX + padding &&
+            worldY >= viewBounds.viewMinY - padding && worldY <= viewBounds.viewMaxY + padding) {
+          result.push(wall);
+        }
       }
-    });
+    }
+    return result;
   }, [wallCells, wallMapSize, viewBounds, stableTimestamp]);
 
   // Extract door map size BEFORE useMemo to ensure React detects changes
@@ -1528,14 +1560,18 @@ export function useEntityFiltering(
     
     const padding = 50; // Extra padding to catch doors on edges
     
-    return Array.from(doors.values()).filter(door => {
+    const result: SpacetimeDBDoor[] = [];
+    for (const door of doors.values()) {
       // Doors use world position directly (posX, posY)
       const worldX = door.posX;
       const worldY = door.posY;
       
-      return worldX >= viewBounds.viewMinX - padding && worldX <= viewBounds.viewMaxX + padding &&
-             worldY >= viewBounds.viewMinY - padding && worldY <= viewBounds.viewMaxY + padding;
-    });
+      if (worldX >= viewBounds.viewMinX - padding && worldX <= viewBounds.viewMaxX + padding &&
+          worldY >= viewBounds.viewMinY - padding && worldY <= viewBounds.viewMaxY + padding) {
+        result.push(door);
+      }
+    }
+    return result;
   }, [doors, doorMapSize, viewBounds, stableTimestamp]);
 
   // Extract foundation map size BEFORE building clusters computation to ensure React detects changes

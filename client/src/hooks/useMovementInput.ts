@@ -142,6 +142,15 @@ export const useMovementInput = ({
                              keysPressed.current.has('ArrowUp') || keysPressed.current.has('ArrowDown') ||
                              keysPressed.current.has('ArrowLeft') || keysPressed.current.has('ArrowRight');
 
+      // Fast idle path: nothing pressed and no auto-walk, skip all work if already idle.
+      if (!hasMovementKeys && !isAutoWalking) {
+        const last = lastComputedStateRef.current;
+        if (last.direction.x === 0 && last.direction.y === 0 && !last.sprinting) {
+          inputMonitor.logSkippedInput('Idle fast path');
+          return;
+        }
+      }
+
       if (hasMovementKeys) {
         // Manual input - calculate from keys
         if (keysPressed.current.has('KeyW') || keysPressed.current.has('ArrowUp')) y -= 1;

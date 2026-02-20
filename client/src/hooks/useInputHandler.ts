@@ -2469,6 +2469,19 @@ export const useInputHandler = ({
             return;
         }
 
+        // Fast idle path: skip heavy action checks when there is no active input/action state.
+        const hasJumpAnimation = currentLocalPlayer.jumpStartTimeMs > 0;
+        const hasActiveInteraction =
+            isActivelyHolding ||
+            isEHeldDownRef.current ||
+            eKeyHoldTimerRef.current !== null ||
+            interactionProgress !== null;
+        const hasCombatOrUseAction = isMouseDownRef.current || isAutoAttacking;
+        if (!hasJumpAnimation && !hasActiveInteraction && !hasCombatOrUseAction) {
+            if (currentJumpOffsetYRef.current !== 0) currentJumpOffsetYRef.current = 0;
+            return;
+        }
+
         // --- Jump Offset Calculation (moved here for per-frame update) ---
         // Note: Visual animation only, no cooldown logic (server handles that)
         if (currentLocalPlayer && currentLocalPlayer.jumpStartTimeMs > 0) {
@@ -2577,7 +2590,7 @@ export const useInputHandler = ({
         localPlayerId, localPlayer, activeEquipments, worldMousePos, connection,
         closestInteractableTarget, onSetInteractingWith,
         isChatting, isSearchingCraftRecipes, setIsMinimapOpen, isInventoryOpen,
-        isAutoAttacking, isFishing, movementDirection
+        isAutoAttacking, isFishing, movementDirection, isActivelyHolding, interactionProgress
     ]);
 
     // Helper function to check if an item is throwable
