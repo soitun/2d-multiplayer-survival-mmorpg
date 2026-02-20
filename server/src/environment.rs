@@ -5177,6 +5177,14 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
         }
     );
 
+    // Capture active static-entity counts so we can invalidate the static collision grid only when needed.
+    let active_stone_count_before = ctx.db.stone().iter()
+        .filter(|s| s.health > 0 && s.respawn_at == Timestamp::UNIX_EPOCH)
+        .count();
+    let active_tree_count_before = ctx.db.tree().iter()
+        .filter(|t| t.health > 0 && t.respawn_at == Timestamp::UNIX_EPOCH)
+        .count();
+
     // Get current season BEFORE respawn checks (used for trees and harvestable resources)
     let current_season = crate::world_state::get_current_season(ctx)
         .unwrap_or_else(|e| {
@@ -5207,6 +5215,17 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
             // Position doesn't change during respawn, so chunk_index stays the same
         }
     );
+
+    let active_stone_count_after = ctx.db.stone().iter()
+        .filter(|s| s.health > 0 && s.respawn_at == Timestamp::UNIX_EPOCH)
+        .count();
+    let active_tree_count_after = ctx.db.tree().iter()
+        .filter(|t| t.health > 0 && t.respawn_at == Timestamp::UNIX_EPOCH)
+        .count();
+
+    if active_stone_count_before != active_stone_count_after || active_tree_count_before != active_tree_count_after {
+        crate::spatial_grid::invalidate_static_grid();
+    }
 
     // Respawn Harvestable Resources (Unified System) with Seasonal Filtering and Foundation Check
     // Custom implementation to add foundation checking (resources shouldn't respawn on foundations)

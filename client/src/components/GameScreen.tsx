@@ -62,9 +62,6 @@ import {
     Recipe as SpacetimeDBRecipe,
     CraftingQueueItem as SpacetimeDBCraftingQueueItem,
     DbConnection,
-    Message as SpacetimeDBMessage,
-    PlayerPin,
-    ActiveConnection,
     SleepingBag as SpacetimeDBSleepingBag,
     PlayerCorpse as SpacetimeDBPlayerCorpse,
     Stash as SpacetimeDBStash,
@@ -121,6 +118,7 @@ import { useWorldChunkDataMap, createIsWaterTile } from '../hooks/useWorldChunkD
 import { useSovaTutorials } from '../hooks/useSovaTutorials';
 import { useQuestNotifications } from '../hooks/useQuestNotifications';
 import { useMusicSystem } from '../hooks/useMusicSystem';
+import { useUISubscriptions } from '../hooks/useUISubscriptions';
 
 // Import debug context
 import { useDebug } from '../contexts/DebugContext';
@@ -150,7 +148,6 @@ interface GameScreenProps {
     droppedItems: Map<string, SpacetimeDBDroppedItem>;
     woodenStorageBoxes: Map<string, SpacetimeDBWoodenStorageBox>;
     sleepingBags: Map<string, SpacetimeDBSleepingBag>;
-    playerPins: Map<string, PlayerPin>;
     playerCorpses: Map<string, SpacetimeDBPlayerCorpse>;
     stashes: Map<string, SpacetimeDBStash>;
     shelters: Map<string, SpacetimeDBShelter>;
@@ -177,8 +174,6 @@ interface GameScreenProps {
     activeEquipments: Map<string, SpacetimeDBActiveEquipment>;
     recipes: Map<string, SpacetimeDBRecipe>;
     craftingQueueItems: Map<string, SpacetimeDBCraftingQueueItem>;
-    messages: Map<string, SpacetimeDBMessage>;
-    activeConnections: Map<string, ActiveConnection> | undefined;
     activeConsumableEffects: Map<string, SpacetimeDBActiveConsumableEffect>;
     grass: Map<string, SpacetimeDBGrass>;
     grassState: Map<string, SpacetimeDB.GrassState>; // Split tables: dynamic state
@@ -314,28 +309,11 @@ interface GameScreenProps {
     // Plants discovered by current player (for encyclopedia filtering)
     discoveredPlants?: Map<string, any>;
 
-    // Quest system
-    tutorialQuestDefinitions?: Map<string, any>;
-    dailyQuestDefinitions?: Map<string, any>;
-    playerTutorialProgress?: Map<string, any>;
-    playerDailyQuests?: Map<string, any>;
-    questCompletionNotifications?: Map<string, any>;
-    questProgressNotifications?: Map<string, any>;
-    sovaQuestMessages?: Map<string, any>;
-
-    // Memory Beacon server events (airdrop-style)
-    beaconDropEvents?: Map<string, any>;
 
     // Player progression notifications (unified in UplinkNotifications)
     levelUpNotifications?: SpacetimeDB.LevelUpNotification[];
     achievementUnlockNotifications?: SpacetimeDB.AchievementUnlockNotification[];
     onOpenAchievements?: () => void;
-
-    // Matronage system
-    matronages?: Map<string, any>;
-    matronageMembers?: Map<string, any>;
-    matronageInvitations?: Map<string, any>;
-    matronageOwedShards?: Map<string, any>;
 
     // Mobile controls
     isMobile?: boolean;
@@ -430,7 +408,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     // Destructure props for cleaner usage
     const {
         players, trees, stones, runeStones, cairns, playerDiscoveredCairns, campfires, furnaces, barbecues, lanterns, turrets, harvestableResources, droppedItems, woodenStorageBoxes, sleepingBags,
-        playerPins, playerCorpses, stashes,
+        playerCorpses, stashes,
         shelters,
         plantedSeeds,
 
@@ -439,8 +417,6 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         hostileDeathEvents,
         animalCorpses,
         inventoryItems, itemDefinitions, worldState, activeEquipments, recipes, craftingQueueItems,
-        messages,
-        activeConnections,
         localPlayerId, playerIdentity, connection,
         predictedPosition, getCurrentPositionNow, canvasRef,
         placementInfo, placementActions, placementError, placementWarning, setPlacementWarning, startPlacement, cancelPlacement,
@@ -481,6 +457,24 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         chunkWeather,
         showSovaSoundBox,
     } = props;
+
+    const {
+        messages,
+        playerPins,
+        activeConnections,
+        matronages,
+        matronageMembers,
+        matronageInvitations,
+        matronageOwedShards,
+        tutorialQuestDefinitions,
+        dailyQuestDefinitions,
+        playerTutorialProgress,
+        playerDailyQuests,
+        questCompletionNotifications,
+        questProgressNotifications,
+        sovaQuestMessages,
+        beaconDropEvents,
+    } = useUISubscriptions(connection);
 
     const gameCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -657,9 +651,9 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         dismissQuestCompletionNotification,
         hasNewQuestNotification,
     } = useQuestNotifications({
-        sovaQuestMessages: props.sovaQuestMessages,
-        questCompletionNotifications: props.questCompletionNotifications,
-        questProgressNotifications: props.questProgressNotifications,
+        sovaQuestMessages,
+        questCompletionNotifications,
+        questProgressNotifications,
         playerIdentity: props.playerIdentity,
         showSovaSoundBoxRef,
         sovaMessageAdderRef,
@@ -1230,10 +1224,10 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 playerShardBalance={props.playerShardBalance}
                 memoryGridProgress={props.memoryGridProgress}
                 // Matronage system
-                matronages={props.matronages}
-                matronageMembers={props.matronageMembers}
-                matronageInvitations={props.matronageInvitations}
-                matronageOwedShards={props.matronageOwedShards}
+                matronages={matronages}
+                matronageMembers={matronageMembers}
+                matronageInvitations={matronageInvitations}
+                matronageOwedShards={matronageOwedShards}
                 leaderboardEntries={props.leaderboardEntries}
                 achievementDefinitions={props.achievementDefinitions}
                 playerAchievements={props.playerAchievements}
@@ -1241,7 +1235,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 discoveredPlants={props.discoveredPlants}
                 playerStats={props.playerStats}
                 rangedWeaponStats={rangedWeaponStats}
-                beaconDropEvents={props.beaconDropEvents}
+                beaconDropEvents={beaconDropEvents}
                 // Animal breeding system data
                 caribouBreedingData={props.caribouBreedingData}
                 walrusBreedingData={props.walrusBreedingData}
@@ -1354,10 +1348,10 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 localPlayer={localPlayer}
                 isMobile={props.isMobile}
                 onMinimizedChange={handleDayNightMinimizedChange}
-                tutorialQuestDefinitions={props.tutorialQuestDefinitions || new Map()}
-                dailyQuestDefinitions={props.dailyQuestDefinitions || new Map()}
-                playerTutorialProgress={props.playerTutorialProgress || new Map()}
-                playerDailyQuests={props.playerDailyQuests || new Map()}
+                tutorialQuestDefinitions={tutorialQuestDefinitions}
+                dailyQuestDefinitions={dailyQuestDefinitions}
+                playerTutorialProgress={playerTutorialProgress}
+                playerDailyQuests={playerDailyQuests}
                 localPlayerId={props.playerIdentity || undefined}
                 onOpenQuestsPanel={openQuestsPanel}
                 hasNewNotification={hasNewQuestNotification}
@@ -1366,10 +1360,10 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
             <QuestsPanel
                 isOpen={isQuestsPanelOpen}
                 onClose={closeQuestsPanel}
-                tutorialQuestDefinitions={props.tutorialQuestDefinitions || new Map()}
-                dailyQuestDefinitions={props.dailyQuestDefinitions || new Map()}
-                playerTutorialProgress={props.playerTutorialProgress || new Map()}
-                playerDailyQuests={props.playerDailyQuests || new Map()}
+                tutorialQuestDefinitions={tutorialQuestDefinitions}
+                dailyQuestDefinitions={dailyQuestDefinitions}
+                playerTutorialProgress={playerTutorialProgress}
+                playerDailyQuests={playerDailyQuests}
                 localPlayerId={props.playerIdentity || undefined}
                 isMobile={props.isMobile}
                 showSovaSoundBox={showSovaSoundBox}
@@ -1406,8 +1400,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 inventoryItems={inventoryItems}
                 isMobile={props.isMobile}
                 isMobileChatOpen={isMobileChatOpen}
-                matronageMembers={props.matronageMembers}
-                matronages={props.matronages}
+                matronageMembers={matronageMembers}
+                matronages={matronages}
                 onSayCommand={(message: string) => {
                     // Create a local-only speech bubble for /s command
                     if (localPlayerId) {
@@ -1548,8 +1542,8 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     }
                     itemDefinitions={itemDefinitions}
                     inventoryItems={inventoryItems}
-                    matronageMembers={props.matronageMembers}
-                    matronages={props.matronages}
+                    matronageMembers={matronageMembers}
+                    matronages={matronages}
                     onMatronageCreated={handleMatronageCreated}
                     onOpenAlkBoard={handleOpenAlkBoard}
                 />

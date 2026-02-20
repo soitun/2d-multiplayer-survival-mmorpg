@@ -184,9 +184,6 @@ function AppContent() {
       itemDefinitions, 
       inventoryItems, worldState, activeEquipments, droppedItems, 
       woodenStorageBoxes, recipes, craftingQueueItems, localPlayerRegistered,
-      messages,
-      playerPins, // Destructure playerPins
-      activeConnections, // <<< Destructure here
       sleepingBags, // ADD destructuring
       playerCorpses, // <<< ADD playerCorpses destructuring
       stashes, // <<< ADD stashes destructuring
@@ -236,11 +233,6 @@ function AppContent() {
       memoryGridProgress, // ADDED: Memory Grid unlocks
       monumentParts, // ADDED: Unified monument parts (all monument types, one-time read of static world gen data)
       largeQuarries, // ADDED: Large quarry locations with types for minimap labels
-      // Matronage system
-      matronages, // ADDED: Matronage pooled rewards organizations
-      matronageMembers, // ADDED: Matronage membership tracking
-      matronageInvitations, // ADDED: Pending matronage invitations
-      matronageOwedShards, // ADDED: Owed shard balances from matronage
       // Player progression system
       playerStats, // ADDED: Player XP, level, and stats
       achievementDefinitions, // ADDED: Achievement definitions
@@ -254,15 +246,6 @@ function AppContent() {
       dailyLoginRewards, // ADDED: Daily login reward definitions
       plantConfigDefinitions, // ADDED: Plant encyclopedia data
       discoveredPlants, // ADDED: Plants discovered by current player
-      // Quest system
-      tutorialQuestDefinitions,
-      dailyQuestDefinitions,
-      playerTutorialProgress,
-      playerDailyQuests,
-      questCompletionNotifications,
-      questProgressNotifications,
-      sovaQuestMessages,
-      beaconDropEvents, // ADDED: Memory Beacon server events
       // Animal breeding system data
       caribouBreedingData, // ADDED: Caribou breeding data (sex, age, pregnancy)
       walrusBreedingData, // ADDED: Walrus breeding data (sex, age, pregnancy)
@@ -1153,7 +1136,6 @@ function AppContent() {
                             itemDefinitions={itemDefinitions}
                             worldState={worldState}
                             activeEquipments={activeEquipments}
-                            activeConnections={activeConnections}
                             recipes={recipes}
                             craftingQueueItems={craftingQueueItems}
                             localPlayerId={localPlayerIdentityHex} // Pass the hex string here
@@ -1168,7 +1150,6 @@ function AppContent() {
                             cancelPlacement={cancelPlacement}
                             interactingWith={interactingWith}
                             handleSetInteractingWith={handleSetInteractingWith}
-                            playerPins={playerPins}
                             draggedItemInfo={draggedItemInfo}
                             onItemDragStart={handleItemDragStart}
                             onItemDrop={handleItemDrop}
@@ -1181,7 +1162,6 @@ function AppContent() {
                             setInterfaceInitialView={setInterfaceInitialView}
                             isChatting={isChatting}
                             setIsChatting={setIsChatting}
-                            messages={messages}
                             activeConsumableEffects={activeConsumableEffects}
                             grass={grass}
                             grassState={grassState}
@@ -1222,15 +1202,6 @@ function AppContent() {
                             leaderboardEntries={leaderboardEntries} // ADDED: Leaderboard entries
                             plantConfigDefinitions={plantConfigDefinitions} // ADDED: Plant encyclopedia data
                             discoveredPlants={discoveredPlants} // ADDED: Plants discovered by current player
-                            // Quest system
-                            tutorialQuestDefinitions={tutorialQuestDefinitions}
-                            dailyQuestDefinitions={dailyQuestDefinitions}
-                            playerTutorialProgress={playerTutorialProgress}
-                            playerDailyQuests={playerDailyQuests}
-                            questCompletionNotifications={questCompletionNotifications}
-                            questProgressNotifications={questProgressNotifications}
-                            sovaQuestMessages={sovaQuestMessages}
-                            beaconDropEvents={beaconDropEvents} // ADDED: Memory Beacon server events
                             // Animal breeding system data
                             caribouBreedingData={caribouBreedingData} // ADDED: Caribou breeding data for rendering
                             walrusBreedingData={walrusBreedingData} // ADDED: Walrus breeding data for rendering
@@ -1238,11 +1209,6 @@ function AppContent() {
                             walrusRutState={walrusRutState} // ADDED: Global walrus rut state for tooltip
                             monumentParts={monumentParts} // ADDED: Unified monument parts (all monument types)
                             largeQuarries={largeQuarries} // ADDED: Large quarry locations with types for minimap labels
-                            // Matronage system
-                            matronages={matronages}
-                            matronageMembers={matronageMembers}
-                            matronageInvitations={matronageInvitations}
-                            matronageOwedShards={matronageOwedShards}
                             // Mobile controls
                             isMobile={isMobile}
                             onMobileTap={handleMobileTap}

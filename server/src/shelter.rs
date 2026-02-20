@@ -307,6 +307,7 @@ pub fn place_shelter(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
 
     match shelters.try_insert(new_shelter) {
         Ok(inserted_shelter) => {
+            crate::spatial_grid::invalidate_static_grid();
             log::info!(
                 "Player {} ({:?}) placed a new Shelter (ID: {}) at ({:.1}, {:.1}).",
                 player.username, sender_id, inserted_shelter.id, world_x, world_y
@@ -672,6 +673,7 @@ pub fn damage_shelter(
         shelters_table.id().update(shelter.clone());
         // Then delete the shelter entity
         shelters_table.id().delete(shelter_id);
+        crate::spatial_grid::invalidate_static_grid();
 
         log::info!(
             "Shelter {} destroyed by player {:?}. Consider dropping constituent materials.",
@@ -899,6 +901,7 @@ fn clear_resources_in_shelter_footprint(ctx: &ReducerContext, shelter_x: f32, sh
     
     for tree_id in trees_to_remove {
         ctx.db.tree().id().delete(tree_id);
+        crate::spatial_grid::invalidate_static_grid();
         resources_cleared += 1;
     }
     
@@ -917,6 +920,7 @@ fn clear_resources_in_shelter_footprint(ctx: &ReducerContext, shelter_x: f32, sh
     
     for stone_id in stones_to_remove {
         ctx.db.stone().id().delete(stone_id);
+        crate::spatial_grid::invalidate_static_grid();
         resources_cleared += 1;
     }
     

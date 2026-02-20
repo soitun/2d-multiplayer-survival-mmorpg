@@ -1908,6 +1908,7 @@ pub fn damage_tree(
         if tree.is_player_planted {
             log::info!("Tree {} destroyed by Player {:?}. Player-planted tree - deleting permanently (no respawn).", tree_id, attacker_id);
             ctx.db.tree().id().delete(tree_id);
+            crate::spatial_grid::invalidate_static_grid();
         } else {
             log::info!("Tree {} destroyed by Player {:?}. Scheduling respawn.", tree_id, attacker_id);
             
@@ -1922,6 +1923,7 @@ pub fn damage_tree(
             
             // Update tree in database so protection checks see it as destroyed
             ctx.db.tree().id().update(tree.clone());
+            crate::spatial_grid::invalidate_static_grid();
         }
         
         // Check for campfires that were protected by this tree and extinguish them if no longer protected
@@ -2159,6 +2161,7 @@ pub fn damage_stone(
         };
         let respawn_time = timestamp + TimeDuration::from_micros(respawn_duration_secs as i64 * 1_000_000);
         stone.respawn_at = respawn_time;
+        crate::spatial_grid::invalidate_static_grid();
     }
     
     ctx.db.stone().id().update(stone);

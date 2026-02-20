@@ -2311,7 +2311,7 @@ export const useSpacetimeTables = ({
             registerTableCallbacks(connection.db.woodenStorageBox, { onInsert: handleWoodenStorageBoxInsert, onUpdate: handleWoodenStorageBoxUpdate, onDelete: handleWoodenStorageBoxDelete });
             registerTableCallbacks(connection.db.recipe, { onInsert: handleRecipeInsert, onUpdate: handleRecipeUpdate, onDelete: handleRecipeDelete });
             registerTableCallbacks(connection.db.craftingQueueItem, { onInsert: handleCraftingQueueInsert, onUpdate: handleCraftingQueueUpdate, onDelete: handleCraftingQueueDelete });
-            registerTableCallbacks(connection.db.message, { onInsert: handleMessageInsert, onUpdate: handleMessageUpdate, onDelete: handleMessageDelete });
+            // UI/chat subscriptions are handled in useUISubscriptions (GameScreen scope).
             // Player progression system subscriptions
             registerTableCallbacks(connection.db.playerStats, { onInsert: handlePlayerStatsInsert, onUpdate: handlePlayerStatsUpdate, onDelete: handlePlayerStatsDelete });
             registerTableCallbacks(connection.db.achievementDefinition, { onInsert: handleAchievementDefinitionInsert, onUpdate: handleAchievementDefinitionUpdate, onDelete: handleAchievementDefinitionDelete });
@@ -2326,19 +2326,9 @@ export const useSpacetimeTables = ({
             // Plant config definitions for Encyclopedia (populated on server init)
             registerTableCallbacks(connection.db.plantConfigDefinition, { onInsert: handlePlantConfigDefinitionInsert, onUpdate: handlePlantConfigDefinitionUpdate, onDelete: handlePlantConfigDefinitionDelete });
             registerTableCallbacks(connection.db.playerDiscoveredPlant, { onInsert: handleDiscoveredPlantInsert, onDelete: handleDiscoveredPlantDelete });
-            // Quest system subscriptions
-            registerTableCallbacks(connection.db.tutorialQuestDefinition, { onInsert: handleTutorialQuestDefinitionInsert, onUpdate: handleTutorialQuestDefinitionUpdate, onDelete: handleTutorialQuestDefinitionDelete });
-            registerTableCallbacks(connection.db.dailyQuestDefinition, { onInsert: handleDailyQuestDefinitionInsert, onUpdate: handleDailyQuestDefinitionUpdate, onDelete: handleDailyQuestDefinitionDelete });
-            registerTableCallbacks(connection.db.playerTutorialProgress, { onInsert: handlePlayerTutorialProgressInsert, onUpdate: handlePlayerTutorialProgressUpdate, onDelete: handlePlayerTutorialProgressDelete });
-            registerTableCallbacks(connection.db.playerDailyQuest, { onInsert: handlePlayerDailyQuestInsert, onUpdate: handlePlayerDailyQuestUpdate, onDelete: handlePlayerDailyQuestDelete });
-            registerTableCallbacks(connection.db.questCompletionNotification, { onInsert: handleQuestCompletionNotificationInsert, onDelete: handleQuestCompletionNotificationDelete });
-            registerTableCallbacks(connection.db.questProgressNotification, { onInsert: handleQuestProgressNotificationInsert, onDelete: handleQuestProgressNotificationDelete });
-            registerTableCallbacks(connection.db.sovaQuestMessage, { onInsert: handleSovaQuestMessageInsert, onDelete: handleSovaQuestMessageDelete });
-            // Beacon drop event subscriptions (server events for minimap markers)
-            registerTableCallbacks(connection.db.beaconDropEvent, { onInsert: handleBeaconDropEventInsert, onUpdate: handleBeaconDropEventUpdate, onDelete: handleBeaconDropEventDelete });
+            // Quest/UI subscriptions are handled in useUISubscriptions (GameScreen scope).
             registerTableCallbacks(connection.db.droneEvent, { onInsert: handleDroneEventInsert, onDelete: handleDroneEventDelete });
-            registerTableCallbacks(connection.db.playerPin, { onInsert: handlePlayerPinInsert, onUpdate: handlePlayerPinUpdate, onDelete: handlePlayerPinDelete });
-            registerTableCallbacks(connection.db.activeConnection, { onInsert: handleActiveConnectionInsert, onDelete: handleActiveConnectionDelete });
+            // UI/chat subscriptions are handled in useUISubscriptions (GameScreen scope).
             registerTableCallbacks(connection.db.sleepingBag, { onInsert: handleSleepingBagInsert, onUpdate: handleSleepingBagUpdate, onDelete: handleSleepingBagDelete });
             registerTableCallbacks(connection.db.playerCorpse, { onInsert: handlePlayerCorpseInsert, onUpdate: handlePlayerCorpseUpdate, onDelete: handlePlayerCorpseDelete });
             registerTableCallbacks(connection.db.stash, { onInsert: handleStashInsert, onUpdate: handleStashUpdate, onDelete: handleStashDelete });
@@ -2468,17 +2458,7 @@ export const useSpacetimeTables = ({
             // Register Memory Grid Progress callbacks
             registerTableCallbacks(connection.db.memoryGridProgress, { onInsert: handleMemoryGridProgressInsert, onUpdate: handleMemoryGridProgressUpdate, onDelete: handleMemoryGridProgressDelete });
 
-            // Register Matronage callbacks
-            registerTableCallbacks(connection.db.matronage, { onInsert: handleMatronageInsert, onUpdate: handleMatronageUpdate, onDelete: handleMatronageDelete });
-
-            // Register Matronage Member callbacks
-            registerTableCallbacks(connection.db.matronageMember, { onInsert: handleMatronageMemberInsert, onUpdate: handleMatronageMemberUpdate, onDelete: handleMatronageMemberDelete });
-
-            // Register Matronage Invitation callbacks
-            registerTableCallbacks(connection.db.matronageInvitation, { onInsert: handleMatronageInvitationInsert, onUpdate: handleMatronageInvitationUpdate, onDelete: handleMatronageInvitationDelete });
-
-            // Register Matronage Owed Shards callbacks
-            registerTableCallbacks(connection.db.matronageOwedShards, { onInsert: handleMatronageOwedShardsInsert, onUpdate: handleMatronageOwedShardsUpdate, onDelete: handleMatronageOwedShardsDelete });
+            // UI/matronage subscriptions are handled in useUISubscriptions (GameScreen scope).
 
             isSubscribingRef.current = true;
 
@@ -2589,7 +2569,25 @@ export const useSpacetimeTables = ({
                 { query: 'SELECT * FROM beacon_drop_event', errorLabel: 'BEACON_DROP_EVENT' },
                 { query: 'SELECT * FROM drone_event', errorLabel: 'DRONE_EVENT' },
             ];
-            const currentInitialSubs = nonSpatialSubscriptionSpecs.map(subscribeNonSpatial);
+            const uiOnlyQueries = new Set([
+                'SELECT * FROM message',
+                'SELECT * FROM player_pin',
+                'SELECT * FROM active_connection',
+                'SELECT * FROM matronage',
+                'SELECT * FROM matronage_member',
+                'SELECT * FROM matronage_invitation',
+                'SELECT * FROM matronage_owed_shards',
+                'SELECT * FROM tutorial_quest_definition',
+                'SELECT * FROM daily_quest_definition',
+                'SELECT * FROM player_tutorial_progress',
+                'SELECT * FROM player_daily_quest',
+                'SELECT * FROM quest_completion_notification',
+                'SELECT * FROM quest_progress_notification',
+                'SELECT * FROM sova_quest_message',
+                'SELECT * FROM beacon_drop_event',
+            ]);
+            const filteredNonSpatialSpecs = nonSpatialSubscriptionSpecs.filter((spec) => !uiOnlyQueries.has(spec.query));
+            const currentInitialSubs = filteredNonSpatialSpecs.map(subscribeNonSpatial);
             nonSpatialHandlesRef.current = currentInitialSubs;
         }
 
