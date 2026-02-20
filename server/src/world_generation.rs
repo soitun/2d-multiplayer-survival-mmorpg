@@ -496,6 +496,12 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 log::warn!("Failed to spawn alpine village entities: {}", e);
             }
         }
+        // Spawn monument placeables (campfire turned off - players can light it)
+        let placeable_configs = crate::monument::get_alpine_village_placeables();
+        match crate::monument::spawn_monument_placeables(ctx, "Alpine Village", center_x, center_y, &placeable_configs) {
+            Ok(count) => log::info!("🏔️ Spawned {} monument placeables at Alpine Village", count),
+            Err(e) => log::warn!("Failed to spawn alpine village placeables: {}", e),
+        }
     }
     
     // Store wolf den positions in database table for client access
@@ -720,7 +726,7 @@ struct WorldFeatures {
     alpine_village_parts: Vec<(f32, f32, String, String)>, // Alpine village parts (single lodge)
     alpine_village_roads: Vec<Vec<bool>>, // Path leading to lodge
     alpine_village_center_dirt: Vec<Vec<bool>>, // Dirt center in front of lodge
-    alpine_village_grass_zone: Vec<Vec<bool>>, // Overrun with grass - TundraGrass tiles around lodge
+    alpine_village_grass_zone: Vec<Vec<bool>>, // Overrun with grass - Alpine tiles around lodge
     width: usize,
     height: usize,
 }
@@ -1150,7 +1156,7 @@ fn generate_village_roads(
             }
         }
 
-        // 2. Grass zone: ring around lodge (overrun with grass) - TundraGrass tiles for dense grass
+        // 2. Grass zone: ring around lodge (overrun with grass) - Alpine tiles (not tundra)
         let grass_inner = 6i32;
         let grass_outer = 12i32;
         for dy in -grass_outer..=grass_outer {
@@ -3680,9 +3686,9 @@ fn determine_realistic_tile_type(
     if features.alpine_village_roads[y][x] {
         return TileType::DirtRoad;
     }
-    // Alpine village grass zone: overrun with grass (TundraGrass for dense grass look)
+    // Alpine village grass zone: Alpine tiles (not tundra - keep alpine biome consistency)
     if features.alpine_village_grass_zone[y][x] {
-        return TileType::TundraGrass;
+        return TileType::Alpine;
     }
     
     // ALPINE BIOME: Rocky, sparse terrain in far north

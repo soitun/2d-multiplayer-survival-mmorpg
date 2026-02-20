@@ -27,8 +27,6 @@ const MINIMAP_GLOW_COLOR = '#00d4ff'; // Cyan glow effect
 // Tab and X button functionality now handled by React components
 const PLAYER_DOT_SIZE = 3;
 const LOCAL_PLAYER_DOT_COLOR = '#00FF88'; // Bright cyan-green for maximum visibility
-const LOCAL_PLAYER_PULSE_COLOR_1 = '#00FFFF'; // Cyan pulse ring
-const LOCAL_PLAYER_PULSE_COLOR_2 = '#00FF88'; // Green pulse ring
 const LOCAL_PLAYER_ICON_SIZE = 18; // Larger than other players
 // Player icon constants - Updated for directional triangular icons
 // PvP THREAT INDICATORS - Players are PRIMARY focus
@@ -1922,35 +1920,6 @@ export function drawMinimapOntoCanvas({
             
             ctx.save();
             
-            // === PULSING RING EFFECT ===
-            const time = Date.now();
-            
-            // Outer pulsing ring
-            const pulsePhase1 = (time % 2000) / 2000;
-            const pulseRadius1 = size + pulsePhase1 * 20;
-            const pulseAlpha1 = 1 - pulsePhase1;
-            
-            ctx.strokeStyle = torchColor;
-            ctx.lineWidth = 2 - pulsePhase1 * 1.5;
-            ctx.globalAlpha = pulseAlpha1 * 0.6;
-            ctx.beginPath();
-            ctx.arc(x, y, pulseRadius1, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            // Second pulsing ring (offset timing)
-            const pulsePhase2 = ((time + 1000) % 2000) / 2000;
-            const pulseRadius2 = size + pulsePhase2 * 20;
-            const pulseAlpha2 = 1 - pulsePhase2;
-            
-            ctx.lineWidth = 2 - pulsePhase2 * 1.5;
-            ctx.globalAlpha = pulseAlpha2 * 0.5;
-            ctx.beginPath();
-            ctx.arc(x, y, pulseRadius2, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            // Reset alpha for main icon
-            ctx.globalAlpha = 1.0;
-            
             // Add glow for players at night
             ctx.shadowColor = torchColor;
             ctx.shadowBlur = 12;
@@ -2032,35 +2001,6 @@ export function drawMinimapOntoCanvas({
           const playerColor = isSameMatronage ? MATRONAGE_MEMBER_COLOR : ENEMY_PLAYER_COLOR;
 
           ctx.save();
-
-          // === PULSING RING EFFECT ===
-          const time = Date.now();
-
-          // Outer pulsing ring (expands and fades)
-          const pulsePhase1 = (time % 2000) / 2000; // 2 second cycle
-          const pulseRadius1 = PLAYER_ICON_SIZE + pulsePhase1 * 20;
-          const pulseAlpha1 = 1 - pulsePhase1;
-
-          ctx.strokeStyle = playerColor;
-          ctx.lineWidth = 2 - pulsePhase1 * 1.5;
-          ctx.globalAlpha = pulseAlpha1 * 0.6;
-          ctx.beginPath();
-          ctx.arc(x, y, pulseRadius1, 0, Math.PI * 2);
-          ctx.stroke();
-
-          // Second pulsing ring (offset timing)
-          const pulsePhase2 = ((time + 1000) % 2000) / 2000;
-          const pulseRadius2 = PLAYER_ICON_SIZE + pulsePhase2 * 20;
-          const pulseAlpha2 = 1 - pulsePhase2;
-
-          ctx.lineWidth = 2 - pulsePhase2 * 1.5;
-          ctx.globalAlpha = pulseAlpha2 * 0.5;
-          ctx.beginPath();
-          ctx.arc(x, y, pulseRadius2, 0, Math.PI * 2);
-          ctx.stroke();
-
-          // Reset alpha for main icon
-          ctx.globalAlpha = 1.0;
 
           // Add glow to the player icon
           ctx.shadowColor = playerColor;
@@ -2224,36 +2164,6 @@ export function drawMinimapOntoCanvas({
       const y = screenCoords.y;
       
       ctx.save();
-      
-      // === PULSING RING EFFECT (Radar-style "YOU ARE HERE") ===
-      const time = Date.now();
-      
-      // Outer pulsing ring (expands and fades)
-      const pulsePhase1 = (time % 2000) / 2000; // 2 second cycle
-      const pulseRadius1 = LOCAL_PLAYER_ICON_SIZE + pulsePhase1 * 25; // Expands from icon to 25px out
-      const pulseAlpha1 = 1 - pulsePhase1; // Fades as it expands
-      
-      ctx.strokeStyle = LOCAL_PLAYER_PULSE_COLOR_1;
-      ctx.lineWidth = 3 - pulsePhase1 * 2; // Gets thinner as it expands
-      ctx.globalAlpha = pulseAlpha1 * 0.8;
-      ctx.beginPath();
-      ctx.arc(x, y, pulseRadius1, 0, Math.PI * 2);
-      ctx.stroke();
-      
-      // Second pulsing ring (offset timing for continuous effect)
-      const pulsePhase2 = ((time + 1000) % 2000) / 2000; // Offset by 1 second
-      const pulseRadius2 = LOCAL_PLAYER_ICON_SIZE + pulsePhase2 * 25;
-      const pulseAlpha2 = 1 - pulsePhase2;
-      
-      ctx.strokeStyle = LOCAL_PLAYER_PULSE_COLOR_2;
-      ctx.lineWidth = 3 - pulsePhase2 * 2;
-      ctx.globalAlpha = pulseAlpha2 * 0.6;
-      ctx.beginPath();
-      ctx.arc(x, y, pulseRadius2, 0, Math.PI * 2);
-      ctx.stroke();
-      
-      // Reset alpha for main icon
-      ctx.globalAlpha = 1.0;
       
       // === DIRECTIONAL ARROW ===
       // Convert player direction to rotation angle (radians)

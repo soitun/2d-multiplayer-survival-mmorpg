@@ -654,7 +654,7 @@ pub fn check_monument_zone_placement(ctx: &ReducerContext, world_x: f32, world_y
     const WEATHER_STATION_RESTRICTION_RADIUS_SQ: f32 = WEATHER_STATION_RESTRICTION_RADIUS * WEATHER_STATION_RESTRICTION_RADIUS;
     const WOLF_DEN_RESTRICTION_RADIUS: f32 = 800.0; // Wolf den mound monument (800px minimum)
     const WOLF_DEN_RESTRICTION_RADIUS_SQ: f32 = WOLF_DEN_RESTRICTION_RADIUS * WOLF_DEN_RESTRICTION_RADIUS;
-    const ALPINE_VILLAGE_RESTRICTION_RADIUS: f32 = 600.0; // Alpine village lodge (600px minimum)
+    const ALPINE_VILLAGE_RESTRICTION_RADIUS: f32 = 800.0; // Alpine village lodge (800px minimum, like other monuments)
     const ALPINE_VILLAGE_RESTRICTION_RADIUS_SQ: f32 = ALPINE_VILLAGE_RESTRICTION_RADIUS * ALPINE_VILLAGE_RESTRICTION_RADIUS;
     
     for part in ctx.db.monument_part().iter() {

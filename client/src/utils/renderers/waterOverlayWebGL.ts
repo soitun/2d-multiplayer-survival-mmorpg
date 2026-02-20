@@ -125,6 +125,7 @@ void main() {
     OB / 255.0
   );
   // Blend toward dark blue at Voronoi edges (crest high)
+  const vec3 EDGE_COLOR = vec3(0.85, 0.9, 1.0);
   vec3 rgb = mix(waterColor, EDGE_COLOR, crest * 0.9);
 
   fragColor = vec4(rgb, a);
@@ -192,7 +193,14 @@ export function initWaterOverlayWebGL(): WaterOverlayWebGLContext | null {
     premultipliedAlpha: false,
     preserveDrawingBuffer: true,
   }) as WebGL2RenderingContext | null;
-  if (!gl) return null;
+  if (!gl) {
+    const gl1 = canvas.getContext('webgl');
+    console.warn(
+      '[WaterOverlay] WebGL2 unavailable, skipping overlay.',
+      gl1 ? 'WebGL1 is available but WebGL2 is required.' : 'No WebGL context could be created.'
+    );
+    return null;
+  }
 
   canvas.addEventListener('webglcontextlost', (e) => {
     e.preventDefault();
@@ -201,7 +209,10 @@ export function initWaterOverlayWebGL(): WaterOverlayWebGLContext | null {
   }, false);
 
   const program = createProgram(gl);
-  if (!program) return null;
+  if (!program) {
+    console.warn('[WaterOverlay] Shader compile/link failed, skipping overlay. See above for details.');
+    return null;
+  }
 
   const buffer = gl.createBuffer()!;
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer);

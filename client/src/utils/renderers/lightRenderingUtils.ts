@@ -134,6 +134,72 @@ export const BARBECUE_FLICKER_AMOUNT = CAMPFIRE_FLICKER_AMOUNT; // Same flicker 
 export const BARBECUE_LIGHT_INNER_COLOR = CAMPFIRE_LIGHT_INNER_COLOR; // Same colors as campfire
 export const BARBECUE_LIGHT_OUTER_COLOR = CAMPFIRE_LIGHT_OUTER_COLOR; // Same colors as campfire
 
+/** Shared wood-fire light (campfire/barbecue) - 3-layer radial gradient pattern. */
+function renderWoodFireLight(
+    ctx: CanvasRenderingContext2D,
+    worldX: number,
+    worldY: number,
+    visualCenterY: number,
+    flickerAmount: number,
+    radiusBase: number,
+    cameraOffsetX: number,
+    cameraOffsetY: number,
+    buildingClusters?: Map<string, BuildingCluster>
+): void {
+    const restoreClip = applyIndoorClip(ctx, worldX, worldY, cameraOffsetX, cameraOffsetY, buildingClusters);
+
+    const lightScreenX = worldX + cameraOffsetX;
+    const lightScreenY = visualCenterY + cameraOffsetY;
+    const baseFlicker = (Math.random() - 0.5) * 2 * flickerAmount;
+
+    const asymmetryX = (Math.random() - 0.5) * baseFlicker * 0.6;
+    const asymmetryY = (Math.random() - 0.5) * baseFlicker * 0.4;
+    const rusticX = lightScreenX + asymmetryX;
+    const rusticY = lightScreenY + asymmetryY;
+
+    const SCALE = 1.5;
+
+    // Layer 1: Large ambient glow (wood-burning - deep oranges and reds)
+    const ambientRadius = Math.max(0, radiusBase * 3.9 * SCALE + baseFlicker * 0.3);
+    const ambientGradient = ctx.createRadialGradient(rusticX, rusticY, 0, rusticX, rusticY, ambientRadius);
+    ambientGradient.addColorStop(0, 'rgba(220, 70, 20, 0.04)');
+    ambientGradient.addColorStop(0.25, 'rgba(180, 55, 15, 0.025)');
+    ambientGradient.addColorStop(0.7, 'rgba(140, 35, 12, 0.012)');
+    ambientGradient.addColorStop(1, 'rgba(100, 20, 8, 0)');
+    ctx.fillStyle = ambientGradient;
+    ctx.beginPath();
+    ctx.arc(rusticX, rusticY, ambientRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Layer 2: Main illumination (authentic wood fire colors)
+    const mainRadius = Math.max(0, radiusBase * 2.6 * SCALE + baseFlicker * 1.0);
+    const mainGradient = ctx.createRadialGradient(rusticX, rusticY, 0, rusticX, rusticY, mainRadius);
+    mainGradient.addColorStop(0, 'rgba(230, 120, 50, 0.18)');
+    mainGradient.addColorStop(0.15, 'rgba(210, 90, 25, 0.15)');
+    mainGradient.addColorStop(0.4, 'rgba(190, 60, 18, 0.10)');
+    mainGradient.addColorStop(0.7, 'rgba(160, 45, 12, 0.05)');
+    mainGradient.addColorStop(0.9, 'rgba(120, 30, 8, 0.015)');
+    mainGradient.addColorStop(1, 'rgba(90, 20, 6, 0)');
+    ctx.fillStyle = mainGradient;
+    ctx.beginPath();
+    ctx.arc(rusticX, rusticY, mainRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Layer 3: Core bright light (intense flame center)
+    const coreRadius = Math.max(0, radiusBase * 0.65 * SCALE + baseFlicker * 1.5);
+    const coreGradient = ctx.createRadialGradient(rusticX, rusticY, 0, rusticX, rusticY, coreRadius);
+    coreGradient.addColorStop(0, 'rgba(240, 160, 90, 0.26)');
+    coreGradient.addColorStop(0.3, 'rgba(220, 110, 35, 0.18)');
+    coreGradient.addColorStop(0.7, 'rgba(190, 70, 22, 0.10)');
+    coreGradient.addColorStop(1, 'rgba(160, 50, 18, 0)');
+    ctx.fillStyle = coreGradient;
+    ctx.beginPath();
+    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (restoreClip) restoreClip();
+}
+
 interface RenderPlayerTorchLightProps {
     ctx: CanvasRenderingContext2D;
     player: SpacetimeDBPlayer;
@@ -170,52 +236,7 @@ export const renderPlayerTorchLight = ({
         if (itemDef && itemDef.name === "Torch") {
             const lightCenterX = renderPositionX ?? player.positionX;
             const lightCenterY = renderPositionY ?? player.positionY;
-            
-            // Apply indoor clipping if player is inside an enclosed building
-            const restoreClip = applyIndoorClip(ctx, lightCenterX, lightCenterY, cameraOffsetX, cameraOffsetY, buildingClusters);
-            
-            const lightScreenX = lightCenterX + cameraOffsetX;
-            const lightScreenY = lightCenterY + cameraOffsetY;
-            const baseFlicker = (Math.random() - 0.5) * 2 * TORCH_FLICKER_AMOUNT;
-
-            // Add subtle asymmetry for more rustic feel
-            const asymmetryX = (Math.random() - 0.5) * baseFlicker * 0.3;
-            const asymmetryY = (Math.random() - 0.5) * baseFlicker * 0.2;
-            const rustixLightX = lightScreenX + asymmetryX;
-            const rustixLightY = lightScreenY + asymmetryY;
-
-            // Layer 1: Large ambient glow (pitch/tar burning - golden yellow-orange) (Phase 3a: cached)
-            const ambientRadius = Math.max(0, TORCH_LIGHT_RADIUS_BASE * 2.8 + baseFlicker * 0.4);
-            const amb = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, ambientRadius,
-                [[0, 'rgba(240, 160, 80, 0.04)'], [0.3, 'rgba(220, 130, 60, 0.025)'], [1, 'rgba(200, 100, 40, 0)']],
-                4, 'torch_amb');
-            ctx.fillStyle = amb.gradient;
-            ctx.beginPath();
-            ctx.arc(amb.x, amb.y, amb.r, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Layer 2: Main illumination (pitch/tar characteristic glow) (Phase 3a: cached)
-            const mainRadius = Math.max(0, TORCH_LIGHT_RADIUS_BASE * 1.8 + baseFlicker * 0.8);
-            const main = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, mainRadius,
-                [[0, 'rgba(240, 200, 120, 0.16)'], [0.2, 'rgba(230, 170, 90, 0.13)'], [0.5, 'rgba(220, 140, 70, 0.08)'], [0.8, 'rgba(210, 120, 50, 0.04)'], [1, 'rgba(190, 100, 40, 0)']],
-                4, 'torch_main');
-            ctx.fillStyle = main.gradient;
-            ctx.beginPath();
-            ctx.arc(main.x, main.y, main.r, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Layer 3: Core bright light (pitch/tar flame center) (Phase 3a: cached)
-            const coreRadius = Math.max(0, TORCH_LIGHT_RADIUS_BASE * 0.5 + baseFlicker * 1.2);
-            const core = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, coreRadius,
-                [[0, 'rgba(245, 220, 160, 0.24)'], [0.4, 'rgba(235, 190, 110, 0.16)'], [1, 'rgba(220, 150, 80, 0)']],
-                4, 'torch_core');
-            ctx.fillStyle = core.gradient;
-            ctx.beginPath();
-            ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Restore context if we applied a clip
-            if (restoreClip) restoreClip();
+            renderPortableFireLight(ctx, lightCenterX, lightCenterY, TORCH_LIGHT_RADIUS_BASE, TORCH_FLICKER_AMOUNT, 'torch', cameraOffsetX, cameraOffsetY, buildingClusters);
         }
     }
 }; 
@@ -223,6 +244,59 @@ export const renderPlayerTorchLight = ({
 // --- Headlamp Light Constants (tallow-based fire light, twice as bright as torch with fire-like flicker) ---
 export const HEADLAMP_LIGHT_RADIUS_BASE = TORCH_LIGHT_RADIUS_BASE * 2.0; // Twice as bright as torch
 export const HEADLAMP_FLICKER_AMOUNT = TORCH_FLICKER_AMOUNT * 1.2; // More flicker for fire-like effect (tallow burning)
+
+/** Shared portable fire light (torch/headlamp) - 3-layer cached radial gradient. */
+function renderPortableFireLight(
+    ctx: CanvasRenderingContext2D,
+    lightCenterX: number,
+    lightCenterY: number,
+    radiusBase: number,
+    flickerAmount: number,
+    cacheKeyPrefix: string,
+    cameraOffsetX: number,
+    cameraOffsetY: number,
+    buildingClusters?: Map<string, BuildingCluster>
+): void {
+    const restoreClip = applyIndoorClip(ctx, lightCenterX, lightCenterY, cameraOffsetX, cameraOffsetY, buildingClusters);
+
+    const lightScreenX = lightCenterX + cameraOffsetX;
+    const lightScreenY = lightCenterY + cameraOffsetY;
+    const baseFlicker = (Math.random() - 0.5) * 2 * flickerAmount;
+
+    const asymmetryX = (Math.random() - 0.5) * baseFlicker * 0.3;
+    const asymmetryY = (Math.random() - 0.5) * baseFlicker * 0.2;
+    const rustixLightX = lightScreenX + asymmetryX;
+    const rustixLightY = lightScreenY + asymmetryY;
+
+    const ambientRadius = Math.max(0, radiusBase * 2.8 + baseFlicker * 0.4);
+    const amb = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, ambientRadius,
+        [[0, 'rgba(240, 160, 80, 0.04)'], [0.3, 'rgba(220, 130, 60, 0.025)'], [1, 'rgba(200, 100, 40, 0)']],
+        4, `${cacheKeyPrefix}_amb`);
+    ctx.fillStyle = amb.gradient;
+    ctx.beginPath();
+    ctx.arc(amb.x, amb.y, amb.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    const mainRadius = Math.max(0, radiusBase * 1.8 + baseFlicker * 0.8);
+    const main = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, mainRadius,
+        [[0, 'rgba(240, 200, 120, 0.16)'], [0.2, 'rgba(230, 170, 90, 0.13)'], [0.5, 'rgba(220, 140, 70, 0.08)'], [0.8, 'rgba(210, 120, 50, 0.04)'], [1, 'rgba(190, 100, 40, 0)']],
+        4, `${cacheKeyPrefix}_main`);
+    ctx.fillStyle = main.gradient;
+    ctx.beginPath();
+    ctx.arc(main.x, main.y, main.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    const coreRadius = Math.max(0, radiusBase * 0.5 + baseFlicker * 1.2);
+    const core = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, coreRadius,
+        [[0, 'rgba(245, 220, 160, 0.24)'], [0.4, 'rgba(235, 190, 110, 0.16)'], [1, 'rgba(220, 150, 80, 0)']],
+        4, `${cacheKeyPrefix}_core`);
+    ctx.fillStyle = core.gradient;
+    ctx.beginPath();
+    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (restoreClip) restoreClip();
+}
 
 interface RenderPlayerHeadlampLightProps {
     ctx: CanvasRenderingContext2D;
@@ -248,58 +322,10 @@ export const renderPlayerHeadlampLight = ({
     renderPositionY,
     buildingClusters,
 }: RenderPlayerHeadlampLightProps) => {
-    if (!player.isHeadlampLit || !player.identity) {
-        return; // Not lit or no identity, nothing to render
-    }
-
+    if (!player.isHeadlampLit || !player.identity) return;
     const lightCenterX = renderPositionX ?? player.positionX;
     const lightCenterY = renderPositionY ?? player.positionY;
-    
-    // Apply indoor clipping if player is inside an enclosed building
-    const restoreClip = applyIndoorClip(ctx, lightCenterX, lightCenterY, cameraOffsetX, cameraOffsetY, buildingClusters);
-    
-    const lightScreenX = lightCenterX + cameraOffsetX;
-    const lightScreenY = lightCenterY + cameraOffsetY;
-    const baseFlicker = (Math.random() - 0.5) * 2 * HEADLAMP_FLICKER_AMOUNT;
-
-    // Add subtle asymmetry for more rustic feel (same as torch)
-    const asymmetryX = (Math.random() - 0.5) * baseFlicker * 0.3;
-    const asymmetryY = (Math.random() - 0.5) * baseFlicker * 0.2;
-    const rustixLightX = lightScreenX + asymmetryX;
-    const rustixLightY = lightScreenY + asymmetryY;
-
-    // Layer 1: Large ambient glow (pitch/tar burning - golden yellow-orange) (Phase 3a: cached)
-    const ambientRadius = Math.max(0, HEADLAMP_LIGHT_RADIUS_BASE * 2.8 + baseFlicker * 0.4);
-    const amb = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, ambientRadius,
-        [[0, 'rgba(240, 160, 80, 0.04)'], [0.3, 'rgba(220, 130, 60, 0.025)'], [1, 'rgba(200, 100, 40, 0)']],
-        4, 'headlamp_amb');
-    ctx.fillStyle = amb.gradient;
-    ctx.beginPath();
-    ctx.arc(amb.x, amb.y, amb.r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Layer 2: Main illumination (pitch/tar characteristic glow) (Phase 3a: cached)
-    const mainRadius = Math.max(0, HEADLAMP_LIGHT_RADIUS_BASE * 1.8 + baseFlicker * 0.8);
-    const main = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, mainRadius,
-        [[0, 'rgba(240, 200, 120, 0.16)'], [0.2, 'rgba(230, 170, 90, 0.13)'], [0.5, 'rgba(220, 140, 70, 0.08)'], [0.8, 'rgba(210, 120, 50, 0.04)'], [1, 'rgba(190, 100, 40, 0)']],
-        4, 'headlamp_main');
-    ctx.fillStyle = main.gradient;
-    ctx.beginPath();
-    ctx.arc(main.x, main.y, main.r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Layer 3: Core bright light (pitch/tar flame center) (Phase 3a: cached)
-    const coreRadius = Math.max(0, HEADLAMP_LIGHT_RADIUS_BASE * 0.5 + baseFlicker * 1.2);
-    const core = getCachedRadialGradient(ctx, rustixLightX, rustixLightY, coreRadius,
-        [[0, 'rgba(245, 220, 160, 0.24)'], [0.4, 'rgba(235, 190, 110, 0.16)'], [1, 'rgba(220, 150, 80, 0)']],
-        4, 'headlamp_core');
-    ctx.fillStyle = core.gradient;
-    ctx.beginPath();
-    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Restore context if we applied a clip
-    if (restoreClip) restoreClip();
+    renderPortableFireLight(ctx, lightCenterX, lightCenterY, HEADLAMP_LIGHT_RADIUS_BASE, HEADLAMP_FLICKER_AMOUNT, 'headlamp', cameraOffsetX, cameraOffsetY, buildingClusters);
 };
 
 // --- Flashlight Light Constants (AAA pixel art style - narrow, long beam) ---
@@ -503,81 +529,9 @@ export const renderCampfireLight = ({
     cameraOffsetY,
     buildingClusters,
 }: RenderCampfireLightProps) => {
-    if (!campfire.isBurning) {
-        return; // Not burning, no light
-    }
-
-    // Apply indoor clipping if campfire is inside an enclosed building
-    const restoreClip = applyIndoorClip(ctx, campfire.posX, campfire.posY, cameraOffsetX, cameraOffsetY, buildingClusters);
-
-    const visualCenterX = campfire.posX;
+    if (!campfire.isBurning) return;
     const visualCenterY = campfire.posY - (CAMPFIRE_HEIGHT / 2) - CAMPFIRE_RENDER_Y_OFFSET;
-    
-    const lightScreenX = visualCenterX + cameraOffsetX;
-    const lightScreenY = visualCenterY + cameraOffsetY;
-    const baseFlicker = (Math.random() - 0.5) * 2 * CAMPFIRE_FLICKER_AMOUNT;
-
-    // Add more pronounced asymmetry for crackling campfire effect
-    const campfireAsymmetryX = (Math.random() - 0.5) * baseFlicker * 0.6;
-    const campfireAsymmetryY = (Math.random() - 0.5) * baseFlicker * 0.4;
-    const rusticCampfireX = lightScreenX + campfireAsymmetryX;
-    const rusticCampfireY = lightScreenY + campfireAsymmetryY;
-
-    // CAMPFIRE LIGHTING SYSTEM - Balanced scale for natural rustic feel
-    const CAMPFIRE_SCALE = 1.5; // Reduced from 2.0 to 1.5 for more natural lighting
-
-    // Layer 1: Large ambient glow (wood-burning campfire - deep oranges and reds)
-    const ambientRadius = Math.max(0, CAMPFIRE_LIGHT_RADIUS_BASE * 3.9 * CAMPFIRE_SCALE + baseFlicker * 0.3);
-    const ambientGradient = ctx.createRadialGradient(
-        rusticCampfireX, rusticCampfireY, 0,
-        rusticCampfireX, rusticCampfireY, ambientRadius
-    );
-    ambientGradient.addColorStop(0, 'rgba(220, 70, 20, 0.04)'); // Natural campfire orange-red
-    ambientGradient.addColorStop(0.25, 'rgba(180, 55, 15, 0.025)'); // Natural ember red
-    ambientGradient.addColorStop(0.7, 'rgba(140, 35, 12, 0.012)'); // Natural wood-burning red
-    ambientGradient.addColorStop(1, 'rgba(100, 20, 8, 0)'); // Natural ember fade
-    
-    ctx.fillStyle = ambientGradient;
-    ctx.beginPath();
-    ctx.arc(rusticCampfireX, rusticCampfireY, ambientRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Layer 2: Main illumination (authentic wood fire colors)
-    const mainRadius = Math.max(0, CAMPFIRE_LIGHT_RADIUS_BASE * 2.6 * CAMPFIRE_SCALE + baseFlicker * 1.0);
-    const mainGradient = ctx.createRadialGradient(
-        rusticCampfireX, rusticCampfireY, 0,
-        rusticCampfireX, rusticCampfireY, mainRadius
-    );
-    mainGradient.addColorStop(0, 'rgba(230, 120, 50, 0.18)'); // Natural campfire orange center
-    mainGradient.addColorStop(0.15, 'rgba(210, 90, 25, 0.15)'); // Natural rich orange
-    mainGradient.addColorStop(0.4, 'rgba(190, 60, 18, 0.10)'); // Natural orange-red
-    mainGradient.addColorStop(0.7, 'rgba(160, 45, 12, 0.05)'); // Natural ember red
-    mainGradient.addColorStop(0.9, 'rgba(120, 30, 8, 0.015)'); // Natural wood burning
-    mainGradient.addColorStop(1, 'rgba(90, 20, 6, 0)'); // Natural rustic fade
-    
-    ctx.fillStyle = mainGradient;
-    ctx.beginPath();
-    ctx.arc(rusticCampfireX, rusticCampfireY, mainRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Layer 3: Core bright light (intense campfire flame center) 
-    const coreRadius = Math.max(0, CAMPFIRE_LIGHT_RADIUS_BASE * 0.65 * CAMPFIRE_SCALE + baseFlicker * 1.5);
-    const coreGradient = ctx.createRadialGradient(
-        rusticCampfireX, rusticCampfireY, 0,
-        rusticCampfireX, rusticCampfireY, coreRadius
-    );
-    coreGradient.addColorStop(0, 'rgba(240, 160, 90, 0.26)'); // Natural campfire center
-    coreGradient.addColorStop(0.3, 'rgba(220, 110, 35, 0.18)'); // Natural rich orange
-    coreGradient.addColorStop(0.7, 'rgba(190, 70, 22, 0.10)'); // Natural orange-red glow
-    coreGradient.addColorStop(1, 'rgba(160, 50, 18, 0)'); // Natural rustic fade
-    
-    ctx.fillStyle = coreGradient;
-    ctx.beginPath();
-    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Restore context if we applied a clip
-    if (restoreClip) restoreClip();
+    renderWoodFireLight(ctx, campfire.posX, campfire.posY, visualCenterY, CAMPFIRE_FLICKER_AMOUNT, CAMPFIRE_LIGHT_RADIUS_BASE, cameraOffsetX, cameraOffsetY, buildingClusters);
 };
 
 // --- Barbecue Light Rendering ---
@@ -597,82 +551,9 @@ export const renderBarbecueLight = ({
     cameraOffsetY,
     buildingClusters,
 }: RenderBarbecueLightProps) => {
-    if (!barbecue.isBurning) {
-        return; // Not burning, no light
-    }
-
-    // Apply indoor clipping if barbecue is inside an enclosed building
-    const restoreClip = applyIndoorClip(ctx, barbecue.posX, barbecue.posY, cameraOffsetX, cameraOffsetY, buildingClusters);
-
+    if (!barbecue.isBurning) return;
     // Sprite is CENTERED on posY, so visual center = posY
-    const visualCenterX = barbecue.posX;
-    const visualCenterY = barbecue.posY;
-    
-    const lightScreenX = visualCenterX + cameraOffsetX;
-    const lightScreenY = visualCenterY + cameraOffsetY;
-    const baseFlicker = (Math.random() - 0.5) * 2 * BARBECUE_FLICKER_AMOUNT;
-
-    // Add more pronounced asymmetry for crackling barbecue effect (same as campfire)
-    const barbecueAsymmetryX = (Math.random() - 0.5) * baseFlicker * 0.6;
-    const barbecueAsymmetryY = (Math.random() - 0.5) * baseFlicker * 0.4;
-    const rusticBarbecueX = lightScreenX + barbecueAsymmetryX;
-    const rusticBarbecueY = lightScreenY + barbecueAsymmetryY;
-
-    // BARBECUE LIGHTING SYSTEM - Balanced scale for natural rustic feel (same as campfire)
-    const BARBECUE_SCALE = 1.5; // Same as campfire
-
-    // Layer 1: Large ambient glow (wood-burning barbecue - deep oranges and reds)
-    const ambientRadius = Math.max(0, BARBECUE_LIGHT_RADIUS_BASE * 3.9 * BARBECUE_SCALE + baseFlicker * 0.3);
-    const ambientGradient = ctx.createRadialGradient(
-        rusticBarbecueX, rusticBarbecueY, 0,
-        rusticBarbecueX, rusticBarbecueY, ambientRadius
-    );
-    ambientGradient.addColorStop(0, 'rgba(220, 70, 20, 0.04)'); // Natural barbecue orange-red
-    ambientGradient.addColorStop(0.25, 'rgba(180, 55, 15, 0.025)'); // Natural ember red
-    ambientGradient.addColorStop(0.7, 'rgba(140, 35, 12, 0.012)'); // Natural wood-burning red
-    ambientGradient.addColorStop(1, 'rgba(100, 20, 8, 0)'); // Natural ember fade
-    
-    ctx.fillStyle = ambientGradient;
-    ctx.beginPath();
-    ctx.arc(rusticBarbecueX, rusticBarbecueY, ambientRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Layer 2: Main illumination (authentic wood fire colors)
-    const mainRadius = Math.max(0, BARBECUE_LIGHT_RADIUS_BASE * 2.6 * BARBECUE_SCALE + baseFlicker * 1.0);
-    const mainGradient = ctx.createRadialGradient(
-        rusticBarbecueX, rusticBarbecueY, 0,
-        rusticBarbecueX, rusticBarbecueY, mainRadius
-    );
-    mainGradient.addColorStop(0, 'rgba(230, 120, 50, 0.18)'); // Natural barbecue orange center
-    mainGradient.addColorStop(0.15, 'rgba(210, 90, 25, 0.15)'); // Natural rich orange
-    mainGradient.addColorStop(0.4, 'rgba(190, 60, 18, 0.10)'); // Natural orange-red
-    mainGradient.addColorStop(0.7, 'rgba(160, 45, 12, 0.05)'); // Natural ember red
-    mainGradient.addColorStop(0.9, 'rgba(120, 30, 8, 0.015)'); // Natural wood burning
-    mainGradient.addColorStop(1, 'rgba(90, 20, 6, 0)'); // Natural rustic fade
-    
-    ctx.fillStyle = mainGradient;
-    ctx.beginPath();
-    ctx.arc(rusticBarbecueX, rusticBarbecueY, mainRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Layer 3: Core bright light (intense barbecue flame center) 
-    const coreRadius = Math.max(0, BARBECUE_LIGHT_RADIUS_BASE * 0.65 * BARBECUE_SCALE + baseFlicker * 1.5);
-    const coreGradient = ctx.createRadialGradient(
-        rusticBarbecueX, rusticBarbecueY, 0,
-        rusticBarbecueX, rusticBarbecueY, coreRadius
-    );
-    coreGradient.addColorStop(0, 'rgba(240, 160, 90, 0.26)'); // Natural barbecue center
-    coreGradient.addColorStop(0.3, 'rgba(220, 110, 35, 0.18)'); // Natural rich orange
-    coreGradient.addColorStop(0.7, 'rgba(190, 70, 22, 0.10)'); // Natural orange-red glow
-    coreGradient.addColorStop(1, 'rgba(160, 50, 18, 0)'); // Natural rustic fade
-    
-    ctx.fillStyle = coreGradient;
-    ctx.beginPath();
-    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Restore context if we applied a clip
-    if (restoreClip) restoreClip();
+    renderWoodFireLight(ctx, barbecue.posX, barbecue.posY, barbecue.posY, BARBECUE_FLICKER_AMOUNT, BARBECUE_LIGHT_RADIUS_BASE, cameraOffsetX, cameraOffsetY, buildingClusters);
 };
 
 // --- Lantern Light Rendering ---
@@ -869,6 +750,54 @@ export const renderLanternLight = ({
 // --- Road Lamppost Light Rendering (Aleutian whale oil - always on at night) ---
 const ROAD_LAMP_FLICKER_AMOUNT = CAMPFIRE_FLICKER_AMOUNT * 0.2; // Very stable - whale oil burns steadily
 
+type ColorStop = [number, string];
+
+/** Shared steady point light (road lamppost/buoy) - 3-layer radial, night-only. */
+function renderSteadyPointLight(
+    ctx: CanvasRenderingContext2D,
+    lightCenterX: number,
+    lightCenterY: number,
+    cameraOffsetX: number,
+    cameraOffsetY: number,
+    radiusBase: number,
+    scale: number,
+    flickerAmount: number,
+    ambientStops: ColorStop[],
+    mainStops: ColorStop[],
+    coreStops: ColorStop[]
+): void {
+    const lightScreenX = lightCenterX + cameraOffsetX;
+    const lightScreenY = lightCenterY + cameraOffsetY;
+    const baseFlicker = (Math.random() - 0.5) * 2 * flickerAmount;
+
+    const lampX = lightScreenX + (Math.random() - 0.5) * baseFlicker * 0.2;
+    const lampY = lightScreenY + (Math.random() - 0.5) * baseFlicker * 0.1;
+
+    const ambientRadius = Math.max(0, radiusBase * 3.5 * scale + baseFlicker * 0.1);
+    const ambientGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, ambientRadius);
+    ambientStops.forEach(([pos, color]) => ambientGradient.addColorStop(pos, color));
+    ctx.fillStyle = ambientGradient;
+    ctx.beginPath();
+    ctx.arc(lampX, lampY, ambientRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    const mainRadius = Math.max(0, radiusBase * 2.2 * scale + baseFlicker * 0.3);
+    const mainGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, mainRadius);
+    mainStops.forEach(([pos, color]) => mainGradient.addColorStop(pos, color));
+    ctx.fillStyle = mainGradient;
+    ctx.beginPath();
+    ctx.arc(lampX, lampY, mainRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    const coreRadius = Math.max(0, radiusBase * 0.9 * scale + baseFlicker * 0.8);
+    const coreGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, coreRadius);
+    coreStops.forEach(([pos, color]) => coreGradient.addColorStop(pos, color));
+    ctx.fillStyle = coreGradient;
+    ctx.beginPath();
+    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
+    ctx.fill();
+}
+
 interface RenderRoadLamppostLightProps {
     ctx: CanvasRenderingContext2D;
     lamppost: SpacetimeDBRoadLamppost;
@@ -876,6 +805,27 @@ interface RenderRoadLamppostLightProps {
     cameraOffsetY: number;
     cycleProgress: number;
 }
+
+const ROAD_LAMP_AMBIENT_STOPS: ColorStop[] = [
+    [0, 'rgba(235, 200, 150, 0.05)'],
+    [0.15, 'rgba(225, 180, 130, 0.04)'],
+    [0.5, 'rgba(210, 160, 110, 0.03)'],
+    [0.85, 'rgba(195, 140, 85, 0.015)'],
+    [1, 'rgba(180, 120, 70, 0)'],
+];
+const ROAD_LAMP_MAIN_STOPS: ColorStop[] = [
+    [0, 'rgba(240, 215, 170, 0.16)'],
+    [0.2, 'rgba(230, 195, 145, 0.14)'],
+    [0.5, 'rgba(215, 175, 120, 0.10)'],
+    [0.8, 'rgba(200, 155, 95, 0.05)'],
+    [1, 'rgba(185, 135, 80, 0)'],
+];
+const ROAD_LAMP_CORE_STOPS: ColorStop[] = [
+    [0, 'rgba(245, 225, 185, 0.22)'],
+    [0.3, 'rgba(235, 205, 155, 0.18)'],
+    [0.6, 'rgba(220, 180, 125, 0.12)'],
+    [1, 'rgba(205, 155, 95, 0)'],
+];
 
 export const renderRoadLamppostLight = ({
     ctx,
@@ -885,56 +835,11 @@ export const renderRoadLamppostLight = ({
     cycleProgress,
 }: RenderRoadLamppostLightProps) => {
     if (!isNightTime(cycleProgress)) return;
-
     const lightCenterX = lamppost.posX;
     const lightCenterY = lamppost.posY + ROAD_LAMP_LIGHT_Y_OFFSET;
-
-    const lightScreenX = lightCenterX + cameraOffsetX;
-    const lightScreenY = lightCenterY + cameraOffsetY;
-    const baseFlicker = (Math.random() - 0.5) * 2 * ROAD_LAMP_FLICKER_AMOUNT;
-
-    const lampX = lightScreenX + (Math.random() - 0.5) * baseFlicker * 0.2;
-    const lampY = lightScreenY + (Math.random() - 0.5) * baseFlicker * 0.1;
-
-    const ROAD_LAMP_SCALE = 1.0;
-
-    // Layer 1: Ambient glow (warm whale oil amber)
-    const ambientRadius = Math.max(0, ROAD_LAMP_LIGHT_RADIUS_BASE * 3.5 * ROAD_LAMP_SCALE + baseFlicker * 0.1);
-    const ambientGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, ambientRadius);
-    ambientGradient.addColorStop(0, 'rgba(235, 200, 150, 0.05)');
-    ambientGradient.addColorStop(0.15, 'rgba(225, 180, 130, 0.04)');
-    ambientGradient.addColorStop(0.5, 'rgba(210, 160, 110, 0.03)');
-    ambientGradient.addColorStop(0.85, 'rgba(195, 140, 85, 0.015)');
-    ambientGradient.addColorStop(1, 'rgba(180, 120, 70, 0)');
-    ctx.fillStyle = ambientGradient;
-    ctx.beginPath();
-    ctx.arc(lampX, lampY, ambientRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Layer 2: Main illumination (whale oil warmth)
-    const mainRadius = Math.max(0, ROAD_LAMP_LIGHT_RADIUS_BASE * 2.2 * ROAD_LAMP_SCALE + baseFlicker * 0.3);
-    const mainGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, mainRadius);
-    mainGradient.addColorStop(0, 'rgba(240, 215, 170, 0.16)');
-    mainGradient.addColorStop(0.2, 'rgba(230, 195, 145, 0.14)');
-    mainGradient.addColorStop(0.5, 'rgba(215, 175, 120, 0.10)');
-    mainGradient.addColorStop(0.8, 'rgba(200, 155, 95, 0.05)');
-    mainGradient.addColorStop(1, 'rgba(185, 135, 80, 0)');
-    ctx.fillStyle = mainGradient;
-    ctx.beginPath();
-    ctx.arc(lampX, lampY, mainRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Layer 3: Core bright light (whale oil flame)
-    const coreRadius = Math.max(0, ROAD_LAMP_LIGHT_RADIUS_BASE * 0.9 * ROAD_LAMP_SCALE + baseFlicker * 0.8);
-    const coreGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, coreRadius);
-    coreGradient.addColorStop(0, 'rgba(245, 225, 185, 0.22)');
-    coreGradient.addColorStop(0.3, 'rgba(235, 205, 155, 0.18)');
-    coreGradient.addColorStop(0.6, 'rgba(220, 180, 125, 0.12)');
-    coreGradient.addColorStop(1, 'rgba(205, 155, 95, 0)');
-    ctx.fillStyle = coreGradient;
-    ctx.beginPath();
-    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
-    ctx.fill();
+    renderSteadyPointLight(ctx, lightCenterX, lightCenterY, cameraOffsetX, cameraOffsetY,
+        ROAD_LAMP_LIGHT_RADIUS_BASE, 1.0, ROAD_LAMP_FLICKER_AMOUNT,
+        ROAD_LAMP_AMBIENT_STOPS, ROAD_LAMP_MAIN_STOPS, ROAD_LAMP_CORE_STOPS);
 };
 
 // --- Buoy (Barrel variant 6) Night Light - Red LED glow (same "lights on" as road lamps) ---
@@ -951,6 +856,26 @@ interface RenderBuoyLightProps {
     cycleProgress: number;
 }
 
+const BUOY_AMBIENT_STOPS: ColorStop[] = [
+    [0, 'rgba(255, 80, 80, 0.05)'],
+    [0.2, 'rgba(220, 50, 50, 0.04)'],
+    [0.6, 'rgba(180, 30, 30, 0.02)'],
+    [1, 'rgba(140, 20, 20, 0)'],
+];
+const BUOY_MAIN_STOPS: ColorStop[] = [
+    [0, 'rgba(255, 90, 90, 0.14)'],
+    [0.2, 'rgba(240, 60, 60, 0.11)'],
+    [0.5, 'rgba(200, 40, 40, 0.07)'],
+    [0.8, 'rgba(160, 30, 30, 0.03)'],
+    [1, 'rgba(120, 20, 20, 0)'],
+];
+const BUOY_CORE_STOPS: ColorStop[] = [
+    [0, 'rgba(255, 100, 100, 0.20)'],
+    [0.3, 'rgba(240, 70, 70, 0.16)'],
+    [0.6, 'rgba(200, 50, 50, 0.10)'],
+    [1, 'rgba(160, 30, 30, 0)'],
+];
+
 export const renderBuoyLight = ({
     ctx,
     barrel,
@@ -964,52 +889,10 @@ export const renderBuoyLight = ({
 
     const lightCenterX = barrel.posX;
     const lightCenterY = barrel.posY + BUOY_LIGHT_Y_OFFSET;
-
-    const lightScreenX = lightCenterX + cameraOffsetX;
-    const lightScreenY = lightCenterY + cameraOffsetY;
-    const baseFlicker = (Math.random() - 0.5) * 2 * ROAD_LAMP_FLICKER_AMOUNT * 0.5; // Very stable red LED
-
-    const lampX = lightScreenX + (Math.random() - 0.5) * baseFlicker * 0.2;
-    const lampY = lightScreenY + (Math.random() - 0.5) * baseFlicker * 0.1;
-
-    const BUOY_SCALE = 0.7; // Subtle glow for navigational marker
-
-    // Layer 1: Ambient glow (red LED - subtle)
-    const ambientRadius = Math.max(0, BUOY_LIGHT_RADIUS_BASE * 3.5 * BUOY_SCALE + baseFlicker * 0.1);
-    const ambientGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, ambientRadius);
-    ambientGradient.addColorStop(0, 'rgba(255, 80, 80, 0.05)');
-    ambientGradient.addColorStop(0.2, 'rgba(220, 50, 50, 0.04)');
-    ambientGradient.addColorStop(0.6, 'rgba(180, 30, 30, 0.02)');
-    ambientGradient.addColorStop(1, 'rgba(140, 20, 20, 0)');
-    ctx.fillStyle = ambientGradient;
-    ctx.beginPath();
-    ctx.arc(lampX, lampY, ambientRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Layer 2: Main illumination (red LED warmth)
-    const mainRadius = Math.max(0, BUOY_LIGHT_RADIUS_BASE * 2.2 * BUOY_SCALE + baseFlicker * 0.3);
-    const mainGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, mainRadius);
-    mainGradient.addColorStop(0, 'rgba(255, 90, 90, 0.14)');
-    mainGradient.addColorStop(0.2, 'rgba(240, 60, 60, 0.11)');
-    mainGradient.addColorStop(0.5, 'rgba(200, 40, 40, 0.07)');
-    mainGradient.addColorStop(0.8, 'rgba(160, 30, 30, 0.03)');
-    mainGradient.addColorStop(1, 'rgba(120, 20, 20, 0)');
-    ctx.fillStyle = mainGradient;
-    ctx.beginPath();
-    ctx.arc(lampX, lampY, mainRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Layer 3: Core bright light (red LED center)
-    const coreRadius = Math.max(0, BUOY_LIGHT_RADIUS_BASE * 0.9 * BUOY_SCALE + baseFlicker * 0.8);
-    const coreGradient = ctx.createRadialGradient(lampX, lampY, 0, lampX, lampY, coreRadius);
-    coreGradient.addColorStop(0, 'rgba(255, 100, 100, 0.20)');
-    coreGradient.addColorStop(0.3, 'rgba(240, 70, 70, 0.16)');
-    coreGradient.addColorStop(0.6, 'rgba(200, 50, 50, 0.10)');
-    coreGradient.addColorStop(1, 'rgba(160, 30, 30, 0)');
-    ctx.fillStyle = coreGradient;
-    ctx.beginPath();
-    ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
-    ctx.fill();
+    const buoyFlicker = ROAD_LAMP_FLICKER_AMOUNT * 0.5; // Very stable red LED
+    renderSteadyPointLight(ctx, lightCenterX, lightCenterY, cameraOffsetX, cameraOffsetY,
+        BUOY_LIGHT_RADIUS_BASE, 0.7, buoyFlicker,
+        BUOY_AMBIENT_STOPS, BUOY_MAIN_STOPS, BUOY_CORE_STOPS);
 };
 
 // --- Furnace Light Rendering ---
@@ -1461,3 +1344,31 @@ export const renderSovaAura = ({
     ctx.arc(lightScreenX, lightScreenY, coreRadius, 0, Math.PI * 2);
     ctx.fill();
 };
+
+/** Renders campfire, lantern, furnace, barbecue lights in a single pass. */
+export function renderAllStructureLights(opts: {
+  ctx: CanvasRenderingContext2D;
+  cameraOffsetX: number;
+  cameraOffsetY: number;
+  buildingClusters: Map<string, BuildingCluster>;
+  visibleCampfiresMap: Map<string, SpacetimeDBCampfire>;
+  visibleLanternsMap: Map<string, SpacetimeDBLantern>;
+  visibleFurnacesMap: Map<string, SpacetimeDBFurnace>;
+  visibleBarbecuesMap: Map<string, SpacetimeDBBarbecue>;
+}): void {
+  const { ctx, cameraOffsetX, cameraOffsetY, buildingClusters } = opts;
+  const structureLightOpts = { ctx, cameraOffsetX, cameraOffsetY, buildingClusters };
+
+  opts.visibleCampfiresMap.forEach((campfire) =>
+    renderCampfireLight({ ...structureLightOpts, campfire })
+  );
+  opts.visibleLanternsMap.forEach((lantern) =>
+    renderLanternLight({ ...structureLightOpts, lantern })
+  );
+  opts.visibleFurnacesMap.forEach((furnace) =>
+    renderFurnaceLight({ ...structureLightOpts, furnace })
+  );
+  opts.visibleBarbecuesMap.forEach((barbecue) =>
+    renderBarbecueLight({ ...structureLightOpts, barbecue })
+  );
+}

@@ -10,6 +10,8 @@
  * All positions are relative to the entity's posX/posY from the server.
  */
 
+import { TILE_SIZE } from '../config/gameConfig';
+
 export interface EntityVisualBounds {
   // Visual bounds center offset from entity's posX/posY
   centerOffsetX: number;  // Usually 0 (centered horizontally)
@@ -521,6 +523,28 @@ export const ENTITY_VISUAL_CONFIG: Record<string, EntityVisualBounds> = {
  */
 export function getEntityVisualConfig(entityType: string): EntityVisualBounds | undefined {
   return ENTITY_VISUAL_CONFIG[entityType.toLowerCase()];
+}
+
+/**
+ * Centralized indicator heights for hold-interaction progress circles.
+ * Overrides config when sprite height differs from interaction box.
+ */
+export const ENTITY_INDICATOR_HEIGHTS: Record<string, number> = {
+  campfire: 96,
+  barbecue: 128,     // Sprite height (config has 96 for interaction box)
+  lantern: 56,
+  door: 96,
+  stash: 48,
+  homestead_hearth: 125,  // Hearth visual 125x125
+  knocked_out_player: 48,
+};
+
+/** Get indicator height for an entity type; falls back to config.height when not in overrides. */
+export function getIndicatorHeight(entityType: string): number {
+  const override = ENTITY_INDICATOR_HEIGHTS[entityType];
+  if (override !== undefined) return override;
+  const config = ENTITY_VISUAL_CONFIG[entityType];
+  return config?.height ?? TILE_SIZE;
 }
 
 /**

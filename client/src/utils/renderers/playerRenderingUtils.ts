@@ -5,6 +5,33 @@ import { drawSwimmingEffectsUnder, drawSwimmingEffectsOver } from './swimmingEff
 import { getCachedRadialGradient, getCachedLinearGradient } from './gradientCacheUtils';
 import { JUMP_DURATION_MS } from '../../config/gameConfig'; // Import the constant
 
+/** Get player with predicted/interpolated position for rendering (swimming/shadow logic). */
+export function getPlayerForRendering<T extends { positionX: number; positionY: number; direction: string }>(
+  player: T,
+  isLocalPlayer: boolean,
+  predictedPos: { x: number; y: number } | null,
+  facingDir: string | undefined,
+  interpolation: { updateAndGetSmoothedPosition: (p: T, localId: string | undefined) => { x: number; y: number } } | null,
+  localPlayerId: string | undefined,
+  scratch: { positionX: number; positionY: number; direction?: string } & Record<string, unknown>
+): T {
+  if (isLocalPlayer && predictedPos) {
+    Object.assign(scratch, player);
+    scratch.positionX = predictedPos.x;
+    scratch.positionY = predictedPos.y;
+    scratch.direction = facingDir ?? player.direction;
+    return scratch as T;
+  }
+  if (!isLocalPlayer && interpolation) {
+    const pos = interpolation.updateAndGetSmoothedPosition(player, localPlayerId);
+    Object.assign(scratch, player);
+    scratch.positionX = pos.x;
+    scratch.positionY = pos.y;
+    return scratch as T;
+  }
+  return player;
+}
+
 // --- Constants --- 
 export const IDLE_FRAME_INDEX = 1; // Second frame is idle
 const PLAYER_SHAKE_DURATION_MS = 200; // How long the shake lasts
@@ -803,8 +830,8 @@ export const renderPlayer = (
   }
 
   // --- TEST: Increase sprite size ---
-  const drawWidth = gameConfig.spriteWidth * 2;
-  const drawHeight = gameConfig.spriteHeight * 2;
+  const drawWidth = gameConfig.playerSpriteWidth;
+  const drawHeight = gameConfig.playerSpriteHeight;
   const spriteBaseX = currentDisplayX - drawWidth / 2 + shakeX;
   const spriteBaseY = currentDisplayY - drawHeight / 2 + shakeY;
   const finalJumpOffsetY = isCorpse ? 0 : jumpOffsetY;

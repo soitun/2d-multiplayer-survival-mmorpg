@@ -37,6 +37,9 @@ export const gameConfig = {
   // Basic sprite and rendering dimensions
   spriteWidth: 48,
   spriteHeight: 48,
+  // Player sprite draw size (2x base for pixel scaling)
+  get playerSpriteWidth() { return this.spriteWidth * 2; },
+  get playerSpriteHeight() { return this.spriteHeight * 2; },
   worldWidthTiles: SERVER_WORLD_WIDTH_TILES,
   worldHeightTiles: SERVER_WORLD_HEIGHT_TILES,
   tileSize: 48,
@@ -86,6 +89,22 @@ export const gameConfig = {
   // Foundation grid configuration
   foundationTileSize: FOUNDATION_TILE_SIZE,
 };
+
+// --- Viewport Bounds ---
+/** Returns world-space view bounds from camera offset and canvas size. */
+export function getViewBounds(
+  cameraOffsetX: number,
+  cameraOffsetY: number,
+  canvasWidth: number,
+  canvasHeight: number
+): { minX: number; maxX: number; minY: number; maxY: number } {
+  return {
+    minX: -cameraOffsetX,
+    maxX: -cameraOffsetX + canvasWidth,
+    minY: -cameraOffsetY,
+    maxY: -cameraOffsetY + canvasHeight,
+  };
+}
 
 // --- Foundation Grid Conversion Utilities ---
 /**
@@ -140,6 +159,19 @@ export function foundationCellToWorldTile(cellX: number, cellY: number): { tileX
 
 // --- Rendering & Interaction Constants ---
 export const MOVEMENT_POSITION_THRESHOLD = 0.1; // Small threshold to account for float precision
+
+/** Check if position moved beyond threshold (swimming/shadow movement detection). */
+export function isPlayerMoving(
+  lastPos: { x: number; y: number } | undefined,
+  posX: number,
+  posY: number,
+  threshold = MOVEMENT_POSITION_THRESHOLD
+): boolean {
+  if (!lastPos) return false;
+  const dx = Math.abs(posX - lastPos.x);
+  const dy = Math.abs(posY - lastPos.y);
+  return dx > threshold || dy > threshold;
+}
 
 // --- Jump Constants ---
 export const JUMP_DURATION_MS = 300; // Reduced from 400ms for faster jumping

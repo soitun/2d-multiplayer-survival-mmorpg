@@ -2,6 +2,13 @@ import { Player as SpacetimeDBPlayer } from '../../generated';
 import { gameConfig } from '../../config/gameConfig';
 import { drawDynamicGroundShadow } from './shadowUtils';
 
+/** World position to tile key (avoids importing heavy placementRenderingUtils). */
+function worldPosToTileKey(worldX: number, worldY: number): string {
+  const tileX = Math.floor(worldX / gameConfig.tileSize);
+  const tileY = Math.floor(worldY / gameConfig.tileSize);
+  return `${tileX},${tileY}`;
+}
+
 // --- Reusable offscreen canvas for underwater shadow sprite extraction (avoids per-frame allocation) ---
 const _uwShadowCanvas = document.createElement('canvas');
 const _uwShadowCtx = _uwShadowCanvas.getContext('2d');
@@ -478,6 +485,35 @@ function drawUnderwaterShadow(
   ctx.restore();
 }
 
+/** Shadow offset from sprite center (matches drawUnderwaterShadow). */
+const UNDERWATER_SHADOW_OFFSET_X = 0.28;
+const UNDERWATER_SHADOW_OFFSET_Y = 0.9;
+
+/**
+ * Renders underwater shadow for a player if their shadow position is over water.
+ * Consolidates the repeated logic from GameCanvas (swimming, local snorkeling, remote snorkeling).
+ */
+export function renderUnderwaterShadowIfOverWater(
+  ctx: CanvasRenderingContext2D,
+  heroImg: CanvasImageSource,
+  playerPosX: number,
+  playerPosY: number,
+  spriteSx: number,
+  spriteSy: number,
+  waterTileLookup: Map<string, boolean>
+): void {
+  const drawWidth = gameConfig.playerSpriteWidth;
+  const drawHeight = gameConfig.playerSpriteHeight;
+  const spriteBaseX = playerPosX - drawWidth / 2;
+  const spriteBaseY = playerPosY - drawHeight / 2;
+  const shadowX = playerPosX + drawWidth * UNDERWATER_SHADOW_OFFSET_X;
+  const shadowY = playerPosY + drawHeight * UNDERWATER_SHADOW_OFFSET_Y;
+  const isShadowOverWater = waterTileLookup.get(worldPosToTileKey(shadowX, shadowY)) ?? false;
+  if (isShadowOverWater) {
+    drawUnderwaterShadowOnly(ctx, heroImg, spriteSx, spriteSy, spriteBaseX, spriteBaseY, drawWidth, drawHeight);
+  }
+}
+
 /**
  * Draws ONLY the underwater shadow (should be called in an early rendering layer, beneath water surface)
  */
@@ -488,8 +524,8 @@ export function drawUnderwaterShadowOnly(
   spriteSy: number,
   spriteDrawX: number,
   spriteDrawY: number,
-  spriteWidth: number = gameConfig.spriteWidth * 2,
-  spriteHeight: number = gameConfig.spriteHeight * 2
+  spriteWidth: number = gameConfig.playerSpriteWidth,
+  spriteHeight: number = gameConfig.playerSpriteHeight
 ): void {
   const centerX = spriteDrawX + spriteWidth / 2;
   const centerY = spriteDrawY + spriteHeight / 2;
@@ -507,8 +543,8 @@ export function drawSwimmingEffectsUnder(
   isMoving: boolean,
   spriteDrawX: number,
   spriteDrawY: number,
-  spriteWidth: number = gameConfig.spriteWidth * 2,
-  spriteHeight: number = gameConfig.spriteHeight * 2,
+  spriteWidth: number = gameConfig.playerSpriteWidth,
+  spriteHeight: number = gameConfig.playerSpriteHeight,
   cycleProgress?: number,
   spriteImage?: CanvasImageSource,
   spriteSx?: number,
@@ -536,8 +572,8 @@ export function drawSwimmingEffectsOver(
   currentTimeMs: number,
   spriteDrawX: number,
   spriteDrawY: number,
-  spriteWidth: number = gameConfig.spriteWidth * 2,
-  spriteHeight: number = gameConfig.spriteHeight * 2
+  spriteWidth: number = gameConfig.playerSpriteWidth,
+  spriteHeight: number = gameConfig.playerSpriteHeight
 ): void {
   const centerX = spriteDrawX + spriteWidth / 2;
   const centerY = spriteDrawY + spriteHeight / 2;
@@ -560,8 +596,8 @@ export function drawSwimmingEffects(
   currentAnimationFrame: number,
   spriteDrawX: number,
   spriteDrawY: number,
-  spriteWidth: number = gameConfig.spriteWidth * 2,
-  spriteHeight: number = gameConfig.spriteHeight * 2,
+  spriteWidth: number = gameConfig.playerSpriteWidth,
+  spriteHeight: number = gameConfig.playerSpriteHeight,
   cycleProgress?: number,
   spriteImage?: CanvasImageSource,
   spriteSx?: number,

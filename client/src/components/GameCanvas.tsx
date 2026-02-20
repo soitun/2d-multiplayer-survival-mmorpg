@@ -1,3 +1,29 @@
+/**
+ * GameCanvas - Main 2D game renderer and input coordinator.
+ *
+ * This component is the central orchestrator for rendering the game world and handling
+ * player input. It receives entity data from props (fed by useSpacetimeTables via App →
+ * GameScreen) and does not subscribe to SpacetimeDB directly.
+ *
+ * Responsibilities:
+ * 1. RENDERING: Draws the full game scene each frame—procedural tiles, water, entities
+ *    (Y-sorted for depth), structures (campfires, furnaces, buildings), lights, weather,
+ *    and overlays. Uses useGameLoop for the canvas render cycle.
+ *
+ * 2. VIEWPORT & CULLING: useEntityFiltering filters entities by viewport bounds and
+ *    produces Y-sorted arrays for correct draw order (e.g., player behind a tree).
+ *
+ * 3. INTERACTION: useInteractionFinder finds the closest interactable entity (E key)
+ *    for doors, cairns, furnaces, animals, etc. useInputHandler maps keyboard/mouse
+ *    input to reducer calls (movement, pickup, attack, building placement).
+ *
+ * 4. BUILDING: useBuildingManager handles placement mode; useFoundationTargeting,
+ *    useWallTargeting, useFenceTargeting provide targeting for construction.
+ *
+ * Performance: Refs are used for high-frequency data (positions, animation frames);
+ * state updates are batched to avoid re-renders on every server tick.
+ */
+
 import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 
 import {
@@ -115,6 +141,7 @@ import { renderWardRadius, LANTERN_TYPE_LANTERN } from '../utils/renderers/lante
 import { preloadMonumentImages } from '../utils/renderers/monumentRenderingUtils';
 import { renderFoundationTargetIndicator, renderWallTargetIndicator, renderFenceTargetIndicator } from '../utils/renderers/foundationRenderingUtils'; // Foundation/wall/fence target indicators
 import { renderInteractionLabels, renderLocalPlayerStatusTags } from '../utils/renderers/labelRenderingUtils';
+import { renderInteractionIndicators } from '../utils/renderers/interactionIndicatorRenderingUtils';
 import { renderPlacementPreview, isPlacementTooFar } from '../utils/renderers/placementRenderingUtils';
 import { detectHotSprings } from '../utils/hotSpringDetector'; // Hot spring detection
 import { detectQuarries } from '../utils/quarryDetector'; // Small quarry detection for build restriction zones
@@ -125,16 +152,14 @@ import { UpgradeRadialMenu } from './UpgradeRadialMenu';
 import { useFoundationTargeting } from '../hooks/useFoundationTargeting';
 import { useWallTargeting } from '../hooks/useWallTargeting';
 import { useFenceTargeting } from '../hooks/useFenceTargeting';
-import { drawInteractionIndicator } from '../utils/interactionIndicator';
-import { ENTITY_VISUAL_CONFIG, getIndicatorPosition } from '../utils/entityVisualConfig';
+import { getInteractableLabel } from '../utils/interactionLabelUtils';
+import { logDebug, logLagDiagnostic } from '../utils/gameDebugUtils';
 import { drawMinimapOntoCanvas } from './Minimap';
 import { renderCampfire } from '../utils/renderers/campfireRenderingUtils';
 import { renderBarbecue } from '../utils/renderers/barbecueRenderingUtils';
-import { getFurnaceDimensions, FURNACE_TYPE_LARGE } from '../utils/renderers/furnaceRenderingUtils';
-import { isCompoundMonument } from '../config/compoundBuildings';
 import { renderPlayerCorpse } from '../utils/renderers/playerCorpseRenderingUtils';
 import { renderStash } from '../utils/renderers/stashRenderingUtils';
-import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarbecueLight, renderRoadLamppostLight, renderBuoyLight, renderAllPlayerLights, renderFishingVillageCampfireLight, renderSovaAura } from '../utils/renderers/lightRenderingUtils';
+import { renderCampfireLight, renderLanternLight, renderFurnaceLight, renderBarbecueLight, renderRoadLamppostLight, renderBuoyLight, renderAllPlayerLights, renderAllStructureLights, renderFishingVillageCampfireLight, renderSovaAura } from '../utils/renderers/lightRenderingUtils';
 import { renderRuneStoneNightLight } from '../utils/renderers/runeStoneRenderingUtils';
 import { renderAllShipwreckNightLights, renderAllShipwreckDebugZones } from '../utils/renderers/shipwreckRenderingUtils';
 import { renderCompoundEerieLights } from '../utils/renderers/compoundEerieLightUtils';
@@ -156,14 +181,15 @@ import { renderWeatherOverlay } from '../utils/renderers/weatherOverlayUtils';
 import { calculateChunkIndex } from '../utils/chunkUtils';
 import { renderWaterOverlay } from '../utils/renderers/waterOverlayUtils';
 import { FpsProfiler, mark, getRecordButtonBounds } from '../utils/profiler';
-import { renderPlayer, isPlayerHovered, getSpriteCoordinates } from '../utils/renderers/playerRenderingUtils';
+import { renderPlayer, isPlayerHovered, getSpriteCoordinates, getPlayerForRendering } from '../utils/renderers/playerRenderingUtils';
 import { renderSeaStackSingle, renderSeaStackShadowOnly, renderSeaStackBottomOnly, renderSeaStackUnderwaterSilhouette, renderSeaStackShadowsOverlay } from '../utils/renderers/seaStackRenderingUtils';
 import { renderBarrelUnderwaterSilhouette, renderSeaBarrelWaterShadowOnly } from '../utils/renderers/barrelRenderingUtils';
 import { renderWaterPatches } from '../utils/renderers/waterPatchRenderingUtils';
 import { renderFertilizerPatches } from '../utils/renderers/fertilizerPatchRenderingUtils';
 import { renderFirePatches } from '../utils/renderers/firePatchRenderingUtils';
 import { renderPlacedExplosives, preloadExplosiveImages } from '../utils/renderers/explosiveRenderingUtils';
-import { drawUnderwaterShadowOnly } from '../utils/renderers/swimmingEffectsUtils';
+import { renderUnderwaterShadowIfOverWater } from '../utils/renderers/swimmingEffectsUtils';
+import { renderParticlesToCanvas } from '../utils/renderers/particleRenderingUtils';
 import { worldPosToTileCoords } from '../utils/renderers/placementRenderingUtils';
 import { updateUnderwaterEffects, renderUnderwaterEffectsUnder, renderUnderwaterEffectsOver, renderUnderwaterVignette, clearUnderwaterEffects } from '../utils/renderers/underwaterEffectsUtils';
 import { renderWildAnimal, preloadWildAnimalImages, renderBurrowEffects, cleanupBurrowTracking, processWildAnimalsForBurrowEffects } from '../utils/renderers/wildAnimalRenderingUtils';
@@ -179,20 +205,17 @@ import PlantedSeedTooltip from './PlantedSeedTooltip';
 import TamedAnimalTooltip from './TamedAnimalTooltip';
 import { itemIcons } from '../utils/itemIconUtils';
 import { PlacementItemInfo, PlacementActions } from '../hooks/usePlacementManager';
-import { gameConfig, HOLD_INTERACTION_DURATION_MS, REVIVE_HOLD_DURATION_MS } from '../config/gameConfig';
+import { gameConfig, getViewBounds, isPlayerMoving, HOLD_INTERACTION_DURATION_MS, REVIVE_HOLD_DURATION_MS } from '../config/gameConfig';
 import {
-  CAMPFIRE_HEIGHT,
   SERVER_CAMPFIRE_DAMAGE_RADIUS,
   SERVER_CAMPFIRE_DAMAGE_CENTER_Y_OFFSET
 } from '../utils/renderers/campfireRenderingUtils';
 // V2 system removed due to performance issues
-import { BOX_HEIGHT, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_WILD_BEEHIVE } from '../utils/renderers/woodenStorageBoxRenderingUtils';
+import { BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_WILD_BEEHIVE } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { useInputHandler } from '../hooks/useInputHandler';
+import { useGameReducerFeedbackHandlers } from '../hooks/useGameReducerFeedbackHandlers';
+import { useViewportSync } from '../hooks/useViewportSync';
 import { useRemotePlayerInterpolation } from '../hooks/useRemotePlayerInterpolation';
-
-
-// Placeholder height for stash indicator alignment.
-const STASH_HEIGHT = 40; // Adjust as needed to match stash sprite or desired indicator position
 
 // Import cut grass effect renderer
 import { renderCutGrassEffects } from '../effects/cutGrassEffect';
@@ -200,6 +223,9 @@ import { renderArrowBreakEffects } from '../effects/arrowBreakEffect';
 
 // Stable empty Map fallback to avoid per-render allocations.
 const EMPTY_MAP = new Map();
+
+/** Swimming animation frame count (sprite sheet). */
+const TOTAL_SWIMMING_FRAMES = 24;
 
 // --- Prop Interface ---
 interface GameCanvasProps {
@@ -385,10 +411,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   cairns,
   playerDiscoveredCairns,
   campfires,
-  furnaces, // ADDED: Furnaces destructuring
-  barbecues, // ADDED: Barbecues destructuring
+  furnaces,
+  barbecues,
   lanterns,
-  turrets, // ADDED: Turrets destructuring
+  turrets,
   harvestableResources,
   droppedItems,
   woodenStorageBoxes,
@@ -457,23 +483,23 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   animalCorpses,
   barrels,
   roadLampposts,
-  fumaroles, // ADDED: Fumaroles destructuring
-  basaltColumns, // ADDED: Basalt columns destructuring
+  fumaroles,
+  basaltColumns,
   livingCorals, // Living coral for underwater harvesting (uses combat system)
   seaStacks,
-  homesteadHearths, // ADDED: HomesteadHearths destructuring
-  foundationCells, // ADDED: Building foundations
-  wallCells, // ADDED: Building walls
-  doors, // ADDED: Building doors
-  fences, // ADDED: Building fences
+  homesteadHearths,
+  foundationCells,
+  wallCells,
+  doors,
+  fences,
   setMusicPanelVisible,
   movementDirection,
   isAutoWalking, // Auto-walk state for dodge roll detection
-  addSOVAMessage, // ADDED: SOVA message adder for cairn lore
-  showSovaSoundBox, // ADDED: SOVA sound box for cairn lore audio with waveform
-  onCairnNotification, // ADDED: Cairn unlock notification callback
+  addSOVAMessage,
+  showSovaSoundBox,
+  onCairnNotification,
   playerDodgeRollStates,
-  localFacingDirection, // ADD: Destructure local facing direction for client-authoritative direction changes
+  localFacingDirection, // Destructure local facing direction for client-authoritative direction changes
   chunkWeather, // Chunk-based weather data
   alkStations, // ALK delivery stations for minimap
   monumentParts, // Unified monument parts (all monument types)
@@ -552,7 +578,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // PERFORMANCE: Ref instead of state - avoids React re-render every frame when drones active
   // Minimap RAF loop calls drawMinimapRef directly instead of triggering useEffect via setState
-  const minimapDrawRef = useRef<() => void>(() => {});
+  const minimapDrawRef = useRef<() => void>(() => { });
 
   // Particle system refs
   const campfireParticlesRef = useRef<Particle[]>([]);
@@ -641,20 +667,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // --- Core Game State Hooks ---
   const localPlayer = useMemo(() => {
-    if (!localPlayerId) {
-      // console.log('[GameCanvas DEBUG] localPlayerId is falsy:', localPlayerId);
-      return undefined;
-    }
-    const player = players.get(localPlayerId);
-    // console.log('[GameCanvas DEBUG] localPlayerId:', localPlayerId, 'found player:', !!player, 'players.size:', players.size);
-    if (player) {
-      // console.log('[GameCanvas DEBUG] player position:', player.positionX, player.positionY);
-      // console.log('[GameCanvas DEBUG] predicted position:', predictedPosition);
-    } else {
-      // console.log('[GameCanvas DEBUG] Player not found in players map. Available player IDs:', Array.from(players.keys()));
-    }
-    return player;
-  }, [players, localPlayerId, predictedPosition]);
+    if (!localPlayerId) return undefined;
+    return players.get(localPlayerId);
+  }, [players, localPlayerId]);
 
   // Initialize remote player interpolation
   const remotePlayerInterpolation = useRemotePlayerInterpolation();
@@ -675,14 +690,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // which avoids triggering React re-renders on every shake frame.
   const cameraOffsetX = baseCameraOffsetX;
   const cameraOffsetY = baseCameraOffsetY;
-  // console.log('[GameCanvas DEBUG] Camera offsets:', cameraOffsetX, cameraOffsetY, 'canvas size:', canvasSize);
 
   const { heroImageRef, heroSprintImageRef, heroIdleImageRef, heroWaterImageRef, heroCrouchImageRef, heroDodgeImageRef, itemImagesRef, cloudImagesRef, droneImageRef, shelterImageRef } = useAssetLoader();
   const doodadImagesRef = useDoodadImages(); // Extracted to dedicated hook
-  const foundationTileImagesRef = useRef<Map<string, HTMLImageElement>>(new Map()); // ADDED: Foundation tile images
+  const foundationTileImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const { worldMousePos, canvasMousePos } = useMousePosition({ canvasRef: gameCanvasRef, cameraOffsetX, cameraOffsetY, canvasSize });
 
-  // ADDED: Building manager hook (after worldMousePos is available)
+  // Building manager hook (requires worldMousePos)
   const localPlayerX = predictedPosition?.x ?? localPlayer?.positionX ?? 0;
   const localPlayerY = predictedPosition?.y ?? localPlayer?.positionY ?? 0;
   const [buildingState, buildingActions] = useBuildingManager(connection, localPlayerX, localPlayerY, activeEquipments, itemDefinitions, localPlayerId, worldMousePos.x, worldMousePos.y);
@@ -758,10 +772,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Lift deathMarkerImg definition here - reactive to image loading
   const deathMarkerImg = useMemo(() => {
-    const img = itemImagesRef.current?.get('death_marker.png');
-    // console.log('[GameCanvas] Computing deathMarkerImg. itemImagesRef keys:', Array.from(itemImagesRef.current?.keys() || []), 'death_marker.png found:', !!img, 'trigger:', imageLoadTrigger);
-    return img;
-  }, [itemImagesRef, imageLoadTrigger]);
+    return itemImagesRef.current?.get('death_marker.png');
+  }, [imageLoadTrigger]);
 
   // Minimap icon images loading using imports (Vite way)
   const [pinMarkerImg, setPinMarkerImg] = useState<HTMLImageElement | null>(null);
@@ -773,7 +785,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     import('../assets/ui/marker.png').then((module) => {
       const pinImg = new Image();
       pinImg.onload = () => {
-        // console.log('[GameCanvas] Pin marker image loaded successfully');
         setPinMarkerImg(pinImg);
       };
       pinImg.onerror = () => console.error('Failed to load pin marker image');
@@ -784,7 +795,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     import('../assets/ui/warmth.png').then((module) => {
       const warmthImg = new Image();
       warmthImg.onload = () => {
-        // console.log('[GameCanvas] Campfire warmth image loaded successfully');
         setCampfireWarmthImg(warmthImg);
       };
       warmthImg.onerror = () => console.error('Failed to load campfire warmth image');
@@ -795,7 +805,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     import('../assets/items/torch_on.png').then((module) => {
       const torchImg = new Image();
       torchImg.onload = () => {
-        // console.log('[GameCanvas] Torch image loaded successfully');
         setTorchOnImg(torchImg);
       };
       torchImg.onerror = () => console.error('Failed to load torch image');
@@ -897,17 +906,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleHarvestableResources,
     visibleDroppedItems,
     visibleCampfires,
-    visibleFurnaces, // ADDED: Furnaces visible array
-    visibleBarbecues, // ADDED: Barbecues visible array
+    visibleFurnaces,
+    visibleBarbecues,
     visibleHarvestableResourcesMap,
     visibleCampfiresMap,
-    visibleFurnacesMap, // ADDED: Furnaces visible map
-    visibleBarbecuesMap, // ADDED: Barbecues visible map
+    visibleFurnacesMap,
+    visibleBarbecuesMap,
     visibleLanternsMap,
-    visibleTurretsMap, // ADDED: Turrets visible map
-    visibleRuneStonesMap, // ADDED: Rune stones visible map
-    visibleCairns, // ADDED: Cairns visible array
-    visibleCairnsMap, // ADDED: Cairns visible map
+    visibleTurretsMap,
+    visibleRuneStonesMap,
+    visibleCairns,
+    visibleCairnsMap,
     visibleDroppedItemsMap,
     visibleBoxesMap,
     visiblePlayerCorpses,
@@ -932,36 +941,36 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleBarrelsMap,
     visibleRoadLampposts,
     visibleRoadLamppostsMap,
-    visibleFumaroles, // ADDED: Fumaroles
-    visibleFumarolesMap, // ADDED: Fumaroles map
-    visibleBasaltColumns, // ADDED: Basalt columns
-    visibleBasaltColumnsMap, // ADDED: Basalt columns map
+    visibleFumaroles,
+    visibleFumarolesMap,
+    visibleBasaltColumns,
+    visibleBasaltColumnsMap,
     visibleLivingCorals, // Living corals (uses combat system)
     visibleLivingCoralsMap, // Living corals map
     visibleSeaStacks,
     visibleSeaStacksMap,
     visibleHomesteadHearths,
-    visibleHomesteadHearthsMap, // ADDED: Homestead Hearths map
-    visibleDoors, // ADDED: Building doors
-    visibleDoorsMap, // ADDED: Building doors map
-    visibleFences, // ADDED: Building fences
-    visibleFencesMap, // ADDED: Building fences map
-    buildingClusters, // ADDED: Building clusters for fog of war
-    playerBuildingClusterId, // ADDED: Which building the player is in
-    visibleAlkStations, // ADDED: ALK delivery stations
-    visibleAlkStationsMap, // ADDED: ALK delivery stations map
+    visibleHomesteadHearthsMap,
+    visibleDoors,
+    visibleDoorsMap,
+    visibleFences,
+    visibleFencesMap,
+    buildingClusters,
+    playerBuildingClusterId,
+    visibleAlkStations,
+    visibleAlkStationsMap,
   } = useEntityFiltering(
     players,
     trees,
     stones,
     runeStones,
-    cairns, // ADDED: Cairns to useEntityFiltering
+    cairns,
     campfires,
-    furnaces, // ADDED: Furnaces to useEntityFiltering
-    barbecues, // ADDED: Barbecues to useEntityFiltering
+    furnaces,
+    barbecues,
     lanterns,
-    turrets, // ADDED: Turrets to useEntityFiltering
-    homesteadHearths, // ADDED: HomesteadHearths (must match function signature order)
+    turrets,
+    homesteadHearths,
     harvestableResources,
     droppedItems,
     woodenStorageBoxes,
@@ -982,21 +991,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     wildAnimals,
     animalCorpses,
     barrels,
-    roadLampposts ?? EMPTY_MAP, // ADDED: Road lampposts (Aleutian whale oil lampposts along roads)
-    fumaroles, // ADDED: Fumaroles
-    basaltColumns, // ADDED: Basalt columns
+    roadLampposts ?? EMPTY_MAP,
+    fumaroles,
+    basaltColumns,
     seaStacks,
-    foundationCells, // ADDED: Building foundations
-    wallCells, // ADDED: Building walls
-    doors, // ADDED: Building doors
-    fences, // ADDED: Building fences
-    localPlayerId, // ADDED: Local player ID for building visibility
+    foundationCells,
+    wallCells,
+    doors,
+    fences,
+    localPlayerId,
     localPlayer?.isSnorkeling ?? false, // Phase 3c: Swimming player split-render (snorkeling = full sprite)
     predictedPosition ? { x: predictedPosition.x, y: predictedPosition.y } : null, // Phase 3c fix: Predicted position for swimming top half Y-sort
     isTreeFalling, // NEW: Pass falling tree checker so falling trees stay visible
     worldChunkDataMap, // PERFORMANCE FIX: Use memoized Map instead of creating new one every render
-    alkStations, // ADDED: ALK delivery stations
-    monumentParts, // ADDED: Unified monument parts for rendering and interaction
+    alkStations,
+    monumentParts,
     livingCorals, // Living coral for underwater harvesting (uses combat system)
   );
 
@@ -1014,13 +1023,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     campfires,
     lanterns,
     furnaces, // Add furnaces for darkness cutouts
-    barbecues, // ADDED: Barbecues for night light cutouts
-    roadLampposts: roadLampposts ?? EMPTY_MAP, // ADDED: Aleutian whale oil lampposts for night light cutouts
-    barrels: barrels ?? EMPTY_MAP, // ADDED: Barrels (buoys for night light cutouts)
-    runeStones, // ADDED: RuneStones for night light cutouts
-    firePatches, // ADDED: Fire patches for night light cutouts
-    fumaroles, // ADDED: Fumaroles for heat glow at night
-    monumentParts: monumentParts ?? EMPTY_MAP, // ADDED: Unified monument parts (fishing village campfire light)
+    barbecues,
+    roadLampposts: roadLampposts ?? EMPTY_MAP,
+    barrels: barrels ?? EMPTY_MAP,
+    runeStones,
+    firePatches,
+    fumaroles,
+    monumentParts: monumentParts ?? EMPTY_MAP,
     players, // Pass all players
     activeEquipments, // Pass all active equipments
     itemDefinitions, // Pass all item definitions
@@ -1162,7 +1171,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
       // Play sound if this is a new effect or if the end time changed (effect was extended)
       if (!burnSoundPlayedRef.current!.has(effectKey)) {
-        console.log('[BURN_SOUND] Playing burn sound for effect', effect.effectId, 'ending at', effect.endsAt.microsSinceUnixEpoch);
+        logDebug('[BURN_SOUND] Playing burn sound for effect', effect.effectId, 'ending at', effect.endsAt.microsSinceUnixEpoch);
         playImmediateSound('player_burnt', 1.0);
         burnSoundPlayedRef.current!.add(effectKey);
       }
@@ -1189,7 +1198,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Optimized: Memoize the integer tile coordinates for the viewport
   // This prevents visibleWorldTiles from recalculating on every sub-pixel camera movement
-  const tileSize = 48; // matches server TILE_SIZE_PX
+  const tileSize = gameConfig.tileSize;
   const viewTileX = Math.floor((-cameraOffsetX) / tileSize);
   const viewTileY = Math.floor((-cameraOffsetY) / tileSize);
   // Add a buffer of 2 tiles to ensure smooth rendering at edges
@@ -1292,7 +1301,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     const playerX = localPlayer.positionX;
     const playerY = localPlayer.positionY;
-    const TILE_SIZE = 48;
+    const tileSize = gameConfig.tileSize;
 
     // THROTTLE: Only recalculate if player moved more than 2 tiles (~96px)
     const dx = playerX - lastShoreCheckPosRef.current.x;
@@ -1305,8 +1314,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Update last check position
     lastShoreCheckPosRef.current = { x: playerX, y: playerY };
 
-    const playerTileX = Math.floor(playerX / TILE_SIZE);
-    const playerTileY = Math.floor(playerY / TILE_SIZE);
+    const playerTileX = Math.floor(playerX / tileSize);
+    const playerTileY = Math.floor(playerY / tileSize);
     const MAX_SEARCH_RADIUS = 17; // ~800px / 48px per tile
 
     // Spiral search outward from player - check expanding rings
@@ -1321,8 +1330,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           const tileKey = `${playerTileX + offsetX},${playerTileY + offsetY}`;
           if (waterTileLookup.get(tileKey)) {
             // Found water! Calculate exact distance to tile center
-            const tileWorldX = (playerTileX + offsetX) * TILE_SIZE + TILE_SIZE / 2;
-            const tileWorldY = (playerTileY + offsetY) * TILE_SIZE + TILE_SIZE / 2;
+            const tileWorldX = (playerTileX + offsetX) * tileSize + tileSize / 2;
+            const tileWorldY = (playerTileY + offsetY) * tileSize + tileSize / 2;
             const distX = playerX - tileWorldX;
             const distY = playerY - tileWorldY;
             const distance = Math.sqrt(distX * distX + distY * distY);
@@ -1360,21 +1369,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     closestInteractableCorpseId,
     closestInteractableStashId,
     closestInteractableSleepingBagId,
-    closestInteractableDoorId, // ADDED: Door support
-    closestInteractableAlkStationId, // ADDED: ALK station support
-    closestInteractableCairnId, // ADDED: Cairn support
+    closestInteractableDoorId,
+    closestInteractableAlkStationId,
+    closestInteractableCairnId,
     closestInteractableKnockedOutPlayerId,
     closestInteractableWaterPosition,
-    closestInteractableMilkableAnimalId, // ADDED: Milkable animal support
+    closestInteractableMilkableAnimalId,
   } = useInteractionFinder({
     localPlayer,
     campfires,
-    furnaces, // ADDED: Furnaces to useInteractionFinder
-    barbecues, // ADDED: Barbecues to useInteractionFinder
-    fumaroles, // ADDED: Fumaroles to useInteractionFinder (volcanic heat source)
+    furnaces,
+    barbecues,
+    fumaroles,
     lanterns,
-    turrets: visibleTurretsMap, // ADDED: Turrets to useInteractionFinder (use visible map)
-    homesteadHearths, // ADDED: HomesteadHearths to useInteractionFinder
+    turrets: visibleTurretsMap,
+    homesteadHearths,
     droppedItems,
     woodenStorageBoxes,
     playerCorpses,
@@ -1388,12 +1397,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     playerDrinkingCooldowns,
     rainCollectors,
     brothPots,
-    doors, // ADDED: Doors to useInteractionFinder
-    alkStations: visibleAlkStationsMap, // ADDED: ALK stations to useInteractionFinder
-    cairns, // ADDED: Cairns to useInteractionFinder
+    doors,
+    alkStations: visibleAlkStationsMap,
+    cairns,
     harvestableResources,
     worldTiles: visibleWorldTiles,
-    // ADDED: Milkable animal support
+    // Milkable animal support
     wildAnimals,
     caribouBreedingData,
     walrusBreedingData,
@@ -1455,15 +1464,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     connection,
     localPlayerId: localPlayer?.identity?.toHexString(),
     localPlayer,
-    predictedPosition, // ADDED: Client's predicted position for accurate projectile firing
-    getCurrentPositionNow, // ADDED: Function for exact position at firing time
+    predictedPosition,
+    getCurrentPositionNow,
     activeEquipments,
     itemDefinitions,
     inventoryItems,
     placementInfo,
     placementActions,
-    buildingState, // ADDED: Building state
-    buildingActions, // ADDED: Building actions
+    buildingState,
+    buildingActions,
     worldMousePos,
     // UNIFIED INTERACTION TARGET - single source of truth (includes water fallback)
     closestInteractableTarget: unifiedInteractableTarget,
@@ -1475,15 +1484,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     animalCorpses: visibleAnimalCorpsesMap,
     wildAnimals: visibleWildAnimalsMap,
     woodenStorageBoxes,
-    turrets: visibleTurretsMap, // ADDED: Turrets for pickup check (use visible map)
+    turrets: visibleTurretsMap,
     stashes,
     players,
-    cairns, // ADDED: Cairns for lore lookup
-    playerDiscoveredCairns, // ADDED: Player discovery tracking
+    cairns,
+    playerDiscoveredCairns,
     playerCorpses: visiblePlayerCorpsesMap, // Visible map for optimistic shake + protection check
-    addSOVAMessage, // ADDED: SOVA message adder for cairn lore
-    showSovaSoundBox, // ADDED: SOVA sound box for cairn lore audio with waveform
-    onCairnNotification, // ADDED: Cairn unlock notification callback
+    addSOVAMessage,
+    showSovaSoundBox,
+    onCairnNotification,
     onSetInteractingWith: onSetInteractingWith,
     isMinimapOpen,
     setIsMinimapOpen,
@@ -1495,10 +1504,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     setMusicPanelVisible,
     movementDirection,
     isAutoWalking, // Pass auto-walk state for dodge roll detection
-    targetedFoundation, // ADDED: Pass targeted foundation to input handler
-    targetedWall, // ADDED: Pass targeted wall to input handler
-    targetedFence, // ADDED: Pass targeted fence to input handler
-    rangedWeaponStats, // ADDED: Pass ranged weapon stats for auto-fire detection
+    targetedFoundation,
+    targetedWall,
+    targetedFence,
+    rangedWeaponStats,
     onProfilerRecordClick,
   });
 
@@ -1549,31 +1558,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   ]);
 
   // --- Mobile Interaction Support ---
-  // Helper to get human-readable label for interaction targets
-  const getInteractableLabel = useCallback((target: any): string => {
-    if (!target) return '';
-    switch (target.type) {
-      case 'harvestable_resource': return 'PICK';
-      case 'campfire': return 'FIRE';
-      case 'furnace': return 'SMELT';
-      case 'fumarole': return 'HEAT';
-      case 'lantern': return 'LAMP';
-      case 'homestead_hearth': return 'HOME';
-      case 'dropped_item': return 'ITEM';
-      case 'box': return 'BOX';
-      case 'corpse': return 'LOOT';
-      case 'stash': return 'STASH';
-      case 'sleeping_bag': return 'BED';
-      case 'knocked_out_player': return 'HELP';
-      case 'water': return 'DRINK';
-      case 'rain_collector': return 'WATER';
-      case 'broth_pot': return 'COOK';
-      case 'door': return 'DOOR';
-      case 'alk_station': return 'ALK';
-      default: return 'USE';
-    }
-  }, []);
-
   // Update mobile interact info when target changes
   useEffect(() => {
     if (onMobileInteractInfoChange && isMobile) {
@@ -1583,7 +1567,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           : null
       );
     }
-  }, [unifiedInteractableTarget, isMobile, onMobileInteractInfoChange, getInteractableLabel]);
+  }, [unifiedInteractableTarget, isMobile, onMobileInteractInfoChange]);
 
   // Handle mobile interact button press - ref to track trigger value
   const lastMobileInteractTriggerRef = useRef(mobileInteractTrigger || 0);
@@ -1625,11 +1609,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           break;
         case 'water':
           // Water requires hold - for mobile just show a message or ignore
-          console.log('[Mobile] Water drinking requires hold action - not supported in tap');
+          logDebug('[Mobile] Water drinking requires hold action - not supported in tap');
           break;
         case 'knocked_out_player':
           // Revive requires hold - for mobile just show a message or ignore
-          console.log('[Mobile] Reviving requires hold action - not supported in tap');
+          logDebug('[Mobile] Reviving requires hold action - not supported in tap');
           break;
       }
     }
@@ -1688,23 +1672,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // CORRECTLY DERIVE localPlayerDeathMarker from the deathMarkers prop
   const localPlayerDeathMarker = useMemo(() => {
-    // console.log('[GameCanvas] Computing localPlayerDeathMarker. localPlayer:', localPlayer?.identity?.toHexString(), 'deathMarkers size:', deathMarkers?.size, 'all markers:', Array.from(deathMarkers?.keys() || []));
     if (localPlayer && localPlayer.identity && deathMarkers) {
       const marker = deathMarkers.get(localPlayer.identity.toHexString());
-      // console.log('[GameCanvas] Found death marker for player:', marker);
       return marker || null;
     }
     return null;
   }, [localPlayer, deathMarkers]);
-
-  // Add debug logging for death screen
-  // console.log('[GameCanvas] Death screen check:', {
-  //   localPlayerIsDead: localPlayer?.isDead,
-  //   hasConnection: !!connection,
-  //   shouldShowDeathScreen,
-  //   localPlayerDeathMarker: localPlayerDeathMarker ? 'present' : 'null',
-  //   deathMarkerImg: deathMarkerImg ? 'loaded' : 'null'
-  // });
 
   // --- Effects ---
 
@@ -1740,331 +1713,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
   }, [connection, localPlayer?.isFlashlightOn, worldMousePos.x, worldMousePos.y, predictedPosition, localPlayer?.positionX, localPlayer?.positionY]);
 
-  // Register error handlers for consumeItem reducer
-  useEffect(() => {
-    if (!connection) return;
-
-    const handleConsumeItemResult = (ctx: any, itemInstanceId: bigint) => {
-      console.log(`[GameCanvas] consumeItem reducer callback triggered for instance ${itemInstanceId.toString()}`);
-      console.log(`[GameCanvas] Event status:`, ctx.event?.status);
-
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Unknown error';
-
-        // Check for brew cooldown error - SOVA voice or red box when narrative playing
-        if (errorMsg === 'BREW_COOLDOWN') {
-          if (isAnySovaAudioPlaying()) {
-            showError('Brew cooldown active.');
-          } else {
-            const brewCooldownSounds = [
-              '/sounds/sova_brew_cooldown.mp3',
-              '/sounds/sova_brew_cooldown1.mp3',
-              '/sounds/sova_brew_cooldown2.mp3',
-              '/sounds/sova_brew_cooldown3.mp3'
-            ];
-            const randomSound = brewCooldownSounds[Math.floor(Math.random() * brewCooldownSounds.length)];
-            try {
-              const audio = new Audio(randomSound);
-              audio.volume = 0.7;
-              audio.play().catch(err => {
-                console.warn(`[GameCanvas] Failed to play SOVA brew cooldown sound:`, err);
-              });
-            } catch (err) {
-              console.warn(`[GameCanvas] Error creating brew cooldown audio:`, err);
-            }
-          }
-        } else {
-          console.error(`[GameCanvas] ❌ consumeItem failed for instance ${itemInstanceId.toString()}:`, errorMsg);
-          showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-        }
-      } else if (ctx.event?.status?.tag === 'Committed') {
-        console.log(`[GameCanvas] ✅ consumeItem succeeded for instance ${itemInstanceId.toString()}`);
-      } else {
-        console.log(`[GameCanvas] consumeItem status:`, ctx.event?.status);
-      }
-    };
-
-    connection.reducers.onConsumeItem(handleConsumeItemResult);
-
-    return () => {
-      connection.reducers.removeOnConsumeItem(handleConsumeItemResult);
-    };
-  }, [connection, showError]);
-
-  // Register error handlers for applyFertilizer reducer
-  useEffect(() => {
-    if (!connection) return;
-
-    const handleApplyFertilizerResult = (ctx: any, fertilizerInstanceId: bigint) => {
-      console.log(`[GameCanvas] applyFertilizer reducer callback triggered for instance ${fertilizerInstanceId.toString()}`);
-      console.log(`[GameCanvas] Event status:`, ctx.event?.status);
-
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Unknown error';
-        console.error(`[GameCanvas] ❌ applyFertilizer failed for instance ${fertilizerInstanceId.toString()}:`, errorMsg);
-        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-      } else if (ctx.event?.status?.tag === 'Committed') {
-        console.log(`[GameCanvas] ✅ applyFertilizer succeeded for instance ${fertilizerInstanceId.toString()}`);
-      } else {
-        console.log(`[GameCanvas] applyFertilizer status:`, ctx.event?.status);
-      }
-    };
-
-    connection.reducers.onApplyFertilizer(handleApplyFertilizerResult);
-
-    return () => {
-      connection.reducers.removeOnApplyFertilizer(handleApplyFertilizerResult);
-    };
-  }, [connection, showError]);
-
-  // Register error handlers for destroy reducers
-  useEffect(() => {
-    if (!connection) return;
-
-    const handleDestroyFoundationResult = (ctx: any, foundationId: bigint) => {
-      console.log('[GameCanvas] destroyFoundation reducer result:', ctx.event?.status);
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Failed to destroy foundation';
-        console.error('[GameCanvas] destroyFoundation failed:', errorMsg);
-        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-      } else if (ctx.event?.status?.tag === 'Committed') {
-        console.log('[GameCanvas] destroyFoundation succeeded! Foundation', foundationId, 'destroyed');
-      }
-    };
-
-    const handleDestroyWallResult = (ctx: any, wallId: bigint) => {
-      console.log('[GameCanvas] destroyWall reducer result:', ctx.event?.status);
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Failed to destroy wall';
-        console.error('[GameCanvas] destroyWall failed:', errorMsg);
-        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-      } else if (ctx.event?.status?.tag === 'Committed') {
-        console.log('[GameCanvas] destroyWall succeeded! Wall', wallId, 'destroyed');
-      }
-    };
-
-    const handleFireProjectileResult = (ctx: any, targetWorldX: number, targetWorldY: number) => {
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || '';
-
-        // CRITICAL: The client only calls fireProjectile if isReadyToFire was true.
-        // If we get here, it means the client thought the weapon was ready when it called fireProjectile.
-        // ANY error from fireProjectile is a sync issue, not a user error.
-        // The weapon state may have gotten out of sync between client and server.
-        console.log('[FireProjectile] Client-server sync issue - suppressing sound for all fireProjectile errors');
-        console.log('[FireProjectile] Error details:', errorMsg);
-        return; // Don't play sound - this is a sync issue, not a user error
-      }
-    };
-
-    const handleLoadRangedWeaponResult = (ctx: any) => {
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || '';
-
-        // This is where the "no arrows detected" error sound should play
-        // The user tried to load the weapon (right-click) but has no arrows
-        console.log('[LoadRangedWeapon] Load failed - this is a legitimate user error:', errorMsg);
-
-        // Play the error sound for legitimate loading failures
-        if (errorMsg.includes('need at least 1 arrow')) {
-          playImmediateSound('error_arrows', 1.0);
-        }
-        showError(errorMsg || 'Failed to load weapon');
-      }
-    };
-
-    const handleUpgradeFoundationResult = (ctx: any, foundationId: bigint, newTier: number) => {
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || '';
-        // Check if error is about building privilege
-        if (errorMsg.includes('Building privilege') || errorMsg.includes('building privilege')) {
-          playImmediateSound('error_building_privilege', 1.0);
-        }
-        // Check if error is about tier upgrade (cannot downgrade or already at tier)
-        else if (errorMsg.includes('Cannot downgrade') ||
-          errorMsg.includes('Current tier') ||
-          errorMsg.includes('Target tier')) {
-          playImmediateSound('error_tier_upgrade', 1.0);
-        }
-        // Check if error is about insufficient resources
-        else if (errorMsg.includes('Not enough') ||
-          errorMsg.includes('wood') ||
-          errorMsg.includes('stone') ||
-          errorMsg.includes('metal fragments') ||
-          errorMsg.includes('Required:')) {
-          playImmediateSound('error_resources', 1.0);
-        }
-        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-      }
-    };
-
-    // Generic placement error handler for all placeable items (campfire, furnace, lantern, etc.)
-    // Always shows server errors (e.g. "Placement location is too far away") in the red error box
-    const handlePlacementError = (ctx: any, itemName: string) => {
-      const status = ctx.event?.status;
-      const isFailed = status?.tag === 'Failed' || (status && typeof status === 'object' && 'Failed' in status);
-      if (isFailed) {
-        // Extract error message - try multiple possible SDK structures
-        let errorMsg =
-          (status?.tag === 'Failed' && status?.value) ||
-          status?.Failed ||
-          ctx.event?.message ||
-          `${itemName} placement failed`;
-        if (typeof errorMsg !== 'string') errorMsg = String(errorMsg);
-        console.log(`[GameCanvas] ${itemName} placement failed:`, errorMsg);
-        playImmediateSound('error_placement_failed', 1.0);
-        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-      }
-    };
-
-    // Placement reducer error handlers
-    const handlePlaceCampfireResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
-      handlePlacementError(ctx, 'Campfire');
-    };
-    const handlePlaceFurnaceResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
-      handlePlacementError(ctx, 'Furnace');
-    };
-    const handlePlaceLanternResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
-      handlePlacementError(ctx, 'Lantern');
-    };
-    const handlePlaceWoodenStorageBoxResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
-      handlePlacementError(ctx, 'Wooden Storage Box');
-    };
-    const handlePlaceSleepingBagResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
-      handlePlacementError(ctx, 'Sleeping Bag');
-    };
-    const handlePlaceStashResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
-      handlePlacementError(ctx, 'Stash');
-    };
-    const handlePlaceShelterResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
-      handlePlacementError(ctx, 'Shelter');
-    };
-    const handlePlaceRainCollectorResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
-      handlePlacementError(ctx, 'Rain Collector');
-    };
-    const handlePlaceHomesteadHearthResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
-      handlePlacementError(ctx, "Matron's Chest");
-    };
-    const handlePlaceBarbecueResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
-      handlePlacementError(ctx, 'Barbecue');
-    };
-    const handlePlaceTurretResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
-      handlePlacementError(ctx, 'Turret');
-    };
-    const handlePlaceExplosiveResult = (ctx: any, itemInstanceId: bigint, worldX: number, worldY: number) => {
-      handlePlacementError(ctx, 'Explosive');
-    };
-
-    type ReducerBinding = {
-      on: string;
-      off: string;
-      handler: (...args: any[]) => void;
-    };
-
-    const registerReducerBindings = (bindings: ReducerBinding[]) => {
-      for (const binding of bindings) {
-        (connection.reducers as any)[binding.on](binding.handler);
-      }
-    };
-    const unregisterReducerBindings = (bindings: ReducerBinding[]) => {
-      for (const binding of bindings) {
-        (connection.reducers as any)[binding.off](binding.handler);
-      }
-    };
-
-    const requiredBindings: ReducerBinding[] = [
-      { on: 'onDestroyFoundation', off: 'removeOnDestroyFoundation', handler: handleDestroyFoundationResult },
-      { on: 'onDestroyWall', off: 'removeOnDestroyWall', handler: handleDestroyWallResult },
-      { on: 'onFireProjectile', off: 'removeOnFireProjectile', handler: handleFireProjectileResult },
-      { on: 'onLoadRangedWeapon', off: 'removeOnLoadRangedWeapon', handler: handleLoadRangedWeaponResult },
-      { on: 'onUpgradeFoundation', off: 'removeOnUpgradeFoundation', handler: handleUpgradeFoundationResult },
-      // Placement error handlers (all placement errors, including "too far away", show in red box).
-      { on: 'onPlaceCampfire', off: 'removeOnPlaceCampfire', handler: handlePlaceCampfireResult },
-      { on: 'onPlaceFurnace', off: 'removeOnPlaceFurnace', handler: handlePlaceFurnaceResult },
-      { on: 'onPlaceLantern', off: 'removeOnPlaceLantern', handler: handlePlaceLanternResult },
-      { on: 'onPlaceWoodenStorageBox', off: 'removeOnPlaceWoodenStorageBox', handler: handlePlaceWoodenStorageBoxResult },
-      { on: 'onPlaceSleepingBag', off: 'removeOnPlaceSleepingBag', handler: handlePlaceSleepingBagResult },
-      { on: 'onPlaceStash', off: 'removeOnPlaceStash', handler: handlePlaceStashResult },
-      { on: 'onPlaceShelter', off: 'removeOnPlaceShelter', handler: handlePlaceShelterResult },
-      { on: 'onPlaceRainCollector', off: 'removeOnPlaceRainCollector', handler: handlePlaceRainCollectorResult },
-      { on: 'onPlaceHomesteadHearth', off: 'removeOnPlaceHomesteadHearth', handler: handlePlaceHomesteadHearthResult },
-      { on: 'onPlaceBarbecue', off: 'removeOnPlaceBarbecue', handler: handlePlaceBarbecueResult },
-      { on: 'onPlaceTurret', off: 'removeOnPlaceTurret', handler: handlePlaceTurretResult },
-      { on: 'onPlaceExplosive', off: 'removeOnPlaceExplosive', handler: handlePlaceExplosiveResult },
-    ];
-    registerReducerBindings(requiredBindings);
-
-    // --- Gameplay interaction error handlers (pickup, doors, cairns, milking, fishing) ---
-    // Skip sync/edge-case errors: "too far", "not found" (race), "no active session"
-    const handlePickupDroppedItemResult = (ctx: any, droppedItemId: bigint) => {
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Cannot pick up item';
-        if (errorMsg.toLowerCase().includes('too far')) return;
-        if (errorMsg.toLowerCase().includes('not found')) return; // Someone else picked it up
-        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-      }
-    };
-    const handleInteractDoorResult = (ctx: any, doorId: bigint) => {
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Cannot interact with door';
-        if (errorMsg.toLowerCase().includes('too far')) return;
-        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-      }
-    };
-    const handleInteractWithCairnResult = (ctx: any, cairnId: bigint) => {
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Cannot interact with cairn';
-        if (errorMsg.toLowerCase().includes('too far')) return;
-        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-      }
-    };
-    const handleMilkAnimalResult = (ctx: any, animalId: bigint) => {
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Cannot milk animal';
-        if (errorMsg.toLowerCase().includes('too far')) return;
-        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-      }
-    };
-    const handleCastFishingLineResult = (ctx: any, targetX: number, targetY: number) => {
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Cannot cast fishing line';
-        if (errorMsg.toLowerCase().includes('too far')) return;
-        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-      }
-    };
-    const handleFinishFishingResult = (ctx: any, success: boolean, caughtItems: string[]) => {
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Fishing failed';
-        if (errorMsg.toLowerCase().includes('no active') || errorMsg.toLowerCase().includes('session is not active')) return;
-        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-      }
-    };
-
-    const optionalBindings: ReducerBinding[] = [
-      { on: 'onPickupDroppedItem', off: 'removeOnPickupDroppedItem', handler: handlePickupDroppedItemResult },
-      { on: 'onInteractDoor', off: 'removeOnInteractDoor', handler: handleInteractDoorResult },
-      { on: 'onInteractWithCairn', off: 'removeOnInteractWithCairn', handler: handleInteractWithCairnResult },
-      { on: 'onMilkAnimal', off: 'removeOnMilkAnimal', handler: handleMilkAnimalResult },
-      { on: 'onCastFishingLine', off: 'removeOnCastFishingLine', handler: handleCastFishingLineResult },
-      { on: 'onFinishFishing', off: 'removeOnFinishFishing', handler: handleFinishFishingResult },
-    ];
-    for (const binding of optionalBindings) {
-      const onFn = (connection.reducers as any)[binding.on];
-      if (typeof onFn === 'function') {
-        onFn.call(connection.reducers, binding.handler);
-      }
-    }
-
-    return () => {
-      unregisterReducerBindings(requiredBindings);
-      for (const binding of optionalBindings) {
-        const offFn = (connection.reducers as any)[binding.off];
-        if (typeof offFn === 'function') {
-          offFn.call(connection.reducers, binding.handler);
-        }
-      }
-    };
-  }, [connection, showError]);
+  useGameReducerFeedbackHandlers({
+    connection,
+    showError,
+    playImmediateSound: playImmediateSound as (soundType: string, volume?: number) => void,
+    isAnySovaAudioPlaying,
+  });
 
   useEffect(() => {
     // Iterate over all known icons in itemIconUtils.ts to ensure they are preloaded
@@ -2084,7 +1738,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Load compound building images
   useEffect(() => {
     preloadMonumentImages();
-    preloadCairnImages(); // ADDED: Preload cairn images
+    preloadCairnImages();
     preloadRoadLamppostImages(); // Aleutian whale oil lampposts (day/night variants)
   }, []);
 
@@ -2179,48 +1833,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Note: Interior wall images are no longer needed - interior walls now use the same
     // images as exterior walls with visual modifications (lighter color, bottom half, shadow)
   }, []);
-
-  // Register reducer callbacks for wall upgrades
-  useEffect(() => {
-    if (!connection) return;
-
-    const handleUpgradeWallResult = (ctx: any, wallId: bigint, newTier: number) => {
-      console.log('[GameCanvas] upgradeWall reducer result:', ctx.event?.status);
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Failed to upgrade wall';
-        console.error('[GameCanvas] upgradeWall failed:', errorMsg);
-        // Check if error is about building privilege
-        if (errorMsg.includes('Building privilege') || errorMsg.includes('building privilege')) {
-          playImmediateSound('error_building_privilege', 1.0);
-        }
-        // Check if error is about tier upgrade (cannot downgrade or already at tier)
-        else if (errorMsg.includes('Cannot downgrade') ||
-          errorMsg.includes('Current tier') ||
-          errorMsg.includes('Target tier')) {
-          playImmediateSound('error_tier_upgrade', 1.0);
-        }
-        // Check if error is about insufficient resources
-        else if (errorMsg.includes('Not enough') ||
-          errorMsg.includes('wood') ||
-          errorMsg.includes('stone') ||
-          errorMsg.includes('metal fragments') ||
-          errorMsg.includes('Required:')) {
-          playImmediateSound('error_resources', 1.0);
-        }
-        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-      } else if (ctx.event?.status?.tag === 'Committed') {
-        console.log('[GameCanvas] upgradeWall succeeded! Wall', wallId, 'upgraded to tier', newTier);
-        // The wall tier update will come through SpacetimeDB subscriptions automatically
-        // The sound is played server-side via sound events
-      }
-    };
-
-    connection.reducers.onUpgradeWall(handleUpgradeWallResult);
-
-    return () => {
-      connection.reducers.removeOnUpgradeWall(handleUpgradeWallResult);
-    };
-  }, [connection, showError]);
 
   // Preload images
   useEffect(() => {
@@ -2363,241 +1975,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     };
   }, [ambientSoundSystem.testAllVariants]);
 
-  // Optimized particle renderer - batches particles by type to minimize ctx state changes
-  const renderParticlesToCanvas = (ctx: CanvasRenderingContext2D, particles: any[]) => {
-    if (particles.length === 0) return;
+  // Wrapper for particle renderer (passes refs to extracted util)
+  const renderParticles = useCallback((ctx: CanvasRenderingContext2D, particles: any[]) => {
+    renderParticlesToCanvas(ctx, particles, particleBucketsRef.current, memoryParticleGradientCacheRef.current);
+  }, []);
 
-    // Separate particles by type for batched rendering (reused arrays to avoid per-frame allocations)
-    const buckets = particleBucketsRef.current;
-    buckets.fire.length = 0;
-    buckets.ember.length = 0;
-    buckets.spark.length = 0;
-    buckets.other.length = 0;
-    buckets.memory.length = 0;
-    buckets.regularSmoke.length = 0;
-
-    for (let i = 0; i < particles.length; i++) {
-      const p = particles[i];
-      if (p.type === 'fire') {
-        buckets.fire.push(p);
-      } else if (p.type === 'ember') {
-        buckets.ember.push(p);
-      } else if (p.type === 'spark') {
-        buckets.spark.push(p);
-      } else {
-        buckets.other.push(p);
-      }
-    }
-
-    // Render fire particles with AAA pixel art style (Sea of Stars inspired)
-    // Use square pixels instead of circles for crisp pixel art look
-    if (buckets.fire.length > 0) {
-      ctx.save();
-      // Disable anti-aliasing for crisp pixel art
-      ctx.imageSmoothingEnabled = false;
-      for (let i = 0; i < buckets.fire.length; i++) {
-        const particle = buckets.fire[i];
-        const isStaticCampfire = particle.id && particle.id.startsWith('fire_static_');
-
-        ctx.globalAlpha = particle.alpha || 1;
-        ctx.fillStyle = particle.color || '#ff4500';
-
-        if (isStaticCampfire) {
-          // AAA pixel art style: larger square pixels with subtle glow for fishing village fire
-          ctx.shadowColor = particle.color || '#ff4500';
-          ctx.shadowBlur = particle.size * 0.3; // Subtle glow for pixel art
-        } else {
-          // Regular campfire: smaller glow
-          ctx.shadowColor = particle.color || '#ff4500';
-          ctx.shadowBlur = particle.size * 0.5;
-        }
-
-        // Use square pixels for pixel art style (Sea of Stars)
-        const pixelSize = Math.max(1, Math.floor(particle.size));
-        const pixelX = Math.floor(particle.x - pixelSize / 2);
-        const pixelY = Math.floor(particle.y - pixelSize / 2);
-        ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
-      }
-      ctx.restore();
-    }
-
-    // Render ember particles - glowing floating embers with warm glow
-    if (buckets.ember.length > 0) {
-      ctx.save();
-      ctx.imageSmoothingEnabled = false;
-      for (let i = 0; i < buckets.ember.length; i++) {
-        const particle = buckets.ember[i];
-
-        ctx.globalAlpha = particle.alpha || 1;
-        ctx.fillStyle = particle.color || '#FFE066';
-        // Embers have a warm, pulsing glow
-        ctx.shadowColor = particle.color || '#FFE066';
-        ctx.shadowBlur = particle.size * 2 + Math.sin(Date.now() * 0.01 + i) * 2;
-
-        // Small square pixels for embers
-        const pixelSize = Math.max(1, Math.floor(particle.size));
-        const pixelX = Math.floor(particle.x - pixelSize / 2);
-        const pixelY = Math.floor(particle.y - pixelSize / 2);
-        ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
-      }
-      ctx.restore();
-    }
-
-    // Render spark particles - bright, fast-moving sparks
-    if (buckets.spark.length > 0) {
-      ctx.save();
-      ctx.imageSmoothingEnabled = false;
-      for (let i = 0; i < buckets.spark.length; i++) {
-        const particle = buckets.spark[i];
-
-        ctx.globalAlpha = particle.alpha || 1;
-        ctx.fillStyle = particle.color || '#FFFFFF';
-        // Sparks have a bright, intense glow
-        ctx.shadowColor = '#FFFFFF';
-        ctx.shadowBlur = particle.size * 4;
-
-        // Tiny square pixels for sparks
-        const pixelSize = Math.max(1, Math.floor(particle.size));
-        const pixelX = Math.floor(particle.x - pixelSize / 2);
-        const pixelY = Math.floor(particle.y - pixelSize / 2);
-        ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
-      }
-      ctx.restore();
-    }
-
-    // Render other particles (smoke, smoke_burst) with AAA pixel art style
-    if (buckets.other.length > 0) {
-      ctx.save();
-
-      // Separate memory particles from regular smoke for different rendering
-      for (let i = 0; i < buckets.other.length; i++) {
-        const p = buckets.other[i];
-        if (p.id && (p.id.startsWith('memory_') || p.id.startsWith('memoryfrag_'))) {
-          buckets.memory.push(p);
-        } else {
-          buckets.regularSmoke.push(p);
-        }
-      }
-
-      // Render MEMORY BEACON particles as soft glowing circles (ethereal effect)
-      // PERFORMANCE: Cache gradients by (color, radiusBucket) - avoids per-particle allocations and GC spikes
-      if (buckets.memory.length > 0) {
-        ctx.imageSmoothingEnabled = true; // Enable smoothing for soft glow effect
-        const gradCache = memoryParticleGradientCacheRef.current;
-        for (let i = 0; i < buckets.memory.length; i++) {
-          const particle = buckets.memory[i];
-          const isFragment = particle.id && particle.id.startsWith('memoryfrag_');
-
-          ctx.globalAlpha = particle.alpha || 1;
-
-          const radius = Math.max(2, particle.size * (isFragment ? 1.5 : 1.2));
-          const radiusBucket = Math.round(radius);
-          const baseColor = particle.color || '#9966FF';
-          const cacheKey = `${baseColor}_${radiusBucket}`;
-
-          let gradient = gradCache.get(cacheKey);
-          if (!gradient) {
-            gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radiusBucket);
-            gradient.addColorStop(0, baseColor);
-            gradient.addColorStop(0.4, baseColor);
-            gradient.addColorStop(1, 'transparent');
-            gradCache.set(cacheKey, gradient);
-          }
-
-          ctx.save();
-          ctx.translate(particle.x, particle.y);
-          ctx.fillStyle = gradient;
-          ctx.beginPath();
-          ctx.arc(0, 0, radiusBucket, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-
-          if (isFragment) {
-            ctx.globalAlpha = (particle.alpha || 1) * 0.5;
-            const innerRadius = Math.round(radius * 0.5);
-            const innerKey = `inner_${innerRadius}`;
-            let innerGradient = gradCache.get(innerKey);
-            if (!innerGradient) {
-              innerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, innerRadius);
-              innerGradient.addColorStop(0, '#FFFFFF');
-              innerGradient.addColorStop(1, 'transparent');
-              gradCache.set(innerKey, innerGradient);
-            }
-            ctx.save();
-            ctx.translate(particle.x, particle.y);
-            ctx.fillStyle = innerGradient;
-            ctx.beginPath();
-            ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-          }
-        }
-      }
-
-      // Render regular smoke particles with pixel art style
-      if (buckets.regularSmoke.length > 0) {
-        ctx.imageSmoothingEnabled = false;
-        ctx.shadowBlur = 0; // No shadow for smoke particles
-        for (let i = 0; i < buckets.regularSmoke.length; i++) {
-          const particle = buckets.regularSmoke[i];
-
-          ctx.globalAlpha = particle.alpha || 1;
-          ctx.fillStyle = particle.color || '#888888';
-
-          // Use square pixels for pixel art style (Sea of Stars)
-          const pixelSize = Math.max(1, Math.floor(particle.size));
-          const pixelX = Math.floor(particle.x - pixelSize / 2);
-          const pixelY = Math.floor(particle.y - pixelSize / 2);
-          ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
-        }
-      }
-
-      ctx.restore();
-    }
-  };
-
-  // Used to trigger cloud fetching and updating -- keep this logic at the top level
-  // THROTTLED: Only send updates to server periodically or when moving significant distance
-  const lastViewportUpdateRef = useRef<number>(0);
-  const lastViewportPosRef = useRef<{ x: number, y: number } | null>(null);
-
-  useEffect(() => {
-    if (connection) {
-      const now = Date.now();
-      const timeDiff = now - lastViewportUpdateRef.current;
-
-      // Check distance moved since last update
-      let distSq = 0;
-      if (lastViewportPosRef.current) {
-        const dx = camera.x - lastViewportPosRef.current.x;
-        const dy = camera.y - lastViewportPosRef.current.y;
-        distSq = dx * dx + dy * dy;
-      } else {
-        distSq = Infinity; // Always update first time
-      }
-
-      // Update if > 500ms passed OR moved > 200px (approx 4 tiles)
-      // This drastically reduces websocket traffic during smooth panning
-      if (timeDiff > 500 || distSq > 40000) {
-        lastViewportUpdateRef.current = now;
-        lastViewportPosRef.current = { x: camera.x, y: camera.y };
-
-        // Update viewport in the database so server knows what's visible to this client
-        // This informs the server about the client's view bounds for cloud generation
-        const viewportMinX = camera.x - currentCanvasWidth / 2;
-        const viewportMinY = camera.y - currentCanvasHeight / 2;
-        const viewportMaxX = camera.x + currentCanvasWidth / 2;
-        const viewportMaxY = camera.y + currentCanvasHeight / 2;
-
-        // Call reducer to update the server-side viewport
-        try {
-          connection.reducers.updateViewport(viewportMinX, viewportMinY, viewportMaxX, viewportMaxY);
-        } catch (error) {
-          console.error('[GameCanvas] Failed to update viewport on server:', error);
-        }
-      }
-    }
-  }, [connection, camera.x, camera.y, currentCanvasWidth, currentCanvasHeight]);
+  useViewportSync(connection, camera.x, camera.y, currentCanvasWidth, currentCanvasHeight);
 
   // Lightning flash + delayed thunder sound in heavy storm zones
   useThunderEffects({ connection, localPlayer });
@@ -2626,7 +2009,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // 🔧 SET TO true TO ENABLE LAG DIAGNOSTICS IN CONSOLE
   const ENABLE_LAG_DIAGNOSTICS = false;
   const LAG_DIAGNOSTIC_INTERVAL_MS = 5000; // Log every 5 seconds
-  const PLAYER_SORT_FEET_OFFSET_PX = 48;
+  const PLAYER_SORT_FEET_OFFSET_PX = gameConfig.tileSize;
   // 🔧 SET TO true TO ENABLE Y-SORT DEBUG LOGGING (throttled to 400ms; adds findIndex + loop overhead)
   const ENABLE_YSORT_DEBUG = false;
   const YSORT_DEBUG_INTERVAL_MS = 400;
@@ -2714,7 +2097,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const currentYSortedEntities = ySortedEntitiesRef.current;
     const currentCanvasWidth = canvasSize.width;
     const currentCanvasHeight = canvasSize.height;
-    // Phase 4b: Read frequently-changing deps from ref
+    const viewBounds = getViewBounds(currentCameraOffsetX, currentCameraOffsetY, currentCanvasWidth, currentCanvasHeight);
     const rd = renderGameDepsRef.current;
 
     // Y-sort debug logging (throttled). Helps diagnose order mismatches in real time.
@@ -2789,44 +2172,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // currentCycleProgress is read from ref above (defaults to 0.375 in ref initialization)
 
-    // --- ADD THESE LOGS for basic renderGame entry check ---
-    // console.log(
-    //     `[GameCanvas renderGame ENTRY] localPlayerId: ${localPlayerId}, ` +
-    //     `playerCorpses type: ${typeof playerCorpses}, isMap: ${playerCorpses instanceof Map}, size: ${playerCorpses?.size}, ` +
-    //     `localPlayer defined: ${!!localPlayer}, localPlayer.identity defined: ${!!localPlayer?.identity}`
-    // );
-    // --- END ADDED LOGS ---
-
-    // --- Rendering ---
+    // --- RENDER PASS 1: Scene prep & background ---
     ctx.clearRect(0, 0, currentCanvasWidth, currentCanvasHeight);
-
-    // 🎯 CYBERPUNK: Render SOVA simulation grid background instead of plain black
-    // This creates the lore-consistent illusion that the game world exists within a cyberpunk simulation
-    renderCyberpunkGridBackground(
-      ctx,
-      currentCanvasWidth,
-      currentCanvasHeight,
-      currentCameraOffsetX,
-      currentCameraOffsetY
-    );
-
+    renderCyberpunkGridBackground(ctx, currentCanvasWidth, currentCanvasHeight, currentCameraOffsetX, currentCameraOffsetY);
     ctx.save();
     ctx.translate(currentCameraOffsetX, currentCameraOffsetY);
     const _t0 = mark(showFpsProfiler);
-
-    // Set shelter clipping data for shadow rendering
     setShelterClippingData(shelterClippingData);
-
-    // Pass the necessary viewport parameters to the optimized background renderer
-    // When snorkeling, render underwater view mode (land as dark blue, sea as normal)
     const isSnorkeling = localPlayer?.isSnorkeling ?? false;
     renderWorldBackground(ctx, currentCameraOffsetX, currentCameraOffsetY, currentCanvasWidth, currentCanvasHeight, visibleWorldTiles, showAutotileDebug, isSnorkeling);
 
-    // MOVED: Swimming shadows now render after water overlay to appear above sea stack underwater zones
-
-    // MOVED: Water overlay now renders after players to appear on top
-
-    // --- Render Water Patches ---
+    // --- RENDER PASS 2: World patches (water, fertilizer, fire, explosives) ---
     // Water patches show as transparent black circles on the ground that boost plant growth
     // Note: Context is already translated by cameraOffset, so we pass the actual camera world position
     renderWaterPatches(
@@ -2880,7 +2236,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- End Placed Explosives ---
     const _t1 = mark(showFpsProfiler);
 
-    // --- Render Sea Stacks (SERVER-AUTHORITATIVE SYSTEM) ---
+    // --- RENDER PASS 3: Ground shadows, sea stacks, caustics, barrel shadows ---
     // DISABLED: Sea stacks are now rendered through the Y-sorted entities system for proper depth layering
     // This ensures players can walk behind and in front of sea stacks based on Y position
     // renderSeaStacks(
@@ -2908,43 +2264,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     visibleBarbecues.forEach(barbecue => {
       renderBarbecue(ctx, barbecue, now_ms, currentCycleProgress, true /* onlyDrawShadow */);
     });
-    // Note: Pumpkin and Mushroom shadows are now handled by the unified resource renderer
-    // through the Y-sorted entities system
-    // Tree shadows are now handled by the Y-sorted entity system for proper shadow layering
-    // TODO: Add other ground items like mushrooms, crops here if they get custom dynamic shadows
-
-    // --- Render Clouds on Canvas --- (MOVED HERE)
-    // Clouds are rendered after all world entities and particles,
-    // but before world-anchored UI like labels.
-    // The context (ctx) should still be translated by cameraOffset at this point.
-    /* REMOVING THIS FIRST CALL TO RENDER CLOUDS
-    if (clouds && clouds.size > 0 && cloudImagesRef.current) {
-      renderCloudsDirectly({ 
-        ctx, 
-        clouds: interpolatedClouds,
-        cloudImages: cloudImagesRef.current,
-        worldScale: 1, // Use a scale of 1 for clouds
-        cameraOffsetX, // Pass camera offsets so clouds move with the world view
-        cameraOffsetY  
-      });
-    }
-    */
-    // --- End Render Clouds on Canvas ---
-
-    // Second pass: Draw the actual entities for ground items
-    // Render Campfires (actual image, skip shadow as it's already drawn if burning)
-    /*visibleCampfires.forEach(campfire => {
-        renderCampfire(ctx, campfire, now_ms, currentCycleProgress, false, !campfire.isBurning );
-    });*/
-    // Note: Dropped items are now handled by the Y-sorted entities system
-    // Note: Mushrooms, Corn, Pumpkins, and Hemp are now handled by the unified resource renderer
-    // through the Y-sorted entities system
-    // Note: Sleeping bags are now handled by the Y-sorted entities system
-    // Render Stashes (Remove direct rendering as it's now y-sorted)
-    /*visibleStashes.forEach(stash => {
-        renderStash(ctx, stash, now_ms, currentCycleProgress);
-    });*/
-    // --- End Ground Items --- 
 
     // --- STEP 0.4: Render sea stack underwater silhouettes (snorkeling) or bottom halves + water effects ---
     // Sea stack ground shadows are now rendered as an overlay AFTER Y-sorted entities (see below)
@@ -3036,33 +2355,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const isLocalPlayer = localPlayerId === playerId;
 
       // EXACT same position logic as renderYSortedEntities
-      let playerForRendering = player;
-      if (isLocalPlayer && currentPredictedPosition) {
-        const scratch = swimmingPlayerScratchRef.current;
-        Object.assign(scratch, player);
-        scratch.positionX = currentPredictedPosition.x;
-        scratch.positionY = currentPredictedPosition.y;
-        scratch.direction = localFacingDirection ?? player.direction;
-        playerForRendering = scratch as SpacetimeDBPlayer;
-      } else if (!isLocalPlayer && remotePlayerInterpolation) {
-        const interpolatedPosition = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
-        const scratch = swimmingPlayerScratchRef.current;
-        Object.assign(scratch, player);
-        scratch.positionX = interpolatedPosition.x;
-        scratch.positionY = interpolatedPosition.y;
-        playerForRendering = scratch as SpacetimeDBPlayer;
-      }
+      const playerForRendering = getPlayerForRendering(
+        player,
+        isLocalPlayer,
+        currentPredictedPosition,
+        localFacingDirection,
+        remotePlayerInterpolation,
+        localPlayerId,
+        swimmingPlayerScratchRef.current
+      ) as SpacetimeDBPlayer;
 
-      // EXACT same movement detection logic as renderYSortedEntities  
       const lastPos = lastPositionsRef.current?.get(playerId);
-      let isPlayerMoving = false;
-
-      if (lastPos) {
-        const positionThreshold = 0.1;
-        const dx = Math.abs(playerForRendering.positionX - lastPos.x);
-        const dy = Math.abs(playerForRendering.positionY - lastPos.y);
-        isPlayerMoving = dx > positionThreshold || dy > positionThreshold;
-      }
+      const moving = isPlayerMoving(lastPos, playerForRendering.positionX, playerForRendering.positionY);
 
       // EXACT same animation frame logic as renderYSortedEntities
       let currentAnimFrame: number;
@@ -3071,7 +2375,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         currentAnimFrame = currentIdleAnimationFrame; // Swimming sprite uses idle frames for all swimming movement
       } else {
         // Land animation
-        if (!isPlayerMoving) {
+        if (!moving) {
           currentAnimFrame = currentIdleAnimationFrame;
         } else if (playerForRendering.isSprinting) {
           currentAnimFrame = currentSprintAnimationFrame;
@@ -3100,7 +2404,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           heroWaterImageRef.current || heroImageRef.current || heroImg, // heroSwimImg - with fallback chain
           heroDodgeImageRef.current || heroImg, // heroDodgeImg
           isOnline,
-          isPlayerMoving,
+          moving,
           isHovered,
           currentAnimFrame,
           now_ms,
@@ -3126,24 +2430,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const playerId = player.identity.toHexString();
       const isLocalPlayer = localPlayerId === playerId;
 
-      // Use predicted/interpolated position so shadow tracks the sprite perfectly
-      let playerForRendering = player;
-      if (isLocalPlayer && currentPredictedPosition) {
-        const scratch = swimmingPlayerScratchRef.current;
-        Object.assign(scratch, player);
-        scratch.positionX = currentPredictedPosition.x;
-        scratch.positionY = currentPredictedPosition.y;
-        scratch.direction = localFacingDirection || player.direction;
-        playerForRendering = scratch as SpacetimeDBPlayer;
-      } else if (!isLocalPlayer && remotePlayerInterpolation) {
-        // FIX: Use interpolated position for remote players so shadow doesn't lag behind sprite
-        const interpolatedPosition = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
-        const scratch = swimmingPlayerScratchRef.current;
-        Object.assign(scratch, player);
-        scratch.positionX = interpolatedPosition.x;
-        scratch.positionY = interpolatedPosition.y;
-        playerForRendering = scratch as SpacetimeDBPlayer;
-      }
+      const playerForRendering = getPlayerForRendering(
+        player,
+        isLocalPlayer,
+        currentPredictedPosition,
+        localFacingDirection,
+        remotePlayerInterpolation,
+        localPlayerId,
+        swimmingPlayerScratchRef.current
+      ) as SpacetimeDBPlayer;
 
       // Determine which sprite image to use for shadow shape
       let heroImg: HTMLImageElement | null = null;
@@ -3162,97 +2457,39 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
 
       if (heroImg) {
-        // Calculate sprite position
-        const drawWidth = gameConfig.spriteWidth * 2;
-        const drawHeight = gameConfig.spriteHeight * 2;
-        const spriteBaseX = playerForRendering.positionX - drawWidth / 2;
-        const spriteBaseY = playerForRendering.positionY - drawHeight / 2;
-
-        // Calculate if player is moving (same logic as main rendering)
-        let isPlayerMoving = false;
         const lastPos = lastPositionsRef.current?.get(playerId);
-        if (lastPos) {
-          const positionThreshold = 0.1;
-          const dx = Math.abs(playerForRendering.positionX - lastPos.x);
-          const dy = Math.abs(playerForRendering.positionY - lastPos.y);
-          isPlayerMoving = dx > positionThreshold || dy > positionThreshold;
-        }
-
-        // Calculate animated sprite coordinates for swimming
-        // IMPORTANT: Swimming uses idleAnimationFrame, NOT animationFrame (matches main rendering logic)
-        const totalSwimmingFrames = 24; // Swimming animation has 24 frames
+        const moving = isPlayerMoving(lastPos, playerForRendering.positionX, playerForRendering.positionY);
         const { sx, sy } = getSpriteCoordinates(
           playerForRendering,
-          isPlayerMoving,
-          currentIdleAnimationFrame, // Swimming uses idle animation frames, same as main player rendering!
-          false, // isUsingItem
-          totalSwimmingFrames,
-          false, // isIdle
-          false, // isCrouching
-          true,  // isSwimming - IMPORTANT: This tells it to use swimming animation
-          false, // isDodgeRolling
-          0      // dodgeRollProgress
+          moving,
+          currentIdleAnimationFrame,
+          false,
+          TOTAL_SWIMMING_FRAMES,
+          false,
+          false,
+          true,
+          false,
+          0
         );
-
-        // Calculate shadow position (same offset as in drawUnderwaterShadow function)
-        const centerX = playerForRendering.positionX;
-        const centerY = playerForRendering.positionY;
-        const shadowOffsetX = drawWidth * 0.28; // Small shift right
-        const shadowOffsetY = drawHeight * 0.9; // Small shift down
-        const shadowX = centerX + shadowOffsetX;
-        const shadowY = centerY + shadowOffsetY;
-
-        // Check if shadow position is over water before rendering
-        // Convert world position to tile coordinates
-        const shadowTileX = Math.floor(shadowX / gameConfig.tileSize);
-        const shadowTileY = Math.floor(shadowY / gameConfig.tileSize);
-
-        // PERFORMANCE: O(1) lookup using pre-computed Map instead of O(n) iteration
-        // Critical for 50+ players checking shadow positions every frame
-        const shadowTileKey = `${shadowTileX},${shadowTileY}`;
-        const isShadowOverWater = waterTileLookup.get(shadowTileKey) ?? false;
-
-        // Only render shadow if it's over water
-        if (isShadowOverWater) {
-          // Call the underwater shadow function with animated sprite coordinates
-          drawUnderwaterShadowOnly(
-            ctx,
-            heroImg,
-            sx, // Use calculated sprite x coordinate
-            sy, // Use calculated sprite y coordinate
-            spriteBaseX,
-            spriteBaseY,
-            drawWidth,
-            drawHeight
-          );
-        }
+        renderUnderwaterShadowIfOverWater(
+          ctx,
+          heroImg,
+          playerForRendering.positionX,
+          playerForRendering.positionY,
+          sx,
+          sy,
+          waterTileLookup
+        );
       }
     });
 
     // --- STEP 1.6: Render underwater shadow for snorkeling (underwater) local player ---
     // Snorkeling players are excluded from swimmingPlayersForBottomHalf but still need an underwater shadow
     if (isSnorkeling && localPlayer && currentPredictedPosition) {
-      // Use underwater sprite for snorkeling shadow shape - FIX: Add fallback
       const heroImg = heroWaterImageRef.current || heroImageRef.current;
-
       if (heroImg) {
-        const drawWidth = gameConfig.spriteWidth * 2;
-        const drawHeight = gameConfig.spriteHeight * 2;
-        const spriteBaseX = currentPredictedPosition.x - drawWidth / 2;
-        const spriteBaseY = currentPredictedPosition.y - drawHeight / 2;
-
-        // Calculate if player is moving
-        let isPlayerMoving = false;
         const lastPos = lastPositionsRef.current?.get(localPlayerId ?? '');
-        if (lastPos) {
-          const positionThreshold = 0.1;
-          const dx = Math.abs(currentPredictedPosition.x - lastPos.x);
-          const dy = Math.abs(currentPredictedPosition.y - lastPos.y);
-          isPlayerMoving = dx > positionThreshold || dy > positionThreshold;
-        }
-
-        // Calculate animated sprite coordinates for swimming/snorkeling (Phase 3d: use scratch to avoid allocation)
-        const totalSwimmingFrames = 24;
+        const moving = isPlayerMoving(lastPos, currentPredictedPosition.x, currentPredictedPosition.y);
         const localScratch = localPlayerScratchRef.current;
         Object.assign(localScratch, localPlayer);
         localScratch.positionX = currentPredictedPosition.x;
@@ -3260,134 +2497,74 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         localScratch.direction = localFacingDirection ?? localPlayer.direction;
         const { sx, sy } = getSpriteCoordinates(
           localScratch as SpacetimeDBPlayer,
-          isPlayerMoving,
+          moving,
           currentIdleAnimationFrame,
-          false, // isUsingItem
-          totalSwimmingFrames,
-          false, // isIdle
-          false, // isCrouching
-          true,  // isSwimming
-          false, // isDodgeRolling
-          0      // dodgeRollProgress
+          false,
+          TOTAL_SWIMMING_FRAMES,
+          false,
+          false,
+          true,
+          false,
+          0
         );
-
-        // Calculate shadow position (same offset as in drawUnderwaterShadow function)
-        const centerX = currentPredictedPosition.x;
-        const centerY = currentPredictedPosition.y;
-        const shadowOffsetX = drawWidth * 0.28;
-        const shadowOffsetY = drawHeight * 0.9;
-        const shadowX = centerX + shadowOffsetX;
-        const shadowY = centerY + shadowOffsetY;
-
-        // Check if shadow position is over water before rendering
-        const shadowTileX = Math.floor(shadowX / gameConfig.tileSize);
-        const shadowTileY = Math.floor(shadowY / gameConfig.tileSize);
-        const shadowTileKey = `${shadowTileX},${shadowTileY}`;
-        const isShadowOverWater = waterTileLookup.get(shadowTileKey) ?? false;
-
-        // Render underwater shadow for snorkeling player
-        if (isShadowOverWater) {
-          drawUnderwaterShadowOnly(
-            ctx,
-            heroImg,
-            sx,
-            sy,
-            spriteBaseX,
-            spriteBaseY,
-            drawWidth,
-            drawHeight
-          );
-        }
+        renderUnderwaterShadowIfOverWater(
+          ctx,
+          heroImg,
+          currentPredictedPosition.x,
+          currentPredictedPosition.y,
+          sx,
+          sy,
+          waterTileLookup
+        );
       }
     }
 
     // --- STEP 1.7: Render underwater shadows for REMOTE snorkeling players ---
-    // Remote snorkeling players are excluded from swimmingPlayersForBottomHalf but still need underwater shadows
     players.forEach((player) => {
-      // Only remote snorkeling players (not local, and is snorkeling)
       if (player.identity.toHexString() === localPlayerId) return;
       if (!player.isSnorkeling) return;
       if (player.isDead || player.isKnockedOut) return;
-        // FIX: Add fallback to walking sprite if water sprite not loaded
-        const heroImg = heroWaterImageRef.current || heroImageRef.current;
-
-        if (heroImg) {
-          const playerId = player.identity.toHexString();
-
-          // FIX: Use interpolated position for remote players so shadow tracks the sprite perfectly
-          let playerForRendering = player;
-          if (remotePlayerInterpolation) {
-            const interpolatedPosition = remotePlayerInterpolation.updateAndGetSmoothedPosition(player, localPlayerId);
-            const scratch = swimmingPlayerScratchRef.current;
-            Object.assign(scratch, player);
-            scratch.positionX = interpolatedPosition.x;
-            scratch.positionY = interpolatedPosition.y;
-            playerForRendering = scratch as SpacetimeDBPlayer;
-          }
-
-          const drawWidth = gameConfig.spriteWidth * 2;
-          const drawHeight = gameConfig.spriteHeight * 2;
-          const spriteBaseX = playerForRendering.positionX - drawWidth / 2;
-          const spriteBaseY = playerForRendering.positionY - drawHeight / 2;
-
-          // Calculate if player is moving
-          let isPlayerMoving = false;
-          const lastPos = lastPositionsRef.current?.get(playerId);
-          if (lastPos) {
-            const positionThreshold = 0.1;
-            const dx = Math.abs(playerForRendering.positionX - lastPos.x);
-            const dy = Math.abs(playerForRendering.positionY - lastPos.y);
-            isPlayerMoving = dx > positionThreshold || dy > positionThreshold;
-          }
-
-          // Calculate animated sprite coordinates for swimming
-          const totalSwimmingFrames = 24;
-          const { sx, sy } = getSpriteCoordinates(
-            playerForRendering,
-            isPlayerMoving,
-            currentIdleAnimationFrame,
-            false, // isUsingItem
-            totalSwimmingFrames,
-            false, // isIdleAnimation
-            false, // isCrouchingAnimation
-            true,  // isSwimmingAnimation
-            false, // isDodgeRollingAnimation
-            0      // dodgeRollProgress
-          );
-
-          // Calculate shadow position using interpolated position
-          const centerX = playerForRendering.positionX;
-          const centerY = playerForRendering.positionY;
-          const shadowOffsetX = drawWidth * 0.28;
-          const shadowOffsetY = drawHeight * 0.9;
-          const shadowX = centerX + shadowOffsetX;
-          const shadowY = centerY + shadowOffsetY;
-
-          // Check if shadow is over water tile
-          const shadowTileX = Math.floor(shadowX / 48);
-          const shadowTileY = Math.floor(shadowY / 48);
-          const shadowTileKey = `${shadowTileX},${shadowTileY}`;
-          const isShadowOverWater = waterTileLookup.get(shadowTileKey) ?? false;
-
-          // Render underwater shadow for remote snorkeling player
-          if (isShadowOverWater) {
-            drawUnderwaterShadowOnly(
-              ctx,
-              heroImg,
-              sx,
-              sy,
-              spriteBaseX,
-              spriteBaseY,
-              drawWidth,
-              drawHeight
-            );
-          }
-        }
-      });
+      const heroImg = heroWaterImageRef.current || heroImageRef.current;
+      if (heroImg) {
+        const playerId = player.identity.toHexString();
+        const playerForRendering = getPlayerForRendering(
+          player,
+          false,
+          null,
+          undefined,
+          remotePlayerInterpolation,
+          localPlayerId,
+          swimmingPlayerScratchRef.current
+        ) as SpacetimeDBPlayer;
+        const lastPos = lastPositionsRef.current?.get(playerId);
+        const moving = isPlayerMoving(lastPos, playerForRendering.positionX, playerForRendering.positionY);
+        const { sx, sy } = getSpriteCoordinates(
+          playerForRendering,
+          moving,
+          currentIdleAnimationFrame,
+          false,
+          TOTAL_SWIMMING_FRAMES,
+          false,
+          false,
+          true,
+          false,
+          0
+        );
+        renderUnderwaterShadowIfOverWater(
+          ctx,
+          heroImg,
+          playerForRendering.positionX,
+          playerForRendering.positionY,
+          sx,
+          sy,
+          waterTileLookup
+        );
+      }
+    });
     // --- END UNDERWATER SHADOWS ---
     const _t1c = mark(showFpsProfiler);
 
-    // --- Render water overlay (ABOVE underwater shadows and sea stack bottoms, BELOW sea stack tops and player heads) ---
+    // --- RENDER PASS 4: Water overlay ---
     // Skip water overlay when snorkeling - player is underwater so surface effects aren't visible
     if (!isSnorkeling) {
       renderWaterOverlay(
@@ -3412,13 +2589,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- END WATER OVERLAY ---
     const _t2 = mark(showFpsProfiler);
 
-    // --- STEP 2.5 & 3 COMBINED: Render Y-sorted entities AND swimming player top halves together ---
+    // --- RENDER PASS 5: Y-sorted entities and swimming player top halves ---
     // This ensures swimming player tops are properly Y-sorted with sea stacks and other tall entities
 
     // Render terrain footprints (snow/beach) ONCE as ground decals, before any Y-sorted entities.
-    // This ensures footprints are always below players/trees/structures regardless of
-    // how many times renderYSortedEntities is called (e.g. batched swimming player rendering).
-    renderAllFootprints(ctx, viewBounds, now_ms);
+    // Skip when local player is underwater (snorkeling) - surface footprints aren't visible from below.
+    if (!isSnorkeling) {
+      renderAllFootprints(ctx, viewBounds, now_ms);
+    }
 
     // Phase 3c: useEntityFiltering now pre-merges swimmingPlayerTopHalf into ySortedEntities.
     // Single loop: batch non-swimming entities, flush and render swimming tops when encountered.
@@ -3427,68 +2605,68 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         renderYSortedEntities({
           ctx,
           ySortedEntities: batch,
-        heroImageRef,
-        heroSprintImageRef,
-        heroIdleImageRef,
-        heroWaterImageRef,
-        heroCrouchImageRef,
-        heroDodgeImageRef,
-        lastPositionsRef,
-        activeConnections,
-        activeEquipments,
-        activeConsumableEffects,
-        itemDefinitions,
-        inventoryItems,
-        itemImagesRef,
-        doodadImagesRef,
-        shelterImage: shelterImageRef.current,
-        worldMouseX: currentWorldMouseX,
-        worldMouseY: currentWorldMouseY,
-        localPlayerId: localPlayerId,
-        animationFrame: currentAnimationFrame,
-        sprintAnimationFrame: currentSprintAnimationFrame,
-        idleAnimationFrame: currentIdleAnimationFrame,
-        nowMs: now_ms,
-        hoveredPlayerIds,
-        onPlayerHover: handlePlayerHover,
-        cycleProgress: currentCycleProgress,
-        renderPlayerCorpse: (props) => renderPlayerCorpse({ ...props, cycleProgress: currentCycleProgress, heroImageRef: heroImageRef, heroWaterImageRef: heroWaterImageRef, heroCrouchImageRef: heroCrouchImageRef }),
-        localPlayerPosition: currentPredictedPosition ?? { x: localPlayer?.positionX ?? 0, y: localPlayer?.positionY ?? 0 },
-        playerDodgeRollStates,
-        remotePlayerInterpolation,
-        localPlayerIsCrouching,
-        closestInteractableCampfireId: rd.closestInteractableCampfireId as number | null,
-        closestInteractableBoxId: rd.closestInteractableBoxId as number | null,
-        closestInteractableStashId: rd.closestInteractableStashId as number | null,
-        closestInteractableSleepingBagId: rd.closestInteractableSleepingBagId as number | null,
-        closestInteractableHarvestableResourceId: rd.closestInteractableHarvestableResourceId as bigint | null,
-        closestInteractableDroppedItemId: rd.closestInteractableDroppedItemId as bigint | null,
-        closestInteractableDoorId: rd.closestInteractableDoorId as bigint | null,
-        closestInteractableTarget: rd.closestInteractableTarget,
-        shelterClippingData,
-        localFacingDirection,
-        treeShadowsEnabled,
-        isTreeFalling,
-        getFallProgress,
-        cameraOffsetX: currentCameraOffsetX,
-        cameraOffsetY: currentCameraOffsetY,
-        foundationTileImagesRef,
-        allWalls: wallCells,
-        allFoundations: foundationCells,
-        allFences: visibleFences, // ADDED: All fences for smart sprite selection based on neighbors
-        buildingClusters,
-        playerBuildingClusterId,
-        connection, // ADDED: Pass connection for cairn biome lookup
-        isLocalPlayerSnorkeling: isSnorkeling, // ADDED: Pass snorkeling state for underwater rendering
-        alwaysShowPlayerNames, // ADDED: Pass setting for always showing player names
-        playerStats, // ADDED: Pass player stats for title display on name labels
-        largeQuarries, // ADDED: Pass large quarry locations for building restriction zones
-        detectedHotSprings, // ADDED: Pass hot spring locations for building restriction zones
-        detectedQuarries, // ADDED: Pass small quarry locations for building restriction zones
-        placementInfo, // ADDED: Pass placement info for showing restriction zones when placing items
-        caribouBreedingData, // ADDED: Pass caribou breeding data for age-based size scaling and pregnancy indicators
-        walrusBreedingData, // ADDED: Pass walrus breeding data for age-based size scaling and pregnancy indicators
-        chunkWeather, // ADDED: Chunk weather for grass sway (Clear=minimal, storm=dramatic)
+          heroImageRef,
+          heroSprintImageRef,
+          heroIdleImageRef,
+          heroWaterImageRef,
+          heroCrouchImageRef,
+          heroDodgeImageRef,
+          lastPositionsRef,
+          activeConnections,
+          activeEquipments,
+          activeConsumableEffects,
+          itemDefinitions,
+          inventoryItems,
+          itemImagesRef,
+          doodadImagesRef,
+          shelterImage: shelterImageRef.current,
+          worldMouseX: currentWorldMouseX,
+          worldMouseY: currentWorldMouseY,
+          localPlayerId: localPlayerId,
+          animationFrame: currentAnimationFrame,
+          sprintAnimationFrame: currentSprintAnimationFrame,
+          idleAnimationFrame: currentIdleAnimationFrame,
+          nowMs: now_ms,
+          hoveredPlayerIds,
+          onPlayerHover: handlePlayerHover,
+          cycleProgress: currentCycleProgress,
+          renderPlayerCorpse: (props) => renderPlayerCorpse({ ...props, cycleProgress: currentCycleProgress, heroImageRef: heroImageRef, heroWaterImageRef: heroWaterImageRef, heroCrouchImageRef: heroCrouchImageRef }),
+          localPlayerPosition: currentPredictedPosition ?? { x: localPlayer?.positionX ?? 0, y: localPlayer?.positionY ?? 0 },
+          playerDodgeRollStates,
+          remotePlayerInterpolation,
+          localPlayerIsCrouching,
+          closestInteractableCampfireId: rd.closestInteractableCampfireId as number | null,
+          closestInteractableBoxId: rd.closestInteractableBoxId as number | null,
+          closestInteractableStashId: rd.closestInteractableStashId as number | null,
+          closestInteractableSleepingBagId: rd.closestInteractableSleepingBagId as number | null,
+          closestInteractableHarvestableResourceId: rd.closestInteractableHarvestableResourceId as bigint | null,
+          closestInteractableDroppedItemId: rd.closestInteractableDroppedItemId as bigint | null,
+          closestInteractableDoorId: rd.closestInteractableDoorId as bigint | null,
+          closestInteractableTarget: rd.closestInteractableTarget,
+          shelterClippingData,
+          localFacingDirection,
+          treeShadowsEnabled,
+          isTreeFalling,
+          getFallProgress,
+          cameraOffsetX: currentCameraOffsetX,
+          cameraOffsetY: currentCameraOffsetY,
+          foundationTileImagesRef,
+          allWalls: wallCells,
+          allFoundations: foundationCells,
+          allFences: visibleFences,
+          buildingClusters,
+          playerBuildingClusterId,
+          connection,
+          isLocalPlayerSnorkeling: isSnorkeling,
+          alwaysShowPlayerNames,
+          playerStats,
+          largeQuarries,
+          detectedHotSprings,
+          detectedQuarries,
+          placementInfo,
+          caribouBreedingData,
+          walrusBreedingData,
+          chunkWeather,
         });
       }
     };
@@ -3499,21 +2677,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const playerId = item.playerId;
 
       const lastPos = lastPositionsRef.current?.get(playerId);
-      let isPlayerMoving = false;
-
-      if (lastPos) {
-        const positionThreshold = 0.1;
-        const dx = Math.abs(player.positionX - lastPos.x);
-        const dy = Math.abs(player.positionY - lastPos.y);
-        isPlayerMoving = dx > positionThreshold || dy > positionThreshold;
-      }
+      const moving = isPlayerMoving(lastPos, player.positionX, player.positionY);
 
       let currentAnimFrame: number;
       if (player.isOnWater) {
         // Swimming: use idle frames for ALL swimming movement (matches bottom half - Phase 3c fix)
         currentAnimFrame = currentIdleAnimationFrame;
       } else {
-        if (!isPlayerMoving) {
+        if (!moving) {
           currentAnimFrame = currentIdleAnimationFrame;
         } else if (player.isSprinting) {
           currentAnimFrame = currentSprintAnimationFrame;
@@ -3578,7 +2749,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           heroWaterImageRef.current || heroImageRef.current || heroImg,
           heroDodgeImageRef.current || heroImg,
           isOnline,
-          isPlayerMoving,
+          moving,
           isHovered,
           currentAnimFrame,
           now_ms,
@@ -3637,7 +2808,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- END Y-SORTED ENTITIES AND SWIMMING PLAYER TOP HALVES ---
     const _t3 = mark(showFpsProfiler);
 
-    // --- Render Tree Canopy Shadow Overlays ---
+    // --- RENDER PASS 6: Shadow overlays (tree canopy, sea stack) ---
     // These render AFTER all Y-sorted entities so shadows appear ON TOP of all entities under tree canopies.
     // The overlay uses tree-to-tree Y-sorted compositing to ensure shadows from trees behind
     // don't appear on tree canopies that are in front (higher Y = closer to camera).
@@ -3682,11 +2853,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Render bubbles floating upward when snorkeling (only over sea tiles)
     if (isSnorkeling) {
       // Create water tile checker using the lookup map
-      // Tiles are 48px each (matches server TILE_SIZE_PX)
-      const TILE_SIZE = 48;
+      const tileSize = gameConfig.tileSize;
       const checkIsWaterTile = (worldX: number, worldY: number): boolean => {
-        const tileX = Math.floor(worldX / TILE_SIZE);
-        const tileY = Math.floor(worldY / TILE_SIZE);
+        const tileX = Math.floor(worldX / tileSize);
+        const tileY = Math.floor(worldY / tileSize);
         const key = `${tileX},${tileY}`;
         return waterTileLookup.get(key) ?? false;
       };
@@ -3743,28 +2913,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
     // --- End Fence Target Indicator ---
 
-    // REMOVED: Top half rendering now integrated into Y-sorted system above
-    // REMOVED: Swimming shadows now render earlier, before sea stacks
 
-    // REMOVED: Swimming players now render normally in Y-sorted entities for proper depth sorting
 
-    // REMOVED: Sea stacks now render fully in Y-sorted entities
     // Water overlay will be clipped to only appear over underwater zones
 
     // Wild animals are now rendered through the Y-sorted entities system for proper layering
 
     // Render particle systems
     if (ctx) {
-      // REMOVED: Shore wave particles now render earlier (after water overlay, before sea stack tops)
       // This ensures they appear below sea stacks for proper depth layering
 
-      // Call without camera offsets, as ctx is already translated
-      renderParticlesToCanvas(ctx, campfireParticles);
-      renderParticlesToCanvas(ctx, torchParticles);
-      renderParticlesToCanvas(ctx, fireArrowParticles);
-      renderParticlesToCanvas(ctx, furnaceParticles);
-      renderParticlesToCanvas(ctx, barbecueParticles);
-      renderParticlesToCanvas(ctx, firePatchParticles);
+      renderParticles(ctx, campfireParticles);
+      renderParticles(ctx, torchParticles);
+      renderParticles(ctx, fireArrowParticles);
+      renderParticles(ctx, furnaceParticles);
+      renderParticles(ctx, barbecueParticles);
+      renderParticles(ctx, firePatchParticles);
       renderWardParticles(ctx, wardParticles, 0, 0); // Custom renderer for proper flame/wisp shapes
       // NOTE: Resource sparkle particles moved to after day/night overlay for visibility at night
 
@@ -3776,10 +2940,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
       // Render other players' fishing lines and bobbers
       if (typeof window !== 'undefined' && (window as any).renderOtherPlayersFishing) {
-        // console.log('[FISHING RENDER] Calling renderOtherPlayersFishing from GameCanvas');
         (window as any).renderOtherPlayersFishing(ctx);
-      } else {
-        // console.log('[FISHING RENDER] renderOtherPlayersFishing not available on window');
       }
     }
 
@@ -3787,9 +2948,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       ctx,
       harvestableResources: visibleHarvestableResourcesMap,
       campfires: visibleCampfiresMap,
-      furnaces: visibleFurnacesMap, // ADDED: furnaces parameter
-      barbecues: visibleBarbecuesMap, // ADDED: barbecues parameter
-      fumaroles: fumaroles, // ADDED: fumaroles parameter
+      furnaces: visibleFurnacesMap,
+      barbecues: visibleBarbecuesMap,
+      fumaroles: fumaroles,
       droppedItems: visibleDroppedItemsMap,
       woodenStorageBoxes: visibleBoxesMap,
       playerCorpses: visiblePlayerCorpsesMap,
@@ -3799,12 +2960,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       itemDefinitions,
       closestInteractableTarget: rd.unifiedInteractableTarget as any,
       lanterns: visibleLanternsMap,
-      turrets: visibleTurretsMap, // ADDED: Turrets to interaction labels
+      turrets: visibleTurretsMap,
       rainCollectors: rainCollectors,
       brothPots: brothPots,
       homesteadHearths: visibleHomesteadHearthsMap,
-      doors: visibleDoorsMap, // ADDED: Doors
-      alkStations: alkStations || EMPTY_MAP, // ADDED: ALK Stations for E label rendering
+      doors: visibleDoorsMap,
+      alkStations: alkStations || EMPTY_MAP,
     });
 
     // Render local player status tags (AUTO ATTACK, AUTO WALK indicators)
@@ -3924,7 +3085,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         doors: doors || EMPTY_MAP,
         alkStations: alkStations || EMPTY_MAP,
         lanterns: lanterns || EMPTY_MAP, // Add lanterns for ward collision
-        turrets: turrets || EMPTY_MAP, // ADDED: Turrets for collision
+        turrets: turrets || EMPTY_MAP,
         monumentParts: monumentParts ?? EMPTY_MAP, // Village campfires, etc.
       };
 
@@ -3962,8 +3123,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         playerX,
         playerY,
         ySortedEntities: currentYSortedEntities,
-        viewMinX: -currentCameraOffsetX,
-        viewMaxX: -currentCameraOffsetX + currentCanvasWidth,
+        viewMinX: viewBounds.minX,
+        viewMaxX: viewBounds.maxX,
         localPlayerId: localPlayer.identity?.toHexString?.(),
       });
     }
@@ -4105,7 +3266,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Resource sparkle particles render AFTER day/night overlay so they glow visibly at night
     ctx.save();
     ctx.translate(currentCameraOffsetX, currentCameraOffsetY); // Re-apply camera translation for world-space particles
-    renderParticlesToCanvas(ctx, resourceSparkleParticles);
+    renderParticles(ctx, resourceSparkleParticles);
     ctx.restore();
     // --- End Resource Sparkle Particles ---
 
@@ -4114,7 +3275,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (impactParticles.length > 0) {
       ctx.save();
       ctx.translate(currentCameraOffsetX, currentCameraOffsetY);
-      renderParticlesToCanvas(ctx, impactParticles);
+      renderParticles(ctx, impactParticles);
       ctx.restore();
     }
     // --- End Impact Particles ---
@@ -4124,7 +3285,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (structureImpactParticles.length > 0) {
       ctx.save();
       ctx.translate(currentCameraOffsetX, currentCameraOffsetY);
-      renderParticlesToCanvas(ctx, structureImpactParticles);
+      renderParticles(ctx, structureImpactParticles);
       ctx.restore();
     }
     // --- End Structure Impact Particles ---
@@ -4134,7 +3295,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (hostileDeathParticles.length > 0) {
       ctx.save();
       ctx.translate(currentCameraOffsetX, currentCameraOffsetY); // Re-apply camera translation for world-space particles
-      renderParticlesToCanvas(ctx, hostileDeathParticles);
+      renderParticles(ctx, hostileDeathParticles);
       ctx.restore();
     }
     // --- End Hostile Death Particles ---
@@ -4208,166 +3369,40 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
     // --- End Insanity Overlay ---
 
-    // Interaction indicators - Draw only for visible entities that are interactable
-    // Uses centralized ENTITY_VISUAL_CONFIG to position indicator at center of blue box
-    const drawIndicatorIfNeeded = (entityType: 'campfire' | 'furnace' | 'barbecue' | 'fumarole' | 'lantern' | 'box' | 'stash' | 'corpse' | 'knocked_out_player' | 'water' | 'homestead_hearth' | 'door', entityId: number | bigint | string, entityPosX: number, entityPosY: number, entityHeight: number, isInView: boolean, boxType?: number) => {
-      const hip = rd.holdInteractionProgress;
-      // If holdInteractionProgress is null (meaning no interaction is even being tracked by the state object),
-      // or if the entity is not in view, do nothing.
-      if (!isInView || !hip) {
-        return;
-      }
-
-      let targetId: number | bigint | string;
-      if (typeof entityId === 'string') {
-        targetId = entityId; // For knocked out players (hex string) or water ('water')
-      } else if (typeof entityId === 'bigint') {
-        targetId = BigInt(hip.targetId ?? 0);
-      } else {
-        targetId = Number(hip.targetId ?? 0);
-      }
-
-      // Check if the current entity being processed is the target of the (potentially stale) holdInteractionProgress object.
-      if (hip.targetType === entityType && targetId === entityId) {
-
-        // IMPORTANT: Only draw the indicator if the hold is *currently active* (isActivelyHolding is true).
-        // If isActivelyHolding is false, it means the hold was just released/cancelled.
-        // In this case, we don't draw anything for this entity, not even the background circle.
-        // The indicator will completely disappear once holdInteractionProgress becomes null in the next state update.
-        if (rd.isActivelyHolding) {
-          // Use appropriate duration based on interaction type
-          const interactionDuration = entityType === 'knocked_out_player' ? REVIVE_HOLD_DURATION_MS : HOLD_INTERACTION_DURATION_MS;
-          const currentProgress = Math.min(Math.max((Date.now() - hip.startTime) / interactionDuration, 0), 1);
-
-          // Map entity type to config key - use appropriate config for each box type
-          let configKey: string;
-          if (entityType === 'box') {
-            if (boxType === 3) {
-              configKey = 'compost';
-            } else if (boxType === 2) {
-              configKey = 'refrigerator';
-            } else {
-              configKey = 'wooden_storage_box';
-            }
-          } else if (entityType === 'furnace') {
-            // Use monument_large_furnace config for monument large furnaces
-            configKey = entityHeight >= 480 ? 'monument_large_furnace'
-              : entityHeight >= 256 ? 'large_furnace'
-                : 'furnace';
-          } else {
-            configKey = entityType;
-          }
-          const config = ENTITY_VISUAL_CONFIG[configKey];
-
-          // Use centralized config for indicator position (center of blue box)
-          // Fallback to old calculation if config not found
-          let indicatorX: number;
-          let indicatorY: number;
-          if (config) {
-            const pos = getIndicatorPosition(entityPosX, entityPosY, config);
-            indicatorX = pos.x + currentCameraOffsetX;
-            indicatorY = pos.y + currentCameraOffsetY;
-          } else {
-            indicatorX = entityPosX + currentCameraOffsetX;
-            indicatorY = entityPosY + currentCameraOffsetY - (entityHeight / 2) - 15;
-          }
-
-          drawInteractionIndicator(ctx, indicatorX, indicatorY, currentProgress);
-        }
-      }
-    };
-
-    // Iterate through visible entities MAPS for indicators
-    visibleCampfiresMap.forEach((fire: SpacetimeDBCampfire) => {
-      drawIndicatorIfNeeded('campfire', fire.id, fire.posX, fire.posY, CAMPFIRE_HEIGHT, true);
-    });
-
-    // Furnace interaction indicators (for hold actions like toggle burning)
-    visibleFurnacesMap.forEach((furnace: SpacetimeDBFurnace) => {
-      // Use correct height based on furnace type and monument status
-      const dimensions = getFurnaceDimensions(furnace.furnaceType, isCompoundMonument(furnace.isMonument, furnace.posX, furnace.posY));
-      drawIndicatorIfNeeded('furnace', furnace.id, furnace.posX, furnace.posY, dimensions.height, true);
-    });
-
-    // Barbecue interaction indicators (for hold actions like toggle burning)
-    visibleBarbecuesMap.forEach((barbecue: SpacetimeDBBarbecue) => {
-      drawIndicatorIfNeeded('barbecue', barbecue.id, barbecue.posX, barbecue.posY, 128, true); // 128px height for barbecue
-    });
-
-    // Fumarole interaction indicators - removed empty forEach loop for performance
-    // Fumaroles don't need hold indicators since they're always on
-
-    // Lantern interaction indicators
-    visibleLanternsMap.forEach((lantern: SpacetimeDBLantern) => {
-      // For lanterns, the indicator is only relevant if a hold action is in progress (e.g., picking up an empty lantern)
-      if (rd.holdInteractionProgress && rd.holdInteractionProgress.targetId === lantern.id && rd.holdInteractionProgress.targetType === 'lantern') {
-        drawIndicatorIfNeeded('lantern', lantern.id, lantern.posX, lantern.posY, 56, true); // 56px height for lanterns
-      }
-    });
-
-    visibleBoxesMap.forEach((box: SpacetimeDBWoodenStorageBox) => {
-      // For boxes, the indicator is only relevant if a hold action is in progress (e.g., picking up an empty box)
-      if (rd.holdInteractionProgress && rd.holdInteractionProgress.targetId === box.id && rd.holdInteractionProgress.targetType === 'box') {
-        drawIndicatorIfNeeded('box', box.id, box.posX, box.posY, BOX_HEIGHT, true, box.boxType);
-      }
-    });
-
-    // Corrected: Iterate over the full 'stashes' map for drawing indicators for stashes
-    // The 'isInView' check within drawIndicatorIfNeeded can be enhanced if needed,
-    // but for interaction progress, if it's the target, we likely want to show it if player is close.
-    if (stashes instanceof Map) { // Ensure stashes is a Map
-      stashes.forEach((stash: SpacetimeDBStash) => {
-        // Check if this stash is the one currently being interacted with for a hold action
-        if (rd.holdInteractionProgress && rd.holdInteractionProgress.targetId === stash.id && rd.holdInteractionProgress.targetType === 'stash') {
-          // For a hidden stash being surfaced, we want to draw the indicator.
-          // The 'true' for isInView might need refinement if stashes can be off-screen 
-          // but still the closest interactable (though unlikely for a hold interaction).
-          // For now, assume if it's the interaction target, it's relevant to draw the indicator.
-          drawIndicatorIfNeeded('stash', stash.id, stash.posX, stash.posY, STASH_HEIGHT, true);
-        }
-      });
-    }
-
-    // Knocked Out Player Indicators
-    if (rd.closestInteractableKnockedOutPlayerId && players instanceof Map) {
-      const knockedOutPlayer = players.get(rd.closestInteractableKnockedOutPlayerId);
-      if (knockedOutPlayer && knockedOutPlayer.isKnockedOut && !knockedOutPlayer.isDead) {
-        // Check if this knocked out player is the one currently being revived
-        if (rd.holdInteractionProgress && String(rd.holdInteractionProgress.targetId) === rd.closestInteractableKnockedOutPlayerId && rd.holdInteractionProgress.targetType === 'knocked_out_player') {
-          const playerHeight = 48; // Approximate player sprite height
-          drawIndicatorIfNeeded('knocked_out_player', rd.closestInteractableKnockedOutPlayerId, knockedOutPlayer.positionX, knockedOutPlayer.positionY, playerHeight, true);
-        }
-      }
-    }
-
-    // Water Drinking Indicators
-    if (rd.closestInteractableWaterPosition && rd.holdInteractionProgress && rd.holdInteractionProgress.targetType === 'water') {
-      // Draw indicator at the water position
-      drawIndicatorIfNeeded('water', 'water', rd.closestInteractableWaterPosition.x, rd.closestInteractableWaterPosition.y, 0, true);
-    }
-
-    // Door Pickup Indicators (hold E to pickup)
-    visibleDoorsMap.forEach((door: any) => {
-      // For doors, the indicator is only relevant if a hold action is in progress (picking up the door)
-      if (rd.holdInteractionProgress && rd.holdInteractionProgress.targetId === door.id && rd.holdInteractionProgress.targetType === 'door') {
-        const DOOR_HEIGHT = 96; // Standard door height
-        drawIndicatorIfNeeded('door', door.id, door.posX, door.posY, DOOR_HEIGHT, true);
-      }
+    // --- RENDER PASS 7: Interaction indicators (hold-progress circles) ---
+    renderInteractionIndicators({
+      ctx,
+      cameraOffsetX: currentCameraOffsetX,
+      cameraOffsetY: currentCameraOffsetY,
+      holdInteractionProgress: rd.holdInteractionProgress,
+      isActivelyHolding: rd.isActivelyHolding,
+      closestInteractableKnockedOutPlayerId: rd.closestInteractableKnockedOutPlayerId ?? null,
+      closestInteractableWaterPosition: rd.closestInteractableWaterPosition,
+      visibleCampfiresMap,
+      visibleFurnacesMap,
+      visibleBarbecuesMap,
+      visibleLanternsMap,
+      visibleBoxesMap,
+      visibleDoorsMap,
+      visibleHomesteadHearthsMap,
+      stashes,
+      players,
+      emptyMap: EMPTY_MAP,
     });
     const _t4 = mark(showFpsProfiler);
 
-    // Campfire Lights - Only draw for visible campfires
+    // --- RENDER PASS 8: Structure lights ---
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    visibleCampfiresMap.forEach((fire: SpacetimeDBCampfire) => {
-      renderCampfireLight({
-        ctx,
-        campfire: fire,
-        cameraOffsetX: currentCameraOffsetX,
-        cameraOffsetY: currentCameraOffsetY,
-        // Indoor light containment - clip light to building interior
-        buildingClusters,
-      });
+    renderAllStructureLights({
+      ctx,
+      cameraOffsetX: currentCameraOffsetX,
+      cameraOffsetY: currentCameraOffsetY,
+      buildingClusters,
+      visibleCampfiresMap,
+      visibleLanternsMap,
+      visibleFurnacesMap,
+      visibleBarbecuesMap,
     });
 
     // Village Campfire Lights - Hunting only (fv_campfire doodad, cozy effect)
@@ -4387,42 +3422,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         }
       });
     }
-
-    // Lantern Lights - Only draw for visible lanterns
-    visibleLanternsMap.forEach((lantern: SpacetimeDBLantern) => {
-      renderLanternLight({
-        ctx,
-        lantern: lantern,
-        cameraOffsetX: currentCameraOffsetX,
-        cameraOffsetY: currentCameraOffsetY,
-        // Indoor light containment - clip light to building interior
-        buildingClusters,
-      });
-    });
-
-    // Furnace Lights - Only draw for visible furnaces with industrial red glow
-    visibleFurnacesMap.forEach((furnace: SpacetimeDBFurnace) => {
-      renderFurnaceLight({
-        ctx,
-        furnace: furnace,
-        cameraOffsetX: currentCameraOffsetX,
-        cameraOffsetY: currentCameraOffsetY,
-        // Indoor light containment - clip light to building interior
-        buildingClusters,
-      });
-    });
-
-    // Barbecue Lights - Only draw for visible barbecues (same as campfire)
-    visibleBarbecuesMap.forEach((barbecue: SpacetimeDBBarbecue) => {
-      renderBarbecueLight({
-        ctx,
-        barbecue: barbecue,
-        cameraOffsetX: currentCameraOffsetX,
-        cameraOffsetY: currentCameraOffsetY,
-        // Indoor light containment - clip light to building interior
-        buildingClusters,
-      });
-    });
 
     // Road Lamppost Lights - Aleutian whale oil lampposts along dirt roads (only at night)
     visibleRoadLamppostsMap.forEach((lamppost: SpacetimeDBRoadLamppost) => {
@@ -4471,10 +3470,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         currentCycleProgress,
         currentCameraOffsetX,
         currentCameraOffsetY,
-        -currentCameraOffsetX, // viewMinX
-        -currentCameraOffsetX + currentCanvasWidth, // viewMaxX
-        -currentCameraOffsetY, // viewMinY
-        -currentCameraOffsetY + currentCanvasHeight, // viewMaxY
+        viewBounds.minX,
+        viewBounds.maxX,
+        viewBounds.minY,
+        viewBounds.maxY,
         now_ms
       );
 
@@ -4484,36 +3483,26 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         currentCycleProgress,
         currentCameraOffsetX,
         currentCameraOffsetY,
-        -currentCameraOffsetX,
-        -currentCameraOffsetX + currentCanvasWidth,
-        -currentCameraOffsetY,
-        -currentCameraOffsetY + currentCanvasHeight,
+        viewBounds.minX,
+        viewBounds.maxX,
+        viewBounds.minY,
+        viewBounds.maxY,
         now_ms
       );
 
-      // DEBUG: Visible protection zone circles for shipwreck parts
-      // Shows purple circle (protection zone), green crosshair (visual center), red dot (anchor point)
-      // Toggle via Debug Panel -> SHIPWRECK button
       if (showShipwreckDebug) {
         renderAllShipwreckDebugZones(
           ctx,
           shipwreckPartsMap,
           currentCameraOffsetX,
           currentCameraOffsetY,
-          -currentCameraOffsetX, // viewMinX
-          -currentCameraOffsetX + currentCanvasWidth, // viewMaxX
-          -currentCameraOffsetY, // viewMinY
-          -currentCameraOffsetY + currentCanvasHeight // viewMaxY
+          viewBounds.minX,
+          viewBounds.maxX,
+          viewBounds.minY,
+          viewBounds.maxY
         );
       }
     }
-
-    // Homestead hearth interaction indicators (for hold actions like grant building privilege)
-    // Hearth visual is 125x125, so use 125 for height to match the visual
-    // Offset moved up by ~20% (15px) for better alignment
-    visibleHomesteadHearthsMap.forEach((hearth: SpacetimeDBHomesteadHearth) => {
-      drawIndicatorIfNeeded('homestead_hearth', hearth.id, hearth.posX, hearth.posY - 15, 125, true);
-    });
 
     // --- Player Lights (Torch, Flashlight, Headlamp) ---
     // Unified rendering of all player light sources in a single pass
@@ -4613,83 +3602,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
 
     // === LAG DIAGNOSTICS ===
-    // Comprehensive performance analysis to identify lag source
     if (ENABLE_LAG_DIAGNOSTICS && Date.now() - perfProfilingRef.current.lastLogTime > LAG_DIAGNOSTIC_INTERVAL_MS) {
       const p = perfProfilingRef.current;
-      const avgFrameTime = p.frameCount > 0 ? p.totalFrameTime / p.frameCount : 0;
-      const avgServerLatency = p.serverUpdateCount > 0 ? p.totalServerLatency / p.serverUpdateCount : 0;
-      const fps = p.frameCount > 0 ? (1000 / avgFrameTime) : 0;
-      const slowFramePct = p.frameCount > 0 ? ((p.slowFrames / p.frameCount) * 100).toFixed(1) : '0';
-      const verySlowFramePct = p.frameCount > 0 ? ((p.verySlowFrames / p.frameCount) * 100).toFixed(1) : '0';
-
-      // Determine primary lag source
-      const isReactBottleneck = avgFrameTime > 16 || parseFloat(slowFramePct) > 10;
-      const isNetworkBottleneck = avgServerLatency > 100;
-
-      console.log('%c═══════════════════════════════════════════════════════════════', 'color: #00ff00');
-      console.log('%c                    🎮 LAG DIAGNOSTIC REPORT                    ', 'color: #00ff00; font-weight: bold; font-size: 14px');
-      console.log('%c═══════════════════════════════════════════════════════════════', 'color: #00ff00');
-
-      // VERDICT
-      if (isReactBottleneck && isNetworkBottleneck) {
-        console.log('%c⚠️  VERDICT: BOTH React AND Network are causing lag!', 'color: #ff6600; font-weight: bold');
-      } else if (isReactBottleneck) {
-        console.log('%c🔴 VERDICT: REACT/RENDERING is the primary bottleneck', 'color: #ff0000; font-weight: bold');
-      } else if (isNetworkBottleneck) {
-        console.log('%c🔵 VERDICT: NETWORK LATENCY is the primary bottleneck', 'color: #0088ff; font-weight: bold');
-      } else {
-        console.log('%c✅ VERDICT: Performance is GOOD - no major bottleneck detected', 'color: #00ff00; font-weight: bold');
-      }
-
-      console.log('');
-      console.log('%c📊 RENDER PERFORMANCE (React/Canvas)', 'color: #ffaa00; font-weight: bold');
-      console.log(`   FPS: ${fps.toFixed(1)} | Avg Frame: ${avgFrameTime.toFixed(2)}ms | Max Frame: ${p.maxFrameTime.toFixed(2)}ms`);
-      console.log(`   Slow Frames (>16ms): ${p.slowFrames}/${p.frameCount} (${slowFramePct}%)`);
-      console.log(`   Very Slow (>33ms): ${p.verySlowFrames}/${p.frameCount} (${verySlowFramePct}%)`);
-      if (avgFrameTime > 16) {
-        console.log('%c   ⚠️  Average frame time exceeds 60fps budget!', 'color: #ff6600');
-      }
-
-      console.log('');
-      console.log('%c🌐 NETWORK PERFORMANCE (SpacetimeDB)', 'color: #00aaff; font-weight: bold');
-      console.log(`   Server Updates: ${p.serverUpdateCount} | Avg Interval: ${avgServerLatency.toFixed(0)}ms | Max: ${p.maxServerLatency.toFixed(0)}ms`);
-      if (avgServerLatency > 100) {
-        console.log('%c   ⚠️  High server update latency - check network/maincloud RTT', 'color: #ff6600');
-      } else if (p.serverUpdateCount < 10) {
-        console.log('%c   ℹ️  Low update count - player may be stationary', 'color: #888888');
-      }
-
-      console.log('');
-      console.log('%c📦 ENTITY COUNTS (data volume)', 'color: #aa88ff; font-weight: bold');
-      console.log(`   Players: ${players.size} | Trees: ${trees?.size || 0} | Stones: ${stones?.size || 0}`);
-      console.log(`   Y-Sorted Entities: ${currentYSortedEntities.length}`);
-      console.log(`   Visible - Campfires: ${visibleCampfiresMap.size} | Boxes: ${visibleBoxesMap.size} | Resources: ${visibleHarvestableResourcesMap.size}`);
-      console.log(`   Visible - Items: ${visibleDroppedItemsMap.size} | Grass: ${visibleGrassMap?.size || 0} | SeaStacks: ${visibleSeaStacksMap.size}`);
-
-      // Recommendations
-      console.log('');
-      console.log('%c💡 RECOMMENDATIONS', 'color: #ffff00; font-weight: bold');
-      if (isReactBottleneck) {
-        if (currentYSortedEntities.length > 500) {
-          console.log('   - Y-sorted entities are high - consider reducing view distance');
-        }
-        if ((visibleGrassMap?.size || 0) > 200) {
-          console.log('   - Grass count is high - consider disabling grass in settings');
-        }
-        if (p.verySlowFrames > 5) {
-          console.log('   - Many frames below 30fps - check for GC pressure or heavy useMemo');
-        }
-        console.log('   - Try disabling weather overlay, tree shadows, or reducing particle effects');
-      }
-      if (isNetworkBottleneck) {
-        console.log('   - Consider testing with local SpacetimeDB instance');
-        console.log('   - Check if you are far from maincloud servers');
-        console.log('   - Reduce movement input frequency if possible');
-      }
-
-      console.log('%c═══════════════════════════════════════════════════════════════', 'color: #00ff00');
-
-      // Reset counters
+      logLagDiagnostic(p, {
+        players: players.size,
+        trees: trees?.size || 0,
+        stones: stones?.size || 0,
+        ySorted: currentYSortedEntities.length,
+        campfires: visibleCampfiresMap.size,
+        boxes: visibleBoxesMap.size,
+        resources: visibleHarvestableResourcesMap.size,
+        items: visibleDroppedItemsMap.size,
+        grass: visibleGrassMap?.size || 0,
+        seaStacks: visibleSeaStacksMap.size,
+      });
       perfProfilingRef.current = {
         lastLogTime: Date.now(),
         frameCount: 0,
@@ -4697,14 +3623,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         maxFrameTime: 0,
         slowFrames: 0,
         verySlowFrames: 0,
-        lastServerUpdateTime: p.lastServerUpdateTime, // Preserve
+        lastServerUpdateTime: p.lastServerUpdateTime,
         serverUpdateCount: 0,
         maxServerLatency: 0,
         totalServerLatency: 0,
         renderCallCount: 0,
       };
     }
-    // === END LAG DIAGNOSTICS ===
 
     // Performance monitoring - check frame time at end
     checkPerformance(frameStartTime);
@@ -4744,7 +3669,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     shelters,
     visibleShelters,
     visibleSheltersMap,
-    shelterImageRef.current,
+    shelterImageRef,
     minimapCache,
     chunkWeather,
     clouds, // Only need clouds prop for the size check, interpolation is via ref
@@ -4832,7 +3757,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
               if (distSq < damageRadiusSq) {
                 newlyDamagingIds.add(id.toString());
-                // console.log(`[GameCanvas] Player took damage near burning campfire ${id}. Health: ${prevHealth} -> ${currentHealth}`);
               }
             }
           });
@@ -4857,37 +3781,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
   }, [localPlayer, visibleCampfiresMap]); // Dependencies: localPlayer (for health) and campfires map
   // Note: damagingCampfireIds is NOT in this dependency array. We set it, we don't react to its changes here.
-
-  // --- Register respawn reducer callbacks ---
-  useEffect(() => {
-    if (!connection) return;
-
-    const handleRespawnRandomlyResult = (ctx: any) => {
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Respawn failed';
-        console.error('[GameCanvas] Respawn randomly failed:', errorMsg);
-        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-      }
-    };
-
-    const handleRespawnAtBagResult = (ctx: any, bagId: number) => {
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Respawn at sleeping bag failed';
-        console.error('[GameCanvas] Respawn at bag failed:', errorMsg);
-        showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-      }
-    };
-
-    // Register the callbacks
-    connection.reducers?.onRespawnRandomly?.(handleRespawnRandomlyResult);
-    connection.reducers?.onRespawnAtSleepingBag?.(handleRespawnAtBagResult);
-
-    // Cleanup function to remove callbacks
-    return () => {
-      connection.reducers?.removeOnRespawnRandomly?.(handleRespawnRandomlyResult);
-      connection.reducers?.removeOnRespawnAtSleepingBag?.(handleRespawnAtBagResult);
-    };
-  }, [connection, showError]);
 
   // --- Dynamically resize canvas to fill container (both mobile and desktop) ---
   // This ensures the canvas logical size matches the display size, eliminating CSS scaling distortion
@@ -5055,10 +3948,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     droneEvents,
   ]);
 
-  // PERFORMANCE FIX: Removed duplicate useGameLoop(processInputsAndActions)
-  // Input processing now happens in the main gameLoopCallback above
-  // This eliminates running 2 separate RAF cycles
-
   // Performance tracking (emergency mode removed)
   const performanceMode = useRef({
     lastFrameTime: 0
@@ -5114,11 +4003,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           // respawnAt={respawnTimestampMs}
           // onRespawn={handleRespawnRequest} // We'll wire new callbacks later
           onRespawnRandomly={() => {
-            console.log("Respawn Randomly Clicked");
+            logDebug('Respawn Randomly Clicked');
             connection?.reducers?.respawnRandomly();
           }}
           onRespawnAtBag={(bagId) => {
-            console.log("Respawn At Bag Clicked:", bagId);
+            logDebug('Respawn At Bag Clicked:', bagId);
             connection?.reducers?.respawnAtSleepingBag(bagId);
           }}
           localPlayerIdentity={localPlayerId ?? null}
@@ -5136,8 +4025,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           localPlayerDeathMarker={localPlayerDeathMarker}
           deathMarkerImage={deathMarkerImg}
           worldState={worldState}
-          minimapCache={minimapCache} // Add minimapCache prop
-          // Add the new minimap icon images
+          minimapCache={minimapCache}
           pinMarkerImage={pinMarkerImg}
           campfireWarmthImage={campfireWarmthImg}
           torchOnImage={torchOnImg}
@@ -5250,7 +4138,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         />
       )}
 
-
       {/* Upgrade Radial Menu - for foundations */}
       {showUpgradeRadialMenu && upgradeMenuFoundationRef.current && (
         <UpgradeRadialMenu
@@ -5267,7 +4154,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           homesteadHearths={homesteadHearths}
           onSelect={(tier: BuildingTier) => {
             if (connection && upgradeMenuFoundationRef.current) {
-              console.log('[UpgradeRadialMenu] Upgrading foundation', upgradeMenuFoundationRef.current.id, 'to tier', tier);
+              logDebug('[UpgradeRadialMenu] Upgrading foundation', upgradeMenuFoundationRef.current.id, 'to tier', tier);
               connection.reducers.upgradeFoundation(
                 upgradeMenuFoundationRef.current.id,
                 tier as number
@@ -5284,7 +4171,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           }}
           onDestroy={() => {
             if (connection && upgradeMenuFoundationRef.current) {
-              console.log('[UpgradeRadialMenu] Destroying foundation', upgradeMenuFoundationRef.current.id);
+              logDebug('[UpgradeRadialMenu] Destroying foundation', upgradeMenuFoundationRef.current.id);
               connection.reducers.destroyFoundation(upgradeMenuFoundationRef.current.id);
             }
             // Clear all menu state immediately
@@ -5310,7 +4197,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           homesteadHearths={homesteadHearths}
           onSelect={(tier: BuildingTier) => {
             if (connection && upgradeMenuWallRef.current) {
-              console.log('[UpgradeRadialMenu] Upgrading wall', upgradeMenuWallRef.current.id, 'to tier', tier);
+              logDebug('[UpgradeRadialMenu] Upgrading wall', upgradeMenuWallRef.current.id, 'to tier', tier);
               connection.reducers.upgradeWall(
                 upgradeMenuWallRef.current.id,
                 tier as number
@@ -5327,7 +4214,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           }}
           onDestroy={() => {
             if (connection && upgradeMenuWallRef.current) {
-              console.log('[UpgradeRadialMenu] Destroying wall', upgradeMenuWallRef.current.id);
+              logDebug('[UpgradeRadialMenu] Destroying wall', upgradeMenuWallRef.current.id);
               connection.reducers.destroyWall(upgradeMenuWallRef.current.id);
             }
             // Clear all menu state immediately
@@ -5353,7 +4240,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           homesteadHearths={homesteadHearths}
           onSelect={(tier: BuildingTier) => {
             if (connection && upgradeMenuFenceRef.current) {
-              console.log('[UpgradeRadialMenu] Upgrading fence', upgradeMenuFenceRef.current.id, 'to tier', tier);
+              logDebug('[UpgradeRadialMenu] Upgrading fence', upgradeMenuFenceRef.current.id, 'to tier', tier);
               connection.reducers.upgradeFence(
                 upgradeMenuFenceRef.current.id,
                 tier as number
@@ -5370,7 +4257,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           }}
           onDestroy={() => {
             if (connection && upgradeMenuFenceRef.current) {
-              console.log('[UpgradeRadialMenu] Destroying fence', upgradeMenuFenceRef.current.id);
+              logDebug('[UpgradeRadialMenu] Destroying fence', upgradeMenuFenceRef.current.id);
               connection.reducers.destroyFence(upgradeMenuFenceRef.current.id);
             }
             // Clear all menu state immediately

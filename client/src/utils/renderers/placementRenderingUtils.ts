@@ -63,6 +63,12 @@ export function worldPosToTileCoords(worldX: number, worldY: number): { tileX: n
     return { tileX, tileY };
 }
 
+/** World position to tile key string (e.g. for water/shadow lookups). */
+export function worldPosToTileKey(worldX: number, worldY: number): string {
+    const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
+    return `${tileX},${tileY}`;
+}
+
 // PERFORMANCE FIX: Cache for chunk data lookups to avoid O(n) iteration on every tile check
 // This dramatically improves building placement preview performance
 const chunkCache: Map<string, { chunkSize: number; tileTypes: Uint8Array }> = new Map();

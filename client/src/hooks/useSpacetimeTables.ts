@@ -19,6 +19,7 @@
  * - Microtask batching: Tree/stone/campfire inserts coalesced via queueMicrotask
  * - Progressive loading: Chunk subscriptions spread across frames to avoid lag spikes
  */
+
 import { useState, useEffect, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import * as SpacetimeDB from '../generated';
@@ -2600,7 +2601,7 @@ export const useSpacetimeTables = ({
                 return;
             }
 
-            // 🚨 PRODUCTION FIX: Check for zero-sized viewport (common on initial load)
+            // Check for zero-sized viewport (common on initial load)
             const viewportWidth = viewport.maxX - viewport.minX;
             const viewportHeight = viewport.maxY - viewport.minY;
             if (viewportWidth <= 0 || viewportHeight <= 0) {
@@ -2628,31 +2629,12 @@ export const useSpacetimeTables = ({
                 return; // Early return to skip all spatial logic
             }
 
-            // 🔍 DEBUG: Log current viewport chunk coverage for old system (only when chunks change significantly)
             const currentChunks = getChunkIndicesForViewportWithBuffer(viewport, CHUNK_BUFFER_SIZE);
             const currentChunksKey = currentChunks.sort((a, b) => a - b).join(',');
             const lastChunksKey = (window as any).lastChunksKey || '';
 
             if (currentChunksKey !== lastChunksKey && currentChunks.length > 0) {
                 (window as any).lastChunksKey = currentChunksKey;
-                const minChunk = Math.min(...currentChunks);
-                const maxChunk = Math.max(...currentChunks);
-                const minChunkX = minChunk % gameConfig.worldWidthChunks;
-                const minChunkY = Math.floor(minChunk / gameConfig.worldWidthChunks);
-                const maxChunkX = maxChunk % gameConfig.worldWidthChunks;
-                const maxChunkY = Math.floor(maxChunk / gameConfig.worldWidthChunks);
-                const totalSubscriptions = currentChunks.length * 14; // 14 queries per chunk
-                const viewportWidth = viewport.maxX - viewport.minX;
-                const viewportHeight = viewport.maxY - viewport.minY;
-                const chunkWidth = (maxChunkX - minChunkX + 1);
-                const chunkHeight = (maxChunkY - minChunkY + 1);
-
-                // Debug logging disabled - subscription count is now optimized (~90-100 chunks)
-                // if (currentChunks.length > 50) {
-                //     console.warn(`🚨 CHUNK OVERLOAD: ${currentChunks.length} chunks (${chunkWidth}×${chunkHeight}) will create ${totalSubscriptions} subscriptions!`);
-                //     console.warn(`🚨 Viewport size: ${viewportWidth.toFixed(0)}×${viewportHeight.toFixed(0)} pixels`);
-                //     console.warn(`🚨 Viewport: (${viewport.minX.toFixed(0)}, ${viewport.minY.toFixed(0)}) to (${viewport.maxX.toFixed(0)}, ${viewport.maxY.toFixed(0)})`);
-                // }
             }
 
             // Separate logic for initial subscription vs. subsequent updates

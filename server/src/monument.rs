@@ -53,9 +53,9 @@ pub mod clearance {
     /// Single wolf mound structure that spawns a pack of wolves
     pub const WOLF_DEN: f32 = 384.0;
     
-    /// Alpine village - clear a 10-tile radius (480px)
-    /// Single earth-sheltered lodge in alpine biome
-    pub const ALPINE_VILLAGE: f32 = 480.0;
+    /// Alpine village - clear a 16-tile radius (800px)
+    /// Single earth-sheltered lodge in alpine biome, like other village monuments
+    pub const ALPINE_VILLAGE: f32 = 800.0;
 }
 
 /// Minimum distance between monument spawns (barrels, harvestables, placeables)
@@ -3893,6 +3893,15 @@ pub fn get_hunting_village_placeables() -> Vec<MonumentPlaceableConfig> {
         // like Fishing Village. The visual campfire provides cozy effect via zone check.
         // If functional campfire is desired later, uncomment below:
         // MonumentPlaceableConfig::campfire(0.0, 250.0), // South of lodge
+    ]
+}
+
+/// Get monument placeables for the Alpine Village monument
+/// Abandoned campfire (turned off) - players can light it for warmth and cooking
+pub fn get_alpine_village_placeables() -> Vec<MonumentPlaceableConfig> {
+    vec![
+        // Campfire south of lodge - unlit, abandoned feel (players can light it)
+        MonumentPlaceableConfig::campfire(0.0, 150.0),
     ]
 }
 
