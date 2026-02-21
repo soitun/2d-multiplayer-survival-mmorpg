@@ -1379,6 +1379,10 @@ pub fn spawn_buoy_barrels(ctx: &ReducerContext) -> Result<(), String> {
                 if !crate::environment::is_position_on_ocean_water(ctx, barrel_x, barrel_y) {
                     continue;
                 }
+                // Exclude outer deep sea ring - buoys spawn in inner ocean only
+                if crate::environment::is_position_in_outer_deep_sea_ring(barrel_x, barrel_y) {
+                    continue;
+                }
 
                 let mut too_close = false;
                 for &(ox, oy) in &spawned_positions {

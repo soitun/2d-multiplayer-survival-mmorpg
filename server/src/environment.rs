@@ -76,6 +76,22 @@ use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 use std::collections::HashSet;
 
+// --- Outer Deep Sea Ring (700x700 map) ---
+/// Tiles from each edge that form the "empty deep sea" ring - no spawns for CPU performance.
+/// Inner playable area remains 600x600 effective; outer 50 tiles per edge = pure deep ocean.
+pub const DEEP_SEA_OUTER_RING_TILES: u32 = 50;
+
+/// Returns true if position is in the outer deep sea ring (within DEEP_SEA_OUTER_RING_TILES of any edge).
+/// Used to exclude sea stacks, barrels, coral, wild animals from the empty outer ocean.
+pub fn is_position_in_outer_deep_sea_ring(pos_x: f32, pos_y: f32) -> bool {
+    let tile_x = (pos_x / TILE_SIZE_PX as f32).floor() as i32;
+    let tile_y = (pos_y / TILE_SIZE_PX as f32).floor() as i32;
+    let ring = DEEP_SEA_OUTER_RING_TILES as i32;
+    let max_x = WORLD_WIDTH_TILES as i32 - 1 - ring;
+    let max_y = WORLD_HEIGHT_TILES as i32 - 1 - ring;
+    tile_x < ring || tile_x > max_x || tile_y < ring || tile_y > max_y
+}
+
 // --- Sea Stack Constants ---
 const SEA_STACK_DENSITY_PERCENT: f32 = 0.0012; // 0.12% of tiles - spawns on ocean water tiles
 const MIN_SEA_STACK_DISTANCE_SQ: f32 = 360.0 * 360.0; // 360px = 7.5 tiles minimum between sea stacks (3x original)
@@ -1002,6 +1018,11 @@ fn is_position_in_lake_area(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> boo
 /// Checks if position is suitable for wild animal spawning based on species preferences
 /// Different animal species prefer different terrain types and locations
 pub fn is_wild_animal_location_suitable(ctx: &ReducerContext, pos_x: f32, pos_y: f32, species: AnimalSpecies, tree_positions: &[(f32, f32)]) -> bool {
+    // Exclude outer deep sea ring - no spawns in the empty ocean perimeter
+    if is_position_in_outer_deep_sea_ring(pos_x, pos_y) {
+        return false;
+    }
+    
     // Convert pixel position to tile coordinates
     let tile_x = (pos_x / TILE_SIZE_PX as f32).floor() as i32;
     let tile_y = (pos_y / TILE_SIZE_PX as f32).floor() as i32;
@@ -2370,7 +2391,7 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                 }
             },
             (sea_stack_scale, variant), // Pass scale and variant as extra_args
-            |pos_x, pos_y| !is_position_on_ocean_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) || monument::is_position_near_monument(ctx, pos_x, pos_y), // Only spawn on ocean water, not inland water, and not near monuments
+            |pos_x, pos_y| !is_position_on_ocean_water(ctx, pos_x, pos_y) || is_position_in_central_compound(pos_x, pos_y) || monument::is_position_near_monument(ctx, pos_x, pos_y) || is_position_in_outer_deep_sea_ring(pos_x, pos_y), // Only spawn on ocean water, exclude outer deep sea ring
             |_pos_x, _pos_y| SEA_STACK_SPAWN_NOISE_THRESHOLD, // Base threshold for sea stacks
             |_pos_x, _pos_y| MIN_SEA_STACK_DISTANCE_SQ, // Base distance for sea stacks
             ctx.db.sea_stack(),
@@ -2413,8 +2434,8 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
             continue;
         }
         
-        // Skip positions in central compound or near monuments
-        if is_position_in_central_compound(cluster_x, cluster_y) || monument::is_position_near_monument(ctx, cluster_x, cluster_y) {
+        // Skip positions in central compound, near monuments, or in outer deep sea ring
+        if is_position_in_central_compound(cluster_x, cluster_y) || monument::is_position_near_monument(ctx, cluster_x, cluster_y) || is_position_in_outer_deep_sea_ring(cluster_x, cluster_y) {
             continue;
         }
         

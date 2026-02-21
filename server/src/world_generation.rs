@@ -2,6 +2,7 @@ use spacetimedb::{ReducerContext, Table, Timestamp, Identity};
 use noise::{NoiseFn, Perlin, Seedable};
 use log;
 use crate::{WorldTile, TileType, WorldGenConfig, MinimapCache, MonumentPart, MonumentType, LargeQuarry, LargeQuarryType, ReedMarsh, TidePool, WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES};
+use crate::environment::DEEP_SEA_OUTER_RING_TILES;
 
 // Import the table trait
 use crate::world_tile as WorldTileTableTrait;
@@ -1343,8 +1344,10 @@ fn generate_island_layer_with_positions(
     let mut island_positions: Vec<(f64, f64, f64)> = Vec::new();
     
     // First pass: Find potential island positions using noise
-    for y in 30..height-30 { // Stay away from edges
-        for x in 30..width-30 {
+    // Stay away from outer deep sea ring (no islands in empty ocean perimeter)
+    let margin = DEEP_SEA_OUTER_RING_TILES as usize;
+    for y in margin..height.saturating_sub(margin) {
+        for x in margin..width.saturating_sub(margin) {
             // Check if this point is in deep water (far from any existing land)
             if shore_distance[y][x] < -15.0 { // Deep water only
                 let distance_from_main = ((x as f64 - center_x).powi(2) + (y as f64 - center_y).powi(2)).sqrt();
