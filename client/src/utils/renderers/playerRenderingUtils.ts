@@ -498,15 +498,13 @@ export const renderPlayer = (
   dodgeRollProgress?: number, // NEW: Progress of the dodge roll (0.0 to 1.0)
   isSnorkeling?: boolean, // NEW: Whether the player is snorkeling (underwater mode - full tint, no water effects)
   isViewerUnderwater?: boolean, // NEW: Whether the local player (viewer) is underwater - affects remote snorkeling player rendering
-  activeTitle?: string | null // NEW: Player's active title to display above name
+  activeTitle?: string | null, // NEW: Player's active title to display above name
+  effectiveIsOnWaterFromCaller?: boolean // When provided: use stabilized water state (hysteresis applied). When omitted: use player.isOnWater
 ) => {
-  // REMOVE THE NAME TAG RENDERING BLOCK FROM HERE
-  // const { positionX, positionY, direction, color, username } = player;
-  // const drawX = positionX - gameConfig.spriteWidth / 2;
-  // const drawY = positionY - gameConfig.spriteHeight / 2 - jumpOffsetY;
-  // ctx.save();
-  // ... (removed name tag code) ...
-  // ctx.restore();
+  // Use caller's stabilized value when provided; otherwise use player.isOnWater (for swimming bottom-half pass)
+  const effectiveIsOnWater = effectiveIsOnWaterFromCaller !== undefined
+    ? effectiveIsOnWaterFromCaller
+    : player.isOnWater;
 
   // --- Hide player if dead (unless it's a corpse being rendered) ---
   if (!isCorpse && player.isDead) {
@@ -754,7 +752,7 @@ export const renderPlayer = (
   // Determine frame count and sprite type based on player state
   const isSprinting = (!isCorpse && player.isSprinting && finalIsMoving);
   const isIdleState = (!isCorpse && !finalIsMoving && !isUsingItem && !isUsingSeloOliveOil);
-  const isSwimming = (!isCorpse && player.isOnWater && !isCurrentlyJumping);
+  const isSwimming = (!isCorpse && effectiveIsOnWater && !isCurrentlyJumping);
   
   // Use effective crouch state that considers local optimistic state for immediate feedback
   const effectiveIsCrouching = isLocalPlayer && localPlayerIsCrouching !== undefined 
@@ -846,7 +844,8 @@ export const renderPlayer = (
 
   // --- Draw Dynamic Ground Shadow (for living players only) ---
   // Show shadow for all living players EXCEPT swimming players (they're rendered before water overlay)
-  const shouldShowShadow = !isCorpse && !(player.isOnWater && !isCurrentlyJumping);
+  // On sea transition tiles: show shadow (player is treated as normal)
+  const shouldShowShadow = !isCorpse && !(effectiveIsOnWater && !isCurrentlyJumping);
   
   // NEW: Choose sprite based on player state (PRIORITY ORDER: dodge > swimming > crouching > idle/sprint/walk)
   // With fallbacks to ensure we always have a valid sprite if any sprite is loaded
@@ -1121,11 +1120,11 @@ export const renderPlayer = (
         offscreenCtx.globalCompositeOperation = 'source-over';
       }
 
-      // Apply underwater teal tinting for swimming players
+      // Apply underwater teal tinting for swimming players (skip on sea transition tiles)
       // PERF FIX: Uses GPU-accelerated canvas compositing instead of per-pixel getImageData/putImageData.
       // getImageData forces a GPU→CPU sync and the pixel loop runs in JS — this was the #1 per-frame cost
       // for swimming players. Canvas composite operations run entirely on the GPU.
-      if (player.isOnWater && !isCorpse && !isCurrentlyJumping) {
+      if (effectiveIsOnWater && !isCorpse && !isCurrentlyJumping) {
         const startY = isSnorkeling ? 0 : Math.floor(offscreenCanvas.height * 0.5);
         const tintHeight = isSnorkeling ? offscreenCanvas.height : (offscreenCanvas.height - startY);
         
@@ -1181,7 +1180,8 @@ export const renderPlayer = (
 
     // Draw swimming effects that go under the sprite (underwater shadow, wake)
     // Skip when snorkeling - player is fully underwater, no surface wake effects
-    if (player.isOnWater && !isCorpse && !isSnorkeling) {
+    // Skip on sea transition tiles - player is treated as normal
+    if (effectiveIsOnWater && !isCorpse && !isSnorkeling) {
       drawSwimmingEffectsUnder(
         ctx, 
         player, 
@@ -1270,7 +1270,8 @@ export const renderPlayer = (
 
     // Draw swimming effects that go over the sprite (water line)
     // Skip when snorkeling - player is fully underwater, no water line effect
-    if (player.isOnWater && !isCorpse && !isSnorkeling) {
+    // Skip on sea transition tiles - player is treated as normal
+    if (effectiveIsOnWater && !isCorpse && !isSnorkeling) {
       drawSwimmingEffectsOver(
         ctx, 
         player, 

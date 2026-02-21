@@ -500,7 +500,8 @@ export function renderUnderwaterShadowIfOverWater(
   playerPosY: number,
   spriteSx: number,
   spriteSy: number,
-  waterTileLookup: Map<string, boolean>
+  waterTileLookup: Map<string, boolean>,
+  seaTransitionTileLookup?: Map<string, boolean>
 ): void {
   const drawWidth = gameConfig.playerSpriteWidth;
   const drawHeight = gameConfig.playerSpriteHeight;
@@ -508,7 +509,9 @@ export function renderUnderwaterShadowIfOverWater(
   const spriteBaseY = playerPosY - drawHeight / 2;
   const shadowX = playerPosX + drawWidth * UNDERWATER_SHADOW_OFFSET_X;
   const shadowY = playerPosY + drawHeight * UNDERWATER_SHADOW_OFFSET_Y;
-  const isShadowOverWater = waterTileLookup.get(worldPosToTileKey(shadowX, shadowY)) ?? false;
+  const shadowTileKey = worldPosToTileKey(shadowX, shadowY);
+  const isShadowOverWater = waterTileLookup.get(shadowTileKey) ?? false;
+  if (isShadowOverWater && seaTransitionTileLookup?.get(shadowTileKey)) return; // No swimming shadow on transition tiles
   if (isShadowOverWater) {
     drawUnderwaterShadowOnly(ctx, heroImg, spriteSx, spriteSy, spriteBaseX, spriteBaseY, drawWidth, drawHeight);
   }

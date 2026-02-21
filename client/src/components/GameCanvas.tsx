@@ -190,7 +190,7 @@ import { renderFirePatches } from '../utils/renderers/firePatchRenderingUtils';
 import { renderPlacedExplosives, preloadExplosiveImages } from '../utils/renderers/explosiveRenderingUtils';
 import { renderUnderwaterShadowIfOverWater } from '../utils/renderers/swimmingEffectsUtils';
 import { renderParticlesToCanvas } from '../utils/renderers/particleRenderingUtils';
-import { worldPosToTileCoords } from '../utils/renderers/placementRenderingUtils';
+import { worldPosToTileCoords, getTileTypeFromChunkData } from '../utils/renderers/placementRenderingUtils';
 import { updateUnderwaterEffects, renderUnderwaterEffectsUnder, renderUnderwaterEffectsOver, renderUnderwaterVignette, clearUnderwaterEffects } from '../utils/renderers/underwaterEffectsUtils';
 import { renderWildAnimal, preloadWildAnimalImages, renderBurrowEffects, cleanupBurrowTracking, processWildAnimalsForBurrowEffects } from '../utils/renderers/wildAnimalRenderingUtils';
 import { renderAnimalCorpse, preloadAnimalCorpseImages } from '../utils/renderers/animalCorpseRenderingUtils';
@@ -900,6 +900,89 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   const worldChunkDataMap = worldChunkDataMapProp ?? worldChunkDataMapInternal;
 
+  // Visible tiles and lookups - MUST be before useEntityFiltering (needs seaTransitionTileLookup)
+  const tileSize = gameConfig.tileSize;
+  const viewTileX = Math.floor((-cameraOffsetX) / tileSize);
+  const viewTileY = Math.floor((-cameraOffsetY) / tileSize);
+  const bufferedViewTileX = viewTileX - 2;
+  const bufferedViewTileY = viewTileY - 2;
+  const visibleWorldTiles = useMemo(() => {
+    const map = new Map<string, any>();
+    const chunkSize = chunkSizeRef.current;
+    const tilesHorz = Math.ceil(canvasSize.width / tileSize) + 4;
+    const tilesVert = Math.ceil(canvasSize.height / tileSize) + 4;
+    const minTileX = Math.max(0, bufferedViewTileX);
+    const minTileY = Math.max(0, bufferedViewTileY);
+    const maxTileX = bufferedViewTileX + tilesHorz;
+    const maxTileY = bufferedViewTileY + tilesVert;
+    const typeFromU8 = (v: number): string => {
+      switch (v) {
+        case 0: return 'Grass';
+        case 1: return 'Dirt';
+        case 2: return 'DirtRoad';
+        case 3: return 'Sea';
+        case 4: return 'Beach';
+        case 5: return 'Sand';
+        case 6: return 'HotSpringWater';
+        case 7: return 'Quarry';
+        case 8: return 'Asphalt';
+        case 9: return 'Forest';
+        case 10: return 'Tundra';
+        case 11: return 'Alpine';
+        case 12: return 'TundraGrass';
+        case 13: return 'Tilled';
+        default: return 'Grass';
+      }
+    };
+    const chunkSource = worldChunkDataMap ?? chunkCacheRef.current;
+    for (let ty = minTileY; ty < maxTileY; ty++) {
+      for (let tx = minTileX; tx < maxTileX; tx++) {
+        const cx = Math.floor(tx / chunkSize);
+        const cy = Math.floor(ty / chunkSize);
+        const chunk = chunkSource.get(`${cx},${cy}`);
+        if (!chunk) continue;
+        const localX = tx % chunkSize;
+        const localY = ty % chunkSize;
+        if (localX < 0 || localY < 0) continue;
+        const idx = localY * chunk.chunkSize + localX;
+        if (idx < 0 || idx >= chunk.tileTypes.length) continue;
+        const t = chunk.tileTypes[idx];
+        const v = chunk.variants?.[idx] ?? 0;
+        map.set(`${tx}_${ty}`, { worldX: tx, worldY: ty, tileType: { tag: typeFromU8(t) }, variant: v });
+      }
+    }
+    return map;
+  }, [bufferedViewTileX, bufferedViewTileY, canvasSize.width, canvasSize.height, chunkCacheVersion, worldChunkDataMap]);
+  const waterTileLookup = useMemo(() => {
+    const lookup = new Map<string, boolean>();
+    if (visibleWorldTiles) {
+      visibleWorldTiles.forEach(tile => {
+        lookup.set(`${tile.worldX},${tile.worldY}`, tile.tileType?.tag === 'Sea');
+      });
+    }
+    return lookup;
+  }, [visibleWorldTiles]);
+  const seaTransitionTileLookup = useMemo(() => {
+    const lookup = new Map<string, boolean>();
+    if (!connection || !visibleWorldTiles) return lookup;
+    const isLandAtShore = (t: string | null) => t === 'Beach' || t === 'Asphalt';
+    const isShoreWater = (t: string | null) => t === 'Sea' || t === 'HotSpringWater';
+    visibleWorldTiles.forEach(tile => {
+      const tx = tile.worldX;
+      const ty = tile.worldY;
+      const center = getTileTypeFromChunkData(connection, tx, ty);
+      const n = getTileTypeFromChunkData(connection, tx, ty - 1);
+      const s = getTileTypeFromChunkData(connection, tx, ty + 1);
+      const e = getTileTypeFromChunkData(connection, tx + 1, ty);
+      const w = getTileTypeFromChunkData(connection, tx - 1, ty);
+      const hasWater = isShoreWater(n) || isShoreWater(s) || isShoreWater(e) || isShoreWater(w);
+      const hasLand = isLandAtShore(n) || isLandAtShore(s) || isLandAtShore(e) || isLandAtShore(w);
+      const isTransition = (isShoreWater(center) && hasLand) || (isLandAtShore(center) && hasWater);
+      if (isTransition) lookup.set(`${tx},${ty}`, true);
+    });
+    return lookup;
+  }, [connection, visibleWorldTiles]);
+
   // --- Use Entity Filtering Hook ---
   const {
     visibleSleepingBags,
@@ -959,6 +1042,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     playerBuildingClusterId,
     visibleAlkStations,
     visibleAlkStationsMap,
+    swimmingPlayersForBottomHalf: swimmingPlayersForBottomHalfFromHook,
   } = useEntityFiltering(
     players,
     trees,
@@ -1007,6 +1091,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     alkStations,
     monumentParts,
     livingCorals, // Living coral for underwater harvesting (uses combat system)
+    seaTransitionTileLookup // Sea transition tiles: player renders full sprite, no swimming split
   );
 
   // Memoize predictedPosition by coordinates so useDayNightCycle's effect doesn't re-run
@@ -1197,96 +1282,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     return detectQuarries((worldChunkDataMap ?? EMPTY_MAP) as Map<string, SpacetimeDBWorldChunkData>);
   }, [chunkCacheVersion, worldChunkDataMap]); // Recalculate when chunk data changes
 
-  // Optimized: Memoize the integer tile coordinates for the viewport
-  // This prevents visibleWorldTiles from recalculating on every sub-pixel camera movement
-  const tileSize = gameConfig.tileSize;
-  const viewTileX = Math.floor((-cameraOffsetX) / tileSize);
-  const viewTileY = Math.floor((-cameraOffsetY) / tileSize);
-  // Add a buffer of 2 tiles to ensure smooth rendering at edges
-  const bufferedViewTileX = viewTileX - 2;
-  const bufferedViewTileY = viewTileY - 2;
-
-  // Only recalculate when the set of visible TILES changes, not pixel offsets
-  const visibleWorldTiles = useMemo(() => {
-    const map = new Map<string, any>();
-    const chunkSize = chunkSizeRef.current;
-
-    // Calculate dimensions in tiles
-    const tilesHorz = Math.ceil(canvasSize.width / tileSize) + 4; // +4 for buffer (2 left, 2 right)
-    const tilesVert = Math.ceil(canvasSize.height / tileSize) + 4; // +4 for buffer (2 top, 2 bottom)
-
-    const minTileX = Math.max(0, bufferedViewTileX);
-    const minTileY = Math.max(0, bufferedViewTileY);
-    const maxTileX = bufferedViewTileX + tilesHorz;
-    const maxTileY = bufferedViewTileY + tilesVert;
-
-    const typeFromU8 = (v: number): string => {
-      switch (v) {
-        case 0: return 'Grass';
-        case 1: return 'Dirt';
-        case 2: return 'DirtRoad';
-        case 3: return 'Sea';
-        case 4: return 'Beach';
-        case 5: return 'Sand';
-        case 6: return 'HotSpringWater'; // Hot spring water pools
-        case 7: return 'Quarry'; // Quarry tiles (rocky gray-brown)
-        case 8: return 'Asphalt'; // Paved compound areas
-        case 9: return 'Forest'; // Dense forested areas
-        case 10: return 'Tundra'; // Arctic tundra (northern regions)
-        case 11: return 'Alpine'; // High-altitude rocky terrain
-        case 12: return 'TundraGrass'; // Grassy patches in tundra biome
-        case 13: return 'Tilled'; // Tilled soil for farming (uses Dirt graphics)
-        default: return 'Grass';
-      }
-    };
-
-    const chunkSource = worldChunkDataMap ?? chunkCacheRef.current;
-    for (let ty = minTileY; ty < maxTileY; ty++) {
-      for (let tx = minTileX; tx < maxTileX; tx++) {
-        const cx = Math.floor(tx / chunkSize);
-        const cy = Math.floor(ty / chunkSize);
-        const chunk = chunkSource.get(`${cx},${cy}`);
-        if (!chunk) continue;
-
-        const localX = tx % chunkSize;
-        const localY = ty % chunkSize;
-        if (localX < 0 || localY < 0) continue;
-        const idx = localY * chunk.chunkSize + localX;
-        if (idx < 0 || idx >= chunk.tileTypes.length) continue;
-
-        const t = chunk.tileTypes[idx];
-        const v = chunk.variants?.[idx] ?? 0;
-        const key = `${tx}_${ty}`;
-        map.set(key, {
-          worldX: tx,
-          worldY: ty,
-          tileType: { tag: typeFromU8(t) },
-          variant: v,
-        });
-      }
-    }
-    return map;
-  }, [bufferedViewTileX, bufferedViewTileY, canvasSize.width, canvasSize.height, chunkCacheVersion, worldChunkDataMap]);
-
   // Feed the renderer with only the visible tiles
   useEffect(() => {
     if (visibleWorldTiles && visibleWorldTiles.size > 0) {
       updateTileCache(visibleWorldTiles);
     }
   }, [visibleWorldTiles, updateTileCache]);
-
-  // PERFORMANCE: Create fast lookup Map for water tile checks (O(1) instead of O(n))
-  // This is critical for 50+ players checking shadow positions every frame
-  const waterTileLookup = useMemo(() => {
-    const lookup = new Map<string, boolean>();
-    if (visibleWorldTiles) {
-      visibleWorldTiles.forEach(tile => {
-        const key = `${tile.worldX},${tile.worldY}`;
-        lookup.set(key, tile.tileType?.tag === 'Sea');
-      });
-    }
-    return lookup;
-  }, [visibleWorldTiles]);
 
   // 🌊 AMBIENT SOUND: Calculate distance to nearest water tile for ocean ambience proximity
   // OPTIMIZED: Uses waterTileLookup (O(1) per check) with spiral search pattern
@@ -2337,18 +2338,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- END SEA BARREL WATER SHADOWS ---
 
     // --- STEP 1: Render ONLY swimming player bottom halves ---
-    // Filter out swimming players and render them manually with exact same logic as renderYSortedEntities
-    // EXCEPTION: Snorkeling players (local OR remote) should NOT be split - they render as full sprite
-    const swimmingPlayersForBottomHalf: SpacetimeDBPlayer[] = [];
-    players.forEach((player) => {
-      // Basic swimming conditions
-      if (!player.isOnWater || player.isDead || player.isKnockedOut) return;
-      // Skip local player if they're snorkeling - they render as full sprite in Y-sorted entities
-      if (isSnorkeling && player.identity.toHexString() === localPlayerId) return;
-      // Skip ANY player who is snorkeling - they render as full sprite (fully underwater)
-      if (player.isSnorkeling) return;
-      swimmingPlayersForBottomHalf.push(player);
-    });
+    // Use single source of truth from useEntityFiltering - prevents half-body glitches (head/body invisible)
+    const swimmingPlayersForBottomHalf = swimmingPlayersForBottomHalfFromHook;
 
     // Render swimming player bottom halves using exact same logic as renderYSortedEntities
     swimmingPlayersForBottomHalf.forEach(player => {
@@ -2479,7 +2470,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           playerForRendering.positionY,
           sx,
           sy,
-          waterTileLookup
+          waterTileLookup,
+          seaTransitionTileLookup
         );
       }
     });
@@ -2515,7 +2507,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           currentPredictedPosition.y,
           sx,
           sy,
-          waterTileLookup
+          waterTileLookup,
+          seaTransitionTileLookup
         );
       }
     }
@@ -2558,7 +2551,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           playerForRendering.positionY,
           sx,
           sy,
-          waterTileLookup
+          waterTileLookup,
+          seaTransitionTileLookup
         );
       }
     });
@@ -2668,6 +2662,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           caribouBreedingData,
           walrusBreedingData,
           chunkWeather,
+          seaTransitionTileLookup,
         });
       }
     };

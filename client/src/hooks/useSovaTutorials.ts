@@ -193,6 +193,8 @@ export const TUTORIALS: Record<string, TutorialDefinition> = {
 // Intro audio duration check (for skipping overlapping audio)
 const INTRO_AUDIO_DURATION_MS = 45 * 1000; // 45 seconds - generous estimate
 const INTRO_STARTED_KEY = 'broth_sova_intro_started_at';
+/** Session-only: prevents replaying intro within same browser tab session (defensive against stale server data) */
+const INTRO_PLAYED_THIS_SESSION_KEY = 'broth_sova_intro_played_this_session';
 
 // ============================================================================
 // Helper Functions
@@ -448,6 +450,17 @@ export function useSovaTutorials({
             return;
         }
 
+        // Defensive: skip if we already played intro this browser session (prevents replay on remount/stale data)
+        try {
+            if (sessionStorage.getItem(INTRO_PLAYED_THIS_SESSION_KEY) === 'true') {
+                console.log('[SovaTutorials] 🚢 Intro already played this session, skipping');
+                hasTriggeredIntroThisSession.current = true;
+                return;
+            }
+        } catch {
+            // sessionStorage may be unavailable (private mode, etc.)
+        }
+
         console.log('[SovaTutorials] 🚢 Server confirms intro NOT seen, scheduling in 2.5 seconds...');
         hasTriggeredIntroThisSession.current = true; // Prevent double-scheduling
         
@@ -459,6 +472,11 @@ export function useSovaTutorials({
 
             // Store timestamp for other sounds to check (still useful for overlap prevention)
             localStorage.setItem(INTRO_STARTED_KEY, Date.now().toString());
+            try {
+                sessionStorage.setItem(INTRO_PLAYED_THIS_SESSION_KEY, 'true');
+            } catch {
+                // sessionStorage may be unavailable
+            }
             
             console.log('[SovaTutorials] 🚢 Playing crash intro NOW');
             
@@ -492,12 +510,13 @@ export function useSovaTutorials({
     // ========================================================================
     // Part 2: SOVA Tutorial Hint (3.5 minutes after spawn)
     // Now uses SERVER-SIDE flag instead of localStorage
+    // Only plays for BRAND NEW players (same as intro) - returning players skip
     // ========================================================================
     useEffect(() => {
         const { delayMs, audioFile, soundBoxLabel, message } = TUTORIALS.tutorialHint;
         
         // Skip if no player yet or waiting for server data
-        if (!localPlayerId || hasSeenTutorialHint === undefined) {
+        if (!localPlayerId || hasSeenTutorialHint === undefined || hasSeenSovaIntro === undefined) {
             return;
         }
         
@@ -505,8 +524,13 @@ export function useSovaTutorials({
         if (hasSeenTutorialHint === true) {
             return;
         }
+        
+        // Skip if returning player (hasSeenSovaIntro === true) - tutorial hint is for brand new players only
+        if (hasSeenSovaIntro === true) {
+            return;
+        }
 
-        console.log('[SovaTutorials] 🎓 Scheduling tutorial hint in 3.5 minutes...');
+        console.log('[SovaTutorials] 🎓 Scheduling tutorial hint in 3.5 minutes (brand new player only)...');
         
         const timer = setTimeout(() => {
             // Double-check mount status
@@ -539,7 +563,7 @@ export function useSovaTutorials({
         }, delayMs);
 
         return () => clearTimeout(timer);
-    }, [localPlayerId, hasSeenTutorialHint, showSovaSoundBoxRef, sovaMessageAdderRef, onMarkTutorialHintSeen, onSovaError]);
+    }, [localPlayerId, hasSeenTutorialHint, hasSeenSovaIntro, showSovaSoundBoxRef, sovaMessageAdderRef, onMarkTutorialHintSeen, onSovaError]);
 
     // ========================================================================
     // Part 3: Memory Shard Tutorial (Event-driven)

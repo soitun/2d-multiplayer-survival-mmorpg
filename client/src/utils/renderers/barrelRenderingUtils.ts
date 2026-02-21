@@ -173,7 +173,8 @@ BARREL_VARIANT_IMAGES.forEach(barrelImg => {
 });
 
 // === SEA BARREL WATER EFFECTS CONFIGURATION ===
-const SEA_BARREL_WATER_CONFIG = {
+// Exported for use by dropped items and other entities that float on water
+export const SEA_BARREL_WATER_CONFIG = {
     // Water line position (fraction of sprite height from top)
     WATER_LINE_OFFSET: 0.55, // 55% down from top = barrel sits about halfway in water
     // Wave animation for water line
@@ -221,7 +222,7 @@ function getBarrelOffscreenCanvas(width: number, height: number): { canvas: Offs
 }
 
 /**
- * Renders ONLY the water shadow for a sea barrel (buoy).
+ * Renders ONLY the water shadow for a barrel on water (sea barrels or road barrels near coast).
  * Called in an early pass so swimming player bottom halves render ON TOP of it.
  */
 export function renderSeaBarrelWaterShadowOnly(
@@ -233,8 +234,8 @@ export function renderSeaBarrelWaterShadowOnly(
 ): void {
     if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) return;
     const variantIndex = Number(barrel.variant ?? 0);
-    if (!isSeaBarrelVariant(variantIndex)) return;
-    if (isOnSeaTile && !isOnSeaTile(barrel.posX, barrel.posY)) return;
+    // Only draw water shadow when barrel is actually on a sea tile (sea barrels on beach use normal ground shadow)
+    if (!isOnSeaTile || !isOnSeaTile(barrel.posX, barrel.posY)) return;
 
     const imageSource = BARREL_VARIANT_IMAGES[variantIndex] || BARREL_VARIANT_IMAGES[0];
     const img = imageManager.getImage(imageSource);
@@ -243,6 +244,7 @@ export function renderSeaBarrelWaterShadowOnly(
     const drawWidth = variantIndex === 4 ? BARREL5_WIDTH : variantIndex === 6 ? BUOY_WIDTH : BARREL_WIDTH;
     const drawHeight = variantIndex === 4 ? BARREL5_HEIGHT : variantIndex === 6 ? BUOY_HEIGHT : BARREL_HEIGHT;
     const yOffset = variantIndex === 4 ? 24 : variantIndex === 6 ? 28 : 12;
+    const isRoadBarrelOnWater = variantIndex < SEA_BARREL_VARIANT_START;
     const bobOffset = Math.sin(nowMs * SEA_BARREL_WATER_CONFIG.BOB_FREQUENCY + barrel.posX * 0.02)
         * SEA_BARREL_WATER_CONFIG.BOB_AMPLITUDE;
     const baseX = barrel.posX;
@@ -263,7 +265,7 @@ export function renderSeaBarrelWaterShadowOnly(
     ctx.save();
     ctx.translate(shadowX, shadowY);
     ctx.scale(0.85, 0.75);
-    ctx.rotate(Math.PI / 6);
+    ctx.rotate(Math.PI / 6 + (isRoadBarrelOnWater ? Math.PI / 2 : 0));
     ctx.translate(-shadowX, -shadowY);
     drawDynamicGroundShadow({
         ctx, entityImage: img, entityCenterX: shadowX, entityBaseY: shadowY,
@@ -305,6 +307,7 @@ function renderSeaBarrelWithWaterEffects(
     const drawWidth = variantIndex === 4 ? BARREL5_WIDTH : variantIndex === 6 ? BUOY_WIDTH : BARREL_WIDTH;
     const drawHeight = variantIndex === 4 ? BARREL5_HEIGHT : variantIndex === 6 ? BUOY_HEIGHT : BARREL_HEIGHT;
     const yOffset = variantIndex === 4 ? 24 : variantIndex === 6 ? 28 : 12;
+    const isRoadBarrelOnWater = variantIndex < SEA_BARREL_VARIANT_START;
     
     // Calculate sway animation (gentle rotation)
     const swayPrimary = Math.sin(nowMs * SEA_BARREL_WATER_CONFIG.SWAY_FREQUENCY + barrel.posX * 0.01) 
@@ -346,7 +349,7 @@ function renderSeaBarrelWithWaterEffects(
         ctx.save();
         ctx.translate(shadowX, shadowY);
         ctx.scale(0.85, 0.75);
-        ctx.rotate(Math.PI / 6);
+        ctx.rotate(Math.PI / 6 + (isRoadBarrelOnWater ? Math.PI / 2 : 0));
         ctx.translate(-shadowX, -shadowY);
 
         drawDynamicGroundShadow({
@@ -370,8 +373,13 @@ function renderSeaBarrelWithWaterEffects(
     }
     
     // Calculate water line position (in local sprite coordinates)
-    const waterLineLocalY = drawHeight * SEA_BARREL_WATER_CONFIG.WATER_LINE_OFFSET;
-    const waterLineWorldY = drawY + waterLineLocalY;
+    // Buoy (variant 6) sits lower in water - use higher offset to lower the waterline
+    // Road barrels on water are rotated 90° - water line must be at barrel center height (baseY) not upright sprite coords
+    const waterLineOffset = variantIndex === 6 ? 0.65 : SEA_BARREL_WATER_CONFIG.WATER_LINE_OFFSET;
+    const waterLineLocalY = drawHeight * waterLineOffset;
+    const waterLineWorldY = isRoadBarrelOnWater
+        ? baseY - 20  // Rotated barrel: center at baseY, extends ±43 vertically; water cuts ~upper third
+        : drawY + waterLineLocalY;
     
     // Wave calculation helper
     const getWaveOffset = (x: number) => {
@@ -402,61 +410,53 @@ function renderSeaBarrelWithWaterEffects(
     
     offCtx.globalCompositeOperation = 'source-over';
     
-    ctx.save();
-    
-    // Apply rotation around the bottom center of the barrel (pivot point)
     const pivotX = baseX;
     const pivotY = baseY;
-    ctx.translate(pivotX, pivotY);
-    ctx.rotate(totalSway);
-    ctx.translate(-pivotX, -pivotY);
-    
     const waveSegments = 16;
-    const segmentWidth = drawWidth / waveSegments;
+    // Rotated barrel extends beyond upright bounds - use generous extent so clip covers barrel in any orientation
+    const clipPad = Math.max(drawWidth, drawHeight) + 20;
+    const clipLeft = baseX - clipPad;
+    const clipRight = baseX + clipPad;
+    const clipSegmentWidth = (clipRight - clipLeft) / waveSegments;
     
+    // Clip in world space first (before rotation) so water line stays horizontal
     // --- Draw underwater portion (tinted) ---
     ctx.save();
     ctx.beginPath();
-    
-    // Create wavy clip path for underwater portion
-    ctx.moveTo(drawX - 5, baseY + 50);
-    ctx.lineTo(drawX - 5, waterLineWorldY);
-    
+    ctx.moveTo(clipLeft, baseY + 50);
+    ctx.lineTo(clipLeft, waterLineWorldY);
     for (let i = 0; i <= waveSegments; i++) {
-        const segX = drawX + i * segmentWidth;
+        const segX = clipLeft + i * clipSegmentWidth;
         ctx.lineTo(segX, waterLineWorldY + getWaveOffset(segX));
     }
-    
-    ctx.lineTo(drawX + drawWidth + 5, baseY + 50);
+    ctx.lineTo(clipRight, baseY + 50);
     ctx.closePath();
     ctx.clip();
-    
-    // Draw tinted barrel from offscreen canvas
+    ctx.translate(pivotX, pivotY);
+    ctx.rotate(totalSway + (isRoadBarrelOnWater ? Math.PI / 2 : 0));
+    ctx.translate(-pivotX, -pivotY);
     ctx.drawImage(offscreen, drawX - 2, drawY - 2);
     ctx.restore();
     
     // --- Draw above-water portion (normal) ---
     ctx.save();
     ctx.beginPath();
-    
-    // Clip to top portion with inverse wave
-    ctx.moveTo(drawX - 5, drawY - 5);
-    ctx.lineTo(drawX + drawWidth + 5, drawY - 5);
-    ctx.lineTo(drawX + drawWidth + 5, waterLineWorldY);
-    
+    ctx.moveTo(clipLeft, drawY - 5);
+    ctx.lineTo(clipRight, drawY - 5);
+    ctx.lineTo(clipRight, waterLineWorldY);
     for (let i = waveSegments; i >= 0; i--) {
-        const segX = drawX + i * segmentWidth;
+        const segX = clipLeft + i * clipSegmentWidth;
         ctx.lineTo(segX, waterLineWorldY + getWaveOffset(segX));
     }
-    
     ctx.closePath();
     ctx.clip();
-    
-    // Draw normal barrel
+    ctx.translate(pivotX, pivotY);
+    ctx.rotate(totalSway + (isRoadBarrelOnWater ? Math.PI / 2 : 0));
+    ctx.translate(-pivotX, -pivotY);
     ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
     ctx.restore();
     
-    // --- Draw water line ---
+    // --- Draw water line (outside rotation so it stays horizontal) ---
     ctx.strokeStyle = 'rgba(150, 180, 200, 0.5)';
     ctx.lineWidth = 1.2;
     ctx.lineCap = 'round';
@@ -478,6 +478,11 @@ function renderSeaBarrelWithWaterEffects(
         }
     }
     ctx.stroke();
+    
+    ctx.save(); // Re-apply rotation for buoy LED (if needed)
+    ctx.translate(pivotX, pivotY);
+    ctx.rotate(totalSway + (isRoadBarrelOnWater ? Math.PI / 2 : 0));
+    ctx.translate(-pivotX, -pivotY);
     
     // --- Buoy (variant 6) night-only red LED at top (same "lights on" as road lamps) ---
     if (variantIndex === 6 && isNightTime(cycleProgress)) {
@@ -527,13 +532,13 @@ export function renderBarrel(
 ) {
     const variantIndex = Number(barrel.variant ?? 0);
     
-    // Sea barrels get special water effects rendering ONLY if actually on a sea tile
+    // Apply water effects when barrel is on a sea tile (any variant - road barrels near coast can end up on water)
     // If isOnSeaTile callback is provided, use it to verify the barrel is on water
     // If not provided, fall back to variant-only check for backwards compatibility
     const isSeaVariant = isSeaBarrelVariant(variantIndex);
     const actuallyOnSea = isOnSeaTile ? isOnSeaTile(barrel.posX, barrel.posY) : isSeaVariant;
     
-    if (isSeaVariant && actuallyOnSea && (!barrel.respawnAt || barrel.respawnAt.microsSinceUnixEpoch === 0n)) {
+    if (actuallyOnSea && (!barrel.respawnAt || barrel.respawnAt.microsSinceUnixEpoch === 0n)) {
         // Sea barrel rendering - skip water shadow when drawn in early pass (swimming player overlap)
         renderSeaBarrelWithWaterEffects(ctx, barrel, nowMs, cycleProgress, skipWaterShadow);
         return;

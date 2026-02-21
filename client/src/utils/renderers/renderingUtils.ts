@@ -1,3 +1,23 @@
+/**
+ * renderingUtils - Y-sorted entity rendering and shared canvas utilities.
+ *
+ * This module is the main renderer for game entities, drawing them in correct depth order
+ * (Y-sorting) so that entities overlap correctly (e.g., player behind a tree). It receives
+ * pre-sorted entity arrays from useEntityFiltering and renders each type via specialized
+ * renderer modules (e.g., treeRenderingUtils, playerRenderingUtils).
+ *
+ * Responsibilities:
+ * 1. RENDER Y-SORTED ENTITIES: Draws entities in Y-order—trees, stones, players, structures,
+ *    walls, fog overlays, etc. Handles swimming split-render (top half above water, bottom
+ *    half below) and batch rendering for performance.
+ *
+ * 2. SHARED UTILITIES: Caches (sprite coords, movement, dodge roll), object pools, and
+ *    config used by render helpers. No direct SpacetimeDB subscriptions.
+ *
+ * 3. INTERACTION OUTLINES: Draws interaction outlines for closest interactable targets
+ *    (doors, campfires, furnaces, animals, etc.) when passed from GameCanvas.
+ */
+
 import {
   Player as SpacetimeDBPlayer,
   Tree as SpacetimeDBTree,
@@ -22,116 +42,87 @@ import {
   RainCollector as SpacetimeDBRainCollector,
   WildAnimal as SpacetimeDBWildAnimal,
   AnimalCorpse as SpacetimeDBAnimalCorpse,
-  FoundationCell as SpacetimeDBFoundationCell, // ADDED: Building foundations
-  WallCell as SpacetimeDBWallCell, // ADDED: Building walls
-  Door as SpacetimeDBDoor, // ADDED: Building doors
-  Fence as SpacetimeDBFence, // ADDED: Building fences
-  HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth
-  BrothPot as SpacetimeDBBrothPot, // ADDED: BrothPot
-  Turret as SpacetimeDBTurret, // ADDED: Turret
-  Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole
-  BasaltColumn as SpacetimeDBBasaltColumn, // ADDED: Basalt column
-  LivingCoral as SpacetimeDBLivingCoral, // Living coral (underwater harvestable via combat)
-  AlkStation as SpacetimeDBAlkStation, // ADDED: ALK delivery station
-  Cairn as SpacetimeDBCairn, // ADDED: Cairn import
+  FoundationCell as SpacetimeDBFoundationCell,
+  WallCell as SpacetimeDBWallCell,
+  Door as SpacetimeDBDoor,
+  Fence as SpacetimeDBFence,
+  HomesteadHearth as SpacetimeDBHomesteadHearth,
+  BrothPot as SpacetimeDBBrothPot,
+  Turret as SpacetimeDBTurret,
+  Fumarole as SpacetimeDBFumarole,
+  BasaltColumn as SpacetimeDBBasaltColumn,
+  LivingCoral as SpacetimeDBLivingCoral,
+  AlkStation as SpacetimeDBAlkStation,
+  Cairn as SpacetimeDBCairn,
 } from '../../generated';
-import { DbConnection } from '../../generated'; // ADDED: DbConnection for tile biome lookup
+import { DbConnection } from '../../generated';
 import { PlayerCorpse as SpacetimeDBPlayerCorpse } from '../../generated/player_corpse_type';
-import { gameConfig } from '../../config/gameConfig';
-import { JUMP_DURATION_MS } from '../../config/gameConfig'; // Import the constant
-// Import individual rendering functions
+import { gameConfig, JUMP_DURATION_MS } from '../../config/gameConfig';
+import { COMPOUND_BUILDINGS, isCompoundMonument } from '../../config/compoundBuildings';
+import { CompoundBuildingEntity } from '../../hooks/useEntityFiltering';
+import { YSortedEntityType } from '../../hooks/useEntityFiltering';
+import { InterpolatedGrassData } from '../../hooks/useGrassInterpolation';
+
+// --- Entity renderers ---
 import { renderTree, renderTreeImpactEffects, renderTreeHitEffects } from './treeRenderingUtils';
 import { renderStone, renderStoneDestructionEffects, renderStoneHitEffects } from './stoneRenderingUtils';
 import { renderRuneStone } from './runeStoneRenderingUtils';
 import { renderCairn } from './cairnRenderingUtils';
 import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MINE_CART, BOX_TYPE_FISH_TRAP, BOX_TYPE_WILD_BEEHIVE, BOX_TYPE_PLAYER_BEEHIVE } from './woodenStorageBoxRenderingUtils';
 import { renderEquippedItem, renderMeleeSwipeArcIfSwinging } from './equippedItemRenderingUtils';
-// Import the extracted player renderer
 import { renderPlayer, isPlayerHovered } from './playerRenderingUtils';
-// Import underwater shadow renderer for early rendering pass
 import { drawUnderwaterShadowOnly } from './swimmingEffectsUtils';
-// Import unified resource renderer - these functions now work with HarvestableResource
 import { renderHarvestableResource } from './unifiedResourceRenderer';
-// Import planted seed renderer (will be activated once client bindings are generated)
 import { renderPlantedSeed } from './plantedSeedRenderingUtils';
 import { renderCampfire } from './campfireRenderingUtils';
-import { renderFurnace } from './furnaceRenderingUtils'; // ADDED: Furnace renderer import
-import { renderBarbecue } from './barbecueRenderingUtils'; // ADDED: Barbecue renderer import
+import { renderFurnace } from './furnaceRenderingUtils';
+import { renderBarbecue } from './barbecueRenderingUtils';
 import { renderLantern, renderWardRadius, LANTERN_TYPE_LANTERN } from './lanternRenderingUtils';
 import { renderTurret } from './turretRenderingUtils';
-import { renderBrothPot } from './brothPotRenderingUtils'; // ADDED: Broth pot renderer import
-import { renderFoundation, renderFogOverlay, renderFogOverlayCluster } from './foundationRenderingUtils'; // ADDED: Foundation renderer import
-import { renderWall, renderWallExteriorShadow, renderFence, buildFencePositionMap } from './foundationRenderingUtils'; // ADDED: Wall renderer, exterior shadow, fence renderer, and fence position map builder import
-import { renderDoor } from './doorRenderingUtils'; // ADDED: Door renderer import
+import { renderBrothPot } from './brothPotRenderingUtils';
+import { renderFoundation, renderFogOverlay, renderFogOverlayCluster } from './foundationRenderingUtils';
+import { renderWall, renderWallExteriorShadow, renderFence, buildFencePositionMap } from './foundationRenderingUtils';
+import { renderDoor } from './doorRenderingUtils';
 import { renderStash } from './stashRenderingUtils';
 import { renderSleepingBag } from './sleepingBagRenderingUtils';
-// Import shelter renderer
 import { renderShelter } from './shelterRenderingUtils';
-// Import rain collector renderer
 import { renderRainCollector } from './rainCollectorRenderingUtils';
-// Import wild animal renderer
 import { renderWildAnimal, renderTamingThoughtBubbles, renderPregnancyIndicator } from './wildAnimalRenderingUtils';
-// Import breeding data types for rendering
 import { CaribouBreedingData } from '../../generated/caribou_breeding_data_type';
 import { WalrusBreedingData } from '../../generated/walrus_breeding_data_type';
-// Import animal corpse renderer
 import { renderAnimalCorpse } from './animalCorpseRenderingUtils';
-// Import player corpse renderer
 import { renderPlayerCorpse, isCorpseHovered } from './playerCorpseRenderingUtils';
-// Import barrel renderer
 import { renderBarrel } from './barrelRenderingUtils';
-// Import road lamppost renderer (Aleutian whale oil lampposts along dirt roads)
 import { renderRoadLamppost } from './roadLamppostRenderingUtils';
-// Import entity visual config for centralized bounds
 import { ENTITY_VISUAL_CONFIG, getInteractionOutlineParams } from '../entityVisualConfig';
-// Import fumarole renderer
 import { renderFumarole } from './fumaroleRenderingUtils';
-// Import basalt column renderer
 import { renderBasaltColumn } from './basaltColumnRenderingUtils';
-// Import living coral renderer (underwater harvestable resource)
 import { renderLivingCoral, renderCoralDestructionEffects, renderCoralHitEffects } from './livingCoralRenderingUtils';
-// Import ALK station renderer
 import { renderAlkStation } from './alkStationRenderingUtils';
-// Import compound building renderer
 import { renderMonument, getBuildingImage } from './monumentRenderingUtils';
-import { CompoundBuildingEntity } from '../../hooks/useEntityFiltering';
-// Import building restriction overlay for monument zones
 import { renderBuildingRestrictionOverlay, BuildingRestrictionZoneConfig } from './buildingRestrictionOverlayUtils';
 import { renderHealthBarOverlay } from './healthBarOverlayUtils';
-import { COMPOUND_BUILDINGS, isCompoundMonument } from '../../config/compoundBuildings';
-// Import sea stack renderer
 import { renderSeaStackSingle } from './seaStackRenderingUtils';
-// Import hearth renderer
 import { renderHearth } from './hearthRenderingUtils';
-// Import grass renderer
 import { renderGrass } from './grassRenderingUtils';
-// Import dropped item renderer
 import { renderDroppedItem } from './droppedItemRenderingUtils';
-// Import projectile renderer
 import { renderProjectile } from './projectileRenderingUtils';
+
+// --- Utilities ---
 import { imageManager } from './imageManager';
 import { getItemIcon } from '../itemIconUtils';
 import { renderPlayerTorchLight, renderCampfireLight } from './lightRenderingUtils';
 import { drawInteractionOutline, drawCircularInteractionOutline, getInteractionOutlineColor } from './outlineUtils';
 import { drawDynamicGroundShadow } from './shadowUtils';
 import { getTileTypeFromChunkData, worldPosToTileCoords } from './placementRenderingUtils';
-// Import terrain trail system (snow/beach footprints)
 import { updatePlayerFootprints } from './terrainTrailUtils';
 
-// Type alias for Y-sortable entities
-import { YSortedEntityType } from '../../hooks/useEntityFiltering';
-import { InterpolatedGrassData } from '../../hooks/useGrassInterpolation';
-
-// Module-level cache for debug logging
+// Module-level caches
 const playerDebugStateCache = new Map<string, { prevIsDead: boolean, prevLastHitTime: string | null }>();
-
-
-
-// Movement smoothing cache to prevent animation jitters
-const playerMovementCache = new Map<string, { 
-  lastMovementTime: number, 
-  isCurrentlyMoving: boolean,
-  lastKnownPosition: { x: number, y: number } | null
+const playerMovementCache = new Map<string, {
+  lastMovementTime: number;
+  isCurrentlyMoving: boolean;
+  lastKnownPosition: { x: number; y: number } | null;
 }>();
 
 // Dodge roll visual effects cache
@@ -387,7 +378,7 @@ interface RenderYSortedEntitiesProps {
   heroSprintImageRef: React.RefObject<HTMLImageElement | null>;
   heroIdleImageRef: React.RefObject<HTMLImageElement | null>;
   heroSwimImageRef?: React.RefObject<HTMLImageElement | null>; // Add swim sprite ref (optional)
-  heroDodgeImageRef?: React.RefObject<HTMLImageElement | null>; // NEW: Add dodge roll sprite ref (optional)
+  heroDodgeImageRef?: React.RefObject<HTMLImageElement | null>;
   lastPositionsRef: React.RefObject<Map<string, { x: number; y: number }>>;
   activeConnections: Map<string, ActiveConnection> | undefined;
   activeEquipments: Map<string, SpacetimeDBActiveEquipment>;
@@ -431,39 +422,34 @@ interface RenderYSortedEntitiesProps {
   closestInteractableSleepingBagId?: number | null;
   closestInteractableHarvestableResourceId?: bigint | null;
   closestInteractableDroppedItemId?: bigint | null;
-  closestInteractableDoorId?: bigint | null; // ADDED: Door interaction
+  closestInteractableDoorId?: bigint | null;
   // New unified single target system (replaces individual resource IDs)
   closestInteractableTarget?: { type: string; id: bigint | number | string; position: { x: number; y: number }; distance: number; isEmpty?: boolean; } | null;
-  // NEW: Shelter clipping data for shadow rendering
   shelterClippingData?: Array<{posX: number, posY: number, isDestroyed: boolean}>;
-  // ADD: Local facing direction for instant client-authoritative direction changes
   localFacingDirection?: string;
-  // NEW: Visual cortex module setting for tree shadows
-treeShadowsEnabled?: boolean;
-// NEW: Falling tree animation state
-isTreeFalling?: (treeId: string) => boolean;
-getFallProgress?: (treeId: string) => number;
-// ADDED: Camera offsets for foundation rendering
-cameraOffsetX?: number;
-cameraOffsetY?: number;
-foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>; // ADDED: Foundation tile images
-  allWalls?: Map<string, any>; // ADDED: All walls to check for adjacent walls
-  allFoundations?: Map<string, any>; // ADDED: All foundations to check for adjacent foundations
-  allFences?: any[]; // ADDED: All fences for smart sprite selection based on neighbors
-  buildingClusters?: Map<string, any>; // ADDED: Building clusters for fog of war
-  playerBuildingClusterId?: string | null; // ADDED: Which building the player is in
-  connection?: DbConnection | null; // ADDED: Connection for tile biome lookup
-  isLocalPlayerSnorkeling?: boolean; // ADDED: Whether local player is snorkeling (underwater mode)
-  alwaysShowPlayerNames?: boolean; // ADDED: Show player names above heads at all times
-  playerStats?: Map<string, any>; // ADDED: Player stats for title display on name labels
-  largeQuarries?: Map<string, any>; // ADDED: Large quarry locations for building restriction zones
-  detectedHotSprings?: Array<{ id: string; posX: number; posY: number; radius: number }>; // ADDED: Hot spring locations for building restriction zones
-  detectedQuarries?: Array<{ id: string; posX: number; posY: number; radius: number }>; // ADDED: Small quarry locations for building restriction zones
-  placementInfo?: { itemDefId?: bigint; itemName?: string } | null; // ADDED: Current placement info for showing restriction zones when placing items
-  // Animal breeding system data for age-based rendering and pregnancy indicators
-  caribouBreedingData?: Map<string, CaribouBreedingData>; // ADDED: Caribou breeding data (sex, age, pregnancy)
-  walrusBreedingData?: Map<string, WalrusBreedingData>; // ADDED: Walrus breeding data (sex, age, pregnancy)
-  chunkWeather?: Map<string, { currentWeather?: { tag?: string } }>; // ADDED: Chunk weather for grass sway (Clear=minimal, storm=dramatic)
+  treeShadowsEnabled?: boolean;
+  isTreeFalling?: (treeId: string) => boolean;
+  getFallProgress?: (treeId: string) => number;
+  cameraOffsetX?: number;
+  cameraOffsetY?: number;
+  foundationTileImagesRef?: React.RefObject<Map<string, HTMLImageElement>>;
+  allWalls?: Map<string, any>;
+  allFoundations?: Map<string, any>;
+  allFences?: any[];
+  buildingClusters?: Map<string, any>;
+  playerBuildingClusterId?: string | null;
+  connection?: DbConnection | null;
+  isLocalPlayerSnorkeling?: boolean;
+  alwaysShowPlayerNames?: boolean;
+  playerStats?: Map<string, any>;
+  largeQuarries?: Map<string, any>;
+  detectedHotSprings?: Array<{ id: string; posX: number; posY: number; radius: number }>;
+  detectedQuarries?: Array<{ id: string; posX: number; posY: number; radius: number }>;
+  placementInfo?: { itemDefId?: bigint; itemName?: string } | null;
+  caribouBreedingData?: Map<string, CaribouBreedingData>;
+  walrusBreedingData?: Map<string, WalrusBreedingData>;
+  chunkWeather?: Map<string, { currentWeather?: { tag?: string } }>;
+  seaTransitionTileLookup?: Map<string, boolean>; // Shore transition tiles (Beach/Sea, Beach/HotSpringWater, Asphalt/Sea): player renders as normal, not swimming
   // Note: viewBounds for terrain footprints has been moved to GameCanvas.tsx
   // Footprints are now rendered once before any renderYSortedEntities calls
 }
@@ -514,37 +500,34 @@ export const renderYSortedEntities = ({
   closestInteractableSleepingBagId,
   closestInteractableHarvestableResourceId,
   closestInteractableDroppedItemId,
-  closestInteractableDoorId, // ADDED: Door interaction
+  closestInteractableDoorId,
   // Unified target system (replaces individual resource IDs)
   closestInteractableTarget,
   shelterClippingData,
-  // ADD: Local facing direction for client-authoritative direction changes
   localFacingDirection,
-  // NEW: Visual cortex module setting for tree shadows
   treeShadowsEnabled = true,
-  // NEW: Falling tree animation state
   isTreeFalling,
   getFallProgress,
-  // ADDED: Pass camera offsets for foundation rendering
   cameraOffsetX = 0,
   cameraOffsetY = 0,
   foundationTileImagesRef,
-  allWalls, // ADDED: All walls to check for adjacent walls
-  allFoundations, // ADDED: All foundations to check for adjacent foundations
-  allFences, // ADDED: All fences for smart sprite selection based on neighbors
-  buildingClusters, // ADDED: Building clusters for fog of war
-  playerBuildingClusterId, // ADDED: Which building the player is in
-  connection, // ADDED: Connection for tile biome lookup
-  isLocalPlayerSnorkeling = false, // ADDED: Whether local player is snorkeling (underwater mode)
-  alwaysShowPlayerNames = false, // ADDED: Show player names above heads at all times
-  playerStats, // ADDED: Player stats for title display on name labels
-  largeQuarries, // ADDED: Large quarry locations for building restriction zones
-  detectedHotSprings, // ADDED: Hot spring locations for building restriction zones
-  detectedQuarries, // ADDED: Small quarry locations for building restriction zones
-  placementInfo, // ADDED: Current placement info for showing restriction zones when placing items
-  caribouBreedingData, // ADDED: Caribou breeding data (sex, age, pregnancy)
-  walrusBreedingData, // ADDED: Walrus breeding data (sex, age, pregnancy)
-  chunkWeather, // ADDED: Chunk weather for grass sway (Clear=minimal, storm=dramatic)
+  allWalls,
+  allFoundations,
+  allFences,
+  buildingClusters,
+  playerBuildingClusterId,
+  connection,
+  isLocalPlayerSnorkeling = false,
+  alwaysShowPlayerNames = false,
+  playerStats,
+  largeQuarries,
+  detectedHotSprings,
+  detectedQuarries,
+  placementInfo,
+  caribouBreedingData,
+  walrusBreedingData,
+  chunkWeather,
+  seaTransitionTileLookup, // Sea transition tiles: player renders as normal, not swimming
 }: RenderYSortedEntitiesProps) => {
   // PERFORMANCE: Avoid calling cleanup function unless interval elapsed
   const nowForCleanup = performance.now();
@@ -869,7 +852,7 @@ export const renderYSortedEntities = ({
              const lastKnownServerTime = lastKnownServerJumpTimes.get(playerId) || 0;
              
              if (serverJumpTime !== lastKnownServerTime) {
-                 // NEW jump detected! Record both server time and client time
+                 // Jump detected: record both server time and client time
                  lastKnownServerJumpTimes.set(playerId, serverJumpTime);
                  clientJumpStartTimes.set(playerId, nowMs);
              }
@@ -917,6 +900,10 @@ export const renderYSortedEntities = ({
          const currentlyHovered = isPlayerHovered(worldMouseX, worldMouseY, playerForRendering);
          const isPersistentlyHovered = alwaysShowPlayerNames || hoveredPlayerIds.has(playerId);
          
+         // Players in the batch are always normal (not swimming) - swimming players are swimmingPlayerTopHalf, handled separately
+         // Single source of truth: useEntityFiltering already decided; batch only contains non-swimming players
+         const effectiveIsOnWater = false;
+         
          // Choose sprite based on priority: dodge roll > water > crouching > default
          let heroImg: HTMLImageElement | null;
          // For local player, use immediate local crouch state; for others, use server state
@@ -930,9 +917,9 @@ export const renderYSortedEntities = ({
         if (isDodgeRolling) {
             heroImg = heroDodgeImageRef?.current || heroImageRef.current; // HIGHEST PRIORITY: Use dodge roll sprite when dodge rolling, fallback to normal
             // console.log(`[DEBUG] Using dodge roll sprite for ${playerId}:`, !!heroImg);
-        } else if (playerForRendering.isOnWater && !isCurrentlyJumping) {
+        } else if (effectiveIsOnWater && !isCurrentlyJumping) {
             // FIX: Add fallback to walking sprite if water sprite not loaded
-            heroImg = heroWaterImageRef.current || heroImageRef.current; // Use water sprite when on water, fallback to walking sprite
+            heroImg = heroWaterImageRef.current || heroImageRef.current; // Use water sprite when on actual water, fallback to walking sprite
            // console.log(`[DEBUG] Using water sprite for ${playerId}:`, !!heroImg);
         } else if (effectiveIsCrouching && !playerForRendering.isOnWater) {
             // FIX: Add fallback to walking sprite if crouch sprite not loaded
@@ -968,8 +955,9 @@ export const renderYSortedEntities = ({
          
           // Determine if this player is swimming with split rendering (bottom half here, top half in GameCanvas).
           // If so, skip equipped item rendering here — it's handled in the swimming top half pass.
+          // On sea transition tiles: no split render (player shows as normal).
           const playerIsSnorkelingEarly = isLocalPlayer ? isLocalPlayerSnorkeling : playerForRendering.isSnorkeling;
-          const isSwimmingSplitRender = playerForRendering.isOnWater && !playerForRendering.isDead && !playerForRendering.isKnockedOut && !playerIsSnorkelingEarly;
+          const isSwimmingSplitRender = effectiveIsOnWater && !playerForRendering.isDead && !playerForRendering.isKnockedOut && !playerIsSnorkelingEarly;
 
           // Determine rendering order based on player direction
           if (playerForRendering.direction === 'up' || playerForRendering.direction === 'left') {
@@ -991,8 +979,9 @@ export const renderYSortedEntities = ({
             if (heroImg) {
               // console.log(`[DEBUG] Calling renderPlayer for ${playerId}`);
               // Choose animation frame based on player state and environment
+              // On sea transition tiles: use land animations (walking/idle/sprint)
               let currentAnimFrame: number;
-              if (playerForRendering.isOnWater) {
+              if (effectiveIsOnWater) {
                 currentAnimFrame = isPlayerMoving ? animationFrame : idleAnimationFrame; // Use movement frames when moving, idle when still - for better sync
               } else {
                 // Land animations
@@ -1011,9 +1000,9 @@ export const renderYSortedEntities = ({
                 ? isLocalPlayerSnorkeling 
                 : playerForRendering.isSnorkeling;
               
-              // For swimming players, render only the bottom half (underwater portion) - but skip underwater shadow since it was rendered earlier
-              // EXCEPTION: When snorkeling, render full sprite (player is fully underwater)
-              const renderHalf = (playerForRendering.isOnWater && !playerForRendering.isDead && !playerForRendering.isKnockedOut && !playerIsSnorkeling) ? 'bottom' : 'full';
+              // For swimming players on actual water, render only the bottom half (underwater portion)
+              // On sea transition tiles or snorkeling: render full sprite
+              const renderHalf = (effectiveIsOnWater && !playerForRendering.isDead && !playerForRendering.isKnockedOut && !playerIsSnorkeling) ? 'bottom' : 'full';
               
               // Use normal player position (movement system handles dodge roll speed)
               const playerForRender = playerForRendering;
@@ -1030,7 +1019,7 @@ export const renderYSortedEntities = ({
                       heroIdleImageRef.current || heroImg,
                       heroCrouchImageRef.current || heroImg, // crouch sprite
                       heroSwimImageRef?.current || heroImg, // swim sprite
-                      heroDodgeImageRef?.current || heroImg, // NEW: dodge roll sprite
+                      heroDodgeImageRef?.current || heroImg,
                       isOnline, 
                       isPlayerMoving, 
                       currentlyHovered,
@@ -1042,13 +1031,14 @@ export const renderYSortedEntities = ({
                 localPlayerId,
                 false, // isCorpse
                 cycleProgress, // cycleProgress
-                localPlayerIsCrouching, // NEW: pass local crouch state for optimistic rendering
+                localPlayerIsCrouching,
                 renderHalf, // Render full player for normal Y-sorting (or full when snorkeling)
-                isDodgeRolling, // NEW: pass dodge roll state
-                dodgeRollProgress, // NEW: pass dodge roll progress
-                playerIsSnorkeling, // NEW: pass snorkeling state for underwater rendering
-                isLocalPlayerSnorkeling, // NEW: pass viewer's underwater state for underwater-from-above effects
-                playerActiveTitle // NEW: pass player's active title for name label
+                isDodgeRolling,
+                dodgeRollProgress,
+                playerIsSnorkeling,
+                isLocalPlayerSnorkeling,
+                playerActiveTitle,
+                effectiveIsOnWater // Stabilized water state (hysteresis applied)
               );
             }
             // Swipe arc drawn AFTER player so it's visible on top (up/left: item beneath player)
@@ -1062,8 +1052,9 @@ export const renderYSortedEntities = ({
             if (heroImg) {
               // console.log(`[DEBUG] Calling renderPlayer for ${playerId} (down/right)`);
               // Choose animation frame based on player state and environment
+              // On sea transition tiles: use land animations (walking/idle/sprint)
               let currentAnimFrame: number;
-              if (playerForRendering.isOnWater) {
+              if (effectiveIsOnWater) {
                 currentAnimFrame = isPlayerMoving ? animationFrame : idleAnimationFrame; // Use movement frames when moving, idle when still - for better sync
               } else {
                 // Land animations
@@ -1082,9 +1073,9 @@ export const renderYSortedEntities = ({
                 ? isLocalPlayerSnorkeling 
                 : playerForRendering.isSnorkeling;
               
-              // For swimming players, render only the bottom half (underwater portion) - but skip underwater shadow since it was rendered earlier
-              // EXCEPTION: When snorkeling, render full sprite (player is fully underwater)
-              const renderHalf = (playerForRendering.isOnWater && !playerForRendering.isDead && !playerForRendering.isKnockedOut && !playerIsSnorkeling) ? 'bottom' : 'full';
+              // For swimming players on actual water, render only the bottom half (underwater portion)
+              // On sea transition tiles or snorkeling: render full sprite
+              const renderHalf = (effectiveIsOnWater && !playerForRendering.isDead && !playerForRendering.isKnockedOut && !playerIsSnorkeling) ? 'bottom' : 'full';
               
               // Use normal player position (movement system handles dodge roll speed)
               const playerForRender = playerForRendering;
@@ -1113,13 +1104,14 @@ export const renderYSortedEntities = ({
                 localPlayerId,
                 false, // isCorpse
                 cycleProgress, // cycleProgress
-                localPlayerIsCrouching, // NEW: pass local crouch state for optimistic rendering
+                localPlayerIsCrouching,
                 renderHalf, // Render full player for normal Y-sorting (or full when snorkeling)
-                isDodgeRolling, // NEW: pass dodge roll state
-                dodgeRollProgress, // NEW: pass dodge roll progress
-                playerIsSnorkeling, // NEW: pass snorkeling state for underwater rendering
-                isLocalPlayerSnorkeling, // NEW: pass viewer's underwater state for underwater-from-above effects
-                playerActiveTitle2 // NEW: pass player's active title for name label
+                isDodgeRolling,
+                dodgeRollProgress,
+                playerIsSnorkeling,
+                isLocalPlayerSnorkeling,
+                playerActiveTitle2,
+                effectiveIsOnWater // Stabilized water state (hysteresis applied)
               );
             }
             // heroImg not loaded yet - skip rendering silently (will render once loaded)
@@ -1290,7 +1282,7 @@ export const renderYSortedEntities = ({
               const outline = getInteractionOutlineParams(furnace.posX, furnace.posY, config);
               drawInteractionOutline(ctx, outline.x, outline.y, outline.width, outline.height, cycleProgress, outlineColor);
           }
-      } else if (type === 'barbecue') { // ADDED: Barbecue handling (same as campfire)
+      } else if (type === 'barbecue') {
           const barbecue = entity as any; // Barbecue type from generated types
           const isTheClosestTarget = closestInteractableTarget?.type === 'barbecue' && closestInteractableTarget?.id === barbecue.id;
           // Pass player position for health bar rendering on opposite side (like barrels)
@@ -1351,17 +1343,21 @@ export const renderYSortedEntities = ({
       } else if (type === 'dropped_item') {
           const droppedItem = entity as SpacetimeDBDroppedItem;
           const itemDef = itemDefinitions.get(droppedItem.itemDefId.toString());
-          
+          const isOnSeaTile = connection
+              ? (worldX: number, worldY: number): boolean => {
+                  const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
+                  return getTileTypeFromChunkData(connection!, tileX, tileY) === 'Sea';
+              }
+              : undefined;
           // Apply underwater teal tint when snorkeling (items visible underwater)
           if (isLocalPlayerSnorkeling) {
               ctx.save();
               ctx.globalAlpha = 1.0;
-              // Apply subtle teal tint for underwater ambiance (same as seaweed/planted seeds)
               ctx.filter = 'sepia(20%) hue-rotate(140deg) saturate(120%)';
-              renderDroppedItem({ ctx, item: droppedItem, itemDef, nowMs, cycleProgress });
+              renderDroppedItem({ ctx, item: droppedItem, itemDef, nowMs, cycleProgress, isOnSeaTile });
               ctx.restore();
           } else {
-              renderDroppedItem({ ctx, item: droppedItem, itemDef, nowMs, cycleProgress });
+              renderDroppedItem({ ctx, item: droppedItem, itemDef, nowMs, cycleProgress, isOnSeaTile });
           }
       } else if (type === 'sleeping_bag') {
           const sleepingBag = entity as SpacetimeDBSleepingBag;
@@ -1602,7 +1598,6 @@ export const renderYSortedEntities = ({
               walrusBreedingData,
           });
           
-          // ADDED: Draw interaction outline for milkable animals
           // Check if this animal is the closest milkable target
           const isMilkableTarget = closestInteractableTarget?.type === 'milkable_animal' && 
                                    closestInteractableTarget?.id === wildAnimal.id;

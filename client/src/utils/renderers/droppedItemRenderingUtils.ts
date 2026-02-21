@@ -1,8 +1,9 @@
 import { DroppedItem as SpacetimeDBDroppedItem, ItemDefinition as SpacetimeDBItemDefinition } from '../../generated';
 import burlapSackImage from '../../assets/doodads/burlap_sack.png'; // Import the sack image as fallback
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
-import { imageManager } from './imageManager'; 
+import { imageManager } from './imageManager';
 import { getItemIcon } from '../itemIconUtils'; // Import item icon utility
+import { SEA_BARREL_WATER_CONFIG } from './barrelRenderingUtils';
 
 // --- Constants --- 
 const DRAW_WIDTH = 48;
@@ -240,6 +241,145 @@ interface RenderDroppedItemParamsNew {
     itemDef: SpacetimeDBItemDefinition | undefined;
     nowMs: number; // Keep nowMs for consistency, even if unused
     cycleProgress: number; // Added for shadow
+    isOnSeaTile?: (worldX: number, worldY: number) => boolean;
+}
+
+// --- Reusable offscreen canvas for dropped item water tinting ---
+let _droppedItemOffscreenCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
+let _droppedItemOffscreenCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
+
+function getDroppedItemOffscreenCanvas(w: number, h: number): { canvas: OffscreenCanvas | HTMLCanvasElement; ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D } {
+    if (!_droppedItemOffscreenCanvas || _droppedItemOffscreenCanvas.width < w || _droppedItemOffscreenCanvas.height < h) {
+        if (_droppedItemOffscreenCanvas) {
+            _droppedItemOffscreenCanvas.width = 0;
+            _droppedItemOffscreenCanvas.height = 0;
+        }
+        try {
+            _droppedItemOffscreenCanvas = new OffscreenCanvas(w, h);
+        } catch {
+            _droppedItemOffscreenCanvas = document.createElement('canvas');
+            _droppedItemOffscreenCanvas.width = w;
+            _droppedItemOffscreenCanvas.height = h;
+        }
+        _droppedItemOffscreenCtx = _droppedItemOffscreenCanvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+    }
+    return { canvas: _droppedItemOffscreenCanvas, ctx: _droppedItemOffscreenCtx! };
+}
+
+function getDroppedItemImageAndSize(
+    item: SpacetimeDBDroppedItem,
+    itemDef: SpacetimeDBItemDefinition | undefined
+): { img: HTMLImageElement | null; drawWidth: number; drawHeight: number; imageSource: string } {
+    const imageSource = itemDef?.iconAssetName
+        ? getItemIcon(itemDef.iconAssetName, 'dropped') ?? burlapSackImage
+        : burlapSackImage;
+    const img = imageManager.getImage(imageSource);
+    const isVoleSkull = itemDef?.name === 'Vole Skull';
+    const drawWidth = isVoleSkull ? 24 : DRAW_WIDTH;
+    const drawHeight = isVoleSkull ? 24 : DRAW_HEIGHT;
+    return { img: img ?? null, drawWidth, drawHeight, imageSource };
+}
+
+/**
+ * Renders a dropped item with water effects (water line, bobbing, sway, underwater tint).
+ * No water shadow - items floating on water don't cast the same shadow as barrels.
+ */
+function renderDroppedItemWithWaterEffects(
+    ctx: CanvasRenderingContext2D,
+    item: SpacetimeDBDroppedItem,
+    itemDef: SpacetimeDBItemDefinition | undefined,
+    nowMs: number,
+    renderX: number,
+    renderY: number,
+    scale: number
+): void {
+    const { img, drawWidth, drawHeight } = getDroppedItemImageAndSize(item, itemDef);
+    if (!img || !img.complete || img.naturalWidth === 0) {
+        ctx.fillStyle = '#A0522D';
+        ctx.fillRect(renderX - drawWidth / 2, renderY - drawHeight / 2, drawWidth, drawHeight);
+        return;
+    }
+
+    const cfg = SEA_BARREL_WATER_CONFIG;
+    const swayPrimary = Math.sin(nowMs * cfg.SWAY_FREQUENCY + item.posX * 0.01) * cfg.SWAY_AMPLITUDE;
+    const swaySecondary = Math.sin(nowMs * cfg.SWAY_SECONDARY_FREQUENCY + item.posY * 0.01 + Math.PI * 0.5) * cfg.SWAY_AMPLITUDE * 0.5;
+    const totalSway = swayPrimary + swaySecondary;
+    const bobOffset = Math.sin(nowMs * cfg.BOB_FREQUENCY + item.posX * 0.02) * cfg.BOB_AMPLITUDE;
+
+    const baseX = renderX;
+    const baseY = renderY + bobOffset;
+    const drawX = baseX - drawWidth / 2;
+    const drawY = baseY - drawHeight / 2;
+
+    const waterLineOffset = cfg.WATER_LINE_OFFSET;
+    const waterLineLocalY = drawHeight * waterLineOffset;
+    const waterLineWorldY = drawY + waterLineLocalY;
+
+    const getWaveOffset = (x: number) =>
+        Math.sin(nowMs * cfg.WAVE_FREQUENCY + x * 0.02) * cfg.WAVE_AMPLITUDE +
+        Math.sin(nowMs * cfg.WAVE_SECONDARY_FREQUENCY + x * 0.03 + Math.PI * 0.3) * cfg.WAVE_SECONDARY_AMPLITUDE;
+
+    const { canvas: offscreen, ctx: offCtx } = getDroppedItemOffscreenCanvas(drawWidth + 4, drawHeight + 4);
+    offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
+    offCtx.drawImage(img, 2, 2, drawWidth, drawHeight);
+    offCtx.globalCompositeOperation = 'source-atop';
+    const { r, g, b } = cfg.UNDERWATER_TINT_COLOR;
+    offCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${cfg.UNDERWATER_TINT_INTENSITY})`;
+    offCtx.fillRect(0, 0, offscreen.width, offscreen.height);
+    offCtx.fillStyle = 'rgba(0, 20, 40, 0.2)';
+    offCtx.fillRect(0, 0, offscreen.width, offscreen.height);
+    offCtx.globalCompositeOperation = 'source-over';
+
+    ctx.save();
+    ctx.translate(baseX, baseY);
+    ctx.rotate(totalSway);
+    ctx.translate(-baseX, -baseY);
+
+    const waveSegments = 12;
+    const segmentWidth = drawWidth / waveSegments;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(drawX - 5, baseY + 30);
+    ctx.lineTo(drawX - 5, waterLineWorldY);
+    for (let i = 0; i <= waveSegments; i++) {
+        ctx.lineTo(drawX + i * segmentWidth, waterLineWorldY + getWaveOffset(drawX + i * segmentWidth));
+    }
+    ctx.lineTo(drawX + drawWidth + 5, baseY + 30);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(offscreen, drawX - 2, drawY - 2);
+    ctx.restore();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(drawX - 5, drawY - 5);
+    ctx.lineTo(drawX + drawWidth + 5, drawY - 5);
+    ctx.lineTo(drawX + drawWidth + 5, waterLineWorldY);
+    for (let i = waveSegments; i >= 0; i--) {
+        ctx.lineTo(drawX + i * segmentWidth, waterLineWorldY + getWaveOffset(drawX + i * segmentWidth));
+    }
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+    ctx.restore();
+
+    ctx.strokeStyle = 'rgba(150, 180, 200, 0.5)';
+    ctx.lineWidth = 1.2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    const lineStartX = drawX + drawWidth * 0.2;
+    const lineEndX = drawX + drawWidth * 0.8;
+    const lineSegments = 6;
+    const lineSegmentWidth = (lineEndX - lineStartX) / lineSegments;
+    for (let i = 0; i <= lineSegments; i++) {
+        const segX = lineStartX + i * lineSegmentWidth;
+        const waveOffset = getWaveOffset(segX);
+        if (i === 0) ctx.moveTo(segX, waterLineWorldY + waveOffset);
+        else ctx.lineTo(segX, waterLineWorldY + waveOffset);
+    }
+    ctx.stroke();
+    ctx.restore();
 }
 
 // --- Rendering Function (Refactored) ---
@@ -248,25 +388,34 @@ export function renderDroppedItem({
     item,
     itemDef,
     nowMs,
-    cycleProgress, // Added
+    cycleProgress,
+    isOnSeaTile,
 }: RenderDroppedItemParamsNew): void {
-    // Calculate current position (handles arc animation if present)
     const { x: renderX, y: renderY, isAnimating, scale } = calculateArcPosition(item, nowMs);
-    
-    // Create entity with animated position - this is crucial because
-    // calculateDrawPosition in the config reads entity.posX/posY directly
-    const entityWithDef = { 
-        ...item, 
+
+    const onWater = isOnSeaTile?.(item.posX, item.posY) ?? false;
+
+    if (onWater) {
+        if (isAnimating && scale !== 1.0) {
+            ctx.save();
+            ctx.translate(renderX, renderY);
+            ctx.scale(scale, scale);
+            ctx.translate(-renderX, -renderY);
+        }
+        renderDroppedItemWithWaterEffects(ctx, item, itemDef, nowMs, renderX, renderY, scale);
+        if (isAnimating && scale !== 1.0) ctx.restore();
+        return;
+    }
+
+    const entityWithDef = {
+        ...item,
         itemDef,
-        // Override position with animated position for arc animation
         posX: renderX,
         posY: renderY,
     };
 
-    // If animating, apply scale transform
     if (isAnimating && scale !== 1.0) {
         ctx.save();
-        // Scale from the item's current position
         ctx.translate(renderX, renderY);
         ctx.scale(scale, scale);
         ctx.translate(-renderX, -renderY);
@@ -276,13 +425,12 @@ export function renderDroppedItem({
         ctx,
         entity: entityWithDef,
         config: droppedItemConfig,
-        nowMs, 
+        nowMs,
         entityPosX: renderX,
         entityPosY: renderY,
         cycleProgress,
     });
-    
-    // Restore context if we applied scale
+
     if (isAnimating && scale !== 1.0) {
         ctx.restore();
     }

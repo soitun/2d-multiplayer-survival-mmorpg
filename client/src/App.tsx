@@ -310,7 +310,7 @@ function AppContent() {
     }, [dbIdentity, activeEquipments, inventoryItems, itemDefinitions]);
     
     // --- SOVA Sound Box Hook (for deterministic SOVA voice notifications) ---
-    const { showSovaSoundBox, SovaSoundBoxComponent } = useSovaSoundBox();
+    const { showSovaSoundBox, hideSovaSoundBox, revealSovaSoundBoxUI, SovaSoundBoxComponent } = useSovaSoundBox();
     
     // NOTE: Insanity & Entrainment SOVA sound hooks are now in GameScreen.tsx
     // This allows them to access sovaMessageAdder for automatic tab switching/flashing
@@ -861,7 +861,10 @@ function AppContent() {
     const handleSequenceComplete = useCallback(() => {
         console.log("[App] Loading sequence complete, setting loadingSequenceComplete to true");
         setLoadingSequenceComplete(true);
-        
+
+        // Reveal SovaSoundBox UI so user can close it if loading-screen audio is still playing
+        revealSovaSoundBoxUI();
+
         // Start music when entering the game
         if (!musicSystem.isPlaying) {
             console.log("[App] Starting background music...");
@@ -869,7 +872,7 @@ function AppContent() {
                 console.warn("[App] Failed to start music:", error);
             });
         }
-    }, [musicSystem]);
+    }, [musicSystem, revealSovaSoundBoxUI]);
 
     // Reset sequence completion when loading starts again - will be moved after shouldShowLoadingScreen is defined
 
@@ -1060,6 +1063,10 @@ function AppContent() {
                     musicPreloadComplete={musicSystem.preloadProgress >= 1 && !musicSystem.isLoading}
                     assetProgress={assetProgress}
                     assetsLoaded={assetsLoaded}
+                    showSovaSoundBox={showSovaSoundBox}
+                    hideSovaSoundBox={hideSovaSoundBox}
+                    hasStoredUsername={!!getStoredUsername}
+                    hasLastKnownPlayer={typeof localStorage !== 'undefined' && !!localStorage.getItem('lastKnownPlayerInfo')}
                 />
             )}
 

@@ -35,8 +35,6 @@ declare global {
     __SOVA_SOUNDBOX_IS_PLAYING__?: () => boolean;
     __SOVA_SOUNDBOX_AUDIO_REF__?: HTMLAudioElement | null;
     __SOVA_SOUNDBOX_IS_ACTIVE__?: boolean; // Flag set immediately when showSovaSoundBox is called
-    __LOADING_SCREEN_AUDIO_IS_PLAYING__?: () => boolean;
-    __STOP_LOADING_SCREEN_SOVA_AUDIO__?: () => void;
   }
 }
 
@@ -67,13 +65,10 @@ export function isSovaSoundBoxPlaying(): boolean {
 
 /**
  * Check if loading screen SOVA audio is currently playing.
- * Use this to prevent achievement/level up/mission sounds from interrupting intro.
+ * Loading screen now uses SovaSoundBox, so isSovaSoundBoxPlaying covers this case.
  */
 export function isLoadingScreenAudioPlaying(): boolean {
-  if (typeof window !== 'undefined' && typeof window.__LOADING_SCREEN_AUDIO_IS_PLAYING__ === 'function') {
-    return window.__LOADING_SCREEN_AUDIO_IS_PLAYING__();
-  }
-  return false;
+  return false; // Loading screen uses SovaSoundBox; isSovaSoundBoxPlaying covers it
 }
 
 /**
@@ -117,6 +112,8 @@ export interface SovaSoundBoxOptions {
   priority?: 'intro';
   /** Called when this audio finishes playing */
   onEnded?: () => void;
+  /** When true, play audio without showing the SovaSoundBox UI (e.g. loading screen sequence) */
+  hideUI?: boolean;
 }
 
 interface UseSovaSoundBoxReturn {
@@ -124,6 +121,8 @@ interface UseSovaSoundBoxReturn {
   showSovaSoundBox: (audio: HTMLAudioElement, label?: string, options?: SovaSoundBoxOptions) => void;
   /** Hide the current SOVA sound box and stop audio */
   hideSovaSoundBox: () => void;
+  /** Reveal the SOVA sound box UI (e.g. when entering game with loading-screen audio still playing) */
+  revealSovaSoundBoxUI: () => void;
   /** Current state of the SOVA sound */
   currentSovaSound: SovaSoundState | null;
   /** The SovaSoundBox component to render - render this in your component tree */
@@ -135,6 +134,7 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const introPlayingRef = useRef(false);
   const introOnEndedRef = useRef<(() => void) | null>(null);
+  const genericOnEndedRef = useRef<(() => void) | null>(null);
 
   // Expose global function to check if SOVA is playing
   // This allows achievement/level up/mission notifications to check before playing
@@ -166,6 +166,7 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
   }, [soundState]);
 
   const showSovaSoundBox = useCallback((audio: HTMLAudioElement, label: string = 'SOVA', options?: SovaSoundBoxOptions) => {
+    const hideUI = options?.hideUI === true;
     // SOVA INTRO IS NON-INTERRUPTABLE: If intro is playing, skip any other SOVA audio
     // This prevents quest complete, memory shard tutorial, etc. from cutting off the crash intro
     if (introPlayingRef.current && options?.priority !== 'intro') {
@@ -200,18 +201,14 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
     if (options?.priority === 'intro') {
       introPlayingRef.current = true;
       introOnEndedRef.current = options.onEnded ?? null;
+      genericOnEndedRef.current = null;
     } else {
       introOnEndedRef.current = null;
+      genericOnEndedRef.current = options?.onEnded ?? null;
     }
 
-    // IMPORTANT: Also stop any loading screen SOVA audio that might be playing
-    // The loading screen has its own audio system with preloaded files
-    // This ensures tutorial/insanity sounds don't overlap with loading screen voice lines
-    // @ts-ignore
-    if (typeof window.__STOP_LOADING_SCREEN_SOVA_AUDIO__ === 'function') {
-      // @ts-ignore
-      window.__STOP_LOADING_SCREEN_SOVA_AUDIO__();
-    }
+    // Loading screen now uses SovaSoundBox - showSovaSoundBox replaces current audio,
+    // so no separate stop call needed
 
     audioRef.current = audio;
     window.__SOVA_SOUNDBOX_AUDIO_REF__ = audio;
@@ -227,6 +224,9 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
         introOnEndedRef.current?.();
         introOnEndedRef.current = null;
       }
+      // Call generic onEnded (e.g. loading screen sequence: play next clip)
+      genericOnEndedRef.current?.();
+      genericOnEndedRef.current = null;
     };
     audio.addEventListener('ended', clearActiveFlag);
     audio.addEventListener('error', clearActiveFlag);
@@ -234,7 +234,7 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
     setSoundState({
       audio,
       label,
-      isVisible: true,
+      isVisible: !hideUI,
     });
   }, []);
 
@@ -249,6 +249,11 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
     audioRef.current = null;
     window.__SOVA_SOUNDBOX_AUDIO_REF__ = null;
     setSoundState(null);
+  }, []);
+
+  /** Reveal the SOVA sound box UI when it was shown with hideUI (e.g. loading screen → game) */
+  const revealSovaSoundBoxUI = useCallback(() => {
+    setSoundState(prev => prev && !prev.isVisible ? { ...prev, isVisible: true } : prev);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -270,6 +275,7 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
   return {
     showSovaSoundBox,
     hideSovaSoundBox,
+    revealSovaSoundBoxUI,
     currentSovaSound: soundState,
     SovaSoundBoxComponent,
   };

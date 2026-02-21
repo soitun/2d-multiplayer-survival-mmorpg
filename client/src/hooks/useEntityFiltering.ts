@@ -141,41 +141,42 @@ interface EntityFilteringResult {
   visibleSheltersMap: Map<string, SpacetimeDBShelter>; // ADDED
   visibleLanterns: SpacetimeDBLantern[];
   visiblePlantedSeeds: SpacetimeDBPlantedSeed[];
-  visiblePlantedSeedsMap: Map<string, SpacetimeDBPlantedSeed>; // ADDED
-  visibleClouds: SpacetimeDBCloud[]; // ADDED
+  visiblePlantedSeedsMap: Map<string, SpacetimeDBPlantedSeed>;
+  visibleClouds: SpacetimeDBCloud[];
   visibleRainCollectors: SpacetimeDBRainCollector[];
   visibleRainCollectorsMap: Map<string, SpacetimeDBRainCollector>;
   visibleBrothPots: SpacetimeDBBrothPot[];
   visibleBrothPotsMap: Map<string, SpacetimeDBBrothPot>;
   visibleWildAnimals: SpacetimeDBWildAnimal[]; // ADDED
   visibleWildAnimalsMap: Map<string, SpacetimeDBWildAnimal>; // ADDED
-  visibleAnimalCorpses: SpacetimeDBAnimalCorpse[]; // ADDED
-  visibleAnimalCorpsesMap: Map<string, SpacetimeDBAnimalCorpse>; // ADDED
-  visibleBarrels: SpacetimeDBBarrel[]; // ADDED
-  visibleBarrelsMap: Map<string, SpacetimeDBBarrel>; // ADDED
-  visibleRoadLampposts: SpacetimeDBRoadLamppost[]; // ADDED: Road lampposts
-  visibleRoadLamppostsMap: Map<string, SpacetimeDBRoadLamppost>; // ADDED: Road lampposts map
-  visibleFumaroles: SpacetimeDBFumarole[]; // ADDED
-  visibleFumarolesMap: Map<string, SpacetimeDBFumarole>; // ADDED
-  visibleBasaltColumns: SpacetimeDBBasaltColumn[]; // ADDED
-  visibleBasaltColumnsMap: Map<string, SpacetimeDBBasaltColumn>; // ADDED
-  visibleSeaStacks: any[]; // ADDED
-  visibleSeaStacksMap: Map<string, any>; // ADDED
-  visibleAlkStations: SpacetimeDBAlkStation[]; // ADDED: ALK delivery stations
-  visibleAlkStationsMap: Map<string, SpacetimeDBAlkStation>; // ADDED: ALK delivery stations map
-  visibleFoundationCells: SpacetimeDBFoundationCell[]; // ADDED: Building foundations
-  visibleFoundationCellsMap: Map<string, SpacetimeDBFoundationCell>; // ADDED: Building foundations map
-  visibleWallCells: SpacetimeDBWallCell[]; // ADDED: Building walls
-  visibleWallCellsMap: Map<string, SpacetimeDBWallCell>; // ADDED: Building walls map
-  visibleDoors: SpacetimeDBDoor[]; // ADDED: Building doors
-  visibleDoorsMap: Map<string, SpacetimeDBDoor>; // ADDED: Building doors map
-  visibleFences: SpacetimeDBFence[]; // ADDED: Building fences
-  visibleFencesMap: Map<string, SpacetimeDBFence>; // ADDED: Building fences map
-  buildingClusters: Map<string, BuildingCluster>; // ADDED: Building clusters for fog of war
-  playerBuildingClusterId: string | null; // ADDED: Which building cluster the player is in
+  visibleAnimalCorpses: SpacetimeDBAnimalCorpse[];
+  visibleAnimalCorpsesMap: Map<string, SpacetimeDBAnimalCorpse>;
+  visibleBarrels: SpacetimeDBBarrel[];
+  visibleBarrelsMap: Map<string, SpacetimeDBBarrel>;
+  visibleRoadLampposts: SpacetimeDBRoadLamppost[];
+  visibleRoadLamppostsMap: Map<string, SpacetimeDBRoadLamppost>;
+  visibleFumaroles: SpacetimeDBFumarole[];
+  visibleFumarolesMap: Map<string, SpacetimeDBFumarole>;
+  visibleBasaltColumns: SpacetimeDBBasaltColumn[];
+  visibleBasaltColumnsMap: Map<string, SpacetimeDBBasaltColumn>;
+  visibleSeaStacks: any[];
+  visibleSeaStacksMap: Map<string, any>;
+  visibleAlkStations: SpacetimeDBAlkStation[];
+  visibleAlkStationsMap: Map<string, SpacetimeDBAlkStation>;
+  visibleFoundationCells: SpacetimeDBFoundationCell[];
+  visibleFoundationCellsMap: Map<string, SpacetimeDBFoundationCell>;
+  visibleWallCells: SpacetimeDBWallCell[];
+  visibleWallCellsMap: Map<string, SpacetimeDBWallCell>;
+  visibleDoors: SpacetimeDBDoor[];
+  visibleDoorsMap: Map<string, SpacetimeDBDoor>;
+  visibleFences: SpacetimeDBFence[];
+  visibleFencesMap: Map<string, SpacetimeDBFence>;
+  buildingClusters: Map<string, BuildingCluster>;
+  playerBuildingClusterId: string | null;
   // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
   visibleLivingCorals: SpacetimeDBLivingCoral[]; // Living corals (uses combat system)
   visibleLivingCoralsMap: Map<string, SpacetimeDBLivingCoral>; // Living corals map
+  swimmingPlayersForBottomHalf: SpacetimeDBPlayer[]; // Single source of truth: players whose bottom half renders before water overlay
 }
 
 // Define a unified entity type for sorting
@@ -797,7 +798,8 @@ export function useEntityFiltering(
   alkStations?: Map<string, SpacetimeDBAlkStation>, // ADDED: ALK delivery stations
   monumentParts?: Map<string, any>, // ADDED: Unified monument parts (shipwreck, fishing village, whale bone graveyard)
   // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
-  livingCorals?: Map<string, SpacetimeDBLivingCoral> // Living corals (uses combat system)
+  livingCorals?: Map<string, SpacetimeDBLivingCoral>, // Living corals (uses combat system)
+  seaTransitionTileLookup?: Map<string, boolean> // Shore transition tiles (Beach/Sea, Beach/HotSpringWater, Asphalt/Sea): player renders full sprite, no swimming split
 ): EntityFilteringResult {
   // Increment frame counter for throttling
   frameCounter++;
@@ -1833,6 +1835,8 @@ export function useEntityFiltering(
   // Cache for Y-sorted entities to avoid recalculating every frame
   const ySortedCache = useMemo(() => ({
     entities: [] as YSortedEntityWithKey[],
+    swimmingPlayersForBottomHalf: [] as SpacetimeDBPlayer[],
+    lastLocalPlayerTileKey: '' as string,
     lastUpdateFrame: -1,
     lastEntityCounts: {} as Record<string, number>,
     lastFoundationMapSize: 0, // Track foundation map size separately
@@ -1859,7 +1863,7 @@ export function useEntityFiltering(
   // Note: wallMapSize and foundationMapSize are already extracted above
   const playerMapSize = players?.size || 0;
   
-  const ySortedEntities = useMemo(() => {
+  const ySortedMemoResult = useMemo(() => {
     // Calculate current entity counts
     const currentEntityCounts = {
       players: visiblePlayers.length,
@@ -1917,7 +1921,7 @@ export function useEntityFiltering(
     const totalEntities = Object.values(currentEntityCounts).reduce((sum, count) => sum + count, 0) + fogOverlayCount;
     
     // Early exit if no entities
-    if (totalEntities === 0) return [];
+    if (totalEntities === 0) return { entities: [], swimmingPlayersForBottomHalf: [] };
     
     // CRITICAL FIX: Force re-sort when foundation/wall data first loads OR when player data loads
     // This fixes the issue where players render below tiles on initial login
@@ -1991,6 +1995,12 @@ export function useEntityFiltering(
       corpseHitCheckCache.current = { timestamp: stableTimestamp, result: hasRecentCorpseHit };
     }
     
+    // Swimming fix: Force resort when local player moves between tiles (water/land transition)
+    const localPlayerTileKey = localPlayerPredictedPosition
+      ? `${Math.floor(localPlayerPredictedPosition.x / gameConfig.tileSize)},${Math.floor(localPlayerPredictedPosition.y / gameConfig.tileSize)}`
+      : '';
+    const localPlayerTileChanged = localPlayerTileKey !== ySortedCache.lastLocalPlayerTileKey;
+    
     // Check if we need to resort
     // PERFORMANCE: Resort every 8 frames (~7.5/sec) - balances smoothness vs cost. Increase to 4 for more responsive.
     const needsResort = ySortedCache.isDirty || 
@@ -2002,13 +2012,16 @@ export function useEntityFiltering(
                        foundationCountIncreased || // CRITICAL: Force resort when new foundation is placed
                        playerJustLoadedWithTilesPresent || // Force resort when player loads with tiles already present
                        bothPresentNowButNotBefore || // Force resort when both players and tiles are now present but weren't both before
-                       hasRecentCorpseHit; // CORPSE SHAKE FIX: Force resort when corpse was recently hit
+                       hasRecentCorpseHit || // CORPSE SHAKE FIX: Force resort when corpse was recently hit
+                       localPlayerTileChanged; // SWIMMING FIX: Force resort when local player moves between tiles (water/land)
     
     // Use cached result when no re-sort is needed - significant performance gain!
     if (!needsResort && ySortedCache.entities.length > 0) {
       // Use cached result - huge performance gain!
-      // Cast to YSortedEntityType[] to hide internal _ySortKey and _priority from consumers
-      return ySortedCache.entities as YSortedEntityType[];
+      return {
+        entities: ySortedCache.entities as YSortedEntityType[],
+        swimmingPlayersForBottomHalf: ySortedCache.swimmingPlayersForBottomHalf
+      };
     }
     
     // PERFORMANCE OPTIMIZATION: Pre-compute Y sort keys during entity aggregation
@@ -2037,24 +2050,30 @@ export function useEntityFiltering(
     // but previously sorted at the SERVER position (player.positionY). When these diverge
     // (e.g., during movement), the player can appear at a different Y than their sort position,
     // causing incorrect rendering order relative to grass and other entities.
-    // Phase 3c: Split swimming players into swimmingPlayerTopHalf (bottom half rendered separately in GameCanvas)
+    // Phase 3c: Split swimming players - SINGLE SOURCE OF TRUTH for both bottom-half list and top-half in Y-sort
+    // Both must use identical logic to prevent half-body glitches (head or body invisible)
     const isSnorkeling = isLocalPlayerSnorkeling ?? false;
+    const swimmingPlayersForBottomHalf: SpacetimeDBPlayer[] = [];
     visiblePlayers.forEach(e => {
-      const isSwimming = e.isOnWater && !e.isDead && !e.isKnockedOut && !e.isSnorkeling;
-      const isLocalAndSnorkeling = isSnorkeling && localPlayerId && e.identity?.toHexString() === localPlayerId;
+      const playerId = e.identity?.toHexString() ?? '';
+      const isLocal = localPlayerId && playerId === localPlayerId;
+      // Use predicted position for local player (matches render position) for consistent tile lookup
+      const posX = isLocal && localPlayerPredictedPosition ? localPlayerPredictedPosition.x : e.positionX;
+      const posY = isLocal && localPlayerPredictedPosition ? localPlayerPredictedPosition.y : e.positionY;
+      const tileKey = `${Math.floor(posX / gameConfig.tileSize)},${Math.floor(posY / gameConfig.tileSize)}`;
+      const isOnSeaTransition = seaTransitionTileLookup?.get(tileKey) ?? false;
+      const effectiveIsOnWater = e.isOnWater && !isOnSeaTransition;
+      const isSwimming = effectiveIsOnWater && !e.isDead && !e.isKnockedOut && !e.isSnorkeling;
+      const isLocalAndSnorkeling = isSnorkeling && isLocal;
       const isRemoteSnorkeling = e.isSnorkeling;
       if (isSwimming && !isLocalAndSnorkeling && !isRemoteSnorkeling) {
-        // Use predicted position for local player so Y-sort matches render position (Phase 3c fix)
-        // Sort by water line (center) not feet - pushes sort line up so top half goes behind when north
-        const isLocal = localPlayerId && e.identity?.toHexString() === localPlayerId;
-        const sortY = (isLocal && localPlayerPredictedPosition)
-          ? localPlayerPredictedPosition.y
-          : e.positionY;
+        swimmingPlayersForBottomHalf.push(e);
+        const sortY = (isLocal && localPlayerPredictedPosition) ? localPlayerPredictedPosition.y : e.positionY;
         const swimItem = {
           type: 'swimmingPlayerTopHalf' as const,
           entity: e,
           yPosition: sortY,
-          playerId: e.identity?.toHexString() ?? '',
+          playerId,
           _ySortKey: sortY,
           _priority: 21
         };
@@ -2952,14 +2971,18 @@ export function useEntityFiltering(
     
     // PERFORMANCE: Update cache with new sorted result
     ySortedCache.entities = allEntities;
+    ySortedCache.swimmingPlayersForBottomHalf = swimmingPlayersForBottomHalf;
+    ySortedCache.lastLocalPlayerTileKey = localPlayerTileKey;
     ySortedCache.lastUpdateFrame = frameCounter;
     ySortedCache.lastEntityCounts = currentEntityCounts;
     ySortedCache.lastFoundationMapSize = foundationCells?.size || 0;
     ySortedCache.lastWallMapSize = wallCells?.size || 0;
     ySortedCache.isDirty = false;
     
-    // Cast to YSortedEntityType[] to hide internal _ySortKey and _priority from consumers
-    return allEntities as YSortedEntityType[];
+    return {
+      entities: allEntities as YSortedEntityType[],
+      swimmingPlayersForBottomHalf
+    };
   },
     // Dependencies for cached Y-sorting
     [visiblePlayers, visibleTrees, visibleStones, visibleRuneStones, visibleCairns, visibleWoodenStorageBoxes, 
@@ -2996,7 +3019,13 @@ export function useEntityFiltering(
     frameCounter, // Add frame counter for cache invalidation
     buildingClusters, // ADDED: Depend on building clusters for fog overlay calculation
     playerBuildingClusterId, // ADDED: Depend on player building cluster for fog overlay calculation
+    seaTransitionTileLookup, // Swimming split-render: transition tiles use full sprite
+    localPlayerPredictedPosition, // Swimming Y-sort: use predicted pos for local player
+    localPlayerId, // Swimming: identify local vs remote
+    isLocalPlayerSnorkeling, // Swimming: snorkeling players use full sprite
   ]);
+
+  const { entities: ySortedEntities, swimmingPlayersForBottomHalf } = ySortedMemoResult;
 
   // Emergency mode removed
 
@@ -3078,5 +3107,6 @@ export function useEntityFiltering(
     playerBuildingClusterId, // ADDED: Which building the player is in
     visibleAlkStations, // ADDED: ALK delivery stations
     visibleAlkStationsMap, // ADDED: ALK delivery stations map
+    swimmingPlayersForBottomHalf, // Single source of truth for swimming bottom-half render (must match Y-sort)
   };
 } 
