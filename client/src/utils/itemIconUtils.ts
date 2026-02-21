@@ -600,13 +600,14 @@ import sleepingBagIcon from '../assets/items/sleeping_bag.png';
 import shelterIcon from '../assets/items/shelter.png';
 import tallowLampIcon from '../assets/items/lantern_off.png';
 import reedRainCollectorIcon from '../assets/items/reed_rain_collector.png';
-import hearthIcon from '../assets/items/hearth.png'; // ADDED: Homestead Hearth icon
+import hearthIcon from '../assets/items/hearth.png';
 import woodenBeehiveIcon from '../assets/items/beehive_wooden.png'; // Player-made beehive icon
 
 // Trophy decorations
 import wolfPeltIcon from '../assets/items/wolf_pelt.png';
 import foxPeltIcon from '../assets/items/fox_pelt.png';
 import polarBearPeltIcon from '../assets/items/polar_bear_pelt.png';
+import walrusPeltIcon from '../assets/items/walrus_pelt.png';
 import caribouAntlersIcon from '../assets/items/caribou_antlers.png';
 
 // Building components
@@ -1166,13 +1167,14 @@ const iconMap: { [key: string]: string | undefined } = {
   'shelter.png': shelterIcon,
   'lantern_off.png': tallowLampIcon,
   'reed_rain_collector.png': reedRainCollectorIcon,
-  'hearth.png': hearthIcon, // ADDED: Homestead Hearth icon
+  'hearth.png': hearthIcon,
   'beehive_wooden.png': woodenBeehiveIcon, // Player-made beehive
   
   // Trophy decorations
   'wolf_pelt.png': wolfPeltIcon,
   'fox_pelt.png': foxPeltIcon,
   'polar_bear_pelt.png': polarBearPeltIcon,
+  'walrus_pelt.png': walrusPeltIcon,
   'caribou_antlers.png': caribouAntlersIcon,
   
   // Building components

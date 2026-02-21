@@ -276,6 +276,11 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
             .icon("polar_bear_pelt.png")
             .build(), // No crafting cost - dropped by polar bears
 
+        // Walrus Pelt - Coastal hunting trophy
+        ItemBuilder::new("Walrus Pelt", "A thick walrus hide with coarse, bristly fur. This rare coastal trophy can be displayed as a decoration, showcasing your skill at hunting these formidable Arctic creatures.", ItemCategory::Placeable)
+            .icon("walrus_pelt.png")
+            .build(), // No crafting cost - dropped by walruses
+
         // === BUILDING COMPONENTS ===
 
         // Wood Door - Craftable door for doorframes
