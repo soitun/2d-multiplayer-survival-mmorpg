@@ -816,33 +816,6 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     setIsMinimapOpen(true);
                 }
             }
-            // Handle Arrow keys for time debug cycler (only when menu is closed and not typing)
-            else if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && currentMenu === null && !isChatting) {
-                event.preventDefault();
-                // Correct cycle order: Night -> Midnight -> TwilightMorning -> Dawn -> Morning -> Noon -> Afternoon -> Dusk -> TwilightEvening -> Night
-                const timeOrder = ['Night', 'Midnight', 'TwilightMorning', 'Dawn', 'Morning', 'Noon', 'Afternoon', 'Dusk', 'TwilightEvening'];
-                const currentTimeOfDay = worldState?.timeOfDay?.tag || 'Noon';
-                const currentIndex = timeOrder.indexOf(currentTimeOfDay);
-
-                let newIndex: number;
-                if (event.key === 'ArrowRight') {
-                    // Move forward
-                    newIndex = (currentIndex + 1) % timeOrder.length;
-                } else {
-                    // Move backward
-                    newIndex = (currentIndex - 1 + timeOrder.length) % timeOrder.length;
-                }
-
-                const newTime = timeOrder[newIndex];
-
-                if (connection) {
-                    try {
-                        (connection.reducers as any).debugSetTime(newTime);
-                    } catch (error) {
-                        console.warn('Debug time function not available (production build?):', error);
-                    }
-                }
-            }
         };
 
         window.addEventListener('keydown', handleKeyDown);

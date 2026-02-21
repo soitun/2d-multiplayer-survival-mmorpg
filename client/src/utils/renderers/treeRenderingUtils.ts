@@ -1,3 +1,23 @@
+/**
+ * treeRenderingUtils - Tree sprite rendering, shake effects, and destruction.
+ *
+ * Renders trees (birch, hemlock, spruce, pine, willow, fruit trees, etc.) with
+ * variant-specific sprites, vertex-based shake on hit, canopy shadow, and
+ * falling/destruction effects. Used by renderingUtils in the Y-sorted loop.
+ *
+ * Responsibilities:
+ * 1. SPRITE RENDERING: renderTree uses genericGroundRenderer. Variant maps to
+ *    species (Siberian Birch, Mountain Hemlock, Sitka Spruce, etc.).
+ *
+ * 2. SHAKE: triggerTreeShakeOptimistic for immediate hit feedback. Vertex-based
+ *    shake segments for tall trees. Syncs with server shake timestamps.
+ *
+ * 3. DESTRUCTION: renderTreeImpactEffects, renderTreeHitEffects for falling
+ *    animation and debris. Time-of-day affects shadow intensity.
+ *
+ * 4. CANOPY SHADOW: Elliptical ambient occlusion under foliage.
+ */
+
 import { Tree, TimeOfDay } from '../../generated'; // Import generated types
 import birchImage from '../../assets/doodads/siberian_birch_c.png';
 import mountainHemlockImage from '../../assets/doodads/mountain_hemlock_c.png';

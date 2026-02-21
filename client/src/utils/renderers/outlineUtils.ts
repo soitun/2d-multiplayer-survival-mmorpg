@@ -1,5 +1,19 @@
 /**
- * Utility functions for drawing interaction outlines around objects
+ * outlineUtils - Interaction outline drawing for targetable entities.
+ *
+ * Draws pulsing, glowing outlines around entities that can be interacted with
+ * (E-key). Used by renderingUtils when the closest interactable entity is
+ * passed from GameCanvas. Provides visual feedback for doors, campfires,
+ * furnaces, animals, cairns, etc.
+ *
+ * Responsibilities:
+ * 1. drawInteractionOutline: Multi-layer stroke (outer glow, middle, inner)
+ *    with cycleProgress-based pulse. Configurable color and alpha.
+ *
+ * 2. HEX/RGB: hexToRgb helper for rgba() stroke colors.
+ *
+ * 3. RECT-BASED: Outline drawn as rect at (x, y) with width/height. Caller
+ *    provides entity bounds from interaction finder.
  */
 
 /**

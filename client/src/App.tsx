@@ -1,13 +1,22 @@
 /**
- * App.tsx
- * 
- * Main application component.
- * Handles:
- *  - Initializing all core application hooks (connection, tables, placement, drag/drop, interaction).
- *  - Managing top-level application state (connection status, registration status).
- *  - Conditionally rendering either the `LoginScreen` or the main `GameScreen`.
- *  - Displaying global errors (connection, UI, etc.).
- *  - Passing down necessary state and action callbacks to the active screen (`LoginScreen` or `GameScreen`).
+ * App - Main application root and screen coordinator.
+ *
+ * Top-level component that initializes core hooks, manages connection/registration
+ * state, and conditionally renders LoginScreen or GameScreen. Passes entity data
+ * and action callbacks down to GameScreen → GameCanvas.
+ *
+ * Responsibilities:
+ * 1. HOOKS: useGameConnection, useSpacetimeTables, usePlacementManager,
+ *    useDragDropManager, useInteractionManager, useMovementInput, usePredictedMovement,
+ *    useSoundSystem, useMusicSystem, useAssetLoader, etc.
+ *
+ * 2. ROUTING: LoginScreen when not connected/registered; GameScreen when in-game.
+ *    CyberpunkLoadingScreen during asset preload.
+ *
+ * 3. ERROR DISPLAY: useErrorDisplay for global connection/UI errors.
+ *
+ * 4. STATE FLOW: Entity maps and callbacks flow App → GameScreen → GameCanvas.
+ *    No direct SpacetimeDB subscriptions in child components.
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';

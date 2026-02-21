@@ -1,3 +1,22 @@
+/**
+ * stoneRenderingUtils - Stone and ore node rendering, shake, and destruction.
+ *
+ * Renders stone entities (stone, metal, sulfur, memory ore) with variant sprites,
+ * vertex-based shake on hit, and destruction debris. Used by renderingUtils.
+ *
+ * Responsibilities:
+ * 1. SPRITE RENDERING: renderStone uses genericGroundRenderer. Ore type selects
+ *    image (stone_d, metal, sulfur, memory).
+ *
+ * 2. SHAKE: triggerStoneShakeOptimistic for immediate hit feedback. Fewer
+ *    vertex segments than trees (stones are shorter).
+ *
+ * 3. DESTRUCTION: renderStoneDestructionEffects, renderStoneHitEffects for
+ *    debris particles and hit feedback. AAA pixel-art quality debris system.
+ *
+ * 4. ORE TYPE: getStoneOreType, normalizeOreType for variant selection.
+ */
+
 import { Stone } from '../../generated'; // Import generated Stone type
 import stoneImage from '../../assets/doodads/stone_d.png'; // Direct import
 import metalImage from '../../assets/doodads/metal.png'; // Metal ore node image

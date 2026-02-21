@@ -1111,7 +1111,14 @@ export const useSpacetimeTables = ({
             // --- World State Subscriptions ---
             const handleWorldStateInsert = (ctx: any, state: SpacetimeDB.WorldState) => setWorldState(state);
             const handleWorldStateUpdate = (ctx: any, oldState: SpacetimeDB.WorldState, newState: SpacetimeDB.WorldState) => {
-                const significantChange = oldState.timeOfDay !== newState.timeOfDay || oldState.isFullMoon !== newState.isFullMoon || oldState.cycleCount !== newState.cycleCount;
+                // Include cycleProgress so we accept tick updates; otherwise we'd ignore cycleProgress-only
+                // updates and show stale time (which could appear to "change" when player moves due to
+                // delayed/cached display finally updating). Compare timeOfDay by tag for value equality.
+                const timeTagChanged = (oldState.timeOfDay?.tag ?? '') !== (newState.timeOfDay?.tag ?? '');
+                const significantChange = timeTagChanged
+                    || oldState.cycleProgress !== newState.cycleProgress
+                    || oldState.isFullMoon !== newState.isFullMoon
+                    || oldState.cycleCount !== newState.cycleCount;
                 if (significantChange) setWorldState(newState);
             };
             const handleWorldStateDelete = (ctx: any, state: SpacetimeDB.WorldState) => setWorldState(null);

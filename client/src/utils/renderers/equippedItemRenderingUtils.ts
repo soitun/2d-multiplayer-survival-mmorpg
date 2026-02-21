@@ -1,3 +1,24 @@
+/**
+ * equippedItemRenderingUtils - Equipped item and melee attack rendering.
+ *
+ * Renders the item held by the player (tool, weapon, consumable) with correct
+ * position/rotation based on facing. Draws melee swipe arc during attack and
+ * handles bandaging, drinking, and other use animations.
+ *
+ * Responsibilities:
+ * 1. ITEM RENDERING: renderEquippedItem draws the equipped item sprite with
+ *    offset from player center. Handles spear, scythe, hammer, etc.
+ *
+ * 2. MELEE SWIPE: renderMeleeSwipeArcIfSwinging draws attack arc during swing.
+ *    MELEE_ATTACK_RANGE, SPEAR_ATTACK_RANGE, SCYTHE_ATTACK_RANGE. Arc angles
+ *    match server (90°, 60°, 150°).
+ *
+ * 3. OPTIMISTIC SWING: registerLocalPlayerSwing for immediate swing feedback.
+ *    Client-authoritative for local player; server timestamps for others.
+ *
+ * 4. USE ANIMATIONS: Bandaging, Selo Olive Oil, water drinking wobble/rotation.
+ */
+
 import { Player as SpacetimeDBPlayer, ActiveEquipment as SpacetimeDBActiveEquipment, ItemDefinition as SpacetimeDBItemDefinition, ActiveConsumableEffect, EffectType } from '../../generated';
 import { gameConfig } from '../../config/gameConfig';
 import { PLAYER_RADIUS } from '../clientCollision';

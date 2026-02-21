@@ -1,3 +1,20 @@
+/**
+ * useGameLoop - requestAnimationFrame-based game loop with performance monitoring.
+ *
+ * Drives the main canvas render cycle. Used by GameCanvas to draw the game world each
+ * frame. Provides deltaTime, frameCount, and FPS for smooth animations and profiling.
+ *
+ * Responsibilities:
+ * 1. ANIMATION LOOP: Calls the provided callback on each animation frame via
+ *    requestAnimationFrame. Throttles to target FPS when needed.
+ *
+ * 2. FRAME METRICS: Passes FrameInfo (deltaTime, frameCount, fps) to the callback.
+ *    Enables time-based movement and animation without setInterval.
+ *
+ * 3. PERFORMANCE: Optional profiling tracks slow frames, max frame time, and recent
+ *    frame times. Caps maxFrameTime to prevent spiral of death on slow devices.
+ */
+
 import { useEffect, useRef, useCallback } from 'react';
 
 interface GameLoopOptions {

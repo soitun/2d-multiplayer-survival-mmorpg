@@ -1,3 +1,23 @@
+/**
+ * barrelRenderingUtils - Barrel, sea flotsam, and buoy rendering.
+ *
+ * Renders barrel entities (road barrels, sea flotsam/cargo crates, buoys) with
+ * variant-specific sprites, shadows, and optional water overlay for sea variants.
+ * Supports client-side shake on hit for responsive feedback.
+ *
+ * Responsibilities:
+ * 1. VARIANT RENDERING: Variants 0-2 (road), 3-5 (sea), 6 (buoy). Uses
+ *    genericGroundRenderer for consistent shadow and positioning.
+ *
+ * 2. SEA EFFECTS: Sea variants (3-6) get water overlay, sway, and bob animation.
+ *    Buoy (6) is indestructible and rendered larger.
+ *
+ * 3. SHAKE: triggerBarrelShakeOptimistic for immediate hit feedback. Syncs
+ *    with server shake timestamps to avoid double-shake.
+ *
+ * 4. INTERACTION: PLAYER_BARREL_INTERACTION_DISTANCE_SQUARED for E-key targeting.
+ */
+
 import { Barrel } from '../../generated'; // Import generated type
 import barrelImage from '../../assets/doodads/barrel.png'; // Variant 0
 import barrel2Image from '../../assets/doodads/barrel2.png'; // Variant 1 

@@ -862,7 +862,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                             {worldState?.timeOfDay?.tag || 'UNKNOWN'}
                         </div>
                         
-                        {/* Right Arrow */}
+                        {/* Right Arrow - later in day */}
                         <button
                             onClick={(e) => {
                                 cycleTime('forward');

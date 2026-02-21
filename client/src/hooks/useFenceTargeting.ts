@@ -1,8 +1,18 @@
 /**
- * Fence Targeting Hook
- * 
- * Finds and targets nearby fences when Repair Hammer is equipped.
- * Detects which fence is closest to the mouse position.
+ * useFenceTargeting - Fence targeting for placement and repair.
+ *
+ * Finds the fence closest to the mouse when Repair Hammer is equipped. Used for
+ * fence placement and repair. Fences use edge (N, E, S, W) for orientation.
+ *
+ * Responsibilities:
+ * 1. FENCE BOUNDS: getFenceBounds computes hitbox from fence posX/posY and edge.
+ *    Horizontal (N/S) vs vertical (E/W) fences have different dimensions.
+ *
+ * 2. TARGETED FENCE: Returns targetedFence. Integrates with useBuildingManager
+ *    for placement mode. Same distance threshold as walls (128px).
+ *
+ * 3. EDGE DETECTION: Edge 0=North, 1=East, 2=South, 3=West. FENCE_CLICK_THRESHOLD
+ *    (32px) determines how close mouse must be to target.
  */
 
 import { useState, useEffect, useMemo } from 'react';

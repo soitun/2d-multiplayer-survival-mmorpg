@@ -1,3 +1,25 @@
+/**
+ * useEntityFiltering - Viewport culling and Y-sorted entity arrays for rendering.
+ *
+ * This hook filters all game entities by viewport bounds and produces Y-sorted arrays
+ * for correct draw order (entities lower on screen draw on top). Used by GameCanvas and
+ * renderingUtils to render only visible entities in proper depth order.
+ *
+ * Responsibilities:
+ * 1. VIEWPORT CULLING: Filters trees, stones, players, structures, animals, etc. by
+ *    viewBounds + buffer. Excludes respawning entities (respawnAt !== 0).
+ *
+ * 2. Y-SORTING: Merges all visible entities into a single Y-sorted array for
+ *    renderingUtils. Handles tall structures (campfires, furnaces) with custom
+ *    sort offsets for correct overlap.
+ *
+ * 3. COMPOUND BUILDINGS: Detects and groups compound monuments (e.g., large furnaces)
+ *    for unified rendering and interaction.
+ *
+ * 4. MAPS & ARRAYS: Returns both Map<string, Entity> for lookups and pre-sorted
+ *    arrays for efficient render loops. No direct SpacetimeDB subscriptions.
+ */
+
 import { useMemo, useCallback, useRef } from 'react';
 import { Timestamp } from 'spacetimedb';
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';

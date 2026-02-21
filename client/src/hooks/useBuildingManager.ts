@@ -1,12 +1,23 @@
 /**
- * Building Placement Manager Hook
- * 
- * Handles building-specific placement logic (foundations, walls, doors).
- * Separate from item placement because:
- * - No item consumption (hammer must be equipped)
- * - Uses cell/tile coordinates instead of world pixel coordinates
- * - Has modes (foundation, wall, door)
- * - Has shape/edge/facing parameters that cycle with mouse wheel
+ * useBuildingManager - Building placement mode and construction parameters.
+ *
+ * Manages foundation, wall, door, and fence placement when Repair Hammer is equipped.
+ * Separate from item placement (usePlacementManager) because buildings use cell
+ * coordinates, have modes, and consume no items—only the hammer must be equipped.
+ *
+ * Responsibilities:
+ * 1. MODE STATE: Tracks BuildingMode (None, Foundation, Wall, Door, Fence) and
+ *    BuildingTier (Twig, Wood, Stone, Metal). startBuildingMode/cancelBuildingMode.
+ *
+ * 2. SHAPE PARAMETERS: FoundationShape (Full, TriNW, TriNE, etc.), BuildingEdge,
+ *    BuildingFacing. cycleFoundationShape, cycleBuildingEdge, toggleBuildingFacing.
+ *
+ * 3. PLACEMENT VALIDATION: Checks tile type, distance, and overlap. Returns
+ *    placementError for UI feedback. Integrates with useFoundationTargeting,
+ *    useWallTargeting, useFenceTargeting for mouse targeting.
+ *
+ * 4. REDUCER CALLS: placeFoundation, placeWall, placeDoor, placeFence when
+ *    player confirms placement. No item consumption.
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';

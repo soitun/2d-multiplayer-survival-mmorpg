@@ -1,3 +1,20 @@
+/**
+ * useGameViewport - Canvas size and camera offset for game rendering.
+ *
+ * Manages the game canvas dimensions (full window) and computes camera offset so
+ * the camera follows the local player. Used by GameCanvas for rendering and
+ * viewport calculations.
+ *
+ * Responsibilities:
+ * 1. CANVAS SIZE: Tracks window innerWidth/innerHeight. Updates on resize.
+ *
+ * 2. CAMERA OFFSET: Centers camera on smoothedPosition (from usePredictedMovement)
+ *    or fallback to localPlayer position. cameraOffsetX/Y = canvasCenter - playerPos.
+ *
+ * 3. SMOOTH FOLLOWING: When smoothedPosition is provided, camera follows predicted
+ *    movement for smooth panning without server round-trip delay.
+ */
+
 import { useState, useEffect, useMemo } from 'react';
 import { Player as SpacetimeDBPlayer } from '../generated'; // Import Player type
 

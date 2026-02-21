@@ -1,4 +1,24 @@
 /**
+ * shadowUtils - Ground shadows and drop shadows for entities.
+ *
+ * Provides drawShadow (elliptical), drawDynamicGroundShadow (direction-aware,
+ * cycle-based), calculateShakeOffsets (for shake + shadow), and
+ * applyStandardDropShadow. Used by player, tree, stone, campfire, and other
+ * entity renderers.
+ *
+ * Responsibilities:
+ * 1. drawShadow: Simple ellipse at (centerX, baseY) with radiusX/Y, alpha.
+ *
+ * 2. drawDynamicGroundShadow: Direction-aware shadow that stretches toward
+ *    light source. cycleProgress (0–1) for day/night shadow length/alpha.
+ *
+ * 3. calculateShakeOffsets: Returns offsetX/Y for shake animation. Used with
+ *    drawDynamicGroundShadow for shaken entities.
+ *
+ * 4. applyStandardDropShadow: Configurable blur, offset, cycle-based alpha.
+ */
+
+/**
  * Draws a simple elliptical shadow on the canvas.
  * @param ctx The rendering context.
  * @param centerX The horizontal center of the shadow.

@@ -7,10 +7,22 @@ import {
 } from './waterOverlayWebGL';
 
 /**
- * Water Overlay Rendering Utilities
+ * waterOverlayUtils - Water surface overlay (voronoi, caustics, ripples).
  *
- * WebGL-only: Renders voronoi/caustics/ripple on the GPU. When WebGL is
- * unavailable, no overlay is drawn (avoids expensive CPU fallback).
+ * Renders the water overlay on top of sea/hotspring tiles. WebGL-only—delegates
+ * to waterOverlayWebGL for GPU rendering. When WebGL is unavailable, no overlay
+ * is drawn (avoids expensive CPU fallback).
+ *
+ * Responsibilities:
+ * 1. TILE SET: rebuildSet extracts water tiles (Sea, HotSpringWater) from
+ *    world tiles. Used for overlay compositing.
+ *
+ * 2. WEBGL PATH: initWaterOverlayWebGL, renderWaterOverlayWebGL. Compositing
+ *    canvases for voronoi, caustics, ripple effects. Shader-based.
+ *
+ * 3. SHORELINE: Feathering for smooth blend at water edges. INV_F, FEATH.
+ *
+ * 4. CONTEXT LOST: setWaterOverlayContextLostCallback for WebGL recovery.
  */
 
 // ============================================================================

@@ -1,3 +1,20 @@
+/**
+ * worldRenderingUtils - Entry point for tiled world background rendering.
+ *
+ * Thin wrapper around ProceduralWorldRenderer. Provides renderWorldBackground
+ * which draws the procedural tile layer onto the canvas. Used by GameCanvas
+ * as the first render pass (before entities, water overlay, etc.).
+ *
+ * Responsibilities:
+ * 1. RENDER ENTRY: renderWorldBackground(ctx, cameraOffset, canvasSize, worldTiles)
+ *    initializes the procedural renderer if needed and delegates to it.
+ *
+ * 2. UNDERWATER MODE: When isSnorkeling is true, land tiles render dark blue for
+ *    submerged view. Sea tiles render normally.
+ *
+ * 3. FALLBACK: If no world tiles, draws solid green fill while loading.
+ */
+
 import { ProceduralWorldRenderer } from './proceduralWorldRenderer';
 
 // Global instance - cached for performance

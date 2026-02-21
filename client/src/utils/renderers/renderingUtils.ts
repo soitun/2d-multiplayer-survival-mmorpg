@@ -959,6 +959,10 @@ export const renderYSortedEntities = ({
           const playerIsSnorkelingEarly = isLocalPlayer ? isLocalPlayerSnorkeling : playerForRendering.isSnorkeling;
           const isSwimmingSplitRender = effectiveIsOnWater && !playerForRendering.isDead && !playerForRendering.isKnockedOut && !playerIsSnorkelingEarly;
 
+          const tileX = Math.floor(playerForRendering.positionX / gameConfig.tileSize);
+          const tileY = Math.floor(playerForRendering.positionY / gameConfig.tileSize);
+          const isOnSeaTransitionTile = seaTransitionTileLookup?.get(`${tileX},${tileY}`) ?? false;
+
           // Determine rendering order based on player direction
           if (playerForRendering.direction === 'up' || playerForRendering.direction === 'left') {
               // For UP or LEFT, item should be rendered BENEATH the player
@@ -1038,7 +1042,8 @@ export const renderYSortedEntities = ({
                 playerIsSnorkeling,
                 isLocalPlayerSnorkeling,
                 playerActiveTitle,
-                effectiveIsOnWater // Stabilized water state (hysteresis applied)
+                effectiveIsOnWater,
+                isOnSeaTransitionTile
               );
             }
             // Swipe arc drawn AFTER player so it's visible on top (up/left: item beneath player)
@@ -1111,7 +1116,8 @@ export const renderYSortedEntities = ({
                 playerIsSnorkeling,
                 isLocalPlayerSnorkeling,
                 playerActiveTitle2,
-                effectiveIsOnWater // Stabilized water state (hysteresis applied)
+                effectiveIsOnWater,
+                isOnSeaTransitionTile
               );
             }
             // heroImg not loaded yet - skip rendering silently (will render once loaded)

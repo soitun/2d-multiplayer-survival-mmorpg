@@ -1,3 +1,24 @@
+/**
+ * useInteractionFinder - Finds the closest interactable entity for E-key and targeting.
+ *
+ * Scans all interactable entities (campfires, furnaces, doors, animals, cairns, etc.)
+ * within range of the local player and returns the highest-priority target. Used by
+ * GameCanvas to highlight the interactable target and by useInputHandler for E-key.
+ *
+ * Responsibilities:
+ * 1. DISTANCE SCANNING: Computes squared distance from player to each interactable.
+ *    Uses entity-specific interaction distances (e.g., campfire vs furnace vs door).
+ *
+ * 2. PRIORITY SELECTION: When multiple targets overlap, selectHighestPriorityTarget
+ *    chooses the most relevant (e.g., door over wall, campfire over furnace).
+ *
+ * 3. RETENTION: Retains the closest entity ID across frames to avoid flicker when
+ *    crossing boundaries. Clears when player moves away.
+ *
+ * 4. TARGET TYPES: Supports InteractableTarget union (campfire, furnace, door,
+ *    animal, cairn, etc.) with type-specific distance and validity checks.
+ */
+
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import {
     Player as SpacetimeDBPlayer,

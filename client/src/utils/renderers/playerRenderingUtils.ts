@@ -1,7 +1,28 @@
+/**
+ * playerRenderingUtils - Player sprite rendering, animations, and combat effects.
+ *
+ * Draws the local and remote player sprites with correct facing, walk/sprint/idle
+ * animation frames, swimming split-render, dodge roll, and hit effects. Used by
+ * renderingUtils in the Y-sorted entity render loop.
+ *
+ * Responsibilities:
+ * 1. SPRITE RENDERING: renderPlayer draws the player body with direction-based
+ *    flipping. Uses getPlayerForRendering for predicted/interpolated positions.
+ *
+ * 2. ANIMATIONS: Walk, sprint, idle, jump cycles. Shake on hit, dodge roll roll-out.
+ *    Combat effect timing compensates for network latency.
+ *
+ * 3. SWIMMING: Delegates to swimmingEffectsUtils for underwater tint, wake effects,
+ *    and split-render (top above water, bottom below).
+ *
+ * 4. HOVER DETECTION: isPlayerHovered for mouse-over tooltips. No direct
+ *    SpacetimeDB subscriptions.
+ */
+
 import { Player as SpacetimeDBPlayer, ActiveEquipment as SpacetimeDBActiveEquipment, ItemDefinition as SpacetimeDBItemDefinition, ActiveConsumableEffect, EffectType } from '../../generated';
 import { gameConfig } from '../../config/gameConfig';
 import { drawShadow, drawDynamicGroundShadow } from './shadowUtils';
-import { drawSwimmingEffectsUnder, drawSwimmingEffectsOver } from './swimmingEffectsUtils';
+import { drawSwimmingEffectsUnder, drawSwimmingEffectsOver, drawShorelineWaterLine } from './swimmingEffectsUtils';
 import { getCachedRadialGradient, getCachedLinearGradient } from './gradientCacheUtils';
 import { JUMP_DURATION_MS } from '../../config/gameConfig'; // Import the constant
 
@@ -498,8 +519,9 @@ export const renderPlayer = (
   dodgeRollProgress?: number, // NEW: Progress of the dodge roll (0.0 to 1.0)
   isSnorkeling?: boolean, // NEW: Whether the player is snorkeling (underwater mode - full tint, no water effects)
   isViewerUnderwater?: boolean, // NEW: Whether the local player (viewer) is underwater - affects remote snorkeling player rendering
-  activeTitle?: string | null, // NEW: Player's active title to display above name
-  effectiveIsOnWaterFromCaller?: boolean // When provided: use stabilized water state (hysteresis applied). When omitted: use player.isOnWater
+  activeTitle?: string | null,
+  effectiveIsOnWaterFromCaller?: boolean,
+  isOnSeaTransitionTile?: boolean // Standing on Beach/Sea, Beach/HotSpringWater, or Asphalt/Sea: draw feet-level water line
 ) => {
   // Use caller's stabilized value when provided; otherwise use player.isOnWater (for swimming bottom-half pass)
   const effectiveIsOnWater = effectiveIsOnWaterFromCaller !== undefined
@@ -1269,18 +1291,23 @@ export const renderPlayer = (
     // --- END MODIFICATION ---
 
     // Draw swimming effects that go over the sprite (water line)
-    // Skip when snorkeling - player is fully underwater, no water line effect
-    // Skip on sea transition tiles - player is treated as normal
     if (effectiveIsOnWater && !isCorpse && !isSnorkeling) {
       drawSwimmingEffectsOver(
-        ctx, 
-        player, 
+        ctx,
+        player,
         nowMs,
         spriteBaseX,
         spriteDrawY,
         drawWidth,
         drawHeight
       );
+    }
+
+    // Draw shoreline water line at feet when standing on sea transition tiles
+    if (isOnSeaTransitionTile && !effectiveIsOnWater && !isCorpse) {
+      const centerX = spriteBaseX + drawWidth / 2;
+      const centerY = spriteDrawY + drawHeight / 2;
+      drawShorelineWaterLine(ctx, centerX, centerY, drawWidth, drawHeight, nowMs);
     }
 
   } finally {

@@ -1,3 +1,24 @@
+/**
+ * usePredictedMovement - Client-side movement prediction and server sync.
+ *
+ * Applies movement locally for immediate feedback, then syncs with the server via
+ * updatePlayerPositionSimple. Handles sprint, water penalty, exhausted penalty,
+ * dodge roll, and collision with world entities.
+ *
+ * Responsibilities:
+ * 1. LOCAL PREDICTION: Moves player based on inputStateRef (WASD, sprint) each frame.
+ *    Uses POSITION_UPDATE_INTERVAL_MS (50ms) for server updates to reduce traffic.
+ *
+ * 2. COLLISION: resolveClientCollision checks trees, stones, structures, etc. and
+ *    prevents movement through solid entities.
+ *
+ * 3. ENVIRONMENT: Applies WATER_SPEED_PENALTY, EXHAUSTED_SPEED_PENALTY, and
+ *    water speed bonus from consumables. Dodge roll uses server-authoritative state.
+ *
+ * 4. SMOOTH POSITION: Returns smoothed position for camera and rendering. Interpolates
+ *    between predicted and server positions to avoid rubber-banding.
+ */
+
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Player, DbConnection, ActiveConsumableEffect, EffectType } from '../generated';
 import { usePlayerActions } from '../contexts/PlayerActionsContext';

@@ -1,12 +1,19 @@
 /**
- * Generic Building Tile Targeting Hook
- * 
- * Finds and targets nearby building tiles when Repair Hammer is equipped.
- * Works with any building tile type (foundations, walls, doorframes, etc.).
- * Snaps to the closest tile within range.
- * 
- * PERFORMANCE FIX: Removed redundant useState + useEffect pattern that caused
- * infinite re-render loops. Now returns useMemo result directly.
+ * useFoundationTargeting / useBuildingTileTargeting - Building tile mouse targeting.
+ *
+ * Finds the foundation cell (or other building tile) closest to the mouse when
+ * Repair Hammer is equipped. Used for foundation placement and repair targeting.
+ * Generic useBuildingTileTargeting supports any TargetableBuildingTile type.
+ *
+ * Responsibilities:
+ * 1. MOUSE-TO-CELL: Converts world mouse position to foundation cell coordinates.
+ *    Snaps to the closest cell within BUILDING_PLACEMENT_MAX_DISTANCE (128px).
+ *
+ * 2. TARGETED TILE: Returns targetedTile, targetTileX, targetTileY for placement
+ *    preview and reducer calls. Null when out of range or hammer not equipped.
+ *
+ * 3. PERFORMANCE: Returns useMemo result directly—no useState/useEffect to avoid
+ *    re-render loops. Recomputes when connection, player pos, or mouse moves.
  */
 
 import { useMemo } from 'react';

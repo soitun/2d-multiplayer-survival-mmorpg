@@ -1,3 +1,24 @@
+/**
+ * swimmingEffectsUtils - Underwater and swimming visual effects.
+ *
+ * Renders swimming-specific effects: wake semi-circles when moving in water,
+ * underwater tint, split-render (top half above water, bottom below), and
+ * dynamic ground shadow for submerged players. Used by playerRenderingUtils
+ * and renderingUtils.
+ *
+ * Responsibilities:
+ * 1. WAKE EFFECTS: Tracks WakeEffect per player. drawSwimmingEffectsOver draws
+ *    expanding semi-circles behind the player when moving in water.
+ *
+ * 2. SPLIT RENDER: drawSwimmingEffectsUnder draws the submerged portion; over
+ *    draws the above-water portion. Water line uses animated wave offset.
+ *
+ * 3. UNDERWATER SHADOW: drawUnderwaterShadowOnly for players fully submerged.
+ *    Shadow sprite extracted to offscreen canvas for reuse.
+ *
+ * 4. CONFIG: SWIMMING_EFFECTS_CONFIG (wave amplitude, wake radius, tint, etc.).
+ */
+
 import { Player as SpacetimeDBPlayer } from '../../generated';
 import { gameConfig } from '../../config/gameConfig';
 import { drawDynamicGroundShadow } from './shadowUtils';
@@ -12,6 +33,9 @@ function worldPosToTileKey(worldX: number, worldY: number): string {
 // --- Reusable offscreen canvas for underwater shadow sprite extraction (avoids per-frame allocation) ---
 const _uwShadowCanvas = document.createElement('canvas');
 const _uwShadowCtx = _uwShadowCanvas.getContext('2d');
+
+// Shoreline (standing on transition tiles) - water line at lower legs
+const SHORELINE_WATER_LINE_OFFSET = 0.78; // Lower legs / ankles (player standing in shallow water)
 
 // Swimming effects configuration
 const SWIMMING_EFFECTS_CONFIG = {
@@ -231,6 +255,53 @@ function darkenSpriteBottomHalf(
   ctx.restore();
 }
 
+/**
+ * Draws a water line at the player's feet for standing on shore transition tiles
+ * (Beach/Sea, Beach/HotSpringWater, Asphalt/Sea). Player is standing, so the line
+ * is lower on the body than the swimming water line.
+ */
+export function drawShorelineWaterLine(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  spriteWidth: number,
+  spriteHeight: number,
+  currentTimeMs: number
+): void {
+  const spriteTopY = centerY - spriteHeight / 2;
+  const waterLineY = spriteTopY + (spriteHeight * SHORELINE_WATER_LINE_OFFSET);
+  const time = currentTimeMs;
+
+  const primaryWave = Math.sin(time * SWIMMING_EFFECTS_CONFIG.WAVE_FREQUENCY + centerX * 0.01) * SWIMMING_EFFECTS_CONFIG.WAVE_AMPLITUDE;
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(160, 200, 220, 0.7)';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+
+  const waterLineWidth = spriteWidth * 0.4;
+  const leftX = centerX - waterLineWidth / 2;
+  const segments = 10;
+
+  for (let i = 0; i <= segments; i++) {
+    const progress = i / segments;
+    const x = leftX + (waterLineWidth * progress);
+    const distanceFromCenter = Math.abs(progress - 0.5) * 2;
+    const curveOffset = distanceFromCenter * distanceFromCenter * 2;
+    const segmentWaveOffset = progress * 2 * Math.PI;
+    const localPrimaryWave = Math.sin(time * SWIMMING_EFFECTS_CONFIG.WAVE_FREQUENCY * 1.5 + segmentWaveOffset) * (SWIMMING_EFFECTS_CONFIG.WAVE_AMPLITUDE * 0.2);
+    const localSecondaryWave = Math.sin(time * SWIMMING_EFFECTS_CONFIG.WAVE_SECONDARY_FREQUENCY + segmentWaveOffset * 1.3 + Math.PI * 0.3) * (SWIMMING_EFFECTS_CONFIG.WAVE_SECONDARY_AMPLITUDE * 0.15);
+    const localTertiaryWave = Math.sin(time * SWIMMING_EFFECTS_CONFIG.WAVE_TERTIARY_FREQUENCY + segmentWaveOffset * 2.1 + Math.PI * 0.7) * (SWIMMING_EFFECTS_CONFIG.WAVE_TERTIARY_AMPLITUDE * 0.1);
+    const totalWaveOffset = primaryWave * 0.1 + localPrimaryWave + localSecondaryWave + localTertiaryWave;
+    const y = waterLineY - curveOffset + totalWaveOffset;
+
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
 
 /**
  * Creates a new wake effect when player moves or idles in water

@@ -1,3 +1,23 @@
+/**
+ * ProceduralWorldRenderer - Procedural tile rendering with dual-grid autotiling.
+ *
+ * Renders the tiled world background (grass, dirt, sea, beach, etc.) using
+ * dual-grid autotile transitions. Caches tile images and supports shoreline
+ * overlays, doodads, and snorkeling underwater mode.
+ *
+ * Responsibilities:
+ * 1. TILE CACHING: updateTileCache stores WorldTile map and preloads tile images.
+ *    Invalidates on tile data change.
+ *
+ * 2. DUAL-GRID AUTOTILING: getDualGridTileInfoMultiLayer resolves tile transitions
+ *    (edges, corners) for seamless terrain. Supports multi-layer tilesets.
+ *
+ * 3. RENDERING: render() draws tiles in viewport with correct transitions, doodads,
+ *    and shoreline overlay. isSnorkeling mode tints land dark blue.
+ *
+ * 4. ANIMATION: animationTime drives water/shimmer effects. No SpacetimeDB.
+ */
+
 import { gameConfig } from '../../config/gameConfig';
 import { WorldTile } from '../../generated/world_tile_type';
 import { 

@@ -1,3 +1,28 @@
+/**
+ * useInputHandler - Keyboard and mouse input → reducer calls and UI actions.
+ *
+ * Maps player input (WASD, E, F, mouse clicks, etc.) to SpacetimeDB reducers and
+ * local actions. Handles movement, pickup, attack, building placement, container
+ * interactions, and E-key interactions with the closest interactable entity.
+ *
+ * Responsibilities:
+ * 1. MOVEMENT: Sends updatePlayerPositionSimple via usePredictedMovement. Blocks
+ *    movement when UI is focused (inventory, chat, etc.).
+ *
+ * 2. E-KEY INTERACTIONS: When closestInteractableEntityId is set, E triggers
+ *    interactWithEntity. Supports tap (instant) and hold (timed) interactions for
+ *    doors, campfires, furnaces, animals, cairns, etc.
+ *
+ * 3. COMBAT & HARVEST: Left-click attacks/harvests based on equipped item and
+ *    target. Triggers optimistic shake effects for responsive feedback.
+ *
+ * 4. BUILDING: Delegates to useBuildingManager for foundation/wall/door/fence
+ *    placement. Handles placement mode activation and cancellation.
+ *
+ * Performance: Uses refs for closest entity IDs to avoid re-renders on every
+ * interaction check. Tap-to-walk and mobile controls supported.
+ */
+
 import { useEffect, useRef, useState, useCallback, RefObject } from 'react';
 import { useLatest } from './useLatest';
 import * as SpacetimeDB from '../generated';

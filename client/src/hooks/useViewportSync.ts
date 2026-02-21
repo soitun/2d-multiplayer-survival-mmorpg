@@ -1,6 +1,18 @@
 /**
- * Throttled viewport sync - updates server with visible world bounds for cloud generation.
- * Only sends updates when >500ms passed OR camera moved >200px to reduce websocket traffic.
+ * useViewportSync - Throttled viewport bounds sync to server for cloud generation.
+ *
+ * Sends the visible world bounds (minX, minY, maxX, maxY) to the server via
+ * updateViewport reducer. Used for cloud spawning and other viewport-dependent
+ * server logic. Throttles updates to reduce WebSocket traffic.
+ *
+ * Responsibilities:
+ * 1. BOUNDS COMPUTATION: getViewBounds converts camera offset + canvas size to
+ *    world coordinates. Passed to updateViewport reducer.
+ *
+ * 2. THROTTLING: Only sends when >VIEWPORT_UPDATE_INTERVAL_MS (500ms) passed OR
+ *    camera moved >VIEWPORT_MOVE_THRESHOLD (200px). Prevents rapid re-subscriptions.
+ *
+ * 3. DEPENDENCIES: Re-runs when connection, cameraOffsetX/Y, or canvas size changes.
  */
 
 import { useEffect, useRef } from 'react';

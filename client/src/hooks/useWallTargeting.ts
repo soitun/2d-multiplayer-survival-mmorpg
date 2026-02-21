@@ -1,8 +1,18 @@
 /**
- * Wall Targeting Hook
- * 
- * Finds and targets nearby walls when Repair Hammer is equipped.
- * Detects which wall edge is closest to the mouse position.
+ * useWallTargeting - Wall edge targeting for placement and repair.
+ *
+ * Finds the wall cell and edge closest to the mouse when Repair Hammer is equipped.
+ * Used for wall placement (new walls) and repair (existing walls). Detects which
+ * edge (N, E, S, W) the mouse is nearest for correct placement orientation.
+ *
+ * Responsibilities:
+ * 1. EDGE DETECTION: getWallBounds computes hitbox per edge type. Mouse must be
+ *    within WALL_CLICK_THRESHOLD (24px) of the edge for targeting.
+ *
+ * 2. TARGETED WALL: Returns targetedWall, targetTileX, targetTileY. Integrates
+ *    with useBuildingManager for placement mode and placement validation.
+ *
+ * 3. DISTANCE CHECK: Same BUILDING_PLACEMENT_MAX_DISTANCE (128px) as foundations.
  */
 
 import { useState, useEffect, useMemo } from 'react';

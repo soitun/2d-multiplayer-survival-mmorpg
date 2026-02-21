@@ -1,3 +1,23 @@
+/**
+ * useMovementInput - Keyboard and mobile input state for player movement.
+ *
+ * Tracks WASD direction and sprint state. Exposes both React state (for UI that
+ * needs re-renders) and a ref (for the RAF loop in usePredictedMovement to read
+ * without state delay). Supports mobile tap-to-walk and sprint override.
+ *
+ * Responsibilities:
+ * 1. KEYBOARD: Listens for keydown/keyup on WASD and Shift. Updates direction
+ *    vector and sprinting flag. Ignores input when isUIFocused (chat, inventory).
+ *
+ * 2. REF + STATE: inputStateRef is updated immediately for usePredictedMovement's
+ *    RAF loop. inputState triggers re-renders when needed (e.g., sprint indicator).
+ *
+ * 3. MOBILE: Tap-to-walk and mobile sprint override when on touch devices.
+ *
+ * Performance: Ref-based reading avoids React batching delay; movement feels
+ * responsive even when other state updates are batched.
+ */
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Player } from '../generated';
 import { usePlayerActions } from '../contexts/PlayerActionsContext';

@@ -1,3 +1,22 @@
+/**
+ * campfireRenderingUtils - Campfire sprite rendering and interaction constants.
+ *
+ * Renders campfire entities (on/off states) with shadow and shake. Exports
+ * CAMPFIRE_WIDTH, CAMPFIRE_HEIGHT, CAMPFIRE_RENDER_Y_OFFSET and
+ * PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED for useInteractionFinder.
+ *
+ * Responsibilities:
+ * 1. SPRITE RENDERING: renderCampfire uses genericGroundRenderer. isDestroyed
+ *    selects campfire_off.png vs campfire.png.
+ *
+ * 2. SHAKE: Client-side shake on hit. SHAKE_DURATION_MS, SHAKE_INTENSITY_PX.
+ *
+ * 3. INTERACTION: PLAYER_CAMPFIRE_INTERACTION_DISTANCE_SQUARED (96px) for
+ *    E-key targeting. SERVER_CAMPFIRE_DAMAGE_RADIUS for server logic.
+ *
+ * 4. PARTICLE EMISSION: FIRE_EMISSION_VISUAL_CENTER_Y_OFFSET for useCampfireParticles.
+ */
+
 import { Campfire } from '../../generated'; // Import generated Campfire type
 import campfireImage from '../../assets/doodads/campfire.png'; // Direct import ON
 import campfireOffImage from '../../assets/doodads/campfire_off.png'; // Direct import OFF
