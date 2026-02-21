@@ -21,6 +21,7 @@ use spacetimedb::{ReducerContext, SpacetimeType, Table, Timestamp, Identity, Tim
 use log;
 use rand::Rng;
 use std::time::Duration;
+use std::collections::{HashMap, HashSet};
 use spacetimedb::spacetimedb_lib::ScheduleAt;
 
 // Import necessary items from other modules
@@ -64,11 +65,12 @@ pub const MIN_SEA_BARREL_DISTANCE_SQ: f32 = 80.0 * 80.0; // Minimum distance bet
 pub const BEACH_BARREL_SPAWN_DENSITY_PERCENT: f32 = 0.0003; // 0.03% of beach tiles get a barrel (washed up flotsam is common)
 pub const MIN_BEACH_BARREL_DISTANCE_SQ: f32 = 120.0 * 120.0; // Minimum distance between beach barrels
 
-// Buoy constants (indestructible, no loot, spawn in outer ocean)
-// Relaxed: map has scattered islands; use ocean water only (no deep-sea distance check)
-pub const BUOY_SPAWN_CELL_SIZE_PX: f32 = 2500.0; // ~1 buoy per 2500x2500 px
-pub const BUOY_MIN_DISTANCE_FROM_CENTER_RATIO: f32 = 0.35; // Outer 65% of map (exclude only innermost)
-pub const MIN_BUOY_DISTANCE_SQ: f32 = 150.0 * 150.0; // Min 150px between buoys
+// Buoy constants (indestructible, no loot, spawn on Sea↔DeepSea ring)
+pub const BUOY_TARGET_SPACING_PX: f32 = 4200.0; // Even spacing along ring arc length
+pub const BUOY_MIN_COUNT: usize = 12; // Keep minimum ring readability
+pub const BUOY_MAX_COUNT: usize = 64; // Hard cap for huge maps
+pub const BUOY_COAST_CLEARANCE_TILES: i32 = 14; // Must be far from beaches/islands
+pub const MIN_BUOY_DISTANCE_SQ: f32 = 1800.0 * 1800.0; // Enforce even spacing in world-space
 
 // Damage constants
 // Note: Damage is determined by weapon type through the combat system
@@ -1332,120 +1334,188 @@ pub fn spawn_hot_spring_barrels(
 }
 
 /// Spawns indestructible buoys (variant 6) in outer ocean water.
-/// No loot, decorative/navigational. Uses is_position_on_ocean_water only (no deep-sea check).
+/// No loot, decorative/navigational.
+/// Placement rules:
+/// 1) Only Sea↔DeepSea transition ring tiles.
+/// 2) Exclude candidates near any beach/island (non-Sea/DeepSea tiles).
+/// 3) Even angular spacing around the ring.
 pub fn spawn_buoy_barrels(ctx: &ReducerContext) -> Result<(), String> {
-    use crate::{WORLD_WIDTH_PX, WORLD_HEIGHT_PX};
-
+    use crate::{WORLD_WIDTH_PX, WORLD_HEIGHT_PX, TILE_SIZE_PX};
     log::info!("[BuoySpawn] Starting buoy barrel spawning...");
 
     let center_x = WORLD_WIDTH_PX / 2.0;
     let center_y = WORLD_HEIGHT_PX / 2.0;
-    let half_diagonal = ((center_x * center_x + center_y * center_y).sqrt()) * BUOY_MIN_DISTANCE_FROM_CENTER_RATIO;
-
-    let cell_size = BUOY_SPAWN_CELL_SIZE_PX;
-    let cols = (WORLD_WIDTH_PX / cell_size).ceil() as i32;
-    let rows = (WORLD_HEIGHT_PX / cell_size).ceil() as i32;
-
-    let mut spawned_count = 0u32;
     let barrels = ctx.db.barrel();
-    let mut spawned_positions = Vec::<(f32, f32)>::new();
 
-    for cell_row in 0..rows {
-        for cell_col in 0..cols {
-            let cell_center_x = (cell_col as f32 + 0.5) * cell_size;
-            let cell_center_y = (cell_row as f32 + 0.5) * cell_size;
+    // Build tile map once for fast neighborhood checks.
+    let tile_map: HashMap<(i32, i32), TileType> = ctx.db.world_tile()
+        .iter()
+        .map(|t| ((t.world_x, t.world_y), t.tile_type))
+        .collect();
 
-            let dx = cell_center_x - center_x;
-            let dy = cell_center_y - center_y;
-            let dist_from_center = (dx * dx + dy * dy).sqrt();
-            if dist_from_center < half_diagonal {
-                continue;
-            }
-
-            let mut attempts = 0;
-            const MAX_ATTEMPTS: u32 = 30; // More attempts per cell (was 15) - ocean valid spots can be sparse
-            while attempts < MAX_ATTEMPTS {
-                attempts += 1;
-                let offset_x = ctx.rng().gen_range(-cell_size * 0.4..cell_size * 0.4);
-                let offset_y = ctx.rng().gen_range(-cell_size * 0.4..cell_size * 0.4);
-                let barrel_x = cell_center_x + offset_x;
-                let barrel_y = cell_center_y + offset_y;
-
-                if barrel_x < 0.0 || barrel_x >= WORLD_WIDTH_PX || barrel_y < 0.0 || barrel_y >= WORLD_HEIGHT_PX {
-                    continue;
-                }
-
-                // Buoys ONLY spawn on Sea↔DeepSea transition tiles (the boundary)
-                if !crate::environment::is_position_on_sea_deepsea_transition(ctx, barrel_x, barrel_y) {
-                    continue;
-                }
-
-                let mut too_close = false;
-                for &(ox, oy) in &spawned_positions {
-                    let ddx = barrel_x - ox;
-                    let ddy = barrel_y - oy;
-                    if ddx * ddx + ddy * ddy < MIN_BUOY_DISTANCE_SQ {
-                        too_close = true;
-                        break;
+    let is_open_ocean = |t: &TileType| *t == TileType::Sea || *t == TileType::DeepSea;
+    let is_transition_tile = |tx: i32, ty: i32| -> bool {
+        let center = match tile_map.get(&(tx, ty)) {
+            Some(t) => t,
+            None => return false,
+        };
+        if !is_open_ocean(center) {
+            return false;
+        }
+        [(-1, 0), (1, 0), (0, -1), (0, 1)].iter().any(|(dx, dy)| {
+            tile_map
+                .get(&(tx + dx, ty + dy))
+                .map(|t| {
+                    if *center == TileType::Sea {
+                        *t == TileType::DeepSea
+                    } else {
+                        *t == TileType::Sea
                     }
-                }
-                if too_close {
-                    continue;
-                }
+                })
+                .unwrap_or(false)
+        })
+    };
 
-                for existing in barrels.iter() {
-                    if existing.health == 0.0 {
-                        continue;
-                    }
-                    if existing.variant == BUOY_VARIANT {
-                        let ddx = barrel_x - existing.pos_x;
-                        let ddy = barrel_y - existing.pos_y;
-                        if ddx * ddx + ddy * ddy < MIN_BUOY_DISTANCE_SQ {
-                            too_close = true;
-                            break;
-                        }
-                    }
-                }
-                if too_close {
-                    continue;
-                }
-
-                if has_buoy_collision(ctx, barrel_x, barrel_y) || has_player_buoy_collision(ctx, barrel_x, barrel_y) {
-                    continue;
-                }
-
-                let chunk_idx = crate::environment::calculate_chunk_index(barrel_x, barrel_y);
-                let new_barrel = Barrel {
-                    id: 0,
-                    pos_x: barrel_x,
-                    pos_y: barrel_y,
-                    chunk_index: chunk_idx,
-                    health: BARREL_INITIAL_HEALTH,
-                    variant: BUOY_VARIANT,
-                    last_hit_time: None,
-                    respawn_at: Timestamp::UNIX_EPOCH,
-                    cluster_id: 0,
-                    is_monument: false,
-                };
-
-                match barrels.try_insert(new_barrel) {
-                    Ok(inserted) => {
-                        spawned_positions.push((barrel_x, barrel_y));
-                        spawned_count += 1;
-                        log::info!(
-                            "[BuoySpawn] Spawned buoy #{} at ({:.1}, {:.1})",
-                            inserted.id, barrel_x, barrel_y
-                        );
-                        break;
-                    }
-                    Err(e) => {
-                        log::warn!("[BuoySpawn] Failed to insert buoy: {}", e);
+    let is_far_from_coast_or_island = |tx: i32, ty: i32| -> bool {
+        for dy in -BUOY_COAST_CLEARANCE_TILES..=BUOY_COAST_CLEARANCE_TILES {
+            for dx in -BUOY_COAST_CLEARANCE_TILES..=BUOY_COAST_CLEARANCE_TILES {
+                let nx = tx + dx;
+                let ny = ty + dy;
+                if let Some(t) = tile_map.get(&(nx, ny)) {
+                    if !is_open_ocean(t) {
+                        return false;
                     }
                 }
             }
         }
+        true
+    };
+
+    // 1) Collect all valid transition candidates.
+    let mut candidates: Vec<(f32, f32, f32, f32)> = Vec::new(); // (x_px, y_px, angle, radius)
+    for (&(tx, ty), tile_type) in &tile_map {
+        if !is_open_ocean(tile_type) {
+            continue;
+        }
+        if !is_transition_tile(tx, ty) {
+            continue;
+        }
+        if !is_far_from_coast_or_island(tx, ty) {
+            continue;
+        }
+
+        let x = (tx as f32 + 0.5) * TILE_SIZE_PX as f32;
+        let y = (ty as f32 + 0.5) * TILE_SIZE_PX as f32;
+        let dx = x - center_x;
+        let dy = y - center_y;
+        let mut angle = dy.atan2(dx);
+        if angle < 0.0 {
+            angle += std::f32::consts::TAU;
+        }
+        let radius = (dx * dx + dy * dy).sqrt();
+        candidates.push((x, y, angle, radius));
     }
 
-    log::info!("[BuoySpawn] Finished spawning {} buoys", spawned_count);
+    if candidates.is_empty() {
+        log::warn!("[BuoySpawn] No valid Sea↔DeepSea transition candidates found after coast/island filtering");
+        return Ok(());
+    }
+
+    // 2) Sort by angle to treat transition ring as an ordered loop.
+    candidates.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal));
+
+    // 3) Compute target buoy count from ring circumference and desired spacing.
+    let avg_radius = candidates.iter().map(|c| c.3).sum::<f32>() / candidates.len() as f32;
+    let estimated_circumference = std::f32::consts::TAU * avg_radius.max(1.0);
+    let mut target_count = (estimated_circumference / BUOY_TARGET_SPACING_PX).round() as usize;
+    target_count = target_count.clamp(BUOY_MIN_COUNT, BUOY_MAX_COUNT).min(candidates.len());
+
+    // 4) Select evenly distributed candidates by angular index.
+    let mut selected_positions: Vec<(f32, f32)> = Vec::new();
+    let mut used_indices: HashSet<usize> = HashSet::new();
+    let n = candidates.len();
+
+    for i in 0..target_count {
+        let ideal_idx = (((i as f32) * n as f32 / target_count as f32).round() as usize) % n;
+        let mut chosen_idx: Option<usize> = None;
+
+        for step in 0..n {
+            let idx = (ideal_idx + step) % n;
+            if used_indices.contains(&idx) {
+                continue;
+            }
+            let (cx, cy, _, _) = candidates[idx];
+            let too_close = selected_positions.iter().any(|(sx, sy)| {
+                let dx = cx - *sx;
+                let dy = cy - *sy;
+                dx * dx + dy * dy < MIN_BUOY_DISTANCE_SQ
+            });
+            if !too_close {
+                chosen_idx = Some(idx);
+                break;
+            }
+        }
+
+        if let Some(idx) = chosen_idx {
+            used_indices.insert(idx);
+            let (x, y, _, _) = candidates[idx];
+            selected_positions.push((x, y));
+        }
+    }
+
+    if selected_positions.is_empty() {
+        log::warn!("[BuoySpawn] Candidate ring found but spacing constraints rejected all placements");
+        return Ok(());
+    }
+
+    // 5) Spawn buoys from selected positions.
+    let mut spawned_count = 0u32;
+    for (barrel_x, barrel_y) in selected_positions {
+        if has_buoy_collision(ctx, barrel_x, barrel_y) || has_player_buoy_collision(ctx, barrel_x, barrel_y) {
+            continue;
+        }
+
+        let too_close_existing_buoy = barrels.iter().any(|existing| {
+            if existing.health == 0.0 || existing.variant != BUOY_VARIANT {
+                return false;
+            }
+            let dx = barrel_x - existing.pos_x;
+            let dy = barrel_y - existing.pos_y;
+            dx * dx + dy * dy < MIN_BUOY_DISTANCE_SQ
+        });
+        if too_close_existing_buoy {
+            continue;
+        }
+
+        let chunk_idx = crate::environment::calculate_chunk_index(barrel_x, barrel_y);
+        let new_barrel = Barrel {
+            id: 0,
+            pos_x: barrel_x,
+            pos_y: barrel_y,
+            chunk_index: chunk_idx,
+            health: BARREL_INITIAL_HEALTH,
+            variant: BUOY_VARIANT,
+            last_hit_time: None,
+            respawn_at: Timestamp::UNIX_EPOCH,
+            cluster_id: 0,
+            is_monument: false,
+        };
+
+        match barrels.try_insert(new_barrel) {
+            Ok(inserted) => {
+                spawned_count += 1;
+                log::info!("[BuoySpawn] Spawned buoy #{} at ({:.1}, {:.1})", inserted.id, barrel_x, barrel_y);
+            }
+            Err(e) => {
+                log::warn!("[BuoySpawn] Failed to insert buoy: {}", e);
+            }
+        }
+    }
+
+    log::info!(
+        "[BuoySpawn] Finished spawning {} buoys from {} valid transition candidates",
+        spawned_count,
+        candidates.len()
+    );
     Ok(())
 }

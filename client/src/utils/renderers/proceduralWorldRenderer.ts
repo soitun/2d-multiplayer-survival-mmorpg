@@ -200,10 +200,13 @@ export class ProceduralWorldRenderer {
         const dualEndY = Math.min(gameConfig.worldHeight - 1, endTileY);
         
         if (isSnorkeling) {
-            // When snorkeling, render underwater→sea transitions only
+            // When snorkeling, render:
+            // 1) Underwater darkness ↔ sea transitions
+            // 2) Sea ↔ deep sea transitions
             for (let y = dualStartY; y < dualEndY; y++) {
                 for (let x = dualStartX; x < dualEndX; x++) {
                     this.renderUnderwaterTransition(ctx, x, y, tileSize, showDebugOverlay);
+                    this.renderSeaDeepSeaTransitionUnderwater(ctx, x, y, tileSize, showDebugOverlay);
                 }
             }
         } else {
@@ -751,6 +754,100 @@ export class ProceduralWorldRenderer {
             ctx.textBaseline = 'middle';
             ctx.fillStyle = needsFlip ? 'yellow' : 'cyan';
             ctx.fillText(`U${dualGridIndex}${needsFlip ? 'F' : ''}`, pixelX, pixelY);
+            ctx.restore();
+        }
+    }
+
+    /**
+     * Render Sea↔DeepSea dual-grid transitions while snorkeling.
+     * In underwater mode we still need this boundary so deep-sea dropoff remains visible.
+     */
+    private renderSeaDeepSeaTransitionUnderwater(
+        ctx: CanvasRenderingContext2D,
+        logicalX: number,
+        logicalY: number,
+        tileSize: number,
+        showDebugOverlay: boolean = false
+    ) {
+        const transitions = getDualGridTileInfoMultiLayer(logicalX, logicalY, this.tileCache.tiles);
+        if (transitions.length === 0) return;
+
+        const seaDeepSeaTransitions = transitions.filter((tileInfo) => {
+            const a = tileInfo.primaryTerrain;
+            const b = tileInfo.secondaryTerrain;
+            return (a === 'Sea' && b === 'DeepSea') || (a === 'DeepSea' && b === 'Sea');
+        });
+
+        if (seaDeepSeaTransitions.length === 0) return;
+
+        const pixelX = Math.floor((logicalX + 0.5) * tileSize);
+        const pixelY = Math.floor((logicalY + 0.5) * tileSize);
+        const pixelSize = Math.floor(tileSize) + 1;
+        const destX = Math.floor(pixelX - pixelSize / 2);
+        const destY = Math.floor(pixelY - pixelSize / 2);
+        const halfSize = Math.floor(pixelSize / 2);
+
+        for (const tileInfo of seaDeepSeaTransitions) {
+            const transitionKey = `${tileInfo.primaryTerrain}_${tileInfo.secondaryTerrain}`;
+            let tilesetImg = this.tileCache.images.get(`transition_${transitionKey}`);
+
+            if (!tilesetImg || !tilesetImg.complete) {
+                const reversedKey = `${tileInfo.secondaryTerrain}_${tileInfo.primaryTerrain}`;
+                tilesetImg = this.tileCache.images.get(`transition_${reversedKey}`);
+            }
+
+            if (!tilesetImg || !tilesetImg.complete || tilesetImg.naturalHeight === 0) {
+                continue;
+            }
+
+            const { spriteCoords, clipCorners, flipHorizontal, flipVertical } = tileInfo;
+            const needsTransform = flipHorizontal || flipVertical;
+
+            ctx.save();
+
+            if (needsTransform) {
+                const centerX = destX + pixelSize / 2;
+                const centerY = destY + pixelSize / 2;
+                ctx.translate(centerX, centerY);
+                if (flipHorizontal) ctx.scale(-1, 1);
+                if (flipVertical) ctx.scale(1, -1);
+                ctx.translate(-centerX, -centerY);
+            }
+
+            if (clipCorners && clipCorners.length > 0) {
+                ctx.beginPath();
+                for (const corner of clipCorners) {
+                    switch (corner) {
+                        case 'TL': ctx.rect(destX, destY, halfSize, halfSize); break;
+                        case 'TR': ctx.rect(destX + halfSize, destY, halfSize, halfSize); break;
+                        case 'BL': ctx.rect(destX, destY + halfSize, halfSize, halfSize); break;
+                        case 'BR': ctx.rect(destX + halfSize, destY + halfSize, halfSize, halfSize); break;
+                    }
+                }
+                ctx.clip();
+            }
+
+            ctx.drawImage(
+                tilesetImg,
+                Math.floor(spriteCoords.x), Math.floor(spriteCoords.y),
+                Math.floor(spriteCoords.width), Math.floor(spriteCoords.height),
+                destX, destY,
+                Math.floor(pixelSize), Math.floor(pixelSize)
+            );
+
+            ctx.restore();
+        }
+
+        if (showDebugOverlay) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(60, 200, 255, 0.85)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(destX, destY, pixelSize, pixelSize);
+            ctx.font = 'bold 14px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#aee8ff';
+            ctx.fillText('SDS', pixelX, pixelY);
             ctx.restore();
         }
     }

@@ -902,9 +902,11 @@ export const renderYSortedEntities = ({
          const currentlyHovered = isPlayerHovered(worldMouseX, worldMouseY, playerForRendering);
          const isPersistentlyHovered = alwaysShowPlayerNames || hoveredPlayerIds.has(playerId);
          
-         // Players in the batch are always normal (not swimming) - swimming players are swimmingPlayerTopHalf, handled separately
-         // Single source of truth: useEntityFiltering already decided; batch only contains non-swimming players
-         const effectiveIsOnWater = false;
+        // Players in this batch are rendered as full-body entities.
+        // Snorkeling players are still underwater, so they must keep swim animation/tint,
+        // but should NOT use split waterline rendering.
+        const playerIsSnorkelingEarly = isLocalPlayer ? isLocalPlayerSnorkeling : playerForRendering.isSnorkeling;
+        const effectiveIsOnWater = playerIsSnorkelingEarly;
          
          // Choose sprite based on priority: dodge roll > water > crouching > default
          let heroImg: HTMLImageElement | null;
@@ -958,7 +960,6 @@ export const renderYSortedEntities = ({
           // Determine if this player is swimming with split rendering (bottom half here, top half in GameCanvas).
           // If so, skip equipped item rendering here — it's handled in the swimming top half pass.
           // On sea transition tiles: no split render (player shows as normal).
-          const playerIsSnorkelingEarly = isLocalPlayer ? isLocalPlayerSnorkeling : playerForRendering.isSnorkeling;
           const isSwimmingSplitRender = effectiveIsOnWater && !playerForRendering.isDead && !playerForRendering.isKnockedOut && !playerIsSnorkelingEarly;
 
           const tileX = Math.floor(playerForRendering.positionX / gameConfig.tileSize);
