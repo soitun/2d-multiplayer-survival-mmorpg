@@ -9,7 +9,7 @@
  ******************************************************************************/
 
 use spacetimedb::{table, reducer, ReducerContext, Identity, Timestamp, Table, ScheduleAt, TimeDuration};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use std::f32::consts::PI;
 use log;
@@ -167,25 +167,46 @@ const FISHING_VILLAGE_EXCLUSION_RADIUS_SQ: f32 = FISHING_VILLAGE_EXCLUSION_RADIU
 // This struct holds all data pre-fetched once per AI tick to avoid repeated table scans
 pub struct PreFetchedAIData {
     pub all_players: Vec<Player>,
+    pub lit_torch_players: Vec<Player>,
     pub burning_campfires: Vec<Campfire>,
     pub active_foundations: Vec<FoundationCell>,
+    pub active_foundation_positions: Vec<(f32, f32)>,
 }
 
 impl PreFetchedAIData {
     /// Pre-fetch all data needed for animal AI processing
     /// Called ONCE at the start of each AI tick, not per-animal
     pub fn fetch(ctx: &ReducerContext) -> Self {
+        let all_players: Vec<Player> = ctx.db.player().iter()
+            .filter(|p| !p.is_dead && p.is_online)
+            .collect();
+        let lit_torch_players: Vec<Player> = all_players
+            .iter()
+            .filter(|p| p.is_torch_lit)
+            .cloned()
+            .collect();
+        let active_foundations: Vec<FoundationCell> = ctx.db.foundation_cell().iter()
+            .filter(|f| !f.is_destroyed)
+            .collect();
+        let active_foundation_positions: Vec<(f32, f32)> = active_foundations
+            .iter()
+            .map(|f| {
+                let x = (f.cell_x as f32 * crate::building::FOUNDATION_TILE_SIZE_PX as f32)
+                    + (crate::building::FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+                let y = (f.cell_y as f32 * crate::building::FOUNDATION_TILE_SIZE_PX as f32)
+                    + (crate::building::FOUNDATION_TILE_SIZE_PX as f32 / 2.0);
+                (x, y)
+            })
+            .collect();
         Self {
             // Only online players matter for active zone / wander checks - saves iterations
-            all_players: ctx.db.player().iter()
-                .filter(|p| !p.is_dead && p.is_online)
-                .collect(),
+            all_players,
+            lit_torch_players,
             burning_campfires: ctx.db.campfire().iter()
                 .filter(|c| c.is_burning && !c.is_destroyed)
                 .collect(),
-            active_foundations: ctx.db.foundation_cell().iter()
-                .filter(|f| !f.is_destroyed)
-                .collect(),
+            active_foundations,
+            active_foundation_positions,
         }
     }
 }
@@ -862,6 +883,7 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
     // CHUNK-BASED OPTIMIZATION: Only fetch animals in chunks near players
     // Avoids full table scan when world has many animals spread across the map
     let animals: Vec<WildAnimal> = collect_animals_in_active_chunks(ctx, &prefetched.all_players);
+    let pack_snapshot = build_pack_snapshot(ctx);
     
     for mut animal in animals {
         // CRITICAL FIX: Wrap each animal's processing in error handling to prevent one bad animal from stopping the entire AI system
@@ -895,10 +917,10 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
             let nearby_players = find_nearby_players_prefetched(&prefetched.all_players, &animal, &stats);
             
             // Update AI state based on current conditions
-            update_animal_ai_state(ctx, &mut animal, &behavior, &stats, &nearby_players, current_time, &mut rng)?;
+            update_animal_ai_state(ctx, &prefetched, &mut animal, &behavior, &stats, &nearby_players, current_time, &mut rng)?;
             
             // Process pack behavior (formation, dissolution, etc.)
-            process_pack_behavior(ctx, &mut animal, current_time, &mut rng)?;
+            process_pack_behavior(ctx, &mut animal, current_time, &mut rng, &pack_snapshot.pack_sizes, &pack_snapshot.pack_has_alpha)?;
             
             // Process taming behavior (food detection and consumption)
             process_taming_behavior(ctx, &mut animal, current_time)?;
@@ -1255,6 +1277,7 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
 
 fn update_animal_ai_state(
     ctx: &ReducerContext,
+    prefetched: &PreFetchedAIData,
     animal: &mut WildAnimal,
     behavior: &AnimalBehaviorEnum,
     stats: &AnimalStats,
@@ -1388,11 +1411,14 @@ fn update_animal_ai_state(
     }
     
     // Check foundation fear first (applies to ALL animals EXCEPT hostile NPCs)
-    let should_fear_foundations = !is_fearless_hostile && is_foundation_nearby(ctx, animal.pos_x, animal.pos_y);
+    let should_fear_foundations = !is_fearless_hostile
+        && is_foundation_nearby_prefetched(animal.pos_x, animal.pos_y, &prefetched.active_foundation_positions);
     
     if should_fear_foundations {
         // ALL animals flee from foundations (player structures) - no group courage exception
-        if let Some((foundation_x, foundation_y)) = find_closest_foundation_position(ctx, animal.pos_x, animal.pos_y) {
+        if let Some((foundation_x, foundation_y)) =
+            find_closest_foundation_position_prefetched(animal.pos_x, animal.pos_y, &prefetched.active_foundation_positions)
+        {
             transition_to_state(animal, AnimalState::Fleeing, current_time, None, "fleeing from foundation");
             
             // Species-specific flee distances from foundations
@@ -1434,14 +1460,21 @@ fn update_animal_ai_state(
     // Walruses are curious about fire, crows are bold thieves that don't fear flames
     // Night hostile NPCs (Shorebound, Shardkin, DrownedWatch) are fearless and charge through fire
     // BEES: Handled separately in BeeBehavior::update_ai_state_logic - they DIE from fire, not flee!
+    let fears_fire = should_fear_fire_prefetched(prefetched, ctx, animal);
     if !is_fearless_hostile && 
        animal.species != AnimalSpecies::ArcticWalrus && 
        animal.species != AnimalSpecies::Crow && 
        animal.species != AnimalSpecies::Bee &&  // Bees die from fire, handled in their AI
-       should_fear_fire(ctx, animal) {
+       fears_fire {
         // Check for fire from players with torches
         for player in nearby_players {
-            let player_has_fire = is_fire_nearby(ctx, player.position_x, player.position_y);
+            let player_has_fire = is_fire_nearby_prefetched(
+                player.position_x,
+                player.position_y,
+                &prefetched.burning_campfires,
+                &prefetched.lit_torch_players,
+                &prefetched.active_foundation_positions,
+            );
             
             if player_has_fire {
                 // Check if fire fear is overridden for this specific player
@@ -1488,12 +1521,18 @@ fn update_animal_ai_state(
         }
         
         // Check for standalone campfires
-        if let Some((fire_x, fire_y)) = find_closest_fire_position(ctx, animal.pos_x, animal.pos_y) {
+        if let Some((fire_x, fire_y)) = find_closest_fire_position_prefetched(
+            animal.pos_x,
+            animal.pos_y,
+            &prefetched.burning_campfires,
+            &prefetched.lit_torch_players,
+            &prefetched.active_foundation_positions,
+        ) {
             // Check if fire fear override applies for any nearby players
             let mut should_flee_from_fire = true;
             
             if let Some(override_player_id) = animal.fire_fear_overridden_by {
-                for player in ctx.db.player().iter() {
+                for player in &prefetched.all_players {
                     if player.identity == override_player_id && !player.is_dead {
                         let distance_to_player = get_distance_squared(animal.pos_x, animal.pos_y, player.position_x, player.position_y).sqrt();
                         let distance_to_fire = get_distance_squared(animal.pos_x, animal.pos_y, fire_x, fire_y).sqrt();
@@ -1564,9 +1603,15 @@ fn update_animal_ai_state(
         let mut fire_safe_players = Vec::new();
         
         for player in nearby_players {
-            let player_has_fire = is_fire_nearby(ctx, player.position_x, player.position_y);
+            let player_has_fire = is_fire_nearby_prefetched(
+                player.position_x,
+                player.position_y,
+                &prefetched.burning_campfires,
+                &prefetched.lit_torch_players,
+                &prefetched.active_foundation_positions,
+            );
             let should_fear_this_player = player_has_fire && 
-                should_fear_fire(ctx, animal) && 
+                fears_fire &&
                 // Only fear if no override OR override is for a different player
                 animal.fire_fear_overridden_by.map_or(true, |override_id| override_id != player.identity);
             
@@ -3887,6 +3932,69 @@ fn find_closest_foundation_position(ctx: &ReducerContext, animal_x: f32, animal_
     closest_foundation_pos
 }
 
+/// Prefetched variant to avoid repeated foundation table scans during hot AI ticks.
+fn is_foundation_nearby_prefetched(animal_x: f32, animal_y: f32, foundation_positions: &[(f32, f32)]) -> bool {
+    for (fx, fy) in foundation_positions {
+        let dx = animal_x - *fx;
+        let dy = animal_y - *fy;
+        if dx * dx + dy * dy <= FOUNDATION_FEAR_RADIUS_SQUARED {
+            return true;
+        }
+    }
+    false
+}
+
+/// Prefetched variant to avoid repeated foundation table scans during hot AI ticks.
+fn find_closest_foundation_position_prefetched(animal_x: f32, animal_y: f32, foundation_positions: &[(f32, f32)]) -> Option<(f32, f32)> {
+    let mut closest_foundation_pos: Option<(f32, f32)> = None;
+    let mut closest_distance_sq = f32::MAX;
+    for (fx, fy) in foundation_positions {
+        let dx = animal_x - *fx;
+        let dy = animal_y - *fy;
+        let distance_sq = dx * dx + dy * dy;
+        if distance_sq < closest_distance_sq && distance_sq <= FOUNDATION_FEAR_RADIUS_SQUARED {
+            closest_distance_sq = distance_sq;
+            closest_foundation_pos = Some((*fx, *fy));
+        }
+    }
+    closest_foundation_pos
+}
+
+/// Prefetched fire/foundation proximity check used in hot AI paths.
+fn is_fire_nearby_prefetched(
+    animal_x: f32,
+    animal_y: f32,
+    burning_campfires: &[Campfire],
+    lit_torch_players: &[Player],
+    foundation_positions: &[(f32, f32)],
+) -> bool {
+    for campfire in burning_campfires {
+        let dx = animal_x - campfire.pos_x;
+        let dy = animal_y - campfire.pos_y;
+        if dx * dx + dy * dy <= FIRE_FEAR_RADIUS_SQUARED {
+            return true;
+        }
+    }
+
+    for player in lit_torch_players {
+        let dx = animal_x - player.position_x;
+        let dy = animal_y - player.position_y;
+        if dx * dx + dy * dy <= TORCH_FEAR_RADIUS_SQUARED {
+            return true;
+        }
+    }
+
+    for (fx, fy) in foundation_positions {
+        let dx = animal_x - *fx;
+        let dy = animal_y - *fy;
+        if dx * dx + dy * dy <= FOUNDATION_FEAR_RADIUS_SQUARED {
+            return true;
+        }
+    }
+
+    false
+}
+
 /// Check if there's a fire source (campfire or torch) or foundation within fear radius of an animal
 fn is_fire_nearby(ctx: &ReducerContext, animal_x: f32, animal_y: f32) -> bool {
     // Check for burning campfires
@@ -4063,6 +4171,50 @@ fn count_nearby_group_members(ctx: &ReducerContext, animal: &WildAnimal) -> usiz
     count
 }
 
+/// Prefetched closest fire/foundation source position for fleeing boundary logic.
+fn find_closest_fire_position_prefetched(
+    animal_x: f32,
+    animal_y: f32,
+    burning_campfires: &[Campfire],
+    lit_torch_players: &[Player],
+    foundation_positions: &[(f32, f32)],
+) -> Option<(f32, f32)> {
+    let mut closest_fire_pos: Option<(f32, f32)> = None;
+    let mut closest_distance_sq = f32::MAX;
+
+    for campfire in burning_campfires {
+        let dx = animal_x - campfire.pos_x;
+        let dy = animal_y - campfire.pos_y;
+        let distance_sq = dx * dx + dy * dy;
+        if distance_sq < closest_distance_sq {
+            closest_distance_sq = distance_sq;
+            closest_fire_pos = Some((campfire.pos_x, campfire.pos_y));
+        }
+    }
+
+    for player in lit_torch_players {
+        let dx = animal_x - player.position_x;
+        let dy = animal_y - player.position_y;
+        let distance_sq = dx * dx + dy * dy;
+        if distance_sq < closest_distance_sq {
+            closest_distance_sq = distance_sq;
+            closest_fire_pos = Some((player.position_x, player.position_y));
+        }
+    }
+
+    for (fx, fy) in foundation_positions {
+        let dx = animal_x - *fx;
+        let dy = animal_y - *fy;
+        let distance_sq = dx * dx + dy * dy;
+        if distance_sq < closest_distance_sq {
+            closest_distance_sq = distance_sq;
+            closest_fire_pos = Some((*fx, *fy));
+        }
+    }
+
+    closest_fire_pos
+}
+
 /// Find the closest fire source position for boundary calculation
 pub fn find_closest_fire_position(ctx: &ReducerContext, animal_x: f32, animal_y: f32) -> Option<(f32, f32)> {
     let mut closest_fire_pos: Option<(f32, f32)> = None;
@@ -4157,6 +4309,33 @@ fn should_fear_fire(ctx: &ReducerContext, animal: &WildAnimal) -> bool {
     is_fire_nearby(ctx, animal.pos_x, animal.pos_y)
 }
 
+/// Prefetched variant to keep behavior identical while reducing repeated table scans.
+fn should_fear_fire_prefetched(prefetched: &PreFetchedAIData, ctx: &ReducerContext, animal: &WildAnimal) -> bool {
+    // Keep species and group-courage logic exactly the same as should_fear_fire().
+    if animal.species == AnimalSpecies::Wolverine {
+        return false;
+    }
+    if matches!(animal.species, AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch) {
+        return false;
+    }
+    if animal.species == AnimalSpecies::Bee {
+        return false;
+    }
+
+    let group_size = count_nearby_group_members(ctx, animal);
+    if group_size >= GROUP_COURAGE_THRESHOLD {
+        return false;
+    }
+
+    is_fire_nearby_prefetched(
+        animal.pos_x,
+        animal.pos_y,
+        &prefetched.burning_campfires,
+        &prefetched.lit_torch_players,
+        &prefetched.active_foundation_positions,
+    )
+}
+
 /// Check if there's a campfire at the given position (for determining fear radius)
 fn is_campfire_at_position(ctx: &ReducerContext, x: f32, y: f32) -> bool {
     for campfire in ctx.db.campfire().iter() {
@@ -4218,7 +4397,14 @@ pub fn has_ranged_weapon_equipped(ctx: &ReducerContext, player_id: Identity) -> 
 // --- Pack Management Functions ---
 
 /// Process pack formation and dissolution for wolves
-pub fn process_pack_behavior(ctx: &ReducerContext, animal: &mut WildAnimal, current_time: Timestamp, rng: &mut impl Rng) -> Result<(), String> {
+pub fn process_pack_behavior(
+    ctx: &ReducerContext,
+    animal: &mut WildAnimal,
+    current_time: Timestamp,
+    rng: &mut impl Rng,
+    pack_size_map: &HashMap<u64, usize>,
+    pack_has_alpha_map: &HashMap<u64, bool>,
+) -> Result<(), String> {
     // Only wolves can form packs
     if animal.species != AnimalSpecies::TundraWolf {
         return Ok(());
@@ -4236,13 +4422,13 @@ pub fn process_pack_behavior(ctx: &ReducerContext, animal: &mut WildAnimal, curr
     
     // If wolf is in a pack, check for dissolution
     if let Some(pack_id) = animal.pack_id {
-        if should_leave_pack(ctx, animal, current_time, rng)? {
+        if should_leave_pack(ctx, animal, current_time, rng, pack_size_map, pack_has_alpha_map)? {
             leave_pack(ctx, animal, current_time)?;
             log::info!("Wolf {} left pack {}", animal.id, pack_id);
         }
     } else {
         // Wolf is solo, check for pack formation
-        if let Some(other_wolf) = find_nearby_packable_wolf(ctx, animal) {
+        if let Some(other_wolf) = find_nearby_packable_wolf(ctx, animal, pack_size_map) {
             attempt_pack_formation(ctx, animal, other_wolf, current_time, rng)?;
         }
     }
@@ -4251,7 +4437,14 @@ pub fn process_pack_behavior(ctx: &ReducerContext, animal: &mut WildAnimal, curr
 }
 
 /// Check if a wolf should leave its current pack
-fn should_leave_pack(ctx: &ReducerContext, animal: &WildAnimal, current_time: Timestamp, rng: &mut impl Rng) -> Result<bool, String> {
+fn should_leave_pack(
+    ctx: &ReducerContext,
+    animal: &WildAnimal,
+    current_time: Timestamp,
+    rng: &mut impl Rng,
+    pack_size_map: &HashMap<u64, usize>,
+    pack_has_alpha_map: &HashMap<u64, bool>,
+) -> Result<bool, String> {
     // Leaders are MUCH less likely to leave (stable leadership)
     let dissolution_chance = if animal.is_pack_leader {
         PACK_DISSOLUTION_CHANCE * 0.15 // Only 15% of normal chance (was 30%)
@@ -4266,24 +4459,26 @@ fn should_leave_pack(ctx: &ReducerContext, animal: &WildAnimal, current_time: Ti
     
     // Leave if pack is too small or alpha is missing
     if let Some(pack_id) = animal.pack_id {
-        let pack_members = get_pack_members(ctx, pack_id);
+        let pack_member_count = *pack_size_map.get(&pack_id).unwrap_or(&get_pack_size(ctx, pack_id));
+        let has_alpha = *pack_has_alpha_map.get(&pack_id).unwrap_or(&get_pack_member_stats(ctx, pack_id).1);
         
         // If pack has only 1 member (this wolf), dissolve
-        if pack_members.len() <= 1 {
+        if pack_member_count <= 1 {
             return Ok(true);
         }
         
         // Don't dissolve larger packs easily - they're more valuable for gameplay
-        if pack_members.len() >= 3 && rng.gen::<f32>() < 0.5 {
+        if pack_member_count >= 3 && rng.gen::<f32>() < 0.5 {
             // 50% chance to stay even if randomly selected to leave (pack loyalty)
             return Ok(false);
         }
         
         // If no alpha in pack, someone should become alpha
-        if !pack_members.iter().any(|w| w.is_pack_leader) {
+        if !has_alpha {
             // This wolf becomes the new alpha
             return Ok(false);
         }
+        
     }
     
     Ok(false)
@@ -4306,7 +4501,11 @@ fn leave_pack(ctx: &ReducerContext, animal: &mut WildAnimal, current_time: Times
 }
 
 /// Find a nearby wolf that can form a pack or merge packs
-fn find_nearby_packable_wolf(ctx: &ReducerContext, animal: &WildAnimal) -> Option<WildAnimal> {
+fn find_nearby_packable_wolf(
+    ctx: &ReducerContext,
+    animal: &WildAnimal,
+    pack_size_map: &HashMap<u64, usize>,
+) -> Option<WildAnimal> {
     for other_animal in ctx.db.wild_animal().iter() {
         if other_animal.id == animal.id || other_animal.species != AnimalSpecies::TundraWolf {
             continue;
@@ -4325,7 +4524,10 @@ fn find_nearby_packable_wolf(ctx: &ReducerContext, animal: &WildAnimal) -> Optio
             
             // Case 2: Solo wolf meets pack member
             if animal.pack_id.is_none() && other_animal.pack_id.is_some() {
-                let pack_size = get_pack_size(ctx, other_animal.pack_id.unwrap());
+                let other_pack_id = other_animal.pack_id.unwrap();
+                let pack_size = *pack_size_map
+                    .get(&other_pack_id)
+                    .unwrap_or(&get_pack_size(ctx, other_pack_id));
                 if pack_size < MAX_PACK_SIZE {
                     return Some(other_animal);
                 }
@@ -4333,7 +4535,10 @@ fn find_nearby_packable_wolf(ctx: &ReducerContext, animal: &WildAnimal) -> Optio
             
             // Case 3: Pack member meets solo wolf  
             if animal.pack_id.is_some() && other_animal.pack_id.is_none() {
-                let pack_size = get_pack_size(ctx, animal.pack_id.unwrap());
+                let current_pack_id = animal.pack_id.unwrap();
+                let pack_size = *pack_size_map
+                    .get(&current_pack_id)
+                    .unwrap_or(&get_pack_size(ctx, current_pack_id));
                 if pack_size < MAX_PACK_SIZE {
                     return Some(other_animal);
                 }
@@ -4343,7 +4548,9 @@ fn find_nearby_packable_wolf(ctx: &ReducerContext, animal: &WildAnimal) -> Optio
             if let (Some(pack_a), Some(pack_b)) = (animal.pack_id, other_animal.pack_id) {
                 if pack_a != pack_b && animal.is_pack_leader && other_animal.is_pack_leader {
                     // Two alphas meeting - potential pack merger
-                    let combined_size = get_pack_size(ctx, pack_a) + get_pack_size(ctx, pack_b);
+                    let size_a = *pack_size_map.get(&pack_a).unwrap_or(&get_pack_size(ctx, pack_a));
+                    let size_b = *pack_size_map.get(&pack_b).unwrap_or(&get_pack_size(ctx, pack_b));
+                    let combined_size = size_a + size_b;
                     if combined_size <= MAX_PACK_SIZE {
                         return Some(other_animal);
                     }
@@ -4456,7 +4663,47 @@ fn get_pack_members(ctx: &ReducerContext, pack_id: u64) -> Vec<WildAnimal> {
 
 /// Get the size of a pack
 fn get_pack_size(ctx: &ReducerContext, pack_id: u64) -> usize {
-    get_pack_members(ctx, pack_id).len()
+    ctx.db.wild_animal()
+        .iter()
+        .filter(|animal| animal.pack_id == Some(pack_id))
+        .count()
+}
+
+/// Fast per-call pack summary to reduce repeated full scans in pack checks.
+struct PackSnapshot {
+    pack_sizes: HashMap<u64, usize>,
+    pack_has_alpha: HashMap<u64, bool>,
+}
+
+fn build_pack_snapshot(ctx: &ReducerContext) -> PackSnapshot {
+    let mut pack_sizes: HashMap<u64, usize> = HashMap::new();
+    let mut pack_has_alpha: HashMap<u64, bool> = HashMap::new();
+    for wolf in ctx.db.wild_animal().iter() {
+        if let Some(pack_id) = wolf.pack_id {
+            *pack_sizes.entry(pack_id).or_insert(0) += 1;
+            if wolf.is_pack_leader {
+                pack_has_alpha.insert(pack_id, true);
+            } else {
+                pack_has_alpha.entry(pack_id).or_insert(false);
+            }
+        }
+    }
+    PackSnapshot { pack_sizes, pack_has_alpha }
+}
+
+/// Returns (member_count, has_alpha) for the given pack.
+fn get_pack_member_stats(ctx: &ReducerContext, pack_id: u64) -> (usize, bool) {
+    let mut member_count = 0usize;
+    let mut has_alpha = false;
+    for wolf in ctx.db.wild_animal().iter() {
+        if wolf.pack_id == Some(pack_id) {
+            member_count += 1;
+            if wolf.is_pack_leader {
+                has_alpha = true;
+            }
+        }
+    }
+    (member_count, has_alpha)
 }
 
 /// Merge two packs after an alpha challenge
@@ -5902,6 +6149,13 @@ pub fn is_valid_taming_food(ctx: &ReducerContext, item_def_id: u64, species: Ani
 /// Find nearby dropped food items that this animal can eat
 pub fn find_nearby_taming_food(ctx: &ReducerContext, animal: &WildAnimal) -> Vec<crate::dropped_item::DroppedItem> {
     let mut nearby_food = Vec::new();
+    let behavior = animal.species.get_behavior();
+    let taming_foods = behavior.get_taming_foods();
+    let valid_food_ids: HashSet<u64> = ctx.db.item_definition()
+        .iter()
+        .filter(|def| taming_foods.contains(&def.name.as_str()))
+        .map(|def| def.id)
+        .collect();
     
     for dropped_item in ctx.db.dropped_item().iter() {
         let distance_sq = get_distance_squared(
@@ -5909,10 +6163,10 @@ pub fn find_nearby_taming_food(ctx: &ReducerContext, animal: &WildAnimal) -> Vec
             dropped_item.pos_x, dropped_item.pos_y
         );
         
-        if distance_sq <= TAMING_FOOD_DETECTION_RADIUS_SQUARED {
-            if is_valid_taming_food(ctx, dropped_item.item_def_id, animal.species) {
-                nearby_food.push(dropped_item);
-            }
+        if distance_sq <= TAMING_FOOD_DETECTION_RADIUS_SQUARED
+            && valid_food_ids.contains(&dropped_item.item_def_id)
+        {
+            nearby_food.push(dropped_item);
         }
     }
     
@@ -6375,7 +6629,7 @@ pub fn player_has_ranged_weapon(ctx: &ReducerContext, player_id: Identity) -> bo
     );
     let has_ranged = is_ranged_category || is_known_ranged;
     
-    log::info!("[RANGED CHECK] Player {:?} equipped '{}' (id={}, category={:?}) -> is_ranged={}", 
+    log::debug!("[RANGED CHECK] Player {:?} equipped '{}' (id={}, category={:?}) -> is_ranged={}", 
               player_id, item_def.name, item_def_id, item_def.category, has_ranged);
     
     has_ranged

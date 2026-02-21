@@ -309,6 +309,11 @@ pub fn get_material_definitions() -> Vec<ItemDefinition> {
             .icon("viper_scale.png")
             .build(),
 
+        // Caribou Antlers - Crafting material from caribou
+        basic_material("Caribou Antlers", "A magnificent set of caribou antlers. Valuable crafting material from a large northern herbivore.", 20)
+            .icon("caribou_antlers.png")
+            .build(),
+
         // Animal Leather - Universal leather resource
         basic_material("Animal Leather", "Processed leather from various animal hides. A versatile material for crafting clothing, armor, and equipment.", 50)
             .icon("animal_leather.png")

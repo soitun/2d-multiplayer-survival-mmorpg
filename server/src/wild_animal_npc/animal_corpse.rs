@@ -39,6 +39,7 @@ pub struct AnimalCorpse {
 
     pub pos_x: f32,
     pub pos_y: f32,
+    #[index(btree)]
     pub chunk_index: u32, // For spatial queries
 
     pub death_time: Timestamp,
@@ -369,8 +370,8 @@ pub fn get_harvest_loot(
             AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => 0.0,
             // Bees don't drop rare trophies - they're tiny insects
             AnimalSpecies::Bee => 0.0,
-            // Alpine animals don't drop rare trophies (skulls handled separately)
-            AnimalSpecies::PolarBear => 0.0,
+            // Polar Bear - apex predator pelt (rare trophy)
+            AnimalSpecies::PolarBear => if tool_name == "AK74 Bayonet" { 0.025 } else { 0.015 }, // 2.5%/1.5% chance for polar bear pelt
             AnimalSpecies::Hare => 0.0,
             AnimalSpecies::SnowyOwl => 0.0,
         };
@@ -395,8 +396,8 @@ pub fn get_harvest_loot(
                 AnimalSpecies::Shorebound | AnimalSpecies::Shardkin | AnimalSpecies::DrownedWatch => unreachable!(),
                 // Bees never reach here (chance is 0)
                 AnimalSpecies::Bee => unreachable!(),
-                // Alpine animals never reach here (chance is 0)
-                AnimalSpecies::PolarBear => unreachable!(),
+                // Polar Bear - polar bear pelt trophy
+                AnimalSpecies::PolarBear => "Polar Bear Pelt",
                 AnimalSpecies::Hare => unreachable!(),
                 AnimalSpecies::SnowyOwl => unreachable!(),
             };

@@ -55,6 +55,7 @@ pub struct SleepingBag {
 
     pub pos_x: f32,
     pub pos_y: f32,
+    #[index(btree)]
     pub chunk_index: u32, 
 
     pub placed_by: Identity, // Who placed this sleeping bag

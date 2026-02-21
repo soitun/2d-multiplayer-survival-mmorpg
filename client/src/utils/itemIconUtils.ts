@@ -606,6 +606,8 @@ import woodenBeehiveIcon from '../assets/items/beehive_wooden.png'; // Player-ma
 // Trophy decorations
 import wolfPeltIcon from '../assets/items/wolf_pelt.png';
 import foxPeltIcon from '../assets/items/fox_pelt.png';
+import polarBearPeltIcon from '../assets/items/polar_bear_pelt.png';
+import caribouAntlersIcon from '../assets/items/caribou_antlers.png';
 
 // Building components
 import woodDoorIcon from '../assets/items/wood_door.png';
@@ -1170,6 +1172,8 @@ const iconMap: { [key: string]: string | undefined } = {
   // Trophy decorations
   'wolf_pelt.png': wolfPeltIcon,
   'fox_pelt.png': foxPeltIcon,
+  'polar_bear_pelt.png': polarBearPeltIcon,
+  'caribou_antlers.png': caribouAntlersIcon,
   
   // Building components
   'wood_door.png': woodDoorIcon,

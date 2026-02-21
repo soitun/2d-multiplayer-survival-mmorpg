@@ -271,6 +271,11 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
             .icon("fox_pelt.png")
             .build(), // No crafting cost - dropped by foxes
 
+        // Polar Bear Pelt - Apex predator hunting trophy
+        ItemBuilder::new("Polar Bear Pelt", "A massive polar bear pelt with thick, luxurious white fur. This impressive apex predator trophy can be displayed as a rare decoration, showcasing mastery over the alpine's most dangerous hunter.", ItemCategory::Placeable)
+            .icon("polar_bear_pelt.png")
+            .build(), // No crafting cost - dropped by polar bears
+
         // === BUILDING COMPONENTS ===
 
         // Wood Door - Craftable door for doorframes
