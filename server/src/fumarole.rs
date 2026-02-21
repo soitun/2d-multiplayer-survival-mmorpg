@@ -522,6 +522,7 @@ pub fn process_all_fumaroles_scheduled(ctx: &ReducerContext, _schedule: Fumarole
         return Ok(());
     }
 
+    let has_online_players = ctx.db.player().iter().any(|p| p.is_online && !p.is_dead);
     let mut fumaroles_table = ctx.db.fumarole();
     let mut inventory_items_table = ctx.db.inventory_item();
     let charcoal_def = get_item_def_by_name(ctx, "Charcoal");
@@ -543,17 +544,19 @@ pub fn process_all_fumaroles_scheduled(ctx: &ReducerContext, _schedule: Fumarole
 
         let mut made_changes = false;
 
-        // Burn damage to players on fumarole
-        for player_entity in ctx.db.player().iter() {
-            if player_entity.is_dead { continue; }
-            let dx = player_entity.position_x - fumarole.pos_x;
-            let dy = player_entity.position_y - (fumarole.pos_y - VISUAL_CENTER_Y_OFFSET);
-            if dx * dx + dy * dy < FUMAROLE_DAMAGE_RADIUS_SQUARED {
-                let _ = crate::active_effects::apply_burn_effect(
-                    ctx, player_entity.identity,
-                    FUMAROLE_DAMAGE_PER_TICK,
-                    FUMAROLE_DAMAGE_EFFECT_DURATION_SECONDS as f32,
-                    FUMAROLE_BURN_TICK_INTERVAL_SECONDS, 0);
+        // Burn damage to players on fumarole (skip when no players online - saves O(fumaroles * players) iterations)
+        if has_online_players {
+            for player_entity in ctx.db.player().iter() {
+                if player_entity.is_dead || !player_entity.is_online { continue; }
+                let dx = player_entity.position_x - fumarole.pos_x;
+                let dy = player_entity.position_y - (fumarole.pos_y - VISUAL_CENTER_Y_OFFSET);
+                if dx * dx + dy * dy < FUMAROLE_DAMAGE_RADIUS_SQUARED {
+                    let _ = crate::active_effects::apply_burn_effect(
+                        ctx, player_entity.identity,
+                        FUMAROLE_DAMAGE_PER_TICK,
+                        FUMAROLE_DAMAGE_EFFECT_DURATION_SECONDS as f32,
+                        FUMAROLE_BURN_TICK_INTERVAL_SECONDS, 0);
+                }
             }
         }
 
@@ -564,7 +567,11 @@ pub fn process_all_fumaroles_scheduled(ctx: &ReducerContext, _schedule: Fumarole
             fumarole.consumption_tick_counter = 0;
         }
 
-        // Cooking progress
+        // Skip slot iteration for empty fumaroles (saves 6 slot lookups + inventory queries per tick)
+        let has_items = check_if_fumarole_has_items_direct(&fumarole, charcoal_def_id);
+
+        // Cooking progress (only when fumarole has items)
+        if has_items {
         for slot_idx in 0..NUM_FUMAROLE_SLOTS as u8 {
             if let Some(instance_id) = fumarole.get_slot_instance_id(slot_idx) {
                 if let Some(item) = inventory_items_table.instance_id().find(instance_id) {
@@ -599,9 +606,10 @@ pub fn process_all_fumaroles_scheduled(ctx: &ReducerContext, _schedule: Fumarole
                 fumarole.set_cooking_progress(slot_idx, None);
             }
         }
+        }
 
-        // Item consumption and charcoal production
-        if should_consume_items {
+        // Item consumption and charcoal production (only when fumarole has items)
+        if has_items && should_consume_items {
             for slot_idx in 0..NUM_FUMAROLE_SLOTS as u8 {
                 if let Some(instance_id) = fumarole.get_slot_instance_id(slot_idx) {
                     if let Some(mut item) = inventory_items_table.instance_id().find(instance_id) {

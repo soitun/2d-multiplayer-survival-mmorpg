@@ -17,6 +17,7 @@ const ZONE_COLORS: Record<MusicZone, { primary: string; secondary: string; glow:
     alk_compound: { primary: '#ffc107', secondary: '#ff9800', glow: 'rgba(255, 193, 7, 0.8)' },
     alk_substation: { primary: '#9c27b0', secondary: '#ba68c8', glow: 'rgba(156, 39, 176, 0.8)' },
     hot_springs: { primary: '#ff6b9d', secondary: '#4ecdc4', glow: 'rgba(255, 107, 157, 0.8)' },
+    deep_sea: { primary: '#0288d1', secondary: '#03a9f4', glow: 'rgba(2, 136, 209, 0.8)' },
 };
 
 interface MusicControlPanelProps {
@@ -372,14 +373,14 @@ const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap'
                 }}>
-                    {getDisplayTrackInfo()?.displayName || 'No track selected'}
+                    {totalTracks === 0 ? '— SILENCE —' : (getDisplayTrackInfo()?.displayName || 'No track selected')}
                 </div>
                 <div style={{ 
                     fontSize: '12px', // Increased from 10px
                     opacity: 0.6,
                     color: zoneColors.secondary
                 }}>
-                    Track {currentPosition} of {totalTracks} {shuffleMode ? '(Shuffled)' : '(Sequential)'}
+                    {totalTracks === 0 ? 'No music in this zone' : `Track ${currentPosition} of ${totalTracks} ${shuffleMode ? '(Shuffled)' : '(Sequential)'}`}
                 </div>
             </div>
 
@@ -511,7 +512,18 @@ const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
                         : 'TRACKLIST'
                     }
                 </div>
-                {MUSIC_TRACKS.map((track, trackIndex) => {
+                {totalTracks === 0 ? (
+                    <div style={{ 
+                        fontSize: '11px', 
+                        opacity: 0.6, 
+                        color: zoneColors.secondary,
+                        textAlign: 'center',
+                        fontStyle: 'italic',
+                        padding: '12px 0'
+                    }}>
+                        — ambient only —
+                    </div>
+                ) : MUSIC_TRACKS.map((track, trackIndex) => {
                     const displaySelectedTrack = getDisplaySelectedTrack();
                     const isCurrentTrack = displaySelectedTrack === track.filename;
                     

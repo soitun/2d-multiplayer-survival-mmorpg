@@ -653,6 +653,17 @@ pub fn process_turret_logic_scheduled(ctx: &ReducerContext, _schedule: TurretPro
     if ctx.sender != ctx.identity() {
         return Err("process_turret_logic_scheduled can only be called by scheduler".to_string());
     }
+
+    // Early exit: no online players means no targets (PvP) and no need to process turrets
+    if !ctx.db.player().iter().any(|p| p.is_online && !p.is_dead) {
+        return Ok(());
+    }
+
+    // Early exit: no active turrets to process
+    let has_active_turrets = ctx.db.turret().iter().any(|t| !t.is_destroyed);
+    if !has_active_turrets {
+        return Ok(());
+    }
     
     let current_time = ctx.timestamp;
     

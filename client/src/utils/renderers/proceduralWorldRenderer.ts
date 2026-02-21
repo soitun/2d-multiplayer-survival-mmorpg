@@ -31,6 +31,7 @@ import {
 } from '../dualGridAutotile';
 import { tileDoodadRenderer } from './tileDoodadRenderer';
 import { initShorelineMask, initHotSpringShorelineMask, isShorelineMaskReady, isHotSpringShorelineMaskReady, renderShorelineOverlay } from './shorelineOverlayUtils.ts';
+import { isWaterTileTag } from '../tileTypeGuards';
 
 // Helper to get tile base texture path from tile type name
 function getTileBaseTexturePath(tileTypeName: string): string {
@@ -422,7 +423,7 @@ export class ProceduralWorldRenderer {
         // === UNDERWATER SNORKELING MODE ===
         // When snorkeling, land tiles appear as dark murky blue (looking up at surface from underwater)
         // Water tiles (Sea, HotSpringWater) render normally - you're in the water seeing water
-        const isWaterTile = tileTypeName === 'Sea' || tileTypeName === 'DeepSea' || tileTypeName === 'HotSpringWater';
+        const isWaterTile = isWaterTileTag(tileTypeName);
         
         if (isSnorkeling && !isWaterTile) {
             // Render land tiles using underwater interior tile from autotile
@@ -666,7 +667,7 @@ export class ProceduralWorldRenderer {
         const tileTypes = tiles.map(tile => tile?.tileType?.tag || 'unknown');
         
         // Check which corners are water (Sea or HotSpringWater)
-        const isWater = tileTypes.map(type => type === 'Sea' || type === 'DeepSea' || type === 'HotSpringWater');
+        const isWater = tileTypes.map(type => isWaterTileTag(type));
         
         // Count water and land corners
         const waterCount = isWater.filter(Boolean).length;

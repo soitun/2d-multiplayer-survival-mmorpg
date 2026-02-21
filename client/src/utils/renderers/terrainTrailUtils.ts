@@ -21,6 +21,7 @@ import { Player as SpacetimeDBPlayer } from '../../generated';
 import { DbConnection } from '../../generated';
 import { getTileTypeFromChunkData, worldPosToTileCoords } from './placementRenderingUtils';
 import { PlayerDodgeRollState } from '../../generated';
+import { isWaterTileTag } from '../tileTypeGuards';
 
 // =============================================================================
 // TERRAIN CONFIGURATION
@@ -57,7 +58,7 @@ function isTileAdjacentToWater(connection: DbConnection, tileX: number, tileY: n
       if (dx === 0 && dy === 0) continue;
 
       const neighborType = getTileTypeFromChunkData(connection, tileX + dx, tileY + dy);
-      if (neighborType === 'Sea' || neighborType === 'DeepSea' || neighborType === 'HotSpringWater') {
+      if (isWaterTileTag(neighborType)) {
         return true; // Has adjacent water tile
       }
     }

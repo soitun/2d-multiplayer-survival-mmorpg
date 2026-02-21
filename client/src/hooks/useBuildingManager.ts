@@ -25,6 +25,7 @@ import { DbConnection } from '../generated';
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, worldPixelsToFoundationCell, foundationCellToWorldCenter } from '../config/gameConfig';
 import { playImmediateSound } from './useSoundSystem';
 import { getTileTypeFromChunkData } from '../utils/renderers/placementRenderingUtils';
+import { isWaterTileTag } from '../utils/tileTypeGuards';
 
 // Building placement modes
 export enum BuildingMode {
@@ -747,7 +748,7 @@ export const useBuildingManager = (
         const { x: foundationCenterX, y: foundationCenterY } = foundationCellToWorldCenter(cellX, cellY);
         const { tileX, tileY } = worldPosToTileCoords(foundationCenterX, foundationCenterY);
         const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
-        if (tileType === 'Sea' || tileType === 'DeepSea' || tileType === 'HotSpringWater') {
+        if (isWaterTileTag(tileType)) {
           setPlacementError('Cannot place foundation on water');
           playImmediateSound('construction_placement_error', 1.0);
           return;

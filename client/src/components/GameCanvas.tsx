@@ -191,6 +191,7 @@ import { renderPlacedExplosives, preloadExplosiveImages } from '../utils/rendere
 import { renderUnderwaterShadowIfOverWater } from '../utils/renderers/swimmingEffectsUtils';
 import { renderParticlesToCanvas } from '../utils/renderers/particleRenderingUtils';
 import { worldPosToTileCoords, getTileTypeFromChunkData } from '../utils/renderers/placementRenderingUtils';
+import { isOceanTileTag, isWaterTileTag } from '../utils/tileTypeGuards';
 import { updateUnderwaterEffects, renderUnderwaterEffectsUnder, renderUnderwaterEffectsOver, renderUnderwaterVignette, clearUnderwaterEffects } from '../utils/renderers/underwaterEffectsUtils';
 import { renderWildAnimal, preloadWildAnimalImages, renderBurrowEffects, cleanupBurrowTracking, processWildAnimalsForBurrowEffects } from '../utils/renderers/wildAnimalRenderingUtils';
 import { renderAnimalCorpse, preloadAnimalCorpseImages } from '../utils/renderers/animalCorpseRenderingUtils';
@@ -958,7 +959,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const lookup = new Map<string, boolean>();
     if (visibleWorldTiles) {
       visibleWorldTiles.forEach(tile => {
-        lookup.set(`${tile.worldX},${tile.worldY}`, tile.tileType?.tag === 'Sea' || tile.tileType?.tag === 'DeepSea');
+        lookup.set(`${tile.worldX},${tile.worldY}`, isOceanTileTag(tile.tileType?.tag));
       });
     }
     return lookup;
@@ -967,7 +968,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const lookup = new Map<string, boolean>();
     if (!connection || !visibleWorldTiles) return lookup;
     const isLandAtShore = (t: string | null) => t === 'Beach' || t === 'Asphalt';
-    const isShoreWater = (t: string | null) => t === 'Sea' || t === 'DeepSea' || t === 'HotSpringWater';
+    const isShoreWater = (t: string | null) => isWaterTileTag(t);
     visibleWorldTiles.forEach(tile => {
       const tx = tile.worldX;
       const ty = tile.worldY;

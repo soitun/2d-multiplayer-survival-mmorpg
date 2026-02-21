@@ -73,6 +73,11 @@ pub fn check_grenade_fuses(ctx: &ReducerContext, _schedule: GrenadeFuseSchedule)
         return Err("Grenade fuse check may only be invoked by scheduler.".into());
     }
 
+    // Early exit: no online players means no active grenades (players throw them)
+    if !ctx.db.player().iter().any(|p| p.is_online && !p.is_dead) {
+        return Ok(());
+    }
+
     let now_secs = ctx.timestamp.to_micros_since_unix_epoch() as f64 / 1_000_000.0;
     let grenade_def_id = ctx.db.item_definition().iter()
         .find(|d| d.name == "Grenade")

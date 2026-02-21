@@ -525,6 +525,7 @@ use crate::rune_stone::rune_stone_item_spawn_schedule as RuneStoneItemSpawnSched
 use crate::rune_stone::rune_stone_seed_spawn_schedule as RuneStoneSeedSpawnScheduleTableTrait; // <<< For pause/resume
 use crate::backpack::backpack_consolidation_schedule as BackpackConsolidationScheduleTableTrait; // <<< For pause/resume
 use crate::explosive::explosive_detonation_schedule as ExplosiveDetonationScheduleTableTrait; // <<< For pause/resume
+use crate::grenade::grenade_fuse_schedule as GrenadeFuseScheduleTableTrait; // <<< For pause/resume
 use crate::beehive::beehive_process_schedule as BeehiveProcessScheduleTableTrait; // <<< For pause/resume
 use crate::sea_stack::sea_stack as SeaStackTableTrait; // <<< ADDED: Import SeaStack table trait
 use crate::player_corpse::player_corpse as PlayerCorpseTableTrait; // <<< ADDED: Import PlayerCorpse table trait
@@ -1202,6 +1203,10 @@ fn pause_game_systems(ctx: &ReducerContext) {
     let explosive_ids: Vec<u64> = ctx.db.explosive_detonation_schedule().iter().map(|r| r.id).collect();
     for id in explosive_ids {
         ctx.db.explosive_detonation_schedule().id().delete(id);
+    }
+    let grenade_ids: Vec<u64> = ctx.db.grenade_fuse_schedule().iter().map(|r| r.id).collect();
+    for id in grenade_ids {
+        ctx.db.grenade_fuse_schedule().id().delete(id);
     }
     let grass_ids: Vec<u64> = ctx.db.grass_respawn_batch_schedule().iter().map(|r| r.schedule_id).collect();
     for id in grass_ids {

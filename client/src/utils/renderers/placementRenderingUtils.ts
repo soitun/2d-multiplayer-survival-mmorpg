@@ -22,6 +22,7 @@ import { getPlacementConfig, snapToPlacementGrid, shouldUseGridSnapping, getPlac
 import { DbConnection } from '../../generated';
 import { isSeedItemValid, requiresWaterPlacement, requiresBeachPlacement, requiresAlpinePlacement, requiresTundraPlacement, isPineconeBlockedOnBeach, isBirchCatkinBlockedOnAlpine, requiresTemperateOnlyPlacement } from '../plantsUtils';
 import { renderFoundationPreview, renderWallPreview, renderFencePreview } from './foundationRenderingUtils';
+import { isWaterTileTag } from '../tileTypeGuards';
 
 // Import interaction distance constants
 const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 80.0 * 80.0; // From useInteractionFinder.ts
@@ -228,7 +229,7 @@ export function invalidateChunkCache(): void {
 }
 
 /**
- * Checks if a world position is on a water tile (Sea or HotSpringWater type).
+ * Checks if a world position is on a water tile.
  * Uses compressed chunk data for efficient lookup.
  * Returns true if the position is on water.
  */
@@ -241,8 +242,7 @@ function isPositionOnWater(connection: DbConnection | null, worldX: number, worl
     
     // Use compressed chunk data lookup
     const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
-    // Block placement on both regular water (Sea) and hot spring water
-    return tileType === 'Sea' || tileType === 'DeepSea' || tileType === 'HotSpringWater';
+    return isWaterTileTag(tileType);
 }
 
 /**
@@ -317,7 +317,7 @@ function isPositionOnShore(connection: DbConnection | null, worldX: number, worl
             
             // Get tile type from chunk data
             const tileType = getTileTypeFromChunkData(connection, checkTileX, checkTileY);
-            if (tileType === 'Sea' || tileType === 'DeepSea' || tileType === 'HotSpringWater') {
+            if (isWaterTileTag(tileType)) {
                 return true; // Found adjacent water - this is a shore position
             }
         }
@@ -362,7 +362,7 @@ function isPositionNearShore(connection: DbConnection | null, worldX: number, wo
                 const tileType = getTileTypeFromChunkData(connection, check.x, check.y);
                 if (tileType === null) continue;
                 
-                const tileIsWater = tileType === 'Sea' || tileType === 'DeepSea' || tileType === 'HotSpringWater';
+                const tileIsWater = isWaterTileTag(tileType);
                 
                 // Found boundary (water/land transition) = shore nearby
                 if (tileIsWater !== onWater) {
@@ -440,7 +440,7 @@ function calculateShoreDistance(connection: DbConnection | null, worldX: number,
                 const checkTileType = getTileTypeFromChunkData(connection, checkTileX, checkTileY);
                 
                 // If this tile is not water, we found shore
-                if (checkTileType !== null && checkTileType !== 'Sea' && checkTileType !== 'DeepSea' && checkTileType !== 'HotSpringWater') {
+                if (!isWaterTileTag(checkTileType)) {
                     const distancePixels = radius * TILE_SIZE;
                     // Cap at MAX_SEARCH_RADIUS_PIXELS to match server behavior
                     return Math.min(distancePixels, MAX_SEARCH_RADIUS_PIXELS);

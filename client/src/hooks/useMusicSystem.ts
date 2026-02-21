@@ -106,6 +106,9 @@ const HOT_SPRINGS_TRACKS: MusicTrack[] = [
     { filename: 'Steam_Over_Birchwood.mp3', displayName: 'Steam Over Birchwood', path: 'hs/Steam_Over_Birchwood.mp3' },
 ];
 
+// Deep Sea: intentionally empty playlist - eerie silence, ambient from useAmbientSounds only
+const DEEP_SEA_TRACKS: MusicTrack[] = [];
+
 // Zone-based track mapping (alpine village shares hunting village soundtrack)
 const ZONE_TRACKS: Record<MusicZone, MusicTrack[]> = {
     normal: NORMAL_TRACKS,
@@ -115,7 +118,7 @@ const ZONE_TRACKS: Record<MusicZone, MusicTrack[]> = {
     alk_compound: ALK_TRACKS,
     alk_substation: ALK_TRACKS,
     hot_springs: HOT_SPRINGS_TRACKS,
-    deep_sea: NORMAL_TRACKS, // Same as normal; ambient from useAmbientSounds
+    deep_sea: DEEP_SEA_TRACKS, // Empty - eerie silence underwater
 };
 
 // All tracks for preloading
@@ -841,6 +844,20 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
             }));
         }
 
+        // Empty zone (e.g. deep_sea) - no music to play, eerie silence
+        if (zoneTracks.length === 0) {
+            setState(prev => ({
+                ...prev,
+                currentZone: zoneToUse,
+                playlist: [],
+                playlistPosition: 0,
+                isPlaying: false,
+                currentTrack: null,
+                currentTrackIndex: -1,
+            }));
+            return;
+        }
+
         // If we're at the beginning (position 0), randomize the starting position
         // This ensures each game session starts with a different song
         if (startPosition === 0) {
@@ -1204,22 +1221,37 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
         if (debouncedZone !== previousDebouncedZoneRef.current) {
             previousDebouncedZoneRef.current = debouncedZone;
 
+            const newZoneTracks = ZONE_TRACKS[debouncedZone] || NORMAL_TRACKS;
+
             if (currentState.isPlaying) {
-                const newZoneTracks = ZONE_TRACKS[debouncedZone] || NORMAL_TRACKS;
-                const newPlaylist = createShuffledPlaylist(newZoneTracks.length);
-                const randomStart = Math.floor(Math.random() * newPlaylist.length);
+                if (newZoneTracks.length === 0) {
+                    // Empty zone (e.g. deep_sea) - stop music for eerie silence
+                    stopMusic();
+                    setState(prev => ({
+                        ...prev,
+                        currentZone: debouncedZone,
+                        playlist: [],
+                        playlistPosition: 0,
+                        isPlaying: false,
+                        currentTrack: null,
+                        currentTrackIndex: -1,
+                    }));
+                } else {
+                    const newPlaylist = createShuffledPlaylist(newZoneTracks.length);
+                    const randomStart = Math.floor(Math.random() * newPlaylist.length);
 
-                setState(prev => ({
-                    ...prev,
-                    currentZone: debouncedZone,
-                    playlist: newPlaylist,
-                    playlistPosition: randomStart,
-                }));
+                    setState(prev => ({
+                        ...prev,
+                        currentZone: debouncedZone,
+                        playlist: newPlaylist,
+                        playlistPosition: randomStart,
+                    }));
 
-                const firstTrackIndex = newPlaylist[randomStart];
-                playTrack(firstTrackIndex, true, debouncedZone).catch(err =>
-                    console.error('🎵 Failed to switch zone music:', err)
-                );
+                    const firstTrackIndex = newPlaylist[randomStart];
+                    playTrack(firstTrackIndex, true, debouncedZone).catch(err =>
+                        console.error('🎵 Failed to switch zone music:', err)
+                    );
+                }
             } else {
                 setState(prev => ({
                     ...prev,
@@ -1229,7 +1261,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
                 }));
             }
         }
-    }, [debouncedZone, playTrack]);
+    }, [debouncedZone, playTrack, stopMusic]);
 
     // Get the current zone's tracklist for UI
     const currentZoneTracks = useMemo(() => {

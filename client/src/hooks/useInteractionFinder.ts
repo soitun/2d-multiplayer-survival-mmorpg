@@ -96,6 +96,7 @@ import { isCompoundMonument } from '../config/compoundBuildings';
 import { PLAYER_DOOR_INTERACTION_DISTANCE_SQUARED, DOOR_RENDER_Y_OFFSET } from '../utils/renderers/doorRenderingUtils'; // ADDED: Door interaction distance and render offset
 import { PLAYER_ALK_STATION_INTERACTION_DISTANCE_SQUARED, ALK_STATION_Y_OFFSET } from '../utils/renderers/alkStationRenderingUtils'; // ADDED: ALK station interaction distance
 import { getResourceConfig } from '../utils/renderers/resourceConfigurations';
+import { isWaterTileTag } from '../utils/tileTypeGuards';
 import type { ResourceType } from '../types/resourceTypes';
 
 // Generic harvestable resource interaction distance (balanced: 50% increase from original 80px)
@@ -988,7 +989,7 @@ export function useInteractionFinder({
                                 if (worldTiles) {
                                     const tileKey = `${checkTileX}_${checkTileY}`;
                                     const tile = worldTiles.get(tileKey);
-                                    if (tile && (tile.tileType.tag === 'Sea' || tile.tileType.tag === 'DeepSea' || tile.tileType.tag === 'HotSpringWater')) {
+                                    if (tile && isWaterTileTag(tile.tileType.tag)) {
                                         // This is a water tile and it's closer than our current closest
                                         closestWaterDistSq = distanceToTileSq;
                                         closestWaterPosition = { x: tileCenterX, y: tileCenterY };

@@ -1,5 +1,6 @@
 // Procedural Grass Renderer - No Database Subscriptions Required
 // Generates grass based on world coordinates using deterministic algorithms
+import { isWaterTileTag } from '../tileTypeGuards';
 
 export interface ProceduralGrassConfig {
     density: number; // Grass per 48x48 tile
@@ -49,7 +50,7 @@ export class ProceduralGrassRenderer {
         }
 
         // Don't generate grass on water tiles (Sea, DeepSea, or HotSpringWater)
-        if (tileType === 'Sea' || tileType === 'DeepSea' || tileType === 'HotSpringWater') {
+        if (isWaterTileTag(tileType)) {
             this.grassCache.set(tileKey, []);
             return [];
         }
