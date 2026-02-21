@@ -47,7 +47,7 @@ impl AnimalBehavior for SalmonSharkBehavior {
         AnimalStats {
             max_health: 150.0, // Moderate health - 3-5 harpoon hits
             attack_damage: 45.0, // High damage - devastating bite
-            attack_range: 73.0, // Increased from 64 to compensate for collision pushback preventing hits
+            attack_range: 95.0, // Generous range - sharks lunge; collision pushback was preventing hits at 73
             attack_speed_ms: 1200, // Fast attack cycle
             movement_speed: 180.0, // Very fast patrol speed in water
             sprint_speed: 280.0, // Extremely fast chase speed - requires flippers to outrun
@@ -127,21 +127,17 @@ impl AnimalBehavior for SalmonSharkBehavior {
             },
             
             AnimalState::Patrolling | AnimalState::Swimming => {
-                // Swimming behavior - actively looking for prey
+                // Swimming behavior - actively looking for prey (underwater OR surface)
                 if let Some(player) = detected_player {
-                    // Check if player is in water (snorkeling)
-                    if player.is_snorkeling {
-                        let distance = get_player_distance(animal, player);
+                    let distance = get_player_distance(animal, player);
+                    
+                    if distance <= stats.chase_trigger_range {
+                        // Chase the player - sharks attack both snorkeling and surface players
+                        transition_to_state(animal, AnimalState::SwimmingChase, current_time, Some(player.identity), "prey detected");
                         
-                        if distance <= stats.chase_trigger_range {
-                            // Chase the player in water!
-                            transition_to_state(animal, AnimalState::SwimmingChase, current_time, Some(player.identity), "prey detected in water");
-                            
-                            // 🔊 SHARK SOUND: Silent but deadly - just log for now
-                            log::info!("🦈 Salmon Shark {} detected underwater prey {} at {:.1}px - initiating chase!", 
-                                      animal.id, player.identity, distance);
-                            return Ok(());
-                        }
+                        log::info!("🦈 Salmon Shark {} detected prey {} at {:.1}px - initiating chase!", 
+                                  animal.id, player.identity, distance);
+                        return Ok(());
                     }
                 }
                 
@@ -152,18 +148,10 @@ impl AnimalBehavior for SalmonSharkBehavior {
             },
             
             AnimalState::Chasing | AnimalState::SwimmingChase => {
-                // Aggressive underwater chase - sharks are extremely persistent
+                // Aggressive chase - sharks attack both underwater and surface players (boats, wading)
                 if let Some(target_id) = animal.target_player_id {
                     if let Some(target_player) = ctx.db.player().identity().find(&target_id) {
                         let distance = get_player_distance(animal, &target_player);
-                        
-                        // Check if target left the water
-                        if !target_player.is_snorkeling {
-                            // Target surfaced - patrol near where they surfaced
-                            transition_to_state(animal, AnimalState::Swimming, current_time, None, "prey surfaced");
-                            log::info!("🦈 Salmon Shark {} lost target {} - prey surfaced", animal.id, target_id);
-                            return Ok(());
-                        }
                         
                         // Sharks chase VERY far (10x normal abandonment range)
                         let abandonment_distance = stats.chase_trigger_range * self.get_chase_abandonment_multiplier();
@@ -229,17 +217,11 @@ impl AnimalBehavior for SalmonSharkBehavior {
     }
 
     fn should_chase_player(&self, ctx: &ReducerContext, animal: &WildAnimal, stats: &AnimalStats, player: &Player) -> bool {
-        // Sharks only chase players who are in the water (snorkeling)
-        if !player.is_snorkeling {
-            return false;
-        }
-        
-        // Check if shark is in water
+        // Sharks chase any player in range - both underwater (snorkeling) and surface (boats, wading)
         if !is_position_on_water(ctx, animal.pos_x, animal.pos_y) {
             return false;
         }
         
-        // Chase if within range
         let distance = get_player_distance(animal, player);
         distance <= stats.chase_trigger_range
     }
@@ -249,27 +231,14 @@ impl AnimalBehavior for SalmonSharkBehavior {
         ctx: &ReducerContext,
         animal: &mut WildAnimal,
         attacker: &Player,
-        stats: &AnimalStats,
+        _stats: &AnimalStats,
         current_time: Timestamp,
-        rng: &mut impl Rng,
+        _rng: &mut impl Rng,
     ) -> Result<(), String> {
-        // 🦈 SHARK AGGRESSION: When attacked, sharks become even more aggressive
-        // They will relentlessly chase the attacker
-        
-        // If attacker is in water, chase them
-        if attacker.is_snorkeling {
-            transition_to_state(animal, AnimalState::SwimmingChase, current_time, Some(attacker.identity), "shark retaliation");
-            log::info!("🦈 Salmon Shark {} ENRAGED by player {}! Initiating aggressive pursuit!", 
-                      animal.id, attacker.identity);
-        } else {
-            // Attacker is on surface - patrol near the area
-            animal.investigation_x = Some(attacker.position_x);
-            animal.investigation_y = Some(attacker.position_y);
-            transition_to_state(animal, AnimalState::Swimming, current_time, None, "circling attack location");
-            log::info!("🦈 Salmon Shark {} attacked by surface player {} - circling area", 
-                      animal.id, attacker.identity);
-        }
-        
+        // 🦈 SHARK AGGRESSION: When attacked, sharks chase the attacker (underwater or surface)
+        transition_to_state(animal, AnimalState::SwimmingChase, current_time, Some(attacker.identity), "shark retaliation");
+        log::info!("🦈 Salmon Shark {} ENRAGED by player {}! Initiating aggressive pursuit!", 
+                  animal.id, attacker.identity);
         Ok(())
     }
     

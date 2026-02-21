@@ -741,6 +741,7 @@ export const renderYSortedEntities = ({
           type === 'dropped_item' || // Dropped items should be visible underwater (thrown harpoons, etc.)
           type === 'projectile' || // Projectiles should be visible underwater (thrown harpoons in flight, etc.)
           type === 'wild_animal' || // Sharks and jellyfish swim in water - must be visible when snorkeling. Land animals on shore may also be in view.
+          type === 'animal_corpse' || // Shark and jellyfish corpses spawn in water - harvestable with Tidebreaker Blade
           isSeaweedBed ||
           isPlantedSeaweed || // Planted seaweed fronds visible underwater
           (type === 'fumarole' && (entity as SpacetimeDBFumarole).isSubmerged);
@@ -1615,7 +1616,16 @@ export const renderYSortedEntities = ({
           }
       } else if (type === 'animal_corpse') {
           const animalCorpse = entity as SpacetimeDBAnimalCorpse;
-          renderAnimalCorpse(ctx, animalCorpse, nowMs);
+          if (isLocalPlayerSnorkeling) {
+              // Underwater view - apply teal tint (shark/jellyfish corpses spawn in water)
+              ctx.save();
+              ctx.globalAlpha = 1.0;
+              ctx.filter = 'sepia(20%) hue-rotate(140deg) saturate(120%)';
+              renderAnimalCorpse(ctx, animalCorpse, nowMs);
+              ctx.restore();
+          } else {
+              renderAnimalCorpse(ctx, animalCorpse, nowMs);
+          }
       } else if (type === 'barrel') {
           const barrel = entity as any; // Use any for now, will be properly typed
           // Check if this barrel is the closest interactable target  

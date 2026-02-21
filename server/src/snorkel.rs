@@ -87,7 +87,7 @@ pub fn toggle_snorkel(ctx: &ReducerContext) -> Result<(), String> {
             if let Some(equipped_def_id) = equip.equipped_item_def_id {
                 // Check if the equipped item is underwater-capable
                 let is_underwater_capable = if let Some(item_def) = item_defs_table.id().find(equipped_def_id) {
-                    matches!(item_def.name.as_str(), "Reed Harpoon" | "Reed Harpoon Gun" | "Diving Pick")
+                    matches!(item_def.name.as_str(), "Reed Harpoon" | "Reed Harpoon Gun" | "Diving Pick" | "Tidebreaker Blade")
                 } else {
                     false
                 };

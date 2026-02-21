@@ -2328,12 +2328,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // --- STEP 0.75: Render sea barrel/buoy water shadows (BEFORE swimming bottom halves so player renders on top) ---
     // PERFORMANCE: Use O(1) waterTileLookup instead of getTileTypeFromChunkData per barrel per frame
+    // Skip on sea transition tiles (Beach/Sea, Beach/HotSpringWater, Asphalt/Sea) - same as player swimming shadow
     const isOnSeaTileForBarrels = (worldX: number, worldY: number): boolean => {
       const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
       return waterTileLookup.get(`${tileX},${tileY}`) ?? false;
     };
     visibleBarrels.forEach(barrel => {
-      renderSeaBarrelWaterShadowOnly(ctx, barrel, now_ms, currentCycleProgress, isOnSeaTileForBarrels);
+      renderSeaBarrelWaterShadowOnly(ctx, barrel, now_ms, currentCycleProgress, isOnSeaTileForBarrels, seaTransitionTileLookup);
     });
     // --- END SEA BARREL WATER SHADOWS ---
 

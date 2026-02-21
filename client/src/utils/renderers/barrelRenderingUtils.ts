@@ -33,6 +33,7 @@ import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { imageManager } from './imageManager'; // Import image manager
 import { isNightTime } from '../../config/dayNightConstants';
+import { worldPosToTileKey } from './placementRenderingUtils';
 
 // --- Constants --- (Keep exportable if used elsewhere)
 export const BARREL_WIDTH = 86; // Standard barrel size (increased from 72)
@@ -244,18 +245,22 @@ function getBarrelOffscreenCanvas(width: number, height: number): { canvas: Offs
 /**
  * Renders ONLY the water shadow for a barrel on water (sea barrels or road barrels near coast).
  * Called in an early pass so swimming player bottom halves render ON TOP of it.
+ * Skips when shadow is CAST on sea transition tiles (Beach/Sea, Beach/HotSpringWater, Asphalt/Sea) - same as player swimming shadow.
  */
 export function renderSeaBarrelWaterShadowOnly(
     ctx: CanvasRenderingContext2D,
     barrel: Barrel,
     nowMs: number,
     cycleProgress: number,
-    isOnSeaTile?: (worldX: number, worldY: number) => boolean
+    isOnSeaTile?: (worldX: number, worldY: number) => boolean,
+    seaTransitionTileLookup?: Map<string, boolean>
 ): void {
     if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) return;
     const variantIndex = Number(barrel.variant ?? 0);
     // Only draw water shadow when barrel is actually on a sea tile (sea barrels on beach use normal ground shadow)
     if (!isOnSeaTile || !isOnSeaTile(barrel.posX, barrel.posY)) return;
+    // Skip when barrel itself is on a transition tile (straddling water/beach boundary)
+    if (seaTransitionTileLookup?.get(worldPosToTileKey(barrel.posX, barrel.posY))) return;
 
     const imageSource = BARREL_VARIANT_IMAGES[variantIndex] || BARREL_VARIANT_IMAGES[0];
     const img = imageManager.getImage(imageSource);
@@ -274,6 +279,21 @@ export function renderSeaBarrelWaterShadowOnly(
     const shadowOffsetY = drawHeight * 0.9;
     const shadowX = baseX + shadowOffsetX;
     const shadowY = centerY + shadowOffsetY;
+
+    // Skip when shadow overlaps transition tiles - shadow extends across multiple tiles, sample key points
+    if (seaTransitionTileLookup && seaTransitionTileLookup.size > 0) {
+        const shadowExtentX = drawWidth * 0.5; // Shadow extends ~half width from center
+        const shadowExtentY = drawHeight * 0.5;
+        const samplePoints = [
+            [shadowX, shadowY],
+            [shadowX + shadowExtentX, shadowY],
+            [shadowX, shadowY + shadowExtentY],
+            [shadowX + shadowExtentX, shadowY + shadowExtentY],
+        ];
+        for (const [px, py] of samplePoints) {
+            if (seaTransitionTileLookup.get(worldPosToTileKey(px, py))) return;
+        }
+    }
 
     const { shakeOffsetX, shakeOffsetY } = calculateShakeOffsets(
         barrel, barrel.id.toString(),

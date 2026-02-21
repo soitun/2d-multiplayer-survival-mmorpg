@@ -353,7 +353,7 @@ pub fn set_active_item_reducer(ctx: &ReducerContext, item_instance_id: u64) -> R
             // If equipping something else and snorkeling, emerge from water
             // EXCEPTION: Underwater-capable items can be used while snorkeling
             let is_underwater_capable = matches!(item_def.name.as_str(), 
-                "Reed Harpoon" | "Reed Harpoon Gun" | "Diving Pick" | "Seaweed Frond"
+                "Reed Harpoon" | "Reed Harpoon Gun" | "Diving Pick" | "Seaweed Frond" | "Tidebreaker Blade"
             );
             if player.is_snorkeling && !is_underwater_capable {
                 player.is_snorkeling = false;

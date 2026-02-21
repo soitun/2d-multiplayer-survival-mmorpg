@@ -10,7 +10,7 @@
  *   - Water-only: Can ONLY exist in Sea tiles (water)                        *
  *   - Very slow: Drifts lazily through the water                             *
  *   - Passive: Does not chase or approach players                            *
- *   - Electric shock: Periodic AOE damage (every 20-30 seconds)              *
+ *   - Electric shock: Periodic AOE damage (every 10-16 seconds)              *
  *   - Burns: Shock applies burn effect to players                            *
  *   - Cannot be tamed or harvested                                           *
  *   - No drops: Does not drop loot when killed                               *
@@ -38,8 +38,8 @@ use super::core::{
 // Jellyfish constants
 const JELLYFISH_SHOCK_RADIUS: f32 = 150.0; // AOE shock radius in pixels
 const JELLYFISH_SHOCK_RADIUS_SQUARED: f32 = JELLYFISH_SHOCK_RADIUS * JELLYFISH_SHOCK_RADIUS;
-const JELLYFISH_SHOCK_MIN_INTERVAL_MS: i64 = 20_000; // Minimum 20 seconds between shocks
-const JELLYFISH_SHOCK_MAX_INTERVAL_MS: i64 = 30_000; // Maximum 30 seconds between shocks
+const JELLYFISH_SHOCK_MIN_INTERVAL_MS: i64 = 10_000; // Minimum 10 seconds between shocks (more frequent)
+const JELLYFISH_SHOCK_MAX_INTERVAL_MS: i64 = 16_000; // Maximum 16 seconds between shocks
 const JELLYFISH_SHOCK_VISUAL_DURATION_MS: i64 = 500; // Yellow glow duration
 const JELLYFISH_SHOCK_DAMAGE: f32 = 15.0; // Direct damage from shock
 const JELLYFISH_BURN_DAMAGE: f32 = 12.0; // Total burn damage over time

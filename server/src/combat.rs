@@ -5566,7 +5566,7 @@ pub fn play_weapon_hit_sound(
     if item_def.name == "Stone Hatchet" || item_def.name == "Metal Hatchet" || item_def.name == "Stone Pickaxe" || item_def.name == "Metal Pickaxe" || item_def.name == "Bush Knife" || item_def.name == "AK74 Bayonet" {
         sound_events::emit_melee_hit_sharp_sound(ctx, hit_pos_x, hit_pos_y, attacker_id);
         log::debug!("Emitted melee_hit_sharp sound for {} hitting target", item_def.name);
-    } else if item_def.name == "Wooden Spear" || item_def.name == "Stone Spear" || item_def.name == "Reed Harpoon" || item_def.name == "Bone Knife" || item_def.name == "Bone Gaff Hook" {
+    } else if item_def.name == "Wooden Spear" || item_def.name == "Stone Spear" || item_def.name == "Reed Harpoon" || item_def.name == "Bone Knife" || item_def.name == "Bone Gaff Hook" || item_def.name == "Tidebreaker Blade" {
         sound_events::emit_spear_hit_sound(ctx, hit_pos_x, hit_pos_y, attacker_id);
         log::debug!("Emitted spear_hit sound for {} hitting target", item_def.name);
     } else if item_def.name == "Combat Ladle" || item_def.name == "Repair Hammer" || item_def.name == "Rock" || 

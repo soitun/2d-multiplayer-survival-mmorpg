@@ -876,6 +876,7 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
         let is_active_state = matches!(animal.state, 
             AnimalState::Chasing | AnimalState::Attacking | AnimalState::Fleeing | 
             AnimalState::Following | AnimalState::Protecting | AnimalState::FlyingChase |
+            AnimalState::SwimmingChase | // Salmon shark underwater/surface pursuit
             AnimalState::Scavenging | AnimalState::Stealing
         );
         
@@ -2239,13 +2240,11 @@ fn find_detected_player(ctx: &ReducerContext, animal: &WildAnimal, stats: &Anima
         }
         
         // 🤿 SNORKEL STEALTH: Players using snorkel are hidden from LAND animals (invisible beneath surface)
-        // 🦈 AQUATIC EXCEPTION: Salmon sharks and jellyfish ONLY detect snorkeling players - they hunt underwater
-        let is_aquatic_predator = matches!(animal.species, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish);
-        if is_aquatic_predator {
-            if !player.is_snorkeling {
-                continue; // Aquatic species only care about players in the water with them
-            }
-        } else if player.is_snorkeling {
+        // 🦈 Salmon sharks detect ALL players near water (attack both surface and underwater)
+        // 🎐 Jellyfish only detect snorkeling players (passive AOE hazard for underwater only)
+        if animal.species == AnimalSpecies::Jellyfish && !player.is_snorkeling {
+            continue; // Jellyfish only care about players underwater
+        } else if animal.species != AnimalSpecies::SalmonShark && animal.species != AnimalSpecies::Jellyfish && player.is_snorkeling {
             log::debug!("🤿 {:?} {} cannot detect player {} - snorkeling underwater",
                        animal.species, animal.id, player.identity);
             continue; // Land animals cannot detect snorkeling players - they're hidden
@@ -3687,7 +3686,8 @@ fn apply_damage_knockback_effects(ctx: &ReducerContext, animal: &WildAnimal, att
                 }
                 
                 // --- SMALL PLAYER RECOIL FOR MELEE HITS ---
-                if distance <= 100.0 { // Melee range
+                // Skip recoil when snorkeling - 8px push can move player from water to land, forcing unwanted surface emergence
+                if distance <= 100.0 && !attacker.is_snorkeling {
                     let attacker_recoil_distance = 8.0; // Small recoil - focus is on pushing the animal
                     let attacker_recoil_dx = (-dx_animal_from_attacker / distance) * attacker_recoil_distance;
                     let attacker_recoil_dy = (-dy_animal_from_attacker / distance) * attacker_recoil_distance;
@@ -5679,16 +5679,10 @@ pub fn handle_standard_damage_response(
             },
             
             AnimalSpecies::SalmonShark => {
-                // Salmon Sharks NEVER flee - they become MORE aggressive when damaged
-                // Check if attacker is in water (snorkeling)
-                if attacker.is_snorkeling {
-                    transition_to_state(animal, AnimalState::SwimmingChase, current_time, Some(attacker.identity), "shark enraged");
-                    log::info!("Salmon Shark {} ENRAGED by attacker - aggressive pursuit!", animal.id);
-                } else {
-                    // Attacker on surface - patrol near area
-                    transition_to_state(animal, AnimalState::Swimming, current_time, None, "shark circling");
-                    log::info!("Salmon Shark {} circling area where attacked from surface", animal.id);
-                }
+                // Salmon Sharks NEVER flee - chase attacker (underwater or surface)
+                // Primary handler is SalmonSharkBehavior::handle_damage_response
+                transition_to_state(animal, AnimalState::SwimmingChase, current_time, Some(attacker.identity), "shark enraged");
+                log::info!("Salmon Shark {} ENRAGED by attacker - aggressive pursuit!", animal.id);
             },
             
             AnimalSpecies::Jellyfish => {
