@@ -1353,7 +1353,8 @@ export const renderYSortedEntities = ({
           const isOnSeaTile = connection
               ? (worldX: number, worldY: number): boolean => {
                   const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
-                  return getTileTypeFromChunkData(connection!, tileX, tileY) === 'Sea';
+                  const tileType = getTileTypeFromChunkData(connection!, tileX, tileY);
+                  return tileType === 'Sea' || tileType === 'DeepSea';
               }
               : undefined;
           // Apply underwater teal tint when snorkeling (items visible underwater)
@@ -1637,7 +1638,7 @@ export const renderYSortedEntities = ({
               if (!connection) return false;
               const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
               const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
-              return tileType === 'Sea';
+              return tileType === 'Sea' || tileType === 'DeepSea';
           };
           
           // Render barrel - skip water shadow (drawn in early pass so swimming player bottom half renders on top)

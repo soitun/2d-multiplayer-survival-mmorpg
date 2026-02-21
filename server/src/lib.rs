@@ -583,8 +583,8 @@ pub fn get_effective_player_radius(is_crouching: bool) -> f32 {
 pub const WATER_SPEED_PENALTY: f32 = 0.5; // 50% speed reduction (50% of normal speed)
 
 // World Dimensions
-pub const WORLD_WIDTH_TILES: u32 = 700;
-pub const WORLD_HEIGHT_TILES: u32 = 700;
+pub const WORLD_WIDTH_TILES: u32 = 800;
+pub const WORLD_HEIGHT_TILES: u32 = 800;
 // Change back to f32 as they are used in float calculations
 pub const WORLD_WIDTH_PX: f32 = (WORLD_WIDTH_TILES * TILE_SIZE_PX) as f32;
 pub const WORLD_HEIGHT_PX: f32 = (WORLD_HEIGHT_TILES * TILE_SIZE_PX) as f32;
@@ -614,10 +614,7 @@ pub fn is_player_on_water(ctx: &ReducerContext, player_x: f32, player_y: f32) ->
     
     // Use the indexed world_position btree for fast lookup
     for tile in world_tiles.idx_world_position().filter((tile_x, tile_y)) {
-        match tile.tile_type {
-            TileType::Sea => return true,
-            _ => return false,
-        }
+        return tile.tile_type.is_water(); // Sea, DeepSea, HotSpringWater
     }
     
     // No tile found at this position, assume land (safety fallback)
@@ -2574,6 +2571,7 @@ pub enum TileType {
     Dirt, 
     DirtRoad,
     Sea,
+    DeepSea,  // Outer ring - empty deep ocean, no spawns, distinct rendering
     Beach,
     Sand,
     HotSpringWater, // Distinct type for hot spring water pools (teal/turquoise)
@@ -2587,15 +2585,15 @@ pub enum TileType {
 }
 
 impl TileType {
-    /// Returns true if this tile type is any form of water (Sea or HotSpringWater)
-    /// Use this instead of checking `== TileType::Sea` to include hot springs
+    /// Returns true if this tile type is any form of water (Sea, DeepSea, or HotSpringWater)
+    /// Use this instead of checking `== TileType::Sea` to include hot springs and deep sea
     pub fn is_water(&self) -> bool {
-        matches!(self, TileType::Sea | TileType::HotSpringWater)
+        matches!(self, TileType::Sea | TileType::DeepSea | TileType::HotSpringWater)
     }
     
     /// Returns true if this tile type is specifically ocean/sea water (not hot springs)
     pub fn is_sea_water(&self) -> bool {
-        matches!(self, TileType::Sea)
+        matches!(self, TileType::Sea | TileType::DeepSea)
     }
     
     /// Returns true if this tile type is hot spring water
@@ -2623,7 +2621,7 @@ impl TileType {
     /// Returns true if this tile should block building placement
     pub fn blocks_building(&self) -> bool {
         // Water tiles and asphalt (compounds) block building
-        matches!(self, TileType::Sea | TileType::HotSpringWater | TileType::Asphalt)
+        matches!(self, TileType::Sea | TileType::DeepSea | TileType::HotSpringWater | TileType::Asphalt)
     }
     
     /// Returns true if this tile should have water visual effects (waves, etc.)
@@ -2935,6 +2933,7 @@ impl TileType {
             TileType::Alpine => 11,
             TileType::TundraGrass => 12,
             TileType::Tilled => 13,
+            TileType::DeepSea => 14,
         }
     }
     
@@ -2955,6 +2954,7 @@ impl TileType {
             11 => Some(TileType::Alpine),
             12 => Some(TileType::TundraGrass),
             13 => Some(TileType::Tilled),
+            14 => Some(TileType::DeepSea),
             _ => None,
         }
     }
@@ -2976,7 +2976,7 @@ impl TileType {
     
     /// Returns true if this tile can support trees (not water, alpine, or paved)
     pub fn can_have_trees(&self) -> bool {
-        !matches!(self, TileType::Sea | TileType::HotSpringWater | TileType::Asphalt | TileType::Alpine | TileType::Beach | TileType::Sand)
+        !matches!(self, TileType::Sea | TileType::DeepSea | TileType::HotSpringWater | TileType::Asphalt | TileType::Alpine | TileType::Beach | TileType::Sand)
     }
     
     /// Returns true if this tile is prepared soil (Dirt or Tilled) for farming growth bonus
@@ -2989,6 +2989,7 @@ impl TileType {
     pub fn can_be_tilled(&self) -> bool {
         !matches!(self, 
             TileType::Sea | 
+            TileType::DeepSea | 
             TileType::HotSpringWater | 
             TileType::Asphalt | 
             TileType::DirtRoad | 

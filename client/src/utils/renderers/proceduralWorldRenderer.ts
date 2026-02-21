@@ -18,7 +18,7 @@
  * 4. ANIMATION: animationTime drives water/shimmer effects. No SpacetimeDB.
  */
 
-import { gameConfig } from '../../config/gameConfig';
+import { gameConfig, DEEP_SEA_EDGE_TILES } from '../../config/gameConfig';
 import { WorldTile } from '../../generated/world_tile_type';
 import { 
     getDualGridTileInfoMultiLayer, 
@@ -39,6 +39,7 @@ function getTileBaseTexturePath(tileTypeName: string): string {
         'Dirt': 'dirt.png',
         'DirtRoad': 'dirtroad.png',
         'Sea': 'sea.png',
+        'DeepSea': 'deepsea.png',
         'Beach': 'beach.png',
         'Sand': 'beach.png', // Use beach texture for sand
         'HotSpringWater': 'hotspringwater.png',
@@ -81,7 +82,7 @@ export class ProceduralWorldRenderer {
         const promises: Promise<void>[] = [];
         
         // Load base textures for all tile types
-        const tileTypes = ['Grass', 'Dirt', 'DirtRoad', 'Sea', 'Beach', 'Sand', 'HotSpringWater', 
+        const tileTypes = ['Grass', 'Dirt', 'DirtRoad', 'Sea', 'DeepSea', 'Beach', 'Sand', 'HotSpringWater', 
                           'Quarry', 'Asphalt', 'Forest', 'Tundra', 'Alpine', 'TundraGrass'];
         
         tileTypes.forEach((tileType) => {
@@ -353,7 +354,19 @@ export class ProceduralWorldRenderer {
         const UNDERWATER_FALLBACK_COLOR = '#0a3d4f';
         
         if (!tile) {
-            // Fallback when no tile data
+            // Fallback when no tile data - edge zone likely deep sea (chunks may not be loaded yet)
+            const isEdgeZone = tileX < DEEP_SEA_EDGE_TILES || tileX >= gameConfig.worldWidthTiles - DEEP_SEA_EDGE_TILES ||
+                tileY < DEEP_SEA_EDGE_TILES || tileY >= gameConfig.worldHeightTiles - DEEP_SEA_EDGE_TILES;
+            if (!isSnorkeling && isEdgeZone) {
+                const deepSeaImg = this.tileCache.images.get('DeepSea_base');
+                if (deepSeaImg && deepSeaImg.complete && deepSeaImg.naturalHeight !== 0) {
+                    ctx.drawImage(deepSeaImg, pixelX, pixelY, pixelSize, pixelSize);
+                } else {
+                    ctx.fillStyle = '#0a1628';
+                    ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
+                }
+                return;
+            }
             if (isSnorkeling) {
                 // When snorkeling with no tile data, use underwater interior tile
                 const underwaterImg = this.tileCache.images.get('transition_Underwater_Sea');
@@ -409,7 +422,7 @@ export class ProceduralWorldRenderer {
         // === UNDERWATER SNORKELING MODE ===
         // When snorkeling, land tiles appear as dark murky blue (looking up at surface from underwater)
         // Water tiles (Sea, HotSpringWater) render normally - you're in the water seeing water
-        const isWaterTile = tileTypeName === 'Sea' || tileTypeName === 'HotSpringWater';
+        const isWaterTile = tileTypeName === 'Sea' || tileTypeName === 'DeepSea' || tileTypeName === 'HotSpringWater';
         
         if (isSnorkeling && !isWaterTile) {
             // Render land tiles using underwater interior tile from autotile
@@ -653,7 +666,7 @@ export class ProceduralWorldRenderer {
         const tileTypes = tiles.map(tile => tile?.tileType?.tag || 'unknown');
         
         // Check which corners are water (Sea or HotSpringWater)
-        const isWater = tileTypes.map(type => type === 'Sea' || type === 'HotSpringWater');
+        const isWater = tileTypes.map(type => type === 'Sea' || type === 'DeepSea' || type === 'HotSpringWater');
         
         // Count water and land corners
         const waterCount = isWater.filter(Boolean).length;
@@ -783,6 +796,9 @@ export class ProceduralWorldRenderer {
                 break;
             case 'Sea':
                 ctx.fillStyle = '#1E90FF';
+                break;
+            case 'DeepSea':
+                ctx.fillStyle = '#0a1628'; // Dark deep ocean
                 break;
             case 'Beach':
                 ctx.fillStyle = '#F5DEB3';

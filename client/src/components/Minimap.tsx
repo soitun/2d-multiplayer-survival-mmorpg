@@ -47,6 +47,10 @@ const TORCH_VISIBILITY_RADIUS_SQ = TORCH_VISIBILITY_RADIUS * TORCH_VISIBILITY_RA
 const TREE_DOT_COLOR = 'rgba(55, 255, 122, 0.6)'; // Medium-bright green - COVER and CONCEALMENT
 const ROCK_DOT_COLOR = 'rgba(187, 187, 255, 0.6)'; // Medium-bright blue - HARD COVER landmarks
 const BARREL_DOT_COLOR = 'rgba(255, 187, 68, 0.75)'; // Bright yellow-orange - LOOT and OBJECTIVES
+// Buoy constants - NAVIGATION MARKERS (spatial subscription already limits which buoys we receive)
+const BUOY_MARKER_COLOR = '#FF4444'; // Red for navigational buoys (matches night LED)
+const BUOY_MARKER_GLOW_COLOR = 'rgba(255, 68, 68, 0.6)';
+const BUOY_ICON_SIZE = 10; // Slightly larger than barrel dot for visibility
 const LIVING_CORAL_DOT_COLOR = 'rgba(255, 127, 200, 0.75)'; // Pink/coral color - UNDERWATER RESOURCES
 // Rune stone colors - matching their rune types
 const RUNE_STONE_GREEN_COLOR = '#9dff00'; // Bright cyberpunk yellow-green for agrarian rune stones
@@ -274,6 +278,8 @@ function getTerrainColor(colorValue: number): [number, number, number] {
   switch (colorValue) {
     case 0:   // Sea - Bright blue, easily recognizable as water
       return [30, 80, 140]; // Rich blue (much brighter)
+    case 8:   // DeepSea - Darker blue for outer ring (empty deep ocean)
+      return [15, 45, 95]; // Darker, deeper blue
     case 48:  // Asphalt - Dark gray for paved compounds
       return [60, 60, 60]; // Dark gray
     case 64:  // Beach - Sandy beige, distinct from water and land
@@ -306,6 +312,7 @@ function getTerrainColor(colorValue: number): [number, number, number] {
 function getTerrainType(colorValue: number): number {
   // Group similar terrain types together for region detection
   if (colorValue === 0) return 0; // Sea
+  if (colorValue === 8) return 0; // DeepSea - group with Sea for region detection
   if (colorValue === 48) return 7; // Asphalt - paved compounds (distinct)
   if (colorValue === 64) return 1; // Beach
   if (colorValue === 96) return 2; // Sand
@@ -1114,33 +1121,47 @@ export function drawMinimapOntoCanvas({
   barrels.forEach(barrel => {
     // Only show barrels that aren't destroyed (health > 0)
     if (barrel.health <= 0) return;
-    
+
+    const isBuoy = (barrel.variant ?? 0) === 6;
+
     const screenCoords = worldToMinimap(barrel.posX, barrel.posY);
     if (screenCoords) {
-      const iconSize = ENTITY_DOT_SIZE * 2.5; // Larger for objective visibility
-      const radius = iconSize / 2;
       const x = screenCoords.x;
       const y = screenCoords.y;
-      
-      // Draw circular barrel icon (●)
-      ctx.save();
-      
-      // Add bright yellow-orange glow for LOOT visibility
-      ctx.shadowColor = 'rgba(255, 187, 68, 0.6)';
-      ctx.shadowBlur = 5;
-      
-      // Draw black outline first
-      ctx.strokeStyle = RESOURCE_ICON_OUTLINE_COLOR;
-      ctx.lineWidth = RESOURCE_ICON_OUTLINE_WIDTH;
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.stroke();
-      
-      // Fill with barrel color (bright yellow-orange)
-      ctx.fillStyle = BARREL_DOT_COLOR;
-      ctx.fill();
-      
-      ctx.restore();
+
+      if (isBuoy) {
+        // Buoy: red triangle (▲) for navigation marker
+        const halfSize = BUOY_ICON_SIZE / 2;
+        ctx.save();
+        ctx.shadowColor = BUOY_MARKER_GLOW_COLOR;
+        ctx.shadowBlur = 6;
+        ctx.strokeStyle = RESOURCE_ICON_OUTLINE_COLOR;
+        ctx.lineWidth = RESOURCE_ICON_OUTLINE_WIDTH;
+        ctx.beginPath();
+        ctx.moveTo(x, y - halfSize); // Top
+        ctx.lineTo(x + halfSize, y + halfSize * 0.6); // Bottom-right
+        ctx.lineTo(x - halfSize, y + halfSize * 0.6); // Bottom-left
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = BUOY_MARKER_COLOR;
+        ctx.fill();
+        ctx.restore();
+      } else {
+        // Regular barrel: circular icon (●)
+        const iconSize = ENTITY_DOT_SIZE * 2.5;
+        const radius = iconSize / 2;
+        ctx.save();
+        ctx.shadowColor = 'rgba(255, 187, 68, 0.6)';
+        ctx.shadowBlur = 5;
+        ctx.strokeStyle = RESOURCE_ICON_OUTLINE_COLOR;
+        ctx.lineWidth = RESOURCE_ICON_OUTLINE_WIDTH;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = BARREL_DOT_COLOR;
+        ctx.fill();
+        ctx.restore();
+      }
     }
   });
 

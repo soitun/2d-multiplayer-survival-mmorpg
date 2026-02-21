@@ -49,7 +49,7 @@ function rebuildSet(wt: Map<string, any>): void {
   _wS.clear();
   wt.forEach(t => {
     const tag = t.tileType?.tag;
-    if (tag === 'Sea' || tag === 'HotSpringWater') _wS.add(tk(t.worldX | 0, t.worldY | 0));
+    if (tag === 'Sea' || tag === 'HotSpringWater' || tag === 'DeepSea') _wS.add(tk(t.worldX | 0, t.worldY | 0));
   });
   _wR = wt;
 }

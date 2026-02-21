@@ -48,8 +48,8 @@ export class ProceduralGrassRenderer {
             return this.grassCache.get(tileKey)!;
         }
 
-        // Don't generate grass on water tiles (Sea or HotSpringWater)
-        if (tileType === 'Sea' || tileType === 'HotSpringWater') {
+        // Don't generate grass on water tiles (Sea, DeepSea, or HotSpringWater)
+        if (tileType === 'Sea' || tileType === 'DeepSea' || tileType === 'HotSpringWater') {
             this.grassCache.set(tileKey, []);
             return [];
         }

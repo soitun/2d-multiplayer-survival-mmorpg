@@ -1289,7 +1289,7 @@ export function useEntityFiltering(
           if (tileIndex >= 0 && tileIndex < chunk.tileTypes.length) {
             const tileTypeU8 = chunk.tileTypes[tileIndex];
             // Filter out grass on Sea (3) and HotSpringWater (6) tiles
-            if (tileTypeU8 === 3 || tileTypeU8 === 6) {
+            if (tileTypeU8 === 3 || tileTypeU8 === 6 || tileTypeU8 === 14) { // Sea, HotSpringWater, DeepSea
               filteredByWater++;
               isWaterTile = true;
             }

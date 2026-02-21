@@ -108,6 +108,6 @@ export function createIsWaterTile(
     if (tileIndex < 0 || tileIndex >= chunk.tileTypes.length) return false;
 
     const tileTypeU8 = chunk.tileTypes[tileIndex];
-    return tileTypeU8 === 3 || tileTypeU8 === 6; // Sea, HotSpringWater
+    return tileTypeU8 === 3 || tileTypeU8 === 6 || tileTypeU8 === 14; // Sea, HotSpringWater, DeepSea
   };
 }

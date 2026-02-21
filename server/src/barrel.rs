@@ -1375,12 +1375,8 @@ pub fn spawn_buoy_barrels(ctx: &ReducerContext) -> Result<(), String> {
                     continue;
                 }
 
-                // Ocean water only (excludes rivers, lakes, beach-adjacent) - no deep-sea check
-                if !crate::environment::is_position_on_ocean_water(ctx, barrel_x, barrel_y) {
-                    continue;
-                }
-                // Exclude outer deep sea ring - buoys spawn in inner ocean only
-                if crate::environment::is_position_in_outer_deep_sea_ring(barrel_x, barrel_y) {
+                // Buoys ONLY spawn on Sea↔DeepSea transition tiles (the boundary)
+                if !crate::environment::is_position_on_sea_deepsea_transition(ctx, barrel_x, barrel_y) {
                     continue;
                 }
 

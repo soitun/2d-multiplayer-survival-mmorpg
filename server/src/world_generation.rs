@@ -1420,8 +1420,10 @@ fn generate_wavy_shore_distance_with_islands(config: &WorldGenConfig, noise: &Pe
     let center_x = width as f64 / 2.0;
     let center_y = height as f64 / 2.0;
     
-    // Main island - back to original size
-    let base_island_radius = (width.min(height) as f64 * 0.35).min(center_x.min(center_y) - 20.0);
+    // Main island - 70% of map size for radius reference, so island doesn't overfill; leaves clear sea zone.
+    let reference_map_size = (width.min(height) as f64) * 0.70;
+    const ISLAND_RADIUS_FRACTION: f64 = 0.35;
+    let base_island_radius = (reference_map_size * ISLAND_RADIUS_FRACTION).min(center_x.min(center_y) - 50.0);
     
     // EXPANDED SOUTH BEACHES: Stretch the main island shape southward
     // The south side gets 1.3x the radius to create larger beach zones
@@ -1525,8 +1527,9 @@ fn generate_wavy_shore_distance(config: &WorldGenConfig, noise: &Perlin, width: 
     let center_x = width as f64 / 2.0;
     let center_y = height as f64 / 2.0;
     
-    // Main island - back to original size
-    let base_island_radius = (width.min(height) as f64 * 0.35).min(center_x.min(center_y) - 20.0); // Back to original 0.35
+    // Main island - 70% of map size (matches generate_wavy_shore_distance_with_islands)
+    let reference_map_size = (width.min(height) as f64) * 0.70;
+    let base_island_radius = (reference_map_size * 0.35).min(center_x.min(center_y) - 50.0);
     
     // Generate main island
     for y in 0..height {
@@ -2007,9 +2010,8 @@ fn trace_ring_road(roads: &mut Vec<Vec<bool>>, noise: &Perlin, center_x: usize, 
     let center_x_f = center_x as f64;
     let center_y_f = center_y as f64;
     
-    // Calculate ring road radius - position it between the center and the island edge
-    // The main island has radius of about 35% of map size, so place ring at about 60% to stay on land
-    let base_ring_radius = (width.min(height) as f64 * 0.25).min(center_x_f.min(center_y_f) - 30.0);
+    // Calculate ring road radius - fixed to match fixed island size (600x600 reference)
+    let base_ring_radius = (600.0_f64 * 0.25).min(center_x_f.min(center_y_f) - 30.0);
     
     // Number of points around the circle - higher for smoother road
     let num_points = (base_ring_radius * 0.8) as usize; // Adjust density based on radius
@@ -3577,27 +3579,64 @@ fn determine_realistic_tile_type(
     let x = world_x as usize;
     let y = world_y as usize;
     
+    // Helper: outer ring uses DeepSea (empty ocean, no spawns)
+    // Deep sea only where: (1) in outer ring, (2) no adjacent land - never touches coast
+    // Use noise for organic boundary instead of a perfect square
+    let in_outer_ring = {
+        let ring = DEEP_SEA_OUTER_RING_TILES as i32;
+        let w = features.width as i32;
+        let h = features.height as i32;
+        let min_dist = (world_x.min(w - 1 - world_x).min(world_y).min(h - 1 - world_y)) as f64;
+        let boundary_noise = noise.get([world_x as f64 * 0.018, world_y as f64 * 0.018, 90000.0]);
+        let vary = 14.0; // ±14 tiles organic variation
+        min_dist < ring as f64 + boundary_noise * vary
+    };
+    let no_adjacent_land = || {
+        // All 8 neighbors must be deep water (shore_distance < -25) - ensures buffer from any coast
+        const DEEP_WATER_THRESHOLD: f64 = -25.0;
+        for dy in -1..=1i32 {
+            for dx in -1..=1i32 {
+                if dx == 0 && dy == 0 { continue; }
+                let nx = (world_x + dx) as usize;
+                let ny = (world_y + dy) as usize;
+                if nx < features.width && ny < features.height {
+                    if features.shore_distance[ny][nx] > DEEP_WATER_THRESHOLD {
+                        return false; // Adjacent to land or shallow water
+                    }
+                }
+            }
+        }
+        true
+    };
+    let ocean_tile = |t: TileType| -> TileType {
+        if t == TileType::Sea && in_outer_ring && no_adjacent_land() {
+            TileType::DeepSea
+        } else {
+            t
+        }
+    };
+    
     if x >= features.width || y >= features.height {
-        return TileType::Sea;
+        return ocean_tile(TileType::Sea);
     }
     
     let shore_distance = features.shore_distance[y][x];
     
-    // Sea (beyond the shore)
+    // Sea (beyond the shore) - outer ring becomes DeepSea
     if shore_distance < -5.0 {
-        return TileType::Sea;
+        return ocean_tile(TileType::Sea);
     }
     
     // CRITICAL FIX: Check rivers and lakes BEFORE beach check
     // Rivers and lakes should be Sea, not Beach!
     // Rivers take priority and flow into sea
     if features.river_network[y][x] {
-        return TileType::Sea;
+        return ocean_tile(TileType::Sea);
     }
     
     // Lakes
     if features.lake_map[y][x] {
-        return TileType::Sea;
+        return ocean_tile(TileType::Sea);
     }
     
     // Hot spring water (inner pool) - uses distinct HotSpringWater tile type (teal/turquoise)
@@ -3618,7 +3657,7 @@ fn determine_realistic_tile_type(
         let dx = tile_center_x - pool_x;
         let dy = tile_center_y - pool_y;
         if dx * dx + dy * dy <= TIDE_POOL_INLET_RADIUS_PX * TIDE_POOL_INLET_RADIUS_PX {
-            return TileType::Sea;
+            return ocean_tile(TileType::Sea);
         }
     }
     
@@ -3832,7 +3871,7 @@ fn generate_tile_variant(noise: &Perlin, x: i32, y: i32, tile_type: &TileType) -
             // More variation for grass tiles
             ((variant_noise + 1.0) * 127.5) as u8
         },
-        TileType::Sea => {
+        TileType::Sea | TileType::DeepSea => {
             // Less variation for water (for consistent animation)
             ((variant_noise + 1.0) * 63.75) as u8
         },
@@ -3874,6 +3913,7 @@ pub fn generate_minimap_data(ctx: &ReducerContext, minimap_width: u32, minimap_h
             // Determine color value
             let color_value = match tile.tile_type {
                 TileType::Sea => 0,        // Dark blue water
+                TileType::DeepSea => 8,    // Darker blue (outer ring - empty deep ocean)
                 TileType::Beach => 64,     // Muted sandy beach
                 TileType::Sand => 96,      // Darker sand
                 TileType::Grass => 128,    // Muted forest green

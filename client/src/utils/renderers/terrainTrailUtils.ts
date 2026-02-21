@@ -57,7 +57,7 @@ function isTileAdjacentToWater(connection: DbConnection, tileX: number, tileY: n
       if (dx === 0 && dy === 0) continue;
 
       const neighborType = getTileTypeFromChunkData(connection, tileX + dx, tileY + dy);
-      if (neighborType === 'Sea' || neighborType === 'HotSpringWater') {
+      if (neighborType === 'Sea' || neighborType === 'DeepSea' || neighborType === 'HotSpringWater') {
         return true; // Has adjacent water tile
       }
     }

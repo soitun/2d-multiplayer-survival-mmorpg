@@ -76,10 +76,11 @@ use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 use std::collections::HashSet;
 
-// --- Outer Deep Sea Ring (700x700 map) ---
+// --- Outer Deep Sea Ring (800x800 map) ---
 /// Tiles from each edge that form the "empty deep sea" ring - no spawns for CPU performance.
-/// Inner playable area remains 600x600 effective; outer 50 tiles per edge = pure deep ocean.
-pub const DEEP_SEA_OUTER_RING_TILES: u32 = 50;
+/// Kept moderate (~70) so there's a clear band of normal sea between coast and deep ocean.
+/// Island is fixed-size (doesn't scale with map), so sea zone stays large.
+pub const DEEP_SEA_OUTER_RING_TILES: u32 = 70;
 
 /// Returns true if position is in the outer deep sea ring (within DEEP_SEA_OUTER_RING_TILES of any edge).
 /// Used to exclude sea stacks, barrels, coral, wild animals from the empty outer ocean.
@@ -632,9 +633,67 @@ fn is_too_close_to_beach(ctx: &ReducerContext, tile_x: i32, tile_y: i32) -> bool
     false // Not too close to any beach tiles
 }
 
+/// Returns true if the position is on a Sea↔DeepSea transition tile (boundary between inner ocean and outer deep sea).
+/// Used for buoy spawning - buoys only spawn on this boundary.
+pub fn is_position_on_sea_deepsea_transition(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    let tile_x = (pos_x / TILE_SIZE_PX as f32).floor() as i32;
+    let tile_y = (pos_y / TILE_SIZE_PX as f32).floor() as i32;
+    
+    if tile_x < 0 || tile_y < 0 ||
+       tile_x >= WORLD_WIDTH_TILES as i32 || tile_y >= WORLD_HEIGHT_TILES as i32 {
+        return false;
+    }
+    
+    let lookup_tile_type = |x: i32, y: i32| -> Option<crate::TileType> {
+        // Prefer compressed chunk lookup when available (fast path).
+        if let Some(tile_type) = crate::get_tile_type_at_position(ctx, x, y) {
+            return Some(tile_type);
+        }
+
+        // Fallback during early world init before compressed chunks are generated.
+        let world_tiles = ctx.db.world_tile();
+        for tile in world_tiles.idx_world_position().filter((x, y)) {
+            return Some(tile.tile_type);
+        }
+        None
+    };
+
+    let center_type = match lookup_tile_type(tile_x, tile_y) {
+        Some(t) => t,
+        None => return false,
+    };
+    
+    // Must be Sea or DeepSea
+    if center_type != crate::TileType::Sea && center_type != crate::TileType::DeepSea {
+        return false;
+    }
+    
+    // Check if any adjacent tile is the OTHER type (Sea↔DeepSea boundary)
+    let other_type = if center_type == crate::TileType::Sea {
+        crate::TileType::DeepSea
+    } else {
+        crate::TileType::Sea
+    };
+    
+    for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+        let adj_x = tile_x + dx;
+        let adj_y = tile_y + dy;
+        if adj_x >= 0 && adj_y >= 0 &&
+           adj_x < WORLD_WIDTH_TILES as i32 && adj_y < WORLD_HEIGHT_TILES as i32 {
+            if let Some(adj_type) = lookup_tile_type(adj_x, adj_y) {
+                if adj_type == other_type {
+                    return true; // Found Sea↔DeepSea boundary
+                }
+            }
+        }
+    }
+    
+    false
+}
+
 /// Checks if the given world position is on ocean water (not inland water or beaches)
 /// Returns true if the position is on deep ocean water suitable for sea stacks
-/// Excludes rivers, lakes, and beaches
+/// Excludes rivers, lakes, beaches, and DeepSea (outer ring - no spawns)
 pub fn is_position_on_ocean_water(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
     // Convert pixel position to tile coordinates
     let tile_x = (pos_x / TILE_SIZE_PX as f32).floor() as i32;
@@ -925,6 +984,10 @@ pub fn is_position_in_deep_sea(ctx: &ReducerContext, pos_x: f32, pos_y: f32, min
         return false;
     };
     
+    // DeepSea tiles are by definition in deep sea
+    if tile_type == crate::TileType::DeepSea {
+        return true;
+    }
     if tile_type != crate::TileType::Sea {
         return false; // Must be sea water
     }

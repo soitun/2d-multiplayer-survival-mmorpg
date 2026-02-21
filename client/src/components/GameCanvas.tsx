@@ -931,6 +931,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         case 11: return 'Alpine';
         case 12: return 'TundraGrass';
         case 13: return 'Tilled';
+        case 14: return 'DeepSea';
         default: return 'Grass';
       }
     };
@@ -957,7 +958,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const lookup = new Map<string, boolean>();
     if (visibleWorldTiles) {
       visibleWorldTiles.forEach(tile => {
-        lookup.set(`${tile.worldX},${tile.worldY}`, tile.tileType?.tag === 'Sea');
+        lookup.set(`${tile.worldX},${tile.worldY}`, tile.tileType?.tag === 'Sea' || tile.tileType?.tag === 'DeepSea');
       });
     }
     return lookup;
@@ -966,7 +967,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const lookup = new Map<string, boolean>();
     if (!connection || !visibleWorldTiles) return lookup;
     const isLandAtShore = (t: string | null) => t === 'Beach' || t === 'Asphalt';
-    const isShoreWater = (t: string | null) => t === 'Sea' || t === 'HotSpringWater';
+    const isShoreWater = (t: string | null) => t === 'Sea' || t === 'DeepSea' || t === 'HotSpringWater';
     visibleWorldTiles.forEach(tile => {
       const tx = tile.worldX;
       const ty = tile.worldY;

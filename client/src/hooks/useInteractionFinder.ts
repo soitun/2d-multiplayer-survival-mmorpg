@@ -988,7 +988,7 @@ export function useInteractionFinder({
                                 if (worldTiles) {
                                     const tileKey = `${checkTileX}_${checkTileY}`;
                                     const tile = worldTiles.get(tileKey);
-                                    if (tile && tile.tileType.tag === 'Sea') {
+                                    if (tile && (tile.tileType.tag === 'Sea' || tile.tileType.tag === 'DeepSea' || tile.tileType.tag === 'HotSpringWater')) {
                                         // This is a water tile and it's closer than our current closest
                                         closestWaterDistSq = distanceToTileSq;
                                         closestWaterPosition = { x: tileCenterX, y: tileCenterY };

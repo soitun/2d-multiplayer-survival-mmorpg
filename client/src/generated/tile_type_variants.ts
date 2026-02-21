@@ -32,6 +32,7 @@ export type Grass = { tag: "Grass" };
 export type Dirt = { tag: "Dirt" };
 export type DirtRoad = { tag: "DirtRoad" };
 export type Sea = { tag: "Sea" };
+export type DeepSea = { tag: "DeepSea" };
 export type Beach = { tag: "Beach" };
 export type Sand = { tag: "Sand" };
 export type HotSpringWater = { tag: "HotSpringWater" };

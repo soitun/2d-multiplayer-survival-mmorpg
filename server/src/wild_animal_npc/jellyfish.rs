@@ -260,7 +260,7 @@ fn is_position_on_water(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
     
     if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
         // Only Sea tiles count as water for jellyfish
-        tile_type == crate::TileType::Sea
+        tile_type.is_sea_water() // Sea or DeepSea
     } else {
         false
     }
@@ -287,7 +287,7 @@ fn find_nearest_water_tile(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> Opti
             }
             
             if let Some(tile_type) = crate::get_tile_type_at_position(ctx, check_x, check_y) {
-                if tile_type == crate::TileType::Sea {
+                if tile_type.is_sea_water() {
                     let distance_sq = (dx * dx + dy * dy) as f32;
                     if distance_sq < closest_distance_sq {
                         closest_distance_sq = distance_sq;

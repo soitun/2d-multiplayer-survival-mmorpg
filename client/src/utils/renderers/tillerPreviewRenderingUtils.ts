@@ -35,6 +35,7 @@ function tileTypeU8ToTag(tileTypeU8: number): string {
     case 11: return 'Alpine';
     case 12: return 'TundraGrass';
     case 13: return 'Tilled';
+    case 14: return 'DeepSea';
     default: return 'Grass';
   }
 }

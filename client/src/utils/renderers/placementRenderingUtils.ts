@@ -213,6 +213,7 @@ export function getTileTypeFromChunkData(connection: DbConnection | null, tileX:
             case 11: return 'Alpine'; // High-altitude rocky terrain
             case 12: return 'TundraGrass'; // Grassy patches in tundra biome
             case 13: return 'Tilled'; // Tilled soil for farming (uses Dirt graphics)
+            case 14: return 'DeepSea'; // Outer ring - empty deep ocean
             default: return 'Grass';
         }
     }
@@ -241,7 +242,7 @@ function isPositionOnWater(connection: DbConnection | null, worldX: number, worl
     // Use compressed chunk data lookup
     const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
     // Block placement on both regular water (Sea) and hot spring water
-    return tileType === 'Sea' || tileType === 'HotSpringWater';
+    return tileType === 'Sea' || tileType === 'DeepSea' || tileType === 'HotSpringWater';
 }
 
 /**
@@ -316,7 +317,7 @@ function isPositionOnShore(connection: DbConnection | null, worldX: number, worl
             
             // Get tile type from chunk data
             const tileType = getTileTypeFromChunkData(connection, checkTileX, checkTileY);
-            if (tileType === 'Sea' || tileType === 'HotSpringWater') {
+            if (tileType === 'Sea' || tileType === 'DeepSea' || tileType === 'HotSpringWater') {
                 return true; // Found adjacent water - this is a shore position
             }
         }
@@ -361,7 +362,7 @@ function isPositionNearShore(connection: DbConnection | null, worldX: number, wo
                 const tileType = getTileTypeFromChunkData(connection, check.x, check.y);
                 if (tileType === null) continue;
                 
-                const tileIsWater = tileType === 'Sea' || tileType === 'HotSpringWater';
+                const tileIsWater = tileType === 'Sea' || tileType === 'DeepSea' || tileType === 'HotSpringWater';
                 
                 // Found boundary (water/land transition) = shore nearby
                 if (tileIsWater !== onWater) {
@@ -439,7 +440,7 @@ function calculateShoreDistance(connection: DbConnection | null, worldX: number,
                 const checkTileType = getTileTypeFromChunkData(connection, checkTileX, checkTileY);
                 
                 // If this tile is not water, we found shore
-                if (checkTileType !== null && checkTileType !== 'Sea') {
+                if (checkTileType !== null && checkTileType !== 'Sea' && checkTileType !== 'DeepSea' && checkTileType !== 'HotSpringWater') {
                     const distancePixels = radius * TILE_SIZE;
                     // Cap at MAX_SEARCH_RADIUS_PIXELS to match server behavior
                     return Math.min(distancePixels, MAX_SEARCH_RADIUS_PIXELS);

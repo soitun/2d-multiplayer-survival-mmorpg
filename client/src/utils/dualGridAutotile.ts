@@ -69,6 +69,7 @@ export function resolveTileAsset(fileName: string): string {
 // Import all existing autotile images (reusing the 4x5 format)
 const grassBeachAutotile = resolveTileAsset('tileset_grass_beach_autotile.png');
 const beachSeaAutotile = resolveTileAsset('tileset_beach_sea_autotile.png');
+const seaDeepseaAutotile = resolveTileAsset('tileset_sea_deepsea_autotile.png');
 const grassDirtAutotile = resolveTileAsset('tileset_grass_dirt_autotile.png');
 const dirtBeachAutotile = resolveTileAsset('tileset_dirt_beach_autotile.png');
 const grassDirtRoadAutotile = resolveTileAsset('tileset_grass_dirtroad_autotile.png');
@@ -175,7 +176,8 @@ export const DUAL_GRID_LOOKUP: ReadonlyArray<{ row: number; col: number }> = [
  * - Natural terrains in between
  */
 export const TERRAIN_PRIORITY: Readonly<Record<string, number>> = {
-    'Sea': 0,
+    'Sea': 1, // Deterministic primary over DeepSea for stable Sea↔DeepSea transitions
+    'DeepSea': 0,
     'HotSpringWater': 1,
     'Beach': 2,
     'Tundra': 3,
@@ -219,9 +221,13 @@ export const TRANSITION_TILESETS: Readonly<Record<string, string>> = {
     
     // === Beach transitions ===
     'Beach_Sea': beachSeaAutotile,
+    'Beach_DeepSea': seaDeepseaAutotile, // Reuse sea_deepsea for beach→deepsea
     'Beach_HotSpringWater': beachHotSpringWaterAutotile,
     'Beach_DirtRoad': beachDirtRoadAutotile,
     
+    // === Sea↔DeepSea transitions (outer ring boundary) ===
+    'Sea_DeepSea': seaDeepseaAutotile,
+    'DeepSea_Sea': seaDeepseaAutotile,
     // === Underwater transitions (snorkeling mode) ===
     'Underwater_Sea': underwaterSeaAutotile, // Used for land→sea transitions when player is underwater
     
@@ -252,6 +258,7 @@ export const TRANSITION_TILESETS: Readonly<Record<string, string>> = {
     'Asphalt_Alpine': asphaltAlpineAutotile,
     'Asphalt_Tundra': asphaltTundraAutotile,
     'Asphalt_Sea': asphaltSeaAutotile,
+    'Asphalt_DeepSea': asphaltSeaAutotile, // Reuse - same visual for compound edge
     'Asphalt_Grass': asphaltGrassAutotile,
     
     // === Alpine transitions ===
@@ -557,7 +564,7 @@ export function getDualGridTileInfo(
     
     // Look up tile position in tileset
     const tilePos = DUAL_GRID_LOOKUP[dualGridIndex];
-    
+
     // Check if diagonal tiles need horizontal flipping for better connections
     // Use original index before inversion to determine flip, since flip is about
     // the actual pattern, not the tileset orientation
@@ -568,7 +575,7 @@ export function getDualGridTileInfo(
         worldTiles,
         primaryTerrain
     );
-    
+
     // Calculate sprite coordinates
     const spriteCoords = {
         x: tilePos.col * TILE_SIZE,

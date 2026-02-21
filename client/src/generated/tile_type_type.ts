@@ -34,6 +34,7 @@ export type TileType = TileTypeVariants.Grass |
   TileTypeVariants.Dirt |
   TileTypeVariants.DirtRoad |
   TileTypeVariants.Sea |
+  TileTypeVariants.DeepSea |
   TileTypeVariants.Beach |
   TileTypeVariants.Sand |
   TileTypeVariants.HotSpringWater |
@@ -59,6 +60,7 @@ export const TileType = {
   Dirt: { tag: "Dirt" } as const,
   DirtRoad: { tag: "DirtRoad" } as const,
   Sea: { tag: "Sea" } as const,
+  DeepSea: { tag: "DeepSea" } as const,
   Beach: { tag: "Beach" } as const,
   Sand: { tag: "Sand" } as const,
   HotSpringWater: { tag: "HotSpringWater" } as const,
@@ -78,6 +80,7 @@ export const TileType = {
       { name: "Dirt", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DirtRoad", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Sea", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "DeepSea", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Beach", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "Sand", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "HotSpringWater", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },

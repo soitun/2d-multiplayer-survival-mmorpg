@@ -29,6 +29,7 @@ const TILE_DOODAD_CONFIG: Record<string, DoodadConfig> = {
     'Tundra':      { folder: 'tundra',       spawnRate: 0.04 },  // Sparse for arctic feel
     'Beach':       { folder: 'beach',        spawnRate: 0.04 },  // Light scatter of shells/debris
     'Sea':         { folder: 'underwater',   spawnRate: 0.08, isUnderwaterOnly: true },  // Visible always; blur effect when viewed from above
+    'DeepSea':     { folder: 'underwater_deep_sea', spawnRate: 0.04, isUnderwaterOnly: true },  // Deep-sea-specific underwater tile objects
     'Alpine':      { folder: 'alpine',       spawnRate: 0.03 },  // Rocky areas mostly bare
     'TundraGrass': { folder: 'tundra_grass', spawnRate: 0.05 },  // Similar to grass
     'Forest':      { folder: 'forest',       spawnRate: 0.05 },  // Trees provide visual interest
@@ -82,6 +83,11 @@ const underwaterImages = import.meta.glob<{ default: string }>(
     { eager: true }
 );
 
+const underwaterDeepSeaImages = import.meta.glob<{ default: string }>(
+    '../../assets/environment/tile_object/underwater_deep_sea/*.png',
+    { eager: true }
+);
+
 const alpineImages = import.meta.glob<{ default: string }>(
     '../../assets/environment/tile_object/alpine/*.png',
     { eager: true }
@@ -113,6 +119,7 @@ const FOLDER_TO_GLOB: Record<string, Record<string, { default: string }>> = {
     'tundra': tundraImages,
     'beach': beachImages,
     'underwater': underwaterImages,
+    'underwater_deep_sea': underwaterDeepSeaImages,
     'alpine': alpineImages,
     'tundra_grass': tundraGrassImages,
     'forest': forestImages,

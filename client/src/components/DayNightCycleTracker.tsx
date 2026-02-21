@@ -723,19 +723,21 @@ const DayNightCycleTracker: React.FC<DayNightCycleTrackerProps> = ({
                                         textShadow: `0 0 10px ${ACCENT_CYAN}`,
                                     }}>Day {worldState.cycleCount}</span>
                                     <span style={{ color: `${ACCENT_CYAN}40` }}>•</span>
-                                    <span style={{ fontSize: '10px', color: '#9ca3af' }}>Year {worldState.year}</span>
+                                    <span style={{
+                                        fontSize: '11px',
+                                        fontWeight: 'bold',
+                                        color: '#d1d5db',
+                                        textShadow: `0 0 6px ${ACCENT_CYAN}50`,
+                                    }}>Year {worldState.year}</span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <img src={getSeasonIcon(worldState.currentSeason)} alt="" style={{ width: '16px', height: '16px' }} />
+                                    <img src={getSeasonIcon(worldState.currentSeason)} alt="" style={{ width: '18px', height: '18px' }} />
                                     <span style={{
-                                        fontSize: '10px',
+                                        fontSize: '11px',
                                         color: getSeasonColor(worldState.currentSeason),
                                         fontWeight: 'bold',
-                                        textShadow: `0 0 6px ${getSeasonColor(worldState.currentSeason)}80`,
+                                        textShadow: `0 0 10px ${getSeasonColor(worldState.currentSeason)}80`,
                                     }}>{getSeasonDisplay(worldState.currentSeason)}</span>
-                                    <span style={{ fontSize: '8px', color: '#6b7280' }}>
-                                        {dayInSeason}/{DAYS_PER_SEASON}
-                                    </span>
                                 </div>
                             </div>
                             

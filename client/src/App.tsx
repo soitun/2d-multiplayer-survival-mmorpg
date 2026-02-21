@@ -62,6 +62,7 @@ import { useSettings } from './contexts/SettingsContext';
 
 // Asset Preloading
 import { preloadAllAssets, areAllAssetsPreloaded, AssetLoadingProgress } from './services/assetPreloader';
+import { getTileTypeFromChunkData } from './utils/renderers/placementRenderingUtils';
 
 // Assets & Styles
 import './App.css';
@@ -604,6 +605,7 @@ function AppContent() {
         playerPosition: playerMusicPosition,
         monumentParts: monumentParts, // Music system will filter by monument type internally
         alkStations: alkStations, // ALK stations for zone detection
+        getTileTypeAtPosition: connection ? (tx, ty) => getTileTypeFromChunkData(connection, tx, ty) : undefined,
     });
     
     // Update music volume when state changes
