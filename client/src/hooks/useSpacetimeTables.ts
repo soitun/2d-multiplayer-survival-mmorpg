@@ -65,6 +65,7 @@ let hasDispatchedHostileEncounterEvent = false;
 
 // Chunk update throttling to prevent rapid subscription churn.
 const CHUNK_UPDATE_THROTTLE_MS = 150; // Minimum time between chunk updates (prevents spam and rapid re-subscriptions)
+const CHUNK_SUBSCRIBE_BATCH_SIZE = 1; // 1 chunk per frame (~8ms each) - keeps under 16ms budget
 
 // Define the shape of the state returned by the hook
 export interface SpacetimeTableStates {
@@ -691,57 +692,43 @@ export const useSpacetimeTables = ({
             }
 
             // Make subscription changes async to avoid blocking
-            setTimeout(() => {
-                // --- Handle Removed Chunks with Hysteresis ---
-                removedChunks.forEach(chunkIndex => {
-                    // Cancel any existing timer for this chunk (it's back in viewport)
-                    const existingTimer = chunkUnsubscribeTimersRef.current.get(chunkIndex);
-                    if (existingTimer) {
-                        clearTimeout(existingTimer);
-                        chunkUnsubscribeTimersRef.current.delete(chunkIndex);
+            // --- Handle Removed Chunks with Hysteresis (fast - just scheduling) ---
+            removedChunks.forEach(chunkIndex => {
+                const existingTimer = chunkUnsubscribeTimersRef.current.get(chunkIndex);
+                if (existingTimer) {
+                    clearTimeout(existingTimer);
+                    chunkUnsubscribeTimersRef.current.delete(chunkIndex);
+                }
+                const unsubscribeTimer = setTimeout(() => {
+                    const handles = spatialSubsRef.current.get(chunkIndex);
+                    if (handles) {
+                        console.log(`[CHUNK_BUFFER] Delayed unsubscribe from chunk ${chunkIndex} (${handles.length} subscriptions)`);
+                        handles.forEach(safeUnsubscribe);
+                        spatialSubsRef.current.delete(chunkIndex);
+                        subscribedChunksRef.current.delete(chunkIndex);
                     }
+                    chunkUnsubscribeTimersRef.current.delete(chunkIndex);
+                }, CHUNK_UNSUBSCRIBE_DELAY_MS);
+                chunkUnsubscribeTimersRef.current.set(chunkIndex, unsubscribeTimer);
+                console.log(`[CHUNK_BUFFER] Scheduled delayed unsubscribe for chunk ${chunkIndex} in ${CHUNK_UNSUBSCRIBE_DELAY_MS}ms`);
+            });
 
-                    // HYSTERESIS: Don't immediately unsubscribe, set a timer instead
-                    const unsubscribeTimer = setTimeout(() => {
-                        const handles = spatialSubsRef.current.get(chunkIndex);
-                        if (handles) {
-                            // Only log actual unsubscribes if debugging
-                            console.log(`[CHUNK_BUFFER] Delayed unsubscribe from chunk ${chunkIndex} (${handles.length} subscriptions)`);
-                            handles.forEach(safeUnsubscribe);
-                            spatialSubsRef.current.delete(chunkIndex);
-                            subscribedChunksRef.current.delete(chunkIndex); // CRITICAL FIX: Remove from subscribed set
-                        }
-                        chunkUnsubscribeTimersRef.current.delete(chunkIndex);
-                    }, CHUNK_UNSUBSCRIBE_DELAY_MS);
-
-                    chunkUnsubscribeTimersRef.current.set(chunkIndex, unsubscribeTimer);
-                    // Only log delayed unsubscribes if debugging
-                    console.log(`[CHUNK_BUFFER] Scheduled delayed unsubscribe for chunk ${chunkIndex} in ${CHUNK_UNSUBSCRIBE_DELAY_MS}ms`);
-                });
-
-                // --- Handle Added Chunks ---
-                addedChunks.forEach(chunkIndex => {
-                    // Cancel any pending unsubscribe timer for this chunk (it's back!)
+            // --- Handle Added Chunks in batches (spread across frames to stay under 16ms budget) ---
+            let addedIndex = 0;
+            const processAddedBatch = () => {
+                const batchStartIdx = addedIndex;
+                const batchStart = performance.now();
+                const batchEnd = Math.min(addedIndex + CHUNK_SUBSCRIBE_BATCH_SIZE, addedChunks.length);
+                for (; addedIndex < batchEnd; addedIndex++) {
+                    const chunkIndex = addedChunks[addedIndex];
                     const pendingUnsubTimer = chunkUnsubscribeTimersRef.current.get(chunkIndex);
                     if (pendingUnsubTimer) {
                         clearTimeout(pendingUnsubTimer);
                         chunkUnsubscribeTimersRef.current.delete(chunkIndex);
                         console.log(`[CHUNK_BUFFER] Cancelled delayed unsubscribe for chunk ${chunkIndex} (chunk came back into viewport)`);
-                        // IMPORTANT: Even if timer was cancelled, verify we're still subscribed
-                        // The timer might have fired but cleanup hasn't completed yet, or subscriptions
-                        // might have been removed by another code path
-                        if (spatialSubsRef.current.has(chunkIndex)) {
-                            return; // We're still subscribed, skip resubscription
-                        }
-                        // If timer was cancelled but we're not subscribed, fall through to resubscribe
+                        if (spatialSubsRef.current.has(chunkIndex)) continue;
                     }
-
-                    // Check if we're already subscribed (double-check after timer cancellation)
-                    const alreadySubscribed = spatialSubsRef.current.has(chunkIndex);
-
-                    if (alreadySubscribed) {
-                        return; // Already subscribed, skip
-                    }
+                    if (spatialSubsRef.current.has(chunkIndex)) continue;
 
                     const subStartTime = performance.now();
                     console.log(`[CHUNK_BUFFER] Creating new subscriptions for chunk ${chunkIndex} (was pending unsubscribe: ${!!pendingUnsubTimer})`);
@@ -749,30 +736,29 @@ export const useSpacetimeTables = ({
                     const newHandlesForChunk = subscribeToChunk(chunkIndex);
                     if (newHandlesForChunk.length > 0) {
                         spatialSubsRef.current.set(chunkIndex, newHandlesForChunk);
-                        subscribedChunksRef.current.add(chunkIndex); // CRITICAL FIX: Mark as subscribed
-
-                        // Log subscription timing when slow
+                        subscribedChunksRef.current.add(chunkIndex);
                         const subTime = performance.now() - subStartTime;
                         const subscriptionMethod = ENABLE_BATCHED_SUBSCRIPTIONS ? 'batched' : 'individual';
-                        const expectedHandles = ENABLE_BATCHED_SUBSCRIPTIONS ? 3 : 12; // Batched: 3 batches vs Individual: ~12 subs
-
-                        if (subTime > 10) { // Log if subscriptions take more than 10ms
+                        const expectedHandles = ENABLE_BATCHED_SUBSCRIPTIONS ? 3 : 12;
+                        if (subTime > 10) {
                             console.warn(`[CHUNK_PERF] Chunk ${chunkIndex} ${subscriptionMethod} subscriptions took ${subTime.toFixed(2)}ms (${newHandlesForChunk.length}/${expectedHandles} subs)`);
                         } else if (subTime > 5) {
                             console.log(`[CHUNK_PERF] Chunk ${chunkIndex} ${subscriptionMethod} subscriptions: ${subTime.toFixed(2)}ms (${newHandlesForChunk.length} subs)`);
                         }
                     }
-                });
-
-                // Update the current chunk reference
-                currentChunksRef.current = [...newChunkIndicesSet];
-
-                // Log when chunk update exceeds frame budget
-                const totalTime = performance.now() - startTime;
-                if (totalTime > 16) { // Log if chunk update takes more than one frame (16ms at 60fps)
-                    console.warn(`[CHUNK_PERF] Total chunk update took ${totalTime.toFixed(2)}ms (frame budget exceeded!)`);
                 }
-            }, 0);
+
+                const batchTime = performance.now() - batchStart;
+                if (batchTime > 16) {
+                    console.warn(`[CHUNK_PERF] Single batch (${batchEnd - batchStartIdx} chunks) took ${batchTime.toFixed(2)}ms`);
+                }
+                if (addedIndex < addedChunks.length) {
+                    setTimeout(processAddedBatch, 0);
+                } else {
+                    currentChunksRef.current = [...newChunkIndicesSet];
+                }
+            };
+            setTimeout(processAddedBatch, 0);
         } else {
             // Log when no-op update is unexpectedly slow
             const totalTime = performance.now() - startTime;

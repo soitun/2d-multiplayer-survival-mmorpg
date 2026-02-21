@@ -66,6 +66,9 @@ export class ProceduralWorldRenderer {
         images: new Map(),
         lastUpdate: 0
     };
+
+    /** Skip redundant updateTileCache when same map reference passed (e.g. standing still). */
+    private lastWorldTilesRef: Map<string, WorldTile> | null = null;
     
     private animationTime = 0;
     private isInitialized = false;
@@ -125,14 +128,14 @@ export class ProceduralWorldRenderer {
     }
     
     public updateTileCache(worldTiles: Map<string, WorldTile>) {
+        if (this.lastWorldTilesRef === worldTiles) return;
+        this.lastWorldTilesRef = worldTiles;
+
         this.tileCache.tiles.clear();
-        
-        // Convert the worldTiles map to use world coordinates as keys
         worldTiles.forEach((tile) => {
             const tileKey = `${tile.worldX}_${tile.worldY}`;
             this.tileCache.tiles.set(tileKey, tile);
         });
-        
         this.tileCache.lastUpdate = Date.now();
     }
     

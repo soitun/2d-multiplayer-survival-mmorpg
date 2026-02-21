@@ -1022,8 +1022,9 @@ export function useEntityFiltering(
     return isInView(x, y, width, height, bounds);
   }, []);
 
-  // PERFORMANCE: Stabilize viewBounds with 16px threshold - skip ~40 useMemo recalculations on small camera moves
-  const VIEW_BOUNDS_THRESHOLD = 16;
+  // PERFORMANCE: Stabilize viewBounds - skip entity filtering on small camera moves.
+  // 32px = ~half tile; reduces lag when walking through dense entity areas.
+  const VIEW_BOUNDS_THRESHOLD = 32;
   const viewBoundsRef = useRef<ViewportBounds | null>(null);
   const viewBounds = useMemo(() => {
     const fresh = getViewportBounds();
