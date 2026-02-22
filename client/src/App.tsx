@@ -265,6 +265,12 @@ function AppContent() {
         grassEnabled, // Pass grass toggle to control subscriptions
     });
 
+    // --- Online human player count (for login screen capacity display) ---
+    const MAX_PLAYERS = 50;
+    const onlinePlayerCount = useMemo(() => {
+        return Array.from(players.values()).filter((p) => p.isOnline && !p.isNpc).length;
+    }, [players]);
+
     // --- Movement Hooks ---
     const isUIFocused = isChatting || isCraftingSearchFocused;
     const localPlayer = dbIdentity ? players.get(dbIdentity.toHexString()) : undefined;
@@ -1083,6 +1089,8 @@ function AppContent() {
                     isSpacetimeConnected={spacetimeConnected}
                     isSpacetimeReady={isSpacetimeReady}
                     retryConnection={retryConnection}
+                    onlinePlayerCount={onlinePlayerCount}
+                    maxPlayerCount={MAX_PLAYERS}
                  />
             )}
 
@@ -1096,6 +1104,8 @@ function AppContent() {
                     isSpacetimeConnected={spacetimeConnected}
                     isSpacetimeReady={isSpacetimeReady}
                     retryConnection={retryConnection}
+                    onlinePlayerCount={onlinePlayerCount}
+                    maxPlayerCount={MAX_PLAYERS}
                  />
             )}
             

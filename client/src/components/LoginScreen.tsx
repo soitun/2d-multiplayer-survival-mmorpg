@@ -262,6 +262,8 @@ interface LoginScreenProps {
     isSpacetimeConnected?: boolean; // Whether SpacetimeDB is connected (used to hide username for connection issues)
     isSpacetimeReady?: boolean; // Whether SpacetimeDB is fully ready (connection + identity established)
     retryConnection?: () => void; // Function to retry the SpacetimeDB connection
+    onlinePlayerCount?: number; // Live count of connected human players
+    maxPlayerCount?: number; // Server capacity (e.g. 50)
 }
 
 const LoginScreen: React.FC<LoginScreenProps> = ({
@@ -272,6 +274,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
     isSpacetimeConnected = true, // Default to true for backwards compatibility
     isSpacetimeReady = true, // Default to true for backwards compatibility
     retryConnection,
+    onlinePlayerCount,
+    maxPlayerCount,
 }) => {
     // Get OpenAuth state and functions
     const {
@@ -1243,6 +1247,30 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                             </span>
                                         </button>
                                     </div>
+
+                                    {/* Live player count (visible when Spacetime connected and props provided) */}
+                                    {isSpacetimeConnected && typeof onlinePlayerCount === 'number' && typeof maxPlayerCount === 'number' && (
+                                        <div style={{
+                                            padding: '6px 12px',
+                                            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                                            borderRadius: '10px',
+                                        }}>
+                                            <span style={{
+                                                fontSize: '12px',
+                                                color: (() => {
+                                                    if (onlinePlayerCount >= maxPlayerCount) return 'rgba(255, 120, 120, 0.98)';
+                                                    if (onlinePlayerCount >= maxPlayerCount - 5) return 'rgba(255, 200, 100, 0.98)';
+                                                    return 'rgba(255, 255, 255, 0.85)';
+                                                })(),
+                                                fontWeight: 500,
+                                                fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
+                                                textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                                                letterSpacing: '0.5px',
+                                            }}>
+                                                Players Online: {onlinePlayerCount} / {maxPlayerCount}
+                                            </span>
+                                        </div>
+                                    )}
 
                                     {/* Disclaimer: server wipe notice */}
                                     <div style={{

@@ -564,6 +564,7 @@ use crate::campfire::{Campfire, WARMTH_RADIUS_SQUARED, WARMTH_PER_SECOND, CAMPFI
 
 // --- Global Constants ---
 pub const TILE_SIZE_PX: u32 = 48;
+pub const MAX_PLAYERS: usize = 50;
 pub const PLAYER_RADIUS: f32 = 32.0; // Player collision radius
 pub const PLAYER_SPEED: f32 = 320.0; // Speed in pixels per second - 6.67 tiles/sec (SYNCED WITH CLIENT)
 pub const PLAYER_SPRINT_MULTIPLIER: f32 = 1.75; // 1.75x speed for sprinting (560 px/s) - SYNCED WITH CLIENT
@@ -1738,6 +1739,26 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         log::warn!("Username '{}' already taken by another player. Registration failed for {:?}.", username, sender_id);
         return Err(format!("Username '{}' is already taken.", username));
     }
+
+    // --- Enforce max player cap for new registrations (reconnects allowed when full) ---
+    let active_connections = ctx.db.active_connection();
+    let online_human_count = active_connections.iter()
+        .filter(|conn| {
+            if let Some(player) = players.identity().find(&conn.identity) {
+                !player.is_npc
+            } else {
+                true // No player record yet - new human connecting
+            }
+        })
+        .count();
+    if online_human_count >= MAX_PLAYERS {
+        log::warn!("Server full ({} players online). Rejecting new registration for {:?}.", online_human_count, sender_id);
+        return Err(format!(
+            "Server is full ({} players online). Please try again later.",
+            MAX_PLAYERS
+        ));
+    }
+    // --- End max player cap ---
 
     // Get tables needed for spawn check only if registering new player
     let trees = ctx.db.tree();
