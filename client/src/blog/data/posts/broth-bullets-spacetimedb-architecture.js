@@ -591,7 +591,7 @@ pub fn craft_item(ctx: &ReducerContext, recipe_id: String) -> Result<(), String>
     <ul>
       <li><strong>Play Broth & Bullets</strong>: <a href="https://brothbullets.com" target="_blank" rel="noopener noreferrer">brothbullets.com</a></li>
       <li><strong>SpacetimeDB Docs</strong>: <a href="https://spacetimedb.com/docs" target="_blank" rel="noopener noreferrer">spacetimedb.com/docs</a></li>
-      <li><strong>Join Our Discord</strong>: <a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer">Discuss technical details</a></li>
+      <li><strong>Join Our Discord</strong>: <a href="https://discord.gg/tUcBzfAYfs" target="_blank" rel="noopener noreferrer">Discuss technical details</a></li>
       <li><strong>Follow Development</strong>: <a href="https://twitter.com/seloslav" target="_blank" rel="noopener noreferrer">@seloslav on Twitter</a></li>
     </ul>
 
@@ -603,7 +603,7 @@ pub fn craft_item(ctx: &ReducerContext, recipe_id: String) -> Result<(), String>
       <li><a href="/blog/field-cauldron-mechanics">The Field Cauldron: Brewing Innovation in Survival Gameplay</a></li>
     </ul>
 
-    <p>Questions about our architecture? Join our <a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer">Discord</a> and ask the dev team!</p>
+    <p>Questions about our architecture? Join our <a href="https://discord.gg/tUcBzfAYfs" target="_blank" rel="noopener noreferrer">Discord</a> and ask the dev team!</p>
   `
 };
 

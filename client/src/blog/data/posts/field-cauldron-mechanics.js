@@ -229,7 +229,7 @@ export default {
 
     <h2>🎮 Join the Alpha</h2>
 
-    <p>Broth & Bullets is currently in active development with alpha testing ongoing. <a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer">Join our Discord</a> to stay updated on development progress, participate in test weekends, and be among the first to experiment with the Field Cauldron system when it goes live.</p>
+    <p>Broth & Bullets is currently in active development with alpha testing ongoing. <a href="https://discord.gg/tUcBzfAYfs" target="_blank" rel="noopener noreferrer">Join our Discord</a> to stay updated on development progress, participate in test weekends, and be among the first to experiment with the Field Cauldron system when it goes live.</p>
   `,
   tags: ["Development", "Game Mechanics", "Field Cauldron", "Cooking System", "Survival", "Game Design", "SpacetimeDB", "Technical"]
 };

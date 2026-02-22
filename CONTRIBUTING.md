@@ -171,4 +171,4 @@ By contributing to this project, you agree that your contributions will be licen
 
 Thank you for contributing to Broth & Bullets! 🎮
 
-Questions? Join our [Discord](https://discord.gg/SEydgwSp) or open an issue.
+Questions? Join our [Discord](https://discord.gg/tUcBzfAYfs) or open an issue.

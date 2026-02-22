@@ -41,7 +41,7 @@ export default {
 
     <p><a href="/" class="cta-link">→ Play Broth & Bullets Alpha (Free)</a></p>
 
-    <p><a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer" class="cta-link">→ Join Our Discord Community</a></p>
+    <p><a href="https://discord.gg/tUcBzfAYfs" target="_blank" rel="noopener noreferrer" class="cta-link">→ Join Our Discord Community</a></p>
 
     <p>Every bug report, every suggestion, every session helps us build something better. Come say hi, share feedback, or just hang out. The tundra is waiting.</p>
 

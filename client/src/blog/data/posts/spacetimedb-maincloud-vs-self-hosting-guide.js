@@ -175,7 +175,7 @@ export default {
       <li><a href="/blog/how-we-built-broth-bullets-multiplayer-survival-game">How We Built Broth & Bullets</a></li>
     </ul>
 
-    <p>Questions about Maincloud vs self-hosting? Join our <a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer">Discord</a> — we're happy to share our setup and optimization tips.</p>
+    <p>Questions about Maincloud vs self-hosting? Join our <a href="https://discord.gg/tUcBzfAYfs" target="_blank" rel="noopener noreferrer">Discord</a> — we're happy to share our setup and optimization tips.</p>
   `,
   tags: [
     "SpacetimeDB",

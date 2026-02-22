@@ -490,6 +490,6 @@ function sendMessage(text: string) {
       <li><a href="/blog/broth-bullets-alpha-launch">Broth & Bullets Case Study</a></li>
     </ul>
 
-    <p>Have questions? Join our Discord or leave a comment below!</p>
+    <p>Have questions? Join our <a href="https://discord.gg/tUcBzfAYfs" target="_blank" rel="noopener noreferrer">Discord</a> or leave a comment below!</p>
   `
 };

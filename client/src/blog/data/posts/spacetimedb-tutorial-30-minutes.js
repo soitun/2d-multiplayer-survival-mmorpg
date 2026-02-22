@@ -329,7 +329,7 @@ const connection = DbConnection.builder()
     <ul>
       <li><a href="https://spacetimedb.com/docs" target="_blank" rel="noopener noreferrer">SpacetimeDB Documentation</a></li>
       <li><a href="https://github.com/clockworklabs/broth-bullets" target="_blank" rel="noopener noreferrer">Broth & Bullets Source Code</a></li>
-      <li><a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer">SpacetimeDB Discord Community</a></li>
+      <li><a href="https://discord.gg/tUcBzfAYfs" target="_blank" rel="noopener noreferrer">SpacetimeDB Discord Community</a></li>
     </ul>
 
     <p>Happy coding! 🚀</p>

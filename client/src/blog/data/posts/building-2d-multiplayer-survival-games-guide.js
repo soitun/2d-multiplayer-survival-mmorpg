@@ -644,7 +644,7 @@ vercel deploy --prod</code></pre>
 
     <p><strong>Community:</strong></p>
     <ul>
-      <li><a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer">SpacetimeDB Discord</a></li>
+      <li><a href="https://discord.gg/tUcBzfAYfs" target="_blank" rel="noopener noreferrer">SpacetimeDB Discord</a></li>
       <li><a href="https://spacetimedb.com/docs" target="_blank" rel="noopener noreferrer">SpacetimeDB Documentation</a></li>
     </ul>
 

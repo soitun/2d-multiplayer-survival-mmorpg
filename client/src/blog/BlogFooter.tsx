@@ -329,7 +329,7 @@ const BlogFooter: React.FC = () => {
                         marginBottom: '30px',
                     }}>
                         {[
-                            { name: 'Discord', icon: faDiscord, href: 'https://discord.gg/SEydgwSp' },
+                            { name: 'Discord', icon: faDiscord, href: 'https://discord.gg/tUcBzfAYfs' },
                             { name: 'X (Twitter)', icon: faXTwitter, href: 'https://x.com/seloslav' },
                             { name: 'GitHub', icon: faGithub, href: 'https://github.com/SeloSlav/vibe-coding-starter-pack-2d-multiplayer-survival' },
                         ].map((social) => (

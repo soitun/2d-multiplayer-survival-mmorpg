@@ -833,7 +833,7 @@ const AIDisclosurePage: React.FC = () => {
                             margin: 0,
                             lineHeight: '1.7',
                         }}>
-                            We're actively working on a <strong>Kickstarter campaign</strong> and exploring other crowdsourcing options to accelerate the replacement of AI assets with human-created artwork, music, and sound design. If you believe in elevating human creativity, check back soon — or join our Discord to be notified when we launch.
+                            We're actively working on a <strong>Kickstarter campaign</strong> and exploring other crowdsourcing options to accelerate the replacement of AI assets with human-created artwork, music, and sound design. If you believe in elevating human creativity, check back soon — or <a href="https://discord.gg/tUcBzfAYfs" target="_blank" rel="noopener noreferrer" style={{ color: '#ff8c00', textDecoration: 'underline' }}>join our Discord</a> to be notified when we launch.
                         </p>
                     </div>
                 </section>

@@ -109,7 +109,7 @@ export default {
     
     <h2>Experience Semantic Generation Yourself</h2>
     
-    <p>Broth & Bullets is currently in closed alpha testing, with open beta scheduled for Q3 2025. Players interested in experiencing this innovative crafting system can join our Discord server for the latest development updates and a chance to participate in upcoming test weekends.</p>
+    <p>Broth & Bullets is currently in closed alpha testing, with open beta scheduled for Q3 2025. Players interested in experiencing this innovative crafting system can <a href="https://discord.gg/tUcBzfAYfs" target="_blank" rel="noopener noreferrer">join our Discord server</a> for the latest development updates and a chance to participate in upcoming test weekends.</p>
 
     <h2>🔗 Related Articles</h2>
 

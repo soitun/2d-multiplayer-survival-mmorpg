@@ -454,7 +454,7 @@ pub fn add_ingredient_to_cauldron(
 
     <ul>
       <li><strong>Play Now</strong>: <a href="https://brothbullets.com" target="_blank" rel="noopener noreferrer">brothbullets.com</a></li>
-      <li><strong>Join Discord</strong>: <a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer">Share recipes and strategies</a></li>
+      <li><strong>Join Discord</strong>: <a href="https://discord.gg/tUcBzfAYfs" target="_blank" rel="noopener noreferrer">Share recipes and strategies</a></li>
       <li><strong>Follow Development</strong>: <a href="https://twitter.com/seloslav" target="_blank" rel="noopener noreferrer">@seloslav on Twitter</a></li>
     </ul>
 
@@ -466,7 +466,7 @@ pub fn add_ingredient_to_cauldron(
       <li><a href="/blog/field-cauldron-ai-recipe-generation">AI-Powered Recipe Generation in Broth & Bullets</a></li>
     </ul>
 
-    <p>Questions about the cooking system? Join our <a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer">Discord</a> and chat with the dev team!</p>
+    <p>Questions about the cooking system? Join our <a href="https://discord.gg/tUcBzfAYfs" target="_blank" rel="noopener noreferrer">Discord</a> and chat with the dev team!</p>
   `
 };
 

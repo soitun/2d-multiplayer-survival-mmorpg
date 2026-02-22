@@ -123,7 +123,7 @@ export default {
 
     <p><a href="/" class="cta-link">→ Play Broth & Bullets Alpha (Free)</a></p>
 
-    <p><a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer" class="cta-link">→ Join the Discord Community</a></p>
+    <p><a href="https://discord.gg/tUcBzfAYfs" target="_blank" rel="noopener noreferrer" class="cta-link">→ Join the Discord Community</a></p>
 
     <p>Your feedback directly influences development. Every bug report, suggestion, and gameplay session helps us build a better game.</p>
 

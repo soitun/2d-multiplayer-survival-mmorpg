@@ -358,7 +358,7 @@ export default {
 
     <ul>
       <li><strong>Play Now</strong>: <a href="https://brothbullets.com" target="_blank" rel="noopener noreferrer">brothbullets.com</a></li>
-      <li><strong>Join Discord</strong>: <a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer">See development progress and art updates</a></li>
+      <li><strong>Join Discord</strong>: <a href="https://discord.gg/tUcBzfAYfs" target="_blank" rel="noopener noreferrer">See development progress and art updates</a></li>
       <li><strong>Follow on Twitter</strong>: <a href="https://twitter.com/seloslav" target="_blank" rel="noopener noreferrer">@seloslav</a> for art reveals and behind-the-scenes</li>
     </ul>
 
@@ -370,7 +370,7 @@ export default {
       <li><a href="/blog/babushka-sprite-evolution">The Evolution of the Babushka Sprite</a></li>
     </ul>
 
-    <p>Questions about our art direction? Join our <a href="https://discord.gg/SEydgwSp" target="_blank" rel="noopener noreferrer">Discord</a> and chat with the dev team!</p>
+    <p>Questions about our art direction? Join our <a href="https://discord.gg/tUcBzfAYfs" target="_blank" rel="noopener noreferrer">Discord</a> and chat with the dev team!</p>
   `
 };
 

@@ -11,7 +11,7 @@ What started as an open source project for a generic 2D survival game is now a f
 
 I've committed to open sourcing the entire project and providing the best documentation possible to help you get up and running, fork the project, create your own games, or even contribute back to Broth & Bullets itself. This repository serves as a comprehensive starter kit and learning resource.
 
-💬 **Want to chat?** Join the discussion on [Discord](https://discord.gg/SEydgwSp)
+💬 **Want to chat?** Join the discussion on [Discord](https://discord.gg/tUcBzfAYfs)
 
 ## Table of Contents
 
@@ -813,7 +813,7 @@ Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines on:
 
 Whether you're interested in adding new gameplay mechanics, improving existing systems, or enhancing the codebase, your contributions are valuable!
 
-For questions or discussions, feel free to open an issue first or join our [Discord](https://discord.gg/SEydgwSp).
+For questions or discussions, feel free to open an issue first or join our [Discord](https://discord.gg/tUcBzfAYfs).
 
 ## 📜 License
 
@@ -855,4 +855,4 @@ For licensing inquiries regarding Broth & Bullets intellectual property, please 
 
 **Created by [SeloSlav](https://x.com/seloslav)**
 
-💬 **Want to chat?** Join the discussion on [Discord](https://discord.gg/SEydgwSp)
+💬 **Want to chat?** Join the discussion on [Discord](https://discord.gg/tUcBzfAYfs)
