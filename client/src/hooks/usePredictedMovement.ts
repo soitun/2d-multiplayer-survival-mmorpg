@@ -70,6 +70,7 @@ interface SimpleMovementProps {
   playerDodgeRollStates?: Map<string, any>; // Add dodge roll states
   mobileSprintOverride?: boolean; // Mobile sprint toggle override (immediate, bypasses server round-trip)
   waterSpeedBonus?: number; // Bonus from equipped armor (e.g., Reed Flippers) - 1.0 = 100% bonus
+  movementSpeedModifier?: number; // Land speed modifier from equipped armor (e.g., Babushka's Boots) - 4.0 = 5x speed
   isOnSeaTile?: (worldX: number, worldY: number) => boolean;
 }
 
@@ -122,7 +123,7 @@ const movementMonitor = new SimpleMovementMonitor();
 // REMOVED: Rubber band logging - proper prediction shouldn't need it
 
 // Simple client-authoritative movement hook with optimized rendering
-export const usePredictedMovement = ({ connection, localPlayer, inputState, inputStateRef, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus = 0, isOnSeaTile }: SimpleMovementProps) => {
+export const usePredictedMovement = ({ connection, localPlayer, inputState, inputStateRef, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus = 0, movementSpeedModifier = 0, isOnSeaTile }: SimpleMovementProps) => {
   // Use refs instead of state to avoid re-renders during movement
   const clientPositionRef = useRef<{ x: number; y: number } | null>(null);
   const serverPositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -426,6 +427,10 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
           // Formula: base penalty * (1 + bonus) - so 100% bonus (1.0) brings us to full speed
           const waterMultiplier = WATER_SPEED_PENALTY * (1.0 + cappedBonus);
           speedMultiplier *= waterMultiplier;
+        } else {
+          // Land movement speed modifier from equipment (e.g., Babushka's Boots of Speed)
+          // Formula: 1 + modifier → 4.0 = 5x speed
+          speedMultiplier *= 1.0 + movementSpeedModifier;
         }
         
         const speed = PLAYER_SPEED * speedMultiplier;
@@ -539,7 +544,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
       console.error(`❌ [SimpleMovement] Error in updatePosition:`, error);
       movementMonitor.logUpdate(performance.now() - updateStartTime, false);
     }
-  }, [connection, localPlayer, inputState, isAutoWalking, stopAutoWalk, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus]);
+  }, [connection, localPlayer, inputState, isAutoWalking, stopAutoWalk, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus, movementSpeedModifier]);
 
   // Run position updates with optimized timing
   useEffect(() => {
@@ -605,6 +610,9 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
       const cappedBonus = Math.min(waterSpeedBonus, MAX_WATER_SPEED_BONUS);
       const waterMultiplier = WATER_SPEED_PENALTY * (1.0 + cappedBonus);
       speed *= waterMultiplier;
+    } else {
+      // Land movement speed modifier from equipment (e.g., Babushka's Boots of Speed)
+      speed *= 1.0 + movementSpeedModifier;
     }
     if (hasExhaustedEffect(connection, playerId)) speed *= EXHAUSTED_SPEED_PENALTY;
     
@@ -615,7 +623,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
       x: clientPositionRef.current.x + direction.x * moveDistance,
       y: clientPositionRef.current.y + direction.y * moveDistance
     };
-  }, [localPlayer, inputState, playerDodgeRollStates, connection]);
+  }, [localPlayer, inputState, playerDodgeRollStates, connection, waterSpeedBonus, movementSpeedModifier]);
 
   // Return the current position and state
   return { 

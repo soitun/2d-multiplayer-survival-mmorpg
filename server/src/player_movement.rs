@@ -370,7 +370,7 @@ const BASE_MAX_MOVEMENT_SPEED: f32 = PLAYER_SPEED * SPRINT_SPEED_MULTIPLIER * 6.
 const MAX_TELEPORT_DISTANCE: f32 = 1200.0; // Increased from 800px for better lag tolerance and high frame rates
 const POSITION_UPDATE_TIMEOUT_MS: u64 = 30000; // 30 seconds (increased from 20s for very high ping)
 
-/// Calculate the maximum allowed movement speed for a player, accounting for broth effects and exhausted effect
+/// Calculate the maximum allowed movement speed for a player, accounting for broth effects, exhausted effect, and armor
 fn get_max_movement_speed_for_player(ctx: &ReducerContext, player_id: Identity) -> f32 {
     let mut speed_multiplier = 1.0;
     
@@ -391,6 +391,10 @@ fn get_max_movement_speed_for_player(ctx: &ReducerContext, player_id: Identity) 
         speed_multiplier *= crate::active_effects::INTOXICATED_SPEED_PENALTY;
     }
     // <<< END BROTH EFFECTS >>>
+    
+    // Armor movement speed modifier (e.g., Babushka's Boots of Speed: 4.0 = 5x land speed)
+    let armor_modifier = crate::armor::calculate_movement_speed_modifier(ctx, player_id);
+    speed_multiplier *= 1.0 + armor_modifier;
     
     BASE_MAX_MOVEMENT_SPEED * speed_multiplier
 }

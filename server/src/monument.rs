@@ -3886,12 +3886,8 @@ pub fn get_hunting_village_placeables() -> Vec<MonumentPlaceableConfig> {
 }
 
 /// Get monument placeables for the Alpine Village monument
-/// Two lanterns flank the lodge entrance (south face of the lodge, ±80px).
 pub fn get_alpine_village_placeables() -> Vec<MonumentPlaceableConfig> {
-    vec![
-        MonumentPlaceableConfig::lantern(-80.0, 80.0),
-        MonumentPlaceableConfig::lantern( 80.0, 80.0),
-    ]
+    vec![] // Campfire is visual doodad with collision; no lanterns
 }
 
 /// Get monument placeables for the Weather Station monument

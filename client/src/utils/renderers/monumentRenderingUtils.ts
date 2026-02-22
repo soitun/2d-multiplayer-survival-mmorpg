@@ -482,9 +482,10 @@ export function renderMonument(
     // Draw the building (transparency already applied if needed)
     ctx.drawImage(img, drawX, drawY, building.width, building.height);
 
-    // Weather station radar in water: draw water line low on the image (like barrels)
-    const isWeatherStationRadar = building.imagePath === 'ws_radar.png' || building.id.startsWith('weather_station_');
-    if (isWeatherStationRadar && isOnSeaTile?.(worldX, worldY) && nowMs !== undefined) {
+    // Weather station radar or alpine village weather pole in water: draw water line low on the image (like barrels)
+    const isPoleOrRadarInWater = (building.imagePath === 'ws_radar.png' || building.imagePath === 'av_weather_station_mast.png' || building.id.startsWith('weather_station_'))
+        && isOnSeaTile?.(worldX, worldY) && nowMs !== undefined;
+    if (isPoleOrRadarInWater) {
         const waterLineFraction = 0.78; // Low on image - radar base in water
         const waterLineWorldY = drawY + building.height * waterLineFraction;
         const lineStartX = drawX + building.width * 0.15;

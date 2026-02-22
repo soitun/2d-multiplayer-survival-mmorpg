@@ -979,7 +979,7 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
                 pierce_resistance: 0.0,
                 cold_resistance: 0.0,
             })
-            .movement_speed_modifier(1.25) // +125% land speed (2.25x) - matches Shark Fin Flippers water speed
+            .movement_speed_modifier(4.0) // +400% land speed (5x) - Babushka's Boots of Speed
             .build(),
 
         // Shark Fin Flippers - Advanced flippers with superior water speed

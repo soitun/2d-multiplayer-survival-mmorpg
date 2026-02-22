@@ -270,28 +270,29 @@ function AppContent() {
     const localPlayer = dbIdentity ? players.get(dbIdentity.toHexString()) : undefined;
     const isDead = localPlayer?.isDead ?? false;
     
-    // --- Calculate Water Speed Bonus from Equipped Armor ---
-    // This value is passed to usePredictedMovement for client-side movement prediction
-    const waterSpeedBonus = useMemo(() => {
-        if (!dbIdentity) return 0;
+    // --- Calculate Water Speed Bonus and Land Movement Speed Modifier from Equipped Armor ---
+    // These values are passed to usePredictedMovement for client-side movement prediction
+    const { waterSpeedBonus, movementSpeedModifier } = useMemo(() => {
+        let waterBonus = 0;
+        let landModifier = 0;
+        
+        if (!dbIdentity) return { waterSpeedBonus: 0, movementSpeedModifier: 0 };
         
         // Get active equipment for local player
         const activeEquip = activeEquipments.get(dbIdentity.toHexString());
-        if (!activeEquip) return 0;
-        
-        let totalBonus = 0;
+        if (!activeEquip) return { waterSpeedBonus: 0, movementSpeedModifier: 0 };
         
         // List of all armor slot instance IDs to check
         const armorSlotInstanceIds = [
             activeEquip.headItemInstanceId,
             activeEquip.chestItemInstanceId,
             activeEquip.legsItemInstanceId,
-            activeEquip.feetItemInstanceId, // Reed Flippers go here
+            activeEquip.feetItemInstanceId, // Reed Flippers, Babushka's Boots go here
             activeEquip.handsItemInstanceId,
             activeEquip.backItemInstanceId,
         ].filter((id): id is bigint => id !== undefined);
         
-        // For each equipped armor piece, look up its definition and add bonus
+        // For each equipped armor piece, look up its definition and add bonuses
         for (const instanceId of armorSlotInstanceIds) {
             // Find the inventory item
             const inventoryItem = Array.from(inventoryItems.values()).find(
@@ -305,14 +306,16 @@ function AppContent() {
             );
             if (!itemDef) continue;
             
-            // Add water speed bonus if present (will be available after regenerating bindings)
-            const bonus = (itemDef as any).waterSpeedBonus;
-            if (typeof bonus === 'number') {
-                totalBonus += bonus;
-            }
+            // Add water speed bonus if present
+            const wBonus = (itemDef as any).waterSpeedBonus;
+            if (typeof wBonus === 'number') waterBonus += wBonus;
+            
+            // Add land movement speed modifier if present (e.g. Babushka's Boots of Speed)
+            const mMod = (itemDef as any).movementSpeedModifier;
+            if (typeof mMod === 'number') landModifier += mMod;
         }
         
-        return totalBonus;
+        return { waterSpeedBonus: waterBonus, movementSpeedModifier: landModifier };
     }, [dbIdentity, activeEquipments, inventoryItems, itemDefinitions]);
     
     // --- SOVA Sound Box Hook (for deterministic SOVA voice notifications) ---
@@ -482,6 +485,7 @@ function AppContent() {
         playerDodgeRollStates, // Add dodge roll states for speed calculation
         mobileSprintOverride, // Mobile sprint toggle override (immediate, no server round-trip)
         waterSpeedBonus, // Water speed bonus from equipped armor (e.g., Reed Flippers)
+        movementSpeedModifier, // Land movement speed modifier from equipped armor (e.g., Babushka's Boots of Speed)
         entities: collisionEntities,
         isOnSeaTile: isOnSeaTileForCollision,
     });

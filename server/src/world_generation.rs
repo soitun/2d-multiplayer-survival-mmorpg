@@ -497,6 +497,8 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     // Single earth-sheltered lodge in alpine - shares hunting village soundtrack
     if let Some((center_x, center_y)) = world_features.alpine_village_center {
         for (part_x, part_y, image_path, part_type) in &world_features.alpine_village_parts {
+            // Campfire has collision like fishing/hunting village (stone ring - 70px)
+            let collision_radius = if *part_type == "campfire" { 70.0 } else { 0.0 };
             ctx.db.monument_part().insert(MonumentPart {
                 id: 0, // auto_inc
                 monument_type: MonumentType::AlpineVillage,
@@ -505,7 +507,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 image_path: image_path.clone(),
                 part_type: part_type.clone(),
                 is_center: *part_type == "lodge",
-                collision_radius: 0.0, // NO collision for walkability
+                collision_radius,
                 rotation_rad: 0.0,
             });
         }
@@ -526,7 +528,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 log::warn!("Failed to spawn alpine village entities: {}", e);
             }
         }
-        // Spawn monument placeables (currently none for Alpine Village; campfire is visual doodad)
+        // Spawn monument placeables (none - campfire is visual doodad with collision; lanterns removed)
         let placeable_configs = crate::monument::get_alpine_village_placeables();
         match crate::monument::spawn_monument_placeables(ctx, "Alpine Village", center_x, center_y, &placeable_configs) {
             Ok(count) => log::info!("🏔️ Spawned {} monument placeables at Alpine Village", count),
@@ -757,8 +759,8 @@ struct WorldFeatures {
     alpine_village_roads: Vec<Vec<bool>>, // Path leading to lodge
     alpine_village_center_dirt: Vec<Vec<bool>>, // Dirt center in front of lodge
     alpine_village_grass_zone: Vec<Vec<bool>>, // Overrun with grass - Alpine tiles around lodge
-    weather_station_roads: Vec<Vec<bool>>, // Dirt road spur from nearest main road to center
-    weather_station_center_dirt: Vec<Vec<bool>>, // Central jagged squarish dirt area
+    weather_station_roads: Vec<Vec<bool>>, // Dirt roads: spur to main road + paths to radars
+    weather_station_center_dirt: Vec<Vec<bool>>, // Central jagged squarish area (rendered as asphalt)
     weather_station_grass_zone: Vec<Vec<bool>>, // Overrun with grass around center
     width: usize,
     height: usize,
@@ -878,6 +880,8 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     if let Some((av_cx, av_cy)) = alpine_village_center {
         add_tiny_alpine_hot_spring(&mut hot_spring_water, &mut hot_spring_beach, &mut hot_spring_centers, av_cx, av_cy, width, height);
     }
+    // Ensure hot spring water never touches sea/deep sea (beach buffer for all hot springs including alpine)
+    ensure_hot_spring_beach_buffer(&mut hot_spring_water, &mut hot_spring_beach, &shore_distance, width, height);
     
     // Generate wolf den monuments in tundra biome (wolf pack spawn points)
     // Single wolf mound structures - spawns a pack of wolves each - NOT safe zones
@@ -1298,7 +1302,7 @@ fn generate_village_roads(
         let center_tx = (center_px_x / tile_size_px).floor() as i32;
         let center_ty = (center_px_y / tile_size_px).floor() as i32;
 
-        // 1. Center dirt: jagged squarish area (~12 tiles half-width, organic/noisy edges)
+        // 1. Center area: jagged squarish (rendered as asphalt), ~12 tiles half-width, organic/noisy edges
         let center_dirt_half = 12i32;
         for dy in -center_dirt_half..=center_dirt_half {
             for dx in -center_dirt_half..=center_dirt_half {
@@ -1369,15 +1373,29 @@ fn generate_village_roads(
             draw_village_road_spur(&mut weather_station_roads, start_tx, start_ty, road_x, road_y, width, height);
         }
 
+        // 4. Dirt paths from center to each radar dish (radars at ±1000px = ~21 tiles)
+        const RADAR_DISTANCE_TILES: i32 = 21; // 1000px / 48
+        let radar_dirs = [(1, 0), (0, 1), (-1, 0), (0, -1)]; // E, S, W, N
+        for (rdx, rdy) in radar_dirs {
+            let end_tx = center_tx + rdx * RADAR_DISTANCE_TILES;
+            let end_ty = center_ty + rdy * RADAR_DISTANCE_TILES;
+            let start_tx = center_tx + rdx * center_dirt_half;
+            let start_ty = center_ty + rdy * center_dirt_half;
+            if end_tx >= 0 && end_ty >= 0 && (end_tx as usize) < width && (end_ty as usize) < height {
+                draw_village_road_spur(&mut weather_station_roads, start_tx, start_ty, end_tx, end_ty, width, height);
+            }
+        }
+
+        // Clear roads from center only (paths to radars may cross grass zone - keep them as dirt roads)
         for y in 0..height {
             for x in 0..width {
-                if weather_station_center_dirt[y][x] || weather_station_grass_zone[y][x] {
+                if weather_station_center_dirt[y][x] {
                     weather_station_roads[y][x] = false;
                 }
             }
         }
 
-        log::info!("📡 Generated weather station (center dirt + grass zone + spur to road)");
+        log::info!("📡 Generated weather station (center asphalt + spur + radar paths as dirt roads)");
     }
 
     (fishing_roads, hunting_roads, hunting_center_dirt, hunting_farm_dirt, alpine_roads, alpine_center_dirt, alpine_grass_zone, weather_station_roads, weather_station_center_dirt, weather_station_grass_zone)
@@ -2523,9 +2541,44 @@ fn generate_hot_springs(
             }
         }
     }
+
+    ensure_hot_spring_beach_buffer(&mut hot_spring_water, &mut hot_spring_beach, shore_distance, width, height);
     
     log::info!("Generated {} hot spring pools with water and beach layers", hot_spring_centers.len());
     (hot_spring_water, hot_spring_beach, hot_spring_centers)
+}
+
+/// Ensure hot spring water never touches sea or deep sea: add a beach buffer layer.
+/// For any hot_spring_water tile adjacent to sea (shore_distance < 0), mark that neighbor as beach.
+fn ensure_hot_spring_beach_buffer(
+    hot_spring_water: &mut [Vec<bool>],
+    hot_spring_beach: &mut [Vec<bool>],
+    shore_distance: &[Vec<f64>],
+    width: usize,
+    height: usize,
+) {
+    let mut beach_expansion = Vec::new();
+    for y in 0..height {
+        for x in 0..width {
+            if !hot_spring_water[y][x] {
+                continue;
+            }
+            for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                let nx = x as i32 + dx;
+                let ny = y as i32 + dy;
+                if nx >= 0 && ny >= 0 && (nx as usize) < width && (ny as usize) < height {
+                    let sd = shore_distance[ny as usize][nx as usize];
+                    if sd < 0.0 {
+                        beach_expansion.push((nx as usize, ny as usize));
+                    }
+                }
+            }
+        }
+    }
+    for (nx, ny) in beach_expansion {
+        hot_spring_beach[ny][nx] = true;
+        hot_spring_water[ny][nx] = false;
+    }
 }
 
 /// Carve a tiny hot spring near the alpine village (water + beach tiles only, no shack).
@@ -3908,9 +3961,9 @@ fn determine_realistic_tile_type(
     if features.alpine_village_grass_zone[y][x] {
         return TileType::Alpine;
     }
-    // Weather station: center dirt (jagged squarish), spur road, grass zone
+    // Weather station: center asphalt (jagged squarish), spur + radar paths as dirt roads, grass zone
     if features.weather_station_center_dirt[y][x] {
-        return TileType::Dirt;
+        return TileType::Asphalt;
     }
     if features.weather_station_roads[y][x] {
         return TileType::DirtRoad;
