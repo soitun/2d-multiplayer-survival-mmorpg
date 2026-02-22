@@ -663,12 +663,13 @@ export function useDayNightCycle({
             }
         });
 
-        // Render village campfire light cutouts (hunting only - cozy effect)
-        // Fishing village campfire has no light per user request
+        // Render village campfire light cutouts (fishing + hunting villages)
         const VILLAGE_CAMPFIRE_Y_OFFSET = -150; // Dropped 100px lower for better alignment
         monumentParts.forEach(part => {
-            const isHuntingVillageCampfire = part.monumentType?.tag === 'HuntingVillage' && part.partType === 'campfire';
-            if (isHuntingVillageCampfire) {
+            const isVillageCampfire =
+                (part.monumentType?.tag === 'FishingVillage' || part.monumentType?.tag === 'HuntingVillage') &&
+                part.partType === 'campfire';
+            if (isVillageCampfire) {
                 const screenX = part.worldX + cameraOffsetX;
                 const screenY = part.worldY + cameraOffsetY + VILLAGE_CAMPFIRE_Y_OFFSET; // Apply offset
                 

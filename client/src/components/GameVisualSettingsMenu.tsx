@@ -6,22 +6,29 @@ import { useSettings } from '../contexts/SettingsContext';
 
 // Default visual settings based on optimal neural rendering thresholds
 export const DEFAULT_VISUAL_SETTINGS = {
-    treeShadowsEnabled: true,        // Enable tree shadows
-    weatherOverlayEnabled: true,     // Enable weather overlay effects
+    allShadowsEnabled: true,         // Enable all in-world shadows
+    weatherOverlayEnabled: true,     // Enable precipitation particles (rain/snow)
+    stormAtmosphereEnabled: true,    // Enable storm darkening/desaturation layer
     statusOverlaysEnabled: true,     // Enable cold/low health screen overlays
     grassEnabled: true,              // Enable grass rendering and subscriptions
     alwaysShowPlayerNames: true,     // Show player names above heads at all times
-    bloomIntensity: 28,              // Gentle glow for a comfy look
-    vignetteIntensity: 12,           // Very subtle dark edge framing
-    chromaticAberrationIntensity: 8, // Tiny cinematic color split
-    colorCorrection: 58,             // Slightly warm/richer colors
+    cloudsEnabled: true,             // Enable cloud layer
+    waterSurfaceEffectsEnabled: true,// Enable voronoi/caustic water effects
+    waterSurfaceEffectsIntensity: 75,// Strong enough to feel alive but not noisy
+    worldParticlesQuality: 2,        // 0=off, 1=low, 2=full
+    footprintsEnabled: true,         // Enable sand/snow footprints
+    bloomIntensity: 0,               // Default OFF
+    vignetteIntensity: 0,            // Default OFF
+    chromaticAberrationIntensity: 0, // Default OFF
+    colorCorrection: 50,             // Neutral by default
 } as const;
 
-export const DISABLED_VISUAL_SETTINGS = {
-    bloomIntensity: 0,
-    vignetteIntensity: 0,
-    chromaticAberrationIntensity: 0,
-    colorCorrection: 50, // Neutral (no warm/cool grading shift)
+const POST_PROCESSING_PRESETS = {
+    off: { bloomIntensity: 0, vignetteIntensity: 0, chromaticAberrationIntensity: 0, colorCorrection: 50 },
+    cozy: { bloomIntensity: 36, vignetteIntensity: 20, chromaticAberrationIntensity: 12, colorCorrection: 60 }, // previous defaults, stronger
+    hdr: { bloomIntensity: 68, vignetteIntensity: 34, chromaticAberrationIntensity: 20, colorCorrection: 74 },
+    cinematic: { bloomIntensity: 48, vignetteIntensity: 58, chromaticAberrationIntensity: 26, colorCorrection: 58 },
+    clean: { bloomIntensity: 14, vignetteIntensity: 8, chromaticAberrationIntensity: 0, colorCorrection: 53 },
 } as const;
 
 interface GameVisualSettingsMenuProps {
@@ -34,16 +41,28 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
     onClose,
 }) => {
     const {
-        treeShadowsEnabled,
-        setTreeShadowsEnabled: onTreeShadowsChange,
+        allShadowsEnabled,
+        setAllShadowsEnabled: onAllShadowsChange,
         weatherOverlayEnabled,
         setWeatherOverlayEnabled: onWeatherOverlayChange,
+        stormAtmosphereEnabled,
+        setStormAtmosphereEnabled: onStormAtmosphereChange,
         statusOverlaysEnabled,
         setStatusOverlaysEnabled: onStatusOverlaysChange,
         grassEnabled,
         setGrassEnabled: onGrassChange,
         alwaysShowPlayerNames,
         setAlwaysShowPlayerNames: onAlwaysShowPlayerNamesChange,
+        cloudsEnabled,
+        setCloudsEnabled: onCloudsEnabledChange,
+        waterSurfaceEffectsEnabled,
+        setWaterSurfaceEffectsEnabled: onWaterSurfaceEffectsEnabledChange,
+        waterSurfaceEffectsIntensity,
+        setWaterSurfaceEffectsIntensity: onWaterSurfaceEffectsIntensityChange,
+        worldParticlesQuality,
+        setWorldParticlesQuality: onWorldParticlesQualityChange,
+        footprintsEnabled,
+        setFootprintsEnabled: onFootprintsEnabledChange,
         bloomIntensity,
         setBloomIntensity: onBloomIntensityChange,
         vignetteIntensity,
@@ -54,18 +73,44 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
         setColorCorrection: onColorCorrectionChange,
     } = useSettings();
 
-    const handleResetVisualDefaults = () => {
-        onBloomIntensityChange(DEFAULT_VISUAL_SETTINGS.bloomIntensity);
-        onVignetteIntensityChange(DEFAULT_VISUAL_SETTINGS.vignetteIntensity);
-        onChromaticAberrationIntensityChange(DEFAULT_VISUAL_SETTINGS.chromaticAberrationIntensity);
-        onColorCorrectionChange(DEFAULT_VISUAL_SETTINGS.colorCorrection);
+    const setShadowsEnabled = (enabled: boolean) => {
+        onAllShadowsChange(enabled);
     };
 
-    const handleDisableAllVisualEffects = () => {
-        onBloomIntensityChange(DISABLED_VISUAL_SETTINGS.bloomIntensity);
-        onVignetteIntensityChange(DISABLED_VISUAL_SETTINGS.vignetteIntensity);
-        onChromaticAberrationIntensityChange(DISABLED_VISUAL_SETTINGS.chromaticAberrationIntensity);
-        onColorCorrectionChange(DISABLED_VISUAL_SETTINGS.colorCorrection);
+    const applyPostProcessingPreset = (preset: keyof typeof POST_PROCESSING_PRESETS) => {
+        const values = POST_PROCESSING_PRESETS[preset];
+        onBloomIntensityChange(values.bloomIntensity);
+        onVignetteIntensityChange(values.vignetteIntensity);
+        onChromaticAberrationIntensityChange(values.chromaticAberrationIntensity);
+        onColorCorrectionChange(values.colorCorrection);
+    };
+
+    const applyPresetDefault = () => {
+        setShadowsEnabled(DEFAULT_VISUAL_SETTINGS.allShadowsEnabled);
+        onWeatherOverlayChange(DEFAULT_VISUAL_SETTINGS.weatherOverlayEnabled);
+        onStormAtmosphereChange(DEFAULT_VISUAL_SETTINGS.stormAtmosphereEnabled);
+        onStatusOverlaysChange(DEFAULT_VISUAL_SETTINGS.statusOverlaysEnabled);
+        onAlwaysShowPlayerNamesChange(DEFAULT_VISUAL_SETTINGS.alwaysShowPlayerNames);
+        onCloudsEnabledChange(DEFAULT_VISUAL_SETTINGS.cloudsEnabled);
+        onWaterSurfaceEffectsEnabledChange(DEFAULT_VISUAL_SETTINGS.waterSurfaceEffectsEnabled);
+        onWaterSurfaceEffectsIntensityChange(DEFAULT_VISUAL_SETTINGS.waterSurfaceEffectsIntensity);
+        onWorldParticlesQualityChange(DEFAULT_VISUAL_SETTINGS.worldParticlesQuality);
+        onFootprintsEnabledChange(DEFAULT_VISUAL_SETTINGS.footprintsEnabled);
+        applyPostProcessingPreset('off');
+    };
+
+    const applyPresetPerformance = () => {
+        setShadowsEnabled(false);
+        onWeatherOverlayChange(false);
+        onStormAtmosphereChange(false);
+        onStatusOverlaysChange(false);
+        onAlwaysShowPlayerNamesChange(true);
+        onCloudsEnabledChange(false);
+        onWaterSurfaceEffectsEnabledChange(false);
+        onWaterSurfaceEffectsIntensityChange(0);
+        onWorldParticlesQualityChange(0);
+        onFootprintsEnabledChange(false);
+        applyPostProcessingPreset('off');
     };
 
     const handleBackdropClick = (e: React.MouseEvent) => {
@@ -73,6 +118,14 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
             onBack();
         }
     };
+
+    const slidersEngaged = bloomIntensity > 0 || vignetteIntensity > 0 || chromaticAberrationIntensity > 0 || colorCorrection !== 50;
+    const backdropStyle = slidersEngaged
+        ? { background: 'rgba(0, 0, 0, 0.08)', backdropFilter: 'blur(0.5px)' as const }
+        : { background: 'rgba(0, 0, 0, 0.22)', backdropFilter: 'blur(1.5px)' as const };
+    const panelBg = slidersEngaged
+        ? 'linear-gradient(145deg, rgba(15, 30, 50, 0.55), rgba(10, 20, 40, 0.62))'
+        : 'linear-gradient(145deg, rgba(15, 30, 50, 0.95), rgba(10, 20, 40, 0.98))';
 
     return (
         <>
@@ -83,12 +136,11 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                     left: 0,
                     width: '100%',
                     height: '100%',
-                    background: 'linear-gradient(135deg, rgba(10, 25, 40, 0.95), rgba(5, 15, 30, 0.98))',
+                    ...backdropStyle,
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
                     zIndex: 100000,
-                    backdropFilter: 'blur(8px)',
                 }}
                 onClick={handleBackdropClick}
             >
@@ -98,7 +150,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                 style={{
                     maxWidth: '600px',
                     maxHeight: '80vh',
-                    background: 'linear-gradient(145deg, rgba(15, 30, 50, 0.95), rgba(10, 20, 40, 0.98))',
+                    background: panelBg,
                     border: '2px solid #00ff88',
                     borderRadius: '12px',
                     boxShadow: '0 0 30px rgba(0, 255, 136, 0.3), inset 0 0 20px rgba(0, 255, 136, 0.1)',
@@ -158,6 +210,53 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                     }}
                     className="visual-cortex-scroll"
                 >
+                    <div style={{
+                        marginBottom: '18px',
+                        padding: '14px',
+                        borderRadius: '10px',
+                        border: '1px solid rgba(0, 255, 136, 0.35)',
+                        background: 'linear-gradient(135deg, rgba(10, 35, 45, 0.72), rgba(8, 24, 32, 0.84))',
+                    }}>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '11px',
+                            color: '#88ffd8',
+                            marginBottom: '10px',
+                            letterSpacing: '1px',
+                            textAlign: 'left',
+                        }}>
+                            VISUAL PRESETS
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                            <button
+                                onClick={applyPresetDefault}
+                                className={styles.menuButton}
+                                style={{ flex: '1 1 160px', minWidth: '150px', padding: '10px 12px', fontSize: '12px', fontFamily: '"Press Start 2P", cursive' }}
+                            >
+                                DEFAULT
+                            </button>
+                            <button
+                                onClick={applyPresetPerformance}
+                                className={styles.menuButton}
+                                style={{ flex: '1 1 160px', minWidth: '150px', padding: '10px 12px', fontSize: '12px', fontFamily: '"Press Start 2P", cursive' }}
+                            >
+                                PERFORMANCE
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={{
+                        marginBottom: '16px',
+                        fontFamily: '"Press Start 2P", cursive',
+                        fontSize: '11px',
+                        color: '#66d7ff',
+                        letterSpacing: '1px',
+                        textAlign: 'left',
+                        opacity: 0.9,
+                    }}>
+                        CORE VISUALS
+                    </div>
+
                     {/* Tree Shadows Setting */}
                     <div style={{ marginBottom: '25px' }}>
                         <div style={{
@@ -179,7 +278,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                                     fontSize: '14px',
                                 }}
                             />
-                            TREE SHADOWS: {treeShadowsEnabled ? 'ENABLED' : 'DISABLED'}
+                            ALL SHADOWS: {allShadowsEnabled ? 'ENABLED' : 'DISABLED'}
                         </div>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
@@ -190,9 +289,9 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                             letterSpacing: '0.5px',
                             textAlign: 'left',
                         }}>
-                            {treeShadowsEnabled 
-                                ? 'Performance may decrease in dense forests' 
-                                : 'Disabled for better performance'
+                            {allShadowsEnabled
+                                ? 'Dynamic shadows enabled for trees, resources, structures, and overlays'
+                                : 'All in-world shadows disabled for maximum clarity/performance'
                             }
                         </div>
                         <div style={{
@@ -207,26 +306,26 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                                 cursor: 'pointer',
                                 fontFamily: '"Press Start 2P", cursive',
                                 fontSize: '14px',
-                                color: treeShadowsEnabled ? '#88ff44' : '#666',
-                                textShadow: treeShadowsEnabled ? '0 0 5px #88ff44' : 'none',
+                                color: allShadowsEnabled ? '#88ff44' : '#666',
+                                textShadow: allShadowsEnabled ? '0 0 5px #88ff44' : 'none',
                                 transition: 'all 0.3s ease',
                             }}>
                                 <input
                                     type="checkbox"
-                                    checked={treeShadowsEnabled}
-                                    onChange={(e) => onTreeShadowsChange(e.target.checked)}
+                                    checked={allShadowsEnabled}
+                                    onChange={(e) => setShadowsEnabled(e.target.checked)}
                                     style={{
                                         marginRight: '10px',
                                         transform: 'scale(1.5)',
                                         accentColor: '#00ff88',
                                     }}
                                 />
-                                ENABLE SHADOWS
+                                ENABLE ALL SHADOWS
                             </label>
                         </div>
                     </div>
 
-                    {/* Weather Overlay Setting */}
+                    {/* Weather Precipitation Setting */}
                     <div style={{ marginBottom: '25px' }}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
@@ -247,7 +346,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                                     fontSize: '14px',
                                 }}
                             />
-                            RAIN PARTICLES: {weatherOverlayEnabled ? 'ENABLED' : 'DISABLED'}
+                            PRECIPITATION: {weatherOverlayEnabled ? 'ENABLED' : 'DISABLED'}
                         </div>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
@@ -259,8 +358,8 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                             textAlign: 'left',
                         }}>
                             {weatherOverlayEnabled 
-                                ? 'Rain particles may reduce performance' 
-                                : 'Rain disabled, atmosphere remains for feedback'
+                                ? 'Rain and snow particles enabled' 
+                                : 'Rain and snow disabled'
                             }
                         </div>
                         <div style={{
@@ -289,7 +388,58 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                                         accentColor: '#44aaff',
                                     }}
                                 />
-                                ENABLE RAIN
+                                ENABLE RAIN/SNOW
+                            </label>
+                        </div>
+                    </div>
+
+                    {/* Storm Atmosphere Setting */}
+                    <div style={{ marginBottom: '25px' }}>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '16px',
+                            color: '#5cb8ff',
+                            marginBottom: '12px',
+                            textShadow: '0 0 8px #5cb8ff',
+                            letterSpacing: '1px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                        }}>
+                            STORM ATMOSPHERE: {stormAtmosphereEnabled ? 'ENABLED' : 'DISABLED'}
+                        </div>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '12px',
+                            color: '#b8dcff',
+                            marginBottom: '8px',
+                            opacity: 0.7,
+                            letterSpacing: '0.5px',
+                            textAlign: 'left',
+                        }}>
+                            {stormAtmosphereEnabled
+                                ? 'Storm darkening, desaturation, and mood enabled'
+                                : 'No storm tinting/darkening'
+                            }
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '15px' }}>
+                            <label style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                fontFamily: '"Press Start 2P", cursive',
+                                fontSize: '14px',
+                                color: stormAtmosphereEnabled ? '#5cb8ff' : '#666',
+                                textShadow: stormAtmosphereEnabled ? '0 0 5px #5cb8ff' : 'none',
+                                transition: 'all 0.3s ease',
+                            }}>
+                                <input
+                                    type="checkbox"
+                                    checked={stormAtmosphereEnabled}
+                                    onChange={(e) => onStormAtmosphereChange(e.target.checked)}
+                                    style={{ marginRight: '10px', transform: 'scale(1.5)', accentColor: '#5cb8ff' }}
+                                />
+                                ENABLE STORM LOOK
                             </label>
                         </div>
                     </div>
@@ -500,6 +650,115 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                         </div>
                     </div>
 
+                    <div style={{
+                        marginBottom: '16px',
+                        marginTop: '5px',
+                        fontFamily: '"Press Start 2P", cursive',
+                        fontSize: '11px',
+                        color: '#66d7ff',
+                        letterSpacing: '1px',
+                        textAlign: 'left',
+                        opacity: 0.9,
+                    }}>
+                        PERFORMANCE
+                    </div>
+
+                    {/* Clouds Setting */}
+                    <div style={{ marginBottom: '25px' }}>
+                        <div style={{ fontFamily: '"Press Start 2P", cursive', fontSize: '16px', color: '#a8d9ff', marginBottom: '12px', textShadow: '0 0 8px #a8d9ff', letterSpacing: '1px' }}>
+                            CLOUDS: {cloudsEnabled ? 'ENABLED' : 'DISABLED'}
+                        </div>
+                        <div style={{ fontFamily: '"Press Start 2P", cursive', fontSize: '12px', color: '#d6ebff', marginBottom: '8px', opacity: 0.7, letterSpacing: '0.5px', textAlign: 'left' }}>
+                            High-atmosphere cloud layer rendered over world.
+                        </div>
+                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontFamily: '"Press Start 2P", cursive', fontSize: '14px', color: cloudsEnabled ? '#a8d9ff' : '#666', textShadow: cloudsEnabled ? '0 0 5px #a8d9ff' : 'none' }}>
+                            <input type="checkbox" checked={cloudsEnabled} onChange={(e) => onCloudsEnabledChange(e.target.checked)} style={{ marginRight: '10px', transform: 'scale(1.5)', accentColor: '#a8d9ff' }} />
+                            ENABLE CLOUDS
+                        </label>
+                    </div>
+
+                    {/* Water Surface Effects */}
+                    <div style={{ marginBottom: '25px' }}>
+                        <div style={{ fontFamily: '"Press Start 2P", cursive', fontSize: '16px', color: '#55d6ff', marginBottom: '12px', textShadow: '0 0 8px #55d6ff', letterSpacing: '1px' }}>
+                            WATER SURFACE FX: {waterSurfaceEffectsEnabled ? 'ENABLED' : 'DISABLED'}
+                        </div>
+                        <div style={{ fontFamily: '"Press Start 2P", cursive', fontSize: '12px', color: '#baf3ff', marginBottom: '8px', opacity: 0.7, letterSpacing: '0.5px', textAlign: 'left' }}>
+                            Voronoi/caustic/ripple water rendering and shoreline treatment.
+                        </div>
+                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontFamily: '"Press Start 2P", cursive', fontSize: '14px', color: waterSurfaceEffectsEnabled ? '#55d6ff' : '#666', textShadow: waterSurfaceEffectsEnabled ? '0 0 5px #55d6ff' : 'none', marginBottom: '10px' }}>
+                            <input type="checkbox" checked={waterSurfaceEffectsEnabled} onChange={(e) => onWaterSurfaceEffectsEnabledChange(e.target.checked)} style={{ marginRight: '10px', transform: 'scale(1.5)', accentColor: '#55d6ff' }} />
+                            ENABLE WATER FX
+                        </label>
+                        <div style={{ fontFamily: '"Press Start 2P", cursive', fontSize: '12px', color: '#baf3ff', marginBottom: '8px', opacity: 0.8, letterSpacing: '0.5px' }}>
+                            WATER FX INTENSITY: {Math.round(waterSurfaceEffectsIntensity)}%
+                        </div>
+                        <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={waterSurfaceEffectsIntensity}
+                            onChange={(e) => onWaterSurfaceEffectsIntensityChange(parseInt(e.target.value, 10))}
+                            disabled={!waterSurfaceEffectsEnabled}
+                            style={{ width: '100%', accentColor: '#55d6ff', cursor: waterSurfaceEffectsEnabled ? 'pointer' : 'not-allowed', opacity: waterSurfaceEffectsEnabled ? 1 : 0.5 }}
+                        />
+                    </div>
+
+                    {/* Particle Quality */}
+                    <div style={{ marginBottom: '25px' }}>
+                        <div style={{ fontFamily: '"Press Start 2P", cursive', fontSize: '16px', color: '#ffd46a', marginBottom: '12px', textShadow: '0 0 8px #ffd46a', letterSpacing: '1px' }}>
+                            WORLD PARTICLES: {worldParticlesQuality === 2 ? 'FULL' : worldParticlesQuality === 1 ? 'LOW' : 'OFF'}
+                        </div>
+                        <div style={{ fontFamily: '"Press Start 2P", cursive', fontSize: '12px', color: '#ffeab4', marginBottom: '8px', opacity: 0.75, letterSpacing: '0.5px', textAlign: 'left' }}>
+                            Controls ambient and combat particles for performance tuning.
+                        </div>
+                        <select
+                            value={worldParticlesQuality}
+                            onChange={(e) => onWorldParticlesQualityChange(parseInt(e.target.value, 10))}
+                            style={{
+                                width: '100%',
+                                background: 'rgba(10, 20, 35, 0.9)',
+                                color: '#ffeab4',
+                                border: '1px solid rgba(255, 212, 106, 0.6)',
+                                borderRadius: '6px',
+                                padding: '10px',
+                                fontFamily: '"Press Start 2P", cursive',
+                                fontSize: '11px',
+                            }}
+                        >
+                            <option value={0}>OFF</option>
+                            <option value={1}>LOW</option>
+                            <option value={2}>FULL</option>
+                        </select>
+                    </div>
+
+                    {/* Footprints */}
+                    <div style={{ marginBottom: '25px' }}>
+                        <div style={{ fontFamily: '"Press Start 2P", cursive', fontSize: '16px', color: '#9ce7a5', marginBottom: '12px', textShadow: '0 0 8px #9ce7a5', letterSpacing: '1px' }}>
+                            FOOTPRINTS: {footprintsEnabled ? 'ENABLED' : 'DISABLED'}
+                        </div>
+                        <div style={{ fontFamily: '"Press Start 2P", cursive', fontSize: '12px', color: '#cdf4d2', marginBottom: '8px', opacity: 0.75, letterSpacing: '0.5px', textAlign: 'left' }}>
+                            Ground footprints in sand/snow. Cosmetic only.
+                        </div>
+                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontFamily: '"Press Start 2P", cursive', fontSize: '14px', color: footprintsEnabled ? '#9ce7a5' : '#666', textShadow: footprintsEnabled ? '0 0 5px #9ce7a5' : 'none' }}>
+                            <input type="checkbox" checked={footprintsEnabled} onChange={(e) => onFootprintsEnabledChange(e.target.checked)} style={{ marginRight: '10px', transform: 'scale(1.5)', accentColor: '#9ce7a5' }} />
+                            ENABLE FOOTPRINTS
+                        </label>
+                    </div>
+
+                    <div style={{
+                        marginBottom: '16px',
+                        marginTop: '5px',
+                        fontFamily: '"Press Start 2P", cursive',
+                        fontSize: '11px',
+                        color: '#66d7ff',
+                        letterSpacing: '1px',
+                        textAlign: 'left',
+                        opacity: 0.9,
+                    }}>
+                        POST PROCESSING
+                    </div>
+
                     {/* Bloom Filter Slider */}
                     <div style={{ marginBottom: '25px' }}>
                         <div style={{
@@ -614,7 +873,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                         />
                     </div>
 
-                    {/* Color Correction Slider */}
+                    {/* Saturation Slider */}
                     <div style={{ marginBottom: '25px' }}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
@@ -624,7 +883,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                             textShadow: '0 0 8px #8effd1',
                             letterSpacing: '1px',
                         }}>
-                            COLOR CORRECTION: {Math.round(colorCorrection)}%
+                            SATURATION: {Math.round(colorCorrection)}%
                         </div>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
@@ -635,7 +894,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                             letterSpacing: '0.5px',
                             textAlign: 'left',
                         }}>
-                            Adjusts overall warmth, saturation, and contrast of the world.
+                            Adjusts color intensity of the world. 50% is neutral.
                         </div>
                         <input
                             type="range"
@@ -670,15 +929,15 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                             textAlign: 'left',
                             letterSpacing: '0.7px',
                         }}>
-                            SLIDER PRESETS (BLOOM / VIGNETTE / CHROMATIC / COLOR)
+                            POST-PROCESSING PRESETS
                         </div>
                         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                             <button
-                                onClick={handleDisableAllVisualEffects}
+                                onClick={() => applyPostProcessingPreset('off')}
                                 className={styles.menuButton}
                                 style={{
-                                    flex: '1 1 230px',
-                                    minWidth: '220px',
+                                    flex: '1 1 170px',
+                                    minWidth: '150px',
                                     background: 'linear-gradient(135deg, rgba(70, 28, 28, 0.88), rgba(45, 15, 15, 0.96))',
                                     color: '#ffffff',
                                     border: '2px solid #ff7a7a',
@@ -703,14 +962,14 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                                     e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 122, 122, 0.35), inset 0 0 10px rgba(255, 122, 122, 0.12)';
                                 }}
                             >
-                                TURN SLIDERS OFF
+                                OFF (DEFAULT)
                             </button>
                             <button
-                                onClick={handleResetVisualDefaults}
+                                onClick={() => applyPostProcessingPreset('cozy')}
                                 className={styles.menuButton}
                                 style={{
-                                    flex: '1 1 230px',
-                                    minWidth: '220px',
+                                    flex: '1 1 170px',
+                                    minWidth: '150px',
                                     background: 'linear-gradient(135deg, rgba(30, 65, 45, 0.85), rgba(20, 45, 30, 0.95))',
                                     color: '#ffffff',
                                     border: '2px solid #66ffb3',
@@ -735,7 +994,73 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                                     e.currentTarget.style.boxShadow = '0 0 15px rgba(102, 255, 179, 0.35), inset 0 0 10px rgba(102, 255, 179, 0.12)';
                                 }}
                             >
-                                REVERT SLIDER DEFAULTS
+                                COZY
+                            </button>
+                            <button
+                                onClick={() => applyPostProcessingPreset('hdr')}
+                                className={styles.menuButton}
+                                style={{
+                                    flex: '1 1 170px',
+                                    minWidth: '150px',
+                                    background: 'linear-gradient(135deg, rgba(70, 60, 20, 0.88), rgba(55, 45, 10, 0.96))',
+                                    color: '#ffffff',
+                                    border: '2px solid #ffd966',
+                                    borderRadius: '8px',
+                                    padding: '12px 14px',
+                                    fontFamily: '"Press Start 2P", cursive',
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    boxShadow: '0 0 15px rgba(255, 217, 102, 0.35), inset 0 0 10px rgba(255, 217, 102, 0.12)',
+                                    textShadow: '0 0 5px rgba(255, 217, 102, 0.85)',
+                                    letterSpacing: '1px',
+                                }}
+                            >
+                                HDR
+                            </button>
+                            <button
+                                onClick={() => applyPostProcessingPreset('cinematic')}
+                                className={styles.menuButton}
+                                style={{
+                                    flex: '1 1 170px',
+                                    minWidth: '150px',
+                                    background: 'linear-gradient(135deg, rgba(48, 30, 70, 0.88), rgba(28, 15, 45, 0.96))',
+                                    color: '#ffffff',
+                                    border: '2px solid #c58cff',
+                                    borderRadius: '8px',
+                                    padding: '12px 14px',
+                                    fontFamily: '"Press Start 2P", cursive',
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    boxShadow: '0 0 15px rgba(197, 140, 255, 0.35), inset 0 0 10px rgba(197, 140, 255, 0.12)',
+                                    textShadow: '0 0 5px rgba(197, 140, 255, 0.85)',
+                                    letterSpacing: '1px',
+                                }}
+                            >
+                                CINEMATIC
+                            </button>
+                            <button
+                                onClick={() => applyPostProcessingPreset('clean')}
+                                className={styles.menuButton}
+                                style={{
+                                    flex: '1 1 170px',
+                                    minWidth: '150px',
+                                    background: 'linear-gradient(135deg, rgba(26, 48, 65, 0.88), rgba(15, 30, 45, 0.96))',
+                                    color: '#ffffff',
+                                    border: '2px solid #7ccfff',
+                                    borderRadius: '8px',
+                                    padding: '12px 14px',
+                                    fontFamily: '"Press Start 2P", cursive',
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    boxShadow: '0 0 15px rgba(124, 207, 255, 0.35), inset 0 0 10px rgba(124, 207, 255, 0.12)',
+                                    textShadow: '0 0 5px rgba(124, 207, 255, 0.85)',
+                                    letterSpacing: '1px',
+                                }}
+                            >
+                                CLEAN
                             </button>
                         </div>
                     </div>

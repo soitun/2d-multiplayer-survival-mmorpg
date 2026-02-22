@@ -271,6 +271,21 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
     let current_time = ctx.timestamp;
     let world_states = ctx.db.world_state();
     let campfires = ctx.db.campfire();
+
+    // Pre-collect village campfire positions (at most 2 in the world: fishing + hunting).
+    // Doing this once here avoids a full monument_part scan for every player.
+    let village_campfire_positions: Vec<(f32, f32)> = {
+        use crate::monument_part as MonumentPartTableTrait;
+        use crate::MonumentType;
+        ctx.db.monument_part().iter()
+            .filter(|p| {
+                (p.monument_type == MonumentType::FishingVillage || p.monument_type == MonumentType::HuntingVillage)
+                    && p.part_type == "campfire"
+            })
+            .map(|p| (p.world_x, p.world_y))
+            .collect()
+    };
+
     let game_config_table = ctx.db.stat_thresholds_config();
     let config = game_config_table.iter().next()
         .ok_or_else(|| "StatThresholdsConfig not found. Critical error during stat processing.".to_string())?;
@@ -445,6 +460,18 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
                     total_warmth_change_per_sec += WARMTH_PER_SECOND;
                     log::trace!("Player {:?} gaining warmth from campfire {}", player_id, fire.id);
                 }
+            }
+        }
+
+        // Village campfires (fishing/hunting) are always burning - same warmth gain, larger radius
+        const VILLAGE_CAMPFIRE_WARMTH_RADIUS_SQ: f32 = 450.0 * 450.0;
+        for &(vx, vy) in &village_campfire_positions {
+            let dx = player.position_x - vx;
+            let dy = player.position_y - vy;
+            if (dx * dx + dy * dy) < VILLAGE_CAMPFIRE_WARMTH_RADIUS_SQ {
+                total_warmth_change_per_sec += WARMTH_PER_SECOND;
+                log::trace!("Player {:?} gaining warmth from village campfire at ({:.0}, {:.0})", player_id, vx, vy);
+                break; // Only one village campfire can be in range at a time
             }
         }
 

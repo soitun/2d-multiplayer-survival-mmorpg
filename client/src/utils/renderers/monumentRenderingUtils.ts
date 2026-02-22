@@ -119,8 +119,9 @@ export function preloadMonumentImages(): void {
     // Wolf Den monument images (tundra wolf mound)
     loadImage('wd_mound.png', import('../../assets/doodads/wd_mound.png?url'));
     
-    // Alpine Village monument images (earth-sheltered lodge)
+    // Alpine Village monument images (earth-sheltered lodge + visual campfire doodad)
     loadImage('av_lodge.png', import('../../assets/doodads/av_lodge.png?url'));
+    loadImage('av_campfire.png', import('../../assets/doodads/av_campfire.png?url'));
 
     // Aleutian whale oil road lampposts (along dirt roads)
     loadImage('road_lamp.png', import('../../assets/doodads/road_lamp.png?url'));
@@ -195,8 +196,9 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             // Wolf Den monument images (tundra wolf mound)
             'wd_mound.png': () => import('../../assets/doodads/wd_mound.png?url'),
             
-            // Alpine Village monument images (earth-sheltered lodge)
+            // Alpine Village monument images (earth-sheltered lodge + visual campfire doodad)
             'av_lodge.png': () => import('../../assets/doodads/av_lodge.png?url'),
+            'av_campfire.png': () => import('../../assets/doodads/av_campfire.png?url'),
 
             // Aleutian whale oil road lampposts (along dirt roads)
             'road_lamp.png': () => import('../../assets/doodads/road_lamp.png?url'),
@@ -422,12 +424,13 @@ export function renderMonument(
     }
     
     // Draw dynamic ground shadow (before building sprite, like ALK central compound)
-    // Skip shadow for ground-level items: crashed research drone, campfire (fv_campfire used in both villages)
+    // Skip shadow for ground-level items: crashed research drone, village campfire doodads
     // The sprite's visual base (where it touches ground) is at worldY + anchorYOffset
     // (since drawY = worldY - height + anchorYOffset, sprite bottom = drawY + height = worldY + anchorYOffset)
     // So we need to adjust entityBaseY to the visual base, or use negative pivotYOffset
     // Using negative pivotYOffset to move shadow pivot DOWN to match sprite visual base
-    const skipShadow = building.id.startsWith('crashed_research_drone') || building.imagePath === 'fv_campfire.png';
+    const isVisualCampfire = building.imagePath === 'fv_campfire.png' || building.imagePath === 'av_campfire.png';
+    const skipShadow = building.id.startsWith('crashed_research_drone') || isVisualCampfire;
     if (!skipShadow) {
         // Compound buildings are large ground-level structures - no noon shadow push needed.
         // The noon push fix is for tall narrow entities (trees, stones) where the short noon

@@ -5,17 +5,19 @@
 import type { MonumentPart } from '../generated';
 import type { CollisionShape } from './clientCollision';
 
-// --- Monument scarecrow collision (matches placeable scarecrow - 64px radius) ---
+// --- Monument scarecrow collision (matches wooden storage box - 20px radius, same position) ---
 const MONUMENT_SCARECROW_CULL_DISTANCE_SQ = 200 * 200; // Only check within 200px
 const MAX_MONUMENT_SCARECROWS_TO_CHECK = 3;
+// Always use COLLISION_RADII.STORAGE_BOX (20) - ignore part.collisionRadius from DB (may be stale 64)
+const MONUMENT_SCARECROW_COLLISION_RADIUS = 20;
 
 function isMonumentScarecrowPart(part: MonumentPart): boolean {
   return part.monumentType?.tag === 'HuntingVillage' && part.partType === 'scarecrow' && (part.collisionRadius ?? 0) > 0;
 }
 
 /**
- * Returns collision shapes for hunting village monument scarecrow (matches placeable scarecrow).
- * Uses part.collisionRadius from server (64px) when set.
+ * Returns collision shapes for hunting village monument scarecrow (matches wooden storage box).
+ * Always uses radius 20 - same as COLLISION_RADII.STORAGE_BOX. Ignores part.collisionRadius.
  */
 export function getMonumentScarecrowCollisionShapes(
   monumentParts: Map<string, MonumentPart> | undefined,
@@ -36,13 +38,12 @@ export function getMonumentScarecrowCollisionShapes(
     const distSq = dx * dx + dy * dy;
     if (distSq > MONUMENT_SCARECROW_CULL_DISTANCE_SQ) continue;
 
-    const radius = part.collisionRadius ?? 64;
     shapes.push({
       id: `monument_scarecrow_${part.id}`,
       type: `monument_scarecrow-${part.id}`,
       x: part.worldX,
       y: part.worldY,
-      radius,
+      radius: MONUMENT_SCARECROW_COLLISION_RADIUS,
     });
     count++;
   }

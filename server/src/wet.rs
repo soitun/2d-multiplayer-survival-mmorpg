@@ -171,6 +171,28 @@ pub fn should_player_be_wet(ctx: &ReducerContext, player_id: Identity, player: &
 }
 
 
+/// Checks if a position is near a fishing or hunting village communal campfire (for wetness decay acceleration)
+fn is_player_near_village_campfire(ctx: &ReducerContext, pos_x: f32, pos_y: f32) -> bool {
+    use crate::monument_part as MonumentPartTableTrait;
+    use crate::MonumentType;
+
+    const VILLAGE_CAMPFIRE_RADIUS: f32 = 450.0;
+    const VILLAGE_CAMPFIRE_RADIUS_SQ: f32 = VILLAGE_CAMPFIRE_RADIUS * VILLAGE_CAMPFIRE_RADIUS;
+
+    for part in ctx.db.monument_part().iter() {
+        if (part.monument_type == MonumentType::FishingVillage || part.monument_type == MonumentType::HuntingVillage)
+            && part.part_type == "campfire"
+        {
+            let dx = pos_x - part.world_x;
+            let dy = pos_y - part.world_y;
+            if (dx * dx + dy * dy) <= VILLAGE_CAMPFIRE_RADIUS_SQ {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Checks if a player is protected from rain (inside shelter, building, near campfire, or has tree cover)
 fn is_player_protected_from_rain(ctx: &ReducerContext, player: &Player) -> bool {
     use crate::shelter::shelter as ShelterTableTrait;
@@ -218,16 +240,17 @@ fn is_player_protected_from_rain(ctx: &ReducerContext, player: &Player) -> bool 
         }
     }
     
-    // Check if player is near the fishing village communal campfire (always burning, provides rain protection)
+    // Check if player is near fishing or hunting village communal campfire (always burning, provides rain protection)
     for part in ctx.db.monument_part().iter() {
-        // Check against the fishing village center piece (where the functional campfire is)
-        if part.monument_type == MonumentType::FishingVillage && part.is_center {
+        if (part.monument_type == MonumentType::FishingVillage || part.monument_type == MonumentType::HuntingVillage)
+            && part.part_type == "campfire"
+        {
             let dx = player.position_x - part.world_x;
             let dy = player.position_y - part.world_y;
             let distance_squared = dx * dx + dy * dy;
-            
+
             if distance_squared <= FISHING_VILLAGE_WARMTH_RADIUS_SQ {
-                log::debug!("Player {:?} is protected from rain by fishing village campfire", player.identity);
+                log::debug!("Player {:?} is protected from rain by village campfire ({:?})", player.identity, part.monument_type);
                 return true;
             }
         }
@@ -352,15 +375,16 @@ pub fn check_and_remove_wet_from_environment(ctx: &ReducerContext) -> Result<(),
             }
             
             let has_tree_cover_effect = crate::active_effects::player_has_tree_cover_effect(ctx, player_id);
-            
+            let is_near_village_campfire = is_player_near_village_campfire(ctx, player.position_x, player.position_y);
+
             // Calculate decay rate based on environment - effects can stack!
             let mut decay_rate_percent = WET_NORMAL_DECAY_RATE_PERCENT; // Base decay rate (per second)
             let mut decay_reasons = Vec::new();
-            
-            if has_cozy_effect {
-                // Cozy effect (campfire/shelter) provides fastest drying
+
+            // Village campfires (fishing/hunting) and cozy effect both provide fastest drying
+            if has_cozy_effect || is_near_village_campfire {
                 decay_rate_percent += WET_FAST_DECAY_RATE_PERCENT - WET_NORMAL_DECAY_RATE_PERCENT;
-                decay_reasons.push("cozy effect (warmth)");
+                decay_reasons.push(if is_near_village_campfire { "village campfire (warmth)" } else { "cozy effect (warmth)" });
             }
             
             if has_tree_cover_effect {

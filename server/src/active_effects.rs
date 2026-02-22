@@ -1253,10 +1253,10 @@ pub fn should_player_be_cozy(ctx: &ReducerContext, player_id: Identity, player_x
     use crate::monument_part as MonumentPartTableTrait;
     use crate::MonumentType;
     
-    // Fishing village communal campfire cozy radius (larger than regular campfires)
-    // This is a public safe zone - cozy effect is available to all players
-    const FISHING_VILLAGE_COZY_RADIUS: f32 = 450.0; // Larger radius for communal campfire
-    const FISHING_VILLAGE_COZY_RADIUS_SQ: f32 = FISHING_VILLAGE_COZY_RADIUS * FISHING_VILLAGE_COZY_RADIUS;
+    // Village communal campfire cozy radius (larger than regular campfires)
+    // Public cozy zone at both fishing and hunting villages.
+    const VILLAGE_COZY_RADIUS: f32 = 450.0;
+    const VILLAGE_COZY_RADIUS_SQ: f32 = VILLAGE_COZY_RADIUS * VILLAGE_COZY_RADIUS;
     
     // Check for nearby burning campfires
     for campfire in ctx.db.campfire().iter() {
@@ -1272,16 +1272,23 @@ pub fn should_player_be_cozy(ctx: &ReducerContext, player_id: Identity, player_x
         }
     }
     
-    // Check for fishing village communal campfire (always burning, public cozy zone)
+    // Check for village communal campfires (always burning, public cozy zones)
     for part in ctx.db.monument_part().iter() {
-        // Only the fishing village center piece provides cozy effect
-        if part.monument_type == MonumentType::FishingVillage && part.is_center {
+        // Both fishing and hunting villages use fv_campfire doodad parts.
+        // Use part_type == "campfire" instead of center flags so this remains stable
+        // even if monument center definitions change.
+        if (part.monument_type == MonumentType::FishingVillage || part.monument_type == MonumentType::HuntingVillage)
+            && part.part_type == "campfire" {
             let dx = player_x - part.world_x;
             let dy = player_y - part.world_y;
             let distance_squared = dx * dx + dy * dy;
             
-            if distance_squared <= FISHING_VILLAGE_COZY_RADIUS_SQ {
-                log::debug!("Player {:?} is cozy near fishing village campfire (communal warmth)", player_id);
+            if distance_squared <= VILLAGE_COZY_RADIUS_SQ {
+                log::debug!(
+                    "Player {:?} is cozy near village campfire ({:?})",
+                    player_id,
+                    part.monument_type
+                );
                 return true;
             }
         }

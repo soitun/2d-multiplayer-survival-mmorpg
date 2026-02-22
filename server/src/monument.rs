@@ -1832,11 +1832,11 @@ pub fn generate_weather_station(
 // =============================================================================
 
 /// Generate alpine village monument in alpine biome
-/// Single earth-sheltered lodge (av_lodge.png) - no fire pit, no drying racks.
+/// Single earth-sheltered lodge (av_lodge.png) with a visual campfire doodad (av_campfire.png).
 /// Path and dirt center like hunting village. Overrun with grass (alpine grass zone).
 /// Returns (center_position, monument_parts) where:
 /// - center_position: Option<(x, y)> in world pixels for the lodge center
-/// - monument_parts: Vec of (x, y, image_path, part_type) for the single lodge structure
+/// - monument_parts: Vec of (x, y, image_path, part_type) for alpine village structures
 pub fn generate_alpine_village(
     noise: &Perlin,
     shore_distance: &[Vec<f64>],
@@ -2041,10 +2041,13 @@ pub fn generate_alpine_village(
         log::info!("🏔️✨ PLACED ALPINE VILLAGE (lodge) at tile ({}, {}) = 📍 World Position: ({:.0}, {:.0}) ✨",
                    center_x, center_y, center_world_x, center_world_y);
         
-        // Single structure: the earth-sheltered lodge (av_lodge.png)
+        // Alpine village doodads:
+        // - Earth-sheltered lodge
+        // - Visual campfire south of lodge (no functional warmth/cooking logic)
         village_parts.push((center_world_x, center_world_y, "av_lodge.png".to_string(), "lodge".to_string()));
+        village_parts.push((center_world_x, center_world_y + 150.0, "av_campfire.png".to_string(), "campfire".to_string()));
         
-        log::info!("🏔️ Alpine village generation complete: {} structure (lodge only)", village_parts.len());
+        log::info!("🏔️ Alpine village generation complete: {} structures", village_parts.len());
     } else {
         log::warn!("🏔️ Failed to select alpine village position");
     }
@@ -3874,12 +3877,9 @@ pub fn get_hunting_village_placeables() -> Vec<MonumentPlaceableConfig> {
 }
 
 /// Get monument placeables for the Alpine Village monument
-/// Abandoned campfire (turned off) - players can light it for warmth and cooking
+/// Alpine campfire is now a visual doodad (av_campfire.png), not a functional placeable.
 pub fn get_alpine_village_placeables() -> Vec<MonumentPlaceableConfig> {
-    vec![
-        // Campfire south of lodge - unlit, abandoned feel (players can light it)
-        MonumentPlaceableConfig::campfire(0.0, 150.0),
-    ]
+    vec![]
 }
 
 /// Get monument placeables for the Weather Station monument

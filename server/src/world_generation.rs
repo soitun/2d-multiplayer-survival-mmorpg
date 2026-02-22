@@ -329,9 +329,9 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     if let Some((center_x, center_y)) = world_features.hunting_village_center {
         // All parts are stored (lodge is the center piece)
         for (part_x, part_y, image_path, part_type) in &world_features.hunting_village_parts {
-            // Scarecrow has collision like the placeable one (matches SCARECROW_COLLISION_RADIUS)
+            // Scarecrow has collision like the small wooden storage box (same radius + position)
             let collision_radius = if *part_type == "scarecrow" {
-                crate::wooden_storage_box::SCARECROW_COLLISION_RADIUS
+                crate::wooden_storage_box::BOX_COLLISION_RADIUS
             } else {
                 0.0 // NO collision for walkability (lodge, huts, campfire, etc.)
             };
@@ -526,7 +526,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 log::warn!("Failed to spawn alpine village entities: {}", e);
             }
         }
-        // Spawn monument placeables (campfire turned off - players can light it)
+        // Spawn monument placeables (currently none for Alpine Village; campfire is visual doodad)
         let placeable_configs = crate::monument::get_alpine_village_placeables();
         match crate::monument::spawn_monument_placeables(ctx, "Alpine Village", center_x, center_y, &placeable_configs) {
             Ok(count) => log::info!("🏔️ Spawned {} monument placeables at Alpine Village", count),

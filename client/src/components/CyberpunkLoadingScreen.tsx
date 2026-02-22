@@ -466,7 +466,14 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             const baseDelay = isCachedReconnect ? 30 : assetProgress ? 100 : 300;
             const randomDelay = isCachedReconnect ? 10 : assetProgress ? 50 : 200;
             const timer = setTimeout(() => {
-                setVisibleLogs(prev => [...prev, logs[currentLogIndex]]);
+                const nextLog = logs[currentLogIndex];
+                setVisibleLogs(prev => {
+                    const lastLog = prev[prev.length - 1];
+                    // In dev and during async state flips, the same final READY line can
+                    // be reached through different log-array shapes; avoid back-to-back duplicates.
+                    if (lastLog === nextLog) return prev;
+                    return [...prev, nextLog];
+                });
                 setCurrentLogIndex(prev => prev + 1);
                 // Scroll to bottom after adding new log
                 setTimeout(scrollToBottom, isCachedReconnect ? 0 : 100);

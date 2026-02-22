@@ -436,6 +436,7 @@ interface RenderYSortedEntitiesProps {
   shelterClippingData?: Array<{posX: number, posY: number, isDestroyed: boolean}>;
   localFacingDirection?: string;
   treeShadowsEnabled?: boolean;
+  allShadowsEnabled?: boolean;
   isTreeFalling?: (treeId: string) => boolean;
   getFallProgress?: (treeId: string) => number;
   cameraOffsetX?: number;
@@ -512,6 +513,7 @@ export const renderYSortedEntities = ({
   shelterClippingData,
   localFacingDirection,
   treeShadowsEnabled = true,
+  allShadowsEnabled = true,
   isTreeFalling,
   getFallProgress,
   cameraOffsetX = 0,
@@ -1171,10 +1173,21 @@ export const renderYSortedEntities = ({
           // which runs AFTER all Y-sorted entities. This allows shadows to appear ON TOP of all entities
           // walking under trees, while respecting tree-to-tree Y-sorting (shadows from behind trees
           // don't appear on front tree canopies)
-          renderTree(ctx, tree, nowMs, cycleProgress, false, false, localPlayerPosition, treeShadowsEnabled, isFalling, fallProgress);
+          renderTree(
+            ctx,
+            tree,
+            nowMs,
+            cycleProgress,
+            false,
+            false,
+            localPlayerPosition,
+            treeShadowsEnabled && allShadowsEnabled,
+            isFalling,
+            fallProgress
+          );
       } else if (type === 'stone') {
           // Render stone with its shadow in the normal order (shadow first, then stone)
-          renderStone(ctx, entity as SpacetimeDBStone, nowMs, cycleProgress, false, false);
+          renderStone(ctx, entity as SpacetimeDBStone, nowMs, cycleProgress, false, !allShadowsEnabled);
       } else if (type === 'rune_stone') {
           // Render rune stone with its shadow in the normal order (shadow first, then rune stone)
           const runeStone = entity as SpacetimeDBRuneStone;
@@ -1186,7 +1199,7 @@ export const renderYSortedEntities = ({
               itemDefinitions
           );
           
-          renderRuneStone(ctx, runeStone, nowMs, cycleProgress, false, false, localPlayerPosition, showBuildingRestriction);
+          renderRuneStone(ctx, runeStone, nowMs, cycleProgress, false, !allShadowsEnabled, localPlayerPosition, showBuildingRestriction);
       } else if (type === 'cairn') {
           // Render cairn with interaction indicator if in range
           const cairn = entity as SpacetimeDBCairn;
@@ -1253,7 +1266,7 @@ export const renderYSortedEntities = ({
           // Pass player position for health bar rendering on opposite side (like barrels)
           const playerX = localPlayerPosition?.x;
           const playerY = localPlayerPosition?.y;
-          renderCampfire(ctx, campfire, nowMs, cycleProgress, false, false, playerX, playerY);
+          renderCampfire(ctx, campfire, nowMs, cycleProgress, false, !allShadowsEnabled, playerX, playerY);
           
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
@@ -1268,7 +1281,7 @@ export const renderYSortedEntities = ({
           // Pass player position for health bar rendering on opposite side (like barrels)
           const playerX = localPlayerPosition?.x;
           const playerY = localPlayerPosition?.y;
-          renderFurnace(ctx, furnace, nowMs, cycleProgress, false, false, playerX, playerY, localPlayerPosition);
+          renderFurnace(ctx, furnace, nowMs, cycleProgress, false, !allShadowsEnabled, playerX, playerY, localPlayerPosition);
           
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {
@@ -1291,7 +1304,7 @@ export const renderYSortedEntities = ({
           // Pass player position for health bar rendering on opposite side (like barrels)
           const playerX = localPlayerPosition?.x;
           const playerY = localPlayerPosition?.y;
-          renderBarbecue(ctx, barbecue, nowMs, cycleProgress, false, false, playerX, playerY);
+          renderBarbecue(ctx, barbecue, nowMs, cycleProgress, false, !allShadowsEnabled, playerX, playerY);
           
           // Draw outline only if this is THE closest interactable target
           if (isTheClosestTarget) {

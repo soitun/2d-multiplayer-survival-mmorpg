@@ -25,20 +25,34 @@ export interface SettingsContextType {
     setEnvironmentalVolume: (volume: number) => void;
 
     // Visual
+    allShadowsEnabled: boolean;
     treeShadowsEnabled: boolean;
     weatherOverlayEnabled: boolean;
+    stormAtmosphereEnabled: boolean;
     statusOverlaysEnabled: boolean;
     grassEnabled: boolean;
     alwaysShowPlayerNames: boolean;
+    cloudsEnabled: boolean;
+    waterSurfaceEffectsEnabled: boolean;
+    waterSurfaceEffectsIntensity: number;
+    worldParticlesQuality: number; // 0=off, 1=low, 2=full
+    footprintsEnabled: boolean;
     bloomIntensity: number;
     vignetteIntensity: number;
     chromaticAberrationIntensity: number;
     colorCorrection: number;
+    setAllShadowsEnabled: (enabled: boolean) => void;
     setTreeShadowsEnabled: (enabled: boolean) => void;
     setWeatherOverlayEnabled: (enabled: boolean) => void;
+    setStormAtmosphereEnabled: (enabled: boolean) => void;
     setStatusOverlaysEnabled: (enabled: boolean) => void;
     setGrassEnabled: (enabled: boolean) => void;
     setAlwaysShowPlayerNames: (enabled: boolean) => void;
+    setCloudsEnabled: (enabled: boolean) => void;
+    setWaterSurfaceEffectsEnabled: (enabled: boolean) => void;
+    setWaterSurfaceEffectsIntensity: (intensity: number) => void;
+    setWorldParticlesQuality: (quality: number) => void;
+    setFootprintsEnabled: (enabled: boolean) => void;
     setBloomIntensity: (intensity: number) => void;
     setVignetteIntensity: (intensity: number) => void;
     setChromaticAberrationIntensity: (intensity: number) => void;
@@ -84,15 +98,32 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [environmentalVolume, _setEnvironmentalVolume] = useState(() => loadNumber('environmentalVolume', 0.7));
 
     // --- Visual ---
+    const [allShadowsEnabled, _setAllShadows] = useState(() => {
+        const saved = localStorage.getItem('allShadowsEnabled');
+        if (saved !== null) return saved === 'true';
+        // Backward compatibility: if legacy tree shadow setting exists, mirror it.
+        return loadBool('treeShadowsEnabled', true);
+    });
     const [treeShadowsEnabled, _setTreeShadows] = useState(() => loadBool('treeShadowsEnabled', true));
     const [weatherOverlayEnabled, _setWeatherOverlay] = useState(() => loadBool('weatherOverlayEnabled', true));
+    const [stormAtmosphereEnabled, _setStormAtmosphere] = useState(() => {
+        const saved = localStorage.getItem('stormAtmosphereEnabled');
+        if (saved !== null) return saved === 'true';
+        const legacy = localStorage.getItem('weatherOverlayEnabled');
+        return legacy !== null ? legacy === 'true' : true;
+    });
     const [statusOverlaysEnabled, _setStatusOverlays] = useState(() => loadBool('statusOverlaysEnabled', true));
     const [grassEnabled, _setGrass] = useState(() => loadBool('grassEnabled', true));
     const [alwaysShowPlayerNames, _setPlayerNames] = useState(() => loadBool('alwaysShowPlayerNames', true));
-    const [bloomIntensity, _setBloomIntensity] = useState(() => loadNumber('bloomIntensity', 28, 100));
-    const [vignetteIntensity, _setVignetteIntensity] = useState(() => loadNumber('vignetteIntensity', 12, 100));
-    const [chromaticAberrationIntensity, _setChromaticAberrationIntensity] = useState(() => loadNumber('chromaticAberrationIntensity', 8, 100));
-    const [colorCorrection, _setColorCorrection] = useState(() => loadNumber('colorCorrection', 58, 100));
+    const [cloudsEnabled, _setCloudsEnabled] = useState(() => loadBool('cloudsEnabled', true));
+    const [waterSurfaceEffectsEnabled, _setWaterSurfaceEffectsEnabled] = useState(() => loadBool('waterSurfaceEffectsEnabled', true));
+    const [waterSurfaceEffectsIntensity, _setWaterSurfaceEffectsIntensity] = useState(() => loadNumber('waterSurfaceEffectsIntensity', 75, 100));
+    const [worldParticlesQuality, _setWorldParticlesQuality] = useState(() => Math.round(loadNumber('worldParticlesQuality', 2, 2)));
+    const [footprintsEnabled, _setFootprintsEnabled] = useState(() => loadBool('footprintsEnabled', true));
+    const [bloomIntensity, _setBloomIntensity] = useState(() => loadNumber('bloomIntensity', 0, 100));
+    const [vignetteIntensity, _setVignetteIntensity] = useState(() => loadNumber('vignetteIntensity', 0, 100));
+    const [chromaticAberrationIntensity, _setChromaticAberrationIntensity] = useState(() => loadNumber('chromaticAberrationIntensity', 0, 100));
+    const [colorCorrection, _setColorCorrection] = useState(() => loadNumber('colorCorrection', 50, 100));
 
     // --- Setters (persist to localStorage) ---
     const setMusicVolume = useCallback((v: number) => {
@@ -110,6 +141,11 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         localStorage.setItem('environmentalVolume', v.toString());
     }, []);
 
+    const setAllShadowsEnabled = useCallback((e: boolean) => {
+        _setAllShadows(e);
+        localStorage.setItem('allShadowsEnabled', e.toString());
+    }, []);
+
     const setTreeShadowsEnabled = useCallback((e: boolean) => {
         _setTreeShadows(e);
         localStorage.setItem('treeShadowsEnabled', e.toString());
@@ -118,6 +154,11 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const setWeatherOverlayEnabled = useCallback((e: boolean) => {
         _setWeatherOverlay(e);
         localStorage.setItem('weatherOverlayEnabled', e.toString());
+    }, []);
+
+    const setStormAtmosphereEnabled = useCallback((e: boolean) => {
+        _setStormAtmosphere(e);
+        localStorage.setItem('stormAtmosphereEnabled', e.toString());
     }, []);
 
     const setStatusOverlaysEnabled = useCallback((e: boolean) => {
@@ -133,6 +174,33 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const setAlwaysShowPlayerNames = useCallback((e: boolean) => {
         _setPlayerNames(e);
         localStorage.setItem('alwaysShowPlayerNames', e.toString());
+    }, []);
+
+    const setCloudsEnabled = useCallback((e: boolean) => {
+        _setCloudsEnabled(e);
+        localStorage.setItem('cloudsEnabled', e.toString());
+    }, []);
+
+    const setWaterSurfaceEffectsEnabled = useCallback((e: boolean) => {
+        _setWaterSurfaceEffectsEnabled(e);
+        localStorage.setItem('waterSurfaceEffectsEnabled', e.toString());
+    }, []);
+
+    const setWaterSurfaceEffectsIntensity = useCallback((i: number) => {
+        const clamped = Math.max(0, Math.min(100, i));
+        _setWaterSurfaceEffectsIntensity(clamped);
+        localStorage.setItem('waterSurfaceEffectsIntensity', clamped.toString());
+    }, []);
+
+    const setWorldParticlesQuality = useCallback((q: number) => {
+        const clamped = Math.max(0, Math.min(2, Math.round(q)));
+        _setWorldParticlesQuality(clamped);
+        localStorage.setItem('worldParticlesQuality', clamped.toString());
+    }, []);
+
+    const setFootprintsEnabled = useCallback((e: boolean) => {
+        _setFootprintsEnabled(e);
+        localStorage.setItem('footprintsEnabled', e.toString());
     }, []);
 
     const setBloomIntensity = useCallback((i: number) => {
@@ -168,33 +236,49 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         setMusicVolume,
         setSoundVolume,
         setEnvironmentalVolume,
+        allShadowsEnabled,
         treeShadowsEnabled,
         weatherOverlayEnabled,
+        stormAtmosphereEnabled,
         statusOverlaysEnabled,
         grassEnabled,
         alwaysShowPlayerNames,
+        cloudsEnabled,
+        waterSurfaceEffectsEnabled,
+        waterSurfaceEffectsIntensity,
+        worldParticlesQuality,
+        footprintsEnabled,
         bloomIntensity,
         vignetteIntensity,
         chromaticAberrationIntensity,
         colorCorrection,
+        setAllShadowsEnabled,
         setTreeShadowsEnabled,
         setWeatherOverlayEnabled,
+        setStormAtmosphereEnabled,
         setStatusOverlaysEnabled,
         setGrassEnabled,
         setAlwaysShowPlayerNames,
+        setCloudsEnabled,
+        setWaterSurfaceEffectsEnabled,
+        setWaterSurfaceEffectsIntensity,
+        setWorldParticlesQuality,
+        setFootprintsEnabled,
         setBloomIntensity,
         setVignetteIntensity,
         setChromaticAberrationIntensity,
         setColorCorrection,
     }), [
         musicVolume, soundVolume, environmentalVolume,
-        treeShadowsEnabled, weatherOverlayEnabled, statusOverlaysEnabled,
-        grassEnabled, alwaysShowPlayerNames, bloomIntensity, vignetteIntensity,
-        chromaticAberrationIntensity, colorCorrection,
+        allShadowsEnabled, treeShadowsEnabled, weatherOverlayEnabled, stormAtmosphereEnabled, statusOverlaysEnabled,
+        grassEnabled, alwaysShowPlayerNames, cloudsEnabled, waterSurfaceEffectsEnabled,
+        waterSurfaceEffectsIntensity, worldParticlesQuality, footprintsEnabled, bloomIntensity,
+        vignetteIntensity, chromaticAberrationIntensity, colorCorrection,
         setMusicVolume, setSoundVolume, setEnvironmentalVolume,
-        setTreeShadowsEnabled, setWeatherOverlayEnabled, setStatusOverlaysEnabled,
-        setGrassEnabled, setAlwaysShowPlayerNames, setBloomIntensity, setVignetteIntensity,
-        setChromaticAberrationIntensity, setColorCorrection,
+        setAllShadowsEnabled, setTreeShadowsEnabled, setWeatherOverlayEnabled, setStormAtmosphereEnabled, setStatusOverlaysEnabled,
+        setGrassEnabled, setAlwaysShowPlayerNames, setCloudsEnabled, setWaterSurfaceEffectsEnabled,
+        setWaterSurfaceEffectsIntensity, setWorldParticlesQuality, setFootprintsEnabled,
+        setBloomIntensity, setVignetteIntensity, setChromaticAberrationIntensity, setColorCorrection,
     ]);
 
     return (

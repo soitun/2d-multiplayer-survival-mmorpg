@@ -179,7 +179,7 @@ import { renderBrothEffectsOverlays } from '../utils/renderers/brothEffectsOverl
 import { renderInsanityOverlay } from '../utils/renderers/insanityOverlayUtils';
 import { renderWeatherOverlay } from '../utils/renderers/weatherOverlayUtils';
 import { calculateChunkIndex } from '../utils/chunkUtils';
-import { renderWaterOverlay } from '../utils/renderers/waterOverlayUtils';
+import { renderWaterOverlay, setWaterOverlayIntensity } from '../utils/renderers/waterOverlayUtils';
 import { FpsProfiler, mark, getRecordButtonBounds } from '../utils/profiler';
 import { renderPlayer, isPlayerHovered, getSpriteCoordinates, getPlayerForRendering } from '../utils/renderers/playerRenderingUtils';
 import { renderSeaStackSingle, renderSeaStackShadowOnly, renderSeaStackBottomOnly, renderSeaStackUnderwaterSilhouette, renderSeaStackShadowsOverlay } from '../utils/renderers/seaStackRenderingUtils';
@@ -540,24 +540,36 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // --- Settings from context (audio + visual) ---
   const {
     environmentalVolume,
-    treeShadowsEnabled,
-    weatherOverlayEnabled: showWeatherOverlay,
+    allShadowsEnabled,
+    weatherOverlayEnabled: showPrecipitation,
+    stormAtmosphereEnabled,
     statusOverlaysEnabled: showStatusOverlays,
     alwaysShowPlayerNames,
+    cloudsEnabled,
+    waterSurfaceEffectsEnabled,
+    waterSurfaceEffectsIntensity,
+    worldParticlesQuality,
+    footprintsEnabled,
     bloomIntensity,
     vignetteIntensity,
     chromaticAberrationIntensity,
     colorCorrection,
   } = useSettings();
 
+  useEffect(() => {
+    setWaterOverlayIntensity(waterSurfaceEffectsIntensity / 100);
+  }, [waterSurfaceEffectsIntensity]);
+
   const postProcessStyle = useMemo(() => {
     const colorOffset = colorCorrection - 50;
-    const bloomBrightness = 1 + bloomIntensity * 0.0025;
-    const bloomBlur = bloomIntensity * 0.006;
-    const colorBrightness = 1 + colorOffset * 0.0015;
-    const colorContrast = 1 + colorOffset * 0.0025;
-    const colorSaturation = 1 + colorOffset * 0.004;
-    const colorHueRotate = colorOffset * 0.18;
+    // Bloom: 25% slider = max effect (cap effective at 25)
+    const effectiveBloom = Math.min(bloomIntensity, 25);
+    const bloomBrightness = 1 + effectiveBloom * 0.0045;
+    const bloomBlur = effectiveBloom * 0.02;
+    const colorBrightness = 1 + colorOffset * 0.0025;
+    const colorContrast = 1 + colorOffset * 0.004;
+    const colorSaturation = 1 + colorOffset * 0.0065;
+    const colorHueRotate = colorOffset * 0.28;
 
     const cssFilterParts = [
       `brightness(${(bloomBrightness * colorBrightness).toFixed(3)})`,
@@ -571,8 +583,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       cssFilterParts.push('url(#game-chromatic-aberration-filter)');
     }
 
-    const vignetteEdgeOpacity = Math.max(0, Math.min(0.35, vignetteIntensity * 0.0035));
-    const chromaticOffset = chromaticAberrationIntensity * 0.012;
+    const vignetteEdgeOpacity = Math.max(0, Math.min(0.72, vignetteIntensity * 0.009));
+    // Chromatic aberration: 50% slider = max effect (cap effective at 50)
+    const effectiveChromatic = Math.min(chromaticAberrationIntensity, 50);
+    const chromaticOffset = effectiveChromatic * 0.03;
 
     return {
       cssFilter: cssFilterParts.join(' '),
@@ -2291,14 +2305,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- Render Ground Items Individually --- 
 
     // First pass: Draw ONLY shadows for ground items that have custom shadows
-    // Render Campfire Shadows
-    visibleCampfires.forEach(campfire => {
-      renderCampfire(ctx, campfire, now_ms, currentCycleProgress, true /* onlyDrawShadow */);
-    });
-    // Render Barbecue Shadows
-    visibleBarbecues.forEach(barbecue => {
-      renderBarbecue(ctx, barbecue, now_ms, currentCycleProgress, true /* onlyDrawShadow */);
-    });
+    if (allShadowsEnabled) {
+      // Render Campfire Shadows
+      visibleCampfires.forEach(campfire => {
+        renderCampfire(ctx, campfire, now_ms, currentCycleProgress, true /* onlyDrawShadow */);
+      });
+      // Render Barbecue Shadows
+      visibleBarbecues.forEach(barbecue => {
+        renderBarbecue(ctx, barbecue, now_ms, currentCycleProgress, true /* onlyDrawShadow */);
+      });
+    }
 
     // --- STEP 0.4: Render sea stack underwater silhouettes (snorkeling) or bottom halves + water effects ---
     // Sea stack ground shadows are now rendered as an overlay AFTER Y-sorted entities (see below)
@@ -2362,9 +2378,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
       return waterTileLookup.get(`${tileX},${tileY}`) ?? false;
     };
-    visibleBarrels.forEach(barrel => {
-      renderSeaBarrelWaterShadowOnly(ctx, barrel, now_ms, currentCycleProgress, isOnSeaTileForBarrels, seaTransitionTileLookup);
-    });
+    if (allShadowsEnabled) {
+      visibleBarrels.forEach(barrel => {
+        renderSeaBarrelWaterShadowOnly(ctx, barrel, now_ms, currentCycleProgress, isOnSeaTileForBarrels, seaTransitionTileLookup);
+      });
+    }
     // --- END SEA BARREL WATER SHADOWS ---
 
     // --- STEP 1: Render ONLY swimming player bottom halves ---
@@ -2372,7 +2390,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const swimmingPlayersForBottomHalf = swimmingPlayersForBottomHalfFromHook;
 
     // Render swimming player bottom halves using exact same logic as renderYSortedEntities
-    swimmingPlayersForBottomHalf.forEach(player => {
+    if (allShadowsEnabled) {
+      swimmingPlayersForBottomHalf.forEach(player => {
       const playerId = player.identity.toHexString();
       const isLocalPlayer = localPlayerId === playerId;
 
@@ -2444,7 +2463,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           isSnorkeling // isViewerUnderwater - pass local player's snorkeling state
         );
       }
-    });
+      });
+    }
 
     // --- STEP 1.5: Render underwater shadows for swimming players (must be BEFORE water overlay) ---
     // MOVED HERE: Underwater shadows must render BEFORE Y-sorted entities and water overlay
@@ -2508,7 +2528,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // --- STEP 1.6: Render underwater shadow for snorkeling (underwater) local player ---
     // Snorkeling players are excluded from swimmingPlayersForBottomHalf but still need an underwater shadow
-    if (isSnorkeling && localPlayer && currentPredictedPosition) {
+    if (allShadowsEnabled && isSnorkeling && localPlayer && currentPredictedPosition) {
       const heroImg = heroWaterImageRef.current || heroImageRef.current;
       if (heroImg) {
         const lastPos = lastPositionsRef.current?.get(localPlayerId ?? '');
@@ -2544,7 +2564,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
 
     // --- STEP 1.7: Render underwater shadows for REMOTE snorkeling players ---
-    players.forEach((player) => {
+    if (allShadowsEnabled) {
+      players.forEach((player) => {
       if (player.identity.toHexString() === localPlayerId) return;
       if (!player.isSnorkeling) return;
       if (player.isDead || player.isKnockedOut) return;
@@ -2585,13 +2606,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           seaTransitionTileLookup
         );
       }
-    });
+      });
+    }
     // --- END UNDERWATER SHADOWS ---
     const _t1c = mark(showFpsProfiler);
 
     // --- RENDER PASS 4: Water overlay ---
     // Skip water overlay when snorkeling - player is underwater so surface effects aren't visible
-    if (!isSnorkeling) {
+    if (!isSnorkeling && waterSurfaceEffectsEnabled) {
       renderWaterOverlay(
         ctx,
         -currentCameraOffsetX, // Convert camera offset to world camera position
@@ -2619,7 +2641,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // Render terrain footprints (snow/beach) ONCE as ground decals, before any Y-sorted entities.
     // Skip when local player is underwater (snorkeling) - surface footprints aren't visible from below.
-    if (!isSnorkeling) {
+    if (!isSnorkeling && footprintsEnabled) {
       renderAllFootprints(ctx, viewBounds, now_ms);
     }
 
@@ -2670,7 +2692,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           closestInteractableTarget: rd.closestInteractableTarget,
           shelterClippingData,
           localFacingDirection,
-          treeShadowsEnabled,
+          treeShadowsEnabled: allShadowsEnabled,
+          allShadowsEnabled,
           isTreeFalling,
           getFallProgress,
           cameraOffsetX: currentCameraOffsetX,
@@ -2839,9 +2862,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // The overlay uses tree-to-tree Y-sorted compositing to ensure shadows from trees behind
     // don't appear on tree canopies that are in front (higher Y = closer to camera).
     // Players walking under a tree (whether in front of or behind the trunk) will be in shade.
-    // Skipped at night (no sunlight); respects treeShadowsEnabled setting.
-    if (visibleTrees && visibleTrees.length > 0 && treeShadowsEnabled) {
-      renderTreeCanopyShadowsOverlay(ctx, visibleTrees, now_ms, isTreeFalling, worldState?.timeOfDay, treeShadowsEnabled);
+    // Skipped at night (no sunlight); respects global allShadowsEnabled setting.
+    if (visibleTrees && visibleTrees.length > 0 && allShadowsEnabled) {
+      renderTreeCanopyShadowsOverlay(ctx, visibleTrees, now_ms, isTreeFalling, worldState?.timeOfDay, allShadowsEnabled);
     }
     // --- END TREE CANOPY SHADOWS ---
 
@@ -2850,7 +2873,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // matching how tree canopy shadows work. Uses an offscreen canvas with sea stack body cutouts
     // so the shadow appears on the ground/players but NOT on the sea stack rock itself.
     // Skip when snorkeling (underwater silhouettes are used instead).
-    if (!isSnorkeling && visibleSeaStacks && visibleSeaStacks.length > 0) {
+    if (allShadowsEnabled && !isSnorkeling && visibleSeaStacks && visibleSeaStacks.length > 0) {
       renderSeaStackShadowsOverlay(ctx, visibleSeaStacks, doodadImagesRef.current, currentCycleProgress);
     }
     // --- END SEA STACK GROUND SHADOW OVERLAYS ---
@@ -2948,13 +2971,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (ctx) {
       // This ensures they appear below sea stacks for proper depth layering
 
-      renderParticles(ctx, campfireParticles);
-      renderParticles(ctx, torchParticles);
-      renderParticles(ctx, fireArrowParticles);
-      renderParticles(ctx, furnaceParticles);
-      renderParticles(ctx, barbecueParticles);
-      renderParticles(ctx, firePatchParticles);
-      renderWardParticles(ctx, wardParticles, 0, 0); // Custom renderer for proper flame/wisp shapes
+      if (worldParticlesQuality > 0) {
+        renderParticles(ctx, campfireParticles);
+        renderParticles(ctx, fireArrowParticles);
+        if (worldParticlesQuality > 1) {
+          renderParticles(ctx, torchParticles);
+          renderParticles(ctx, furnaceParticles);
+          renderParticles(ctx, barbecueParticles);
+          renderParticles(ctx, firePatchParticles);
+          renderWardParticles(ctx, wardParticles, 0, 0); // Custom renderer for proper flame/wisp shapes
+        }
+      }
 
       // Render cut grass effects
       renderCutGrassEffects(ctx, now_ms);
@@ -3031,7 +3058,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // --- Render Clouds on Canvas --- (NEW POSITION)
     // Clouds are rendered after all other world-anchored entities and UI,
     // so they appear on top of everything in the world space.
-    if (clouds && clouds.size > 0 && cloudImagesRef.current) {
+    if (cloudsEnabled && clouds && clouds.size > 0 && cloudImagesRef.current) {
       renderCloudsDirectly({
         ctx,
         clouds: currentInterpolatedClouds,
@@ -3237,7 +3264,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // IMPORTANT: Call renderRain even when rainIntensity is 0 so thunder flash can show
     // (thunder can occur in clear weather; flash is rendered inside renderRain)
     const isWinter = worldState?.currentSeason?.tag === 'Winter';
-    if (showWeatherOverlay && !isSnorkeling) {
+    if (showPrecipitation && !isSnorkeling) {
       renderRain(
         ctx,
         -currentCameraOffsetX, // Convert screen offset to world camera position
@@ -3256,14 +3283,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Renders BEFORE day/night overlay so both effects layer naturally
     // Smoothly fades in/out when moving between chunks with different weather
     // Always render atmospheric overlay - it's lightweight and provides visual feedback
-    renderWeatherOverlay(
-      ctx,
-      currentCanvasWidth,
-      currentCanvasHeight,
-      rainIntensity, // Target intensity (will smoothly transition)
-      currentCycleProgress, // Time of day progress (read from ref)
-      Date.now() // Current time for transition timing
-    );
+    if (stormAtmosphereEnabled) {
+      renderWeatherOverlay(
+        ctx,
+        currentCanvasWidth,
+        currentCanvasHeight,
+        rainIntensity, // Target intensity (will smoothly transition)
+        currentCycleProgress, // Time of day progress (read from ref)
+        Date.now() // Current time for transition timing
+      );
+    }
     // --- End Weather Atmosphere Overlay ---
 
     // --- Post-Processing (Day/Night, Indicators, Lights, Minimap) ---
@@ -3289,15 +3318,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // --- Render Resource Sparkle Particles (Above Day/Night Overlay for visibility) ---
     // Resource sparkle particles render AFTER day/night overlay so they glow visibly at night
-    ctx.save();
-    ctx.translate(currentCameraOffsetX, currentCameraOffsetY); // Re-apply camera translation for world-space particles
-    renderParticles(ctx, resourceSparkleParticles);
-    ctx.restore();
+    if (worldParticlesQuality > 1) {
+      ctx.save();
+      ctx.translate(currentCameraOffsetX, currentCameraOffsetY); // Re-apply camera translation for world-space particles
+      renderParticles(ctx, resourceSparkleParticles);
+      ctx.restore();
+    }
     // --- End Resource Sparkle Particles ---
 
     // --- Render Impact Particles (Blood/Ethereal hit effects) ---
     // Impact particles render at world level so they move with entities
-    if (impactParticles.length > 0) {
+    if (worldParticlesQuality > 0 && impactParticles.length > 0) {
       ctx.save();
       ctx.translate(currentCameraOffsetX, currentCameraOffsetY);
       renderParticles(ctx, impactParticles);
@@ -3307,7 +3338,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // --- Render Structure Impact Particles (Sparks when walls/doors are hit) ---
     // Orange/yellow sparks when hostiles or players attack structures
-    if (structureImpactParticles.length > 0) {
+    if (worldParticlesQuality > 0 && structureImpactParticles.length > 0) {
       ctx.save();
       ctx.translate(currentCameraOffsetX, currentCameraOffsetY);
       renderParticles(ctx, structureImpactParticles);
@@ -3317,7 +3348,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // --- Render Hostile Death Particles (Above Day/Night Overlay for visibility) ---
     // Hostile death particles (blue/purple sparks) render AFTER day/night overlay so they glow dramatically at night
-    if (hostileDeathParticles.length > 0) {
+    if (worldParticlesQuality > 0 && hostileDeathParticles.length > 0) {
       ctx.save();
       ctx.translate(currentCameraOffsetX, currentCameraOffsetY); // Re-apply camera translation for world-space particles
       renderParticles(ctx, hostileDeathParticles);
@@ -3430,12 +3461,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       visibleBarbecuesMap,
     });
 
-    // Village Campfire Lights - Hunting only (fv_campfire doodad, cozy effect)
-    // Fishing village campfire has no light/cozy effects per user request
+    // Village Campfire Lights - both fishing and hunting villages (fv_campfire doodad)
     if (monumentParts && monumentParts.size > 0) {
       monumentParts.forEach((part: any) => {
-        const isHuntingVillageCampfire = part.monumentType?.tag === 'HuntingVillage' && part.partType === 'campfire';
-        if (isHuntingVillageCampfire) {
+        const isVillageCampfire =
+          (part.monumentType?.tag === 'FishingVillage' || part.monumentType?.tag === 'HuntingVillage') &&
+          part.partType === 'campfire';
+        if (isVillageCampfire) {
           renderFishingVillageCampfireLight({
             ctx,
             worldX: part.worldX,
@@ -3988,14 +4020,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
             <feColorMatrix
               in="redOffset"
               type="matrix"
-              values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.35 0"
+              values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0"
               result="redChannel"
             />
             <feOffset in="SourceGraphic" dx={-postProcessStyle.chromaticOffset} dy="0" result="greenOffset" />
             <feColorMatrix
               in="greenOffset"
               type="matrix"
-              values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 0.35 0"
+              values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 0.55 0"
               result="greenChannel"
             />
             <feBlend in="redChannel" in2="greenChannel" mode="screen" result="fringe" />
