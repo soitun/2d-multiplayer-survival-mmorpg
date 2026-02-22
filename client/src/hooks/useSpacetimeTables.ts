@@ -360,9 +360,6 @@ export const useSpacetimeTables = ({
     const playerRenderPendingRef = useRef<boolean>(false);
     const playerRenderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // NOTE: Wild animal and projectile updates now use batched refs (see above)
-    // This reduces React re-renders while maintaining smooth animation
-
     // Throttle spatial subscription updates to prevent frame drops
     const lastSpatialUpdateRef = useRef<number>(0);
     const pendingChunkUpdateRef = useRef<{ chunks: Set<number>; timestamp: number } | null>(null);
@@ -1072,19 +1069,9 @@ export const useSpacetimeTables = ({
             const handleBrothPotUpdate = (ctx: any, oldPot: SpacetimeDB.BrothPot, newPot: SpacetimeDB.BrothPot) => setBrothPots(prev => new Map(prev).set(newPot.id.toString(), newPot));
             const handleBrothPotDelete = (ctx: any, brothPot: SpacetimeDB.BrothPot) => setBrothPots(prev => { const newMap = new Map(prev); newMap.delete(brothPot.id.toString()); return newMap; });
             const handleItemDefInsert = (ctx: any, itemDef: SpacetimeDB.ItemDefinition) => {
-                if (itemDef.name === "Hunting Bow") {
-                    // console.log("[DEBUG] Hunting Bow item definition loaded:", itemDef);
-                    // console.log("[DEBUG] Hunting Bow category:", itemDef.category);
-                    // console.log("[DEBUG] Hunting Bow category tag:", itemDef.category?.tag);
-                }
                 setItemDefinitions(prev => new Map(prev).set(itemDef.id.toString(), itemDef));
             };
             const handleItemDefUpdate = (ctx: any, oldDef: SpacetimeDB.ItemDefinition, newDef: SpacetimeDB.ItemDefinition) => {
-                if (newDef.name === "Hunting Bow") {
-                    // console.log("[DEBUG] Hunting Bow item definition UPDATED:", newDef);
-                    // console.log("[DEBUG] Hunting Bow category:", newDef.category);
-                    // console.log("[DEBUG] Hunting Bow category tag:", newDef.category?.tag);
-                }
                 setItemDefinitions(prev => new Map(prev).set(newDef.id.toString(), newDef));
             };
             const handleItemDefDelete = (ctx: any, itemDef: SpacetimeDB.ItemDefinition) => setItemDefinitions(prev => { const newMap = new Map(prev); newMap.delete(itemDef.id.toString()); return newMap; });
@@ -1111,15 +1098,12 @@ export const useSpacetimeTables = ({
 
             // --- Active Equipment Subscriptions ---
             const handleActiveEquipmentInsert = (ctx: any, equip: SpacetimeDB.ActiveEquipment) => {
-                // Debug logs removed for performance
                 setActiveEquipments(prev => new Map(prev).set(equip.playerIdentity.toHexString(), equip));
             };
             const handleActiveEquipmentUpdate = (ctx: any, oldEquip: SpacetimeDB.ActiveEquipment, newEquip: SpacetimeDB.ActiveEquipment) => {
-                // Debug logs removed for performance
                 setActiveEquipments(prev => new Map(prev).set(newEquip.playerIdentity.toHexString(), newEquip));
             };
             const handleActiveEquipmentDelete = (ctx: any, equip: SpacetimeDB.ActiveEquipment) => {
-                // Debug logs removed for performance
                 setActiveEquipments(prev => { const newMap = new Map(prev); newMap.delete(equip.playerIdentity.toHexString()); return newMap; });
             };
 
@@ -1383,19 +1367,12 @@ export const useSpacetimeTables = ({
 
             // --- Active Connection Subscriptions ---
             const handleActiveConnectionInsert = (ctx: any, conn: SpacetimeDB.ActiveConnection) => {
-                // console.log(`[useSpacetimeTables LOG] ActiveConnection INSERT: ${conn.identity.toHexString()}`);
-                setActiveConnections(prev => {
-                    const newMap = new Map(prev).set(conn.identity.toHexString(), conn);
-                    // console.log(`[useSpacetimeTables LOG] activeConnections map AFTER INSERT:`, newMap);
-                    return newMap;
-                });
+                setActiveConnections(prev => new Map(prev).set(conn.identity.toHexString(), conn));
             };
             const handleActiveConnectionDelete = (ctx: any, conn: SpacetimeDB.ActiveConnection) => {
-                // console.log(`[useSpacetimeTables LOG] ActiveConnection DELETE: ${conn.identity.toHexString()}`);
                 setActiveConnections(prev => {
                     const newMap = new Map(prev);
                     newMap.delete(conn.identity.toHexString());
-                    // console.log(`[useSpacetimeTables LOG] activeConnections map AFTER DELETE:`, newMap);
                     return newMap;
                 });
             };
@@ -1416,15 +1393,12 @@ export const useSpacetimeTables = ({
 
             // --- Player Corpse Subscriptions ---
             const handlePlayerCorpseInsert = (ctx: any, corpse: SpacetimeDB.PlayerCorpse) => {
-                // console.log("[useSpacetimeTables] PlayerCorpse INSERT received:", corpse);
                 setPlayerCorpses(prev => new Map(prev).set(corpse.id.toString(), corpse));
             };
             const handlePlayerCorpseUpdate = (ctx: any, oldCorpse: SpacetimeDB.PlayerCorpse, newCorpse: SpacetimeDB.PlayerCorpse) => {
-                // console.log("[useSpacetimeTables] PlayerCorpse UPDATE received:", newCorpse);
                 setPlayerCorpses(prev => new Map(prev).set(newCorpse.id.toString(), newCorpse));
             };
             const handlePlayerCorpseDelete = (ctx: any, corpse: SpacetimeDB.PlayerCorpse) => {
-                // console.log("[useSpacetimeTables] PlayerCorpse DELETE received for ID:", corpse.id.toString(), "Object:", corpse);
                 setPlayerCorpses(prev => { const newMap = new Map(prev); newMap.delete(corpse.id.toString()); return newMap; });
             };
 
@@ -1444,14 +1418,12 @@ export const useSpacetimeTables = ({
 
             // --- ActiveConsumableEffect Subscriptions ---
             const handleActiveConsumableEffectInsert = (ctx: any, effect: SpacetimeDB.ActiveConsumableEffect) => {
-                // console.log("[useSpacetimeTables] handleActiveConsumableEffectInsert CALLED, effect:", effect);
                 setActiveConsumableEffects(prev => new Map(prev).set(effect.effectId.toString(), effect));
             };
             const handleActiveConsumableEffectUpdate = (ctx: any, oldEffect: SpacetimeDB.ActiveConsumableEffect, newEffect: SpacetimeDB.ActiveConsumableEffect) => {
                 setActiveConsumableEffects(prev => new Map(prev).set(newEffect.effectId.toString(), newEffect));
             };
             const handleActiveConsumableEffectDelete = (ctx: any, effect: SpacetimeDB.ActiveConsumableEffect) => {
-                // console.log("[useSpacetimeTables] handleActiveConsumableEffectDelete CALLED, effect:", effect);
                 setActiveConsumableEffects(prev => { const newMap = new Map(prev); newMap.delete(effect.effectId.toString()); return newMap; });
             };
 
@@ -1476,11 +1448,9 @@ export const useSpacetimeTables = ({
             // --- GrassState Subscriptions (Split Tables) ---
             // This table updates when grass is damaged/respawned - much smaller payload than old combined table
             const handleGrassStateInsert = (ctx: any, item: SpacetimeDB.GrassState) => {
-                // console.log(`[GrassState] INSERT: grassId=${item.grassId}, isAlive=${item.isAlive}`);
                 setGrassState(prev => new Map(prev).set(item.grassId.toString(), item));
             };
             const handleGrassStateUpdate = (ctx: any, oldItem: SpacetimeDB.GrassState, newItem: SpacetimeDB.GrassState) => {
-                // console.log(`[GrassState] UPDATE: grassId=${newItem.grassId}, isAlive: ${oldItem.isAlive} -> ${newItem.isAlive}`);
                 // Only update if relevant fields changed (is_alive, respawn)
                 const hasChanges = oldItem.isAlive !== newItem.isAlive ||
                     oldItem.respawnAt !== newItem.respawnAt;
@@ -1489,21 +1459,17 @@ export const useSpacetimeTables = ({
                 }
             };
             const handleGrassStateDelete = (ctx: any, item: SpacetimeDB.GrassState) => {
-                // console.log(`[GrassState] DELETE: grassId=${item.grassId}`);
                 setGrassState(prev => { const newMap = new Map(prev); newMap.delete(item.grassId.toString()); return newMap; });
             };
 
             // --- KnockedOutStatus Subscriptions ---
             const handleKnockedOutStatusInsert = (ctx: any, status: SpacetimeDB.KnockedOutStatus) => {
-                // console.log("[useSpacetimeTables] KnockedOutStatus INSERT:", status);
                 setKnockedOutStatus(prev => new Map(prev).set(status.playerId.toHexString(), status));
             };
             const handleKnockedOutStatusUpdate = (ctx: any, oldStatus: SpacetimeDB.KnockedOutStatus, newStatus: SpacetimeDB.KnockedOutStatus) => {
-                // console.log("[useSpacetimeTables] KnockedOutStatus UPDATE:", newStatus);
                 setKnockedOutStatus(prev => new Map(prev).set(newStatus.playerId.toHexString(), newStatus));
             };
             const handleKnockedOutStatusDelete = (ctx: any, status: SpacetimeDB.KnockedOutStatus) => {
-                // console.log("[useSpacetimeTables] KnockedOutStatus DELETE:", status.playerId.toHexString());
                 setKnockedOutStatus(prev => { const newMap = new Map(prev); newMap.delete(status.playerId.toHexString()); return newMap; });
             };
 
@@ -1515,8 +1481,7 @@ export const useSpacetimeTables = ({
             const handleRangedWeaponStatsDelete = (ctx: any, stats: SpacetimeDBRangedWeaponStats) =>
                 setRangedWeaponStats(prev => { const newMap = new Map(prev); newMap.delete(stats.itemName); return newMap; });
 
-            // --- Projectile Callbacks --- Added
-            // Batched updates to reduce React re-renders during combat
+            // Projectile callbacks use batched refs to reduce React re-renders during combat
             // Projectiles update frequently when arrows/thrown items are in flight
             const scheduleProjectileUpdate = () => {
                 if (projectilesUpdateTimeoutRef.current) return; // Already scheduled
@@ -1527,32 +1492,25 @@ export const useSpacetimeTables = ({
             };
 
             const handleProjectileInsert = (ctx: any, projectile: SpacetimeDBProjectile) => {
-                // console.log("[DEBUG] Projectile INSERT received:", projectile);
                 projectilesRef.current.set(projectile.id.toString(), projectile);
                 scheduleProjectileUpdate();
             };
             const handleProjectileUpdate = (ctx: any, oldProjectile: SpacetimeDBProjectile, newProjectile: SpacetimeDBProjectile) => {
-                // console.log("[DEBUG] Projectile UPDATE received:", newProjectile);
                 projectilesRef.current.set(newProjectile.id.toString(), newProjectile);
                 scheduleProjectileUpdate();
             };
             const handleProjectileDelete = (ctx: any, projectile: SpacetimeDBProjectile) => {
-                // console.log("[DEBUG] Projectile DELETE received:", projectile);
                 projectilesRef.current.delete(projectile.id.toString());
                 scheduleProjectileUpdate();
             };
 
-            // --- DeathMarker Callbacks --- Added
             const handleDeathMarkerInsert = (ctx: any, marker: SpacetimeDB.DeathMarker) => {
-                // console.log("[useSpacetimeTables] DeathMarker INSERT received:", marker);
                 setDeathMarkers(prev => new Map(prev).set(marker.playerId.toHexString(), marker));
             };
             const handleDeathMarkerUpdate = (ctx: any, oldMarker: SpacetimeDB.DeathMarker, newMarker: SpacetimeDB.DeathMarker) => {
-                // console.log("[useSpacetimeTables] DeathMarker UPDATE received:", newMarker);
                 setDeathMarkers(prev => new Map(prev).set(newMarker.playerId.toHexString(), newMarker));
             };
             const handleDeathMarkerDelete = (ctx: any, marker: SpacetimeDB.DeathMarker) => {
-                // console.log("[useSpacetimeTables] DeathMarker DELETE received for player ID:", marker.playerId.toHexString());
                 setDeathMarkers(prev => { const newMap = new Map(prev); newMap.delete(marker.playerId.toHexString()); return newMap; });
             };
 

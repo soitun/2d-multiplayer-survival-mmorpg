@@ -53,7 +53,6 @@ import { useAuthErrorHandler } from './hooks/useAuthErrorHandler';
 import { useMovementInput } from './hooks/useMovementInput';
 import { usePredictedMovement } from './hooks/usePredictedMovement';
 import { useSoundSystem, playImmediateSound } from './hooks/useSoundSystem';
-// NOTE: useInsanitySovaSounds and useEntrainmentSovaSounds are now called in GameScreen.tsx
 import { useSovaSoundBox } from './hooks/useSovaSoundBox';
 import { useMusicSystem } from './hooks/useMusicSystem';
 import { useMobileDetection } from './hooks/useMobileDetection';
@@ -69,9 +68,9 @@ import './App.css';
 import { useDebouncedCallback } from 'use-debounce'; // Import debounce helper
 
 // Viewport constants
-const VIEWPORT_WIDTH = 1200; // Example: Base viewport width
-const VIEWPORT_HEIGHT = 800; // Example: Base viewport height
-const VIEWPORT_BUFFER = 300; // 🚨 REDUCED: Was 1200, causing 3600×3200 viewport and 4000+ subscriptions
+const VIEWPORT_WIDTH = 1200;
+const VIEWPORT_HEIGHT = 800;
+const VIEWPORT_BUFFER = 300;
 const VIEWPORT_UPDATE_THRESHOLD_SQ = (VIEWPORT_WIDTH / 2) ** 2; // Increased threshold (was WIDTH/4), so updates happen less frequently
 const VIEWPORT_UPDATE_DEBOUNCE_MS = 750; // Increased debounce time (was 250ms) to reduce update frequency
 
@@ -138,8 +137,8 @@ function AppContent() {
         updateViewport,
         updatePlayerPosition,
         setSprinting,
-        stopAutoWalk, // Added for auto-walk management
-        toggleAutoAttack, // Added for auto-attack functionality
+        stopAutoWalk,
+        toggleAutoAttack,
     } = usePlayerActions();
 
     const [placementState, placementActions] = usePlacementManager(connection);
@@ -161,7 +160,6 @@ function AppContent() {
     const [isCraftingSearchFocused, setIsCraftingSearchFocused] = useState(false);
     // Auto-walking state is now managed by PlayerActionsContext via usePredictedMovement
     const [loadingSequenceComplete, setLoadingSequenceComplete] = useState<boolean>(false);
-    // 🎣 FISHING INPUT FIX: Add fishing state to App level
     const [isFishing, setIsFishing] = useState(false);
     
     // Asset preloading state
@@ -189,79 +187,76 @@ function AppContent() {
 
     // --- Pass viewport state to useSpacetimeTables ---
     const { 
-      players, trees, clouds, droneEvents, stones, runeStones, cairns, playerDiscoveredCairns, campfires, furnaces, barbecues, lanterns, turrets, // ADDED: furnaces, barbecues, runeStones, cairns, turrets, droneEvents
+      players, trees, clouds, droneEvents, stones, runeStones, cairns, playerDiscoveredCairns, campfires, furnaces, barbecues, lanterns, turrets,
       harvestableResources,
       itemDefinitions, 
       inventoryItems, worldState, activeEquipments, droppedItems, 
       woodenStorageBoxes, recipes, craftingQueueItems, localPlayerRegistered,
-      sleepingBags, // ADD destructuring
-      playerCorpses, // <<< ADD playerCorpses destructuring
-      stashes, // <<< ADD stashes destructuring
-      rainCollectors, // <<< ADD rainCollectors destructuring
-      waterPatches, // <<< ADD waterPatches destructuring
-      fertilizerPatches, // <<< ADD fertilizerPatches destructuring
-      firePatches, // <<< ADD firePatches destructuring
-      placedExplosives, // <<< ADD placedExplosives destructuring
-      hotSprings, // <<< ADD hotSprings destructuring
-      activeConsumableEffects, // <<< ADD activeConsumableEffects destructuring
+      sleepingBags,
+      playerCorpses,
+      stashes,
+      rainCollectors,
+      waterPatches,
+      fertilizerPatches,
+      firePatches,
+      placedExplosives,
+      hotSprings,
+      activeConsumableEffects,
       grass, // Static grass geometry
       grassState, // Dynamic grass state (health, respawn) - split tables optimization
-      knockedOutStatus, // <<< ADD knockedOutStatus destructuring
-      rangedWeaponStats, // Ensure this is destructured
-      projectiles, // Ensure this is destructured
-      deathMarkers, // Ensure this is destructured
-      shelters, // <<< ADD shelters HERE
-      plantedSeeds, // <<< ADD plantedSeeds HERE
-      minimapCache, // <<< ADD minimapCache HERE
-      fishingSessions, // <<< ADD fishingSessions HERE
-      soundEvents, // <<< ADD soundEvents HERE
-      continuousSounds, // <<< ADD continuousSounds HERE
-      localPlayerIdentity, // <<< ADD localPlayerIdentity HERE
-      playerDrinkingCooldowns, // <<< ADD playerDrinkingCooldowns HERE
-      wildAnimals, // <<< ADD wildAnimals HERE (includes hostile NPCs with is_hostile_npc = true)
-      hostileDeathEvents, // <<< ADD hostileDeathEvents HERE (client-side death events for particle effects)
-      animalCorpses, // <<< ADD animalCorpses HERE (NON-SPATIAL)
-      barrels, // <<< ADD barrels HERE
-      roadLampposts, // <<< ADD road lampposts (Aleutian whale oil lampposts along roads)
-      fumaroles, // <<< ADD fumaroles HERE
-      basaltColumns, // <<< ADD basaltColumns HERE
+      knockedOutStatus,
+      rangedWeaponStats,
+      projectiles,
+      deathMarkers,
+      shelters,
+      plantedSeeds,
+      minimapCache,
+      fishingSessions,
+      soundEvents,
+      continuousSounds,
+      localPlayerIdentity,
+      playerDrinkingCooldowns,
+      wildAnimals,
+      hostileDeathEvents,
+      animalCorpses,
+      barrels,
+      roadLampposts,
+      fumaroles,
+      basaltColumns,
       livingCorals, // Living coral for underwater harvesting (uses combat system)
-      seaStacks, // <<< ADD sea stacks HERE
-      homesteadHearths, // <<< ADD homesteadHearths HERE
-      brothPots, // <<< ADD brothPots HERE
-      foundationCells, // ADDED: Building foundations
-      wallCells, // ADDED: Building walls
-      doors, // ADDED: Building doors
-      fences, // ADDED: Building fences
+      seaStacks,
+      homesteadHearths,
+      brothPots,
+      foundationCells,
+      wallCells,
+      doors,
+      fences,
       playerDodgeRollStates,
-      chunkWeather, // ADDED: Chunk-based weather
-      alkStations, // ADDED: ALK delivery stations for minimap
-      alkContracts, // ADDED: ALK contracts
-      alkPlayerContracts, // ADDED: Player's ALK contracts
-      alkState, // ADDED: ALK system state
-      playerShardBalance, // ADDED: Player shard balances
-      memoryGridProgress, // ADDED: Memory Grid unlocks
-      monumentParts, // ADDED: Unified monument parts (all monument types, one-time read of static world gen data)
-      largeQuarries, // ADDED: Large quarry locations with types for minimap labels
-      // Player progression system
-      playerStats, // ADDED: Player XP, level, and stats
-      achievementDefinitions, // ADDED: Achievement definitions
-      playerAchievements, // ADDED: Unlocked achievements
-      achievementUnlockNotifications, // ADDED: Achievement unlock notifications
-      levelUpNotifications, // ADDED: Level up notifications
-      dailyLoginNotifications, // ADDED: Daily login reward notifications
-      progressNotifications, // ADDED: Progress threshold notifications
-      comparativeStatNotifications, // ADDED: Comparative stats on death
-      leaderboardEntries, // ADDED: Leaderboard entries
-      dailyLoginRewards, // ADDED: Daily login reward definitions
-      plantConfigDefinitions, // ADDED: Plant encyclopedia data
-      discoveredPlants, // ADDED: Plants discovered by current player
-      // Animal breeding system data
-      caribouBreedingData, // ADDED: Caribou breeding data (sex, age, pregnancy)
-      walrusBreedingData, // ADDED: Walrus breeding data (sex, age, pregnancy)
-      // Animal rut state (breeding season)
-      caribouRutState, // ADDED: Global caribou rut state
-      walrusRutState, // ADDED: Global walrus rut state
+      chunkWeather,
+      alkStations,
+      alkContracts,
+      alkPlayerContracts,
+      alkState,
+      playerShardBalance,
+      memoryGridProgress,
+      monumentParts,
+      largeQuarries,
+      playerStats,
+      achievementDefinitions,
+      playerAchievements,
+      achievementUnlockNotifications,
+      levelUpNotifications,
+      dailyLoginNotifications,
+      progressNotifications,
+      comparativeStatNotifications,
+      leaderboardEntries,
+      dailyLoginRewards,
+      plantConfigDefinitions,
+      discoveredPlants,
+      caribouBreedingData,
+      walrusBreedingData,
+      caribouRutState,
+      walrusRutState,
     } = useSpacetimeTables({ 
         connection, 
         cancelPlacement: placementActions.cancelPlacement,
@@ -322,7 +317,6 @@ function AppContent() {
     // --- SOVA Sound Box Hook (for deterministic SOVA voice notifications) ---
     const { showSovaSoundBox, hideSovaSoundBox, revealSovaSoundBoxUI, SovaSoundBoxComponent } = useSovaSoundBox();
     
-    // NOTE: Insanity & Entrainment SOVA sound hooks are now in GameScreen.tsx
     // This allows them to access sovaMessageAdder for automatic tab switching/flashing
     
     // --- Mobile Detection ---
@@ -343,8 +337,7 @@ function AppContent() {
     const { inputState: keyboardInputState, inputStateRef: keyboardInputStateRef, isAutoWalking } = useMovementInput({ 
         isUIFocused: isUIFocused || isDead, // Disable input when dead
         localPlayer,
-        onToggleAutoAttack: toggleAutoAttack, // Keep auto-attack functionality
-        // 🎣 FISHING INPUT FIX: Pass fishing state to disable input during fishing
+        onToggleAutoAttack: toggleAutoAttack,
         isFishing,
     });
     
@@ -695,7 +688,6 @@ function AppContent() {
     // --- Debounced Viewport Update ---
     const debouncedUpdateViewport = useDebouncedCallback(
         (vp: { minX: number, minY: number, maxX: number, maxY: number }) => {
-            // console.log(`[App] Calling debounced server viewport update: ${JSON.stringify(vp)}`);
             updateViewport(vp.minX, vp.minY, vp.maxX, vp.maxY);
             lastSentViewportCenterRef.current = { x: (vp.minX + vp.maxX) / 2, y: (vp.minY + vp.maxY) / 2 };
         },
@@ -763,11 +755,9 @@ function AppContent() {
     // --- Effect to initialize and cleanup cut grass effect system ---
     useEffect(() => {
         if (connection && localPlayerRegistered) {
-            // console.log("[App.tsx] Initializing CutGrassEffectSystem...");
             initCutGrassEffectSystem(connection);
 
             return () => {
-                // console.log("[App.tsx] Cleaning up CutGrassEffectSystem...");
                 cleanupCutGrassEffectSystem();
             };
         }
@@ -839,7 +829,6 @@ function AppContent() {
     // --- Effect to manage registration state based on table hook --- 
     useEffect(() => {
          if (localPlayerRegistered && isRegistering) {
-             // console.log("[AppContent] Player registered, setting isRegistering = false");
              setIsRegistering(false);
          }
          // Auto-walk functionality removed
@@ -865,8 +854,6 @@ function AppContent() {
     // --- Determine overall loading state ---
     // We'll determine this after loggedInPlayer and getStoredUsername are defined
     
-    // Debug logging for loading states  
-    // console.log(`[App DEBUG] authLoading: ${authLoading}, isAuthenticated: ${isAuthenticated}, spacetimeLoading: ${spacetimeLoading}, loadingSequenceComplete: ${loadingSequenceComplete}, shouldShowLoadingScreen: ${shouldShowLoadingScreen}`);
 
     // --- Handle loading sequence completion ---
     const handleSequenceComplete = useCallback(() => {
@@ -896,10 +883,6 @@ function AppContent() {
         }
     }, [placementMessage, showError]);
     
-    // Debug logging for connection error
-    // if (connectionError) {
-    //     console.log(`[App DEBUG] connectionError: ${connectionError}`);
-    // }
 
     // --- Find the logged-in player data from the tables --- 
     const loggedInPlayer = dbIdentity ? players.get(dbIdentity.toHexString()) ?? null : null;
@@ -1022,8 +1005,6 @@ function AppContent() {
     const isSpacetimeReady = !spacetimeLoading && !!connection && !!dbIdentity;
     const shouldShowLoadingScreen = isAuthenticated && hasPlayerDataOrUsername && (authLoading || !isSpacetimeReady || !loadingSequenceComplete);
 
-    // Debug logging for loading states (enable when debugging)
-    // console.log(`[App DEBUG] authLoading: ${authLoading}, isAuthenticated: ${isAuthenticated}, spacetimeLoading: ${spacetimeLoading}, connection: ${!!connection}, dbIdentity: ${!!dbIdentity}, isSpacetimeReady: ${isSpacetimeReady}, hasPlayerData: ${!!hasPlayerDataOrUsername}, shouldShowLoadingScreen: ${shouldShowLoadingScreen}`);
 
     // Track when isSpacetimeReady changes (key metric for connection readiness)
     useEffect(() => {
@@ -1059,8 +1040,7 @@ function AppContent() {
         setIsMinimapOpen(true);
     }, []);
 
-    // --- Render Logic --- 
-    // console.log("[AppContent] Rendering. Hemps map:", hemps); // <<< TEMP DEBUG LOG
+    // --- Render Logic ---
     return (
         <div className="App" style={{ backgroundColor: '#111' }}>
             {/* Show loading screen only when needed */} 
@@ -1122,8 +1102,8 @@ function AppContent() {
                             cairns={cairns}
                             playerDiscoveredCairns={playerDiscoveredCairns}
                             campfires={campfires}
-                            furnaces={furnaces} // ADDED: Furnaces prop
-                            barbecues={barbecues} // ADDED: Barbecues prop
+                            furnaces={furnaces}
+                            barbecues={barbecues}
                             lanterns={lanterns}
                             turrets={turrets}
                             harvestableResources={harvestableResources}
@@ -1206,27 +1186,26 @@ function AppContent() {
                             playerDodgeRollStates={playerDodgeRollStates}
                             movementDirection={inputState.direction}
                             isAutoWalking={isAutoWalking} // Pass auto-walk state for dodge roll detection
-                            facingDirection={facingDirection} // ADD: Pass local facing direction for instant visual feedback
-                            chunkWeather={chunkWeather} // ADDED: Chunk-based weather
-                            alkStations={alkStations} // ADDED: ALK delivery stations for minimap
-                            alkContracts={alkContracts} // ADDED: ALK contracts
-                            alkPlayerContracts={alkPlayerContracts} // ADDED: Player's ALK contracts
-                            alkState={alkState} // ADDED: ALK system state
-                            playerShardBalance={playerShardBalance} // ADDED: Player shard balances
-                            memoryGridProgress={memoryGridProgress} // ADDED: Memory Grid unlocks
-                            playerStats={playerStats} // ADDED: Player XP, level, and stats
-                            playerAchievements={playerAchievements} // ADDED: Player unlocked achievements
-                            achievementDefinitions={achievementDefinitions} // ADDED: Achievement definitions for title selection
-                            leaderboardEntries={leaderboardEntries} // ADDED: Leaderboard entries
-                            plantConfigDefinitions={plantConfigDefinitions} // ADDED: Plant encyclopedia data
-                            discoveredPlants={discoveredPlants} // ADDED: Plants discovered by current player
-                            // Animal breeding system data
-                            caribouBreedingData={caribouBreedingData} // ADDED: Caribou breeding data for rendering
-                            walrusBreedingData={walrusBreedingData} // ADDED: Walrus breeding data for rendering
-                            caribouRutState={caribouRutState} // ADDED: Global caribou rut state for tooltip
-                            walrusRutState={walrusRutState} // ADDED: Global walrus rut state for tooltip
-                            monumentParts={monumentParts} // ADDED: Unified monument parts (all monument types)
-                            largeQuarries={largeQuarries} // ADDED: Large quarry locations with types for minimap labels
+                            facingDirection={facingDirection}
+                            chunkWeather={chunkWeather}
+                            alkStations={alkStations}
+                            alkContracts={alkContracts}
+                            alkPlayerContracts={alkPlayerContracts}
+                            alkState={alkState}
+                            playerShardBalance={playerShardBalance}
+                            memoryGridProgress={memoryGridProgress}
+                            playerStats={playerStats}
+                            playerAchievements={playerAchievements}
+                            achievementDefinitions={achievementDefinitions}
+                            leaderboardEntries={leaderboardEntries}
+                            plantConfigDefinitions={plantConfigDefinitions}
+                            discoveredPlants={discoveredPlants}
+                            caribouBreedingData={caribouBreedingData}
+                            walrusBreedingData={walrusBreedingData}
+                            caribouRutState={caribouRutState}
+                            walrusRutState={walrusRutState}
+                            monumentParts={monumentParts}
+                            largeQuarries={largeQuarries}
                             // Mobile controls
                             isMobile={isMobile}
                             onMobileTap={handleMobileTap}

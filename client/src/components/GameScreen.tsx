@@ -274,7 +274,6 @@ interface GameScreenProps {
     movementDirection: { x: number; y: number };
     isAutoWalking: boolean; // Auto-walk state for dodge roll detection
 
-    // ADD: Local facing direction for instant visual feedback (client-authoritative)
     facingDirection?: string;
 
     // Chunk-based weather
@@ -334,8 +333,6 @@ interface GameScreenProps {
 }
 
 const GameScreen: React.FC<GameScreenProps> = (props) => {
-    // ADD THIS LOG AT THE VERY BEGINNING OF THE COMPONENT
-    // console.log("[GameScreen.tsx] Received props including activeConsumableEffects:", props.activeConsumableEffects);
     const [showInventoryState, setShowInventoryState] = useState(false);
     const [showCraftingScreenState, setShowCraftingScreenState] = useState(false);
 
@@ -372,7 +369,6 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         setIsDayNightExpanded(!isMinimized);
     }, []);
 
-    // 🎣 FISHING INPUT FIX: Track fishing state to disable input
     const [isFishing, setIsFishing] = useState(false);
 
     // Mobile interact state
@@ -380,18 +376,9 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     const [mobileInteractTrigger, setMobileInteractTrigger] = useState(0);
 
 
-    // Debug logging for SOVA message adder
-    useEffect(() => {
-        console.log('[GameScreen] SOVA message adder changed:', sovaMessageAdder ? 'Available' : 'Not available');
-        if (sovaMessageAdder) {
-            console.log('[GameScreen] SOVA message adder function is now ready for VoiceInterface');
-        }
-    }, [sovaMessageAdder]);
 
-    // Callback to receive SOVA message adder from Chat
     const handleSOVAMessageAdderReady = useCallback((addMessage: (message: { id: string; text: string; isUser: boolean; timestamp: Date; flashTab?: boolean }) => void) => {
-        console.log('[GameScreen] Received SOVA message adder from Chat component');
-        setSOVAMessageAdder(() => addMessage); // Use function form to avoid stale closure
+        setSOVAMessageAdder(() => addMessage);
     }, []);
 
     // Debug context
@@ -685,10 +672,6 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         setIsMinimapOpen(false);
     }, [setInterfaceInitialView, setIsMinimapOpen]);
 
-    // You can also add a useEffect here if the above doesn't show up
-    useEffect(() => {
-        // console.log("[GameScreen.tsx] activeConsumableEffects prop after destructuring:", activeConsumableEffects);
-    }, [activeConsumableEffects]);
 
     // Find local player for viewport calculations
     const localPlayer = localPlayerId ? players.get(localPlayerId) : undefined;
@@ -1134,7 +1117,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 connection={connection}
                 predictedPosition={predictedPosition}
                 getCurrentPositionNow={getCurrentPositionNow}
-                localFacingDirection={props.facingDirection} // ADD: Pass local facing direction for instant visual feedback
+                localFacingDirection={props.facingDirection}
                 placementInfo={placementInfo}
                 placementActions={placementActions}
                 placementError={placementError}
@@ -1427,7 +1410,6 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                     cameraOffsetX={cameraOffsetX}
                     cameraOffsetY={cameraOffsetY}
                     connection={connection}
-                    // 🎣 FISHING INPUT FIX: Add callback to track fishing state
                     onFishingStateChange={setIsFishing}
                     // Fishing sessions and players for rendering other players' fishing
                     fishingSessions={fishingSessions}

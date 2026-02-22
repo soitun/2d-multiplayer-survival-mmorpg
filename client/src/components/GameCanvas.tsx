@@ -603,8 +603,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   });
 
   // High-frequency value refs (to avoid renderGame dependency array churn)
-  // NOTE: Animation frame refs are now imported directly from useAnimationCycle.ts
-  // walkingAnimationFrameRef, sprintAnimationFrameRef, idleAnimationFrameRef are module-level exports
   const worldMousePosRef = useRef<{ x: number | null; y: number | null }>({ x: 0, y: 0 });
   const cameraOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const predictedPositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -830,7 +828,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const deltaTimeRef = useRef<number>(0);
 
   // Sync high-frequency values to refs (reduces renderGame dependency array churn)
-  // NOTE: Animation frame refs are now directly exported from useAnimationCycle.ts - no syncing needed
   useEffect(() => { worldMousePosRef.current = worldMousePos; }, [worldMousePos]);
   useEffect(() => { cameraOffsetRef.current = { x: cameraOffsetX, y: cameraOffsetY }; }, [cameraOffsetX, cameraOffsetY]);
   useEffect(() => { predictedPositionRef.current = predictedPosition; }, [predictedPosition]);
@@ -1198,7 +1195,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const { proceduralRenderer, isInitialized: isWorldRendererInitialized, updateTileCache } = useWorldTileCache();
 
   // Subscribe once to all compressed chunks - only when parent does NOT provide worldChunkDataMap
-  // NOTE: chunkCacheRef, chunkSizeRef, chunkCacheVersion are now declared earlier (before useEntityFiltering)
   useEffect(() => {
     if (!connection || worldChunkDataMapProp !== undefined) return;
 
@@ -2285,10 +2281,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         renderBarrelUnderwaterSilhouette(ctx, barrel, currentCycleProgress, now_ms);
       });
     } else {
-      // Normal rendering: bottom half and water effects
-      // NOTE: Sea stack shadows are now rendered as an OVERLAY pass after Y-sorted entities
-      // (similar to tree canopy shadows) so they appear ON TOP of players walking near sea stacks.
-
       // --- STEP 0.5: Render sea stack BOTTOM halves WITHOUT shadows (underwater rock texture) ---
       const localPlayerPositionForSeaStacks = currentPredictedPosition ?? (localPlayer ? { x: localPlayer.positionX, y: localPlayer.positionY } : null);
       visibleSeaStacks.forEach(seaStack => {
@@ -2812,8 +2804,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // The overlay uses tree-to-tree Y-sorted compositing to ensure shadows from trees behind
     // don't appear on tree canopies that are in front (higher Y = closer to camera).
     // Players walking under a tree (whether in front of or behind the trunk) will be in shade.
-    // NOTE: Canopy shadows are skipped at night (no sunlight to cast shadows)
-    // NOTE: Canopy shadows respect the treeShadowsEnabled visual setting
+    // Skipped at night (no sunlight); respects treeShadowsEnabled setting.
     if (visibleTrees && visibleTrees.length > 0 && treeShadowsEnabled) {
       renderTreeCanopyShadowsOverlay(ctx, visibleTrees, now_ms, isTreeFalling, worldState?.timeOfDay, treeShadowsEnabled);
     }
@@ -2929,7 +2920,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       renderParticles(ctx, barbecueParticles);
       renderParticles(ctx, firePatchParticles);
       renderWardParticles(ctx, wardParticles, 0, 0); // Custom renderer for proper flame/wisp shapes
-      // NOTE: Resource sparkle particles moved to after day/night overlay for visibility at night
 
       // Render cut grass effects
       renderCutGrassEffects(ctx, now_ms);
@@ -3636,10 +3626,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Minimap now rendered as React component overlay, not on game canvas
 
   }, [checkPerformance,
-    // Dependencies
-    // NOTE: High-frequency values are now read from refs to avoid callback recreation every frame:
-    // - cameraOffsetX/Y, worldMousePos, animationFrame, predictedPosition
-    // - sprintAnimationFrame, idleAnimationFrame, interpolatedClouds, worldState.cycleProgress
     visibleHarvestableResources,
     visibleHarvestableResourcesMap,
     visibleDroppedItems, visibleCampfires, visibleSleepingBags,
