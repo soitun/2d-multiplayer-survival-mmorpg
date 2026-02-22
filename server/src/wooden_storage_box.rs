@@ -76,6 +76,7 @@ pub(crate) fn get_box_collision_radius(box_type: u8) -> f32 {
         BOX_TYPE_COOKING_STATION => COOKING_STATION_COLLISION_RADIUS,
         BOX_TYPE_SCARECROW => SCARECROW_COLLISION_RADIUS,
         BOX_TYPE_MILITARY_RATION => BOX_COLLISION_RADIUS,
+        BOX_TYPE_MILITARY_CRATE => BOX_COLLISION_RADIUS,
         BOX_TYPE_MINE_CART => MINE_CART_COLLISION_RADIUS,
         BOX_TYPE_FISH_TRAP => FISH_TRAP_COLLISION_RADIUS,
         BOX_TYPE_WILD_BEEHIVE => WILD_BEEHIVE_COLLISION_RADIUS,
@@ -156,6 +157,12 @@ pub const BOX_TYPE_PLAYER_BEEHIVE: u8 = 12;
 pub const NUM_PLAYER_BEEHIVE_SLOTS: usize = 5; // Slot 0 = Queen Bee input, Slots 1-4 = Honeycomb output
 pub const PLAYER_BEEHIVE_INITIAL_HEALTH: f32 = 400.0;
 pub const PLAYER_BEEHIVE_MAX_HEALTH: f32 = 400.0;
+
+// --- Military Crate --- (weather station only, 1 high-tier weapon, 1hr respawn)
+pub const BOX_TYPE_MILITARY_CRATE: u8 = 13;
+pub const NUM_MILITARY_CRATE_SLOTS: usize = 1; // Single slot for one high-tier weapon
+pub const MILITARY_CRATE_INITIAL_HEALTH: f32 = 150.0;
+pub const MILITARY_CRATE_MAX_HEALTH: f32 = 150.0;
 
 // Re-export refrigerator constants for backward compatibility
 pub use crate::refrigerator::{NUM_REFRIGERATOR_SLOTS, REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH};
@@ -414,6 +421,7 @@ pub fn move_item_from_box(
     // Check box type before moving storage_box
     let is_backpack = storage_box.box_type == BOX_TYPE_BACKPACK;
     let is_military_ration = storage_box.box_type == BOX_TYPE_MILITARY_RATION;
+    let is_military_crate = storage_box.box_type == BOX_TYPE_MILITARY_CRATE;
     let is_mine_cart = storage_box.box_type == BOX_TYPE_MINE_CART;
     let is_wild_beehive = storage_box.box_type == BOX_TYPE_WILD_BEEHIVE;
     let is_player_beehive = storage_box.box_type == BOX_TYPE_PLAYER_BEEHIVE;
@@ -435,6 +443,9 @@ pub fn move_item_from_box(
     // Auto-despawn empty military rations
     if is_military_ration {
         let _ = crate::military_ration::check_and_despawn_military_ration_if_empty(ctx, box_id);
+    }
+    if is_military_crate {
+        let _ = crate::military_ration::check_and_despawn_military_crate_if_empty(ctx, box_id);
     }
     
     // Auto-despawn empty mine carts
@@ -666,6 +677,7 @@ pub fn quick_move_from_box(
     // Check box type before moving storage_box
     let is_backpack = storage_box.box_type == BOX_TYPE_BACKPACK;
     let is_military_ration = storage_box.box_type == BOX_TYPE_MILITARY_RATION;
+    let is_military_crate = storage_box.box_type == BOX_TYPE_MILITARY_CRATE;
     let is_mine_cart = storage_box.box_type == BOX_TYPE_MINE_CART;
     let is_wild_beehive = storage_box.box_type == BOX_TYPE_WILD_BEEHIVE;
     let is_player_beehive = storage_box.box_type == BOX_TYPE_PLAYER_BEEHIVE;
@@ -687,6 +699,9 @@ pub fn quick_move_from_box(
     // Auto-despawn empty military rations
     if is_military_ration {
         let _ = crate::military_ration::check_and_despawn_military_ration_if_empty(ctx, box_id);
+    }
+    if is_military_crate {
+        let _ = crate::military_ration::check_and_despawn_military_crate_if_empty(ctx, box_id);
     }
     
     // Auto-despawn empty mine carts
@@ -1121,6 +1136,7 @@ pub fn drop_item_from_box_slot_to_world(
     // Check box type before moving wooden_box
     let is_backpack = wooden_box.box_type == BOX_TYPE_BACKPACK;
     let is_military_ration = wooden_box.box_type == BOX_TYPE_MILITARY_RATION;
+    let is_military_crate = wooden_box.box_type == BOX_TYPE_MILITARY_CRATE;
     let is_mine_cart = wooden_box.box_type == BOX_TYPE_MINE_CART;
     let is_wild_beehive = wooden_box.box_type == BOX_TYPE_WILD_BEEHIVE;
     let is_player_beehive = wooden_box.box_type == BOX_TYPE_PLAYER_BEEHIVE;
@@ -1142,6 +1158,9 @@ pub fn drop_item_from_box_slot_to_world(
     // Auto-despawn empty military rations
     if is_military_ration {
         let _ = crate::military_ration::check_and_despawn_military_ration_if_empty(ctx, box_id);
+    }
+    if is_military_crate {
+        let _ = crate::military_ration::check_and_despawn_military_crate_if_empty(ctx, box_id);
     }
     
     // Auto-despawn empty mine carts
@@ -1185,6 +1204,7 @@ pub fn split_and_drop_item_from_box_slot_to_world(
     // Check box type before moving wooden_box
     let is_backpack = wooden_box.box_type == BOX_TYPE_BACKPACK;
     let is_military_ration = wooden_box.box_type == BOX_TYPE_MILITARY_RATION;
+    let is_military_crate = wooden_box.box_type == BOX_TYPE_MILITARY_CRATE;
     let is_mine_cart = wooden_box.box_type == BOX_TYPE_MINE_CART;
     let is_wild_beehive = wooden_box.box_type == BOX_TYPE_WILD_BEEHIVE;
 
@@ -1201,6 +1221,9 @@ pub fn split_and_drop_item_from_box_slot_to_world(
     // Auto-despawn empty military rations
     if is_military_ration {
         let _ = crate::military_ration::check_and_despawn_military_ration_if_empty(ctx, box_id);
+    }
+    if is_military_crate {
+        let _ = crate::military_ration::check_and_despawn_military_crate_if_empty(ctx, box_id);
     }
     
     // Auto-despawn empty mine carts
@@ -1241,6 +1264,7 @@ impl ItemContainer for WoodenStorageBox {
             BOX_TYPE_COOKING_STATION => NUM_COOKING_STATION_SLOTS,
             BOX_TYPE_SCARECROW => NUM_SCARECROW_SLOTS,
             BOX_TYPE_MILITARY_RATION => NUM_MILITARY_RATION_SLOTS,
+            BOX_TYPE_MILITARY_CRATE => NUM_MILITARY_CRATE_SLOTS,
             BOX_TYPE_MINE_CART => NUM_MINE_CART_SLOTS,
             BOX_TYPE_FISH_TRAP => NUM_FISH_TRAP_SLOTS,
             BOX_TYPE_WILD_BEEHIVE => NUM_WILD_BEEHIVE_SLOTS,

@@ -47,7 +47,7 @@ import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
 import { PopulatedItem } from './InventoryUI';
 import { isWaterContainer, getWaterContent, formatWaterContent, getWaterLevelPercentage, isSaltWater } from '../utils/waterContainerHelpers';
 import { hasDurabilitySystem, getDurabilityPercentage, isItemBroken, getDurabilityColor, isFoodItem, isFoodSpoiled, formatFoodSpoilageTimeRemaining, formatDurability, getDurability, getMaxDurability, getRepairCount, canItemBeRepaired, getRepairBlockedReason, calculateRepairCost, formatRepairCost, MAX_REPAIR_COUNT, MAX_DURABILITY } from '../utils/durabilityHelpers';
-import { BOX_TYPE_REPAIR_BENCH, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_COOKING_STATION } from '../utils/renderers/woodenStorageBoxRenderingUtils';
+import { BOX_TYPE_REPAIR_BENCH, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_COOKING_STATION, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MILITARY_CRATE } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { getItemIcon } from '../utils/itemIconUtils';
 import { formatDuration as formatDurationSeconds } from '../utils/formatDuration';
 import { playImmediateSound } from '../hooks/useSoundSystem';
@@ -1278,8 +1278,16 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
 
     const config = getContainerConfig(container.containerType, container.containerEntity);
 
-    // Whether to show the sort button (wooden storage boxes with 2+ slots and at least one item)
+    // Whether to show the sort button (player-owned wooden storage boxes with 2+ slots and at least one item)
+    // Exclude military rations, military crates, and monument containers - sort is for player-owned storage only
+    const boxEntity = container.containerEntity as SpacetimeDBWoodenStorageBox | undefined;
+    const isMilitaryRation = container.containerType === 'wooden_storage_box' && boxEntity?.boxType === BOX_TYPE_MILITARY_RATION;
+    const isMilitaryCrate = container.containerType === 'wooden_storage_box' && boxEntity?.boxType === BOX_TYPE_MILITARY_CRATE;
+    const isMonumentContainer = container.containerType === 'wooden_storage_box' && !!boxEntity?.isMonument;
     const showSortButton = container.containerType === 'wooden_storage_box' &&
+        !isMilitaryRation &&
+        !isMilitaryCrate &&
+        !isMonumentContainer &&
         config.slots > 1 &&
         container.items.some(item => item !== null) &&
         connection?.reducers &&

@@ -23,6 +23,8 @@ use crate::homestead_hearth::{HomesteadHearth, HEARTH_COLLISION_RADIUS, HEARTH_C
 use crate::homestead_hearth::homestead_hearth as HomesteadHearthTableTrait;
 use crate::basalt_column::{BasaltColumn, BASALT_COLUMN_RADIUS, BASALT_COLUMN_COLLISION_Y_OFFSET};
 use crate::basalt_column::basalt_column as BasaltColumnTableTrait;
+use crate::sea_stack::{get_sea_stack_collision_dimensions, sea_stack as SeaStackTableTrait};
+use crate::coral::{LIVING_CORAL_COLLISION_Y_OFFSET, LIVING_CORAL_RADIUS};
 use crate::building::wall_cell as WallCellTableTrait;
 use crate::building::foundation_cell as FoundationCellTableTrait;
 use crate::building::FOUNDATION_TILE_SIZE_PX;
@@ -181,6 +183,15 @@ pub fn resolve_animal_collision(
             final_y = current_y + pushback_y;
             collision_detected = true;
             log::debug!("[AnimalCollision] Animal {} pushed back by environment: ({:.1}, {:.1})", 
+                       animal_id, pushback_x, pushback_y);
+        }
+        
+        // Living coral collision (not in spatial grid - direct iteration)
+        if let Some((pushback_x, pushback_y)) = check_living_coral_collision(ctx, final_x, final_y) {
+            final_x = current_x + pushback_x;
+            final_y = current_y + pushback_y;
+            collision_detected = true;
+            log::debug!("[AnimalCollision] Animal {} pushed back by living coral: ({:.1}, {:.1})", 
                        animal_id, pushback_x, pushback_y);
         }
         
@@ -717,6 +728,35 @@ pub fn check_player_collision(
 }
 
 /// Checks collision with environmental objects (trees, stones, boxes, etc.)
+/// Check collision with living coral (underwater obstacles)
+/// Living coral is not in the spatial grid, so we iterate directly
+fn check_living_coral_collision(
+    ctx: &ReducerContext,
+    proposed_x: f32,
+    proposed_y: f32,
+) -> Option<(f32, f32)> {
+    use crate::coral::living_coral;
+    for coral in ctx.db.living_coral().iter() {
+        if coral.respawn_at > Timestamp::UNIX_EPOCH {
+            continue; // Skip respawning/destroyed coral
+        }
+        let coral_collision_y = coral.pos_y - LIVING_CORAL_COLLISION_Y_OFFSET;
+        let dx = proposed_x - coral.pos_x;
+        let dy = proposed_y - coral_collision_y;
+        let distance_sq = dx * dx + dy * dy;
+        let min_distance = ANIMAL_COLLISION_RADIUS + LIVING_CORAL_RADIUS;
+        let min_distance_sq = min_distance * min_distance;
+        
+        if distance_sq < min_distance_sq && distance_sq > 0.1 {
+            let distance = distance_sq.sqrt();
+            let pushback_x = (dx / distance) * COLLISION_PUSHBACK_FORCE;
+            let pushback_y = (dy / distance) * COLLISION_PUSHBACK_FORCE;
+            return Some((pushback_x, pushback_y));
+        }
+    }
+    None
+}
+
 pub fn check_environmental_collision(
     ctx: &ReducerContext,
     proposed_x: f32,
@@ -737,7 +777,8 @@ pub fn check_environmental_collision_with_grid<DB>(
 where
     DB: TreeTableTrait + StoneTableTrait + WoodenStorageBoxTableTrait 
         + RainCollectorTableTrait + PlayerCorpseTableTrait + FurnaceTableTrait
-        + HomesteadHearthTableTrait + BasaltColumnTableTrait,
+        + HomesteadHearthTableTrait + BasaltColumnTableTrait
+        + SeaStackTableTrait,
 {
     let nearby_entities = grid.get_entities_in_range(proposed_x, proposed_y);
     
@@ -875,6 +916,24 @@ where
                     let dy = proposed_y - hearth_collision_y;
                     let distance_sq = dx * dx + dy * dy;
                     let min_distance = ANIMAL_COLLISION_RADIUS + HEARTH_COLLISION_RADIUS;
+                    let min_distance_sq = min_distance * min_distance;
+                    
+                    if distance_sq < min_distance_sq && distance_sq > 0.1 {
+                        let distance = distance_sq.sqrt();
+                        let pushback_x = (dx / distance) * COLLISION_PUSHBACK_FORCE;
+                        let pushback_y = (dy / distance) * COLLISION_PUSHBACK_FORCE;
+                        return Some((pushback_x, pushback_y));
+                    }
+                }
+            },
+            spatial_grid::EntityType::SeaStack(sea_stack_id) => {
+                if let Some(sea_stack) = db.sea_stack().id().find(sea_stack_id) {
+                    let (half_width, half_height, y_offset) = get_sea_stack_collision_dimensions(sea_stack.scale);
+                    let stack_collision_y = sea_stack.pos_y - y_offset;
+                    let dx = proposed_x - sea_stack.pos_x;
+                    let dy = proposed_y - stack_collision_y;
+                    let distance_sq = dx * dx + dy * dy;
+                    let min_distance = ANIMAL_COLLISION_RADIUS + half_width.max(half_height);
                     let min_distance_sq = min_distance * min_distance;
                     
                     if distance_sq < min_distance_sq && distance_sq > 0.1 {

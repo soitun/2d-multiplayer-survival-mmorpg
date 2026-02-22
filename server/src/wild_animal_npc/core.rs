@@ -3029,6 +3029,14 @@ pub fn damage_wild_animal_with_weapon(
                 
                 // Play animal pain/growl sound when hit
                 emit_species_sound(ctx, &animal, attacker_id, "hit");
+                
+                // JELLYFISH REACTIVE ELECTROCUTION: Shock immediately when damaged (even if lethal)
+                // Jellyfish discharge electricity when disturbed - must happen before death handling
+                if matches!(animal.species, AnimalSpecies::Jellyfish) {
+                    let behavior = animal.species.get_behavior();
+                    let stats = behavior.get_stats();
+                    behavior.handle_damage_response(ctx, &mut animal, &attacker, &stats, ctx.timestamp, &mut rng)?;
+                }
             }
         }
         
@@ -3203,10 +3211,12 @@ pub fn damage_wild_animal_with_weapon(
                               animal.species, animal.id, attacker.identity);
                 }
                 
-                // Continue with species-specific damage response
-                let behavior = animal.species.get_behavior();
-                let stats = behavior.get_stats();
-                behavior.handle_damage_response(ctx, &mut animal, &attacker, &stats, ctx.timestamp, &mut rng)?;
+                // Continue with species-specific damage response (jellyfish already shocked above)
+                if animal.species != AnimalSpecies::Jellyfish {
+                    let behavior = animal.species.get_behavior();
+                    let stats = behavior.get_stats();
+                    behavior.handle_damage_response(ctx, &mut animal, &attacker, &stats, ctx.timestamp, &mut rng)?;
+                }
             }
             
             ctx.db.wild_animal().id().update(animal);
@@ -3817,6 +3827,21 @@ pub fn get_monument_exclusion_zone(ctx: &ReducerContext, x: f32, y: f32) -> Opti
             
             if dist_sq < FISHING_VILLAGE_EXCLUSION_RADIUS_SQ {
                 return Some((part.world_x, part.world_y, FISHING_VILLAGE_EXCLUSION_RADIUS));
+            }
+        }
+    }
+    
+    // Check Weather Station (use center part - 2000px exclusion)
+    const WEATHER_STATION_EXCLUSION_RADIUS: f32 = 2000.0;
+    const WEATHER_STATION_EXCLUSION_RADIUS_SQ: f32 = WEATHER_STATION_EXCLUSION_RADIUS * WEATHER_STATION_EXCLUSION_RADIUS;
+    for part in ctx.db.monument_part().iter() {
+        if part.monument_type == MonumentType::WeatherStation && part.is_center {
+            let dx = x - part.world_x;
+            let dy = y - part.world_y;
+            let dist_sq = dx * dx + dy * dy;
+            
+            if dist_sq < WEATHER_STATION_EXCLUSION_RADIUS_SQ {
+                return Some((part.world_x, part.world_y, WEATHER_STATION_EXCLUSION_RADIUS));
             }
         }
     }

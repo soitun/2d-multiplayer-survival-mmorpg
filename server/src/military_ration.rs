@@ -11,8 +11,10 @@ use log;
 use rand::Rng;
 
 use crate::wooden_storage_box::{
-    WoodenStorageBox, BOX_TYPE_MILITARY_RATION, NUM_MILITARY_RATION_SLOTS,
+    WoodenStorageBox, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MILITARY_CRATE,
+    NUM_MILITARY_RATION_SLOTS,
     MILITARY_RATION_INITIAL_HEALTH, MILITARY_RATION_MAX_HEALTH,
+    MILITARY_CRATE_INITIAL_HEALTH, MILITARY_CRATE_MAX_HEALTH,
     wooden_storage_box as WoodenStorageBoxTableTrait,
 };
 use crate::items::{
@@ -33,6 +35,18 @@ pub struct MilitaryRationRespawnSchedule {
     pub scheduled_id: u64,
     pub scheduled_at: ScheduleAt,
     pub spawn_location_type: String,  // "road", "shipwreck", "quarry"
+    pub pos_x: f32,
+    pub pos_y: f32,
+    pub chunk_index: u32,
+}
+
+#[spacetimedb::table(name = military_crate_respawn_schedule, scheduled(respawn_military_crates))]
+#[derive(Clone)]
+pub struct MilitaryCrateRespawnSchedule {
+    #[primary_key]
+    #[auto_inc]
+    pub scheduled_id: u64,
+    pub scheduled_at: ScheduleAt,
     pub pos_x: f32,
     pub pos_y: f32,
     pub chunk_index: u32,
@@ -520,6 +534,200 @@ pub fn respawn_military_rations(ctx: &ReducerContext, schedule: MilitaryRationRe
         Err(e) => {
             log::warn!("[MilitaryRation] Failed to respawn military ration at ({:.1}, {:.1}): {}", 
                       schedule.pos_x, schedule.pos_y, e);
+        }
+    }
+    
+    Ok(())
+}
+
+// =============================================================================
+// MILITARY CRATE (1 high-tier weapon, 1hr respawn)
+// =============================================================================
+
+/// High-tier weapons that can spawn in military crates (Soviet military / barrel loot tier)
+fn get_military_crate_weapon_pool() -> Vec<&'static str> {
+    vec![
+        "Naval Cutlass",
+        "AK74 Bayonet",
+        "Engineers Maul",
+        "Military Crowbar",
+    ]
+}
+
+/// Spawns a military crate (1 slot, at most 1 high-tier weapon) at the specified position.
+/// Used for elite monument spawns. Returns the box ID on success.
+pub fn spawn_military_crate_with_loot(
+    ctx: &ReducerContext,
+    pos_x: f32,
+    pos_y: f32,
+    chunk_index: u32,
+) -> Result<u32, String> {
+    if crate::environment::is_position_on_water(ctx, pos_x, pos_y) {
+        return Err("Cannot spawn military crate on water".to_string());
+    }
+    
+    let weapon_pool = get_military_crate_weapon_pool();
+    let item_defs = ctx.db.item_definition();
+    let inventory_items = ctx.db.inventory_item();
+    let boxes = ctx.db.wooden_storage_box();
+    
+    // 100% chance to spawn with 1 weapon (guaranteed high-tier loot)
+    let spawn_weapon = true;
+    
+    let mut ration = WoodenStorageBox {
+        id: 0,
+        pos_x,
+        pos_y,
+        chunk_index,
+        placed_by: ctx.identity(),
+        box_type: BOX_TYPE_MILITARY_CRATE,
+        slot_instance_id_0: None, slot_def_id_0: None,
+        slot_instance_id_1: None, slot_def_id_1: None,
+        slot_instance_id_2: None, slot_def_id_2: None,
+        slot_instance_id_3: None, slot_def_id_3: None,
+        slot_instance_id_4: None, slot_def_id_4: None,
+        slot_instance_id_5: None, slot_def_id_5: None,
+        slot_instance_id_6: None, slot_def_id_6: None,
+        slot_instance_id_7: None, slot_def_id_7: None,
+        slot_instance_id_8: None, slot_def_id_8: None,
+        slot_instance_id_9: None, slot_def_id_9: None,
+        slot_instance_id_10: None, slot_def_id_10: None,
+        slot_instance_id_11: None, slot_def_id_11: None,
+        slot_instance_id_12: None, slot_def_id_12: None,
+        slot_instance_id_13: None, slot_def_id_13: None,
+        slot_instance_id_14: None, slot_def_id_14: None,
+        slot_instance_id_15: None, slot_def_id_15: None,
+        slot_instance_id_16: None, slot_def_id_16: None,
+        slot_instance_id_17: None, slot_def_id_17: None,
+        slot_instance_id_18: None, slot_def_id_18: None,
+        slot_instance_id_19: None, slot_def_id_19: None,
+        slot_instance_id_20: None, slot_def_id_20: None,
+        slot_instance_id_21: None, slot_def_id_21: None,
+        slot_instance_id_22: None, slot_def_id_22: None,
+        slot_instance_id_23: None, slot_def_id_23: None,
+        slot_instance_id_24: None, slot_def_id_24: None,
+        slot_instance_id_25: None, slot_def_id_25: None,
+        slot_instance_id_26: None, slot_def_id_26: None,
+        slot_instance_id_27: None, slot_def_id_27: None,
+        slot_instance_id_28: None, slot_def_id_28: None,
+        slot_instance_id_29: None, slot_def_id_29: None,
+        slot_instance_id_30: None, slot_def_id_30: None,
+        slot_instance_id_31: None, slot_def_id_31: None,
+        slot_instance_id_32: None, slot_def_id_32: None,
+        slot_instance_id_33: None, slot_def_id_33: None,
+        slot_instance_id_34: None, slot_def_id_34: None,
+        slot_instance_id_35: None, slot_def_id_35: None,
+        slot_instance_id_36: None, slot_def_id_36: None,
+        slot_instance_id_37: None, slot_def_id_37: None,
+        slot_instance_id_38: None, slot_def_id_38: None,
+        slot_instance_id_39: None, slot_def_id_39: None,
+        slot_instance_id_40: None, slot_def_id_40: None,
+        slot_instance_id_41: None, slot_def_id_41: None,
+        slot_instance_id_42: None, slot_def_id_42: None,
+        slot_instance_id_43: None, slot_def_id_43: None,
+        slot_instance_id_44: None, slot_def_id_44: None,
+        slot_instance_id_45: None, slot_def_id_45: None,
+        slot_instance_id_46: None, slot_def_id_46: None,
+        slot_instance_id_47: None, slot_def_id_47: None,
+        health: MILITARY_CRATE_INITIAL_HEALTH,
+        max_health: MILITARY_CRATE_MAX_HEALTH,
+        is_destroyed: false,
+        destroyed_at: None,
+        last_hit_time: None,
+        last_damaged_by: None,
+        respawn_at: Timestamp::UNIX_EPOCH,
+        is_monument: false,
+        active_user_id: None,
+        active_user_since: None,
+    };
+    
+    if spawn_weapon && !weapon_pool.is_empty() {
+        let weapon_name = weapon_pool[ctx.rng().gen_range(0..weapon_pool.len())];
+        if let Some(item_def) = item_defs.iter().find(|def| def.name == weapon_name) {
+            let new_item = InventoryItem {
+                instance_id: 0,
+                item_def_id: item_def.id,
+                quantity: 1,
+                location: ItemLocation::Container(crate::models::ContainerLocationData {
+                    container_type: crate::models::ContainerType::WoodenStorageBox,
+                    container_id: 0,
+                    slot_index: 0,
+                }),
+                item_data: None,
+            };
+            let inserted_item = inventory_items.insert(new_item);
+            ration.slot_instance_id_0 = Some(inserted_item.instance_id);
+            ration.slot_def_id_0 = Some(inserted_item.item_def_id);
+        }
+    }
+    
+    let inserted = boxes.insert(ration);
+    
+    if let Some(item_id) = inserted.slot_instance_id_0 {
+        if let Some(mut item) = inventory_items.instance_id().find(&item_id) {
+            if let ItemLocation::Container(ref mut loc_data) = item.location {
+                loc_data.container_id = inserted.id as u64;
+            }
+            inventory_items.instance_id().update(item);
+        }
+    }
+    
+    log::info!("[MilitaryCrate] Spawned military crate {} at ({:.1}, {:.1})", inserted.id, pos_x, pos_y);
+    Ok(inserted.id)
+}
+
+/// Checks if a military crate is empty and deletes it if so.
+/// Schedules respawn in 1 hour (elite monument cooldown).
+pub fn check_and_despawn_military_crate_if_empty(
+    ctx: &ReducerContext,
+    crate_id: u32,
+) -> Result<(), String> {
+    let ration = ctx.db.wooden_storage_box().id().find(crate_id)
+        .ok_or("Military crate not found")?;
+    
+    if ration.box_type != BOX_TYPE_MILITARY_CRATE {
+        return Ok(());
+    }
+    
+    if is_container_empty(&ration) {
+        let was_system_placed = ration.placed_by == ctx.identity();
+        
+        if was_system_placed {
+            const RESPAWN_DELAY_SECS: u64 = 3600; // 1 hour
+            let respawn_time = ctx.timestamp + TimeDuration::from_micros((RESPAWN_DELAY_SECS * 1_000_000) as i64);
+            
+            let schedule_entry = MilitaryCrateRespawnSchedule {
+                scheduled_id: 0,
+                scheduled_at: ScheduleAt::Time(respawn_time),
+                pos_x: ration.pos_x,
+                pos_y: ration.pos_y,
+                chunk_index: ration.chunk_index,
+            };
+            
+            ctx.db.military_crate_respawn_schedule().insert(schedule_entry);
+            log::info!("[MilitaryCrate] Scheduled respawn in 1hr for crate {} at ({:.1}, {:.1})",
+                      crate_id, ration.pos_x, ration.pos_y);
+        }
+        
+        ctx.db.wooden_storage_box().id().delete(crate_id);
+        log::info!("[MilitaryCrate] Auto-despawned empty military crate {}", crate_id);
+    }
+    
+    Ok(())
+}
+
+#[spacetimedb::reducer]
+pub fn respawn_military_crates(ctx: &ReducerContext, schedule: MilitaryCrateRespawnSchedule) -> Result<(), String> {
+    if ctx.sender != ctx.identity() {
+        return Err("Respawn reducer may only be called by the scheduler".to_string());
+    }
+    
+    match spawn_military_crate_with_loot(ctx, schedule.pos_x, schedule.pos_y, schedule.chunk_index) {
+        Ok(_) => {
+            log::info!("[MilitaryCrate] Respawned military crate at ({:.1}, {:.1})", schedule.pos_x, schedule.pos_y);
+        }
+        Err(e) => {
+            log::warn!("[MilitaryCrate] Failed to respawn at ({:.1}, {:.1}): {}", schedule.pos_x, schedule.pos_y, e);
         }
     }
     

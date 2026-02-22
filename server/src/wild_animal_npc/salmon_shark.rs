@@ -27,6 +27,7 @@ use log;
 
 use crate::Player;
 use crate::utils::get_distance_squared;
+use crate::animal_collision::resolve_animal_collision;
 
 // Table trait imports
 use crate::player as PlayerTableTrait;
@@ -341,8 +342,19 @@ fn execute_water_patrol(
                 animal.direction_y = dy / dist;
                 
                 let speed = stats.movement_speed * dt;
-                animal.pos_x += animal.direction_x * speed;
-                animal.pos_y += animal.direction_y * speed;
+                let proposed_x = animal.pos_x + animal.direction_x * speed;
+                let proposed_y = animal.pos_y + animal.direction_y * speed;
+                let (final_x, final_y) = resolve_animal_collision(
+                    ctx,
+                    animal.id,
+                    animal.pos_x,
+                    animal.pos_y,
+                    proposed_x,
+                    proposed_y,
+                    false,
+                );
+                animal.pos_x = final_x;
+                animal.pos_y = final_y;
             }
         }
         return;
@@ -357,14 +369,23 @@ fn execute_water_patrol(
     
     // Calculate potential new position
     let speed = stats.movement_speed * dt;
-    let new_x = animal.pos_x + animal.direction_x * speed;
-    let new_y = animal.pos_y + animal.direction_y * speed;
+    let proposed_x = animal.pos_x + animal.direction_x * speed;
+    let proposed_y = animal.pos_y + animal.direction_y * speed;
     
     // Check if new position would be on water
-    if is_position_on_water(ctx, new_x, new_y) {
-        // Valid water position - move there
-        animal.pos_x = new_x;
-        animal.pos_y = new_y;
+    if is_position_on_water(ctx, proposed_x, proposed_y) {
+        // Run through collision resolution (barrels, seastacks, corals, etc.)
+        let (final_x, final_y) = resolve_animal_collision(
+            ctx,
+            animal.id,
+            animal.pos_x,
+            animal.pos_y,
+            proposed_x,
+            proposed_y,
+            false, // Patrolling, not attacking
+        );
+        animal.pos_x = final_x;
+        animal.pos_y = final_y;
     } else {
         // Would leave water - bounce off the boundary
         // Try to find a valid direction
@@ -378,8 +399,17 @@ fn execute_water_patrol(
             if is_position_on_water(ctx, test_x, test_y) {
                 animal.direction_x = test_dir_x;
                 animal.direction_y = test_dir_y;
-                animal.pos_x = test_x;
-                animal.pos_y = test_y;
+                let (final_x, final_y) = resolve_animal_collision(
+                    ctx,
+                    animal.id,
+                    animal.pos_x,
+                    animal.pos_y,
+                    test_x,
+                    test_y,
+                    false,
+                );
+                animal.pos_x = final_x;
+                animal.pos_y = final_y;
                 break;
             }
         }

@@ -45,9 +45,9 @@ pub mod clearance {
     /// Smaller monument, single piece with surrounding loot
     pub const CRASHED_RESEARCH_DRONE: f32 = 600.0;
     
-    /// Weather station - clear a 10-tile radius (480px)
-    /// Single large radar dish structure with barrels in northern alpine terrain
-    pub const WEATHER_STATION: f32 = 480.0;
+    /// Weather station - clear 2000px radius (4 radars, central compound, dirt roads)
+    /// Four radar dishes equidistant around center, central dirt area, overrun with grass
+    pub const WEATHER_STATION: f32 = 2000.0;
     
     /// Wolf den - clear a 8-tile radius (384px)
     /// Single wolf mound structure that spawns a pack of wolves
@@ -1801,29 +1801,25 @@ pub fn generate_weather_station(
         // =============================================================================
         // WEATHER STATION LAYOUT
         // =============================================================================
-        // Single large radar dish structure - a weather monitoring station
-        // Surrounded by barrels (supply containers) spawned via separate functions
-        //
-        // Layout (in local coords):
-        //                    RADAR (0, 0) <- Center piece
+        // Four radar dishes equidistant (1000px from center) at 0°, 90°, 180°, 270°
+        // Center: jagged squarish dirt area, campfires, barrels, military rations
+        // Around each radar: barrels and military rations (moderate)
         // =============================================================================
         
-        // Single structure: the radar dish
+        const RADAR_DISTANCE: f32 = 1000.0; // Distance from center to each radar
         let part_type = "radar";
         let image_name = "ws_radar.png";
-        let offset_x = 0.0;
-        let offset_y = 0.0;
         
-        let part_world_x = center_world_x + offset_x;
-        let part_world_y = center_world_y + offset_y;
+        // Four radars at cardinal directions (0° E, 90° S, 180° W, 270° N)
+        for (i, (dx, dy)) in [(1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, -1.0)].iter().enumerate() {
+            let part_world_x = center_world_x + dx * RADAR_DISTANCE;
+            let part_world_y = center_world_y + dy * RADAR_DISTANCE;
+            station_parts.push((part_world_x, part_world_y, image_name.to_string(), part_type.to_string()));
+            log::info!("📡✨ PLACED RADAR {} ({}) at ({:.0}, {:.0}) ✨",
+                       i + 1, image_name, part_world_x, part_world_y);
+        }
         
-        // Place the structure
-        station_parts.push((part_world_x, part_world_y, image_name.to_string(), part_type.to_string()));
-        
-        log::info!("📡✨ PLACED {} ({}) at ({:.0}, {:.0}) ✨",
-                   part_type.to_uppercase(), image_name, part_world_x, part_world_y);
-        
-        log::info!("📡 Weather station generation complete: {} structure", station_parts.len());
+        log::info!("📡 Weather station generation complete: {} structures (4 radars)", station_parts.len());
     } else {
         log::warn!("📡 Failed to select weather station position");
     }
@@ -3424,8 +3420,8 @@ pub fn spawn_crashed_research_drone_barrels(
     Ok(())
 }
 
-/// Spawn barrels around weather station monument with collision avoidance
-/// Spawns 4-6 barrels in a ring around the radar dish
+/// Spawn additional barrels around weather station monument (supplements placeables)
+/// Adds 2-4 scattered barrels in center for natural clutter - placeables handle the rest
 pub fn spawn_weather_station_barrels(
     ctx: &ReducerContext,
     center_x: f32,
@@ -3436,55 +3432,45 @@ pub fn spawn_weather_station_barrels(
     use crate::barrel::{has_barrel_collision, has_player_barrel_collision};
     use rand::Rng;
     
-    const BARREL_RADIUS: f32 = 35.0; // Collision radius for barrels
+    const BARREL_RADIUS: f32 = 35.0;
     
     let mut spawned_count = 0u32;
     let mut occupied_positions: Vec<OccupiedPosition> = Vec::new();
     
-    // Spawn 4-6 barrels around the weather station
-    let barrel_count = ctx.rng().gen_range(4..=6);
+    // Spawn 2-4 extra barrels in center area for natural scatter (placeables handle most)
+    let barrel_count = ctx.rng().gen_range(2..=4);
     
-    for barrel_idx in 0..barrel_count {
+    for _ in 0..barrel_count {
         let mut attempts = 0;
-        const MAX_ATTEMPTS: u32 = 25;
+        const MAX_ATTEMPTS: u32 = 20;
         
         while attempts < MAX_ATTEMPTS {
             attempts += 1;
-            
-            // Generate position in a ring around the radar dish
-            // Space barrels with natural scatter - not too uniform
-            // NOTE: Radar is 512x512 pixels, so barrels at ~350-500px from center
-            let base_angle = (barrel_idx as f32) * (2.0 * std::f32::consts::PI / barrel_count as f32);
-            let angle = base_angle + ctx.rng().gen_range(-0.7..0.7); // More angle variation for natural scatter
-            let distance = ctx.rng().gen_range(350.0..500.0); // Ring distance outside the radar (512/2 = 256 + generous buffer)
+            let angle = ctx.rng().gen_range(0.0..std::f32::consts::TAU);
+            let distance = ctx.rng().gen_range(200.0..350.0);
             let barrel_x = center_x + angle.cos() * distance;
             let barrel_y = center_y + angle.sin() * distance;
             
-            // Validate position: must not be on water
             let tile_x = (barrel_x / crate::TILE_SIZE_PX as f32).floor() as i32;
             let tile_y = (barrel_y / crate::TILE_SIZE_PX as f32).floor() as i32;
             if let Some(tile_type) = crate::get_tile_type_at_position(ctx, tile_x, tile_y) {
                 if tile_type.is_water() {
-                    continue; // Skip water tiles
+                    continue;
                 }
             }
             
-            // Check collision with already placed barrels
             if is_position_occupied(barrel_x, barrel_y, BARREL_RADIUS, &occupied_positions) {
                 continue;
             }
-            
-            // Check collisions with existing barrels in database
             if has_barrel_collision(ctx, barrel_x, barrel_y, None) ||
                has_player_barrel_collision(ctx, barrel_x, barrel_y) {
                 continue;
             }
             
-            // Spawn road barrel (variants 0, 1, 2) since this is inland alpine
             let variant = ctx.rng().gen_range(0..3);
             let chunk_idx = calculate_chunk_index(barrel_x, barrel_y);
             
-            let new_barrel = Barrel {
+            ctx.db.barrel().insert(Barrel {
                 id: 0,
                 pos_x: barrel_x,
                 pos_y: barrel_y,
@@ -3492,26 +3478,17 @@ pub fn spawn_weather_station_barrels(
                 health: BARREL_INITIAL_HEALTH,
                 variant,
                 last_hit_time: None,
-                respawn_at: Timestamp::UNIX_EPOCH, // 0 = not respawning
-                cluster_id: 0, // Individual spawns, not clusters
+                respawn_at: Timestamp::UNIX_EPOCH,
+                cluster_id: 0,
                 is_monument: false,
-            };
-            
-            ctx.db.barrel().insert(new_barrel);
-            spawned_count += 1;
-            
-            // Track this position
-            occupied_positions.push(OccupiedPosition {
-                x: barrel_x,
-                y: barrel_y,
-                radius: BARREL_RADIUS,
             });
-            
-            break; // Successfully placed, move to next barrel
+            spawned_count += 1;
+            occupied_positions.push(OccupiedPosition { x: barrel_x, y: barrel_y, radius: BARREL_RADIUS });
+            break;
         }
     }
     
-    log::info!("[WeatherStationBarrels] Spawned {} barrels around weather station monument", spawned_count);
+    log::info!("[WeatherStationBarrels] Spawned {} extra barrels around weather station monument", spawned_count);
     Ok(spawned_count)
 }
 
@@ -3902,6 +3879,47 @@ pub fn get_alpine_village_placeables() -> Vec<MonumentPlaceableConfig> {
     vec![
         // Campfire south of lodge - unlit, abandoned feel (players can light it)
         MonumentPlaceableConfig::campfire(0.0, 150.0),
+    ]
+}
+
+/// Get monument placeables for the Weather Station monument
+/// Central compound: campfires (abandoned), barrels, military rations
+/// Around each of 4 radars (at ±1000px): barrels and military rations (moderate)
+pub fn get_weather_station_placeables() -> Vec<MonumentPlaceableConfig> {
+    const R: f32 = 1000.0; // Radar distance from center
+    vec![
+        // --- Center: campfires (2-3, abandoned feel), barrels, military rations ---
+        MonumentPlaceableConfig::campfire(-90.0, 60.0),
+        MonumentPlaceableConfig::campfire(100.0, -40.0),
+        MonumentPlaceableConfig::campfire(0.0, 100.0),
+        MonumentPlaceableConfig::barrel(-130.0, -110.0),
+        MonumentPlaceableConfig::barrel(130.0, -90.0),
+        MonumentPlaceableConfig::barrel(-90.0, 130.0),
+        MonumentPlaceableConfig::barrel(110.0, 110.0),
+        MonumentPlaceableConfig::barrel(-160.0, 60.0),
+        MonumentPlaceableConfig::barrel(160.0, 30.0),
+        MonumentPlaceableConfig::barrel(0.0, -130.0),
+        MonumentPlaceableConfig::military_ration(-110.0, 10.0),
+        MonumentPlaceableConfig::military_ration(110.0, 60.0),
+        MonumentPlaceableConfig::military_ration(0.0, -90.0),
+        MonumentPlaceableConfig::military_ration(-90.0, 90.0),
+        MonumentPlaceableConfig::military_ration(90.0, -110.0),
+        // --- Around radar East (R, 0) ---
+        MonumentPlaceableConfig::barrel(R + 60.0, 50.0),
+        MonumentPlaceableConfig::barrel(R + 60.0, -50.0),
+        MonumentPlaceableConfig::military_ration(R + 30.0, 0.0),
+        // --- Around radar South (0, R) ---
+        MonumentPlaceableConfig::barrel(50.0, R + 60.0),
+        MonumentPlaceableConfig::barrel(-50.0, R + 60.0),
+        MonumentPlaceableConfig::military_ration(0.0, R + 30.0),
+        // --- Around radar West (-R, 0) ---
+        MonumentPlaceableConfig::barrel(-R - 60.0, 50.0),
+        MonumentPlaceableConfig::barrel(-R - 60.0, -50.0),
+        MonumentPlaceableConfig::military_ration(-R - 30.0, 0.0),
+        // --- Around radar North (0, -R) ---
+        MonumentPlaceableConfig::barrel(50.0, -R - 60.0),
+        MonumentPlaceableConfig::barrel(-50.0, -R - 60.0),
+        MonumentPlaceableConfig::military_ration(0.0, -R - 30.0),
     ]
 }
 

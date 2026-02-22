@@ -700,6 +700,7 @@ export const BOX_TYPE_MINE_CART = 9;
 export const BOX_TYPE_FISH_TRAP = 10;
 export const BOX_TYPE_WILD_BEEHIVE = 11;
 export const BOX_TYPE_PLAYER_BEEHIVE = 12;
+export const BOX_TYPE_MILITARY_CRATE = 13; // Weather station - 1 high-tier weapon, 1hr respawn
 export const NUM_BOX_SLOTS = 18;
 export const NUM_REPAIR_BENCH_SLOTS = 1;
 export const NUM_COOKING_STATION_SLOTS = 0; // No inventory - proximity crafting only
@@ -712,6 +713,7 @@ export const NUM_REFRIGERATOR_SLOTS = 30;
 export const NUM_COMPOST_SLOTS = 20;
 export const NUM_BACKPACK_SLOTS = 35; // Matches NUM_CORPSE_SLOTS (30 + 5 = 35 slots)
 export const NUM_MILITARY_RATION_SLOTS = 3;
+export const NUM_MILITARY_CRATE_SLOTS = 1; // Single slot for high-tier weapon
 export const NUM_MINE_CART_SLOTS = 3;
 export const NUM_FISH_TRAP_SLOTS = 12;
 export const NUM_WILD_BEEHIVE_SLOTS = 3;
@@ -763,6 +765,10 @@ export function getContainerConfig(containerType: ContainerType, entity?: Contai
             case BOX_TYPE_MILITARY_RATION:
                 slots = NUM_MILITARY_RATION_SLOTS;
                 gridCols = 3; // 3 columns for 3 slots
+                break;
+            case BOX_TYPE_MILITARY_CRATE:
+                slots = NUM_MILITARY_CRATE_SLOTS;
+                gridCols = 1; // Single slot for weapon
                 break;
             case BOX_TYPE_MINE_CART:
                 slots = NUM_MINE_CART_SLOTS;
@@ -829,6 +835,8 @@ export function getContainerDisplayName(containerType: ContainerType, entity?: C
                 return isCompoundMonument(box.isMonument, box.posX, box.posY) ? 'FABRICATION KITCHEN' : 'COOKING STATION';
             case BOX_TYPE_MILITARY_RATION:
                 return 'MILITARY RATION';
+            case BOX_TYPE_MILITARY_CRATE:
+                return 'MILITARY CRATE';
             case BOX_TYPE_MINE_CART:
                 return 'MINE CART';
             case BOX_TYPE_FISH_TRAP:

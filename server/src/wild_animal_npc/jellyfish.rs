@@ -10,7 +10,7 @@
  *   - Water-only: Can ONLY exist in Sea tiles (water)                        *
  *   - Very slow: Drifts lazily through the water                             *
  *   - Passive: Does not chase or approach players                            *
- *   - Electric shock: Periodic AOE damage (every 10-16 seconds)              *
+ *   - Electric shock: Periodic AOE damage (every 5-10 seconds)               *
  *   - Burns: Shock applies burn effect to players                            *
  *   - Cannot be tamed or harvested                                           *
  *   - No drops: Does not drop loot when killed                               *
@@ -27,6 +27,7 @@ use log;
 
 use crate::Player;
 use crate::utils::get_distance_squared;
+use crate::animal_collision::resolve_animal_collision;
 
 // Table trait imports
 use crate::player as PlayerTableTrait;
@@ -38,8 +39,8 @@ use super::core::{
 // Jellyfish constants
 const JELLYFISH_SHOCK_RADIUS: f32 = 150.0; // AOE shock radius in pixels
 const JELLYFISH_SHOCK_RADIUS_SQUARED: f32 = JELLYFISH_SHOCK_RADIUS * JELLYFISH_SHOCK_RADIUS;
-const JELLYFISH_SHOCK_MIN_INTERVAL_MS: i64 = 10_000; // Minimum 10 seconds between shocks (more frequent)
-const JELLYFISH_SHOCK_MAX_INTERVAL_MS: i64 = 16_000; // Maximum 16 seconds between shocks
+const JELLYFISH_SHOCK_MIN_INTERVAL_MS: i64 = 5_000;  // Minimum 5 seconds between shocks
+const JELLYFISH_SHOCK_MAX_INTERVAL_MS: i64 = 10_000; // Maximum 10 seconds between shocks
 const JELLYFISH_SHOCK_VISUAL_DURATION_MS: i64 = 500; // Yellow glow duration
 const JELLYFISH_SHOCK_DAMAGE: f32 = 15.0; // Direct damage from shock
 const JELLYFISH_BURN_DAMAGE: f32 = 12.0; // Total burn damage over time
@@ -115,7 +116,7 @@ impl AnimalBehavior for JellyfishBehavior {
         // Check if it's time for an electric shock
         let should_shock = if let Some(last_shock) = animal.last_shock_time {
             let elapsed_ms = (current_time.to_micros_since_unix_epoch() - last_shock.to_micros_since_unix_epoch()) / 1000;
-            // Random interval between 20-30 seconds
+            // Random interval between 5-10 seconds
             let next_shock_interval = rng.gen_range(JELLYFISH_SHOCK_MIN_INTERVAL_MS..=JELLYFISH_SHOCK_MAX_INTERVAL_MS);
             elapsed_ms >= next_shock_interval
         } else {
@@ -335,8 +336,19 @@ fn execute_water_drift(
                 animal.direction_y = dy / dist;
                 
                 let speed = stats.movement_speed * dt;
-                animal.pos_x += animal.direction_x * speed;
-                animal.pos_y += animal.direction_y * speed;
+                let proposed_x = animal.pos_x + animal.direction_x * speed;
+                let proposed_y = animal.pos_y + animal.direction_y * speed;
+                let (final_x, final_y) = resolve_animal_collision(
+                    ctx,
+                    animal.id,
+                    animal.pos_x,
+                    animal.pos_y,
+                    proposed_x,
+                    proposed_y,
+                    false,
+                );
+                animal.pos_x = final_x;
+                animal.pos_y = final_y;
             }
         }
         return;
@@ -351,14 +363,23 @@ fn execute_water_drift(
     
     // Calculate potential new position (very slow movement)
     let speed = stats.movement_speed * dt;
-    let new_x = animal.pos_x + animal.direction_x * speed;
-    let new_y = animal.pos_y + animal.direction_y * speed;
+    let proposed_x = animal.pos_x + animal.direction_x * speed;
+    let proposed_y = animal.pos_y + animal.direction_y * speed;
     
     // Check if new position would be on water
-    if is_position_on_water(ctx, new_x, new_y) {
-        // Valid water position - move there
-        animal.pos_x = new_x;
-        animal.pos_y = new_y;
+    if is_position_on_water(ctx, proposed_x, proposed_y) {
+        // Run through collision resolution (barrels, seastacks, corals, etc.)
+        let (final_x, final_y) = resolve_animal_collision(
+            ctx,
+            animal.id,
+            animal.pos_x,
+            animal.pos_y,
+            proposed_x,
+            proposed_y,
+            false, // Not attacking
+        );
+        animal.pos_x = final_x;
+        animal.pos_y = final_y;
     } else {
         // Would leave water - gently bounce off the boundary
         for _ in 0..8 {
@@ -371,8 +392,17 @@ fn execute_water_drift(
             if is_position_on_water(ctx, test_x, test_y) {
                 animal.direction_x = test_dir_x;
                 animal.direction_y = test_dir_y;
-                animal.pos_x = test_x;
-                animal.pos_y = test_y;
+                let (final_x, final_y) = resolve_animal_collision(
+                    ctx,
+                    animal.id,
+                    animal.pos_x,
+                    animal.pos_y,
+                    test_x,
+                    test_y,
+                    false,
+                );
+                animal.pos_x = final_x;
+                animal.pos_y = final_y;
                 break;
             }
         }

@@ -8,6 +8,7 @@ import repairBenchImage from '../../assets/doodads/repair_bench.png'; // Repair 
 import cookingStationImage from '../../assets/doodads/cooking_station.png'; // Cooking station image
 import scarecrowImage from '../../assets/doodads/scarecrow.png'; // Scarecrow image (deters crows)
 import militaryRationImage from '../../assets/doodads/military_ration.png'; // Military ration image
+import militaryCrateImage from '../../assets/doodads/military_crate.png'; // Military crate (weather station - high-tier weapon)
 import mineCartImage from '../../assets/doodads/mine_cart.png'; // Mine cart image (quarry-exclusive)
 import fishTrapImage from '../../assets/doodads/fish_trap.png'; // Fish trap image (shore-only)
 import wildBeehiveImage from '../../assets/doodads/pile_honeycomb.png'; // Wild beehive image (forest-only)
@@ -40,6 +41,8 @@ export const SCARECROW_WIDTH = 160;  // Scarecrow dimensions - tall figure (slig
 export const SCARECROW_HEIGHT = 160;
 export const MILITARY_RATION_WIDTH = 64;  // Military ration dimensions
 export const MILITARY_RATION_HEIGHT = 64;
+export const MILITARY_CRATE_WIDTH = 64;   // Military crate (same size as ration)
+export const MILITARY_CRATE_HEIGHT = 64;
 export const MINE_CART_WIDTH = 128;  // Mine cart dimensions (quarry-exclusive) - rendered at 128x128px
 export const MINE_CART_HEIGHT = 128;
 export const FISH_TRAP_WIDTH = 200;  // Fish trap dimensions
@@ -68,6 +71,7 @@ export const BOX_TYPE_REPAIR_BENCH = 5;
 export const BOX_TYPE_COOKING_STATION = 6;
 export const BOX_TYPE_SCARECROW = 7;
 export const BOX_TYPE_MILITARY_RATION = 8;
+export const BOX_TYPE_MILITARY_CRATE = 13; // Weather station - 1 high-tier weapon, 1hr respawn
 export const BOX_TYPE_MINE_CART = 9;
 export const BOX_TYPE_FISH_TRAP = 10;
 export const BOX_TYPE_WILD_BEEHIVE = 11;
@@ -107,6 +111,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return scarecrowImage;
             case BOX_TYPE_MILITARY_RATION:
                 return militaryRationImage;
+            case BOX_TYPE_MILITARY_CRATE:
+                return militaryCrateImage;
             case BOX_TYPE_MINE_CART:
                 return mineCartImage;
             case BOX_TYPE_FISH_TRAP:
@@ -142,6 +148,8 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return { width: SCARECROW_WIDTH, height: SCARECROW_HEIGHT };
             case BOX_TYPE_MILITARY_RATION:
                 return { width: MILITARY_RATION_WIDTH, height: MILITARY_RATION_HEIGHT };
+            case BOX_TYPE_MILITARY_CRATE:
+                return { width: MILITARY_CRATE_WIDTH, height: MILITARY_CRATE_HEIGHT };
             case BOX_TYPE_MINE_CART:
                 return { width: MINE_CART_WIDTH, height: MINE_CART_HEIGHT };
             case BOX_TYPE_FISH_TRAP:
@@ -265,6 +273,8 @@ export function getBoxDimensions(boxType: number): { width: number; height: numb
             return { width: SCARECROW_WIDTH, height: SCARECROW_HEIGHT };
         case BOX_TYPE_MILITARY_RATION:
             return { width: MILITARY_RATION_WIDTH, height: MILITARY_RATION_HEIGHT };
+        case BOX_TYPE_MILITARY_CRATE:
+            return { width: MILITARY_CRATE_WIDTH, height: MILITARY_CRATE_HEIGHT };
         case BOX_TYPE_MINE_CART:
             return { width: MINE_CART_WIDTH, height: MINE_CART_HEIGHT };
         case BOX_TYPE_FISH_TRAP:
@@ -288,6 +298,7 @@ imageManager.preloadImage(repairBenchImage);
 imageManager.preloadImage(cookingStationImage);
 imageManager.preloadImage(scarecrowImage);
 imageManager.preloadImage(militaryRationImage);
+imageManager.preloadImage(militaryCrateImage);
 imageManager.preloadImage(fishTrapImage);
 imageManager.preloadImage(wildBeehiveImage);
 imageManager.preloadImage(playerBeehiveImage);

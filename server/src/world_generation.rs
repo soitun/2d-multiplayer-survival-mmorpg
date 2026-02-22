@@ -434,8 +434,21 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     
     // Store weather station positions in database table for client access
     // This is a weather monitoring station in the alpine biome - NOT a safe zone
+    // Four radars equidistant, central dirt area with campfires, barrels, military rations
     if let Some((center_x, center_y)) = world_features.weather_station_center {
-        // Store the single radar dish part (center piece)
+        // Store center marker (for building restriction / exclusion zone - no visual)
+        ctx.db.monument_part().insert(MonumentPart {
+            id: 0, // auto_inc
+            monument_type: MonumentType::WeatherStation,
+            world_x: center_x,
+            world_y: center_y,
+            image_path: String::new(), // Client skips rendering (no image)
+            part_type: "center".to_string(),
+            is_center: true,
+            collision_radius: 0.0,
+            rotation_rad: 0.0,
+        });
+        // Store the four radar dish parts
         for (part_x, part_y, image_path, part_type) in &world_features.weather_station_parts {
             ctx.db.monument_part().insert(MonumentPart {
                 id: 0, // auto_inc
@@ -444,16 +457,16 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
                 world_y: *part_y,
                 image_path: image_path.clone(),
                 part_type: part_type.clone(),
-                is_center: true, // Single part is always center
-                collision_radius: 0.0, // NO collision for walkability
+                is_center: false,
+                collision_radius: 0.0,
                 rotation_rad: 0.0,
             });
         }
         
-        log::info!("📡 Stored {} weather station parts in database - client reads once, then treats as static config",
-                   world_features.weather_station_parts.len());
+        log::info!("📡 Stored {} weather station parts in database (1 center + 4 radars)",
+                   world_features.weather_station_parts.len() + 1);
         
-        // Spawn barrels around the weather station
+        // Spawn barrels, military rations, campfires via dedicated spawn + placeables
         match crate::monument::spawn_weather_station_barrels(ctx, center_x, center_y) {
             Ok(barrel_count) => {
                 log::info!("📡 Weather Station spawned: {} barrels", barrel_count);
@@ -461,6 +474,22 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
             Err(e) => {
                 log::warn!("Failed to spawn weather station barrels: {}", e);
             }
+        }
+        // Spawn monument placeables (campfires, barrels, military rations)
+        let placeable_configs = crate::monument::get_weather_station_placeables();
+        match crate::monument::spawn_monument_placeables(ctx, "Weather Station", center_x, center_y, &placeable_configs) {
+            Ok(count) => log::info!("📡 Spawned {} monument placeables at Weather Station", count),
+            Err(e) => log::warn!("Failed to spawn weather station placeables: {}", e),
+        }
+        // Spawn military crate (1 high-tier weapon, 1hr respawn) - offset from center to avoid overlap
+        let crate_x = center_x - 180.0;
+        let crate_y = center_y + 60.0;
+        match crate::military_ration::spawn_military_crate_with_loot(
+            ctx, crate_x, crate_y,
+            crate::environment::calculate_chunk_index(crate_x, crate_y),
+        ) {
+            Ok(id) => log::info!("📡 Spawned military crate {} at Weather Station ({:.1}, {:.1})", id, crate_x, crate_y),
+            Err(e) => log::warn!("Failed to spawn weather station military crate: {}", e),
         }
     }
     
@@ -728,6 +757,9 @@ struct WorldFeatures {
     alpine_village_roads: Vec<Vec<bool>>, // Path leading to lodge
     alpine_village_center_dirt: Vec<Vec<bool>>, // Dirt center in front of lodge
     alpine_village_grass_zone: Vec<Vec<bool>>, // Overrun with grass - Alpine tiles around lodge
+    weather_station_roads: Vec<Vec<bool>>, // Dirt road spur from nearest main road to center
+    weather_station_center_dirt: Vec<Vec<bool>>, // Central jagged squarish dirt area
+    weather_station_grass_zone: Vec<Vec<bool>>, // Overrun with grass around center
     width: usize,
     height: usize,
 }
@@ -861,11 +893,13 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     // Generate tide pool centers (coastal beach inlets - crabs, terns, reeds, washed-up items)
     let tide_pool_centers = generate_tide_pool_centers(config, noise, &river_network, &lake_map, &shore_distance, width, height);
     
-    // Generate village dirt roads (fishing + hunting + alpine) - for lampposts and village atmosphere
+    // Generate village dirt roads (fishing + hunting + alpine + weather station) - for lampposts and village atmosphere
     // Hunting village: center dirt (plaza) + farm dirt (crops) + roads (paths leading to center)
     // Alpine village: path to lodge + dirt center + grass zone (overrun with grass)
+    // Weather station: central jagged squarish dirt + spur to nearest road + grass zone
     let (fishing_village_roads, hunting_village_roads, hunting_village_center_dirt, hunting_village_farm_dirt,
-         alpine_village_roads, alpine_village_center_dirt, alpine_village_grass_zone) =
+         alpine_village_roads, alpine_village_center_dirt, alpine_village_grass_zone,
+         weather_station_roads, weather_station_center_dirt, weather_station_grass_zone) =
         generate_village_roads(
             &road_network,
             &dirt_paths,
@@ -874,6 +908,7 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
             hunting_village_center,
             &hunting_village_parts,
             alpine_village_center,
+            weather_station_center,
             noise,
             width,
             height,
@@ -925,15 +960,19 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         alpine_village_roads,
         alpine_village_center_dirt,
         alpine_village_grass_zone,
+        weather_station_roads,
+        weather_station_center_dirt,
+        weather_station_grass_zone,
         width,
         height,
     }
 }
 
-/// Generate dirt road tiles for fishing, hunting, and alpine villages.
+/// Generate dirt road tiles for fishing, hunting, alpine villages, and weather station.
 /// - Fishing village: small path around campfire and along structures
 /// - Hunting village: center dirt (plaza with campfire/houses), farm dirt (crops), roads (ring + spur leading to center)
 /// - Alpine village: path to lodge, dirt center in front, grass zone (overrun with grass)
+/// - Weather station: central jagged squarish dirt area, spur to nearest road, grass zone (overrun with grass)
 fn generate_village_roads(
     road_network: &[Vec<bool>],
     dirt_paths: &[Vec<bool>],
@@ -942,10 +981,11 @@ fn generate_village_roads(
     hunting_village_center: Option<(f32, f32)>,
     hunting_village_parts: &[(f32, f32, String, String)],
     alpine_village_center: Option<(f32, f32)>,
+    weather_station_center: Option<(f32, f32)>,
     noise: &Perlin,
     width: usize,
     height: usize,
-) -> (Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>) {
+) -> (Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>, Vec<Vec<bool>>) {
     let tile_size_px = crate::TILE_SIZE_PX as f32;
     let mut fishing_roads = vec![vec![false; width]; height];
     let mut hunting_roads = vec![vec![false; width]; height];
@@ -954,6 +994,9 @@ fn generate_village_roads(
     let mut alpine_roads = vec![vec![false; width]; height];
     let mut alpine_center_dirt = vec![vec![false; width]; height];
     let mut alpine_grass_zone = vec![vec![false; width]; height];
+    let mut weather_station_roads = vec![vec![false; width]; height];
+    let mut weather_station_center_dirt = vec![vec![false; width]; height];
+    let mut weather_station_grass_zone = vec![vec![false; width]; height];
 
     // --- Fishing village: small dirt path around campfire and between structures ---
     if let Some((center_px_x, center_px_y)) = fishing_village_center {
@@ -1245,7 +1288,94 @@ fn generate_village_roads(
         log::info!("🏔️ Generated alpine village (path + dirt center + grass zone)");
     }
 
-    (fishing_roads, hunting_roads, hunting_center_dirt, hunting_farm_dirt, alpine_roads, alpine_center_dirt, alpine_grass_zone)
+    // --- Weather station: central jagged squarish dirt, spur to nearest road, grass zone ---
+    if let Some((center_px_x, center_px_y)) = weather_station_center {
+        let center_tx = (center_px_x / tile_size_px).floor() as i32;
+        let center_ty = (center_px_y / tile_size_px).floor() as i32;
+
+        // 1. Center dirt: jagged squarish area (~12 tiles half-width, organic/noisy edges)
+        let center_dirt_half = 12i32;
+        for dy in -center_dirt_half..=center_dirt_half {
+            for dx in -center_dirt_half..=center_dirt_half {
+                let tx = center_tx + dx;
+                let ty = center_ty + dy;
+                if tx >= 0 && ty >= 0 && (tx as usize) < width && (ty as usize) < height {
+                    // Jagged squarish: use Manhattan-ish distance + noise for organic edges
+                    let dist = (dx.abs() as f64).max(dy.abs() as f64)
+                        + 0.5 * ((dx + dy).abs() as f64);
+                    let shape_noise = noise.get([tx as f64 * 0.08, ty as f64 * 0.08, 90000.0]);
+                    let adjusted = center_dirt_half as f64 + shape_noise * 2.5;
+                    if dist < adjusted {
+                        weather_station_center_dirt[ty as usize][tx as usize] = true;
+                    }
+                }
+            }
+        }
+
+        // 2. Grass zone: ring around center (overrun with grass)
+        let grass_inner = 12i32;
+        let grass_outer = 20i32;
+        for dy in -grass_outer..=grass_outer {
+            for dx in -grass_outer..=grass_outer {
+                let tx = center_tx + dx;
+                let ty = center_ty + dy;
+                if tx >= 0 && ty >= 0 && (tx as usize) < width && (ty as usize) < height {
+                    let dist = ((dx * dx + dy * dy) as f64).sqrt();
+                    let shape_noise = noise.get([tx as f64 * 0.1, ty as f64 * 0.1, 91000.0]);
+                    let adj_inner = grass_inner as f64 + shape_noise;
+                    let adj_outer = grass_outer as f64 + shape_noise * 1.5;
+                    if dist >= adj_inner && dist < adj_outer {
+                        if !weather_station_center_dirt[ty as usize][tx as usize] {
+                            weather_station_grass_zone[ty as usize][tx as usize] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Spur road: connect center to nearest main road
+        let search_radius = 100i32;
+        let mut nearest_pos: Option<(i32, i32)> = None;
+        let mut nearest_dist_sq = i32::MAX;
+        for dy in -search_radius..=search_radius {
+            for dx in -search_radius..=search_radius {
+                let check_x = center_tx + dx;
+                let check_y = center_ty + dy;
+                if check_x < 0 || check_y < 0 || (check_x as usize) >= width || (check_y as usize) >= height {
+                    continue;
+                }
+                let has_road = road_network[check_y as usize][check_x as usize]
+                    || dirt_paths[check_y as usize][check_x as usize];
+                if has_road {
+                    let dist_sq = dx * dx + dy * dy;
+                    if dist_sq < nearest_dist_sq {
+                        nearest_dist_sq = dist_sq;
+                        nearest_pos = Some((check_x, check_y));
+                    }
+                }
+            }
+        }
+        if let Some((road_x, road_y)) = nearest_pos {
+            let dx = road_x - center_tx;
+            let dy = road_y - center_ty;
+            let angle = (dy as f32).atan2(dx as f32);
+            let start_tx = center_tx + (angle.cos() * center_dirt_half as f32) as i32;
+            let start_ty = center_ty + (angle.sin() * center_dirt_half as f32) as i32;
+            draw_village_road_spur(&mut weather_station_roads, start_tx, start_ty, road_x, road_y, width, height);
+        }
+
+        for y in 0..height {
+            for x in 0..width {
+                if weather_station_center_dirt[y][x] || weather_station_grass_zone[y][x] {
+                    weather_station_roads[y][x] = false;
+                }
+            }
+        }
+
+        log::info!("📡 Generated weather station (center dirt + grass zone + spur to road)");
+    }
+
+    (fishing_roads, hunting_roads, hunting_center_dirt, hunting_farm_dirt, alpine_roads, alpine_center_dirt, alpine_grass_zone, weather_station_roads, weather_station_center_dirt, weather_station_grass_zone)
 }
 
 /// Draw a narrow (3x3) dirt road spur between two points
@@ -3730,6 +3860,16 @@ fn determine_realistic_tile_type(
     }
     // Alpine village grass zone: Alpine tiles (not tundra - keep alpine biome consistency)
     if features.alpine_village_grass_zone[y][x] {
+        return TileType::Alpine;
+    }
+    // Weather station: center dirt (jagged squarish), spur road, grass zone
+    if features.weather_station_center_dirt[y][x] {
+        return TileType::Dirt;
+    }
+    if features.weather_station_roads[y][x] {
+        return TileType::DirtRoad;
+    }
+    if features.weather_station_grass_zone[y][x] {
         return TileType::Alpine;
     }
     

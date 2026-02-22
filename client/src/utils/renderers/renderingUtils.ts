@@ -68,7 +68,7 @@ import { renderTree, renderTreeImpactEffects, renderTreeHitEffects } from './tre
 import { renderStone, renderStoneDestructionEffects, renderStoneHitEffects } from './stoneRenderingUtils';
 import { renderRuneStone } from './runeStoneRenderingUtils';
 import { renderCairn } from './cairnRenderingUtils';
-import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MINE_CART, BOX_TYPE_FISH_TRAP, BOX_TYPE_WILD_BEEHIVE, BOX_TYPE_PLAYER_BEEHIVE } from './woodenStorageBoxRenderingUtils';
+import { renderWoodenStorageBox, BOX_TYPE_COMPOST, BOX_TYPE_REFRIGERATOR, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MILITARY_CRATE, BOX_TYPE_MINE_CART, BOX_TYPE_FISH_TRAP, BOX_TYPE_WILD_BEEHIVE, BOX_TYPE_PLAYER_BEEHIVE } from './woodenStorageBoxRenderingUtils';
 import { renderEquippedItem, renderMeleeSwipeArcIfSwinging } from './equippedItemRenderingUtils';
 import { renderPlayer, isPlayerHovered } from './playerRenderingUtils';
 import { drawUnderwaterShadowOnly } from './swimmingEffectsUtils';
@@ -1411,6 +1411,8 @@ export const renderYSortedEntities = ({
                   config = ENTITY_VISUAL_CONFIG.scarecrow;
               } else if (box.boxType === BOX_TYPE_MILITARY_RATION) {
                   config = ENTITY_VISUAL_CONFIG.military_ration;
+              } else if (box.boxType === BOX_TYPE_MILITARY_CRATE) {
+                  config = ENTITY_VISUAL_CONFIG.military_crate;
               } else if (box.boxType === BOX_TYPE_MINE_CART) {
                   config = ENTITY_VISUAL_CONFIG.mine_cart;
               } else if (box.boxType === BOX_TYPE_FISH_TRAP) {
@@ -1838,7 +1840,7 @@ export const renderYSortedEntities = ({
               } else if (buildingId.startsWith('crashed_research_drone_')) {
                   restrictionRadius = 800; // CRASHED_RESEARCH_DRONE_RESTRICTION_RADIUS from server (800px minimum)
               } else if (buildingId.startsWith('weather_station_')) {
-                  restrictionRadius = 800; // WEATHER_STATION_RESTRICTION_RADIUS from server (800px minimum)
+                  restrictionRadius = 2000; // WEATHER_STATION_RESTRICTION_RADIUS from server (2000px exclusion)
               } else if (buildingId.startsWith('wolf_den_')) {
                   restrictionRadius = 800; // WOLF_DEN_RESTRICTION_RADIUS from server (800px minimum)
               } else if (buildingId.startsWith('alpine_village_')) {
