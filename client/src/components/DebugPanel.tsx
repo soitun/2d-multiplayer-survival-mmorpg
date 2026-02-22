@@ -78,9 +78,11 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
     const [selectedItemDef, setSelectedItemDef] = useState<ItemDefinition | null>(null);
     const [itemSearchQuery, setItemSearchQuery] = useState('');
     const [itemDropdownOpen, setItemDropdownOpen] = useState(false);
+    const [highlightedIndex, setHighlightedIndex] = useState(0);
     const [spawnItemQuantity, setSpawnItemQuantity] = useState('1');
     const [spawnStatus, setSpawnStatus] = useState<{message: string, type: 'success' | 'error'} | null>(null);
     const itemDropdownRef = useRef<HTMLDivElement>(null);
+    const highlightedItemRef = useRef<HTMLDivElement>(null);
 
     // All items from server, sorted by category then name
     const allItems = useMemo(() => {
@@ -110,6 +112,16 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
         }
         return [...exact, ...partial];
     }, [allItems, itemSearchQuery]);
+
+    // Reset highlighted index when query or filtered results change
+    useEffect(() => {
+        setHighlightedIndex(0);
+    }, [itemSearchQuery, filteredItems.length]);
+
+    // Scroll highlighted item into view when navigating with keyboard
+    useEffect(() => {
+        highlightedItemRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, [highlightedIndex]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -315,14 +327,23 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
         >
             {/* Inject scrollbar styles */}
             <style>{scrollbarStyles}</style>
-            {/* Header with Minimize Button */}
+            {/* Header with Minimize Button - sticky so it stays visible when scrolling */}
             <div style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                flexShrink: 0,
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 marginBottom: '4px',
                 borderBottom: '1px solid rgba(0, 212, 255, 0.3)',
-                paddingBottom: '6px'
+                paddingBottom: '6px',
+                background: 'linear-gradient(145deg, rgba(15, 30, 50, 0.98), rgba(10, 20, 40, 0.99))',
+                marginLeft: '-12px',
+                marginRight: '-12px',
+                marginTop: '-12px',
+                padding: '12px 12px 6px 12px'
             }}>
                 <div style={{
                     fontSize: '11px',
@@ -1144,7 +1165,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                                         setItemDropdownOpen(true);
                                     }}
                                     onFocus={() => setItemDropdownOpen(true)}
-                                    placeholder={allItems.length ? "Search items..." : "Loading items..."}
+                                    placeholder={allItems.length ? "Search items (Tab to complete)" : "Loading items..."}
                                     data-allow-spacebar="true"
                                     style={{
                                         background: 'linear-gradient(135deg, rgba(30, 40, 60, 0.9), rgba(20, 30, 50, 0.95))',
@@ -1161,19 +1182,45 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                                     onKeyDown={(e) => {
                                         e.stopPropagation();
                                         e.nativeEvent.stopImmediatePropagation();
+                                        const item = filteredItems[highlightedIndex];
                                         if (e.key === 'Enter') {
-                                            const first = filteredItems[0];
-                                            if (first) {
-                                                setSelectedItemDef(first);
+                                            if (item) {
+                                                setSelectedItemDef(item);
                                                 setItemSearchQuery('');
                                                 setItemDropdownOpen(false);
-                                                spawnItem(first);
+                                                spawnItem(item);
                                             } else {
                                                 spawnItem();
                                             }
-                                        }
-                                        if (e.key === 'Escape') {
+                                        } else if (e.key === 'Escape') {
                                             setItemDropdownOpen(false);
+                                        } else if (e.key === 'Tab') {
+                                            e.preventDefault();
+                                            if (filteredItems.length > 0) {
+                                                const target = filteredItems[highlightedIndex];
+                                                if (target) {
+                                                    const name = target.name ?? '';
+                                                    if (itemSearchQuery === name && filteredItems.length > 1) {
+                                                        const next = (highlightedIndex + 1) % filteredItems.length;
+                                                        setHighlightedIndex(next);
+                                                        setItemSearchQuery(filteredItems[next].name ?? '');
+                                                        setSelectedItemDef(filteredItems[next]);
+                                                    } else {
+                                                        setItemSearchQuery(name);
+                                                        setSelectedItemDef(target);
+                                                    }
+                                                }
+                                            }
+                                        } else if (e.key === 'ArrowDown') {
+                                            e.preventDefault();
+                                            if (filteredItems.length > 0) {
+                                                setHighlightedIndex((i) => (i + 1) % filteredItems.length);
+                                            }
+                                        } else if (e.key === 'ArrowUp') {
+                                            e.preventDefault();
+                                            if (filteredItems.length > 0) {
+                                                setHighlightedIndex((i) => (i - 1 + filteredItems.length) % filteredItems.length);
+                                            }
                                         }
                                     }}
                                     onKeyUp={(e) => {
@@ -1206,33 +1253,26 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                                         {filteredItems.length === 0 ? (
                                             <div style={{ padding: '8px', color: '#888', fontSize: '9px' }}>No matches</div>
                                         ) : (
-                                            filteredItems.map((item) => {
+                                            filteredItems.map((item, idx) => {
                                                 const categoryTag = item.category?.tag ?? '';
+                                                const isHighlighted = idx === highlightedIndex;
                                                 return (
                                                     <div
                                                         key={item.id.toString()}
+                                                        ref={isHighlighted ? highlightedItemRef : undefined}
                                                         onClick={() => {
                                                             setSelectedItemDef(item);
                                                             setItemSearchQuery('');
                                                             setItemDropdownOpen(false);
                                                         }}
+                                                        onMouseEnter={() => setHighlightedIndex(idx)}
                                                         style={{
                                                             padding: '4px 8px',
                                                             fontSize: '9px',
                                                             cursor: 'pointer',
-                                                            color: selectedItemDef?.id === item.id ? '#00d4ff' : '#ffffff',
-                                                            background: selectedItemDef?.id === item.id ? 'rgba(0, 212, 255, 0.15)' : 'transparent',
+                                                            color: isHighlighted || selectedItemDef?.id === item.id ? '#00d4ff' : '#ffffff',
+                                                            background: isHighlighted ? 'rgba(0, 212, 255, 0.2)' : selectedItemDef?.id === item.id ? 'rgba(0, 212, 255, 0.15)' : 'transparent',
                                                             borderBottom: '1px solid rgba(255,255,255,0.05)'
-                                                        }}
-                                                        onMouseEnter={(e) => {
-                                                            if (selectedItemDef?.id !== item.id) {
-                                                                e.currentTarget.style.background = 'rgba(0, 212, 255, 0.2)';
-                                                            }
-                                                        }}
-                                                        onMouseLeave={(e) => {
-                                                            if (selectedItemDef?.id !== item.id) {
-                                                                e.currentTarget.style.background = 'transparent';
-                                                            }
                                                         }}
                                                     >
                                                         <span style={{ opacity: 0.6, marginRight: '4px' }}>{categoryTag}</span>

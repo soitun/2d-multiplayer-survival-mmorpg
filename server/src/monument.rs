@@ -820,8 +820,8 @@ pub fn generate_fishing_village(
             ("hut", "fv_hut2.png", 480.0, -500.0),     // Inland-right
             ("hut", "fv_hut3.png", 0.0, -700.0),       // Far inland center
             
-            // Smoke racks - further from campfire, flanking it with more space
-            ("smokerack", "fv_smokerack1.png", -320.0, -200.0),
+            // Drying rack - further from campfire, flanking it with more space
+            ("fv_drying_rack", "fv_drying_rack.png", -320.0, -200.0),
         ];
         
         // Calculate perpendicular direction (along the shore)
@@ -830,7 +830,7 @@ pub fn generate_fishing_village(
         let shore_dir_y = water_direction_x;
         
         for (part_type, image_name, offset_along_shore, offset_towards_water) in structure_configs.iter() {
-            // Standard placement for huts, campfire, smokeracks
+            // Standard placement for huts, campfire, drying rack
             let world_offset_x = water_direction_x * offset_towards_water + shore_dir_x * offset_along_shore;
             let world_offset_y = water_direction_y * offset_towards_water + shore_dir_y * offset_along_shore;
             let part_world_x = center_world_x + world_offset_x;
@@ -1307,7 +1307,7 @@ pub fn generate_hunting_village(
             ("campfire", "fv_campfire.png", 100.0, -250.0),
             
             // Drying rack for pelts and meat - west side of courtyard, pushed further up
-            ("drying_rack", "hv_drying_rack.png", -200.0, -400.0),
+            ("hv_drying_rack", "hv_drying_rack.png", -200.0, -400.0),
             
             // Scarecrow - monument version by the crops (south of lodge, guards the farm)
             ("scarecrow", "scarecrow.png", 20.0, 250.0),
@@ -2044,19 +2044,17 @@ pub fn generate_alpine_village(
         
         // Alpine village doodads:
         // - Earth-sheltered lodge at center (is_center)
-        // - av_hut and av_banya flanking NW/NE in a semi-circle (opening south)
+        // - av_hut and av_banya flanking campfire south of lodge (enclosed central area)
         // - Visual campfire south of lodge (no functional warmth/cooking logic)
-        // - Scatter: collapsed tent frame, broken snowmobile, whale bone drying rack, weather mast
+        // - Scatter: av_drying_rack, av_weather_station_mast
         village_parts.push((center_world_x,            center_world_y,            "av_lodge.png".to_string(),             "lodge".to_string()));
-        village_parts.push((center_world_x - 420.0,    center_world_y - 320.0,    "av_hut.png".to_string(),               "av_hut".to_string()));
-        village_parts.push((center_world_x + 420.0,    center_world_y - 320.0,    "av_banya.png".to_string(),             "av_banya".to_string()));
+        village_parts.push((center_world_x - 280.0,    center_world_y + 420.0,    "av_hut.png".to_string(),               "av_hut".to_string()));
+        village_parts.push((center_world_x + 380.0,    center_world_y + 320.0,    "av_banya.png".to_string(),             "av_banya".to_string()));
         village_parts.push((center_world_x,            center_world_y + 150.0,    "av_campfire.png".to_string(),          "campfire".to_string()));
 
-        // Scatter decoratives - create sense of an active/abandoned alpine outpost
-        village_parts.push((center_world_x - 280.0,    center_world_y + 420.0,    "collapsed_tent_frame.png".to_string(), "collapsed_tent_frame".to_string()));
-        village_parts.push((center_world_x + 380.0,    center_world_y + 320.0,    "broken_snowmobile.png".to_string(),    "broken_snowmobile".to_string()));
-        village_parts.push((center_world_x - 480.0,    center_world_y - 120.0,    "whale_bone_drying_rock.png".to_string(),"whale_bone_drying_rock".to_string()));
-        village_parts.push((center_world_x + 280.0,    center_world_y - 480.0,    "weather_station_mast.png".to_string(), "weather_station_mast".to_string()));
+        // Scatter decoratives
+        village_parts.push((center_world_x - 480.0,    center_world_y - 120.0,    "av_drying_rack.png".to_string(),    "av_drying_rack".to_string()));
+        village_parts.push((center_world_x + 280.0,    center_world_y - 480.0,    "av_weather_station_mast.png".to_string(), "av_weather_station_mast".to_string()));
         
         log::info!("🏔️ Alpine village generation complete: {} structures", village_parts.len());
     } else {
@@ -3840,7 +3838,7 @@ pub fn get_shipwreck_placeables() -> Vec<MonumentPlaceableConfig> {
 pub fn get_fishing_village_placeables() -> Vec<MonumentPlaceableConfig> {
     vec![
         // Barrels - perimeter positions, min 200px from campfire (0,0) and buildings
-        // Huts at (-480,-500), (480,-500), (0,-700); smokerack at (-320,-200)
+        // Huts at (-480,-500), (480,-500), (0,-700); fv_drying_rack at (-320,-200)
         MonumentPlaceableConfig::barrel(400.0, 120.0),   // East
         MonumentPlaceableConfig::barrel(-400.0, 120.0), // West
         MonumentPlaceableConfig::barrel(280.0, 280.0),  // East-south

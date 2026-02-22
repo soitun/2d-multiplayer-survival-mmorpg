@@ -964,6 +964,24 @@ pub fn get_armor_definitions() -> Vec<ItemDefinition> {
             .respawn_time(360)
             .build(),
 
+        // Babushka's Boots of Speed - Feet armor with exceptional land speed
+        // Makes you as fast on land as Shark Fin Flippers make you in water (+125% = 2.25x speed)
+        // No crafting cost - special/event item
+        ItemBuilder::new("Babushka's Boots of Speed", "Worn leather boots blessed by a grandmother's love. Run on land as swiftly as a shark swims through water.", ItemCategory::Armor)
+            .icon("babushkas_boots_of_speed.png")
+            .equippable(Some(EquipmentSlotType::Feet))
+            .armor_resistances(ArmorResistances {
+                melee_resistance: 0.0,
+                projectile_resistance: 0.0,
+                fire_resistance: 0.0,
+                blunt_resistance: 0.0,
+                slash_resistance: 0.0,
+                pierce_resistance: 0.0,
+                cold_resistance: 0.0,
+            })
+            .movement_speed_modifier(1.25) // +125% land speed (2.25x) - matches Shark Fin Flippers water speed
+            .build(),
+
         // Shark Fin Flippers - Advanced flippers with superior water speed
         // Allows players to swim 125% faster (2.25x normal water speed)
         // Upgraded version requiring underwater hunting materials

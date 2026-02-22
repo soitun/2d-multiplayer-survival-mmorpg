@@ -90,7 +90,7 @@ export function preloadMonumentImages(): void {
     loadImage('fv_lodge.png', import('../../assets/doodads/fv_lodge.png?url'));
     loadImage('fv_hut2.png', import('../../assets/doodads/fv_hut2.png?url'));
     loadImage('fv_hut3.png', import('../../assets/doodads/fv_hut3.png?url'));
-    loadImage('fv_smokerack1.png', import('../../assets/doodads/fv_smokerack1.png?url'));
+    loadImage('fv_drying_rack.png', import('../../assets/doodads/fv_drying_rack.png?url'));
     
     // Whale Bone Graveyard monument images (ancient whale bone graveyard on beach)
     // Note: Campfire is a functional monument placeable, not a visual doodad
@@ -126,10 +126,8 @@ export function preloadMonumentImages(): void {
     loadImage('av_campfire.png', import('../../assets/doodads/av_campfire.png?url'));
     loadImage('av_hut.png', import('../../assets/doodads/av_hut.png?url'));
     loadImage('av_banya.png', import('../../assets/doodads/av_banya.png?url'));
-    loadImage('collapsed_tent_frame.png', import('../../assets/doodads/collapsed_tent_frame.png?url'));
-    loadImage('broken_snowmobile.png', import('../../assets/doodads/broken_snowmobile.png?url'));
-    loadImage('whale_bone_drying_rock.png', import('../../assets/doodads/whale_bone_drying_rock.png?url'));
-    loadImage('weather_station_mast.png', import('../../assets/doodads/weather_station_mast.png?url'));
+    loadImage('av_drying_rack.png', import('../../assets/doodads/av_drying_rack.png?url'));
+    loadImage('av_weather_station_mast.png', import('../../assets/doodads/av_weather_station_mast.png?url'));
 
     // Aleutian whale oil road lampposts (along dirt roads)
     loadImage('road_lamp.png', import('../../assets/doodads/road_lamp.png?url'));
@@ -174,7 +172,7 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             'fv_lodge.png': () => import('../../assets/doodads/fv_lodge.png?url'),
             'fv_hut2.png': () => import('../../assets/doodads/fv_hut2.png?url'),
             'fv_hut3.png': () => import('../../assets/doodads/fv_hut3.png?url'),
-            'fv_smokerack1.png': () => import('../../assets/doodads/fv_smokerack1.png?url'),
+            'fv_drying_rack.png': () => import('../../assets/doodads/fv_drying_rack.png?url'),
             
             // Whale Bone Graveyard monument images (ancient whale bone graveyard on beach)
             // Note: Campfire is a functional monument placeable, not a visual doodad
@@ -210,10 +208,8 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             'av_campfire.png': () => import('../../assets/doodads/av_campfire.png?url'),
             'av_hut.png': () => import('../../assets/doodads/av_hut.png?url'),
             'av_banya.png': () => import('../../assets/doodads/av_banya.png?url'),
-            'collapsed_tent_frame.png': () => import('../../assets/doodads/collapsed_tent_frame.png?url'),
-            'broken_snowmobile.png': () => import('../../assets/doodads/broken_snowmobile.png?url'),
-            'whale_bone_drying_rock.png': () => import('../../assets/doodads/whale_bone_drying_rock.png?url'),
-            'weather_station_mast.png': () => import('../../assets/doodads/weather_station_mast.png?url'),
+            'av_drying_rack.png': () => import('../../assets/doodads/av_drying_rack.png?url'),
+            'av_weather_station_mast.png': () => import('../../assets/doodads/av_weather_station_mast.png?url'),
 
             // Aleutian whale oil road lampposts (along dirt roads)
             'road_lamp.png': () => import('../../assets/doodads/road_lamp.png?url'),

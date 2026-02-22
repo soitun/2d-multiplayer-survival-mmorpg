@@ -2401,12 +2401,18 @@ export function useEntityFiltering(
 
       // Player vs Monument Doodad - ground-level campfires use generous threshold so player head doesn't clip behind stones
       // Formula: sortThresholdY = worldY - (height * fractionFromTop). fractionFromTop = distance from top as fraction of height.
-      // For campfire: 0.75 = threshold at 75% from top = bottom 75% in front. For huts: 0.25 = bottom 25% in front.
+      // For campfire: 0.75 = threshold at 75% from top = bottom 75% in front. For huts/drying racks: 0.25 = bottom 25% in front.
+      // Drying racks (hv_drying_rack, fv_drying_rack, av_drying_rack) share same fraction for consistent y-sorting.
+      const getMonumentDoodadFraction = (doodad: CompoundBuildingEntity) => {
+        if (doodad.imagePath === 'fv_campfire.png' || doodad.imagePath === 'av_campfire.png') return 0.75;
+        const pt = doodad.partType ?? '';
+        if (pt === 'hv_drying_rack' || pt === 'fv_drying_rack' || pt === 'av_drying_rack') return 0.25;
+        return 0.25; // Default for huts, lodges, etc.
+      };
       if (isPlayerLike(a.type) && b.type === 'monument_doodad') {
         const playerY = getPlayerOrSwimY(a);
         const doodad = b.entity as CompoundBuildingEntity;
-        const isGroundCampfire = doodad.imagePath === 'fv_campfire.png';
-        const fractionFromTop = isGroundCampfire ? 0.75 : 0.25; // Campfire: bottom 75% in front. Huts: bottom 25% in front.
+        const fractionFromTop = getMonumentDoodadFraction(doodad);
         const sortThresholdY = doodad.worldY - (doodad.height * fractionFromTop) + (doodad.anchorYOffset || 0);
         if (playerY >= sortThresholdY) return 1; // Player in front
         return -1; // Player behind
@@ -2414,8 +2420,7 @@ export function useEntityFiltering(
       if (a.type === 'monument_doodad' && isPlayerLike(b.type)) {
         const doodad = a.entity as CompoundBuildingEntity;
         const playerY = getPlayerOrSwimY(b);
-        const isGroundCampfire = doodad.imagePath === 'fv_campfire.png';
-        const fractionFromTop = isGroundCampfire ? 0.75 : 0.25;
+        const fractionFromTop = getMonumentDoodadFraction(doodad);
         const sortThresholdY = doodad.worldY - (doodad.height * fractionFromTop) + (doodad.anchorYOffset || 0);
         if (playerY >= sortThresholdY) return -1; // Player in front (inverted)
         return 1; // Player behind (inverted)

@@ -331,7 +331,7 @@ const MONUMENT_PART_SIZES: Record<string, { width: number; height: number }> = {
   'campfire': { width: 256, height: 256 },
   'hut': { width: 512, height: 512 },
   'dock': { width: 384, height: 384 },
-  'smokerack': { width: 256, height: 256 },
+  'fv_drying_rack': { width: 256, height: 256 },
   'kayak': { width: 320, height: 320 },
   
   // Whale Bone Graveyard parts
@@ -343,16 +343,14 @@ const MONUMENT_PART_SIZES: Record<string, { width: number; height: number }> = {
   
   // Hunting Village parts
   'lodge': { width: 512, height: 512 },
-  'drying_rack': { width: 256, height: 256 }, // Same size as fishing village smokerack
+  'hv_drying_rack': { width: 256, height: 256 },
   'scarecrow': { width: 160, height: 160 }, // Monument scarecrow by the crops
   
   // Alpine Village: lodge uses 'lodge' key above; new buildings + scatter doodads
   'av_hut': { width: 384, height: 384 },
   'av_banya': { width: 384, height: 384 },
-  'collapsed_tent_frame': { width: 320, height: 256 },
-  'broken_snowmobile': { width: 320, height: 256 },
-  'whale_bone_drying_rock': { width: 256, height: 256 },
-  'weather_station_mast': { width: 192, height: 384 },
+  'av_drying_rack': { width: 256, height: 256 },
+  'av_weather_station_mast': { width: 192, height: 384 },
   
   // Crashed Research Drone parts
   'drone': { width: 512, height: 512 },
@@ -371,6 +369,17 @@ const MONUMENT_PART_SIZES: Record<string, { width: number; height: number }> = {
   // Default fallback
   'default': { width: 512, height: 512 },
 };
+
+/** Anchor Y-offset for monument parts - affects y-sorting (visual base). Drying racks share same offset for consistent layering. */
+const MONUMENT_PART_ANCHOR_Y_OFFSETS: Record<string, number> = {
+  'hv_drying_rack': 0,
+  'fv_drying_rack': 0,
+  'av_drying_rack': 0,
+};
+
+function getMonumentPartAnchorYOffset(partType: string): number {
+  return MONUMENT_PART_ANCHOR_Y_OFFSETS[partType] ?? 0;
+}
 
 /**
  * Get the display size for a monument part based on its partType.
@@ -425,7 +434,7 @@ export function getMonumentBuildings(monumentParts: MonumentPartData[]): Compoun
         offsetY,
         width,
         height,
-        anchorYOffset: 0, // Anchor at bottom of sprite
+        anchorYOffset: getMonumentPartAnchorYOffset(part.partType),
         collisionRadius: part.collisionRadius,
         collisionYOffset: 0,
         isCenter: part.isCenter,

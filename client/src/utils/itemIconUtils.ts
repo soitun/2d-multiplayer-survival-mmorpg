@@ -410,6 +410,7 @@ import jellyfishMembraneIcon from '../assets/items/jellyfish_membrane.png';
 import jellyfishStingerIcon from '../assets/items/jellyfish_stinger.png';
 import jellyfishCompressIcon from '../assets/items/jellyfish_compress.png';
 import sharkFinFlippersIcon from '../assets/items/shark_fin_flippers.png';
+import babushkasBootsOfSpeedIcon from '../assets/items/babushkas_boots_of_speed.png';
 import venomArrowIcon from '../assets/items/venom_arrow.png';
 import venomHarpoonDartIcon from '../assets/items/venom_harpoon_dart.png';
 
@@ -1035,6 +1036,7 @@ const iconMap: { [key: string]: string | undefined } = {
   'jellyfish_stinger.png': jellyfishStingerIcon,
   'jellyfish_compress.png': jellyfishCompressIcon,
   'shark_fin_flippers.png': sharkFinFlippersIcon,
+  'babushkas_boots_of_speed.png': babushkasBootsOfSpeedIcon,
   'venom_arrow.png': venomArrowIcon,
   'venom_harpoon_dart.png': venomHarpoonDartIcon,
   
