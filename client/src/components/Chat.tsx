@@ -10,6 +10,8 @@ import { buildGameContext, type GameContextBuilderProps } from '../utils/gameCon
 import apiPerformanceService from '../services/apiPerformanceService';
 import { kokoroService } from '../services/kokoroService';
 import { parseCraftIntent, resolveRecipeByName, getCraftFeedback } from '../utils/craftIntentParser';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faGear } from '@fortawesome/free-solid-svg-icons';
 
 interface ChatProps {
   connection: DbConnection | null;
@@ -35,6 +37,10 @@ interface ChatProps {
   matronages?: Map<string, any>;
   // Callback for /s (say) command - emits local speech bubble
   onSayCommand?: (message: string) => void;
+  playerStats?: Map<string, any>;
+  playerAchievements?: Map<string, any>;
+  achievementDefinitions?: Map<string, any>;
+  onTitleSelect?: (titleId: string | null) => void;
 }
 
 type ChatTab = 'global' | 'sova' | 'team';
@@ -57,7 +63,7 @@ const SOVAMessage: React.FC<{message: {id: string, text: string, isUser: boolean
   </div>
 ));
 
-const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, setIsChatting, localPlayerIdentity, onSOVAMessageAdderReady, worldState, localPlayer, itemDefinitions, activeEquipments, inventoryItems, recipes, playerIdentity, isMobile = false, isMobileChatOpen = false, matronageMembers, matronages, onSayCommand }) => {
+const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, setIsChatting, localPlayerIdentity, onSOVAMessageAdderReady, worldState, localPlayer, itemDefinitions, activeEquipments, inventoryItems, recipes, playerIdentity, isMobile = false, isMobileChatOpen = false, matronageMembers, matronages, onSayCommand, playerStats, playerAchievements, achievementDefinitions, onTitleSelect }) => {
   // console.log("[Chat Component Render] Props - Connection:", !!connection, "LocalPlayerIdentity:", localPlayerIdentity);
   const [inputValue, setInputValue] = useState('');
   const [privateMessages, setPrivateMessages] = useState<Map<string, SpacetimeDBPrivateMessage>>(new Map());
@@ -70,6 +76,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
   const [sovaInputValue, setSovaInputValue] = useState('');
   const [showPerformanceReport, setShowPerformanceReport] = useState(false);
   const [isSOVALoading, setIsSOVALoading] = useState(false);
+  const [isTitleMenuOpen, setIsTitleMenuOpen] = useState(false);
   // Chat mode persistence - remember last used mode (/g or /t)
   const [chatMode, setChatMode] = useState<ChatMode>(() => {
     const saved = localStorage.getItem('lastChatMode');
@@ -84,6 +91,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
   const teamMessageSubscriptionRef = useRef<any | null>(null);
   const lastWhisperSubscriptionRef = useRef<any | null>(null);
   const isAnimating = useRef(false);
+  const titleMenuRef = useRef<HTMLDivElement>(null);
   
   // SOVA tab flash state - for drawing attention to the tab
   const [isSovaTabFlashing, setIsSovaTabFlashing] = useState(false);
@@ -118,6 +126,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
   // Toggle minimize/maximize with smooth animation
   const toggleMinimized = useCallback(() => {
     if (isAnimating.current) return; // Prevent rapid toggling during animation
+    setIsTitleMenuOpen(false);
     
     isAnimating.current = true;
     
@@ -364,6 +373,37 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
     setIsChatting(true);
     // Focus will be handled by the useEffect in ChatInput
   }, [setIsChatting]);
+
+  const { currentTitle, availableTitles } = React.useMemo(() => {
+    if (!localPlayerIdentity || !playerStats || !playerAchievements || !achievementDefinitions) {
+      return { currentTitle: null as string | null, availableTitles: [] as Array<{ id: string; title: string; description: string }> };
+    }
+
+    const stats = playerStats.get(localPlayerIdentity);
+    const currentTitleId = stats?.activeTitleId ?? null;
+    const seenTitleIds = new Set<string>();
+    const titles: Array<{ id: string; title: string; description: string }> = [];
+
+    playerAchievements.forEach((achievement: any) => {
+      if (achievement.playerId?.toHexString?.() !== localPlayerIdentity) return;
+      const definition = achievementDefinitions.get(achievement.achievementId);
+      const rewardTitle = definition?.titleReward;
+      if (!rewardTitle || seenTitleIds.has(rewardTitle)) return;
+      seenTitleIds.add(rewardTitle);
+      titles.push({
+        id: rewardTitle,
+        title: rewardTitle,
+        description: definition.name || 'Achievement Title',
+      });
+    });
+
+    return { currentTitle: currentTitleId, availableTitles: titles };
+  }, [localPlayerIdentity, playerStats, playerAchievements, achievementDefinitions]);
+
+  const handleTitleSelection = useCallback((titleId: string | null) => {
+    onTitleSelect?.(titleId);
+    setIsTitleMenuOpen(false);
+  }, [onTitleSelect]);
 
   // Get list of online player names for autocomplete
   const onlinePlayerNames = React.useMemo(() => {
@@ -789,6 +829,19 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
     };
   }, [handleGlobalKeyDown]);
 
+  useEffect(() => {
+    if (!isTitleMenuOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!titleMenuRef.current?.contains(event.target as Node)) {
+        setIsTitleMenuOpen(false);
+      }
+    };
+    window.addEventListener('mousedown', onPointerDown);
+    return () => {
+      window.removeEventListener('mousedown', onPointerDown);
+    };
+  }, [isTitleMenuOpen]);
+
   // Mobile mode: visibility controlled by parent via isMobileChatOpen
   if (isMobile) {
     // On mobile, if chat is not open, don't render anything (handled by MobileControlBar)
@@ -826,11 +879,51 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
     >
       {/* Minimize button - only show on desktop */}
       {!isMobile && (
-      <div 
-        className={styles.minimizeButton}
-        onClick={toggleMinimized}
-      >
-        −
+      <div className={styles.chatControls} ref={titleMenuRef}>
+        <button
+          type="button"
+          className={styles.titleGearButton}
+          onClick={(event) => {
+            event.stopPropagation();
+            setIsTitleMenuOpen((prev) => !prev);
+          }}
+          title="Select active title"
+        >
+          <FontAwesomeIcon icon={faGear} />
+        </button>
+        {isTitleMenuOpen && (
+          <div className={styles.titleContextMenu}>
+            <button
+              type="button"
+              className={`${styles.titleMenuOption} ${!currentTitle ? styles.activeTitleOption : ''}`}
+              onClick={() => handleTitleSelection(null)}
+            >
+              No Title
+            </button>
+            {availableTitles.length > 0 ? (
+              availableTitles.map((title) => (
+                <button
+                  type="button"
+                  key={title.id}
+                  className={`${styles.titleMenuOption} ${currentTitle === title.id ? styles.activeTitleOption : ''}`}
+                  onClick={() => handleTitleSelection(title.id)}
+                  title={title.description}
+                >
+                  {title.title}
+                </button>
+              ))
+            ) : (
+              <div className={styles.titleMenuEmpty}>No titles unlocked</div>
+            )}
+          </div>
+        )}
+        <button
+          type="button"
+          className={styles.minimizeButton}
+          onClick={toggleMinimized}
+        >
+          −
+        </button>
       </div>
       )}
 

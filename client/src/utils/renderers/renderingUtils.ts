@@ -1784,7 +1784,14 @@ export const renderYSortedEntities = ({
           
           // Skip sprite rendering for center-only parts with no image (e.g. weather station center)
           if (buildingEntity.imagePath && buildingEntity.imagePath.length > 0) {
-              renderMonument(ctx, buildingWithWorldPos as any, cycleProgress, localPlayerPosition, doodadImagesRef);
+              const isOnSeaTileForMonument = connection
+                  ? (worldX: number, worldY: number): boolean => {
+                      const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
+                      const tileType = getTileTypeFromChunkData(connection!, tileX, tileY);
+                      return isOceanTileTag(tileType);
+                  }
+                  : undefined;
+              renderMonument(ctx, buildingWithWorldPos as any, cycleProgress, localPlayerPosition, doodadImagesRef, isOnSeaTileForMonument, nowMs);
           }
           
           // Runs for all monument_doodad, including center-only weather station markers.

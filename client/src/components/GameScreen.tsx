@@ -936,11 +936,6 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 <GameVisualSettingsMenu
                     onBack={handleMenuBack}
                     onClose={handleMenuClose}
-                    playerStats={props.playerStats}
-                    playerAchievements={props.playerAchievements}
-                    achievementDefinitions={props.achievementDefinitions}
-                    localPlayerIdentity={props.localPlayerId}
-                    onTitleSelect={handleTitleSelect}
                 />
             )}
 
@@ -1360,6 +1355,10 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 isMobileChatOpen={isMobileChatOpen}
                 matronageMembers={matronageMembers}
                 matronages={matronages}
+                playerStats={props.playerStats}
+                playerAchievements={props.playerAchievements}
+                achievementDefinitions={props.achievementDefinitions}
+                onTitleSelect={handleTitleSelect}
                 onSayCommand={(message: string) => {
                     // Create a local-only speech bubble for /s command
                     if (localPlayerId) {

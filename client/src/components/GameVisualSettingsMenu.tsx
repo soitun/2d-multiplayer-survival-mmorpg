@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import styles from './MenuComponents.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTree, faCloudRain, faHeartPulse, faLeaf, faCrown, faUsers } from '@fortawesome/free-solid-svg-icons';
+import { faTree, faCloudRain, faHeartPulse, faLeaf, faUsers } from '@fortawesome/free-solid-svg-icons';
 import { useSettings } from '../contexts/SettingsContext';
 
 // Default visual settings based on optimal neural rendering thresholds
@@ -11,27 +11,27 @@ export const DEFAULT_VISUAL_SETTINGS = {
     statusOverlaysEnabled: true,     // Enable cold/low health screen overlays
     grassEnabled: true,              // Enable grass rendering and subscriptions
     alwaysShowPlayerNames: true,     // Show player names above heads at all times
+    bloomIntensity: 28,              // Gentle glow for a comfy look
+    vignetteIntensity: 12,           // Very subtle dark edge framing
+    chromaticAberrationIntensity: 8, // Tiny cinematic color split
+    colorCorrection: 58,             // Slightly warm/richer colors
+} as const;
+
+export const DISABLED_VISUAL_SETTINGS = {
+    bloomIntensity: 0,
+    vignetteIntensity: 0,
+    chromaticAberrationIntensity: 0,
+    colorCorrection: 50, // Neutral (no warm/cool grading shift)
 } as const;
 
 interface GameVisualSettingsMenuProps {
     onBack: () => void;
     onClose: () => void;
-    // Title selection props (non-settings, kept as props)
-    playerStats?: Map<string, any>;
-    playerAchievements?: Map<string, any>;
-    achievementDefinitions?: Map<string, any>;
-    localPlayerIdentity?: string;
-    onTitleSelect?: (titleId: string | null) => void;
 }
 
 const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
     onBack,
     onClose,
-    playerStats,
-    playerAchievements,
-    achievementDefinitions,
-    localPlayerIdentity,
-    onTitleSelect,
 }) => {
     const {
         treeShadowsEnabled,
@@ -44,44 +44,35 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
         setGrassEnabled: onGrassChange,
         alwaysShowPlayerNames,
         setAlwaysShowPlayerNames: onAlwaysShowPlayerNamesChange,
+        bloomIntensity,
+        setBloomIntensity: onBloomIntensityChange,
+        vignetteIntensity,
+        setVignetteIntensity: onVignetteIntensityChange,
+        chromaticAberrationIntensity,
+        setChromaticAberrationIntensity: onChromaticAberrationIntensityChange,
+        colorCorrection,
+        setColorCorrection: onColorCorrectionChange,
     } = useSettings();
+
+    const handleResetVisualDefaults = () => {
+        onBloomIntensityChange(DEFAULT_VISUAL_SETTINGS.bloomIntensity);
+        onVignetteIntensityChange(DEFAULT_VISUAL_SETTINGS.vignetteIntensity);
+        onChromaticAberrationIntensityChange(DEFAULT_VISUAL_SETTINGS.chromaticAberrationIntensity);
+        onColorCorrectionChange(DEFAULT_VISUAL_SETTINGS.colorCorrection);
+    };
+
+    const handleDisableAllVisualEffects = () => {
+        onBloomIntensityChange(DISABLED_VISUAL_SETTINGS.bloomIntensity);
+        onVignetteIntensityChange(DISABLED_VISUAL_SETTINGS.vignetteIntensity);
+        onChromaticAberrationIntensityChange(DISABLED_VISUAL_SETTINGS.chromaticAberrationIntensity);
+        onColorCorrectionChange(DISABLED_VISUAL_SETTINGS.colorCorrection);
+    };
 
     const handleBackdropClick = (e: React.MouseEvent) => {
         if (e.target === e.currentTarget) {
             onBack();
         }
     };
-
-    // Get current player's active title and available titles
-    const { currentTitle, availableTitles } = useMemo(() => {
-        if (!localPlayerIdentity || !playerStats || !playerAchievements || !achievementDefinitions) {
-            return { currentTitle: null, availableTitles: [] };
-        }
-
-        // Get current player's stats
-        const stats = playerStats.get(localPlayerIdentity);
-        const currentTitleId = stats?.activeTitleId ?? null;
-
-        // Get all unlocked achievements that have titles
-        const titles: Array<{ id: string; title: string; description: string }> = [];
-        
-        // Iterate through player's unlocked achievements
-        playerAchievements.forEach((achievement: any) => {
-            if (achievement.playerId?.toHexString?.() === localPlayerIdentity) {
-                // Find the achievement definition to get the title
-                const definition = achievementDefinitions.get(achievement.achievementId);
-                if (definition?.titleReward) {
-                    titles.push({
-                        id: definition.titleReward,
-                        title: definition.titleReward,
-                        description: definition.name || 'Achievement Title',
-                    });
-                }
-            }
-        });
-
-        return { currentTitle: currentTitleId, availableTitles: titles };
-    }, [localPlayerIdentity, playerStats, playerAchievements, achievementDefinitions]);
 
     return (
         <>
@@ -509,108 +500,246 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                         </div>
                     </div>
 
-                    {/* Player Title Selection - Always show */}
+                    {/* Bloom Filter Slider */}
                     <div style={{ marginBottom: '25px' }}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
                             fontSize: '16px',
-                            color: '#ffd700',
+                            color: '#ffe066',
                             marginBottom: '12px',
-                            textShadow: '0 0 8px #ffd700',
+                            textShadow: '0 0 8px #ffe066',
                             letterSpacing: '1px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
                         }}>
-                            <FontAwesomeIcon 
-                                icon={faCrown} 
-                                style={{
-                                    color: '#ffd700',
-                                    textShadow: '0 0 8px #ffd700',
-                                    fontSize: '14px',
-                                }}
-                            />
-                            ACTIVE TITLE
+                            BLOOM FILTER: {Math.round(bloomIntensity)}%
                         </div>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
                             fontSize: '12px',
-                            color: '#ffeeaa',
-                            marginBottom: '8px',
-                            opacity: 0.7,
+                            color: '#fff2b8',
+                            marginBottom: '10px',
+                            opacity: 0.75,
                             letterSpacing: '0.5px',
                             textAlign: 'left',
                         }}>
-                            Select a title to display above your head & in chat
+                            Soft glow on bright areas. Tuned for a cozy, cinematic scene.
                         </div>
-                        {availableTitles.length > 0 ? (
-                            <>
-                                <select
-                                    value={currentTitle || ''}
-                                    onChange={(e) => onTitleSelect?.(e.target.value || null)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '10px 15px',
-                                        background: 'linear-gradient(135deg, rgba(40, 30, 10, 0.9), rgba(30, 25, 5, 0.95))',
-                                        border: '2px solid #ffd700',
-                                        borderRadius: '6px',
-                                        color: '#ffd700',
-                                        fontFamily: '"Press Start 2P", cursive',
-                                        fontSize: '11px',
-                                        cursor: 'pointer',
-                                        textShadow: '0 0 4px rgba(255, 215, 0, 0.6)',
-                                        boxShadow: '0 0 10px rgba(255, 215, 0, 0.2), inset 0 0 5px rgba(255, 215, 0, 0.1)',
-                                    }}
-                                >
-                                    <option value="" style={{ background: '#1a1a2e', color: '#888' }}>
-                                        -- No Title --
-                                    </option>
-                                    {availableTitles.map((title) => (
-                                        <option 
-                                            key={title.id} 
-                                            value={title.id}
-                                            style={{ background: '#1a1a2e', color: '#ffd700' }}
-                                        >
-                                            «{title.title}»
-                                        </option>
-                                    ))}
-                                </select>
-                                <div style={{
-                                    marginTop: '8px',
-                                    fontFamily: '"Press Start 2P", cursive',
-                                    fontSize: '10px',
-                                    color: '#888',
-                                    opacity: 0.8,
-                                }}>
-                                    {availableTitles.length} title{availableTitles.length !== 1 ? 's' : ''} unlocked
-                                </div>
-                            </>
-                        ) : (
-                            <div style={{
-                                padding: '15px',
-                                background: 'linear-gradient(135deg, rgba(40, 30, 10, 0.6), rgba(30, 25, 5, 0.7))',
-                                border: '2px dashed #665500',
-                                borderRadius: '6px',
-                                textAlign: 'center',
-                            }}>
-                                <div style={{
-                                    fontFamily: '"Press Start 2P", cursive',
-                                    fontSize: '14px',
-                                    color: '#888',
-                                    marginBottom: '8px',
-                                }}>
-                                    No titles unlocked yet
-                                </div>
-                                <div style={{
-                                    fontFamily: '"Press Start 2P", cursive',
-                                    fontSize: '12px',
-                                    color: '#666',
-                                }}>
-                                    Earn achievements to unlock titles!
-                                </div>
-                            </div>
-                        )}
+                        <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={bloomIntensity}
+                            onChange={(e) => onBloomIntensityChange(parseInt(e.target.value, 10))}
+                            style={{
+                                width: '100%',
+                                accentColor: '#ffe066',
+                                cursor: 'pointer',
+                            }}
+                        />
                     </div>
+
+                    {/* Vignette Slider */}
+                    <div style={{ marginBottom: '25px' }}>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '16px',
+                            color: '#d0d8ff',
+                            marginBottom: '12px',
+                            textShadow: '0 0 8px #d0d8ff',
+                            letterSpacing: '1px',
+                        }}>
+                            VIGNETTE: {Math.round(vignetteIntensity)}%
+                        </div>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '12px',
+                            color: '#dfe5ff',
+                            marginBottom: '10px',
+                            opacity: 0.75,
+                            letterSpacing: '0.5px',
+                            textAlign: 'left',
+                        }}>
+                            Darkens screen edges for depth. Default is intentionally very subtle.
+                        </div>
+                        <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={vignetteIntensity}
+                            onChange={(e) => onVignetteIntensityChange(parseInt(e.target.value, 10))}
+                            style={{
+                                width: '100%',
+                                accentColor: '#d0d8ff',
+                                cursor: 'pointer',
+                            }}
+                        />
+                    </div>
+
+                    {/* Chromatic Aberration Slider */}
+                    <div style={{ marginBottom: '25px' }}>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '16px',
+                            color: '#ff9ad1',
+                            marginBottom: '12px',
+                            textShadow: '0 0 8px #ff9ad1',
+                            letterSpacing: '1px',
+                        }}>
+                            CHROMATIC ABERRATION: {Math.round(chromaticAberrationIntensity)}%
+                        </div>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '12px',
+                            color: '#ffc5e6',
+                            marginBottom: '10px',
+                            opacity: 0.75,
+                            letterSpacing: '0.5px',
+                            textAlign: 'left',
+                        }}>
+                            Adds a subtle red/green edge split for film-like lens character.
+                        </div>
+                        <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={chromaticAberrationIntensity}
+                            onChange={(e) => onChromaticAberrationIntensityChange(parseInt(e.target.value, 10))}
+                            style={{
+                                width: '100%',
+                                accentColor: '#ff9ad1',
+                                cursor: 'pointer',
+                            }}
+                        />
+                    </div>
+
+                    {/* Color Correction Slider */}
+                    <div style={{ marginBottom: '25px' }}>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '16px',
+                            color: '#8effd1',
+                            marginBottom: '12px',
+                            textShadow: '0 0 8px #8effd1',
+                            letterSpacing: '1px',
+                        }}>
+                            COLOR CORRECTION: {Math.round(colorCorrection)}%
+                        </div>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '12px',
+                            color: '#c6ffe8',
+                            marginBottom: '10px',
+                            opacity: 0.75,
+                            letterSpacing: '0.5px',
+                            textAlign: 'left',
+                        }}>
+                            Adjusts overall warmth, saturation, and contrast of the world.
+                        </div>
+                        <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={colorCorrection}
+                            onChange={(e) => onColorCorrectionChange(parseInt(e.target.value, 10))}
+                            style={{
+                                width: '100%',
+                                accentColor: '#8effd1',
+                                cursor: 'pointer',
+                            }}
+                        />
+                    </div>
+
+                    {/* Slider Preset Actions */}
+                    <div style={{
+                        marginBottom: '25px',
+                        padding: '14px',
+                        borderRadius: '10px',
+                        border: '1px solid rgba(180, 255, 220, 0.3)',
+                        background: 'linear-gradient(135deg, rgba(12, 32, 36, 0.65), rgba(8, 22, 28, 0.75))',
+                        boxShadow: 'inset 0 0 12px rgba(120, 255, 200, 0.1)',
+                    }}>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '11px',
+                            color: '#a8ffd8',
+                            opacity: 0.8,
+                            marginBottom: '10px',
+                            textAlign: 'left',
+                            letterSpacing: '0.7px',
+                        }}>
+                            SLIDER PRESETS (BLOOM / VIGNETTE / CHROMATIC / COLOR)
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                            <button
+                                onClick={handleDisableAllVisualEffects}
+                                className={styles.menuButton}
+                                style={{
+                                    flex: '1 1 230px',
+                                    minWidth: '220px',
+                                    background: 'linear-gradient(135deg, rgba(70, 28, 28, 0.88), rgba(45, 15, 15, 0.96))',
+                                    color: '#ffffff',
+                                    border: '2px solid #ff7a7a',
+                                    borderRadius: '8px',
+                                    padding: '12px 14px',
+                                    fontFamily: '"Press Start 2P", cursive',
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    boxShadow: '0 0 15px rgba(255, 122, 122, 0.35), inset 0 0 10px rgba(255, 122, 122, 0.12)',
+                                    textShadow: '0 0 5px rgba(255, 122, 122, 0.85)',
+                                    letterSpacing: '1px',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(95, 35, 35, 0.96), rgba(60, 18, 18, 1))';
+                                    e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                                    e.currentTarget.style.boxShadow = '0 0 25px rgba(255, 122, 122, 0.6), inset 0 0 15px rgba(255, 122, 122, 0.2)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(70, 28, 28, 0.88), rgba(45, 15, 15, 0.96))';
+                                    e.currentTarget.style.transform = 'translateY(0px) scale(1)';
+                                    e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 122, 122, 0.35), inset 0 0 10px rgba(255, 122, 122, 0.12)';
+                                }}
+                            >
+                                TURN SLIDERS OFF
+                            </button>
+                            <button
+                                onClick={handleResetVisualDefaults}
+                                className={styles.menuButton}
+                                style={{
+                                    flex: '1 1 230px',
+                                    minWidth: '220px',
+                                    background: 'linear-gradient(135deg, rgba(30, 65, 45, 0.85), rgba(20, 45, 30, 0.95))',
+                                    color: '#ffffff',
+                                    border: '2px solid #66ffb3',
+                                    borderRadius: '8px',
+                                    padding: '12px 14px',
+                                    fontFamily: '"Press Start 2P", cursive',
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    boxShadow: '0 0 15px rgba(102, 255, 179, 0.35), inset 0 0 10px rgba(102, 255, 179, 0.12)',
+                                    textShadow: '0 0 5px rgba(102, 255, 179, 0.85)',
+                                    letterSpacing: '1px',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(45, 85, 60, 0.95), rgba(25, 55, 38, 1))';
+                                    e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                                    e.currentTarget.style.boxShadow = '0 0 25px rgba(102, 255, 179, 0.6), inset 0 0 15px rgba(102, 255, 179, 0.2)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(30, 65, 45, 0.85), rgba(20, 45, 30, 0.95))';
+                                    e.currentTarget.style.transform = 'translateY(0px) scale(1)';
+                                    e.currentTarget.style.boxShadow = '0 0 15px rgba(102, 255, 179, 0.35), inset 0 0 10px rgba(102, 255, 179, 0.12)';
+                                }}
+                            >
+                                REVERT SLIDER DEFAULTS
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
 
                 <div className={styles.menuButtons}>

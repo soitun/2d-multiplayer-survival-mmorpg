@@ -30,11 +30,19 @@ export interface SettingsContextType {
     statusOverlaysEnabled: boolean;
     grassEnabled: boolean;
     alwaysShowPlayerNames: boolean;
+    bloomIntensity: number;
+    vignetteIntensity: number;
+    chromaticAberrationIntensity: number;
+    colorCorrection: number;
     setTreeShadowsEnabled: (enabled: boolean) => void;
     setWeatherOverlayEnabled: (enabled: boolean) => void;
     setStatusOverlaysEnabled: (enabled: boolean) => void;
     setGrassEnabled: (enabled: boolean) => void;
     setAlwaysShowPlayerNames: (enabled: boolean) => void;
+    setBloomIntensity: (intensity: number) => void;
+    setVignetteIntensity: (intensity: number) => void;
+    setChromaticAberrationIntensity: (intensity: number) => void;
+    setColorCorrection: (value: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -81,6 +89,10 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [statusOverlaysEnabled, _setStatusOverlays] = useState(() => loadBool('statusOverlaysEnabled', true));
     const [grassEnabled, _setGrass] = useState(() => loadBool('grassEnabled', true));
     const [alwaysShowPlayerNames, _setPlayerNames] = useState(() => loadBool('alwaysShowPlayerNames', true));
+    const [bloomIntensity, _setBloomIntensity] = useState(() => loadNumber('bloomIntensity', 28, 100));
+    const [vignetteIntensity, _setVignetteIntensity] = useState(() => loadNumber('vignetteIntensity', 12, 100));
+    const [chromaticAberrationIntensity, _setChromaticAberrationIntensity] = useState(() => loadNumber('chromaticAberrationIntensity', 8, 100));
+    const [colorCorrection, _setColorCorrection] = useState(() => loadNumber('colorCorrection', 58, 100));
 
     // --- Setters (persist to localStorage) ---
     const setMusicVolume = useCallback((v: number) => {
@@ -123,6 +135,30 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         localStorage.setItem('alwaysShowPlayerNames', e.toString());
     }, []);
 
+    const setBloomIntensity = useCallback((i: number) => {
+        const clamped = Math.max(0, Math.min(100, i));
+        _setBloomIntensity(clamped);
+        localStorage.setItem('bloomIntensity', clamped.toString());
+    }, []);
+
+    const setVignetteIntensity = useCallback((i: number) => {
+        const clamped = Math.max(0, Math.min(100, i));
+        _setVignetteIntensity(clamped);
+        localStorage.setItem('vignetteIntensity', clamped.toString());
+    }, []);
+
+    const setChromaticAberrationIntensity = useCallback((i: number) => {
+        const clamped = Math.max(0, Math.min(100, i));
+        _setChromaticAberrationIntensity(clamped);
+        localStorage.setItem('chromaticAberrationIntensity', clamped.toString());
+    }, []);
+
+    const setColorCorrection = useCallback((v: number) => {
+        const clamped = Math.max(0, Math.min(100, v));
+        _setColorCorrection(clamped);
+        localStorage.setItem('colorCorrection', clamped.toString());
+    }, []);
+
     // Memoize the context value to prevent unnecessary consumer re-renders
     // when the provider's parent re-renders but settings haven't changed.
     const value = useMemo<SettingsContextType>(() => ({
@@ -137,18 +173,28 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         statusOverlaysEnabled,
         grassEnabled,
         alwaysShowPlayerNames,
+        bloomIntensity,
+        vignetteIntensity,
+        chromaticAberrationIntensity,
+        colorCorrection,
         setTreeShadowsEnabled,
         setWeatherOverlayEnabled,
         setStatusOverlaysEnabled,
         setGrassEnabled,
         setAlwaysShowPlayerNames,
+        setBloomIntensity,
+        setVignetteIntensity,
+        setChromaticAberrationIntensity,
+        setColorCorrection,
     }), [
         musicVolume, soundVolume, environmentalVolume,
         treeShadowsEnabled, weatherOverlayEnabled, statusOverlaysEnabled,
-        grassEnabled, alwaysShowPlayerNames,
+        grassEnabled, alwaysShowPlayerNames, bloomIntensity, vignetteIntensity,
+        chromaticAberrationIntensity, colorCorrection,
         setMusicVolume, setSoundVolume, setEnvironmentalVolume,
         setTreeShadowsEnabled, setWeatherOverlayEnabled, setStatusOverlaysEnabled,
-        setGrassEnabled, setAlwaysShowPlayerNames,
+        setGrassEnabled, setAlwaysShowPlayerNames, setBloomIntensity, setVignetteIntensity,
+        setChromaticAberrationIntensity, setColorCorrection,
     ]);
 
     return (

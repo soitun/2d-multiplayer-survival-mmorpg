@@ -544,7 +544,42 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     weatherOverlayEnabled: showWeatherOverlay,
     statusOverlaysEnabled: showStatusOverlays,
     alwaysShowPlayerNames,
+    bloomIntensity,
+    vignetteIntensity,
+    chromaticAberrationIntensity,
+    colorCorrection,
   } = useSettings();
+
+  const postProcessStyle = useMemo(() => {
+    const colorOffset = colorCorrection - 50;
+    const bloomBrightness = 1 + bloomIntensity * 0.0025;
+    const bloomBlur = bloomIntensity * 0.006;
+    const colorBrightness = 1 + colorOffset * 0.0015;
+    const colorContrast = 1 + colorOffset * 0.0025;
+    const colorSaturation = 1 + colorOffset * 0.004;
+    const colorHueRotate = colorOffset * 0.18;
+
+    const cssFilterParts = [
+      `brightness(${(bloomBrightness * colorBrightness).toFixed(3)})`,
+      `contrast(${colorContrast.toFixed(3)})`,
+      `saturate(${colorSaturation.toFixed(3)})`,
+      `hue-rotate(${colorHueRotate.toFixed(2)}deg)`,
+      `blur(${bloomBlur.toFixed(3)}px)`,
+    ];
+
+    if (chromaticAberrationIntensity > 0) {
+      cssFilterParts.push('url(#game-chromatic-aberration-filter)');
+    }
+
+    const vignetteEdgeOpacity = Math.max(0, Math.min(0.35, vignetteIntensity * 0.0035));
+    const chromaticOffset = chromaticAberrationIntensity * 0.012;
+
+    return {
+      cssFilter: cssFilterParts.join(' '),
+      vignetteEdgeOpacity,
+      chromaticOffset,
+    };
+  }, [bloomIntensity, vignetteIntensity, chromaticAberrationIntensity, colorCorrection]);
 
   const { showError } = useErrorDisplay();
 
@@ -3941,6 +3976,34 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   return (
     <div style={{ position: 'relative', width: canvasSize.width, height: canvasSize.height, overflow: 'hidden' }}>
+      <svg
+        width={0}
+        height={0}
+        style={{ position: 'absolute', pointerEvents: 'none' }}
+        aria-hidden="true"
+      >
+        <defs>
+          <filter id="game-chromatic-aberration-filter" colorInterpolationFilters="sRGB">
+            <feOffset in="SourceGraphic" dx={postProcessStyle.chromaticOffset} dy="0" result="redOffset" />
+            <feColorMatrix
+              in="redOffset"
+              type="matrix"
+              values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.35 0"
+              result="redChannel"
+            />
+            <feOffset in="SourceGraphic" dx={-postProcessStyle.chromaticOffset} dy="0" result="greenOffset" />
+            <feColorMatrix
+              in="greenOffset"
+              type="matrix"
+              values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 0.35 0"
+              result="greenChannel"
+            />
+            <feBlend in="redChannel" in2="greenChannel" mode="screen" result="fringe" />
+            <feBlend in="SourceGraphic" in2="fringe" mode="screen" />
+          </filter>
+        </defs>
+      </svg>
+
       <canvas
         ref={gameCanvasRef}
         id="game-canvas"
@@ -3950,6 +4013,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           position: 'absolute',
           left: 0,
           top: 0,
+          filter: postProcessStyle.cssFilter,
           cursor: cursorStyle,
           pointerEvents: isGameMenuOpen ? 'none' : 'auto', // Don't capture events when menu is open
           touchAction: isMobile ? 'none' : 'auto', // Prevent default touch behaviors on mobile
@@ -3964,6 +4028,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       {/* === AAA Damage Vignette Effect === */}
       {/* PERFORMANCE FIX: Vignette is now rendered on the game canvas in renderGame() */}
       {/* Reading from vignetteOpacityRef avoids React re-renders during damage animations */}
+      {postProcessStyle.vignetteEdgeOpacity > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+            zIndex: 45,
+            background: `radial-gradient(circle at center, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, ${postProcessStyle.vignetteEdgeOpacity.toFixed(3)}) 100%)`,
+            transition: 'background 0.12s ease-out',
+          }}
+        />
+      )}
 
       {/* === Low Health Warning Effect === */}
       {/* Pulsing red border when health is critically low */}

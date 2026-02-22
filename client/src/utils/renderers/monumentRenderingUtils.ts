@@ -326,6 +326,14 @@ function renderPlaceholder(
     ctx.restore();
 }
 
+/** Water line config for monuments in water (e.g. weather station radar) - matches barrel style */
+const MONUMENT_WATER_LINE = {
+    WAVE_AMPLITUDE: 1.5,
+    WAVE_FREQUENCY: 0.003,
+    WAVE_SECONDARY_AMPLITUDE: 0.8,
+    WAVE_SECONDARY_FREQUENCY: 0.005,
+};
+
 /**
  * Render a single monument (compound building or shipwreck part)
  */
@@ -334,7 +342,9 @@ export function renderMonument(
     building: CompoundBuilding & { worldX?: number; worldY?: number },
     cycleProgress: number,
     localPlayerPosition?: { x: number; y: number } | null,
-    doodadImagesRef?: React.RefObject<Map<string, HTMLImageElement>>
+    doodadImagesRef?: React.RefObject<Map<string, HTMLImageElement>>,
+    isOnSeaTile?: (worldX: number, worldY: number) => boolean,
+    nowMs?: number
 ): void {
     // Use provided world coordinates if available (for dynamic shipwrecks),
     // otherwise calculate from offset (for static compound buildings)
@@ -457,7 +467,33 @@ export function renderMonument(
     
     // Draw the building (transparency already applied if needed)
     ctx.drawImage(img, drawX, drawY, building.width, building.height);
-    
+
+    // Weather station radar in water: draw water line low on the image (like barrels)
+    const isWeatherStationRadar = building.imagePath === 'ws_radar.png' || building.id.startsWith('weather_station_');
+    if (isWeatherStationRadar && isOnSeaTile?.(worldX, worldY) && nowMs !== undefined) {
+        const waterLineFraction = 0.78; // Low on image - radar base in water
+        const waterLineWorldY = drawY + building.height * waterLineFraction;
+        const lineStartX = drawX + building.width * 0.15;
+        const lineEndX = drawX + building.width * 0.85;
+        const lineSegments = 8;
+        const lineSegmentWidth = (lineEndX - lineStartX) / lineSegments;
+        const getWaveOffset = (x: number) =>
+            Math.sin(nowMs * MONUMENT_WATER_LINE.WAVE_FREQUENCY + x * 0.02) * MONUMENT_WATER_LINE.WAVE_AMPLITUDE
+            + Math.sin(nowMs * MONUMENT_WATER_LINE.WAVE_SECONDARY_FREQUENCY + x * 0.03 + Math.PI * 0.3) * MONUMENT_WATER_LINE.WAVE_SECONDARY_AMPLITUDE;
+
+        ctx.strokeStyle = 'rgba(150, 180, 200, 0.5)';
+        ctx.lineWidth = 1.2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        for (let i = 0; i <= lineSegments; i++) {
+            const segX = lineStartX + i * lineSegmentWidth;
+            const waveOffset = getWaveOffset(segX);
+            if (i === 0) ctx.moveTo(segX, waterLineWorldY + waveOffset);
+            else ctx.lineTo(segX, waterLineWorldY + waveOffset);
+        }
+        ctx.stroke();
+    }
+
     ctx.restore();
 }
 
