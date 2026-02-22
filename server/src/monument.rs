@@ -1801,25 +1801,26 @@ pub fn generate_weather_station(
         // =============================================================================
         // WEATHER STATION LAYOUT
         // =============================================================================
-        // Four radar dishes equidistant (1000px from center) at 0°, 90°, 180°, 270°
-        // Center: jagged squarish dirt area, campfires, barrels, military rations
-        // Around each radar: barrels and military rations (moderate)
+        // Central operations building (ws_station.png) at origin.
+        // Four radar dishes equidistant (1000px from center) at 0°, 90°, 180°, 270°.
+        // Center scatter items ring the building at 220–380px so they're accessible.
         // =============================================================================
         
+        // Central station building
+        station_parts.push((center_world_x, center_world_y, "ws_station.png".to_string(), "station".to_string()));
+        
         const RADAR_DISTANCE: f32 = 1000.0; // Distance from center to each radar
-        let part_type = "radar";
-        let image_name = "ws_radar.png";
         
         // Four radars at cardinal directions (0° E, 90° S, 180° W, 270° N)
         for (i, (dx, dy)) in [(1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, -1.0)].iter().enumerate() {
             let part_world_x = center_world_x + dx * RADAR_DISTANCE;
             let part_world_y = center_world_y + dy * RADAR_DISTANCE;
-            station_parts.push((part_world_x, part_world_y, image_name.to_string(), part_type.to_string()));
-            log::info!("📡✨ PLACED RADAR {} ({}) at ({:.0}, {:.0}) ✨",
-                       i + 1, image_name, part_world_x, part_world_y);
+            station_parts.push((part_world_x, part_world_y, "ws_radar.png".to_string(), "radar".to_string()));
+            log::info!("📡✨ PLACED RADAR {} at ({:.0}, {:.0}) ✨",
+                       i + 1, part_world_x, part_world_y);
         }
         
-        log::info!("📡 Weather station generation complete: {} structures (4 radars)", station_parts.len());
+        log::info!("📡 Weather station generation complete: {} structures (1 station + 4 radars)", station_parts.len());
     } else {
         log::warn!("📡 Failed to select weather station position");
     }
@@ -2042,10 +2043,20 @@ pub fn generate_alpine_village(
                    center_x, center_y, center_world_x, center_world_y);
         
         // Alpine village doodads:
-        // - Earth-sheltered lodge
+        // - Earth-sheltered lodge at center (is_center)
+        // - av_hut and av_banya flanking NW/NE in a semi-circle (opening south)
         // - Visual campfire south of lodge (no functional warmth/cooking logic)
-        village_parts.push((center_world_x, center_world_y, "av_lodge.png".to_string(), "lodge".to_string()));
-        village_parts.push((center_world_x, center_world_y + 150.0, "av_campfire.png".to_string(), "campfire".to_string()));
+        // - Scatter: collapsed tent frame, broken snowmobile, whale bone drying rack, weather mast
+        village_parts.push((center_world_x,            center_world_y,            "av_lodge.png".to_string(),             "lodge".to_string()));
+        village_parts.push((center_world_x - 420.0,    center_world_y - 320.0,    "av_hut.png".to_string(),               "av_hut".to_string()));
+        village_parts.push((center_world_x + 420.0,    center_world_y - 320.0,    "av_banya.png".to_string(),             "av_banya".to_string()));
+        village_parts.push((center_world_x,            center_world_y + 150.0,    "av_campfire.png".to_string(),          "campfire".to_string()));
+
+        // Scatter decoratives - create sense of an active/abandoned alpine outpost
+        village_parts.push((center_world_x - 280.0,    center_world_y + 420.0,    "collapsed_tent_frame.png".to_string(), "collapsed_tent_frame".to_string()));
+        village_parts.push((center_world_x + 380.0,    center_world_y + 320.0,    "broken_snowmobile.png".to_string(),    "broken_snowmobile".to_string()));
+        village_parts.push((center_world_x - 480.0,    center_world_y - 120.0,    "whale_bone_drying_rock.png".to_string(),"whale_bone_drying_rock".to_string()));
+        village_parts.push((center_world_x + 280.0,    center_world_y - 480.0,    "weather_station_mast.png".to_string(), "weather_station_mast".to_string()));
         
         log::info!("🏔️ Alpine village generation complete: {} structures", village_parts.len());
     } else {
@@ -3877,48 +3888,54 @@ pub fn get_hunting_village_placeables() -> Vec<MonumentPlaceableConfig> {
 }
 
 /// Get monument placeables for the Alpine Village monument
-/// Alpine campfire is now a visual doodad (av_campfire.png), not a functional placeable.
+/// Two lanterns flank the lodge entrance (south face of the lodge, ±80px).
 pub fn get_alpine_village_placeables() -> Vec<MonumentPlaceableConfig> {
-    vec![]
+    vec![
+        MonumentPlaceableConfig::lantern(-80.0, 80.0),
+        MonumentPlaceableConfig::lantern( 80.0, 80.0),
+    ]
 }
 
 /// Get monument placeables for the Weather Station monument
-/// Central compound: campfires (abandoned), barrels, military rations
-/// Around each of 4 radars (at ±1000px): barrels and military rations (moderate)
+/// Center ring: campfires/barrels/rations orbit the ws_station building at 260–380px.
+/// Around each of 4 radars (at ±1000px): barrels and military rations (unchanged).
 pub fn get_weather_station_placeables() -> Vec<MonumentPlaceableConfig> {
     const R: f32 = 1000.0; // Radar distance from center
     vec![
-        // --- Center: campfires (2-3, abandoned feel), barrels, military rations ---
-        MonumentPlaceableConfig::campfire(-90.0, 60.0),
-        MonumentPlaceableConfig::campfire(100.0, -40.0),
-        MonumentPlaceableConfig::campfire(0.0, 100.0),
-        MonumentPlaceableConfig::barrel(-130.0, -110.0),
-        MonumentPlaceableConfig::barrel(130.0, -90.0),
-        MonumentPlaceableConfig::barrel(-90.0, 130.0),
-        MonumentPlaceableConfig::barrel(110.0, 110.0),
-        MonumentPlaceableConfig::barrel(-160.0, 60.0),
-        MonumentPlaceableConfig::barrel(160.0, 30.0),
-        MonumentPlaceableConfig::barrel(0.0, -130.0),
-        MonumentPlaceableConfig::military_ration(-110.0, 10.0),
-        MonumentPlaceableConfig::military_ration(110.0, 60.0),
-        MonumentPlaceableConfig::military_ration(0.0, -90.0),
-        MonumentPlaceableConfig::military_ration(-90.0, 90.0),
-        MonumentPlaceableConfig::military_ration(90.0, -110.0),
+        // --- Center ring (items circle the station building, keeping ≥250px clearance) ---
+        // Campfires: NW, NE, S
+        MonumentPlaceableConfig::campfire(-280.0, -180.0),
+        MonumentPlaceableConfig::campfire( 260.0, -200.0),
+        MonumentPlaceableConfig::campfire(  50.0,  310.0),
+        // Barrels: spread across all quadrants at 280–380px
+        MonumentPlaceableConfig::barrel(-320.0, -100.0),  // W
+        MonumentPlaceableConfig::barrel( 310.0, -110.0),  // E
+        MonumentPlaceableConfig::barrel(-210.0,  290.0),  // SW
+        MonumentPlaceableConfig::barrel( 200.0,  270.0),  // SE
+        MonumentPlaceableConfig::barrel(-350.0,  140.0),  // W-low
+        MonumentPlaceableConfig::barrel( 340.0,  150.0),  // E-low
+        MonumentPlaceableConfig::barrel(  50.0, -320.0),  // N
+        // Military rations: diagonal quadrants
+        MonumentPlaceableConfig::military_ration(-250.0, -260.0), // NW
+        MonumentPlaceableConfig::military_ration( 240.0, -250.0), // NE
+        MonumentPlaceableConfig::military_ration(-250.0,  240.0), // SW
+        MonumentPlaceableConfig::military_ration( 240.0,  230.0), // SE
+        MonumentPlaceableConfig::military_ration(   0.0,  360.0), // S
         // --- Around radar East (R, 0) ---
-        MonumentPlaceableConfig::barrel(R + 60.0, 50.0),
-        MonumentPlaceableConfig::barrel(R + 60.0, -50.0),
+        MonumentPlaceableConfig::barrel(R + 60.0,   50.0),
+        MonumentPlaceableConfig::barrel(R + 60.0,  -50.0),
         MonumentPlaceableConfig::military_ration(R + 30.0, 0.0),
         // --- Around radar South (0, R) ---
-        MonumentPlaceableConfig::barrel(50.0, R + 60.0),
-        MonumentPlaceableConfig::barrel(-50.0, R + 60.0),
+        MonumentPlaceableConfig::barrel(  50.0, R + 60.0),
+        MonumentPlaceableConfig::barrel( -50.0, R + 60.0),
         MonumentPlaceableConfig::military_ration(0.0, R + 30.0),
         // --- Around radar West (-R, 0) ---
-        MonumentPlaceableConfig::barrel(-R - 60.0, 50.0),
-        MonumentPlaceableConfig::barrel(-R - 60.0, -50.0),
+        MonumentPlaceableConfig::barrel(-R - 60.0,   50.0),
+        MonumentPlaceableConfig::barrel(-R - 60.0,  -50.0),
         MonumentPlaceableConfig::military_ration(-R - 30.0, 0.0),
         // --- Around radar North (0, -R) ---
-        MonumentPlaceableConfig::barrel(50.0, -R - 60.0),
-        MonumentPlaceableConfig::barrel(-50.0, -R - 60.0),
+        MonumentPlaceableConfig::barrel(  50.0, -R - 60.0),
+        MonumentPlaceableConfig::barrel( -50.0, -R - 60.0),
         MonumentPlaceableConfig::military_ration(0.0, -R - 30.0),
     ]
 }

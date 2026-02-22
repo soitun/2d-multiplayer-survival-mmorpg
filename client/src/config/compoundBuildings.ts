@@ -346,14 +346,21 @@ const MONUMENT_PART_SIZES: Record<string, { width: number; height: number }> = {
   'drying_rack': { width: 256, height: 256 }, // Same size as fishing village smokerack
   'scarecrow': { width: 160, height: 160 }, // Monument scarecrow by the crops
   
-  // Alpine Village: single lodge (av_lodge.png) - partType is 'lodge', uses same size
+  // Alpine Village: lodge uses 'lodge' key above; new buildings + scatter doodads
+  'av_hut': { width: 384, height: 384 },
+  'av_banya': { width: 384, height: 384 },
+  'collapsed_tent_frame': { width: 320, height: 256 },
+  'broken_snowmobile': { width: 320, height: 256 },
+  'whale_bone_drying_rock': { width: 256, height: 256 },
+  'weather_station_mast': { width: 192, height: 384 },
   
   // Crashed Research Drone parts
   'drone': { width: 512, height: 512 },
   'skeleton': { width: 192, height: 192 }, // Tiny skeleton - dead researcher
   
-  // Weather Station parts (ALPINE - radar dish)
-  'radar': { width: 512, height: 512 }, // Standard scale
+  // Weather Station parts (ALPINE - main building + radar dishes)
+  'station': { width: 640, height: 640 }, // Central operations building (ws_station.png)
+  'radar': { width: 512, height: 512 }, // Radar dish outpost
   
   // Wolf Den parts (TUNDRA - wolf pack spawn point)
   'mound': { width: 384, height: 384 },

@@ -524,8 +524,9 @@ pub fn is_position_in_hot_spring_area(ctx: &ReducerContext, pos_x: f32, pos_y: f
 }
 
 /// Finds hot spring centers by clustering HotSpringWater tiles
-/// Returns a list of (center_x, center_y) in world pixel coordinates
-pub fn find_hot_spring_centers(ctx: &ReducerContext) -> Vec<(f32, f32)> {
+/// Returns (center_x, center_y, tile_count) in world pixel coordinates.
+/// Small clusters (tile_count < MIN_FULL_HOT_SPRING_TILES) are "tiny" springs with no shack/campfire/barrels.
+pub fn find_hot_spring_centers(ctx: &ReducerContext) -> Vec<(f32, f32, usize)> {
     use std::collections::{HashSet, VecDeque};
     
     // Collect all HotSpringWater tiles
@@ -544,7 +545,7 @@ pub fn find_hot_spring_centers(ctx: &ReducerContext) -> Vec<(f32, f32)> {
     // Build a set for fast lookup
     let tile_set: HashSet<(i32, i32)> = hot_spring_tiles.iter().cloned().collect();
     let mut visited: HashSet<(i32, i32)> = HashSet::new();
-    let mut centers: Vec<(f32, f32)> = Vec::new();
+    let mut centers: Vec<(f32, f32, usize)> = Vec::new();
     
     // Flood-fill to find connected clusters (each cluster = one hot spring)
     for &start_tile in &hot_spring_tiles {
@@ -583,7 +584,7 @@ pub fn find_hot_spring_centers(ctx: &ReducerContext) -> Vec<(f32, f32)> {
             let center_world_x = (center_tile_x + 0.5) * crate::TILE_SIZE_PX as f32;
             let center_world_y = (center_tile_y + 0.5) * crate::TILE_SIZE_PX as f32;
             
-            centers.push((center_world_x, center_world_y));
+            centers.push((center_world_x, center_world_y, cluster.len()));
             log::debug!(
                 "[HotSpringCenters] Found hot spring cluster with {} tiles, center at ({:.0}, {:.0})",
                 cluster.len(), center_world_x, center_world_y
@@ -2673,9 +2674,17 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     // Find hot spring centers by clustering HotSpringWater tiles
     let hot_spring_centers = find_hot_spring_centers(ctx);
     log::info!("🌊 Found {} hot spring centers", hot_spring_centers.len());
+
+    // Tiny hot springs (< 80 tiles) get water only - no shack, campfire, or barrels
+    const MIN_FULL_HOT_SPRING_TILES: usize = 80;
+    let full_hot_spring_centers: Vec<(f32, f32)> = hot_spring_centers
+        .iter()
+        .filter(|(_, _, n)| *n >= MIN_FULL_HOT_SPRING_TILES)
+        .map(|(x, y, _)| (*x, *y))
+        .collect();
     
-    // Spawn beach barrels around hot springs for flavor
-    match barrel::spawn_hot_spring_barrels(ctx, &hot_spring_centers) {
+    // Spawn beach barrels around full hot springs only (skip tiny alpine spring)
+    match barrel::spawn_hot_spring_barrels(ctx, &full_hot_spring_centers) {
         Ok(count) => {
             log::info!("🛢️ Spawned {} barrels around hot springs", count);
         }
@@ -2697,9 +2706,9 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         }
     }
     
-    // Spawn a campfire at each hot spring
+    // Spawn a campfire at each full hot spring (skip tiny alpine spring)
     let mut hot_spring_campfire_count = 0u32;
-    for (center_x, center_y) in &hot_spring_centers {
+    for (center_x, center_y) in &full_hot_spring_centers {
         let placeables = monument::get_hot_spring_placeables();
         match monument::spawn_monument_placeables(
             ctx, 
@@ -2718,11 +2727,11 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
     }
     log::info!("🔥 Spawned {} campfires at hot springs", hot_spring_campfire_count);
     
-    // Spawn abandoned bath house shack at each hot spring (visual doodad via MonumentPart)
+    // Spawn abandoned bath house shack at each full hot spring (skip tiny alpine spring - water only)
     // Position: offset from center to be on the beach, opposite side from campfire
     let mut hot_spring_shack_count = 0u32;
     let mut hot_spring_crate_count = 0u32;
-    for (center_x, center_y) in &hot_spring_centers {
+    for (center_x, center_y) in &full_hot_spring_centers {
         // Shack position: southwest of center (opposite from campfire which is east)
         // Hot springs have ~7-9 tile radius (336-432px), offset further for beach placement
         // Pushed left by 300px to avoid overlapping with water

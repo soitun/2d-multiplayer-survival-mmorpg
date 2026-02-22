@@ -17,11 +17,12 @@ import {
 } from '../../config/compoundBuildings';
 import { drawDynamicGroundShadow } from './shadowUtils';
 
-/** Isometric hut/lodge doodads: footprint extends down-right; shadow needs R(45° CW) * S(1, 0.5) */
+/** Isometric hut/lodge doodads: footprint extends down-right; shadow needs R(45° CW) * S(1, 0.5).
+ * Alpine village buildings (av_lodge, av_hut, av_banya) excluded - they use normal dynamic shadows. */
 const ISOMETRIC_DOODAD_IMAGES = new Set([
   'fv_lodge.png', 'fv_hut2.png', 'fv_hut3.png',
   'hv_lodge.png', 'hv_hut2.png', 'hv_hut3.png',
-  'av_lodge.png', // Alpine village earth-sheltered lodge
+  'ws_station.png', 'ws_radar.png', // Weather station (central building + radar dishes)
   'wbg_hermit_hut.png', 'hs_shack.png',
   // Whale Bone Graveyard monument parts (ancient whale bones on beach)
   'wbg_ribcage.png', 'wbg_skull.png', 'wbg_spine.png', 'wbg_jawbone.png',
@@ -113,15 +114,22 @@ export function preloadMonumentImages(): void {
     // Hot Spring monument images (abandoned bath house shack)
     loadImage('hs_shack.png', import('../../assets/doodads/hs_shack.png?url'));
     
-    // Weather Station monument images (alpine radar dish)
+    // Weather Station monument images (central building + alpine radar dishes)
+    loadImage('ws_station.png', import('../../assets/doodads/ws_station.png?url'));
     loadImage('ws_radar.png', import('../../assets/doodads/ws_radar.png?url'));
     
     // Wolf Den monument images (tundra wolf mound)
     loadImage('wd_mound.png', import('../../assets/doodads/wd_mound.png?url'));
     
-    // Alpine Village monument images (earth-sheltered lodge + visual campfire doodad)
+    // Alpine Village monument images (lodge, huts, banya, campfire + scatter doodads)
     loadImage('av_lodge.png', import('../../assets/doodads/av_lodge.png?url'));
     loadImage('av_campfire.png', import('../../assets/doodads/av_campfire.png?url'));
+    loadImage('av_hut.png', import('../../assets/doodads/av_hut.png?url'));
+    loadImage('av_banya.png', import('../../assets/doodads/av_banya.png?url'));
+    loadImage('collapsed_tent_frame.png', import('../../assets/doodads/collapsed_tent_frame.png?url'));
+    loadImage('broken_snowmobile.png', import('../../assets/doodads/broken_snowmobile.png?url'));
+    loadImage('whale_bone_drying_rock.png', import('../../assets/doodads/whale_bone_drying_rock.png?url'));
+    loadImage('weather_station_mast.png', import('../../assets/doodads/weather_station_mast.png?url'));
 
     // Aleutian whale oil road lampposts (along dirt roads)
     loadImage('road_lamp.png', import('../../assets/doodads/road_lamp.png?url'));
@@ -190,15 +198,22 @@ export function getBuildingImage(imagePath: string): HTMLImageElement | null {
             // Hot Spring monument images (abandoned bath house shack)
             'hs_shack.png': () => import('../../assets/doodads/hs_shack.png?url'),
             
-            // Weather Station monument images (alpine radar dish)
+            // Weather Station monument images (central building + alpine radar dishes)
+            'ws_station.png': () => import('../../assets/doodads/ws_station.png?url'),
             'ws_radar.png': () => import('../../assets/doodads/ws_radar.png?url'),
             
             // Wolf Den monument images (tundra wolf mound)
             'wd_mound.png': () => import('../../assets/doodads/wd_mound.png?url'),
             
-            // Alpine Village monument images (earth-sheltered lodge + visual campfire doodad)
+            // Alpine Village monument images (lodge, huts, banya, campfire + scatter doodads)
             'av_lodge.png': () => import('../../assets/doodads/av_lodge.png?url'),
             'av_campfire.png': () => import('../../assets/doodads/av_campfire.png?url'),
+            'av_hut.png': () => import('../../assets/doodads/av_hut.png?url'),
+            'av_banya.png': () => import('../../assets/doodads/av_banya.png?url'),
+            'collapsed_tent_frame.png': () => import('../../assets/doodads/collapsed_tent_frame.png?url'),
+            'broken_snowmobile.png': () => import('../../assets/doodads/broken_snowmobile.png?url'),
+            'whale_bone_drying_rock.png': () => import('../../assets/doodads/whale_bone_drying_rock.png?url'),
+            'weather_station_mast.png': () => import('../../assets/doodads/weather_station_mast.png?url'),
 
             // Aleutian whale oil road lampposts (along dirt roads)
             'road_lamp.png': () => import('../../assets/doodads/road_lamp.png?url'),

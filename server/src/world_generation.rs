@@ -463,7 +463,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
             });
         }
         
-        log::info!("📡 Stored {} weather station parts in database (1 center + 4 radars)",
+        log::info!("📡 Stored {} weather station parts in database (1 center marker + 1 station + 4 radars)",
                    world_features.weather_station_parts.len() + 1);
         
         // Spawn barrels, military rations, campfires via dedicated spawn + placeables
@@ -481,9 +481,9 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
             Ok(count) => log::info!("📡 Spawned {} monument placeables at Weather Station", count),
             Err(e) => log::warn!("Failed to spawn weather station placeables: {}", e),
         }
-        // Spawn military crate (1 high-tier weapon, 1hr respawn) - offset from center to avoid overlap
-        let crate_x = center_x - 180.0;
-        let crate_y = center_y + 60.0;
+        // Spawn military crate (1 high-tier weapon, 1hr respawn) - pushed out past building footprint
+        let crate_x = center_x - 380.0;
+        let crate_y = center_y - 60.0;
         match crate::military_ration::spawn_military_crate_with_loot(
             ctx, crate_x, crate_y,
             crate::environment::calculate_chunk_index(crate_x, crate_y),
@@ -804,7 +804,7 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
     // Generate hot spring locations (large water pools with beach shores)
     // Pass river and lake data to ensure hot springs don't spawn near ANY water
     // Also returns centers for surrounding forest generation
-    let (hot_spring_water, hot_spring_beach, hot_spring_centers) = generate_hot_springs(config, noise, &shore_distance, &river_network, &lake_map, width, height);
+    let (mut hot_spring_water, mut hot_spring_beach, mut hot_spring_centers) = generate_hot_springs(config, noise, &shore_distance, &river_network, &lake_map, width, height);
     
     // Generate quarry locations (dirt areas with enhanced stone spawning)
     // Pass hot spring data to ensure quarries don't spawn near hot springs
@@ -873,6 +873,11 @@ fn generate_world_features(config: &WorldGenConfig, noise: &Perlin) -> WorldFeat
         &shipwreck_centers, fishing_village_center, whale_bone_graveyard_center, hunting_village_center,
         crashed_research_drone_center, weather_station_center, &large_quarry_positions, width, height
     );
+    
+    // Add tiny alpine hot spring near the village (water tiles only, no shack/campfire/barrels)
+    if let Some((av_cx, av_cy)) = alpine_village_center {
+        add_tiny_alpine_hot_spring(&mut hot_spring_water, &mut hot_spring_beach, &mut hot_spring_centers, av_cx, av_cy, width, height);
+    }
     
     // Generate wolf den monuments in tundra biome (wolf pack spawn points)
     // Single wolf mound structures - spawns a pack of wolves each - NOT safe zones
@@ -2521,6 +2526,47 @@ fn generate_hot_springs(
     
     log::info!("Generated {} hot spring pools with water and beach layers", hot_spring_centers.len());
     (hot_spring_water, hot_spring_beach, hot_spring_centers)
+}
+
+/// Carve a tiny hot spring near the alpine village (water + beach tiles only, no shack).
+/// Placed SE of village center to avoid overlapping buildings, barrels, and scatter items.
+fn add_tiny_alpine_hot_spring(
+    hot_spring_water: &mut [Vec<bool>],
+    hot_spring_beach: &mut [Vec<bool>],
+    hot_spring_centers: &mut Vec<(f32, f32, i32)>,
+    village_center_x: f32,
+    village_center_y: f32,
+    width: usize,
+    height: usize,
+) {
+    const OFFSET_X: f32 = 580.0;  // SE of village, clear of campfire (0,+150) and scatter
+    const OFFSET_Y: f32 = 420.0;
+    const RADIUS_TILES: i32 = 4;   // ~192px diameter pool (tiny vs full 7–9 tile = 336–432px)
+
+    let spring_world_x = village_center_x + OFFSET_X;
+    let spring_world_y = village_center_y + OFFSET_Y;
+    let center_tile_x = (spring_world_x / crate::TILE_SIZE_PX as f32).floor() as i32;
+    let center_tile_y = (spring_world_y / crate::TILE_SIZE_PX as f32).floor() as i32;
+
+    for dy in -RADIUS_TILES..=RADIUS_TILES {
+        for dx in -RADIUS_TILES..=RADIUS_TILES {
+            let tile_x = center_tile_x + dx;
+            let tile_y = center_tile_y + dy;
+            if tile_x < 0 || tile_y < 0 || tile_x >= width as i32 || tile_y >= height as i32 {
+                continue;
+            }
+            let dist = ((dx * dx + dy * dy) as f32).sqrt();
+            let dist_normalized = dist / RADIUS_TILES as f32;
+            if dist_normalized < 0.75 {
+                hot_spring_water[tile_y as usize][tile_x as usize] = true;
+            } else if dist_normalized < 1.0 {
+                hot_spring_beach[tile_y as usize][tile_x as usize] = true;
+            }
+        }
+    }
+    hot_spring_centers.push((center_tile_x as f32, center_tile_y as f32, RADIUS_TILES));
+    log::info!("🏔️ Added tiny alpine hot spring at ({:.0}, {:.0}) - water only, no shack",
+               spring_world_x, spring_world_y);
 }
 
 fn generate_quarries(
