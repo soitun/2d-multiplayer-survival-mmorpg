@@ -1,7 +1,6 @@
 ---
-description: 
-globs: 
-alwaysApply: true
+description: SpacetimeDB command workflow for server changes, publish, and binding generation
+alwaysApply: false
 ---
 # SpacetimeDB Development Workflow
 

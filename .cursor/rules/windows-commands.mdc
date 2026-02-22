@@ -1,181 +1,38 @@
 ---
-alwaysApply: true
+description: Windows PowerShell command compatibility for local terminal usage
+alwaysApply: false
 ---
 # Windows Command Compatibility Rules
 
-This workspace runs on **Windows** (PowerShell). Do NOT use Unix/Linux commands that don't exist on Windows.
+This workspace runs on Windows (PowerShell). Use Windows-compatible command patterns when suggesting or running terminal commands.
 
-## ❌ Commands to AVOID (Unix/Linux only)
+## Use These
 
-These commands **DO NOT EXIST** on Windows PowerShell and will cause errors:
+- `Select-String` instead of `grep`
+- `Get-ChildItem` instead of `find`
+- `Get-Content` instead of `cat`
+- `Select-Object -First/-Last` instead of `head`/`tail`
+- `Measure-Object` instead of `wc`
+- `Get-Command` / `where.exe` instead of `which`
 
-- `grep` - Use `Select-String` instead
-- `sed` - Use PowerShell string replacement or `Select-String` with `-Replace`
-- `awk` - Use PowerShell's object manipulation instead
-- `cut` - Use PowerShell's string manipulation or `Select-String`
-- `head` - Use `Select-Object -First`
-- `tail` - Use `Select-Object -Last` or `Get-Content -Tail`
-- `wc` - Use PowerShell's `.Count` property or `Measure-Object`
-- `find` - Use `Get-ChildItem` or `Select-String`
-- `which` - Use `Get-Command` or `where.exe`
-- `ls` - Use `Get-ChildItem` (though `ls` is an alias, prefer explicit cmdlet)
-- `cat` - Use `Get-Content` (though `cat` is an alias, prefer explicit cmdlet)
-- `touch` - Use `New-Item` or `(Get-Item).LastWriteTime = Get-Date`
-- `chmod` - Use `icacls` or `Set-Acl`
-- `sudo` - Not available on Windows (use Run as Administrator instead)
+## Avoid These (Unix-only by default)
 
-## ✅ Windows/PowerShell Alternatives
+`grep`, `sed`, `awk`, `cut`, `head`, `tail`, `wc`, `find`, `which`, `sudo`, `chmod`, `touch`.
 
-### Text Search & Filtering
+## Project-Specific Examples
 
-**Instead of `grep`:**
 ```powershell
-# Search for pattern in file
-Get-Content file.txt | Select-String -Pattern "search_term"
-
-# Case-insensitive search
-Get-Content file.txt | Select-String -Pattern "search_term" -CaseSensitive:$false
-
-# Search in multiple files
-Get-ChildItem *.txt | Select-String -Pattern "search_term"
-
-# Search recursively
-Get-ChildItem -Recurse | Select-String -Pattern "search_term"
-```
-
-**Instead of `grep -i`:**
-```powershell
-Select-String -Pattern "pattern" -CaseSensitive:$false
-```
-
-### File Operations
-
-**Instead of `head`:**
-```powershell
-Get-Content file.txt | Select-Object -First 10
-```
-
-**Instead of `tail`:**
-```powershell
-Get-Content file.txt -Tail 10
-# Or
-Get-Content file.txt | Select-Object -Last 10
-```
-
-**Instead of `cat`:**
-```powershell
-Get-Content file.txt
-```
-
-**Instead of `wc -l`:**
-```powershell
-(Get-Content file.txt).Count
-# Or
-Get-Content file.txt | Measure-Object -Line
-```
-
-### Finding Files
-
-**Instead of `find`:**
-```powershell
-# Find files by name
-Get-ChildItem -Recurse -Filter "*.txt"
-
-# Find files containing text
-Get-ChildItem -Recurse | Select-String -Pattern "search_term"
-```
-
-### Command Location
-
-**Instead of `which`:**
-```powershell
-Get-Command command_name
-# Or
-where.exe command_name
-```
-
-## Common Patterns
-
-### Filtering Command Output
-
-**❌ WRONG (Unix):**
-```bash
-spacetime logs db-name | grep -i "cairn"
-```
-
-**✅ CORRECT (Windows PowerShell):**
-```powershell
-spacetime logs db-name | Select-String -Pattern "cairn" -CaseSensitive:$false
-```
-
-### Counting Lines
-
-**❌ WRONG (Unix):**
-```bash
-command | wc -l
-```
-
-**✅ CORRECT (Windows PowerShell):**
-```powershell
-command | Measure-Object -Line
-# Or for array count
-(command).Count
-```
-
-### Extracting First/Last Lines
-
-**❌ WRONG (Unix):**
-```bash
-command | head -n 20
-command | tail -n 20
-```
-
-**✅ CORRECT (Windows PowerShell):**
-```powershell
-command | Select-Object -First 20
-command | Select-Object -Last 20
-```
-
-## Environment Detection
-
-When writing commands, always check:
-- **OS:** Windows (PowerShell)
-- **Shell:** PowerShell (not bash/zsh)
-- **Path Separator:** Backslash `\` (though forward slash `/` also works in PowerShell)
-
-## Best Practices
-
-1. **Always use PowerShell cmdlets** when available (`Select-String`, `Get-Content`, `Get-ChildItem`, etc.)
-2. **Test commands** before suggesting them - if unsure, use PowerShell's `Get-Help` command
-3. **Use aliases sparingly** - prefer explicit cmdlet names for clarity
-4. **Pipe-friendly** - PowerShell cmdlets are designed to work with pipes (`|`)
-
-## Examples for This Project
-
-### Checking SpacetimeDB Logs
-
-**✅ CORRECT:**
-```powershell
+# Logs search
 spacetime logs broth-bullets-local | Select-String -Pattern "cairn" -CaseSensitive:$false
-```
 
-### Filtering File Lists
-
-**✅ CORRECT:**
-```powershell
+# Rust source search
 Get-ChildItem -Recurse -Filter "*.rs" | Select-String -Pattern "GrassAppearanceType"
+
+# Count matching log lines
+(spacetime logs broth-bullets-local | Select-String -Pattern "error" -CaseSensitive:$false).Count
 ```
 
-### Counting Results
+## Notes
 
-**✅ CORRECT:**
-```powershell
-(spacetime logs db-name | Select-String -Pattern "cairn").Count
-```
-
-## Remember
-
-- **Windows PowerShell** is the default shell
-- **Unix commands don't work** unless explicitly installed (like Git Bash)
-- **Always use PowerShell alternatives** for compatibility
-- **Test commands** if you're unsure about Windows compatibility
+- Forward slashes in paths usually work, but prefer PowerShell-friendly quoting.
+- Keep commands copy-paste friendly for PowerShell users.

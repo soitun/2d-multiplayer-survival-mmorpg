@@ -1,7 +1,7 @@
 ---
-alwaysApply: true
+description: SpacetimeDB reference: reducers, tables, subscriptions, scheduling, and RLS patterns. Apply when implementing or reviewing server module logic, schema changes, generated bindings impacts, or client callback/dataflow behavior tied to SpacetimeDB.
+alwaysApply: false
 ---
-
 # SpacetimeDB
 
 > SpacetimeDB is a fully-featured relational database system that integrates

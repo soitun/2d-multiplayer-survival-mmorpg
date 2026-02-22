@@ -1,417 +1,86 @@
 ---
-description: When creating new container extensions
+description: Safe container-processing patterns for wooden_storage_box, compost, and refrigerator reducers
+globs: server/src/{wooden_storage_box,compost,refrigerator}.rs
 alwaysApply: false
 ---
 # SpacetimeDB Container Processing Patterns
 
-This guide explains safe patterns for creating container extensions (like Compost, Refrigerator, etc.) that process items within `WoodenStorageBox` or similar containers, avoiding Rust compiler bugs.
+Use this when implementing or editing reducers that process box/container contents (compost, refrigerator-like systems, scheduled item conversion, etc.).
 
-## The Problem: Compiler Panics with Complex Table Borrows
+Primary reference files:
+- `server/src/wooden_storage_box.rs`
+- `server/src/compost.rs`
+- `server/src/refrigerator.rs`
 
-SpacetimeDB generates complex types for table handles. When you combine:
-- Multiple table handles borrowed simultaneously
-- Nested loops iterating over different tables
-- Closures capturing variables
-- Complex return types from `.find()` and `.iter()`
+## Problem to Avoid
 
-The Rust compiler's type checker can get stuck in an infinite loop trying to deduce closure signatures and lifetime bounds, causing a **compiler panic** (not a compilation error - an actual crash).
+Complex borrow graphs across multiple table handles in nested loops can trigger Rust type-check blowups/panics in SpacetimeDB-generated table types.
 
-## Why This Happens
+Typical risky shape:
+- Hold `wooden_storage_box`, `inventory_item`, and `item_definition` table handles together
+- Iterate containers and slots while calling nested `.find()` / `.iter()` chains
 
-When you call `ctx.db.wooden_storage_box()`, you get a complex generated type that:
-1. Holds references to the database context
-2. Has nested generic types for index accessors (`.id()`, `.instance_id()`, etc.)
-3. Each method call returns another complex type with its own lifetime bounds
+## Preferred Pattern (Project Standard)
 
-### The Dangerous Pattern (Causes Compiler Panic):
+### Phase 1: Collect IDs only
 
 ```rust
-// ❌ DO NOT DO THIS - Will cause compiler panic
-#[spacetimedb::reducer]
-pub fn process_containers(ctx: &ReducerContext) -> Result<(), String> {
-    let boxes = ctx.db.wooden_storage_box();
-    let items = ctx.db.inventory_item();
-    let defs = ctx.db.item_definition();
-    
-    // Nested iteration with multiple table handles = compiler panic
-    for container in boxes.iter() {
-        for slot_index in 0..container.num_slots() {
-            if let Some(item_id) = container.get_slot_instance_id(slot_index as u8) {
-                if let Some(item) = items.instance_id().find(&item_id) {
-                    if let Some(def) = defs.id().find(&item.item_def_id) {
-                        // Complex processing with all three tables
-                        // Compiler gets stuck here trying to prove borrow safety
-                    }
-                }
-            }
-        }
-    }
-    Ok(())
-}
-```
-
-**Why it fails:**
-- Three table handles borrowed simultaneously
-- Nested loops creating complex iterator types
-- Multiple `.find()` calls with closures
-- Compiler tries to prove all lifetimes align → infinite loop → panic
-
-## The Safe Pattern: ID Collection + Separate Processing
-
-### Pattern 1: Two-Function Approach (Recommended)
-
-Split processing into two functions: one to collect IDs, another to process each container individually.
-
-```rust
-/// Main reducer: Collects container IDs and delegates processing
-#[spacetimedb::reducer]
-pub fn process_special_containers(ctx: &ReducerContext, _args: ScheduleArgs) -> Result<(), String> {
-    // Security check
-    if ctx.sender != ctx.identity() {
-        return Err("Can only be called by scheduler".to_string());
-    }
-    
-    // Step 1: Collect container IDs only (simple types, no complex borrows)
-    let container_ids: Vec<u32> = {
-        let boxes = ctx.db.wooden_storage_box();
-        let mut ids = Vec::new();
-        for storage_box in boxes.iter() {
-            if storage_box.box_type == YOUR_CONTAINER_TYPE {
-                ids.push(storage_box.id);
-            }
-        }
-        ids
-    }; // boxes borrow ends here
-    
-    // Step 2: Process each container individually
-    for container_id in container_ids {
-        let _ = process_single_container(ctx, container_id);
-    }
-    
-    Ok(())
-}
-
-/// Helper function: Processes one container with fresh table handles
-fn process_single_container(
-    ctx: &ReducerContext,
-    container_id: u32,
-) -> Result<(), String> {
-    // Get fresh table handles - no overlap with parent function
-    let boxes_table = ctx.db.wooden_storage_box();
-    let items_table = ctx.db.inventory_item();
-    let defs_table = ctx.db.item_definition();
-    
-    // Find the container
-    let container_original = match boxes_table.id().find(&container_id) {
-        Some(b) => b,
-        None => return Ok(()), // Container was deleted
-    };
-    
-    let mut container = container_original.clone();
-    let num_slots: usize = container.num_slots();
-    
-    // Now you can safely work with all three tables
-    // because they're in a fresh scope with no parent borrows
-    let mut slot_idx: usize = 0;
-    while slot_idx < num_slots {
-        let slot_u8: u8 = slot_idx as u8;
-        let maybe_item_id = container.get_slot_instance_id(slot_u8);
-        
-        if let Some(item_instance_id) = maybe_item_id {
-            let maybe_item = items_table.instance_id().find(&item_instance_id);
-            if let Some(item) = maybe_item {
-                let maybe_def = defs_table.id().find(&item.item_def_id);
-                if let Some(item_def) = maybe_def {
-                    // Process item safely
-                    // ...
-                }
-            }
-        }
-        
-        slot_idx += 1;
-    }
-    
-    // Update the container
-    let boxes_table_mut = ctx.db.wooden_storage_box();
-    boxes_table_mut.id().update(container);
-    
-    Ok(())
-}
-```
-
-### Pattern 2: Scoped Borrows with Explicit Drops
-
-Use explicit scopes to end borrows before starting new ones.
-
-```rust
-#[spacetimedb::reducer]
-pub fn process_containers(ctx: &ReducerContext) -> Result<(), String> {
-    // Step 1: Collect IDs in a scope
-    let container_ids: Vec<u32> = {
-        let boxes = ctx.db.wooden_storage_box();
-        boxes.iter()
-            .filter(|b| b.box_type == YOUR_TYPE)
-            .map(|b| b.id)
-            .collect()
-    }; // boxes borrow ends here
-    
-    // Step 2: Process each container
-    for container_id in container_ids {
-        // Step 2a: Collect item data in a scope
-        let items_to_process: Vec<(u8, u64, String)> = {
-            let boxes = ctx.db.wooden_storage_box();
-            let items = ctx.db.inventory_item();
-            let defs = ctx.db.item_definition();
-            
-            let container = match boxes.id().find(&container_id) {
-                Some(c) => c,
-                None => continue,
-            };
-            
-            let mut data = Vec::new();
-            for slot_idx in 0..container.num_slots() {
-                if let Some(item_id) = container.get_slot_instance_id(slot_idx as u8) {
-                    if let Some(item) = items.instance_id().find(&item_id) {
-                        if let Some(def) = defs.id().find(&item.item_def_id) {
-                            data.push((slot_idx as u8, item_id, def.name.clone()));
-                        }
-                    }
-                }
-            }
-            data
-        }; // All borrows end here
-        
-        // Step 2b: Apply changes with fresh borrows
-        {
-            let mut boxes = ctx.db.wooden_storage_box();
-            let mut items = ctx.db.inventory_item();
-            
-            let mut container = match boxes.id().find(&container_id) {
-                Some(c) => c,
-                None => continue,
-            };
-            
-            for (slot_idx, item_id, item_name) in items_to_process {
-                // Process and modify
-                // ...
-            }
-            
-            boxes.id().update(container);
-        } // Borrows end here
-    }
-    
-    Ok(())
-}
-```
-
-## Key Rules for Container Extensions
-
-### 1. Never Hold Multiple Table Handles Across Loop Iterations
-```rust
-// ❌ BAD: Borrows persist across iterations
-let boxes = ctx.db.wooden_storage_box();
-let items = ctx.db.inventory_item();
-for container in boxes.iter() {
-    for item in items.iter() { /* ... */ }
-}
-
-// ✅ GOOD: Collect IDs first, then process
 let container_ids: Vec<u32> = {
     let boxes = ctx.db.wooden_storage_box();
-    boxes.iter().map(|b| b.id).collect()
-};
-for id in container_ids {
-    process_single_container(ctx, id)?;
-}
-```
-
-### 2. Avoid Nested `.iter()` Calls on Different Tables
-```rust
-// ❌ BAD: Nested iteration on multiple tables
-for box in boxes.iter() {
-    for item in items.iter() { /* ... */ }
-}
-
-// ✅ GOOD: Collect one into Vec first
-let all_items: Vec<_> = items.iter().collect();
-for box in boxes.iter() {
-    for item in &all_items { /* ... */ }
-}
-```
-
-### 3. Keep Table Handle Lifetimes Short
-```rust
-// ✅ GOOD: Use blocks to explicitly end borrows
-let container_ids = {
-    let boxes = ctx.db.wooden_storage_box();
-    boxes.iter().map(|b| b.id).collect::<Vec<_>>()
-}; // boxes borrow ends here
-
-// ✅ GOOD: Get fresh handles in each iteration
-for id in container_ids {
-    let boxes = ctx.db.wooden_storage_box(); // Fresh borrow
-    let items = ctx.db.inventory_item();     // Fresh borrow
-    // Process...
-} // Borrows end at end of iteration
-```
-
-### 4. Use Explicit Type Annotations
-```rust
-// ✅ GOOD: Explicit types help compiler
-let container_ids: Vec<u32> = {
-    let boxes = ctx.db.wooden_storage_box();
-    let mut ids: Vec<u32> = Vec::new();
-    for storage_box in boxes.iter() {
-        if storage_box.box_type == YOUR_TYPE {
-            ids.push(storage_box.id);
+    let mut ids = Vec::new();
+    for b in boxes.iter() {
+        if b.box_type == BOX_TYPE_COMPOST {
+            ids.push(b.id);
         }
     }
     ids
-};
-
-// ❌ RISKY: Complex iterator chains can confuse compiler
-let container_ids = boxes.iter()
-    .filter(|b| b.box_type == YOUR_TYPE)
-    .map(|b| b.id)
-    .collect(); // Compiler might struggle with type inference
+}; // borrow ends
 ```
 
-### 5. Avoid Complex Closures with Table Handles
-```rust
-// ❌ BAD: Complex closure capturing multiple table handles
-let result = boxes.iter().find(|b| {
-    items.iter().any(|i| {
-        defs.iter().any(|d| /* complex logic */)
-    })
-});
+### Phase 2: Process one container at a time
 
-// ✅ GOOD: Manual loops with explicit types
-let mut result: Option<WoodenStorageBox> = None;
-for storage_box in boxes.iter() {
-    let mut found = false;
-    for item in items.iter() {
-        // ... explicit logic
-    }
-    if found {
-        result = Some(storage_box.clone());
-        break;
-    }
+```rust
+for id in container_ids {
+    let _ = process_single_container(ctx, id);
 }
 ```
 
-## Complete Example: Compost System
-
-See `server/src/compost.rs` for a real-world example that follows these patterns:
+### Phase 3: Fresh handles inside helper
 
 ```rust
-// Main reducer: Collects IDs only
-#[spacetimedb::reducer]
-pub fn process_compost_conversion(ctx: &ReducerContext, _args: CompostProcessSchedule) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
-        return Err("Can only be run by scheduler".to_string());
-    }
-    
-    // Find fertilizer definition (scoped)
-    let fertilizer_def_id: u64;
-    let fertilizer_max_stack: u32;
-    {
-        let item_defs = ctx.db.item_definition();
-        let mut found_def: Option<(u64, u32)> = None;
-        for def in item_defs.iter() {
-            if def.name == "Fertilizer" {
-                let def_id = def.id;
-                let max_stack = if def.is_stackable { def.stack_size } else { 1 };
-                found_def = Some((def_id, max_stack));
-                break;
-            }
-        }
-        match found_def {
-            Some((def_id, max_stack)) => {
-                fertilizer_def_id = def_id;
-                fertilizer_max_stack = max_stack;
-            }
-            None => return Err("Fertilizer item definition not found".to_string()),
-        }
-    } // item_defs borrow ends
-    
-    // Collect compost box IDs (scoped)
-    let mut compost_box_ids: Vec<u32> = Vec::new();
-    {
-        let boxes = ctx.db.wooden_storage_box();
-        for storage_box in boxes.iter() {
-            if storage_box.box_type == BOX_TYPE_COMPOST {
-                compost_box_ids.push(storage_box.id);
-            }
-        }
-    } // boxes borrow ends
-    
-    // Process each compost box individually
-    for box_id in compost_box_ids {
-        let _ = process_single_compost_box(ctx, box_id, current_time, fertilizer_def_id, fertilizer_max_stack);
-    }
-    
-    Ok(())
-}
-
-// Separate function with fresh table handles
-fn process_single_compost_box(
-    ctx: &ReducerContext,
-    box_id: u32,
-    current_time: Timestamp,
-    fertilizer_def_id: u64,
-    fertilizer_max_stack: u32,
-) -> Result<(), String> {
-    // Fresh table handles - no overlap with parent
-    let boxes_table = ctx.db.wooden_storage_box();
-    let items_table = ctx.db.inventory_item();
-    let defs_table = ctx.db.item_definition();
-    
-    // Process safely...
-    
+fn process_single_container(ctx: &ReducerContext, id: u32) -> Result<(), String> {
+    let boxes = ctx.db.wooden_storage_box();
+    let items = ctx.db.inventory_item();
+    let defs = ctx.db.item_definition();
+    // ...
     Ok(())
 }
 ```
 
-## When to Use Which Pattern
+## Rules of Thumb
 
-### Use Two-Function Approach When:
-- Processing is complex (>50 lines)
-- You need multiple table handles simultaneously
-- You're iterating over container slots
-- You're transforming items based on definitions
-- You're creating scheduled reducers
+1. Keep table-handle lifetimes short with explicit scopes.
+2. Prefer manual `for` loops over dense iterator/closure chains in hot reducer logic.
+3. Use explicit type annotations (`Vec<u32>`, etc.) when inference gets complex.
+4. Separate read/collect phase from mutate/update phase.
+5. Re-fetch before update if data may have changed during processing.
 
-### Use Scoped Borrows When:
-- Processing is simple (<30 lines)
-- You only need 1-2 table handles
-- You're doing a single pass over data
-- You're not nesting loops
+## Container-Specific Notes for This Repo
 
-### Use Manual Loops (not iterators) When:
-- The compiler struggles with type inference
-- You have deeply nested logic
-- You need explicit control flow
-- You're debugging compiler issues
+- Box behavior is keyed by `box_type` constants in `wooden_storage_box.rs`.
+- Slot access uses per-slot fields and helper methods; respect `num_slots()` per box type.
+- For scheduled processors, enforce scheduler-only invocation:
 
-## Debugging Compiler Panics
+```rust
+if ctx.sender != ctx.identity() {
+    return Err("Can only be called by scheduler".to_string());
+}
+```
 
-If you encounter a compiler panic:
+## Checklist Before Shipping
 
-1. **Identify the reducer** - Check the panic message for `typeck` and the function name
-2. **Count table handles** - How many `ctx.db.*()` calls are active simultaneously?
-3. **Check nesting** - Are you iterating one table while querying another?
-4. **Refactor to two functions** - Split collection from processing
-5. **Add explicit types** - Help the compiler with type annotations
-6. **Use manual loops** - Replace `.iter().filter().map()` with `for` loops
-
-## Summary
-
-**Golden Rule:** When processing containers with items, always use the **ID collection + separate processing** pattern. This avoids compiler bugs and makes code more maintainable.
-
-**Quick Checklist:**
-- ✅ Collect container IDs first
-- ✅ Process each container in a separate function
-- ✅ Get fresh table handles in the processing function
-- ✅ Use explicit type annotations
-- ✅ Prefer manual loops over complex iterator chains
-- ✅ Keep table handle lifetimes short with `{}` blocks
+- [ ] No long-lived multi-table borrows across nested loops
+- [ ] ID collection is isolated from mutation
+- [ ] Helper function uses fresh table handles
+- [ ] Slot bounds/box type logic matches `wooden_storage_box.rs`
+- [ ] Scheduled reducers validate `ctx.sender == ctx.identity()`
