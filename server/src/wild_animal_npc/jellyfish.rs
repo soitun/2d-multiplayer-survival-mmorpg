@@ -206,10 +206,14 @@ impl JellyfishBehavior {
         log::info!("🎐⚡ Jellyfish {} emits electric shock at ({:.1}, {:.1})!", 
                   animal.id, animal.pos_x, animal.pos_y);
         
-        // Find all players within shock radius who are snorkeling (in water)
+        // Find all players within shock radius who are in sea water (AOE hazard - no snorkel required)
         let affected_players: Vec<_> = ctx.db.player().iter()
             .filter(|p| {
-                if p.is_dead || !p.is_snorkeling {
+                if p.is_dead {
+                    return false;
+                }
+                // Player must be in sea water to get shocked (wading, swimming, snorkeling - all count)
+                if !is_position_on_water(ctx, p.position_x, p.position_y) {
                     return false;
                 }
                 let dx = p.position_x - animal.pos_x;

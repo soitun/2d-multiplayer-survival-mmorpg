@@ -899,6 +899,7 @@ pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSched
             AnimalState::Chasing | AnimalState::Attacking | AnimalState::Fleeing | 
             AnimalState::Following | AnimalState::Protecting | AnimalState::FlyingChase |
             AnimalState::SwimmingChase | // Salmon shark underwater/surface pursuit
+            AnimalState::Drifting |     // Jellyfish passive drift - must always process when in range
             AnimalState::Scavenging | AnimalState::Stealing
         );
         
