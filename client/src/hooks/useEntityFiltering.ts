@@ -91,6 +91,7 @@ import { InterpolatedGrassData } from './useGrassInterpolation'; // Import Inter
 import { COMPOUND_BUILDINGS, getBuildingWorldPosition, getMonumentBuildings } from '../config/compoundBuildings'; // Import compound buildings config
 import { hasActiveStoneDestruction, checkStoneDestructionVisibility } from '../utils/renderers/stoneRenderingUtils'; // Import stone destruction tracking
 import { hasActiveCoralDestruction, checkCoralDestructionVisibility } from '../utils/renderers/livingCoralRenderingUtils'; // Import coral destruction tracking
+import { checkBarrelDestructionVisibility } from '../utils/renderers/barrelRenderingUtils'; // Barrel destruction chunks
 import { BOX_TYPE_LARGE, BOX_TYPE_COMPOST, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_WILD_BEEHIVE } from '../utils/renderers/woodenStorageBoxRenderingUtils'; // Import box type constants for y-sorting
 // Ward radius constants for expanded viewport filtering (to render ward circles even when ward is off-screen)
 import { 
@@ -1378,7 +1379,11 @@ export function useEntityFiltering(
   }, [animalCorpses, viewBounds, stableTimestamp]);
 
   const visibleBarrels = useMemo(() =>
-    filterMapToArray(barrels, e => isNotRespawning(e.respawnAt) && isInView(e.posX, e.posY, 48, 48, viewBounds)),
+    filterMapToArray(barrels, e => {
+      const isBuoy = (e.variant ?? 0) === 6;
+      if (isBuoy) return isInView(e.posX, e.posY, 48, 48, viewBounds); // Buoy never respawns
+      return (isNotRespawning(e.respawnAt) || checkBarrelDestructionVisibility(e)) && isInView(e.posX, e.posY, 48, 48, viewBounds);
+    }),
     [barrels, viewBounds]
   );
 
@@ -1479,7 +1484,8 @@ export function useEntityFiltering(
         partType: building.partType,
       };
     }).filter(building => {
-      const buffer = 500;
+      // Center-only parts (e.g. weather station) need larger buffer so restriction overlay is visible when player is near the zone
+      const buffer = (building.isCenter && (!building.imagePath || building.imagePath.length === 0)) ? 2100 : 500;
       const left = building.worldX - building.width / 2;
       const right = building.worldX + building.width / 2;
       const top = building.worldY - building.height + building.anchorYOffset;

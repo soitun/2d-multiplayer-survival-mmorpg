@@ -61,7 +61,8 @@ import { useSettings } from './contexts/SettingsContext';
 
 // Asset Preloading
 import { preloadAllAssets, areAllAssetsPreloaded, AssetLoadingProgress } from './services/assetPreloader';
-import { getTileTypeFromChunkData } from './utils/renderers/placementRenderingUtils';
+import { getTileTypeFromChunkData, worldPosToTileCoords } from './utils/renderers/placementRenderingUtils';
+import { isOceanTileTag } from './utils/tileTypeGuards';
 
 // Assets & Styles
 import './App.css';
@@ -463,6 +464,13 @@ function AppContent() {
         foundationCells, homesteadHearths, basaltColumns, livingCorals, doors, fences,
         alkStations, lanterns, turrets, monumentParts]);
 
+    const isOnSeaTileForCollision = useCallback((worldX: number, worldY: number): boolean => {
+        if (!connection) return false;
+        const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
+        const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
+        return isOceanTileTag(tileType);
+    }, [connection]);
+
     // Simplified predicted movement - minimal lag
     // PERFORMANCE FIX: Pass inputStateRef for immediate input reading in RAF loop (bypasses React state delay)
     const { predictedPosition, getCurrentPositionNow, isAutoAttacking, facingDirection } = usePredictedMovement({
@@ -474,7 +482,8 @@ function AppContent() {
         playerDodgeRollStates, // Add dodge roll states for speed calculation
         mobileSprintOverride, // Mobile sprint toggle override (immediate, no server round-trip)
         waterSpeedBonus, // Water speed bonus from equipped armor (e.g., Reed Flippers)
-        entities: collisionEntities
+        entities: collisionEntities,
+        isOnSeaTile: isOnSeaTileForCollision,
     });
 
     // --- Sound System ---

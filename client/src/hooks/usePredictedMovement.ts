@@ -70,6 +70,7 @@ interface SimpleMovementProps {
   playerDodgeRollStates?: Map<string, any>; // Add dodge roll states
   mobileSprintOverride?: boolean; // Mobile sprint toggle override (immediate, bypasses server round-trip)
   waterSpeedBonus?: number; // Bonus from equipped armor (e.g., Reed Flippers) - 1.0 = 100% bonus
+  isOnSeaTile?: (worldX: number, worldY: number) => boolean;
 }
 
 // Performance monitoring for simple movement
@@ -121,7 +122,7 @@ const movementMonitor = new SimpleMovementMonitor();
 // REMOVED: Rubber band logging - proper prediction shouldn't need it
 
 // Simple client-authoritative movement hook with optimized rendering
-export const usePredictedMovement = ({ connection, localPlayer, inputState, inputStateRef, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus = 0 }: SimpleMovementProps) => {
+export const usePredictedMovement = ({ connection, localPlayer, inputState, inputStateRef, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus = 0, isOnSeaTile }: SimpleMovementProps) => {
   // Use refs instead of state to avoid re-renders during movement
   const clientPositionRef = useRef<{ x: number; y: number } | null>(null);
   const serverPositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -341,7 +342,8 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
           targetX,
           targetY,
           playerId,
-          entities
+          entities,
+          isOnSeaTile
         );
         
         // Update position (collision-resolved)
@@ -441,7 +443,8 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
           targetPos.x,
           targetPos.y,
           localPlayer.identity.toHexString(),
-          entities
+          entities,
+          isOnSeaTile
         );
         
         // Update facing direction based on movement

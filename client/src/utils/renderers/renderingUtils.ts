@@ -92,7 +92,7 @@ import { CaribouBreedingData } from '../../generated/caribou_breeding_data_type'
 import { WalrusBreedingData } from '../../generated/walrus_breeding_data_type';
 import { renderAnimalCorpse } from './animalCorpseRenderingUtils';
 import { renderPlayerCorpse, isCorpseHovered } from './playerCorpseRenderingUtils';
-import { renderBarrel } from './barrelRenderingUtils';
+import { renderBarrel, renderBarrelDestructionEffects } from './barrelRenderingUtils';
 import { renderRoadLamppost } from './roadLamppostRenderingUtils';
 import { ENTITY_VISUAL_CONFIG, getInteractionOutlineParams } from '../entityVisualConfig';
 import { renderFumarole } from './fumaroleRenderingUtils';
@@ -100,7 +100,14 @@ import { renderBasaltColumn } from './basaltColumnRenderingUtils';
 import { renderLivingCoral, renderCoralDestructionEffects, renderCoralHitEffects } from './livingCoralRenderingUtils';
 import { renderAlkStation } from './alkStationRenderingUtils';
 import { renderMonument, getBuildingImage } from './monumentRenderingUtils';
-import { renderBuildingRestrictionOverlay, BuildingRestrictionZoneConfig } from './buildingRestrictionOverlayUtils';
+import { renderBuildingRestrictionOverlay, renderMultipleBuildingRestrictionOverlays, BuildingRestrictionZoneConfig } from './buildingRestrictionOverlayUtils';
+import {
+  shouldShowBuildingRestrictionOverlay,
+  getMonumentRestrictionRadius,
+  buildLargeQuarryRestrictionZones,
+  buildHotSpringRestrictionZones,
+  buildSmallQuarryRestrictionZones,
+} from './buildingRestrictionRulesUtils';
 import { renderHealthBarOverlay } from './healthBarOverlayUtils';
 import { renderSeaStackSingle } from './seaStackRenderingUtils';
 import { renderHearth } from './hearthRenderingUtils';
@@ -454,8 +461,6 @@ interface RenderYSortedEntitiesProps {
   // Note: viewBounds for terrain footprints has been moved to GameCanvas.tsx
   // Footprints are now rendered once before any renderYSortedEntities calls
 }
-
-
 
 /**
 * Renders entities that need to be sorted by their Y-coordinate for correct overlapping.
@@ -1174,23 +1179,12 @@ export const renderYSortedEntities = ({
           // Render rune stone with its shadow in the normal order (shadow first, then rune stone)
           const runeStone = entity as SpacetimeDBRuneStone;
           
-          // Check if local player has Blueprint equipped OR is placing a placeable item to show building restriction overlay
-          let showBuildingRestriction = false;
-          // First check: Is any placeable item currently being placed? (placementInfo is non-null)
-          if (placementInfo) {
-              showBuildingRestriction = true;
-          }
-          // Second check: Is Blueprint equipped? (via ActiveEquipment)
-          if (!showBuildingRestriction && localPlayerId && activeEquipments && itemDefinitions) {
-              const localEquipment = activeEquipments.get(localPlayerId);
-              if (localEquipment?.equippedItemDefId) {
-                  const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
-                  // Show restriction zones for Blueprint (Placeable items use placementInfo instead)
-                  if (equippedItemDef?.name === 'Blueprint') {
-                      showBuildingRestriction = true;
-                  }
-              }
-          }
+          const showBuildingRestriction = shouldShowBuildingRestrictionOverlay(
+              placementInfo,
+              localPlayerId,
+              activeEquipments,
+              itemDefinitions
+          );
           
           renderRuneStone(ctx, runeStone, nowMs, cycleProgress, false, false, localPlayerPosition, showBuildingRestriction);
       } else if (type === 'cairn') {
@@ -1742,23 +1736,12 @@ export const renderYSortedEntities = ({
           const alkStation = entity as SpacetimeDBAlkStation;
           const isTheClosestTarget = closestInteractableTarget?.type === 'alk_station' && closestInteractableTarget?.id === alkStation.stationId;
           
-          // Check if local player has Blueprint equipped OR is placing a placeable item to show safe zone overlay
-          let showSafeZone = false;
-          // First check: Is any placeable item currently being placed? (placementInfo is non-null)
-          if (placementInfo) {
-              showSafeZone = true;
-          }
-          // Second check: Is Blueprint equipped? (via ActiveEquipment)
-          if (!showSafeZone && localPlayerId && activeEquipments && itemDefinitions) {
-              const localEquipment = activeEquipments.get(localPlayerId);
-              if (localEquipment?.equippedItemDefId) {
-                  const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
-                  // Show restriction zones for Blueprint (Placeable items use placementInfo instead)
-                  if (equippedItemDef?.name === 'Blueprint') {
-                      showSafeZone = true;
-                  }
-              }
-          }
+          const showSafeZone = shouldShowBuildingRestrictionOverlay(
+              placementInfo,
+              localPlayerId,
+              activeEquipments,
+              itemDefinitions
+          );
           
           // console.log('🏭 [RENDER] Rendering ALK station', alkStation.stationId, 'at', alkStation.worldPosX, alkStation.worldPosY);
           renderAlkStation(ctx, alkStation, cycleProgress, isTheClosestTarget, undefined, localPlayerPosition, showSafeZone);
@@ -1799,53 +1782,22 @@ export const renderYSortedEntities = ({
               worldY: buildingEntity.worldY,
           };
           
-          renderMonument(ctx, buildingWithWorldPos as any, cycleProgress, localPlayerPosition, doodadImagesRef);
+          // Skip sprite rendering for center-only parts with no image (e.g. weather station center)
+          if (buildingEntity.imagePath && buildingEntity.imagePath.length > 0) {
+              renderMonument(ctx, buildingWithWorldPos as any, cycleProgress, localPlayerPosition, doodadImagesRef);
+          }
           
-          // Check if local player has Blueprint equipped OR is placing a placeable item to show building restriction overlay
-          // (Runs for all monument_doodad including village campfires that were skipped for overlay pass)
-          // Only show for monuments with building restrictions (shipwrecks, fishing villages, whale bone graveyards)
-          let showBuildingRestriction = false;
-          // First check: Is any placeable item currently being placed? (placementInfo is non-null)
-          if (placementInfo) {
-              showBuildingRestriction = true;
-          }
-          // Second check: Is Blueprint equipped? (via ActiveEquipment)
-          if (!showBuildingRestriction && localPlayerId && activeEquipments && itemDefinitions) {
-              const localEquipment = activeEquipments.get(localPlayerId);
-              if (localEquipment?.equippedItemDefId) {
-                  const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
-                  // Show restriction zones for Blueprint (Placeable items use placementInfo instead)
-                  if (equippedItemDef?.name === 'Blueprint') {
-                      showBuildingRestriction = true;
-                  }
-              }
-          }
+          // Runs for all monument_doodad, including center-only weather station markers.
+          const showBuildingRestriction = shouldShowBuildingRestrictionOverlay(
+              placementInfo,
+              localPlayerId,
+              activeEquipments,
+              itemDefinitions
+          );
           
           // Render building restriction overlay for monuments (shipwrecks, fishing villages, whale bone graveyards, hunting villages)
           if (showBuildingRestriction && buildingEntity.isCenter) {
-              const buildingId = buildingEntity.id;
-              let restrictionRadius = 0;
-              
-              // Determine restriction radius based on monument type
-              // ID prefix is generated from MonumentType enum (CamelCase -> snake_case)
-              // e.g., Shipwreck -> shipwreck_, FishingVillage -> fishing_village_, etc.
-              if (buildingId.startsWith('shipwreck_')) {
-                  restrictionRadius = 1875; // SHIPWRECK_NPC_EXCLUSION_RADIUS from server (25% larger than 1500)
-              } else if (buildingId.startsWith('fishing_village_')) {
-                  restrictionRadius = 1000; // FISHING_VILLAGE_EXCLUSION_RADIUS from server (25% larger than 800)
-              } else if (buildingId.startsWith('whale_bone_graveyard_')) {
-                  restrictionRadius = 1200; // WHALE_BONE_GRAVEYARD_NPC_EXCLUSION_RADIUS from server
-              } else if (buildingId.startsWith('hunting_village_')) {
-                  restrictionRadius = 1200; // HUNTING_VILLAGE_NPC_EXCLUSION_RADIUS from server
-              } else if (buildingId.startsWith('crashed_research_drone_')) {
-                  restrictionRadius = 800; // CRASHED_RESEARCH_DRONE_RESTRICTION_RADIUS from server (800px minimum)
-              } else if (buildingId.startsWith('weather_station_')) {
-                  restrictionRadius = 2000; // WEATHER_STATION_RESTRICTION_RADIUS from server (2000px exclusion)
-              } else if (buildingId.startsWith('wolf_den_')) {
-                  restrictionRadius = 800; // WOLF_DEN_RESTRICTION_RADIUS from server (800px minimum)
-              } else if (buildingId.startsWith('alpine_village_')) {
-                  restrictionRadius = 600; // ALPINE_VILLAGE_RESTRICTION_RADIUS from server (600px minimum)
-              }
+              const restrictionRadius = getMonumentRestrictionRadius(buildingEntity.id);
               
               if (restrictionRadius > 0) {
                   const zoneConfig: BuildingRestrictionZoneConfig = {
@@ -1889,6 +1841,7 @@ export const renderYSortedEntities = ({
   // Destruction effects (big debris explosions when entity is fully destroyed)
   renderTreeImpactEffects(ctx, nowMs);     // Twigs, leaves, dirt, dust cloud from falling trees
   renderStoneDestructionEffects(ctx, nowMs); // Rock chunks, sparks, dust cloud from mined stones
+  renderBarrelDestructionEffects(ctx, nowMs); // Barrel sprite chunks explode radially
   renderCoralDestructionEffects(ctx, nowMs); // Coral fragments, bubbles, sand cloud from harvested coral
 
   // PASS 2: REMOVED - North walls are now rendered in Pass 1 for correct Y-sorting with players/placeables
@@ -2025,118 +1978,45 @@ export const renderYSortedEntities = ({
   // PASS 7: Render large quarry building restriction zones when Blueprint equipped or placing a placeable item
   // Large quarries are monuments that should show restriction zones similar to ALK stations and rune stones
   if (largeQuarries && largeQuarries.size > 0) {
-      // Check if local player has Blueprint equipped OR is placing a placeable item
-      let showBuildingRestriction = false;
-      // First check: Is any placeable item currently being placed? (placementInfo is non-null)
-      if (placementInfo) {
-          showBuildingRestriction = true;
-      }
-      // Second check: Is Blueprint equipped? (via ActiveEquipment)
-      if (!showBuildingRestriction && localPlayerId && activeEquipments && itemDefinitions) {
-          const localEquipment = activeEquipments.get(localPlayerId);
-          if (localEquipment?.equippedItemDefId) {
-              const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
-              // Show restriction zones for Blueprint (Placeable items use placementInfo instead)
-              if (equippedItemDef?.name === 'Blueprint') {
-                  showBuildingRestriction = true;
-              }
-          }
-      }
+      const showBuildingRestriction = shouldShowBuildingRestrictionOverlay(
+          placementInfo,
+          localPlayerId,
+          activeEquipments,
+          itemDefinitions
+      );
       
       if (showBuildingRestriction) {
-          // Large quarries have radiusTiles (their own size), so effective restriction = quarryRadius + restriction
-          const TILE_SIZE_PX = 48;
-          const QUARRY_RESTRICTION_RADIUS = 400.0; // Halved from 800px to better match actual restriction
-          
-          largeQuarries.forEach((quarry: any) => {
-              // quarry.radiusTiles is the quarry's own radius in tiles
-              const quarryRadiusPx = (quarry.radiusTiles || 0) * TILE_SIZE_PX;
-              const effectiveRadius = quarryRadiusPx + QUARRY_RESTRICTION_RADIUS;
-              
-              const zoneConfig: BuildingRestrictionZoneConfig = {
-                  centerX: quarry.worldX,
-                  centerY: quarry.worldY,
-                  radius: effectiveRadius,
-              };
-              renderBuildingRestrictionOverlay(ctx, zoneConfig);
-          });
+          renderMultipleBuildingRestrictionOverlays(ctx, buildLargeQuarryRestrictionZones(largeQuarries));
       }
   }
 
   // PASS 8: Render hot spring building restriction zones when Blueprint equipped or placing a placeable item
   // Hot springs are monument areas with 800px restriction radius around their detected centers
   if (detectedHotSprings && detectedHotSprings.length > 0) {
-      // Check if local player has Blueprint equipped OR is placing a placeable item
-      let showBuildingRestriction = false;
-      // First check: Is any placeable item currently being placed? (placementInfo is non-null)
-      if (placementInfo) {
-          showBuildingRestriction = true;
-      }
-      // Second check: Is Blueprint equipped? (via ActiveEquipment)
-      if (!showBuildingRestriction && localPlayerId && activeEquipments && itemDefinitions) {
-          const localEquipment = activeEquipments.get(localPlayerId);
-          if (localEquipment?.equippedItemDefId) {
-              const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
-              // Show restriction zones for Blueprint (Placeable items use placementInfo instead)
-              if (equippedItemDef?.name === 'Blueprint') {
-                  showBuildingRestriction = true;
-              }
-          }
-      }
+      const showBuildingRestriction = shouldShowBuildingRestrictionOverlay(
+          placementInfo,
+          localPlayerId,
+          activeEquipments,
+          itemDefinitions
+      );
       
       if (showBuildingRestriction) {
-          // Server checks 800px from ANY hot spring tile, not just center
-          // So visual radius = cluster_radius + 800px monument restriction
-          const MONUMENT_RESTRICTION_RADIUS = 800.0;
-          
-          detectedHotSprings.forEach((hotSpring) => {
-              // Add cluster radius to the monument restriction to show the full exclusion zone
-              const effectiveRadius = hotSpring.radius + MONUMENT_RESTRICTION_RADIUS;
-              const zoneConfig: BuildingRestrictionZoneConfig = {
-                  centerX: hotSpring.posX,
-                  centerY: hotSpring.posY,
-                  radius: effectiveRadius,
-              };
-              renderBuildingRestrictionOverlay(ctx, zoneConfig);
-          });
+          renderMultipleBuildingRestrictionOverlays(ctx, buildHotSpringRestrictionZones(detectedHotSprings));
       }
   }
 
   // PASS 9: Render small quarry building restriction zones when Blueprint equipped or placing a placeable item
   // Small quarries are tile-based monument areas - server checks 800px from ANY quarry tile
   if (detectedQuarries && detectedQuarries.length > 0) {
-      // Check if local player has Blueprint equipped OR is placing a placeable item
-      let showBuildingRestriction = false;
-      // First check: Is any placeable item currently being placed? (placementInfo is non-null)
-      if (placementInfo) {
-          showBuildingRestriction = true;
-      }
-      // Second check: Is Blueprint equipped? (via ActiveEquipment)
-      if (!showBuildingRestriction && localPlayerId && activeEquipments && itemDefinitions) {
-          const localEquipment = activeEquipments.get(localPlayerId);
-          if (localEquipment?.equippedItemDefId) {
-              const equippedItemDef = itemDefinitions.get(localEquipment.equippedItemDefId.toString());
-              // Show restriction zones for Blueprint (Placeable items use placementInfo instead)
-              if (equippedItemDef?.name === 'Blueprint') {
-                  showBuildingRestriction = true;
-              }
-          }
-      }
+      const showBuildingRestriction = shouldShowBuildingRestrictionOverlay(
+          placementInfo,
+          localPlayerId,
+          activeEquipments,
+          itemDefinitions
+      );
       
       if (showBuildingRestriction) {
-          // Small quarries - visual radius = cluster_radius + restriction
-          const QUARRY_RESTRICTION_RADIUS = 400.0; // Halved from 800px to better match actual restriction
-          
-          detectedQuarries.forEach((quarry) => {
-              // Add cluster radius to the quarry restriction to show the full exclusion zone
-              const effectiveRadius = quarry.radius + QUARRY_RESTRICTION_RADIUS;
-              const zoneConfig: BuildingRestrictionZoneConfig = {
-                  centerX: quarry.posX,
-                  centerY: quarry.posY,
-                  radius: effectiveRadius,
-              };
-              renderBuildingRestrictionOverlay(ctx, zoneConfig);
-          });
+          renderMultipleBuildingRestrictionOverlays(ctx, buildSmallQuarryRestrictionZones(detectedQuarries));
       }
   }
 

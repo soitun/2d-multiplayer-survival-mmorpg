@@ -1,6 +1,7 @@
 /**
- * Health Bar Overlay - Renders all entity health bars in a separate pass
- * so they appear ON TOP of barrels, doodads, and other game world objects.
+ * Health Bar Overlay - Renders health bars for player-built placeables (doors, walls,
+ * campfires, furnaces, boxes, turrets, etc.) and building structures.
+ * Excludes loot containers (military ration, military crate) and barrels.
  *
  * Call this after all Y-sorted entities have been rendered.
  */
@@ -14,6 +15,7 @@ import {
   BOX_TYPE_COMPOST,
   BOX_TYPE_FISH_TRAP,
   BOX_TYPE_MILITARY_RATION,
+  BOX_TYPE_MILITARY_CRATE,
   BOX_RENDER_Y_OFFSET,
   MONUMENT_COOKING_STATION_WIDTH,
   MONUMENT_COOKING_STATION_HEIGHT,
@@ -23,7 +25,7 @@ import {
   MONUMENT_REPAIR_BENCH_HEIGHT,
   MONUMENT_BOX_ANCHOR_Y_OFFSET,
 } from './woodenStorageBoxRenderingUtils';
-import { isCompoundMonument } from '../../config/compoundBuildings'; // Used for furnace, wooden_storage_box
+import { isCompoundMonument } from '../../config/compoundBuildings';
 import { TURRET_WIDTH, TURRET_HEIGHT } from './turretRenderingUtils';
 import {
   RAIN_COLLECTOR_WIDTH,
@@ -54,20 +56,21 @@ export interface HealthBarOverlayParams {
 }
 
 /**
- * Renders health bars for all entities that have them.
+ * Renders health bars for all player-built placeables and building structures.
+ * Excludes: barrels, military ration, military crate (loot containers, not player-built).
  * Call AFTER all Y-sorted entities so health bars appear on top.
  */
 export function renderHealthBarOverlay(params: HealthBarOverlayParams): void {
   const { ctx, ySortedEntities, nowMs, playerX, playerY } = params;
 
   ySortedEntities.forEach(({ type, entity }) => {
-    // Barrels: no health bar (only structures/walls/placeables show health when hit)
     if (type === 'campfire') {
       renderEntityHealthBar(ctx, entity as any, CAMPFIRE_WIDTH, CAMPFIRE_HEIGHT, nowMs, playerX, playerY, -CAMPFIRE_RENDER_Y_OFFSET);
     } else if (type === 'wooden_storage_box') {
       const box = entity as any;
       if (box.isDestroyed) return;
-      if (box.boxType === BOX_TYPE_MILITARY_RATION) return; // No health bar for military ration
+      // Loot containers (not player-built) - no health bar
+      if (box.boxType === BOX_TYPE_MILITARY_RATION || box.boxType === BOX_TYPE_MILITARY_CRATE) return;
       const isCompoundBldg = isCompoundMonument(box.isMonument, box.posX, box.posY);
       if (isCompoundBldg && (box.boxType === BOX_TYPE_COOKING_STATION || box.boxType === BOX_TYPE_REPAIR_BENCH || box.boxType === BOX_TYPE_COMPOST)) {
         const w = box.boxType === BOX_TYPE_COOKING_STATION ? MONUMENT_COOKING_STATION_WIDTH : box.boxType === BOX_TYPE_COMPOST ? MONUMENT_COMPOST_WIDTH : MONUMENT_REPAIR_BENCH_WIDTH;
@@ -149,8 +152,6 @@ export function renderHealthBarOverlay(params: HealthBarOverlayParams): void {
         });
       }
     }
-    // foundation_cell: uses custom inline health bar in foundationRenderingUtils - handled in that renderer's pass
-    // We could add it here but foundation rendering is complex (multiple passes). Skip for now - foundations
-    // are typically large and less likely to be obscured. Can add later if needed.
+    // foundation_cell, wall_cell: inline health bars in foundationRenderingUtils
   });
 }

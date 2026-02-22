@@ -281,7 +281,7 @@ function getOffsetInfo(type: string): string {
   if (typeUpper === 'BARBECUE') return `off:(0,0)`;
   if (typeUpper === 'SHELTER') return `off:(${COLLISION_OFFSETS.SHELTER.x},${COLLISION_OFFSETS.SHELTER.y})`;
   if (typeUpper === 'ANIMAL') return `off:(${COLLISION_OFFSETS.WILD_ANIMAL.x},${COLLISION_OFFSETS.WILD_ANIMAL.y})`;
-  if (typeUpper === 'BARREL') return `off:(${COLLISION_OFFSETS.BARREL.x},${COLLISION_OFFSETS.BARREL.y})`;
+  if (typeUpper === 'BARREL') return `off:(dynamic sea-aware)`;
   if (typeUpper === 'ALK_STATION') return `off:(${COLLISION_OFFSETS.ALK_STATION.x},${COLLISION_OFFSETS.ALK_STATION.y})`;
   if (typeUpper === 'SEA_STACK') return `off:(${COLLISION_OFFSETS.SEA_STACK.x},${COLLISION_OFFSETS.SEA_STACK.y})`;
   if (typeUpper === 'HOMESTEAD_HEARTH' || typeUpper === 'HEARTH') return `off:(${COLLISION_OFFSETS.HOMESTEAD_HEARTH.x},${COLLISION_OFFSETS.HOMESTEAD_HEARTH.y})`;

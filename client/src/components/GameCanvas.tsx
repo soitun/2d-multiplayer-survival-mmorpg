@@ -3083,7 +3083,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         gameEntitiesForDebug,
         playerX,
         playerY,
-        localPlayer.identity.toHexString()
+        localPlayer.identity.toHexString(),
+        isOnSeaTileForBarrels
       );
 
       renderCollisionDebug(ctx, {

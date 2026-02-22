@@ -9,6 +9,9 @@ import { COMPOUND_BUILDINGS, getBuildingWorldPosition, isCompoundMonument } from
 // Spatial filtering constants
 const COLLISION_QUERY_EXPANSION = 100; // Extra padding around movement path for safety
 const FOUNDATION_COLLISION_THICKNESS = 8; // Thickness for triangle hypotenuse collision
+// Keep road-barrel-on-water collision translation aligned with renderer waterline translation.
+const ROAD_BARREL_ON_WATER_COLLISION_X_OFFSET = 52;
+const ROAD_BARREL_ON_WATER_COLLISION_Y_OFFSET = 0;
 
 // Helper to check if shape intersects with query box
 function shapeIntersectsBox(shape: CollisionShape, minX: number, minY: number, maxX: number, maxY: number): boolean {
@@ -163,7 +166,8 @@ function getCollisionCandidates(
   entities: GameEntities,
   playerX: number,
   playerY: number,
-  localPlayerId: string
+  localPlayerId: string,
+  isOnSeaTile?: (worldX: number, worldY: number) => boolean
 ): CollisionShape[] {
   // PERFORMANCE FIX: Remove frameCounter++ to avoid unnecessary operations
   // frameCounter++;
@@ -377,13 +381,22 @@ function getCollisionCandidates(
     
     const variantIndex = Number(barrel.variant ?? 0);
     const isBuoy = variantIndex === 6;
-    const collisionYOffset = isBuoy ? -110 : variantIndex === 4 ? COLLISION_OFFSETS.BARREL.y * 2 : COLLISION_OFFSETS.BARREL.y;
+    const isRoadBarrelOnWater = variantIndex < 3 && !!isOnSeaTile?.(barrel.posX, barrel.posY);
+    // Road barrels on sea are rendered rotated 90°. Translate right/down to match sprite/waterline shift.
+    const collisionXOffset = isRoadBarrelOnWater ? ROAD_BARREL_ON_WATER_COLLISION_X_OFFSET : COLLISION_OFFSETS.BARREL.x;
+    const collisionYOffset = isBuoy
+      ? -110
+      : isRoadBarrelOnWater
+        ? ROAD_BARREL_ON_WATER_COLLISION_Y_OFFSET
+        : variantIndex === 4
+          ? COLLISION_OFFSETS.BARREL.y * 2
+          : COLLISION_OFFSETS.BARREL.y;
     const collisionRadius = isBuoy ? COLLISION_RADII.BARREL : variantIndex === 4 ? COLLISION_RADII.BARREL * 2 : COLLISION_RADII.BARREL;
     
     shapes.push({
       id: barrel.id.toString(),
       type: `barrel-${barrel.id.toString()}`,
-      x: barrel.posX + COLLISION_OFFSETS.BARREL.x,
+      x: barrel.posX + collisionXOffset,
       y: barrel.posY + collisionYOffset,
       radius: collisionRadius
     });
@@ -1509,7 +1522,8 @@ export function resolveClientCollision(
   toX: number,
   toY: number,
   localPlayerId: string,
-  entities: GameEntities
+  entities: GameEntities,
+  isOnSeaTile?: (worldX: number, worldY: number) => boolean
 ): CollisionResult {
   // Step 1: Clamp to world bounds
   const clampedTo = clampToWorldBounds(toX, toY);
@@ -1536,7 +1550,7 @@ export function resolveClientCollision(
   const tunnelingCollidedWith = tunnelingCheck.collidedWith;
 
   // Step 3: Build collision shapes from entities - PERFORMANCE OPTIMIZED
-  const collisionShapes = getCollisionCandidates(entities, fromX, fromY, localPlayerId);
+  const collisionShapes = getCollisionCandidates(entities, fromX, fromY, localPlayerId, isOnSeaTile);
   
   // PERFORMANCE FIX: Remove expensive performance.now() calls every frame
   // const collisionStartTime = performance.now();
@@ -1994,7 +2008,8 @@ export function getCollisionShapesForDebug(
   entities: GameEntities,
   playerX: number,
   playerY: number,
-  localPlayerId: string
+  localPlayerId: string,
+  isOnSeaTile?: (worldX: number, worldY: number) => boolean
 ): CollisionShape[] {
-  return getCollisionCandidates(entities, playerX, playerY, localPlayerId);
+  return getCollisionCandidates(entities, playerX, playerY, localPlayerId, isOnSeaTile);
 } 

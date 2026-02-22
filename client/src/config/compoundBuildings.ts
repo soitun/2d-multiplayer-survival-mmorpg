@@ -397,7 +397,7 @@ export function getMonumentBuildings(monumentParts: MonumentPartData[]): Compoun
   const center = getWorldCenter();
   
   return monumentParts
-    .filter(part => part.imagePath && part.imagePath.length > 0) // Skip parts with empty images
+    .filter(part => (part.imagePath && part.imagePath.length > 0) || part.isCenter) // Include center parts (e.g. weather station) for restriction overlay even when no image
     .map((part, index) => {
       // Calculate offset from world center (matching compound building pattern)
       const offsetX = part.worldX - center.x;

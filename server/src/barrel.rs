@@ -386,11 +386,6 @@ pub fn damage_barrel(
     if barrel.health <= 0.0 {
         return Err("Barrel is already destroyed.".to_string());
     }
-    
-    // Monument barrels are indestructible
-    if barrel.is_monument {
-        return Err("This barrel is indestructible.".to_string());
-    }
 
     // Buoys (variant 6) are indestructible navigational markers - no loot
     if barrel.variant == BUOY_VARIANT {

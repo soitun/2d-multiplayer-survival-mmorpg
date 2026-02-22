@@ -32,6 +32,7 @@ import { Identity } from 'spacetimedb';
 import { getChunkIndicesForViewportWithBuffer } from '../utils/chunkUtils';
 import { gameConfig } from '../config/gameConfig';
 import { triggerExplosionEffect } from '../utils/renderers/explosiveRenderingUtils';
+import { triggerBarrelDestructionEffect } from '../utils/renderers/barrelRenderingUtils';
 
 // ─── Spatial chunk-subscription strategy ─────────────────────────────────────
 // - Batch and throttle chunk subscriptions to avoid bursty update spikes.
@@ -1891,8 +1892,22 @@ export const useSpacetimeTables = ({
                 if (visuallySignificant) {
                     setBarrels(prev => new Map(prev).set(newBarrel.id.toString(), newBarrel));
                 }
+
+                // Trigger barrel destruction effect immediately when server reports destruction
+                // (Same pattern as explosive onDelete - ensures effect fires before entity disappears from view)
+                const wasHealthy = (oldBarrel.respawnAt?.microsSinceUnixEpoch ?? 0n) === 0n;
+                const isDestroyed = (newBarrel.respawnAt?.microsSinceUnixEpoch ?? 0n) !== 0n;
+                if (wasHealthy && isDestroyed && (newBarrel.variant ?? 0) !== 6) {
+                    triggerBarrelDestructionEffect(newBarrel);
+                }
             };
-            const handleBarrelDelete = (ctx: any, barrel: SpacetimeDB.Barrel) => setBarrels(prev => { const newMap = new Map(prev); newMap.delete(barrel.id.toString()); return newMap; });
+            const handleBarrelDelete = (ctx: any, barrel: SpacetimeDB.Barrel) => {
+                setBarrels(prev => { const newMap = new Map(prev); newMap.delete(barrel.id.toString()); return newMap; });
+                // If barrel was deleted (e.g. server removes destroyed barrels), trigger effect with last known position
+                if ((barrel.variant ?? 0) !== 6) {
+                    triggerBarrelDestructionEffect(barrel);
+                }
+            };
 
             // RoadLamppost handlers - SPATIAL
             const handleRoadLamppostInsert = (ctx: any, lamppost: SpacetimeDB.RoadLamppost) => setRoadLampposts(prev => new Map(prev).set(lamppost.id.toString(), lamppost));

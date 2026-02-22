@@ -591,6 +591,8 @@ import { RespawnBoneCarvingKit } from "./respawn_bone_carving_kit_reducer.ts";
 export { RespawnBoneCarvingKit };
 import { RespawnDestroyedBarrels } from "./respawn_destroyed_barrels_reducer.ts";
 export { RespawnDestroyedBarrels };
+import { RespawnMilitaryCrates } from "./respawn_military_crates_reducer.ts";
+export { RespawnMilitaryCrates };
 import { RespawnMilitaryRations } from "./respawn_military_rations_reducer.ts";
 export { RespawnMilitaryRations };
 import { RespawnMineCarts } from "./respawn_mine_carts_reducer.ts";
@@ -1029,6 +1031,8 @@ import { MemoryGridPurchasesTableHandle } from "./memory_grid_purchases_table.ts
 export { MemoryGridPurchasesTableHandle };
 import { MessageTableHandle } from "./message_table.ts";
 export { MessageTableHandle };
+import { MilitaryCrateRespawnScheduleTableHandle } from "./military_crate_respawn_schedule_table.ts";
+export { MilitaryCrateRespawnScheduleTableHandle };
 import { MilitaryRationRespawnScheduleTableHandle } from "./military_ration_respawn_schedule_table.ts";
 export { MilitaryRationRespawnScheduleTableHandle };
 import { MineCartRespawnScheduleTableHandle } from "./mine_cart_respawn_schedule_table.ts";
@@ -1471,6 +1475,8 @@ import { MemoryShardEffectConfig } from "./memory_shard_effect_config_type.ts";
 export { MemoryShardEffectConfig };
 import { Message } from "./message_type.ts";
 export { Message };
+import { MilitaryCrateRespawnSchedule } from "./military_crate_respawn_schedule_type.ts";
+export { MilitaryCrateRespawnSchedule };
 import { MilitaryRationRespawnSchedule } from "./military_ration_respawn_schedule_type.ts";
 export { MilitaryRationRespawnSchedule };
 import { MineCartRespawnSchedule } from "./mine_cart_respawn_schedule_type.ts";
@@ -2604,6 +2610,15 @@ const REMOTE_MODULE = {
       primaryKeyInfo: {
         colName: "id",
         colType: (Message.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
+      },
+    },
+    military_crate_respawn_schedule: {
+      tableName: "military_crate_respawn_schedule" as const,
+      rowType: MilitaryCrateRespawnSchedule.getTypeScriptAlgebraicType(),
+      primaryKey: "scheduledId",
+      primaryKeyInfo: {
+        colName: "scheduledId",
+        colType: (MilitaryCrateRespawnSchedule.getTypeScriptAlgebraicType() as __AlgebraicTypeVariants.Product).value.elements[0].algebraicType,
       },
     },
     military_ration_respawn_schedule: {
@@ -4475,6 +4490,10 @@ const REMOTE_MODULE = {
       reducerName: "respawn_destroyed_barrels",
       argsType: RespawnDestroyedBarrels.getTypeScriptAlgebraicType(),
     },
+    respawn_military_crates: {
+      reducerName: "respawn_military_crates",
+      argsType: RespawnMilitaryCrates.getTypeScriptAlgebraicType(),
+    },
     respawn_military_rations: {
       reducerName: "respawn_military_rations",
       argsType: RespawnMilitaryRations.getTypeScriptAlgebraicType(),
@@ -5249,6 +5268,7 @@ export type Reducer = never
 | { name: "RespawnAtSleepingBag", args: RespawnAtSleepingBag }
 | { name: "RespawnBoneCarvingKit", args: RespawnBoneCarvingKit }
 | { name: "RespawnDestroyedBarrels", args: RespawnDestroyedBarrels }
+| { name: "RespawnMilitaryCrates", args: RespawnMilitaryCrates }
 | { name: "RespawnMilitaryRations", args: RespawnMilitaryRations }
 | { name: "RespawnMineCarts", args: RespawnMineCarts }
 | { name: "RespawnRandomly", args: RespawnRandomly }
@@ -9706,6 +9726,22 @@ export class RemoteReducers {
     this.connection.offReducer("respawn_destroyed_barrels", callback);
   }
 
+  respawnMilitaryCrates(schedule: MilitaryCrateRespawnSchedule) {
+    const __args = { schedule };
+    let __writer = new __BinaryWriter(1024);
+    RespawnMilitaryCrates.serialize(__writer, __args);
+    let __argsBuffer = __writer.getBuffer();
+    this.connection.callReducer("respawn_military_crates", __argsBuffer, this.setCallReducerFlags.respawnMilitaryCratesFlags);
+  }
+
+  onRespawnMilitaryCrates(callback: (ctx: ReducerEventContext, schedule: MilitaryCrateRespawnSchedule) => void) {
+    this.connection.onReducer("respawn_military_crates", callback);
+  }
+
+  removeOnRespawnMilitaryCrates(callback: (ctx: ReducerEventContext, schedule: MilitaryCrateRespawnSchedule) => void) {
+    this.connection.offReducer("respawn_military_crates", callback);
+  }
+
   respawnMilitaryRations(schedule: MilitaryRationRespawnSchedule) {
     const __args = { schedule };
     let __writer = new __BinaryWriter(1024);
@@ -12883,6 +12919,11 @@ export class SetReducerFlags {
     this.respawnDestroyedBarrelsFlags = flags;
   }
 
+  respawnMilitaryCratesFlags: __CallReducerFlags = 'FullUpdate';
+  respawnMilitaryCrates(flags: __CallReducerFlags) {
+    this.respawnMilitaryCratesFlags = flags;
+  }
+
   respawnMilitaryRationsFlags: __CallReducerFlags = 'FullUpdate';
   respawnMilitaryRations(flags: __CallReducerFlags) {
     this.respawnMilitaryRationsFlags = flags;
@@ -13976,6 +14017,11 @@ export class RemoteTables {
   get message(): MessageTableHandle<'message'> {
     // clientCache is a private property
     return new MessageTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<Message>(REMOTE_MODULE.tables.message));
+  }
+
+  get militaryCrateRespawnSchedule(): MilitaryCrateRespawnScheduleTableHandle<'military_crate_respawn_schedule'> {
+    // clientCache is a private property
+    return new MilitaryCrateRespawnScheduleTableHandle((this.connection as unknown as { clientCache: __ClientCache }).clientCache.getOrCreateTable<MilitaryCrateRespawnSchedule>(REMOTE_MODULE.tables.military_crate_respawn_schedule));
   }
 
   get militaryRationRespawnSchedule(): MilitaryRationRespawnScheduleTableHandle<'military_ration_respawn_schedule'> {

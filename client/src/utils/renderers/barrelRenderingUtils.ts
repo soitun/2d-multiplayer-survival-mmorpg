@@ -63,6 +63,10 @@ const BARREL_VARIANT_IMAGES = [
 const SEA_BARREL_VARIANT_START = 3;
 const SEA_BARREL_VARIANT_END = 7; // Exclusive end (3, 4, 5, 6 - includes buoy)
 
+// Road barrels on water: water line position offset (right = +X, down = +Y)
+const ROAD_BARREL_WATER_LINE_X_OFFSET = 60;
+const ROAD_BARREL_WATER_LINE_Y_OFFSET = 12;
+
 // --- Client-side animation tracking for barrel shakes ---
 const clientBarrelShakeStartTimes = new Map<string, number>(); // barrelId -> client timestamp when shake started
 const lastKnownServerBarrelShakeTimes = new Map<string, number>();
@@ -192,6 +196,239 @@ const barrelConfig: GroundEntityConfig<Barrel> = {
 BARREL_VARIANT_IMAGES.forEach(barrelImg => {
     imageManager.preloadImage(barrelImg);
 });
+
+// ============================================================================
+// BARREL DESTRUCTION EFFECTS - Sprite chunks with radial explosion
+// ============================================================================
+// Recursively slices the barrel sprite across its mid-section (2D equivalent of
+// 3D mesh slicing). Chunks get rigid-body-like physics and explode radially.
+
+interface BarrelDestructionChunk {
+    /** Source rect in barrel image (natural coords) */
+    srcX: number;
+    srcY: number;
+    srcW: number;
+    srcH: number;
+    /** Draw size (matches source for 1:1 pixel art) */
+    drawW: number;
+    drawH: number;
+    /** World position (center of chunk) */
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    rotation: number;
+    rotationSpeed: number;
+    gravity: number;
+}
+
+interface BarrelDestructionEffect {
+    barrelId: string;
+    startTime: number;
+    centerX: number;
+    centerY: number;
+    duration: number;
+    chunks: BarrelDestructionChunk[];
+    image: HTMLImageElement;
+    variantIndex: number;
+}
+
+const activeBarrelDestructions = new Map<string, BarrelDestructionEffect>();
+const previousBarrelHealthStates = new Map<string, boolean>();
+
+const BARREL_DESTRUCTION_DURATION_MS = 1000;
+const BARREL_CHUNK_SLICE_LEVELS = 2; // 2 levels = 4 chunks (2x2), 3 levels = 8 chunks
+
+/**
+ * Recursively slice a rect into chunks across mid-sections.
+ * Alternates horizontal/vertical cuts for organic breakup.
+ */
+function sliceRectIntoChunks(
+    x: number, y: number, w: number, h: number,
+    level: number,
+    maxLevel: number,
+    out: Array<{ srcX: number; srcY: number; srcW: number; srcH: number }>
+): void {
+    if (level >= maxLevel || w < 8 || h < 8) {
+        out.push({ srcX: x, srcY: y, srcW: w, srcH: h });
+        return;
+    }
+    if (level % 2 === 0) {
+        // Horizontal cut
+        const mid = Math.floor(h / 2);
+        sliceRectIntoChunks(x, y, w, mid, level + 1, maxLevel, out);
+        sliceRectIntoChunks(x, y + mid, w, h - mid, level + 1, maxLevel, out);
+    } else {
+        // Vertical cut
+        const mid = Math.floor(w / 2);
+        sliceRectIntoChunks(x, y, mid, h, level + 1, maxLevel, out);
+        sliceRectIntoChunks(x + mid, y, w - mid, h, level + 1, maxLevel, out);
+    }
+}
+
+/**
+ * Generate barrel chunks from sprite, with radial explosion velocities.
+ */
+function generateBarrelDestructionChunks(
+    centerX: number,
+    centerY: number,
+    drawWidth: number,
+    drawHeight: number,
+    imgNaturalWidth: number,
+    imgNaturalHeight: number
+): BarrelDestructionChunk[] {
+    const srcRects: Array<{ srcX: number; srcY: number; srcW: number; srcH: number }> = [];
+    sliceRectIntoChunks(0, 0, drawWidth, drawHeight, 0, BARREL_CHUNK_SLICE_LEVELS, srcRects);
+
+    const scaleX = imgNaturalWidth / drawWidth;
+    const scaleY = imgNaturalHeight / drawHeight;
+    const chunks: BarrelDestructionChunk[] = [];
+    const baseSpeed = 4 + Math.random() * 4;
+    const spriteTopY = centerY - drawHeight / 2;
+
+    for (const rect of srcRects) {
+        const chunkCenterX = centerX - drawWidth / 2 + rect.srcX + rect.srcW / 2;
+        const chunkCenterY = spriteTopY + rect.srcY + rect.srcH / 2;
+        const dx = chunkCenterX - centerX;
+        const dy = chunkCenterY - centerY;
+        const angle = Math.atan2(dy, dx);
+        const speedVariation = 0.7 + Math.random() * 0.6;
+        const speed = baseSpeed * speedVariation;
+
+        chunks.push({
+            srcX: rect.srcX * scaleX,
+            srcY: rect.srcY * scaleY,
+            srcW: rect.srcW * scaleX,
+            srcH: rect.srcH * scaleY,
+            drawW: rect.srcW,
+            drawH: rect.srcH,
+            x: chunkCenterX,
+            y: chunkCenterY,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 2 - Math.random() * 3,
+            rotation: (Math.random() - 0.5) * 0.5,
+            rotationSpeed: (Math.random() - 0.5) * 0.15,
+            gravity: 0.22,
+        });
+    }
+    return chunks;
+}
+
+export function hasActiveBarrelDestruction(barrelId: string): boolean {
+    return activeBarrelDestructions.has(barrelId);
+}
+
+/**
+ * Detect barrel destruction transition and trigger effect.
+ * Call from entity filtering when iterating barrels.
+ */
+export function checkBarrelDestructionVisibility(barrel: Barrel): boolean {
+    const variantIndex = Number(barrel.variant ?? 0);
+    if (variantIndex === 6) return false; // Buoy is indestructible
+
+    const barrelId = barrel.id.toString();
+    const isDestroyed = barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n;
+    const wasHealthy = previousBarrelHealthStates.get(barrelId);
+
+    if (activeBarrelDestructions.has(barrelId)) return true;
+
+    if (wasHealthy === true && isDestroyed) {
+        triggerBarrelDestructionEffect(barrel);
+        return true;
+    }
+
+    previousBarrelHealthStates.set(barrelId, !isDestroyed);
+    return false;
+}
+
+/**
+ * Trigger barrel destruction effect.
+ */
+export function triggerBarrelDestructionEffect(barrel: Barrel): void {
+    const barrelId = barrel.id.toString();
+    if (activeBarrelDestructions.has(barrelId)) return;
+
+    const variantIndex = Number(barrel.variant ?? 0);
+    const imageSource = BARREL_VARIANT_IMAGES[variantIndex] || BARREL_VARIANT_IMAGES[0];
+    const img = imageManager.getImage(imageSource);
+    if (!img || !img.complete || img.naturalWidth === 0) return;
+
+    const drawWidth = variantIndex === 4 ? BARREL5_WIDTH : variantIndex === 6 ? BUOY_WIDTH : BARREL_WIDTH;
+    const drawHeight = variantIndex === 4 ? BARREL5_HEIGHT : variantIndex === 6 ? BUOY_HEIGHT : BARREL_HEIGHT;
+    const yOffset = variantIndex === 4 ? 24 : variantIndex === 6 ? 28 : 12;
+    const centerX = barrel.posX;
+    const centerY = barrel.posY - drawHeight / 2 - yOffset;
+
+    const effect: BarrelDestructionEffect = {
+        barrelId,
+        startTime: Date.now(),
+        centerX,
+        centerY,
+        duration: BARREL_DESTRUCTION_DURATION_MS,
+        chunks: generateBarrelDestructionChunks(centerX, centerY, drawWidth, drawHeight, img.naturalWidth, img.naturalHeight),
+        image: img,
+        variantIndex,
+    };
+
+    activeBarrelDestructions.set(barrelId, effect);
+}
+
+const barrelDestructionEffectsToRemove: string[] = [];
+const TWO_PI = Math.PI * 2;
+
+/**
+ * Render barrel destruction effects.
+ */
+export function renderBarrelDestructionEffects(ctx: CanvasRenderingContext2D, nowMs: number): void {
+    if (activeBarrelDestructions.size === 0) return;
+
+    barrelDestructionEffectsToRemove.length = 0;
+
+    activeBarrelDestructions.forEach((effect, barrelId) => {
+        const elapsed = nowMs - effect.startTime;
+        const progress = elapsed / effect.duration;
+
+        if (progress >= 1) {
+            barrelDestructionEffectsToRemove.push(barrelId);
+            return;
+        }
+
+        const fadeStart = 0.5;
+        const fadeMultiplier = progress > fadeStart ? 1 - (progress - fadeStart) / (1 - fadeStart) : 1;
+
+        for (const chunk of effect.chunks) {
+            chunk.vy += chunk.gravity;
+            chunk.x += chunk.vx;
+            chunk.y += chunk.vy;
+            chunk.rotation += chunk.rotationSpeed;
+            chunk.vx *= 0.98;
+
+            const alpha = fadeMultiplier;
+            if (alpha < 0.02) continue;
+
+            ctx.save();
+            ctx.translate(chunk.x, chunk.y);
+            ctx.rotate(chunk.rotation);
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(
+                effect.image,
+                chunk.srcX, chunk.srcY, chunk.srcW, chunk.srcH,
+                -chunk.drawW / 2, -chunk.drawH / 2, chunk.drawW, chunk.drawH
+            );
+            ctx.restore();
+        }
+    });
+
+    for (let i = 0; i < barrelDestructionEffectsToRemove.length; i++) {
+        activeBarrelDestructions.delete(barrelDestructionEffectsToRemove[i]);
+        previousBarrelHealthStates.delete(barrelDestructionEffectsToRemove[i]);
+    }
+}
+
+export function cleanupBarrelDestructionEffect(barrelId: string): void {
+    activeBarrelDestructions.delete(barrelId);
+    previousBarrelHealthStates.delete(barrelId);
+}
 
 // === SEA BARREL WATER EFFECTS CONFIGURATION ===
 // Exported for use by dropped items and other entities that float on water
@@ -417,8 +654,9 @@ function renderSeaBarrelWithWaterEffects(
     // Road barrels on water are rotated 90° - water line must be at barrel center height (baseY) not upright sprite coords
     const waterLineOffset = variantIndex === 6 ? 0.65 : SEA_BARREL_WATER_CONFIG.WATER_LINE_OFFSET;
     const waterLineLocalY = drawHeight * waterLineOffset;
+    const waterLineXOffset = isRoadBarrelOnWater ? ROAD_BARREL_WATER_LINE_X_OFFSET : 0;
     const waterLineWorldY = isRoadBarrelOnWater
-        ? baseY - 20  // Rotated barrel: center at baseY, extends ±43 vertically; water cuts ~upper third
+        ? baseY - 20 + ROAD_BARREL_WATER_LINE_Y_OFFSET  // Rotated barrel: center at baseY; offset shifts line down
         : drawY + waterLineLocalY;
     
     // Wave calculation helper
@@ -458,18 +696,21 @@ function renderSeaBarrelWithWaterEffects(
     const clipLeft = baseX - clipPad;
     const clipRight = baseX + clipPad;
     const clipSegmentWidth = (clipRight - clipLeft) / waveSegments;
+    // Keep the clip seam and visible water line perfectly aligned for rotated road barrels.
+    const clipWaveLeft = clipLeft + waterLineXOffset;
+    const clipWaveRight = clipRight + waterLineXOffset;
     
     // Clip in world space first (before rotation) so water line stays horizontal
     // --- Draw underwater portion (tinted) ---
     ctx.save();
     ctx.beginPath();
-    ctx.moveTo(clipLeft, baseY + 50);
-    ctx.lineTo(clipLeft, waterLineWorldY);
+    ctx.moveTo(clipWaveLeft, baseY + 50);
+    ctx.lineTo(clipWaveLeft, waterLineWorldY);
     for (let i = 0; i <= waveSegments; i++) {
-        const segX = clipLeft + i * clipSegmentWidth;
+        const segX = clipWaveLeft + i * clipSegmentWidth;
         ctx.lineTo(segX, waterLineWorldY + getWaveOffset(segX));
     }
-    ctx.lineTo(clipRight, baseY + 50);
+    ctx.lineTo(clipWaveRight, baseY + 50);
     ctx.closePath();
     ctx.clip();
     ctx.translate(pivotX, pivotY);
@@ -481,11 +722,11 @@ function renderSeaBarrelWithWaterEffects(
     // --- Draw above-water portion (normal) ---
     ctx.save();
     ctx.beginPath();
-    ctx.moveTo(clipLeft, drawY - 5);
-    ctx.lineTo(clipRight, drawY - 5);
-    ctx.lineTo(clipRight, waterLineWorldY);
+    ctx.moveTo(clipWaveLeft, drawY - 5);
+    ctx.lineTo(clipWaveRight, drawY - 5);
+    ctx.lineTo(clipWaveRight, waterLineWorldY);
     for (let i = waveSegments; i >= 0; i--) {
-        const segX = clipLeft + i * clipSegmentWidth;
+        const segX = clipWaveLeft + i * clipSegmentWidth;
         ctx.lineTo(segX, waterLineWorldY + getWaveOffset(segX));
     }
     ctx.closePath();
@@ -502,8 +743,8 @@ function renderSeaBarrelWithWaterEffects(
     ctx.lineCap = 'round';
     
     ctx.beginPath();
-    const lineStartX = drawX + drawWidth * 0.2;
-    const lineEndX = drawX + drawWidth * 0.8;
+    const lineStartX = drawX + drawWidth * 0.2 + waterLineXOffset;
+    const lineEndX = drawX + drawWidth * 0.8 + waterLineXOffset;
     const lineSegments = 8;
     const lineSegmentWidth = (lineEndX - lineStartX) / lineSegments;
     
@@ -570,6 +811,9 @@ export function renderBarrel(
     playerY?: number,
     skipWaterShadow?: boolean
 ) {
+    // Destroyed barrels disappear immediately; only the destruction effect (chunks) is shown
+    if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) return;
+
     const variantIndex = Number(barrel.variant ?? 0);
     
     // Apply water effects when barrel is on a sea tile (any variant - road barrels near coast can end up on water)
