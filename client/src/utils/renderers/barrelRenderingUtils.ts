@@ -493,6 +493,7 @@ export function renderSeaBarrelWaterShadowOnly(
     seaTransitionTileLookup?: Map<string, boolean>
 ): void {
     if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) return;
+    if (hasActiveBarrelDestruction(barrel.id.toString())) return;
     const variantIndex = Number(barrel.variant ?? 0);
     // Only draw water shadow when barrel is actually on a sea tile (sea barrels on beach use normal ground shadow)
     if (!isOnSeaTile || !isOnSeaTile(barrel.posX, barrel.posY)) return;
@@ -811,8 +812,13 @@ export function renderBarrel(
     playerY?: number,
     skipWaterShadow?: boolean
 ) {
-    // Destroyed barrels disappear immediately; only the destruction effect (chunks) is shown
+    // Destroyed barrels disappear immediately; only the destruction effect (chunks) is shown.
+    // Check both respawnAt and active destruction - the effect is triggered synchronously in the
+    // subscription handler, but React state (barrels) updates async, so we may still have stale
+    // barrel data for a frame. If chunks are flying, hide the sprite.
+    const barrelId = barrel.id.toString();
     if (barrel.respawnAt && barrel.respawnAt.microsSinceUnixEpoch !== 0n) return;
+    if (hasActiveBarrelDestruction(barrelId)) return;
 
     const variantIndex = Number(barrel.variant ?? 0);
     
@@ -867,6 +873,7 @@ export function renderBarrelUnderwaterSilhouette(
     cycleProgress: number = 0.5,
     nowMs: number = Date.now()
 ): void {
+    if (hasActiveBarrelDestruction(barrel.id.toString())) return;
     const variantIndex = Number(barrel.variant ?? 0);
     
     // Only render silhouette for sea barrels (variants 3, 4, 5)
