@@ -72,7 +72,7 @@ export function preloadMonumentImages(): void {
     loadImage('garage.png', import('../../assets/doodads/garage.png?url'));
     loadImage('alk_food_processor.png', import('../../assets/doodads/alk_food_processor.png?url'));
     loadImage('alk_weapons_depot.png', import('../../assets/doodads/alk_weapons_depot.png?url'));
-    // warehouse.png removed - replaced by monument large furnace placeable
+    loadImage('warehouse.png', import('../../assets/doodads/warehouse.png?url'));
     loadImage('barracks.png', import('../../assets/doodads/barracks.png?url'));
     loadImage('fuel_depot.png', import('../../assets/doodads/fuel_depot.png?url'));
     

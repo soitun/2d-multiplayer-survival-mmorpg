@@ -65,14 +65,26 @@ export interface CompoundBuilding {
    */
   anchorYOffset: number;
   
-  // === COLLISION (circular) ===
-  /** Collision radius in pixels */
+  // === COLLISION ===
+  /** Collision radius in pixels (used when collisionAabb is not set) */
   collisionRadius: number;
   /** 
    * Y-offset for collision center (pixels up from visual anchor).
    * Adjusts where the collision circle is positioned relative to the building.
    */
   collisionYOffset: number;
+  /**
+   * Optional AABB collision (like compound water facility).
+   * When set, overrides circular collision with rectangular bounds.
+   */
+  collisionAabb?: {
+    /** AABB width in pixels */
+    width: number;
+    /** AABB height in pixels */
+    height: number;
+    /** Y-offset from anchor to AABB center (positive = down) */
+    centerYOffset: number;
+  };
   
   // === MONUMENT CENTER (optional) ===
   /**
@@ -189,7 +201,23 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
   // Replaced by compound eerie lights (COMPOUND_EERIE_LIGHTS below)
   // which render as nanobot-style blue/purple ambient glows at night.
   
-  // ===== LARGE WAREHOUSE ===== (REMOVED - replaced by monument large furnace placeable)
+  // ===== WAREHOUSE (north section - decorative, AABB collision like compound water facility) =====
+  {
+    id: 'warehouse',
+    offsetX: 0,
+    offsetY: -500,
+    imagePath: 'warehouse.png',
+    width: 480,
+    height: 480,
+    anchorYOffset: 96,
+    collisionRadius: 0, // Unused when collisionAabb is set
+    collisionYOffset: 0,
+    collisionAabb: {
+      width: 350,
+      height: 160,
+      centerYOffset: 20,
+    },
+  },
   
   // ===== BARRACKS =====
   {

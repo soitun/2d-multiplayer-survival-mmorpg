@@ -730,7 +730,7 @@ function getCollisionCandidates(
   }
   
   // COMPOUND BUILDINGS - collision at visual base (like trees/stones)
-  // Use negative Y offset to position collision UP at the building's visual base
+  // Buildings with collisionAabb use AABB (e.g. warehouse, like compound water facility)
   for (const building of COMPOUND_BUILDINGS) {
     const worldPos = getBuildingWorldPosition(building);
     const buildingX = worldPos.x;
@@ -745,18 +745,28 @@ function getCollisionCandidates(
     // Skip walls - they need AABB collision which we don't support yet
     if (building.id.startsWith('wall_')) continue;
     
-    // Position collision at visual base of building
-    const collisionOffsetY = 0; // Collision at anchor point (building base)
-    
-    const collisionRadius = Math.min(building.width * 0.2, 60);
-    
-    shapes.push({
-      id: `compound_building-${building.id}`,
-      type: `compound_building-${building.id}`,
-      x: buildingX,
-      y: buildingY + collisionOffsetY,
-      radius: collisionRadius
-    });
+    if (building.collisionAabb) {
+      // AABB collision (warehouse, etc. - like compound water facility)
+      shapes.push({
+        id: `compound_building-${building.id}`,
+        type: `compound_building-${building.id}`,
+        x: buildingX,
+        y: buildingY + building.collisionAabb.centerYOffset,
+        width: building.collisionAabb.width,
+        height: building.collisionAabb.height,
+      });
+    } else {
+      // Circular collision (barracks, garage, shed, etc.)
+      const collisionOffsetY = building.collisionYOffset ?? 0;
+      const collisionRadius = Math.min(building.width * 0.2, 60);
+      shapes.push({
+        id: `compound_building-${building.id}`,
+        type: `compound_building-${building.id}`,
+        x: buildingX,
+        y: buildingY + collisionOffsetY,
+        radius: collisionRadius
+      });
+    }
   }
   
   // Filter shelters - use AABB collision (must match server-side collision bounds)
