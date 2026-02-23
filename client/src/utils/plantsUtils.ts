@@ -188,6 +188,14 @@ export function isRowanSeed(itemName: string): boolean {
 }
 
 /**
+ * Determines if a seed is an Olive Pit (plantable pit for olive tree)
+ */
+export function isOlivePitSeed(itemName: string): boolean {
+  const name = itemName.toLowerCase();
+  return name.includes('olive pit');
+}
+
+/**
  * Determines if a seed is a conifer tree seed (Pinecone)
  * These grow into spruce, hemlock, or pine trees
  */
@@ -206,10 +214,10 @@ export function isDeciduousSeed(itemName: string): boolean {
 }
 
 /**
- * Determines if a seed is any tree seed (Pinecone, Birch Catkin, Crab Apple Seeds, Hazelnut, or Rowan Seeds)
+ * Determines if a seed is any tree seed (Pinecone, Birch Catkin, Crab Apple Seeds, Hazelnut, Rowan Seeds, or Olive Pit)
  */
 export function isTreeSeed(itemName: string): boolean {
-  return isConiferSeed(itemName) || isDeciduousSeed(itemName) || isCrabAppleSeed(itemName) || isHazelnutSeed(itemName) || isRowanSeed(itemName);
+  return isConiferSeed(itemName) || isDeciduousSeed(itemName) || isCrabAppleSeed(itemName) || isHazelnutSeed(itemName) || isRowanSeed(itemName) || isOlivePitSeed(itemName);
 }
 
 /**
@@ -264,6 +272,7 @@ export function isSeedItemValid(itemName: string, itemDefinitions?: Map<string, 
     name.includes('frond') || // "Seaweed Frond" - underwater plant propagation
     name.includes('pinecone') || // "Pinecone" - tree seed for conifers
     name.includes('catkin') || // "Birch Catkin" - tree seed for deciduous trees
+    name.includes('olive pit') || // "Olive Pit" - tree pit for olive tree
     name === 'hazelnut' || name === 'hazelnuts' // "Hazelnut" - the nut itself is the seed for hazelnut trees
   );
 } 
