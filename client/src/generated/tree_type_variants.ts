@@ -41,4 +41,5 @@ export type KrummholzSpruce = { tag: "KrummholzSpruce" };
 export type CrabAppleTree = { tag: "CrabAppleTree" };
 export type HazelnutTree = { tag: "HazelnutTree" };
 export type RowanberryTree = { tag: "RowanberryTree" };
+export type OliveTree = { tag: "OliveTree" };
 
