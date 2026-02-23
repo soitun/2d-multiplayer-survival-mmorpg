@@ -11,6 +11,8 @@
 
 import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 
+export type FixedSimulationMode = 'off' | 'auto' | 'on';
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -41,6 +43,9 @@ export interface SettingsContextType {
     vignetteIntensity: number;
     chromaticAberrationIntensity: number;
     colorCorrection: number;
+    fixedSimulationMode: FixedSimulationMode;
+    displayRefreshRateHz: number;
+    fixedSimulationEnabled: boolean;
     setAllShadowsEnabled: (enabled: boolean) => void;
     setTreeShadowsEnabled: (enabled: boolean) => void;
     setWeatherOverlayEnabled: (enabled: boolean) => void;
@@ -57,6 +62,8 @@ export interface SettingsContextType {
     setVignetteIntensity: (intensity: number) => void;
     setChromaticAberrationIntensity: (intensity: number) => void;
     setColorCorrection: (value: number) => void;
+    setFixedSimulationMode: (mode: FixedSimulationMode) => void;
+    setFixedSimulationEnabled: (enabled: boolean) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -87,15 +94,75 @@ function loadBool(key: string, fallback: boolean): boolean {
     return saved ? saved === 'true' : fallback;
 }
 
+function loadFixedSimulationMode(): FixedSimulationMode {
+    const savedMode = localStorage.getItem('fixedSimulationMode');
+    if (savedMode === 'off' || savedMode === 'auto' || savedMode === 'on') {
+        return savedMode;
+    }
+    // Backward compatibility with previous boolean setting.
+    const legacyBool = localStorage.getItem('fixedSimulationEnabled');
+    if (legacyBool !== null) {
+        return legacyBool === 'true' ? 'on' : 'off';
+    }
+    return 'off';
+}
+
+function roundToCommonRefreshRate(hz: number): number {
+    const common = [30, 50, 60, 75, 90, 100, 120, 144, 165, 180, 240];
+    let best = common[0];
+    let bestDistance = Math.abs(hz - best);
+    for (const candidate of common) {
+        const distance = Math.abs(hz - candidate);
+        if (distance < bestDistance) {
+            best = candidate;
+            bestDistance = distance;
+        }
+    }
+    return best;
+}
+
+function estimateRefreshRateHz(sampleCount = 45): Promise<number> {
+    return new Promise((resolve) => {
+        if (typeof window === 'undefined' || typeof requestAnimationFrame !== 'function') {
+            resolve(60);
+            return;
+        }
+        const timestamps: number[] = [];
+        let rafId = 0;
+        const step = (ts: number) => {
+            timestamps.push(ts);
+            if (timestamps.length >= sampleCount) {
+                const deltas: number[] = [];
+                for (let i = 1; i < timestamps.length; i += 1) {
+                    deltas.push(timestamps[i] - timestamps[i - 1]);
+                }
+                deltas.sort((a, b) => a - b);
+                const medianDelta = deltas[Math.floor(deltas.length / 2)] || (1000 / 60);
+                const estimated = 1000 / medianDelta;
+                resolve(roundToCommonRefreshRate(estimated));
+                return;
+            }
+            rafId = requestAnimationFrame(step);
+        };
+        rafId = requestAnimationFrame(step);
+        window.setTimeout(() => {
+            if (timestamps.length < 8) {
+                cancelAnimationFrame(rafId);
+                resolve(60);
+            }
+        }, 1500);
+    });
+}
+
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     // --- Audio ---
-    const [musicVolume, _setMusicVolume] = useState(() => loadNumber('musicVolume', 0.5));
-    const [soundVolume, _setSoundVolume] = useState(() => loadNumber('soundVolume', 0.8));
-    const [environmentalVolume, _setEnvironmentalVolume] = useState(() => loadNumber('environmentalVolume', 0.7));
+    const [musicVolume, _setMusicVolume] = useState(() => loadNumber('musicVolume', 0.20));
+    const [soundVolume, _setSoundVolume] = useState(() => loadNumber('soundVolume', 0.50));
+    const [environmentalVolume, _setEnvironmentalVolume] = useState(() => loadNumber('environmentalVolume', 1.0));
 
     // --- Visual ---
     const [allShadowsEnabled, _setAllShadows] = useState(() => {
@@ -124,6 +191,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [vignetteIntensity, _setVignetteIntensity] = useState(() => loadNumber('vignetteIntensity', 0, 100));
     const [chromaticAberrationIntensity, _setChromaticAberrationIntensity] = useState(() => loadNumber('chromaticAberrationIntensity', 0, 100));
     const [colorCorrection, _setColorCorrection] = useState(() => loadNumber('colorCorrection', 50, 100));
+    const [fixedSimulationMode, _setFixedSimulationMode] = useState<FixedSimulationMode>(() => loadFixedSimulationMode());
+    const [displayRefreshRateHz, _setDisplayRefreshRateHz] = useState<number>(60);
 
     // --- Setters (persist to localStorage) ---
     const setMusicVolume = useCallback((v: number) => {
@@ -227,6 +296,34 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         localStorage.setItem('colorCorrection', clamped.toString());
     }, []);
 
+    React.useEffect(() => {
+        let mounted = true;
+        estimateRefreshRateHz().then((hz) => {
+            if (mounted) {
+                _setDisplayRefreshRateHz(hz);
+            }
+        });
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    const setFixedSimulationMode = useCallback((mode: FixedSimulationMode) => {
+        _setFixedSimulationMode(mode);
+        localStorage.setItem('fixedSimulationMode', mode);
+        // Keep legacy key updated for compatibility with older builds/settings.
+        localStorage.setItem('fixedSimulationEnabled', String(mode === 'on'));
+    }, []);
+
+    const setFixedSimulationEnabled = useCallback((enabled: boolean) => {
+        _setFixedSimulationMode(enabled ? 'on' : 'off');
+        localStorage.setItem('fixedSimulationMode', enabled ? 'on' : 'off');
+        localStorage.setItem('fixedSimulationEnabled', enabled.toString());
+    }, []);
+
+    const fixedSimulationEnabled = fixedSimulationMode === 'on'
+        || (fixedSimulationMode === 'auto' && displayRefreshRateHz >= 120);
+
     // Memoize the context value to prevent unnecessary consumer re-renders
     // when the provider's parent re-renders but settings haven't changed.
     const value = useMemo<SettingsContextType>(() => ({
@@ -252,6 +349,9 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         vignetteIntensity,
         chromaticAberrationIntensity,
         colorCorrection,
+        fixedSimulationMode,
+        displayRefreshRateHz,
+        fixedSimulationEnabled,
         setAllShadowsEnabled,
         setTreeShadowsEnabled,
         setWeatherOverlayEnabled,
@@ -268,17 +368,22 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         setVignetteIntensity,
         setChromaticAberrationIntensity,
         setColorCorrection,
+        setFixedSimulationMode,
+        setFixedSimulationEnabled,
     }), [
         musicVolume, soundVolume, environmentalVolume,
         allShadowsEnabled, treeShadowsEnabled, weatherOverlayEnabled, stormAtmosphereEnabled, statusOverlaysEnabled,
         grassEnabled, alwaysShowPlayerNames, cloudsEnabled, waterSurfaceEffectsEnabled,
         waterSurfaceEffectsIntensity, worldParticlesQuality, footprintsEnabled, bloomIntensity,
         vignetteIntensity, chromaticAberrationIntensity, colorCorrection,
+        fixedSimulationMode, displayRefreshRateHz, fixedSimulationEnabled,
         setMusicVolume, setSoundVolume, setEnvironmentalVolume,
         setAllShadowsEnabled, setTreeShadowsEnabled, setWeatherOverlayEnabled, setStormAtmosphereEnabled, setStatusOverlaysEnabled,
         setGrassEnabled, setAlwaysShowPlayerNames, setCloudsEnabled, setWaterSurfaceEffectsEnabled,
         setWaterSurfaceEffectsIntensity, setWorldParticlesQuality, setFootprintsEnabled,
         setBloomIntensity, setVignetteIntensity, setChromaticAberrationIntensity, setColorCorrection,
+        setFixedSimulationMode,
+        setFixedSimulationEnabled,
     ]);
 
     return (

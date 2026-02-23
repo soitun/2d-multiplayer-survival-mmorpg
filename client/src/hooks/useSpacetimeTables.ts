@@ -327,6 +327,14 @@ export const useSpacetimeTables = ({
     const projectilesUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const PROJECTILE_BATCH_INTERVAL_MS = 50; // Flush at 20fps - needs to be responsive for combat
 
+    // Phase 5: Batched harvestable resource updates (bursts during mass harvesting)
+    const harvestableResourceBatchRef = useRef<Array<{ op: 'set'; id: string; resource: SpacetimeDB.HarvestableResource } | { op: 'delete'; id: string }>>([]);
+    const harvestableResourceFlushScheduledRef = useRef(false);
+
+    // Phase 5: Batched dropped item updates (bursts when dropping/picking many items)
+    const droppedItemBatchRef = useRef<Array<{ op: 'set'; id: string; item: SpacetimeDB.DroppedItem } | { op: 'delete'; id: string }>>([]);
+    const droppedItemFlushScheduledRef = useRef(false);
+
     // Hostile death cleanup timeouts (cleared on unmount to prevent memory leak)
     const hostileDeathCleanupTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
     const HOSTILE_DEATH_EVENTS_MAX = 30; // Cap to prevent unbounded growth during mass encounters
@@ -1108,20 +1116,41 @@ export const useSpacetimeTables = ({
                 setActiveEquipments(prev => { const newMap = new Map(prev); newMap.delete(equip.playerIdentity.toHexString()); return newMap; });
             };
 
-            // --- Unified Harvestable Resource Subscriptions ---
+            // --- Unified Harvestable Resource Subscriptions (Phase 5: batched) ---
+            const scheduleHarvestableResourceFlush = () => {
+                if (harvestableResourceFlushScheduledRef.current) return;
+                harvestableResourceFlushScheduledRef.current = true;
+                queueMicrotask(() => {
+                    const batch = harvestableResourceBatchRef.current;
+                    harvestableResourceBatchRef.current = [];
+                    harvestableResourceFlushScheduledRef.current = false;
+                    if (batch.length === 0) return;
+                    setHarvestableResources(prev => {
+                        const next = new Map(prev);
+                        for (const e of batch) {
+                            if (e.op === 'set') next.set(e.id, e.resource);
+                            else next.delete(e.id);
+                        }
+                        return next;
+                    });
+                });
+            };
             const handleHarvestableResourceInsert = (ctx: any, resource: SpacetimeDB.HarvestableResource) => {
-                setHarvestableResources(prev => new Map(prev).set(resource.id.toString(), resource));
+                harvestableResourceBatchRef.current.push({ op: 'set', id: resource.id.toString(), resource });
+                scheduleHarvestableResourceFlush();
             };
             const handleHarvestableResourceUpdate = (ctx: any, oldResource: SpacetimeDB.HarvestableResource, newResource: SpacetimeDB.HarvestableResource) => {
                 const changed = oldResource.posX !== newResource.posX ||
                     oldResource.posY !== newResource.posY ||
                     (oldResource.respawnAt?.microsSinceUnixEpoch ?? 0n) !== (newResource.respawnAt?.microsSinceUnixEpoch ?? 0n);
                 if (changed) {
-                    setHarvestableResources(prev => new Map(prev).set(newResource.id.toString(), newResource));
+                    harvestableResourceBatchRef.current.push({ op: 'set', id: newResource.id.toString(), resource: newResource });
+                    scheduleHarvestableResourceFlush();
                 }
             };
             const handleHarvestableResourceDelete = (ctx: any, resource: SpacetimeDB.HarvestableResource) => {
-                setHarvestableResources(prev => { const newMap = new Map(prev); newMap.delete(resource.id.toString()); return newMap; });
+                harvestableResourceBatchRef.current.push({ op: 'delete', id: resource.id.toString() });
+                scheduleHarvestableResourceFlush();
             };
 
             // --- Planted Seed Subscriptions ---
@@ -1140,10 +1169,37 @@ export const useSpacetimeTables = ({
             };
             const handlePlantedSeedDelete = (ctx: any, seed: SpacetimeDB.PlantedSeed) => setPlantedSeeds(prev => { const newMap = new Map(prev); newMap.delete(seed.id.toString()); return newMap; });
 
-            // --- Dropped Item Subscriptions ---
-            const handleDroppedItemInsert = (ctx: any, item: SpacetimeDB.DroppedItem) => upsertMapState(setDroppedItems, item.id.toString(), item);
-            const handleDroppedItemUpdate = (ctx: any, oldItem: SpacetimeDB.DroppedItem, newItem: SpacetimeDB.DroppedItem) => upsertMapState(setDroppedItems, newItem.id.toString(), newItem);
-            const handleDroppedItemDelete = (ctx: any, item: SpacetimeDB.DroppedItem) => setDroppedItems(prev => { const newMap = new Map(prev); newMap.delete(item.id.toString()); return newMap; });
+            // --- Dropped Item Subscriptions (Phase 5: batched) ---
+            const scheduleDroppedItemFlush = () => {
+                if (droppedItemFlushScheduledRef.current) return;
+                droppedItemFlushScheduledRef.current = true;
+                queueMicrotask(() => {
+                    const batch = droppedItemBatchRef.current;
+                    droppedItemBatchRef.current = [];
+                    droppedItemFlushScheduledRef.current = false;
+                    if (batch.length === 0) return;
+                    setDroppedItems(prev => {
+                        const next = new Map(prev);
+                        for (const e of batch) {
+                            if (e.op === 'set') next.set(e.id, e.item);
+                            else next.delete(e.id);
+                        }
+                        return next;
+                    });
+                });
+            };
+            const handleDroppedItemInsert = (ctx: any, item: SpacetimeDB.DroppedItem) => {
+                droppedItemBatchRef.current.push({ op: 'set', id: item.id.toString(), item });
+                scheduleDroppedItemFlush();
+            };
+            const handleDroppedItemUpdate = (ctx: any, oldItem: SpacetimeDB.DroppedItem, newItem: SpacetimeDB.DroppedItem) => {
+                droppedItemBatchRef.current.push({ op: 'set', id: newItem.id.toString(), item: newItem });
+                scheduleDroppedItemFlush();
+            };
+            const handleDroppedItemDelete = (ctx: any, item: SpacetimeDB.DroppedItem) => {
+                droppedItemBatchRef.current.push({ op: 'delete', id: item.id.toString() });
+                scheduleDroppedItemFlush();
+            };
 
             // --- Wooden Storage Box Subscriptions ---
             const handleWoodenStorageBoxInsert = (ctx: any, box: SpacetimeDB.WoodenStorageBox) => {

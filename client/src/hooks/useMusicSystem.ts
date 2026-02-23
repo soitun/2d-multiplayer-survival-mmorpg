@@ -620,6 +620,21 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
     // Ref to track pause timeout
     const pauseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Clear any scheduled inter-track pause and reset pause state.
+    // This is required before any manual/forced playback change (zone switch, explicit next/prev, direct track play)
+    // so stale pause timers don't fire later and unexpectedly skip tracks.
+    const clearScheduledPause = useCallback((updateState = true) => {
+        if (pauseTimeoutRef.current) {
+            clearTimeout(pauseTimeoutRef.current);
+            pauseTimeoutRef.current = null;
+        }
+        if (updateState) {
+            setState(prev => (prev.isPaused || prev.pauseEndTime !== null)
+                ? { ...prev, isPaused: false, pauseEndTime: null }
+                : prev);
+        }
+    }, []);
+
     // Update refs when state changes
     useEffect(() => {
         stateRef.current = state;
@@ -673,6 +688,9 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
     // Play a specific track (using index within current zone's tracklist)
     const playTrackTransitionLockRef = useRef<Promise<void> | null>(null);
     const playTrack = useCallback(async (trackIndex: number, crossfade = true, zone?: MusicZone): Promise<void> => {
+        // Any direct track play means we are no longer in the scheduled "silence pause" period.
+        clearScheduledPause(true);
+
         // Wait for any in-progress transition to complete before starting a new one
         // This prevents overlapping crossfades and abrupt cutoffs
         if (playTrackTransitionLockRef.current) {
@@ -809,17 +827,14 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
 
         playTrackTransitionLockRef.current = transitionPromise;
         return transitionPromise;
-    }, [cleanupEventListeners]);
+    }, [cleanupEventListeners, clearScheduledPause]);
 
     // Start music system (with optional zone override)
     const startMusic = useCallback(async (forceZone?: MusicZone) => {
         // console.log('🎵 Starting music system...');
 
-        // Clear any active pause timeout when starting music
-        if (pauseTimeoutRef.current) {
-            clearTimeout(pauseTimeoutRef.current);
-            pauseTimeoutRef.current = null;
-        }
+        // Starting music should always cancel any pending scheduled pause.
+        clearScheduledPause(true);
 
         // Use stateRef to get the most current state
         const currentState = stateRef.current;
@@ -874,17 +889,14 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
         const firstTrackIndex = currentPlaylist[startPosition];
         // console.log(`🎵 Starting with track: ${zoneTracks[firstTrackIndex]?.displayName}`);
         await playTrack(firstTrackIndex, false, zoneToUse); // No crossfade for first track
-    }, [playTrack]); // Removed state dependencies to prevent stale closures
+    }, [playTrack, clearScheduledPause]); // Removed state dependencies to prevent stale closures
 
     // Stop music (with optional smooth fade-out to avoid abrupt cutoff)
     const stopMusic = useCallback(async () => {
         // console.log('🎵 Stopping music...');
 
-        // Clear any active pause timeout
-        if (pauseTimeoutRef.current) {
-            clearTimeout(pauseTimeoutRef.current);
-            pauseTimeoutRef.current = null;
-        }
+        // Stopping music should always cancel any pending scheduled pause.
+        clearScheduledPause(false);
 
         const audioToFade = currentAudioRef.current;
         if (audioToFade && configRef.current.crossfadeDuration > 0) {
@@ -915,7 +927,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
             isPaused: false,
             pauseEndTime: null,
         }));
-    }, []);
+    }, [clearScheduledPause]);
 
     // Resume from pause
     const resumeFromPause = useCallback(async (): Promise<void> => {
@@ -925,11 +937,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
             return;
         }
 
-        // Clear pause timeout
-        if (pauseTimeoutRef.current) {
-            clearTimeout(pauseTimeoutRef.current);
-            pauseTimeoutRef.current = null;
-        }
+        clearScheduledPause(false);
 
         // Clear pause state
         setState(prev => ({
@@ -965,7 +973,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
         // console.log(`🎵 Resuming from pause, playing track ${nextPosition + 1}/${playlistToUse.length}: ${zoneTracks[nextTrackIndex]?.displayName}`);
 
         await playTrack(nextTrackIndex);
-    }, [playTrack]);
+    }, [playTrack, clearScheduledPause]);
 
     // Next track
     const nextTrack = useCallback(async (): Promise<void> => {
@@ -977,8 +985,14 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
             return;
         }
 
+        // If user skips while in a silence window, end pause immediately and continue.
+        // Also prevents stale pause timers from firing after manual navigation.
+        if (currentState.isPaused) {
+            clearScheduledPause(true);
+        }
+
         // Randomly decide if we should pause
-        const shouldPause = Math.random() < PAUSE_PROBABILITY;
+        const shouldPause = !currentState.isPaused && (Math.random() < PAUSE_PROBABILITY);
 
         if (shouldPause) {
             // Calculate random pause duration
@@ -1041,7 +1055,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
         // console.log(`🎵 Playing track ${nextPosition + 1}/${playlistToUse.length}: ${zoneTracks[nextTrackIndex]?.displayName}`);
 
         await playTrack(nextTrackIndex);
-    }, [playTrack, resumeFromPause]);
+    }, [playTrack, resumeFromPause, clearScheduledPause]);
 
     // Set the nextTrack ref after the function is defined
     useEffect(() => {
@@ -1055,11 +1069,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
 
         if (!currentState.isPlaying) return;
 
-        // Clear any active pause timeout if manually skipping
-        if (pauseTimeoutRef.current) {
-            clearTimeout(pauseTimeoutRef.current);
-            pauseTimeoutRef.current = null;
-        }
+        clearScheduledPause(true);
 
         let prevPosition = currentState.playlistPosition - 1;
 
@@ -1076,7 +1086,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
         }));
         const prevTrackIndex = currentState.playlist[prevPosition];
         await playTrack(prevTrackIndex);
-    }, [playTrack]);
+    }, [playTrack, clearScheduledPause]);
 
     // Set volume
     const setVolume = useCallback((volume: number) => {
@@ -1226,6 +1236,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
             if (currentState.isPlaying) {
                 if (newZoneTracks.length === 0) {
                     // Empty zone (e.g. deep_sea) - stop music for eerie silence
+                    clearScheduledPause(true);
                     stopMusic();
                     setState(prev => ({
                         ...prev,
@@ -1237,6 +1248,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
                         currentTrackIndex: -1,
                     }));
                 } else {
+                    clearScheduledPause(true);
                     const newPlaylist = createShuffledPlaylist(newZoneTracks.length);
                     const randomStart = Math.floor(Math.random() * newPlaylist.length);
 
@@ -1261,7 +1273,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
                 }));
             }
         }
-    }, [debouncedZone, playTrack, stopMusic]);
+    }, [debouncedZone, playTrack, stopMusic, clearScheduledPause]);
 
     // Get the current zone's tracklist for UI
     const currentZoneTracks = useMemo(() => {
@@ -1278,11 +1290,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
             return;
         }
 
-        // Clear any active pause timeout if manually selecting a track
-        if (pauseTimeoutRef.current) {
-            clearTimeout(pauseTimeoutRef.current);
-            pauseTimeoutRef.current = null;
-        }
+        clearScheduledPause(true);
 
         // console.log(`🎵 Playing specific track: ${zoneTracks[trackIndex]?.displayName}`);
 
@@ -1312,7 +1320,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
 
         // Play the track
         await playTrack(trackIndex);
-    }, [playTrack]);
+    }, [playTrack, clearScheduledPause]);
 
     // Public API
     return {

@@ -6,8 +6,8 @@ import { useSettings } from '../contexts/SettingsContext';
 
 // Default audio settings based on optimal neural processing thresholds
 export const DEFAULT_AUDIO_SETTINGS = {
-    musicVolume: 0.25,        // 25% - Neural Harmony Levels (Cortical Music Enhancement)
-    soundVolume: 0.50,        // 50% - Haptic Feedback Matrix (Neural Action Response)
+    musicVolume: 0.20,        // 20% - Neural Harmony Levels (Cortical Music Enhancement)
+    soundVolume: 0.50,       // 50% - Haptic Feedback Matrix (Neural Action Response)
     environmentalVolume: 1.00 // 100% - Atmospheric Sensors (Environmental Analysis)
 } as const;
 
@@ -35,6 +35,15 @@ const GameSettingsMenu: React.FC<GameSettingsMenuProps> = ({
     };
 
     const formatVolume = (volume: number) => `${Math.round(volume * 100)}%`;
+
+    const settingCardStyle: React.CSSProperties = {
+        marginBottom: '25px',
+        padding: '14px 16px',
+        borderRadius: '10px',
+        border: '1px solid rgba(0, 0, 0, 0.45)',
+        background: 'rgba(0, 0, 0, 0.42)',
+        boxShadow: 'inset 0 0 10px rgba(0, 0, 0, 0.35)',
+    };
 
     return (
         <>
@@ -107,12 +116,12 @@ const GameSettingsMenu: React.FC<GameSettingsMenuProps> = ({
                             opacity: 0.8,
                         }}
                     >
-                        Neural Audio Processing Interface v0.53
+                        Neural Audio Processing Interface v0.82
                     </div>
                 </div>
                 
                 <div style={{ padding: '20px 0' }}>
-                    <div style={{ marginBottom: '25px' }}>
+                    <div style={settingCardStyle}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
                             fontSize: '16px',
@@ -159,7 +168,7 @@ const GameSettingsMenu: React.FC<GameSettingsMenuProps> = ({
                         />
                     </div>
                     
-                    <div style={{ marginBottom: '25px' }}>
+                    <div style={settingCardStyle}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
                             fontSize: '16px',
@@ -206,7 +215,7 @@ const GameSettingsMenu: React.FC<GameSettingsMenuProps> = ({
                         />
                     </div>
                     
-                    <div style={{ marginBottom: '25px' }}>
+                    <div style={settingCardStyle}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
                             fontSize: '16px',
@@ -251,6 +260,56 @@ const GameSettingsMenu: React.FC<GameSettingsMenuProps> = ({
                                 margin: '8px 0',
                             }}
                         />
+                    </div>
+
+                    {/* Defaults preset */}
+                    <div style={settingCardStyle}>
+                        <div style={{
+                            fontFamily: '"Press Start 2P", cursive',
+                            fontSize: '11px',
+                            color: '#a8ffd8',
+                            opacity: 0.8,
+                            marginBottom: '10px',
+                            textAlign: 'left',
+                            letterSpacing: '0.7px',
+                        }}>
+                            PRESETS
+                        </div>
+                        <button
+                            onClick={() => {
+                                onMusicVolumeChange(DEFAULT_AUDIO_SETTINGS.musicVolume);
+                                onSoundVolumeChange(DEFAULT_AUDIO_SETTINGS.soundVolume);
+                                onEnvironmentalVolumeChange(DEFAULT_AUDIO_SETTINGS.environmentalVolume);
+                            }}
+                            className={styles.menuButton}
+                            style={{
+                                width: '100%',
+                                background: 'linear-gradient(135deg, rgba(30, 65, 45, 0.85), rgba(20, 45, 30, 0.95))',
+                                color: '#ffffff',
+                                border: '2px solid #66ffb3',
+                                borderRadius: '8px',
+                                padding: '12px 14px',
+                                fontFamily: '"Press Start 2P", cursive',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                                transition: 'all 0.3s ease',
+                                boxShadow: '0 0 15px rgba(102, 255, 179, 0.35), inset 0 0 10px rgba(102, 255, 179, 0.12)',
+                                textShadow: '0 0 5px rgba(102, 255, 179, 0.85)',
+                                letterSpacing: '1px',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(45, 85, 60, 0.95), rgba(25, 55, 38, 1))';
+                                e.currentTarget.style.transform = 'translateY(-2px) scale(1.01)';
+                                e.currentTarget.style.boxShadow = '0 0 25px rgba(102, 255, 179, 0.6), inset 0 0 15px rgba(102, 255, 179, 0.2)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(30, 65, 45, 0.85), rgba(20, 45, 30, 0.95))';
+                                e.currentTarget.style.transform = 'translateY(0px) scale(1)';
+                                e.currentTarget.style.boxShadow = '0 0 15px rgba(102, 255, 179, 0.35), inset 0 0 10px rgba(102, 255, 179, 0.12)';
+                            }}
+                        >
+                            DEFAULTS (20% / 50% / 100%)
+                        </button>
                     </div>
                 </div>
                 

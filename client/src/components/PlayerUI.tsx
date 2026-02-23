@@ -1338,6 +1338,17 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
                             duration: bufferedRemainingTime
                         };
                         break;
+                    case 'ChewingGum':
+                        effectApplies = true;
+                        effectData = {
+                            id: 'chewing_gum',
+                            name: 'Chewing Gum',
+                            emoji: '🫧',
+                            type: 'neutral' as const,
+                            description: 'Stale but still minty. Others can hear you chewing.',
+                            duration: bufferedRemainingTime
+                        };
+                        break;
                     // HotCombatLadle is handled above via equipped item state, not ActiveConsumableEffect
                 }
             } else if (effectTargetPlayerIdHex === localPlayerIdHex && effectTypeTag === 'RemoteBandageBurst') {

@@ -1,6 +1,11 @@
 import { useRef, useCallback, useMemo } from 'react';
 import { Player } from '../generated';
 
+/**
+ * Remote player interpolation - display-rate independent.
+ * Uses exponential decay (1 - exp(-speed * dt)) so convergence time is roughly
+ * the same at 60/120/144 Hz. Compatible with fixed-sim (30 Hz) + variable-render.
+ */
 // Tuned for smooth movement at typical server tick rates (10-20Hz)
 // Higher = snappier response but more jitter; Lower = smoother but more latency
 const INTERPOLATION_SPEED = 14.0;
@@ -11,6 +16,9 @@ const SNAP_THRESHOLD = 0.1;
 
 // Teleport threshold: if position jumps more than this, snap instantly (death/respawn/teleport)
 const TELEPORT_THRESHOLD = 200;
+
+// Cap deltaTime to prevent huge jumps after tab-away; keeps behavior stable across refresh rates
+const DELTA_TIME_CAP_SEC = 0.1;
 
 interface RemotePlayerState {
   lastServerPosition: { x: number; y: number };
@@ -61,7 +69,7 @@ export const useRemotePlayerInterpolation = () => {
       lastCleanupTime.current = currentTime;
     }
 
-    const deltaTime = Math.min((currentTime - state.lastUpdateTime) / 1000, 0.1); // Cap at 100ms to prevent huge jumps after tab-away
+    const deltaTime = Math.min((currentTime - state.lastUpdateTime) / 1000, DELTA_TIME_CAP_SEC);
 
     // Check if server position changed (new update received)
     const dx = serverPosition.x - state.lastServerPosition.x;

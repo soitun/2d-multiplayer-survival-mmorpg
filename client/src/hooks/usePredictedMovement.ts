@@ -17,12 +17,16 @@
  *
  * 4. SMOOTH POSITION: Returns smoothed position for camera and rendering. Interpolates
  *    between predicted and server positions to avoid rubber-banding.
+ *
+ * 5. FIXED-STEP MODE: When gameConfig.fixedSimulationEnabled, exposes stepPredictedMovement(dtMs)
+ *    for deterministic simulation. Internal RAF loop is disabled; GameCanvas calls step each sim tick.
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Player, DbConnection, ActiveConsumableEffect, EffectType } from '../generated';
 import { usePlayerActions } from '../contexts/PlayerActionsContext';
 import { resolveClientCollision, GameEntities } from '../utils/clientCollision';
+import { gameConfig } from '../config/gameConfig';
 
 // Simple client-authoritative movement constants
 const POSITION_UPDATE_INTERVAL_MS = 50; // 20fps server updates - reduces N^2 subscription fan-out while client prediction keeps movement smooth
@@ -72,6 +76,8 @@ interface SimpleMovementProps {
   waterSpeedBonus?: number; // Bonus from equipped armor (e.g., Reed Flippers) - 1.0 = 100% bonus
   movementSpeedModifier?: number; // Land speed modifier from equipped armor (e.g., Babushka's Boots) - 4.0 = 5x speed
   isOnSeaTile?: (worldX: number, worldY: number) => boolean;
+  /** When true, RAF loop is disabled; GameCanvas calls stepPredictedMovement each sim tick. Falls back to gameConfig when undefined. */
+  fixedSimulationEnabled?: boolean;
 }
 
 // Performance monitoring for simple movement
@@ -123,7 +129,7 @@ const movementMonitor = new SimpleMovementMonitor();
 // REMOVED: Rubber band logging - proper prediction shouldn't need it
 
 // Simple client-authoritative movement hook with optimized rendering
-export const usePredictedMovement = ({ connection, localPlayer, inputState, inputStateRef, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus = 0, movementSpeedModifier = 0, isOnSeaTile }: SimpleMovementProps) => {
+export const usePredictedMovement = ({ connection, localPlayer, inputState, inputStateRef, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus = 0, movementSpeedModifier = 0, isOnSeaTile, fixedSimulationEnabled }: SimpleMovementProps) => {
   // Use refs instead of state to avoid re-renders during movement
   const clientPositionRef = useRef<{ x: number; y: number } | null>(null);
   const serverPositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -235,10 +241,8 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
 
   }, [localPlayer?.positionX, localPlayer?.positionY, localPlayer?.direction, localPlayer?.isDead, playerDodgeRollStates]);
 
-  // Optimized position update function
-  const updatePosition = useCallback(() => {
-    const updateStartTime = performance.now();
-    
+  // Core movement logic - shared by updatePosition (variable dt) and stepPredictedMovement (fixed dt)
+  const applyMovementStep = useCallback((dtSec: number, updateStartTime: number) => {
     try {
       if (!connection || !localPlayer || !clientPositionRef.current) {
         movementMonitor.logUpdate(performance.now() - updateStartTime, false);
@@ -246,7 +250,6 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
       }
 
       const now = performance.now();
-      const deltaTime = Math.min((now - lastUpdateTime.current) / 1000, 0.1); // Cap delta time
       lastUpdateTime.current = now;
 
       // PERFORMANCE FIX: Read from ref when available (immediate, no React delay)
@@ -315,7 +318,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
           
           // Calculate how far to move this frame based on dodge roll speed (450px in 500ms = 900px/s)
           const DODGE_ROLL_SPEED = 900; // pixels per second (SYNCED WITH SERVER)
-          const moveDistance = DODGE_ROLL_SPEED * deltaTime;
+          const moveDistance = DODGE_ROLL_SPEED * dtSec;
           
           // Calculate remaining distance to target
           const remainingDx = clientDodge.targetX - clientPositionRef.current.x;
@@ -434,7 +437,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
         }
         
         const speed = PLAYER_SPEED * speedMultiplier;
-        const moveDistance = speed * deltaTime;
+        const moveDistance = speed * dtSec;
         
         const targetPos = {
           x: clientPositionRef.current.x + direction.x * moveDistance,
@@ -541,13 +544,34 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
       }
 
     } catch (error) {
-      console.error(`❌ [SimpleMovement] Error in updatePosition:`, error);
+      console.error(`❌ [SimpleMovement] Error in applyMovementStep:`, error);
       movementMonitor.logUpdate(performance.now() - updateStartTime, false);
     }
-  }, [connection, localPlayer, inputState, isAutoWalking, stopAutoWalk, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus, movementSpeedModifier]);
+  }, [connection, localPlayer, inputState, isAutoWalking, stopAutoWalk, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus, movementSpeedModifier, isOnSeaTile]);
 
-  // Run position updates with optimized timing
+  // Variable-step update (used when !fixedSimulationEnabled)
+  const updatePosition = useCallback(() => {
+    const updateStartTime = performance.now();
+    const now = performance.now();
+    const deltaTime = Math.min((now - lastUpdateTime.current) / 1000, 0.1);
+    applyMovementStep(deltaTime, updateStartTime);
+  }, [applyMovementStep]);
+
+  /**
+   * Deterministic step: advance prediction by fixed dt (ms).
+   * Used when fixedSimulationEnabled; GameCanvas calls this each sim tick.
+   * Network send remains throttled by POSITION_UPDATE_INTERVAL_MS.
+   */
+  const stepPredictedMovement = useCallback((dtMs: number) => {
+    const updateStartTime = performance.now();
+    const dtSec = Math.min(dtMs / 1000, 0.1);
+    applyMovementStep(dtSec, updateStartTime);
+  }, [applyMovementStep]);
+
+  // Run position updates with optimized timing (disabled when fixedSimulationEnabled)
+  const useFixedSim = fixedSimulationEnabled ?? gameConfig.fixedSimulationEnabled;
   useEffect(() => {
+    if (useFixedSim) return; // GameCanvas calls stepPredictedMovement instead
     let animationId: number;
     let lastFrameTime = 0;
     
@@ -566,7 +590,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     return () => {
       cancelAnimationFrame(animationId);
     };
-  }, [updatePosition]);
+  }, [updatePosition, useFixedSim]);
 
   // ADDED: Function to get the EXACT position at this moment (not cached from last frame)
   // This is critical for accurate projectile spawning during fast movement
@@ -626,9 +650,10 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
   }, [localPlayer, inputState, playerDodgeRollStates, connection, waterSpeedBonus, movementSpeedModifier]);
 
   // Return the current position and state
-  return { 
+  return {
     predictedPosition: clientPositionRef.current,
-    getCurrentPositionNow, // ADDED: Function for exact position at firing time
+    getCurrentPositionNow,
+    stepPredictedMovement, // For fixed-step mode; GameCanvas calls each sim tick
     isAutoWalking,
     isAutoAttacking,
     facingDirection: lastFacingDirection.current

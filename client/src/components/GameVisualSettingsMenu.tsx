@@ -1,8 +1,9 @@
 import React from 'react';
 import styles from './MenuComponents.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTree, faCloudRain, faHeartPulse, faLeaf, faUsers } from '@fortawesome/free-solid-svg-icons';
+import { faTree, faCloudRain, faHeartPulse, faLeaf, faUsers, faGears } from '@fortawesome/free-solid-svg-icons';
 import { useSettings } from '../contexts/SettingsContext';
+import type { FixedSimulationMode } from '../contexts/SettingsContext';
 
 // Default visual settings based on optimal neural rendering thresholds
 export const DEFAULT_VISUAL_SETTINGS = {
@@ -26,8 +27,9 @@ export const DEFAULT_VISUAL_SETTINGS = {
 const POST_PROCESSING_PRESETS = {
     off: { bloomIntensity: 0, vignetteIntensity: 0, chromaticAberrationIntensity: 0, colorCorrection: 50 },
     cozy: { bloomIntensity: 36, vignetteIntensity: 20, chromaticAberrationIntensity: 12, colorCorrection: 60 }, // previous defaults, stronger
-    hdr: { bloomIntensity: 68, vignetteIntensity: 34, chromaticAberrationIntensity: 20, colorCorrection: 74 },
-    cinematic: { bloomIntensity: 48, vignetteIntensity: 58, chromaticAberrationIntensity: 26, colorCorrection: 58 },
+    vibrant: { bloomIntensity: 42, vignetteIntensity: 12, chromaticAberrationIntensity: 0, colorCorrection: 82 },
+    cinematic: { bloomIntensity: 48, vignetteIntensity: 100, chromaticAberrationIntensity: 26, colorCorrection: 58 },
+    desaturated: { bloomIntensity: 24, vignetteIntensity: 70, chromaticAberrationIntensity: 0, colorCorrection: 18 },
     clean: { bloomIntensity: 14, vignetteIntensity: 8, chromaticAberrationIntensity: 0, colorCorrection: 53 },
 } as const;
 
@@ -71,7 +73,20 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
         setChromaticAberrationIntensity: onChromaticAberrationIntensityChange,
         colorCorrection,
         setColorCorrection: onColorCorrectionChange,
+        fixedSimulationMode,
+        setFixedSimulationMode: onFixedSimulationModeChange,
+        displayRefreshRateHz,
+        fixedSimulationEnabled,
     } = useSettings();
+
+    const settingCardStyle: React.CSSProperties = {
+        marginBottom: '25px',
+        padding: '14px 16px',
+        borderRadius: '10px',
+        border: '1px solid rgba(0, 0, 0, 0.45)',
+        background: 'rgba(0, 0, 0, 0.42)',
+        boxShadow: 'inset 0 0 10px rgba(0, 0, 0, 0.35)',
+    };
 
     const setShadowsEnabled = (enabled: boolean) => {
         onAllShadowsChange(enabled);
@@ -96,6 +111,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
         onWaterSurfaceEffectsIntensityChange(DEFAULT_VISUAL_SETTINGS.waterSurfaceEffectsIntensity);
         onWorldParticlesQualityChange(DEFAULT_VISUAL_SETTINGS.worldParticlesQuality);
         onFootprintsEnabledChange(DEFAULT_VISUAL_SETTINGS.footprintsEnabled);
+        onFixedSimulationModeChange('off');
         applyPostProcessingPreset('off');
     };
 
@@ -119,13 +135,8 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
         }
     };
 
-    const slidersEngaged = bloomIntensity > 0 || vignetteIntensity > 0 || chromaticAberrationIntensity > 0 || colorCorrection !== 50;
-    const backdropStyle = slidersEngaged
-        ? { background: 'rgba(0, 0, 0, 0.08)', backdropFilter: 'blur(0.5px)' as const }
-        : { background: 'rgba(0, 0, 0, 0.22)', backdropFilter: 'blur(1.5px)' as const };
-    const panelBg = slidersEngaged
-        ? 'linear-gradient(145deg, rgba(15, 30, 50, 0.55), rgba(10, 20, 40, 0.62))'
-        : 'linear-gradient(145deg, rgba(15, 30, 50, 0.95), rgba(10, 20, 40, 0.98))';
+    const backdropStyle = { background: 'rgba(0, 0, 0, 0.08)', backdropFilter: 'blur(0.5px)' as const };
+    const panelBg = 'linear-gradient(145deg, rgba(15, 30, 50, 0.55), rgba(10, 20, 40, 0.62))';
 
     return (
         <>
@@ -189,13 +200,14 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                         style={{
                             fontFamily: '"Press Start 2P", cursive',
                             fontSize: '12px',
-                            color: '#6699cc',
+                            color: '#00ff88',
                             textAlign: 'left',
                             letterSpacing: '1px',
-                            opacity: 0.8,
+                            opacity: 0.9,
+                            textShadow: '0 0 8px rgba(0, 255, 136, 0.6)',
                         }}
                     >
-                        Neural Imaging Processing Interface v0.53
+                        Neural Imaging Processing Interface v0.82
                     </div>
                 </div>
 
@@ -258,7 +270,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                     </div>
 
                     {/* Tree Shadows Setting */}
-                    <div style={{ marginBottom: '25px' }}>
+                    <div style={settingCardStyle}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
                             fontSize: '16px',
@@ -326,7 +338,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                     </div>
 
                     {/* Weather Precipitation Setting */}
-                    <div style={{ marginBottom: '25px' }}>
+                    <div style={settingCardStyle}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
                             fontSize: '16px',
@@ -394,7 +406,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                     </div>
 
                     {/* Storm Atmosphere Setting */}
-                    <div style={{ marginBottom: '25px' }}>
+                    <div style={settingCardStyle}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
                             fontSize: '16px',
@@ -515,7 +527,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                     )}
 
                     {/* Status Overlays Setting (Cold/Low Health) */}
-                    <div style={{ marginBottom: '25px' }}>
+                    <div style={settingCardStyle}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
                             fontSize: '16px',
@@ -583,7 +595,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                     </div>
 
                     {/* Always Show Player Names Setting */}
-                    <div style={{ marginBottom: '25px' }}>
+                    <div style={settingCardStyle}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
                             fontSize: '16px',
@@ -664,7 +676,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                     </div>
 
                     {/* Clouds Setting */}
-                    <div style={{ marginBottom: '25px' }}>
+                    <div style={settingCardStyle}>
                         <div style={{ fontFamily: '"Press Start 2P", cursive', fontSize: '16px', color: '#a8d9ff', marginBottom: '12px', textShadow: '0 0 8px #a8d9ff', letterSpacing: '1px' }}>
                             CLOUDS: {cloudsEnabled ? 'ENABLED' : 'DISABLED'}
                         </div>
@@ -678,7 +690,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                     </div>
 
                     {/* Water Surface Effects */}
-                    <div style={{ marginBottom: '25px' }}>
+                    <div style={settingCardStyle}>
                         <div style={{ fontFamily: '"Press Start 2P", cursive', fontSize: '16px', color: '#55d6ff', marginBottom: '12px', textShadow: '0 0 8px #55d6ff', letterSpacing: '1px' }}>
                             WATER SURFACE FX: {waterSurfaceEffectsEnabled ? 'ENABLED' : 'DISABLED'}
                         </div>
@@ -733,7 +745,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                     </div>
 
                     {/* Footprints */}
-                    <div style={{ marginBottom: '25px' }}>
+                    <div style={settingCardStyle}>
                         <div style={{ fontFamily: '"Press Start 2P", cursive', fontSize: '16px', color: '#9ce7a5', marginBottom: '12px', textShadow: '0 0 8px #9ce7a5', letterSpacing: '1px' }}>
                             FOOTPRINTS: {footprintsEnabled ? 'ENABLED' : 'DISABLED'}
                         </div>
@@ -744,6 +756,42 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                             <input type="checkbox" checked={footprintsEnabled} onChange={(e) => onFootprintsEnabledChange(e.target.checked)} style={{ marginRight: '10px', transform: 'scale(1.5)', accentColor: '#9ce7a5' }} />
                             ENABLE FOOTPRINTS
                         </label>
+                    </div>
+
+                    {/* Fixed Simulation - Performance / High-refresh tuning */}
+                    <div style={settingCardStyle}>
+                        <div style={{ fontFamily: '"Press Start 2P", cursive', fontSize: '16px', color: '#b8a0ff', marginBottom: '12px', textShadow: '0 0 8px #b8a0ff', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <FontAwesomeIcon icon={faGears} style={{ color: '#b8a0ff', textShadow: '0 0 8px #b8a0ff', fontSize: '14px' }} />
+                            FIXED SIMULATION (30 Hz): {fixedSimulationMode.toUpperCase()}
+                        </div>
+                        <div style={{ fontFamily: '"Press Start 2P", cursive', fontSize: '12px', color: '#d4c8ff', marginBottom: '8px', opacity: 0.75, letterSpacing: '0.5px', textAlign: 'left' }}>
+                            {fixedSimulationMode === 'auto'
+                                ? `Auto detected ${displayRefreshRateHz} Hz and is currently ${fixedSimulationEnabled ? 'using fixed 30 Hz simulation' : 'using variable timestep'}.`
+                                : fixedSimulationMode === 'on'
+                                    ? 'Forced fixed simulation at 30 Hz. Can feel smoother on high-refresh displays.'
+                                    : 'Forced variable timestep. Usually smoother/more responsive on 60 Hz displays.'}
+                        </div>
+                        <div style={{ fontFamily: '"Press Start 2P", cursive', fontSize: '11px', color: '#c7b7ff', marginBottom: '8px', opacity: 0.8, letterSpacing: '0.4px', textAlign: 'left' }}>
+                            Hint: if you use 120/144/165 Hz and notice micro-jitter, try AUTO or ON.
+                        </div>
+                        <select
+                            value={fixedSimulationMode}
+                            onChange={(e) => onFixedSimulationModeChange(e.target.value as FixedSimulationMode)}
+                            style={{
+                                width: '100%',
+                                background: 'rgba(22, 16, 38, 0.92)',
+                                color: '#d4c8ff',
+                                border: '1px solid rgba(184, 160, 255, 0.7)',
+                                borderRadius: '6px',
+                                padding: '10px',
+                                fontFamily: '"Press Start 2P", cursive',
+                                fontSize: '11px',
+                            }}
+                        >
+                            <option value="off">OFF (VARIABLE TIMESTEP)</option>
+                            <option value="auto">AUTO (USE DISPLAY REFRESH)</option>
+                            <option value="on">ON (FORCE FIXED 30 HZ)</option>
+                        </select>
                     </div>
 
                     <div style={{
@@ -760,7 +808,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                     </div>
 
                     {/* Bloom Filter Slider */}
-                    <div style={{ marginBottom: '25px' }}>
+                    <div style={settingCardStyle}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
                             fontSize: '16px',
@@ -798,7 +846,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                     </div>
 
                     {/* Vignette Slider */}
-                    <div style={{ marginBottom: '25px' }}>
+                    <div style={settingCardStyle}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
                             fontSize: '16px',
@@ -836,7 +884,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                     </div>
 
                     {/* Chromatic Aberration Slider */}
-                    <div style={{ marginBottom: '25px' }}>
+                    <div style={settingCardStyle}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
                             fontSize: '16px',
@@ -874,7 +922,7 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                     </div>
 
                     {/* Saturation Slider */}
-                    <div style={{ marginBottom: '25px' }}>
+                    <div style={settingCardStyle}>
                         <div style={{
                             fontFamily: '"Press Start 2P", cursive',
                             fontSize: '16px',
@@ -997,26 +1045,26 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                                 COZY
                             </button>
                             <button
-                                onClick={() => applyPostProcessingPreset('hdr')}
+                                onClick={() => applyPostProcessingPreset('vibrant')}
                                 className={styles.menuButton}
                                 style={{
                                     flex: '1 1 170px',
                                     minWidth: '150px',
-                                    background: 'linear-gradient(135deg, rgba(70, 60, 20, 0.88), rgba(55, 45, 10, 0.96))',
+                                    background: 'linear-gradient(135deg, rgba(72, 22, 78, 0.88), rgba(56, 14, 62, 0.96))',
                                     color: '#ffffff',
-                                    border: '2px solid #ffd966',
+                                    border: '2px solid #ff82e6',
                                     borderRadius: '8px',
                                     padding: '12px 14px',
                                     fontFamily: '"Press Start 2P", cursive',
                                     fontSize: '13px',
                                     cursor: 'pointer',
                                     transition: 'all 0.3s ease',
-                                    boxShadow: '0 0 15px rgba(255, 217, 102, 0.35), inset 0 0 10px rgba(255, 217, 102, 0.12)',
-                                    textShadow: '0 0 5px rgba(255, 217, 102, 0.85)',
+                                    boxShadow: '0 0 15px rgba(255, 130, 230, 0.35), inset 0 0 10px rgba(255, 130, 230, 0.12)',
+                                    textShadow: '0 0 5px rgba(255, 130, 230, 0.85)',
                                     letterSpacing: '1px',
                                 }}
                             >
-                                HDR
+                                VIBRANT
                             </button>
                             <button
                                 onClick={() => applyPostProcessingPreset('cinematic')}
@@ -1061,6 +1109,28 @@ const GameVisualSettingsMenu: React.FC<GameVisualSettingsMenuProps> = ({
                                 }}
                             >
                                 CLEAN
+                            </button>
+                            <button
+                                onClick={() => applyPostProcessingPreset('desaturated')}
+                                className={styles.menuButton}
+                                style={{
+                                    flex: '1 1 170px',
+                                    minWidth: '150px',
+                                    background: 'linear-gradient(135deg, rgba(45, 40, 35, 0.88), rgba(30, 25, 20, 0.96))',
+                                    color: '#ffffff',
+                                    border: '2px solid #8a8a8a',
+                                    borderRadius: '8px',
+                                    padding: '12px 14px',
+                                    fontFamily: '"Press Start 2P", cursive',
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    boxShadow: '0 0 15px rgba(120, 115, 110, 0.35), inset 0 0 10px rgba(120, 115, 110, 0.12)',
+                                    textShadow: '0 0 5px rgba(140, 135, 130, 0.85)',
+                                    letterSpacing: '1px',
+                                }}
+                            >
+                                DESATURATED
                             </button>
                         </div>
                     </div>

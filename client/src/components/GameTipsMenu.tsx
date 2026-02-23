@@ -110,7 +110,7 @@ const GameTipsMenu: React.FC<GameTipsMenuProps> = ({ onBack, onClose }) => {
                         marginBottom: '20px',
                     }}
                 >
-                    Neural Survival Protocol Database v0.53
+                    Neural Survival Protocol Database v0.82
                 </div>
 
                 {/* Table of Contents */}

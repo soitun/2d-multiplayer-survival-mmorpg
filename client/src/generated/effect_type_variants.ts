@@ -69,4 +69,5 @@ export type Stun = { tag: "Stun" };
 export type LagunovGhost = { tag: "LagunovGhost" };
 export type MemoryBeaconSanity = { tag: "MemoryBeaconSanity" };
 export type HotCombatLadle = { tag: "HotCombatLadle" };
+export type ChewingGum = { tag: "ChewingGum" };
 

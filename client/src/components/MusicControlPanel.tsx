@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useMusicSystem, MUSIC_ZONE_INFO, MusicZone } from '../hooks/useMusicSystem';
+import { useMusicSystem, MusicZone } from '../hooks/useMusicSystem';
 import { useSettings } from '../contexts/SettingsContext';
 
-// Style constants matching DayNightCycleTracker
-const UI_BG_COLOR = 'linear-gradient(135deg, rgba(30, 15, 50, 0.9), rgba(20, 10, 40, 0.95))';
-const UI_BORDER_COLOR = '#00aaff';
-const UI_SHADOW = '0 0 20px rgba(0, 170, 255, 0.4), inset 0 0 10px rgba(0, 170, 255, 0.1)';
-const UI_FONT_FAMILY = '"Press Start 2P", cursive';
+// Style constants - match DayNightCycleTracker uplink theme exactly
+const UI_BG_COLOR = 'linear-gradient(180deg, rgba(15, 25, 20, 0.98) 0%, rgba(20, 35, 30, 0.95) 100%)';
+const UI_BORDER_GRADIENT = 'linear-gradient(135deg, #00d4ff, #4ade80, #c084fc, #00d4ff)';
+const ACCENT_CYAN = '#00d4ff';
+const ACCENT_GREEN = '#4ade80';
+const ACCENT_PURPLE = '#c084fc';
+const UI_FONT_FAMILY = "'Courier New', 'Consolas', monospace";
 
 // Zone-specific colors for visual feedback
 const ZONE_COLORS: Record<MusicZone, { primary: string; secondary: string; glow: string }> = {
@@ -24,6 +26,7 @@ interface MusicControlPanelProps {
     musicSystem: ReturnType<typeof useMusicSystem>;
     isVisible: boolean;
     onClose?: () => void;
+    isDayNightMinimized?: boolean;
 }
 
 // Custom Tooltip Component
@@ -65,16 +68,15 @@ const CustomTooltip: React.FC<TooltipProps> = ({ text, children }) => {
                         left: `${position.x}px`,
                         top: `${position.y}px`,
                         transform: 'translateX(-50%) translateY(-100%)',
-                        background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(20, 10, 40, 0.95))',
-                        color: '#00ffff',
-                        padding: '8px 12px',
+                        background: UI_BG_COLOR,
+                        color: ACCENT_CYAN,
+                        padding: '6px 10px',
                         borderRadius: '6px',
-                        fontSize: '11px',
+                        fontSize: '9px',
                         fontFamily: UI_FONT_FAMILY,
-                        border: '1px solid #00aaff',
-                        boxShadow: '0 0 15px rgba(0, 170, 255, 0.6)',
+                        border: `2px solid ${ACCENT_CYAN}`,
+                        boxShadow: '0 0 15px rgba(0, 212, 255, 0.5)',
                         zIndex: 10000,
-                        textShadow: '0 0 4px rgba(0, 255, 255, 0.8)',
                         whiteSpace: 'nowrap',
                         pointerEvents: 'none'
                     }}
@@ -90,7 +92,7 @@ const CustomTooltip: React.FC<TooltipProps> = ({ text, children }) => {
                             height: 0,
                             borderLeft: '6px solid transparent',
                             borderRight: '6px solid transparent',
-                            borderTop: '6px solid #00aaff',
+                            borderTop: `6px solid ${ACCENT_CYAN}`,
                         }}
                     />
                 </div>
@@ -102,7 +104,8 @@ const CustomTooltip: React.FC<TooltipProps> = ({ text, children }) => {
 const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
     musicSystem,
     isVisible,
-    onClose
+    onClose,
+    isDayNightMinimized = false,
 }) => {
     const { musicVolume, setMusicVolume: onMusicVolumeChange } = useSettings();
     // Optimistic UI state - show selected track immediately on click
@@ -283,341 +286,237 @@ const MusicControlPanel: React.FC<MusicControlPanelProps> = ({
         // Let the default scrolling behavior work within the panel
     };
 
-    // Calculate position below DayNightCycleTracker
-    // DayNightCycleTracker: top: 15px, width: 240px, height: ~120-140px when expanded, ~40px when minimized
-    const topPosition = '170px'; // Position well below the expanded tracker
+    // Position directly beneath DayNightCycleTracker: same right: 15px, top varies by tracker state
+    const topPosition = isDayNightMinimized ? '63px' : '293px'; // minimized ~40px + gap | expanded ~270px + gap
 
-    // Full view
     return (
-        <div 
+        <div
             ref={panelRef}
             onWheel={handlePanelWheel}
             style={{
                 position: 'fixed',
                 top: topPosition,
                 right: '15px',
-                background: UI_BG_COLOR,
-                color: '#00ffff',
-                padding: '18px 22px', // Increased padding
-                borderRadius: '8px',
-                border: `2px solid ${UI_BORDER_COLOR}`,
-                fontFamily: UI_FONT_FAMILY,
-                boxShadow: UI_SHADOW,
-                zIndex: 9999, // Above all other UI elements
-                width: '340px', // Increased width
-                fontSize: '14px', // Increased base font size
-                textShadow: '0 0 6px rgba(0, 255, 255, 0.6)',
+                zIndex: 49, // Just below DayNightCycleTracker (50)
             }}
         >
-            {/* Header */}
-            <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                marginBottom: '16px', // Increased margin
-                fontSize: '16px' // Increased header font
+            {/* Gradient border container - matches DayNightCycleTracker uplink style */}
+            <div className="music-panel-glow" style={{
+                padding: '2px',
+                backgroundImage: UI_BORDER_GRADIENT,
+                backgroundSize: '300% 300%',
+                animation: 'uplinkGradientShift 4s ease infinite',
+                borderRadius: '10px',
+                boxShadow: '0 0 20px rgba(0, 212, 255, 0.3), inset 0 0 15px rgba(0, 212, 255, 0.1)',
             }}>
-                <span style={{ color: zoneColors.primary, textShadow: `0 0 8px ${zoneColors.glow}` }}>
-                    🎵 NEURAL HARMONY
-                </span>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <CustomTooltip text="Close Panel">
-                        <button
-                            onClick={() => onClose?.()}
-                            style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: '#ff6b6b',
-                                cursor: 'pointer',
-                                fontSize: '12px',
-                                opacity: 0.8,
-                            }}
-                        >
-                            ✕
-                        </button>
-                    </CustomTooltip>
-                </div>
-            </div>
-
-            {/* Zone Indicator - only show when in special zone */}
-            {currentZone !== 'normal' && zoneInfo && (
                 <div style={{
-                    marginBottom: '12px',
-                    padding: '8px 12px',
-                    background: `linear-gradient(135deg, ${zoneColors.primary}20, ${zoneColors.secondary}10)`,
-                    border: `1px solid ${zoneColors.primary}60`,
-                    borderRadius: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    fontSize: '11px',
-                }}>
-                    <span style={{ fontSize: '14px' }}>{zoneInfo.icon}</span>
-                    <span style={{ 
-                        color: zoneColors.primary, 
-                        textShadow: `0 0 4px ${zoneColors.glow}`,
-                        fontWeight: 'bold'
-                    }}>
-                        {zoneInfo.name.toUpperCase()} ZONE
-                    </span>
-                </div>
-            )}
-
-            {/* Current Track Info */}
-            <div style={{ marginBottom: '16px' }}>
-                <div style={{ 
-                    fontSize: '13px', // Increased from 11px
-                    opacity: 0.9,
-                    marginBottom: '8px', // Increased margin
+                    background: UI_BG_COLOR,
+                    borderRadius: '8px',
+                    minWidth: '250px',
                     overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
+                    fontFamily: UI_FONT_FAMILY,
                 }}>
-                    {totalTracks === 0 ? '— SILENCE —' : (getDisplayTrackInfo()?.displayName || 'No track selected')}
-                </div>
-                <div style={{ 
-                    fontSize: '12px', // Increased from 10px
-                    opacity: 0.6,
-                    color: zoneColors.secondary
-                }}>
-                    {totalTracks === 0 ? 'No music in this zone' : `Track ${currentPosition} of ${totalTracks} ${shuffleMode ? '(Shuffled)' : '(Sequential)'}`}
-                </div>
-            </div>
-
-            {/* Control Buttons */}
-            <div style={{ 
-                display: 'flex', 
-                justifyContent: 'center', 
-                gap: '18px', // Increased gap
-                marginBottom: '16px',
-                alignItems: 'center'
-            }}>
-                <CustomTooltip text={shuffleMode ? 'Shuffle ON - Click to go Sequential' : 'Sequential - Click to Shuffle'}>
-                    <button
-                        onClick={handleShuffleToggle}
-                        style={{
-                            background: shuffleMode ? 'rgba(255, 107, 157, 0.5)' : 'rgba(255, 107, 157, 0.2)',
-                            border: `2px solid ${shuffleMode ? '#ff6b9d' : '#ff6b9d66'}`,
-                            color: shuffleMode ? '#ff6b9d' : '#ff6b9d99',
-                            borderRadius: '6px', // Increased border radius
-                            padding: '8px 10px', // Increased padding
-                            cursor: 'pointer',
-                            fontSize: '12px', // Increased
-                            fontFamily: UI_FONT_FAMILY,
-                            transition: 'all 0.2s ease',
-                        }}
-                    >
-                        🔀
-                    </button>
-                </CustomTooltip>
-                <CustomTooltip text="Previous Track">
-                    <button
-                        onClick={handlePreviousTrack}
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#00ffff',
-                            cursor: 'pointer',
-                            fontSize: '18px', // Increased
-                        }}
-                    >
-                        ⏮️
-                    </button>
-                </CustomTooltip>
-                <CustomTooltip text={isPlaying ? 'Pause Music' : 'Play Music'}>
-                    <button
-                        onClick={togglePlayPause}
-                        style={{
-                            background: isPlaying ? 'rgba(255, 107, 157, 0.3)' : 'rgba(78, 205, 196, 0.3)',
-                            border: `2px solid ${isPlaying ? '#ff6b9d' : '#4ecdc4'}`,
-                            color: isPlaying ? '#ff6b9d' : '#4ecdc4',
-                            borderRadius: '50%',
-                            width: '44px', // Increased size
-                            height: '44px',
-                            cursor: 'pointer',
-                            fontSize: '18px', // Increased
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                    >
-                        {isPlaying ? '⏸️' : '▶️'}
-                    </button>
-                </CustomTooltip>
-                <CustomTooltip text="Next Track">
-                    <button
-                        onClick={handleNextTrack}
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#00ffff',
-                            cursor: 'pointer',
-                            fontSize: '18px', // Increased
-                        }}
-                    >
-                        ⏭️
-                    </button>
-                </CustomTooltip>
-            </div>
-
-            {/* Volume Control */}
-            <div style={{ marginBottom: '16px' }}>
-                <div style={{ 
-                    fontSize: '12px', // Increased from 10px
-                    marginBottom: '8px', // Increased margin
-                    color: '#4ecdc4'
-                }}>
-                    Volume: {Math.round(musicVolume * 100)}%
-                </div>
-                <CustomTooltip text={`Music Volume: ${Math.round(musicVolume * 100)}%`}>
-                    <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                        value={musicVolume}
-                        onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                        style={{
-                            width: '100%',
-                            height: '8px', // Increased height
-                            background: 'rgba(0, 170, 255, 0.3)',
-                            outline: 'none',
-                            borderRadius: '4px', // Increased border radius
-                            cursor: 'pointer',
-                        }}
-                    />
-                </CustomTooltip>
-            </div>
-
-            {/* Playlist with custom scrollbar */}
-            <div 
-                style={{ 
-                    maxHeight: '160px', // Increased height
-                    overflowY: 'auto',
-                    border: '1px solid rgba(0, 170, 255, 0.3)',
-                    borderRadius: '6px', // Increased border radius
-                    padding: '10px', // Increased padding
-                    background: 'rgba(0, 0, 0, 0.3)'
-                }}
-                className="music-panel-scrollable"
-            >
-                <div style={{ 
-                    fontSize: '12px', // Increased from 10px
-                    marginBottom: '10px', // Increased margin
-                    color: currentZone !== 'normal' ? zoneColors.secondary : '#90ee90',
-                    textAlign: 'center'
-                }}>
-                    {currentZone !== 'normal' && zoneInfo 
-                        ? `${zoneInfo.icon} ${zoneInfo.name.toUpperCase()} TRACKS`
-                        : 'TRACKLIST'
-                    }
-                </div>
-                {totalTracks === 0 ? (
-                    <div style={{ 
-                        fontSize: '11px', 
-                        opacity: 0.6, 
-                        color: zoneColors.secondary,
-                        textAlign: 'center',
-                        fontStyle: 'italic',
-                        padding: '12px 0'
+                    {/* Header - compact like DayNightCycleTracker */}
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '8px 12px',
+                        background: 'rgba(0, 212, 255, 0.08)',
+                        borderBottom: '1px solid rgba(0, 212, 255, 0.25)',
                     }}>
-                        — ambient only —
-                    </div>
-                ) : MUSIC_TRACKS.map((track, trackIndex) => {
-                    const displaySelectedTrack = getDisplaySelectedTrack();
-                    const isCurrentTrack = displaySelectedTrack === track.filename;
-                    
-                    return (
-                        <div
-                            key={`${track.filename}-${trackIndex}`}
-                            onClick={() => handleTrackClick(trackIndex)}
-                            style={{
-                                fontSize: '11px', // Increased from 9px
-                                padding: '6px 8px', // Increased padding
-                                marginBottom: '4px', // Increased margin
-                                cursor: 'pointer',
-                                borderRadius: '4px', // Increased border radius
-                                background: isCurrentTrack ? 'rgba(255, 107, 157, 0.3)' : 'transparent',
-                                color: isCurrentTrack ? '#ff6b9d' : '#00ffff',
-                                border: isCurrentTrack ? '1px solid #ff6b9d' : '1px solid transparent',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                transition: 'all 0.2s ease',
-                                lineHeight: '1.4', // Better line spacing
-                            }}
-                            onMouseEnter={(e) => {
-                                if (!isCurrentTrack) {
-                                    e.currentTarget.style.background = 'rgba(78, 205, 196, 0.2)';
-                                    e.currentTarget.style.color = '#4ecdc4';
-                                }
-                            }}
-                            onMouseLeave={(e) => {
-                                if (!isCurrentTrack) {
-                                    e.currentTarget.style.background = 'transparent';
-                                    e.currentTarget.style.color = '#00ffff';
-                                }
-                            }}
-                        >
-                            {isCurrentTrack ? '▶ ' : `${trackIndex + 1}. `}
-                            {track.displayName}
-                            {optimisticSelectedTrack === track.filename && !currentTrack && (
-                                <span style={{ 
-                                    marginLeft: '4px', 
-                                    fontSize: '9px', 
-                                    opacity: 0.7,
-                                    color: '#90ee90'
-                                }}>
-                                    Loading...
-                                </span>
-                            )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '12px' }}>🎵</span>
+                            <span style={{ fontSize: '8px', color: ACCENT_CYAN, letterSpacing: '1px' }}>// NEURAL HARMONY</span>
                         </div>
-                    );
-                })}
+                        <CustomTooltip text="Close">
+                            <button
+                                onClick={() => onClose?.()}
+                                style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: 'rgba(255, 100, 100, 0.9)',
+                                    cursor: 'pointer',
+                                    fontSize: '9px',
+                                    padding: '2px 4px',
+                                }}
+                            >
+                                ✕
+                            </button>
+                        </CustomTooltip>
+                    </div>
+
+                    {/* Content - compact */}
+                    <div style={{ padding: '10px 12px' }}>
+                        {/* Zone + Track row */}
+                        <div style={{ marginBottom: '8px' }}>
+                            {currentZone !== 'normal' && zoneInfo && (
+                                <div style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: '2px 6px',
+                                    marginBottom: '4px',
+                                    background: `${zoneColors.primary}20`,
+                                    border: `1px solid ${zoneColors.primary}40`,
+                                    borderRadius: '4px',
+                                    fontSize: '8px',
+                                    color: zoneColors.primary,
+                                }}>
+                                    <span>{zoneInfo.icon}</span>
+                                    <span>{zoneInfo.name.toUpperCase()}</span>
+                                </div>
+                            )}
+                            <div style={{ fontSize: '9px', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {totalTracks === 0 ? '— SILENCE —' : (getDisplayTrackInfo()?.displayName || 'No track')}
+                            </div>
+                            <div style={{ fontSize: '8px', color: '#9ca3af' }}>
+                                {totalTracks === 0 ? 'Ambient only' : `${currentPosition}/${totalTracks} ${shuffleMode ? '🔀' : ''}`}
+                            </div>
+                        </div>
+
+                        {/* Controls row - compact inline */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                            <CustomTooltip text={shuffleMode ? 'Shuffle ON' : 'Sequential'}>
+                                <button
+                                    onClick={handleShuffleToggle}
+                                    style={{
+                                        background: shuffleMode ? `${ACCENT_PURPLE}30` : 'transparent',
+                                        border: `1px solid ${shuffleMode ? ACCENT_PURPLE : `${ACCENT_CYAN}40`}`,
+                                        color: shuffleMode ? ACCENT_PURPLE : `${ACCENT_CYAN}80`,
+                                        borderRadius: '4px',
+                                        padding: '4px 6px',
+                                        cursor: 'pointer',
+                                        fontSize: '10px',
+                                    }}
+                                >
+                                    🔀
+                                </button>
+                            </CustomTooltip>
+                            <CustomTooltip text="Previous">
+                                <button onClick={handlePreviousTrack} style={{ background: 'none', border: 'none', color: ACCENT_CYAN, cursor: 'pointer', fontSize: '12px' }}>⏮️</button>
+                            </CustomTooltip>
+                            <CustomTooltip text={isPlaying ? 'Pause' : 'Play'}>
+                                <button
+                                    onClick={togglePlayPause}
+                                    style={{
+                                        background: isPlaying ? `${ACCENT_PURPLE}25` : `${ACCENT_GREEN}25`,
+                                        border: `1px solid ${isPlaying ? ACCENT_PURPLE : ACCENT_GREEN}`,
+                                        color: isPlaying ? ACCENT_PURPLE : ACCENT_GREEN,
+                                        borderRadius: '50%',
+                                        width: '28px',
+                                        height: '28px',
+                                        cursor: 'pointer',
+                                        fontSize: '12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                    }}
+                                >
+                                    {isPlaying ? '⏸' : '▶'}
+                                </button>
+                            </CustomTooltip>
+                            <CustomTooltip text="Next">
+                                <button onClick={handleNextTrack} style={{ background: 'none', border: 'none', color: ACCENT_CYAN, cursor: 'pointer', fontSize: '12px' }}>⏭️</button>
+                            </CustomTooltip>
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '4px' }}>
+                                <span style={{ fontSize: '8px', color: '#9ca3af', minWidth: '28px' }}>{Math.round(musicVolume * 100)}%</span>
+                                <CustomTooltip text={`Vol: ${Math.round(musicVolume * 100)}%`}>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="1"
+                                        step="0.05"
+                                        value={musicVolume}
+                                        onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                                        style={{
+                                            flex: 1,
+                                            minWidth: 0,
+                                            height: '4px',
+                                            background: 'rgba(0, 212, 255, 0.3)',
+                                            outline: 'none',
+                                            borderRadius: '2px',
+                                            cursor: 'pointer',
+                                        }}
+                                    />
+                                </CustomTooltip>
+                            </div>
+                        </div>
+
+                        {/* Playlist - compact */}
+                        <div
+                            style={{
+                                maxHeight: '90px',
+                                overflowY: 'auto',
+                                border: '1px solid rgba(0, 212, 255, 0.25)',
+                                borderRadius: '4px',
+                                padding: '6px',
+                                background: 'rgba(0, 0, 0, 0.3)',
+                            }}
+                            className="music-panel-scrollable"
+                        >
+                            {totalTracks === 0 ? (
+                                <div style={{ fontSize: '8px', color: '#6b7280', textAlign: 'center', padding: '6px 0' }}>— ambient only —</div>
+                            ) : MUSIC_TRACKS.map((track, trackIndex) => {
+                                const displaySelectedTrack = getDisplaySelectedTrack();
+                                const isCurrentTrack = displaySelectedTrack === track.filename;
+                                return (
+                                    <div
+                                        key={`${track.filename}-${trackIndex}`}
+                                        onClick={() => handleTrackClick(trackIndex)}
+                                        style={{
+                                            fontSize: '8px',
+                                            padding: '3px 6px',
+                                            marginBottom: '2px',
+                                            cursor: 'pointer',
+                                            borderRadius: '3px',
+                                            background: isCurrentTrack ? `${ACCENT_PURPLE}25` : 'transparent',
+                                            color: isCurrentTrack ? ACCENT_PURPLE : ACCENT_CYAN,
+                                            border: isCurrentTrack ? `1px solid ${ACCENT_PURPLE}60` : '1px solid transparent',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            if (!isCurrentTrack) {
+                                                e.currentTarget.style.background = 'rgba(0, 212, 255, 0.15)';
+                                            }
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            if (!isCurrentTrack) {
+                                                e.currentTarget.style.background = 'transparent';
+                                            }
+                                        }}
+                                    >
+                                        {isCurrentTrack ? '▶ ' : `${trackIndex + 1}. `}
+                                        {track.displayName}
+                                        {optimisticSelectedTrack === track.filename && !currentTrack && (
+                                            <span style={{ marginLeft: '4px', fontSize: '7px', color: ACCENT_GREEN }}>...</span>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {error && (
+                            <div style={{ marginTop: '6px', fontSize: '8px', color: '#f43f5e', textAlign: 'center' }}>
+                                {error}
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
-            {/* Status */}
-            {error && (
-                <div style={{ 
-                    marginTop: '12px', // Increased margin
-                    fontSize: '11px', // Increased from 9px
-                    color: '#ff4444',
-                    textAlign: 'center',
-                    padding: '8px', // Added padding
-                    background: 'rgba(255, 68, 68, 0.1)',
-                    borderRadius: '4px',
-                    border: '1px solid rgba(255, 68, 68, 0.3)'
-                }}>
-                    Error: {error}
-                </div>
-            )}
-
-            {/* Custom scrollbar styles */}
             <style>{`
-                .music-panel-scrollable::-webkit-scrollbar {
-                    width: 8px;
+                @keyframes uplinkGradientShift {
+                    0% { background-position: 0% 50%; }
+                    50% { background-position: 100% 50%; }
+                    100% { background-position: 0% 50%; }
                 }
-                
-                .music-panel-scrollable::-webkit-scrollbar-track {
-                    background: rgba(0, 0, 0, 0.3);
-                    border-radius: 4px;
-                }
-                
-                .music-panel-scrollable::-webkit-scrollbar-thumb {
-                    background: linear-gradient(180deg, #00aaff, #4ecdc4);
-                    border-radius: 4px;
-                    border: 1px solid rgba(0, 170, 255, 0.3);
-                }
-                
-                .music-panel-scrollable::-webkit-scrollbar-thumb:hover {
-                    background: linear-gradient(180deg, #00ccff, #5eeedd);
-                }
-                
-                /* Firefox scrollbar */
-                .music-panel-scrollable {
-                    scrollbar-width: thin;
-                    scrollbar-color: #00aaff rgba(0, 0, 0, 0.3);
-                }
+                .music-panel-scrollable::-webkit-scrollbar { width: 6px; }
+                .music-panel-scrollable::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); border-radius: 3px; }
+                .music-panel-scrollable::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #00d4ff, #4ade80); border-radius: 3px; }
+                .music-panel-scrollable { scrollbar-width: thin; scrollbar-color: #00d4ff rgba(0,0,0,0.3); }
             `}</style>
         </div>
     );

@@ -134,6 +134,7 @@ pub enum SoundType {
     ExtractQueenBee,         // extract_queen_bee.mp3 (1 variation - for extracting queen bee from honeycomb)
     UnravelRope,             // unravel_rope.mp3 (1 variation - for unraveling rope into plant fiber)
     DroneFlying,             // plane_flying.mp3 (3 variations - eerie drone flyover across the island)
+    ChewingGum,             // chewing_gum.mp3 (1 variation - continuous looping sound when player chews gum)
     // Add more as needed - extensible system
 }
 
@@ -267,6 +268,7 @@ impl SoundType {
             SoundType::ExtractQueenBee => "extract_queen_bee",
             SoundType::UnravelRope => "unravel_rope",
             SoundType::DroneFlying => "plane_flying",
+            SoundType::ChewingGum => "chewing_gum",
         }
     }
 
@@ -399,6 +401,7 @@ impl SoundType {
             SoundType::ExtractQueenBee => 1, // extract_queen_bee.mp3 (single variation)
             SoundType::UnravelRope => 1, // unravel_rope.mp3 (single variation)
             SoundType::DroneFlying => 3, // plane_flying.mp3, plane_flying1.mp3, plane_flying2.mp3 (3 variations)
+            SoundType::ChewingGum => 1, // chewing_gum.mp3 (single variation - continuous looping)
         }
     }
 
@@ -1388,6 +1391,7 @@ fn create_unique_object_id(object_type: &str, object_id: u64) -> u64 {
         "barbecue" => 4_000_000_000_u64, // Barbecues start at 4 billion
         "beehive" => 5_000_000_000_u64,  // Beehives start at 5 billion
         "explosive" => 6_000_000_000_u64, // Explosives start at 6 billion
+        "chewing_gum" => 8_000_000_000_u64, // Chewing gum effects start at 8 billion (effect_id as object_id)
         _ => 0_u64, // Default for unknown types
     };
     type_hash + object_id
@@ -1621,6 +1625,36 @@ pub fn stop_explosive_fuse_sound(ctx: &ReducerContext, explosive_id: u64) {
     log::info!("💣 STOPPING EXPLOSIVE FUSE SOUND for explosive {} (unique_id: {})", explosive_id, unique_id);
     if let Err(e) = remove_continuous_sound(ctx, unique_id) {
         log::error!("Failed to stop explosive fuse sound: {}", e);
+    }
+}
+
+/// Volume and max distance for chewing gum sound (audible to nearby players)
+const CHEWING_GUM_VOLUME: f32 = 1.0;
+const CHEWING_GUM_MAX_DISTANCE: f32 = 400.0;
+
+/// Start chewing gum looping sound (continuous from player position)
+pub fn start_chewing_gum_sound(ctx: &ReducerContext, effect_id: u64, pos_x: f32, pos_y: f32) {
+    let unique_id = create_unique_object_id("chewing_gum", effect_id);
+    log::info!("🫧 STARTING CHEWING GUM SOUND for effect {} (unique_id: {}) at ({:.1}, {:.1})", effect_id, unique_id, pos_x, pos_y);
+    if let Err(e) = start_continuous_sound(ctx, unique_id, SoundType::ChewingGum, pos_x, pos_y, CHEWING_GUM_VOLUME, CHEWING_GUM_MAX_DISTANCE) {
+        log::error!("Failed to start chewing gum sound: {}", e);
+    }
+}
+
+/// Stop chewing gum looping sound
+pub fn stop_chewing_gum_sound(ctx: &ReducerContext, effect_id: u64) {
+    let unique_id = create_unique_object_id("chewing_gum", effect_id);
+    log::info!("🫧 STOPPING CHEWING GUM SOUND for effect {} (unique_id: {})", effect_id, unique_id);
+    if let Err(e) = stop_continuous_sound(ctx, unique_id) {
+        log::error!("Failed to stop chewing gum sound: {}", e);
+    }
+}
+
+/// Update chewing gum sound position (call each tick while effect is active)
+pub fn update_chewing_gum_sound_position(ctx: &ReducerContext, effect_id: u64, pos_x: f32, pos_y: f32) {
+    let unique_id = create_unique_object_id("chewing_gum", effect_id);
+    if let Err(e) = update_continuous_sound_position(ctx, unique_id, pos_x, pos_y) {
+        log::error!("Failed to update chewing gum sound position: {}", e);
     }
 }
 

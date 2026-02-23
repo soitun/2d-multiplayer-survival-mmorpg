@@ -20,7 +20,7 @@ export const controlSections: ControlSection[] = [
         title: 'Movement',
         controls: [
             { key: 'W/A/S/D', description: 'Move player' },
-            { key: 'Left Shift', description: 'Sprint (hold)' },
+            { key: 'Left Shift', description: 'Sprint (click)' },
             { key: 'Space', description: 'Jump (standing still) / Dodge roll (with movement)' },
             { key: 'C', description: 'Crouch' },
         ]
@@ -35,6 +35,8 @@ export const controlSections: ControlSection[] = [
             { key: 'E (Hold)', description: 'Revive knocked out players' },
             { key: 'E (Hold)', description: 'Drink water from bodies of water' },
             { key: 'F', description: 'Fill equipped water container from water sources' },
+            { key: 'F', description: 'Toggle flashlight/headlamp' },
+            { key: 'F', description: 'Dive underwater (with diving helm equipped)' },
         ]
     },
     {
@@ -43,7 +45,6 @@ export const controlSections: ControlSection[] = [
             { key: 'Tab', description: 'Toggle inventory' },
             { key: '1-6', description: 'Select hotbar slot' },
             { key: 'Mouse Wheel', description: 'Cycle through hotbar slots' },
-            { key: 'Right Click', description: 'Quick move items between containers' },
         ]
     },
     {
@@ -64,7 +65,6 @@ export const controlSections: ControlSection[] = [
             { key: 'Right Click', description: 'Set arrows / Toggle arrow types' },
             { key: 'Right Click', description: 'Throw equipped melee weapons' },
             { key: 'Z', description: 'Toggle auto attack' },
-            { key: 'Consumables', description: 'Click twice on hotbar to consume' },
         ]
     },
     {
@@ -73,7 +73,6 @@ export const controlSections: ControlSection[] = [
             { key: 'Left Click', description: 'Cast fishing line (with rod equipped, aim at water)' },
             { key: 'Right Click (Hold)', description: 'Reel in - increases line tension' },
             { key: 'Left Click (Hold)', description: 'Give slack - decreases line tension fast' },
-            { key: 'Neither Button', description: 'Passive slack - tension decreases slowly' },
         ]
     }
 ];

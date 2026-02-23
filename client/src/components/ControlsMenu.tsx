@@ -86,7 +86,7 @@ const ControlsMenu: React.FC<ControlsMenuProps> = ({ onBack, onClose }) => {
                         marginBottom: '25px',
                     }}
                 >
-                    Neural Input Mapping Protocol v0.53
+                    Neural Input Mapping Protocol v0.82
                 </div>
 
                 <div 

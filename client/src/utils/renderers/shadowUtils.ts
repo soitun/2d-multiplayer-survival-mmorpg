@@ -34,6 +34,9 @@ export function drawShadow(
   radiusY: number,
   alpha: number = 0.5 // Match dynamic ground shadow's maxShadowAlpha
 ) {
+  if (!globalShadowsEnabled) {
+    return;
+  }
   ctx.save();
   ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`; // Configurable opacity, default 0.5 to match dynamic shadow
   ctx.beginPath();
@@ -71,6 +74,14 @@ export function applyStandardDropShadow(
   ctx: CanvasRenderingContext2D,
   options: StandardDropShadowOptions = {}
 ): void {
+  if (!globalShadowsEnabled) {
+    ctx.shadowColor = 'rgba(0,0,0,0)';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    return;
+  }
+
   const cycleProgress = options.cycleProgress ?? 0.375; // Default to "noonish" if not provided
   let alphaMultiplier: number;
   let currentOffsetX: number;
@@ -261,6 +272,7 @@ const _silhouetteCtx = _silhouetteCanvas.getContext('2d');
 
 // Global shelter clipping data - set by GameCanvas and used by all shadow rendering
 let globalShelterClippingData: Array<{posX: number, posY: number, isDestroyed: boolean}> = [];
+let globalShadowsEnabled = true;
 
 /**
  * Sets the global shelter clipping data for shadow rendering.
@@ -268,6 +280,13 @@ let globalShelterClippingData: Array<{posX: number, posY: number, isDestroyed: b
  */
 export function setShelterClippingData(shelters: Array<{posX: number, posY: number, isDestroyed: boolean}>) {
   globalShelterClippingData = shelters;
+}
+
+/**
+ * Globally enables/disables all shared shadow utility rendering for the current frame.
+ */
+export function setGlobalShadowsEnabled(enabled: boolean) {
+  globalShadowsEnabled = enabled;
 }
 
 /**
@@ -294,6 +313,10 @@ export function drawDynamicGroundShadow({
   shakeOffsetY,
   isometricShadow,
 }: DynamicGroundShadowParams): void {
+  if (!globalShadowsEnabled) {
+    return;
+  }
+
   let overallAlpha: number;
   let shadowLength: number; // How far the shadow extends
   let shadowShearX: number; // Horizontal shear for shadow direction

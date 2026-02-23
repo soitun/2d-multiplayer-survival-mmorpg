@@ -215,6 +215,7 @@ interface GameScreenProps {
     // Predicted Position
     predictedPosition: { x: number; y: number } | null;
     getCurrentPositionNow: () => { x: number; y: number } | null;
+    stepPredictedMovement?: (dtMs: number) => void; // For fixed-step mode
     canvasRef: React.RefObject<HTMLCanvasElement | null>;
 
     // Placement State/Actions (from usePlacementManager)
@@ -362,11 +363,10 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     const openQuestsPanel = useCallback(() => setIsQuestsPanelOpen(true), []);
     const closeQuestsPanel = useCallback(() => setIsQuestsPanelOpen(false), []);
 
-    // Track whether DayNightCycleTracker is expanded (not minimized)
-    // Can be used by other components that need to know the panel state
-    const [, setIsDayNightExpanded] = useState(true);
-    const handleDayNightMinimizedChange = useCallback((isMinimized: boolean) => {
-        setIsDayNightExpanded(!isMinimized);
+    // Track whether DayNightCycleTracker is minimized (for MusicControlPanel positioning)
+    const [isDayNightMinimized, setIsDayNightMinimized] = useState(false);
+    const handleDayNightMinimizedChange = useCallback((minimized: boolean) => {
+        setIsDayNightMinimized(minimized);
     }, []);
 
     const [isFishing, setIsFishing] = useState(false);
@@ -405,7 +405,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         animalCorpses,
         inventoryItems, itemDefinitions, worldState, activeEquipments, recipes, craftingQueueItems,
         localPlayerId, playerIdentity, connection,
-        predictedPosition, getCurrentPositionNow, canvasRef,
+        predictedPosition, getCurrentPositionNow, stepPredictedMovement, canvasRef,
         placementInfo, placementActions, placementError, placementWarning, setPlacementWarning, startPlacement, cancelPlacement,
         interactingWith, handleSetInteractingWith,
         draggedItemInfo, onItemDragStart, onItemDrop,
@@ -1112,6 +1112,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 connection={connection}
                 predictedPosition={predictedPosition}
                 getCurrentPositionNow={getCurrentPositionNow}
+                stepPredictedMovement={stepPredictedMovement}
                 localFacingDirection={props.facingDirection}
                 placementInfo={placementInfo}
                 placementActions={placementActions}
@@ -1328,12 +1329,13 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 hasSeenAlkStationTutorial={hasSeenAlkStationTutorial}
                 hasSeenCrashedDroneTutorial={hasSeenCrashedDroneTutorial}
             />
-            {/* MusicControlPanel - Hidden on mobile */}
+            {/* MusicControlPanel - Hidden on mobile, positioned beneath DayNightCycleTracker */}
             {!props.isMobile && (
                 <MusicControlPanel
                     musicSystem={musicSystem}
                     isVisible={isMusicPanelVisible}
                     onClose={() => setIsMusicPanelVisible(false)}
+                    isDayNightMinimized={isDayNightMinimized}
                 />
             )}
             <Chat

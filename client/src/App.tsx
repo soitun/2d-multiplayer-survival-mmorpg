@@ -178,6 +178,7 @@ function AppContent() {
         soundVolume,
         environmentalVolume,
         grassEnabled,
+        fixedSimulationEnabled,
     } = useSettings();
 
     // --- Viewport State & Refs ---
@@ -482,7 +483,7 @@ function AppContent() {
 
     // Simplified predicted movement - minimal lag
     // PERFORMANCE FIX: Pass inputStateRef for immediate input reading in RAF loop (bypasses React state delay)
-    const { predictedPosition, getCurrentPositionNow, isAutoAttacking, facingDirection } = usePredictedMovement({
+    const { predictedPosition, getCurrentPositionNow, stepPredictedMovement, isAutoAttacking, facingDirection } = usePredictedMovement({
         localPlayer,
         inputState,
         inputStateRef: isMobile ? undefined : keyboardInputStateRef, // Only use ref for desktop (mobile uses tap-to-walk via prop)
@@ -494,6 +495,7 @@ function AppContent() {
         movementSpeedModifier, // Land movement speed modifier from equipped armor (e.g., Babushka's Boots of Speed)
         entities: collisionEntities,
         isOnSeaTile: isOnSeaTileForCollision,
+        fixedSimulationEnabled,
     });
 
     // --- Sound System ---
@@ -1176,6 +1178,7 @@ function AppContent() {
                             onItemDrop={handleItemDrop}
                             predictedPosition={predictedPosition}
                             getCurrentPositionNow={getCurrentPositionNow}
+                            stepPredictedMovement={stepPredictedMovement}
                             canvasRef={canvasRef}
                             isMinimapOpen={isMinimapOpen}
                             setIsMinimapOpen={setIsMinimapOpen}

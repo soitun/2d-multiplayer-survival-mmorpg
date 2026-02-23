@@ -94,8 +94,7 @@ import { useGameViewport } from '../hooks/useGameViewport';
 import { useMousePosition } from '../hooks/useMousePosition';
 import { useDayNightCycle } from '../hooks/useDayNightCycle';
 import { useInteractionFinder } from '../hooks/useInteractionFinder';
-import { useGameLoop } from '../hooks/useGameLoop';
-import type { FrameInfo } from '../hooks/useGameLoop';
+import { useGameLoop, type FrameInfo, type GameLoopMetrics } from '../hooks/useGameLoop';
 import { usePlayerHover } from '../hooks/usePlayerHover';
 import { usePlantedSeedHover } from '../hooks/usePlantedSeedHover';
 import { useTamedAnimalHover } from '../hooks/useTamedAnimalHover';
@@ -172,7 +171,7 @@ import { renderDronesDirectly, getInterpolatedDrones } from '../utils/renderers/
 import { useFallingTreeAnimations } from '../hooks/useFallingTreeAnimations';
 import { renderProjectile, cleanupProjectileTrackingForDeleted } from '../utils/renderers/projectileRenderingUtils';
 import { renderShelter } from '../utils/renderers/shelterRenderingUtils';
-import { setShelterClippingData } from '../utils/renderers/shadowUtils';
+import { setShelterClippingData, setGlobalShadowsEnabled } from '../utils/renderers/shadowUtils';
 import { renderRain } from '../utils/renderers/rainRenderingUtils';
 import { renderCombinedHealthOverlays } from '../utils/renderers/healthOverlayUtils';
 import { renderBrothEffectsOverlays } from '../utils/renderers/brothEffectsOverlayUtils';
@@ -267,6 +266,7 @@ interface GameCanvasProps {
   connection: any | null;
   predictedPosition: { x: number; y: number } | null;
   getCurrentPositionNow: () => { x: number; y: number } | null; // Exact position at action time.
+  stepPredictedMovement?: (dtMs: number) => void; // For fixed-step mode; called each sim tick
   activeEquipments: Map<string, SpacetimeDBActiveEquipment>;
   grass: Map<string, SpacetimeDBGrass>;
   grassState: Map<string, SpacetimeDBGrassState>; // Split tables: dynamic state
@@ -437,6 +437,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   connection,
   predictedPosition,
   getCurrentPositionNow,
+  stepPredictedMovement,
   activeEquipments,
   activeConnections,
   placementInfo,
@@ -554,6 +555,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     vignetteIntensity,
     chromaticAberrationIntensity,
     colorCorrection,
+    fixedSimulationEnabled,
   } = useSettings();
 
   useEffect(() => {
@@ -875,6 +877,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Use ref instead of state to avoid re-renders every frame
   const deltaTimeRef = useRef<number>(0);
+  // Fixed simulation accumulator (used when fixedSimulationEnabled)
+  const simAccumulatorRef = useRef<number>(0);
+  // Dev-only: telemetry for acceptance gates (FPS, slow-frame ratio, max frame time)
+  const gameLoopMetricsRef = useRef<GameLoopMetrics | null>(null);
 
   // Sync high-frequency values to refs (reduces renderGame dependency array churn)
   useEffect(() => { worldMousePosRef.current = worldMousePos; }, [worldMousePos]);
@@ -2112,7 +2118,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     };
   }, [localPlayer?.positionX, localPlayer?.positionY]);
 
-  const renderGame = useCallback(() => {
+  const renderGame = useCallback((renderAlpha: number = 1) => {
     const frameStartTime = performance.now();
 
     if (ENABLE_LAG_DIAGNOSTICS) {
@@ -2227,6 +2233,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     ctx.save();
     ctx.translate(currentCameraOffsetX, currentCameraOffsetY);
     const _t0 = mark(showFpsProfiler);
+    setGlobalShadowsEnabled(allShadowsEnabled);
     setShelterClippingData(shelterClippingData);
     const isSnorkeling = localPlayer?.isSnorkeling ?? false;
     renderWorldBackground(ctx, currentCameraOffsetX, currentCameraOffsetY, currentCanvasWidth, currentCanvasHeight, visibleWorldTiles, showAutotileDebug, isSnorkeling);
@@ -3741,19 +3748,39 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       deltaTimeRef.current = 16.667; // 60fps fallback
     }
 
-    // PERFORMANCE FIX: Process inputs in the same RAF cycle as rendering
-    // Previously this was a separate useGameLoop call, effectively running 2 RAF loops
-    processInputsAndActions();
+    const { fixedSimDtMs, maxSimStepsPerFrame } = gameConfig;
+    const useFixedSim = fixedSimulationEnabled;
 
-    renderGame();
-  }, [renderGame, processInputsAndActions]);
+    if (useFixedSim) {
+      // Fixed simulation + variable render: run sim at 30 Hz, render every frame
+      simAccumulatorRef.current = Math.min(
+        simAccumulatorRef.current + frameInfo.deltaTime,
+        fixedSimDtMs * maxSimStepsPerFrame
+      );
+      let steps = 0;
+      while (simAccumulatorRef.current >= fixedSimDtMs && steps < maxSimStepsPerFrame) {
+        stepPredictedMovement?.(fixedSimDtMs); // Advance prediction at fixed cadence
+        processInputsAndActions();
+        simAccumulatorRef.current -= fixedSimDtMs;
+        steps++;
+      }
+      const alpha = simAccumulatorRef.current / fixedSimDtMs; // 0..1 interpolation factor
+      renderGame(alpha);
+    } else {
+      // Legacy: process inputs and render every frame
+      processInputsAndActions();
+      renderGame(1);
+    }
+  }, [renderGame, processInputsAndActions, stepPredictedMovement, fixedSimulationEnabled]);
 
   // Use the updated hook with optimized performance settings
   // PERFORMANCE: Profiling disabled for production - enable temporarily to debug
+  // metricsRef: dev-only telemetry when FPS profiler visible (acceptance gates)
   useGameLoop(gameLoopCallback, {
     targetFPS: 60,
     maxFrameTime: 33, // 30fps budget to avoid false alarms on lower-end devices
-    enableProfiling: false // Set to true temporarily for debugging performance issues
+    enableProfiling: false,
+    metricsRef: showFpsProfiler ? gameLoopMetricsRef : undefined
   });
 
   // Convert sleepingBags map key from string to number for DeathScreen

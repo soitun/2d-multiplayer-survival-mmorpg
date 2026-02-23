@@ -13,8 +13,8 @@ use crate::world_state::world_state as WorldStateTableTrait;
 use crate::shelter::shelter as ShelterTableTrait;
 use crate::tree::tree as TreeTableTrait;
 
-// Import sound system for throwing up sound when poisoned
-use crate::sound_events::emit_throwing_up_sound;
+// Import sound system for throwing up sound when poisoned and chewing gum
+use crate::sound_events::{emit_throwing_up_sound, start_chewing_gum_sound, stop_chewing_gum_sound, update_chewing_gum_sound_position};
 
 // Import armor module for immunity checks
 use crate::armor;
@@ -101,6 +101,9 @@ pub enum EffectType {
 
     // === COMBAT LADLE HEATING ===
     HotCombatLadle, // Hot combat ladle equipped: burn on hit, 2x wildlife (30 min). Gloves prevent self-burn.
+
+    // === CHEWING GUM ===
+    ChewingGum, // Continuous chewing sound from player position (2 min per gum, stacks on consume)
 }
 
 // Table defining food poisoning risks for different food items
@@ -329,6 +332,19 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
         let old_health = player_to_update.health;
         let mut current_effect_applied_so_far = effect.amount_applied_so_far.unwrap_or(0.0);
 
+        // --- Handle ChewingGum (continuous sound, position update, expiration) ---
+        if effect.effect_type == EffectType::ChewingGum {
+            if current_time >= effect.ends_at {
+                effect_ended = true;
+            } else {
+                update_chewing_gum_sound_position(ctx, effect.effect_id, player_to_update.position_x, player_to_update.position_y);
+                let mut updated = effect.clone();
+                updated.next_tick_at = current_time + TimeDuration::from_micros(effect.tick_interval_micros as i64);
+                ctx.db.active_consumable_effect().effect_id().update(updated);
+                continue; // Skip rest of loop - effect updated
+            }
+        }
+
         // Note: Removed special case for environmental burn effects (item_def_id == 0)
         // All burn effects now use the standard DOT processing below
         
@@ -350,7 +366,7 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                         effect.target_player_id
                     },
                     // Other effect types shouldn't reach this code path, but we need to handle them
-                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::NearCookingStation | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment | EffectType::ValidolProtection | EffectType::BrewCooldown | EffectType::Stun | EffectType::LagunovGhost | EffectType::MemoryBeaconSanity | EffectType::HotCombatLadle => {
+                    EffectType::HealthRegen | EffectType::Burn | EffectType::Bleed | EffectType::Venom | EffectType::SeawaterPoisoning | EffectType::FoodPoisoning | EffectType::Cozy | EffectType::Wet | EffectType::TreeCover | EffectType::WaterDrinking | EffectType::Exhausted | EffectType::BuildingPrivilege | EffectType::ProductionRune | EffectType::AgrarianRune | EffectType::MemoryRune | EffectType::HotSpring | EffectType::Fumarole | EffectType::SafeZone | EffectType::FishingVillageBonus | EffectType::NearCookingStation | EffectType::Intoxicated | EffectType::Poisoned | EffectType::SpeedBoost | EffectType::StaminaBoost | EffectType::NightVision | EffectType::WarmthBoost | EffectType::ColdResistance | EffectType::PoisonResistance | EffectType::FireResistance | EffectType::PoisonCoating | EffectType::PassiveHealthRegen | EffectType::HarvestBoost | EffectType::Entrainment | EffectType::ValidolProtection | EffectType::BrewCooldown | EffectType::Stun | EffectType::LagunovGhost | EffectType::MemoryBeaconSanity | EffectType::HotCombatLadle | EffectType::ChewingGum => {
                         log::warn!("[EffectTick] Unexpected effect type {:?} in bandage processing", effect.effect_type);
                         Some(effect.player_id)
                     }
@@ -845,6 +861,10 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                             // The effect is checked in player_stats.rs when calculating Entrainment damage
                             amount_this_tick = 0.0;
                         },
+                        EffectType::ChewingGum => {
+                            // ChewingGum has no total_amount - handled in dedicated block above (unreachable here)
+                            amount_this_tick = 0.0;
+                        },
                     }
 
                     if (player_to_update.health - old_health).abs() > f32::EPSILON {
@@ -950,6 +970,12 @@ pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: Proce
                     log::info!("[EffectTick] Stopped bandaging sound for player {:?} as {:?} effect {} completed", 
                         sound_player_id, effect.effect_type, effect.effect_id);
                 }
+            }
+
+            // Stop chewing gum sound when ChewingGum effect ends
+            if effect.effect_type == EffectType::ChewingGum {
+                stop_chewing_gum_sound(ctx, effect.effect_id);
+                log::info!("[EffectTick] Stopped chewing gum sound for effect {} (player {:?})", effect.effect_id, effect.player_id);
             }
 
             // If the effect had an associated item instance to consume, mark it for consumption
@@ -2070,6 +2096,10 @@ pub fn clear_all_effects_on_death(ctx: &ReducerContext, player_id: Identity) {
             if effect.effect_type == EffectType::Entrainment {
                 log::info!("[PlayerDeath] Clearing Entrainment effect {} for deceased player {:?} (insanity effect cleared on death)", 
                     effect.effect_id, player_id);
+            }
+            // Stop chewing gum sound before removing effect
+            if effect.effect_type == EffectType::ChewingGum {
+                stop_chewing_gum_sound(ctx, effect.effect_id);
             }
             effects_to_remove.push(effect.effect_id);
             log::debug!("[PlayerDeath] Removing {:?} effect {} for deceased player {:?}", 
@@ -3688,6 +3718,61 @@ pub fn player_has_validol_protection(ctx: &ReducerContext, player_id: Identity) 
 /// Applies ValidolProtection effect - pauses Entrainment damage for 2-5 minutes
 /// This effect is applied when consuming Validol Tablets while at max insanity (Entrainment)
 /// Duration is random between 120-300 seconds (2-5 minutes)
+/// Chewing gum effect duration per gum consumed (2 minutes)
+const CHEWING_GUM_DURATION_SECS: i64 = 120;
+
+/// Applies or extends the ChewingGum effect for a player. If they already have it, extends by 2 minutes.
+/// Starts continuous chewing sound from player position. Sound is updated each tick and stopped when effect ends.
+pub fn apply_chewing_gum_effect(ctx: &ReducerContext, player_id: Identity, item_def_id: u64) -> Result<(), String> {
+    let current_time = ctx.timestamp;
+    let duration_micros = CHEWING_GUM_DURATION_SECS * 1_000_000;
+
+    // Check for existing ChewingGum effect - extend duration (stack)
+    for existing_effect in ctx.db.active_consumable_effect().player_id().filter(&player_id) {
+        if existing_effect.effect_type == EffectType::ChewingGum {
+            let mut updated = existing_effect.clone();
+            let new_ends_at = updated.ends_at + TimeDuration::from_micros(duration_micros);
+            updated.ends_at = new_ends_at;
+            ctx.db.active_consumable_effect().effect_id().update(updated);
+            log::info!("[ChewingGum] Extended effect {} for player {:?} by {} seconds (now ends at {:?})",
+                existing_effect.effect_id, player_id, CHEWING_GUM_DURATION_SECS, new_ends_at);
+            return Ok(());
+        }
+    }
+
+    // No existing effect - create new one and start sound
+    let player = ctx.db.player().identity().find(&player_id)
+        .ok_or_else(|| "Player not found".to_string())?;
+
+    let chewing_gum_effect = ActiveConsumableEffect {
+        effect_id: 0, // auto_inc
+        player_id,
+        target_player_id: None,
+        item_def_id,
+        consuming_item_instance_id: None,
+        started_at: current_time,
+        ends_at: current_time + TimeDuration::from_micros(duration_micros),
+        total_amount: None,
+        amount_applied_so_far: None,
+        effect_type: EffectType::ChewingGum,
+        tick_interval_micros: 500_000, // 0.5 second ticks to update sound position
+        next_tick_at: current_time + TimeDuration::from_micros(500_000),
+    };
+
+    match ctx.db.active_consumable_effect().try_insert(chewing_gum_effect) {
+        Ok(inserted) => {
+            start_chewing_gum_sound(ctx, inserted.effect_id, player.position_x, player.position_y);
+            log::info!("[ChewingGum] Applied effect {} to player {:?} - chewing for {} seconds",
+                inserted.effect_id, player_id, CHEWING_GUM_DURATION_SECS);
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("Failed to apply ChewingGum effect to player {:?}: {:?}", player_id, e);
+            Err("Failed to apply ChewingGum effect".to_string())
+        }
+    }
+}
+
 pub fn apply_validol_protection(ctx: &ReducerContext, player_id: Identity) -> Result<u64, String> {
     // Remove any existing ValidolProtection (refresh timer instead of stacking)
     let existing_effects: Vec<u64> = ctx.db.active_consumable_effect().player_id().filter(&player_id)

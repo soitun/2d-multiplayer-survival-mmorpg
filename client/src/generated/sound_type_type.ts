@@ -153,7 +153,8 @@ export type SoundType = SoundTypeVariants.TreeChop |
   SoundTypeVariants.PulverizeFlour |
   SoundTypeVariants.ExtractQueenBee |
   SoundTypeVariants.UnravelRope |
-  SoundTypeVariants.DroneFlying;
+  SoundTypeVariants.DroneFlying |
+  SoundTypeVariants.ChewingGum;
 
 let _cached_SoundType_type_value: __AlgebraicTypeType | null = null;
 
@@ -289,6 +290,7 @@ export const SoundType = {
   ExtractQueenBee: { tag: "ExtractQueenBee" } as const,
   UnravelRope: { tag: "UnravelRope" } as const,
   DroneFlying: { tag: "DroneFlying" } as const,
+  ChewingGum: { tag: "ChewingGum" } as const,
 
   getTypeScriptAlgebraicType(): __AlgebraicTypeType {
     if (_cached_SoundType_type_value) return _cached_SoundType_type_value;
@@ -418,6 +420,7 @@ export const SoundType = {
       { name: "ExtractQueenBee", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "UnravelRope", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
       { name: "DroneFlying", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
+      { name: "ChewingGum", algebraicType: __AlgebraicTypeValue.Product({ elements: [] }) },
     );
     return _cached_SoundType_type_value;
   },

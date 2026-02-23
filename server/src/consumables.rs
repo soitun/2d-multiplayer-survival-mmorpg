@@ -337,6 +337,15 @@ pub fn apply_item_effects_and_consume(
         apply_instant_effects_for_helper(ctx, item_def, player_id, player_to_update, &mut stat_changed_instantly);
         
         log::info!("[EffectsHelper] Player {:?} consumed Validol Tablets!", player_id);
+    }
+    // SPECIAL HANDLING: Chewing Gum - continuous chewing sound from player position (2 min per gum, stacks)
+    else if item_def.name == "Chewing Gum" {
+        log::info!("[EffectsHelper] Player {:?} consuming Chewing Gum.", player_id);
+        if let Err(e) = crate::active_effects::apply_chewing_gum_effect(ctx, player_id, item_def.id) {
+            log::error!("[EffectsHelper] Failed to apply ChewingGum effect: {}", e);
+        }
+        apply_instant_effects_for_helper(ctx, item_def, player_id, player_to_update, &mut stat_changed_instantly);
+        log::info!("[EffectsHelper] Player {:?} consumed Chewing Gum!", player_id);
     } else if let Some(duration_secs) = item_def.consumable_duration_secs {
         if duration_secs > 0.0 { // This branch handles timed effects
             if item_def.name == "Bandage" || item_def.name == "Med Kit" || item_def.name == "Jellyfish Compress" {

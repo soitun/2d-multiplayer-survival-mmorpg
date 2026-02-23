@@ -143,7 +143,7 @@ const GameMenu: React.FC<GameMenuProps> = ({
                         }}
                     >
                         <div>ООО "Rozhkov Neuroscience"</div>
-                        <div>System v0.53</div>
+                        <div>System v0.82</div>
                     </div>
                 </div>
                 
