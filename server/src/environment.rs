@@ -5297,7 +5297,8 @@ pub fn check_resource_respawns(ctx: &ReducerContext) -> Result<(), String> {
             // Trees can only respawn if:
             // 1. They are depleted (health == 0)
             // 2. It's NOT winter (trees are dormant in winter)
-            t.health == 0 && !is_winter
+            // 3. They are NOT player-planted (olive, crab apple, etc. - never respawn)
+            t.health == 0 && !is_winter && !t.is_player_planted
         },
         |t: &mut crate::tree::Tree| {
             let (health, min_wood, max_wood) = crate::tree::tree_type_stats(&t.tree_type);

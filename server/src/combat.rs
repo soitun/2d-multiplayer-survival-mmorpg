@@ -1906,11 +1906,16 @@ pub fn damage_tree(
         let tree_pos_x = tree.pos_x;
         let tree_pos_y = tree.pos_y;
         
-        // Player-planted trees: Delete permanently (no respawn)
-        // Wild trees: Schedule respawn
+        // Player-planted trees: Mark as destroyed (health=0, respawn_at far future) so client can show
+        // falling animation. Tree stays in DB but never respawns (respawn_at = 100 years). Wild trees
+        // get normal respawn scheduling.
         if tree.is_player_planted {
-            log::info!("Tree {} destroyed by Player {:?}. Player-planted tree - deleting permanently (no respawn).", tree_id, attacker_id);
-            ctx.db.tree().id().delete(tree_id);
+            log::info!("Tree {} destroyed by Player {:?}. Player-planted tree - marking destroyed (no respawn, falling animation).", tree_id, attacker_id);
+            tree.health = 0;
+            // Far-future respawn_at: client sees "destroyed" state for falling animation, but tree never respawns
+            const PLAYER_PLANTED_NEVER_RESPAWN_SECS: i64 = 100 * 365 * 24 * 3600; // 100 years
+            tree.respawn_at = timestamp + TimeDuration::from_micros(PLAYER_PLANTED_NEVER_RESPAWN_SECS * 1_000_000);
+            ctx.db.tree().id().update(tree.clone());
             crate::spatial_grid::invalidate_static_grid();
         } else {
             log::info!("Tree {} destroyed by Player {:?}. Scheduling respawn.", tree_id, attacker_id);
