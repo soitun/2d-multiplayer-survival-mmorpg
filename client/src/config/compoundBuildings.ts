@@ -215,7 +215,7 @@ export const COMPOUND_BUILDINGS: CompoundBuilding[] = [
     collisionAabb: {
       width: 350,
       height: 160,
-      centerYOffset: 20,
+      centerYOffset: -60, // Moved up from ground so collision aligns with building base/SELO sign area
     },
   },
   

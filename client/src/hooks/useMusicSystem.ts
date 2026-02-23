@@ -50,7 +50,7 @@ const ALPINE_VILLAGE_ZONE_RADIUS = 1200;
 // Central compound music zone radius - matches building restriction zone
 const ALK_CENTRAL_COMPOUND_ZONE_RADIUS = 2188; // 250 * 8.75 - scaled 25% from 1750 to match larger asphalt
 
-// Substation music zone radius - matches building restriction zone
+// Substation music zone radius - larger than building restriction (600px) so music plays as players approach
 const ALK_SUBSTATION_ZONE_RADIUS = 1200;
 
 // Hot springs music zone radius - 1400px from center of hot spring
@@ -349,6 +349,16 @@ const fadeAudio = async (
     });
 };
 
+const isTransientPlaybackAbort = (error: unknown): boolean => {
+    if (!error || typeof error !== 'object') return false;
+    const maybeError = error as { name?: string; message?: string };
+    const name = maybeError.name ?? '';
+    const message = (maybeError.message ?? '').toLowerCase();
+    return name === 'AbortError' ||
+        message.includes('play() request was interrupted') ||
+        message.includes('paused to save power');
+};
+
 // Helper function to detect which music zone the player is in
 const TILE_SIZE_PX = 48;
 
@@ -619,6 +629,14 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
 
     // Ref to track pause timeout
     const pauseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    // Track deferred playback retry (e.g. browser power-saver AbortError in background tab)
+    const pendingPlaybackRetryRef = useRef<{
+        trackIndex: number;
+        crossfade: boolean;
+        zone: MusicZone;
+        attempts: number;
+    } | null>(null);
+    const playbackRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Clear any scheduled inter-track pause and reset pause state.
     // This is required before any manual/forced playback change (zone switch, explicit next/prev, direct track play)
@@ -633,6 +651,14 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
                 ? { ...prev, isPaused: false, pauseEndTime: null }
                 : prev);
         }
+    }, []);
+
+    const clearPendingPlaybackRetry = useCallback(() => {
+        if (playbackRetryTimeoutRef.current) {
+            clearTimeout(playbackRetryTimeoutRef.current);
+            playbackRetryTimeoutRef.current = null;
+        }
+        pendingPlaybackRetryRef.current = null;
     }, []);
 
     // Update refs when state changes
@@ -743,6 +769,10 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
                     // Use exponential for same-zone track changes (sounds more natural)
                     const fadeCurve: FadeCurve = isZoneTransition ? 'equal-power' : 'exponential';
 
+                    // Start new track first. If play() fails (AbortError/background power save),
+                    // do NOT fade out the current track.
+                    await newAudio.play();
+
                     const fadeOutPromise = fadeAudio(
                         currentAudioRef.current,
                         currentAudioRef.current.volume,
@@ -758,9 +788,6 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
                         fadeInDuration,
                         fadeCurve
                     );
-
-                    // Start new track
-                    await newAudio.play();
 
                     // Run crossfade
                     await Promise.all([fadeOutPromise, fadeInPromise]);
@@ -804,6 +831,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
                 // Update current audio reference
                 currentAudioRef.current = newAudio;
                 nextAudioRef.current = null;
+                clearPendingPlaybackRetry();
 
                 // Update state
                 setState(prev => ({
@@ -815,6 +843,39 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
                 }));
 
             } catch (error) {
+                nextAudioRef.current = null;
+
+                if (isTransientPlaybackAbort(error)) {
+                    const zoneToUse = zone ?? stateRef.current.currentZone;
+                    const previousAttempt = pendingPlaybackRetryRef.current?.attempts ?? 0;
+                    const nextAttempt = previousAttempt + 1;
+
+                    // Keep this as debug-level warning; this is expected when tab is backgrounded.
+                    console.warn('🎵 Track playback interrupted (will retry when possible):', error);
+
+                    if (nextAttempt <= 5) {
+                        pendingPlaybackRetryRef.current = {
+                            trackIndex,
+                            crossfade,
+                            zone: zoneToUse,
+                            attempts: nextAttempt,
+                        };
+
+                        const canRetrySoon = typeof document !== 'undefined' && !document.hidden;
+                        if (canRetrySoon && !playbackRetryTimeoutRef.current) {
+                            playbackRetryTimeoutRef.current = setTimeout(() => {
+                                playbackRetryTimeoutRef.current = null;
+                                const pending = pendingPlaybackRetryRef.current;
+                                if (!pending) return;
+                                playTrack(pending.trackIndex, pending.crossfade, pending.zone).catch(() => {
+                                    // Retry logic is handled in playTrack catch
+                                });
+                            }, 800);
+                        }
+                    }
+                    return;
+                }
+
                 console.error('🎵 Error playing track:', error);
                 setState(prev => ({
                     ...prev,
@@ -827,7 +888,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
 
         playTrackTransitionLockRef.current = transitionPromise;
         return transitionPromise;
-    }, [cleanupEventListeners, clearScheduledPause]);
+    }, [cleanupEventListeners, clearScheduledPause, clearPendingPlaybackRetry]);
 
     // Start music system (with optional zone override)
     const startMusic = useCallback(async (forceZone?: MusicZone) => {
@@ -838,7 +899,15 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
 
         // Use stateRef to get the most current state
         const currentState = stateRef.current;
-        const zoneToUse = forceZone ?? currentState.currentZone;
+        // IMPORTANT: detect zone at start-time so logging in/spawning already inside
+        // a special zone (e.g. ALK compound) starts the correct playlist immediately.
+        const detectedZoneAtStart = detectMusicZone(
+            playerPosition ?? null,
+            monumentParts ?? null,
+            alkStations ?? null,
+            getTileTypeAtPosition
+        );
+        const zoneToUse = forceZone ?? detectedZoneAtStart ?? currentState.currentZone;
         const zoneTracks = ZONE_TRACKS[zoneToUse] || NORMAL_TRACKS;
 
         let currentPlaylist = currentState.playlist;
@@ -889,7 +958,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
         const firstTrackIndex = currentPlaylist[startPosition];
         // console.log(`🎵 Starting with track: ${zoneTracks[firstTrackIndex]?.displayName}`);
         await playTrack(firstTrackIndex, false, zoneToUse); // No crossfade for first track
-    }, [playTrack, clearScheduledPause]); // Removed state dependencies to prevent stale closures
+    }, [playTrack, clearScheduledPause, playerPosition, monumentParts, alkStations, getTileTypeAtPosition]); // Removed state dependencies to prevent stale closures
 
     // Stop music (with optional smooth fade-out to avoid abrupt cutoff)
     const stopMusic = useCallback(async () => {
@@ -1174,6 +1243,7 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
                 clearTimeout(zoneDebounceRef.current);
                 zoneDebounceRef.current = null;
             }
+            clearPendingPlaybackRetry();
             if (currentAudioRef.current) {
                 currentAudioRef.current.pause();
             }
@@ -1182,12 +1252,46 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
             }
             musicCache.clear();
         };
-    }, [finalConfig.enabled, preloadAllTracks, cleanupEventListeners]);
+    }, [finalConfig.enabled, preloadAllTracks, cleanupEventListeners, clearPendingPlaybackRetry]);
+
+    // If browser paused media while tab was backgrounded, retry pending playback on return.
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (typeof document !== 'undefined' && document.hidden) return;
+            const pending = pendingPlaybackRetryRef.current;
+            if (!pending || playbackRetryTimeoutRef.current) return;
+
+            playbackRetryTimeoutRef.current = setTimeout(() => {
+                playbackRetryTimeoutRef.current = null;
+                const retry = pendingPlaybackRetryRef.current;
+                if (!retry) return;
+                playTrack(retry.trackIndex, retry.crossfade, retry.zone).catch(() => {
+                    // Retry path handled in playTrack
+                });
+            }, 150);
+        };
+
+        if (typeof document !== 'undefined') {
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+        }
+        if (typeof window !== 'undefined') {
+            window.addEventListener('focus', handleVisibilityChange);
+        }
+
+        return () => {
+            if (typeof document !== 'undefined') {
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+            }
+            if (typeof window !== 'undefined') {
+                window.removeEventListener('focus', handleVisibilityChange);
+            }
+        };
+    }, [playTrack]);
 
     // Zone detection and switching with debouncing to prevent boundary flicker
     const detectedZone = useMemo(() => {
         return detectMusicZone(playerPosition ?? null, monumentParts ?? null, alkStations ?? null, getTileTypeAtPosition);
-    }, [playerPosition?.x, playerPosition?.y, monumentParts, alkStations]);
+    }, [playerPosition?.x, playerPosition?.y, monumentParts, alkStations, getTileTypeAtPosition]);
 
     // Debounced zone: only switch when zone has been stable for ZONE_DEBOUNCE_MS
     const [debouncedZone, setDebouncedZone] = useState<MusicZone>(() => detectedZone);
@@ -1274,6 +1378,48 @@ export const useMusicSystem = (options: MusicSystemOptions = {}) => {
             }
         }
     }, [debouncedZone, playTrack, stopMusic, clearScheduledPause]);
+
+    // Safety net: if music is already playing but zone and playlist drift apart
+    // (e.g. started before zone data stabilized), force-correct to the debounced zone.
+    useEffect(() => {
+        const currentState = stateRef.current;
+        if (!currentState.isPlaying) return;
+        if (currentState.currentZone === debouncedZone) return;
+
+        const targetZoneTracks = ZONE_TRACKS[debouncedZone] || NORMAL_TRACKS;
+        clearScheduledPause(true);
+
+        if (targetZoneTracks.length === 0) {
+            stopMusic();
+            setState(prev => ({
+                ...prev,
+                currentZone: debouncedZone,
+                playlist: [],
+                playlistPosition: 0,
+                isPlaying: false,
+                currentTrack: null,
+                currentTrackIndex: -1,
+            }));
+            return;
+        }
+
+        const newPlaylist = createShuffledPlaylist(targetZoneTracks.length);
+        const randomStart = Math.floor(Math.random() * newPlaylist.length);
+        const firstTrackIndex = newPlaylist[randomStart];
+
+        setState(prev => ({
+            ...prev,
+            currentZone: debouncedZone,
+            playlist: newPlaylist,
+            playlistPosition: randomStart,
+            isPaused: false,
+            pauseEndTime: null,
+        }));
+
+        playTrack(firstTrackIndex, true, debouncedZone).catch(err => {
+            console.error('🎵 Failed to recover mismatched zone music:', err);
+        });
+    }, [debouncedZone, state.isPlaying, state.currentZone, playTrack, stopMusic, clearScheduledPause]);
 
     // Get the current zone's tracklist for UI
     const currentZoneTracks = useMemo(() => {

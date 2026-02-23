@@ -167,6 +167,16 @@ const SOUND_CONFIG = {
     LOCAL_VOLUME_VARIATION: 0.1, // ±5% volume variation (0.95 to 1.05)
 } as const;
 
+const isTransientPlaybackAbort = (error: unknown): boolean => {
+    if (!error || typeof error !== 'object') return false;
+    const maybeError = error as { name?: string; message?: string };
+    const name = maybeError.name ?? '';
+    const message = (maybeError.message ?? '').toLowerCase();
+    return name === 'AbortError' ||
+        message.includes('play() request was interrupted') ||
+        message.includes('paused to save power');
+};
+
 // Audio cache for managing loaded sounds
 class AudioCache {
     private cache = new Map<string, HTMLAudioElement>();
@@ -1165,7 +1175,7 @@ const createSeamlessLoopingSound = async (
             }
         } catch (playError: any) {
             // Browser blocked autoplay - handle gracefully
-            if (playError.name !== 'NotAllowedError' && playError.name !== 'NotSupportedError') {
+            if (playError.name !== 'NotAllowedError' && playError.name !== 'NotSupportedError' && !isTransientPlaybackAbort(playError)) {
                 console.warn(`🎵 Failed to start seamless sound for object ${objectId}:`, playError);
             }
             throw playError; // Re-throw to be caught by outer try-catch
@@ -1211,38 +1221,42 @@ const updateSeamlessLoopingSounds = (masterVolume: number, environmentalVolume: 
                 nextAudio.playbackRate = newPitchVariation;
                 nextAudio.currentTime = 0;
                 // Handle browser autoplay policies
-                nextAudio.play().catch((playError: any) => {
-                    if (playError.name !== 'NotAllowedError' && playError.name !== 'NotSupportedError') {
-                        console.warn(`🎵 Failed to play next seamless audio for object ${objectId}:`, playError);
-                    }
-                });
-                
-                // Schedule the fade-out of the current audio and swap
-                const fadeOutTime = 500; // 500ms fade out
-                const fadeSteps = 20;
-                const fadeInterval = fadeOutTime / fadeSteps;
-                const initialVolume = currentAudio.volume;
-                
-                let fadeStep = 0;
-                const fadeOut = setInterval(() => {
-                    fadeStep++;
-                    const newVolume = initialVolume * (1 - fadeStep / fadeSteps);
-                    currentAudio.volume = Math.max(0, newVolume);
-                    
-                    if (fadeStep >= fadeSteps) {
-                        clearInterval(fadeOut);
-                        currentAudio.pause();
-                        currentAudio.currentTime = 0;
+                nextAudio.play()
+                    .then(() => {
+                        // Schedule the fade-out of the current audio and swap ONLY after next audio starts.
+                        const fadeOutTime = 500; // 500ms fade out
+                        const fadeSteps = 20;
+                        const fadeInterval = fadeOutTime / fadeSteps;
+                        const initialVolume = currentAudio.volume;
                         
-                        // Swap active audio
-                        seamlessSound.isPrimaryActive = !isPrimaryActive;
-                        
-                        // Schedule next swap
-                        const duration = nextAudio.duration || 10;
-                        const overlapTime = Math.min(1, duration * 0.1);
-                        seamlessSound.nextSwapTime = now + (duration - overlapTime) * 1000;
-                    }
-                }, fadeInterval);
+                        let fadeStep = 0;
+                        const fadeOut = setInterval(() => {
+                            fadeStep++;
+                            const newVolume = initialVolume * (1 - fadeStep / fadeSteps);
+                            currentAudio.volume = Math.max(0, newVolume);
+                            
+                            if (fadeStep >= fadeSteps) {
+                                clearInterval(fadeOut);
+                                currentAudio.pause();
+                                currentAudio.currentTime = 0;
+                                
+                                // Swap active audio
+                                seamlessSound.isPrimaryActive = !isPrimaryActive;
+                                
+                                // Schedule next swap
+                                const duration = nextAudio.duration || 10;
+                                const overlapTime = Math.min(1, duration * 0.1);
+                                seamlessSound.nextSwapTime = now + (duration - overlapTime) * 1000;
+                            }
+                        }, fadeInterval);
+                    })
+                    .catch((playError: any) => {
+                        if (playError.name !== 'NotAllowedError' && playError.name !== 'NotSupportedError' && !isTransientPlaybackAbort(playError)) {
+                            console.warn(`🎵 Failed to play next seamless audio for object ${objectId}:`, playError);
+                        }
+                        // Keep current audio active and retry soon.
+                        seamlessSound.nextSwapTime = Date.now() + 1200;
+                    });
                 
                 // console.log(`🎵 Seamless swap for object ${objectId}: ${isPrimaryActive ? 'primary→secondary' : 'secondary→primary'}`);
                 
@@ -1735,8 +1749,7 @@ export const useSoundSystem = ({
                                            existingSeamlessSound.primary : existingSeamlessSound.secondary;
                         if (activeAudio.paused) {
                             activeAudio.play().catch(err => {
-                                // Only warn if not an AbortError (which happens during normal fade transitions)
-                                if (err.name !== 'AbortError') {
+                                if (!isTransientPlaybackAbort(err)) {
                                     console.warn(`🎯 Failed to resume viewport-capped seamless sound ${filename}:`, err);
                                 }
                             });
@@ -1793,7 +1806,7 @@ export const useSoundSystem = ({
                     
                     if (!fadingOutSounds.has(masterObjectId) && existingSound.paused) {
                         existingSound.play().catch(err => {
-                            if (err.name !== 'AbortError') {
+                            if (!isTransientPlaybackAbort(err)) {
                                 console.warn(`🎯 Failed to resume viewport-capped sound ${filename}:`, err);
                             }
                         });
@@ -1842,7 +1855,7 @@ export const useSoundSystem = ({
                             console.log(`🎯 Started viewport-capped sound: ${filename} (${group.allObjectIds.size} objects in range)`);
                         } catch (playError: any) {
                             activeLoopingSounds.delete(masterObjectId);
-                            if (playError.name !== 'NotAllowedError' && playError.name !== 'NotSupportedError') {
+                            if (playError.name !== 'NotAllowedError' && playError.name !== 'NotSupportedError' && !isTransientPlaybackAbort(playError)) {
                                 console.warn(`🎯 Failed to start viewport-capped sound ${filename}:`, playError);
                             }
                         }
@@ -1963,7 +1976,9 @@ export const useSoundSystem = ({
                     
                     if (activeAudio.paused) {
                         activeAudio.play().catch(err => {
-                            console.warn(`🎵 Failed to resume seamless sound for object ${objectId}:`, err);
+                            if (!isTransientPlaybackAbort(err)) {
+                                console.warn(`🎵 Failed to resume seamless sound for object ${objectId}:`, err);
+                            }
                         });
                     }
                 }
@@ -1988,7 +2003,9 @@ export const useSoundSystem = ({
                     // Ensure global sound is always playing (never paused)
                     if (existingSound.paused) {
                         existingSound.play().catch(err => {
-                            console.warn(`🔊 Failed to resume global sound for object ${objectId}:`, err);
+                            if (!isTransientPlaybackAbort(err)) {
+                                console.warn(`🔊 Failed to resume global sound for object ${objectId}:`, err);
+                            }
                         });
                         // console.log(`🔊 Resumed global ${isEnvironmental ? 'environmental' : 'regular'} sound for object ${objectId} (maxDistance: ${continuousSound.maxDistance})`);
                     }
@@ -2028,7 +2045,9 @@ export const useSoundSystem = ({
                     existingSound.volume = Math.min(1.0, volume);
                     if (existingSound.paused) {
                         existingSound.play().catch(err => {
-                            console.warn(`🔊 Failed to resume looping sound for object ${objectId}:`, err);
+                            if (!isTransientPlaybackAbort(err)) {
+                                console.warn(`🔊 Failed to resume looping sound for object ${objectId}:`, err);
+                            }
                         });
                         // console.log(`🔊 Resumed looping sound for object ${objectId} (back in range)`);
                     }
@@ -2165,7 +2184,7 @@ export const useSoundSystem = ({
                         } catch (playError: any) {
                             // Browser blocked autoplay - cleanup and remove from map
                             activeLoopingSounds.delete(objectId);
-                            if (playError.name !== 'NotAllowedError' && playError.name !== 'NotSupportedError') {
+                            if (playError.name !== 'NotAllowedError' && playError.name !== 'NotSupportedError' && !isTransientPlaybackAbort(playError)) {
                                 console.warn(`🔊 Failed to start looping sound for object ${objectId}:`, playError);
                             }
                         }

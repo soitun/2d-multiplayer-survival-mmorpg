@@ -3795,8 +3795,7 @@ pub fn get_central_compound_placeables() -> Vec<MonumentPlaceableConfig> {
         MonumentPlaceableConfig::military_ration(500.0, 650.0),
         
         // === Additional Campfires (north side of compound) ===
-        // North-center: warming fire for northern patrol
-        MonumentPlaceableConfig::campfire(0.0, -700.0),
+        // North-center campfire removed (was in front of warehouse)
         // North-west: near the garage area
         MonumentPlaceableConfig::campfire(-350.0, -500.0),
         // North-east: near the barracks area

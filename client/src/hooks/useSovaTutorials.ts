@@ -416,6 +416,12 @@ export function useSovaTutorials({
     const hasFiredRuneStoneEvent = useRef(false);
     const hasFiredAlkStationEvent = useRef(false);
     const hasFiredCrashedDroneEvent = useRef(false);
+    // Track if we've already played these tutorials this session (prevents replays on range re-entry
+    // while waiting for server flag replication).
+    const hasPlayedHostileEncounterTutorialThisSession = useRef(false);
+    const hasPlayedRuneStoneTutorialThisSession = useRef(false);
+    const hasPlayedAlkStationTutorialThisSession = useRef(false);
+    const hasPlayedCrashedDroneTutorialThisSession = useRef(false);
     
     useEffect(() => {
         isMountedRef.current = true;
@@ -611,9 +617,15 @@ export function useSovaTutorials({
         const handleEvent = () => {
             console.log('[SovaTutorials] 👹 First hostile encounter event received');
             
+            if (hasPlayedHostileEncounterTutorialThisSession.current) {
+                console.log('[SovaTutorials] 👹 First hostile encounter tutorial already played this session, skipping');
+                return;
+            }
+
             // Server says already seen? Skip
             if (hasSeenHostileEncounterTutorial === true) {
                 console.log('[SovaTutorials] 👹 First hostile encounter tutorial already seen (server), skipping');
+                hasPlayedHostileEncounterTutorialThisSession.current = true;
                 return;
             }
             
@@ -624,6 +636,11 @@ export function useSovaTutorials({
             }
             
             console.log('[SovaTutorials] 👹 Playing first hostile encounter tutorial NOW');
+            hasPlayedHostileEncounterTutorialThisSession.current = true;
+            if (onMarkHostileEncounterTutorialSeen) {
+                console.log('[SovaTutorials] 👹 Marking hostile encounter tutorial as seen on server');
+                onMarkHostileEncounterTutorialSeen();
+            }
             
             playSovaTutorial(
                 {
@@ -635,13 +652,6 @@ export function useSovaTutorials({
                 showSovaSoundBoxRef.current,
                 sovaMessageAdderRef.current,
                 {
-                    onAudioStart: () => {
-                        // Mark as seen on server AFTER audio starts
-                        if (onMarkHostileEncounterTutorialSeen) {
-                            console.log('[SovaTutorials] 👹 Marking hostile encounter tutorial as seen on server');
-                            onMarkHostileEncounterTutorialSeen();
-                        }
-                    },
                     onError: onSovaError,
                 }
             );
@@ -661,9 +671,15 @@ export function useSovaTutorials({
         const handleEvent = () => {
             console.log('[SovaTutorials] 🪨 Rune stone tutorial event received');
             
+            if (hasPlayedRuneStoneTutorialThisSession.current) {
+                console.log('[SovaTutorials] 🪨 Rune stone tutorial already played this session, skipping');
+                return;
+            }
+
             // Server says already seen? Skip
             if (hasSeenRuneStoneTutorial === true) {
                 console.log('[SovaTutorials] 🪨 Rune stone tutorial already seen (server), skipping');
+                hasPlayedRuneStoneTutorialThisSession.current = true;
                 return;
             }
             
@@ -674,6 +690,11 @@ export function useSovaTutorials({
             }
             
             console.log('[SovaTutorials] 🪨 Playing rune stone tutorial NOW');
+            hasPlayedRuneStoneTutorialThisSession.current = true;
+            if (onMarkRuneStoneTutorialSeen) {
+                console.log('[SovaTutorials] 🪨 Marking rune stone tutorial as seen on server');
+                onMarkRuneStoneTutorialSeen();
+            }
             
             playSovaTutorial(
                 {
@@ -685,12 +706,6 @@ export function useSovaTutorials({
                 showSovaSoundBoxRef.current,
                 sovaMessageAdderRef.current,
                 {
-                    onAudioStart: () => {
-                        if (onMarkRuneStoneTutorialSeen) {
-                            console.log('[SovaTutorials] 🪨 Marking rune stone tutorial as seen on server');
-                            onMarkRuneStoneTutorialSeen();
-                        }
-                    },
                     onError: onSovaError,
                 }
             );
@@ -710,9 +725,15 @@ export function useSovaTutorials({
         const handleEvent = () => {
             console.log('[SovaTutorials] 🏭 ALK station tutorial event received');
             
+            if (hasPlayedAlkStationTutorialThisSession.current) {
+                console.log('[SovaTutorials] 🏭 ALK station tutorial already played this session, skipping');
+                return;
+            }
+
             // Server says already seen? Skip
             if (hasSeenAlkStationTutorial === true) {
                 console.log('[SovaTutorials] 🏭 ALK station tutorial already seen (server), skipping');
+                hasPlayedAlkStationTutorialThisSession.current = true;
                 return;
             }
             
@@ -723,6 +744,11 @@ export function useSovaTutorials({
             }
             
             console.log('[SovaTutorials] 🏭 Playing ALK station tutorial NOW');
+            hasPlayedAlkStationTutorialThisSession.current = true;
+            if (onMarkAlkStationTutorialSeen) {
+                console.log('[SovaTutorials] 🏭 Marking ALK station tutorial as seen on server');
+                onMarkAlkStationTutorialSeen();
+            }
             
             playSovaTutorial(
                 {
@@ -734,12 +760,6 @@ export function useSovaTutorials({
                 showSovaSoundBoxRef.current,
                 sovaMessageAdderRef.current,
                 {
-                    onAudioStart: () => {
-                        if (onMarkAlkStationTutorialSeen) {
-                            console.log('[SovaTutorials] 🏭 Marking ALK station tutorial as seen on server');
-                            onMarkAlkStationTutorialSeen();
-                        }
-                    },
                     onError: onSovaError,
                 }
             );
@@ -759,9 +779,15 @@ export function useSovaTutorials({
         const handleEvent = () => {
             console.log('[SovaTutorials] 🛸 Crashed drone tutorial event received');
             
+            if (hasPlayedCrashedDroneTutorialThisSession.current) {
+                console.log('[SovaTutorials] 🛸 Crashed drone tutorial already played this session, skipping');
+                return;
+            }
+
             // Server says already seen? Skip
             if (hasSeenCrashedDroneTutorial === true) {
                 console.log('[SovaTutorials] 🛸 Crashed drone tutorial already seen (server), skipping');
+                hasPlayedCrashedDroneTutorialThisSession.current = true;
                 return;
             }
             
@@ -772,6 +798,11 @@ export function useSovaTutorials({
             }
             
             console.log('[SovaTutorials] 🛸 Playing crashed drone tutorial NOW');
+            hasPlayedCrashedDroneTutorialThisSession.current = true;
+            if (onMarkCrashedDroneTutorialSeen) {
+                console.log('[SovaTutorials] 🛸 Marking crashed drone tutorial as seen on server');
+                onMarkCrashedDroneTutorialSeen();
+            }
             
             playSovaTutorial(
                 {
@@ -783,12 +814,6 @@ export function useSovaTutorials({
                 showSovaSoundBoxRef.current,
                 sovaMessageAdderRef.current,
                 {
-                    onAudioStart: () => {
-                        if (onMarkCrashedDroneTutorialSeen) {
-                            console.log('[SovaTutorials] 🛸 Marking crashed drone tutorial as seen on server');
-                            onMarkCrashedDroneTutorialSeen();
-                        }
-                    },
                     onError: onSovaError,
                 }
             );
@@ -846,7 +871,7 @@ export function useSovaTutorials({
         
         // Check rune stone proximity - use server flag
         let runeStoneInRange = false;
-        if (runeStones && runeStones.size > 0 && hasSeenRuneStoneTutorial !== true) {
+        if (runeStones && runeStones.size > 0 && hasSeenRuneStoneTutorial !== true && !hasPlayedRuneStoneTutorialThisSession.current) {
             for (const runeStone of runeStones.values()) {
                 const dx = playerX - runeStone.posX;
                 const dy = playerY - runeStone.posY;
@@ -866,7 +891,7 @@ export function useSovaTutorials({
 
         // Check ALK station proximity - use server flag
         let alkStationInRange = false;
-        if (alkStations && alkStations.size > 0 && hasSeenAlkStationTutorial !== true) {
+        if (alkStations && alkStations.size > 0 && hasSeenAlkStationTutorial !== true && !hasPlayedAlkStationTutorialThisSession.current) {
             for (const alkStation of alkStations.values()) {
                 const dx = playerX - alkStation.worldPosX;
                 const dy = playerY - alkStation.worldPosY;
@@ -886,7 +911,7 @@ export function useSovaTutorials({
 
         // Check crashed research drone proximity - use server flag
         let crashedDroneInRange = false;
-        if (monumentParts && monumentParts.size > 0 && hasSeenCrashedDroneTutorial !== true) {
+        if (monumentParts && monumentParts.size > 0 && hasSeenCrashedDroneTutorial !== true && !hasPlayedCrashedDroneTutorialThisSession.current) {
             for (const part of monumentParts.values()) {
                 if (part.monumentType?.tag !== 'CrashedResearchDrone') continue;
                 const dx = playerX - part.worldX;

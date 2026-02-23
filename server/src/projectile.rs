@@ -2385,10 +2385,21 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         }
 
         // Check turret collisions (chunk-filtered)
+        // CRITICAL: Skip the firing turret - turret projectiles spawn AT the turret position,
+        // so they would immediately hit themselves without this check.
+        const TURRET_SELF_EXCLUSION_RADIUS_SQ: f32 = 80.0 * 80.0; // Skip turrets within 80px of spawn
         'turret_chunks: for chunk_idx in &chunk_indices[..chunk_count] {
             for turret_entity in ctx.db.turret().chunk_index().filter(*chunk_idx) {
                 if turret_entity.is_destroyed {
                     continue;
+                }
+                // Turret/NPC projectiles spawn at turret pos - skip the firing turret
+                if projectile.source_type == PROJECTILE_SOURCE_TURRET || projectile.source_type == PROJECTILE_SOURCE_MONUMENT_TURRET {
+                    let dx = projectile.start_pos_x - turret_entity.pos_x;
+                    let dy = projectile.start_pos_y - turret_entity.pos_y;
+                    if dx * dx + dy * dy < TURRET_SELF_EXCLUSION_RADIUS_SQ {
+                        continue; // This is the firing turret - don't hit ourselves
+                    }
                 }
 
                 let turret_hit_radius = if turret_entity.is_monument {
