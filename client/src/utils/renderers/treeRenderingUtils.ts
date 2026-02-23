@@ -979,7 +979,7 @@ function getCachedTreeTypeInfo(entity: Tree): { imageSource: string; targetWidth
                 imageSource = krummholzSpruceImage;
                 targetWidth = 300; // Twisted wind-sculpted spruce, medium size
                 break;
-            // Fruit/Nut trees (rare, temperate biome only)
+            // Fruit/Nut trees (Crab Apple, Hazelnut, Rowanberry, Olive - all have falling animation)
             case 'CrabAppleTree':
                 imageSource = crabAppleTreeImage;
                 targetWidth = 300; // Small fruit tree
@@ -994,11 +994,15 @@ function getCachedTreeTypeInfo(entity: Tree): { imageSource: string; targetWidth
                 break;
             case 'OliveTree':
                 imageSource = oliveTreeImage;
-                targetWidth = 320;
+                targetWidth = 320; // GMO olive cultivar - compact fruit tree
                 break;
             default:
+                // Fallback for any unknown tree type (ensures falling animation still works)
+                if (process.env.NODE_ENV === 'development' && treeTypeKey) {
+                    console.warn(`[TreeRendering] Unknown tree type "${treeTypeKey}" - using Sitka Spruce fallback`);
+                }
                 imageSource = sitkaSpruceImage;
-                targetWidth = TARGET_TREE_WIDTH_PX; // Fallback to Sitka Spruce size
+                targetWidth = TARGET_TREE_WIDTH_PX;
         }
         
         cached = { imageSource, targetWidth };
