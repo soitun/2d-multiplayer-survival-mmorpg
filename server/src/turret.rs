@@ -263,17 +263,20 @@ fn find_target(ctx: &ReducerContext, turret: &Turret, current_time: Timestamp) -
 }
 
 /// Finds the nearest valid target for a monument turret.
-/// Monument turrets target ALL wild animals (hostile + non-hostile) and ALL PvP-enabled players.
-/// They don't need an owner PvP check since they are system-owned.
+/// Monument turrets target ONLY the 3 apparitions (Shorebound, Shardkin, Drowned Watch) and PvP-enabled players.
+/// They do NOT target regular wild animals (wolves, crabs, voles, etc.).
 fn find_monument_target(ctx: &ReducerContext, turret: &Turret, current_time: Timestamp) -> Option<TargetInfo> {
     let range_sq = MONUMENT_TURRET_RANGE_SQUARED;
     
     let mut closest_target: Option<(TargetInfo, f32)> = None;
     
-    // Target ALL wild animals with health > 0 (hostile NPCs, regular animals, apparitions, etc.)
+    // Target ONLY the 3 apparitions (Shorebound, Shardkin, Drowned Watch) - not regular wild animals
     for animal in ctx.db.wild_animal().iter() {
         if animal.health <= 0.0 {
             continue;
+        }
+        if !animal.is_hostile_npc {
+            continue; // Skip non-apparition animals (wolves, crabs, voles, etc.)
         }
         let dx = animal.pos_x - turret.pos_x;
         let dy = animal.pos_y - turret.pos_y;
