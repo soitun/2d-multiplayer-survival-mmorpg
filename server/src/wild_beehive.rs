@@ -378,7 +378,8 @@ pub fn respawn_wild_beehives(ctx: &ReducerContext, schedule: WildBeehiveRespawnS
 
 // --- World Generation Helper ---
 
-/// Finds a valid position for a wild beehive near a tree in a forest tile
+/// Finds a valid position for a wild beehive at the base of a tree in a forest tile.
+/// Beehives always spawn at ground level (tree base Y); only horizontal offset varies.
 /// Returns Some((x, y)) if found, None if no valid position
 pub fn find_beehive_spawn_position_near_tree(
     ctx: &ReducerContext,
@@ -386,13 +387,16 @@ pub fn find_beehive_spawn_position_near_tree(
     tree_y: f32,
     existing_beehive_positions: &[(f32, f32)],
 ) -> Option<(f32, f32)> {
-    // Try a few random offsets from the tree
+    // Try a few random horizontal offsets from the tree base
     for _ in 0..5 {
+        // Use only horizontal offset - beehives spawn at tree base, never up the trunk
         let angle: f32 = ctx.rng().gen::<f32>() * std::f32::consts::TAU;
         let distance = ctx.rng().gen_range(MIN_TREE_DISTANCE..MAX_TREE_DISTANCE);
         
         let pos_x = tree_x + angle.cos() * distance;
-        let pos_y = tree_y + angle.sin() * distance;
+        // Always at tree base: Y must be >= tree_y (never spawn up the trunk/canopy)
+        // Small ground-level jitter: 0–15 px below base for natural variation
+        let pos_y = tree_y + ctx.rng().gen_range(0.0..15.0);
         
         // Must be on forest tile
         if !is_position_on_forest_tile(ctx, pos_x, pos_y) {
