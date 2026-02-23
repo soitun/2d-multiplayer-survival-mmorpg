@@ -598,8 +598,8 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .cookable(35.0, "Roasted Hazelnuts") // Roasts into enhanced snack
             .build(),
 
-        // Olive Seed - Rare GMO tree seed from sea flotsam and olive consumption
-        ItemBuilder::new("Olive Seed", "A rare SELO olive seed. Engineered to survive in any climate. Plant it to grow an olive tree.", ItemCategory::Placeable)
+        // Olive Pit - Rare GMO tree pit from sea flotsam and olive consumption
+        ItemBuilder::new("Olive Pit", "A rare SELO olive pit. Engineered to survive in any climate. Plant it to grow an olive tree.", ItemCategory::Placeable)
             .icon("olive_pit.png")
             .stackable(20)
             .respawn_time(900) // Rare progression seed

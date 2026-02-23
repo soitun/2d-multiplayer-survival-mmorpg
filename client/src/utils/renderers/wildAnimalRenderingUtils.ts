@@ -981,7 +981,7 @@ export function renderWildAnimal({
     }
 
     // --- Flash Logic ---
-    const isFlashing = animal.health > 0 && effectiveHitElapsed < ANIMAL_HIT_FLASH_DURATION_MS;
+    const isFlashing = effectiveHitElapsed < ANIMAL_HIT_FLASH_DURATION_MS;
 
     // Get sprite sheet for this species (all animals use sprite sheets now)
     // Use flying sprite sheet for birds when they are flying
@@ -1327,8 +1327,9 @@ export function renderWildAnimal({
 
                 // Apply white flash if needed
                 if (isFlashing) {
+                    const flashAlpha = (animal.species.tag === 'BeachCrab' || animal.species.tag === 'Vole') ? 1.0 : 0.85;
                     offscreenCtx.globalCompositeOperation = 'source-in';
-                    offscreenCtx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                    offscreenCtx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
                     offscreenCtx.fillRect(0, 0, sw, sh);
                     offscreenCtx.globalCompositeOperation = 'source-over';
                 }
@@ -1352,8 +1353,9 @@ export function renderWildAnimal({
 
                 // Apply white flash if needed
                 if (isFlashing) {
+                    const flashAlpha = (animal.species.tag === 'BeachCrab' || animal.species.tag === 'Vole') ? 1.0 : 0.85;
                     offscreenCtx.globalCompositeOperation = 'source-in';
-                    offscreenCtx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                    offscreenCtx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
                     offscreenCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
                     offscreenCtx.globalCompositeOperation = 'source-over';
                 }

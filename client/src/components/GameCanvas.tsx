@@ -721,6 +721,23 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     return players.get(localPlayerId);
   }, [players, localPlayerId]);
 
+  const authoritativeProjectilesForRendering = useMemo(() => {
+    if (!localPlayerId || projectiles.size === 0) return projectiles;
+    const filtered = new Map<string, SpacetimeDBProjectile>();
+    let removedAny = false;
+    projectiles.forEach((projectile, id) => {
+      const isLocalPlayerProjectile =
+        projectile.sourceType === 0 &&
+        projectile.ownerId?.toHexString?.() === localPlayerId;
+      if (isLocalPlayerProjectile) {
+        removedAny = true;
+        return;
+      }
+      filtered.set(id, projectile);
+    });
+    return removedAny ? filtered : projectiles;
+  }, [projectiles, localPlayerId]);
+
   // Initialize remote player interpolation
   const remotePlayerInterpolation = useRemotePlayerInterpolation();
 
@@ -1120,7 +1137,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     canvasSize.width,
     canvasSize.height,
     interpolatedGrass,
-    projectiles,
+    authoritativeProjectilesForRendering,
     shelters,
     clouds,
     plantedSeeds,
@@ -1513,6 +1530,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     setShowBuildingRadialMenu,
     showUpgradeRadialMenu,
     setShowUpgradeRadialMenu,
+    optimisticProjectiles,
     processInputsAndActions,
   } = useInputHandler({
     canvasRef: gameCanvasRef,
@@ -1563,14 +1581,37 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     targetedWall,
     targetedFence,
     rangedWeaponStats,
+    serverProjectiles: projectiles,
     onProfilerRecordClick,
   });
+
+  const mergedProjectiles = useMemo(() => {
+    if (!optimisticProjectiles || optimisticProjectiles.size === 0) return authoritativeProjectilesForRendering;
+    const merged = new Map(authoritativeProjectilesForRendering);
+    optimisticProjectiles.forEach((projectile, id) => merged.set(id, projectile));
+    return merged;
+  }, [authoritativeProjectilesForRendering, optimisticProjectiles]);
+
+  const ySortedEntitiesWithOptimisticProjectiles = useMemo(() => {
+    if (!optimisticProjectiles || optimisticProjectiles.size === 0) return ySortedEntities;
+    const withOptimistic = [...ySortedEntities];
+    optimisticProjectiles.forEach((projectile) => {
+      withOptimistic.push({ type: 'projectile', entity: projectile } as any);
+    });
+    return withOptimistic;
+  }, [ySortedEntities, optimisticProjectiles]);
+
+  // Override render list with optimistic projectiles included so shots appear instantly,
+  // even before the server projectile row is replicated.
+  useEffect(() => {
+    ySortedEntitiesRef.current = ySortedEntitiesWithOptimisticProjectiles;
+  }, [ySortedEntitiesWithOptimisticProjectiles]);
 
   // Phase 4b: Sync frequently-changing values to ref (reduces renderGame dependency array churn)
   useEffect(() => {
     const d = renderGameDepsRef.current;
     d.messages = messages;
-    d.projectiles = projectiles;
+    d.projectiles = mergedProjectiles;
     d.holdInteractionProgress = holdInteractionProgress;
     d.isActivelyHolding = isActivelyHolding;
     d.closestInteractableHarvestableResourceId = closestInteractableHarvestableResourceId;
@@ -1591,7 +1632,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     d.closestInteractableMilkableAnimalId = closestInteractableMilkableAnimalId;
   }, [
     messages,
-    projectiles,
+    mergedProjectiles,
     holdInteractionProgress,
     isActivelyHolding,
     closestInteractableHarvestableResourceId,
@@ -1941,7 +1982,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     players,
     activeEquipments,
     itemDefinitions,
-    projectiles,
+    projectiles: mergedProjectiles,
     deltaTime: 0 // Not used anymore, but kept for compatibility
   });
 

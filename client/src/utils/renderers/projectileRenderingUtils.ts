@@ -26,10 +26,11 @@ const NPC_PROJECTILE_VENOM_SPITTLE = 3;   // Viper: green toxic glob
 // Client-side projectile lifetime limits for cleanup (in case server is slow)
 const MAX_PROJECTILE_LIFETIME_MS = 12000; // 12 seconds max
 const MAX_PROJECTILE_DISTANCE = 1200; // Max distance before client cleanup
+const PROJECTILE_TRACKING_DELETE_GRACE_MS = 750; // Grace period to survive brief subscription churn
 
 // --- Client-side animation tracking for projectiles ---
 const clientProjectileStartTimes = new Map<string, number>(); // projectileId -> client timestamp when projectile started
-const lastKnownServerProjectileTimes = new Map<string, number>(); // projectileId -> last known server timestamp
+const projectileMissingSince = new Map<string, number>(); // projectileId -> first timestamp seen missing from current set
 
 interface RenderProjectileProps {
   ctx: CanvasRenderingContext2D;
@@ -53,32 +54,28 @@ export const renderProjectile = ({
                                    projectile.sourceType === PROJECTILE_SOURCE_TURRET ||
                                    projectile.sourceType === PROJECTILE_SOURCE_MONUMENT_TURRET;
   
-  // Only validate arrow image for regular (player) projectiles
-  if (!isNpcOrTurretProjectile && (!arrowImage || !arrowImage.complete || arrowImage.naturalHeight === 0)) {
-    console.warn('[DEBUG] Arrow image not loaded or invalid for projectile:', projectile.id);
-    return;
-  }
+  // If sprite isn't ready yet, keep rendering with a primitive fallback so
+  // the projectile arc remains visible from spawn.
+  const hasValidSprite = !!arrowImage && arrowImage.complete && arrowImage.naturalHeight > 0;
+  const usePrimitiveSpriteFallback = !isNpcOrTurretProjectile && !hasValidSprite;
 
   const projectileId = projectile.id.toString();
-  const serverStartTimeMicros = Number(projectile.startTime.microsSinceUnixEpoch);
-  const serverStartTimeMs = serverStartTimeMicros / 1000;
-  
   // Check if this is a NEW projectile by checking if we've tracked it before
   let clientStartTime = clientProjectileStartTimes.get(projectileId);
   let elapsedTimeSeconds = 0;
   
-  if (!clientStartTime) {
-    // NEW projectile detected! Initialize tracking
-    console.log(`🏹 NEW projectile ${projectileId.substring(0, 8)}: initializing at current time`);
+  if (clientStartTime === undefined) {
+    // New projectile: start local visual time at frame of first receipt.
+    // This keeps rendered trajectory aligned with where the projectile appears.
     clientStartTime = currentTimeMs;
     clientProjectileStartTimes.set(projectileId, clientStartTime);
-    lastKnownServerProjectileTimes.set(projectileId, serverStartTimeMs);
-    elapsedTimeSeconds = 0; // Start at 0 for immediate rendering
+    elapsedTimeSeconds = 0;
   } else {
     // Existing projectile - calculate elapsed time from client start
     const elapsedClientMs = currentTimeMs - clientStartTime;
     elapsedTimeSeconds = elapsedClientMs / 1000;
   }
+  projectileMissingSince.delete(projectileId);
   
   // Safety check: Don't allow negative elapsed time
   if (elapsedTimeSeconds < 0) {
@@ -93,10 +90,9 @@ export const renderProjectile = ({
   
   // Don't render if projectile has exceeded reasonable limits (client-side cleanup)
   if (elapsedTimeSeconds > 15 || distanceTraveled > MAX_PROJECTILE_DISTANCE) {
-    console.log(`🏹 [CLIENT CLEANUP] Projectile ${projectileId.substring(0, 8)} exceeded limits - Time: ${elapsedTimeSeconds.toFixed(1)}s, Distance: ${distanceTraveled.toFixed(1)}`);
     // Clean up tracking for this projectile
     clientProjectileStartTimes.delete(projectileId);
-    lastKnownServerProjectileTimes.delete(projectileId);
+    projectileMissingSince.delete(projectileId);
     return;
   }
   
@@ -192,8 +188,8 @@ export const renderProjectile = ({
     }
   }
   
-  const drawWidth = arrowImage.naturalWidth * scale;
-  const drawHeight = arrowImage.naturalHeight * scale;
+  const drawWidth = hasValidSprite ? arrowImage.naturalWidth * scale : 0;
+  const drawHeight = hasValidSprite ? arrowImage.naturalHeight * scale : 0;
 
   ctx.save();
   
@@ -490,14 +486,48 @@ export const renderProjectile = ({
     ctx.rotate(angle);
     ctx.scale(-1, 1); // Flip horizontally for correct arrow orientation
     
-    // Draw the image centered on its new origin
-    ctx.drawImage(
-      arrowImage,
-      -drawWidth / 2, 
-      -drawHeight / 2,
-      drawWidth,
-      drawHeight
-    );
+    if (usePrimitiveSpriteFallback) {
+      // Temporary fallback while icon image is still loading: arrow-like streak
+      // oriented by projectile angle so flight arc is always visible.
+      const fallbackLength = isBullet ? 14 : 20;
+      const fallbackHalfWidth = isBullet ? 1.6 : 2.2;
+      const tailOffset = -fallbackLength * 0.55;
+      const tipOffset = fallbackLength * 0.45;
+
+      // Soft glow for readability over varied terrain.
+      ctx.strokeStyle = isBullet ? 'rgba(255, 240, 170, 0.9)' : 'rgba(245, 230, 190, 0.95)';
+      ctx.lineWidth = fallbackHalfWidth * 2.2;
+      ctx.beginPath();
+      ctx.moveTo(tailOffset, 0);
+      ctx.lineTo(tipOffset, 0);
+      ctx.stroke();
+
+      // Core shaft.
+      ctx.strokeStyle = isBullet ? 'rgba(255, 215, 120, 1)' : 'rgba(140, 95, 55, 1)';
+      ctx.lineWidth = fallbackHalfWidth;
+      ctx.beginPath();
+      ctx.moveTo(tailOffset, 0);
+      ctx.lineTo(tipOffset, 0);
+      ctx.stroke();
+
+      // Point tip.
+      ctx.fillStyle = isBullet ? 'rgba(255, 230, 160, 1)' : 'rgba(200, 200, 200, 1)';
+      ctx.beginPath();
+      ctx.moveTo(tipOffset, 0);
+      ctx.lineTo(tipOffset - 4, -2.2);
+      ctx.lineTo(tipOffset - 4, 2.2);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      // Draw the image centered on its new origin
+      ctx.drawImage(
+        arrowImage,
+        -drawWidth / 2, 
+        -drawHeight / 2,
+        drawWidth,
+        drawHeight
+      );
+    }
   }
   
   ctx.restore();
@@ -506,17 +536,28 @@ export const renderProjectile = ({
 // Cleanup entries for projectiles that no longer exist (hit something, max range, etc.)
 // Call with current projectile IDs from useSpacetimeTables - prevents unbounded growth during combat
 export const cleanupProjectileTrackingForDeleted = (currentProjectileIds: Set<string>) => {
+  const now = performance.now();
   let removed = 0;
+
   for (const projectileId of Array.from(clientProjectileStartTimes.keys())) {
-    if (!currentProjectileIds.has(projectileId)) {
+    if (currentProjectileIds.has(projectileId)) {
+      projectileMissingSince.delete(projectileId);
+      continue;
+    }
+
+    const missingSince = projectileMissingSince.get(projectileId);
+    if (missingSince === undefined) {
+      projectileMissingSince.set(projectileId, now);
+      continue;
+    }
+
+    if (now - missingSince >= PROJECTILE_TRACKING_DELETE_GRACE_MS) {
       clientProjectileStartTimes.delete(projectileId);
-      lastKnownServerProjectileTimes.delete(projectileId);
-      removed++;
+      projectileMissingSince.delete(projectileId);
+      removed += 1;
     }
   }
-  if (removed > 0) {
-    console.log(`🏹 [CLIENT CLEANUP] Removed ${removed} stale projectile tracking entries`);
-  }
+  if (removed > 0) console.log(`🏹 [CLIENT CLEANUP] Removed ${removed} stale projectile tracking entries`);
 };
 
 // Fallback: Remove entries older than max lifetime (in case cleanupProjectileTrackingForDeleted isn't called)
@@ -532,7 +573,7 @@ export const cleanupOldProjectileTracking = () => {
   
   for (const projectileId of toDelete) {
     clientProjectileStartTimes.delete(projectileId);
-    lastKnownServerProjectileTimes.delete(projectileId);
+    projectileMissingSince.delete(projectileId);
   }
   
   if (toDelete.length > 0) {

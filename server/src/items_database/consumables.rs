@@ -2439,7 +2439,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
 
         // === OLIVES ===
         // Plantable-only GMO olive tree output. Cooking a handful yields premium SELO oil.
-        ItemBuilder::new("Olives", "A handful of GMO olives bred by SELO labs. They can grow in any climate and press into superior SELO olive oil.", ItemCategory::Consumable)
+        ItemBuilder::new("Olives", "A handful of GMO olives bred by SELO Labs. They can grow in any climate and press into superior SELO olive oil.", ItemCategory::Consumable)
             .icon("olives.png")
             .stackable(20)
             .consumable(6.0, 12.0, -2.0) // Oily snack: modest hunger, slightly dehydrating

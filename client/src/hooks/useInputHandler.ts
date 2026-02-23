@@ -102,6 +102,7 @@ interface InputHandlerProps {
     itemDefinitions: Map<string, ItemDefinition>;
     inventoryItems: Map<string, SpacetimeDB.InventoryItem>;
     rangedWeaponStats?: Map<string, SpacetimeDB.RangedWeaponStats>; // ADDED: For auto-fire detection
+    serverProjectiles?: Map<string, SpacetimeDB.Projectile>; // Lifecycle-only reconciliation for optimistic projectiles
     placementInfo: PlacementItemInfo | null;
     placementActions: PlacementActions;
     buildingState?: { isBuilding: boolean; mode: string }; // ADDED: Building state
@@ -163,6 +164,7 @@ export interface InputHandlerState {
     setShowBuildingRadialMenu: (show: boolean) => void;
     showUpgradeRadialMenu: boolean;
     setShowUpgradeRadialMenu: (show: boolean) => void;
+    optimisticProjectiles: Map<string, SpacetimeDB.Projectile>;
     // Function to be called each frame by the game loop
     processInputsAndActions: () => void;
 }
@@ -262,6 +264,7 @@ export const useInputHandler = ({
     targetedWall, // ADDED: Targeted wall
     targetedFence, // ADDED: Targeted fence
     rangedWeaponStats, // ADDED: For auto-fire detection
+    serverProjectiles,
     onProfilerRecordClick,
 }: InputHandlerProps): InputHandlerState => {
     // console.log('[useInputHandler IS RUNNING] isInventoryOpen:', isInventoryOpen);
@@ -275,6 +278,7 @@ export const useInputHandler = ({
     // --- Internal State and Refs ---
     const [isAutoAttacking, setIsAutoAttacking] = useState(false);
     const [isCrouching, setIsCrouching] = useState(false);
+    const [optimisticProjectiles, setOptimisticProjectiles] = useState<Map<string, SpacetimeDB.Projectile>>(new Map());
     const pendingCrouchToggleRef = useRef<boolean>(false); // Track pending crouch requests
     const isAutoWalkingRef = useLatest(isAutoWalking); // Track auto-walk state for event handlers
 
@@ -321,6 +325,11 @@ export const useInputHandler = ({
     const targetedFenceRef = useLatest(targetedFence);
     const itemDefinitionsRef = useLatest(itemDefinitions);
     const rangedWeaponStatsRef = useLatest(rangedWeaponStats); // ADDED: Ref for ranged weapon stats
+    const serverProjectilesRef = useLatest(serverProjectiles);
+    const optimisticProjectileSeqRef = useRef<number>(0);
+    const optimisticProjectileCleanupTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+    const optimisticProjectileMetaRef = useRef<Map<string, { createdAtMs: number; matchedServerId?: string }>>(new Map());
+    const lastOptimisticSpawnRef = useRef<{ at: number; fireX: number; fireY: number; targetX: number; targetY: number } | null>(null);
 
     // Add after existing refs in the hook
     const isRightMouseDownRef = useRef<boolean>(false);
@@ -395,6 +404,155 @@ export const useInputHandler = ({
             }
         }
     }, [showBuildingRadialMenu]);
+
+    const spawnOptimisticProjectile = useCallback((
+        targetX: number,
+        targetY: number,
+        fireX: number,
+        fireY: number,
+        equippedItemDefId: bigint,
+        loadedAmmoDefId: bigint | undefined,
+        weaponName: string | undefined
+    ) => {
+        const player = localPlayerRef.current;
+        if (!player) return;
+        // Optimistic projectile visuals should only exist when ammo is actually loaded.
+        // If ammo is missing, let reducer rejection happen without showing a fake projectile.
+        if (loadedAmmoDefId === undefined) return;
+
+        const dx = targetX - fireX;
+        const dy = targetY - fireY;
+        const distance = Math.hypot(dx, dy);
+        if (distance < 1) return;
+
+        const weaponStats = weaponName ? rangedWeaponStatsRef.current?.get(weaponName) : undefined;
+        const projectileSpeed = weaponStats?.projectileSpeed ?? 700;
+        const velocityX = (dx / distance) * projectileSpeed;
+        const velocityY = (dy / distance) * projectileSpeed;
+
+        const nowMs = Date.now();
+        const last = lastOptimisticSpawnRef.current;
+        if (
+            last &&
+            nowMs - last.at < 50 &&
+            Math.abs(last.fireX - fireX) < 1 &&
+            Math.abs(last.fireY - fireY) < 1 &&
+            Math.abs(last.targetX - targetX) < 1 &&
+            Math.abs(last.targetY - targetY) < 1
+        ) {
+            // Deduplicate mousedown+click dual event paths for one physical shot.
+            return;
+        }
+        lastOptimisticSpawnRef.current = { at: nowMs, fireX, fireY, targetX, targetY };
+
+        const seq = optimisticProjectileSeqRef.current++;
+        const syntheticId = 9_000_000_000_000_000_000n + BigInt(nowMs) * 1000n + BigInt(seq % 1000);
+        const key = `opt-${syntheticId.toString()}`;
+
+        const optimisticProjectile: SpacetimeDB.Projectile = {
+            id: syntheticId,
+            ownerId: player.identity,
+            itemDefId: equippedItemDefId,
+            ammoDefId: loadedAmmoDefId,
+            sourceType: 0, // PROJECTILE_SOURCE_PLAYER
+            npcProjectileType: 0,
+            startTime: { microsSinceUnixEpoch: BigInt(nowMs) * 1000n } as any,
+            startPosX: fireX,
+            startPosY: fireY,
+            velocityX,
+            velocityY,
+            maxRange: weaponStats?.weaponRange ?? 1200,
+        };
+
+        setOptimisticProjectiles(prev => {
+            const next = new Map(prev);
+            next.set(key, optimisticProjectile);
+            return next;
+        });
+        optimisticProjectileMetaRef.current.set(key, { createdAtMs: nowMs });
+
+        const existingTimer = optimisticProjectileCleanupTimersRef.current.get(key);
+        if (existingTimer) clearTimeout(existingTimer);
+        const estimatedFlightMs = Math.min(
+            2200,
+            Math.max(500, ((optimisticProjectile.maxRange / Math.max(projectileSpeed, 1)) * 1000) + 250)
+        );
+        const timer = setTimeout(() => {
+            setOptimisticProjectiles(prev => {
+                if (!prev.has(key)) return prev;
+                const next = new Map(prev);
+                next.delete(key);
+                return next;
+            });
+            optimisticProjectileCleanupTimersRef.current.delete(key);
+            optimisticProjectileMetaRef.current.delete(key);
+        }, estimatedFlightMs);
+        optimisticProjectileCleanupTimersRef.current.set(key, timer);
+    }, [localPlayerRef, rangedWeaponStatsRef]);
+
+    // Lifecycle reconciliation only (no position reconciliation):
+    // once a matching server projectile appears, end optimistic projectile
+    // immediately when that server projectile is removed by collision/range.
+    useEffect(() => {
+        if (!localPlayerId || optimisticProjectiles.size === 0) return;
+        const serverMap = serverProjectilesRef.current;
+        if (!serverMap) return;
+
+        const localServerProjectiles = new Map<string, SpacetimeDB.Projectile>();
+        for (const [id, projectile] of serverMap.entries()) {
+            if (projectile.sourceType === 0 && projectile.ownerId.toHexString() === localPlayerId) {
+                localServerProjectiles.set(id, projectile);
+            }
+        }
+
+        const keysToRemove: string[] = [];
+
+        optimisticProjectiles.forEach((optimisticProjectile, key) => {
+            const meta = optimisticProjectileMetaRef.current.get(key);
+            if (!meta) return;
+
+            if (meta.matchedServerId) {
+                if (!localServerProjectiles.has(meta.matchedServerId)) {
+                    keysToRemove.push(key);
+                }
+                return;
+            }
+
+            for (const [serverId, serverProjectile] of localServerProjectiles.entries()) {
+                const serverStartMs = Number(serverProjectile.startTime.microsSinceUnixEpoch / 1000n);
+                if (Math.abs(serverStartMs - meta.createdAtMs) > 1200) continue;
+                if (serverProjectile.ammoDefId !== optimisticProjectile.ammoDefId) continue;
+                const dx = serverProjectile.startPosX - optimisticProjectile.startPosX;
+                const dy = serverProjectile.startPosY - optimisticProjectile.startPosY;
+                if ((dx * dx + dy * dy) > (48 * 48)) continue;
+                meta.matchedServerId = serverId;
+                optimisticProjectileMetaRef.current.set(key, meta);
+                break;
+            }
+        });
+
+        if (keysToRemove.length > 0) {
+            setOptimisticProjectiles(prev => {
+                const next = new Map(prev);
+                for (const key of keysToRemove) {
+                    next.delete(key);
+                    const timer = optimisticProjectileCleanupTimersRef.current.get(key);
+                    if (timer) clearTimeout(timer);
+                    optimisticProjectileCleanupTimersRef.current.delete(key);
+                    optimisticProjectileMetaRef.current.delete(key);
+                }
+                return next;
+            });
+        }
+    }, [localPlayerId, optimisticProjectiles, serverProjectilesRef]);
+
+    useEffect(() => {
+        return () => {
+            optimisticProjectileCleanupTimersRef.current.forEach(timer => clearTimeout(timer));
+            optimisticProjectileCleanupTimersRef.current.clear();
+            optimisticProjectileMetaRef.current.clear();
+        };
+    }, []);
 
     // FIX: Play cairn_unlock sound only on actual first discovery (after server confirms)
     // Track which cairns we've already played sound for to prevent duplicates
@@ -1578,6 +1736,15 @@ export const useInputHandler = ({
                                     // Use EXACT position calculated at this moment for perfect accuracy
                                     const fireX = exactPos?.x ?? fallbackPos?.x ?? currentPlayer.positionX;
                                     const fireY = exactPos?.y ?? fallbackPos?.y ?? currentPlayer.positionY;
+                                    spawnOptimisticProjectile(
+                                        worldMousePosRefInternal.current.x,
+                                        worldMousePosRefInternal.current.y,
+                                        fireX,
+                                        fireY,
+                                        localPlayerActiveEquipment.equippedItemDefId,
+                                        localPlayerActiveEquipment.loadedAmmoDefId,
+                                        equippedItemDef.name
+                                    );
                                     connectionRef.current.reducers.fireProjectile(
                                         worldMousePosRefInternal.current.x, 
                                         worldMousePosRefInternal.current.y,
@@ -1973,6 +2140,15 @@ export const useInputHandler = ({
                             // Use EXACT position calculated at this moment for perfect accuracy
                             const fireX = exactPos?.x ?? fallbackPos?.x ?? currentPlayer.positionX;
                             const fireY = exactPos?.y ?? fallbackPos?.y ?? currentPlayer.positionY;
+                            spawnOptimisticProjectile(
+                                worldMousePosRefInternal.current.x,
+                                worldMousePosRefInternal.current.y,
+                                fireX,
+                                fireY,
+                                localEquipment.equippedItemDefId!,
+                                localEquipment.loadedAmmoDefId,
+                                itemDef.name
+                            );
                             connectionRef.current.reducers.fireProjectile(
                                 worldMousePosRefInternal.current.x, 
                                 worldMousePosRefInternal.current.y,
@@ -2579,6 +2755,15 @@ export const useInputHandler = ({
                                     currentPlayer) {
                                     const fireX = exactPos?.x ?? fallbackPos?.x ?? currentPlayer.positionX;
                                     const fireY = exactPos?.y ?? fallbackPos?.y ?? currentPlayer.positionY;
+                                    spawnOptimisticProjectile(
+                                        worldMousePosRefInternal.current.x,
+                                        worldMousePosRefInternal.current.y,
+                                        fireX,
+                                        fireY,
+                                        localPlayerActiveEquipment.equippedItemDefId!,
+                                        localPlayerActiveEquipment.loadedAmmoDefId,
+                                        equippedItemDef.name
+                                    );
                                     connectionRef.current.reducers.fireProjectile(
                                         worldMousePosRefInternal.current.x,
                                         worldMousePosRefInternal.current.y,
@@ -2687,6 +2872,7 @@ export const useInputHandler = ({
         setShowBuildingRadialMenu, // Expose setter so parent can close menu
         showUpgradeRadialMenu,
         setShowUpgradeRadialMenu,
+        optimisticProjectiles,
         processInputsAndActions,
     };
 }; 

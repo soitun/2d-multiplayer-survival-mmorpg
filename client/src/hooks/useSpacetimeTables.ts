@@ -1550,7 +1550,10 @@ export const useSpacetimeTables = ({
 
             const handleProjectileInsert = (ctx: any, projectile: SpacetimeDBProjectile) => {
                 projectilesRef.current.set(projectile.id.toString(), projectile);
-                scheduleProjectileUpdate();
+                // CRITICAL: Flush inserts immediately so newly-fired projectiles are visible
+                // from their first replicated frame. If insert+delete are coalesced inside
+                // the 50ms batch window, the projectile can otherwise be skipped entirely.
+                setProjectiles(new Map(projectilesRef.current));
             };
             const handleProjectileUpdate = (ctx: any, oldProjectile: SpacetimeDBProjectile, newProjectile: SpacetimeDBProjectile) => {
                 projectilesRef.current.set(newProjectile.id.toString(), newProjectile);

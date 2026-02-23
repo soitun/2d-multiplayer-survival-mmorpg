@@ -16,6 +16,7 @@ import krummholzSpruceImage from '../../assets/doodads/krummholz_spruce.png';
 // Fruit/Nut tree sprites
 import crabAppleTreeImage from '../../assets/doodads/crab_apple_tree.png';
 import hazelnutTreeImage from '../../assets/doodads/hazelnut_tree.png';
+import oliveTreeImage from '../../assets/doodads/olive_tree.png';
 
 /**
  * Type alias for the actual generated PlantedSeed type
@@ -29,7 +30,8 @@ function isTreeSapling(plantType: PlantType): boolean {
     return plantType.tag === 'ConiferSapling' || 
            plantType.tag === 'DeciduousSapling' ||
            plantType.tag === 'CrabAppleSapling' ||
-           plantType.tag === 'HazelnutSapling';
+           plantType.tag === 'HazelnutSapling' ||
+           plantType.tag === 'OliveSapling';
 }
 
 /**
@@ -72,6 +74,7 @@ function initializeTreeImages() {
             // Fruit/Nut trees
             'CrabAppleTree': crabAppleTreeImage,
             'HazelnutTree': hazelnutTreeImage,
+            'OliveTree': oliveTreeImage,
         };
         
         Object.entries(treeTypeToImage).forEach(([treeType, imageSrc]) => {

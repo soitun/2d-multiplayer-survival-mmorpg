@@ -689,7 +689,6 @@ const iconMap: { [key: string]: string | undefined } = {
   'cooked_hazelnuts.png': cookedHazelnutIcon,
   'olives.png': olivesIcon,
   'olive_pit.png': olivePitIcon,
-  'olive_seed.png': olivePitIcon, // Backward-compatible alias
   
   // Animal materials
   'animal_leather.png': animalLeatherIcon,

@@ -453,7 +453,7 @@ const getEntityY = (item: YSortedEntityType, timestamp: number): number => {
       return entity.serverPosY;
     case 'projectile': {
       const startTime = Number(entity.startTime.microsSinceUnixEpoch / 1000n);
-      const elapsedSeconds = (timestamp - startTime) / 1000.0;
+      const elapsedSeconds = Math.max(0, (timestamp - startTime) / 1000.0);
       return entity.startPosY + entity.velocityY * elapsedSeconds;
     }
     case 'sea_stack':
@@ -507,7 +507,9 @@ const getEntityPriority = (item: YSortedEntityType): number => {
     case 'rain_collector': return 18;
     case 'broth_pot': return 18; // Same as rain collector (similar placeable container)
     case 'foundation_cell': return 0.5; // ADDED: Foundations render early (ground level)
-    case 'projectile': return 19;
+    // Render projectiles above player sprites to avoid self-body occlusion
+    // when firing (most noticeable on right-facing shots).
+    case 'projectile': return 21.25;
     case 'animal_corpse': return 20;
     case 'player_corpse': return 20;
     case 'player': return 21; // Players render before fog overlays (below ceiling tiles)
@@ -927,7 +929,7 @@ export function useEntityFiltering(
       // Handle projectiles - calculate current position based on time
       const projectile = entity as any;
       const startTime = Number(projectile.startTime.microsSinceUnixEpoch / 1000n);
-      const elapsedSeconds = (timestamp - startTime) / 1000.0;
+      const elapsedSeconds = Math.max(0, (timestamp - startTime) / 1000.0);
       x = projectile.startPosX + projectile.velocityX * elapsedSeconds;
       y = projectile.startPosY + projectile.velocityY * elapsedSeconds;
       width = 32;
@@ -1221,29 +1223,10 @@ export function useEntityFiltering(
   );
 
   const visibleProjectiles = useMemo(() => {
-    // For projectiles, use minimal filtering to ensure they're always visible in production
-    // Skip complex timing calculations that could cause issues with network latency
-    const filtered: SpacetimeDBProjectile[] = [];
-    for (const projectile of projectiles.values()) {
-      // Simple bounds check using start position (no timing calculations)
-      const startX = projectile.startPosX;
-      const startY = projectile.startPosY;
-      
-      // Very generous bounds check - if the projectile started anywhere near the viewport,
-      // let it through (it will be properly positioned in the render function)
-      const margin = 1000; // Large margin to account for projectile travel
-      if (
-        startX > viewBounds.viewMinX - margin &&
-        startX < viewBounds.viewMaxX + margin &&
-        startY > viewBounds.viewMinY - margin &&
-        startY < viewBounds.viewMaxY + margin
-      ) {
-        filtered.push(projectile);
-      }
-    }
-
-    return filtered;
-  }, [projectiles, viewBounds]);
+    // Projectiles are short-lived and relatively low-count compared to static entities.
+    // Avoid trajectory-based culling here to prevent directional pop-in regressions.
+    return Array.from(projectiles.values());
+  }, [projectiles]);
 
   // PERFORMANCE: More aggressive grass culling
   // ALSO: Filter out grass on water tiles (Sea, HotSpringWater)

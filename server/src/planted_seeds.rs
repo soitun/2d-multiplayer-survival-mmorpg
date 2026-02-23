@@ -1005,14 +1005,14 @@ pub fn plant_seed(
     }
     
     // === TREE SEED VALIDATION ===
-    // Tree seeds (Pinecone, Birch Catkin, Crab Apple Seeds, Hazelnuts, Rowan Seeds, Olive Seed)
+    // Tree seeds (Pinecone, Birch Catkin, Crab Apple Seeds, Hazelnuts, Rowan Seeds, Olive Pit)
     // have special planting restrictions/handling.
     let is_pinecone = item_def.name == "Pinecone";
     let is_birch_catkin = item_def.name == "Birch Catkin";
     let is_crab_apple_seeds = item_def.name == "Crab Apple Seeds";
     let is_hazelnut = item_def.name == "Hazelnuts";
     let is_rowan_seeds = item_def.name == "Rowan Seeds";
-    let is_olive_seed = item_def.name == "Olive Seed";
+    let is_olive_seed = item_def.name == "Olive Pit";
     let is_tree_seed = is_pinecone || is_birch_catkin || is_crab_apple_seeds || is_hazelnut || is_rowan_seeds || is_olive_seed;
     
     if is_tree_seed {
@@ -1030,7 +1030,7 @@ pub fn plant_seed(
         }
         
         // Crab Apple Seeds, Hazelnuts, and Rowan Seeds: Temperate only (Grass/Forest) - not too cold, not too salty
-        // Olive Seed intentionally skipped: GMO cultivar can grow in any temperature.
+        // Olive Pit intentionally skipped: GMO cultivar can grow in any temperature.
         if is_crab_apple_seeds || is_hazelnut || is_rowan_seeds {
             let is_beach = crate::environment::is_position_on_beach_tile(ctx, plant_pos_x, plant_pos_y);
             let is_alpine = crate::environment::is_position_on_alpine_tile(ctx, plant_pos_x, plant_pos_y);
@@ -1081,7 +1081,7 @@ pub fn plant_seed(
     }
     
     // === DETERMINE TARGET TREE TYPE FOR TREE SEEDS ===
-    // For tree seeds (Pinecone, Birch Catkin, Crab Apple Seeds, Hazelnuts, Rowan Seeds, Olive Seed),
+    // For tree seeds (Pinecone, Birch Catkin, Crab Apple Seeds, Hazelnuts, Rowan Seeds, Olive Pit),
     // determine the exact tree type NOW based on biome.
     // This is stored in the PlantedSeed so the client can render the correct sprite during growth
     let target_tree_type: Option<crate::tree::TreeType> = if is_tree_seed {
@@ -1129,7 +1129,7 @@ pub fn plant_seed(
             // Rowan Seeds -> RowanberryTree (temperate only - biome restrictions already validated)
             TreeType::RowanberryTree // 100% - Rowanberry tree (mountain ash)
         } else if is_olive_seed {
-            // Olive Seed -> OliveTree (GMO cultivar that tolerates all climates)
+            // Olive Pit -> OliveTree (GMO cultivar that tolerates all climates)
             TreeType::OliveTree // 100% - Plantable-only olive tree
         } else {
             // Deciduous (Birch Catkin) - note: alpine is blocked at planting time

@@ -117,6 +117,8 @@ import { renderProjectile } from './projectileRenderingUtils';
 
 // --- Utilities ---
 import { imageManager } from './imageManager';
+const EMPTY_PROJECTILE_IMAGE = new Image();
+
 import { getItemIcon } from '../itemIconUtils';
 import { renderPlayerTorchLight, renderCampfireLight } from './lightRenderingUtils';
 import { drawInteractionOutline, drawCircularInteractionOutline, getInteractionOutlineColor } from './outlineUtils';
@@ -1523,18 +1525,15 @@ export const renderYSortedEntities = ({
               const projectileImageSrc = getItemIcon(projectileImageName);
               const projectileImage = imageManager.getImage(projectileImageSrc);
               
-              if (projectileImage) {
-                  renderProjectile({
-                      ctx,
-                      projectile,
-                      arrowImage: projectileImage, // Note: parameter name is still 'arrowImage' but now handles both
-                      currentTimeMs: nowMs,
-                      itemDefinitions, // FIXED: Add itemDefinitions for weapon type detection
-                      applyUnderwaterTint: isLocalPlayerSnorkeling, // Teal tint when local player is underwater
-                  });
-              } else {
-                  console.warn(`🏹 [RENDER] Image not loaded: ${projectileImageName} for projectile ${projectile.id}`);
-              }
+              renderProjectile({
+                  ctx,
+                  projectile,
+                  // If sprite is still loading, renderProjectile will draw a primitive fallback.
+                  arrowImage: projectileImage ?? EMPTY_PROJECTILE_IMAGE,
+                  currentTimeMs: nowMs,
+                  itemDefinitions, // FIXED: Add itemDefinitions for weapon type detection
+                  applyUnderwaterTint: isLocalPlayerSnorkeling, // Teal tint when local player is underwater
+              });
           }
       } else if (type === 'planted_seed') {
           const plantedSeed = entity as SpacetimeDBPlantedSeed;

@@ -31,6 +31,7 @@ use crate::rain_collector::{RainCollector, RAIN_COLLECTOR_COLLISION_RADIUS, RAIN
 use crate::furnace::{Furnace, FURNACE_COLLISION_RADIUS, FURNACE_COLLISION_Y_OFFSET, furnace as FurnaceTableTrait};
 use crate::lantern::{Lantern, lantern as LanternTableTrait};
 use crate::barbecue::{BARBECUE_COLLISION_RADIUS, BARBECUE_COLLISION_Y_OFFSET, barbecue as BarbecueTableTrait};
+use crate::coral::{LIVING_CORAL_RADIUS, LIVING_CORAL_COLLISION_Y_OFFSET, living_coral as LivingCoralTableTrait};
 // Lantern collision constants (not exported from lantern.rs, so define here)
 const PROJECTILE_LANTERN_HIT_RADIUS: f32 = 25.0; // Generous radius for lanterns
 const PROJECTILE_LANTERN_Y_OFFSET: f32 = 0.0; // No Y offset needed
@@ -108,6 +109,49 @@ pub fn line_intersects_circle(x1: f32, y1: f32, x2: f32, y2: f32, cx: f32, cy: f
     let dist_sq = dist_x * dist_x + dist_y * dist_y;
     
     dist_sq <= radius * radius
+}
+
+/// Returns the first impact point (closest to segment start) where the segment
+/// intersects the circle, or None if there is no intersection on [0, 1].
+pub fn line_circle_first_impact_point(
+    x1: f32,
+    y1: f32,
+    x2: f32,
+    y2: f32,
+    cx: f32,
+    cy: f32,
+    radius: f32,
+) -> Option<(f32, f32)> {
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    let fx = x1 - cx;
+    let fy = y1 - cy;
+
+    let a = dx * dx + dy * dy;
+    if a < 1e-8 {
+        return None;
+    }
+
+    let b = 2.0 * (fx * dx + fy * dy);
+    let c = fx * fx + fy * fy - radius * radius;
+    let discriminant = b * b - 4.0 * a * c;
+    if discriminant < 0.0 {
+        return None;
+    }
+
+    let sqrt_d = discriminant.sqrt();
+    let t1 = (-b - sqrt_d) / (2.0 * a);
+    let t2 = (-b + sqrt_d) / (2.0 * a);
+
+    let t = if (0.0..=1.0).contains(&t1) {
+        Some(t1)
+    } else if (0.0..=1.0).contains(&t2) {
+        Some(t2)
+    } else {
+        None
+    }?;
+
+    Some((x1 + t * dx, y1 + t * dy))
 }
 
 #[table(name = projectile, public)]
@@ -1531,7 +1575,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 let tree_hit_y = tree.pos_y - PROJECTILE_TREE_Y_OFFSET;
                 
                 // Use line segment collision detection for trees
-                if line_intersects_circle(prev_x, prev_y, current_x, current_y, tree.pos_x, tree_hit_y, PROJECTILE_TREE_HIT_RADIUS) {
+                if let Some((impact_x, impact_y)) = line_circle_first_impact_point(
+                    prev_x,
+                    prev_y,
+                    current_x,
+                    current_y,
+                    tree.pos_x,
+                    tree_hit_y,
+                    PROJECTILE_TREE_HIT_RADIUS,
+                ) {
                     log::info!(
                         "[ProjectileUpdate] Projectile {} from owner {:?} hit Tree {} along path from ({:.1}, {:.1}) to ({:.1}, {:.1})",
                         projectile.id, projectile.owner_id, tree.id, prev_x, prev_y, current_x, current_y
@@ -1539,11 +1591,11 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     
                     // Create fire patch if this is a fire arrow (100% chance)
                     if let Some(ammo_item_def) = ammo_item_def_cached.as_ref() {
-                        create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
+                        create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, impact_x, impact_y, projectile.owner_id);
                     }
                     
                     // Trees block projectiles but don't take damage - projectile becomes dropped item
-                    missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
+                    missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, impact_x, impact_y));
                     projectiles_to_delete.push(projectile.id);
                     hit_natural_obstacle_this_tick = true;
                     break 'tree_chunks;
@@ -1570,7 +1622,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 let stone_hit_y = stone.pos_y - PROJECTILE_STONE_Y_OFFSET;
                 
                 // Use line segment collision detection for stones
-                if line_intersects_circle(prev_x, prev_y, current_x, current_y, stone.pos_x, stone_hit_y, PROJECTILE_STONE_HIT_RADIUS) {
+                if let Some((impact_x, impact_y)) = line_circle_first_impact_point(
+                    prev_x,
+                    prev_y,
+                    current_x,
+                    current_y,
+                    stone.pos_x,
+                    stone_hit_y,
+                    PROJECTILE_STONE_HIT_RADIUS,
+                ) {
                     log::info!(
                         "[ProjectileUpdate] Projectile {} from owner {:?} hit Stone {} along path from ({:.1}, {:.1}) to ({:.1}, {:.1})",
                         projectile.id, projectile.owner_id, stone.id, prev_x, prev_y, current_x, current_y
@@ -1578,11 +1638,11 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     
                     // Create fire patch if this is a fire arrow (100% chance)
                     if let Some(ammo_item_def) = ammo_item_def_cached.as_ref() {
-                        create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
+                        create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, impact_x, impact_y, projectile.owner_id);
                     }
                     
                     // Stones block projectiles but don't take damage - projectile becomes dropped item
-                    missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
+                    missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, impact_x, impact_y));
                     projectiles_to_delete.push(projectile.id);
                     hit_natural_obstacle_this_tick = true;
                     break 'stone_chunks;
@@ -1650,6 +1710,43 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     projectiles_to_delete.push(projectile.id);
                     hit_natural_obstacle_this_tick = true;
                     break 'basalt_chunks;
+                }
+            }
+        }
+
+        // Check living coral collisions (chunk-filtered, underwater obstacles)
+        'living_coral_chunks: for chunk_idx in &chunk_indices[..chunk_count] {
+            for coral in ctx.db.living_coral().chunk_index().filter(*chunk_idx) {
+                // Skip destroyed/respawning coral
+                if coral.respawn_at > Timestamp::UNIX_EPOCH {
+                    continue;
+                }
+
+                let coral_hit_y = coral.pos_y - LIVING_CORAL_COLLISION_Y_OFFSET;
+                if let Some((impact_x, impact_y)) = line_circle_first_impact_point(
+                    prev_x,
+                    prev_y,
+                    current_x,
+                    current_y,
+                    coral.pos_x,
+                    coral_hit_y,
+                    LIVING_CORAL_RADIUS,
+                ) {
+                    log::info!(
+                        "[ProjectileUpdate] Projectile {} from owner {:?} hit LivingCoral {} along path from ({:.1}, {:.1}) to ({:.1}, {:.1})",
+                        projectile.id, projectile.owner_id, coral.id, prev_x, prev_y, current_x, current_y
+                    );
+
+                    if let Some(ammo_item_def) = ammo_item_def_cached.as_ref() {
+                        create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, impact_x, impact_y, projectile.owner_id);
+                    }
+
+                    // Coral blocks projectiles. We intentionally do not route projectile
+                    // hits through coral harvesting combat; ammo should drop at impact.
+                    missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, impact_x, impact_y));
+                    projectiles_to_delete.push(projectile.id);
+                    hit_natural_obstacle_this_tick = true;
+                    break 'living_coral_chunks;
                 }
             }
         }
@@ -1930,7 +2027,15 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 let barrel_hit_y = barrel.pos_y - projectile_barrel_y_offset;
                 
                 // Use line segment collision detection instead of just checking current position
-                if line_intersects_circle(prev_x, prev_y, current_x, current_y, barrel.pos_x, barrel_hit_y, projectile_barrel_hit_radius) {
+                if let Some((impact_x, impact_y)) = line_circle_first_impact_point(
+                    prev_x,
+                    prev_y,
+                    current_x,
+                    current_y,
+                    barrel.pos_x,
+                    barrel_hit_y,
+                    projectile_barrel_hit_radius,
+                ) {
                     log::info!(
                         "[ProjectileUpdate] Projectile {} from owner {:?} hit Barrel {} along path from ({:.1}, {:.1}) to ({:.1}, {:.1})",
                         projectile.id, projectile.owner_id, barrel.id, prev_x, prev_y, current_x, current_y
@@ -1962,11 +2067,11 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     
                     // Create fire patch if this is a fire arrow (100% chance)
                     if let Some(ammo_item_def) = ammo_item_def_cached.as_ref() {
-                        create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
+                        create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, impact_x, impact_y, projectile.owner_id);
                     }
                     
                     // Add projectile to dropped item system (with break chance) like other hits
-                    missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
+                    missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, impact_x, impact_y));
                     projectiles_to_delete.push(projectile.id);
                     hit_deployable_this_tick = true;
                     break 'barrel_chunks;
@@ -2514,7 +2619,16 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             
             // Use line segment collision detection for wild animals
             const WILD_ANIMAL_HIT_RADIUS: f32 = 32.0; // Generous radius for wild animals
-            let collision_detected = line_intersects_circle(prev_x, prev_y, current_x, current_y, wild_animal.pos_x, wild_animal.pos_y, WILD_ANIMAL_HIT_RADIUS);
+            let collision_impact = line_circle_first_impact_point(
+                prev_x,
+                prev_y,
+                current_x,
+                current_y,
+                wild_animal.pos_x,
+                wild_animal.pos_y,
+                WILD_ANIMAL_HIT_RADIUS,
+            );
+            let collision_detected = collision_impact.is_some();
             
             // Debug logging for nearby collisions
             if (prev_x - wild_animal.pos_x).abs() < 100.0 && (prev_y - wild_animal.pos_y).abs() < 100.0 {
@@ -2543,7 +2657,8 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                         }
                     }
                     
-                    create_fire_patch_if_turret_tallow(ctx, &projectile, current_x, current_y);
+                    let (impact_x, impact_y) = collision_impact.unwrap_or((current_x, current_y));
+                    create_fire_patch_if_turret_tallow(ctx, &projectile, impact_x, impact_y);
                     
                     // Monument turret projectiles don't create drops
                     projectiles_to_delete.push(projectile.id);
@@ -2611,15 +2726,16 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 }
 
                 // Create fire patch if this is a fire arrow (100% chance)
-                create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, current_x, current_y, projectile.owner_id);
+                let (impact_x, impact_y) = collision_impact.unwrap_or((current_x, current_y));
+                create_fire_patch_if_fire_arrow(ctx, &ammo_item_def, impact_x, impact_y, projectile.owner_id);
                 
                 // Create fire patch if this is a turret tallow projectile (25% chance)
-                create_fire_patch_if_turret_tallow(ctx, &projectile, current_x, current_y);
+                create_fire_patch_if_turret_tallow(ctx, &projectile, impact_x, impact_y);
 
                 // Turret projectiles (player + monument) explode on impact and don't become dropped items
                 // Add projectile to dropped item system (with break chance) like other hits
                 if projectile.source_type != PROJECTILE_SOURCE_TURRET && projectile.source_type != PROJECTILE_SOURCE_MONUMENT_TURRET {
-                    missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, current_x, current_y));
+                    missed_projectiles_for_drops.push((projectile.id, projectile.ammo_def_id, impact_x, impact_y));
                 }
                 projectiles_to_delete.push(projectile.id);
                 hit_wild_animal_this_tick = true;

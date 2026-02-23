@@ -99,7 +99,7 @@ pub enum PlantType {
     CrabAppleSapling,   // Planted from Crab Apple Seeds - grows into a crab apple tree
     HazelnutSapling,    // Planted from Hazelnut - grows into a hazelnut tree
     RowanberrySapling,  // Planted from Rowan Seeds - grows into a rowanberry tree
-    OliveSapling,       // Planted from Olive Seed - grows into an olive tree
+    OliveSapling,       // Planted from Olive Pit - grows into an olive tree
 }
 
 // --- Plant Configuration System ---
@@ -1333,7 +1333,7 @@ lazy_static! {
             growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn], // No winter growth
         });
 
-        // Olive Sapling - GMO olive cultivar from rare Olive Seeds
+        // Olive Sapling - GMO olive cultivar from rare Olive Pits
         // Plantable-only tree type; never spawned by world generation.
         configs.insert(PlantType::OliveSapling, PlantConfig {
             entity_name: "Olive Sapling".to_string(),
@@ -1344,7 +1344,7 @@ lazy_static! {
             noise_threshold: 1.0, // Never spawns naturally
             primary_yield: ("Wood".to_string(), 0, 0), // No direct yield - becomes a Tree
             secondary_yield: None,
-            seed_type: "Olive Seed".to_string(),
+            seed_type: "Olive Pit".to_string(),
             seed_drop_chance: 0.5, // Allows occasional seed return when consuming olives
             min_respawn_time_secs: 300, // 5 minutes to grow
             max_respawn_time_secs: 480, // 8 minutes to grow
