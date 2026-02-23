@@ -261,7 +261,7 @@ pub fn get_tool_definitions() -> Vec<ItemDefinition> {
             .respawn_time(400)
             .build(),
 
-        ItemBuilder::new("Selo Olive Oil", "Premium olive oil with miraculous healing properties. Restores health, stamina, warmth, hunger, and thirst.", ItemCategory::Tool)
+        ItemBuilder::new("Selo Olive Oil", "Superior oil pressed from GMO SELO olives. Restores health, stamina, warmth, hunger, and thirst.", ItemCategory::Tool)
             .icon("selo_olive_oil.png")
             .stackable(5)
             .equippable(None)

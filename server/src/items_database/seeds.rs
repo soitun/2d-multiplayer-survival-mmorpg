@@ -595,7 +595,16 @@ pub fn get_seed_definitions() -> Vec<ItemDefinition> {
             .stackable(30)
             .respawn_time(220)
             .consumable(8.0, 15.0, -2.0) // health, hunger, thirst - good raw, slightly dry
-            .cookable(35.0, "Cooked Hazelnuts") // Roasts into enhanced snack
+            .cookable(35.0, "Roasted Hazelnuts") // Roasts into enhanced snack
+            .build(),
+
+        // Olive Seed - Rare GMO tree seed from sea flotsam and olive consumption
+        ItemBuilder::new("Olive Seed", "A rare SELO olive seed. Engineered to survive in any climate. Plant it to grow an olive tree.", ItemCategory::Placeable)
+            .icon("olive_pit.png")
+            .stackable(20)
+            .respawn_time(900) // Rare progression seed
+            .consumable(0.0, 0.5, -0.5) // Not very edible
+            .cookable(20.0, "Charcoal") // Tiny seed chars when heated
             .build(),
     ]
 }

@@ -158,7 +158,8 @@ pub fn get_spoiled_item_definitions() -> Vec<ItemDefinition> {
 
         // === NUTS/PINECONE ===
         spoiled_item("Spoiled Hazelnuts", "hazelnuts.png", "Spoiled hazelnuts. Rancid.", 12, -4.0, 0.0, -6.0),
-        spoiled_item("Spoiled Cooked Hazelnuts", "cooked_hazelnuts.png", "Spoiled cooked hazelnuts.", 12, -6.0, 1.0, -8.0),
+        spoiled_item("Spoiled Roasted Hazelnuts", "cooked_hazelnuts.png", "Spoiled roasted hazelnuts.", 12, -6.0, 1.0, -8.0),
+        spoiled_item("Spoiled Olives", "olives.png", "Spoiled GMO olives. Oily, sour, and unsafe.", 20, -6.0, 0.0, -8.0),
         spoiled_item("Spoiled Pinecone", "pinecone.png", "Spoiled pinecone.", 12, -4.0, 0.0, -6.0),
         spoiled_item("Spoiled Cooked Pinecone", "cooked_pinecone.png", "Spoiled cooked pinecone.", 12, -6.0, 1.0, -8.0),
 

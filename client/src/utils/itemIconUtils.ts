@@ -57,6 +57,8 @@ import cookedCrabApplesIcon from '../assets/items/cooked_crab_apples.png';
 import crabAppleSeedsIcon from '../assets/items/crab_apple_seeds.png';
 import hazelnutIcon from '../assets/items/hazelnuts.png';
 import cookedHazelnutIcon from '../assets/items/cooked_hazelnuts.png';
+import olivesIcon from '../assets/items/olives.png';
+import olivePitIcon from '../assets/items/olive_pit.png';
 
 // Animal materials
 import animalLeatherIcon from '../assets/items/animal_leather.png';
@@ -685,6 +687,9 @@ const iconMap: { [key: string]: string | undefined } = {
   'crab_apple_seeds.png': crabAppleSeedsIcon,
   'hazelnuts.png': hazelnutIcon,
   'cooked_hazelnuts.png': cookedHazelnutIcon,
+  'olives.png': olivesIcon,
+  'olive_pit.png': olivePitIcon,
+  'olive_seed.png': olivePitIcon, // Backward-compatible alias
   
   // Animal materials
   'animal_leather.png': animalLeatherIcon,

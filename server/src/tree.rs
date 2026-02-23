@@ -59,6 +59,7 @@ pub enum TreeType {
     CrabAppleTree,      // crab_apple_tree.png - small fruit tree, drops Crab Apples
     HazelnutTree,       // hazelnut_tree.png - nut-bearing shrub-tree, drops Hazelnuts
     RowanberryTree,     // rowanberry_tree.png - mountain ash tree, drops Rowan Berries
+    OliveTree,          // olive_tree.png - GMO cultivar, drops Olives (plantable-only)
 }
 
 /// Per-tree-type stats: health and wood yield range.
@@ -77,6 +78,7 @@ pub fn tree_type_stats(tree_type: &TreeType) -> (u32, u32, u32) {
         TreeType::CrabAppleTree => (500, 80, 150),       // Small fruit tree
         TreeType::HazelnutTree => (450, 50, 100),        // Nut-bearing shrub-tree - smallest
         TreeType::RowanberryTree => (550, 70, 130),      // Mountain ash - small ornamental
+        TreeType::OliveTree => (620, 90, 160),           // Hardy GMO olive cultivar - compact but dense
 
         // --- MEDIUM: Mountain hemlock, birch ---
         TreeType::MountainHemlock => (800, 200, 350),

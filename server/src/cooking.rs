@@ -32,6 +32,16 @@ impl CookingProgress {
     }
 }
 
+/// Effective cooking output: furnace-only items in campfire produce Charcoal.
+fn effective_cook_target(item_def: &crate::items::ItemDefinition, container_type: ContainerType) -> Option<String> {
+    let target = item_def.cooked_item_def_name.as_ref()?;
+    if item_def.requires_furnace_for_cooking && container_type == ContainerType::Campfire {
+        Some("Charcoal".to_string())
+    } else {
+        Some(target.clone())
+    }
+}
+
 // Trait for appliances that can cook/transform items
 // Extends ItemContainer to inherit slot access methods and avoid duplication
 pub trait CookableAppliance: ItemContainer {
@@ -248,12 +258,12 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
                                         if let Some(source_item_details) = ctx.db.inventory_item().instance_id().find(source_instance_after_transform) {
                                             if source_item_details.quantity > 0 {
                                                 if let Some(raw_def) = item_definition_table.id().find(source_item_details.item_def_id) {
-                                                    if let (Some(raw_target_name), Some(raw_target_time)) = (&raw_def.cooked_item_def_name, raw_def.cook_time_secs) {
+                                                    if let (Some(raw_target_time), Some(effective_target)) = (raw_def.cook_time_secs, effective_cook_target(&raw_def, appliance.get_container_type())) {
                                                         if raw_target_time > 0.0 {
                                                             slot_cooking_progress_opt = Some(CookingProgress {
                                                                 current_cook_time_secs: 0.0,
                                                                 target_cook_time_secs: raw_target_time,
-                                                                target_item_def_name: raw_target_name.clone(),
+                                                                target_item_def_name: effective_target,
                                                             });
                                                         } else { slot_cooking_progress_opt = None; }
                                                     } else { slot_cooking_progress_opt = None; }
@@ -291,12 +301,12 @@ pub fn process_appliance_cooking_tick<T: CookableAppliance>(
                         }
                     } else {
                         // No current progress, check if item *should* start cooking
-                        if let (Some(target_name), Some(target_time)) = (&current_item_def.cooked_item_def_name, current_item_def.cook_time_secs) {
+                        if let (Some(target_time), Some(effective_target)) = (current_item_def.cook_time_secs, effective_cook_target(&current_item_def, appliance.get_container_type())) {
                             if target_time > 0.0 {
                                 slot_cooking_progress_opt = Some(CookingProgress {
                                     current_cook_time_secs: 0.0, 
                                     target_cook_time_secs: target_time,
-                                    target_item_def_name: target_name.clone(),
+                                    target_item_def_name: effective_target,
                                 });
                             }
                         }

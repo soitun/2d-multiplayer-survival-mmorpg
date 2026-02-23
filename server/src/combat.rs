@@ -1744,7 +1744,8 @@ pub fn damage_tree(
             tree.tree_type,
             tree::TreeType::CrabAppleTree |
             tree::TreeType::HazelnutTree |
-            tree::TreeType::RowanberryTree
+            tree::TreeType::RowanberryTree |
+            tree::TreeType::OliveTree
         );
         
         let is_conifer = matches!(
@@ -1764,6 +1765,7 @@ pub fn damage_tree(
                 tree::TreeType::CrabAppleTree => "Crab Apples",
                 tree::TreeType::HazelnutTree => "Hazelnuts",
                 tree::TreeType::RowanberryTree => "Rowan Berries",
+                tree::TreeType::OliveTree => "Olives",
                 _ => unreachable!(),
             };
             
@@ -1801,6 +1803,7 @@ pub fn damage_tree(
                                     tree::TreeType::CrabAppleTree => "Crab Apple Tree",
                                     tree::TreeType::HazelnutTree => "Hazelnut Tree",
                                     tree::TreeType::RowanberryTree => "Rowanberry Tree",
+                                    tree::TreeType::OliveTree => "Olive Tree",
                                     _ => "Fruit Tree",
                                 },
                                 spawn_x, spawn_y, drop_x, drop_y, fruit_roll, fruit_chance);

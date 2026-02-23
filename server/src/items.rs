@@ -129,6 +129,7 @@ pub struct ItemDefinition {
     pub consumable_duration_secs: Option<f32>, // For effects over time, 0 or None for instant
     pub cook_time_secs: Option<f32>,           // Time to cook this item if it's cookable
     pub cooked_item_def_name: Option<String>, // Name of the ItemDefinition this item cooks into
+    pub requires_furnace_for_cooking: bool,    // If true, campfire produces Charcoal instead of cooked output (e.g. olives -> oil needs furnace)
     /// Generic extraction: crush bones, unravel rope, pulverize, mash, extract yeast, gut fish.
     /// When set, item can be processed into output_item (min..=max). Action label for UI: "Crush", "Unravel", etc.
     pub extraction_output_name: Option<String>,

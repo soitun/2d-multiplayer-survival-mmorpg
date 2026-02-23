@@ -654,6 +654,7 @@ fn get_plant_type_from_item_name(item_name: &str) -> Option<PlantType> {
     match normalized.as_str() {
         "Crab Apples" => return Some(PlantType::CrabAppleSapling),
         "Rowan Berries" => return Some(PlantType::RowanberrySapling),
+        "Olives" => return Some(PlantType::OliveSapling),
         _ => {}
     }
     

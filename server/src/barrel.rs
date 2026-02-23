@@ -60,6 +60,7 @@ pub const SEA_BARREL_SPAWN_CHANCE_PER_STACK: f32 = 0.35; // 35% chance to spawn 
 pub const MIN_SEA_BARREL_DISTANCE_FROM_STACK: f32 = 100.0; // Minimum distance from sea stack center (closer for better density)
 pub const MAX_SEA_BARREL_DISTANCE_FROM_STACK: f32 = 350.0; // Maximum distance from sea stack center (wider spread)
 pub const MIN_SEA_BARREL_DISTANCE_SQ: f32 = 80.0 * 80.0; // Minimum distance between sea barrels (tighter packing allowed)
+pub const SEA_BARREL_OLIVE_SEED_DROP_CHANCE: f32 = 0.01; // Very rare sea-only drop: Olive Seed
 
 // Beach barrel constants (all sea variants 3, 4, 5 can spawn on beaches)
 pub const BEACH_BARREL_SPAWN_DENSITY_PERCENT: f32 = 0.0003; // 0.03% of beach tiles get a barrel (washed up flotsam is common)
@@ -274,7 +275,7 @@ fn has_player_barrel_collision_with_size(
 
 /// Generates loot drops around a destroyed barrel
 /// Guarantees 1 item, max 2 items (like Rust)
-fn generate_barrel_loot_drops(ctx: &ReducerContext, barrel_pos_x: f32, barrel_pos_y: f32) -> Result<(), String> {
+fn generate_barrel_loot_drops(ctx: &ReducerContext, barrel_pos_x: f32, barrel_pos_y: f32, barrel_variant: u8) -> Result<(), String> {
     let loot_table = get_barrel_loot_table(ctx);
     const MAX_DROPS_PER_BARREL: usize = 2;
     
@@ -359,6 +360,24 @@ fn generate_barrel_loot_drops(ctx: &ReducerContext, barrel_pos_x: f32, barrel_po
         }
     }
     
+    // Sea-only bonus drop: rare Olive Seed from maritime flotsam barrels (variants 3-5).
+    let is_sea_variant = barrel_variant >= SEA_BARREL_VARIANT_START && barrel_variant < SEA_BARREL_VARIANT_END;
+    if is_sea_variant && ctx.rng().gen::<f32>() < SEA_BARREL_OLIVE_SEED_DROP_CHANCE {
+        if let Some(olive_seed_def) = ctx.db.item_definition().iter().find(|def| def.name == "Olive Seed") {
+            let angle = ctx.rng().gen_range(0.0..std::f32::consts::TAU);
+            let distance = ctx.rng().gen_range(30.0..60.0);
+            let drop_x = barrel_pos_x + angle.cos() * distance;
+            let drop_y = barrel_pos_y + angle.sin() * distance;
+            if let Err(e) = crate::dropped_item::create_dropped_item_entity_no_consolidation(ctx, olive_seed_def.id, 1, drop_x, drop_y) {
+                log::error!("[BarrelLoot] Failed to create Olive Seed sea bonus drop: {}", e);
+            } else {
+                log::info!("[BarrelLoot] Sea bonus drop: Olive Seed at ({:.1}, {:.1})", drop_x, drop_y);
+            }
+        } else {
+            log::warn!("[BarrelLoot] Olive Seed item definition not found for sea bonus drop");
+        }
+    }
+
     // Trigger consolidation ONCE after all items are dropped
     crate::dropped_item::trigger_consolidation_at_position(ctx, barrel_pos_x, barrel_pos_y);
     
@@ -410,7 +429,7 @@ pub fn damage_barrel(
         barrel.respawn_at = Timestamp::from_micros_since_unix_epoch(respawn_time);
         
         // Generate loot drops
-        if let Err(e) = generate_barrel_loot_drops(ctx, barrel.pos_x, barrel.pos_y) {
+        if let Err(e) = generate_barrel_loot_drops(ctx, barrel.pos_x, barrel.pos_y, barrel.variant) {
             log::error!("[BarrelDamage] Failed to generate loot for barrel {}: {}", barrel_id, e);
         }
         

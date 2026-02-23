@@ -42,6 +42,7 @@ impl ItemBuilder {
                 consumable_duration_secs: None,
                 cook_time_secs: None,
                 cooked_item_def_name: None,
+                requires_furnace_for_cooking: false,
                 extraction_output_name: None,
                 extraction_output_min: None,
                 extraction_output_max: None,
@@ -268,6 +269,14 @@ impl ItemBuilder {
     pub fn cookable(mut self, cook_time: f32, cooked_item: &str) -> Self {
         self.inner.cook_time_secs = Some(cook_time);
         self.inner.cooked_item_def_name = Some(cooked_item.to_string());
+        self
+    }
+
+    /// Cookable only in furnace; campfire produces Charcoal instead (e.g. olives need pressing to yield oil).
+    pub fn cookable_furnace_only(mut self, cook_time: f32, furnace_output: &str) -> Self {
+        self.inner.cook_time_secs = Some(cook_time);
+        self.inner.cooked_item_def_name = Some(furnace_output.to_string());
+        self.inner.requires_furnace_for_cooking = true;
         self
     }
 

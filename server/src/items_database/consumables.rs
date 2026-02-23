@@ -1744,7 +1744,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .build(),
 
         // Drinks
-        ItemBuilder::new("Black Tea Tin", "A small tin of strong black tea. Brew it for a warming, comforting drink.", ItemCategory::Consumable)
+        ItemBuilder::new("Black Tea Tin", "A small tin of strong black tea. Drink straight from the tin for a warming, comforting sip.", ItemCategory::Consumable)
             .icon("black_tea_tin.png")
             .stackable(10)
             .consumable(5.0, 8.0, 15.0) // Mild thirst quenching, comforting
@@ -1752,7 +1752,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .respawn_time(600)
             .build(),
 
-        ItemBuilder::new("image.png", "A tin of instant coffee granules. Strong, bitter, and energizing.", ItemCategory::Consumable)
+        ItemBuilder::new("Canned Coffee", "A tin of pre-made coffee. Strong, bitter, and energizing. Drink straight from the can.", ItemCategory::Consumable)
             .icon("instant_coffee_tin.png")
             .stackable(8)
             .consumable(3.0, 5.0, 8.0) // Mild effects, caffeine energy
@@ -2419,7 +2419,7 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
         // === HAZELNUTS ===
         // NOTE: Raw Hazelnut moved to seeds.rs - it's now Placeable + Consumable (plant hazelnuts to grow hazelnut trees)
         
-        ItemBuilder::new("Cooked Hazelnuts", "Roasted hazelnuts with an irresistible aroma. The heat enhances the nutty flavor and makes them easier to digest.", ItemCategory::Consumable)
+        ItemBuilder::new("Roasted Hazelnuts", "Roasted hazelnuts with an irresistible aroma. The heat enhances the nutty flavor and makes them easier to digest.", ItemCategory::Consumable)
             .icon("cooked_hazelnuts.png")
             .stackable(30)
             .consumable(30.0, 45.0, 2.0) // Excellent nutrition - nuts are calorie-dense
@@ -2435,6 +2435,16 @@ pub fn get_consumable_definitions() -> Vec<ItemDefinition> {
             .crafting_output(8, 0)
             .cookable(50.0, "Charcoal")
             .respawn_time(60)
+            .build(),
+
+        // === OLIVES ===
+        // Plantable-only GMO olive tree output. Cooking a handful yields premium SELO oil.
+        ItemBuilder::new("Olives", "A handful of GMO olives bred by SELO labs. They can grow in any climate and press into superior SELO olive oil.", ItemCategory::Consumable)
+            .icon("olives.png")
+            .stackable(20)
+            .consumable(6.0, 12.0, -2.0) // Oily snack: modest hunger, slightly dehydrating
+            .cookable_furnace_only(40.0, "Selo Olive Oil") // Furnace only: campfire chars to Charcoal
+            .respawn_time(220)
             .build(),
 
     ]

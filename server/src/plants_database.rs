@@ -99,6 +99,7 @@ pub enum PlantType {
     CrabAppleSapling,   // Planted from Crab Apple Seeds - grows into a crab apple tree
     HazelnutSapling,    // Planted from Hazelnut - grows into a hazelnut tree
     RowanberrySapling,  // Planted from Rowan Seeds - grows into a rowanberry tree
+    OliveSapling,       // Planted from Olive Seed - grows into an olive tree
 }
 
 // --- Plant Configuration System ---
@@ -1331,6 +1332,25 @@ lazy_static! {
             spawn_condition: SpawnCondition::Plains, // Temperate only (restrictions in planted_seeds.rs)
             growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn], // No winter growth
         });
+
+        // Olive Sapling - GMO olive cultivar from rare Olive Seeds
+        // Plantable-only tree type; never spawned by world generation.
+        configs.insert(PlantType::OliveSapling, PlantConfig {
+            entity_name: "Olive Sapling".to_string(),
+            density_percent: 0.0, // Never spawns naturally - planted only
+            min_distance_sq: 200.0 * 200.0, // Trees need lots of space
+            min_tree_distance_sq: 150.0 * 150.0, // Keep away from existing trees
+            min_stone_distance_sq: 100.0 * 100.0,
+            noise_threshold: 1.0, // Never spawns naturally
+            primary_yield: ("Wood".to_string(), 0, 0), // No direct yield - becomes a Tree
+            secondary_yield: None,
+            seed_type: "Olive Seed".to_string(),
+            seed_drop_chance: 0.5, // Allows occasional seed return when consuming olives
+            min_respawn_time_secs: 300, // 5 minutes to grow
+            max_respawn_time_secs: 480, // 8 minutes to grow
+            spawn_condition: SpawnCondition::Plains, // Broadly plantable; explicit checks live in planted_seeds.rs
+            growing_seasons: vec![Season::Spring, Season::Summer, Season::Autumn, Season::Winter], // GMO cultivar grows year-round
+        });
         
         configs
     };
@@ -1441,7 +1461,7 @@ fn get_plant_category(plant_type: &PlantType) -> PlantCategory {
         PlantType::MemoryShard | PlantType::SeaweedBed |
         PlantType::ConiferSapling | PlantType::DeciduousSapling |
         PlantType::CrabAppleSapling | PlantType::HazelnutSapling |
-        PlantType::RowanberrySapling => PlantCategory::Special,
+        PlantType::RowanberrySapling | PlantType::OliveSapling => PlantCategory::Special,
     }
 }
 
@@ -1676,6 +1696,7 @@ pub fn get_plant_bit_index(plant_type: &PlantType) -> Option<u32> {
         PlantType::MemoryShard | PlantType::SeaweedBed | 
         PlantType::ConiferSapling | PlantType::DeciduousSapling |
         PlantType::CrabAppleSapling | PlantType::HazelnutSapling |
-        PlantType::RowanberrySapling | PlantType::RowanBerries => None,
+        PlantType::RowanberrySapling | PlantType::OliveSapling |
+        PlantType::RowanBerries => None,
     }
 } 

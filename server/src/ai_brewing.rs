@@ -383,6 +383,7 @@ pub fn create_generated_brew(
             // Cooking and other item properties (not applicable for brewed items)
             cook_time_secs: None,
             cooked_item_def_name: None,
+            requires_furnace_for_cooking: false,
             extraction_output_name: None,
             extraction_output_min: None,
             extraction_output_max: None,
