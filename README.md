@@ -7,6 +7,8 @@
 ![Vite](https://img.shields.io/badge/Vite-6-purple.svg)
 ![SpacetimeDB](https://img.shields.io/badge/SpacetimeDB-latest-orange.svg)
 
+🎮 **[Watch gameplay demo](https://x.com/SeloSlav/status/2023523837724221851?s=20)**
+
 What started as an open source project for a generic 2D survival game is now a full-fledged game called **Broth & Bullets**. You can read more about it at [https://www.brothandbullets.com/blog](https://www.brothandbullets.com/blog).
 
 I've committed to open sourcing the entire project and providing the best documentation possible to help you get up and running, fork the project, create your own games, or even contribute back to Broth & Bullets itself. This repository serves as a comprehensive starter kit and learning resource.
