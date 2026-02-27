@@ -166,6 +166,9 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
   } | null>(null);
   const optimisticDodgeRollStartMsRef = useRef<number>(0);
   const lastOptimisticDodgeRollStartMsRef = useRef<number>(0);
+  // Visual anti-jitter: keep dodge animation progress monotonic within a roll.
+  const visualRollStartMsRef = useRef<number>(0);
+  const visualRollProgressRef = useRef<number>(0);
 
   // Get player actions from context
   const { 
@@ -358,11 +361,43 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
         if (isServerDodgeRolling && dodgeRollState && isOptimisticDodgeRolling) {
           // Server can provide a more accurate dodge direction than local input
           // during rapid direction changes; prefer it when available.
-          if (typeof dodgeRollState.direction === 'string' && dodgeRollState.direction.length > 0) {
+          let shouldAdoptServerState = true;
+          let localProgress = 0;
+          if (clientDodgeRollRef.current) {
+            const optimisticDx = clientDodgeRollRef.current.targetX - clientDodgeRollRef.current.startX;
+            const optimisticDy = clientDodgeRollRef.current.targetY - clientDodgeRollRef.current.startY;
+            const serverDx = dodgeRollState.targetX - dodgeRollState.startX;
+            const serverDy = dodgeRollState.targetY - dodgeRollState.startY;
+            const optimisticMag = Math.sqrt(optimisticDx * optimisticDx + optimisticDy * optimisticDy);
+            const serverMag = Math.sqrt(serverDx * serverDx + serverDy * serverDy);
+            if (optimisticMag > 0.01 && serverMag > 0.01) {
+              const dot =
+                ((optimisticDx / optimisticMag) * (serverDx / serverMag)) +
+                ((optimisticDy / optimisticMag) * (serverDy / serverMag));
+              // Guard against stale previous-roll server state during rapid re-roll:
+              // only merge if vectors are directionally consistent.
+              shouldAdoptServerState = dot >= 0.6;
+            }
+
+            const remainingDx = clientDodgeRollRef.current.targetX - clientPositionRef.current.x;
+            const remainingDy = clientDodgeRollRef.current.targetY - clientPositionRef.current.y;
+            const remainingDist = Math.sqrt(remainingDx * remainingDx + remainingDy * remainingDy);
+            localProgress = optimisticMag > 0.01
+              ? Math.max(0, Math.min(1, 1 - (remainingDist / optimisticMag)))
+              : 0;
+          }
+
+          // Do not rebase to server mid-roll once local animation already progressed.
+          // Late rebase can snap progress backwards and look like roll restarts.
+          if (localProgress > 0.35) {
+            shouldAdoptServerState = false;
+          }
+
+          if (shouldAdoptServerState && typeof dodgeRollState.direction === 'string' && dodgeRollState.direction.length > 0) {
             lastFacingDirection.current = dodgeRollState.direction;
           }
           const serverDodgeStartTime = Number(dodgeRollState.startTimeMs);
-          if (!clientDodgeRollRef.current || clientDodgeRollRef.current.serverStartTime !== serverDodgeStartTime) {
+          if (shouldAdoptServerState && (!clientDodgeRollRef.current || clientDodgeRollRef.current.serverStartTime !== serverDodgeStartTime)) {
             const clientStartX = clientPositionRef.current.x;
             const clientStartY = clientPositionRef.current.y;
             const serverDodgeDx = dodgeRollState.targetX - dodgeRollState.startX;
@@ -751,7 +786,14 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     const isDodgeRolling = isOptimisticDodgeRolling;
 
     if (!isDodgeRolling) {
+      visualRollStartMsRef.current = 0;
+      visualRollProgressRef.current = 0;
       return { isDodgeRolling: false, progress: 0, direction: lastFacingDirection.current || localPlayer.direction || 'down' };
+    }
+
+    if (visualRollStartMsRef.current !== optimisticDodgeRollStartMsRef.current) {
+      visualRollStartMsRef.current = optimisticDodgeRollStartMsRef.current;
+      visualRollProgressRef.current = 0;
     }
 
     // Primary: derive progress from actual predicted movement path.
@@ -764,7 +806,9 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
         const remDx = dodge.targetX - clientPositionRef.current.x;
         const remDy = dodge.targetY - clientPositionRef.current.y;
         const remDist = Math.sqrt(remDx * remDx + remDy * remDy);
-        const progress = Math.max(0, Math.min(1, 1 - remDist / totalDist));
+        const rawProgress = Math.max(0, Math.min(1, 1 - remDist / totalDist));
+        const progress = Math.max(rawProgress, visualRollProgressRef.current);
+        visualRollProgressRef.current = progress;
         const moveDirX = totalDx / totalDist;
         const moveDirY = totalDy / totalDist;
         let direction = lastFacingDirection.current || localPlayer.direction || 'down';
@@ -785,7 +829,9 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     const _serverProgress = isServerDodgeRolling
       ? Math.max(0, Math.min(1, dodgeRollElapsedMs / DODGE_ROLL_DURATION_MS))
       : 0;
-    const progress = Math.max(0, Math.min(1, optimisticElapsedMs / DODGE_ROLL_DURATION_MS));
+    const rawProgress = Math.max(0, Math.min(1, optimisticElapsedMs / DODGE_ROLL_DURATION_MS));
+    const progress = Math.max(rawProgress, visualRollProgressRef.current);
+    visualRollProgressRef.current = progress;
     return { isDodgeRolling: true, progress, direction: lastFacingDirection.current || localPlayer.direction || 'down' };
   }, [localPlayer, playerDodgeRollStates]);
 
