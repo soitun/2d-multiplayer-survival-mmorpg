@@ -777,7 +777,21 @@ pub fn calculate_combat_readiness(
     current_time: Timestamp,
 ) -> f32 {
     // Get or create readiness state
-    let state = get_or_create_readiness(ctx, player_id, current_time);
+    let mut state = get_or_create_readiness(ctx, player_id, current_time);
+
+    // Death/respawn reset:
+    // If the player has respawned since we last updated readiness, wipe combat memory so
+    // high-tier weapon history does not keep punishing them after death.
+    if let Some(player) = ctx.db.player().identity().find(player_id) {
+        if player.last_respawn_time > state.last_update {
+            state.peak_weapon_power = 0.0;
+            state.current_weapon_power = 0.0;
+            state.combat_readiness_score = 0.0;
+            state.last_update = current_time;
+            ctx.db.player_combat_readiness().player_identity().update(state);
+            return 0.0;
+        }
+    }
     
     // PERFORMANCE: Only rescan weapons every 60 seconds, use cached value otherwise
     let time_since_update_secs = (current_time.to_micros_since_unix_epoch() - state.last_update.to_micros_since_unix_epoch()) / 1_000_000;

@@ -149,6 +149,7 @@ const dodgeRollVisualCache = new Map<string, DodgeRollVisualState>();
 
 // Movement buffer duration - keep animation going for this long after movement stops
 const MOVEMENT_BUFFER_MS = 150;
+const REMOTE_DODGE_POSITION_BLEND = 0.8;
 
 // Dodge roll constants (should match server)
 const DODGE_ROLL_DURATION_MS = 500;
@@ -946,6 +947,39 @@ export const renderYSortedEntities = ({
            if (elapsed >= 0 && elapsed < 500) { // 500ms dodge roll duration (synced with server)
              isDodgeRolling = true;
              dodgeRollProgress = elapsed / 500.0;
+            if (dodgeRollState) {
+              // Remote polish: use authoritative dodge direction while roll is active.
+              if (typeof (dodgeRollState as any).direction === 'string' && (dodgeRollState as any).direction.length > 0) {
+                playerForRendering = {
+                  ...playerForRendering,
+                  direction: (dodgeRollState as any).direction
+                };
+              }
+
+              // Remote polish: bias interpolated position toward server dodge path.
+              // This keeps remote roll motion coherent without touching local prediction.
+              const sX = Number((dodgeRollState as any).startX);
+              const sY = Number((dodgeRollState as any).startY);
+              const tX = Number((dodgeRollState as any).targetX);
+              const tY = Number((dodgeRollState as any).targetY);
+              if (
+                Number.isFinite(sX) &&
+                Number.isFinite(sY) &&
+                Number.isFinite(tX) &&
+                Number.isFinite(tY)
+              ) {
+                const clampedProgress = Math.max(0, Math.min(1, dodgeRollProgress));
+                const dodgePathX = sX + (tX - sX) * clampedProgress;
+                const dodgePathY = sY + (tY - sY) * clampedProgress;
+                const blendedX = playerForRendering.positionX + (dodgePathX - playerForRendering.positionX) * REMOTE_DODGE_POSITION_BLEND;
+                const blendedY = playerForRendering.positionY + (dodgePathY - playerForRendering.positionY) * REMOTE_DODGE_POSITION_BLEND;
+                playerForRendering = {
+                  ...playerForRendering,
+                  positionX: blendedX,
+                  positionY: blendedY
+                };
+              }
+            }
            }
          }
          // No logging for players without dodge state - this is the normal case
