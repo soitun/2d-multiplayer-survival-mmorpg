@@ -3113,6 +3113,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         // Check if this is a thrown weapon (ammo_def_id == item_def_id)
         let projectile_record = ctx.db.projectile().id().find(&projectile_id);
         let is_thrown_weapon = projectile_record
+            .as_ref()
             .map(|p| p.ammo_def_id == p.item_def_id)
             .unwrap_or(false);
         
@@ -3134,6 +3135,12 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         if rng.gen::<f32>() < break_chance {
             log::info!("[ProjectileMiss] Projectile {} broke on impact - '{}' (def_id: {}) destroyed at ({:.1}, {:.1})", 
                      projectile_id, ammo_name, ammo_def_id, pos_x, pos_y);
+
+            let sound_source_identity = projectile_record
+                .as_ref()
+                .map(|p| p.owner_id)
+                .unwrap_or(ctx.identity());
+            sound_events::emit_break_item_sound(ctx, pos_x, pos_y, sound_source_identity);
             
             // Create arrow break event for client particle effect
             let break_event = ArrowBreakEvent {

@@ -362,6 +362,7 @@ const PRELOAD_SOUNDS = [
     'melee_hit_blunt.mp3',                                  // 1 melee hit blunt variation
     'weapon_swing.mp3',                                     // 1 weapon swing variation
     'item_thrown.mp3',                                      // 1 item thrown variation
+    'break_item.mp3',                                       // 1 projectile/item break variation
     'arrow_hit.mp3',                                        // 1 arrow hit variation
     'shoot_bow.mp3',                                        // 1 shoot bow variation
     'shoot_crossbow.mp3',                                   // 1 shoot crossbow variation

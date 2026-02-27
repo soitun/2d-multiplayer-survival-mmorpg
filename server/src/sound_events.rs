@@ -1135,6 +1135,29 @@ pub fn emit_item_thrown_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, play
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::ItemThrown, pos_x, pos_y, 0.9, 500.0, player_id);
 }
 
+/// Emit projectile/item break sound at impact position.
+/// Uses a dedicated filename while staying on the server sound-event pipeline.
+pub fn emit_break_item_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let sound_event = SoundEvent {
+        id: 0, // Auto-incremented
+        sound_type: SoundType::ItemThrown, // Reuse existing type; filename selects the actual asset
+        filename: "break_item.mp3".to_string(),
+        pos_x,
+        pos_y,
+        volume: 0.95,
+        max_distance: 500.0,
+        triggered_by: player_id,
+        timestamp: ctx.timestamp,
+        pitch_multiplier: 1.0,
+        velocity_x: 0.0,
+        velocity_y: 0.0,
+    };
+
+    if let Err(e) = ctx.db.sound_event().try_insert(sound_event) {
+        log::warn!("Failed to emit break item sound: {:?}", e);
+    }
+}
+
 /// Emit a global sound that plays to all clients at full volume regardless of position
 /// This is used for weather effects like lightning/thunder that should be heard everywhere
 pub fn emit_global_sound(
