@@ -11,7 +11,7 @@ SpacetimeDB
 
 What started as an open source project for a generic 2D survival game is now a full-fledged game called **Broth & Bullets**. You can read more about it at [https://www.brothandbullets.com/blog](https://www.brothandbullets.com/blog).
 
-I've committed to open sourcing the entire project and providing the best documentation possible to help you get up and running, fork the project, create your own games, or even contribute back to Broth & Bullets itself. This repository has evolved into an exhaustive, feature-rich project with almost every pattern you can think of—constantly in development and being optimized for SpacetimeDB, with plans to migrate to the latest version soon. A stripped-down true "starter kit" for 2D MMORPGs (all the main features without the bloat) is planned for release soon.
+I've committed to open sourcing the entire project and providing the best documentation possible to help you get up and running, fork the project, create your own games, or even contribute back to Broth & Bullets itself. This repository has evolved into an exhaustive, feature-rich project with almost every pattern you can think of—constantly in development and running on SpacetimeDB 2.0. A stripped-down true "starter kit" for 2D MMORPGs (all the main features without the bloat) is planned for release soon.
 
 💬 **Want to chat?** Join the discussion on [Discord](https://discord.gg/tUcBzfAYfs)
 
@@ -42,20 +42,13 @@ For experienced users familiar with Node.js, Rust, and SpacetimeDB. See detailed
 
 This project uses:
 
-- **SpacetimeDB CLI**: `1.6.0`
-- **SpacetimeDB Rust Crate**: `1.6.0`
-- **SpacetimeDB TypeScript SDK**: `spacetimedb@1.6.1` (npm package)
+- **SpacetimeDB CLI**: `2.0.x`
+- **SpacetimeDB Rust Crate**: `2.0`
+- **SpacetimeDB TypeScript SDK**: `spacetimedb@2.0.1` (npm package)
 
 **0. Install SpacetimeDB CLI:**
 Follow the instructions for your OS: [https://spacetimedb.com/install](https://spacetimedb.com/install)
 (e.g., `curl -sSf https://install.spacetimedb.com | sh` on macOS/Linux)
-
-After installation, set the correct version:
-
-```bash
-spacetime version install 1.6.0
-spacetime version use 1.6.0
-```
 
 **1. Clone & Install Dependencies:**
 
@@ -107,8 +100,8 @@ npm run dev
 ./deploy-local-clean.ps1     # Windows - Fresh database
 ./deploy-local.ps1           # Windows - Update existing database
 # Or manually:
-spacetime publish broth-bullets-local
-spacetime generate --lang typescript --out-dir ../client/src/generated -p .
+spacetime publish --no-config -p . broth-bullets-local -y
+spacetime generate --no-config --include-private -p . -l typescript -o ../client/src/generated -y
 ```
 
 🎉 **That's it! Your multiplayer survival game is up and running!** 🎮✨
@@ -133,8 +126,8 @@ docker compose up --build
 
 # 3. Deploy database (run in a new terminal, one-time or after server changes)
 cd server
-spacetime publish -p . broth-bullets-local
-spacetime generate --lang typescript --out-dir ../client/src/generated -p .
+spacetime publish --no-config -p . broth-bullets-local -y
+spacetime generate --no-config --include-private -p . -l typescript -o ../client/src/generated -y
 
 # 4. Open http://localhost:3008
 ```
@@ -209,10 +202,10 @@ cd server/
 
 ```bash
 cd server/
-spacetime publish broth-bullets-local  # Local
+spacetime publish --no-config -p . broth-bullets-local -y  # Local
 # OR
-spacetime publish --server maincloud broth-bullets  # Production
-spacetime generate --lang typescript --out-dir ../client/src/generated -p .
+spacetime publish --server maincloud -p . broth-bullets  # Production
+spacetime generate --no-config --include-private -p . -l typescript -o ../client/src/generated -y
 ```
 
 ## 🗺️ Roadmap
@@ -277,7 +270,7 @@ spacetime generate --lang typescript --out-dir ../client/src/generated -p .
 | Layer       | Technologies                 |
 | ----------- | ---------------------------- |
 | Frontend    | React 19, Vite 6, TypeScript |
-| Multiplayer | SpacetimeDB                  |
+| Multiplayer | SpacetimeDB 2.0              |
 | Backend     | Rust (WebAssembly)           |
 | Development | Node.js 22+                  |
 
@@ -385,17 +378,22 @@ While the project is still evolving, a key goal is maintainability. As features 
 
 ## ⚙️ Client Configuration
 
-### SpacetimeDB Connection (`client/src/App.tsx`)
+### SpacetimeDB Connection (`client/src/contexts/GameConnectionContext.tsx`)
 
-To connect the client to your SpacetimeDB instance, configure the following constants near the top of `client/src/App.tsx`:
+The SpacetimeDB connection is configured in `GameConnectionContext.tsx` and automatically selects the correct address and database name based on the environment:
 
 ```typescript
-const SPACETIME_DB_ADDRESS = 'ws://localhost:3000';
-const SPACETIME_DB_NAME = 'vibe-survival-game';
+const SPACETIME_DB_ADDRESS = isDevelopment
+  ? 'ws://localhost:3000'
+  : 'wss://maincloud.spacetimedb.com';
+
+const SPACETIME_DB_NAME = isDevelopment
+  ? 'broth-bullets-local'
+  : 'broth-bullets';
 ```
 
-- **For Local Development:** Use the default values (`ws://localhost:3000` and your module name).
-- **For Maincloud Deployment:** Replace `SPACETIME_DB_ADDRESS` with your Maincloud WebSocket URI (e.g., `wss://maincloud.spacetimedb.net`) and `SPACETIME_DB_NAME` with your Maincloud database name (e.g., `your-identity/your-database-name`).
+- **For Local Development:** No changes needed. The client auto-detects `localhost` and connects to `ws://localhost:3000` with database `broth-bullets-local`.
+- **For Maincloud Deployment:** Update the production values in `GameConnectionContext.tsx` to match your Maincloud database name.
 
 ## 🤖 SOVA AI Assistant Configuration
 
@@ -543,8 +541,8 @@ The `WorldGenConfig` struct controls procedural world generation:
 5. **Rebuild and Republish:**
   ```bash
     cd server
-    spacetime publish vibe-survival-game --clear-database  # Clear DB for schema changes
-    spacetime generate --lang typescript --out-dir ../client/src/generated -p .
+    spacetime publish -c --no-config -p . broth-bullets-local -y  # Clear DB for schema changes
+    spacetime generate --no-config --include-private -p . -l typescript -o ../client/src/generated -y
     cd ..
   ```
 
@@ -554,7 +552,7 @@ After making server-side changes, remember to **re-publish** the module:
 
 ```bash
 # From the server/ directory
-spacetime publish vibe-survival-game
+spacetime publish --no-config -p . broth-bullets-local -y
 # No need to regenerate client bindings for changing only these constants
 ```
 
@@ -564,6 +562,13 @@ spacetime publish vibe-survival-game
 vibe-coding-starter-pack-2d-survival/
 ├── .cursor/                # Cursor AI configuration
 │   └── rules/              # *.mdc rule files for AI context
+├── agent/                  # NPC AI agent system (TypeScript)
+│   ├── src/               # Agent source code
+│   │   ├── index.ts       # Agent entry point
+│   │   ├── planner.ts     # AI planning logic
+│   │   ├── config.ts      # Agent configuration
+│   │   └── generated/     # Auto-generated SpacetimeDB bindings
+│   └── package.json       # Node.js dependencies
 ├── auth-server-openauth/   # Authentication server (Node.js/Hono)
 │   ├── data/              # User storage (users.json)
 │   ├── index.ts           # Main auth server logic
@@ -641,7 +646,7 @@ vibe-coding-starter-pack-2d-survival/
   - For a guaranteed clean slate during development, delete and recreate the local database:
     ```bash
     # Stop spacetime start (Ctrl+C in its terminal)
-    spacetime delete vibe-survival-game # Run from any directory
+    spacetime delete broth-bullets-local # Run from any directory
     spacetime start # Restart the server
     # Then re-publish and re-generate (Step 4 above)
     ```
@@ -672,11 +677,12 @@ The project includes PowerShell scripts in the `server/` directory for streamlin
 
 - `**deploy-local.ps1`** - Updates existing local database
   - Publishes to `broth-bullets-local`
+  - Seeds SOVA AI config from root `.env`
   - Regenerates client bindings
   - Preserves existing data
 - `**deploy-local-clean.ps1**` - Fresh local database deployment
-  - Deletes existing `broth-bullets-local` database
-  - Creates fresh database with latest schema
+  - Clears and republishes `broth-bullets-local` database
+  - Seeds SOVA AI config from root `.env`
   - Regenerates client bindings
   - **⚠️ Wipes all data** - use for schema changes
 
@@ -684,6 +690,7 @@ The project includes PowerShell scripts in the `server/` directory for streamlin
 
 - `**deploy-production.ps1`** - Updates production database
   - Publishes to `broth-bullets` on maincloud
+  - Seeds SOVA AI config from root `.env`
   - Regenerates client bindings
   - **Commits from root directory** to capture all changes (server + client)
   - Pushes to trigger Railway deployment
@@ -691,6 +698,7 @@ The project includes PowerShell scripts in the `server/` directory for streamlin
 - `**deploy-production-clean.ps1`** - Fresh production deployment
   - Deletes existing `broth-bullets` database on maincloud
   - Creates fresh database with latest schema
+  - Seeds SOVA AI config from root `.env`
   - Regenerates client bindings
   - **Commits from root directory** to capture all changes (server + client)
   - Pushes to trigger Railway deployment

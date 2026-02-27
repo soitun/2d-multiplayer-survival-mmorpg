@@ -278,7 +278,7 @@ export function useTargetInteractionManager({
                 // Toggle burning state
                 const campfire = campfires?.get(String(target.id));
                 if (campfire) {
-                    connection.reducers.toggleCampfireBurning(Number(target.id));
+                    connection.reducers.toggleCampfireBurning({ campfireId: Number(target.id) });
                 }
                 break;
             case 'barbecue':
