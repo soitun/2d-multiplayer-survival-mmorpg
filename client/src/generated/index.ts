@@ -1961,12 +1961,12 @@ const tablesSchema = __schema({
   plant_config_definition: __table({
     name: 'plant_config_definition',
     indexes: [
-      { name: 'plant_type', algorithm: 'btree', columns: [
-        'plantType',
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
       ] },
     ],
     constraints: [
-      { name: 'plant_config_definition_plant_type_key', constraint: 'unique', columns: ['plantType'] },
+      { name: 'plant_config_definition_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, PlantConfigDefinitionRow),
   planted_seed: __table({

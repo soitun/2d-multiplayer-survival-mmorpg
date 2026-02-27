@@ -590,6 +590,7 @@ vibe-coding-starter-pack-2d-survival/
 │   │   ├── config/        # Client-side game configuration
 │   │   ├── contexts/      # React contexts (Auth, Game state)
 │   │   ├── effects/       # Visual effects and animations
+│   │   ├── engine/        # Runtime engine core (loop, adapters, snapshot store)
 │   │   ├── generated/     # Auto-generated SpacetimeDB bindings
 │   │   ├── hooks/         # Custom React hooks
 │   │   ├── types/         # Shared TypeScript types
@@ -668,6 +669,13 @@ vibe-coding-starter-pack-2d-survival/
 2. **Client Development (`client/src`)**:
   - Modify React/TypeScript code.
   - The Vite dev server (`npm run dev`) provides Hot Module Replacement (HMR) for fast updates.
+
+## Runtime Ownership Boundary
+
+- Engine (`client/src/engine/**`) owns frame timing, runtime snapshots, and SpacetimeDB adapter wiring.
+- React UI owns rendering widgets, menu/chat panels, and dispatching user intents.
+- `GameCanvas` is a render adapter: it consumes runtime state and emits interactions, but it does not directly subscribe to `world_chunk_data`.
+- `useEngineSnapshot()` is the preferred way for UI components to read runtime state slices.
 
 ## 🚀 Deployment Scripts
 

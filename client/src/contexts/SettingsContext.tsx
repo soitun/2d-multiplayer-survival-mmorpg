@@ -321,8 +321,10 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         localStorage.setItem('fixedSimulationEnabled', enabled.toString());
     }, []);
 
+    // Auto mode favors smooth variable-step movement on modern high-refresh displays.
+    // Fixed simulation remains available via explicit "on" for deterministic debugging.
     const fixedSimulationEnabled = fixedSimulationMode === 'on'
-        || (fixedSimulationMode === 'auto' && displayRefreshRateHz >= 120);
+        || (fixedSimulationMode === 'auto' && displayRefreshRateHz >= 240);
 
     // Memoize the context value to prevent unnecessary consumer re-renders
     // when the provider's parent re-renders but settings haven't changed.

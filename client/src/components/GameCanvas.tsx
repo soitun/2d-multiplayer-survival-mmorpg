@@ -94,14 +94,13 @@ import { useGameViewport } from '../hooks/useGameViewport';
 import { useMousePosition } from '../hooks/useMousePosition';
 import { useDayNightCycle } from '../hooks/useDayNightCycle';
 import { useInteractionFinder } from '../hooks/useInteractionFinder';
-import { useGameLoop, type FrameInfo, type GameLoopMetrics } from '../hooks/useGameLoop';
+import type { FrameInfo, GameLoopMetrics } from '../hooks/useGameLoop';
 import { usePlayerHover } from '../hooks/usePlayerHover';
 import { usePlantedSeedHover } from '../hooks/usePlantedSeedHover';
 import { useTamedAnimalHover } from '../hooks/useTamedAnimalHover';
 import { useRuneStoneHover } from '../hooks/useRuneStoneHover';
 import { useMinimapInteraction } from '../hooks/useMinimapInteraction';
 import { useEntityFiltering, YSortedEntityType } from '../hooks/useEntityFiltering';
-import { useSpacetimeTables } from '../hooks/useSpacetimeTables';
 import { useCampfireParticles, Particle } from '../hooks/useCampfireParticles';
 import { useTorchParticles } from '../hooks/useTorchParticles';
 import { useWardParticles, renderWardParticles } from '../hooks/useWardParticles';
@@ -216,6 +215,7 @@ import { useInputHandler } from '../hooks/useInputHandler';
 import { useGameReducerFeedbackHandlers } from '../hooks/useGameReducerFeedbackHandlers';
 import { useViewportSync } from '../hooks/useViewportSync';
 import { useRemotePlayerInterpolation } from '../hooks/useRemotePlayerInterpolation';
+import { useEngineFrameLoop } from '../engine/react/useEngineFrameLoop';
 
 // Import cut grass effect renderer
 import { renderCutGrassEffects } from '../effects/cutGrassEffect';
@@ -955,20 +955,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     deltaTime: deltaTimeRef.current
   });
 
-  // PERFORMANCE FIX: Chunk cache refs moved here (before useEntityFiltering) to enable memoized worldChunkDataMap
-  // This avoids creating a new Map on every render, reducing GC pressure
-  const chunkCacheRef = useRef<Map<string, SpacetimeDBWorldChunkData>>(new Map());
-  const chunkSizeRef = useRef<number>(8);
-  const [chunkCacheVersion, setChunkCacheVersion] = useState(0);
-
-  // PERFORMANCE FIX: Use worldChunkDataMap from parent (GameScreen) when provided, else build from internal cache
-  // Parent provides O(1) map from useWorldChunkDataMap - avoids duplicate subscription
-  const worldChunkDataMapInternal = useMemo(() => {
-    if (chunkCacheRef.current.size === 0) return undefined;
-    return new Map(chunkCacheRef.current);
-  }, [chunkCacheVersion]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const worldChunkDataMap = worldChunkDataMapProp ?? worldChunkDataMapInternal;
+  // Runtime engine owns world_chunk_data subscriptions; canvas reads an already-built map.
+  const worldChunkDataMap = worldChunkDataMapProp;
+  const worldChunkSize = useMemo(() => {
+    if (!worldChunkDataMap || worldChunkDataMap.size === 0) return 8;
+    const firstChunk = worldChunkDataMap.values().next().value as SpacetimeDBWorldChunkData | undefined;
+    return firstChunk?.chunkSize ?? 8;
+  }, [worldChunkDataMap]);
 
   // Visible tiles and lookups - MUST be before useEntityFiltering (needs seaTransitionTileLookup)
   const tileSize = gameConfig.tileSize;
@@ -978,7 +971,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const bufferedViewTileY = viewTileY - 2;
   const visibleWorldTiles = useMemo(() => {
     const map = new Map<string, any>();
-    const chunkSize = chunkSizeRef.current;
+    const chunkSize = worldChunkSize;
     const tilesHorz = Math.ceil(canvasSize.width / tileSize) + 4;
     const tilesVert = Math.ceil(canvasSize.height / tileSize) + 4;
     const minTileX = Math.max(0, bufferedViewTileX);
@@ -1005,7 +998,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         default: return 'Grass';
       }
     };
-    const chunkSource = worldChunkDataMap ?? chunkCacheRef.current;
+    const chunkSource = worldChunkDataMap ?? EMPTY_MAP;
     for (let ty = minTileY; ty < maxTileY; ty++) {
       for (let tx = minTileX; tx < maxTileX; tx++) {
         const cx = Math.floor(tx / chunkSize);
@@ -1023,7 +1016,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     }
     return map;
-  }, [bufferedViewTileX, bufferedViewTileY, canvasSize.width, canvasSize.height, chunkCacheVersion, worldChunkDataMap]);
+  }, [bufferedViewTileX, bufferedViewTileY, canvasSize.width, canvasSize.height, worldChunkSize, worldChunkDataMap]);
   const waterTileLookup = useMemo(() => {
     const lookup = new Map<string, boolean>();
     if (visibleWorldTiles) {
@@ -1266,45 +1259,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // --- Procedural World Tile Management ---
   const { proceduralRenderer, isInitialized: isWorldRendererInitialized, updateTileCache } = useWorldTileCache();
 
-  // Subscribe once to all compressed chunks - only when parent does NOT provide worldChunkDataMap
-  useEffect(() => {
-    if (!connection || worldChunkDataMapProp !== undefined) return;
-
-    // Row callbacks
-    const handleChunkInsert = (_ctx: any, row: SpacetimeDBWorldChunkData) => {
-      const key = `${row.chunkX},${row.chunkY}`;
-      chunkCacheRef.current.set(key, row);
-      chunkSizeRef.current = row.chunkSize || chunkSizeRef.current;
-      setChunkCacheVersion(v => v + 1);
-    };
-    const handleChunkUpdate = (_ctx: any, _oldRow: SpacetimeDBWorldChunkData, row: SpacetimeDBWorldChunkData) => {
-      const key = `${row.chunkX},${row.chunkY}`;
-      chunkCacheRef.current.set(key, row);
-      chunkSizeRef.current = row.chunkSize || chunkSizeRef.current;
-      setChunkCacheVersion(v => v + 1);
-    };
-    const handleChunkDelete = (_ctx: any, row: SpacetimeDBWorldChunkData) => {
-      const key = `${row.chunkX},${row.chunkY}`;
-      chunkCacheRef.current.delete(key);
-      setChunkCacheVersion(v => v + 1);
-    };
-
-    // Register callbacks
-    connection.db.world_chunk_data.onInsert(handleChunkInsert);
-    connection.db.world_chunk_data.onUpdate(handleChunkUpdate);
-    connection.db.world_chunk_data.onDelete(handleChunkDelete);
-
-    // Subscribe to the entire table once (hundreds of rows, lightweight)
-    const handle = connection
-      .subscriptionBuilder()
-      .onError((err: any) => console.error('[WORLD_CHUNK_DATA Sub Error]:', err))
-      .subscribe('SELECT * FROM world_chunk_data');
-
-    return () => {
-      try { handle?.unsubscribe?.(); } catch { }
-    };
-  }, [connection, worldChunkDataMapProp]);
-
   // Monitor burn effects for local player and play sound when burn is applied/extended
   useEffect(() => {
     if (!localPlayerId || !activeConsumableEffects) return;
@@ -1345,12 +1299,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   // Detect hot springs from world chunk data (use prop when provided, else internal cache)
   const detectedHotSprings = useMemo(() => {
     return detectHotSprings((worldChunkDataMap ?? EMPTY_MAP) as Map<string, SpacetimeDBWorldChunkData>);
-  }, [chunkCacheVersion, worldChunkDataMap]); // Recalculate when chunk data changes
+  }, [worldChunkDataMap]); // Recalculate when chunk data changes
 
   // Detect small quarries from world chunk data for building restriction zones
   const detectedQuarries = useMemo(() => {
     return detectQuarries((worldChunkDataMap ?? EMPTY_MAP) as Map<string, SpacetimeDBWorldChunkData>);
-  }, [chunkCacheVersion, worldChunkDataMap]); // Recalculate when chunk data changes
+  }, [worldChunkDataMap]); // Recalculate when chunk data changes
 
   // Feed the renderer with only the visible tiles
   useEffect(() => {
@@ -3789,6 +3743,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       deltaTimeRef.current = 16.667; // 60fps fallback
     }
 
+    // Keep render-critical refs on the hot path so local movement/camera stay smooth
+    // even when React props update at lower frequency.
+    const livePredictedPosition = getCurrentPositionNow?.() ?? predictedPositionRef.current;
+    if (livePredictedPosition) {
+      predictedPositionRef.current = livePredictedPosition;
+      cameraOffsetRef.current = {
+        x: (canvasSize.width / 2) - livePredictedPosition.x,
+        y: (canvasSize.height / 2) - livePredictedPosition.y,
+      };
+    } else if (localPlayer) {
+      cameraOffsetRef.current = {
+        x: (canvasSize.width / 2) - localPlayer.positionX,
+        y: (canvasSize.height / 2) - localPlayer.positionY,
+      };
+    }
+
     const { fixedSimDtMs, maxSimStepsPerFrame } = gameConfig;
     const useFixedSim = fixedSimulationEnabled;
 
@@ -3812,17 +3782,29 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       processInputsAndActions();
       renderGame(1);
     }
-  }, [renderGame, processInputsAndActions, stepPredictedMovement, fixedSimulationEnabled]);
+  }, [
+    renderGame,
+    processInputsAndActions,
+    stepPredictedMovement,
+    fixedSimulationEnabled,
+    getCurrentPositionNow,
+    localPlayer,
+    canvasSize.width,
+    canvasSize.height,
+  ]);
 
-  // Use the updated hook with optimized performance settings
-  // PERFORMANCE: Profiling disabled for production - enable temporarily to debug
-  // metricsRef: dev-only telemetry when FPS profiler visible (acceptance gates)
-  useGameLoop(gameLoopCallback, {
-    targetFPS: 60,
+  // Engine-owned frame loop: GameCanvas only provides the frame callback.
+  useEngineFrameLoop(gameLoopCallback, {
+    targetFPS: 0, // uncapped render callback for smooth high-refresh movement
     maxFrameTime: 33, // 30fps budget to avoid false alarms on lower-end devices
     enableProfiling: false,
-    metricsRef: showFpsProfiler ? gameLoopMetricsRef : undefined
   });
+
+  useEffect(() => {
+    if (!showFpsProfiler) {
+      gameLoopMetricsRef.current = null;
+    }
+  }, [showFpsProfiler]);
 
   // Convert sleepingBags map key from string to number for DeathScreen
   const sleepingBagsById = useMemo(() => {

@@ -16,8 +16,9 @@ import {
 
 
 export default __t.row({
+  id: __t.string().primaryKey(),
   get plantType() {
-    return PlantType.primaryKey().name("plant_type");
+    return PlantType.name("plant_type");
   },
   entityName: __t.string().name("entity_name"),
   get category() {

@@ -33,6 +33,9 @@ import { getChunkIndicesForViewportWithBuffer } from '../utils/chunkUtils';
 import { gameConfig } from '../config/gameConfig';
 import { triggerExplosionEffect } from '../utils/renderers/explosiveRenderingUtils';
 import { triggerBarrelDestructionEffect } from '../utils/renderers/barrelRenderingUtils';
+import { runtimeEngine } from '../engine/runtimeEngine';
+import { subscribeNonSpatialQueries } from '../engine/adapters/spacetime/nonSpatialSubscriptions';
+import { subscribeChunkBatches } from '../engine/adapters/spacetime/spatialSubscriptions';
 
 // ─── Spatial chunk-subscription strategy ─────────────────────────────────────
 // - Batch and throttle chunk subscriptions to avoid bursty update spikes.
@@ -2612,7 +2615,14 @@ export const useSpacetimeTables = ({
                 'SELECT * FROM beacon_drop_event',
             ]);
             const filteredNonSpatialSpecs = nonSpatialSubscriptionSpecs.filter((spec) => !uiOnlyQueries.has(spec.query));
-            const currentInitialSubs = filteredNonSpatialSpecs.map(subscribeNonSpatial);
+            const currentInitialSubs = subscribeNonSpatialQueries(connection, filteredNonSpatialSpecs.map((spec) => ({
+                query: spec.query,
+                onError: spec.onError ?? (spec.errorPrefix
+                    ? (err) => console.error(spec.errorPrefix, err)
+                    : spec.errorLabel
+                        ? (err) => console.error(`[${spec.errorLabel} Sub Error]:`, err)
+                        : undefined),
+            })));
             nonSpatialHandlesRef.current = currentInitialSubs;
         }
 
@@ -2712,9 +2722,6 @@ export const useSpacetimeTables = ({
                                     `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`,
                                     `SELECT * FROM living_coral WHERE chunk_index = ${chunkIndex}`,
                                 ];
-                                // Removed excessive initial chunk debug logging
-                                newHandlesForChunk.push(connection.subscriptionBuilder().onError((err) => console.error(`Resource Batch Sub Error (Chunk ${chunkIndex}):`, err)).subscribe(resourceQueries));
-
                                 const environmentalQueries = [];
                                 if (ENABLE_CLOUDS) environmentalQueries.push(`SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`);
                                 if (grassEnabled) {
@@ -2727,9 +2734,11 @@ export const useSpacetimeTables = ({
                                         environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`);
                                     }
                                 }
-                                if (environmentalQueries.length > 0) {
-                                    newHandlesForChunk.push(connection.subscriptionBuilder().onError((err) => console.error(`Environmental Batch Sub Error (Chunk ${chunkIndex}):`, err)).subscribe(environmentalQueries));
-                                }
+                                const chunkHandles = subscribeChunkBatches(connection, chunkIndex, [], [
+                                    ...resourceQueries,
+                                    ...environmentalQueries,
+                                ]);
+                                newHandlesForChunk.push(...chunkHandles);
                             } else {
                                 // Legacy individual subscriptions can be added here if needed for fallback
                                 console.error("Batched subscriptions are disabled, but non-batched initial subscription is not fully implemented in this path.");
@@ -2906,6 +2915,51 @@ export const useSpacetimeTables = ({
         // Update the ref for next comparison
         prevGrassEnabledRef.current = grassEnabled;
     }, [grassEnabled, connection]);
+
+    useEffect(() => {
+        runtimeEngine.updateSnapshot((current) => ({
+            ...current,
+            world: {
+                ...current.world,
+                viewport,
+                tables: {
+                    ...current.world.tables,
+                    players,
+                    trees,
+                    stones,
+                    campfires,
+                    furnaces,
+                    barbecues,
+                    droppedItems,
+                    inventoryItems,
+                    worldState,
+                    activeEquipments,
+                    projectiles,
+                    chunkWeather,
+                    wildAnimals,
+                    alkStations,
+                    monumentParts,
+                },
+            },
+        }));
+    }, [
+        viewport,
+        players,
+        trees,
+        stones,
+        campfires,
+        furnaces,
+        barbecues,
+        droppedItems,
+        inventoryItems,
+        worldState,
+        activeEquipments,
+        projectiles,
+        chunkWeather,
+        wildAnimals,
+        alkStations,
+        monumentParts,
+    ]);
 
     // ─── Return: all entity state for consumers (App.tsx → GameScreen → GameCanvas) ─
     return {

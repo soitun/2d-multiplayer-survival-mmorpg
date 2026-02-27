@@ -83,6 +83,7 @@ import { initCutGrassEffectSystem, cleanupCutGrassEffectSystem } from './effects
 import { filterVisibleEntities, filterVisibleTrees } from './utils/entityFilteringUtils';
 import { resetBrothEffectsState } from './utils/renderers/brothEffectsOverlayUtils';
 import { resetInsanityState } from './utils/renderers/insanityOverlayUtils';
+import { runtimeEngine } from './engine/runtimeEngine';
 
 // Graceful error boundary that logs errors but doesn't crash the app
 class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: any; hasError: boolean }> {
@@ -940,6 +941,55 @@ function AppContent() {
     const hasPlayerDataOrUsername = loggedInPlayer || getStoredUsername;
     const isSpacetimeReady = !spacetimeLoading && !!connection && !!dbIdentity;
     const shouldShowLoadingScreen = isAuthenticated && hasPlayerDataOrUsername && (authLoading || !isSpacetimeReady || !loadingSequenceComplete);
+
+    useEffect(() => {
+        runtimeEngine.dispatch({
+            type: 'runtime/setConnectionState',
+            connected: Boolean(spacetimeConnected),
+            loading: Boolean(authLoading || spacetimeLoading),
+        });
+    }, [spacetimeConnected, authLoading, spacetimeLoading]);
+
+    useEffect(() => {
+        runtimeEngine.updateSnapshot((current) => ({
+            ...current,
+            world: {
+                ...current.world,
+                predictedPosition: predictedPosition ?? null,
+                viewport: currentViewport,
+                tables: {
+                    ...current.world.tables,
+                    players,
+                    trees,
+                    stones,
+                    campfires,
+                    furnaces,
+                    droppedItems,
+                    inventoryItems,
+                    itemDefinitions,
+                    worldState,
+                    activeEquipments,
+                    projectiles,
+                    chunkWeather,
+                },
+            },
+        }));
+    }, [
+        predictedPosition,
+        currentViewport,
+        players,
+        trees,
+        stones,
+        campfires,
+        furnaces,
+        droppedItems,
+        inventoryItems,
+        itemDefinitions,
+        worldState,
+        activeEquipments,
+        projectiles,
+        chunkWeather,
+    ]);
 
 
     // Track when isSpacetimeReady changes (key metric for connection readiness)

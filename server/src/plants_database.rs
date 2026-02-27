@@ -1374,12 +1374,17 @@ pub enum PlantCategory {
 }
 
 /// Public table exposing plant yield configurations to clients
+/// Uses String id (enum variant name) as primary key to avoid SpacetimeDB TypeScript
+/// generator bug: enum-as-PK produces PlantType.primaryKey() but SumBuilder has no primaryKey().
 #[spacetimedb::table(accessor = plant_config_definition, public)]
 #[derive(Clone, Debug)]
 pub struct PlantConfigDefinition {
     #[primary_key]
+    pub id: String,
+
+    /// Plant type enum (id matches variant name, e.g. "Potato")
     pub plant_type: PlantType,
-    
+
     /// Display name for the plant
     pub entity_name: String,
     
@@ -1501,12 +1506,14 @@ pub fn populate_plant_config_definitions(ctx: &spacetimedb::ReducerContext) {
     // Clear existing entries first (in case of re-init)
     let existing: Vec<_> = ctx.db.plant_config_definition().iter().collect();
     for entry in existing {
-        ctx.db.plant_config_definition().plant_type().delete(&entry.plant_type);
+        ctx.db.plant_config_definition().id().delete(&entry.id);
     }
-    
+
     // Populate from PLANT_CONFIGS
     for (plant_type, config) in PLANT_CONFIGS.iter() {
+        let id = format!("{:?}", plant_type);
         let definition = PlantConfigDefinition {
+            id: id.clone(),
             plant_type: *plant_type,
             entity_name: config.entity_name.clone(),
             category: get_plant_category(plant_type),

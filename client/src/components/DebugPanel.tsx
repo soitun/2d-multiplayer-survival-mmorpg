@@ -150,7 +150,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
 
         if (connection) {
             try {
-                (connection.reducers as any).debugSetWeather(nextWeather);
+                (connection.reducers as any).debugSetWeather({ weatherTypeStr: nextWeather });
             } catch (error) {
                 console.warn('Debug weather function not available (production build?):', error);
             }
@@ -173,7 +173,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
 
         if (connection) {
             try {
-                (connection.reducers as any).debugSetTime(nextTime);
+                (connection.reducers as any).debugSetTime({ timeTypeStr: nextTime });
             } catch (error) {
                 console.warn('Debug time function not available (production build?):', error);
             }
@@ -196,7 +196,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
 
         if (connection) {
             try {
-                (connection.reducers as any).debugSetSeason(nextSeason);
+                (connection.reducers as any).debugSetSeason({ seasonStr: nextSeason });
             } catch (error) {
                 console.warn('Debug season function not available (production build?):', error);
             }
@@ -206,7 +206,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
     const spawnAnimal = () => {
         if (connection && selectedAnimal) {
             try {
-                (connection.reducers as any).debugSpawnAnimal(selectedAnimal);
+                (connection.reducers as any).debugSpawnAnimal({ speciesStr: selectedAnimal });
                 console.log(`Spawning ${selectedAnimal} near player`);
             } catch (error) {
                 console.warn('Debug spawn animal function not available (production build?):', error);
@@ -235,7 +235,12 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ localPlayer, worldState, connec
                 return;
             }
             try {
-                (connection.reducers as any).debugSpawnItem(itemToSpawn.name, qty);
+                // Pass both camelCase and snake_case for schema compatibility (SpacetimeDB may use either)
+                (connection.reducers as any).debugSpawnItem({
+                    itemName: itemToSpawn.name,
+                    item_name: itemToSpawn.name,
+                    quantity: Math.max(1, qty),
+                });
                 console.log(`Spawning ${qty}x ${itemToSpawn.name} near player`);
                 setSpawnStatus({ message: `Spawned ${qty}x ${itemToSpawn.name}`, type: 'success' });
                 setTimeout(() => setSpawnStatus(null), 3000);

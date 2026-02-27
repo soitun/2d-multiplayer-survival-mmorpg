@@ -727,9 +727,8 @@ pub fn drop_active_weapon_on_death(
 /// Takes an item name (must match exactly) and quantity
 #[spacetimedb::reducer]
 pub fn debug_spawn_item(ctx: &ReducerContext, item_name: String, quantity: u32) -> Result<(), String> {
-    if quantity == 0 {
-        return Err("Quantity must be at least 1".to_string());
-    }
+    // Defensive: client may send 0 due to schema/serialization mismatch; clamp to 1
+    let quantity = quantity.max(1);
     
     // Find the item definition by name
     let item_def_table = ctx.db.item_definition();

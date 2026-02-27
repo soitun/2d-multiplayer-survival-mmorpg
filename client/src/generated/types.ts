@@ -2027,6 +2027,7 @@ export const PlantCategory = __t.enum("PlantCategory", {
 export type PlantCategory = __Infer<typeof PlantCategory>;
 
 export const PlantConfigDefinition = __t.object("PlantConfigDefinition", {
+  id: __t.string(),
   get plantType() {
     return PlantType;
   },

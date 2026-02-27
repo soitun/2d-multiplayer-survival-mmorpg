@@ -13,6 +13,9 @@ import type {
     SovaQuestMessage,
     BeaconDropEvent,
 } from '../generated/types';
+import { runtimeEngine } from '../engine/runtimeEngine';
+import { subscribeUiQueries } from '../engine/adapters/spacetime/uiSubscriptions';
+import { unsubscribeAll } from '../engine/adapters/spacetime/nonSpatialSubscriptions';
 
 type SubscriptionHandle = { unsubscribe: () => void } | null;
 
@@ -200,32 +203,10 @@ export const useUISubscriptions = (connection: DbConnection | null): UISubscript
             onDelete: (ctx: any, event: BeaconDropEvent) => setBeaconDropEvents(prev => { const next = new Map(prev); next.delete(event.id.toString()); return next; }),
         });
 
-        const nonSpatialQueries = [
-            'SELECT * FROM message',
-            'SELECT * FROM player_pin',
-            'SELECT * FROM active_connection',
-            'SELECT * FROM matronage',
-            'SELECT * FROM matronage_member',
-            'SELECT * FROM matronage_invitation',
-            'SELECT * FROM matronage_owed_shards',
-            'SELECT * FROM tutorial_quest_definition',
-            'SELECT * FROM daily_quest_definition',
-            'SELECT * FROM player_tutorial_progress',
-            'SELECT * FROM player_daily_quest',
-            'SELECT * FROM quest_completion_notification',
-            'SELECT * FROM quest_progress_notification',
-            'SELECT * FROM sova_quest_message',
-            'SELECT * FROM beacon_drop_event',
-        ];
-
-        subsRef.current = nonSpatialQueries.map((query) =>
-            connection.subscriptionBuilder()
-                .onError((err) => console.error('[useUISubscriptions] Subscription error:', query, err))
-                .subscribe(query)
-        );
+        subsRef.current = subscribeUiQueries(connection);
 
         return () => {
-            subsRef.current.forEach((sub) => sub?.unsubscribe());
+            unsubscribeAll(subsRef.current);
             subsRef.current = [];
             subscribedRef.current = false;
             setMessages(new Map());
@@ -245,6 +226,49 @@ export const useUISubscriptions = (connection: DbConnection | null): UISubscript
             setBeaconDropEvents(new Map());
         };
     }, [connection]);
+
+    useEffect(() => {
+        runtimeEngine.updateSnapshot((current) => ({
+            ...current,
+            ui: {
+                ...current.ui,
+                uiTables: {
+                    ...current.ui.uiTables,
+                    messages,
+                    playerPins,
+                    activeConnections,
+                    matronages,
+                    matronageMembers,
+                    matronageInvitations,
+                    matronageOwedShards,
+                    tutorialQuestDefinitions,
+                    dailyQuestDefinitions,
+                    playerTutorialProgress,
+                    playerDailyQuests,
+                    questCompletionNotifications,
+                    questProgressNotifications,
+                    sovaQuestMessages,
+                    beaconDropEvents,
+                },
+            },
+        }));
+    }, [
+        messages,
+        playerPins,
+        activeConnections,
+        matronages,
+        matronageMembers,
+        matronageInvitations,
+        matronageOwedShards,
+        tutorialQuestDefinitions,
+        dailyQuestDefinitions,
+        playerTutorialProgress,
+        playerDailyQuests,
+        questCompletionNotifications,
+        questProgressNotifications,
+        sovaQuestMessages,
+        beaconDropEvents,
+    ]);
 
     return {
         messages,

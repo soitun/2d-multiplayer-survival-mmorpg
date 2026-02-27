@@ -118,6 +118,7 @@ import { useSovaTutorials } from '../hooks/useSovaTutorials';
 import { useQuestNotifications } from '../hooks/useQuestNotifications';
 import { useMusicSystem } from '../hooks/useMusicSystem';
 import { useUISubscriptions } from '../hooks/useUISubscriptions';
+import { useEngineSnapshot } from '../engine/react/useEngineSnapshot';
 
 // Import debug context
 import { useDebug } from '../contexts/DebugContext';
@@ -444,23 +445,24 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         showSovaSoundBox,
     } = props;
 
-    const {
-        messages,
-        playerPins,
-        activeConnections,
-        matronages,
-        matronageMembers,
-        matronageInvitations,
-        matronageOwedShards,
-        tutorialQuestDefinitions,
-        dailyQuestDefinitions,
-        playerTutorialProgress,
-        playerDailyQuests,
-        questCompletionNotifications,
-        questProgressNotifications,
-        sovaQuestMessages,
-        beaconDropEvents,
-    } = useUISubscriptions(connection);
+    // Keep the existing subscription hook active, but consume UI state from engine snapshot selectors.
+    useUISubscriptions(connection);
+    const uiTables = useEngineSnapshot((snapshot) => snapshot.ui.uiTables);
+    const messages = (uiTables.messages as Map<string, any>) ?? new Map();
+    const playerPins = (uiTables.playerPins as Map<string, any>) ?? new Map();
+    const activeConnections = (uiTables.activeConnections as Map<string, any>) ?? new Map();
+    const matronages = (uiTables.matronages as Map<string, any>) ?? new Map();
+    const matronageMembers = (uiTables.matronageMembers as Map<string, any>) ?? new Map();
+    const matronageInvitations = (uiTables.matronageInvitations as Map<string, any>) ?? new Map();
+    const matronageOwedShards = (uiTables.matronageOwedShards as Map<string, any>) ?? new Map();
+    const tutorialQuestDefinitions = (uiTables.tutorialQuestDefinitions as Map<string, any>) ?? new Map();
+    const dailyQuestDefinitions = (uiTables.dailyQuestDefinitions as Map<string, any>) ?? new Map();
+    const playerTutorialProgress = (uiTables.playerTutorialProgress as Map<string, any>) ?? new Map();
+    const playerDailyQuests = (uiTables.playerDailyQuests as Map<string, any>) ?? new Map();
+    const questCompletionNotifications = (uiTables.questCompletionNotifications as Map<string, any>) ?? new Map();
+    const questProgressNotifications = (uiTables.questProgressNotifications as Map<string, any>) ?? new Map();
+    const sovaQuestMessages = (uiTables.sovaQuestMessages as Map<string, any>) ?? new Map();
+    const beaconDropEvents = (uiTables.beaconDropEvents as Map<string, any>) ?? new Map();
 
     const gameCanvasRef = useRef<HTMLCanvasElement>(null);
 

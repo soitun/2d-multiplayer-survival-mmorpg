@@ -92,10 +92,10 @@ export const gameConfig = {
   foundationTileSize: FOUNDATION_TILE_SIZE,
 
   // --- Gold Standard Loop Configuration ---
-  /** When true, simulation runs at fixed 30 Hz; render at display rate. Default off for rollout. */
+  /** When true, simulation runs at fixed 60 Hz; render at display rate. */
   fixedSimulationEnabled: true,
-  /** Fixed simulation step in ms (30 Hz). */
-  fixedSimDtMs: 1000 / 30,
+  /** Fixed simulation step in ms (60 Hz). */
+  fixedSimDtMs: 1000 / 60,
   /** Max simulation steps per render frame to prevent spiral-of-death. */
   maxSimStepsPerFrame: 4,
 };
