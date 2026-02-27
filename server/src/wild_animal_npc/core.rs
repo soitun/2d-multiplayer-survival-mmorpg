@@ -2541,7 +2541,7 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
 
             // Deterministic side step based on animal id to prevent herd-wide lockstep.
             let side_sign = if animal.id % 2 == 0 { 1.0 } else { -1.0 };
-            let turn_angle = 0.75 * side_sign; // ~43 degrees
+            let turn_angle: f32 = 0.75 * side_sign; // ~43 degrees
             let sin_t = turn_angle.sin();
             let cos_t = turn_angle.cos();
             let steer_x = away_x * cos_t - away_y * sin_t;
@@ -2550,6 +2550,7 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
             animal.direction_x = steer_x;
             animal.direction_y = steer_y;
 
+            let stats = animal.species.get_behavior().get_stats();
             let escape_distance = stats.patrol_radius.clamp(120.0, 320.0);
             let mut escape_x = (start_x + steer_x * escape_distance).clamp(50.0, WORLD_WIDTH_PX - 50.0);
             let mut escape_y = (start_y + steer_y * escape_distance).clamp(50.0, WORLD_HEIGHT_PX - 50.0);
