@@ -633,6 +633,7 @@ const entityCache = new Map<string, {
   lastUpdateFrame: number;
   lastPlayerX: number;
   lastPlayerY: number;
+  sourceRef: unknown;
 }>();
 
 // ===== PERFORMANCE LOGGING SYSTEM =====
@@ -742,6 +743,7 @@ function getCachedFilteredEntities<T extends { posX: number; posY: number }>(
   
   // Check if we can use cached results
   if (cache && 
+      cache.sourceRef === entities &&
       (frameCounter - cache.lastUpdateFrame) < updateInterval &&
       Math.abs(cache.lastPlayerX - playerPos.x) < 100 &&
       Math.abs(cache.lastPlayerY - playerPos.y) < 100) {
@@ -769,7 +771,8 @@ function getCachedFilteredEntities<T extends { posX: number; posY: number }>(
     entities: filteredEntities,
     lastUpdateFrame: frameCounter,
     lastPlayerX: playerPos.x,
-    lastPlayerY: playerPos.y
+    lastPlayerY: playerPos.y,
+    sourceRef: entities
   });
   
   return filteredEntities;
@@ -1852,6 +1855,8 @@ export function useEntityFiltering(
     lastLocalPlayerTileKey: '' as string,
     lastUpdateFrame: -1,
     lastEntityCounts: {} as Record<string, number>,
+    lastDroppedItemsSignature: '' as string,
+    lastHarvestableResourcesSignature: '' as string,
     lastFoundationMapSize: 0, // Track foundation map size separately
     lastWallMapSize: 0, // Track wall map size separately
     isDirty: true
@@ -1877,6 +1882,17 @@ export function useEntityFiltering(
   const playerMapSize = players?.size || 0;
   
   const ySortedMemoResult = useMemo(() => {
+    // Detect dropped-item content changes (not just count deltas).
+    // Important for rapid create/delete/replace flows where count may stay stable.
+    const droppedItemsSignature = visibleDroppedItems
+      .map(item => `${item.id.toString()}:${item.itemDefId}:${item.quantity}`)
+      .sort()
+      .join('|');
+    const harvestableResourcesSignature = visibleHarvestableResources
+      .map(resource => `${resource.id.toString()}:${resource.respawnAt?.microsSinceUnixEpoch?.toString?.() ?? '0'}`)
+      .sort()
+      .join('|');
+
     // Calculate current entity counts
     const currentEntityCounts = {
       players: visiblePlayers.length,
@@ -2013,12 +2029,16 @@ export function useEntityFiltering(
       ? `${Math.floor(localPlayerPredictedPosition.x / gameConfig.tileSize)},${Math.floor(localPlayerPredictedPosition.y / gameConfig.tileSize)}`
       : '';
     const localPlayerTileChanged = localPlayerTileKey !== ySortedCache.lastLocalPlayerTileKey;
+    const droppedItemsChanged = droppedItemsSignature !== ySortedCache.lastDroppedItemsSignature;
+    const harvestableResourcesChanged = harvestableResourcesSignature !== ySortedCache.lastHarvestableResourcesSignature;
     
     // Check if we need to resort
     // PERFORMANCE: Resort every 8 frames (~7.5/sec) - balances smoothness vs cost. Increase to 4 for more responsive.
     const needsResort = ySortedCache.isDirty || 
                        (frameCounter - ySortedCache.lastUpdateFrame) > 8 || // Force resort every 8 frames
                        hasEntityCountChanged(currentEntityCounts) ||
+                       droppedItemsChanged || // Keep dropped-item create/delete/replacement visually immediate
+                       harvestableResourcesChanged || // Keep harvestable hide/show immediate on harvest/respawn
                        foundationsJustLoaded || // Force resort when foundations first load
                        wallsJustLoaded || // Force resort when walls first load
                        wallCountIncreased || // CRITICAL: Force resort when new wall is placed
@@ -3011,6 +3031,8 @@ export function useEntityFiltering(
     ySortedCache.lastLocalPlayerTileKey = localPlayerTileKey;
     ySortedCache.lastUpdateFrame = frameCounter;
     ySortedCache.lastEntityCounts = currentEntityCounts;
+    ySortedCache.lastDroppedItemsSignature = droppedItemsSignature;
+    ySortedCache.lastHarvestableResourcesSignature = harvestableResourcesSignature;
     ySortedCache.lastFoundationMapSize = foundationCells?.size || 0;
     ySortedCache.lastWallMapSize = wallCells?.size || 0;
     ySortedCache.isDirty = false;

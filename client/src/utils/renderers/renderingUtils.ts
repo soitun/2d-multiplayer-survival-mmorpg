@@ -1035,15 +1035,21 @@ export const renderYSortedEntities = ({
          let itemDef: SpacetimeDBItemDefinition | null = null;
          let itemImg: HTMLImageElement | null = null;
 
-         if (equipment && equipment.equippedItemDefId && equipment.equippedItemInstanceId) {
-           // Validate that the equipped item instance actually exists in inventory
-           const equippedItemInstance = inventoryItems.get(equipment.equippedItemInstanceId.toString());
-           if (equippedItemInstance && equippedItemInstance.quantity > 0) {
-             itemDef = itemDefinitions.get(equipment.equippedItemDefId.toString()) || null;
-             itemImg = (itemDef ? itemImagesRef.current.get(itemDef.iconAssetName) : null) || null;
-      
-           } else {
-             // Item was consumed but equipment table hasn't updated yet - don't render
+         if (equipment && equipment.equippedItemDefId) {
+           const resolvedItemDef = itemDefinitions.get(equipment.equippedItemDefId.toString()) || null;
+           // Local-player hotbar/equip switches should feel instant. Trust active_equipment
+           // even if inventory replication for the equipped instance lands a moment later.
+           if (isLocalPlayer) {
+             itemDef = resolvedItemDef;
+             itemImg = (resolvedItemDef ? itemImagesRef.current.get(resolvedItemDef.iconAssetName) : null) || null;
+           } else if (equipment.equippedItemInstanceId) {
+             // Keep strict validation for remote players to avoid stale "ghost held items"
+             // after consumptions while their equipment row catches up.
+             const equippedItemInstance = inventoryItems.get(equipment.equippedItemInstanceId.toString());
+             if (equippedItemInstance && equippedItemInstance.quantity > 0) {
+               itemDef = resolvedItemDef;
+               itemImg = (resolvedItemDef ? itemImagesRef.current.get(resolvedItemDef.iconAssetName) : null) || null;
+             }
            }
          } else if (localPlayerId && playerId === localPlayerId) {
            // Debug logging removed for performance (was spamming every frame)

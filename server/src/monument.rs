@@ -3941,6 +3941,11 @@ pub fn get_hot_spring_placeables() -> Vec<MonumentPlaceableConfig> {
         // Hot springs have ~7-9 tile radius (336-432px), so we need 450+ px offset
         // to place the campfire on the beach outside the water pool
         MonumentPlaceableConfig::campfire(480.0, -100.0),
+        // HTU loot set for hot spring village:
+        // 1 barrel + 2 military rations (instead of 3 military rations)
+        MonumentPlaceableConfig::barrel(350.0, -40.0),
+        MonumentPlaceableConfig::military_ration(420.0, -180.0),
+        MonumentPlaceableConfig::military_ration(520.0, -30.0),
     ]
 }
 

@@ -426,13 +426,17 @@ export const useInputHandler = ({
         fireY: number,
         equippedItemDefId: bigint,
         loadedAmmoDefId: bigint | undefined,
-        weaponName: string | undefined
+        weaponName: string | undefined,
+        allowAmmoFallbackToEquipped: boolean = false,
+        forcedProjectileSpeed?: number,
+        forcedMaxRange?: number
     ) => {
         const player = localPlayerRef.current;
         if (!player) return;
-        // Optimistic projectile visuals should only exist when ammo is actually loaded.
-        // If ammo is missing, let reducer rejection happen without showing a fake projectile.
-        if (loadedAmmoDefId === undefined) return;
+        // For ranged fire, only render optimistic projectile when ammo is actually loaded.
+        // For thrown items, allow explicit fallback to equipped def id (ammo == item).
+        const resolvedAmmoDefId = loadedAmmoDefId ?? (allowAmmoFallbackToEquipped ? equippedItemDefId : undefined);
+        if (resolvedAmmoDefId === undefined) return;
 
         const dx = targetX - fireX;
         const dy = targetY - fireY;
@@ -440,7 +444,7 @@ export const useInputHandler = ({
         if (distance < 1) return;
 
         const weaponStats = weaponName ? rangedWeaponStatsRef.current?.get(weaponName) : undefined;
-        const projectileSpeed = weaponStats?.projectileSpeed ?? 700;
+        const projectileSpeed = forcedProjectileSpeed ?? weaponStats?.projectileSpeed ?? 700;
         const velocityX = (dx / distance) * projectileSpeed;
         const velocityY = (dy / distance) * projectileSpeed;
 
@@ -467,7 +471,7 @@ export const useInputHandler = ({
             id: syntheticId,
             ownerId: player.identity,
             itemDefId: equippedItemDefId,
-            ammoDefId: loadedAmmoDefId,
+            ammoDefId: resolvedAmmoDefId,
             sourceType: 0, // PROJECTILE_SOURCE_PLAYER
             npcProjectileType: 0,
             startTime: { microsSinceUnixEpoch: BigInt(nowMs) * 1000n } as any,
@@ -475,7 +479,7 @@ export const useInputHandler = ({
             startPosY: fireY,
             velocityX,
             velocityY,
-            maxRange: weaponStats?.weaponRange ?? 1200,
+            maxRange: forcedMaxRange ?? weaponStats?.weaponRange ?? 1200,
         };
 
         setOptimisticProjectiles(prev => {
@@ -2156,31 +2160,9 @@ export const useInputHandler = ({
                     const itemDef = itemDefinitionsRef.current.get(String(localEquipment.equippedItemDefId));
 
                     if (itemDef && (itemDef.name === "Hunting Bow" || itemDef.category === ItemCategory.RangedWeapon)) {
-                        try {
-                            // Use EXACT position calculated at this moment for perfect accuracy
-                            const fireX = exactPos?.x ?? fallbackPos?.x ?? currentPlayer.positionX;
-                            const fireY = exactPos?.y ?? fallbackPos?.y ?? currentPlayer.positionY;
-                            spawnOptimisticProjectile(
-                                worldMousePosRefInternal.current.x,
-                                worldMousePosRefInternal.current.y,
-                                fireX,
-                                fireY,
-                                localEquipment.equippedItemDefId!,
-                                localEquipment.loadedAmmoDefId,
-                                itemDef.name
-                            );
-                            connectionRef.current.reducers.fireProjectile({
-                                targetWorldX: worldMousePosRefInternal.current.x,
-                                targetWorldY: worldMousePosRefInternal.current.y,
-                                clientPlayerX: fireX,
-                                clientPlayerY: fireY
-                            });
-                            lastClientSwingAttemptRef.current = Date.now();
-                            lastServerSwingTimestampRef.current = Date.now();
-                            return;
-                        } catch (err) {
-                            console.error("[CanvasClick Ranged] Error calling fireProjectile reducer:", err);
-                        }
+                        // Ranged fire is handled in mousedown (and auto-fire loop) to avoid
+                        // click+mousedown double-shots on desktop.
+                        return;
                     }
                 }
             }
@@ -2501,6 +2483,21 @@ export const useInputHandler = ({
                     // console.log("[InputHandler] Right-click - THROWING:", equippedItemDef.name, "from", player.positionX, player.positionY, "to", targetX, targetY, "direction:", throwingDirection);
 
                     try {
+                        const exactThrowPos = getCurrentPositionNowRef.current?.();
+                        const throwX = exactThrowPos?.x ?? predictedPositionRef.current?.x ?? player.positionX;
+                        const throwY = exactThrowPos?.y ?? predictedPositionRef.current?.y ?? player.positionY;
+                        spawnOptimisticProjectile(
+                            targetX,
+                            targetY,
+                            throwX,
+                            throwY,
+                            localPlayerActiveEquipment.equippedItemDefId!,
+                            localPlayerActiveEquipment.loadedAmmoDefId,
+                            equippedItemDef.name,
+                            true,
+                            800, // Match server throw_item THROWING_SPEED
+                            400 // Match server throw_item max_range
+                        );
                         connectionRef.current.reducers.throwItem({ targetWorldX: targetX, targetWorldY: targetY });
                         console.log("[ThrowAim] Item thrown successfully!");
                     } catch (err) {

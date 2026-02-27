@@ -740,14 +740,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const filtered = new Map<string, SpacetimeDBProjectile>();
     let removedAny = false;
     projectiles.forEach((projectile, id) => {
-      const isLocalPlayerProjectile =
-        projectile.sourceType === 0 &&
-        projectile.ownerId?.toHexString?.() === localPlayerId;
-      const isThrownProjectile = projectile.ammoDefId === projectile.itemDefId;
-      // Keep authoritative thrown projectiles visible: right-click throw path does not
-      // currently spawn an optimistic projectile, so filtering these hides flight entirely.
-      const shouldHideAuthoritative = isLocalPlayerProjectile && !isThrownProjectile;
-      if (shouldHideAuthoritative) {
+      const ownerId =
+        typeof (projectile as any).ownerId === 'string'
+          ? (projectile as any).ownerId
+          : projectile.ownerId?.toHexString?.();
+      const isLocalPlayerProjectile = projectile.sourceType === 0 && ownerId === localPlayerId;
+      if (isLocalPlayerProjectile) {
         removedAny = true;
         return;
       }
@@ -2804,11 +2802,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         let itemDef: SpacetimeDBItemDefinition | null = null;
         let itemImg: HTMLImageElement | null = null;
 
-        if (equipment && equipment.equippedItemDefId && equipment.equippedItemInstanceId) {
-          const equippedItemInstance = inventoryItems.get(equipment.equippedItemInstanceId.toString());
-          if (equippedItemInstance && equippedItemInstance.quantity > 0) {
-            itemDef = itemDefinitions.get(equipment.equippedItemDefId.toString()) || null;
-            itemImg = (itemDef ? itemImagesRef.current.get(itemDef.iconAssetName) : null) || null;
+        if (equipment && equipment.equippedItemDefId) {
+          const resolvedItemDef = itemDefinitions.get(equipment.equippedItemDefId.toString()) || null;
+          if (isLocalTopHalf) {
+            // Keep local swimming top-half held-item visuals responsive on instant equips.
+            itemDef = resolvedItemDef;
+            itemImg = (resolvedItemDef ? itemImagesRef.current.get(resolvedItemDef.iconAssetName) : null) || null;
+          } else if (equipment.equippedItemInstanceId) {
+            const equippedItemInstance = inventoryItems.get(equipment.equippedItemInstanceId.toString());
+            if (equippedItemInstance && equippedItemInstance.quantity > 0) {
+              itemDef = resolvedItemDef;
+              itemImg = (resolvedItemDef ? itemImagesRef.current.get(resolvedItemDef.iconAssetName) : null) || null;
+            }
           }
         }
 
