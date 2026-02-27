@@ -125,6 +125,12 @@ export const TILE_SIZE = 128;
 export const TILESET_COLS = 4;
 export const TILESET_ROWS = 5;
 
+/**
+ * Inset each sampled autotile sprite by 1px on all sides.
+ * This avoids transparent atlas-edge bleed that can appear as seams between world tiles.
+ */
+const SOURCE_SAMPLE_INSET_PX = 1;
+
 // =============================================================================
 // DUAL GRID LOOKUP TABLE
 // =============================================================================
@@ -481,6 +487,15 @@ export interface DualGridTileInfo {
     flipVertical: boolean;
 }
 
+function getInsetSpriteCoords(row: number, col: number): { x: number; y: number; width: number; height: number } {
+    return {
+        x: col * TILE_SIZE + SOURCE_SAMPLE_INSET_PX,
+        y: row * TILE_SIZE + SOURCE_SAMPLE_INSET_PX,
+        width: TILE_SIZE - SOURCE_SAMPLE_INSET_PX * 2,
+        height: TILE_SIZE - SOURCE_SAMPLE_INSET_PX * 2,
+    };
+}
+
 /**
  * Get Dual Grid tile information for a rendered position.
  * 
@@ -577,12 +592,7 @@ export function getDualGridTileInfo(
     );
 
     // Calculate sprite coordinates
-    const spriteCoords = {
-        x: tilePos.col * TILE_SIZE,
-        y: tilePos.row * TILE_SIZE,
-        width: TILE_SIZE,
-        height: TILE_SIZE,
-    };
+    const spriteCoords = getInsetSpriteCoords(tilePos.row, tilePos.col);
     
     return {
         tilesetPath,
@@ -728,12 +738,7 @@ export function getDualGridTileInfoMultiLayer(
             higherTerrain
         );
         
-        const spriteCoords = {
-            x: tilePos.col * TILE_SIZE,
-            y: tilePos.row * TILE_SIZE,
-            width: TILE_SIZE,
-            height: TILE_SIZE,
-        };
+        const spriteCoords = getInsetSpriteCoords(tilePos.row, tilePos.col);
         
         transitions.push({
             tilesetPath,

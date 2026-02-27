@@ -527,15 +527,11 @@ interface AnimalMovementState {
 
 const animalMovementStates = new Map<string, AnimalMovementState>();
 
-// Wild-animal movement authority model:
-// - Server position is authoritative for both gameplay and collision.
-// - Rendering uses server position directly to avoid visual/collision divergence in combat.
-// - Cached movement state is still maintained for animation-state decisions.
+// Interpolation settings tuned for smooth visual movement.
+// Server positions remain authoritative for gameplay/collision; this is render-only smoothing.
 const SERVER_TICK_MS = 125;
-const VELOCITY_SMOOTHING = 0.15; // Lower smoothing reduces trailing behind collision/debug position.
-const DISPLAY_INTERPOLATION_SPEED = 22.0; // Higher = quicker convergence to server position.
-const MAX_RENDER_OFFSET_PX = 4.0; // Keep sprite within tight combat-safe distance of collision.
-const HARD_SNAP_DISTANCE_PX = 180.0; // Snap for extreme corrections (chunk load/respawn).
+const MAX_INTERPOLATION_DISTANCE = 600;
+const VELOCITY_SMOOTHING = 0.3;
 
 // --- Reusable Offscreen Canvas for Tinting ---
 const offscreenCanvas = document.createElement('canvas');
@@ -838,12 +834,16 @@ export function renderWildAnimal({
         if (distanceMoved > 1.0) { // Server position update detected
             const timeSinceLastUpdate = nowMs - movementState.lastUpdateTime;
 
-            // Update velocity estimate from latest server delta.
-            if (timeSinceLastUpdate > 5) { // Guard tiny dt without ignoring normal cadence
+            // Teleportation / large correction: snap and reset velocity.
+            if (distanceMoved > MAX_INTERPOLATION_DISTANCE) {
+                movementState.interpolatedX = animal.posX;
+                movementState.interpolatedY = animal.posY;
+                movementState.velocityX = 0;
+                movementState.velocityY = 0;
+            } else if (timeSinceLastUpdate > 5) {
+                // Velocity estimate (px/ms), smoothed to reduce directional jitter.
                 const newVelocityX = dx / timeSinceLastUpdate;
                 const newVelocityY = dy / timeSinceLastUpdate;
-
-                // Smooth velocity changes to avoid jitter in animation state.
                 movementState.velocityX = movementState.velocityX * VELOCITY_SMOOTHING + newVelocityX * (1 - VELOCITY_SMOOTHING);
                 movementState.velocityY = movementState.velocityY * VELOCITY_SMOOTHING + newVelocityY * (1 - VELOCITY_SMOOTHING);
             }
@@ -856,26 +856,40 @@ export function renderWildAnimal({
             movementState.lastUpdateTime = nowMs;
         }
 
-        // Micro-smoothing around authoritative position:
-        // smooth visible 8Hz stepping while keeping collision/sprite alignment tight.
-        const deltaTimeSec = Math.min(0.05, 16 / 1000); // stable frame-ish step for deterministic feel
-        const interpolationFactor = 1 - Math.exp(-DISPLAY_INTERPOLATION_SPEED * deltaTimeSec);
-        movementState.interpolatedX += (movementState.targetX - movementState.interpolatedX) * interpolationFactor;
-        movementState.interpolatedY += (movementState.targetY - movementState.interpolatedY) * interpolationFactor;
+        // Velocity-based prediction blended with target-seeking (older smooth model).
+        const timeSinceUpdate = nowMs - movementState.lastUpdateTime;
+        const tickProgress = Math.min(timeSinceUpdate / SERVER_TICK_MS, 1.5);
 
-        const errorX = movementState.targetX - movementState.interpolatedX;
-        const errorY = movementState.targetY - movementState.interpolatedY;
-        const errorDist = Math.sqrt(errorX * errorX + errorY * errorY);
+        const distToTargetX = movementState.targetX - movementState.interpolatedX;
+        const distToTargetY = movementState.targetY - movementState.interpolatedY;
+        const distToTarget = Math.sqrt(distToTargetX * distToTargetX + distToTargetY * distToTargetY);
 
-        if (errorDist > HARD_SNAP_DISTANCE_PX) {
-            // Huge correction: snap to avoid visible drag after major jumps.
-            movementState.interpolatedX = movementState.targetX;
-            movementState.interpolatedY = movementState.targetY;
-        } else if (errorDist > MAX_RENDER_OFFSET_PX) {
-            // Clamp offset so sprite never trails (or leads) far from collision circle.
-            const keepRatio = MAX_RENDER_OFFSET_PX / errorDist;
-            movementState.interpolatedX = movementState.targetX - errorX * keepRatio;
-            movementState.interpolatedY = movementState.targetY - errorY * keepRatio;
+        if (distToTarget > 0.5) {
+            if (tickProgress < 0.8) {
+                const predictionWeight = 0.7 * (1 - tickProgress);
+                const correctionWeight = 1 - predictionWeight;
+
+                const predictedX = movementState.interpolatedX + movementState.velocityX * 16;
+                const predictedY = movementState.interpolatedY + movementState.velocityY * 16;
+
+                const seekSpeed = Math.min(0.15 + tickProgress * 0.2, 0.35);
+                const seekX = movementState.interpolatedX + distToTargetX * seekSpeed;
+                const seekY = movementState.interpolatedY + distToTargetY * seekSpeed;
+
+                movementState.interpolatedX = predictedX * predictionWeight + seekX * correctionWeight;
+                movementState.interpolatedY = predictedY * predictionWeight + seekY * correctionWeight;
+            } else {
+                const catchupSpeed = Math.min(0.25 + (tickProgress - 0.8) * 0.5, 0.6);
+                movementState.interpolatedX += distToTargetX * catchupSpeed;
+                movementState.interpolatedY += distToTargetY * catchupSpeed;
+            }
+
+            if (Math.abs(movementState.interpolatedX - movementState.targetX) < 1) {
+                movementState.interpolatedX = movementState.targetX;
+            }
+            if (Math.abs(movementState.interpolatedY - movementState.targetY) < 1) {
+                movementState.interpolatedY = movementState.targetY;
+            }
         }
 
         renderPosX = movementState.interpolatedX;
@@ -970,22 +984,15 @@ export function renderWildAnimal({
     // Calculate animation frame for animated sprites based on movement
     let calculatedAnimFrame = 0;
     if (useAnimated && movementState && animatedConfig) {
-        // Treat idle as truly static unless we have clear translational movement.
-        // This avoids "walking in place" from residual smoothed velocity noise.
         const velocityMagnitude = Math.sqrt(movementState.velocityX * movementState.velocityX + movementState.velocityY * movementState.velocityY);
-        const distanceToTarget = Math.sqrt(
-            (movementState.targetX - movementState.interpolatedX) * (movementState.targetX - movementState.interpolatedX) +
-            (movementState.targetY - movementState.interpolatedY) * (movementState.targetY - movementState.interpolatedY)
-        );
-        const recentlyHadServerMovement = (nowMs - movementState.lastUpdateTime) < (SERVER_TICK_MS * 1.25);
-        const isMoving = velocityMagnitude > 0.08 && distanceToTarget > 1.5 && recentlyHadServerMovement;
+        const isMoving = velocityMagnitude > 0.02;
 
         if (isMoving) {
             // Calculate animation frame based on time for smooth walking cycle
             // Use species-specific column count for proper animation cycling
             calculatedAnimFrame = Math.floor(nowMs / ANIMATED_WALK_FRAME_DURATION_MS) % animatedConfig.cols;
         } else {
-            // Idle pose - use frame 0 or 1 (neutral stance)
+            // Idle pose
             calculatedAnimFrame = 0;
         }
     }
