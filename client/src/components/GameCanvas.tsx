@@ -1415,6 +1415,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     closestInteractableMilkableAnimalId,
   } = useInteractionFinder({
     localPlayer,
+    playerPositionOverride: predictedPosition,
+    getCurrentPlayerPosition: getCurrentPositionNow,
     campfires,
     furnaces,
     barbecues,

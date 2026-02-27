@@ -261,23 +261,23 @@ pub fn get_placeable_definitions() -> Vec<ItemDefinition> {
         // === TROPHY DECORATIONS ===
         // Display items for showing hunting achievements
 
-        // Wolf Pelt - Rare hunting trophy
-        ItemBuilder::new("Wolf Pelt", "A magnificent wolf pelt with thick, luxurious fur. This impressive trophy can be displayed as a rare decoration, showcasing your prowess against dangerous predators.", ItemCategory::Placeable)
+        // Wolf Pelt - Rare hunting trophy (cozy emitter on foundations)
+        ItemBuilder::new("Wolf Pelt", "A magnificent wolf pelt with thick, luxurious fur. Place it on a foundation as a cozy hunting trophy that emits comfort to nearby survivors.", ItemCategory::Placeable)
             .icon("wolf_pelt.png")
             .build(), // No crafting cost - dropped by wolves
 
-        // Fox Pelt - Hunting trophy
-        ItemBuilder::new("Fox Pelt", "A beautiful fox pelt with rich, vibrant fur. This rare trophy makes an excellent display piece, demonstrating your skill at hunting elusive prey.", ItemCategory::Placeable)
+        // Fox Pelt - Hunting trophy (cozy emitter on foundations)
+        ItemBuilder::new("Fox Pelt", "A beautiful fox pelt with rich, vibrant fur. Place it on a foundation as a cozy display piece for your camp.", ItemCategory::Placeable)
             .icon("fox_pelt.png")
             .build(), // No crafting cost - dropped by foxes
 
-        // Polar Bear Pelt - Apex predator hunting trophy
-        ItemBuilder::new("Polar Bear Pelt", "A massive polar bear pelt with thick, luxurious white fur. This impressive apex predator trophy can be displayed as a rare decoration, showcasing mastery over the alpine's most dangerous hunter.", ItemCategory::Placeable)
+        // Polar Bear Pelt - Apex predator hunting trophy (cozy emitter on foundations)
+        ItemBuilder::new("Polar Bear Pelt", "A massive polar bear pelt with thick, luxurious white fur. Place it on a foundation to create a cozy, prestigious apex-predator display.", ItemCategory::Placeable)
             .icon("polar_bear_pelt.png")
             .build(), // No crafting cost - dropped by polar bears
 
-        // Walrus Pelt - Coastal hunting trophy
-        ItemBuilder::new("Walrus Pelt", "A thick walrus hide with coarse, bristly fur. This rare coastal trophy can be displayed as a decoration, showcasing your skill at hunting these formidable Arctic creatures.", ItemCategory::Placeable)
+        // Walrus Pelt - Coastal hunting trophy (cozy emitter on foundations)
+        ItemBuilder::new("Walrus Pelt", "A thick walrus hide with coarse, bristly fur. Place it on a foundation as a cozy coastal trophy.", ItemCategory::Placeable)
             .icon("walrus_pelt.png")
             .build(), // No crafting cost - dropped by walruses
 

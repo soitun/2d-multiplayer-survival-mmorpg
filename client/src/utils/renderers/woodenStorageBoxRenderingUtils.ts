@@ -13,6 +13,10 @@ import mineCartImage from '../../assets/doodads/mine_cart.png'; // Mine cart ima
 import fishTrapImage from '../../assets/doodads/fish_trap.png'; // Fish trap image (shore-only)
 import wildBeehiveImage from '../../assets/doodads/pile_honeycomb.png'; // Wild beehive image (forest-only)
 import playerBeehiveImage from '../../assets/doodads/beehive_wooden.png'; // Player-made beehive (produces honeycomb)
+import wolfPeltImage from '../../assets/items/wolf_pelt.png';
+import foxPeltImage from '../../assets/items/fox_pelt.png';
+import polarBearPeltImage from '../../assets/items/polar_bear_pelt.png';
+import walrusPeltImage from '../../assets/items/walrus_pelt.png';
 import alkFoodProcessorImage from '../../assets/doodads/alk_food_processor.png'; // Monument cooking station building
 import alkWeaponsDepotImage from '../../assets/doodads/alk_weapons_depot.png'; // Monument repair bench building
 import alkCompostImage from '../../assets/doodads/alk_compost.png'; // Monument compost building
@@ -51,6 +55,8 @@ export const WILD_BEEHIVE_WIDTH = 112;  // Wild beehive dimensions (forest-only)
 export const WILD_BEEHIVE_HEIGHT = 112;
 export const PLAYER_BEEHIVE_WIDTH = 256;  // Player beehive dimensions - larger for multi-hive structure
 export const PLAYER_BEEHIVE_HEIGHT = 256;
+export const PELT_WIDTH = 96;
+export const PELT_HEIGHT = 96;
 
 // Monument building versions (rendered like rain collector/large furnace monuments)
 export const MONUMENT_COOKING_STATION_WIDTH = 384;
@@ -76,6 +82,10 @@ export const BOX_TYPE_MINE_CART = 9;
 export const BOX_TYPE_FISH_TRAP = 10;
 export const BOX_TYPE_WILD_BEEHIVE = 11;
 export const BOX_TYPE_PLAYER_BEEHIVE = 12;
+export const BOX_TYPE_WOLF_PELT = 14;
+export const BOX_TYPE_FOX_PELT = 15;
+export const BOX_TYPE_POLAR_BEAR_PELT = 16;
+export const BOX_TYPE_WALRUS_PELT = 17;
 export const PLAYER_BOX_INTERACTION_DISTANCE_SQUARED = 96.0 * 96.0; // Added interaction distance
 export const PLAYER_BEEHIVE_INTERACTION_DISTANCE_SQUARED = 140.0 * 140.0; // Tall structures - allow interaction from bottom
 export const PLAYER_TALL_BOX_INTERACTION_DISTANCE_SQUARED = 140.0 * 140.0; // Repair bench, cooking station, compost - allow interaction from bottom (192px sprites)
@@ -121,6 +131,14 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return wildBeehiveImage;
             case BOX_TYPE_PLAYER_BEEHIVE:
                 return playerBeehiveImage;
+            case BOX_TYPE_WOLF_PELT:
+                return wolfPeltImage;
+            case BOX_TYPE_FOX_PELT:
+                return foxPeltImage;
+            case BOX_TYPE_POLAR_BEAR_PELT:
+                return polarBearPeltImage;
+            case BOX_TYPE_WALRUS_PELT:
+                return walrusPeltImage;
             default:
                 return boxImage;
         }
@@ -158,6 +176,11 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
                 return { width: WILD_BEEHIVE_WIDTH, height: WILD_BEEHIVE_HEIGHT };
             case BOX_TYPE_PLAYER_BEEHIVE:
                 return { width: PLAYER_BEEHIVE_WIDTH, height: PLAYER_BEEHIVE_HEIGHT };
+            case BOX_TYPE_WOLF_PELT:
+            case BOX_TYPE_FOX_PELT:
+            case BOX_TYPE_POLAR_BEAR_PELT:
+            case BOX_TYPE_WALRUS_PELT:
+                return { width: PELT_WIDTH, height: PELT_HEIGHT };
             default:
                 return { width: BOX_WIDTH, height: BOX_HEIGHT };
         }
@@ -169,6 +192,18 @@ const boxConfig: GroundEntityConfig<WoodenStorageBox> = {
             return {
                 drawX: entity.posX - drawWidth / 2,
                 drawY: entity.posY - drawHeight + MONUMENT_BOX_ANCHOR_Y_OFFSET,
+            };
+        }
+        if (
+            entity.boxType === BOX_TYPE_WOLF_PELT ||
+            entity.boxType === BOX_TYPE_FOX_PELT ||
+            entity.boxType === BOX_TYPE_POLAR_BEAR_PELT ||
+            entity.boxType === BOX_TYPE_WALRUS_PELT
+        ) {
+            // Pelt rugs render like sleeping bags: bottom-anchor directly at stored posY.
+            return {
+                drawX: entity.posX - drawWidth / 2,
+                drawY: entity.posY - drawHeight,
             };
         }
         // All other box types use bottom-anchored positioning (consistent with server BOX_COLLISION_Y_OFFSET)
@@ -283,6 +318,11 @@ export function getBoxDimensions(boxType: number): { width: number; height: numb
             return { width: WILD_BEEHIVE_WIDTH, height: WILD_BEEHIVE_HEIGHT };
         case BOX_TYPE_PLAYER_BEEHIVE:
             return { width: PLAYER_BEEHIVE_WIDTH, height: PLAYER_BEEHIVE_HEIGHT };
+        case BOX_TYPE_WOLF_PELT:
+        case BOX_TYPE_FOX_PELT:
+        case BOX_TYPE_POLAR_BEAR_PELT:
+        case BOX_TYPE_WALRUS_PELT:
+            return { width: PELT_WIDTH, height: PELT_HEIGHT };
         default:
             return { width: BOX_WIDTH, height: BOX_HEIGHT };
     }
@@ -302,6 +342,10 @@ imageManager.preloadImage(militaryCrateImage);
 imageManager.preloadImage(fishTrapImage);
 imageManager.preloadImage(wildBeehiveImage);
 imageManager.preloadImage(playerBeehiveImage);
+imageManager.preloadImage(wolfPeltImage);
+imageManager.preloadImage(foxPeltImage);
+imageManager.preloadImage(polarBearPeltImage);
+imageManager.preloadImage(walrusPeltImage);
 imageManager.preloadImage(alkFoodProcessorImage);
 imageManager.preloadImage(alkWeaponsDepotImage);
 imageManager.preloadImage(alkCompostImage);

@@ -58,6 +58,10 @@ const PLACEABLE_PLACEMENT_CONFIG: Record<string, PlaceablePlacementConfig> = {
 
   // 2x1 - wide and short
   'Sleeping Bag': { gridSize: { widthQuarters: 2, heightQuarters: 1 }, snapToGrid: true },
+  'Wolf Pelt': { gridSize: { widthQuarters: 2, heightQuarters: 1 }, snapToGrid: true },
+  'Fox Pelt': { gridSize: { widthQuarters: 2, heightQuarters: 1 }, snapToGrid: true },
+  'Polar Bear Pelt': { gridSize: { widthQuarters: 2, heightQuarters: 1 }, snapToGrid: true },
+  'Walrus Pelt': { gridSize: { widthQuarters: 2, heightQuarters: 1 }, snapToGrid: true },
 
   // 1x2 - tall and narrow
   'Pantry': { gridSize: { widthQuarters: 1, heightQuarters: 2 }, snapToGrid: true },
@@ -149,6 +153,10 @@ const BOX_TYPE_COOKING_STATION = 6;
 const BOX_TYPE_SCARECROW = 7;
 const BOX_TYPE_FISH_TRAP = 10;
 const BOX_TYPE_PLAYER_BEEHIVE = 12;
+const BOX_TYPE_WOLF_PELT = 14;
+const BOX_TYPE_FOX_PELT = 15;
+const BOX_TYPE_POLAR_BEAR_PELT = 16;
+const BOX_TYPE_WALRUS_PELT = 17;
 
 /** Get placement config for wooden storage box by boxType (for overlap detection) */
 export function getBoxTypePlacementConfig(boxType: number): PlaceablePlacementConfig | null {
@@ -171,6 +179,14 @@ export function getBoxTypePlacementConfig(boxType: number): PlaceablePlacementCo
       return null; // Excluded - free placement
     case BOX_TYPE_PLAYER_BEEHIVE:
       return PLACEABLE_PLACEMENT_CONFIG['Wooden Beehive'];
+    case BOX_TYPE_WOLF_PELT:
+      return PLACEABLE_PLACEMENT_CONFIG['Wolf Pelt'];
+    case BOX_TYPE_FOX_PELT:
+      return PLACEABLE_PLACEMENT_CONFIG['Fox Pelt'];
+    case BOX_TYPE_POLAR_BEAR_PELT:
+      return PLACEABLE_PLACEMENT_CONFIG['Polar Bear Pelt'];
+    case BOX_TYPE_WALRUS_PELT:
+      return PLACEABLE_PLACEMENT_CONFIG['Walrus Pelt'];
     default:
       return PLACEABLE_PLACEMENT_CONFIG['Wooden Storage Box'];
   }

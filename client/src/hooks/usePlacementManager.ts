@@ -12,6 +12,9 @@ import { isWaterTileTag } from '../utils/tileTypeGuards';
 // Minimum distance between planted seeds (in pixels)
 const MIN_SEED_DISTANCE = 20;
 
+// Cache chunk lookups per active DB connection to avoid O(n) scans on every tile query.
+const chunkLookupCache = new WeakMap<DbConnection, { chunkSize: number; chunksByCoord: Map<string, any> }>();
+
 // Type for the information needed to start placement
 export interface PlacementItemInfo {
   itemDefId: bigint;
@@ -43,67 +46,63 @@ export interface PlacementActions {
  */
 function getTileTypeFromChunkData(connection: DbConnection | null, tileX: number, tileY: number): string | null {
   if (!connection) return null;
-  
-  // Default chunk size (typically 8 tiles per chunk)
-  let chunkSize = 8;
-  
-  // Try to find chunk size from any chunk data
-  for (const chunk of connection.db.world_chunk_data.iter()) {
-    if (chunk.chunkSize) {
-      chunkSize = chunk.chunkSize;
-      break;
+
+  let lookup = chunkLookupCache.get(connection);
+  if (!lookup) {
+    const chunksByCoord = new Map<string, any>();
+    let chunkSize = 8;
+    for (const chunk of connection.db.world_chunk_data.iter()) {
+      if (chunk.chunkSize) chunkSize = chunk.chunkSize;
+      chunksByCoord.set(`${chunk.chunkX},${chunk.chunkY}`, chunk);
     }
+    lookup = { chunkSize, chunksByCoord };
+    chunkLookupCache.set(connection, lookup);
   }
-  
+
   // Calculate which chunk this tile belongs to (matching GameCanvas.tsx logic)
+  const chunkSize = lookup.chunkSize;
   const chunkX = Math.floor(tileX / chunkSize);
   const chunkY = Math.floor(tileY / chunkSize);
-  
-  // Look up the compressed chunk data using the same key format as GameCanvas
-  const chunkKey = `${chunkX},${chunkY}`;
-  
-  // Find chunk by iterating (since we don't have the chunkCacheRef)
-  for (const chunk of connection.db.world_chunk_data.iter()) {
-    if (chunk.chunkX === chunkX && chunk.chunkY === chunkY) {
-      // Calculate local tile position within the chunk (matching GameCanvas.tsx logic)
-      const localX = tileX % chunkSize;
-      const localY = tileY % chunkSize;
-      
-      // Handle negative mod (for negative tile coordinates)
-      const localTileX = localX < 0 ? localX + chunkSize : localX;
-      const localTileY = localY < 0 ? localY + chunkSize : localY;
-      
-      // Use chunk.chunkSize (which may differ from default) for index calculation
-      const actualChunkSize = chunk.chunkSize || chunkSize;
-      const tileIndex = localTileY * actualChunkSize + localTileX;
-      
-      // Check bounds and extract tile type
-      if (tileIndex >= 0 && tileIndex < chunk.tileTypes.length) {
-        const tileTypeU8 = chunk.tileTypes[tileIndex];
-        // Convert Uint8 to tile type tag (matching server-side enum in lib.rs TileType::to_u8)
-        switch (tileTypeU8) {
-          case 0: return 'Grass';
-          case 1: return 'Dirt';
-          case 2: return 'DirtRoad';
-          case 3: return 'Sea';
-          case 4: return 'Beach';
-          case 5: return 'Sand';
-          case 6: return 'HotSpringWater';
-          case 7: return 'Quarry';
-          case 8: return 'Asphalt';
-          case 9: return 'Forest';
-          case 10: return 'Tundra';
-          case 11: return 'Alpine';
-          case 12: return 'TundraGrass'; // Grassy patches in tundra biome
-          case 13: return 'Tilled'; // Tilled soil for farming (uses Dirt graphics)
-          case 14: return 'DeepSea';
-          default: return 'Grass';
-        }
-      }
-      break; // Found the chunk, no need to continue
+
+  const chunk = lookup.chunksByCoord.get(`${chunkX},${chunkY}`);
+  if (!chunk) return null;
+
+  // Calculate local tile position within the chunk (matching GameCanvas.tsx logic)
+  const localX = tileX % chunkSize;
+  const localY = tileY % chunkSize;
+
+  // Handle negative mod (for negative tile coordinates)
+  const localTileX = localX < 0 ? localX + chunkSize : localX;
+  const localTileY = localY < 0 ? localY + chunkSize : localY;
+
+  // Use chunk.chunkSize (which may differ from default) for index calculation
+  const actualChunkSize = chunk.chunkSize || chunkSize;
+  const tileIndex = localTileY * actualChunkSize + localTileX;
+
+  // Check bounds and extract tile type
+  if (tileIndex >= 0 && tileIndex < chunk.tileTypes.length) {
+    const tileTypeU8 = chunk.tileTypes[tileIndex];
+    // Convert Uint8 to tile type tag (matching server-side enum in lib.rs TileType::to_u8)
+    switch (tileTypeU8) {
+      case 0: return 'Grass';
+      case 1: return 'Dirt';
+      case 2: return 'DirtRoad';
+      case 3: return 'Sea';
+      case 4: return 'Beach';
+      case 5: return 'Sand';
+      case 6: return 'HotSpringWater';
+      case 7: return 'Quarry';
+      case 8: return 'Asphalt';
+      case 9: return 'Forest';
+      case 10: return 'Tundra';
+      case 11: return 'Alpine';
+      case 12: return 'TundraGrass'; // Grassy patches in tundra biome
+      case 13: return 'Tilled'; // Tilled soil for farming (uses Dirt graphics)
+      case 14: return 'DeepSea';
+      default: return 'Grass';
     }
   }
-  
+
   return null; // No compressed data found for this position
 }
 
@@ -133,13 +132,6 @@ function isPositionOnWater(connection: DbConnection | null, worldX: number, worl
   const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
   // Match all water tiles - consistent with placementRenderingUtils
   const isWater = isWaterTileTag(tileType);
-  
-  console.log(`[WaterCheck] Tile at (${tileX}, ${tileY}): type=${tileType}, isWater=${isWater}`);
-  
-  if (tileType === null) {
-    console.log(`[WaterCheck] No chunk data found for tile (${tileX}, ${tileY}), assuming not water`);
-  }
-  
   return isWater;
 }
 
@@ -185,6 +177,26 @@ function isPositionOnTundra(connection: DbConnection | null, worldX: number, wor
   const { tileX, tileY } = worldPosToTileCoords(worldX, worldY);
   const tileType = getTileTypeFromChunkData(connection, tileX, tileY);
   return tileType === 'Tundra' || tileType === 'TundraGrass';
+}
+
+function isPositionOnFoundation(connection: DbConnection | null, worldX: number, worldY: number): boolean {
+  if (!connection) return false;
+  const FOUNDATION_TILE_SIZE = 96;
+  const cellX = Math.floor(worldX / FOUNDATION_TILE_SIZE);
+  const cellY = Math.floor(worldY / FOUNDATION_TILE_SIZE);
+  for (const foundation of connection.db.foundation_cell.iter()) {
+    if (foundation.cellX === cellX && foundation.cellY === cellY && !foundation.isDestroyed) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isFoundationOnlyPelt(itemName: string): boolean {
+  return itemName === 'Wolf Pelt' ||
+    itemName === 'Fox Pelt' ||
+    itemName === 'Polar Bear Pelt' ||
+    itemName === 'Walrus Pelt';
 }
 
 /**
@@ -310,7 +322,6 @@ function isFishTrapPlacementBlocked(connection: DbConnection | null, worldX: num
  */
 function calculateShoreDistance(connection: DbConnection | null, worldX: number, worldY: number): number {
   if (!connection) {
-    console.log('[ShoreDistance] No connection, returning -1');
     return -1;
   }
   
@@ -319,11 +330,8 @@ function calculateShoreDistance(connection: DbConnection | null, worldX: number,
   const MAX_SEARCH_RADIUS_TILES = Math.ceil(MAX_SEARCH_RADIUS_PIXELS / TILE_SIZE); // ~5 tiles
   
   const { tileX: centerTileX, tileY: centerTileY } = worldPosToTileCoords(worldX, worldY);
-  console.log(`[ShoreDistance] Searching from tile (${centerTileX}, ${centerTileY}), max radius: ${MAX_SEARCH_RADIUS_TILES} tiles`);
-  
   // First verify we're on water
   if (!isPositionOnWater(connection, worldX, worldY)) {
-    console.log('[ShoreDistance] Not on water, returning -1');
     return -1; // Not on water
   }
   
@@ -345,7 +353,6 @@ function calculateShoreDistance(connection: DbConnection | null, worldX: number,
         if (!isWaterTileTag(checkTileType)) {
           const distancePixels = radius * TILE_SIZE;
           const finalDistance = Math.min(distancePixels, MAX_SEARCH_RADIUS_PIXELS);
-          console.log(`[ShoreDistance] Found shore at tile (${checkTileX}, ${checkTileY}), type=${checkTileType}, radius ${radius} tiles = ${distancePixels}px, final: ${finalDistance}px`);
           // Cap at MAX_SEARCH_RADIUS_PIXELS to match server behavior
           return finalDistance;
         }
@@ -353,9 +360,7 @@ function calculateShoreDistance(connection: DbConnection | null, worldX: number,
     }
   }
   
-  const result = MAX_SEARCH_RADIUS_PIXELS + 1;
-  console.log(`[ShoreDistance] No shore found within ${MAX_SEARCH_RADIUS_TILES} tiles, returning ${result}px`);
-  return result; // Beyond max search radius
+  return MAX_SEARCH_RADIUS_PIXELS + 1; // Beyond max search radius
 }
 
 /**
@@ -364,16 +369,12 @@ function calculateShoreDistance(connection: DbConnection | null, worldX: number,
  */
 function isReedRhizomePlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
   if (!connection) {
-    console.log('[ReedRhizome] No connection, allowing placement');
     return false;
   }
   
   // Reed Rhizomes must be on water
   const isOnWater = isPositionOnWater(connection, worldX, worldY);
-  console.log(`[ReedRhizome] Position (${worldX.toFixed(1)}, ${worldY.toFixed(1)}) - isOnWater: ${isOnWater}`);
-  
   if (!isOnWater) {
-    console.log('[ReedRhizome] BLOCKED: Not on water');
     return true; // Block if not on water
   }
   
@@ -381,14 +382,9 @@ function isReedRhizomePlacementBlocked(connection: DbConnection | null, worldX: 
   const shoreDistance = calculateShoreDistance(connection, worldX, worldY);
   const MAX_SHORE_DISTANCE = 200.0; // 50 meters = 500 pixels (matching server-side constant)
   
-  console.log(`[ReedRhizome] Shore distance: ${shoreDistance.toFixed(1)}px, Max: ${MAX_SHORE_DISTANCE}px`);
-  
   if (shoreDistance < 0 || shoreDistance > MAX_SHORE_DISTANCE) {
-    console.log(`[ReedRhizome] BLOCKED: Too far from shore (distance: ${shoreDistance.toFixed(1)}px)`);
     return true; // Block if too far from shore
   }
-  
-  console.log('[ReedRhizome] VALID: Placement allowed');
   return false; // Valid placement
 }
 
@@ -399,21 +395,14 @@ function isReedRhizomePlacementBlocked(connection: DbConnection | null, worldX: 
  */
 function isSeaweedFrondPlacementBlocked(connection: DbConnection | null, worldX: number, worldY: number): boolean {
   if (!connection) {
-    console.log('[SeaweedFrond] No connection, allowing placement');
     return false;
   }
   
   // Seaweed Fronds can be planted on any water tile (no shore restriction)
   const isOnWater = isPositionOnWater(connection, worldX, worldY);
-  console.log(`[SeaweedFrond] Position (${worldX.toFixed(1)}, ${worldY.toFixed(1)}) - isOnWater: ${isOnWater}`);
-  
   if (!isOnWater) {
-    console.log('[SeaweedFrond] BLOCKED: Not on water');
     return true; // Block if not on water
   }
-  
-  // No snorkeling required - just need to be on water
-  console.log('[SeaweedFrond] VALID: Placement allowed on water tile');
   return false; // Valid placement on client side
 }
 
@@ -532,16 +521,11 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
 
   const itemNameLower = placementInfo.itemName.toLowerCase().trim();
   
-  console.log(`[WaterPlacement] Checking item: "${placementInfo.itemName}" (lower: "${itemNameLower}")`);
-
   // Special case: Seaweed Frond - must be on water (no shore restriction, no snorkeling required)
   const isSeaweedItem = itemNameLower.includes('seaweed') || itemNameLower.includes('frond');
-  console.log(`[WaterPlacement] isSeaweedItem: ${isSeaweedItem}`);
   
   if (isSeaweedItem) {
-    const result = isSeaweedFrondPlacementBlocked(connection, worldX, worldY);
-    console.log(`[WaterPlacement] Seaweed placement blocked: ${result}`);
-    return result;
+    return isSeaweedFrondPlacementBlocked(connection, worldX, worldY);
   }
 
   // Special case: Reed Rhizome - must be on water NEAR shore
@@ -567,7 +551,6 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
   // Special case: Pinecone (conifer tree seed) - cannot be planted on beach tiles
   if (isPineconeBlockedOnBeach(placementInfo.itemName)) {
     if (isPineconePlacementBlocked(connection, worldX, worldY)) {
-      console.log('[WaterPlacement] Pinecone blocked: Cannot plant on beach tiles');
       return true;
     }
   }
@@ -575,7 +558,6 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
   // Special case: Birch Catkin (deciduous tree seed) - cannot be planted on alpine tiles
   if (isBirchCatkinBlockedOnAlpine(placementInfo.itemName)) {
     if (isBirchCatkinPlacementBlocked(connection, worldX, worldY)) {
-      console.log('[WaterPlacement] Birch Catkin blocked: Cannot plant on alpine tiles');
       return true;
     }
   }
@@ -583,18 +565,13 @@ function isWaterPlacementBlocked(connection: DbConnection | null, placementInfo:
   // Special case: Crab Apple Seeds and Hazelnuts - temperate only (grass/forest)
   if (requiresTemperateOnlyPlacement(placementInfo.itemName)) {
     if (isTemperatePlacementBlocked(connection, worldX, worldY)) {
-      console.log('[WaterPlacement] Temperate seed blocked: Cannot plant on beach, alpine, or tundra tiles');
       return true;
     }
   }
 
   // Special case: Fish Trap - must be placed on shore (land adjacent to water)
   if (placementInfo.itemName === 'Fish Trap') {
-    const blocked = isFishTrapPlacementBlocked(connection, worldX, worldY);
-    if (blocked) {
-      console.log('[WaterPlacement] Fish Trap blocked: Must be placed on shore (land adjacent to water)');
-    }
-    return blocked;
+    return isFishTrapPlacementBlocked(connection, worldX, worldY);
   }
 
   // List of items that cannot be placed on water
@@ -784,7 +761,6 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
   const [placementWarning, setPlacementWarning] = useState<string | null>(null);
 
   const isPlacing = placementInfo !== null;
-
   // Helper function to check if the currently placed item still exists and has quantity > 0
   const checkPlacementItemStillExists = useCallback(() => {
     if (!connection || !placementInfo) return true;
@@ -843,6 +819,24 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
     }
   }, [isPlacing, placementInfo, connection, cancelPlacement, connection?.db.inventory_item]);
 
+  // Keep placement mode synced with inventory while planting seeds.
+  // This runs independently of React re-render cadence so the preview
+  // disappears promptly when the final seed is consumed.
+  useEffect(() => {
+    if (!isPlacing || !placementInfo || !connection) return;
+    if (!isSeedItemValid(placementInfo.itemName)) return;
+
+    const intervalId = window.setInterval(() => {
+      if (!checkPlacementItemStillExists()) {
+        cancelPlacement();
+      }
+    }, 120);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isPlacing, placementInfo, connection, checkPlacementItemStillExists, cancelPlacement]);
+
   // --- Attempt Placement --- 
   const attemptPlacement = useCallback((worldX: number, worldY: number, isPlacementTooFar?: boolean) => {
     if (!connection || !placementInfo) {
@@ -899,6 +893,13 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
         playImmediateSound('error_foundation_monument', 1.0);
       }
       return; // Don't proceed with placement
+    }
+
+    // Pelts must be placed on a foundation cell (same rule family as Matron's Chest).
+    if (isFoundationOnlyPelt(placementInfo.itemName) && !isPositionOnFoundation(connection, placeX, placeY)) {
+      setPlacementError('Must be placed on a foundation.');
+      playImmediateSound('error_chest_placement', 1.0);
+      return;
     }
 
     // Check for water placement restriction (use snapped position for grid-snapping items)
@@ -961,7 +962,25 @@ export const usePlacementManager = (connection: DbConnection | null): [Placement
         case 'Scarecrow':
         case 'Fish Trap':
         case 'Wooden Beehive':
-          connection.reducers.placeWoodenStorageBox({ itemInstanceId: BigInt(placementInfo.instanceId), worldX: placeX, worldY: placeY });
+        case 'Wolf Pelt':
+        case 'Fox Pelt':
+        case 'Polar Bear Pelt':
+        case 'Walrus Pelt':
+          connection.reducers.placeWoodenStorageBox({ itemInstanceId: BigInt(placementInfo.instanceId), worldX: placeX, worldY: placeY })
+            .catch((err: { status?: { tag?: string; value?: string }; Failed?: string }) => {
+              const status = err?.status;
+              const errorMsg = status?.tag === 'Failed' && status?.value ? status.value : (err?.Failed ?? 'Failed to place item');
+              const errorMsgLower = String(errorMsg).toLowerCase();
+              if (errorMsgLower.includes('must be placed on a foundation')) {
+                setPlacementError('Must be placed on a foundation.');
+                playImmediateSound('error_chest_placement', 1.0);
+                return;
+              }
+              if (errorMsgLower.includes('too far away')) {
+                setPlacementError('Placement location is too far away.');
+                playImmediateSound('error_placement_failed', 1.0);
+              }
+            });
           // Assume App.tsx will have a handleWoodenStorageBoxInsert similar to campfire
           break;
         case 'Sleeping Bag':

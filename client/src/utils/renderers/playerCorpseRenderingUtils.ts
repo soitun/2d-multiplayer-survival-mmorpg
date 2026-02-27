@@ -136,14 +136,7 @@ export function renderPlayerCorpse({
     shardCarryStartTime: undefined, // Corpses are not carrying shards
     isSnorkeling: false, // Corpses are not snorkeling
     isAimingThrow: false, // Corpses are not aiming throws
-    hasSeenMemoryShardTutorial: false, // Corpses don't need tutorials
-    hasSeenMemoryShard200Tutorial: false, // Corpses don't need tutorials
-    hasSeenSovaIntro: false, // Corpses don't need tutorials
-    hasSeenTutorialHint: false, // Corpses don't need tutorials
-    hasSeenHostileEncounterTutorial: false, // Corpses don't need tutorials
-    hasSeenRuneStoneTutorial: false, // Corpses don't need tutorials
-    hasSeenAlkStationTutorial: false, // Corpses don't need tutorials
-    hasSeenCrashedDroneTutorial: false, // Corpses don't need tutorials
+    seenTutorialIds: [], // Corpses don't track tutorial completion
     pvpEnabled: false, // Corpses can't engage in PvP
     pvpEnabledUntil: undefined, // No PvP timer for corpses
     lastPvpCombatTime: undefined, // No PvP combat time for corpses

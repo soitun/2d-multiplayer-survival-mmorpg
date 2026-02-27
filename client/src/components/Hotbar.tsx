@@ -31,6 +31,7 @@ const SELECTED_BORDER_COLOR = '#00ffff';
 const CONSUMPTION_COOLDOWN_MICROS = 1_000_000; // 1 second, matches server
 const DEFAULT_CLIENT_ANIMATION_DURATION_MS = CONSUMPTION_COOLDOWN_MICROS / 1000; // Duration for client animation
 const BANDAGE_CLIENT_ANIMATION_DURATION_MS = 5000; // 5 seconds for bandage visual cooldown
+const TOTAL_INVENTORY_SLOTS = 24;
 
 // Weapon cooldown state interface - simplified
 interface WeaponCooldownState {
@@ -1344,7 +1345,30 @@ connection.reducers.quickMoveToBrothPot({
       // Default action: Move item from hotbar to first available inventory slot
       try {
           console.log(`[Hotbar ContextMenu] Moving item ${itemInfo.definition.name} from hotbar to first available inventory slot`);
-          connection.reducers.moveToFirstAvailableInventorySlot({ itemInstanceId });
+
+          let firstEmptyInventorySlot: number | null = null;
+          if (playerIdentity) {
+              const occupiedInventorySlots = new Set<number>();
+              inventoryItems.forEach((itemInstance) => {
+                  if (itemInstance.location.tag !== 'Inventory') return;
+                  const inventoryData = itemInstance.location.value as any;
+                  if (inventoryData.ownerId && inventoryData.ownerId.isEqual(playerIdentity)) {
+                      occupiedInventorySlots.add(Number(inventoryData.slotIndex));
+                  }
+              });
+              for (let slot = 0; slot < TOTAL_INVENTORY_SLOTS; slot++) {
+                  if (!occupiedInventorySlots.has(slot)) {
+                      firstEmptyInventorySlot = slot;
+                      break;
+                  }
+              }
+          }
+
+          if (firstEmptyInventorySlot !== null) {
+              connection.reducers.moveItemToInventory({ itemInstanceId, targetInventorySlot: firstEmptyInventorySlot });
+          } else {
+              connection.reducers.moveToFirstAvailableInventorySlot({ itemInstanceId });
+          }
       } catch (error: any) {
           console.error("[Hotbar ContextMenu] Failed to move item to inventory:", error);
       }

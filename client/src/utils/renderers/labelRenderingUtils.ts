@@ -407,6 +407,9 @@ export function renderInteractionLabels({
                     config = ENTITY_VISUAL_CONFIG.fish_trap;
                 } else if (box.boxType === 11) { // BOX_TYPE_WILD_BEEHIVE
                     config = ENTITY_VISUAL_CONFIG.wild_beehive;
+                } else if (box.boxType === 14 || box.boxType === 15 || box.boxType === 16 || box.boxType === 17) { // Pelt rugs (decorative only)
+                    // Never show interaction labels for pelts.
+                    return;
                 } else {
                     config = ENTITY_VISUAL_CONFIG.wooden_storage_box;
                 }

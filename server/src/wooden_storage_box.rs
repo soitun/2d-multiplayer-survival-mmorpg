@@ -44,6 +44,7 @@ pub(crate) const REFRIGERATOR_COLLISION_RADIUS: f32 = 48.0;   // 96x96 visual ->
 pub(crate) fn get_box_collision_y_offset(box_type: u8) -> f32 {
     match box_type {
         BOX_TYPE_PLAYER_BEEHIVE | BOX_TYPE_WILD_BEEHIVE => BOX_COLLISION_Y_OFFSET + 30.0, // 82px - collision 30px higher
+        BOX_TYPE_WOLF_PELT | BOX_TYPE_FOX_PELT | BOX_TYPE_POLAR_BEAR_PELT | BOX_TYPE_WALRUS_PELT => 48.0,
         _ => BOX_COLLISION_Y_OFFSET,
     }
 }
@@ -81,6 +82,8 @@ pub(crate) fn get_box_collision_radius(box_type: u8) -> f32 {
         BOX_TYPE_FISH_TRAP => FISH_TRAP_COLLISION_RADIUS,
         BOX_TYPE_WILD_BEEHIVE => WILD_BEEHIVE_COLLISION_RADIUS,
         BOX_TYPE_PLAYER_BEEHIVE => PLAYER_BEEHIVE_COLLISION_RADIUS,
+        // Pelt rugs are flat floor decor (sleeping-bag-like): no physical collision.
+        BOX_TYPE_WOLF_PELT | BOX_TYPE_FOX_PELT | BOX_TYPE_POLAR_BEAR_PELT | BOX_TYPE_WALRUS_PELT => 0.0,
         _ => BOX_COLLISION_RADIUS,
     }
 }
@@ -88,9 +91,18 @@ pub(crate) fn get_box_collision_radius(box_type: u8) -> f32 {
 /// Get the player/animal collision radius. Beehives use same size as normal boxes (moved up 30px).
 pub(crate) fn get_box_player_collision_radius(box_type: u8) -> f32 {
     match box_type {
+        // Ground rugs should never block player movement.
+        BOX_TYPE_WOLF_PELT | BOX_TYPE_FOX_PELT | BOX_TYPE_POLAR_BEAR_PELT | BOX_TYPE_WALRUS_PELT => 0.0,
         BOX_TYPE_PLAYER_BEEHIVE | BOX_TYPE_WILD_BEEHIVE => BOX_COLLISION_RADIUS,
         _ => get_box_collision_radius(box_type),
     }
+}
+
+pub(crate) fn is_pelt_box_type(box_type: u8) -> bool {
+    matches!(
+        box_type,
+        BOX_TYPE_WOLF_PELT | BOX_TYPE_FOX_PELT | BOX_TYPE_POLAR_BEAR_PELT | BOX_TYPE_WALRUS_PELT
+    )
 }
 
 // --- Health constants ---
@@ -163,6 +175,15 @@ pub const BOX_TYPE_MILITARY_CRATE: u8 = 13;
 pub const NUM_MILITARY_CRATE_SLOTS: usize = 1; // Single slot for one high-tier weapon
 pub const MILITARY_CRATE_INITIAL_HEALTH: f32 = 150.0;
 pub const MILITARY_CRATE_MAX_HEALTH: f32 = 150.0;
+
+// --- Pelt Rugs (foundation-only cozy decorations) ---
+pub const BOX_TYPE_WOLF_PELT: u8 = 14;
+pub const BOX_TYPE_FOX_PELT: u8 = 15;
+pub const BOX_TYPE_POLAR_BEAR_PELT: u8 = 16;
+pub const BOX_TYPE_WALRUS_PELT: u8 = 17;
+pub const NUM_PELT_SLOTS: usize = 0; // Decorative only
+pub const PELT_INITIAL_HEALTH: f32 = 200.0;
+pub const PELT_MAX_HEALTH: f32 = 200.0;
 
 // Re-export refrigerator constants for backward compatibility
 pub use crate::refrigerator::{NUM_REFRIGERATOR_SLOTS, REFRIGERATOR_INITIAL_HEALTH, REFRIGERATOR_MAX_HEALTH};
@@ -829,6 +850,14 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         BOX_TYPE_FISH_TRAP
     } else if item_def.name == "Wooden Beehive" {
         BOX_TYPE_PLAYER_BEEHIVE
+    } else if item_def.name == "Wolf Pelt" {
+        BOX_TYPE_WOLF_PELT
+    } else if item_def.name == "Fox Pelt" {
+        BOX_TYPE_FOX_PELT
+    } else if item_def.name == "Polar Bear Pelt" {
+        BOX_TYPE_POLAR_BEAR_PELT
+    } else if item_def.name == "Walrus Pelt" {
+        BOX_TYPE_WALRUS_PELT
     } else {
         return Err("Item is not a storage container.".to_string());
     };
@@ -850,6 +879,7 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
     // 2b. Validate Placement Distance
     let max_placement_dist = match box_type {
         BOX_TYPE_LARGE => LARGE_BOX_PLACEMENT_MAX_DISTANCE,
+        BOX_TYPE_WOLF_PELT | BOX_TYPE_FOX_PELT | BOX_TYPE_POLAR_BEAR_PELT | BOX_TYPE_WALRUS_PELT => LARGE_BOX_PLACEMENT_MAX_DISTANCE,
         BOX_TYPE_COMPOST | BOX_TYPE_SCARECROW | BOX_TYPE_PLAYER_BEEHIVE => TALL_BOX_PLACEMENT_MAX_DISTANCE,
         _ => BOX_PLACEMENT_MAX_DISTANCE,
     };
@@ -857,6 +887,24 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
     let dy = player.position_y - world_y;
     if (dx * dx + dy * dy) > (max_placement_dist * max_placement_dist) {
         return Err("Placement location is too far away.".to_string());
+    }
+
+    // Pelt rugs are indoor/foundation decor and must sit on a foundation cell.
+    if is_pelt_box_type(box_type) {
+        use crate::building::{foundation_cell as FoundationCellTableTrait, FOUNDATION_TILE_SIZE_PX};
+        let foundations = ctx.db.foundation_cell();
+        let foundation_cell_x = (world_x / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+        let foundation_cell_y = (world_y / FOUNDATION_TILE_SIZE_PX as f32).floor() as i32;
+        let mut has_foundation = false;
+        for foundation in foundations.idx_cell_coords().filter((foundation_cell_x, foundation_cell_y)) {
+            if !foundation.is_destroyed {
+                has_foundation = true;
+                break;
+            }
+        }
+        if !has_foundation {
+            return Err("This item must be placed on a foundation (full or triangle). Build a foundation first!".to_string());
+        }
     }
 
     // 3. Validate Placement Location (Collision Checks)
@@ -915,12 +963,18 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         BOX_TYPE_SCARECROW => (SCARECROW_INITIAL_HEALTH, SCARECROW_MAX_HEALTH),
         BOX_TYPE_FISH_TRAP => (FISH_TRAP_INITIAL_HEALTH, FISH_TRAP_MAX_HEALTH),
         BOX_TYPE_PLAYER_BEEHIVE => (PLAYER_BEEHIVE_INITIAL_HEALTH, PLAYER_BEEHIVE_MAX_HEALTH),
+        BOX_TYPE_WOLF_PELT | BOX_TYPE_FOX_PELT | BOX_TYPE_POLAR_BEAR_PELT | BOX_TYPE_WALRUS_PELT => {
+            (PELT_INITIAL_HEALTH, PELT_MAX_HEALTH)
+        }
         _ => (WOODEN_STORAGE_BOX_INITIAL_HEALTH, WOODEN_STORAGE_BOX_MAX_HEALTH),
     };
     
     // Beehives are taller (256px) and need a larger Y offset to place them lower
     let y_offset = if box_type == BOX_TYPE_PLAYER_BEEHIVE {
         BOX_COLLISION_Y_OFFSET + 100.0 // Additional 100px offset for beehives (taller structure)
+    } else if is_pelt_box_type(box_type) {
+        // Sleeping-bag style anchor for pelt rugs.
+        48.0
     } else {
         BOX_COLLISION_Y_OFFSET
     };
@@ -1003,6 +1057,10 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
         BOX_TYPE_SCARECROW => "Scarecrow",
         BOX_TYPE_FISH_TRAP => "Fish Trap",
         BOX_TYPE_PLAYER_BEEHIVE => "Wooden Beehive",
+        BOX_TYPE_WOLF_PELT => "Wolf Pelt",
+        BOX_TYPE_FOX_PELT => "Fox Pelt",
+        BOX_TYPE_POLAR_BEAR_PELT => "Polar Bear Pelt",
+        BOX_TYPE_WALRUS_PELT => "Walrus Pelt",
         _ => "Wooden Storage Box",
     };
     log::info!("Player {:?} placed new {} with ID {}.\nLocation: {:?}", sender_id, box_type_name, inserted_box.id, item_to_place.location);
@@ -1077,6 +1135,10 @@ pub fn pickup_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<(), Strin
         BOX_TYPE_SCARECROW => "Scarecrow",
         BOX_TYPE_FISH_TRAP => "Fish Trap",
         BOX_TYPE_PLAYER_BEEHIVE => "Wooden Beehive",
+        BOX_TYPE_WOLF_PELT => "Wolf Pelt",
+        BOX_TYPE_FOX_PELT => "Fox Pelt",
+        BOX_TYPE_POLAR_BEAR_PELT => "Polar Bear Pelt",
+        BOX_TYPE_WALRUS_PELT => "Walrus Pelt",
         _ => "Wooden Storage Box",
     };
     let box_item_def = item_defs_table.iter()
@@ -1269,6 +1331,7 @@ impl ItemContainer for WoodenStorageBox {
             BOX_TYPE_FISH_TRAP => NUM_FISH_TRAP_SLOTS,
             BOX_TYPE_WILD_BEEHIVE => NUM_WILD_BEEHIVE_SLOTS,
             BOX_TYPE_PLAYER_BEEHIVE => NUM_PLAYER_BEEHIVE_SLOTS,
+            BOX_TYPE_WOLF_PELT | BOX_TYPE_FOX_PELT | BOX_TYPE_POLAR_BEAR_PELT | BOX_TYPE_WALRUS_PELT => NUM_PELT_SLOTS,
             _ => NUM_BOX_SLOTS,
         }
     }
@@ -1534,6 +1597,11 @@ pub fn validate_box_interaction(
 
     if storage_box.is_destroyed {
         return Err(format!("Storage Box {} is destroyed.", box_id));
+    }
+
+    // Pelt rugs are decorative cozy emitters, not containers.
+    if is_pelt_box_type(storage_box.box_type) {
+        return Err("This decoration cannot be opened.".to_string());
     }
 
     // Check distance between the interacting player and the box

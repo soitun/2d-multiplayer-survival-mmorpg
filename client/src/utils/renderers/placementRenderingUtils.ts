@@ -88,6 +88,15 @@ const grassSpatialHash: Map<string, boolean> = new Map();
 let grassHashVersion = 0;
 let lastGrassCount = 0;
 
+// PERFORMANCE: Seed occupancy index (rebuilt at a short interval).
+const plantedSeedTileIndex: Set<string> = new Set();
+let lastSeedIndexRefreshMs = 0;
+const SEED_INDEX_REFRESH_MS = 250;
+
+// PERFORMANCE: Cache monument-zone validation per tile for preview path.
+const monumentZoneTileCache: Map<string, { blocked: boolean; timestamp: number }> = new Map();
+const MONUMENT_ZONE_CACHE_TTL_MS = 120;
+
 /**
  * Rebuilds foundation spatial index for O(1) cell lookups
  */
@@ -135,6 +144,21 @@ function rebuildGrassSpatialHash(connection: DbConnection): void {
     }
     lastGrassCount = count;
     grassHashVersion++;
+}
+
+/**
+ * Rebuild tile occupancy index for planted seeds.
+ * This replaces per-frame full iteration for one-seed-per-tile preview checks.
+ */
+function rebuildPlantedSeedTileIndex(connection: DbConnection): void {
+    plantedSeedTileIndex.clear();
+    const TILE_SIZE_LOCAL = 48;
+    for (const seed of connection.db.planted_seed.iter()) {
+        const tileX = Math.floor(seed.posX / TILE_SIZE_LOCAL);
+        const tileY = Math.floor(seed.posY / TILE_SIZE_LOCAL);
+        plantedSeedTileIndex.add(`${tileX},${tileY}`);
+    }
+    lastSeedIndexRefreshMs = Date.now();
 }
 
 /**
@@ -654,17 +678,11 @@ function isSeedPlacementOnOccupiedTile(connection: DbConnection | null, placemen
     const targetTileX = Math.floor(worldX / TILE_SIZE);
     const targetTileY = Math.floor(worldY / TILE_SIZE);
     
-    // Check if any planted seed exists on this tile
-    for (const seed of connection.db.planted_seed.iter()) {
-        const seedTileX = Math.floor(seed.posX / TILE_SIZE);
-        const seedTileY = Math.floor(seed.posY / TILE_SIZE);
-        
-        if (seedTileX === targetTileX && seedTileY === targetTileY) {
-            return true; // Tile is occupied
-        }
+    if (Date.now() - lastSeedIndexRefreshMs > SEED_INDEX_REFRESH_MS) {
+        rebuildPlantedSeedTileIndex(connection);
     }
-    
-    return false; // Tile is free
+
+    return plantedSeedTileIndex.has(`${targetTileX},${targetTileY}`);
 }
 
 // NOTE: Client-side storage box collision validation removed
@@ -682,12 +700,21 @@ function isPositionInMonumentZone(
     worldY: number
 ): boolean {
     if (!connection) return false;
+
+    const TILE_SIZE_LOCAL = 48;
+    const tileX = Math.floor(worldX / TILE_SIZE_LOCAL);
+    const tileY = Math.floor(worldY / TILE_SIZE_LOCAL);
+    const cacheKey = `${tileX},${tileY}`;
+    const cached = monumentZoneTileCache.get(cacheKey);
+    const now = Date.now();
+    if (cached && (now - cached.timestamp) < MONUMENT_ZONE_CACHE_TTL_MS) {
+        return cached.blocked;
+    }
     
     const MONUMENT_RESTRICTION_RADIUS = 800.0; // For hot springs and rune stones
     const MONUMENT_RESTRICTION_RADIUS_SQ = MONUMENT_RESTRICTION_RADIUS * MONUMENT_RESTRICTION_RADIUS;
     const QUARRY_RESTRICTION_RADIUS = 400.0; // Smaller radius for quarries
     const QUARRY_RESTRICTION_RADIUS_SQ = QUARRY_RESTRICTION_RADIUS * QUARRY_RESTRICTION_RADIUS;
-    const TILE_SIZE_LOCAL = 48;
     
     // Check ALK stations
     const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL = 8.75;
@@ -706,6 +733,7 @@ function isPositionInMonumentZone(
         const restrictionRadiusSq = restrictionRadius * restrictionRadius;
         
         if (distSq <= restrictionRadiusSq) {
+            monumentZoneTileCache.set(cacheKey, { blocked: true, timestamp: now });
             return true; // Too close to ALK station
         }
     }
@@ -716,6 +744,7 @@ function isPositionInMonumentZone(
         const dy = worldY - runeStone.posY;
         const distSq = dx * dx + dy * dy;
         if (distSq <= MONUMENT_RESTRICTION_RADIUS_SQ) {
+            monumentZoneTileCache.set(cacheKey, { blocked: true, timestamp: now });
             return true; // Too close to rune stone
         }
     }
@@ -740,6 +769,7 @@ function isPositionInMonumentZone(
                 // Use different radius for quarries vs hot springs
                 const restrictionRadiusSq = tileType === 'Quarry' ? QUARRY_RESTRICTION_RADIUS_SQ : MONUMENT_RESTRICTION_RADIUS_SQ;
                 if (distSq <= restrictionRadiusSq) {
+                    monumentZoneTileCache.set(cacheKey, { blocked: true, timestamp: now });
                     return true; // Too close to hot spring or quarry
                 }
             }
@@ -789,6 +819,7 @@ function isPositionInMonumentZone(
             }
             
             if (distSq <= restrictionRadiusSq) {
+                monumentZoneTileCache.set(cacheKey, { blocked: true, timestamp: now });
                 return true; // Too close to monument
             }
         }
@@ -799,9 +830,11 @@ function isPositionInMonumentZone(
     const tileAtY = Math.floor(worldY / TILE_SIZE_LOCAL);
     const tileTypeAtPosition = getTileTypeFromChunkData(connection, tileAtX, tileAtY);
     if (tileTypeAtPosition === 'Asphalt') {
+        monumentZoneTileCache.set(cacheKey, { blocked: true, timestamp: now });
         return true; // Cannot place on asphalt/compound areas
     }
-    
+
+    monumentZoneTileCache.set(cacheKey, { blocked: false, timestamp: now });
     return false;
 }
 
@@ -1054,7 +1087,11 @@ export function isPlacementTooFar(
         const MEDIUM_LARGE_OBJECT_PLACEMENT_MAX_DISTANCE = 200.0;
         clientPlacementRangeSq = MEDIUM_LARGE_OBJECT_PLACEMENT_MAX_DISTANCE * MEDIUM_LARGE_OBJECT_PLACEMENT_MAX_DISTANCE;
     } else if (placementInfo.iconAssetName === 'large_wood_box.png' ||
-               placementInfo.iconAssetName === 'sleeping_bag.png') {
+               placementInfo.iconAssetName === 'sleeping_bag.png' ||
+               placementInfo.iconAssetName === 'wolf_pelt.png' ||
+               placementInfo.iconAssetName === 'fox_pelt.png' ||
+               placementInfo.iconAssetName === 'polar_bear_pelt.png' ||
+               placementInfo.iconAssetName === 'walrus_pelt.png') {
         // Medium objects (96px) need slightly increased placement range (120px)
         const MEDIUM_OBJECT_PLACEMENT_MAX_DISTANCE = 120.0;
         clientPlacementRangeSq = MEDIUM_OBJECT_PLACEMENT_MAX_DISTANCE * MEDIUM_OBJECT_PLACEMENT_MAX_DISTANCE;
@@ -2039,6 +2076,14 @@ export function renderPlacementPreview({
     } else if (placementInfo.iconAssetName === 'sleeping_bag.png') {
         // For Sleeping Bag, use the sleeping_bag.png from doodads folder (matches actual placement rendering)
         previewImg = doodadImagesRef.current?.get('sleeping_bag.png');
+    } else if (
+        placementInfo.iconAssetName === 'wolf_pelt.png' ||
+        placementInfo.iconAssetName === 'fox_pelt.png' ||
+        placementInfo.iconAssetName === 'polar_bear_pelt.png' ||
+        placementInfo.iconAssetName === 'walrus_pelt.png'
+    ) {
+        // Pelt rugs render with their item sprite, sleeping-bag style footprint.
+        previewImg = itemImagesRef.current?.get(placementInfo.iconAssetName);
     } else if (placementInfo.iconAssetName === 'stash.png') {
         // For Stash, use the stash.png from doodads folder (matches actual placement rendering)
         previewImg = doodadImagesRef.current?.get('stash.png');
@@ -2123,6 +2168,14 @@ export function renderPlacementPreview({
         drawHeight = LARGE_BOX_HEIGHT; // 96px
     } else if (placementInfo.iconAssetName === 'sleeping_bag.png') {
         drawWidth = SLEEPING_BAG_WIDTH; 
+        drawHeight = SLEEPING_BAG_HEIGHT;
+    } else if (
+        placementInfo.iconAssetName === 'wolf_pelt.png' ||
+        placementInfo.iconAssetName === 'fox_pelt.png' ||
+        placementInfo.iconAssetName === 'polar_bear_pelt.png' ||
+        placementInfo.iconAssetName === 'walrus_pelt.png'
+    ) {
+        drawWidth = SLEEPING_BAG_WIDTH;
         drawHeight = SLEEPING_BAG_HEIGHT;
     } else if (placementInfo.iconAssetName === 'stash.png') {
         drawWidth = STASH_WIDTH;
@@ -2537,7 +2590,13 @@ export function renderPlacementPreview({
         adjustedY = preview.y;
         drawWidth = preview.width;
         drawHeight = preview.height;
-    } else if (placementInfo.iconAssetName === 'sleeping_bag.png') {
+    } else if (
+        placementInfo.iconAssetName === 'sleeping_bag.png' ||
+        placementInfo.iconAssetName === 'wolf_pelt.png' ||
+        placementInfo.iconAssetName === 'fox_pelt.png' ||
+        placementInfo.iconAssetName === 'polar_bear_pelt.png' ||
+        placementInfo.iconAssetName === 'walrus_pelt.png'
+    ) {
         // Use centralized visual config for sleeping bag (bottom-anchored)
         const config = ENTITY_VISUAL_CONFIG.sleeping_bag;
         const preview = getPlacementPreviewPosition(snappedX, snappedY, config);

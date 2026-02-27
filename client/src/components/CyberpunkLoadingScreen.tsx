@@ -247,6 +247,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     const [tooltipText, setTooltipText] = useState<string>(''); // Custom tooltip
     const [showTooltip, setShowTooltip] = useState(false);
     const hasPlayedReconnect = useRef(false);
+    const lastPlayedSoundIndex = useRef<number | null>(null);
     const audioPreloadStarted = useRef(false);
     const consoleLogsRef = useRef<HTMLDivElement>(null);
     const sovaAvatarRef = useRef<HTMLImageElement>(null);
@@ -319,6 +320,24 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             consoleLogsRef.current.scrollTop = consoleLogsRef.current.scrollHeight;
         }
     };
+
+    const getRandomLoadedSoundIndex = useCallback((): number | null => {
+        const loadedIndices: number[] = [];
+        for (let i = 1; i <= TOTAL_SOVA_SOUNDS; i++) {
+            const audio = preloadedAudioFiles[i.toString()];
+            if (audio && audio.readyState >= 2) {
+                loadedIndices.push(i);
+            }
+        }
+
+        if (loadedIndices.length === 0) return null;
+        if (loadedIndices.length === 1) return loadedIndices[0];
+
+        const filtered = loadedIndices.filter(i => i !== lastPlayedSoundIndex.current);
+        const candidatePool = filtered.length > 0 ? filtered : loadedIndices;
+        const randomIndex = Math.floor(Math.random() * candidatePool.length);
+        return candidatePool[randomIndex];
+    }, []);
 
     // Initialize audio preloading
     useEffect(() => {
@@ -403,10 +422,11 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
 
         const tryStart = () => {
             if (hasPlayedReconnect.current) return true;
-            const first = preloadedAudioFiles['1'];
-            if (first && first.readyState >= 2) {
-                console.log('[CyberpunkLoadingScreen] SOVA sequence starting (sound 1 ready)');
-                playLoadingScreenSequence(1);
+            const startIndex = getRandomLoadedSoundIndex();
+            if (startIndex !== null) {
+                console.log('[CyberpunkLoadingScreen] SOVA sequence starting (random sound ready)', { startIndex });
+                lastPlayedSoundIndex.current = startIndex;
+                playLoadingScreenSequence(startIndex);
                 return true;
             }
             return false;
@@ -422,7 +442,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
                 attempts++;
                 if (tryStart() || attempts >= maxAttempts) {
                     if (attempts >= maxAttempts) {
-                        console.log('[CyberpunkLoadingScreen] SOVA sequence gave up: sound 1 not ready after', maxAttempts, 'attempts');
+                        console.log('[CyberpunkLoadingScreen] SOVA sequence gave up: no sound ready after', maxAttempts, 'attempts');
                     }
                     if (retryId) {
                         clearInterval(retryId);
@@ -436,7 +456,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             clearTimeout(timer);
             if (retryId) clearInterval(retryId);
         };
-    }, [isReturningPlayer, showSovaSoundBox, playLoadingScreenSequence, hasSeenSovaIntro, hasStoredUsername, hasLastKnownPlayer]);
+    }, [isReturningPlayer, showSovaSoundBox, playLoadingScreenSequence, hasSeenSovaIntro, hasStoredUsername, hasLastKnownPlayer, getRandomLoadedSoundIndex]);
 
     // Add non-passive touch listener to prevent double-tap zoom on mobile
     useEffect(() => {
@@ -540,12 +560,15 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         }
 
         if (!showSovaSoundBox) return;
-        const audio = preloadedAudioFiles['1'];
+        const randomIndex = getRandomLoadedSoundIndex();
+        if (randomIndex === null) return;
+        const audio = preloadedAudioFiles[randomIndex.toString()];
         if (!audio || audio.readyState < 2) return;
 
         audio.currentTime = 0;
         setIsSovaSpeaking(true);
         hasPlayedReconnect.current = true;
+        lastPlayedSoundIndex.current = randomIndex;
         showSovaSoundBox(audio, 'SOVA', {
             hideUI: true,
             onEnded: () => setIsSovaSpeaking(false),

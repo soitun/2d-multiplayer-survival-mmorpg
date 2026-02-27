@@ -741,21 +741,47 @@ pub struct Player {
     pub shard_carry_start_time: Option<Timestamp>, // NEW: When player started carrying memory shards (for time-based insanity scaling)
     pub offline_corpse_id: Option<u32>, // Links to corpse created when player went offline
     pub is_aiming_throw: bool, // NEW: Tracks if player is in throw-aiming state (right mouse held)
-    pub has_seen_memory_shard_tutorial: bool, // Tracks if player has seen SOVA's memory shard explanation
-    pub has_seen_memory_shard_200_tutorial: bool, // Tracks if player has seen SOVA's 200 shards warning (mind instability, Memory Grid)
-    pub has_seen_sova_intro: bool, // Tracks if player has seen SOVA's crash intro
-    // Additional SOVA tutorial flags (for Audio Logs replay feature)
-    pub has_seen_tutorial_hint: bool, // "Press V to Talk" hint after 3.5 minutes
-    pub has_seen_hostile_encounter_tutorial: bool, // First night apparition warning
-    pub has_seen_rune_stone_tutorial: bool, // Rune stone discovery explanation
-    pub has_seen_alk_station_tutorial: bool, // ALK contract station explanation
-    pub has_seen_crashed_drone_tutorial: bool, // Crashed research drone monument explanation
+    // Unified tutorial progress: list of tutorial IDs this player has completed.
+    // Keeps schema DRY as tutorial count grows.
+    pub seen_tutorial_ids: Vec<String>,
     pub pvp_enabled: bool, // Whether PvP mode is currently active
     pub pvp_enabled_until: Option<Timestamp>, // When PvP will auto-disable (minimum 30min)
     pub last_pvp_combat_time: Option<Timestamp>, // Last time player dealt/received PvP damage (for combat extension)
     // === NPC Agent Fields ===
     pub is_npc: bool, // True for ElizaOS-driven NPC agents, false for human players
     pub npc_role: String, // NPC role identifier: "gatherer", "warrior", "builder", "trader", etc. Empty for humans.
+}
+
+pub const TUTORIAL_ID_MEMORY_SHARD: &str = "memoryShard";
+pub const TUTORIAL_ID_MEMORY_SHARD_200: &str = "memoryShard200";
+pub const TUTORIAL_ID_CRASH_INTRO: &str = "crashIntro";
+pub const TUTORIAL_ID_TUTORIAL_HINT: &str = "tutorialHint";
+pub const TUTORIAL_ID_FIRST_HOSTILE_ENCOUNTER: &str = "firstHostileEncounter";
+pub const TUTORIAL_ID_RUNE_STONE: &str = "runeStone";
+pub const TUTORIAL_ID_ALK_STATION: &str = "alkStation";
+pub const TUTORIAL_ID_CRASHED_DRONE: &str = "crashedDrone";
+
+pub const ALL_TUTORIAL_IDS: [&str; 8] = [
+    TUTORIAL_ID_MEMORY_SHARD,
+    TUTORIAL_ID_MEMORY_SHARD_200,
+    TUTORIAL_ID_CRASH_INTRO,
+    TUTORIAL_ID_TUTORIAL_HINT,
+    TUTORIAL_ID_FIRST_HOSTILE_ENCOUNTER,
+    TUTORIAL_ID_RUNE_STONE,
+    TUTORIAL_ID_ALK_STATION,
+    TUTORIAL_ID_CRASHED_DRONE,
+];
+
+pub fn has_seen_tutorial(player: &Player, tutorial_id: &str) -> bool {
+    player.seen_tutorial_ids.iter().any(|id| id == tutorial_id)
+}
+
+pub fn mark_tutorial_seen_in_player(player: &mut Player, tutorial_id: &str) -> bool {
+    if has_seen_tutorial(player, tutorial_id) {
+        return false;
+    }
+    player.seen_tutorial_ids.push(tutorial_id.to_string());
+    true
 }
 
 // Table to store the last attack timestamp for each player
@@ -2255,14 +2281,7 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         last_insanity_threshold: 0.0, // NEW: No threshold crossed initially
         shard_carry_start_time: None, // NEW: Not carrying shards initially
         offline_corpse_id: None, // No offline corpse for new players
-        has_seen_memory_shard_tutorial: false, // Player hasn't seen SOVA's memory shard explanation yet
-        has_seen_memory_shard_200_tutorial: false, // Player hasn't seen SOVA's 200 shards warning yet
-        has_seen_sova_intro: false, // Player hasn't seen SOVA's crash intro yet
-        has_seen_tutorial_hint: false, // Player hasn't seen "Press V" hint yet
-        has_seen_hostile_encounter_tutorial: false, // Player hasn't seen night apparition warning yet
-        has_seen_rune_stone_tutorial: false, // Player hasn't seen rune stone explanation yet
-        has_seen_alk_station_tutorial: false, // Player hasn't seen ALK station explanation yet
-        has_seen_crashed_drone_tutorial: false, // Player hasn't seen crashed drone explanation yet
+        seen_tutorial_ids: Vec::new(), // New players start with no completed tutorials
         pvp_enabled: false, // PvP disabled by default
         pvp_enabled_until: None, // No PvP timer initially
         last_pvp_combat_time: None, // No PvP combat history initially
@@ -2426,14 +2445,7 @@ pub fn register_npc(ctx: &ReducerContext, username: String, role: String) -> Res
         last_insanity_threshold: 0.0,
         shard_carry_start_time: None,
         offline_corpse_id: None,
-        has_seen_memory_shard_tutorial: true, // NPCs don't need tutorials
-        has_seen_memory_shard_200_tutorial: true, // NPCs don't need tutorials
-        has_seen_sova_intro: true,
-        has_seen_tutorial_hint: true,
-        has_seen_hostile_encounter_tutorial: true,
-        has_seen_rune_stone_tutorial: true,
-        has_seen_alk_station_tutorial: true,
-        has_seen_crashed_drone_tutorial: true,
+        seen_tutorial_ids: ALL_TUTORIAL_IDS.iter().map(|id| (*id).to_string()).collect(), // NPCs skip tutorials
         pvp_enabled: false,
         pvp_enabled_until: None,
         last_pvp_combat_time: None,
@@ -3060,14 +3072,22 @@ pub fn regenerate_compressed_chunks(ctx: &ReducerContext) -> Result<(), String> 
 /// This persists server-side so clearing browser cache won't replay the intro
 #[spacetimedb::reducer]
 pub fn mark_sova_intro_seen(ctx: &ReducerContext) -> Result<(), String> {
+    mark_tutorial_seen_by_id(ctx, TUTORIAL_ID_CRASH_INTRO)
+}
+
+#[spacetimedb::reducer]
+pub fn mark_tutorial_seen(ctx: &ReducerContext, tutorial_id: String) -> Result<(), String> {
+    mark_tutorial_seen_by_id(ctx, &tutorial_id)
+}
+
+fn mark_tutorial_seen_by_id(ctx: &ReducerContext, tutorial_id: &str) -> Result<(), String> {
     let player_id = ctx.sender();
     let players = ctx.db.player();
     
     if let Some(mut player) = players.identity().find(&player_id) {
-        if !player.has_seen_sova_intro {
-            player.has_seen_sova_intro = true;
+        if mark_tutorial_seen_in_player(&mut player, tutorial_id) {
             players.identity().update(player);
-            log::info!("[SOVA] Player {:?} marked intro as seen", player_id);
+            log::info!("[SOVA] Player {:?} marked tutorial '{}' as seen", player_id, tutorial_id);
         }
         Ok(())
     } else {
@@ -3078,89 +3098,29 @@ pub fn mark_sova_intro_seen(ctx: &ReducerContext) -> Result<(), String> {
 /// Mark SOVA tutorial hint ("Press V to Talk") as seen
 #[spacetimedb::reducer]
 pub fn mark_tutorial_hint_seen(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender();
-    let players = ctx.db.player();
-    
-    if let Some(mut player) = players.identity().find(&player_id) {
-        if !player.has_seen_tutorial_hint {
-            player.has_seen_tutorial_hint = true;
-            players.identity().update(player);
-            log::info!("[SOVA] Player {:?} marked tutorial hint as seen", player_id);
-        }
-        Ok(())
-    } else {
-        Err("Player not found".to_string())
-    }
+    mark_tutorial_seen_by_id(ctx, TUTORIAL_ID_TUTORIAL_HINT)
 }
 
 /// Mark hostile encounter tutorial (night apparitions) as seen
 #[spacetimedb::reducer]
 pub fn mark_hostile_encounter_tutorial_seen(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender();
-    let players = ctx.db.player();
-    
-    if let Some(mut player) = players.identity().find(&player_id) {
-        if !player.has_seen_hostile_encounter_tutorial {
-            player.has_seen_hostile_encounter_tutorial = true;
-            players.identity().update(player);
-            log::info!("[SOVA] Player {:?} marked hostile encounter tutorial as seen", player_id);
-        }
-        Ok(())
-    } else {
-        Err("Player not found".to_string())
-    }
+    mark_tutorial_seen_by_id(ctx, TUTORIAL_ID_FIRST_HOSTILE_ENCOUNTER)
 }
 
 /// Mark rune stone tutorial as seen
 #[spacetimedb::reducer]
 pub fn mark_rune_stone_tutorial_seen(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender();
-    let players = ctx.db.player();
-    
-    if let Some(mut player) = players.identity().find(&player_id) {
-        if !player.has_seen_rune_stone_tutorial {
-            player.has_seen_rune_stone_tutorial = true;
-            players.identity().update(player);
-            log::info!("[SOVA] Player {:?} marked rune stone tutorial as seen", player_id);
-        }
-        Ok(())
-    } else {
-        Err("Player not found".to_string())
-    }
+    mark_tutorial_seen_by_id(ctx, TUTORIAL_ID_RUNE_STONE)
 }
 
 /// Mark ALK station tutorial as seen
 #[spacetimedb::reducer]
 pub fn mark_alk_station_tutorial_seen(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender();
-    let players = ctx.db.player();
-    
-    if let Some(mut player) = players.identity().find(&player_id) {
-        if !player.has_seen_alk_station_tutorial {
-            player.has_seen_alk_station_tutorial = true;
-            players.identity().update(player);
-            log::info!("[SOVA] Player {:?} marked ALK station tutorial as seen", player_id);
-        }
-        Ok(())
-    } else {
-        Err("Player not found".to_string())
-    }
+    mark_tutorial_seen_by_id(ctx, TUTORIAL_ID_ALK_STATION)
 }
 
 /// Mark crashed drone tutorial as seen
 #[spacetimedb::reducer]
 pub fn mark_crashed_drone_tutorial_seen(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender();
-    let players = ctx.db.player();
-    
-    if let Some(mut player) = players.identity().find(&player_id) {
-        if !player.has_seen_crashed_drone_tutorial {
-            player.has_seen_crashed_drone_tutorial = true;
-            players.identity().update(player);
-            log::info!("[SOVA] Player {:?} marked crashed drone tutorial as seen", player_id);
-        }
-        Ok(())
-    } else {
-        Err("Player not found".to_string())
-    }
+    mark_tutorial_seen_by_id(ctx, TUTORIAL_ID_CRASHED_DRONE)
 }

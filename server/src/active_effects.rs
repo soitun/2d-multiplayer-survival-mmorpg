@@ -1278,6 +1278,7 @@ pub fn should_player_be_cozy(ctx: &ReducerContext, player_id: Identity, player_x
     use crate::shelter::{shelter as ShelterTableTrait, is_player_inside_shelter};
     use crate::monument_part as MonumentPartTableTrait;
     use crate::MonumentType;
+    use crate::wooden_storage_box::{wooden_storage_box as WoodenStorageBoxTableTrait, is_pelt_box_type};
     
     // Village communal campfire cozy radius (larger than regular campfires)
     // Public cozy zone at both fishing and hunting villages.
@@ -1317,6 +1318,22 @@ pub fn should_player_be_cozy(ctx: &ReducerContext, player_id: Identity, player_x
                 );
                 return true;
             }
+        }
+    }
+
+    // Pelt rugs provide a local cozy aura to anyone nearby.
+    const PELT_COZY_RADIUS: f32 = 220.0;
+    const PELT_COZY_RADIUS_SQ: f32 = PELT_COZY_RADIUS * PELT_COZY_RADIUS;
+    for box_entity in ctx.db.wooden_storage_box().iter() {
+        if box_entity.is_destroyed || !is_pelt_box_type(box_entity.box_type) {
+            continue;
+        }
+        let dx = player_x - box_entity.pos_x;
+        // Pelt visual center is slightly above stored pos_y for rug-style rendering.
+        let dy = player_y - (box_entity.pos_y - 48.0);
+        let distance_squared = dx * dx + dy * dy;
+        if distance_squared <= PELT_COZY_RADIUS_SQ {
+            return true;
         }
     }
     

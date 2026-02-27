@@ -14,6 +14,10 @@ import {
   BOX_TYPE_REPAIR_BENCH,
   BOX_TYPE_COMPOST,
   BOX_TYPE_FISH_TRAP,
+  BOX_TYPE_WOLF_PELT,
+  BOX_TYPE_FOX_PELT,
+  BOX_TYPE_POLAR_BEAR_PELT,
+  BOX_TYPE_WALRUS_PELT,
   BOX_TYPE_MILITARY_RATION,
   BOX_TYPE_MILITARY_CRATE,
   BOX_RENDER_Y_OFFSET,
@@ -79,6 +83,14 @@ export function renderHealthBarOverlay(params: HealthBarOverlayParams): void {
       } else if (box.boxType === BOX_TYPE_FISH_TRAP) {
         const dims = getBoxDimensions(box.boxType);
         renderEntityHealthBar(ctx, box, dims.width, dims.height, nowMs, playerX, playerY, -BOX_RENDER_Y_OFFSET);
+      } else if (
+        box.boxType === BOX_TYPE_WOLF_PELT ||
+        box.boxType === BOX_TYPE_FOX_PELT ||
+        box.boxType === BOX_TYPE_POLAR_BEAR_PELT ||
+        box.boxType === BOX_TYPE_WALRUS_PELT
+      ) {
+        const dims = getBoxDimensions(box.boxType);
+        renderEntityHealthBar(ctx, box, dims.width, dims.height, nowMs, playerX, playerY);
       } else {
         const dims = getBoxDimensions(box.boxType);
         renderEntityHealthBar(ctx, box, dims.width, dims.height, nowMs, playerX, playerY, -BOX_RENDER_Y_OFFSET);

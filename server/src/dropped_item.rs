@@ -149,7 +149,9 @@ pub fn pickup_dropped_item(ctx: &ReducerContext, dropped_item_id: u64) -> Result
             if added_to_inventory && item_name == "Memory Shard" {
                 // Re-fetch player to get fresh state
                 if let Some(mut player_for_tutorial) = players_table.identity().find(sender_id) {
-                    if player_for_tutorial.has_seen_sova_intro && !player_for_tutorial.has_seen_memory_shard_tutorial {
+                    if crate::has_seen_tutorial(&player_for_tutorial, crate::TUTORIAL_ID_CRASH_INTRO)
+                        && !crate::has_seen_tutorial(&player_for_tutorial, crate::TUTORIAL_ID_MEMORY_SHARD)
+                    {
                         // First memory shard pickup after intro - trigger SOVA tutorial!
                         crate::sound_events::emit_sova_memory_shard_tutorial_sound(
                             ctx, 
@@ -159,7 +161,7 @@ pub fn pickup_dropped_item(ctx: &ReducerContext, dropped_item_id: u64) -> Result
                         );
                         
                         // Mark tutorial as seen
-                        player_for_tutorial.has_seen_memory_shard_tutorial = true;
+                        crate::mark_tutorial_seen_in_player(&mut player_for_tutorial, crate::TUTORIAL_ID_MEMORY_SHARD);
                         players_table.identity().update(player_for_tutorial);
                         
                         log::info!("[PickupDropped] First Memory Shard pickup for player {:?} - SOVA tutorial triggered!", sender_id);

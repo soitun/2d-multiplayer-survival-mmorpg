@@ -595,6 +595,26 @@ export function createContainerCallbacks(
     connection: any,
     lastDragCompleteTime: React.MutableRefObject<number>
 ) {
+    const callQuickMoveFromReducer = (slotIndex: number) => {
+        if (!connection?.reducers || containerId === null) return;
+
+        const containerIdNum = typeof containerId === 'bigint' ? Number(containerId) : containerId;
+        const reducerName = getReducerName(containerType, 'quickMoveFrom');
+
+        try {
+            // SpacetimeDB 2.0 reducers use object-arg signatures.
+            if (containerType === 'turret') {
+                (connection.reducers as any)[reducerName]?.({ turretId: containerIdNum, slotIndex });
+                return;
+            }
+
+            const entityParam = ENTITY_ID_PARAM[containerType];
+            (connection.reducers as any)[reducerName]?.({ [entityParam]: containerIdNum, sourceSlotIndex: slotIndex });
+        } catch (e: any) {
+            console.error(`[ContainerCallback quickMoveFrom ${containerType}]`, e);
+        }
+    };
+
     const contextMenuHandler = (event: React.MouseEvent, itemInfo: PopulatedItem, slotIndex: number) => {
         event.preventDefault();
         
@@ -602,18 +622,8 @@ export function createContainerCallbacks(
         const timeSinceLastDrag = Date.now() - lastDragCompleteTime.current;
         if (timeSinceLastDrag < 200) return;
         
-        if (!connection?.reducers || !itemInfo || containerId === null) return;
-        
-        const containerIdNum = typeof containerId === 'bigint' ? Number(containerId) : containerId;
-        
-        // Use consistent quickMoveFrom pattern for all containers
-        const reducerName = getReducerName(containerType, 'quickMoveFrom');
-        
-        try {
-            (connection.reducers as any)[reducerName](containerIdNum, slotIndex);
-        } catch (e: any) {
-            console.error(`[ContainerCallback ${containerType}->Inv]`, e);
-        }
+        if (!itemInfo) return;
+        callQuickMoveFromReducer(slotIndex);
     };
     
     const toggleHandler = () => {
@@ -636,16 +646,7 @@ export function createContainerCallbacks(
         const timeSinceLastDrag = Date.now() - lastDragCompleteTime.current;
         if (timeSinceLastDrag < 200) return;
         
-        if (!connection?.reducers || containerId === null) return;
-        
-        const reducerName = getReducerName(containerType, 'quickMoveFrom');
-        const containerIdNum = typeof containerId === 'bigint' ? Number(containerId) : containerId;
-        
-        try {
-            (connection.reducers as any)[reducerName](containerIdNum, slotIndex);
-        } catch (e: any) {
-            console.error(`[ContainerCallback quickMoveFrom ${containerType}]`, e);
-        }
+        callQuickMoveFromReducer(slotIndex);
     };
     
     return {

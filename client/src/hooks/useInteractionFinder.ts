@@ -91,7 +91,7 @@ import {
 } from '../utils/renderers/hearthRenderingUtils'; // ADDED: Hearth interaction constants
 import { PLAYER_CORPSE_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/playerCorpseRenderingUtils';
 import { PLAYER_TURRET_INTERACTION_DISTANCE_SQUARED } from '../utils/renderers/turretRenderingUtils';
-import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, PLAYER_BEEHIVE_INTERACTION_DISTANCE_SQUARED, PLAYER_TALL_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT, getBoxDimensions, BOX_TYPE_SCARECROW, BOX_TYPE_COMPOST, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_WILD_BEEHIVE, MONUMENT_COOKING_STATION_WIDTH, MONUMENT_COOKING_STATION_HEIGHT, MONUMENT_REPAIR_BENCH_WIDTH, MONUMENT_REPAIR_BENCH_HEIGHT, MONUMENT_COMPOST_WIDTH, MONUMENT_COMPOST_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
+import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, PLAYER_BEEHIVE_INTERACTION_DISTANCE_SQUARED, PLAYER_TALL_BOX_INTERACTION_DISTANCE_SQUARED, BOX_HEIGHT, getBoxDimensions, BOX_TYPE_SCARECROW, BOX_TYPE_COMPOST, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_WILD_BEEHIVE, BOX_TYPE_WOLF_PELT, BOX_TYPE_FOX_PELT, BOX_TYPE_POLAR_BEAR_PELT, BOX_TYPE_WALRUS_PELT, MONUMENT_COOKING_STATION_WIDTH, MONUMENT_COOKING_STATION_HEIGHT, MONUMENT_REPAIR_BENCH_WIDTH, MONUMENT_REPAIR_BENCH_HEIGHT, MONUMENT_COMPOST_WIDTH, MONUMENT_COMPOST_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { isCompoundMonument } from '../config/compoundBuildings';
 import { PLAYER_DOOR_INTERACTION_DISTANCE_SQUARED, DOOR_RENDER_Y_OFFSET } from '../utils/renderers/doorRenderingUtils'; // ADDED: Door interaction distance and render offset
 import { PLAYER_ALK_STATION_INTERACTION_DISTANCE_SQUARED, ALK_STATION_Y_OFFSET } from '../utils/renderers/alkStationRenderingUtils'; // ADDED: ALK station interaction distance
@@ -115,6 +115,8 @@ const TILE_SIZE = 48;
 // Define the hook's input props
 interface UseInteractionFinderProps {
     localPlayer: SpacetimeDBPlayer | null | undefined;
+    playerPositionOverride?: { x: number; y: number } | null;
+    getCurrentPlayerPosition?: () => { x: number; y: number } | null;
     harvestableResources: Map<string, SpacetimeDBHarvestableResource>;
     campfires: Map<string, SpacetimeDBCampfire>;
     furnaces: Map<string, SpacetimeDBFurnace>; // ADDED: Furnace support
@@ -256,6 +258,8 @@ function canPlayerInteractWithObjectInShelter(
  */
 export function useInteractionFinder({
     localPlayer,
+    playerPositionOverride,
+    getCurrentPlayerPosition,
     campfires,
     furnaces, // ADDED: Furnace prop destructuring
     barbecues, // ADDED: Barbecue prop destructuring
@@ -423,8 +427,9 @@ export function useInteractionFinder({
         };
 
         if (localPlayer) {
-            const playerX = localPlayer.positionX;
-            const playerY = localPlayer.positionY;
+            const currentPlayerPosition = getCurrentPlayerPosition?.() ?? playerPositionOverride;
+            const playerX = currentPlayerPosition?.x ?? localPlayer.positionX;
+            const playerY = currentPlayerPosition?.y ?? localPlayer.positionY;
 
             // Find closest harvestable resource (generic unified system)
             if (harvestableResources) {
@@ -437,15 +442,13 @@ export function useInteractionFinder({
                     if (!plantType) return;
                     
                     try {
-                        const config = getResourceConfig(plantType);
+                        // Validate plant type exists in resource config map.
+                        getResourceConfig(plantType);
                         
-                        // Use target width as a proxy for visual height (can be refined later)
-                        const visualHeight = config.targetWidth;
-                        const visualCenterY = resource.posY - (visualHeight / 2);
-                        
-                        // Calculate distance to resource
+                        // Keep client interaction range checks aligned with server reducer checks.
+                        // Server validates against resource.posX/resource.posY directly.
                         const dx = playerX - resource.posX;
-                        const dy = playerY - visualCenterY;
+                        const dy = playerY - resource.posY;
                         const distSq = dx * dx + dy * dy;
                         
                         // Check if this is the closest harvestable resource
@@ -646,8 +649,16 @@ export function useInteractionFinder({
             // Find closest wooden storage box and check emptiness
             if (woodenStorageBoxes) {
                 woodenStorageBoxes.forEach((box) => {
-                    // Scarecrow is decorative only - no interaction, no blue box, no E label
-                    if (box.boxType === BOX_TYPE_SCARECROW) return;
+                    // Decorative-only box types - no interaction, no blue box, no E label
+                    if (
+                        box.boxType === BOX_TYPE_SCARECROW ||
+                        box.boxType === BOX_TYPE_WOLF_PELT ||
+                        box.boxType === BOX_TYPE_FOX_PELT ||
+                        box.boxType === BOX_TYPE_POLAR_BEAR_PELT ||
+                        box.boxType === BOX_TYPE_WALRUS_PELT
+                    ) {
+                        return;
+                    }
                     
                     // Compound monument cooking stations / repair benches / compost use monument building interaction
                     const isCompoundBldg = isCompoundMonument(box.isMonument, box.posX, box.posY);
@@ -1298,7 +1309,7 @@ export function useInteractionFinder({
             Object.assign(prev, calculatedResult);
             setInteractionVersion(v => v + 1);
         }
-    }, [localPlayer, harvestableResources, campfires, furnaces, barbecues, fumaroles, lanterns, homesteadHearths, droppedItems, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, sleepingBags, players, shelters, inventoryItems, itemDefinitions, connection, playerDrinkingCooldowns, doors, alkStations, cairns, worldTiles, wildAnimals, caribouBreedingData, walrusBreedingData, worldState]);
+    }, [localPlayer, playerPositionOverride, getCurrentPlayerPosition, harvestableResources, campfires, furnaces, barbecues, fumaroles, lanterns, homesteadHearths, droppedItems, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, sleepingBags, players, shelters, inventoryItems, itemDefinitions, connection, playerDrinkingCooldowns, doors, alkStations, cairns, worldTiles, wildAnimals, caribouBreedingData, walrusBreedingData, worldState]);
 
     // Store callback in ref to avoid RAF loop restart on callback recreation
     const updateCallbackRef = useRef(updateInteractionResult);

@@ -142,6 +142,7 @@ const BOX_COLS = 6;
 const INVENTORY_ROWS = 4;
 const INVENTORY_COLS = 6;
 const TOTAL_INVENTORY_SLOTS = INVENTORY_ROWS * INVENTORY_COLS;
+const TOTAL_HOTBAR_SLOTS = 6;
 
 // Define Equipment Slot Layout (matches enum variants/logical names)
 const EQUIPMENT_SLOT_LAYOUT: { name: string, type: EquipmentSlotType | null }[] = [
@@ -799,13 +800,37 @@ connection.reducers.quickMoveToBrothPot({
                 console.error("[Inv CtxMenu EquipArmor]", e); 
             }
         } else {
-            try { 
-                connection.reducers.moveToFirstAvailableHotbarSlot({ itemInstanceId }); 
-            } catch (e: any) { 
-                console.error("[Inv CtxMenu Inv->Hotbar]", e); 
+            try {
+                // Explicitly target the first empty hotbar slot to avoid
+                // reducer-side "first available" mismatches with client-visible state.
+                let firstEmptyHotbarSlot: number | null = null;
+                if (playerIdentity) {
+                    const occupiedHotbarSlots = new Set<number>();
+                    inventoryItems.forEach((itemInstance) => {
+                        if (itemInstance.location.tag !== 'Hotbar') return;
+                        const hotbarData = itemInstance.location.value as any;
+                        if (hotbarData.ownerId && hotbarData.ownerId.isEqual(playerIdentity)) {
+                            occupiedHotbarSlots.add(Number(hotbarData.slotIndex));
+                        }
+                    });
+                    for (let slot = 0; slot < TOTAL_HOTBAR_SLOTS; slot++) {
+                        if (!occupiedHotbarSlots.has(slot)) {
+                            firstEmptyHotbarSlot = slot;
+                            break;
+                        }
+                    }
+                }
+
+                if (firstEmptyHotbarSlot !== null) {
+                    connection.reducers.moveItemToHotbar({ itemInstanceId, targetHotbarSlot: firstEmptyHotbarSlot });
+                } else {
+                    connection.reducers.moveToFirstAvailableHotbarSlot({ itemInstanceId });
+                }
+            } catch (e: any) {
+                console.error("[Inv CtxMenu Inv->Hotbar]", e);
             }
         }
-    }, [connection, interactionTarget, stashes, campfires, brothPots, draggedItemInfo]);
+    }, [connection, interactionTarget, stashes, campfires, brothPots, draggedItemInfo, playerIdentity, inventoryItems]);
 
     // Helper function to format stat numbers
     const formatStatDisplay = (value: number, isPercentage: boolean = false, signed: boolean = true): string => {

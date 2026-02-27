@@ -670,7 +670,9 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
         // SOVA 200 Memory Shards Tutorial: First time player holds 200+ shards
         // Warns about mind instability, purple vision, dropping/storing, and Memory Grid (G key)
         let mut triggered_200_shard_tutorial = false;
-        if memory_shard_count >= 200 && !player.has_seen_memory_shard_200_tutorial {
+        if memory_shard_count >= 200
+            && !crate::has_seen_tutorial(&player, crate::TUTORIAL_ID_MEMORY_SHARD_200)
+        {
             crate::sound_events::emit_sova_memory_shard_200_tutorial_sound(
                 ctx,
                 player.position_x,
@@ -1148,7 +1150,7 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
             current_player.last_insanity_threshold = new_threshold;
             current_player.shard_carry_start_time = shard_carry_start_time_to_update;
             if triggered_200_shard_tutorial {
-                current_player.has_seen_memory_shard_200_tutorial = true;
+                crate::mark_tutorial_seen_in_player(&mut current_player, crate::TUTORIAL_ID_MEMORY_SHARD_200);
             }
             current_player.is_dead = player.is_dead;
             current_player.death_timestamp = player.death_timestamp;
@@ -1179,7 +1181,7 @@ pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule)
                  .expect("Player should exist during stats update");
              current_player.last_stat_update = current_time;
              if triggered_200_shard_tutorial {
-                 current_player.has_seen_memory_shard_200_tutorial = true;
+                 crate::mark_tutorial_seen_in_player(&mut current_player, crate::TUTORIAL_ID_MEMORY_SHARD_200);
              }
              // Only clear last_hit_time if we explicitly marked it for clearing (stale hit time)
              // AND the current value is still stale - don't overwrite NEW hits from other reducers

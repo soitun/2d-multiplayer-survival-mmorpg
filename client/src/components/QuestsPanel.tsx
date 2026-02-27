@@ -49,14 +49,8 @@ interface QuestsPanelProps {
     // Audio tutorials replay functionality
     showSovaSoundBox?: ShowSovaSoundBoxFn;
     addSOVAMessage?: SovaMessageAdderFn;
-    // Server-side tutorial flags (ALL tutorials now server-validated, survives browser cache clear)
-    hasSeenSovaIntro?: boolean;
-    hasSeenMemoryShardTutorial?: boolean;
-    hasSeenTutorialHint?: boolean;
-    hasSeenHostileEncounterTutorial?: boolean;
-    hasSeenRuneStoneTutorial?: boolean;
-    hasSeenAlkStationTutorial?: boolean;
-    hasSeenCrashedDroneTutorial?: boolean;
+    // Server-side tutorial progress as tutorial IDs
+    seenTutorialIds?: string[];
 }
 
 const QuestsPanel: React.FC<QuestsPanelProps> = ({
@@ -70,14 +64,7 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
     isMobile = false,
     showSovaSoundBox,
     addSOVAMessage,
-    // All server-side tutorial flags
-    hasSeenSovaIntro,
-    hasSeenMemoryShardTutorial,
-    hasSeenTutorialHint,
-    hasSeenHostileEncounterTutorial,
-    hasSeenRuneStoneTutorial,
-    hasSeenAlkStationTutorial,
-    hasSeenCrashedDroneTutorial,
+    seenTutorialIds,
 }) => {
     // Get tutorial progress
     const tutorialProgress = useMemo(() => {
@@ -85,36 +72,17 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
         return playerTutorialProgress.get(localPlayerId.toHexString()) || null;
     }, [localPlayerId, playerTutorialProgress]);
 
-    // Check if a tutorial is unlocked using SERVER-SIDE flags
-    // ALL tutorials now use server-side validation (no localStorage fallback)
+    // Check if a tutorial is unlocked using server-side tutorial IDs
     const isTutorialUnlockedWithServer = useCallback((tutorialId: string): boolean => {
-        switch (tutorialId) {
-            case 'crashIntro':
-                return hasSeenSovaIntro === true;
-            case 'tutorialHint':
-                return hasSeenTutorialHint === true;
-            case 'memoryShard':
-                return hasSeenMemoryShardTutorial === true;
-            case 'firstHostileEncounter':
-                return hasSeenHostileEncounterTutorial === true;
-            case 'runeStone':
-                return hasSeenRuneStoneTutorial === true;
-            case 'alkStation':
-                return hasSeenAlkStationTutorial === true;
-            case 'crashedDrone':
-                return hasSeenCrashedDroneTutorial === true;
-            default:
-                return false;
-        }
-    }, [hasSeenSovaIntro, hasSeenTutorialHint, hasSeenMemoryShardTutorial, hasSeenHostileEncounterTutorial, hasSeenRuneStoneTutorial, hasSeenAlkStationTutorial, hasSeenCrashedDroneTutorial]);
+        return seenTutorialIds?.includes(tutorialId) === true;
+    }, [seenTutorialIds]);
 
     // Get unlocked SOVA tutorials for the Audio Tutorials tab
-    // Uses server-side flags where available, localStorage as fallback
     const unlockedTutorials = useMemo(() => {
         return Object.values(TUTORIALS).filter(tutorial => 
             isTutorialUnlockedWithServer(tutorial.id)
         );
-    }, [isOpen, hasSeenSovaIntro, hasSeenMemoryShardTutorial, isTutorialUnlockedWithServer]);
+    }, [isOpen, isTutorialUnlockedWithServer]);
 
     // Handle replaying a tutorial
     const handleReplayTutorial = useCallback((tutorialId: string) => {
@@ -951,7 +919,7 @@ const QuestsPanel: React.FC<QuestsPanelProps> = ({
                         {unlockedTutorials.length > 0 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                 {Object.values(TUTORIALS).map((tutorial: TutorialDefinition) => {
-                                    // Use server-side flags where available (crashIntro, memoryShard)
+                                    // Use server-side tutorial IDs
                                     const isUnlocked = isTutorialUnlockedWithServer(tutorial.id);
                                     
                                     return (
