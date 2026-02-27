@@ -34,7 +34,7 @@ import { gameConfig } from '../config/gameConfig';
 const POSITION_UPDATE_INTERVAL_MS = 50; // 20fps server updates - reduces N^2 subscription fan-out while client prediction keeps movement smooth
 const PLAYER_SPEED = 320; // pixels per second - 6.67 tiles/sec (SYNCED WITH SERVER)
 const SPRINT_MULTIPLIER = 1.75; // 1.75x speed for sprinting (560 px/s) (SYNCED WITH SERVER)
-// Note: Dodge roll now uses server-authoritative interpolation instead of speed multipliers
+// Dodge roll uses dedicated predicted movement path instead of speed multipliers.
 const WATER_SPEED_PENALTY = 0.5; // Half speed in water (matches server WATER_SPEED_PENALTY)
 const EXHAUSTED_SPEED_PENALTY = 0.75; // 25% speed reduction when exhausted (matches server EXHAUSTED_SPEED_PENALTY)
 // Water speed bonus cap (matches server - 2.0 = 200% bonus = 3x speed)
@@ -174,10 +174,8 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
   // Get player actions from context
   const { 
     isAutoWalking, 
-    toggleAutoWalk, 
     stopAutoWalk,
     isAutoAttacking,
-    toggleAutoAttack,
     jump
   } = usePlayerActions();
 
@@ -262,11 +260,6 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     if (!localPlayer || !clientPositionRef.current || !serverPositionRef.current) return;
 
     // Check if we're currently dodge rolling - if so, ignore server position updates to prevent stutter
-    const playerId = localPlayer.identity.toHexString();
-    const dodgeRollState = playerDodgeRollStates?.get(playerId) as any;
-    const dodgeRollStartTime = dodgeRollState?.clientReceptionTimeMs ?? (dodgeRollState ? Number(dodgeRollState.startTimeMs) : 0);
-    const dodgeRollElapsedMs = dodgeRollState ? (Date.now() - dodgeRollStartTime) : 0;
-    const _isServerDodgeRolling = !!(dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < DODGE_ROLL_DURATION_MS);
     const optimisticElapsedMs = Date.now() - optimisticDodgeRollStartMsRef.current;
     const isOptimisticDodgeRolling = optimisticDodgeRollStartMsRef.current > 0 && optimisticElapsedMs < DODGE_ROLL_DURATION_MS;
     const isDodgeRolling = isOptimisticDodgeRolling;
@@ -316,7 +309,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     // Update wasDeadRef for the next render cycle
     wasDeadRef.current = localPlayer.isDead;
 
-  }, [localPlayer?.positionX, localPlayer?.positionY, localPlayer?.direction, localPlayer?.isDead, playerDodgeRollStates]);
+  }, [localPlayer?.positionX, localPlayer?.positionY, localPlayer?.direction, localPlayer?.isDead]);
 
   // Core movement logic - shared by updatePosition (variable dt) and stepPredictedMovement (fixed dt)
   const applyMovementStep = useCallback((dtSec: number, updateStartTime: number) => {
@@ -344,11 +337,11 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
       }
       // If neither override is set, use inputState.sprinting (already set above)
       
-      // Check for active dodge roll and use server-authoritative interpolation
+      // Check for active dodge roll and use predicted interpolation.
       const playerId = localPlayer.identity.toHexString();
       const dodgeRollState = playerDodgeRollStates?.get(playerId) as any; // Cast to any for clientReceptionTimeMs access
-      // CRITICAL FIX: Use clientReceptionTimeMs (when CLIENT received the state) instead of startTimeMs (SERVER timestamp)
-      // This fixes production time drift issues where server time != client time
+      // Use clientReceptionTimeMs (when client received the state) to avoid
+      // server/client clock skew when aligning same-roll data.
       const dodgeRollStartTime = dodgeRollState?.clientReceptionTimeMs ?? (dodgeRollState ? Number(dodgeRollState.startTimeMs) : 0);
       const dodgeRollElapsedMs = dodgeRollState ? (Date.now() - dodgeRollStartTime) : 0;
       const isServerDodgeRolling = !!(dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < DODGE_ROLL_DURATION_MS);
@@ -522,7 +515,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
         } else if (sprinting) {
           speedMultiplier *= SPRINT_MULTIPLIER; // 2x speed for sprinting
         }
-        // Note: Dodge roll is now handled separately with server-authoritative interpolation above
+        // Note: Dodge roll is handled separately above.
         
         // Apply crouch speed reduction (must match server)
         if (localPlayer.isCrouching) {
@@ -718,10 +711,6 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     
     // Check if we're in a dodge roll
     const playerId = localPlayer.identity.toHexString();
-    const dodgeRollState = playerDodgeRollStates?.get(playerId) as any;
-    const dodgeRollStartTime = dodgeRollState?.clientReceptionTimeMs ?? (dodgeRollState ? Number(dodgeRollState.startTimeMs) : 0);
-    const dodgeRollElapsedMs = dodgeRollState ? (Date.now() - dodgeRollStartTime) : 0;
-    const _isServerDodgeRolling = !!(dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < DODGE_ROLL_DURATION_MS);
     const optimisticElapsedMs = Date.now() - optimisticDodgeRollStartMsRef.current;
     const isOptimisticDodgeRolling = optimisticDodgeRollStartMsRef.current > 0 && optimisticElapsedMs < DODGE_ROLL_DURATION_MS;
     const isDodgeRolling = isOptimisticDodgeRolling;
@@ -764,7 +753,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
       x: clientPositionRef.current.x + direction.x * moveDistance,
       y: clientPositionRef.current.y + direction.y * moveDistance
     };
-  }, [localPlayer, inputState, playerDodgeRollStates, connection, waterSpeedBonus, movementSpeedModifier]);
+  }, [localPlayer, inputState, connection, waterSpeedBonus, movementSpeedModifier]);
 
   // Read the latest facing direction without waiting for React renders.
   const getCurrentFacingDirectionNow = useCallback((): string => {
@@ -777,11 +766,6 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
       return { isDodgeRolling: false, progress: 0, direction: 'down' };
     }
 
-    const playerId = localPlayer.identity.toHexString();
-    const dodgeRollState = playerDodgeRollStates?.get(playerId) as any;
-    const dodgeRollStartTime = dodgeRollState?.clientReceptionTimeMs ?? (dodgeRollState ? Number(dodgeRollState.startTimeMs) : 0);
-    const dodgeRollElapsedMs = dodgeRollState ? (Date.now() - dodgeRollStartTime) : 0;
-    const isServerDodgeRolling = !!(dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < DODGE_ROLL_DURATION_MS);
     const optimisticElapsedMs = Date.now() - optimisticDodgeRollStartMsRef.current;
     const isOptimisticDodgeRolling = optimisticDodgeRollStartMsRef.current > 0 && optimisticElapsedMs < DODGE_ROLL_DURATION_MS;
     const isDodgeRolling = isOptimisticDodgeRolling;
@@ -827,14 +811,11 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     }
 
     // Fallback: timer-based progress if path data is unavailable.
-    const _serverProgress = isServerDodgeRolling
-      ? Math.max(0, Math.min(1, dodgeRollElapsedMs / DODGE_ROLL_DURATION_MS))
-      : 0;
     const rawProgress = Math.max(0, Math.min(1, optimisticElapsedMs / DODGE_ROLL_DURATION_MS));
     const progress = Math.max(rawProgress, visualRollProgressRef.current);
     visualRollProgressRef.current = progress;
     return { isDodgeRolling: true, progress, direction: lastFacingDirection.current || localPlayer.direction || 'down' };
-  }, [localPlayer, playerDodgeRollStates]);
+  }, [localPlayer]);
 
   // Return the current position and state
   return {
