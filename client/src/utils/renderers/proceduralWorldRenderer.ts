@@ -388,13 +388,9 @@ export class ProceduralWorldRenderer {
                     ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
                 }
             } else {
-                const grassImg = this.tileCache.images.get('Grass_base');
-                if (grassImg && grassImg.complete && grassImg.naturalHeight !== 0) {
-                    ctx.drawImage(grassImg, pixelX, pixelY, pixelSize, pixelSize);
-                } else {
-                    ctx.fillStyle = '#8FBC8F';
-                    ctx.fillRect(pixelX, pixelY, pixelSize, pixelSize);
-                }
+                // No chunk/tile data here yet; leave transparent so the already-drawn
+                // cyberpunk grid background remains visible instead of default grass.
+                return;
             }
             return;
         }

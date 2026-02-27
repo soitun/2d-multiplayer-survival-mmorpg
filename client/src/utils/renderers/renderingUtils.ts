@@ -408,6 +408,9 @@ interface RenderYSortedEntitiesProps {
   onPlayerHover: (identity: string, hover: boolean) => void;
   cycleProgress: number;
   playerDodgeRollStates: Map<string, SpacetimeDBPlayerDodgeRollState>; // Add dodge roll states
+  localPredictedDodgeRollVisualState?: { isDodgeRolling: boolean; progress: number; direction: string } | null;
+  localOptimisticDodgeRollStartMs?: number;
+  localOptimisticDodgeRollDurationMs?: number;
   renderPlayerCorpse: (props: { 
       ctx: CanvasRenderingContext2D; 
       corpse: SpacetimeDBPlayerCorpse; 
@@ -497,6 +500,9 @@ export const renderYSortedEntities = ({
   onPlayerHover,
   cycleProgress,
   playerDodgeRollStates,
+  localPredictedDodgeRollVisualState = null,
+  localOptimisticDodgeRollStartMs = 0,
+  localOptimisticDodgeRollDurationMs = 500,
   renderPlayerCorpse: renderCorpse,
   localPlayerPosition,
   remotePlayerInterpolation,
@@ -885,25 +891,62 @@ export const renderYSortedEntities = ({
              lastKnownServerJumpTimes.delete(playerId);
          }
          
-         // Dodge roll detection logic (for animation only)
+         // Dodge roll detection logic (animation timeline only)
+         // Local player uses ONE unified timeline to prevent accidental "double roll"
+         // when optimistic and server states overlap.
          const dodgeRollState = playerDodgeRollStates.get(playerId);
          let isDodgeRolling = false;
          let dodgeRollProgress = 0;
+         const serverClientReceptionTime = dodgeRollState
+           ? ((dodgeRollState as any).clientReceptionTimeMs ?? Date.now())
+           : 0;
          
-         if (dodgeRollState) {
-             // Use CLIENT reception time instead of server time to avoid clock drift issues
-             const clientReceptionTime = (dodgeRollState as any).clientReceptionTimeMs || Date.now();
-             const elapsed = nowMs - clientReceptionTime;
-             
-            if (elapsed < 500) { // 500ms dodge roll duration (SYNCED WITH SERVER)
-                isDodgeRolling = true;
-                dodgeRollProgress = elapsed / 500.0;
-                 // Only log successful dodge rolls occasionally to reduce spam
-                //  if (Math.random() < 0.05) { // 5% chance to log
-                //      console.log(`[DODGE] Player dodging - Progress: ${(dodgeRollProgress * 100).toFixed(1)}%, elapsed: ${elapsed.toFixed(0)}ms`);
-                //  }
+         if (isLocalPlayer) {
+           if (localPredictedDodgeRollVisualState) {
+             isDodgeRolling = localPredictedDodgeRollVisualState.isDodgeRolling;
+             dodgeRollProgress = localPredictedDodgeRollVisualState.progress;
+             if (localPredictedDodgeRollVisualState.isDodgeRolling && localPredictedDodgeRollVisualState.direction) {
+               playerForRendering = {
+                 ...playerForRendering,
+                 direction: localPredictedDodgeRollVisualState.direction
+               };
              }
-             // Silently ignore expired dodge states (elapsed > 400ms)
+           } else {
+           const hasOptimistic = localOptimisticDodgeRollStartMs > 0;
+           const hasServer = serverClientReceptionTime > 0;
+           let unifiedStartMs = 0;
+ 
+           if (hasOptimistic && hasServer) {
+             const deltaMs = serverClientReceptionTime - localOptimisticDodgeRollStartMs;
+             // Merge only when server update clearly belongs to this same local roll.
+             // If server timestamp is from a stale prior roll (or far from optimistic),
+             // keep optimistic start to prevent animation drop -> visible sliding.
+             const sameRollWindow =
+               deltaMs >= -150 &&
+               deltaMs <= localOptimisticDodgeRollDurationMs;
+             unifiedStartMs = sameRollWindow
+               ? Math.min(localOptimisticDodgeRollStartMs, serverClientReceptionTime)
+               : localOptimisticDodgeRollStartMs;
+           } else if (hasOptimistic) {
+             unifiedStartMs = localOptimisticDodgeRollStartMs;
+           } else if (hasServer) {
+             unifiedStartMs = serverClientReceptionTime;
+           }
+ 
+           if (unifiedStartMs > 0) {
+             const elapsed = nowMs - unifiedStartMs;
+             if (elapsed >= 0 && elapsed < localOptimisticDodgeRollDurationMs) {
+               isDodgeRolling = true;
+               dodgeRollProgress = elapsed / localOptimisticDodgeRollDurationMs;
+             }
+           }
+           }
+         } else if (serverClientReceptionTime > 0) {
+           const elapsed = nowMs - serverClientReceptionTime;
+           if (elapsed >= 0 && elapsed < 500) { // 500ms dodge roll duration (synced with server)
+             isDodgeRolling = true;
+             dodgeRollProgress = elapsed / 500.0;
+           }
          }
          // No logging for players without dodge state - this is the normal case
          
@@ -984,10 +1027,10 @@ export const renderYSortedEntities = ({
             // }
             
             if (canRenderItem && equipment && !isSwimmingSplitRender) {
-                  // Pass player.direction (server-synced) for accurate attack arc display
+                  // Use the rendered direction so local held-item orientation matches the body instantly.
                   // Pass snorkeling state for underwater teal tint effect
                   const playerIsSnorkelingForItem = isLocalPlayer ? isLocalPlayerSnorkeling : playerForRendering.isSnorkeling;
-                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, playerEffects, localPlayerId, player.direction, playerIsSnorkelingForItem);
+                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, playerEffects, localPlayerId, playerForRendering.direction, playerIsSnorkelingForItem);
             }
             
             // console.log(`[DEBUG] Rendering player ${playerId} - heroImg available:`, !!heroImg, 'direction:', playerForRendering.direction);
@@ -1133,10 +1176,10 @@ export const renderYSortedEntities = ({
             }
             // heroImg not loaded yet - skip rendering silently (will render once loaded)
             if (canRenderItem && equipment && !isSwimmingSplitRender) {
-                  // Pass player.direction (server-synced) for accurate attack arc display
+                  // Use the rendered direction so local held-item orientation matches the body instantly.
                   // Pass snorkeling state for underwater teal tint effect
                   const playerIsSnorkelingForItem = isLocalPlayer ? isLocalPlayerSnorkeling : playerForRendering.isSnorkeling;
-                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, playerEffects, localPlayerId, player.direction, playerIsSnorkelingForItem);
+                  renderEquippedItem(ctx, playerForRendering, equipment, itemDef!, itemDefinitions, itemImg!, nowMs, jumpOffset, itemImagesRef.current, playerEffects, localPlayerId, playerForRendering.direction, playerIsSnorkelingForItem);
                   renderMeleeSwipeArcIfSwinging(ctx, playerForRendering, equipment, itemDef!, nowMs, jumpOffset, localPlayerId);
             }
             

@@ -66,14 +66,12 @@ import { isOceanTileTag } from './utils/tileTypeGuards';
 
 // Assets & Styles
 import './App.css';
-import { useDebouncedCallback } from 'use-debounce'; // Import debounce helper
 
 // Viewport constants
 const VIEWPORT_WIDTH = 1200;
 const VIEWPORT_HEIGHT = 800;
 const VIEWPORT_BUFFER = 300;
 const VIEWPORT_UPDATE_THRESHOLD_SQ = (VIEWPORT_WIDTH / 2) ** 2; // Increased threshold (was WIDTH/4), so updates happen less frequently
-const VIEWPORT_UPDATE_DEBOUNCE_MS = 750; // Increased debounce time (was 250ms) to reduce update frequency
 
 // Auto-close interaction when player moves too far from container
 import { useInteractionAutoClose } from './hooks/useInteractionAutoClose';
@@ -136,7 +134,6 @@ function AppContent() {
 
     // --- Player Actions ---
     const {
-        updateViewport,
         updatePlayerPosition,
         setSprinting,
         stopAutoWalk,
@@ -484,7 +481,7 @@ function AppContent() {
 
     // Simplified predicted movement - minimal lag
     // PERFORMANCE FIX: Pass inputStateRef for immediate input reading in RAF loop (bypasses React state delay)
-    const { predictedPosition, getCurrentPositionNow, stepPredictedMovement, isAutoAttacking, facingDirection } = usePredictedMovement({
+    const { predictedPosition, getCurrentPositionNow, getCurrentFacingDirectionNow, getCurrentDodgeRollVisualNow, triggerOptimisticDodgeRoll, stepPredictedMovement, isAutoAttacking, facingDirection } = usePredictedMovement({
         localPlayer,
         inputState,
         inputStateRef: isMobile ? undefined : keyboardInputStateRef, // Only use ref for desktop (mobile uses tap-to-walk via prop)
@@ -622,15 +619,6 @@ function AppContent() {
         placementInfoRef.current = placementInfo;
     }, [placementInfo]);
 
-    // --- Debounced Viewport Update ---
-    const debouncedUpdateViewport = useDebouncedCallback(
-        (vp: { minX: number, minY: number, maxX: number, maxY: number }) => {
-            updateViewport(vp.minX, vp.minY, vp.maxX, vp.maxY);
-            lastSentViewportCenterRef.current = { x: (vp.minX + vp.maxX) / 2, y: (vp.minY + vp.maxY) / 2 };
-        },
-        VIEWPORT_UPDATE_DEBOUNCE_MS
-    );
-
     // Track previous player state to detect respawns
     const prevPlayerStateRef = useRef<{ isDead: boolean; positionX: number; positionY: number } | null>(null);
 
@@ -671,7 +659,6 @@ function AppContent() {
             const newViewport = { minX: newMinX, minY: newMinY, maxX: newMaxX, maxY: newMaxY };
 
             setCurrentViewport(newViewport); // Update local state immediately for useSpacetimeTables
-            debouncedUpdateViewport(newViewport); // Call debounced server update
             
             // Update last sent center immediately to prevent continuous updates
             lastSentViewportCenterRef.current = { x: playerCenterX, y: playerCenterY };
@@ -687,7 +674,7 @@ function AppContent() {
         // Update previous state tracking
         prevPlayerStateRef.current = { isDead: localPlayer.isDead, positionX: playerCenterX, positionY: playerCenterY };
     // Depend on the players map (specifically the local player's position), connection identity, and app connected status.
-    }, [players, connection?.identity, debouncedUpdateViewport]); // Removed currentViewport dependency to avoid loops
+    }, [players, connection?.identity]); // Removed currentViewport dependency to avoid loops
 
     // --- Effect to initialize and cleanup cut grass effect system ---
     useEffect(() => {
@@ -1143,6 +1130,9 @@ function AppContent() {
                             onItemDrop={handleItemDrop}
                             predictedPosition={predictedPosition}
                             getCurrentPositionNow={getCurrentPositionNow}
+                            getCurrentFacingDirectionNow={getCurrentFacingDirectionNow}
+                            getCurrentDodgeRollVisualNow={getCurrentDodgeRollVisualNow}
+                            onDodgeRollStart={triggerOptimisticDodgeRoll}
                             stepPredictedMovement={stepPredictedMovement}
                             canvasRef={canvasRef}
                             isMinimapOpen={isMinimapOpen}

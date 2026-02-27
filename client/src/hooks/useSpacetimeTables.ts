@@ -1611,27 +1611,39 @@ export const useSpacetimeTables = ({
 
             // --- PlayerDodgeRollState Handlers ---
             const handlePlayerDodgeRollStateInsert = (ctx: any, dodgeState: SpacetimeDB.PlayerDodgeRollState) => {
-                // Add client reception timestamp to the state
-                const clientReceptionTimeMs = Date.now();
+                const playerKey = dodgeState.playerId.toHexString();
+                const existingState = playerDodgeRollStatesRef.current.get(playerKey) as any;
+                // IMPORTANT: preserve reception time for the same roll start_time_ms.
+                // Subscription re-applies/duplicate updates must not restart local roll timing.
+                const clientReceptionTimeMs =
+                    existingState && existingState.startTimeMs === dodgeState.startTimeMs
+                        ? existingState.clientReceptionTimeMs
+                        : Date.now();
                 const stateWithReceptionTime = {
                     ...dodgeState,
                     clientReceptionTimeMs // Track when CLIENT received this state
                 };
 
                 // console.log(`[DODGE DEBUG] Server state INSERT for player ${dodgeState.playerId.toHexString()}`);
-                playerDodgeRollStatesRef.current.set(dodgeState.playerId.toHexString(), stateWithReceptionTime as any);
+                playerDodgeRollStatesRef.current.set(playerKey, stateWithReceptionTime as any);
                 setPlayerDodgeRollStates(new Map(playerDodgeRollStatesRef.current));
             };
             const handlePlayerDodgeRollStateUpdate = (ctx: any, oldDodgeState: SpacetimeDB.PlayerDodgeRollState, newDodgeState: SpacetimeDB.PlayerDodgeRollState) => {
-                // Add client reception timestamp to the state
-                const clientReceptionTimeMs = Date.now();
+                const playerKey = newDodgeState.playerId.toHexString();
+                const existingState = playerDodgeRollStatesRef.current.get(playerKey) as any;
+                // IMPORTANT: preserve reception time for the same roll start_time_ms.
+                // This prevents animation restarts (double-roll effect) on repeated updates.
+                const clientReceptionTimeMs =
+                    existingState && existingState.startTimeMs === newDodgeState.startTimeMs
+                        ? existingState.clientReceptionTimeMs
+                        : Date.now();
                 const stateWithReceptionTime = {
                     ...newDodgeState,
                     clientReceptionTimeMs // Track when CLIENT received this state
                 };
 
                 // console.log(`[DODGE DEBUG] Server state UPDATE for player ${newDodgeState.playerId.toHexString()}`);
-                playerDodgeRollStatesRef.current.set(newDodgeState.playerId.toHexString(), stateWithReceptionTime as any);
+                playerDodgeRollStatesRef.current.set(playerKey, stateWithReceptionTime as any);
                 setPlayerDodgeRollStates(new Map(playerDodgeRollStatesRef.current));
             };
             const handlePlayerDodgeRollStateDelete = (ctx: any, dodgeState: SpacetimeDB.PlayerDodgeRollState) => {

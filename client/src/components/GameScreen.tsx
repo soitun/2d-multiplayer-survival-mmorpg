@@ -215,6 +215,9 @@ interface GameScreenProps {
     // Predicted Position
     predictedPosition: { x: number; y: number } | null;
     getCurrentPositionNow: () => { x: number; y: number } | null;
+    getCurrentFacingDirectionNow?: () => string;
+    getCurrentDodgeRollVisualNow?: () => { isDodgeRolling: boolean; progress: number; direction: string };
+    onDodgeRollStart?: (moveX: number, moveY: number) => void;
     stepPredictedMovement?: (dtMs: number) => void; // For fixed-step mode
     canvasRef: React.RefObject<HTMLCanvasElement | null>;
 
@@ -405,7 +408,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         animalCorpses,
         inventoryItems, itemDefinitions, worldState, activeEquipments, recipes, craftingQueueItems,
         localPlayerId, playerIdentity, connection,
-        predictedPosition, getCurrentPositionNow, stepPredictedMovement, canvasRef,
+        predictedPosition, getCurrentPositionNow, getCurrentFacingDirectionNow, getCurrentDodgeRollVisualNow, onDodgeRollStart, stepPredictedMovement, canvasRef,
         placementInfo, placementActions, placementError, placementWarning, setPlacementWarning, startPlacement, cancelPlacement,
         interactingWith, handleSetInteractingWith,
         draggedItemInfo, onItemDragStart, onItemDrop,
@@ -1113,6 +1116,9 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
                 connection={connection}
                 predictedPosition={predictedPosition}
                 getCurrentPositionNow={getCurrentPositionNow}
+                getCurrentFacingDirectionNow={getCurrentFacingDirectionNow}
+                getCurrentDodgeRollVisualNow={getCurrentDodgeRollVisualNow}
+                onDodgeRollStart={onDodgeRollStart}
                 stepPredictedMovement={stepPredictedMovement}
                 localFacingDirection={props.facingDirection}
                 placementInfo={placementInfo}

@@ -38,6 +38,9 @@ const WATER_SPEED_PENALTY = 0.5; // Half speed in water (matches server WATER_SP
 const EXHAUSTED_SPEED_PENALTY = 0.75; // 25% speed reduction when exhausted (matches server EXHAUSTED_SPEED_PENALTY)
 // Water speed bonus cap (matches server - 2.0 = 200% bonus = 3x speed)
 const MAX_WATER_SPEED_BONUS = 2.0;
+const DODGE_ROLL_DURATION_MS = 500; // Keep synced with server dodge duration
+const DODGE_ROLL_COOLDOWN_MS = 500; // Keep synced with server cooldown
+const DODGE_ROLL_DISTANCE_PX = 450; // Keep synced with server dodge distance
 // REMOVED: Rubber banding constants - proper prediction shouldn't need them
 
 // Helper function to check if a player has the exhausted effect
@@ -79,6 +82,12 @@ interface SimpleMovementProps {
   isOnSeaTile?: (worldX: number, worldY: number) => boolean;
   /** When true, RAF loop is disabled; GameCanvas calls stepPredictedMovement each sim tick. Falls back to gameConfig when undefined. */
   fixedSimulationEnabled?: boolean;
+}
+
+interface DodgeRollVisualState {
+  isDodgeRolling: boolean;
+  progress: number;
+  direction: string;
 }
 
 // Performance monitoring for simple movement
@@ -155,6 +164,8 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     targetY: number; 
     serverStartTime: number; // The server's dodge roll start time to detect new rolls
   } | null>(null);
+  const optimisticDodgeRollStartMsRef = useRef<number>(0);
+  const lastOptimisticDodgeRollStartMsRef = useRef<number>(0);
 
   // Get player actions from context
   const { 
@@ -169,6 +180,64 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
   // Add sequence tracking
   const clientSequenceRef = useRef(0n);
   const lastAckedSequenceRef = useRef(0n);
+
+  const triggerOptimisticDodgeRoll = useCallback((moveX: number, moveY: number) => {
+    if (!clientPositionRef.current) return;
+    const nowMs = Date.now();
+    const optimisticElapsed = nowMs - optimisticDodgeRollStartMsRef.current;
+    const isOptimisticActive = optimisticDodgeRollStartMsRef.current > 0 && optimisticElapsed < DODGE_ROLL_DURATION_MS;
+    const timeSinceLastStart = nowMs - lastOptimisticDodgeRollStartMsRef.current;
+    // Local guard to prevent duplicate client-only rolls while server cooldown rejects.
+    if (isOptimisticActive || timeSinceLastStart < DODGE_ROLL_COOLDOWN_MS) return;
+
+    let dirX = moveX;
+    let dirY = moveY;
+    const mag = Math.sqrt(dirX * dirX + dirY * dirY);
+
+    if (mag <= 0.001) {
+      const fallbackDir = lastFacingDirection.current || localPlayer?.direction || 'down';
+      if (fallbackDir === 'left') {
+        dirX = -1; dirY = 0;
+      } else if (fallbackDir === 'right') {
+        dirX = 1; dirY = 0;
+      } else if (fallbackDir === 'up') {
+        dirX = 0; dirY = -1;
+      } else {
+        dirX = 0; dirY = 1;
+      }
+    } else {
+      dirX /= mag;
+      dirY /= mag;
+    }
+
+    // Lock facing direction immediately at roll start so animation orientation
+    // matches the intended dodge direction on the very first frame.
+    if (Math.abs(dirX) > 0.01 || Math.abs(dirY) > 0.01) {
+      if (Math.abs(dirX) > 0.01 && Math.abs(dirY) > 0.01) {
+        if (dirX > 0) {
+          lastFacingDirection.current = dirY < 0 ? 'up_right' : 'down_right';
+        } else {
+          lastFacingDirection.current = dirY < 0 ? 'up_left' : 'down_left';
+        }
+      } else if (Math.abs(dirX) >= Math.abs(dirY)) {
+        lastFacingDirection.current = dirX > 0 ? 'right' : 'left';
+      } else {
+        lastFacingDirection.current = dirY > 0 ? 'down' : 'up';
+      }
+    }
+
+    const startX = clientPositionRef.current.x;
+    const startY = clientPositionRef.current.y;
+    clientDodgeRollRef.current = {
+      startX,
+      startY,
+      targetX: startX + dirX * DODGE_ROLL_DISTANCE_PX,
+      targetY: startY + dirY * DODGE_ROLL_DISTANCE_PX,
+      serverStartTime: -1, // Sentinel for optimistic (pre-server) dodge start
+    };
+    optimisticDodgeRollStartMsRef.current = nowMs;
+    lastOptimisticDodgeRollStartMsRef.current = nowMs;
+  }, [localPlayer?.direction]);
 
   // Initialize position from server
   useEffect(() => {
@@ -193,7 +262,10 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     const dodgeRollState = playerDodgeRollStates?.get(playerId) as any;
     const dodgeRollStartTime = dodgeRollState?.clientReceptionTimeMs ?? (dodgeRollState ? Number(dodgeRollState.startTimeMs) : 0);
     const dodgeRollElapsedMs = dodgeRollState ? (Date.now() - dodgeRollStartTime) : 0;
-    const isDodgeRolling = dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < 500; // 500ms dodge roll duration (SYNCED WITH SERVER)
+    const _isServerDodgeRolling = !!(dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < DODGE_ROLL_DURATION_MS);
+    const optimisticElapsedMs = Date.now() - optimisticDodgeRollStartMsRef.current;
+    const isOptimisticDodgeRolling = optimisticDodgeRollStartMsRef.current > 0 && optimisticElapsedMs < DODGE_ROLL_DURATION_MS;
+    const isDodgeRolling = isOptimisticDodgeRolling;
     
     // CRITICAL: Don't accept server position updates during dodge roll to prevent camera stutter
     if (isDodgeRolling) {
@@ -275,30 +347,34 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
       // This fixes production time drift issues where server time != client time
       const dodgeRollStartTime = dodgeRollState?.clientReceptionTimeMs ?? (dodgeRollState ? Number(dodgeRollState.startTimeMs) : 0);
       const dodgeRollElapsedMs = dodgeRollState ? (Date.now() - dodgeRollStartTime) : 0;
-      const isDodgeRolling = dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < 500; // 500ms dodge roll duration (SYNCED WITH SERVER)
+      const isServerDodgeRolling = !!(dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < DODGE_ROLL_DURATION_MS);
+      const optimisticElapsedMs = Date.now() - optimisticDodgeRollStartMsRef.current;
+      const isOptimisticDodgeRolling = optimisticDodgeRollStartMsRef.current > 0 && optimisticElapsedMs < DODGE_ROLL_DURATION_MS;
+      const isDodgeRolling = isOptimisticDodgeRolling;
       
-      if (isDodgeRolling && dodgeRollState) {
-        // SMOOTH DODGE ROLL: Use velocity-based movement for smooth collision handling
-        const serverDodgeStartTime = Number(dodgeRollState.startTimeMs);
-        
-        // Detect NEW dodge roll (server start time changed) - initialize client-side tracking
-        if (!clientDodgeRollRef.current || clientDodgeRollRef.current.serverStartTime !== serverDodgeStartTime) {
-          // NEW dodge roll detected - use CLIENT's current position as start
-          const clientStartX = clientPositionRef.current.x;
-          const clientStartY = clientPositionRef.current.y;
-          
-          // Calculate dodge direction from server's data (normalized)
-          const serverDodgeDx = dodgeRollState.targetX - dodgeRollState.startX;
-          const serverDodgeDy = dodgeRollState.targetY - dodgeRollState.startY;
-          
-          // Apply same direction/distance to client's current position
-          clientDodgeRollRef.current = {
-            startX: clientStartX,
-            startY: clientStartY,
-            targetX: clientStartX + serverDodgeDx,
-            targetY: clientStartY + serverDodgeDy,
-            serverStartTime: serverDodgeStartTime
-          };
+      if (isDodgeRolling && clientDodgeRollRef.current) {
+        // SMOOTH DODGE ROLL: Use velocity-based movement for smooth collision handling.
+        // As soon as server state arrives, switch the optimistic dodge to server-auth movement.
+        if (isServerDodgeRolling && dodgeRollState && isOptimisticDodgeRolling) {
+          // Server can provide a more accurate dodge direction than local input
+          // during rapid direction changes; prefer it when available.
+          if (typeof dodgeRollState.direction === 'string' && dodgeRollState.direction.length > 0) {
+            lastFacingDirection.current = dodgeRollState.direction;
+          }
+          const serverDodgeStartTime = Number(dodgeRollState.startTimeMs);
+          if (!clientDodgeRollRef.current || clientDodgeRollRef.current.serverStartTime !== serverDodgeStartTime) {
+            const clientStartX = clientPositionRef.current.x;
+            const clientStartY = clientPositionRef.current.y;
+            const serverDodgeDx = dodgeRollState.targetX - dodgeRollState.startX;
+            const serverDodgeDy = dodgeRollState.targetY - dodgeRollState.startY;
+            clientDodgeRollRef.current = {
+              startX: clientStartX,
+              startY: clientStartY,
+              targetX: clientStartX + serverDodgeDx,
+              targetY: clientStartY + serverDodgeDy,
+              serverStartTime: serverDodgeStartTime
+            };
+          }
         }
         
         const clientDodge = clientDodgeRollRef.current;
@@ -317,7 +393,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
           const dodgeDirX = dodgeDx / dodgeDistance;
           const dodgeDirY = dodgeDy / dodgeDistance;
           
-          // Calculate how far to move this frame based on dodge roll speed (450px in 500ms = 900px/s)
+          // Calculate how far to move this frame based on dodge roll speed.
           const DODGE_ROLL_SPEED = 900; // pixels per second (SYNCED WITH SERVER)
           const moveDistance = DODGE_ROLL_SPEED * dtSec;
           
@@ -386,6 +462,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
         if (clientDodgeRollRef.current) {
           clientDodgeRollRef.current = null;
         }
+        optimisticDodgeRollStartMsRef.current = 0;
       }
       
       isMoving.current = Math.abs(direction.x) > 0.01 || Math.abs(direction.y) > 0.01;
@@ -608,7 +685,10 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     const dodgeRollState = playerDodgeRollStates?.get(playerId) as any;
     const dodgeRollStartTime = dodgeRollState?.clientReceptionTimeMs ?? (dodgeRollState ? Number(dodgeRollState.startTimeMs) : 0);
     const dodgeRollElapsedMs = dodgeRollState ? (Date.now() - dodgeRollStartTime) : 0;
-    const isDodgeRolling = dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < 500; // 500ms dodge roll duration (SYNCED WITH SERVER)
+    const _isServerDodgeRolling = !!(dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < DODGE_ROLL_DURATION_MS);
+    const optimisticElapsedMs = Date.now() - optimisticDodgeRollStartMsRef.current;
+    const isOptimisticDodgeRolling = optimisticDodgeRollStartMsRef.current > 0 && optimisticElapsedMs < DODGE_ROLL_DURATION_MS;
+    const isDodgeRolling = isOptimisticDodgeRolling;
     
     if (isDodgeRolling && clientDodgeRollRef.current) {
       // During dodge roll, return current position (already updated by velocity-based movement)
@@ -650,10 +730,72 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     };
   }, [localPlayer, inputState, playerDodgeRollStates, connection, waterSpeedBonus, movementSpeedModifier]);
 
+  // Read the latest facing direction without waiting for React renders.
+  const getCurrentFacingDirectionNow = useCallback((): string => {
+    return lastFacingDirection.current || localPlayer?.direction || 'down';
+  }, [localPlayer?.direction]);
+
+  // Render uses this to stay in lockstep with prediction/movement roll state.
+  const getCurrentDodgeRollVisualNow = useCallback((): DodgeRollVisualState => {
+    if (!localPlayer) {
+      return { isDodgeRolling: false, progress: 0, direction: 'down' };
+    }
+
+    const playerId = localPlayer.identity.toHexString();
+    const dodgeRollState = playerDodgeRollStates?.get(playerId) as any;
+    const dodgeRollStartTime = dodgeRollState?.clientReceptionTimeMs ?? (dodgeRollState ? Number(dodgeRollState.startTimeMs) : 0);
+    const dodgeRollElapsedMs = dodgeRollState ? (Date.now() - dodgeRollStartTime) : 0;
+    const isServerDodgeRolling = !!(dodgeRollState && dodgeRollElapsedMs >= 0 && dodgeRollElapsedMs < DODGE_ROLL_DURATION_MS);
+    const optimisticElapsedMs = Date.now() - optimisticDodgeRollStartMsRef.current;
+    const isOptimisticDodgeRolling = optimisticDodgeRollStartMsRef.current > 0 && optimisticElapsedMs < DODGE_ROLL_DURATION_MS;
+    const isDodgeRolling = isOptimisticDodgeRolling;
+
+    if (!isDodgeRolling) {
+      return { isDodgeRolling: false, progress: 0, direction: lastFacingDirection.current || localPlayer.direction || 'down' };
+    }
+
+    // Primary: derive progress from actual predicted movement path.
+    if (clientDodgeRollRef.current && clientPositionRef.current) {
+      const dodge = clientDodgeRollRef.current;
+      const totalDx = dodge.targetX - dodge.startX;
+      const totalDy = dodge.targetY - dodge.startY;
+      const totalDist = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
+      if (totalDist > 0.01) {
+        const remDx = dodge.targetX - clientPositionRef.current.x;
+        const remDy = dodge.targetY - clientPositionRef.current.y;
+        const remDist = Math.sqrt(remDx * remDx + remDy * remDy);
+        const progress = Math.max(0, Math.min(1, 1 - remDist / totalDist));
+        const moveDirX = totalDx / totalDist;
+        const moveDirY = totalDy / totalDist;
+        let direction = lastFacingDirection.current || localPlayer.direction || 'down';
+        if (Math.abs(moveDirX) > 0.01 && Math.abs(moveDirY) > 0.01) {
+          direction = moveDirX > 0
+            ? (moveDirY < 0 ? 'up_right' : 'down_right')
+            : (moveDirY < 0 ? 'up_left' : 'down_left');
+        } else if (Math.abs(moveDirX) >= Math.abs(moveDirY)) {
+          direction = moveDirX > 0 ? 'right' : 'left';
+        } else {
+          direction = moveDirY > 0 ? 'down' : 'up';
+        }
+        return { isDodgeRolling: true, progress, direction };
+      }
+    }
+
+    // Fallback: timer-based progress if path data is unavailable.
+    const _serverProgress = isServerDodgeRolling
+      ? Math.max(0, Math.min(1, dodgeRollElapsedMs / DODGE_ROLL_DURATION_MS))
+      : 0;
+    const progress = Math.max(0, Math.min(1, optimisticElapsedMs / DODGE_ROLL_DURATION_MS));
+    return { isDodgeRolling: true, progress, direction: lastFacingDirection.current || localPlayer.direction || 'down' };
+  }, [localPlayer, playerDodgeRollStates]);
+
   // Return the current position and state
   return {
     predictedPosition: clientPositionRef.current,
     getCurrentPositionNow,
+    getCurrentFacingDirectionNow,
+    getCurrentDodgeRollVisualNow,
+    triggerOptimisticDodgeRoll,
     stepPredictedMovement, // For fixed-step mode; GameCanvas calls each sim tick
     isAutoWalking,
     isAutoAttacking,

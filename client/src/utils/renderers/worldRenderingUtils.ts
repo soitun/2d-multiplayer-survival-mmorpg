@@ -12,7 +12,8 @@
  * 2. UNDERWATER MODE: When isSnorkeling is true, land tiles render dark blue for
  *    submerged view. Sea tiles render normally.
  *
- * 3. FALLBACK: If no world tiles, draws solid green fill while loading.
+ * 3. FALLBACK: If no world tiles, leaves background untouched so the cyberpunk
+ *    grid remains visible while chunk data streams in.
  */
 
 import { ProceduralWorldRenderer } from './proceduralWorldRenderer';
@@ -50,9 +51,8 @@ export function renderWorldBackground(
 
     // Require world tiles for rendering
     if (!worldTiles || worldTiles.size === 0) {
-        // Draw fallback color while waiting for tiles
-        ctx.fillStyle = '#8FBC8F';
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        // Keep previously drawn background (cyberpunk grid) visible while waiting
+        // for chunk/tile data instead of painting default grass.
         return;
     }
 

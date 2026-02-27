@@ -153,6 +153,7 @@ interface InputHandlerProps {
     setMusicPanelVisible: React.Dispatch<React.SetStateAction<boolean>>;
     movementDirection: { x: number; y: number };
     isAutoWalking: boolean; // Auto-walk state for dodge roll detection
+    onDodgeRollStart?: (moveX: number, moveY: number) => void; // Optional optimistic local dodge start hook
     targetedFoundation: any | null; // ADDED: Targeted foundation for upgrade menu
     targetedWall: any | null; // ADDED: Targeted wall for upgrade menu
     targetedFence: any | null; // ADDED: Targeted fence for repair/demolish
@@ -271,6 +272,7 @@ export const useInputHandler = ({
     setMusicPanelVisible,
     movementDirection,
     isAutoWalking, // Auto-walk state for dodge roll detection
+    onDodgeRollStart,
     targetedFoundation, // ADDED: Targeted foundation
     targetedWall, // ADDED: Targeted wall
     targetedFence, // ADDED: Targeted fence
@@ -309,6 +311,7 @@ export const useInputHandler = ({
 
     const lastMovementDirectionRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 1 });
     const movementDirectionRef = useLatest(movementDirection);
+    const onDodgeRollStartRef = useLatest(onDodgeRollStart);
 
     // Refs for dependencies - using useLatest to avoid stale closures without useEffect overhead
     const placementActionsRef = useLatest(placementActions);
@@ -1075,6 +1078,7 @@ export const useInputHandler = ({
                         // Dodge Roll (works with both manual movement and auto-walk)
                         try {
                             if (connectionRef.current?.reducers) {
+                                onDodgeRollStartRef.current?.(moveX, moveY);
                                 connectionRef.current.reducers.dodgeRoll({ moveX, moveY });
                                 console.log('[Input] Dodge roll triggered', { direction: { x: moveX, y: moveY }, isAutoWalking: isAutoWalkingRef.current });
                             }

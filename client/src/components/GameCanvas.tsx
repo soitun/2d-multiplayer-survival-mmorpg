@@ -226,6 +226,7 @@ const EMPTY_MAP = new Map();
 
 /** Swimming animation frame count (sprite sheet). */
 const TOTAL_SWIMMING_FRAMES = 24;
+const LOCAL_DODGE_ROLL_VISUAL_DURATION_MS = 500;
 
 // --- Prop Interface ---
 interface GameCanvasProps {
@@ -266,6 +267,9 @@ interface GameCanvasProps {
   connection: any | null;
   predictedPosition: { x: number; y: number } | null;
   getCurrentPositionNow: () => { x: number; y: number } | null; // Exact position at action time.
+  getCurrentFacingDirectionNow?: () => string; // Exact facing at render/action time.
+  getCurrentDodgeRollVisualNow?: () => { isDodgeRolling: boolean; progress: number; direction: string };
+  onDodgeRollStart?: (moveX: number, moveY: number) => void;
   stepPredictedMovement?: (dtMs: number) => void; // For fixed-step mode; called each sim tick
   activeEquipments: Map<string, SpacetimeDBActiveEquipment>;
   grass: Map<string, SpacetimeDBGrass>;
@@ -437,6 +441,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   connection,
   predictedPosition,
   getCurrentPositionNow,
+  getCurrentFacingDirectionNow,
+  getCurrentDodgeRollVisualNow,
+  onDodgeRollStart,
   stepPredictedMovement,
   activeEquipments,
   activeConnections,
@@ -657,6 +664,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const worldMousePosRef = useRef<{ x: number | null; y: number | null }>({ x: 0, y: 0 });
   const cameraOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const predictedPositionRef = useRef<{ x: number; y: number } | null>(null);
+  const localFacingDirectionRef = useRef<string | undefined>(localFacingDirection);
+  const localOptimisticDodgeRollStartMsRef = useRef<number>(0);
   const interpolatedCloudsRef = useRef<Map<string, any>>(new Map());
   const cycleProgressRef = useRef<number>(0.375);
   const ySortedEntitiesRef = useRef<any[]>([]);
@@ -903,6 +912,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => { worldMousePosRef.current = worldMousePos; }, [worldMousePos]);
   useEffect(() => { cameraOffsetRef.current = { x: cameraOffsetX, y: cameraOffsetY }; }, [cameraOffsetX, cameraOffsetY]);
   useEffect(() => { predictedPositionRef.current = predictedPosition; }, [predictedPosition]);
+  useEffect(() => { localFacingDirectionRef.current = localFacingDirection; }, [localFacingDirection]);
 
   const interpolatedClouds = useCloudInterpolation({ serverClouds: clouds, deltaTime: deltaTimeRef.current });
   useEffect(() => { interpolatedCloudsRef.current = interpolatedClouds; }, [interpolatedClouds]);
@@ -967,13 +977,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const tileSize = gameConfig.tileSize;
   const viewTileX = Math.floor((-cameraOffsetX) / tileSize);
   const viewTileY = Math.floor((-cameraOffsetY) / tileSize);
-  const bufferedViewTileX = viewTileX - 2;
-  const bufferedViewTileY = viewTileY - 2;
+  const WORLD_TILE_RENDER_BUFFER_TILES = 4;
+  const bufferedViewTileX = viewTileX - WORLD_TILE_RENDER_BUFFER_TILES;
+  const bufferedViewTileY = viewTileY - WORLD_TILE_RENDER_BUFFER_TILES;
   const visibleWorldTiles = useMemo(() => {
     const map = new Map<string, any>();
     const chunkSize = worldChunkSize;
-    const tilesHorz = Math.ceil(canvasSize.width / tileSize) + 4;
-    const tilesVert = Math.ceil(canvasSize.height / tileSize) + 4;
+    const extraTiles = WORLD_TILE_RENDER_BUFFER_TILES * 2;
+    const tilesHorz = Math.ceil(canvasSize.width / tileSize) + extraTiles;
+    const tilesVert = Math.ceil(canvasSize.height / tileSize) + extraTiles;
     const minTileX = Math.max(0, bufferedViewTileX);
     const minTileY = Math.max(0, bufferedViewTileY);
     const maxTileX = bufferedViewTileX + tilesHorz;
@@ -1471,6 +1483,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     return true;
   }, [showFpsProfiler, isProfilerRecording, canvasSize.width, startProfilerRecording, stopProfilerRecording, onProfilerCopied]);
 
+  const handleDodgeRollStart = useCallback((moveX: number, moveY: number) => {
+    localOptimisticDodgeRollStartMsRef.current = Date.now();
+    onDodgeRollStart?.(moveX, moveY);
+  }, [onDodgeRollStart]);
+
   // --- Action Input Handler ---
   const {
     interactionProgress: holdInteractionProgress,
@@ -1493,6 +1510,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     localPlayer,
     predictedPosition,
     getCurrentPositionNow,
+    onDodgeRollStart: handleDodgeRollStart,
     activeEquipments,
     itemDefinitions,
     inventoryItems,
@@ -2138,6 +2156,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const currentCameraOffsetX = cameraOffsetRef.current.x + shakeOffsetXRef.current;
     const currentCameraOffsetY = cameraOffsetRef.current.y + shakeOffsetYRef.current;
     const currentPredictedPosition = predictedPositionRef.current;
+    const currentLocalFacingDirection = localFacingDirectionRef.current;
+    const localPredictedDodgeRollVisualState = getCurrentDodgeRollVisualNow?.() ?? null;
     // Read animation frames directly from module-level exported refs (updated by single RAF loop)
     const currentAnimationFrame = walkingAnimationFrameRef.current;
     const currentSprintAnimationFrame = sprintAnimationFrameRef.current;
@@ -2402,7 +2422,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         player,
         isLocalPlayer,
         currentPredictedPosition,
-        localFacingDirection,
+        currentLocalFacingDirection,
         remotePlayerInterpolation,
         localPlayerId,
         swimmingPlayerScratchRef.current
@@ -2478,7 +2498,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         player,
         isLocalPlayer,
         currentPredictedPosition,
-        localFacingDirection,
+        currentLocalFacingDirection,
         remotePlayerInterpolation,
         localPlayerId,
         swimmingPlayerScratchRef.current
@@ -2539,7 +2559,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         Object.assign(localScratch, localPlayer);
         localScratch.positionX = currentPredictedPosition.x;
         localScratch.positionY = currentPredictedPosition.y;
-        localScratch.direction = localFacingDirection ?? localPlayer.direction;
+        localScratch.direction = currentLocalFacingDirection ?? localPlayer.direction;
         const { sx, sy } = getSpriteCoordinates(
           localScratch as SpacetimeDBPlayer,
           moving,
@@ -2679,6 +2699,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           hoveredPlayerIds,
           onPlayerHover: handlePlayerHover,
           cycleProgress: currentCycleProgress,
+          localPredictedDodgeRollVisualState,
+          localOptimisticDodgeRollStartMs: localOptimisticDodgeRollStartMsRef.current,
+          localOptimisticDodgeRollDurationMs: LOCAL_DODGE_ROLL_VISUAL_DURATION_MS,
           renderPlayerCorpse: (props) => renderPlayerCorpse({ ...props, cycleProgress: currentCycleProgress, heroImageRef: heroImageRef, heroWaterImageRef: heroWaterImageRef, heroCrouchImageRef: heroCrouchImageRef }),
           localPlayerPosition: currentPredictedPosition ?? { x: localPlayer?.positionX ?? 0, y: localPlayer?.positionY ?? 0 },
           playerDodgeRollStates,
@@ -2693,7 +2716,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           closestInteractableDoorId: rd.closestInteractableDoorId as bigint | null,
           closestInteractableTarget: rd.closestInteractableTarget,
           shelterClippingData,
-          localFacingDirection,
+          localFacingDirection: currentLocalFacingDirection,
           treeShadowsEnabled: allShadowsEnabled,
           allShadowsEnabled,
           isTreeFalling,
@@ -2837,7 +2860,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           Object.assign(scratch, item.entity);
           scratch.positionX = currentPredictedPosition.x;
           scratch.positionY = currentPredictedPosition.y;
-          scratch.direction = localFacingDirection ?? item.entity.direction;
+          scratch.direction = currentLocalFacingDirection ?? item.entity.direction;
           playerForRendering = scratch as SpacetimeDBPlayer;
         } else if (remotePlayerInterpolation) {
           const interp = remotePlayerInterpolation.updateAndGetSmoothedPosition(item.entity, localPlayerId);
@@ -3188,7 +3211,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (hasStoneTiller && localPlayer && connection) {
       const playerX = currentPredictedPosition?.x ?? localPlayer.positionX;
       const playerY = currentPredictedPosition?.y ?? localPlayer.positionY;
-      const facingDir = localFacingDirection || localPlayer.direction;
+      const facingDir = currentLocalFacingDirection || localPlayer.direction;
 
       renderTillerPreview({
         ctx,
@@ -3204,7 +3227,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (showAttackRangeDebug && localPlayer) {
       const playerX = currentPredictedPosition?.x ?? localPlayer.positionX;
       const playerY = currentPredictedPosition?.y ?? localPlayer.positionY;
-      const facingDir = localFacingDirection || localPlayer.direction;
+      const facingDir = currentLocalFacingDirection || localPlayer.direction;
 
       // Get the equipped item definition for weapon-specific range display
       const playerId = localPlayer.identity.toHexString();
@@ -3746,6 +3769,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Keep render-critical refs on the hot path so local movement/camera stay smooth
     // even when React props update at lower frequency.
     const livePredictedPosition = getCurrentPositionNow?.() ?? predictedPositionRef.current;
+    const liveFacingDirection = getCurrentFacingDirectionNow?.() ?? localFacingDirectionRef.current;
     if (livePredictedPosition) {
       predictedPositionRef.current = livePredictedPosition;
       cameraOffsetRef.current = {
@@ -3757,6 +3781,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         x: (canvasSize.width / 2) - localPlayer.positionX,
         y: (canvasSize.height / 2) - localPlayer.positionY,
       };
+    }
+    if (liveFacingDirection) {
+      localFacingDirectionRef.current = liveFacingDirection;
     }
 
     const { fixedSimDtMs, maxSimStepsPerFrame } = gameConfig;
@@ -3788,6 +3815,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     stepPredictedMovement,
     fixedSimulationEnabled,
     getCurrentPositionNow,
+    getCurrentFacingDirectionNow,
+    getCurrentDodgeRollVisualNow,
     localPlayer,
     canvasSize.width,
     canvasSize.height,
