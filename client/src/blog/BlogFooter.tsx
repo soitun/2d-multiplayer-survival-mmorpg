@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDiscord, faXTwitter, faGithub } from '@fortawesome/free-brands-svg-icons';
-import logo from '../assets/logo_alt.png';
+import logo from '../assets/ui/logo_alt.png';
 
 const BlogFooter: React.FC = () => {
     // Check if we're on mobile

@@ -961,7 +961,7 @@ function getCachedTreeTypeInfo(entity: Tree): { imageSource: string; targetWidth
                 break;
             case 'MountainHemlock2':
                 imageSource = mountainHemlockImage2;
-                targetWidth = 400; // Same size as MountainHemlock variant A
+                targetWidth = 560; // Largest conifer in the game (larger than Sitka Spruce)
                 break;
             case 'DwarfPine':
                 imageSource = dwarfPineImage;

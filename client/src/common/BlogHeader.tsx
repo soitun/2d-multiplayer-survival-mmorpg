@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars, faTimes } from '@fortawesome/free-solid-svg-icons';
-import logo from '../assets/logo_alt.png';
+import logo from '../assets/ui/logo_alt.png';
 
 const BlogHeader: React.FC = () => {
     const navigate = useNavigate();

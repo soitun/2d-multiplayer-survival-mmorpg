@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import combatLadle from '../assets/combat_ladle.png';
-import ocularImplant from '../assets/ocular_implant.png';
-import fieldCauldron from '../assets/field_cauldron.png';
+import combatLadle from '../assets/ui/combat_ladle.png';
+import ocularImplant from '../assets/ui/ocular_implant.png';
+import fieldCauldron from '../assets/ui/field_cauldron.png';
 
 interface CarouselItem {
     title: string;

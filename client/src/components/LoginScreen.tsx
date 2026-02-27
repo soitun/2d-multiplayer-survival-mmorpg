@@ -20,8 +20,8 @@ import { Player } from '../generated/types'; // Adjusted path
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDiscord, faXTwitter, faGithub } from '@fortawesome/free-brands-svg-icons';
 import { faBars, faTimes, faChevronDown, faChevronRight } from '@fortawesome/free-solid-svg-icons';
-import loginBackground from '../assets/login_background2.png';
-import logo from '../assets/logo_alt.png';
+import loginBackground from '../assets/ui/login_background.png';
+import logo from '../assets/ui/logo_alt.png';
 import ShipwreckCarousel from './ShipwreckCarousel';
 import GameplayFeaturesCarousel from './GameplayFeaturesCarousel';
 // @ts-ignore - importing JavaScript module

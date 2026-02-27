@@ -2247,6 +2247,24 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
                     } else {
                         crate::tree::TreeType::DwarfPine // 30% - some dwarf pines in tundra edges
                     }
+                } else if is_position_on_forest_tile(ctx, pos_x, pos_y) {
+                    // Forest temperate tiles: slightly favor MountainHemlock2 (variant D)
+                    // to reinforce it as a signature giant forest tree.
+                    if tree_type_roll < 0.02 { // 2% chance for CrabAppleTree (rare fruit tree)
+                        crate::tree::TreeType::CrabAppleTree
+                    } else if tree_type_roll < 0.04 { // 2% chance for HazelnutTree (rare nut tree)
+                        crate::tree::TreeType::HazelnutTree
+                    } else if tree_type_roll < 0.06 { // 2% chance for RowanberryTree (rare mountain ash)
+                        crate::tree::TreeType::RowanberryTree
+                    } else if tree_type_roll < 0.56 { // 50% chance for SitkaSpruce (slightly reduced on forest tiles)
+                        crate::tree::TreeType::SitkaSpruce
+                    } else if tree_type_roll < 0.74 { // 18% chance for SiberianBirch (unchanged)
+                        crate::tree::TreeType::SiberianBirch
+                    } else if tree_type_roll < 0.82 { // 8% chance for MountainHemlock (variant c, unchanged)
+                        crate::tree::TreeType::MountainHemlock
+                    } else { // 18% chance for MountainHemlock2 (variant d, increased from 14%)
+                        crate::tree::TreeType::MountainHemlock2
+                    }
                 } else {
                     // Temperate biome: standard tree types with weighted probability
                     // Includes rare fruit/nut trees (CrabAppleTree, HazelnutTree, RowanberryTree)
