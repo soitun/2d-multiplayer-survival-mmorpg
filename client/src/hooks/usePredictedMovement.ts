@@ -13,7 +13,8 @@
  *    prevents movement through solid entities.
  *
  * 3. ENVIRONMENT: Applies WATER_SPEED_PENALTY, EXHAUSTED_SPEED_PENALTY, and
- *    water speed bonus from consumables. Dodge roll uses server-authoritative state.
+ *    water speed bonus from consumables. Dodge roll is client-predicted with
+ *    guarded server alignment (same-roll only) for smooth visuals.
  *
  * 4. SMOOTH POSITION: Returns smoothed position for camera and rendering. Interpolates
  *    between predicted and server positions to avoid rubber-banding.
@@ -24,7 +25,7 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { DbConnection } from '../generated';
-import { Player, ActiveConsumableEffect, EffectType } from '../generated/types';
+import { Player } from '../generated/types';
 import { usePlayerActions } from '../contexts/PlayerActionsContext';
 import { resolveClientCollision, GameEntities } from '../utils/clientCollision';
 import { gameConfig } from '../config/gameConfig';
