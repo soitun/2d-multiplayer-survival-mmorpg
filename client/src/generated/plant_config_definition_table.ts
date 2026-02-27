@@ -17,7 +17,6 @@ import {
 
 export default __t.row({
   get plantType() {
-    // @ts-expect-error SpacetimeDB 2.0 codegen: SumBuilder (enum) lacks primaryKey; server uses PlantType as table PK
     return PlantType.primaryKey().name("plant_type");
   },
   entityName: __t.string().name("entity_name"),

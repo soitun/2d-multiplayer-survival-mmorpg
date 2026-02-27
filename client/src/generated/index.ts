@@ -44,9 +44,22 @@ import CancelCraftingItemReducer from "./cancel_crafting_item_reducer";
 import CancelFishingReducer from "./cancel_fishing_reducer";
 import CastFishingLineReducer from "./cast_fishing_line_reducer";
 import CheckAlkStationProximityReducer from "./check_alk_station_proximity_reducer";
+import CheckAndConsolidateAllClustersReducer from "./check_and_consolidate_all_clusters_reducer";
 import CheckBrewCacheReducer from "./check_brew_cache_reducer";
+import CheckBuildingPrivilegeDistanceReducer from "./check_building_privilege_distance_reducer";
+import CheckExplosiveDetonationsReducer from "./check_explosive_detonations_reducer";
+import CheckFinishedCraftingReducer from "./check_finished_crafting_reducer";
+import CheckFlareExpiryReducer from "./check_flare_expiry_reducer";
+import CheckGrenadeFusesReducer from "./check_grenade_fuses_reducer";
+import CheckPlantGrowthReducer from "./check_plant_growth_reducer";
 import CheckResourceRespawnsReducer from "./check_resource_respawns_reducer";
 import CleanupExpiredAnimalCorpsesReducer from "./cleanup_expired_animal_corpses_reducer";
+import CleanupExpiredDodgeRollsReducer from "./cleanup_expired_dodge_rolls_reducer";
+import CleanupExpiredFertilizerPatchesReducer from "./cleanup_expired_fertilizer_patches_reducer";
+import CleanupExpiredFirePatchesReducer from "./cleanup_expired_fire_patches_reducer";
+import CleanupExpiredWaterPatchesReducer from "./cleanup_expired_water_patches_reducer";
+import CleanupOldSoundEventsReducer from "./cleanup_old_sound_events_reducer";
+import CleanupOldThunderEventsReducer from "./cleanup_old_thunder_events_reducer";
 import ClearActiveItemReducerReducer from "./clear_active_item_reducer_reducer";
 import CloseBarbecueContainerReducer from "./close_barbecue_container_reducer";
 import CloseCampfireContainerReducer from "./close_campfire_container_reducer";
@@ -71,6 +84,7 @@ import DebugUpdateCloudIntensityReducer from "./debug_update_cloud_intensity_red
 import DeclineMatronageInvitationReducer from "./decline_matronage_invitation_reducer";
 import DeliverAlkContractReducer from "./deliver_alk_contract_reducer";
 import DeliverAlkContractToMatronageReducer from "./deliver_alk_contract_to_matronage_reducer";
+import DespawnExpiredItemsReducer from "./despawn_expired_items_reducer";
 import DestroyFenceReducer from "./destroy_fence_reducer";
 import DestroyFoundationReducer from "./destroy_foundation_reducer";
 import DestroyWallReducer from "./destroy_wall_reducer";
@@ -87,12 +101,14 @@ import DropItemFromFurnaceSlotToWorldReducer from "./drop_item_from_furnace_slot
 import DropItemFromHearthSlotToWorldReducer from "./drop_item_from_hearth_slot_to_world_reducer";
 import DropItemFromLanternSlotToWorldReducer from "./drop_item_from_lantern_slot_to_world_reducer";
 import DropItemFromStashSlotToWorldReducer from "./drop_item_from_stash_slot_to_world_reducer";
+import EmitDelayedThunderSoundReducer from "./emit_delayed_thunder_sound_reducer";
 import EmptyRainCollectorReservoirReducer from "./empty_rain_collector_reservoir_reducer";
 import EquipArmorReducer from "./equip_armor_reducer";
 import EquipArmorFromDragReducer from "./equip_armor_from_drag_reducer";
 import EquipArmorFromInventoryReducer from "./equip_armor_from_inventory_reducer";
 import ExtinguishLanternReducer from "./extinguish_lantern_reducer";
 import ExtractFromHoneycombReducer from "./extract_from_honeycomb_reducer";
+import FillEquippedWaterContainersReducer from "./fill_equipped_water_containers_reducer";
 import FillWaterContainerReducer from "./fill_water_container_reducer";
 import FillWaterContainerFromNaturalSourceReducer from "./fill_water_container_from_natural_source_reducer";
 import FinishFishingReducer from "./finish_fishing_reducer";
@@ -126,6 +142,7 @@ import JumpReducer from "./jump_reducer";
 import LeaveMatronageReducer from "./leave_matronage_reducer";
 import LightLanternReducer from "./light_lantern_reducer";
 import LoadRangedWeaponReducer from "./load_ranged_weapon_reducer";
+import ManageSeasonalPlantsReducer from "./manage_seasonal_plants_reducer";
 import ManualCleanupThunderEventsReducer from "./manual_cleanup_thunder_events_reducer";
 import MarkAlkStationTutorialSeenReducer from "./mark_alk_station_tutorial_seen_reducer";
 import MarkCrashedDroneTutorialSeenReducer from "./mark_crashed_drone_tutorial_seen_reducer";
@@ -215,7 +232,40 @@ import PlaceTurretReducer from "./place_turret_reducer";
 import PlaceWallReducer from "./place_wall_reducer";
 import PlaceWoodenStorageBoxReducer from "./place_wooden_storage_box_reducer";
 import PlantSeedReducer from "./plant_seed_reducer";
+import ProcessActiveConsumableEffectsTickReducer from "./process_active_consumable_effects_tick_reducer";
+import ProcessAlkContractRefreshReducer from "./process_alk_contract_refresh_reducer";
+import ProcessAllCampfiresScheduledReducer from "./process_all_campfires_scheduled_reducer";
+import ProcessAllFumarolesScheduledReducer from "./process_all_fumaroles_scheduled_reducer";
+import ProcessBarbecueLogicScheduledReducer from "./process_barbecue_logic_scheduled_reducer";
+import ProcessBeehiveProductionReducer from "./process_beehive_production_reducer";
+import ProcessBrothPotLogicScheduledReducer from "./process_broth_pot_logic_scheduled_reducer";
+import ProcessBuildingDecayReducer from "./process_building_decay_reducer";
+import ProcessCaribouBreedingReducer from "./process_caribou_breeding_reducer";
+import ProcessCompostConversionReducer from "./process_compost_conversion_reducer";
+import ProcessCorpseDespawnReducer from "./process_corpse_despawn_reducer";
+import ProcessDawnCleanupReducer from "./process_dawn_cleanup_reducer";
+import ProcessDroneDailyReducer from "./process_drone_daily_reducer";
+import ProcessDroneFlightTickReducer from "./process_drone_flight_tick_reducer";
 import ProcessExtractionReducer from "./process_extraction_reducer";
+import ProcessFirePatchDamageReducer from "./process_fire_patch_damage_reducer";
+import ProcessFishTrapConversionReducer from "./process_fish_trap_conversion_reducer";
+import ProcessFoodSpoilageReducer from "./process_food_spoilage_reducer";
+import ProcessFurnaceLogicScheduledReducer from "./process_furnace_logic_scheduled_reducer";
+import ProcessGlobalTickReducer from "./process_global_tick_reducer";
+import ProcessGrassRespawnBatchReducer from "./process_grass_respawn_batch_reducer";
+import ProcessHearthUpkeepReducer from "./process_hearth_upkeep_reducer";
+import ProcessHostileSpawnsReducer from "./process_hostile_spawns_reducer";
+import ProcessKnockedOutRecoveryReducer from "./process_knocked_out_recovery_reducer";
+import ProcessLanternLogicScheduledReducer from "./process_lantern_logic_scheduled_reducer";
+import ProcessMatronagePayoutReducer from "./process_matronage_payout_reducer";
+import ProcessPlayerStatsReducer from "./process_player_stats_reducer";
+import ProcessSleepingBagDeteriorationReducer from "./process_sleeping_bag_deterioration_reducer";
+import ProcessSpawnZoneMaintenanceReducer from "./process_spawn_zone_maintenance_reducer";
+import ProcessTilledTileReversionsReducer from "./process_tilled_tile_reversions_reducer";
+import ProcessTorchDurabilityReducer from "./process_torch_durability_reducer";
+import ProcessTurretLogicScheduledReducer from "./process_turret_logic_scheduled_reducer";
+import ProcessWalrusBreedingReducer from "./process_walrus_breeding_reducer";
+import ProcessWildAnimalAiReducer from "./process_wild_animal_ai_reducer";
 import PromoteToPraMatronReducer from "./promote_to_pra_matron_reducer";
 import PurchaseFromAlkReducer from "./purchase_from_alk_reducer";
 import PurchaseMemoryGridNodeReducer from "./purchase_memory_grid_node_reducer";
@@ -261,7 +311,15 @@ import RepairItemReducer from "./repair_item_reducer";
 import RequestTutorialHintReducer from "./request_tutorial_hint_reducer";
 import ResetFactionReducer from "./reset_faction_reducer";
 import RespawnAtSleepingBagReducer from "./respawn_at_sleeping_bag_reducer";
+import RespawnBoneCarvingKitReducer from "./respawn_bone_carving_kit_reducer";
+import RespawnDestroyedBarrelsReducer from "./respawn_destroyed_barrels_reducer";
+import RespawnMilitaryCratesReducer from "./respawn_military_crates_reducer";
+import RespawnMilitaryRationsReducer from "./respawn_military_rations_reducer";
+import RespawnMineCartsReducer from "./respawn_mine_carts_reducer";
 import RespawnRandomlyReducer from "./respawn_randomly_reducer";
+import RespawnTidePoolItemReducer from "./respawn_tide_pool_item_reducer";
+import RespawnTransistorRadioReducer from "./respawn_transistor_radio_reducer";
+import RespawnWildBeehivesReducer from "./respawn_wild_beehives_reducer";
 import ReviveKnockedOutPlayerReducer from "./revive_knocked_out_player_reducer";
 import RevokePlayerBuildingPrivilegeReducer from "./revoke_player_building_privilege_reducer";
 import ScheduleNextBarbecueProcessingReducer from "./schedule_next_barbecue_processing_reducer";
@@ -279,6 +337,9 @@ import SetPlayerPinReducer from "./set_player_pin_reducer";
 import SetSprintingReducer from "./set_sprinting_reducer";
 import SetThrowAimReducer from "./set_throw_aim_reducer";
 import SortStorageBoxReducer from "./sort_storage_box_reducer";
+import SpawnItemsAtNightReducer from "./spawn_items_at_night_reducer";
+import SpawnMemoryShardsAtNightReducer from "./spawn_memory_shards_at_night_reducer";
+import SpawnSeedsAtNightReducer from "./spawn_seeds_at_night_reducer";
 import SpawnWildAnimalReducer from "./spawn_wild_animal_reducer";
 import SplitAndDropItemFromBarbecueSlotToWorldReducer from "./split_and_drop_item_from_barbecue_slot_to_world_reducer";
 import SplitAndDropItemFromBoxSlotToWorldReducer from "./split_and_drop_item_from_box_slot_to_world_reducer";
@@ -353,10 +414,13 @@ import ToggleTorchReducer from "./toggle_torch_reducer";
 import TransferWaterFromContainerToCollectorReducer from "./transfer_water_from_container_to_collector_reducer";
 import TransferWaterFromContainerToPotReducer from "./transfer_water_from_container_to_pot_reducer";
 import TransferWaterFromPotToContainerReducer from "./transfer_water_from_pot_to_container_reducer";
+import UpdateCloudIntensitiesReducer from "./update_cloud_intensities_reducer";
+import UpdateCloudPositionsReducer from "./update_cloud_positions_reducer";
 import UpdateFlashlightAimReducer from "./update_flashlight_aim_reducer";
 import UpdateMatronageDescriptionReducer from "./update_matronage_description_reducer";
 import UpdateMatronageIconReducer from "./update_matronage_icon_reducer";
 import UpdatePlayerPositionSimpleReducer from "./update_player_position_simple_reducer";
+import UpdateProjectilesReducer from "./update_projectiles_reducer";
 import UpdateViewportReducer from "./update_viewport_reducer";
 import UpgradeFenceReducer from "./upgrade_fence_reducer";
 import UpgradeFoundationReducer from "./upgrade_foundation_reducer";
@@ -379,48 +443,84 @@ import AchievementUnlockNotificationRow from "./achievement_unlock_notification_
 import ActiveConnectionRow from "./active_connection_table";
 import ActiveConsumableEffectRow from "./active_consumable_effect_table";
 import ActiveEquipmentRow from "./active_equipment_table";
+import AiHttpConfigRow from "./ai_http_config_table";
 import AlkContractRow from "./alk_contract_table";
+import AlkContractRefreshScheduleRow from "./alk_contract_refresh_schedule_table";
 import AlkPlayerContractRow from "./alk_player_contract_table";
 import AlkStateRow from "./alk_state_table";
 import AlkStationRow from "./alk_station_table";
 import AnimalCorpseRow from "./animal_corpse_table";
 import ArrowBreakEventRow from "./arrow_break_event_table";
+import BackpackConsolidationScheduleRow from "./backpack_consolidation_schedule_table";
 import BarbecueRow from "./barbecue_table";
+import BarbecueProcessingScheduleRow from "./barbecue_processing_schedule_table";
 import BarrelRow from "./barrel_table";
+import BarrelRespawnScheduleRow from "./barrel_respawn_schedule_table";
 import BasaltColumnRow from "./basalt_column_table";
 import BeaconDropEventRow from "./beacon_drop_event_table";
+import BeehiveProcessScheduleRow from "./beehive_process_schedule_table";
+import BoneCarvingKitRespawnRow from "./bone_carving_kit_respawn_table";
 import BrewRecipeCacheRow from "./brew_recipe_cache_table";
 import BrothPotRow from "./broth_pot_table";
+import BrothPotProcessingScheduleRow from "./broth_pot_processing_schedule_table";
+import BuildingDecayScheduleRow from "./building_decay_schedule_table";
+import BuildingPrivilegeCheckScheduleRow from "./building_privilege_check_schedule_table";
 import CairnRow from "./cairn_table";
 import CampfireRow from "./campfire_table";
+import CampfireGlobalScheduleRow from "./campfire_global_schedule_table";
 import CaribouBreedingDataRow from "./caribou_breeding_data_table";
+import CaribouBreedingScheduleRow from "./caribou_breeding_schedule_table";
 import CaribouRutStateRow from "./caribou_rut_state_table";
 import ChunkWeatherRow from "./chunk_weather_table";
+import ClientViewportRow from "./client_viewport_table";
 import CloudRow from "./cloud_table";
+import CloudIntensityScheduleRow from "./cloud_intensity_schedule_table";
+import CloudUpdateScheduleRow from "./cloud_update_schedule_table";
 import CoastalSpawnPointRow from "./coastal_spawn_point_table";
 import ComparativeStatNotificationRow from "./comparative_stat_notification_table";
+import CompostProcessScheduleRow from "./compost_process_schedule_table";
 import ContinuousSoundRow from "./continuous_sound_table";
+import CraftingFinishScheduleRow from "./crafting_finish_schedule_table";
 import CraftingQueueItemRow from "./crafting_queue_item_table";
 import DailyLoginNotificationRow from "./daily_login_notification_table";
 import DailyLoginRewardRow from "./daily_login_reward_table";
 import DailyQuestDefinitionRow from "./daily_quest_definition_table";
 import DeathMarkerRow from "./death_marker_table";
+import DodgeRollCleanupScheduleRow from "./dodge_roll_cleanup_schedule_table";
 import DoorRow from "./door_table";
+import DroneDailyScheduleRow from "./drone_daily_schedule_table";
 import DroneEventRow from "./drone_event_table";
+import DroneFlightScheduleRow from "./drone_flight_schedule_table";
 import DroppedItemRow from "./dropped_item_table";
+import DroppedItemDespawnScheduleRow from "./dropped_item_despawn_schedule_table";
+import ExplosiveDetonationScheduleRow from "./explosive_detonation_schedule_table";
 import FenceRow from "./fence_table";
 import FertilizerPatchRow from "./fertilizer_patch_table";
+import FertilizerPatchCleanupScheduleRow from "./fertilizer_patch_cleanup_schedule_table";
 import FirePatchRow from "./fire_patch_table";
+import FirePatchCleanupScheduleRow from "./fire_patch_cleanup_schedule_table";
+import FirePatchDamageScheduleRow from "./fire_patch_damage_schedule_table";
+import FishTrapProcessScheduleRow from "./fish_trap_process_schedule_table";
 import FishingSessionRow from "./fishing_session_table";
+import FlareExpiryScheduleRow from "./flare_expiry_schedule_table";
 import FoodPoisoningRiskRow from "./food_poisoning_risk_table";
+import FoodSpoilageScheduleRow from "./food_spoilage_schedule_table";
 import FoundationCellRow from "./foundation_cell_table";
 import FumaroleRow from "./fumarole_table";
+import FumaroleGlobalScheduleRow from "./fumarole_global_schedule_table";
 import FurnaceRow from "./furnace_table";
+import FurnaceProcessingScheduleRow from "./furnace_processing_schedule_table";
+import GlobalTickScheduleRow from "./global_tick_schedule_table";
 import GrassRow from "./grass_table";
+import GrassRespawnBatchScheduleRow from "./grass_respawn_batch_schedule_table";
 import GrassStateRow from "./grass_state_table";
+import GrenadeFuseScheduleRow from "./grenade_fuse_schedule_table";
 import HarvestableResourceRow from "./harvestable_resource_table";
 import HearthUpkeepQueryResultRow from "./hearth_upkeep_query_result_table";
+import HearthUpkeepScheduleRow from "./hearth_upkeep_schedule_table";
 import HomesteadHearthRow from "./homestead_hearth_table";
+import HostileDawnCleanupScheduleRow from "./hostile_dawn_cleanup_schedule_table";
+import HostileSpawnScheduleRow from "./hostile_spawn_schedule_table";
 import InventoryItemRow from "./inventory_item_table";
 import ItemAlkTagRow from "./item_alk_tag_table";
 import ItemDefinitionRow from "./item_definition_table";
@@ -437,14 +537,19 @@ import MatronageRow from "./matronage_table";
 import MatronageInvitationRow from "./matronage_invitation_table";
 import MatronageMemberRow from "./matronage_member_table";
 import MatronageOwedShardsRow from "./matronage_owed_shards_table";
+import MatronagePayoutScheduleRow from "./matronage_payout_schedule_table";
 import MemoryGridProgressRow from "./memory_grid_progress_table";
 import MemoryGridPurchasesRow from "./memory_grid_purchases_table";
 import MessageRow from "./message_table";
+import MilitaryCrateRespawnScheduleRow from "./military_crate_respawn_schedule_table";
+import MilitaryRationRespawnScheduleRow from "./military_ration_respawn_schedule_table";
+import MineCartRespawnScheduleRow from "./mine_cart_respawn_schedule_table";
 import MinimapCacheRow from "./minimap_cache_table";
 import MonumentPartRow from "./monument_part_table";
 import PlacedExplosiveRow from "./placed_explosive_table";
 import PlantConfigDefinitionRow from "./plant_config_definition_table";
 import PlantedSeedRow from "./planted_seed_table";
+import PlantedSeedGrowthScheduleRow from "./planted_seed_growth_schedule_table";
 import PlayerRow from "./player_table";
 import PlayerAchievementRow from "./player_achievement_table";
 import PlayerCampingStateRow from "./player_camping_state_table";
@@ -456,14 +561,19 @@ import PlayerDiscoveredCairnRow from "./player_discovered_cairn_table";
 import PlayerDiscoveredPlantRow from "./player_discovered_plant_table";
 import PlayerDodgeRollStateRow from "./player_dodge_roll_state_table";
 import PlayerDrinkingCooldownRow from "./player_drinking_cooldown_table";
+import PlayerKillCommandCooldownRow from "./player_kill_command_cooldown_table";
+import PlayerLastAttackTimestampRow from "./player_last_attack_timestamp_table";
 import PlayerPinRow from "./player_pin_table";
 import PlayerShardBalanceRow from "./player_shard_balance_table";
+import PlayerStatScheduleRow from "./player_stat_schedule_table";
 import PlayerStatsRow from "./player_stats_table";
 import PlayerTutorialProgressRow from "./player_tutorial_progress_table";
 import PlayerWalkingSoundStateRow from "./player_walking_sound_state_table";
 import PrivateMessageRow from "./private_message_table";
+import ProcessEffectsScheduleRow from "./process_effects_schedule_table";
 import ProgressNotificationRow from "./progress_notification_table";
 import ProjectileRow from "./projectile_table";
+import ProjectileUpdateScheduleRow from "./projectile_update_schedule_table";
 import QuestCompletionNotificationRow from "./quest_completion_notification_table";
 import QuestProgressNotificationRow from "./quest_progress_notification_table";
 import RainCollectorRow from "./rain_collector_table";
@@ -472,26 +582,45 @@ import RecipeRow from "./recipe_table";
 import ReedMarshRow from "./reed_marsh_table";
 import RoadLamppostRow from "./road_lamppost_table";
 import RuneStoneRow from "./rune_stone_table";
+import RuneStoneItemSpawnScheduleRow from "./rune_stone_item_spawn_schedule_table";
+import RuneStoneSeedSpawnScheduleRow from "./rune_stone_seed_spawn_schedule_table";
+import RuneStoneShardSpawnScheduleRow from "./rune_stone_shard_spawn_schedule_table";
 import SeaStackRow from "./sea_stack_table";
+import SeasonalPlantManagementScheduleRow from "./seasonal_plant_management_schedule_table";
 import ShelterRow from "./shelter_table";
 import SleepingBagRow from "./sleeping_bag_table";
+import SleepingBagDeteriorationScheduleRow from "./sleeping_bag_deterioration_schedule_table";
 import SoundEventRow from "./sound_event_table";
+import SoundEventCleanupScheduleRow from "./sound_event_cleanup_schedule_table";
 import SovaQuestMessageRow from "./sova_quest_message_table";
+import SpawnZoneScheduleRow from "./spawn_zone_schedule_table";
 import StashRow from "./stash_table";
 import StatThresholdsConfigRow from "./stat_thresholds_config_table";
 import StoneRow from "./stone_table";
 import TeamMessageRow from "./team_message_table";
 import ThunderEventRow from "./thunder_event_table";
+import ThunderEventCleanupScheduleRow from "./thunder_event_cleanup_schedule_table";
+import ThunderSoundScheduleRow from "./thunder_sound_schedule_table";
 import TidePoolRow from "./tide_pool_table";
+import TidePoolItemRespawnRow from "./tide_pool_item_respawn_table";
 import TilledTileMetadataRow from "./tilled_tile_metadata_table";
+import TilledTileReversionScheduleRow from "./tilled_tile_reversion_schedule_table";
+import TorchDurabilityScheduleRow from "./torch_durability_schedule_table";
+import TransistorRadioRespawnRow from "./transistor_radio_respawn_table";
 import TreeRow from "./tree_table";
 import TurretRow from "./turret_table";
+import TurretProcessingScheduleRow from "./turret_processing_schedule_table";
 import TutorialQuestDefinitionRow from "./tutorial_quest_definition_table";
 import WallCellRow from "./wall_cell_table";
 import WalrusBreedingDataRow from "./walrus_breeding_data_table";
+import WalrusBreedingScheduleRow from "./walrus_breeding_schedule_table";
 import WalrusRutStateRow from "./walrus_rut_state_table";
+import WaterContainerFillScheduleRow from "./water_container_fill_schedule_table";
 import WaterPatchRow from "./water_patch_table";
+import WaterPatchCleanupScheduleRow from "./water_patch_cleanup_schedule_table";
 import WildAnimalRow from "./wild_animal_table";
+import WildAnimalAiScheduleRow from "./wild_animal_ai_schedule_table";
+import WildBeehiveRespawnScheduleRow from "./wild_beehive_respawn_schedule_table";
 import WoodenStorageBoxRow from "./wooden_storage_box_table";
 import WorldChunkDataRow from "./world_chunk_data_table";
 import WorldStateRow from "./world_state_table";
@@ -559,6 +688,17 @@ const tablesSchema = __schema({
       { name: 'active_equipment_player_identity_key', constraint: 'unique', columns: ['playerIdentity'] },
     ],
   }, ActiveEquipmentRow),
+  ai_http_config: __table({
+    name: 'ai_http_config',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'ai_http_config_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AiHttpConfigRow),
   alk_contract: __table({
     name: 'alk_contract',
     indexes: [
@@ -576,6 +716,17 @@ const tablesSchema = __schema({
       { name: 'alk_contract_contract_id_key', constraint: 'unique', columns: ['contractId'] },
     ],
   }, AlkContractRow),
+  alk_contract_refresh_schedule: __table({
+    name: 'alk_contract_refresh_schedule',
+    indexes: [
+      { name: 'schedule_id', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'alk_contract_refresh_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, AlkContractRefreshScheduleRow),
   alk_player_contract: __table({
     name: 'alk_player_contract',
     indexes: [
@@ -641,6 +792,17 @@ const tablesSchema = __schema({
       { name: 'arrow_break_event_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ArrowBreakEventRow),
+  backpack_consolidation_schedule: __table({
+    name: 'backpack_consolidation_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'backpack_consolidation_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BackpackConsolidationScheduleRow),
   barbecue: __table({
     name: 'barbecue',
     indexes: [
@@ -655,6 +817,17 @@ const tablesSchema = __schema({
       { name: 'barbecue_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, BarbecueRow),
+  barbecue_processing_schedule: __table({
+    name: 'barbecue_processing_schedule',
+    indexes: [
+      { name: 'barbecue_id', algorithm: 'btree', columns: [
+        'barbecueId',
+      ] },
+    ],
+    constraints: [
+      { name: 'barbecue_processing_schedule_barbecue_id_key', constraint: 'unique', columns: ['barbecueId'] },
+    ],
+  }, BarbecueProcessingScheduleRow),
   barrel: __table({
     name: 'barrel',
     indexes: [
@@ -672,6 +845,17 @@ const tablesSchema = __schema({
       { name: 'barrel_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, BarrelRow),
+  barrel_respawn_schedule: __table({
+    name: 'barrel_respawn_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'barrel_respawn_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BarrelRespawnScheduleRow),
   basalt_column: __table({
     name: 'basalt_column',
     indexes: [
@@ -697,6 +881,28 @@ const tablesSchema = __schema({
       { name: 'beacon_drop_event_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, BeaconDropEventRow),
+  beehive_process_schedule: __table({
+    name: 'beehive_process_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'beehive_process_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BeehiveProcessScheduleRow),
+  bone_carving_kit_respawn: __table({
+    name: 'bone_carving_kit_respawn',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'bone_carving_kit_respawn_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BoneCarvingKitRespawnRow),
   brew_recipe_cache: __table({
     name: 'brew_recipe_cache',
     indexes: [
@@ -722,6 +928,39 @@ const tablesSchema = __schema({
       { name: 'broth_pot_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, BrothPotRow),
+  broth_pot_processing_schedule: __table({
+    name: 'broth_pot_processing_schedule',
+    indexes: [
+      { name: 'broth_pot_id', algorithm: 'btree', columns: [
+        'brothPotId',
+      ] },
+    ],
+    constraints: [
+      { name: 'broth_pot_processing_schedule_broth_pot_id_key', constraint: 'unique', columns: ['brothPotId'] },
+    ],
+  }, BrothPotProcessingScheduleRow),
+  building_decay_schedule: __table({
+    name: 'building_decay_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'building_decay_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BuildingDecayScheduleRow),
+  building_privilege_check_schedule: __table({
+    name: 'building_privilege_check_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'building_privilege_check_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BuildingPrivilegeCheckScheduleRow),
   cairn: __table({
     name: 'cairn',
     indexes: [
@@ -750,6 +989,17 @@ const tablesSchema = __schema({
       { name: 'campfire_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CampfireRow),
+  campfire_global_schedule: __table({
+    name: 'campfire_global_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'campfire_global_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CampfireGlobalScheduleRow),
   caribou_breeding_data: __table({
     name: 'caribou_breeding_data',
     indexes: [
@@ -761,6 +1011,17 @@ const tablesSchema = __schema({
       { name: 'caribou_breeding_data_animal_id_key', constraint: 'unique', columns: ['animalId'] },
     ],
   }, CaribouBreedingDataRow),
+  caribou_breeding_schedule: __table({
+    name: 'caribou_breeding_schedule',
+    indexes: [
+      { name: 'schedule_id', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'caribou_breeding_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, CaribouBreedingScheduleRow),
   caribou_rut_state: __table({
     name: 'caribou_rut_state',
     indexes: [
@@ -783,6 +1044,17 @@ const tablesSchema = __schema({
       { name: 'chunk_weather_chunk_index_key', constraint: 'unique', columns: ['chunkIndex'] },
     ],
   }, ChunkWeatherRow),
+  client_viewport: __table({
+    name: 'client_viewport',
+    indexes: [
+      { name: 'client_identity', algorithm: 'btree', columns: [
+        'clientIdentity',
+      ] },
+    ],
+    constraints: [
+      { name: 'client_viewport_client_identity_key', constraint: 'unique', columns: ['clientIdentity'] },
+    ],
+  }, ClientViewportRow),
   cloud: __table({
     name: 'cloud',
     indexes: [
@@ -797,6 +1069,28 @@ const tablesSchema = __schema({
       { name: 'cloud_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CloudRow),
+  cloud_intensity_schedule: __table({
+    name: 'cloud_intensity_schedule',
+    indexes: [
+      { name: 'schedule_id', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'cloud_intensity_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, CloudIntensityScheduleRow),
+  cloud_update_schedule: __table({
+    name: 'cloud_update_schedule',
+    indexes: [
+      { name: 'schedule_id', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'cloud_update_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, CloudUpdateScheduleRow),
   coastal_spawn_point: __table({
     name: 'coastal_spawn_point',
     indexes: [
@@ -822,6 +1116,17 @@ const tablesSchema = __schema({
       { name: 'comparative_stat_notification_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ComparativeStatNotificationRow),
+  compost_process_schedule: __table({
+    name: 'compost_process_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'compost_process_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CompostProcessScheduleRow),
   continuous_sound: __table({
     name: 'continuous_sound',
     indexes: [
@@ -833,6 +1138,17 @@ const tablesSchema = __schema({
       { name: 'continuous_sound_object_id_key', constraint: 'unique', columns: ['objectId'] },
     ],
   }, ContinuousSoundRow),
+  crafting_finish_schedule: __table({
+    name: 'crafting_finish_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'crafting_finish_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CraftingFinishScheduleRow),
   crafting_queue_item: __table({
     name: 'crafting_queue_item',
     indexes: [
@@ -891,6 +1207,17 @@ const tablesSchema = __schema({
       { name: 'death_marker_player_id_key', constraint: 'unique', columns: ['playerId'] },
     ],
   }, DeathMarkerRow),
+  dodge_roll_cleanup_schedule: __table({
+    name: 'dodge_roll_cleanup_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'dodge_roll_cleanup_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, DodgeRollCleanupScheduleRow),
   door: __table({
     name: 'door',
     indexes: [
@@ -909,6 +1236,17 @@ const tablesSchema = __schema({
       { name: 'door_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, DoorRow),
+  drone_daily_schedule: __table({
+    name: 'drone_daily_schedule',
+    indexes: [
+      { name: 'schedule_id', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'drone_daily_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, DroneDailyScheduleRow),
   drone_event: __table({
     name: 'drone_event',
     indexes: [
@@ -920,6 +1258,17 @@ const tablesSchema = __schema({
       { name: 'drone_event_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, DroneEventRow),
+  drone_flight_schedule: __table({
+    name: 'drone_flight_schedule',
+    indexes: [
+      { name: 'schedule_id', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'drone_flight_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, DroneFlightScheduleRow),
   dropped_item: __table({
     name: 'dropped_item',
     indexes: [
@@ -934,6 +1283,28 @@ const tablesSchema = __schema({
       { name: 'dropped_item_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, DroppedItemRow),
+  dropped_item_despawn_schedule: __table({
+    name: 'dropped_item_despawn_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'dropped_item_despawn_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, DroppedItemDespawnScheduleRow),
+  explosive_detonation_schedule: __table({
+    name: 'explosive_detonation_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'explosive_detonation_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ExplosiveDetonationScheduleRow),
   fence: __table({
     name: 'fence',
     indexes: [
@@ -963,6 +1334,17 @@ const tablesSchema = __schema({
       { name: 'fertilizer_patch_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, FertilizerPatchRow),
+  fertilizer_patch_cleanup_schedule: __table({
+    name: 'fertilizer_patch_cleanup_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'fertilizer_patch_cleanup_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FertilizerPatchCleanupScheduleRow),
   fire_patch: __table({
     name: 'fire_patch',
     indexes: [
@@ -974,6 +1356,39 @@ const tablesSchema = __schema({
       { name: 'fire_patch_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, FirePatchRow),
+  fire_patch_cleanup_schedule: __table({
+    name: 'fire_patch_cleanup_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'fire_patch_cleanup_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FirePatchCleanupScheduleRow),
+  fire_patch_damage_schedule: __table({
+    name: 'fire_patch_damage_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'fire_patch_damage_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FirePatchDamageScheduleRow),
+  fish_trap_process_schedule: __table({
+    name: 'fish_trap_process_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'fish_trap_process_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FishTrapProcessScheduleRow),
   fishing_session: __table({
     name: 'fishing_session',
     indexes: [
@@ -985,6 +1400,17 @@ const tablesSchema = __schema({
       { name: 'fishing_session_player_id_key', constraint: 'unique', columns: ['playerId'] },
     ],
   }, FishingSessionRow),
+  flare_expiry_schedule: __table({
+    name: 'flare_expiry_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'flare_expiry_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FlareExpiryScheduleRow),
   food_poisoning_risk: __table({
     name: 'food_poisoning_risk',
     indexes: [
@@ -996,6 +1422,17 @@ const tablesSchema = __schema({
       { name: 'food_poisoning_risk_item_def_id_key', constraint: 'unique', columns: ['itemDefId'] },
     ],
   }, FoodPoisoningRiskRow),
+  food_spoilage_schedule: __table({
+    name: 'food_spoilage_schedule',
+    indexes: [
+      { name: 'schedule_id', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'food_spoilage_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, FoodSpoilageScheduleRow),
   foundation_cell: __table({
     name: 'foundation_cell',
     indexes: [
@@ -1028,6 +1465,17 @@ const tablesSchema = __schema({
       { name: 'fumarole_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, FumaroleRow),
+  fumarole_global_schedule: __table({
+    name: 'fumarole_global_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'fumarole_global_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FumaroleGlobalScheduleRow),
   furnace: __table({
     name: 'furnace',
     indexes: [
@@ -1042,6 +1490,28 @@ const tablesSchema = __schema({
       { name: 'furnace_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, FurnaceRow),
+  furnace_processing_schedule: __table({
+    name: 'furnace_processing_schedule',
+    indexes: [
+      { name: 'furnace_id', algorithm: 'btree', columns: [
+        'furnaceId',
+      ] },
+    ],
+    constraints: [
+      { name: 'furnace_processing_schedule_furnace_id_key', constraint: 'unique', columns: ['furnaceId'] },
+    ],
+  }, FurnaceProcessingScheduleRow),
+  global_tick_schedule: __table({
+    name: 'global_tick_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'global_tick_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, GlobalTickScheduleRow),
   grass: __table({
     name: 'grass',
     indexes: [
@@ -1056,6 +1526,17 @@ const tablesSchema = __schema({
       { name: 'grass_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, GrassRow),
+  grass_respawn_batch_schedule: __table({
+    name: 'grass_respawn_batch_schedule',
+    indexes: [
+      { name: 'schedule_id', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'grass_respawn_batch_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, GrassRespawnBatchScheduleRow),
   grass_state: __table({
     name: 'grass_state',
     indexes: [
@@ -1080,6 +1561,17 @@ const tablesSchema = __schema({
       { name: 'grass_state_grass_id_key', constraint: 'unique', columns: ['grassId'] },
     ],
   }, GrassStateRow),
+  grenade_fuse_schedule: __table({
+    name: 'grenade_fuse_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'grenade_fuse_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, GrenadeFuseScheduleRow),
   harvestable_resource: __table({
     name: 'harvestable_resource',
     indexes: [
@@ -1108,6 +1600,17 @@ const tablesSchema = __schema({
       { name: 'hearth_upkeep_query_result_hearth_id_key', constraint: 'unique', columns: ['hearthId'] },
     ],
   }, HearthUpkeepQueryResultRow),
+  hearth_upkeep_schedule: __table({
+    name: 'hearth_upkeep_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'hearth_upkeep_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, HearthUpkeepScheduleRow),
   homestead_hearth: __table({
     name: 'homestead_hearth',
     indexes: [
@@ -1122,6 +1625,28 @@ const tablesSchema = __schema({
       { name: 'homestead_hearth_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, HomesteadHearthRow),
+  hostile_dawn_cleanup_schedule: __table({
+    name: 'hostile_dawn_cleanup_schedule',
+    indexes: [
+      { name: 'scheduled_id', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'hostile_dawn_cleanup_schedule_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, HostileDawnCleanupScheduleRow),
+  hostile_spawn_schedule: __table({
+    name: 'hostile_spawn_schedule',
+    indexes: [
+      { name: 'scheduled_id', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'hostile_spawn_schedule_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, HostileSpawnScheduleRow),
   inventory_item: __table({
     name: 'inventory_item',
     indexes: [
@@ -1323,6 +1848,17 @@ const tablesSchema = __schema({
       { name: 'matronage_owed_shards_player_id_key', constraint: 'unique', columns: ['playerId'] },
     ],
   }, MatronageOwedShardsRow),
+  matronage_payout_schedule: __table({
+    name: 'matronage_payout_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'matronage_payout_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, MatronagePayoutScheduleRow),
   memory_grid_progress: __table({
     name: 'memory_grid_progress',
     indexes: [
@@ -1356,6 +1892,39 @@ const tablesSchema = __schema({
       { name: 'message_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, MessageRow),
+  military_crate_respawn_schedule: __table({
+    name: 'military_crate_respawn_schedule',
+    indexes: [
+      { name: 'scheduled_id', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'military_crate_respawn_schedule_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, MilitaryCrateRespawnScheduleRow),
+  military_ration_respawn_schedule: __table({
+    name: 'military_ration_respawn_schedule',
+    indexes: [
+      { name: 'scheduled_id', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'military_ration_respawn_schedule_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, MilitaryRationRespawnScheduleRow),
+  mine_cart_respawn_schedule: __table({
+    name: 'mine_cart_respawn_schedule',
+    indexes: [
+      { name: 'scheduled_id', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'mine_cart_respawn_schedule_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, MineCartRespawnScheduleRow),
   minimap_cache: __table({
     name: 'minimap_cache',
     indexes: [
@@ -1414,6 +1983,17 @@ const tablesSchema = __schema({
       { name: 'planted_seed_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, PlantedSeedRow),
+  planted_seed_growth_schedule: __table({
+    name: 'planted_seed_growth_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'planted_seed_growth_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, PlantedSeedGrowthScheduleRow),
   player: __table({
     name: 'player',
     indexes: [
@@ -1560,6 +2140,28 @@ const tablesSchema = __schema({
       { name: 'player_drinking_cooldown_player_id_key', constraint: 'unique', columns: ['playerId'] },
     ],
   }, PlayerDrinkingCooldownRow),
+  player_kill_command_cooldown: __table({
+    name: 'player_kill_command_cooldown',
+    indexes: [
+      { name: 'player_id', algorithm: 'btree', columns: [
+        'playerId',
+      ] },
+    ],
+    constraints: [
+      { name: 'player_kill_command_cooldown_player_id_key', constraint: 'unique', columns: ['playerId'] },
+    ],
+  }, PlayerKillCommandCooldownRow),
+  player_last_attack_timestamp: __table({
+    name: 'player_last_attack_timestamp',
+    indexes: [
+      { name: 'player_id', algorithm: 'btree', columns: [
+        'playerId',
+      ] },
+    ],
+    constraints: [
+      { name: 'player_last_attack_timestamp_player_id_key', constraint: 'unique', columns: ['playerId'] },
+    ],
+  }, PlayerLastAttackTimestampRow),
   player_pin: __table({
     name: 'player_pin',
     indexes: [
@@ -1582,6 +2184,17 @@ const tablesSchema = __schema({
       { name: 'player_shard_balance_player_id_key', constraint: 'unique', columns: ['playerId'] },
     ],
   }, PlayerShardBalanceRow),
+  player_stat_schedule: __table({
+    name: 'player_stat_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'player_stat_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, PlayerStatScheduleRow),
   player_stats: __table({
     name: 'player_stats',
     indexes: [
@@ -1635,6 +2248,17 @@ const tablesSchema = __schema({
       { name: 'private_message_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, PrivateMessageRow),
+  process_effects_schedule: __table({
+    name: 'process_effects_schedule',
+    indexes: [
+      { name: 'job_id', algorithm: 'btree', columns: [
+        'jobId',
+      ] },
+    ],
+    constraints: [
+      { name: 'process_effects_schedule_job_id_key', constraint: 'unique', columns: ['jobId'] },
+    ],
+  }, ProcessEffectsScheduleRow),
   progress_notification: __table({
     name: 'progress_notification',
     indexes: [
@@ -1660,6 +2284,17 @@ const tablesSchema = __schema({
       { name: 'projectile_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ProjectileRow),
+  projectile_update_schedule: __table({
+    name: 'projectile_update_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'projectile_update_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ProjectileUpdateScheduleRow),
   quest_completion_notification: __table({
     name: 'quest_completion_notification',
     indexes: [
@@ -1757,6 +2392,39 @@ const tablesSchema = __schema({
       { name: 'rune_stone_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, RuneStoneRow),
+  rune_stone_item_spawn_schedule: __table({
+    name: 'rune_stone_item_spawn_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'rune_stone_item_spawn_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RuneStoneItemSpawnScheduleRow),
+  rune_stone_seed_spawn_schedule: __table({
+    name: 'rune_stone_seed_spawn_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'rune_stone_seed_spawn_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RuneStoneSeedSpawnScheduleRow),
+  rune_stone_shard_spawn_schedule: __table({
+    name: 'rune_stone_shard_spawn_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'rune_stone_shard_spawn_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RuneStoneShardSpawnScheduleRow),
   sea_stack: __table({
     name: 'sea_stack',
     indexes: [
@@ -1771,6 +2439,17 @@ const tablesSchema = __schema({
       { name: 'sea_stack_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, SeaStackRow),
+  seasonal_plant_management_schedule: __table({
+    name: 'seasonal_plant_management_schedule',
+    indexes: [
+      { name: 'schedule_id', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'seasonal_plant_management_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, SeasonalPlantManagementScheduleRow),
   shelter: __table({
     name: 'shelter',
     indexes: [
@@ -1796,6 +2475,17 @@ const tablesSchema = __schema({
       { name: 'sleeping_bag_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, SleepingBagRow),
+  sleeping_bag_deterioration_schedule: __table({
+    name: 'sleeping_bag_deterioration_schedule',
+    indexes: [
+      { name: 'sleeping_bag_id', algorithm: 'btree', columns: [
+        'sleepingBagId',
+      ] },
+    ],
+    constraints: [
+      { name: 'sleeping_bag_deterioration_schedule_sleeping_bag_id_key', constraint: 'unique', columns: ['sleepingBagId'] },
+    ],
+  }, SleepingBagDeteriorationScheduleRow),
   sound_event: __table({
     name: 'sound_event',
     indexes: [
@@ -1807,6 +2497,17 @@ const tablesSchema = __schema({
       { name: 'sound_event_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, SoundEventRow),
+  sound_event_cleanup_schedule: __table({
+    name: 'sound_event_cleanup_schedule',
+    indexes: [
+      { name: 'schedule_id', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'sound_event_cleanup_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, SoundEventCleanupScheduleRow),
   sova_quest_message: __table({
     name: 'sova_quest_message',
     indexes: [
@@ -1818,6 +2519,17 @@ const tablesSchema = __schema({
       { name: 'sova_quest_message_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, SovaQuestMessageRow),
+  spawn_zone_schedule: __table({
+    name: 'spawn_zone_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'spawn_zone_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, SpawnZoneScheduleRow),
   stash: __table({
     name: 'stash',
     indexes: [
@@ -1885,6 +2597,28 @@ const tablesSchema = __schema({
       { name: 'thunder_event_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ThunderEventRow),
+  thunder_event_cleanup_schedule: __table({
+    name: 'thunder_event_cleanup_schedule',
+    indexes: [
+      { name: 'schedule_id', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'thunder_event_cleanup_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, ThunderEventCleanupScheduleRow),
+  thunder_sound_schedule: __table({
+    name: 'thunder_sound_schedule',
+    indexes: [
+      { name: 'schedule_id', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'thunder_sound_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, ThunderSoundScheduleRow),
   tide_pool: __table({
     name: 'tide_pool',
     indexes: [
@@ -1896,6 +2630,17 @@ const tablesSchema = __schema({
       { name: 'tide_pool_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, TidePoolRow),
+  tide_pool_item_respawn: __table({
+    name: 'tide_pool_item_respawn',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'tide_pool_item_respawn_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, TidePoolItemRespawnRow),
   tilled_tile_metadata: __table({
     name: 'tilled_tile_metadata',
     indexes: [
@@ -1911,6 +2656,39 @@ const tablesSchema = __schema({
       { name: 'tilled_tile_metadata_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, TilledTileMetadataRow),
+  tilled_tile_reversion_schedule: __table({
+    name: 'tilled_tile_reversion_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'tilled_tile_reversion_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, TilledTileReversionScheduleRow),
+  torch_durability_schedule: __table({
+    name: 'torch_durability_schedule',
+    indexes: [
+      { name: 'schedule_id', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'torch_durability_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, TorchDurabilityScheduleRow),
+  transistor_radio_respawn: __table({
+    name: 'transistor_radio_respawn',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'transistor_radio_respawn_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, TransistorRadioRespawnRow),
   tree: __table({
     name: 'tree',
     indexes: [
@@ -1942,6 +2720,17 @@ const tablesSchema = __schema({
       { name: 'turret_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, TurretRow),
+  turret_processing_schedule: __table({
+    name: 'turret_processing_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'turret_processing_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, TurretProcessingScheduleRow),
   tutorial_quest_definition: __table({
     name: 'tutorial_quest_definition',
     indexes: [
@@ -1982,6 +2771,17 @@ const tablesSchema = __schema({
       { name: 'walrus_breeding_data_animal_id_key', constraint: 'unique', columns: ['animalId'] },
     ],
   }, WalrusBreedingDataRow),
+  walrus_breeding_schedule: __table({
+    name: 'walrus_breeding_schedule',
+    indexes: [
+      { name: 'schedule_id', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'walrus_breeding_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, WalrusBreedingScheduleRow),
   walrus_rut_state: __table({
     name: 'walrus_rut_state',
     indexes: [
@@ -1993,6 +2793,17 @@ const tablesSchema = __schema({
       { name: 'walrus_rut_state_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WalrusRutStateRow),
+  water_container_fill_schedule: __table({
+    name: 'water_container_fill_schedule',
+    indexes: [
+      { name: 'schedule_id', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'water_container_fill_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, WaterContainerFillScheduleRow),
   water_patch: __table({
     name: 'water_patch',
     indexes: [
@@ -2007,6 +2818,17 @@ const tablesSchema = __schema({
       { name: 'water_patch_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WaterPatchRow),
+  water_patch_cleanup_schedule: __table({
+    name: 'water_patch_cleanup_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'water_patch_cleanup_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WaterPatchCleanupScheduleRow),
   wild_animal: __table({
     name: 'wild_animal',
     indexes: [
@@ -2021,6 +2843,28 @@ const tablesSchema = __schema({
       { name: 'wild_animal_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WildAnimalRow),
+  wild_animal_ai_schedule: __table({
+    name: 'wild_animal_ai_schedule',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'wild_animal_ai_schedule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, WildAnimalAiScheduleRow),
+  wild_beehive_respawn_schedule: __table({
+    name: 'wild_beehive_respawn_schedule',
+    indexes: [
+      { name: 'scheduled_id', algorithm: 'btree', columns: [
+        'scheduledId',
+      ] },
+    ],
+    constraints: [
+      { name: 'wild_beehive_respawn_schedule_scheduled_id_key', constraint: 'unique', columns: ['scheduledId'] },
+    ],
+  }, WildBeehiveRespawnScheduleRow),
   wooden_storage_box: __table({
     name: 'wooden_storage_box',
     indexes: [
@@ -2097,9 +2941,22 @@ const reducersSchema = __reducers(
   __reducerSchema("cancel_fishing", CancelFishingReducer),
   __reducerSchema("cast_fishing_line", CastFishingLineReducer),
   __reducerSchema("check_alk_station_proximity", CheckAlkStationProximityReducer),
+  __reducerSchema("check_and_consolidate_all_clusters", CheckAndConsolidateAllClustersReducer),
   __reducerSchema("check_brew_cache", CheckBrewCacheReducer),
+  __reducerSchema("check_building_privilege_distance", CheckBuildingPrivilegeDistanceReducer),
+  __reducerSchema("check_explosive_detonations", CheckExplosiveDetonationsReducer),
+  __reducerSchema("check_finished_crafting", CheckFinishedCraftingReducer),
+  __reducerSchema("check_flare_expiry", CheckFlareExpiryReducer),
+  __reducerSchema("check_grenade_fuses", CheckGrenadeFusesReducer),
+  __reducerSchema("check_plant_growth", CheckPlantGrowthReducer),
   __reducerSchema("check_resource_respawns", CheckResourceRespawnsReducer),
   __reducerSchema("cleanup_expired_animal_corpses", CleanupExpiredAnimalCorpsesReducer),
+  __reducerSchema("cleanup_expired_dodge_rolls", CleanupExpiredDodgeRollsReducer),
+  __reducerSchema("cleanup_expired_fertilizer_patches", CleanupExpiredFertilizerPatchesReducer),
+  __reducerSchema("cleanup_expired_fire_patches", CleanupExpiredFirePatchesReducer),
+  __reducerSchema("cleanup_expired_water_patches", CleanupExpiredWaterPatchesReducer),
+  __reducerSchema("cleanup_old_sound_events", CleanupOldSoundEventsReducer),
+  __reducerSchema("cleanup_old_thunder_events", CleanupOldThunderEventsReducer),
   __reducerSchema("clear_active_item_reducer", ClearActiveItemReducerReducer),
   __reducerSchema("close_barbecue_container", CloseBarbecueContainerReducer),
   __reducerSchema("close_campfire_container", CloseCampfireContainerReducer),
@@ -2124,6 +2981,7 @@ const reducersSchema = __reducers(
   __reducerSchema("decline_matronage_invitation", DeclineMatronageInvitationReducer),
   __reducerSchema("deliver_alk_contract", DeliverAlkContractReducer),
   __reducerSchema("deliver_alk_contract_to_matronage", DeliverAlkContractToMatronageReducer),
+  __reducerSchema("despawn_expired_items", DespawnExpiredItemsReducer),
   __reducerSchema("destroy_fence", DestroyFenceReducer),
   __reducerSchema("destroy_foundation", DestroyFoundationReducer),
   __reducerSchema("destroy_wall", DestroyWallReducer),
@@ -2140,12 +2998,14 @@ const reducersSchema = __reducers(
   __reducerSchema("drop_item_from_hearth_slot_to_world", DropItemFromHearthSlotToWorldReducer),
   __reducerSchema("drop_item_from_lantern_slot_to_world", DropItemFromLanternSlotToWorldReducer),
   __reducerSchema("drop_item_from_stash_slot_to_world", DropItemFromStashSlotToWorldReducer),
+  __reducerSchema("emit_delayed_thunder_sound", EmitDelayedThunderSoundReducer),
   __reducerSchema("empty_rain_collector_reservoir", EmptyRainCollectorReservoirReducer),
   __reducerSchema("equip_armor", EquipArmorReducer),
   __reducerSchema("equip_armor_from_drag", EquipArmorFromDragReducer),
   __reducerSchema("equip_armor_from_inventory", EquipArmorFromInventoryReducer),
   __reducerSchema("extinguish_lantern", ExtinguishLanternReducer),
   __reducerSchema("extract_from_honeycomb", ExtractFromHoneycombReducer),
+  __reducerSchema("fill_equipped_water_containers", FillEquippedWaterContainersReducer),
   __reducerSchema("fill_water_container", FillWaterContainerReducer),
   __reducerSchema("fill_water_container_from_natural_source", FillWaterContainerFromNaturalSourceReducer),
   __reducerSchema("finish_fishing", FinishFishingReducer),
@@ -2179,6 +3039,7 @@ const reducersSchema = __reducers(
   __reducerSchema("leave_matronage", LeaveMatronageReducer),
   __reducerSchema("light_lantern", LightLanternReducer),
   __reducerSchema("load_ranged_weapon", LoadRangedWeaponReducer),
+  __reducerSchema("manage_seasonal_plants", ManageSeasonalPlantsReducer),
   __reducerSchema("manual_cleanup_thunder_events", ManualCleanupThunderEventsReducer),
   __reducerSchema("mark_alk_station_tutorial_seen", MarkAlkStationTutorialSeenReducer),
   __reducerSchema("mark_crashed_drone_tutorial_seen", MarkCrashedDroneTutorialSeenReducer),
@@ -2268,7 +3129,40 @@ const reducersSchema = __reducers(
   __reducerSchema("place_wall", PlaceWallReducer),
   __reducerSchema("place_wooden_storage_box", PlaceWoodenStorageBoxReducer),
   __reducerSchema("plant_seed", PlantSeedReducer),
+  __reducerSchema("process_active_consumable_effects_tick", ProcessActiveConsumableEffectsTickReducer),
+  __reducerSchema("process_alk_contract_refresh", ProcessAlkContractRefreshReducer),
+  __reducerSchema("process_all_campfires_scheduled", ProcessAllCampfiresScheduledReducer),
+  __reducerSchema("process_all_fumaroles_scheduled", ProcessAllFumarolesScheduledReducer),
+  __reducerSchema("process_barbecue_logic_scheduled", ProcessBarbecueLogicScheduledReducer),
+  __reducerSchema("process_beehive_production", ProcessBeehiveProductionReducer),
+  __reducerSchema("process_broth_pot_logic_scheduled", ProcessBrothPotLogicScheduledReducer),
+  __reducerSchema("process_building_decay", ProcessBuildingDecayReducer),
+  __reducerSchema("process_caribou_breeding", ProcessCaribouBreedingReducer),
+  __reducerSchema("process_compost_conversion", ProcessCompostConversionReducer),
+  __reducerSchema("process_corpse_despawn", ProcessCorpseDespawnReducer),
+  __reducerSchema("process_dawn_cleanup", ProcessDawnCleanupReducer),
+  __reducerSchema("process_drone_daily", ProcessDroneDailyReducer),
+  __reducerSchema("process_drone_flight_tick", ProcessDroneFlightTickReducer),
   __reducerSchema("process_extraction", ProcessExtractionReducer),
+  __reducerSchema("process_fire_patch_damage", ProcessFirePatchDamageReducer),
+  __reducerSchema("process_fish_trap_conversion", ProcessFishTrapConversionReducer),
+  __reducerSchema("process_food_spoilage", ProcessFoodSpoilageReducer),
+  __reducerSchema("process_furnace_logic_scheduled", ProcessFurnaceLogicScheduledReducer),
+  __reducerSchema("process_global_tick", ProcessGlobalTickReducer),
+  __reducerSchema("process_grass_respawn_batch", ProcessGrassRespawnBatchReducer),
+  __reducerSchema("process_hearth_upkeep", ProcessHearthUpkeepReducer),
+  __reducerSchema("process_hostile_spawns", ProcessHostileSpawnsReducer),
+  __reducerSchema("process_knocked_out_recovery", ProcessKnockedOutRecoveryReducer),
+  __reducerSchema("process_lantern_logic_scheduled", ProcessLanternLogicScheduledReducer),
+  __reducerSchema("process_matronage_payout", ProcessMatronagePayoutReducer),
+  __reducerSchema("process_player_stats", ProcessPlayerStatsReducer),
+  __reducerSchema("process_sleeping_bag_deterioration", ProcessSleepingBagDeteriorationReducer),
+  __reducerSchema("process_spawn_zone_maintenance", ProcessSpawnZoneMaintenanceReducer),
+  __reducerSchema("process_tilled_tile_reversions", ProcessTilledTileReversionsReducer),
+  __reducerSchema("process_torch_durability", ProcessTorchDurabilityReducer),
+  __reducerSchema("process_turret_logic_scheduled", ProcessTurretLogicScheduledReducer),
+  __reducerSchema("process_walrus_breeding", ProcessWalrusBreedingReducer),
+  __reducerSchema("process_wild_animal_ai", ProcessWildAnimalAiReducer),
   __reducerSchema("promote_to_pra_matron", PromoteToPraMatronReducer),
   __reducerSchema("purchase_from_alk", PurchaseFromAlkReducer),
   __reducerSchema("purchase_memory_grid_node", PurchaseMemoryGridNodeReducer),
@@ -2314,7 +3208,15 @@ const reducersSchema = __reducers(
   __reducerSchema("request_tutorial_hint", RequestTutorialHintReducer),
   __reducerSchema("reset_faction", ResetFactionReducer),
   __reducerSchema("respawn_at_sleeping_bag", RespawnAtSleepingBagReducer),
+  __reducerSchema("respawn_bone_carving_kit", RespawnBoneCarvingKitReducer),
+  __reducerSchema("respawn_destroyed_barrels", RespawnDestroyedBarrelsReducer),
+  __reducerSchema("respawn_military_crates", RespawnMilitaryCratesReducer),
+  __reducerSchema("respawn_military_rations", RespawnMilitaryRationsReducer),
+  __reducerSchema("respawn_mine_carts", RespawnMineCartsReducer),
   __reducerSchema("respawn_randomly", RespawnRandomlyReducer),
+  __reducerSchema("respawn_tide_pool_item", RespawnTidePoolItemReducer),
+  __reducerSchema("respawn_transistor_radio", RespawnTransistorRadioReducer),
+  __reducerSchema("respawn_wild_beehives", RespawnWildBeehivesReducer),
   __reducerSchema("revive_knocked_out_player", ReviveKnockedOutPlayerReducer),
   __reducerSchema("revoke_player_building_privilege", RevokePlayerBuildingPrivilegeReducer),
   __reducerSchema("schedule_next_barbecue_processing", ScheduleNextBarbecueProcessingReducer),
@@ -2332,6 +3234,9 @@ const reducersSchema = __reducers(
   __reducerSchema("set_sprinting", SetSprintingReducer),
   __reducerSchema("set_throw_aim", SetThrowAimReducer),
   __reducerSchema("sort_storage_box", SortStorageBoxReducer),
+  __reducerSchema("spawn_items_at_night", SpawnItemsAtNightReducer),
+  __reducerSchema("spawn_memory_shards_at_night", SpawnMemoryShardsAtNightReducer),
+  __reducerSchema("spawn_seeds_at_night", SpawnSeedsAtNightReducer),
   __reducerSchema("spawn_wild_animal", SpawnWildAnimalReducer),
   __reducerSchema("split_and_drop_item_from_barbecue_slot_to_world", SplitAndDropItemFromBarbecueSlotToWorldReducer),
   __reducerSchema("split_and_drop_item_from_box_slot_to_world", SplitAndDropItemFromBoxSlotToWorldReducer),
@@ -2406,10 +3311,13 @@ const reducersSchema = __reducers(
   __reducerSchema("transfer_water_from_container_to_collector", TransferWaterFromContainerToCollectorReducer),
   __reducerSchema("transfer_water_from_container_to_pot", TransferWaterFromContainerToPotReducer),
   __reducerSchema("transfer_water_from_pot_to_container", TransferWaterFromPotToContainerReducer),
+  __reducerSchema("update_cloud_intensities", UpdateCloudIntensitiesReducer),
+  __reducerSchema("update_cloud_positions", UpdateCloudPositionsReducer),
   __reducerSchema("update_flashlight_aim", UpdateFlashlightAimReducer),
   __reducerSchema("update_matronage_description", UpdateMatronageDescriptionReducer),
   __reducerSchema("update_matronage_icon", UpdateMatronageIconReducer),
   __reducerSchema("update_player_position_simple", UpdatePlayerPositionSimpleReducer),
+  __reducerSchema("update_projectiles", UpdateProjectilesReducer),
   __reducerSchema("update_viewport", UpdateViewportReducer),
   __reducerSchema("upgrade_fence", UpgradeFenceReducer),
   __reducerSchema("upgrade_foundation", UpgradeFoundationReducer),
