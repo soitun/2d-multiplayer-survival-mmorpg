@@ -6,7 +6,7 @@
  * When inside a building, you can see both inside and outside.
  */
 
-import { FoundationCell, WallCell, Player, Door } from '../generated';
+import { FoundationCell, WallCell, Player, Door } from '../generated/types';
 import { FOUNDATION_TILE_SIZE } from '../config/gameConfig';
 
 // Minimum wall coverage to consider a building "enclosed" (70% = server-side ENCLOSURE_THRESHOLD)

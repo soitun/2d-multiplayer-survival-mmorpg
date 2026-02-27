@@ -6,7 +6,7 @@
  *                                                                            *
  ******************************************************************************/
 
-import { FertilizerPatch } from '../../generated';
+import { FertilizerPatch } from '../../generated/types';
 
 // --- Constants ---
 

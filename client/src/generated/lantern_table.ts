@@ -4,103 +4,30 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { Lantern } from "./lantern_type";
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
-declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-/**
- * Table handle for the table `lantern`.
- *
- * Obtain a handle from the [`lantern`] property on [`RemoteTables`],
- * like `ctx.db.lantern`.
- *
- * Users are encouraged not to explicitly reference this type,
- * but to directly chain method calls,
- * like `ctx.db.lantern.on_insert(...)`.
- */
-export class LanternTableHandle<TableName extends string> implements __TableHandle<TableName> {
-  // phantom type to track the table name
-  readonly tableName!: TableName;
-  tableCache: __TableCache<Lantern>;
-
-  constructor(tableCache: __TableCache<Lantern>) {
-    this.tableCache = tableCache;
-  }
-
-  count(): number {
-    return this.tableCache.count();
-  }
-
-  iter(): Iterable<Lantern> {
-    return this.tableCache.iter();
-  }
-  /**
-   * Access to the `id` unique index on the table `lantern`,
-   * which allows point queries on the field of the same name
-   * via the [`LanternIdUnique.find`] method.
-   *
-   * Users are encouraged not to explicitly reference this type,
-   * but to directly chain method calls,
-   * like `ctx.db.lantern.id().find(...)`.
-   *
-   * Get a handle on the `id` unique index on the table `lantern`.
-   */
-  id = {
-    // Find the subscribed row whose `id` column value is equal to `col_val`,
-    // if such a row is present in the client cache.
-    find: (col_val: number): Lantern | undefined => {
-      for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.id, col_val)) {
-          return row;
-        }
-      }
-    },
-  };
-
-  onInsert = (cb: (ctx: EventContext, row: Lantern) => void) => {
-    return this.tableCache.onInsert(cb);
-  }
-
-  removeOnInsert = (cb: (ctx: EventContext, row: Lantern) => void) => {
-    return this.tableCache.removeOnInsert(cb);
-  }
-
-  onDelete = (cb: (ctx: EventContext, row: Lantern) => void) => {
-    return this.tableCache.onDelete(cb);
-  }
-
-  removeOnDelete = (cb: (ctx: EventContext, row: Lantern) => void) => {
-    return this.tableCache.removeOnDelete(cb);
-  }
-
-  // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: Lantern, newRow: Lantern) => void) => {
-    return this.tableCache.onUpdate(cb);
-  }
-
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: Lantern, newRow: Lantern) => void) => {
-    return this.tableCache.removeOnUpdate(cb);
-  }}
+export default __t.row({
+  id: __t.u32().primaryKey(),
+  posX: __t.f32().name("pos_x"),
+  posY: __t.f32().name("pos_y"),
+  chunkIndex: __t.u32().name("chunk_index"),
+  placedBy: __t.identity().name("placed_by"),
+  placedAt: __t.timestamp().name("placed_at"),
+  isBurning: __t.bool().name("is_burning"),
+  fuelInstanceId0: __t.option(__t.u64()).name("fuel_instance_id_0"),
+  fuelDefId0: __t.option(__t.u64()).name("fuel_def_id_0"),
+  currentFuelDefId: __t.option(__t.u64()).name("current_fuel_def_id"),
+  remainingFuelBurnTimeSecs: __t.option(__t.f32()).name("remaining_fuel_burn_time_secs"),
+  health: __t.f32(),
+  maxHealth: __t.f32().name("max_health"),
+  isDestroyed: __t.bool().name("is_destroyed"),
+  destroyedAt: __t.option(__t.timestamp()).name("destroyed_at"),
+  lastHitTime: __t.option(__t.timestamp()).name("last_hit_time"),
+  lastDamagedBy: __t.option(__t.identity()).name("last_damaged_by"),
+  isMonument: __t.bool().name("is_monument"),
+  lanternType: __t.u8().name("lantern_type"),
+});

@@ -4,110 +4,34 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { AlkContract } from "./alk_contract_type";
-import { AlkContractKind } from "./alk_contract_kind_type";
-// Mark import as potentially unused
-declare type __keep_AlkContractKind = AlkContractKind;
-import { AlkStationAllowance } from "./alk_station_allowance_type";
-// Mark import as potentially unused
-declare type __keep_AlkStationAllowance = AlkStationAllowance;
+import {
+  AlkContractKind,
+  AlkStationAllowance,
+} from "./types";
 
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
-declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-/**
- * Table handle for the table `alk_contract`.
- *
- * Obtain a handle from the [`alkContract`] property on [`RemoteTables`],
- * like `ctx.db.alkContract`.
- *
- * Users are encouraged not to explicitly reference this type,
- * but to directly chain method calls,
- * like `ctx.db.alkContract.on_insert(...)`.
- */
-export class AlkContractTableHandle<TableName extends string> implements __TableHandle<TableName> {
-  // phantom type to track the table name
-  readonly tableName!: TableName;
-  tableCache: __TableCache<AlkContract>;
-
-  constructor(tableCache: __TableCache<AlkContract>) {
-    this.tableCache = tableCache;
-  }
-
-  count(): number {
-    return this.tableCache.count();
-  }
-
-  iter(): Iterable<AlkContract> {
-    return this.tableCache.iter();
-  }
-  /**
-   * Access to the `contractId` unique index on the table `alk_contract`,
-   * which allows point queries on the field of the same name
-   * via the [`AlkContractContractIdUnique.find`] method.
-   *
-   * Users are encouraged not to explicitly reference this type,
-   * but to directly chain method calls,
-   * like `ctx.db.alkContract.contractId().find(...)`.
-   *
-   * Get a handle on the `contractId` unique index on the table `alk_contract`.
-   */
-  contractId = {
-    // Find the subscribed row whose `contractId` column value is equal to `col_val`,
-    // if such a row is present in the client cache.
-    find: (col_val: bigint): AlkContract | undefined => {
-      for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.contractId, col_val)) {
-          return row;
-        }
-      }
-    },
-  };
-
-  onInsert = (cb: (ctx: EventContext, row: AlkContract) => void) => {
-    return this.tableCache.onInsert(cb);
-  }
-
-  removeOnInsert = (cb: (ctx: EventContext, row: AlkContract) => void) => {
-    return this.tableCache.removeOnInsert(cb);
-  }
-
-  onDelete = (cb: (ctx: EventContext, row: AlkContract) => void) => {
-    return this.tableCache.onDelete(cb);
-  }
-
-  removeOnDelete = (cb: (ctx: EventContext, row: AlkContract) => void) => {
-    return this.tableCache.removeOnDelete(cb);
-  }
-
-  // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: AlkContract, newRow: AlkContract) => void) => {
-    return this.tableCache.onUpdate(cb);
-  }
-
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: AlkContract, newRow: AlkContract) => void) => {
-    return this.tableCache.removeOnUpdate(cb);
-  }}
+export default __t.row({
+  contractId: __t.u64().primaryKey().name("contract_id"),
+  get kind() {
+    return AlkContractKind;
+  },
+  itemDefId: __t.u64().name("item_def_id"),
+  itemName: __t.string().name("item_name"),
+  bundleSize: __t.u32().name("bundle_size"),
+  shardRewardPerBundle: __t.u32().name("shard_reward_per_bundle"),
+  shardCostPerBundle: __t.option(__t.u32()).name("shard_cost_per_bundle"),
+  maxPoolQuantity: __t.option(__t.u32()).name("max_pool_quantity"),
+  currentPoolRemaining: __t.option(__t.u32()).name("current_pool_remaining"),
+  createdOnDay: __t.u32().name("created_on_day"),
+  expiresOnDay: __t.option(__t.u32()).name("expires_on_day"),
+  get allowedStations() {
+    return AlkStationAllowance.name("allowed_stations");
+  },
+  isActive: __t.bool().name("is_active"),
+  requiredSeason: __t.option(__t.u32()).name("required_season"),
+});

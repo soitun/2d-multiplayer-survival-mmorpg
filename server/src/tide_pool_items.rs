@@ -33,7 +33,7 @@ pub fn is_tide_pool_washed_up_item(item_name: &str) -> bool {
 }
 
 /// Table for tracking tide pool item respawn schedule
-#[spacetimedb::table(name = tide_pool_item_respawn, scheduled(respawn_tide_pool_item))]
+#[spacetimedb::table(accessor = tide_pool_item_respawn, scheduled(respawn_tide_pool_item))]
 #[derive(Clone)]
 pub struct TidePoolItemRespawn {
     #[primary_key]
@@ -46,7 +46,7 @@ pub struct TidePoolItemRespawn {
 /// Scheduled reducer to respawn a tide pool item at a random tide pool
 #[spacetimedb::reducer]
 pub fn respawn_tide_pool_item(ctx: &ReducerContext, args: TidePoolItemRespawn) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("respawn_tide_pool_item may only be called by the scheduler.".into());
     }
 

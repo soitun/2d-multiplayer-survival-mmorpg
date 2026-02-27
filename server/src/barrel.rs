@@ -87,7 +87,7 @@ pub const BARREL_CLUSTER_DENSITY_PER_TILE: f32 = 0.00006; // Balanced for engagi
 pub const ROAD_TILES_PER_CLUSTER: f32 = 100.0; // More clusters allowed per road tile count
 
 // Define the main barrel table
-#[spacetimedb::table(name = barrel, public)]
+#[spacetimedb::table(accessor = barrel, public)]
 #[derive(Clone, Debug)]
 pub struct Barrel {
     #[primary_key]
@@ -119,7 +119,7 @@ pub struct BarrelLootEntry {
 }
 
 // Schedule table for barrel respawning
-#[spacetimedb::table(name = barrel_respawn_schedule, scheduled(respawn_destroyed_barrels))]
+#[spacetimedb::table(accessor = barrel_respawn_schedule, scheduled(respawn_destroyed_barrels))]
 #[derive(Clone)]
 pub struct BarrelRespawnSchedule {
     #[primary_key]
@@ -474,7 +474,7 @@ pub fn damage_barrel(
 #[spacetimedb::reducer]
 pub fn respawn_destroyed_barrels(ctx: &ReducerContext, _schedule: BarrelRespawnSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("respawn_destroyed_barrels may only be called by the scheduler.".to_string());
     }
 

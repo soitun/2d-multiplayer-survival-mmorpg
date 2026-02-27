@@ -7,7 +7,8 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { DbConnection, WoodenStorageBox, Stash, Campfire, Fumarole, BrothPot } from '../generated';
+import { DbConnection } from '../generated';
+import { WoodenStorageBox, Stash, Campfire, Fumarole, BrothPot } from '../generated/types';
 import { Identity } from 'spacetimedb';
 import { DragSourceSlotInfo } from '../types/dragDropTypes';
 import { PopulatedItem } from '../components/InventoryUI';

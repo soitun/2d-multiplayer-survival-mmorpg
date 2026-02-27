@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Particle } from './useCampfireParticles';
-import { WildAnimal as SpacetimeDBWildAnimal, Player as SpacetimeDBPlayer, AnimalCorpse as SpacetimeDBAnimalCorpse } from '../generated';
+import { WildAnimal as SpacetimeDBWildAnimal, Player as SpacetimeDBPlayer, AnimalCorpse as SpacetimeDBAnimalCorpse } from '../generated/types';
 
 // --- Blood Particle Constants ---
 const BLOOD_PARTICLE_LIFETIME_MIN = 200;

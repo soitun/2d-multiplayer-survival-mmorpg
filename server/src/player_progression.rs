@@ -134,11 +134,11 @@ pub enum LeaderboardCategory {
 
 /// PlayerStats - XP, level, and aggregate tracking
 #[spacetimedb::table(
-    name = player_stats,
+    accessor = player_stats,
     public,
-    index(name = idx_level, btree(columns = [level])),
-    index(name = idx_total_shards, btree(columns = [total_shards_earned])),
-    index(name = idx_survival_time, btree(columns = [longest_survival_seconds]))
+    index(accessor = idx_level, name = "idx_level", btree(columns = [level])),
+    index(accessor = idx_total_shards, name = "idx_total_shards", btree(columns = [total_shards_earned])),
+    index(accessor = idx_survival_time, name = "idx_survival_time", btree(columns = [longest_survival_seconds]))
 )]
 #[derive(Clone, Debug)]
 pub struct PlayerStats {
@@ -204,7 +204,7 @@ pub struct PlayerStats {
 }
 
 /// AchievementDefinition - seeded at init
-#[spacetimedb::table(name = achievement_definition, public)]
+#[spacetimedb::table(accessor = achievement_definition, public)]
 #[derive(Clone, Debug)]
 pub struct AchievementDefinition {
     #[primary_key]
@@ -219,9 +219,9 @@ pub struct AchievementDefinition {
 
 /// PlayerAchievement - unlocked achievements per player
 #[spacetimedb::table(
-    name = player_achievement,
+    accessor = player_achievement,
     public,
-    index(name = idx_player_achievements, btree(columns = [player_id]))
+    index(accessor = idx_player_achievements, name = "idx_player_achievements", btree(columns = [player_id]))
 )]
 #[derive(Clone, Debug)]
 pub struct PlayerAchievement {
@@ -234,7 +234,7 @@ pub struct PlayerAchievement {
 }
 
 /// DailyLoginReward - reward tier definitions
-#[spacetimedb::table(name = daily_login_reward, public)]
+#[spacetimedb::table(accessor = daily_login_reward, public)]
 #[derive(Clone, Debug)]
 pub struct DailyLoginReward {
     #[primary_key]
@@ -244,7 +244,7 @@ pub struct DailyLoginReward {
 }
 
 /// AchievementUnlockNotification - sent to client for toast notifications
-#[spacetimedb::table(name = achievement_unlock_notification, public)]
+#[spacetimedb::table(accessor = achievement_unlock_notification, public)]
 #[derive(Clone, Debug)]
 pub struct AchievementUnlockNotification {
     #[primary_key]
@@ -259,7 +259,7 @@ pub struct AchievementUnlockNotification {
 }
 
 /// LevelUpNotification - sent to client when player levels up
-#[spacetimedb::table(name = level_up_notification, public)]
+#[spacetimedb::table(accessor = level_up_notification, public)]
 #[derive(Clone, Debug)]
 pub struct LevelUpNotification {
     #[primary_key]
@@ -274,9 +274,9 @@ pub struct LevelUpNotification {
 
 /// DailyLoginNotification - sent to client for daily reward display
 #[spacetimedb::table(
-    name = daily_login_notification,
+    accessor = daily_login_notification,
     public,
-    index(name = idx_player_daily, btree(columns = [player_id]))
+    index(accessor = idx_player_daily, name = "idx_player_daily", btree(columns = [player_id]))
 )]
 #[derive(Clone, Debug)]
 pub struct DailyLoginNotification {
@@ -293,9 +293,9 @@ pub struct DailyLoginNotification {
 
 /// ProgressNotification - threshold-based progress updates
 #[spacetimedb::table(
-    name = progress_notification,
+    accessor = progress_notification,
     public,
-    index(name = idx_player_progress, btree(columns = [player_id]))
+    index(accessor = idx_player_progress, name = "idx_player_progress", btree(columns = [player_id]))
 )]
 #[derive(Clone, Debug)]
 pub struct ProgressNotification {
@@ -312,7 +312,7 @@ pub struct ProgressNotification {
 }
 
 /// ComparativeStatNotification - percentile-based stats on death
-#[spacetimedb::table(name = comparative_stat_notification, public)]
+#[spacetimedb::table(accessor = comparative_stat_notification, public)]
 #[derive(Clone, Debug)]
 pub struct ComparativeStatNotification {
     #[primary_key]
@@ -328,9 +328,9 @@ pub struct ComparativeStatNotification {
 
 /// LeaderboardEntry - computed leaderboard entries
 #[spacetimedb::table(
-    name = leaderboard_entry,
+    accessor = leaderboard_entry,
     public,
-    index(name = idx_category_rank, btree(columns = [category, rank]))
+    index(accessor = idx_category_rank, name = "idx_category_rank", btree(columns = [category, rank]))
 )]
 #[derive(Clone, Debug)]
 pub struct LeaderboardEntry {
@@ -2226,7 +2226,7 @@ pub fn seed_daily_login_rewards(ctx: &ReducerContext) -> Result<(), String> {
 /// Set active title for a player
 #[spacetimedb::reducer]
 pub fn set_active_title(ctx: &ReducerContext, title_id: Option<String>) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     let stats_table = ctx.db.player_stats();
     
     // Verify player has unlocked this title (check achievements)

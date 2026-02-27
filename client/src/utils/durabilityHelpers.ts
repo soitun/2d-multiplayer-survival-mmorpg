@@ -5,7 +5,8 @@
  * Items with durability include weapons, tools, ranged weapons, torches, flashlights, headlamps, and food.
  */
 
-import { InventoryItem, ItemDefinition, DbConnection, CostIngredient } from '../generated';
+import { DbConnection } from '../generated';
+import { InventoryItem, ItemDefinition, CostIngredient } from '../generated/types';
 
 /**
  * Maximum durability value for all items (100%)
@@ -374,7 +375,7 @@ function isItemInRefrigerator(item: InventoryItem, connection: DbConnection | nu
     
     // Look up the box to check if it's a refrigerator
     const boxId = Number(containerData.containerId);
-    const storageBox = connection.db.woodenStorageBox.id.find(boxId);
+    const storageBox = connection.db.wooden_storage_box.id.find(boxId);
     
     if (!storageBox) {
         return false;
@@ -419,7 +420,7 @@ function isQueenBeeInBeehive(item: InventoryItem, itemDef: ItemDefinition, conne
     
     // Look up the box to check if it's a player beehive
     const boxId = Number(containerData.containerId);
-    const storageBox = connection.db.woodenStorageBox.id.find(boxId);
+    const storageBox = connection.db.wooden_storage_box.id.find(boxId);
     
     if (!storageBox) {
         return false;

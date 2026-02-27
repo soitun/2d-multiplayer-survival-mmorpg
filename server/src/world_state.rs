@@ -310,7 +310,7 @@ pub enum TimeOfDay {
     Midnight, // Middle of the night - 0.92-0.97 (comes before TwilightMorning)
 }
 
-#[spacetimedb::table(name = thunder_event, public)]
+#[spacetimedb::table(accessor = thunder_event, public)]
 #[derive(Clone, Debug)]
 pub struct ThunderEvent {
     #[primary_key]
@@ -322,7 +322,7 @@ pub struct ThunderEvent {
 }
 
 /// Schedule table for cleaning up old thunder events
-#[spacetimedb::table(name = thunder_event_cleanup_schedule, scheduled(cleanup_old_thunder_events))]
+#[spacetimedb::table(accessor = thunder_event_cleanup_schedule, scheduled(cleanup_old_thunder_events))]
 #[derive(Clone, Debug)]
 pub struct ThunderEventCleanupSchedule {
     #[primary_key]
@@ -335,7 +335,7 @@ pub struct ThunderEventCleanupSchedule {
 #[spacetimedb::reducer]
 pub fn cleanup_old_thunder_events(ctx: &ReducerContext, _args: ThunderEventCleanupSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to run this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Thunder event cleanup can only be run by scheduler".to_string());
     }
 
@@ -380,7 +380,7 @@ pub fn manual_cleanup_thunder_events(ctx: &ReducerContext) -> Result<(), String>
     Ok(())
 }
 
-#[spacetimedb::table(name = world_state, public)]
+#[spacetimedb::table(accessor = world_state, public)]
 #[derive(Clone)]
 pub struct WorldState {
     #[primary_key]
@@ -406,7 +406,7 @@ pub struct WorldState {
     pub next_thunder_time: Option<Timestamp>, // When next thunder should occur
 }
 
-#[spacetimedb::table(name = seasonal_plant_management_schedule, scheduled(manage_seasonal_plants))]
+#[spacetimedb::table(accessor = seasonal_plant_management_schedule, scheduled(manage_seasonal_plants))]
 #[derive(Clone, Debug)]
 pub struct SeasonalPlantManagementSchedule {
     #[primary_key]
@@ -419,7 +419,7 @@ pub struct SeasonalPlantManagementSchedule {
 }
 
 // --- Chunk-Based Weather System ---
-#[spacetimedb::table(name = chunk_weather, public)]
+#[spacetimedb::table(accessor = chunk_weather, public)]
 #[derive(Clone, Debug)]
 pub struct ChunkWeather {
     #[primary_key]
@@ -974,7 +974,7 @@ pub fn debug_set_weather(ctx: &ReducerContext, weather_type_str: String) -> Resu
     
     // Also update chunk weather for the caller's current chunk (if they're a player)
     // This ensures the debug weather shows up in the chunk-based system
-    if let Some(player) = ctx.db.player().identity().find(&ctx.sender) {
+    if let Some(player) = ctx.db.player().identity().find(&ctx.sender()) {
         let chunk_index = calculate_chunk_index(player.position_x, player.position_y);
         let mut chunk_weather = get_or_create_chunk_weather(ctx, chunk_index);
         
@@ -2055,7 +2055,7 @@ fn start_seasonal_plant_transition(ctx: &ReducerContext, new_season: &Season) ->
 #[spacetimedb::reducer]
 pub fn manage_seasonal_plants(ctx: &ReducerContext, args: SeasonalPlantManagementSchedule) -> Result<(), String> {
     // Security check
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Reducer manage_seasonal_plants may not be invoked by clients, only via scheduling.".into());
     }
     

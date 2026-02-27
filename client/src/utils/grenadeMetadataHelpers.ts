@@ -3,8 +3,7 @@
  * Mirrors durability/water helper style for parsing item_data JSON.
  */
 
-import type { InventoryItem } from '../generated';
-import type { DroppedItem } from '../generated';
+import type { InventoryItem, DroppedItem } from '../generated/types';
 
 interface GrenadeFuseData {
   fuse_detonates_at?: number;

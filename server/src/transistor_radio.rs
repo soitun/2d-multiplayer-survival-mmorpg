@@ -20,7 +20,7 @@ use crate::{MonumentPart, MonumentType, monument_part as MonumentPartTableTrait}
 pub const TRANSISTOR_RADIO_RESPAWN_DELAY_SECS: u64 = 1800;
 
 /// Table for tracking transistor radio respawn schedule
-#[spacetimedb::table(name = transistor_radio_respawn, scheduled(respawn_transistor_radio))]
+#[spacetimedb::table(accessor = transistor_radio_respawn, scheduled(respawn_transistor_radio))]
 #[derive(Clone)]
 pub struct TransistorRadioRespawn {
     #[primary_key]
@@ -127,7 +127,7 @@ pub fn transistor_radio_exists_in_world(ctx: &ReducerContext) -> bool {
 #[spacetimedb::reducer]
 pub fn respawn_transistor_radio(ctx: &ReducerContext, _args: TransistorRadioRespawn) -> Result<(), String> {
     // Only allow the scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Transistor Radio respawn can only be triggered by scheduler.".to_string());
     }
 

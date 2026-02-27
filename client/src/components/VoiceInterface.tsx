@@ -6,7 +6,8 @@ import sovaIcon from '../assets/ui/sova.png';
 import './VoiceInterface.css';
 import { kokoroService } from '../services/kokoroService';
 import { parseCraftIntent, resolveRecipeByName, getCraftFeedback } from '../utils/craftIntentParser';
-import type { Recipe } from '../generated';
+import type { DbConnection } from '../generated';
+import type { Recipe } from '../generated/types';
 import type { Identity } from 'spacetimedb';
 
 // TTS Provider selection: 'kokoro' (default) | 'auto' (auto-detect)
@@ -54,7 +55,7 @@ interface VoiceInterfaceProps {
   inventoryItems?: Map<string, any>;
   recipes?: Map<string, Recipe>;
   playerIdentity?: Identity | null;
-  connection?: { reducers?: { startCraftingMultiple: (recipeId: bigint, quantity: number) => void } } | null;
+  connection?: DbConnection | null;
   // NEW: Callback to update loading states for external loading bar
   onLoadingStateChange?: (state: {
     isRecording: boolean;
@@ -108,14 +109,10 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
   const recordingStartedRef = useRef(false);
   const processingRef = useRef(false);
 
-  // Debug: Log when onAddSOVAMessage prop changes
+  // Keep Whisper bound to current DB connection for procedure calls.
   useEffect(() => {
-    console.log('[VoiceInterface] onAddSOVAMessage prop changed:', {
-      available: !!onAddSOVAMessage,
-      type: typeof onAddSOVAMessage,
-      isFunction: typeof onAddSOVAMessage === 'function'
-    });
-  }, [onAddSOVAMessage]);
+    whisperService.setConnection(connection ?? null);
+  }, [connection]);
 
   // Start voice recording
   const startRecording = useCallback(async () => {
@@ -265,9 +262,10 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
             playerIdentity ?? null
           );
 
-          if (feedback.success && connection?.reducers) {
+          const reducers = (connection as any)?.reducers;
+          if (feedback.success && reducers?.startCraftingMultiple) {
             try {
-              connection.reducers.startCraftingMultiple(recipe.recipeId, craftIntent.quantity);
+              reducers.startCraftingMultiple({ recipeId: recipe.recipeId, quantityToCraft: craftIntent.quantity });
             } catch (err) {
               console.error('[VoiceInterface] Craft reducer error:', err);
               feedback.message = `Crafting failed: ${(err as Error).message}`;
@@ -357,6 +355,7 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
       const aiResponse = await openaiService.generateSOVAResponse({
         userMessage: transcribedText,
         gameContext,
+        connection,
       });
 
       if (aiResponse.success && aiResponse.response) {
@@ -480,7 +479,7 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
     } finally {
       processingRef.current = false;
     }
-  }, [onTranscriptionComplete, onError, onAddSOVAMessage, localPlayerIdentity, worldState, localPlayer, itemDefinitions, activeEquipments, inventoryItems]);
+  }, [onTranscriptionComplete, onError, onAddSOVAMessage, localPlayerIdentity, worldState, localPlayer, itemDefinitions, activeEquipments, inventoryItems, recipes, playerIdentity, connection]);
 
   // NEW: Clear previous state when interface becomes visible (V key pressed) and start recording
   useEffect(() => {

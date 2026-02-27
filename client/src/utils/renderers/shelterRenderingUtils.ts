@@ -1,4 +1,4 @@
-import { Shelter as SpacetimeDBShelter, Player as SpacetimeDBPlayer } from '../../generated';
+import { Shelter as SpacetimeDBShelter, Player as SpacetimeDBPlayer } from '../../generated/types';
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';
 
 // Import terrain-specific shelter images

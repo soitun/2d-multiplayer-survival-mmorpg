@@ -51,7 +51,7 @@ pub const MONUMENT_TURRET_PROJECTILE_SPEED: f32 = 600.0; // Fast projectile for 
 pub const MONUMENT_TURRET_COLLISION_RADIUS: f32 = 100.0; // Double collision radius for 2x size monument turrets
 
 // --- Turret Table ---
-#[spacetimedb::table(name = turret, public)]
+#[spacetimedb::table(accessor = turret, public)]
 #[derive(Clone, Debug)]
 pub struct Turret {
     #[primary_key]
@@ -81,7 +81,7 @@ pub struct Turret {
 }
 
 // --- Scheduled Processing Table ---
-#[spacetimedb::table(name = turret_processing_schedule, scheduled(process_turret_logic_scheduled))]
+#[spacetimedb::table(accessor = turret_processing_schedule, scheduled(process_turret_logic_scheduled))]
 #[derive(Clone, Debug)]
 pub struct TurretProcessingSchedule {
     #[primary_key]
@@ -176,7 +176,7 @@ pub fn init_turret_system(ctx: &ReducerContext) -> Result<(), String> {
 
 /// Validates that a player can interact with a turret (distance check)
 fn validate_turret_interaction(ctx: &ReducerContext, turret_id: u32) -> Result<(Player, Turret), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let player = ctx.db.player().identity().find(&sender_id)
         .ok_or_else(|| "Player not found.".to_string())?;
     
@@ -324,7 +324,7 @@ pub(crate) enum TargetInfo {
 /// Place a turret in the world
 #[spacetimedb::reducer]
 pub fn place_turret(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, world_y: f32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     
@@ -564,7 +564,7 @@ pub fn split_stack_from_turret(
     
     log::info!(
         "[SplitFromTurret] Player {:?} splitting {} from turret {} slot {} to {} slot {}",
-        ctx.sender, quantity_to_split, turret_id, source_slot_index, target_slot_type, target_slot_index
+        ctx.sender(), quantity_to_split, turret_id, source_slot_index, target_slot_type, target_slot_index
     );
 
     // Call generic handler
@@ -599,7 +599,7 @@ pub fn split_stack_within_turret(
 /// Pickup turret (must be empty and not destroyed)
 #[spacetimedb::reducer]
 pub fn pickup_turret(ctx: &ReducerContext, turret_id: u32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let (_player, turret) = validate_turret_interaction(ctx, turret_id)?;
     
     // Monument turrets cannot be picked up
@@ -653,7 +653,7 @@ pub fn interact_with_turret(ctx: &ReducerContext, turret_id: u32) -> Result<(), 
 #[spacetimedb::reducer]
 pub fn process_turret_logic_scheduled(ctx: &ReducerContext, _schedule: TurretProcessingSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("process_turret_logic_scheduled can only be called by scheduler".to_string());
     }
 

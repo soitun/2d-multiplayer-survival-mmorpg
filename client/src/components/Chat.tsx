@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ChatMessageHistory from './ChatMessageHistory';
 import ChatInput from './ChatInput';
-import { DbConnection, Message as SpacetimeDBMessage, Player as SpacetimeDBPlayer, PrivateMessage as SpacetimeDBPrivateMessage, TeamMessage as SpacetimeDBTeamMessage, EventContext, LastWhisperFrom, Recipe } from '../generated'; // Assuming types
+import { DbConnection, EventContext } from '../generated';
+import type { Message as SpacetimeDBMessage, Player as SpacetimeDBPlayer, PrivateMessage as SpacetimeDBPrivateMessage, TeamMessage as SpacetimeDBTeamMessage, LastWhisperFrom, Recipe } from '../generated/types';
 import { Identity } from 'spacetimedb';
 import styles from './Chat.module.css';
 import sovaIcon from '../assets/ui/sova.png';
@@ -223,7 +224,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
 
           if (feedback.success && connection?.reducers) {
             try {
-              connection.reducers.startCraftingMultiple(recipe.recipeId, craftIntent.quantity);
+              connection.reducers.startCraftingMultiple({ recipeId: BigInt(recipe.recipeId), quantityToCraft: craftIntent.quantity });
             } catch (err) {
               console.error('[Chat] Craft reducer error:', err);
               feedback.message = `Crafting failed: ${(err as Error).message}`;
@@ -269,6 +270,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
         userMessage: userMessageText,
         playerName: localPlayerIdentity,
         gameContext,
+        connection,
       });
 
       if (aiResponse.success && aiResponse.response) {
@@ -519,7 +521,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
 
     try {
       // Send message to server
-      connection.reducers.sendMessage(trimmedInput);
+      connection.reducers.sendMessage({ text: trimmedInput });
       
       // Clear input value
       setInputValue('');
@@ -624,7 +626,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
       });
     };
     
-    const privateMessageTable = connection.db.privateMessage; 
+    const privateMessageTable = connection.db.private_message; 
 
     if (privateMessageTable) {
       // console.log("[Chat] PrivateMsgEffect: Attaching listeners to privateMessageTable.");
@@ -685,7 +687,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
       setLastWhisperFrom(record);
     };
 
-    const lastWhisperTable = connection.db.lastWhisperFrom;
+    const lastWhisperTable = connection.db.last_whisper_from;
     if (lastWhisperTable) {
       lastWhisperTable.onInsert(handleLastWhisperInsert);
       lastWhisperTable.onUpdate(handleLastWhisperUpdate);
@@ -761,7 +763,7 @@ const Chat: React.FC<ChatProps> = ({ connection, messages, players, isChatting, 
       });
     };
     
-    const teamMessageTable = connection.db.teamMessage;
+    const teamMessageTable = connection.db.team_message;
     if (teamMessageTable) {
       teamMessageTable.onInsert(handleTeamMessageInsert);
       teamMessageTable.onDelete(handleTeamMessageDelete);

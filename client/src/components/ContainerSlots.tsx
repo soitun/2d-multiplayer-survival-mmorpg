@@ -12,7 +12,7 @@ import DraggableItem from './DraggableItem';
 import { PopulatedItem } from './InventoryUI';
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
 import { ContainerType, ContainerEntity, getContainerConfig, BOX_TYPE_MILITARY_RATION, BOX_TYPE_MINE_CART, BOX_TYPE_COMPOST, BOX_TYPE_FISH_TRAP, BOX_TYPE_WILD_BEEHIVE } from '../utils/containerUtils';
-import { WoodenStorageBox, RangedWeaponStats } from '../generated';
+import { WoodenStorageBox, RangedWeaponStats } from '../generated/types';
 import { isWaterContainer, getWaterLevelPercentage } from '../utils/waterContainerHelpers';
 import { isCombatLadleHot } from '../utils/itemIconUtils';
 import { hasDurabilitySystem, isItemBroken, isFoodItem } from '../utils/durabilityHelpers';

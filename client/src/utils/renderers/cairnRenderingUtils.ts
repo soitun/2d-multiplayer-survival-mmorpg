@@ -1,4 +1,4 @@
-import { Cairn } from '../../generated';
+import { Cairn } from '../../generated/types';
 import { DbConnection } from '../../generated';
 import cairnImage from '../../assets/doodads/cairn.png';
 import cairnTundraImage from '../../assets/doodads/cairn_tundra.png';

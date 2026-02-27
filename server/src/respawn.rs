@@ -151,7 +151,7 @@ fn check_spawn_collision(
 /// before placing them at a new random position on valid land tiles (avoiding water).
 #[spacetimedb::reducer]
 pub fn respawn_randomly(ctx: &ReducerContext) -> Result<(), String> { // Renamed function
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let item_defs = ctx.db.item_definition();
 

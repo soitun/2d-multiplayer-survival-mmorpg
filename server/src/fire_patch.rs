@@ -34,7 +34,7 @@ pub const FIRE_PATCH_SEED_DAMAGE_RADIUS: f32 = 40.0; // Radius for damaging plan
 pub const FIRE_PROPAGATION_TO_SEED_CHANCE: f32 = 0.15; // 15% chance to spread to nearby planted seeds (crop fields are dry and flammable)
 
 // --- Fire Patch Table ---
-#[table(name = fire_patch, public)]
+#[table(accessor = fire_patch, public)]
 #[derive(Clone, Debug)]
 pub struct FirePatch {
     #[primary_key]
@@ -54,7 +54,7 @@ pub struct FirePatch {
 }
 
 // --- Fire Patch Cleanup Schedule ---
-#[table(name = fire_patch_cleanup_schedule, scheduled(cleanup_expired_fire_patches))]
+#[table(accessor = fire_patch_cleanup_schedule, scheduled(cleanup_expired_fire_patches))]
 #[derive(Clone, Debug)]
 pub struct FirePatchCleanupSchedule {
     #[primary_key]
@@ -64,7 +64,7 @@ pub struct FirePatchCleanupSchedule {
 }
 
 // --- Fire Patch Damage Processing Schedule (like campfires) ---
-#[table(name = fire_patch_damage_schedule, scheduled(process_fire_patch_damage))]
+#[table(accessor = fire_patch_damage_schedule, scheduled(process_fire_patch_damage))]
 #[derive(Clone, Debug)]
 pub struct FirePatchDamageSchedule {
     #[primary_key]
@@ -188,7 +188,7 @@ pub fn process_fire_patch_damage(ctx: &ReducerContext, _args: FirePatchDamageSch
     use spacetimedb::Table;
     
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("process_fire_patch_damage can only be called by scheduler".to_string());
     }
     
@@ -534,7 +534,7 @@ pub fn check_water_extinguishes_fire(ctx: &ReducerContext) -> Result<(), String>
 #[reducer]
 pub fn cleanup_expired_fire_patches(ctx: &ReducerContext, _args: FirePatchCleanupSchedule) -> Result<(), String> {
     // Security check
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Only the module can run scheduled cleanup".to_string());
     }
     

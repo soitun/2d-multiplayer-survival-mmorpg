@@ -90,7 +90,7 @@ const CAMPFIRE_DAMAGE_RADIUS_SQUARED: f32 = 2500.0; // 50.0 * 50.0
  /// --- Campfire Data Structure ---
  /// Represents a campfire in the game world with position, owner, burning state,
  /// fuel slots (using individual fields instead of arrays), and fuel consumption timing.
- #[spacetimedb::table(name = campfire, public)]
+ #[spacetimedb::table(accessor = campfire, public)]
  #[derive(Clone)]
  pub struct Campfire {
      #[primary_key]
@@ -140,7 +140,7 @@ const CAMPFIRE_DAMAGE_RADIUS_SQUARED: f32 = 2500.0; // 50.0 * 50.0
 }
  
  // Global schedule table - processes ALL campfires in one reducer call (1 tx/sec vs N tx/sec)
- #[spacetimedb::table(name = campfire_global_schedule, scheduled(process_all_campfires_scheduled))]
+ #[spacetimedb::table(accessor = campfire_global_schedule, scheduled(process_all_campfires_scheduled))]
  #[derive(Clone)]
  pub struct CampfireGlobalSchedule {
      #[primary_key]
@@ -428,7 +428,7 @@ pub fn move_item_from_campfire_to_player_slot(
  
      log::info!(
          "[SplitFromCampfire] Player {:?} delegating split {} from campfire {} slot {} to {} slot {}",
-         ctx.sender, quantity_to_split, source_campfire_id, source_slot_index, target_slot_type, target_slot_index
+         ctx.sender(), quantity_to_split, source_campfire_id, source_slot_index, target_slot_type, target_slot_index
      );
  
      // --- Call GENERIC Handler --- 
@@ -468,7 +468,7 @@ pub fn move_item_from_campfire_to_player_slot(
      target_slot_type: String,    // "inventory", "hotbar", or "campfire_fuel"
      target_slot_index: u32,     // Numeric index for inventory/hotbar/campfire
  ) -> Result<(), String> {
-     let sender_id = ctx.sender; 
+     let sender_id = ctx.sender(); 
      let campfires = ctx.db.campfire();
      let mut inventory_items = ctx.db.inventory_item(); 
  
@@ -576,7 +576,7 @@ pub fn toggle_campfire_burning(ctx: &ReducerContext, campfire_id: u32) -> Result
         campfire.is_burning = false;
         campfire.current_fuel_def_id = None;
         campfire.remaining_fuel_burn_time_secs = None;
-        log::info!("Campfire {} extinguished by player {:?}.", campfire.id, ctx.sender);
+        log::info!("Campfire {} extinguished by player {:?}.", campfire.id, ctx.sender());
         
         // Stop campfire sound
         stop_campfire_sound(ctx, campfire.id as u64);
@@ -592,7 +592,7 @@ pub fn toggle_campfire_burning(ctx: &ReducerContext, campfire_id: u32) -> Result
         
         campfire.is_burning = true;
         // remaining_fuel_burn_time_secs will be set by the first call to process_campfire_logic_scheduled
-        log::info!("Campfire {} lit by player {:?}.", campfire.id, ctx.sender);
+        log::info!("Campfire {} lit by player {:?}.", campfire.id, ctx.sender());
         
         // Start campfire sound
         start_campfire_sound(ctx, campfire.id as u64, campfire.pos_x, campfire.pos_y);
@@ -604,7 +604,7 @@ pub fn toggle_campfire_burning(ctx: &ReducerContext, campfire_id: u32) -> Result
  // Reducer to place a campfire
 #[spacetimedb::reducer]
 pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, world_y: f32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let players = ctx.db.player();
@@ -819,8 +819,8 @@ pub fn place_campfire(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
 /// Scheduled reducer: Processes ALL campfires in one call (1 tx/sec vs N tx/sec)
 #[spacetimedb::reducer]
 pub fn process_all_campfires_scheduled(ctx: &ReducerContext, _schedule: CampfireGlobalSchedule) -> Result<(), String> {
-     if ctx.sender != ctx.identity() {
-         log::warn!("[ProcessCampfireScheduled] Unauthorized attempt to run scheduled campfire logic by {:?}. Ignoring.", ctx.sender);
+     if ctx.sender() != ctx.identity() {
+         log::warn!("[ProcessCampfireScheduled] Unauthorized attempt to run scheduled campfire logic by {:?}. Ignoring.", ctx.sender());
          return Err("Unauthorized scheduler invocation".to_string());
      }
  
@@ -1222,7 +1222,7 @@ pub fn init_campfire_global_schedule(ctx: &ReducerContext) -> Result<(), String>
      ctx: &ReducerContext,
      campfire_id: u32,
  ) -> Result<(Player, Campfire), String> {
-     let sender_id = ctx.sender;
+     let sender_id = ctx.sender();
      let players = ctx.db.player();
      let campfires = ctx.db.campfire();
 
@@ -1278,11 +1278,11 @@ pub fn open_campfire_container(ctx: &ReducerContext, campfire_id: u32) -> Result
     let (_player, mut campfire) = validate_campfire_interaction(ctx, campfire_id)?;
     
     // Set the active user
-    campfire.active_user_id = Some(ctx.sender);
+    campfire.active_user_id = Some(ctx.sender());
     campfire.active_user_since = Some(ctx.timestamp);
     
     ctx.db.campfire().id().update(campfire);
-    log::debug!("Player {:?} opened campfire {} container", ctx.sender, campfire_id);
+    log::debug!("Player {:?} opened campfire {} container", ctx.sender(), campfire_id);
     
     Ok(())
 }
@@ -1296,12 +1296,12 @@ pub fn close_campfire_container(ctx: &ReducerContext, campfire_id: u32) -> Resul
         .ok_or_else(|| format!("Campfire {} not found", campfire_id))?;
     
     // Only clear if this player is the active user
-    if campfire.active_user_id == Some(ctx.sender) {
+    if campfire.active_user_id == Some(ctx.sender()) {
         let mut campfire = campfire;
         campfire.active_user_id = None;
         campfire.active_user_since = None;
         ctx.db.campfire().id().update(campfire);
-        log::debug!("Player {:?} closed campfire {} container", ctx.sender, campfire_id);
+        log::debug!("Player {:?} closed campfire {} container", ctx.sender(), campfire_id);
     }
     
     Ok(())
@@ -1379,7 +1379,7 @@ pub fn drop_item_from_campfire_slot_to_world(
     campfire_id: u32,
     slot_index: u8, // This will be 0-4 for fuel slots
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let player_table = ctx.db.player();
     let mut campfire_table = ctx.db.campfire();
 
@@ -1418,7 +1418,7 @@ pub fn split_and_drop_item_from_campfire_slot_to_world(
     slot_index: u8, // This will be 0-4 for fuel slots
     quantity_to_split: u32,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let player_table = ctx.db.player();
     let mut campfire_table = ctx.db.campfire();
 

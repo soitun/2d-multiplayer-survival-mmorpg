@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Player as SpacetimeDBPlayer, SleepingBag, Tree, Stone, Barrel, PlayerPin, Campfire, PlayerCorpse as SpacetimeDBPlayerCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone, LivingCoral } from '../generated'; // Corrected import
+import { Player as SpacetimeDBPlayer, SleepingBag, Tree, Stone, Barrel, PlayerPin, Campfire, PlayerCorpse as SpacetimeDBPlayerCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone, LivingCoral } from '../generated/types'; // Corrected import
 import { drawMinimapOntoCanvas, MINIMAP_DIMENSIONS, worldToMinimapCoords, calculateMinimapViewport } from './Minimap'; // Import Minimap drawing and helpers
 import { gameConfig } from '../config/gameConfig'; // Import gameConfig
 

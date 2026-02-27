@@ -33,7 +33,7 @@ use crate::models::{ContainerType, ItemLocation};
 
 /// --- Stash Data Structure ---
 /// Represents a hidden stash in the game world.
-#[spacetimedb::table(name = stash, public)]
+#[spacetimedb::table(accessor = stash, public)]
 #[derive(Clone)]
 pub struct Stash {
     #[primary_key]
@@ -183,7 +183,7 @@ fn validate_basic_stash_interaction(
     stash_id: u32,
     distance_squared: f32,
 ) -> Result<(Player, Stash), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let stashes = ctx.db.stash();
 
@@ -209,7 +209,7 @@ fn validate_basic_stash_interaction(
 
 #[spacetimedb::reducer]
 pub fn place_stash(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, world_y: f32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let mut inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let mut stashes = ctx.db.stash(); // Plural for table access
@@ -311,7 +311,7 @@ pub fn place_stash(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, wo
 
 #[spacetimedb::reducer]
 pub fn toggle_stash_visibility(ctx: &ReducerContext, stash_id: u32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let mut stashes = ctx.db.stash();
 
     // Fetch stash first to check its current state
@@ -353,7 +353,7 @@ fn validate_stash_item_interaction(ctx: &ReducerContext, stash_id: u32) -> Resul
     // NEW: Check shelter access control
     if !crate::shelter::can_player_interact_with_object_in_shelter(
         ctx,
-        ctx.sender,
+        ctx.sender(),
         player.position_x,
         player.position_y,
         stash.pos_x,

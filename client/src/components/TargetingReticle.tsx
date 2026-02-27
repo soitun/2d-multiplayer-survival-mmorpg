@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Player, ItemDefinition, RangedWeaponStats, ActiveEquipment } from '../generated';
+import { Player, ItemDefinition, RangedWeaponStats, ActiveEquipment } from '../generated/types';
 import { Identity } from 'spacetimedb';
 
 interface TargetingReticleProps {

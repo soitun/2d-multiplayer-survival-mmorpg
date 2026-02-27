@@ -29,7 +29,7 @@ const BACKPACK_SPAWN_SPACING: f32 = 160.0;
 const CONSOLIDATION_CHECK_INTERVAL_SECS: u64 = 30;
 
 // --- Schedule Table ---
-#[spacetimedb::table(name = backpack_consolidation_schedule, scheduled(check_and_consolidate_all_clusters))]
+#[spacetimedb::table(accessor = backpack_consolidation_schedule, scheduled(check_and_consolidate_all_clusters))]
 #[derive(Clone)]
 pub struct BackpackConsolidationSchedule {
     #[primary_key]
@@ -70,7 +70,7 @@ pub fn check_and_consolidate_all_clusters(
 ) -> Result<(), String> {
     use crate::player as PlayerTableTrait;
     
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Backpack consolidation can only be run by scheduler".to_string());
     }
     

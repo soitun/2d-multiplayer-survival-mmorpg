@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import styles from './InventoryUI.module.css'; // Reuse existing styles if applicable, or create new ones
-import { ItemCategory } from '../generated';
+import { ItemCategory } from '../generated/types';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown } from '@fortawesome/free-solid-svg-icons';
 

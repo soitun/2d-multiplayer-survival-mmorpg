@@ -14,7 +14,7 @@ import {
     Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue
     RoadLamppost as SpacetimeDBRoadLamppost, // ADDED: Aleutian whale oil lampposts
     Barrel as SpacetimeDBBarrel, // ADDED: Barrels (buoys for night light cutouts)
-} from '../generated';
+} from '../generated/types';
 import { CAMPFIRE_LIGHT_RADIUS_BASE, CAMPFIRE_FLICKER_AMOUNT, LANTERN_LIGHT_RADIUS_BASE, LANTERN_FLICKER_AMOUNT, FURNACE_LIGHT_RADIUS_BASE, FURNACE_FLICKER_AMOUNT, BARBECUE_LIGHT_RADIUS_BASE, BARBECUE_FLICKER_AMOUNT, SOVA_AURA_RADIUS_BASE, FLARE_LIGHT_RADIUS_BASE } from '../utils/renderers/lightRenderingUtils';
 import { ROAD_LAMP_LIGHT_RADIUS_BASE, ROAD_LAMP_LIGHT_Y_OFFSET } from '../utils/renderers/roadLamppostRenderingUtils';
 import { BUOY_HEIGHT } from '../utils/renderers/barrelRenderingUtils';

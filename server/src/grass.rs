@@ -113,7 +113,7 @@ pub fn is_grass_type_bramble(appearance_type: &GrassAppearanceType) -> bool {
 
 /// Static grass geometry - NEVER updated after spawn
 /// Contains all visual/positional data that doesn't change
-#[spacetimedb::table(name = grass, public)]
+#[spacetimedb::table(accessor = grass, public)]
 #[derive(Clone, Debug)]
 pub struct Grass {
     #[primary_key]
@@ -136,7 +136,7 @@ pub struct Grass {
 /// SpacetimeDB subscription queries don't efficiently use range conditions like `health > 0`
 /// in compound queries. We use `is_alive: bool` with composite index `[chunk_index, is_alive]`
 /// for efficient subscription filtering: `WHERE chunk_index = X AND is_alive = true`
-#[spacetimedb::table(name = grass_state, public, index(name = idx_chunk_alive, btree(columns = [chunk_index, is_alive])))]
+#[spacetimedb::table(accessor = grass_state, public, index(accessor = idx_chunk_alive, name = "idx_chunk_alive", btree(columns = [chunk_index, is_alive])))]
 #[derive(Clone, Debug)]
 pub struct GrassState {
     #[primary_key]
@@ -173,7 +173,7 @@ const GRASS_RESPAWN_CHECK_RADIUS: f32 = 1500.0;
 const GRASS_RESPAWN_CHECK_RADIUS_SQ: f32 = GRASS_RESPAWN_CHECK_RADIUS * GRASS_RESPAWN_CHECK_RADIUS;
 
 /// Single batch schedule entry for grass respawn processing
-#[spacetimedb::table(name = grass_respawn_batch_schedule, scheduled(process_grass_respawn_batch))]
+#[spacetimedb::table(accessor = grass_respawn_batch_schedule, scheduled(process_grass_respawn_batch))]
 #[derive(Clone, Debug)]
 pub struct GrassRespawnBatchSchedule {
     #[primary_key]
@@ -204,7 +204,7 @@ pub fn init_grass_respawn_scheduler(ctx: &spacetimedb::ReducerContext) {
 #[spacetimedb::reducer]
 pub fn process_grass_respawn_batch(ctx: &spacetimedb::ReducerContext, _schedule: GrassRespawnBatchSchedule) -> Result<(), String> {
     // Security check
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("process_grass_respawn_batch can only be called by the scheduler.".to_string());
     }
 
@@ -377,7 +377,7 @@ pub fn process_grass_respawn_batch(ctx: &spacetimedb::ReducerContext, _schedule:
 /// Now uses split tables: reads Grass for static data, updates GrassState for dynamic data
 #[spacetimedb::reducer]
 pub fn damage_grass(ctx: &ReducerContext, grass_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let grass_table = ctx.db.grass();
     let grass_state_table = ctx.db.grass_state();
     let players = ctx.db.player();

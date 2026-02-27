@@ -1,4 +1,4 @@
-import { HomesteadHearth } from '../../generated';
+import { HomesteadHearth } from '../../generated/types';
 import hearthImage from '../../assets/doodads/hearth.png';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';

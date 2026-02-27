@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ItemDefinition, InventoryItem, DbConnection, Campfire as SpacetimeDBCampfire, Fumarole as SpacetimeDBFumarole, HotbarLocationData, EquipmentSlotType, Stash, Player, ActiveConsumableEffect, ActiveEquipment, RangedWeaponStats, BrothPot as SpacetimeDBBrothPot } from '../generated';
+import { DbConnection } from '../generated';
+import { ItemDefinition, InventoryItem, Campfire as SpacetimeDBCampfire, Fumarole as SpacetimeDBFumarole, HotbarLocationData, EquipmentSlotType, Stash, Player, ActiveConsumableEffect, ActiveEquipment, RangedWeaponStats, BrothPot as SpacetimeDBBrothPot } from '../generated/types';
 import { Identity, Timestamp } from 'spacetimedb';
 import { isWaterContainer, hasWaterContent, getWaterLevelPercentage, isSaltWater, getWaterCapacity } from '../utils/waterContainerHelpers';
 import { isPlantableSeed } from '../utils/plantsUtils';
@@ -761,7 +762,7 @@ const Hotbar: React.FC<HotbarProps> = ({
           if (isWeaponType) {
             console.log('[Hotbar] Player entered water with weapon equipped. Auto-unequipping:', currentItem.definition.name);
             try {
-              connection.reducers.clearActiveItemReducer(playerIdentity);
+              connection.reducers.clearActiveItemReducer({ playerIdentity });
               setSelectedSlot(-1); // Clear hotbar selection
             } catch (err) {
               console.error("Error auto-unequipping weapon when entering water:", err);
@@ -778,7 +779,7 @@ const Hotbar: React.FC<HotbarProps> = ({
       if (currentItem && currentItem.definition.name === 'Torch') {
         console.log('[Hotbar] Player started snorkeling with torch equipped. Auto-unequipping for seamless transition.');
         try {
-          connection.reducers.clearActiveItemReducer(playerIdentity);
+          connection.reducers.clearActiveItemReducer({ playerIdentity });
           setSelectedSlot(-1); // Clear hotbar selection
           selectedSlotRef.current = -1; // Keep ref in sync for immediate feedback
         } catch (err) {
@@ -904,7 +905,7 @@ const Hotbar: React.FC<HotbarProps> = ({
     if (!connection?.reducers) {
       if (!itemInSlot && playerIdentity) {
         cancelPlacement();
-        try { connection?.reducers.clearActiveItemReducer(playerIdentity); } catch (err) { console.error("Error clearActiveItemReducer:", err); }
+        try { connection?.reducers.clearActiveItemReducer({ playerIdentity }); } catch (err) { console.error("Error clearActiveItemReducer:", err); }
         updateSelection(-1);
       }
       return;
@@ -913,7 +914,7 @@ const Hotbar: React.FC<HotbarProps> = ({
     if (!itemInSlot) {
       if (playerIdentity) {
         cancelPlacement();
-        try { connection.reducers.clearActiveItemReducer(playerIdentity); } catch (err) { console.error("Error clearActiveItemReducer:", err); }
+        try { connection.reducers.clearActiveItemReducer({ playerIdentity }); } catch (err) { console.error("Error clearActiveItemReducer:", err); }
         updateSelection(-1);
       }
       return;
@@ -957,7 +958,7 @@ const Hotbar: React.FC<HotbarProps> = ({
     if (categoryTag === 'Consumable') {
       cancelPlacement();
       if (playerIdentity) {
-        try { connection.reducers.clearActiveItemReducer(playerIdentity); } catch (err) { console.error("Error clearActiveItemReducer when selecting consumable:", err); }
+        try { connection.reducers.clearActiveItemReducer({ playerIdentity }); } catch (err) { console.error("Error clearActiveItemReducer when selecting consumable:", err); }
       }
       
       // Always highlight selected consumable
@@ -981,7 +982,7 @@ const Hotbar: React.FC<HotbarProps> = ({
         });
         
         try {
-          connection.reducers.consumeItem(instanceId);
+          connection.reducers.consumeItem({ itemInstanceId: instanceId });
           console.log(`[Hotbar] ✅ Successfully called consumeItem reducer for instance ${instanceId.toString()}`);
           triggerClientCooldownAnimation(false, slotIndex); 
         } catch (err) { 
@@ -1017,7 +1018,7 @@ const Hotbar: React.FC<HotbarProps> = ({
       // Note: Selection is already set optimistically by the handler, no need to call updateSelection here
       
       try { 
-        if (playerIdentity) connection.reducers.clearActiveItemReducer(playerIdentity); 
+        if (playerIdentity) connection.reducers.clearActiveItemReducer({ playerIdentity }); 
       } catch (err) { 
         console.error("Error clearActiveItemReducer when selecting placeable:", err); 
       }
@@ -1036,7 +1037,7 @@ const Hotbar: React.FC<HotbarProps> = ({
         // Unequip / Deselect
         try {
           if (playerIdentity) {
-            connection.reducers.clearActiveItemReducer(playerIdentity);
+            connection.reducers.clearActiveItemReducer({ playerIdentity });
             updateSelection(-1);
           }
         } catch (err) {
@@ -1045,7 +1046,7 @@ const Hotbar: React.FC<HotbarProps> = ({
       } else {
         // Equip / Select
         try { 
-          connection.reducers.setActiveItemReducer(instanceId); 
+          connection.reducers.setActiveItemReducer({ itemInstanceId: instanceId }); 
           updateSelection(slotIndex);
         } catch (err) { 
           console.error("Error setActiveItemReducer:", err); 
@@ -1056,7 +1057,7 @@ const Hotbar: React.FC<HotbarProps> = ({
     else {
       cancelPlacement();
       try { 
-        if (playerIdentity) connection.reducers.clearActiveItemReducer(playerIdentity); 
+        if (playerIdentity) connection.reducers.clearActiveItemReducer({ playerIdentity }); 
       } catch (err) { 
         console.error("Error clearActiveItemReducer:", err); 
       }
@@ -1153,14 +1154,14 @@ const Hotbar: React.FC<HotbarProps> = ({
           try {
               switch (interactingWith.type) {
                   case 'player_corpse':
-                      connection.reducers.quickMoveToCorpse(containerId, itemInstanceId);
+                      connection.reducers.quickMoveToCorpse({ corpseId: containerId, itemInstanceId });
                       break;
                   case 'wooden_storage_box':
                       // Check if this is a compost box and use the appropriate reducer
                       let boxEntity: any = null;
                       try {
                           if (connection?.db) {
-                              const boxTable = connection.db.woodenStorageBox;
+                              const boxTable = connection.db.wooden_storage_box;
                               boxEntity = boxTable.id.find(containerId);
                           }
                       } catch (e) {
@@ -1170,19 +1171,19 @@ const Hotbar: React.FC<HotbarProps> = ({
                       const BOX_TYPE_COMPOST = 3; // Match server constant
                       const BOX_TYPE_FISH_TRAP = 10; // Match server constant
                       if (boxEntity?.boxType === BOX_TYPE_COMPOST) {
-                          connection.reducers.quickMoveToCompost(containerId, itemInstanceId);
+                          connection.reducers.quickMoveToCompost({ boxId: containerId, itemInstanceId });
                       } else if (boxEntity?.boxType === BOX_TYPE_REFRIGERATOR) {
-                          connection.reducers.quickMoveToRefrigerator(containerId, itemInstanceId);
+                          connection.reducers.quickMoveToRefrigerator({ boxId: containerId, itemInstanceId });
                       } else if (boxEntity?.boxType === BOX_TYPE_FISH_TRAP) {
-                          connection.reducers.quickMoveToFishTrap(containerId, itemInstanceId);
+                          connection.reducers.quickMoveToFishTrap({ boxId: containerId, itemInstanceId });
                       } else {
-                          connection.reducers.quickMoveToBox(containerId, itemInstanceId);
+                          connection.reducers.quickMoveToBox({ boxId: containerId, itemInstanceId });
                       }
                       break;
                   case 'stash':
                       const currentStash = stashes.get(interactingWith.id.toString());
                       if (currentStash && !currentStash.isHidden) {
-                          connection.reducers.quickMoveToStash(containerId, itemInstanceId);
+                          connection.reducers.quickMoveToStash({ stashId: containerId, itemInstanceId });
                       }
                       break;
                   case 'campfire':
@@ -1197,10 +1198,10 @@ const Hotbar: React.FC<HotbarProps> = ({
                               // If item is a water container AND water container slot is empty, use water slot
                               if (isWaterContainer(itemInfo.definition.name) && !pot?.waterContainerInstanceId) {
                                   try {
-                                      (connection.reducers as any).quickMoveToBrothPotWaterContainer(
-                                          campfireEntity.attachedBrothPotId,
+                                      (connection.reducers as any).quickMoveToBrothPotWaterContainer({
+                                          brothPotId: campfireEntity.attachedBrothPotId,
                                           itemInstanceId
-                                      );
+                                      });
                                       return; // Successfully handled
                                   } catch (e: any) {
                                       console.error(`[Hotbar CtxMenu] Error moving to water container slot:`, e);
@@ -1209,10 +1210,10 @@ const Hotbar: React.FC<HotbarProps> = ({
                               }
                               // Otherwise, send to broth pot ingredient slots (NOT campfire fuel!)
                               try {
-                                  connection.reducers.quickMoveToBrothPot(
-                                      campfireEntity.attachedBrothPotId,
+                                  connection.reducers.quickMoveToBrothPot({
+                                      brothPotId: campfireEntity.attachedBrothPotId,
                                       itemInstanceId
-                                  );
+                                  });
                                   return; // Successfully handled
                               } catch (e: any) {
                                   console.error(`[Hotbar CtxMenu] Error moving to broth pot:`, e);
@@ -1221,29 +1222,29 @@ const Hotbar: React.FC<HotbarProps> = ({
                           }
                       }
                       // Only send to campfire fuel slots if NO broth pot is attached
-                      connection.reducers.quickMoveToCampfire(containerId, itemInstanceId);
+                      connection.reducers.quickMoveToCampfire({ campfireId: containerId, itemInstanceId });
                       break;
                   case 'furnace':
-                      connection.reducers.quickMoveToFurnace(containerId, itemInstanceId);
+                      connection.reducers.quickMoveToFurnace({ furnaceId: containerId, itemInstanceId });
                       break;
                   case 'barbecue':
-                      connection.reducers.quickMoveToBarbecue(containerId, itemInstanceId);
+                      connection.reducers.quickMoveToBarbecue({ barbecueId: containerId, itemInstanceId });
                       break;
                   case 'lantern':
-                      connection.reducers.quickMoveToLantern(containerId, itemInstanceId);
+                      connection.reducers.quickMoveToLantern({ lanternId: containerId, itemInstanceId });
                       break;
                   case 'turret':
-                      connection.reducers.quickMoveToTurret(containerId, itemInstanceId);
+                      connection.reducers.quickMoveToTurret({ turretId: containerId, itemInstanceId });
                       break;
                   case 'homestead_hearth':
-                      connection.reducers.quickMoveToHearth(containerId, itemInstanceId);
+                      connection.reducers.quickMoveToHearth({ hearthId: containerId, itemInstanceId });
                       break;
                   case 'rain_collector':
                       // Rain collectors use a different function signature with slot index
-                      connection.reducers.moveItemToRainCollector(containerId, itemInstanceId, 0);
+                      connection.reducers.moveItemToRainCollector({ collectorId: containerId, itemInstanceId, targetSlotIndex: 0 });
                       break;
                  case 'broth_pot':
-                     connection.reducers.quickMoveToBrothPot(containerId, itemInstanceId);
+                     connection.reducers.quickMoveToBrothPot({ brothPotId: containerId, itemInstanceId });
                      break;
                  case 'fumarole':
                      // CRITICAL: When broth pot is attached, NEVER send items to fumarole incineration slots
@@ -1265,10 +1266,10 @@ const Hotbar: React.FC<HotbarProps> = ({
                              // If item is a water container AND water container slot is empty, use water slot
                              if (isWaterContainer(itemInfo.definition.name) && !pot?.waterContainerInstanceId) {
                                  try {
-                                     (connection.reducers as any).quickMoveToBrothPotWaterContainer(
-                                         fumaroleEntity.attachedBrothPotId,
+                                     (connection.reducers as any).quickMoveToBrothPotWaterContainer({
+                                         brothPotId: fumaroleEntity.attachedBrothPotId,
                                          itemInstanceId
-                                     );
+                                     });
                                      return; // Successfully handled
                                  } catch (e: any) {
                                      console.error(`[Hotbar CtxMenu] Error moving to water container slot:`, e);
@@ -1277,10 +1278,10 @@ const Hotbar: React.FC<HotbarProps> = ({
                              }
                              // Otherwise, send to broth pot ingredient slots (NOT fumarole incineration!)
                              try {
-                                 connection.reducers.quickMoveToBrothPot(
-                                     fumaroleEntity.attachedBrothPotId,
-                                     itemInstanceId
-                                 );
+connection.reducers.quickMoveToBrothPot({
+                                    brothPotId: fumaroleEntity.attachedBrothPotId,
+                                    itemInstanceId
+                                });
                                  return; // Successfully handled
                              } catch (e: any) {
                                  console.error(`[Hotbar CtxMenu] Error moving to broth pot:`, e);
@@ -1289,7 +1290,7 @@ const Hotbar: React.FC<HotbarProps> = ({
                          }
                      }
                      // Only send to fumarole incineration slots if NO broth pot is attached
-                     connection.reducers.quickMoveToFumarole(containerId, itemInstanceId);
+                     connection.reducers.quickMoveToFumarole({ fumaroleId: containerId, itemInstanceId });
                      break;
                  default:
                      console.warn(`[Hotbar CtxMenu] Unknown interaction type: ${interactingWith.type}`);
@@ -1310,7 +1311,7 @@ const Hotbar: React.FC<HotbarProps> = ({
       if (isWaterContainerItem && hasWater) {
           try {
               console.log(`[Hotbar ContextMenu] Consuming water from ${itemInfo.definition.name}`);
-              connection.reducers.consumeFilledWaterContainer(itemInstanceId);
+              connection.reducers.consumeFilledWaterContainer({ itemInstanceId });
           } catch (error: any) {
               console.error("[Hotbar ContextMenu] Failed to consume water container:", error);
           }
@@ -1321,7 +1322,7 @@ const Hotbar: React.FC<HotbarProps> = ({
       if (itemInfo.definition.name === "Fertilizer" && itemInfo.instance.quantity > 0) {
           try {
               console.log(`[Hotbar ContextMenu] Consuming fertilizer from bag`);
-              connection.reducers.consumeItem(itemInstanceId);
+              connection.reducers.consumeItem({ itemInstanceId });
           } catch (error: any) {
               console.error("[Hotbar ContextMenu] Failed to consume fertilizer:", error);
           }
@@ -1333,7 +1334,7 @@ const Hotbar: React.FC<HotbarProps> = ({
       
       if (isArmor && hasEquipSlot) {
            try {
-               connection.reducers.equipArmorFromInventory(itemInstanceId);
+               connection.reducers.equipArmorFromInventory({ itemInstanceId });
            } catch (error: any) {
                console.error("[Hotbar ContextMenu Equip] Failed to call equipArmorFromInventory reducer:", error);
           }
@@ -1343,7 +1344,7 @@ const Hotbar: React.FC<HotbarProps> = ({
       // Default action: Move item from hotbar to first available inventory slot
       try {
           console.log(`[Hotbar ContextMenu] Moving item ${itemInfo.definition.name} from hotbar to first available inventory slot`);
-          connection.reducers.moveToFirstAvailableInventorySlot(itemInstanceId);
+          connection.reducers.moveToFirstAvailableInventorySlot({ itemInstanceId });
       } catch (error: any) {
           console.error("[Hotbar ContextMenu] Failed to move item to inventory:", error);
       }

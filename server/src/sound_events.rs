@@ -424,7 +424,7 @@ impl SoundType {
 }
 
 /// Sound event table - stores sound events for clients to process
-#[table(name = sound_event, public)]
+#[table(accessor = sound_event, public)]
 #[derive(Clone, Debug)]
 pub struct SoundEvent {
     #[primary_key]
@@ -445,7 +445,7 @@ pub struct SoundEvent {
 }
 
 /// Continuous sound table - tracks active looping sounds (campfires, lanterns, etc.)
-#[table(name = continuous_sound, public)]
+#[table(accessor = continuous_sound, public)]
 #[derive(Clone, Debug)]
 pub struct ContinuousSound {
     #[primary_key]
@@ -464,7 +464,7 @@ pub struct ContinuousSound {
 // --- Sound Event Cleanup System ---
 
 /// Schedule table for cleaning up old sound events
-#[table(name = sound_event_cleanup_schedule, scheduled(cleanup_old_sound_events))]
+#[table(accessor = sound_event_cleanup_schedule, scheduled(cleanup_old_sound_events))]
 #[derive(Clone, Debug)]
 pub struct SoundEventCleanupSchedule {
     #[primary_key]
@@ -475,7 +475,7 @@ pub struct SoundEventCleanupSchedule {
 
 /// Schedule table for delayed thunder sound (0.5-2.5s after lightning flash)
 /// chunk_index is used to emit positional sound so only players within range hear it
-#[table(name = thunder_sound_schedule, scheduled(emit_delayed_thunder_sound))]
+#[table(accessor = thunder_sound_schedule, scheduled(emit_delayed_thunder_sound))]
 #[derive(Clone, Debug)]
 pub struct ThunderSoundSchedule {
     #[primary_key]
@@ -489,7 +489,7 @@ pub struct ThunderSoundSchedule {
 #[reducer]
 pub fn cleanup_old_sound_events(ctx: &ReducerContext, _args: SoundEventCleanupSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to run this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Sound event cleanup can only be run by scheduler".to_string());
     }
 
@@ -522,7 +522,7 @@ pub fn cleanup_old_sound_events(ctx: &ReducerContext, _args: SoundEventCleanupSc
 /// Uses positional sound at chunk center so only players within THUNDER_HEARING_CHUNKS hear it.
 #[reducer]
 pub fn emit_delayed_thunder_sound(ctx: &ReducerContext, args: ThunderSoundSchedule) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Delayed thunder sound can only be run by scheduler".to_string());
     }
     emit_thunder_sound_at_chunk(ctx, args.chunk_index, 1.2);
@@ -1704,14 +1704,14 @@ pub fn emit_sova_memory_shard_200_tutorial_sound(ctx: &ReducerContext, pos_x: f3
 /// Client-callable reducer to start heavy storm rain sound
 #[spacetimedb::reducer]
 pub fn start_heavy_storm_rain_sound_reducer(ctx: &ReducerContext) -> Result<(), String> {
-    log::info!("🌧️ Client {} requesting heavy storm rain sound", ctx.sender);
+    log::info!("🌧️ Client {} requesting heavy storm rain sound", ctx.sender());
     start_heavy_storm_rain_sound(ctx)
 }
 
 /// Client-callable reducer to stop heavy storm rain sound
 #[spacetimedb::reducer]
 pub fn stop_heavy_storm_rain_sound_reducer(ctx: &ReducerContext) -> Result<(), String> {
-    log::info!("🌧️ Client {} stopping heavy storm rain sound", ctx.sender);
+    log::info!("🌧️ Client {} stopping heavy storm rain sound", ctx.sender());
     stop_heavy_storm_rain_sound(ctx);
     Ok(())
 }
@@ -1719,14 +1719,14 @@ pub fn stop_heavy_storm_rain_sound_reducer(ctx: &ReducerContext) -> Result<(), S
 /// Client-callable reducer to start normal rain sound
 #[spacetimedb::reducer]
 pub fn start_normal_rain_sound_reducer(ctx: &ReducerContext) -> Result<(), String> {
-    log::info!("🌦️ Client {} requesting normal rain sound", ctx.sender);
+    log::info!("🌦️ Client {} requesting normal rain sound", ctx.sender());
     start_normal_rain_sound(ctx)
 }
 
 /// Client-callable reducer to stop normal rain sound
 #[spacetimedb::reducer]
 pub fn stop_normal_rain_sound_reducer(ctx: &ReducerContext) -> Result<(), String> {
-    log::info!("🌦️ Client {} stopping normal rain sound", ctx.sender);
+    log::info!("🌦️ Client {} stopping normal rain sound", ctx.sender());
     stop_normal_rain_sound(ctx);
     Ok(())
 }

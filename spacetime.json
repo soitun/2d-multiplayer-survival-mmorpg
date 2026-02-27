@@ -1,0 +1,12 @@
+{
+  "module_path": "server",
+  "generate": [
+    {
+      "language": "typescript",
+      "out_dir": "client/src/generated"
+    }
+  ],
+  "dev": {
+    "run": "npm run dev"
+  }
+}

@@ -48,7 +48,7 @@ function getTileTypeAtTile(connection: DbConnection, tileX: number, tileY: numbe
   const chunkX = Math.floor(tileX / chunkSize);
   const chunkY = Math.floor(tileY / chunkSize);
   
-  for (const chunk of connection.db.worldChunkData.iter()) {
+  for (const chunk of connection.db.world_chunk_data.iter()) {
     if (chunk.chunkX === chunkX && chunk.chunkY === chunkY) {
       // Handle negative coordinates properly
       const localTileX = ((tileX % chunkSize) + chunkSize) % chunkSize;
@@ -72,7 +72,7 @@ function isInMonumentZone(connection: DbConnection, worldX: number, worldY: numb
   const MONUMENT_RESTRICTION_RADIUS_SQ = 800 * 800;
   
   // Check ALK stations
-  for (const station of connection.db.alkStation.iter()) {
+  for (const station of connection.db.alk_station.iter()) {
     if (!station.isActive) continue;
     const dx = worldX - station.worldPosX;
     const dy = worldY - station.worldPosY;
@@ -85,7 +85,7 @@ function isInMonumentZone(connection: DbConnection, worldX: number, worldY: numb
   }
   
   // Check rune stones
-  for (const runeStone of connection.db.runeStone.iter()) {
+  for (const runeStone of connection.db.rune_stone.iter()) {
     const dx = worldX - runeStone.posX;
     const dy = worldY - runeStone.posY;
     const distSq = dx * dx + dy * dy;

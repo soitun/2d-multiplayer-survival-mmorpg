@@ -16,7 +16,8 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { DbConnection, Fence } from '../generated';
+import { DbConnection } from '../generated';
+import { Fence } from '../generated/types';
 
 const BUILDING_PLACEMENT_MAX_DISTANCE = 128.0;
 const BUILDING_PLACEMENT_MAX_DISTANCE_SQUARED = BUILDING_PLACEMENT_MAX_DISTANCE * BUILDING_PLACEMENT_MAX_DISTANCE;

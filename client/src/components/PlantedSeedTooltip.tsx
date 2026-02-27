@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { PlantedSeed, Cloud, WorldState, WaterPatch, Campfire, Lantern, Furnace, Tree, RuneStone, ChunkWeather, PlantType, FertilizerPatch, WorldChunkData } from '../generated';
+import { PlantedSeed, Cloud, WorldState, WaterPatch, Campfire, Lantern, Furnace, Tree, RuneStone, ChunkWeather, PlantType, FertilizerPatch, WorldChunkData } from '../generated/types';
 import styles from './PlantedSeedTooltip.module.css';
 import { calculateChunkIndex } from '../utils/chunkUtils';
 import { RESOURCE_IMAGE_SOURCES } from '../utils/renderers/resourceImageConfigs';

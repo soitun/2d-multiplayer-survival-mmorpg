@@ -38,7 +38,7 @@ const TIDE_POOL_TERN_TARGET: u32 = 1;   // 1 tern per tide pool
 /// a den/graveyard feels meaningful. Full wolf pack ~32 min, wolverines ~32 min, terns ~16 min per marsh.
 const SPAWN_ZONE_CHECK_INTERVAL_SECS: u64 = 480; // 8 minutes
 
-#[spacetimedb::table(name = spawn_zone_schedule, scheduled(process_spawn_zone_maintenance))]
+#[spacetimedb::table(accessor = spawn_zone_schedule, scheduled(process_spawn_zone_maintenance))]
 #[derive(Clone)]
 pub struct SpawnZoneSchedule {
     #[primary_key]
@@ -50,7 +50,7 @@ pub struct SpawnZoneSchedule {
 /// Scheduled reducer - only callable by scheduler. Runs spawn zone maintenance.
 #[spacetimedb::reducer]
 pub fn process_spawn_zone_maintenance(ctx: &ReducerContext, _schedule: SpawnZoneSchedule) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("process_spawn_zone_maintenance may only be called by the scheduler.".into());
     }
     maintain_spawn_zone_populations(ctx)

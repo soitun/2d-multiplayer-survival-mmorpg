@@ -152,7 +152,7 @@ const FISHING_VILLAGE_EXCLUSION_RADIUS_SQ: f32 = FISHING_VILLAGE_EXCLUSION_RADIU
 
 // Table to track walking sound cadence for each animal
 // DISABLED: Animal walking sounds temporarily removed due to duplicate sound playback issues
-// #[spacetimedb::table(name = animal_walking_sound_state, public)]
+// #[spacetimedb::table(accessor = animal_walking_sound_state, public)]
 // #[derive(Clone, Debug)]
 // pub struct AnimalWalkingSoundState {
 //     #[primary_key]
@@ -292,7 +292,7 @@ pub struct AnimalStats {
 }
 
 // --- Main Animal Entity Table ---
-#[spacetimedb::table(name = wild_animal, public)]
+#[spacetimedb::table(accessor = wild_animal, public)]
 #[derive(Clone, Debug)]
 pub struct WildAnimal {
     #[primary_key]
@@ -359,7 +359,7 @@ pub struct WildAnimal {
 }
 
 // --- AI Processing Schedule Table ---
-#[spacetimedb::table(name = wild_animal_ai_schedule, scheduled(process_wild_animal_ai))]
+#[spacetimedb::table(accessor = wild_animal_ai_schedule, scheduled(process_wild_animal_ai))]
 #[derive(Clone)]
 pub struct WildAnimalAiSchedule {
     #[primary_key]
@@ -846,7 +846,7 @@ pub fn init_wild_animal_ai_schedule(ctx: &ReducerContext) -> Result<(), String> 
 #[spacetimedb::reducer]
 pub fn process_wild_animal_ai(ctx: &ReducerContext, _schedule: WildAnimalAiSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Wild animal AI can only be processed by scheduler".to_string());
     }
 
@@ -2905,7 +2905,7 @@ pub fn debug_spawn_animal(ctx: &ReducerContext, species_str: String) -> Result<(
     };
     
     // Get the player's position
-    let player = ctx.db.player().identity().find(&ctx.sender)
+    let player = ctx.db.player().identity().find(&ctx.sender())
         .ok_or_else(|| "Player not found".to_string())?;
     
     let (spawn_x, spawn_y) = if matches!(species, AnimalSpecies::SalmonShark | AnimalSpecies::Jellyfish) {
@@ -6829,7 +6829,7 @@ pub fn handle_water_unstuck(
 #[spacetimedb::reducer]
 pub fn milk_animal(ctx: &ReducerContext, animal_id: u64) -> Result<(), String> {
     // Get the player
-    let player = ctx.db.player().identity().find(&ctx.sender)
+    let player = ctx.db.player().identity().find(&ctx.sender())
         .ok_or_else(|| "Player not found".to_string())?;
     
     if player.is_dead {
@@ -6842,7 +6842,7 @@ pub fn milk_animal(ctx: &ReducerContext, animal_id: u64) -> Result<(), String> {
     
     // Check if animal is tamed by this player
     let tamed_by = animal.tamed_by.ok_or_else(|| "Animal is not tamed".to_string())?;
-    if tamed_by != ctx.sender {
+    if tamed_by != ctx.sender() {
         return Err("You don't own this animal".to_string());
     }
     
@@ -6860,10 +6860,10 @@ pub fn milk_animal(ctx: &ReducerContext, animal_id: u64) -> Result<(), String> {
     // Handle milking based on species
     match animal.species {
         AnimalSpecies::Caribou => {
-            milk_caribou(ctx, &mut animal, current_day, ctx.sender)?;
+            milk_caribou(ctx, &mut animal, current_day, ctx.sender())?;
         }
         AnimalSpecies::ArcticWalrus => {
-            milk_walrus(ctx, &mut animal, current_day, ctx.sender)?;
+            milk_walrus(ctx, &mut animal, current_day, ctx.sender())?;
         }
         _ => {
             return Err(format!("{:?} cannot be milked", animal.species));

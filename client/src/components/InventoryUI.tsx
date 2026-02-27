@@ -17,17 +17,17 @@ import DroppableSlot from './DroppableSlot';
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes'; // Import both from shared
 
 // Import SpacetimeDB types needed for props and logic
+import { DbConnection } from '../generated';
 import {
     Player,
     InventoryItem,
     ItemDefinition,
-    DbConnection,
     ActiveEquipment,
     RangedWeaponStats,
     Campfire as SpacetimeDBCampfire,
     Furnace as SpacetimeDBFurnace,
-    Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
-    Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole import
+    Barbecue as SpacetimeDBBarbecue,
+    Fumarole as SpacetimeDBFumarole,
     Lantern as SpacetimeDBLantern,
     WoodenStorageBox as SpacetimeDBWoodenStorageBox,
     Recipe,
@@ -39,14 +39,13 @@ import {
     BrothPot as SpacetimeDBBrothPot,
     WorldState,
     ActiveConsumableEffect,
-    // Import the generated types for ItemLocation variants
     ItemLocation,
-    InventoryLocationData, // Assuming this is the type for ItemLocation.Inventory.value
-    EquippedLocationData,  // Assuming this is the type for ItemLocation.Equipped.value
-    EquipmentSlotType,    // Make sure this matches the actual exported name for the slot type enum/union
+    InventoryLocationData,
+    EquippedLocationData,
+    EquipmentSlotType,
     StatThresholdsConfig,
     KnockedOutStatus
-} from '../generated';
+} from '../generated/types';
 import { Identity } from 'spacetimedb';
 // NEW: Import placement types
 import { PlacementItemInfo} from '../hooks/usePlacementManager';
@@ -646,19 +645,19 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
             try {
                 switch (currentInteraction.type) {
                     case 'player_corpse':
-                        connection.reducers.quickMoveToCorpse(containerId, itemInstanceId);
+                        connection.reducers.quickMoveToCorpse({ corpseId: containerId, itemInstanceId });
                         break;
                     case 'wooden_storage_box':
                         // Check if this is a compost/refrigerator/fish trap box and use the appropriate reducer
                         const boxEntity = woodenStorageBoxes.get(containerId.toString());
                         if (boxEntity?.boxType === 3) { // BOX_TYPE_COMPOST = 3
-                            connection.reducers.quickMoveToCompost(containerId, itemInstanceId);
+                            connection.reducers.quickMoveToCompost({ boxId: containerId, itemInstanceId });
                         } else if (boxEntity?.boxType === 2) { // BOX_TYPE_REFRIGERATOR = 2
-                            connection.reducers.quickMoveToRefrigerator(containerId, itemInstanceId);
+                            connection.reducers.quickMoveToRefrigerator({ boxId: containerId, itemInstanceId });
                         } else if (boxEntity?.boxType === 10) { // BOX_TYPE_FISH_TRAP = 10
-                            connection.reducers.quickMoveToFishTrap(containerId, itemInstanceId);
+                            connection.reducers.quickMoveToFishTrap({ boxId: containerId, itemInstanceId });
                         } else {
-                            connection.reducers.quickMoveToBox(containerId, itemInstanceId);
+                            connection.reducers.quickMoveToBox({ boxId: containerId, itemInstanceId });
                         }
                         break;
                     case 'stash':
@@ -666,7 +665,7 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                         if (stashEntity?.isHidden) {
                             return; // Can't move to hidden stash
                         }
-                        connection.reducers.quickMoveToStash(containerId, itemInstanceId);
+                        connection.reducers.quickMoveToStash({ stashId: containerId, itemInstanceId });
                         break;
                     case 'campfire':
                         // CRITICAL: When broth pot is attached, redirect items to broth pot (not campfire fuel slots)
@@ -680,10 +679,10 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                 // If item is a water container AND water container slot is empty, use water slot
                                 if (isWaterContainer(itemInfo.definition.name) && !pot?.waterContainerInstanceId) {
                                     try {
-                                        (connection.reducers as any).quickMoveToBrothPotWaterContainer(
-                                            campfireEntity.attachedBrothPotId,
+                                        connection.reducers.quickMoveToBrothPotWaterContainer({
+                                            brothPotId: campfireEntity.attachedBrothPotId,
                                             itemInstanceId
-                                        );
+                                        });
                                         return; // Successfully handled
                                     } catch (e: any) {
                                         console.error(`[Inv CtxMenu] Error moving to water container slot:`, e);
@@ -692,10 +691,10 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                 }
                                 // Otherwise, send to broth pot ingredient slots (NOT campfire fuel!)
                                 try {
-                                    connection.reducers.quickMoveToBrothPot(
-                                        campfireEntity.attachedBrothPotId,
+                                    connection.reducers.quickMoveToBrothPot({
+                                        brothPotId: campfireEntity.attachedBrothPotId,
                                         itemInstanceId
-                                    );
+                                    });
                                     return; // Successfully handled
                                 } catch (e: any) {
                                     console.error(`[Inv CtxMenu] Error moving to broth pot:`, e);
@@ -704,13 +703,13 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                             }
                         }
                         // Only send to campfire fuel slots if NO broth pot is attached
-                        connection.reducers.quickMoveToCampfire(containerId, itemInstanceId);
+                        connection.reducers.quickMoveToCampfire({ campfireId: containerId, itemInstanceId });
                         break;
                     case 'furnace':
-                        connection.reducers.quickMoveToFurnace(containerId, itemInstanceId);
+                        connection.reducers.quickMoveToFurnace({ furnaceId: containerId, itemInstanceId });
                         break;
                     case 'barbecue':
-                        connection.reducers.quickMoveToBarbecue(containerId, itemInstanceId);
+                        connection.reducers.quickMoveToBarbecue({ barbecueId: containerId, itemInstanceId });
                         break;
                     case 'fumarole':
                         // CRITICAL: When broth pot is attached, NEVER send items to fumarole incineration slots
@@ -732,10 +731,10 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                 // If item is a water container AND water container slot is empty, use water slot
                                 if (isWaterContainer(itemInfo.definition.name) && !pot?.waterContainerInstanceId) {
                                     try {
-                                        (connection.reducers as any).quickMoveToBrothPotWaterContainer(
-                                            fumaroleEntity.attachedBrothPotId,
+                                        connection.reducers.quickMoveToBrothPotWaterContainer({
+                                            brothPotId: fumaroleEntity.attachedBrothPotId,
                                             itemInstanceId
-                                        );
+                                        });
                                         return; // Successfully handled
                                     } catch (e: any) {
                                         console.error(`[Inv CtxMenu] Error moving to water container slot:`, e);
@@ -744,10 +743,10 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                                 }
                                 // Otherwise, send to broth pot ingredient slots (NOT fumarole incineration!)
                                 try {
-                                    connection.reducers.quickMoveToBrothPot(
-                                        fumaroleEntity.attachedBrothPotId,
-                                        itemInstanceId
-                                    );
+connection.reducers.quickMoveToBrothPot({
+                                            brothPotId: fumaroleEntity.attachedBrothPotId,
+                                            itemInstanceId
+                                        });
                                     return; // Successfully handled
                                 } catch (e: any) {
                                     console.error(`[Inv CtxMenu] Error moving to broth pot:`, e);
@@ -756,23 +755,23 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
                             }
                         }
                         // Only send to fumarole incineration slots if NO broth pot is attached
-                        (connection.reducers as any).quickMoveToFumarole(containerId, itemInstanceId);
+                        connection.reducers.quickMoveToFumarole({ fumaroleId: containerId, itemInstanceId });
                         break;
                     case 'lantern':
-                        connection.reducers.quickMoveToLantern(containerId, itemInstanceId);
+                        connection.reducers.quickMoveToLantern({ lanternId: containerId, itemInstanceId });
                         break;
                     case 'turret':
-                        connection.reducers.quickMoveToTurret(containerId, itemInstanceId);
+                        connection.reducers.quickMoveToTurret({ turretId: containerId, itemInstanceId });
                         break;
                     case 'homestead_hearth':
-                        connection.reducers.quickMoveToHearth(containerId, itemInstanceId);
+                        connection.reducers.quickMoveToHearth({ hearthId: containerId, itemInstanceId });
                         break;
                     case 'rain_collector':
                         // Rain collectors use a different function signature with slot index
-                        connection.reducers.moveItemToRainCollector(containerId, itemInstanceId, 0);
+                        connection.reducers.moveItemToRainCollector({ collectorId: containerId, itemInstanceId, targetSlotIndex: 0 });
                         break;
                    case 'broth_pot':
-                       connection.reducers.quickMoveToBrothPot(containerId, itemInstanceId);
+                       connection.reducers.quickMoveToBrothPot({ brothPotId: containerId, itemInstanceId });
                        break;
                    default:
                        console.warn(`[Inv CtxMenu] Unknown interaction type: ${currentInteraction.type}`);
@@ -795,13 +794,13 @@ const InventoryUI: React.FC<InventoryUIProps> = ({
         const isArmor = itemInfo.definition.category.tag === 'Armor' && itemInfo.definition.equipmentSlotType !== null;
         if (isArmor) {
             try { 
-                connection.reducers.equipArmorFromInventory(itemInstanceId); 
+                connection.reducers.equipArmorFromInventory({ itemInstanceId }); 
             } catch (e: any) { 
                 console.error("[Inv CtxMenu EquipArmor]", e); 
             }
         } else {
             try { 
-                connection.reducers.moveToFirstAvailableHotbarSlot(itemInstanceId); 
+                connection.reducers.moveToFirstAvailableHotbarSlot({ itemInstanceId }); 
             } catch (e: any) { 
                 console.error("[Inv CtxMenu Inv->Hotbar]", e); 
             }

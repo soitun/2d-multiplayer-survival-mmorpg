@@ -3,7 +3,7 @@
 // This eliminates ~60 React re-renders per second
 
 import { useEffect, useRef, useCallback } from 'react';
-import { Furnace } from '../generated';
+import { Furnace } from '../generated/types';
 import { 
   FURNACE_HEIGHT, 
   FURNACE_RENDER_Y_OFFSET,

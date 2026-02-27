@@ -26,7 +26,7 @@ const SECS_PER_GAME_DAY: u64 = 1800;
 
 // --- Tables ---
 
-#[spacetimedb::table(name = drone_event, public)]
+#[spacetimedb::table(accessor = drone_event, public)]
 #[derive(Clone, Debug)]
 pub struct DroneEvent {
     #[primary_key]
@@ -43,7 +43,7 @@ pub struct DroneEvent {
     pub direction_y: f32,
 }
 
-#[spacetimedb::table(name = drone_daily_schedule, scheduled(process_drone_daily))]
+#[spacetimedb::table(accessor = drone_daily_schedule, scheduled(process_drone_daily))]
 #[derive(Clone, Debug)]
 pub struct DroneDailySchedule {
     #[primary_key]
@@ -52,7 +52,7 @@ pub struct DroneDailySchedule {
     pub scheduled_at: ScheduleAt,
 }
 
-#[spacetimedb::table(name = drone_flight_schedule, scheduled(process_drone_flight_tick))]
+#[spacetimedb::table(accessor = drone_flight_schedule, scheduled(process_drone_flight_tick))]
 #[derive(Clone, Debug)]
 pub struct DroneFlightSchedule {
     #[primary_key]
@@ -216,7 +216,7 @@ pub fn spawn_drone_event(
 
 #[reducer]
 pub fn process_drone_daily(ctx: &ReducerContext, _schedule: DroneDailySchedule) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Drone daily schedule can only run from scheduler".into());
     }
 
@@ -231,7 +231,7 @@ pub fn process_drone_daily(ctx: &ReducerContext, _schedule: DroneDailySchedule) 
 
 #[reducer]
 pub fn process_drone_flight_tick(ctx: &ReducerContext, schedule: DroneFlightSchedule) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Drone flight tick can only run from scheduler".into());
     }
 
@@ -311,7 +311,7 @@ pub fn init_drone_system(ctx: &ReducerContext) {
 pub fn debug_simulate_drone(ctx: &ReducerContext) -> Result<(), String> {
     let player = ctx.db.player()
         .identity()
-        .find(&ctx.sender)
+        .find(&ctx.sender())
         .ok_or_else(|| "Player not found".to_string())?;
 
     if !player.is_online {

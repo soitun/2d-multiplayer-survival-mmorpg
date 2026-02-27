@@ -19,7 +19,7 @@
  * 4. CONFIG: SWIMMING_EFFECTS_CONFIG (wave amplitude, wake radius, tint, etc.).
  */
 
-import { Player as SpacetimeDBPlayer } from '../../generated';
+import { Player as SpacetimeDBPlayer } from '../../generated/types';
 import { gameConfig } from '../../config/gameConfig';
 import { drawDynamicGroundShadow } from './shadowUtils';
 

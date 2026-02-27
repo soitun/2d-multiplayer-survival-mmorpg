@@ -22,7 +22,7 @@ pub struct FishingState {
 }
 
 // Table to track active fishing sessions
-#[table(name = fishing_session, public)]
+#[table(accessor = fishing_session, public)]
 pub struct FishingSession {
     #[primary_key]
     pub player_id: Identity,
@@ -681,7 +681,7 @@ pub fn is_within_fishing_range(player_x: f32, player_y: f32, target_x: f32, targ
 
 #[reducer]
 pub fn cast_fishing_line(ctx: &ReducerContext, target_x: f32, target_y: f32) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Get player position from player table
     let player = match ctx.db.player().identity().find(&player_id) {
@@ -751,7 +751,7 @@ pub fn cast_fishing_line(ctx: &ReducerContext, target_x: f32, target_y: f32) -> 
 
 #[reducer]
 pub fn finish_fishing(ctx: &ReducerContext, success: bool, _caught_items: Vec<String>) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     log::info!("===== FINISH_FISHING CALLED =====");
     log::info!("Player: {}", player_id);
@@ -902,7 +902,7 @@ pub fn finish_fishing(ctx: &ReducerContext, success: bool, _caught_items: Vec<St
 
 #[reducer]
 pub fn cancel_fishing(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Remove fishing session if exists
     if ctx.db.fishing_session().player_id().find(&player_id).is_some() {

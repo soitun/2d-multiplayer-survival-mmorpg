@@ -13,7 +13,7 @@ use crate::player_progression::comparative_stat_notification as ComparativeStatN
 // --- StatThresholdsConfig Table Definition (Formerly GameConfig) ---
 pub const DEFAULT_LOW_NEED_THRESHOLD: f32 = 20.0;
 
-#[table(name = stat_thresholds_config, public)]
+#[table(accessor = stat_thresholds_config, public)]
 #[derive(Clone, Debug)]
 pub struct StatThresholdsConfig {
     #[primary_key]
@@ -218,7 +218,7 @@ pub fn get_biome_warmth_multiplier(ctx: &ReducerContext, pos_x: f32, pos_y: f32)
 }
 
 // --- Player Stat Schedule Table (Reverted to scheduled pattern) ---
-#[spacetimedb::table(name = player_stat_schedule, scheduled(process_player_stats))]
+#[spacetimedb::table(accessor = player_stat_schedule, scheduled(process_player_stats))]
 #[derive(Clone)]
 pub struct PlayerStatSchedule {
     #[primary_key]
@@ -254,7 +254,7 @@ pub fn init_player_stat_schedule(ctx: &ReducerContext) -> Result<(), String> {
 #[spacetimedb::reducer]
 pub fn process_player_stats(ctx: &ReducerContext, _schedule: PlayerStatSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("process_player_stats may only be called by the scheduler.".to_string());
     }
 

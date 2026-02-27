@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { TimeOfDay, WeatherType, ActiveConsumableEffect, Season } from '../generated'; // Import actual types
+import { TimeOfDay, WeatherType, ActiveConsumableEffect, Season } from '../generated/types'; // Import actual types
 import { calculateChunkIndex } from '../utils/chunkUtils'; // Import chunk calculation helper
 import { gameConfig } from '../config/gameConfig'; // Import game config for chunk dimensions
 

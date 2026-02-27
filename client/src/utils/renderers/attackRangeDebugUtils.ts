@@ -9,7 +9,7 @@
  * - Color-coded indicators (green = in range, yellow = spear range, red = out of range)
  */
 
-import { Player, WoodenStorageBox, Barbecue, Furnace, Tree, Stone, WildAnimal, Barrel, Grass, Campfire, SleepingBag, Stash, ItemDefinition as SpacetimeDBItemDefinition } from '../../generated';
+import { Player, WoodenStorageBox, Barbecue, Furnace, Tree, Stone, WildAnimal, Barrel, Grass, Campfire, SleepingBag, Stash, ItemDefinition as SpacetimeDBItemDefinition } from '../../generated/types';
 import { InterpolatedGrassData } from '../../hooks/useGrassInterpolation'; // Merged grass+grassState data
 import { PLAYER_RADIUS } from '../clientCollision';
 

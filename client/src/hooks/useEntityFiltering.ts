@@ -72,7 +72,7 @@ import {
   // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
   LivingCoral as SpacetimeDBLivingCoral, // Living coral for underwater harvesting (uses combat system)
   // Grass as SpacetimeDBGrass // Will use InterpolatedGrassData instead
-} from '../generated';
+} from '../generated/types';
 import {
   isPlayer, isTree, isStone, isCampfire, isHarvestableResource, isDroppedItem, isWoodenStorageBox,
   isSleepingBag,

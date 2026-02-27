@@ -64,7 +64,7 @@ use crate::inventory_management::{ItemContainer, ContainerItemClearer};
 /// --- Rain Collector Data Structure ---
 /// Represents a rain collection device in the game world.
 /// Automatically fills water containers during rain events.
-#[spacetimedb::table(name = rain_collector, public)]
+#[spacetimedb::table(accessor = rain_collector, public)]
 #[derive(Clone)]
 pub struct RainCollector {
     #[primary_key]
@@ -172,14 +172,14 @@ impl ContainerItemClearer for RainCollector {
 /// Consumes the item from player's inventory and creates the collector entity.
 #[spacetimedb::reducer]
 pub fn place_rain_collector(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, world_y: f32) -> Result<(), String> {
-    log::info!("Player {} attempting to place rain collector at ({}, {})", ctx.sender, world_x, world_y);
+    log::info!("Player {} attempting to place rain collector at ({}, {})", ctx.sender(), world_x, world_y);
 
     // Check if position is within monument zones (ALK stations, rune stones, hot springs, quarries)
     crate::building::check_monument_zone_placement(ctx, world_x, world_y)?;
 
     // --- Get player and validate ---
     let players = ctx.db.player();
-    let player = players.identity().find(&ctx.sender)
+    let player = players.identity().find(&ctx.sender())
         .ok_or_else(|| "Player not found.".to_string())?;
 
     // --- Validate item ---
@@ -189,9 +189,9 @@ pub fn place_rain_collector(ctx: &ReducerContext, item_instance_id: u64, world_x
     
     // Verify ownership by checking the item's location
     let owns_item = match &item.location {
-        crate::models::ItemLocation::Inventory(data) => data.owner_id == ctx.sender,
-        crate::models::ItemLocation::Hotbar(data) => data.owner_id == ctx.sender,
-        crate::models::ItemLocation::Equipped(data) => data.owner_id == ctx.sender,
+        crate::models::ItemLocation::Inventory(data) => data.owner_id == ctx.sender(),
+        crate::models::ItemLocation::Hotbar(data) => data.owner_id == ctx.sender(),
+        crate::models::ItemLocation::Equipped(data) => data.owner_id == ctx.sender(),
         _ => false, // Other locations like containers don't belong to players
     };
     
@@ -268,7 +268,7 @@ pub fn place_rain_collector(ctx: &ReducerContext, item_instance_id: u64, world_x
         pos_x: world_x,
         pos_y: world_y,
         chunk_index,
-        placed_by: ctx.sender,
+        placed_by: ctx.sender(),
         placed_at: ctx.timestamp,
         slot_0_instance_id: None, // Start with empty inventory
         slot_0_def_id: None,
@@ -295,7 +295,7 @@ pub fn place_rain_collector(ctx: &ReducerContext, item_instance_id: u64, world_x
     let mut items = ctx.db.inventory_item();
     items.instance_id().delete(&item_instance_id);
 
-    log::info!("Rain collector placed successfully at ({}, {}) by player {}", world_x, world_y, ctx.sender);
+    log::info!("Rain collector placed successfully at ({}, {}) by player {}", world_x, world_y, ctx.sender());
     Ok(())
 }
 
@@ -309,7 +309,7 @@ pub fn move_item_to_rain_collector(
     target_slot_index: u8,
 ) -> Result<(), String> {
     log::info!("Player {} moving item {} to rain collector {} slot {}", 
-               ctx.sender, item_instance_id, collector_id, target_slot_index);
+               ctx.sender(), item_instance_id, collector_id, target_slot_index);
 
     // --- Validate interaction ---
     let (_player, mut collector) = validate_collector_interaction(ctx, collector_id)?;
@@ -349,7 +349,7 @@ pub fn move_item_from_rain_collector(
     target_slot_index: u32,
 ) -> Result<(), String> {
     log::info!("Player {} moving item from rain collector {} slot {} to {} slot {}", 
-               ctx.sender, collector_id, source_slot_index, target_slot_type, target_slot_index);
+               ctx.sender(), collector_id, source_slot_index, target_slot_type, target_slot_index);
 
     // --- Validate interaction ---
     let (_player, mut collector) = validate_collector_interaction(ctx, collector_id)?;
@@ -378,7 +378,7 @@ pub fn quick_move_from_rain_collector(
     source_slot_index: u8,
 ) -> Result<(), String> {
     log::info!("Player {} quick moving item from rain collector {} slot {}", 
-               ctx.sender, collector_id, source_slot_index);
+               ctx.sender(), collector_id, source_slot_index);
 
     // --- Validate interaction ---
     let (_player, mut collector) = validate_collector_interaction(ctx, collector_id)?;
@@ -400,7 +400,7 @@ pub fn quick_move_from_rain_collector(
 /// Fills a water container in the rain collector with collected rainwater.
 #[spacetimedb::reducer]
 pub fn fill_water_container(ctx: &ReducerContext, collector_id: u32) -> Result<(), String> {
-    log::info!("Player {} attempting to fill water container in collector {}", ctx.sender, collector_id);
+    log::info!("Player {} attempting to fill water container in collector {}", ctx.sender(), collector_id);
 
     // --- Validate interaction ---
     let (_player, mut collector) = validate_collector_interaction(ctx, collector_id)?;
@@ -468,7 +468,7 @@ pub fn fill_water_container(ctx: &ReducerContext, collector_id: u32) -> Result<(
     ctx.db.rain_collector().id().update(collector);
 
     // --- Emit filling container sound effect ---
-    emit_filling_container_sound(ctx, collector_pos_x, collector_pos_y, ctx.sender);
+    emit_filling_container_sound(ctx, collector_pos_x, collector_pos_y, ctx.sender());
 
     log::info!("Successfully transferred {:.1}L of water to {} (now has {:.1}L/{:.1}L). Collector now has {:.1}L remaining.", 
                water_to_transfer, container_def.name, new_water_content, capacity, remaining_collector_water);
@@ -481,7 +481,7 @@ pub fn fill_water_container(ctx: &ReducerContext, collector_id: u32) -> Result<(
 /// This allows emptying containers into the collector to store water for later use.
 #[spacetimedb::reducer]
 pub fn transfer_water_from_container_to_collector(ctx: &ReducerContext, collector_id: u32) -> Result<(), String> {
-    log::info!("Player {} attempting to transfer water from container to collector {}", ctx.sender, collector_id);
+    log::info!("Player {} attempting to transfer water from container to collector {}", ctx.sender(), collector_id);
 
     // --- Validate interaction ---
     let (_player, mut collector) = validate_collector_interaction(ctx, collector_id)?;
@@ -544,7 +544,7 @@ pub fn transfer_water_from_container_to_collector(ctx: &ReducerContext, collecto
     ctx.db.rain_collector().id().update(collector);
 
     // --- Emit filling container sound effect ---
-    emit_filling_container_sound(ctx, collector_pos_x, collector_pos_y, ctx.sender);
+    emit_filling_container_sound(ctx, collector_pos_x, collector_pos_y, ctx.sender());
 
     log::info!("Successfully transferred {:.1}L from {} to collector {} (collector now has {:.1}L/{:.1}L, container has {:.1}L remaining)", 
                water_to_transfer, container_def.name, collector_id, 
@@ -558,7 +558,7 @@ pub fn transfer_water_from_container_to_collector(ctx: &ReducerContext, collecto
 /// Useful for clearing contaminated (salt) water so fresh rainwater can be collected.
 #[spacetimedb::reducer]
 pub fn empty_rain_collector_reservoir(ctx: &ReducerContext, collector_id: u32) -> Result<(), String> {
-    log::info!("Player {} attempting to empty rain collector {} reservoir", ctx.sender, collector_id);
+    log::info!("Player {} attempting to empty rain collector {} reservoir", ctx.sender(), collector_id);
 
     // --- Validate interaction ---
     let (_player, mut collector) = validate_collector_interaction(ctx, collector_id)?;
@@ -582,7 +582,7 @@ pub fn empty_rain_collector_reservoir(ctx: &ReducerContext, collector_id: u32) -
     ctx.db.rain_collector().id().update(collector);
 
     // --- Emit spilling sound effect ---
-    emit_filling_container_sound(ctx, collector_pos_x, collector_pos_y, ctx.sender);
+    emit_filling_container_sound(ctx, collector_pos_x, collector_pos_y, ctx.sender());
 
     log::info!("Successfully emptied {:.1}L of {} water from rain collector {}", 
                water_spilled, 
@@ -697,7 +697,7 @@ fn validate_collector_interaction(
 ) -> Result<(Player, RainCollector), String> {
     // --- Get player ---
     let players = ctx.db.player();
-    let player = players.identity().find(&ctx.sender)
+    let player = players.identity().find(&ctx.sender())
         .ok_or_else(|| "Player not found.".to_string())?;
 
     // --- Get collector ---
@@ -741,11 +741,11 @@ pub fn open_rain_collector_container(ctx: &ReducerContext, collector_id: u32) ->
     let (_player, mut collector) = validate_collector_interaction(ctx, collector_id)?;
     
     // Set the active user
-    collector.active_user_id = Some(ctx.sender);
+    collector.active_user_id = Some(ctx.sender());
     collector.active_user_since = Some(ctx.timestamp);
     
     ctx.db.rain_collector().id().update(collector);
-    log::debug!("Player {:?} opened rain collector {} container", ctx.sender, collector_id);
+    log::debug!("Player {:?} opened rain collector {} container", ctx.sender(), collector_id);
     
     Ok(())
 }
@@ -759,12 +759,12 @@ pub fn close_rain_collector_container(ctx: &ReducerContext, collector_id: u32) -
         .ok_or_else(|| format!("Rain collector {} not found", collector_id))?;
     
     // Only clear if this player is the active user
-    if collector.active_user_id == Some(ctx.sender) {
+    if collector.active_user_id == Some(ctx.sender()) {
         let mut collector = collector;
         collector.active_user_id = None;
         collector.active_user_since = None;
         ctx.db.rain_collector().id().update(collector);
-        log::debug!("Player {:?} closed rain collector {} container", ctx.sender, collector_id);
+        log::debug!("Player {:?} closed rain collector {} container", ctx.sender(), collector_id);
     }
     
     Ok(())

@@ -22,7 +22,7 @@ pub const FERTILIZER_GROWTH_BONUS_MULTIPLIER: f32 = 2.0; // 2x growth rate when 
 
 // --- Fertilizer Patch Table ---
 
-#[spacetimedb::table(name = fertilizer_patch, public)]
+#[spacetimedb::table(accessor = fertilizer_patch, public)]
 #[derive(Clone, Debug)]
 pub struct FertilizerPatch {
     #[primary_key]
@@ -39,7 +39,7 @@ pub struct FertilizerPatch {
 
 // --- Cleanup Schedule Table ---
 
-#[spacetimedb::table(name = fertilizer_patch_cleanup_schedule, scheduled(cleanup_expired_fertilizer_patches))]
+#[spacetimedb::table(accessor = fertilizer_patch_cleanup_schedule, scheduled(cleanup_expired_fertilizer_patches))]
 #[derive(Clone)]
 pub struct FertilizerPatchCleanupSchedule {
     #[primary_key]
@@ -145,7 +145,7 @@ pub fn cleanup_expired_fertilizer_patches(
     _schedule: FertilizerPatchCleanupSchedule,
 ) -> Result<(), String> {
     // Security check - only scheduler can run this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Fertilizer patch cleanup can only be run by scheduler".to_string());
     }
     

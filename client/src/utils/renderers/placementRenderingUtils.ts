@@ -94,7 +94,7 @@ let lastGrassCount = 0;
 function rebuildFoundationIndex(connection: DbConnection): void {
     foundationSpatialIndex.clear();
     let count = 0;
-    for (const foundation of connection.db.foundationCell.iter()) {
+    for (const foundation of connection.db.foundation_cell.iter()) {
         count++;
         const key = `${foundation.cellX},${foundation.cellY}`;
         let arr = foundationSpatialIndex.get(key);
@@ -119,7 +119,7 @@ function rebuildGrassSpatialHash(connection: DbConnection): void {
     for (const grass of connection.db.grass.iter()) {
         count++;
         // Look up is_alive from grassState table
-        const grassState = connection.db.grassState.grassId.find(grass.id);
+        const grassState = connection.db.grass_state.grassId.find(grass.id);
         const isAlive = grassState?.isAlive ?? false;
         if (isAlive) {
             // Hash to foundation cell coordinates
@@ -144,7 +144,7 @@ function rebuildGrassSpatialHash(connection: DbConnection): void {
 function rebuildChunkCache(connection: DbConnection): void {
     chunkCache.clear();
     
-    for (const chunk of connection.db.worldChunkData.iter()) {
+    for (const chunk of connection.db.world_chunk_data.iter()) {
         if (chunk.chunkSize && cachedChunkSize !== chunk.chunkSize) {
             cachedChunkSize = chunk.chunkSize;
         }
@@ -655,7 +655,7 @@ function isSeedPlacementOnOccupiedTile(connection: DbConnection | null, placemen
     const targetTileY = Math.floor(worldY / TILE_SIZE);
     
     // Check if any planted seed exists on this tile
-    for (const seed of connection.db.plantedSeed.iter()) {
+    for (const seed of connection.db.planted_seed.iter()) {
         const seedTileX = Math.floor(seed.posX / TILE_SIZE);
         const seedTileY = Math.floor(seed.posY / TILE_SIZE);
         
@@ -693,7 +693,7 @@ function isPositionInMonumentZone(
     const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL = 8.75;
     const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION = 3.0;
     
-    for (const station of connection.db.alkStation.iter()) {
+    for (const station of connection.db.alk_station.iter()) {
         if (!station.isActive) continue;
         const dx = worldX - station.worldPosX;
         const dy = worldY - station.worldPosY;
@@ -711,7 +711,7 @@ function isPositionInMonumentZone(
     }
     
     // Check rune stones (800px radius)
-    for (const runeStone of connection.db.runeStone.iter()) {
+    for (const runeStone of connection.db.rune_stone.iter()) {
         const dx = worldX - runeStone.posX;
         const dy = worldY - runeStone.posY;
         const distSq = dx * dx + dy * dy;
@@ -758,7 +758,7 @@ function isPositionInMonumentZone(
     const WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS = 800.0;
     const WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS_SQ = WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS * WHALE_BONE_GRAVEYARD_RESTRICTION_RADIUS;
     
-    for (const part of connection.db.monumentPart.iter()) {
+    for (const part of connection.db.monument_part.iter()) {
         // Only check against the center piece for the exclusion zone
         if (part.isCenter) {
             const dx = worldX - part.worldX;
@@ -832,7 +832,7 @@ function isPositionOnWall(
             const checkCellY = cellY + offsetY;
             
             // Iterate through all walls and check if they're on this cell
-            for (const wall of connection.db.wallCell.iter()) {
+            for (const wall of connection.db.wall_cell.iter()) {
                 if (wall.isDestroyed) continue;
                 
                 // Only check walls on the cell we're interested in
@@ -958,25 +958,25 @@ export function checkPlacementOverlap(
             return { overlaps: true, message: 'Blocked by existing structure' };
     }
     // Sleeping bags
-    for (const e of connection.db.sleepingBag.iter()) {
+    for (const e of connection.db.sleeping_bag.iter()) {
         const c = getPlacementConfig({ itemName: 'Sleeping Bag', iconAssetName: 'sleeping_bag.png' });
         if (c && rectsOverlap(newBounds, getExistingBounds(e.posX, e.posY, c)))
             return { overlaps: true, message: 'Blocked by existing structure' };
     }
     // Rain collectors
-    for (const e of connection.db.rainCollector.iter()) {
+    for (const e of connection.db.rain_collector.iter()) {
         const c = getPlacementConfig({ itemName: 'Reed Rain Collector', iconAssetName: 'reed_rain_collector.png' });
         if (c && rectsOverlap(newBounds, getExistingBounds(e.posX, e.posY, c)))
             return { overlaps: true, message: 'Blocked by existing structure' };
     }
     // Homestead hearths (Matron's Chest)
-    for (const e of connection.db.homesteadHearth.iter()) {
+    for (const e of connection.db.homestead_hearth.iter()) {
         const c = getPlacementConfig({ itemName: "Matron's Chest", iconAssetName: 'hearth.png' });
         if (c && rectsOverlap(newBounds, getExistingBounds(e.posX, e.posY, c)))
             return { overlaps: true, message: 'Blocked by existing structure' };
     }
     // Wooden storage boxes (various box types)
-    for (const e of connection.db.woodenStorageBox.iter()) {
+    for (const e of connection.db.wooden_storage_box.iter()) {
         const c = getBoxTypePlacementConfig(e.boxType);
         if (c && rectsOverlap(newBounds, getExistingBounds(e.posX, e.posY, c)))
             return { overlaps: true, message: 'Blocked by existing structure' };
@@ -988,7 +988,7 @@ export function checkPlacementOverlap(
             return { overlaps: true, message: 'Blocked by existing structure' };
     }
     // Broth pots (placed on campfires - have position)
-    for (const e of connection.db.brothPot.iter()) {
+    for (const e of connection.db.broth_pot.iter()) {
         const c = getPlacementConfig({ itemName: 'Camp Fire', iconAssetName: 'campfire.png' });
         if (c) {
             const potBounds = getPlacementSquareBounds(e.posX, e.posY, c);
@@ -1143,7 +1143,7 @@ function isFoundationPlacementValid(
         
         for (const grass of connection.db.grass.iter()) {
             // Look up is_alive from grassState table
-            const grassState = connection.db.grassState.grassId.find(grass.id);
+            const grassState = connection.db.grass_state.grassId.find(grass.id);
             const isAlive = grassState?.isAlive ?? false;
             if (isAlive &&
                 grass.posX >= foundationMinX && grass.posX <= foundationMaxX &&
@@ -1163,7 +1163,7 @@ function isFoundationPlacementValid(
     const TILE_SIZE = 48;
     
     // Check rune stones (800px)
-    for (const runeStone of connection.db.runeStone.iter()) {
+    for (const runeStone of connection.db.rune_stone.iter()) {
         const dx = worldX - runeStone.posX;
         const dy = worldY - runeStone.posY;
         const distSq = dx * dx + dy * dy;
@@ -1223,7 +1223,7 @@ function isFoundationPlacementValid(
     const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_CENTRAL = 8.75;
     const ALK_STATION_BUILDING_RESTRICTION_MULTIPLIER_SUBSTATION = 3.0;
     
-    for (const station of connection.db.alkStation.iter()) {
+    for (const station of connection.db.alk_station.iter()) {
         if (!station.isActive) continue;
         const stationDx = worldX - station.worldPosX;
         const stationDy = worldY - station.worldPosY;
@@ -1245,7 +1245,7 @@ function isFoundationPlacementValid(
     // PERFORMANCE FIX: Check if foundation spatial index needs rebuilding
     // We detect changes by counting entities (simple heuristic)
     let currentFoundationCount = 0;
-    for (const _ of connection.db.foundationCell.iter()) { currentFoundationCount++; if (currentFoundationCount > lastFoundationCount + 10) break; }
+    for (const _ of connection.db.foundation_cell.iter()) { currentFoundationCount++; if (currentFoundationCount > lastFoundationCount + 10) break; }
     if (currentFoundationCount !== lastFoundationCount || foundationIndexVersion === 0) {
         rebuildFoundationIndex(connection);
     }
@@ -1485,7 +1485,7 @@ function isWallPlacementValid(
     // Note: We don't check facing - walls on same edge block regardless of facing
     // IMPORTANT: Check ALL walls at this cell, not just the detected edge
     // This handles cases where edge detection might be slightly off
-    for (const wall of connection.db.wallCell.iter()) {
+    for (const wall of connection.db.wall_cell.iter()) {
         if (wall.cellX === cellX && wall.cellY === cellY && !wall.isDestroyed) {
             // Check if this wall is on the same edge OR a very close edge
             // For diagonal edges, also check if there's a wall on the other diagonal
@@ -1535,7 +1535,7 @@ function isWallPlacementValid(
     
     // Check adjacent cell for a wall on the opposite edge (only for cardinal edges)
     if (hasAdjacentTile) {
-        for (const wall of connection.db.wallCell.iter()) {
+        for (const wall of connection.db.wall_cell.iter()) {
             if (wall.cellX === adjacentCellX && wall.cellY === adjacentCellY && wall.edge === oppositeEdge && !wall.isDestroyed) {
                 return false; // Wall already exists on the shared edge with the adjacent tile
             }
@@ -1695,12 +1695,12 @@ function isFencePlacementValid(
     }
     
     // Check if wall exists at this edge (cannot place fence where wall is)
-    for (const wall of connection.db.wallCell.iter()) {
+    for (const wall of connection.db.wall_cell.iter()) {
         if (wall.cellX === cellX && wall.cellY === cellY && wall.edge === edge && !wall.isDestroyed) {
             return false; // Wall exists at this edge
         }
     }
-    for (const wall of connection.db.wallCell.iter()) {
+    for (const wall of connection.db.wall_cell.iter()) {
         if (wall.cellX === adjacentCellX && wall.cellY === adjacentCellY && wall.edge === oppositeEdge && !wall.isDestroyed) {
             return false; // Wall exists on shared edge
         }
@@ -1902,7 +1902,7 @@ export function renderPlacementPreview({
         
         // Ensure spatial index is populated
         let currentFoundationCount = 0;
-        for (const _ of connection.db.foundationCell.iter()) {
+        for (const _ of connection.db.foundation_cell.iter()) {
             currentFoundationCount++; 
             if (currentFoundationCount > lastFoundationCount + 10) break; 
         }
@@ -1940,7 +1940,7 @@ export function renderPlacementPreview({
         // Fallback to direct iteration if spatial index is empty
         if (nearestCellY === null) {
             nearestDistance = Infinity;
-            for (const foundation of connection.db.foundationCell.iter()) {
+            for (const foundation of connection.db.foundation_cell.iter()) {
                 if (foundation.isDestroyed) continue;
                 
                 const foundationCenterX = foundation.cellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
@@ -2229,7 +2229,7 @@ export function renderPlacementPreview({
         // Ensure spatial index is populated for door placement preview
         // Check if foundation spatial index needs rebuilding
         let currentFoundationCount = 0;
-        for (const _ of connection.db.foundationCell.iter()) { 
+        for (const _ of connection.db.foundation_cell.iter()) { 
             currentFoundationCount++; 
             if (currentFoundationCount > lastFoundationCount + 10) break; 
         }
@@ -2269,7 +2269,7 @@ export function renderPlacementPreview({
         // This handles cases where the index hasn't been built yet
         if (nearestDoorCellX === null) {
             nearestDistance = Infinity;
-            for (const foundation of connection.db.foundationCell.iter()) {
+            for (const foundation of connection.db.foundation_cell.iter()) {
                 if (foundation.isDestroyed) continue;
                 
                 const foundationCenterX = foundation.cellX * FOUNDATION_TILE_SIZE + FOUNDATION_TILE_SIZE / 2;
@@ -2362,7 +2362,7 @@ export function renderPlacementPreview({
             return nearestHeatSource.attachedBrothPotId !== null && nearestHeatSource.attachedBrothPotId !== undefined;
         } else if (heatSourceType === 'fumarole') {
             // Check if fumarole already has a broth pot
-            const existingPotOnFumarole = Array.from(connection!.db.brothPot.iter()).find(
+            const existingPotOnFumarole = Array.from(connection!.db.broth_pot.iter()).find(
                 pot => pot.attachedToFumaroleId === nearestHeatSource.id && !pot.isDestroyed
             );
             return !!existingPotOnFumarole;
@@ -2378,7 +2378,7 @@ export function renderPlacementPreview({
         }
         
         // Check for existing wall on this edge
-        for (const wall of connection.db.wallCell.iter()) {
+        for (const wall of connection.db.wall_cell.iter()) {
             if (wall.cellX === nearestDoorCellX && 
                 wall.cellY === nearestDoorCellY && 
                 wall.edge === doorEdge && 

@@ -77,13 +77,13 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
         };
 
         // Subscribe to inventory updates
-        connection.db.inventoryItem.onUpdate(handleInventoryUpdate);
-        connection.db.inventoryItem.onDelete(handleInventoryDelete);
+        connection.db.inventory_item.onUpdate(handleInventoryUpdate);
+        connection.db.inventory_item.onDelete(handleInventoryDelete);
 
         return () => {
             // Cleanup subscriptions
-            connection.db.inventoryItem.removeOnUpdate(handleInventoryUpdate);
-            connection.db.inventoryItem.removeOnDelete(handleInventoryDelete);
+            connection.db.inventory_item.removeOnUpdate(handleInventoryUpdate);
+            connection.db.inventory_item.removeOnDelete(handleInventoryDelete);
         };
     }, [connection, selectedItem.instance.instanceId, onClose]);
 
@@ -174,7 +174,7 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
             
             switch (action) {
                 case 'process_extraction':
-                    connection.reducers.processExtraction(itemInstanceId);
+                    connection.reducers.processExtraction({ itemInstanceId });
                     // Map extraction action label to sound
                     switch (selectedItem.definition.extractionActionLabel) {
                         case 'Crush': playImmediateSound('crush_bones'); break;
@@ -187,16 +187,16 @@ const ItemInteractionPanel: React.FC<ItemInteractionPanelProps> = ({
                     }
                     break;
                 case 'extract_from_honeycomb':
-                    connection.reducers.extractFromHoneycomb(itemInstanceId);
+                    connection.reducers.extractFromHoneycomb({ itemInstanceId });
                     playImmediateSound('extract_queen_bee');
                     break;
                 case 'consume':
                     // console.log(`Consuming item ${itemInstanceId}: ${selectedItem.definition.name}`);
-                    connection.reducers.consumeItem(itemInstanceId);
+                    connection.reducers.consumeItem({ itemInstanceId });
                     break;
                 case 'drink':
                     // console.log(`Drinking from water container ${itemInstanceId}: ${selectedItem.definition.name}`);
-                    connection.reducers.consumeFilledWaterContainer(itemInstanceId);
+                    connection.reducers.consumeFilledWaterContainer({ itemInstanceId });
                     break;
                 case 'use_carving_kit':
                     // Open the bone carving panel

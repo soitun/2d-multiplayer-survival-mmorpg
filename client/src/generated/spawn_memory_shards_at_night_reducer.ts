@@ -4,65 +4,18 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
 
-import { RuneStoneShardSpawnSchedule } from "./rune_stone_shard_spawn_schedule_type";
-// Mark import as potentially unused
-declare type __keep_RuneStoneShardSpawnSchedule = RuneStoneShardSpawnSchedule;
+import {
+  RuneStoneShardSpawnSchedule,
+} from "./types";
 
-export type SpawnMemoryShardsAtNight = {
-  schedule: RuneStoneShardSpawnSchedule,
+export default {
+  get schedule() {
+    return RuneStoneShardSpawnSchedule;
+  },
 };
-let _cached_SpawnMemoryShardsAtNight_type_value: __AlgebraicTypeType | null = null;
-
-/**
- * An object for generated helper functions.
- */
-export const SpawnMemoryShardsAtNight = {
-  /**
-  * A function which returns this type represented as an AlgebraicType.
-  * This function is derived from the AlgebraicType used to generate this type.
-  */
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_SpawnMemoryShardsAtNight_type_value) return _cached_SpawnMemoryShardsAtNight_type_value;
-    _cached_SpawnMemoryShardsAtNight_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_SpawnMemoryShardsAtNight_type_value.value.elements.push(
-      { name: "schedule", algebraicType: RuneStoneShardSpawnSchedule.getTypeScriptAlgebraicType() },
-    );
-    return _cached_SpawnMemoryShardsAtNight_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: SpawnMemoryShardsAtNight): void {
-    __AlgebraicTypeValue.serializeValue(writer, SpawnMemoryShardsAtNight.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): SpawnMemoryShardsAtNight {
-    return __AlgebraicTypeValue.deserializeValue(reader, SpawnMemoryShardsAtNight.getTypeScriptAlgebraicType());
-  },
-
-}
-
-export default SpawnMemoryShardsAtNight;
-

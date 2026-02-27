@@ -20,7 +20,7 @@ import {
     InventoryItem, 
     ItemDefinition,
     Campfire, Furnace, Barbecue, Fumarole, Lantern, Turret, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth, BrothPot
-} from '../generated';
+} from '../generated/types';
 import { PopulatedItem } from '../components/InventoryUI';
 import { InteractionTarget } from '../hooks/useInteractionManager';
 

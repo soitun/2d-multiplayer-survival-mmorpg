@@ -3,7 +3,7 @@
 // This eliminates ~60 React re-renders per second
 
 import { useEffect, useRef, useCallback } from 'react';
-import { Barbecue } from '../generated';
+import { Barbecue } from '../generated/types';
 import { BARBECUE_HEIGHT, BARBECUE_RENDER_Y_OFFSET } from '../utils/renderers/barbecueRenderingUtils';
 
 export interface BarbecueParticle {

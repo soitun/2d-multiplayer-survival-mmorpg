@@ -2,7 +2,7 @@
  * Planner — slow LLM loop for high-level NPC decision-making.
  *
  * Schedule: ~every 30 seconds per NPC, OR on significant events.
- * Uses GPT-4o-mini via the existing Railway proxy.
+ * Uses GPT-4o-mini via direct OpenAI API calls.
  *
  * The planner:
  *   1. Receives a compact world-state summary (< 500 tokens)
@@ -94,10 +94,10 @@ export async function runPlanner(
       );
     } catch (err: any) {
       const msg = err?.cause?.code ?? err?.message ?? String(err);
-      // Suppress noisy connection-refused errors when proxy is offline
+      // Suppress noisy transient network errors
       if (msg === 'ECONNREFUSED' || msg.includes('ECONNREFUSED')) {
         if (attempt === 0) {
-          console.debug(`[Planner:${character.username}] Proxy offline, skipping plan cycle.`);
+          console.debug(`[Planner:${character.username}] LLM endpoint unavailable, skipping plan cycle.`);
         }
         return null; // Don't retry if proxy is down
       }
@@ -154,7 +154,7 @@ function buildUserPrompt(summary: string, worldState: AgentWorldState): string {
 }
 
 // ---------------------------------------------------------------------------
-// LLM call via proxy
+// LLM call via direct OpenAI API
 // ---------------------------------------------------------------------------
 
 async function callLLM(
@@ -162,11 +162,16 @@ async function callLLM(
   userPrompt: string,
   config: AgentConfig
 ): Promise<string> {
-  const url = `${config.proxyUrl}/api/openai/chat`;
+  if (!config.openaiApiKey) {
+    throw new Error('OPENAI_API_KEY is not configured');
+  }
 
-  const response = await fetch(url, {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.openaiApiKey}`,
+    },
     body: JSON.stringify({
       model: config.llmModel,
       messages: [
@@ -174,24 +179,19 @@ async function callLLM(
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.7,
-      max_tokens: 300,
+      max_completion_tokens: 300,
       response_format: { type: 'json_object' },
     }),
     signal: AbortSignal.timeout(15000), // 15s timeout
   });
 
   if (!response.ok) {
-    throw new Error(`LLM proxy returned ${response.status}: ${await response.text()}`);
+    throw new Error(`OpenAI returned ${response.status}: ${await response.text()}`);
   }
 
   const data = (await response.json()) as any;
 
-  // Handle proxy response format
-  const content =
-    data.choices?.[0]?.message?.content ??
-    data.content ??
-    data.response ??
-    '';
+  const content = data.choices?.[0]?.message?.content ?? '';
 
   if (typeof content !== 'string' || content.length === 0) {
     throw new Error('Empty response from LLM');

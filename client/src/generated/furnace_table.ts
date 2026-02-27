@@ -4,107 +4,124 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { Furnace } from "./furnace_type";
-import { CookingProgress } from "./cooking_progress_type";
-// Mark import as potentially unused
-declare type __keep_CookingProgress = CookingProgress;
+import {
+  CookingProgress,
+} from "./types";
 
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
-declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-/**
- * Table handle for the table `furnace`.
- *
- * Obtain a handle from the [`furnace`] property on [`RemoteTables`],
- * like `ctx.db.furnace`.
- *
- * Users are encouraged not to explicitly reference this type,
- * but to directly chain method calls,
- * like `ctx.db.furnace.on_insert(...)`.
- */
-export class FurnaceTableHandle<TableName extends string> implements __TableHandle<TableName> {
-  // phantom type to track the table name
-  readonly tableName!: TableName;
-  tableCache: __TableCache<Furnace>;
-
-  constructor(tableCache: __TableCache<Furnace>) {
-    this.tableCache = tableCache;
-  }
-
-  count(): number {
-    return this.tableCache.count();
-  }
-
-  iter(): Iterable<Furnace> {
-    return this.tableCache.iter();
-  }
-  /**
-   * Access to the `id` unique index on the table `furnace`,
-   * which allows point queries on the field of the same name
-   * via the [`FurnaceIdUnique.find`] method.
-   *
-   * Users are encouraged not to explicitly reference this type,
-   * but to directly chain method calls,
-   * like `ctx.db.furnace.id().find(...)`.
-   *
-   * Get a handle on the `id` unique index on the table `furnace`.
-   */
-  id = {
-    // Find the subscribed row whose `id` column value is equal to `col_val`,
-    // if such a row is present in the client cache.
-    find: (col_val: number): Furnace | undefined => {
-      for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.id, col_val)) {
-          return row;
-        }
-      }
-    },
-  };
-
-  onInsert = (cb: (ctx: EventContext, row: Furnace) => void) => {
-    return this.tableCache.onInsert(cb);
-  }
-
-  removeOnInsert = (cb: (ctx: EventContext, row: Furnace) => void) => {
-    return this.tableCache.removeOnInsert(cb);
-  }
-
-  onDelete = (cb: (ctx: EventContext, row: Furnace) => void) => {
-    return this.tableCache.onDelete(cb);
-  }
-
-  removeOnDelete = (cb: (ctx: EventContext, row: Furnace) => void) => {
-    return this.tableCache.removeOnDelete(cb);
-  }
-
-  // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: Furnace, newRow: Furnace) => void) => {
-    return this.tableCache.onUpdate(cb);
-  }
-
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: Furnace, newRow: Furnace) => void) => {
-    return this.tableCache.removeOnUpdate(cb);
-  }}
+export default __t.row({
+  id: __t.u32().primaryKey(),
+  posX: __t.f32().name("pos_x"),
+  posY: __t.f32().name("pos_y"),
+  chunkIndex: __t.u32().name("chunk_index"),
+  placedBy: __t.identity().name("placed_by"),
+  placedAt: __t.timestamp().name("placed_at"),
+  isBurning: __t.bool().name("is_burning"),
+  furnaceType: __t.u8().name("furnace_type"),
+  slotInstanceId0: __t.option(__t.u64()).name("slot_instance_id_0"),
+  slotDefId0: __t.option(__t.u64()).name("slot_def_id_0"),
+  slotInstanceId1: __t.option(__t.u64()).name("slot_instance_id_1"),
+  slotDefId1: __t.option(__t.u64()).name("slot_def_id_1"),
+  slotInstanceId2: __t.option(__t.u64()).name("slot_instance_id_2"),
+  slotDefId2: __t.option(__t.u64()).name("slot_def_id_2"),
+  slotInstanceId3: __t.option(__t.u64()).name("slot_instance_id_3"),
+  slotDefId3: __t.option(__t.u64()).name("slot_def_id_3"),
+  slotInstanceId4: __t.option(__t.u64()).name("slot_instance_id_4"),
+  slotDefId4: __t.option(__t.u64()).name("slot_def_id_4"),
+  slotInstanceId5: __t.option(__t.u64()).name("slot_instance_id_5"),
+  slotDefId5: __t.option(__t.u64()).name("slot_def_id_5"),
+  slotInstanceId6: __t.option(__t.u64()).name("slot_instance_id_6"),
+  slotDefId6: __t.option(__t.u64()).name("slot_def_id_6"),
+  slotInstanceId7: __t.option(__t.u64()).name("slot_instance_id_7"),
+  slotDefId7: __t.option(__t.u64()).name("slot_def_id_7"),
+  slotInstanceId8: __t.option(__t.u64()).name("slot_instance_id_8"),
+  slotDefId8: __t.option(__t.u64()).name("slot_def_id_8"),
+  slotInstanceId9: __t.option(__t.u64()).name("slot_instance_id_9"),
+  slotDefId9: __t.option(__t.u64()).name("slot_def_id_9"),
+  slotInstanceId10: __t.option(__t.u64()).name("slot_instance_id_10"),
+  slotDefId10: __t.option(__t.u64()).name("slot_def_id_10"),
+  slotInstanceId11: __t.option(__t.u64()).name("slot_instance_id_11"),
+  slotDefId11: __t.option(__t.u64()).name("slot_def_id_11"),
+  slotInstanceId12: __t.option(__t.u64()).name("slot_instance_id_12"),
+  slotDefId12: __t.option(__t.u64()).name("slot_def_id_12"),
+  slotInstanceId13: __t.option(__t.u64()).name("slot_instance_id_13"),
+  slotDefId13: __t.option(__t.u64()).name("slot_def_id_13"),
+  slotInstanceId14: __t.option(__t.u64()).name("slot_instance_id_14"),
+  slotDefId14: __t.option(__t.u64()).name("slot_def_id_14"),
+  slotInstanceId15: __t.option(__t.u64()).name("slot_instance_id_15"),
+  slotDefId15: __t.option(__t.u64()).name("slot_def_id_15"),
+  slotInstanceId16: __t.option(__t.u64()).name("slot_instance_id_16"),
+  slotDefId16: __t.option(__t.u64()).name("slot_def_id_16"),
+  slotInstanceId17: __t.option(__t.u64()).name("slot_instance_id_17"),
+  slotDefId17: __t.option(__t.u64()).name("slot_def_id_17"),
+  currentFuelDefId: __t.option(__t.u64()).name("current_fuel_def_id"),
+  remainingFuelBurnTimeSecs: __t.option(__t.f32()).name("remaining_fuel_burn_time_secs"),
+  health: __t.f32(),
+  maxHealth: __t.f32().name("max_health"),
+  isDestroyed: __t.bool().name("is_destroyed"),
+  destroyedAt: __t.option(__t.timestamp()).name("destroyed_at"),
+  lastHitTime: __t.option(__t.timestamp()).name("last_hit_time"),
+  lastDamagedBy: __t.option(__t.identity()).name("last_damaged_by"),
+  get slot0CookingProgress() {
+    return __t.option(CookingProgress).name("slot_0_cooking_progress");
+  },
+  get slot1CookingProgress() {
+    return __t.option(CookingProgress).name("slot_1_cooking_progress");
+  },
+  get slot2CookingProgress() {
+    return __t.option(CookingProgress).name("slot_2_cooking_progress");
+  },
+  get slot3CookingProgress() {
+    return __t.option(CookingProgress).name("slot_3_cooking_progress");
+  },
+  get slot4CookingProgress() {
+    return __t.option(CookingProgress).name("slot_4_cooking_progress");
+  },
+  get slot5CookingProgress() {
+    return __t.option(CookingProgress).name("slot_5_cooking_progress");
+  },
+  get slot6CookingProgress() {
+    return __t.option(CookingProgress).name("slot_6_cooking_progress");
+  },
+  get slot7CookingProgress() {
+    return __t.option(CookingProgress).name("slot_7_cooking_progress");
+  },
+  get slot8CookingProgress() {
+    return __t.option(CookingProgress).name("slot_8_cooking_progress");
+  },
+  get slot9CookingProgress() {
+    return __t.option(CookingProgress).name("slot_9_cooking_progress");
+  },
+  get slot10CookingProgress() {
+    return __t.option(CookingProgress).name("slot_10_cooking_progress");
+  },
+  get slot11CookingProgress() {
+    return __t.option(CookingProgress).name("slot_11_cooking_progress");
+  },
+  get slot12CookingProgress() {
+    return __t.option(CookingProgress).name("slot_12_cooking_progress");
+  },
+  get slot13CookingProgress() {
+    return __t.option(CookingProgress).name("slot_13_cooking_progress");
+  },
+  get slot14CookingProgress() {
+    return __t.option(CookingProgress).name("slot_14_cooking_progress");
+  },
+  get slot15CookingProgress() {
+    return __t.option(CookingProgress).name("slot_15_cooking_progress");
+  },
+  get slot16CookingProgress() {
+    return __t.option(CookingProgress).name("slot_16_cooking_progress");
+  },
+  get slot17CookingProgress() {
+    return __t.option(CookingProgress).name("slot_17_cooking_progress");
+  },
+  isMonument: __t.bool().name("is_monument"),
+  activeUserId: __t.option(__t.identity()).name("active_user_id"),
+  activeUserSince: __t.option(__t.timestamp()).name("active_user_since"),
+});

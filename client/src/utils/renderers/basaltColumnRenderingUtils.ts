@@ -1,4 +1,4 @@
-import { BasaltColumn } from '../../generated'; // Import generated type
+import { BasaltColumn } from '../../generated/types'; // Import generated type
 import basaltColumn1Image from '../../assets/doodads/basalt_column_new.png'; // Type1
 import basaltColumn3Image from '../../assets/doodads/basalt_column3_new.png'; // Type3
 import { applyStandardDropShadow, drawDynamicGroundShadow } from './shadowUtils';

@@ -69,7 +69,7 @@ pub const MAX_BREW_TIME_SECS: f32 = 30.0;
 
 /// --- Broth Pot Data Structure ---
 /// Represents a broth pot placed on a campfire for cooking broth, desalinating water, etc.
-#[spacetimedb::table(name = broth_pot, public)]
+#[spacetimedb::table(accessor = broth_pot, public)]
 #[derive(Clone, Debug)]
 pub struct BrothPot {
     #[primary_key]
@@ -127,7 +127,7 @@ pub struct BrothPot {
 }
 
 // --- Scheduled Processing Table ---
-#[spacetimedb::table(name = broth_pot_processing_schedule, scheduled(process_broth_pot_logic_scheduled))]
+#[spacetimedb::table(accessor = broth_pot_processing_schedule, scheduled(process_broth_pot_logic_scheduled))]
 #[derive(Clone)]
 pub struct BrothPotProcessingSchedule {
     #[primary_key]
@@ -203,7 +203,7 @@ fn validate_broth_pot_interaction(
     ctx: &ReducerContext,
     broth_pot_id: u32,
 ) -> Result<(Player, BrothPot), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let broth_pots = ctx.db.broth_pot();
 
@@ -294,7 +294,7 @@ pub fn place_broth_pot_on_campfire(
     item_instance_id: u64,
     campfire_id: u32
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let players = ctx.db.player();
@@ -458,7 +458,7 @@ pub fn place_broth_pot_on_fumarole(
     item_instance_id: u64,
     fumarole_id: u32
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let players = ctx.db.player();
@@ -765,7 +765,7 @@ pub fn pickup_broth_pot(ctx: &ReducerContext, broth_pot_id: u32) -> Result<(), S
         .ok_or_else(|| "Broth pot item definition not found.".to_string())?;
     
     // Add broth pot item to player inventory
-    let new_location = find_first_empty_player_slot(ctx, ctx.sender)
+    let new_location = find_first_empty_player_slot(ctx, ctx.sender())
         .ok_or_else(|| "Player inventory is full, cannot pickup broth pot.".to_string())?;
     
     let new_pot_item = InventoryItem {
@@ -803,10 +803,10 @@ pub fn pickup_broth_pot(ctx: &ReducerContext, broth_pot_id: u32) -> Result<(), S
     
     // Emit spill sound effect if water was present (client will also play for instant feedback)
     if had_water {
-        sound_events::emit_filling_container_sound(ctx, pot_pos_x, pot_pos_y, ctx.sender);
+        sound_events::emit_filling_container_sound(ctx, pot_pos_x, pot_pos_y, ctx.sender());
     }
     
-    log::info!("Player {:?} picked up broth pot {} (water spilled: {})", ctx.sender, broth_pot_id, had_water);
+    log::info!("Player {:?} picked up broth pot {} (water spilled: {})", ctx.sender(), broth_pot_id, had_water);
     Ok(())
 }
 
@@ -1009,7 +1009,7 @@ pub fn move_item_to_broth_pot_water_container(
     item_instance_id: u64,
 ) -> Result<(), String> {
     log::info!("Player {} moving item {} to broth pot {} water container slot", 
-               ctx.sender, item_instance_id, broth_pot_id);
+               ctx.sender(), item_instance_id, broth_pot_id);
 
     // --- Validate interaction ---
     let (_player, mut broth_pot) = validate_broth_pot_interaction(ctx, broth_pot_id)?;
@@ -1026,9 +1026,9 @@ pub fn move_item_to_broth_pot_water_container(
 
     // --- Verify ownership ---
     let owns_item = match &item.location {
-        ItemLocation::Inventory(data) => data.owner_id == ctx.sender,
-        ItemLocation::Hotbar(data) => data.owner_id == ctx.sender,
-        ItemLocation::Equipped(data) => data.owner_id == ctx.sender,
+        ItemLocation::Inventory(data) => data.owner_id == ctx.sender(),
+        ItemLocation::Hotbar(data) => data.owner_id == ctx.sender(),
+        ItemLocation::Equipped(data) => data.owner_id == ctx.sender(),
         _ => false,
     };
     
@@ -1077,7 +1077,7 @@ pub fn move_item_from_broth_pot_water_container(
     target_slot_index: u32,
 ) -> Result<(), String> {
     log::info!("Player {} moving item from broth pot {} water container slot to {} slot {}", 
-               ctx.sender, broth_pot_id, target_slot_type, target_slot_index);
+               ctx.sender(), broth_pot_id, target_slot_type, target_slot_index);
 
     // --- Validate interaction ---
     let (_player, mut broth_pot) = validate_broth_pot_interaction(ctx, broth_pot_id)?;
@@ -1100,13 +1100,13 @@ pub fn move_item_from_broth_pot_water_container(
     let target_location = match target_slot_type.as_str() {
         "inventory" => {
             crate::models::ItemLocation::Inventory(crate::models::InventoryLocationData {
-                owner_id: ctx.sender,
+                owner_id: ctx.sender(),
                 slot_index: target_slot_index as u16,
             })
         },
         "hotbar" => {
             crate::models::ItemLocation::Hotbar(crate::models::HotbarLocationData {
-                owner_id: ctx.sender,
+                owner_id: ctx.sender(),
                 slot_index: target_slot_index as u8,
             })
         },
@@ -1148,7 +1148,7 @@ pub fn quick_move_from_broth_pot_water_container(
     broth_pot_id: u32,
 ) -> Result<(), String> {
     log::info!("Player {} quick moving item from broth pot {} water container slot", 
-               ctx.sender, broth_pot_id);
+               ctx.sender(), broth_pot_id);
 
     // --- Validate interaction ---
     let (_player, mut broth_pot) = validate_broth_pot_interaction(ctx, broth_pot_id)?;
@@ -1167,7 +1167,7 @@ pub fn quick_move_from_broth_pot_water_container(
     broth_pot.water_container_def_id = None;
 
     // --- Find first available player slot ---
-    let target_location_opt = crate::player_inventory::find_first_empty_player_slot(ctx, ctx.sender);
+    let target_location_opt = crate::player_inventory::find_first_empty_player_slot(ctx, ctx.sender());
     
     if let Some(target_location) = target_location_opt {
         // Update item location first
@@ -1206,7 +1206,7 @@ pub fn quick_move_to_broth_pot_water_container(
     item_instance_id: u64,
 ) -> Result<(), String> {
     log::info!("Player {} quick moving item {} to broth pot {} water container slot", 
-               ctx.sender, item_instance_id, broth_pot_id);
+               ctx.sender(), item_instance_id, broth_pot_id);
 
     // --- Validate interaction ---
     let (_player, mut broth_pot) = validate_broth_pot_interaction(ctx, broth_pot_id)?;
@@ -1223,9 +1223,9 @@ pub fn quick_move_to_broth_pot_water_container(
 
     // --- Verify ownership ---
     let owns_item = match &item.location {
-        ItemLocation::Inventory(data) => data.owner_id == ctx.sender,
-        ItemLocation::Hotbar(data) => data.owner_id == ctx.sender,
-        ItemLocation::Equipped(data) => data.owner_id == ctx.sender,
+        ItemLocation::Inventory(data) => data.owner_id == ctx.sender(),
+        ItemLocation::Hotbar(data) => data.owner_id == ctx.sender(),
+        ItemLocation::Equipped(data) => data.owner_id == ctx.sender(),
         _ => false,
     };
     
@@ -1266,17 +1266,17 @@ pub fn quick_move_to_broth_pot_water_container(
     // --- Clear original equipment slot if necessary ---
     if let Some(eq_slot_type) = original_equipment_slot_type {
         log::info!("[BrothPot QuickMove] Item {} was equipped in slot {:?}, clearing equipment slot.", item_instance_id, eq_slot_type);
-        crate::items::clear_specific_item_from_equipment_slots(ctx, ctx.sender, item_instance_id);
+        crate::items::clear_specific_item_from_equipment_slots(ctx, ctx.sender(), item_instance_id);
     }
 
     // --- Check if the moved item was the active equipped item and clear if so ---
     let active_equip_table = ctx.db.active_equipment();
-    if let Some(active_equipment_state) = active_equip_table.player_identity().find(ctx.sender) {
+    if let Some(active_equipment_state) = active_equip_table.player_identity().find(ctx.sender()) {
         if active_equipment_state.equipped_item_instance_id == Some(item_instance_id) {
-            log::info!("[BrothPot QuickMove] Item {} was the active equipped item and is now in a container. Clearing active item for player {}.", item_instance_id, ctx.sender);
-            match crate::active_equipment::clear_active_item_reducer(ctx, ctx.sender) {
-                Ok(_) => log::debug!("[BrothPot QuickMove] Successfully cleared active item for {} after item {} moved to container.", ctx.sender, item_instance_id),
-                Err(e) => log::error!("[BrothPot QuickMove] Error clearing active item for {}: {}", ctx.sender, e),
+            log::info!("[BrothPot QuickMove] Item {} was the active equipped item and is now in a container. Clearing active item for player {}.", item_instance_id, ctx.sender());
+            match crate::active_equipment::clear_active_item_reducer(ctx, ctx.sender()) {
+                Ok(_) => log::debug!("[BrothPot QuickMove] Successfully cleared active item for {} after item {} moved to container.", ctx.sender(), item_instance_id),
+                Err(e) => log::error!("[BrothPot QuickMove] Error clearing active item for {}: {}", ctx.sender(), e),
             }
         }
     }
@@ -1299,7 +1299,7 @@ pub fn move_item_from_broth_pot_output(
     target_slot_index: u32,
 ) -> Result<(), String> {
     log::info!("Player {} moving item from broth pot {} output slot to {} slot {}", 
-               ctx.sender, broth_pot_id, target_slot_type, target_slot_index);
+               ctx.sender(), broth_pot_id, target_slot_type, target_slot_index);
 
     // --- Validate interaction ---
     let (_player, mut broth_pot) = validate_broth_pot_interaction(ctx, broth_pot_id)?;
@@ -1326,13 +1326,13 @@ pub fn move_item_from_broth_pot_output(
     let target_location = match target_slot_type.as_str() {
         "inventory" => {
             crate::models::ItemLocation::Inventory(crate::models::InventoryLocationData {
-                owner_id: ctx.sender,
+                owner_id: ctx.sender(),
                 slot_index: target_slot_index as u16,
             })
         },
         "hotbar" => {
             crate::models::ItemLocation::Hotbar(crate::models::HotbarLocationData {
-                owner_id: ctx.sender,
+                owner_id: ctx.sender(),
                 slot_index: target_slot_index as u8,
             })
         },
@@ -1377,7 +1377,7 @@ pub fn quick_move_from_broth_pot_output(
     broth_pot_id: u32,
 ) -> Result<(), String> {
     log::info!("Player {} quick moving item from broth pot {} output slot", 
-               ctx.sender, broth_pot_id);
+               ctx.sender(), broth_pot_id);
 
     // --- Validate interaction ---
     let (_player, mut broth_pot) = validate_broth_pot_interaction(ctx, broth_pot_id)?;
@@ -1401,7 +1401,7 @@ pub fn quick_move_from_broth_pot_output(
     broth_pot.output_item_def_id = None;
 
     // --- Find first available player slot ---
-    let target_location_opt = crate::player_inventory::find_first_empty_player_slot(ctx, ctx.sender);
+    let target_location_opt = crate::player_inventory::find_first_empty_player_slot(ctx, ctx.sender());
     
     if let Some(target_location) = target_location_opt {
         // Update item location first
@@ -1443,7 +1443,7 @@ pub fn transfer_water_from_container_to_pot(
     broth_pot_id: u32,
 ) -> Result<(), String> {
     log::info!("Player {} attempting to transfer water from container slot to broth pot {}", 
-               ctx.sender, broth_pot_id);
+               ctx.sender(), broth_pot_id);
 
     // --- Validate interaction ---
     let (_player, mut broth_pot) = validate_broth_pot_interaction(ctx, broth_pot_id)?;
@@ -1514,7 +1514,7 @@ pub fn transfer_water_from_container_to_pot(
     ctx.db.broth_pot().id().update(broth_pot);
 
     // --- Emit filling sound effect ---
-    sound_events::emit_filling_container_sound(ctx, pot_pos_x, pot_pos_y, ctx.sender);
+    sound_events::emit_filling_container_sound(ctx, pot_pos_x, pot_pos_y, ctx.sender());
 
     // --- Re-schedule processing if needed ---
     schedule_next_broth_pot_processing(ctx, broth_pot_id)?;
@@ -1535,7 +1535,7 @@ pub fn transfer_water_from_pot_to_container(
     broth_pot_id: u32,
 ) -> Result<(), String> {
     log::info!("Player {} attempting to transfer water from pot {} to container", 
-               ctx.sender, broth_pot_id);
+               ctx.sender(), broth_pot_id);
 
     // --- Validate interaction ---
     let (_player, mut broth_pot) = validate_broth_pot_interaction(ctx, broth_pot_id)?;
@@ -1606,7 +1606,7 @@ pub fn transfer_water_from_pot_to_container(
     ctx.db.broth_pot().id().update(broth_pot);
 
     // --- Emit filling sound effect ---
-    sound_events::emit_filling_container_sound(ctx, pot_pos_x, pot_pos_y, ctx.sender);
+    sound_events::emit_filling_container_sound(ctx, pot_pos_x, pot_pos_y, ctx.sender());
 
     // --- Re-schedule processing if needed ---
     schedule_next_broth_pot_processing(ctx, broth_pot_id)?;
@@ -1626,7 +1626,7 @@ pub fn process_broth_pot_logic_scheduled(
     schedule_args: BrothPotProcessingSchedule
 ) -> Result<(), String> {
     // Security check
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Unauthorized scheduler invocation".to_string());
     }
     

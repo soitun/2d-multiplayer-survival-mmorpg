@@ -18,7 +18,7 @@ use crate::dropped_item::try_give_item_to_player;
 /// If inventory is full, output will be dropped near the player.
 #[spacetimedb::reducer]
 pub fn process_extraction(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_table = ctx.db.inventory_item();
     let item_def_table = ctx.db.item_definition();
 
@@ -76,7 +76,7 @@ pub fn process_extraction(ctx: &ReducerContext, item_instance_id: u64) -> Result
 /// If inventory is full, the item will be dropped near the player.
 #[spacetimedb::reducer]
 pub fn extract_from_honeycomb(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_table = ctx.db.inventory_item();
     let item_def_table = ctx.db.item_definition();
 

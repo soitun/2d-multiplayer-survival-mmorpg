@@ -1,18 +1,18 @@
 import { useEffect, useRef, useCallback } from 'react';
-import * as SpacetimeDB from '../generated';
+import type { SoundEvent, ContinuousSound, ChunkWeather, Season } from '../generated/types';
 import { Identity } from 'spacetimedb';
 import { calculateChunkIndex } from '../utils/chunkUtils';
 import { isAnySovaAudioPlaying } from './useSovaSoundBox';
 
 interface SoundSystemProps {
-    soundEvents: Map<string, SpacetimeDB.SoundEvent>;
-    continuousSounds: Map<string, SpacetimeDB.ContinuousSound>;
+    soundEvents: Map<string, SoundEvent>;
+    continuousSounds: Map<string, ContinuousSound>;
     localPlayerPosition: { x: number; y: number } | null;
     localPlayerIdentity: Identity | null;
     masterVolume?: number; // 0-1 scale (up to 100%) for regular sounds
     environmentalVolume?: number; // 0-1 scale for environmental sounds (rain, wind, etc.)
-    chunkWeather?: Map<string, SpacetimeDB.ChunkWeather>; // Chunk-based weather for filtering rain sounds
-    currentSeason?: SpacetimeDB.Season | null; // Current season - used to mute rain sounds in winter (snow doesn't make rain sounds)
+    chunkWeather?: Map<string, ChunkWeather>; // Chunk-based weather for filtering rain sounds
+    currentSeason?: Season | null; // Current season - used to mute rain sounds in winter (snow doesn't make rain sounds)
 }
 
 // Sound strategy enum for different types of sounds
@@ -1583,7 +1583,7 @@ export const useSoundSystem = ({
         const viewportCappedGroups = new Map<string, { 
             closestObjectId: string;
             closestDistance: number;
-            closestSound: SpacetimeDB.ContinuousSound;
+            closestSound: ContinuousSound;
             allObjectIds: Set<string>;
         }>();
 

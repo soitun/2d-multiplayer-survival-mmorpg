@@ -21,7 +21,7 @@ import { getViewBounds } from '../config/gameConfig';
 const VIEWPORT_UPDATE_INTERVAL_MS = 500;
 const VIEWPORT_MOVE_THRESHOLD_SQ = 40000; // 200px * 200px
 
-type Connection = { reducers: { updateViewport: (minX: number, minY: number, maxX: number, maxY: number) => void } } | null;
+type Connection = { reducers: { updateViewport: (args: { minX: number; minY: number; maxX: number; maxY: number }) => void } } | null;
 
 export function useViewportSync(
   connection: Connection,
@@ -54,7 +54,7 @@ export function useViewportSync(
 
       const viewBounds = getViewBounds(cameraOffsetX, cameraOffsetY, canvasWidth, canvasHeight);
       try {
-        connection.reducers.updateViewport(viewBounds.minX, viewBounds.minY, viewBounds.maxX, viewBounds.maxY);
+        connection.reducers.updateViewport(viewBounds);
       } catch (error) {
         console.error('[useViewportSync] Failed to update viewport on server:', error);
       }

@@ -1,6 +1,6 @@
 use spacetimedb::{table, Identity, Timestamp};
 
-#[table(name = death_marker, public)]
+#[table(accessor = death_marker, public)]
 #[derive(Clone, Debug)]
 pub struct DeathMarker {
     #[primary_key]

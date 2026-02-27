@@ -1,8 +1,6 @@
 // Unified Interaction System Types and Utilities
 // This file defines the single target approach for all interactions
 
-import * as SpacetimeDB from '../generated';
-
 // Comprehensive interaction target type that can represent any interactable entity
 export interface InteractableTarget {
     // Core identification

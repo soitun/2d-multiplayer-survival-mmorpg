@@ -161,7 +161,7 @@ function predictTriangleShape(
     [FoundationShape.TriSW, FoundationShape.TriNE], // SW triangle -> NE triangle forms full square
   ]);
   
-  for (const foundation of connection.db.foundationCell.iter()) {
+  for (const foundation of connection.db.foundation_cell.iter()) {
     if (foundation.isDestroyed) continue;
     
     const dx = foundation.cellX - cellX;
@@ -441,7 +441,7 @@ function isFoundationPositionOccupied(
   let foundationCount = 0;
   
   // Check if there's already a foundation at this cell
-  for (const foundation of connection.db.foundationCell.iter()) {
+  for (const foundation of connection.db.foundation_cell.iter()) {
     if (foundation.cellX === cellX && foundation.cellY === cellY && !foundation.isDestroyed) {
       foundationCount++;
       const existingShape = foundation.shape as FoundationShape;
@@ -515,64 +515,9 @@ export const useBuildingManager = (
 
   const isBuilding = mode !== BuildingMode.None;
 
-  // ADDED: Register reducer callback to handle errors
-  useEffect(() => {
-    if (!connection) return;
+  // SpacetimeDB 2.0: onX/removeOnX reducer callbacks removed. Use .catch() on reducer Promise instead.
 
-    const handlePlaceFoundationResult = (ctx: any, cellX: bigint, cellY: bigint, shape: number, tier: number) => {
-      console.log('[BuildingManager] placeFoundation reducer result:', ctx.event?.status);
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Failed to place foundation';
-        console.error('[BuildingManager] placeFoundation failed:', errorMsg);
-        console.log('[BuildingManager] Failed placement details:', { cellX, cellY, shape, tier, errorMsg });
-        setPlacementError(errorMsg);
-        // Play appropriate error sound based on error type (immediate client-side feedback)
-        // Server-side sound won't play because the transaction rolls back
-        if (errorMsg.includes('Not enough')) {
-          playImmediateSound('error_resources', 1.0);
-        } else if (errorMsg.includes('rune stone') || errorMsg.includes('monument')) {
-          playImmediateSound('error_foundation_monument', 1.0);
-        } else {
-          playImmediateSound('construction_placement_error', 1.0);
-        }
-      } else if (ctx.event?.status?.tag === 'Committed') {
-        console.log('[BuildingManager] placeFoundation succeeded!');
-        setPlacementError(null);
-        // Sound is now played server-side for all players to hear
-      }
-    };
-
-    const handlePlaceWallResult = (ctx: any, cellX: bigint, cellY: bigint, worldX: number, worldY: number, tier: number) => {
-      console.log('[BuildingManager] placeWall reducer result:', ctx.event?.status);
-      if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Failed to place wall';
-        console.error('[BuildingManager] placeWall failed:', errorMsg);
-        console.log('[BuildingManager] Failed wall placement details:', { cellX, cellY, worldX, worldY, tier, errorMsg });
-        setPlacementError(errorMsg);
-        // Play error_resources sound for resource errors (immediate client-side feedback)
-        // Server-side sound won't play because the transaction rolls back
-        if (errorMsg.includes('Not enough')) {
-          playImmediateSound('error_resources', 1.0);
-        } else {
-          playImmediateSound('construction_placement_error', 1.0);
-        }
-      } else if (ctx.event?.status?.tag === 'Committed') {
-        console.log('[BuildingManager] placeWall succeeded!');
-        setPlacementError(null);
-        // Sound is now played server-side for all players to hear
-      }
-    };
-
-    connection.reducers.onPlaceFoundation(handlePlaceFoundationResult);
-    connection.reducers.onPlaceWall(handlePlaceWallResult);
-
-    return () => {
-      connection.reducers.removeOnPlaceFoundation(handlePlaceFoundationResult);
-      connection.reducers.removeOnPlaceWall(handlePlaceWallResult);
-    };
-  }, [connection]);
-
-  // ADDED: Cancel building mode if hammer is unequipped
+  // Cancel building mode if hammer is unequipped
   useEffect(() => {
     if (!isBuilding) return;
     
@@ -765,7 +710,7 @@ export const useBuildingManager = (
         let hasGrassBlockingPlacement = false;
         for (const grass of connection.db.grass.iter()) {
           // Look up is_alive from grassState table (split tables)
-          const grassState = connection.db.grassState.grassId.find(grass.id);
+          const grassState = connection.db.grass_state.grassId.find(grass.id);
           const isAlive = grassState?.isAlive ?? false;
           if (isAlive &&
               grass.posX >= foundationMinX && grass.posX <= foundationMaxX &&
@@ -790,19 +735,22 @@ export const useBuildingManager = (
 
         // Call server reducer
         console.log('[BuildingManager] Calling placeFoundation reducer:', { cellX, cellY, shape: foundationShape, tier: buildingTier });
-        try {
-          connection.reducers.placeFoundation(
-            BigInt(cellX),
-            BigInt(cellY),
-            foundationShape as number, // FoundationShape enum value (0-5)
-            buildingTier as number // BuildingTier enum value (0-2)
-          );
-          console.log('[BuildingManager] placeFoundation reducer called successfully');
-        } catch (err) {
-          console.error('[BuildingManager] Error calling placeFoundation reducer:', err);
-          setPlacementError(`Failed to call reducer: ${err}`);
-          playImmediateSound('construction_placement_error', 1.0);
-        }
+        connection.reducers.placeFoundation({
+          cellX: BigInt(cellX),
+          cellY: BigInt(cellY),
+          shape: foundationShape as number, // FoundationShape enum value (0-5)
+          tier: buildingTier as number, // BuildingTier enum value (0-2)
+        }).catch((err: { status?: { tag?: string; value?: string } }) => {
+          const errorMsg = err?.status?.tag === 'Failed' && err?.status?.value ? err.status.value : 'Failed to place foundation';
+          setPlacementError(errorMsg);
+          if (errorMsg.includes('Not enough')) {
+            playImmediateSound('error_resources', 1.0);
+          } else if (errorMsg.includes('rune stone') || errorMsg.includes('monument')) {
+            playImmediateSound('error_foundation_monument', 1.0);
+          } else {
+            playImmediateSound('construction_placement_error', 1.0);
+          }
+        });
         
         // Note: Don't cancel building mode - allow continuous placement
         // App.tsx callback will handle success/error feedback
@@ -817,7 +765,7 @@ export const useBuildingManager = (
 
         // Check if there's a foundation at this cell (walls require a foundation)
         let hasFoundation = false;
-        for (const foundation of connection.db.foundationCell.iter()) {
+        for (const foundation of connection.db.foundation_cell.iter()) {
           if (foundation.cellX === cellX && foundation.cellY === cellY && !foundation.isDestroyed) {
             hasFoundation = true;
             break;
@@ -832,20 +780,21 @@ export const useBuildingManager = (
 
         // Call server reducer - server will determine edge and facing from world coordinates
         console.log('[BuildingManager] Calling placeWall reducer:', { cellX, cellY, worldX, worldY, tier: buildingTier });
-        try {
-          connection.reducers.placeWall(
-            BigInt(cellX),
-            BigInt(cellY),
-            worldX,
-            worldY,
-            buildingTier as number // BuildingTier enum value (0-3)
-          );
-          console.log('[BuildingManager] placeWall reducer called successfully');
-        } catch (err) {
-          console.error('[BuildingManager] Error calling placeWall reducer:', err);
-          setPlacementError(`Failed to call reducer: ${err}`);
-          playImmediateSound('construction_placement_error', 1.0);
-        }
+        connection.reducers.placeWall({
+          cellX: BigInt(cellX),
+          cellY: BigInt(cellY),
+          worldX,
+          worldY,
+          tier: buildingTier as number, // BuildingTier enum value (0-3)
+        }).catch((err: { status?: { tag?: string; value?: string } }) => {
+          const errorMsg = err?.status?.tag === 'Failed' && err?.status?.value ? err.status.value : 'Failed to place wall';
+          setPlacementError(errorMsg);
+          if (errorMsg.includes('Not enough')) {
+            playImmediateSound('error_resources', 1.0);
+          } else {
+            playImmediateSound('construction_placement_error', 1.0);
+          }
+        });
         
         // Note: Don't cancel building mode - allow continuous placement
       } else if (mode === BuildingMode.Fence) {
@@ -908,11 +857,11 @@ export const useBuildingManager = (
         // Call server reducer
         console.log('[BuildingManager] Calling placeFence reducer:', { cellX, cellY, edge });
         try {
-          connection.reducers.placeFence(
-            BigInt(cellX),
-            BigInt(cellY),
-            edge
-          );
+          connection.reducers.placeFence({
+            cellX: BigInt(cellX),
+            cellY: BigInt(cellY),
+            edge,
+          });
           console.log('[BuildingManager] placeFence reducer called successfully');
         } catch (err) {
           console.error('[BuildingManager] Error calling placeFence reducer:', err);

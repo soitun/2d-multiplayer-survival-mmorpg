@@ -1,5 +1,5 @@
 // Unified Resource Renderer - Uses server-side PlantType enum
-import { HarvestableResource } from '../../generated';
+import { HarvestableResource } from '../../generated/types';
 import { ResourceType, getResourceType } from '../../types/resourceTypes';
 import { 
   createResourceGroundConfig, 

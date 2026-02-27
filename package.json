@@ -31,7 +31,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.6.3",
-    "spacetimedb": "^1.6.1",
+    "spacetimedb": "^2.0.1",
     "statuses": "^2.0.2",
     "use-debounce": "^10.0.4"
   },

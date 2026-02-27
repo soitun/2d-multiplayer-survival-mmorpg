@@ -1,12 +1,9 @@
 // OpenAI Whisper Service for Speech-to-Text
 // Enhanced with audio processing and accuracy optimizations
-// 
+//
 // NOTE: Whisper is always OpenAI (regardless of VITE_AI_PROVIDER setting)
 // VITE_AI_PROVIDER only affects SOVA chat responses, not speech-to-text
-
-// Always use secure proxy - API keys never exposed to client
-const PROXY_URL = import.meta.env.VITE_API_PROXY_URL || 'http://localhost:8002';
-const WHISPER_API_URL = `${PROXY_URL}/api/whisper/transcribe`;
+import type { DbConnection } from '../generated';
 
 export interface WhisperTiming {
   requestStartTime: number;
@@ -62,6 +59,11 @@ class WhisperService {
   private audioLevelInterval: NodeJS.Timeout | null = null;
   private performanceData: WhisperTiming[] = [];
   private maxStoredTimings = 100; // Keep last 100 requests for analysis
+  private connection: DbConnection | null = null;
+
+  setConnection(connection: DbConnection | null) {
+    this.connection = connection;
+  }
 
   /**
    * Start recording audio from microphone with enhanced settings
@@ -316,64 +318,44 @@ class WhisperService {
         reader.readAsDataURL(audioBlob);
       });
 
-      const idToken = localStorage.getItem('oidc_id_token');
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        ...(idToken && { 'Authorization': `Bearer ${idToken}` }),
-      };
-      
-      const proxyBody = {
-        audio: audioBase64,
-        filename: `audio.${extension}`,
-        contentType: audioBlob.type.split(';')[0], // Normalize: remove codecs part (e.g., 'audio/webm;codecs=opus' -> 'audio/webm')
-        model: 'whisper-1', // Currently only model available via API
-        language: 'en',
-        response_format: 'verbose_json',
-        temperature: '0', // Lower temperature = more consistent, deterministic output
-        // Minimal prompt - too much can confuse Whisper. Keep it short.
-        prompt: 'SOVA operative'
-      };
-      
-      console.log(`[Whisper] 📤 Sending to proxy:`, {
+      const procedures = (this.connection as any)?.procedures;
+      const transcribeAccessor = procedures?.transcribeSpeech ?? procedures?.transcribe_speech;
+      if (!transcribeAccessor) {
+        throw new Error('transcribe_speech procedure is unavailable on this connection.');
+      }
+
+      const mimeType = audioBlob.type.split(';')[0] || `audio/${extension}`;
+
+      console.log(`[Whisper] 📤 Sending to transcribe_speech procedure:`, {
         audioSize: `${(audioBlob.size / 1024).toFixed(2)} KB`,
         base64Length: audioBase64.length,
-        contentType: audioBlob.type,
-        model: proxyBody.model,
-        language: proxyBody.language
+        contentType: mimeType,
       });
-      
-      const response = await fetch(WHISPER_API_URL, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(proxyBody),
+
+      const procResult = await transcribeAccessor({
+        audioBase64,
+        mimeType,
       });
-      
+
       timing.responseReceivedTime = performance.now();
       timing.totalLatencyMs = timing.responseReceivedTime - timing.requestStartTime;
 
-      console.log(`[Whisper] ⚡ Whisper response received in ${timing.totalLatencyMs.toFixed(2)}ms`);
+      console.log(`[Whisper] ⚡ Procedure response received in ${timing.totalLatencyMs.toFixed(2)}ms`);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('[Whisper] API error:', errorData);
-        throw new Error(`Whisper API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
-      }
-
-      const data = await response.json();
-      
-      // Handle verbose_json response format
-      const transcribedText = data.text?.trim();
-      
-      // Log additional metadata if available
-      if (data.segments) {
-        console.log('[Whisper] Transcription segments:', data.segments.length);
-        const avgConfidence = data.segments.reduce((sum: number, seg: any) => sum + (seg.avg_logprob || 0), 0) / data.segments.length;
-        console.log(`[Whisper] Average confidence: ${avgConfidence.toFixed(3)}`);
-        
-        // Log first few segments for debugging
-        data.segments.slice(0, 3).forEach((segment: any, index: number) => {
-          console.log(`[Whisper] Segment ${index + 1}: "${segment.text}" (confidence: ${segment.avg_logprob?.toFixed(3) || 'N/A'})`);
-        });
+      let transcribedText: string | undefined;
+      if (typeof procResult === 'string') {
+        transcribedText = procResult.trim();
+      } else if (procResult && typeof procResult === 'object') {
+        const resultObj = procResult as any;
+        if (resultObj.tag === 'ok' || resultObj.tag === 'Ok') {
+          transcribedText = String(resultObj.value ?? '').trim();
+        } else if (resultObj.tag === 'err' || resultObj.tag === 'Err') {
+          throw new Error(String(resultObj.value ?? 'transcribe_speech failed'));
+        } else if (typeof resultObj.ok === 'string') {
+          transcribedText = resultObj.ok.trim();
+        } else if (resultObj.err) {
+          throw new Error(String(resultObj.err));
+        }
       }
 
       if (!transcribedText) {
@@ -388,7 +370,7 @@ class WhisperService {
         audioSize: `${(timing.audioSizeBytes / 1024).toFixed(2)}KB`,
         textLength: `${timing.textLength} chars`,
         throughput: `${(timing.textLength / (timing.totalLatencyMs / 1000)).toFixed(2)} chars/sec`,
-        confidence: data.segments ? `${(data.segments.reduce((sum: number, seg: any) => sum + (seg.avg_logprob || 0), 0) / data.segments.length).toFixed(3)}` : 'N/A'
+        confidence: 'N/A',
       });
 
       // Record successful timing
@@ -543,11 +525,11 @@ class WhisperService {
   }
 
   /**
-   * Check if OpenAI API key is configured
-   * Always returns true - proxy handles authentication server-side
+   * Check if transcription is configured
+   * transcribe_speech must exist on the current connection.
    */
   isConfigured(): boolean {
-    return true; // Proxy handles authentication
+    return !!((this.connection as any)?.procedures?.transcribeSpeech || (this.connection as any)?.procedures?.transcribe_speech);
   }
 
   /**

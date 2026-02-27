@@ -4,103 +4,19 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { BrewRecipeCache } from "./brew_recipe_cache_type";
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
-declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-/**
- * Table handle for the table `brew_recipe_cache`.
- *
- * Obtain a handle from the [`brewRecipeCache`] property on [`RemoteTables`],
- * like `ctx.db.brewRecipeCache`.
- *
- * Users are encouraged not to explicitly reference this type,
- * but to directly chain method calls,
- * like `ctx.db.brewRecipeCache.on_insert(...)`.
- */
-export class BrewRecipeCacheTableHandle<TableName extends string> implements __TableHandle<TableName> {
-  // phantom type to track the table name
-  readonly tableName!: TableName;
-  tableCache: __TableCache<BrewRecipeCache>;
-
-  constructor(tableCache: __TableCache<BrewRecipeCache>) {
-    this.tableCache = tableCache;
-  }
-
-  count(): number {
-    return this.tableCache.count();
-  }
-
-  iter(): Iterable<BrewRecipeCache> {
-    return this.tableCache.iter();
-  }
-  /**
-   * Access to the `recipeHash` unique index on the table `brew_recipe_cache`,
-   * which allows point queries on the field of the same name
-   * via the [`BrewRecipeCacheRecipeHashUnique.find`] method.
-   *
-   * Users are encouraged not to explicitly reference this type,
-   * but to directly chain method calls,
-   * like `ctx.db.brewRecipeCache.recipeHash().find(...)`.
-   *
-   * Get a handle on the `recipeHash` unique index on the table `brew_recipe_cache`.
-   */
-  recipeHash = {
-    // Find the subscribed row whose `recipeHash` column value is equal to `col_val`,
-    // if such a row is present in the client cache.
-    find: (col_val: bigint): BrewRecipeCache | undefined => {
-      for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.recipeHash, col_val)) {
-          return row;
-        }
-      }
-    },
-  };
-
-  onInsert = (cb: (ctx: EventContext, row: BrewRecipeCache) => void) => {
-    return this.tableCache.onInsert(cb);
-  }
-
-  removeOnInsert = (cb: (ctx: EventContext, row: BrewRecipeCache) => void) => {
-    return this.tableCache.removeOnInsert(cb);
-  }
-
-  onDelete = (cb: (ctx: EventContext, row: BrewRecipeCache) => void) => {
-    return this.tableCache.onDelete(cb);
-  }
-
-  removeOnDelete = (cb: (ctx: EventContext, row: BrewRecipeCache) => void) => {
-    return this.tableCache.removeOnDelete(cb);
-  }
-
-  // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: BrewRecipeCache, newRow: BrewRecipeCache) => void) => {
-    return this.tableCache.onUpdate(cb);
-  }
-
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: BrewRecipeCache, newRow: BrewRecipeCache) => void) => {
-    return this.tableCache.removeOnUpdate(cb);
-  }}
+export default __t.row({
+  recipeHash: __t.u64().primaryKey().name("recipe_hash"),
+  ingredientNamesJson: __t.string().name("ingredient_names_json"),
+  outputItemDefId: __t.u64().name("output_item_def_id"),
+  brewTimeSecs: __t.u32().name("brew_time_secs"),
+  category: __t.string(),
+  effectType: __t.option(__t.string()).name("effect_type"),
+  iconBase64: __t.option(__t.string()).name("icon_base_64"),
+  createdAt: __t.timestamp().name("created_at"),
+});

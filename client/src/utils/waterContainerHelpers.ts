@@ -1,5 +1,5 @@
 // Water container helper functions for client-side
-import { InventoryItem } from '../generated';
+import { InventoryItem } from '../generated/types';
 
 /**
  * Get water content from a water container item

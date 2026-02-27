@@ -4,103 +4,16 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { PlayerCombatReadiness } from "./player_combat_readiness_type";
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
-declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-/**
- * Table handle for the table `player_combat_readiness`.
- *
- * Obtain a handle from the [`playerCombatReadiness`] property on [`RemoteTables`],
- * like `ctx.db.playerCombatReadiness`.
- *
- * Users are encouraged not to explicitly reference this type,
- * but to directly chain method calls,
- * like `ctx.db.playerCombatReadiness.on_insert(...)`.
- */
-export class PlayerCombatReadinessTableHandle<TableName extends string> implements __TableHandle<TableName> {
-  // phantom type to track the table name
-  readonly tableName!: TableName;
-  tableCache: __TableCache<PlayerCombatReadiness>;
-
-  constructor(tableCache: __TableCache<PlayerCombatReadiness>) {
-    this.tableCache = tableCache;
-  }
-
-  count(): number {
-    return this.tableCache.count();
-  }
-
-  iter(): Iterable<PlayerCombatReadiness> {
-    return this.tableCache.iter();
-  }
-  /**
-   * Access to the `playerIdentity` unique index on the table `player_combat_readiness`,
-   * which allows point queries on the field of the same name
-   * via the [`PlayerCombatReadinessPlayerIdentityUnique.find`] method.
-   *
-   * Users are encouraged not to explicitly reference this type,
-   * but to directly chain method calls,
-   * like `ctx.db.playerCombatReadiness.playerIdentity().find(...)`.
-   *
-   * Get a handle on the `playerIdentity` unique index on the table `player_combat_readiness`.
-   */
-  playerIdentity = {
-    // Find the subscribed row whose `playerIdentity` column value is equal to `col_val`,
-    // if such a row is present in the client cache.
-    find: (col_val: __Identity): PlayerCombatReadiness | undefined => {
-      for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.playerIdentity, col_val)) {
-          return row;
-        }
-      }
-    },
-  };
-
-  onInsert = (cb: (ctx: EventContext, row: PlayerCombatReadiness) => void) => {
-    return this.tableCache.onInsert(cb);
-  }
-
-  removeOnInsert = (cb: (ctx: EventContext, row: PlayerCombatReadiness) => void) => {
-    return this.tableCache.removeOnInsert(cb);
-  }
-
-  onDelete = (cb: (ctx: EventContext, row: PlayerCombatReadiness) => void) => {
-    return this.tableCache.onDelete(cb);
-  }
-
-  removeOnDelete = (cb: (ctx: EventContext, row: PlayerCombatReadiness) => void) => {
-    return this.tableCache.removeOnDelete(cb);
-  }
-
-  // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: PlayerCombatReadiness, newRow: PlayerCombatReadiness) => void) => {
-    return this.tableCache.onUpdate(cb);
-  }
-
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: PlayerCombatReadiness, newRow: PlayerCombatReadiness) => void) => {
-    return this.tableCache.removeOnUpdate(cb);
-  }}
+export default __t.row({
+  playerIdentity: __t.identity().primaryKey().name("player_identity"),
+  peakWeaponPower: __t.f32().name("peak_weapon_power"),
+  currentWeaponPower: __t.f32().name("current_weapon_power"),
+  combatReadinessScore: __t.f32().name("combat_readiness_score"),
+  lastUpdate: __t.timestamp().name("last_update"),
+});

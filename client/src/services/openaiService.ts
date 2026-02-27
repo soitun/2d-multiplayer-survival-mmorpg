@@ -1,23 +1,22 @@
 // AI Service for SOVA AI Personality
 // Handles intelligent responses based on game lore and context
-// Supports multiple AI providers: OpenAI, Grok, and Gemini
+// Supports AI providers: OpenAI, Gemini, and Grok
 
 import { type GameContext } from '../utils/gameContextBuilder';
 import { getGameKnowledgeForSOVA, getRandomSOVAJoke } from '../utils/gameKnowledgeExtractor';
+import type { DbConnection } from '../generated';
 
-// Always use secure proxy - API keys never exposed to client
-const PROXY_URL = import.meta.env.VITE_API_PROXY_URL || 'http://localhost:8002';
-
-// Provider selection: 'openai' | 'grok' | 'gemini'
-// Defaults to 'grok' if not specified
-export type AIProvider = 'openai' | 'grok' | 'gemini';
-const AI_PROVIDER: AIProvider = (import.meta.env.VITE_AI_PROVIDER || 'grok').toLowerCase() as AIProvider;
-
-// API endpoints for each provider
-const OPENAI_API_URL = `${PROXY_URL}/api/openai/chat`;
-const GROK_API_URL = `${PROXY_URL}/api/grok/chat`;
-const GEMINI_API_URL = `${PROXY_URL}/api/gemini/chat`;
-
+// Provider selection: 'openai' | 'gemini' | 'grok'
+// Defaults to 'grok'. If set to an unsupported value, fallback to 'grok'.
+export type AIProvider = 'openai' | 'gemini' | 'grok';
+function normalizeProvider(rawProvider: string | undefined): AIProvider {
+  const normalized = rawProvider?.toLowerCase();
+  if (normalized === 'openai' || normalized === 'gemini' || normalized === 'grok') {
+    return normalized;
+  }
+  return 'grok';
+}
+const AI_PROVIDER: AIProvider = normalizeProvider(import.meta.env.VITE_AI_PROVIDER);
 
 export interface OpenAITiming {
   requestStartTime: number;
@@ -62,6 +61,7 @@ export interface SOVAPromptRequest {
   userMessage: string;
   playerName?: string;
   gameContext?: GameContext;
+  connection?: DbConnection | null;
 }
 
 class AIService {
@@ -102,7 +102,7 @@ class AIService {
   }
 
   /**
-   * Generate SOVA's AI response using the configured provider (OpenAI, Grok, or Gemini)
+   * Generate SOVA's AI response using the configured provider (OpenAI or Grok)
    */
   async generateSOVAResponse(request: SOVAPromptRequest): Promise<OpenAIResponse> {
     const systemPrompt = this.buildSOVASystemPrompt();
@@ -118,75 +118,54 @@ class AIService {
     };
 
     try {
-      const idToken = localStorage.getItem('oidc_id_token');
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        ...(idToken && { 'Authorization': `Bearer ${idToken}` }),
-      };
-
       const messages = [
         { role: 'system', content: systemPrompt },
         ...this.conversationHistory,
         { role: 'user', content: userPrompt }
       ];
-
-      let apiUrl: string;
-      let requestBody: any;
-
-      switch (this.currentProvider) {
-        case 'grok':
-          apiUrl = GROK_API_URL;
-          requestBody = {
-            model: 'grok-4-1-fast-reasoning',
-            messages,
-            max_completion_tokens: 300,
-            temperature: 0.4,
-          };
-          break;
-
-        case 'gemini':
-          apiUrl = GEMINI_API_URL;
-          requestBody = {
-            model: 'gemini-2.0-flash',
-            messages,
-            max_completion_tokens: 300,
-            temperature: 0.4,
-          };
-          break;
-
-        case 'openai':
-        default:
-          apiUrl = OPENAI_API_URL;
-          requestBody = {
-            model: 'gpt-4o',
-            messages,
-            max_completion_tokens: 300,
-            temperature: 0.4,
-          };
-          break;
+      const procedures = (request.connection as any)?.procedures;
+      const procedureAccessor = procedures?.askSova ?? procedures?.ask_sova;
+      if (!procedureAccessor) {
+        throw new Error('ask_sova procedure is unavailable on this connection.');
       }
 
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(requestBody),
+      const model =
+        this.currentProvider === 'openai'
+          ? 'gpt-4o'
+          : this.currentProvider === 'gemini'
+            ? 'gemini-2.0-flash'
+            : 'grok-4-1-fast-reasoning';
+
+      const requestBody = JSON.stringify({
+        provider: this.currentProvider,
+        model,
+        messages,
+        max_completion_tokens: 300,
+        temperature: 0.4,
       });
+
+      const procResult = await procedureAccessor({ requestBody });
 
       timing.responseReceivedTime = performance.now();
       timing.totalLatencyMs = timing.responseReceivedTime - timing.requestStartTime;
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        const errorMessage = errorData.error?.message || errorData.error || 'Unknown error';
-        console.error(`[AI Service] ${this.currentProvider} error ${response.status}: ${errorMessage}`);
-        throw new Error(`${this.currentProvider.toUpperCase()} API error: ${response.status} - ${errorMessage}`);
+      let sovaResponse: string | undefined;
+      if (typeof procResult === 'string') {
+        sovaResponse = procResult.trim();
+      } else if (procResult && typeof procResult === 'object') {
+        const resultObj = procResult as any;
+        if (resultObj.tag === 'ok' || resultObj.tag === 'Ok') {
+          sovaResponse = String(resultObj.value ?? '').trim();
+        } else if (resultObj.tag === 'err' || resultObj.tag === 'Err') {
+          throw new Error(String(resultObj.value ?? 'ask_sova failed'));
+        } else if (typeof resultObj.ok === 'string') {
+          sovaResponse = resultObj.ok.trim();
+        } else if (resultObj.err) {
+          throw new Error(String(resultObj.err));
+        }
       }
 
-      const data = await response.json();
-      const sovaResponse = data.choices?.[0]?.message?.content?.trim();
-
       if (!sovaResponse) {
-        throw new Error(`No response generated from ${this.currentProvider}`);
+        throw new Error('No response generated from ask_sova');
       }
 
       timing.responseLength = sovaResponse.length;
@@ -221,10 +200,16 @@ class AIService {
         ...timing,
         success: false,
       }, false);
-      
+
+      let userFacingError = error instanceof Error ? error.message : 'Unknown error occurred';
+      const normalizedError = userFacingError.toLowerCase();
+      if (normalizedError.includes('missing ai_http_config row') || normalizedError.includes('sova backend not configured')) {
+        userFacingError = 'SOVA backend is not configured on the server yet.';
+      }
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: userFacingError,
         response: fallbackResponse, // Still provide a response even on error
         timing,
       };
@@ -789,10 +774,10 @@ Remember: Stay in character, be helpful, keep it tactical and concise. ALWAYS ch
 
   /**
    * Check if AI service is configured
-   * Always returns true - proxy handles authentication server-side
+   * ask_sova must exist on the current connection.
    */
   isConfigured(): boolean {
-    return true; // Proxy handles authentication
+    return true;
   }
 }
 

@@ -4,7 +4,7 @@ import {
     ActiveEquipment as SpacetimeDBActiveEquipment,
     ItemDefinition as SpacetimeDBItemDefinition,
     Projectile as SpacetimeDBProjectile,
-} from '../generated';
+} from '../generated/types';
 import { Particle } from './useCampfireParticles'; // Reuse Particle type
 import { JUMP_DURATION_MS, JUMP_HEIGHT_PX } from '../config/gameConfig';
 import { gameConfig } from '../config/gameConfig';

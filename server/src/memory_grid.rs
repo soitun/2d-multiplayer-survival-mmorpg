@@ -2,7 +2,7 @@ use spacetimedb::{reducer, table, Identity, SpacetimeType, Timestamp, Table};
 use crate::items::{InventoryItem, inventory_item, item_definition};
 
 /// Represents a player's progress in the Memory Grid tech tree
-#[table(name = memory_grid_progress, public)]
+#[table(accessor = memory_grid_progress, public)]
 #[derive(Clone, Debug)]
 pub struct MemoryGridProgress {
     #[primary_key]
@@ -16,7 +16,7 @@ pub struct MemoryGridProgress {
 }
 
 /// Individual memory grid node purchase record for detailed tracking
-#[table(name = memory_grid_purchases, public)]
+#[table(accessor = memory_grid_purchases, public)]
 #[derive(Clone, Debug)]
 pub struct MemoryGridPurchase {
     #[primary_key]
@@ -409,7 +409,7 @@ fn get_node_info(node_id: &str) -> Option<(u64, Vec<&'static str>)> {
 /// Reducer: Purchase a memory grid node
 #[reducer]
 pub fn purchase_memory_grid_node(ctx: &spacetimedb::ReducerContext, node_id: String) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Get node info (cost and prerequisites)
     let (cost, prerequisites) = get_node_info(&node_id)
@@ -484,7 +484,7 @@ pub fn purchase_memory_grid_node(ctx: &spacetimedb::ReducerContext, node_id: Str
 /// Reducer: Initialize memory grid progress for current player (called from client)
 #[reducer]
 pub fn initialize_player_memory_grid(ctx: &spacetimedb::ReducerContext) {
-    initialize_memory_grid_progress(ctx, ctx.sender);
+    initialize_memory_grid_progress(ctx, ctx.sender());
 }
 
 /// Helper function to get display name for a node ID
@@ -762,7 +762,7 @@ pub fn player_has_faction(ctx: &spacetimedb::ReducerContext, player_id: Identity
 /// Costs FACTION_RESET_COST shards (2000)
 #[reducer]
 pub fn reset_faction(ctx: &spacetimedb::ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Get player's progress
     let progress = ctx.db.memory_grid_progress().player_id().find(&player_id)

@@ -19,7 +19,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Player } from '../generated';
+import { Player } from '../generated/types';
 import { usePlayerActions } from '../contexts/PlayerActionsContext';
 
 // Convert player facing direction string to normalized movement vector

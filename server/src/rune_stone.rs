@@ -125,7 +125,7 @@ pub struct MemoryShardEffectConfig {
     pub night_start_time: Option<Timestamp>, // When current night started
 }
 
-#[spacetimedb::table(name = rune_stone, public)]
+#[spacetimedb::table(accessor = rune_stone, public)]
 #[derive(Clone)]
 pub struct RuneStone {
     #[primary_key]
@@ -145,7 +145,7 @@ pub struct RuneStone {
 
 // --- Scheduled Reducer Tables ---
 
-#[spacetimedb::table(name = rune_stone_shard_spawn_schedule, scheduled(spawn_memory_shards_at_night))]
+#[spacetimedb::table(accessor = rune_stone_shard_spawn_schedule, scheduled(spawn_memory_shards_at_night))]
 #[derive(Clone)]
 pub struct RuneStoneShardSpawnSchedule {
     #[primary_key]
@@ -154,7 +154,7 @@ pub struct RuneStoneShardSpawnSchedule {
     pub scheduled_at: spacetimedb::spacetimedb_lib::ScheduleAt,
 }
 
-#[spacetimedb::table(name = rune_stone_item_spawn_schedule, scheduled(spawn_items_at_night))]
+#[spacetimedb::table(accessor = rune_stone_item_spawn_schedule, scheduled(spawn_items_at_night))]
 #[derive(Clone)]
 pub struct RuneStoneItemSpawnSchedule {
     #[primary_key]
@@ -163,7 +163,7 @@ pub struct RuneStoneItemSpawnSchedule {
     pub scheduled_at: spacetimedb::spacetimedb_lib::ScheduleAt,
 }
 
-#[spacetimedb::table(name = rune_stone_seed_spawn_schedule, scheduled(spawn_seeds_at_night))]
+#[spacetimedb::table(accessor = rune_stone_seed_spawn_schedule, scheduled(spawn_seeds_at_night))]
 #[derive(Clone)]
 pub struct RuneStoneSeedSpawnSchedule {
     #[primary_key]
@@ -372,7 +372,7 @@ pub fn spawn_memory_shards_at_night(
     use crate::player as PlayerTableTrait;
     
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("spawn_memory_shards_at_night may only be called by the scheduler.".to_string());
     }
 
@@ -579,7 +579,7 @@ pub fn spawn_items_at_night(
     use crate::player as PlayerTableTrait;
     
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("spawn_items_at_night may only be called by the scheduler.".to_string());
     }
 
@@ -781,7 +781,7 @@ pub fn spawn_seeds_at_night(
     use crate::player as PlayerTableTrait;
     
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("spawn_seeds_at_night may only be called by the scheduler.".to_string());
     }
 

@@ -138,7 +138,7 @@ pub const JUVENILE_HEALTH_MULTIPLIER: f32 = 0.70;
 
 /// Stores breeding-specific data for each caribou
 /// Separate table to avoid bloating WildAnimal with null fields for other species
-#[table(name = caribou_breeding_data, public)]
+#[table(accessor = caribou_breeding_data, public)]
 #[derive(Clone, Debug)]
 pub struct CaribouBreedingData {
     #[primary_key]
@@ -169,7 +169,7 @@ pub struct CaribouBreedingData {
 }
 
 /// Schedule table for caribou breeding system updates
-#[table(name = caribou_breeding_schedule, scheduled(process_caribou_breeding))]
+#[table(accessor = caribou_breeding_schedule, scheduled(process_caribou_breeding))]
 #[derive(Clone)]
 pub struct CaribouBreedingSchedule {
     #[primary_key]
@@ -179,7 +179,7 @@ pub struct CaribouBreedingSchedule {
 }
 
 /// Global rut state tracking
-#[table(name = caribou_rut_state, public)]
+#[table(accessor = caribou_rut_state, public)]
 #[derive(Clone, Debug)]
 pub struct CaribouRutState {
     #[primary_key]
@@ -827,7 +827,7 @@ pub fn is_night_time(ctx: &ReducerContext) -> bool {
 #[spacetimedb::reducer]
 pub fn process_caribou_breeding(ctx: &ReducerContext, _schedule: CaribouBreedingSchedule) -> Result<(), String> {
     // Security: Only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Caribou breeding reducer can only be called by scheduler".to_string());
     }
     

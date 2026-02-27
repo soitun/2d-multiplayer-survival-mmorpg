@@ -1,6 +1,6 @@
 import { gameConfig } from '../config/gameConfig';
 import { calculateChunkIndex } from '../utils/chunkUtils';
-import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather, AlkStation as SpacetimeDBAlkStation, LivingCoral as SpacetimeDBLivingCoral, BeaconDropEvent as SpacetimeDBBeaconDropEvent, DroneEvent as SpacetimeDBDroneEvent } from '../generated';
+import { Player as SpacetimeDBPlayer, Tree, Stone as SpacetimeDBStone, Barrel as SpacetimeDBBarrel, PlayerPin, SleepingBag as SpacetimeDBSleepingBag, Campfire as SpacetimeDBCampfire, PlayerCorpse as SpacetimeDBCorpse, WorldState, DeathMarker as SpacetimeDBDeathMarker, MinimapCache, RuneStone as SpacetimeDBRuneStone, ChunkWeather, AlkStation as SpacetimeDBAlkStation, LivingCoral as SpacetimeDBLivingCoral, BeaconDropEvent as SpacetimeDBBeaconDropEvent, DroneEvent as SpacetimeDBDroneEvent } from '../generated/types';
 import { computeDronePosition } from '../utils/renderers/droneRenderingUtils';
 import { useRef, useCallback } from 'react';
 

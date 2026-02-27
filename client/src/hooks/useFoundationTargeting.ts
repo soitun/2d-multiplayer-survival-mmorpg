@@ -131,7 +131,7 @@ export const useFoundationTargeting = (
   hasRepairHammer: boolean
 ) => {
   const result = useBuildingTileTargeting(
-    (conn) => conn.db.foundationCell.iter(),
+    (conn) => conn.db.foundation_cell.iter(),
     connection,
     localPlayerX,
     localPlayerY,

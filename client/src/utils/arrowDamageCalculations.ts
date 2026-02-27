@@ -1,7 +1,7 @@
 // Utility functions for calculating effective arrow damage
 // Based on server/src/projectile.rs calculate_projectile_damage function
 
-import { ItemDefinition } from '../generated';
+import { ItemDefinition } from '../generated/types';
 
 interface DamageRange {
   min: number;

@@ -174,7 +174,7 @@ export const PlayerActionsProvider: React.FC<{ children: ReactNode }> = ({ child
             }
 
             lastJumpCall.current = now;
-            connection.connection?.reducers.jump();
+            connection.connection?.reducers.jump({});
 
         } catch (error) {
             console.error(`❌ [PlayerActions] Error in jump:`, error);
@@ -201,7 +201,7 @@ export const PlayerActionsProvider: React.FC<{ children: ReactNode }> = ({ child
             }
 
             sprintState.current = isSprinting;
-            connection.connection?.reducers.setSprinting(isSprinting);
+            connection.connection?.reducers.setSprinting({ sprinting: isSprinting });
 
         } catch (error) {
             console.error(`❌ [PlayerActions] Error in setSprinting:`, error);
@@ -335,7 +335,7 @@ export const PlayerActionsProvider: React.FC<{ children: ReactNode }> = ({ child
             lastViewportCall.current = now;
             lastViewportData.current = { minX, minY, maxX, maxY };
             
-            connection.connection?.reducers.updateViewport(minX, minY, maxX, maxY);
+            connection.connection?.reducers.updateViewport({ minX, minY, maxX, maxY });
 
         } catch (error) {
             console.error(`❌ [PlayerActions] Error in updateViewport:`, error);

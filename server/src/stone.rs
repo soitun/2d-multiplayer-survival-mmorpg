@@ -183,7 +183,7 @@ pub(crate) const MIN_STONE_RESPAWN_TIME_SECS: u64 = 240; // 4 minutes
 pub(crate) const MAX_STONE_RESPAWN_TIME_SECS: u64 = 480; // 8 minutes
 
 // --- Stone Struct and Table ---
-#[spacetimedb::table(name = stone, public)]
+#[spacetimedb::table(accessor = stone, public)]
 #[derive(Clone)]
 pub struct Stone {
     #[primary_key]

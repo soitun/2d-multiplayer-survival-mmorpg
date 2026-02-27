@@ -1,4 +1,4 @@
-import { Player as SpacetimeDBPlayer, ItemDefinition as SpacetimeDBItemDefinition, ActiveEquipment as SpacetimeDBActiveEquipment, Lantern as SpacetimeDBLantern, Furnace as SpacetimeDBFurnace, Campfire as SpacetimeDBCampfire, Barbecue as SpacetimeDBBarbecue, RoadLamppost as SpacetimeDBRoadLamppost, Barrel as SpacetimeDBBarrel } from '../../generated';
+import { Player as SpacetimeDBPlayer, ItemDefinition as SpacetimeDBItemDefinition, ActiveEquipment as SpacetimeDBActiveEquipment, Lantern as SpacetimeDBLantern, Furnace as SpacetimeDBFurnace, Campfire as SpacetimeDBCampfire, Barbecue as SpacetimeDBBarbecue, RoadLamppost as SpacetimeDBRoadLamppost, Barrel as SpacetimeDBBarrel } from '../../generated/types';
 
 // Import rendering constants
 import { CAMPFIRE_RENDER_Y_OFFSET, CAMPFIRE_HEIGHT } from '../renderers/campfireRenderingUtils';

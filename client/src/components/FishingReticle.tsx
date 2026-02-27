@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { Player, ItemDefinition } from '../generated';
+import { Player, ItemDefinition } from '../generated/types';
 import { Identity } from 'spacetimedb';
 import { FISHING_CONSTANTS } from '../types/fishing';
 import styles from './FishingUI.module.css';

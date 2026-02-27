@@ -27,7 +27,7 @@ pub(crate) const ANIMAL_CORPSE_INITIAL_HEALTH: u32 = 75; // Less health than pla
 /// --- Animal Corpse Data Structure ---
 /// Represents a harvestable corpse dropped when an animal dies.
 /// Can be harvested for various resources depending on animal type and tool used.
-#[spacetimedb::table(name = animal_corpse, public)]
+#[spacetimedb::table(accessor = animal_corpse, public)]
 #[derive(Clone)]
 pub struct AnimalCorpse {
     #[primary_key]
@@ -191,7 +191,7 @@ fn get_meat_type(animal_species: AnimalSpecies) -> &'static str {
 /// This will be called periodically to remove corpses that have been around too long
 #[spacetimedb::reducer]
 pub fn cleanup_expired_animal_corpses(ctx: &ReducerContext) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("cleanup_expired_animal_corpses can only be called by the scheduler".to_string());
     }
 

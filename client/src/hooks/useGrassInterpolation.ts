@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Grass as SpacetimeDBGrass, GrassState as SpacetimeDBGrassState, GrassAppearanceType } from '../generated';
+import { Grass as SpacetimeDBGrass, GrassState as SpacetimeDBGrassState, GrassAppearanceType } from '../generated/types';
 import { Timestamp as SpacetimeDBTimestamp } from 'spacetimedb';
 
 // ============================================================================

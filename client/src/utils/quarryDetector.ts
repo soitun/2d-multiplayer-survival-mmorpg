@@ -9,7 +9,7 @@
  *                                                                            *
  ******************************************************************************/
 
-import { WorldChunkData } from '../generated';
+import { WorldChunkData } from '../generated/types';
 
 export interface DetectedQuarry {
     id: string; // Unique ID based on center position

@@ -28,7 +28,7 @@ const ENABLE_KILL_COMMAND_COOLDOWN: bool = true;
 
 // --- Table Definitions ---
 
-#[spacetimedb::table(name = message, public)]
+#[spacetimedb::table(accessor = message, public)]
 #[derive(Clone, Debug)]
 pub struct Message {
     #[primary_key]
@@ -42,7 +42,7 @@ pub struct Message {
 }
 
 /// Tracks the last player who whispered to each player, enabling /r (reply) command
-#[spacetimedb::table(name = last_whisper_from, public)]
+#[spacetimedb::table(accessor = last_whisper_from, public)]
 #[derive(Clone, Debug)]
 pub struct LastWhisperFrom {
     #[primary_key]
@@ -54,9 +54,9 @@ pub struct LastWhisperFrom {
 
 /// Team (Matronage) chat messages - visible only to matronage members
 #[spacetimedb::table(
-    name = team_message, 
+    accessor = team_message, 
     public,
-    index(name = idx_team_message_matronage, btree(columns = [matronage_id]))
+    index(accessor = idx_team_message_matronage, name = "idx_team_message_matronage", btree(columns = [matronage_id]))
 )]
 #[derive(Clone, Debug)]
 pub struct TeamMessage {
@@ -89,7 +89,7 @@ pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
         return Err("Message too long (max 100 characters).".to_string());
     }
 
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let current_time = ctx.timestamp;
 
     // --- Command Handling ---
@@ -511,26 +511,26 @@ pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
 
 
     // Get sender username (plain, no title prefix)
-    let sender_player = ctx.db.player().identity().find(&ctx.sender);
+    let sender_player = ctx.db.player().identity().find(&ctx.sender());
     let sender_username = sender_player.as_ref().map(|p| p.username.clone())
-        .unwrap_or_else(|| format!("{:?}", ctx.sender));
+        .unwrap_or_else(|| format!("{:?}", ctx.sender()));
     
     // Get active title from player stats (separate field)
     let sender_title = ctx.db.player_stats()
         .player_id()
-        .find(&ctx.sender)
+        .find(&ctx.sender())
         .and_then(|stats| stats.active_title_id.clone());
     
     let new_message = Message {
         id: 0, // Auto-incremented
-        sender: ctx.sender,
+        sender: ctx.sender(),
         sender_username,
         sender_title,
         text: text.clone(), // Clone text for logging after potential move
         sent: ctx.timestamp,
     };
 
-    log::info!("User {} sent message: {}", ctx.sender, text); // Log the message content
+    log::info!("User {} sent message: {}", ctx.sender(), text); // Log the message content
     
     // Use the database context handle to insert
     ctx.db.message().insert(new_message);

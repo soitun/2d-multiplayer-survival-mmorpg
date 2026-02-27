@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useRef, useCallback, useMemo } from 'react';
-import type { ActiveConsumableEffect } from '../generated';
+import type { ActiveConsumableEffect } from '../generated/types';
 import { insanity100SoundRef } from './useInsanitySovaSounds';
 
 interface UseEntrainmentSovaSoundsProps {

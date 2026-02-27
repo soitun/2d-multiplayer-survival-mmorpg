@@ -17,7 +17,7 @@
  * 4. ORE TYPE: getStoneOreType, normalizeOreType for variant selection.
  */
 
-import { Stone } from '../../generated'; // Import generated Stone type
+import { Stone } from '../../generated/types'; // Import generated Stone type
 import stoneImage from '../../assets/doodads/stone_d.png'; // Direct import
 import metalImage from '../../assets/doodads/metal.png'; // Metal ore node image
 import sulfurImage from '../../assets/doodads/sulfur.png'; // Sulfur ore node image

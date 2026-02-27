@@ -1,4 +1,4 @@
-import { Stash } from '../../generated';
+import { Stash } from '../../generated/types';
 import stashImageSrc from '../../assets/doodads/stash.png';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';

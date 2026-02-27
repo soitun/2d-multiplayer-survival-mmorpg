@@ -10,7 +10,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { BuildingMode, BuildingTier, FoundationShape } from '../hooks/useBuildingManager';
-import { DbConnection, InventoryItem, ItemDefinition } from '../generated';
+import { DbConnection } from '../generated';
+import { InventoryItem, ItemDefinition } from '../generated/types';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faCube, 

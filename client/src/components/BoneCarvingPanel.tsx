@@ -8,14 +8,14 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import styles from './BoneCarvingPanel.module.css';
+import { DbConnection } from '../generated';
 import {
     CraftingQueueItem,
     ItemDefinition,
     InventoryItem,
-    DbConnection,
     InventoryLocationData,
     HotbarLocationData,
-} from '../generated';
+} from '../generated/types';
 import { Identity } from 'spacetimedb';
 import { getItemIcon } from '../utils/itemIconUtils';
 
@@ -310,7 +310,7 @@ const BoneCarvingPanel: React.FC<BoneCarvingPanelProps> = ({
 
         try {
             // Call the start_bone_carving reducer
-            connection.reducers.startBoneCarving(BigInt(recipe.id));
+            connection.reducers.startBoneCarving({ recipeId: BigInt(recipe.id) });
             setCraftingMessage(`Started carving ${recipe.outputItemName}...`);
             setTimeout(() => setCraftingMessage(null), 3000);
         } catch (error) {

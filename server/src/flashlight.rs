@@ -9,7 +9,7 @@ use crate::sound_events;
 /// This is called by the client when the mouse position changes and flashlight is on
 #[spacetimedb::reducer]
 pub fn update_flashlight_aim(ctx: &ReducerContext, aim_angle: f32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let mut players_table = ctx.db.player();
 
     let mut player = players_table.identity().find(&sender_id)
@@ -32,7 +32,7 @@ pub fn update_flashlight_aim(ctx: &ReducerContext, aim_angle: f32) -> Result<(),
 
 #[spacetimedb::reducer]
 pub fn toggle_flashlight(ctx: &ReducerContext) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let mut players_table = ctx.db.player();
     let mut active_equipments_table = ctx.db.active_equipment();
     let item_defs_table = ctx.db.item_definition();

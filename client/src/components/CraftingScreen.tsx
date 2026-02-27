@@ -9,16 +9,16 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './CraftingScreen.module.css';
+import { DbConnection } from '../generated';
 import {
     Recipe,
     CraftingQueueItem,
     ItemDefinition,
     InventoryItem,
-    DbConnection,
     InventoryLocationData,
     HotbarLocationData,
     ActiveConsumableEffect,
-} from '../generated';
+} from '../generated/types';
 import { Identity } from 'spacetimedb';
 import { getItemIcon } from '../utils/itemIconUtils';
 import { ITEM_TO_NODE_MAP, MEMORY_GRID_NODES } from './MemoryGridData';
@@ -394,7 +394,7 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
         if (!connection?.reducers) return;
         try {
             if (quantity > 0) {
-                connection.reducers.startCraftingMultiple(recipeId, quantity);
+                connection.reducers.startCraftingMultiple({ recipeId: BigInt(recipeId), quantityToCraft: quantity });
             }
         } catch (err) {
             console.error("Error calling startCraftingMultiple reducer:", err);
@@ -404,7 +404,7 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
     const handleCancelCraft = (queueItemId: bigint) => {
         if (!connection?.reducers) return;
         try {
-            connection.reducers.cancelCraftingItem(queueItemId);
+            connection.reducers.cancelCraftingItem({ queueItemId: BigInt(queueItemId) });
         } catch (err) {
             console.error("Error calling cancelCraftingItem reducer:", err);
         }
@@ -413,7 +413,7 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
     const handleMoveToFront = (queueItemId: bigint) => {
         if (!connection?.reducers) return;
         try {
-            connection.reducers.moveCraftingQueueItemToFront(queueItemId);
+            connection.reducers.moveCraftingQueueItemToFront({ queueItemId: BigInt(queueItemId) });
         } catch (err) {
             console.error("Error calling moveCraftingQueueItemToFront reducer:", err);
         }
@@ -422,7 +422,7 @@ const CraftingScreen: React.FC<CraftingScreenProps> = ({
     const handleCancelAllCrafting = () => {
         if (!connection?.reducers) return;
         try {
-            connection.reducers.cancelAllCrafting();
+            connection.reducers.cancelAllCrafting({});
         } catch (err) {
             console.error("Error calling cancelAllCrafting reducer:", err);
         }

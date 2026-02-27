@@ -6,7 +6,7 @@
  * Only appear when a Queen Bee is present in the beehive.
  */
 
-import { WoodenStorageBox, InventoryItem, ItemDefinition } from '../../generated';
+import { WoodenStorageBox, InventoryItem, ItemDefinition } from '../../generated/types';
 import { BOX_TYPE_PLAYER_BEEHIVE } from './woodenStorageBoxRenderingUtils';
 
 // Bee configuration

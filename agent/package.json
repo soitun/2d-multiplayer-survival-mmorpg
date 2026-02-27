@@ -8,11 +8,11 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "build": "tsc",
-    "generate": "spacetime generate --lang typescript --out-dir ./src/generated --project-path ../server"
+    "generate": "spacetime generate --lang typescript --out-dir ./src/generated -p ../server"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
-    "spacetimedb": "^1.6.1"
+    "spacetimedb": "^2.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

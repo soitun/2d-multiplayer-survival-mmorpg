@@ -78,7 +78,7 @@ pub const FOOD_MAX_SPOILAGE_HOURS: f32 = 48.0;
 // --- Schedule Table for Torch Durability ---
 
 /// Schedule table for torch durability reduction
-#[spacetimedb::table(name = torch_durability_schedule, scheduled(process_torch_durability))]
+#[spacetimedb::table(accessor = torch_durability_schedule, scheduled(process_torch_durability))]
 #[derive(Clone, Debug)]
 pub struct TorchDurabilitySchedule {
     #[primary_key]
@@ -88,7 +88,7 @@ pub struct TorchDurabilitySchedule {
 }
 
 /// Schedule table for food spoilage
-#[spacetimedb::table(name = food_spoilage_schedule, scheduled(process_food_spoilage))]
+#[spacetimedb::table(accessor = food_spoilage_schedule, scheduled(process_food_spoilage))]
 #[derive(Clone, Debug)]
 pub struct FoodSpoilageSchedule {
     #[primary_key]
@@ -590,7 +590,7 @@ fn reduce_snorkel_durability(
 #[spacetimedb::reducer]
 pub fn process_torch_durability(ctx: &ReducerContext, _args: TorchDurabilitySchedule) -> Result<(), String> {
     // Security check - only allow scheduler to run this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Torch durability processing can only be run by scheduler".to_string());
     }
     
@@ -1272,7 +1272,7 @@ pub fn process_food_spoilage(ctx: &ReducerContext, _args: FoodSpoilageSchedule) 
     use crate::player as PlayerTableTrait;
     
     // Security check - only allow scheduler to run this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Food spoilage processing can only be run by scheduler".to_string());
     }
     

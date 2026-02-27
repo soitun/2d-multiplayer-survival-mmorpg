@@ -51,7 +51,7 @@ pub fn place_cooking_station(
     let mut boxes = ctx.db.wooden_storage_box();
     
     // Get the player
-    let player = players.identity().find(&ctx.sender)
+    let player = players.identity().find(&ctx.sender())
         .ok_or("Player not found")?;
     
     if player.is_dead {
@@ -64,7 +64,7 @@ pub fn place_cooking_station(
     
     // Verify the item is owned by this player
     if let Some(owner_id) = item.location.is_player_bound() {
-        if owner_id != ctx.sender {
+        if owner_id != ctx.sender() {
             return Err("You don't own this item".to_string());
         }
     } else {
@@ -97,7 +97,7 @@ pub fn place_cooking_station(
         pos_x,
         pos_y: pos_y + BOX_COLLISION_Y_OFFSET,
         chunk_index,
-        placed_by: ctx.sender,
+        placed_by: ctx.sender(),
         box_type: BOX_TYPE_COOKING_STATION,
         // Initialize all slots as empty (cooking station has 0 slots, but we still need the fields)
         slot_instance_id_0: None, slot_def_id_0: None,
@@ -170,7 +170,7 @@ pub fn place_cooking_station(
         Ok(inserted_box) => {
             log::info!(
                 "[CookingStation] Player {:?} placed cooking station {} at ({}, {})",
-                ctx.sender, inserted_box.id, pos_x, pos_y
+                ctx.sender(), inserted_box.id, pos_x, pos_y
             );
         }
         Err(e) => {
@@ -183,7 +183,7 @@ pub fn place_cooking_station(
     
     log::info!(
         "[CookingStation] Consumed item instance {} from player {:?}",
-        item_instance_id, ctx.sender
+        item_instance_id, ctx.sender()
     );
     
     Ok(())
@@ -194,7 +194,7 @@ pub fn place_cooking_station(
 /// Since cooking stations have no inventory, they can always be picked up.
 #[spacetimedb::reducer]
 pub fn pickup_cooking_station(ctx: &ReducerContext, box_id: u32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let mut boxes_table = ctx.db.wooden_storage_box();
     let item_defs_table = ctx.db.item_definition();
     

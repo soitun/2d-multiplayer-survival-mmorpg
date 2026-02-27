@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import * as SpacetimeDB from '../generated';
+import type { LevelUpNotification as LevelUpNotificationType } from '../generated/types';
 import { queueNotificationSound } from '../utils/notificationSoundQueue';
 
 interface LevelUpNotificationProps {
-  notifications: SpacetimeDB.LevelUpNotification[];
+  notifications: LevelUpNotificationType[];
 }
 
 const MAX_NOTIFICATIONS = 1; // Only show most recent level up
@@ -63,7 +63,7 @@ const CLICK_GUARD_MS = 1000;
 const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({ 
   notifications 
 }) => {
-  const [visibleNotifications, setVisibleNotifications] = useState<SpacetimeDB.LevelUpNotification[]>([]);
+  const [visibleNotifications, setVisibleNotifications] = useState<LevelUpNotificationType[]>([]);
   const [fadingOutIds, setFadingOutIds] = useState<Set<string>>(new Set());
   // Initialize dismissedIds from localStorage to persist across page reloads
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => loadSeenLevelUpIds());

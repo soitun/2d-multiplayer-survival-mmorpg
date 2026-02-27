@@ -18,7 +18,7 @@ use crate::sound_events;
 /// Only works when player is standing in water and wearing the reed snorkel
 #[spacetimedb::reducer]
 pub fn toggle_snorkel(ctx: &ReducerContext) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players_table = ctx.db.player();
     let active_equipments_table = ctx.db.active_equipment();
     let item_defs_table = ctx.db.item_definition();

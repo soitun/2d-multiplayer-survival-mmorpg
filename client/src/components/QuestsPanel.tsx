@@ -5,7 +5,7 @@ import {
     PlayerTutorialProgress, 
     PlayerDailyQuest,
     QuestStatus 
-} from '../generated';
+} from '../generated/types';
 import { Identity } from 'spacetimedb';
 import { 
     TUTORIALS, 

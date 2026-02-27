@@ -8,8 +8,8 @@ export interface AgentConfig {
   spacetimedbUri: string;
   /** SpacetimeDB module (database) name */
   spacetimedbModule: string;
-  /** API proxy URL for LLM calls */
-  proxyUrl: string;
+  /** OpenAI API key for planner calls */
+  openaiApiKey: string;
   /** Number of NPC agents to spawn */
   npcCount: number;
   /** Planner (slow) loop interval in ms. Each NPC runs ± 20% jitter. */
@@ -25,14 +25,19 @@ export interface AgentConfig {
 }
 
 export function loadConfig(): AgentConfig {
+  const openaiApiKey = process.env.OPENAI_API_KEY ?? '';
+  if (!openaiApiKey) {
+    console.warn('[AgentConfig] OPENAI_API_KEY is not set. Planner will be disabled.');
+  }
+
   return {
     spacetimedbUri: process.env.SPACETIMEDB_URI ?? 'ws://localhost:3000',
     spacetimedbModule: process.env.SPACETIMEDB_MODULE ?? 'broth-bullets-local',
-    proxyUrl: process.env.PROXY_URL ?? 'http://localhost:8002',
+    openaiApiKey,
     npcCount: parseInt(process.env.NPC_COUNT ?? '20', 10),
     plannerIntervalMs: parseInt(process.env.PLANNER_INTERVAL_MS ?? '30000', 10),
     fastLoopHz: parseInt(process.env.FAST_LOOP_HZ ?? '10', 10),
-    llmModel: 'gpt-4o-mini',
+    llmModel: process.env.LLM_MODEL ?? 'gpt-4o-mini',
     maxPlannerRetries: 2,
     tokenDir: process.env.TOKEN_DIR ?? './.npc-tokens',
   };

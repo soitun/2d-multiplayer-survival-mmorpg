@@ -54,9 +54,9 @@ import {
   LivingCoral as SpacetimeDBLivingCoral,
   AlkStation as SpacetimeDBAlkStation,
   Cairn as SpacetimeDBCairn,
-} from '../../generated';
+} from '../../generated/types';
 import { DbConnection } from '../../generated';
-import { PlayerCorpse as SpacetimeDBPlayerCorpse } from '../../generated/player_corpse_type';
+import type { PlayerCorpse as SpacetimeDBPlayerCorpse } from '../../generated/types';
 import { gameConfig, JUMP_DURATION_MS } from '../../config/gameConfig';
 import { COMPOUND_BUILDINGS, isCompoundMonument } from '../../config/compoundBuildings';
 import { CompoundBuildingEntity } from '../../hooks/useEntityFiltering';
@@ -88,8 +88,7 @@ import { renderSleepingBag } from './sleepingBagRenderingUtils';
 import { renderShelter } from './shelterRenderingUtils';
 import { renderRainCollector } from './rainCollectorRenderingUtils';
 import { renderWildAnimal, renderTamingThoughtBubbles, renderPregnancyIndicator } from './wildAnimalRenderingUtils';
-import { CaribouBreedingData } from '../../generated/caribou_breeding_data_type';
-import { WalrusBreedingData } from '../../generated/walrus_breeding_data_type';
+import type { CaribouBreedingData, WalrusBreedingData } from '../../generated/types';
 import { renderAnimalCorpse } from './animalCorpseRenderingUtils';
 import { renderPlayerCorpse, isCorpseHovered } from './playerCorpseRenderingUtils';
 import { renderBarrel, renderBarrelDestructionEffects } from './barrelRenderingUtils';

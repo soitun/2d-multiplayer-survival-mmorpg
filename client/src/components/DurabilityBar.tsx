@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { InventoryItem, ItemDefinition } from '../generated';
+import { InventoryItem, ItemDefinition } from '../generated/types';
 import { 
     getDurabilityPercentage, 
     getDurabilityColor, 

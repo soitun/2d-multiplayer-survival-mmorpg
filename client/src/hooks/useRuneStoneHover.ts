@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { RuneStone } from '../generated';
+import { RuneStone } from '../generated/types';
 
 /**
  * Hook to manage rune stone hover states for displaying info tooltips

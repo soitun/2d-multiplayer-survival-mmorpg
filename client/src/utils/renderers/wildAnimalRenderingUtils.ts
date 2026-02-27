@@ -1,6 +1,6 @@
 import { drawDynamicGroundShadow } from './shadowUtils';
 import { imageManager } from './imageManager';
-import * as SpacetimeDB from '../../generated';
+import type { WildAnimal, AnimalSpecies, AnimalState } from '../../generated/types';
 import {
     getAnimalCollisionBounds,
     ANIMAL_COLLISION_SIZES
@@ -8,10 +8,7 @@ import {
 import { UNDERWATER_TINT_FILTER } from './underwaterEffectsUtils';
 
 // Import breeding data types for age-based rendering
-import { CaribouBreedingData } from '../../generated/caribou_breeding_data_type';
-import { WalrusBreedingData } from '../../generated/walrus_breeding_data_type';
-import { CaribouAgeStage } from '../../generated/caribou_age_stage_type';
-import { WalrusAgeStage } from '../../generated/walrus_age_stage_type';
+import type { CaribouBreedingData, WalrusBreedingData, CaribouAgeStage, WalrusAgeStage } from '../../generated/types';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ANIMATED SPRITE SHEETS (4x4 or 6x4 layout with walking animations)
@@ -546,9 +543,7 @@ const _animalShadowCanvas = document.createElement('canvas');
 const _animalShadowCtx = _animalShadowCanvas.getContext('2d');
 
 // Re-export for convenience
-export type WildAnimal = SpacetimeDB.WildAnimal;
-export type AnimalSpecies = SpacetimeDB.AnimalSpecies;
-export type AnimalState = SpacetimeDB.AnimalState;
+export type { WildAnimal, AnimalSpecies, AnimalState };
 
 interface WildAnimalRenderProps {
     ctx: CanvasRenderingContext2D;

@@ -181,7 +181,7 @@ pub enum AlkItemTag {
 // ============================================================================
 
 /// Global ALK state singleton - tracks current cycle and balancing knobs
-#[spacetimedb::table(name = alk_state, public)]
+#[spacetimedb::table(accessor = alk_state, public)]
 #[derive(Clone, Debug)]
 pub struct AlkState {
     #[primary_key]
@@ -210,7 +210,7 @@ pub struct AlkState {
 }
 
 /// ALK delivery stations (central compound + 4 substations)
-#[spacetimedb::table(name = alk_station, public)]
+#[spacetimedb::table(accessor = alk_station, public)]
 #[derive(Clone, Debug)]
 pub struct AlkStation {
     #[primary_key]
@@ -238,10 +238,10 @@ pub struct AlkStation {
 
 /// ALK contract templates - defines what contracts are currently available
 #[spacetimedb::table(
-    name = alk_contract, 
+    accessor = alk_contract, 
     public,
-    index(name = idx_contract_kind, btree(columns = [kind])),
-    index(name = idx_contract_item, btree(columns = [item_def_id]))
+    index(accessor = idx_contract_kind, name = "idx_contract_kind", btree(columns = [kind])),
+    index(accessor = idx_contract_item, name = "idx_contract_item", btree(columns = [item_def_id]))
 )]
 #[derive(Clone, Debug)]
 pub struct AlkContract {
@@ -292,10 +292,10 @@ pub struct AlkContract {
 
 /// Player-accepted contracts - tracks individual player progress
 #[spacetimedb::table(
-    name = alk_player_contract, 
+    accessor = alk_player_contract, 
     public,
-    index(name = idx_player_contracts, btree(columns = [player_id])),
-    index(name = idx_player_status, btree(columns = [player_id, status]))
+    index(accessor = idx_player_contracts, name = "idx_player_contracts", btree(columns = [player_id])),
+    index(accessor = idx_player_status, name = "idx_player_status", btree(columns = [player_id, status]))
 )]
 #[derive(Clone, Debug)]
 pub struct AlkPlayerContract {
@@ -335,7 +335,7 @@ pub struct AlkPlayerContract {
 }
 
 /// Player shard balance - economic currency
-#[spacetimedb::table(name = player_shard_balance, public)]
+#[spacetimedb::table(accessor = player_shard_balance, public)]
 #[derive(Clone, Debug)]
 pub struct PlayerShardBalance {
     #[primary_key]
@@ -356,9 +356,9 @@ pub struct PlayerShardBalance {
 
 /// Item ALK tags - determines which items can appear in which contracts
 #[spacetimedb::table(
-    name = item_alk_tag, 
+    accessor = item_alk_tag, 
     public,
-    index(name = idx_tag_item, btree(columns = [item_def_id]))
+    index(accessor = idx_tag_item, name = "idx_tag_item", btree(columns = [item_def_id]))
 )]
 #[derive(Clone, Debug)]
 pub struct ItemAlkTag {
@@ -374,7 +374,7 @@ pub struct ItemAlkTag {
 }
 
 /// Schedule for ALK contract refresh checks
-#[spacetimedb::table(name = alk_contract_refresh_schedule, scheduled(process_alk_contract_refresh))]
+#[spacetimedb::table(accessor = alk_contract_refresh_schedule, scheduled(process_alk_contract_refresh))]
 #[derive(Clone, Debug)]
 pub struct AlkContractRefreshSchedule {
     #[primary_key]
@@ -2286,7 +2286,7 @@ fn calculate_bonus_contract_params(item_def: &crate::items::ItemDefinition) -> (
 #[spacetimedb::reducer]
 pub fn process_alk_contract_refresh(ctx: &ReducerContext, _args: AlkContractRefreshSchedule) -> Result<(), String> {
     // Security check - only scheduler can run this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("ALK contract refresh can only be run by scheduler".to_string());
     }
     
@@ -2439,7 +2439,7 @@ fn fail_expired_player_contracts(ctx: &ReducerContext, current_world_day: u32) -
 pub fn get_available_contracts(ctx: &ReducerContext) -> Result<(), String> {
     // This reducer doesn't need to do anything - clients subscribe to the contracts table
     // Just log for debugging
-    let _sender = ctx.sender;
+    let _sender = ctx.sender();
     let contracts_table = ctx.db.alk_contract();
     let active_count = contracts_table.iter().filter(|c| c.is_active).count();
     log::debug!("Available contracts query: {} active contracts", active_count);
@@ -2454,7 +2454,7 @@ pub fn accept_alk_contract(
     target_quantity: u32,
     preferred_station_id: Option<u32>,
 ) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Validate player exists
     let _player = ctx.db.player().identity().find(&player_id)
@@ -2550,7 +2550,7 @@ pub fn accept_alk_contract(
 /// Cancel a player contract
 #[spacetimedb::reducer]
 pub fn cancel_alk_contract(ctx: &ReducerContext, player_contract_id: u64) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     let player_contracts_table = ctx.db.alk_player_contract();
     
     let mut player_contract = player_contracts_table.id().find(&player_contract_id)
@@ -2593,7 +2593,7 @@ pub fn deliver_alk_contract(
     player_contract_id: u64,
     station_id: u32,
 ) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Get player
     let player = ctx.db.player().identity().find(&player_id)
@@ -2803,7 +2803,7 @@ pub fn deliver_alk_contract_to_matronage(
     player_contract_id: u64,
     station_id: u32,
 ) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Verify player is in a matronage first
     use crate::matronage::matronage_member as MatronageMemberTableTrait;
@@ -2950,7 +2950,7 @@ pub fn deliver_alk_contract_to_matronage(
 #[spacetimedb::reducer]
 pub fn get_shard_balance(ctx: &ReducerContext) -> Result<(), String> {
     // Clients subscribe to the table - this just ensures a record exists
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     let balance_table = ctx.db.player_shard_balance();
     
     if balance_table.player_id().find(&player_id).is_none() {
@@ -2976,7 +2976,7 @@ pub fn purchase_from_alk(
     contract_id: u64,
     bundles_to_buy: u32,
 ) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     if bundles_to_buy == 0 {
         return Err("Must buy at least 1 bundle".to_string());
@@ -3111,7 +3111,7 @@ pub fn purchase_from_alk(
 /// Check if player is near any ALK station (for UI purposes)
 #[spacetimedb::reducer]
 pub fn check_alk_station_proximity(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     let player = ctx.db.player().identity().find(&player_id)
         .ok_or("Player not found")?;
@@ -3184,7 +3184,7 @@ pub fn debug_refresh_alk_contracts(ctx: &ReducerContext) -> Result<(), String> {
 /// Debug: Grant shards to player
 #[spacetimedb::reducer]
 pub fn debug_grant_shards(ctx: &ReducerContext, amount: u64) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     let balance_table = ctx.db.player_shard_balance();
     
     let mut balance = balance_table.player_id().find(&player_id)

@@ -15,7 +15,7 @@ use crate::player as PlayerTableTrait;
 pub(crate) const GLOBAL_TICK_INTERVAL_SECS: u64 = 15;
 
 // --- Global Tick Schedule Table (Reverted to scheduled pattern) ---
-#[spacetimedb::table(name = global_tick_schedule, scheduled(process_global_tick))]
+#[spacetimedb::table(accessor = global_tick_schedule, scheduled(process_global_tick))]
 #[derive(Clone)]
 pub struct GlobalTickSchedule {
     #[primary_key]
@@ -51,7 +51,7 @@ pub fn init_global_tick_schedule(ctx: &ReducerContext) -> Result<(), String> {
 #[spacetimedb::reducer]
 pub fn process_global_tick(ctx: &ReducerContext, _schedule: GlobalTickSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("process_global_tick may only be called by the scheduler.".to_string());
     }
 

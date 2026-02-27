@@ -17,10 +17,10 @@
  * - Smooth alpha fade-out over 5 seconds (starts at 3.5s)
  */
 
-import { Player as SpacetimeDBPlayer } from '../../generated';
+import { Player as SpacetimeDBPlayer } from '../../generated/types';
 import { DbConnection } from '../../generated';
 import { getTileTypeFromChunkData, worldPosToTileCoords } from './placementRenderingUtils';
-import { PlayerDodgeRollState } from '../../generated';
+import { PlayerDodgeRollState } from '../../generated/types';
 import { isWaterTileTag } from '../tileTypeGuards';
 
 // =============================================================================

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Identity } from 'spacetimedb';
-import { AchievementDefinition, PlayerAchievement, AchievementCategory } from '../generated';
+import { AchievementDefinition, PlayerAchievement, AchievementCategory } from '../generated/types';
 import achievementsIcon from '../assets/ui/achievements.png';
 
 interface AchievementsPanelProps {

@@ -45,10 +45,10 @@ pub const FENCE_EDGE_WEST: u8 = 3;
 // --- Fence Table ---
 
 #[spacetimedb::table(
-    name = fence,
+    accessor = fence,
     public,
-    index(name = idx_chunk, btree(columns = [chunk_index])),
-    index(name = idx_cell_coords, btree(columns = [cell_x, cell_y]))
+    index(accessor = idx_chunk, name = "idx_fence_chunk", btree(columns = [chunk_index])),
+    index(accessor = idx_cell_coords, name = "idx_fence_cell_coords", btree(columns = [cell_x, cell_y]))
 )]
 #[derive(Clone, Debug)]
 pub struct Fence {
@@ -192,7 +192,7 @@ pub fn place_fence(
     cell_y: i64,
     edge: u8,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     
     log::info!(
@@ -504,10 +504,10 @@ pub fn damage_fence_explosive(
         if fence.health <= 0.0 {
             fence.is_destroyed = true;
             fence.destroyed_at = Some(ctx.timestamp);
-            crate::sound_events::emit_foundation_twig_destroyed_sound(ctx, fence.pos_x, fence.pos_y, ctx.sender);
+            crate::sound_events::emit_foundation_twig_destroyed_sound(ctx, fence.pos_x, fence.pos_y, ctx.sender());
             log::info!("[FenceExplosiveDamage] Fence {} destroyed by explosion", fence_id);
         } else {
-            crate::sound_events::emit_melee_hit_sharp_sound(ctx, fence.pos_x, fence.pos_y, ctx.sender);
+            crate::sound_events::emit_melee_hit_sharp_sound(ctx, fence.pos_x, fence.pos_y, ctx.sender());
             log::info!("[FenceExplosiveDamage] Fence {} took {:.1} explosive damage, health: {:.1}", fence_id, damage, fence.health);
         }
         
@@ -725,7 +725,7 @@ pub fn destroy_fence(ctx: &ReducerContext, fence_id: u64) -> Result<(), String> 
     use crate::sound_events;
     use crate::building::{player_has_repair_hammer, BUILDING_PLACEMENT_MAX_DISTANCE_SQUARED};
     
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let fences = ctx.db.fence();
     let players = ctx.db.player();
     
@@ -794,7 +794,7 @@ pub fn upgrade_fence(
     fence_id: u64,
     new_tier: u8,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let fences = ctx.db.fence();
     

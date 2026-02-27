@@ -16,7 +16,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { Player as SpacetimeDBPlayer } from '../generated'; // Import Player type
+import { Player as SpacetimeDBPlayer } from '../generated/types'; // Import Player type
 
 interface GameViewportResult {
   canvasSize: { width: number; height: number };

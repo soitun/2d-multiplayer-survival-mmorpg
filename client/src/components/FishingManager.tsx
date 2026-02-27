@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Player, ItemDefinition, DbConnection, FishingSession, WorldState } from '../generated';
+import { DbConnection } from '../generated';
+import { Player, ItemDefinition, FishingSession, WorldState } from '../generated/types';
 import { Identity } from 'spacetimedb';
 import FishingReticle from './FishingReticle';
 import { FishingState, FISHING_CONSTANTS } from '../types/fishing';
@@ -83,14 +84,14 @@ const FishingManager: React.FC<FishingManagerProps> = ({
 
     // Call the server reducer to create fishing session
     if (connection) {
-      connection.reducers.castFishingLine(worldX, worldY);
+      connection.reducers.castFishingLine({ targetX: worldX, targetY: worldY });
     }
   }, [localPlayer, playerIdentity, activeItemDef, isValidFishingRod, connection]);
 
   // Handle successful fishing
   const handleFishingSuccess = useCallback(async (loot: string[]) => {
     if (connection) {
-      await connection.reducers.finishFishing(true, loot);
+      await connection.reducers.finishFishing({ success: true, caughtItems: loot });
     }
     
     setFishingState({
@@ -105,7 +106,7 @@ const FishingManager: React.FC<FishingManagerProps> = ({
   // Handle fishing failure
   const handleFishingFailure = useCallback(() => {
     if (connection) {
-      connection.reducers.finishFishing(false, []);
+      connection.reducers.finishFishing({ success: false, caughtItems: [] });
     }
     
     setFishingState({
@@ -120,7 +121,7 @@ const FishingManager: React.FC<FishingManagerProps> = ({
   // Handle canceling fishing (ESC key)
   const handleCancel = useCallback(() => {
     if (connection) {
-      connection.reducers.cancelFishing();
+      connection.reducers.cancelFishing({});
     }
     
     setFishingState({

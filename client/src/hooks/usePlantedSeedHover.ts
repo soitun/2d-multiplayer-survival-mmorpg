@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { PlantedSeed } from '../generated';
+import { PlantedSeed } from '../generated/types';
 
 /**
  * Hook to manage planted seed hover states for displaying info tooltips

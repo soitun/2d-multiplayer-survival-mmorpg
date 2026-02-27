@@ -1,4 +1,4 @@
-import { RainCollector } from '../../generated';
+import { RainCollector } from '../../generated/types';
 import reedRainCollectorImage from '../../assets/doodads/reed_rain_collector.png';
 import alkWaterReservoirImage from '../../assets/doodads/alk_water_reservoir.png';
 import { drawDynamicGroundShadow, calculateShakeOffsets } from './shadowUtils';

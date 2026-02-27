@@ -27,7 +27,7 @@ export const usePlayerActions = (): PlayerActions => {
             return;
         }
         try {
-            connection.reducers.setSprinting(isSprinting);
+            connection.reducers.setSprinting({ sprinting: isSprinting });
         } catch (err: any) {
             console.error('[usePlayerActions] Failed to call setSprinting reducer:', err);
         }
@@ -39,7 +39,7 @@ export const usePlayerActions = (): PlayerActions => {
             return;
         }
         try {
-            connection.reducers.jump();
+            connection.reducers.jump({});
         } catch (err: any) {
             console.error('[usePlayerActions] Failed to call jump reducer:', err);
         }
@@ -52,7 +52,7 @@ export const usePlayerActions = (): PlayerActions => {
             return;
         }
         try {
-            connection.reducers.updateViewport(minX, minY, maxX, maxY);
+            connection.reducers.updateViewport({ minX, minY, maxX, maxY });
         } catch (err: any) {
             console.error('[usePlayerActions] Failed to call updateViewport reducer:', err);
         }

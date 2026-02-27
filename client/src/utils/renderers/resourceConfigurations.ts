@@ -1,6 +1,6 @@
 // Resource Configuration System for Harvestable Resources
 import { GroundEntityConfig } from './genericGroundRenderer';
-import { HarvestableResource } from '../../generated';
+import { HarvestableResource } from '../../generated/types';
 import { ResourceType, getResourceType } from '../../types/resourceTypes';
 import { drawDynamicGroundShadow } from './shadowUtils';
 import { RESOURCE_IMAGE_SOURCES } from './resourceImageConfigs';

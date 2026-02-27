@@ -423,7 +423,7 @@ function AppContent() {
             // Server sync: ensure sprint state is persisted
             if (connection?.reducers) {
                 try {
-                    connection.reducers.setSprinting(true);
+                    connection.reducers.setSprinting({ sprinting: true });
                 } catch { /* ignore */ }
             }
         } else {
@@ -511,92 +511,7 @@ function AppContent() {
         currentSeason: worldState?.currentSeason, // Pass season to mute rain sounds in winter (snow is silent)
     });
 
-    // --- Register Refrigerator Reducer Error Callbacks ---
-    // Play error sound and show error when refrigerator/compost/harvestable reducers fail
-    useEffect(() => {
-        if (!connection?.reducers) return;
-
-        const handleContainerError = (containerType: string, errorMsg: string) => {
-            console.log(`[App] ${containerType} validation failed:`, errorMsg);
-            playImmediateSound('construction_placement_error', 1.0);
-            showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-        };
-
-        // Register error callbacks for all refrigerator reducers
-        if (connection.reducers.onMoveItemToRefrigerator) {
-            connection.reducers.onMoveItemToRefrigerator((ctx: any, boxId: number, targetSlotIndex: number, itemInstanceId: bigint) => {
-                const status = ctx.event?.status;
-                if (status?.tag === 'Failed') {
-                    handleContainerError('Refrigerator', status.value || 'Cannot move item to refrigerator');
-                }
-            });
-        }
-
-        if (connection.reducers.onQuickMoveToRefrigerator) {
-            connection.reducers.onQuickMoveToRefrigerator((ctx: any, boxId: number, itemInstanceId: bigint) => {
-                const status = ctx.event?.status;
-                if (status?.tag === 'Failed') {
-                    handleContainerError('Refrigerator', status.value || 'Cannot move item to refrigerator');
-                }
-            });
-        }
-
-        if (connection.reducers.onSplitStackIntoRefrigerator) {
-            connection.reducers.onSplitStackIntoRefrigerator((ctx: any, boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) => {
-                const status = ctx.event?.status;
-                if (status?.tag === 'Failed') {
-                    handleContainerError('Refrigerator', status.value || 'Cannot split into refrigerator');
-                }
-            });
-        }
-
-        // Register error callbacks for all compost reducers
-        if (connection.reducers.onMoveItemToCompost) {
-            connection.reducers.onMoveItemToCompost((ctx: any, boxId: number, targetSlotIndex: number, itemInstanceId: bigint) => {
-                const status = ctx.event?.status;
-                if (status?.tag === 'Failed') {
-                    handleContainerError('Compost', status.value || 'Cannot move item to compost');
-                }
-            });
-        }
-
-        if (connection.reducers.onQuickMoveToCompost) {
-            connection.reducers.onQuickMoveToCompost((ctx: any, boxId: number, itemInstanceId: bigint) => {
-                const status = ctx.event?.status;
-                if (status?.tag === 'Failed') {
-                    handleContainerError('Compost', status.value || 'Cannot move item to compost');
-                }
-            });
-        }
-
-        if (connection.reducers.onSplitStackIntoCompost) {
-            connection.reducers.onSplitStackIntoCompost((ctx: any, boxId: number, targetSlotIndex: number, sourceItemInstanceId: bigint, quantityToSplit: number) => {
-                const status = ctx.event?.status;
-                if (status?.tag === 'Failed') {
-                    handleContainerError('Compost', status.value || 'Cannot split into compost');
-                }
-            });
-        }
-
-        // Register error callback for harvestable resource interactions (e.g., seaweed harvest without snorkeling)
-        if (connection.reducers.onInteractWithHarvestableResource) {
-            connection.reducers.onInteractWithHarvestableResource((ctx: any, resourceId: bigint) => {
-                const status = ctx.event?.status;
-                if (status?.tag === 'Failed') {
-                    const errorMsg = status.value || 'Cannot harvest resource';
-                    console.log(`[App] interactWithHarvestableResource failed:`, errorMsg);
-                    // Skip "too far away" - player can't reach this state through normal interaction (E only shows when in range)
-                    if (errorMsg.toLowerCase().includes('too far')) return;
-                    // Skip "already harvested" - not useful for gameplay; player can see the resource is depleted
-                    if (errorMsg.toLowerCase().includes('already been harvested') || errorMsg.toLowerCase().includes('respawning')) return;
-                    if (errorMsg.includes('underwater') || errorMsg.includes('snorkeling') || errorMsg.includes('seaweed')) {
-                        playImmediateSound('error_seaweed_above_water', 1.0);
-                    }
-                    showError(errorMsg.length > 80 ? errorMsg.slice(0, 77) + '…' : errorMsg);
-                }
-            });
-        }
-    }, [connection, showError]);
+    // SpacetimeDB 2.0 reducers use Promise-based invocation.
 
     // --- Music System ---
     // Get player position for zone-based music (uses predicted position if available)

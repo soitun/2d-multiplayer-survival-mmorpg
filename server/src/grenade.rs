@@ -39,7 +39,7 @@ struct GrenadeFuseData {
 }
 
 // --- Schedule Table ---
-#[table(name = grenade_fuse_schedule, scheduled(check_grenade_fuses))]
+#[table(accessor = grenade_fuse_schedule, scheduled(check_grenade_fuses))]
 #[derive(Clone, Debug)]
 pub struct GrenadeFuseSchedule {
     #[primary_key]
@@ -69,7 +69,7 @@ pub fn init_grenade_system(ctx: &ReducerContext) -> Result<(), String> {
 
 #[reducer]
 pub fn check_grenade_fuses(ctx: &ReducerContext, _schedule: GrenadeFuseSchedule) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Grenade fuse check may only be invoked by scheduler.".into());
     }
 

@@ -1,5 +1,4 @@
-import { PlayerCorpse as SpacetimeDBPlayerCorpse } from '../../generated/player_corpse_type';
-import { Player as SpacetimeDBPlayer } from '../../generated/player_type';
+import type { PlayerCorpse as SpacetimeDBPlayerCorpse, Player as SpacetimeDBPlayer } from '../../generated/types';
 import { renderPlayer, IDLE_FRAME_INDEX } from './playerRenderingUtils';
 import { Identity, Timestamp } from 'spacetimedb';
 import { calculateShakeOffsets } from './shadowUtils';

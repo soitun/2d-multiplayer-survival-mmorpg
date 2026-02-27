@@ -84,7 +84,7 @@ import {
   PlayerShardBalance as SpacetimeDBPlayerShardBalance,
   MemoryGridProgress as SpacetimeDBMemoryGridProgress,
   DroneEvent as SpacetimeDBDroneEvent,
-} from '../generated';
+} from '../generated/types';
 
 // --- Core Hooks ---
 import { useWalkingAnimationCycle, useSprintAnimationCycle, useIdleAnimationCycle, walkingAnimationFrameRef, sprintAnimationFrameRef, idleAnimationFrameRef } from '../hooks/useAnimationCycle';
@@ -1290,9 +1290,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     };
 
     // Register callbacks
-    connection.db.worldChunkData.onInsert(handleChunkInsert);
-    connection.db.worldChunkData.onUpdate(handleChunkUpdate);
-    connection.db.worldChunkData.onDelete(handleChunkDelete);
+    connection.db.world_chunk_data.onInsert(handleChunkInsert);
+    connection.db.world_chunk_data.onUpdate(handleChunkUpdate);
+    connection.db.world_chunk_data.onDelete(handleChunkDelete);
 
     // Subscribe to the entire table once (hundreds of rows, lightweight)
     const handle = connection
@@ -1695,13 +1695,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (connection?.reducers) {
       switch (target.type) {
         case 'harvestable_resource':
-          connection.reducers.interactWithHarvestableResource(target.id as bigint);
+          connection.reducers.interactWithHarvestableResource({ resourceId: target.id as bigint });
           break;
         case 'dropped_item':
-          connection.reducers.pickupDroppedItem(target.id as bigint);
+          connection.reducers.pickupDroppedItem({ droppedItemId: target.id as bigint });
           break;
         case 'door':
-          connection.reducers.interactDoor(target.id as bigint);
+          connection.reducers.interactDoor({ doorId: target.id as bigint });
           break;
         case 'water':
           // Water requires hold - for mobile just show a message or ignore
@@ -1802,7 +1802,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       lastFlashlightSyncTimeRef.current = Date.now();
 
       try {
-        connection.reducers.updateFlashlightAim(aimAngle);
+        connection.reducers.updateFlashlightAim({ aimAngle });
       } catch (e) {
         // Silently ignore errors (reducer might not exist during hot reload)
       }
@@ -4320,10 +4320,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           onSelect={(tier: BuildingTier) => {
             if (connection && upgradeMenuFoundationRef.current) {
               logDebug('[UpgradeRadialMenu] Upgrading foundation', upgradeMenuFoundationRef.current.id, 'to tier', tier);
-              connection.reducers.upgradeFoundation(
-                upgradeMenuFoundationRef.current.id,
-                tier as number
-              );
+              connection.reducers.upgradeFoundation({
+                foundationId: upgradeMenuFoundationRef.current.id,
+                newTier: tier as number,
+              });
             }
             // Clear all menu state immediately
             setShowUpgradeRadialMenu(false);
@@ -4337,7 +4337,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           onDestroy={() => {
             if (connection && upgradeMenuFoundationRef.current) {
               logDebug('[UpgradeRadialMenu] Destroying foundation', upgradeMenuFoundationRef.current.id);
-              connection.reducers.destroyFoundation(upgradeMenuFoundationRef.current.id);
+              connection.reducers.destroyFoundation({ foundationId: upgradeMenuFoundationRef.current.id });
             }
             // Clear all menu state immediately
             setShowUpgradeRadialMenu(false);
@@ -4363,10 +4363,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           onSelect={(tier: BuildingTier) => {
             if (connection && upgradeMenuWallRef.current) {
               logDebug('[UpgradeRadialMenu] Upgrading wall', upgradeMenuWallRef.current.id, 'to tier', tier);
-              connection.reducers.upgradeWall(
-                upgradeMenuWallRef.current.id,
-                tier as number
-              );
+              connection.reducers.upgradeWall({
+                wallId: upgradeMenuWallRef.current.id,
+                newTier: tier as number,
+              });
             }
             // Clear all menu state immediately
             setShowUpgradeRadialMenu(false);
@@ -4380,7 +4380,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           onDestroy={() => {
             if (connection && upgradeMenuWallRef.current) {
               logDebug('[UpgradeRadialMenu] Destroying wall', upgradeMenuWallRef.current.id);
-              connection.reducers.destroyWall(upgradeMenuWallRef.current.id);
+              connection.reducers.destroyWall({ wallId: upgradeMenuWallRef.current.id });
             }
             // Clear all menu state immediately
             setShowUpgradeRadialMenu(false);
@@ -4406,10 +4406,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           onSelect={(tier: BuildingTier) => {
             if (connection && upgradeMenuFenceRef.current) {
               logDebug('[UpgradeRadialMenu] Upgrading fence', upgradeMenuFenceRef.current.id, 'to tier', tier);
-              connection.reducers.upgradeFence(
-                upgradeMenuFenceRef.current.id,
-                tier as number
-              );
+              connection.reducers.upgradeFence({
+                fenceId: upgradeMenuFenceRef.current.id,
+                newTier: tier as number,
+              });
             }
             // Clear all menu state immediately
             setShowUpgradeRadialMenu(false);
@@ -4423,7 +4423,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           onDestroy={() => {
             if (connection && upgradeMenuFenceRef.current) {
               logDebug('[UpgradeRadialMenu] Destroying fence', upgradeMenuFenceRef.current.id);
-              connection.reducers.destroyFence(upgradeMenuFenceRef.current.id);
+              connection.reducers.destroyFence({ fenceId: upgradeMenuFenceRef.current.id });
             }
             // Clear all menu state immediately
             setShowUpgradeRadialMenu(false);

@@ -19,7 +19,7 @@
  */
 
 import { gameConfig, DEEP_SEA_EDGE_TILES } from '../../config/gameConfig';
-import { WorldTile } from '../../generated/world_tile_type';
+import type { WorldTile } from '../../generated/types';
 import { 
     getDualGridTileInfoMultiLayer, 
     getAllTransitionTilesets, 

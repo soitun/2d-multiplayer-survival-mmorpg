@@ -18,7 +18,7 @@ pub struct RecipeIngredient {
 }
 
 // Defines a crafting recipe
-#[spacetimedb::table(name = recipe, public)]
+#[spacetimedb::table(accessor = recipe, public)]
 #[derive(Clone, Debug)]
 pub struct Recipe {
     #[primary_key]

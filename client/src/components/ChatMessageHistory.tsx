@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, RefObject, useMemo, useCallback } from 'react';
-import { Message as SpacetimeDBMessage, Player as SpacetimeDBPlayer, PrivateMessage as SpacetimeDBPrivateMessage, TeamMessage as SpacetimeDBTeamMessage } from '../generated'; // Assuming Message and Player types are generated
+import { Message as SpacetimeDBMessage, Player as SpacetimeDBPlayer, PrivateMessage as SpacetimeDBPrivateMessage, TeamMessage as SpacetimeDBTeamMessage } from '../generated/types'; // Assuming Message and Player types are generated
 import { Identity } from 'spacetimedb'; // Import Identity directly from SDK
 import styles from './Chat.module.css';
 

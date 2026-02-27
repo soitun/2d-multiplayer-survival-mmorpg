@@ -24,7 +24,7 @@ import {
   AchievementDefinition,
   PlayerAchievement,
   PlantConfigDefinition,
-} from '../generated';
+} from '../generated/types';
 import { Identity } from 'spacetimedb';
 import './InterfaceContainer.css';
 
@@ -200,7 +200,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
       
       // First, find the Memory Shard item definition ID
       let memoryShardDefId: bigint | null = null;
-      for (const itemDef of connection.connection.db.itemDefinition.iter()) {
+      for (const itemDef of connection.connection.db.item_definition.iter()) {
         if (itemDef.name === 'Memory Shard') {
           memoryShardDefId = itemDef.id;
           // console.log(`🔍 [Memory Grid Debug] Found Memory Shard definition ID: ${memoryShardDefId}`);
@@ -219,7 +219,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
       // console.log(`🔍 [Memory Grid Debug] Current player identity: ${connection.dbIdentity}`);
       
       // Use the exact same pattern as projectile.rs line 171-187
-      for (const item of connection.connection.db.inventoryItem.iter()) {
+      for (const item of connection.connection.db.inventory_item.iter()) {
         if (item.itemDefId === memoryShardDefId && item.quantity > 0) {
           // console.log(`🔍 [Memory Grid Debug] Found Memory Shard item instance:`, {
           //   instanceId: item.instanceId,
@@ -276,7 +276,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
       //  console.log(`🔍 [Memory Grid Debug] Looking for progress for player: ${connection.dbIdentity?.toString()}`);
       
       let progress = null;
-      for (const p of connection.connection.db.memoryGridProgress.iter()) {
+      for (const p of connection.connection.db.memory_grid_progress.iter()) {
         // console.log(`🔍 [Memory Grid Debug] Found progress entry:`, {
         //   playerId: p.playerId?.toString(),
         //   purchasedNodes: p.purchasedNodes,
@@ -297,7 +297,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
       } else {
         // Initialize if no progress found
         setPurchasedNodes(new Set(['center']));
-        connection.connection.reducers.initializePlayerMemoryGrid();
+        connection.connection.reducers.initializePlayerMemoryGrid({});
         //  console.log(`📊 Memory Grid: ${totalShards} shards, initializing progress`);
       }
       
@@ -320,16 +320,14 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
     
     try {
       // Call server reducer to purchase node
-      connection.connection.reducers.purchaseMemoryGridNode(node.id);
-      // console.log(`✅ Attempting to purchase ${node.name} on server`);
-      
-      // The state will be updated automatically through SpacetimeDB subscriptions
-      // We'll trigger an update manually for immediate feedback
+      await connection.connection.reducers.purchaseMemoryGridNode({ nodeId: node.id });
+      playImmediateSound('unlock_sound', 1.0);
+      console.log(`✅ Successfully purchased memory grid node: ${node.name}`);
       setTimeout(() => updateMemoryGridData(), 100);
     } catch (error) {
       console.error(`❌ Failed to purchase ${node.name}:`, error);
     }
-  }, [connection, updateMemoryGridData]);
+  }, [connection, updateMemoryGridData, playImmediateSound]);
 
   // Handle faction reset through server
   const handleFactionReset = useCallback(async () => {
@@ -340,7 +338,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
     
     try {
       // Call server reducer to reset faction
-      connection.connection.reducers.resetFaction();
+      await connection.connection.reducers.resetFaction({});
       console.log('✅ Attempting to reset faction on server');
       
       // The state will be updated automatically through SpacetimeDB subscriptions
@@ -350,29 +348,6 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
       console.error('❌ Failed to reset faction:', error);
     }
   }, [connection, updateMemoryGridData]);
-
-  // Register reducer callback for successful memory grid node purchases
-  useEffect(() => {
-    if (!connection.connection) return;
-
-    const handlePurchaseResult = (ctx: any, nodeId: string) => {
-      // Only play sound on successful purchase (Committed status)
-      if (ctx.event?.status?.tag === 'Committed') {
-        // Play unlock sound when purchase succeeds (for both skill unlocks and faction unlocks)
-        playImmediateSound('unlock_sound', 1.0);
-        console.log(`✅ Successfully purchased memory grid node: ${nodeId}`);
-      } else if (ctx.event?.status?.tag === 'Failed') {
-        const errorMsg = ctx.event.status.value || 'Unknown error';
-        console.error(`❌ Failed to purchase memory grid node ${nodeId}:`, errorMsg);
-      }
-    };
-
-    connection.connection.reducers.onPurchaseMemoryGridNode(handlePurchaseResult);
-
-    return () => {
-      connection.connection?.reducers.removeOnPurchaseMemoryGridNode(handlePurchaseResult);
-    };
-  }, [connection]);
 
   // Update memory grid data when connection changes or data updates
   useEffect(() => {
@@ -389,20 +364,20 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
       queueMicrotask(() => updateMemoryGridData());
     };
 
-    conn.db.inventoryItem.onInsert(scheduleUpdate);
-    conn.db.inventoryItem.onUpdate(scheduleUpdate);
-    conn.db.inventoryItem.onDelete(scheduleUpdate);
-    conn.db.memoryGridProgress.onInsert(scheduleUpdate);
-    conn.db.memoryGridProgress.onUpdate(scheduleUpdate);
-    conn.db.memoryGridProgress.onDelete(scheduleUpdate);
+    conn.db.inventory_item.onInsert(scheduleUpdate);
+    conn.db.inventory_item.onUpdate(scheduleUpdate);
+    conn.db.inventory_item.onDelete(scheduleUpdate);
+    conn.db.memory_grid_progress.onInsert(scheduleUpdate);
+    conn.db.memory_grid_progress.onUpdate(scheduleUpdate);
+    conn.db.memory_grid_progress.onDelete(scheduleUpdate);
 
     return () => {
-      conn.db.inventoryItem.removeOnInsert(scheduleUpdate);
-      conn.db.inventoryItem.removeOnUpdate(scheduleUpdate);
-      conn.db.inventoryItem.removeOnDelete(scheduleUpdate);
-      conn.db.memoryGridProgress.removeOnInsert(scheduleUpdate);
-      conn.db.memoryGridProgress.removeOnUpdate(scheduleUpdate);
-      conn.db.memoryGridProgress.removeOnDelete(scheduleUpdate);
+      conn.db.inventory_item.removeOnInsert(scheduleUpdate);
+      conn.db.inventory_item.removeOnUpdate(scheduleUpdate);
+      conn.db.inventory_item.removeOnDelete(scheduleUpdate);
+      conn.db.memory_grid_progress.removeOnInsert(scheduleUpdate);
+      conn.db.memory_grid_progress.removeOnUpdate(scheduleUpdate);
+      conn.db.memory_grid_progress.removeOnDelete(scheduleUpdate);
     };
   }, [connection.connection, connection.isConnected, updateMemoryGridData]);
 
@@ -893,7 +868,7 @@ const InterfaceContainer: React.FC<InterfaceContainerProps> = ({
               totalShardsSpent={(() => {
                 // Get total shards spent from memory grid progress
                 if (!connection.connection || !connection.dbIdentity) return 0;
-                const progress = connection.connection.db.memoryGridProgress.playerId.find(connection.dbIdentity);
+                const progress = connection.connection.db.memory_grid_progress.playerId.find(connection.dbIdentity);
                 return progress ? Number(progress.totalShardsSpent) : 0;
               })()}
               onNodePurchase={handleNodePurchase}

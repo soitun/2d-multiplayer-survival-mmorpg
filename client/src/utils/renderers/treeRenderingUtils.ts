@@ -18,7 +18,7 @@
  * 4. CANOPY SHADOW: Elliptical ambient occlusion under foliage.
  */
 
-import { Tree, TimeOfDay } from '../../generated'; // Import generated types
+import { Tree, TimeOfDay } from '../../generated/types'; // Import generated types
 import birchImage from '../../assets/doodads/siberian_birch_c.png';
 import mountainHemlockImage from '../../assets/doodads/mountain_hemlock_c.png';
 import mountainHemlockImage2 from '../../assets/doodads/mountain_hemlock_d.png';

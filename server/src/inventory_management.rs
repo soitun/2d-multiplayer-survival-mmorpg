@@ -107,7 +107,7 @@ pub(crate) fn handle_move_to_container_slot<C: ItemContainer>(
 ) -> Result<(), String> {
     let inventory_table = ctx.db.inventory_item();
     let item_def_table = ctx.db.item_definition();
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
 
     // --- Fetch and Validate Item to Move --- 
     let mut item_to_move = inventory_table.instance_id().find(item_instance_id)
@@ -333,7 +333,7 @@ pub(crate) fn handle_move_from_container_slot<C: ItemContainer>(
     target_slot_type: String, // "inventory" or "hotbar"
     target_slot_index: u32 
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_table = ctx.db.inventory_item();
     let item_def_table = ctx.db.item_definition();
 
@@ -733,7 +733,7 @@ pub(crate) fn handle_split_into_container<C: ItemContainer>(
     quantity_to_split: u32
 ) -> Result<(), String> {
     let inventory_table = ctx.db.inventory_item();
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let item_def_table = ctx.db.item_definition();
 
     log::debug!("[SplitIntoContainer] Player {} splitting {} of item {} into container slot {}. Container ID: {}, Type: {:?}", 
@@ -812,7 +812,7 @@ pub(crate) fn handle_split_from_container<C: ItemContainer>(
     target_slot_type: String, // "inventory" or "hotbar"
     target_slot_index: u32
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_table = ctx.db.inventory_item();
     let item_def_table = ctx.db.item_definition();
 
@@ -1088,7 +1088,7 @@ pub(crate) fn handle_quick_move_from_container<C: ItemContainer>(
     container: &mut C, 
     source_slot_index: u8
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_table = ctx.db.inventory_item();
     let item_def_table = ctx.db.item_definition();
 
@@ -1287,7 +1287,7 @@ pub(crate) fn handle_quick_move_to_container<C: ItemContainer>(
     );
     let inventory_table = ctx.db.inventory_item();
     let item_def_table = ctx.db.item_definition();
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
 
     // --- 1. Fetch and Validate Item to Move --- 
     let mut item_to_move = inventory_table.instance_id().find(item_instance_id)

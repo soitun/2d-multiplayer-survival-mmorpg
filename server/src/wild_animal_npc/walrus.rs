@@ -143,7 +143,7 @@ pub const WALRUS_JUVENILE_HEALTH_MULTIPLIER: f32 = 0.65;
 
 /// Stores breeding-specific data for each walrus
 /// Separate table to avoid bloating WildAnimal with null fields for other species
-#[table(name = walrus_breeding_data, public)]
+#[table(accessor = walrus_breeding_data, public)]
 #[derive(Clone, Debug)]
 pub struct WalrusBreedingData {
     #[primary_key]
@@ -174,7 +174,7 @@ pub struct WalrusBreedingData {
 }
 
 /// Schedule table for walrus breeding system updates
-#[table(name = walrus_breeding_schedule, scheduled(process_walrus_breeding))]
+#[table(accessor = walrus_breeding_schedule, scheduled(process_walrus_breeding))]
 #[derive(Clone)]
 pub struct WalrusBreedingSchedule {
     #[primary_key]
@@ -184,7 +184,7 @@ pub struct WalrusBreedingSchedule {
 }
 
 /// Global rut state tracking for walruses
-#[table(name = walrus_rut_state, public)]
+#[table(accessor = walrus_rut_state, public)]
 #[derive(Clone, Debug)]
 pub struct WalrusRutState {
     #[primary_key]
@@ -1025,7 +1025,7 @@ pub fn is_night_time(ctx: &ReducerContext) -> bool {
 #[spacetimedb::reducer]
 pub fn process_walrus_breeding(ctx: &ReducerContext, _schedule: WalrusBreedingSchedule) -> Result<(), String> {
     // Security: Only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Walrus breeding reducer can only be called by scheduler".to_string());
     }
     

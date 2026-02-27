@@ -8,7 +8,7 @@
 import { 
     InventoryItem, ItemDefinition,
     Campfire, Furnace, Barbecue, Fumarole, Lantern, Turret, WoodenStorageBox, PlayerCorpse, Stash, RainCollector, HomesteadHearth, BrothPot
-} from '../generated';
+} from '../generated/types';
 import { PopulatedItem } from '../components/InventoryUI';
 import { DragSourceSlotInfo, DraggedItemInfo, SlotType } from '../types/dragDropTypes';
 import { playImmediateSound } from '../hooks/useSoundSystem';
@@ -137,6 +137,19 @@ export function getDragDropReducerNames(containerType: ContainerType, entity?: C
     };
 }
 
+/** Entity ID param name per container type for 2.0 object-arg reducers */
+const ENTITY_ID_PARAM: Record<ContainerType, string> = {
+    campfire: 'campfireId', furnace: 'furnaceId', barbecue: 'barbecueId', fumarole: 'fumaroleId',
+    lantern: 'lanternId', turret: 'turretId', wooden_storage_box: 'boxId', player_corpse: 'corpseId',
+    stash: 'stashId', rain_collector: 'collectorId', homestead_hearth: 'hearthId', broth_pot: 'brothPotId',
+};
+/** Source entity param for splitStackFrom (moveItemFromX) - fuel uses sourceXxxId, storage uses entity param */
+const SPLIT_FROM_SOURCE_PARAM: Record<ContainerType, string> = {
+    campfire: 'sourceCampfireId', furnace: 'sourceFurnaceId', barbecue: 'sourceBarbecueId', fumarole: 'sourceFumaroleId',
+    lantern: 'sourceLanternId', turret: 'sourceTurretId', wooden_storage_box: 'boxId', player_corpse: 'corpseId',
+    stash: 'stashId', rain_collector: 'collectorId', homestead_hearth: 'hearthId', broth_pot: 'brothPotId',
+};
+
 /**
  * Get container type from slot type
  */
@@ -208,18 +221,19 @@ export function handleWorldDrop(
             return true; // Silently reject - invalid parameters
         }
         
-        // Call the appropriate reducer
+        // Call the appropriate reducer (2.0 object-arg)
+        const entityParam = ENTITY_ID_PARAM[containerType];
         if (sourceInfo.splitQuantity) {
             const reducerName = reducers.splitDropToWorld;
             if (connection.reducers[reducerName]) {
-                connection.reducers[reducerName](entityIdNum, slotIndexNum, quantityToDrop);
+                (connection.reducers as any)[reducerName]({ [entityParam]: entityIdNum, slotIndex: slotIndexNum, quantityToSplit: quantityToDrop });
             } else {
                 // Silently reject - reducer not available
             }
         } else {
             const reducerName = reducers.dropToWorld;
             if (connection.reducers[reducerName]) {
-                connection.reducers[reducerName](entityIdNum, slotIndexNum);
+                (connection.reducers as any)[reducerName]({ [entityParam]: entityIdNum, slotIndex: slotIndexNum });
             } else {
                 // Silently reject - reducer not available
             }
@@ -293,7 +307,7 @@ export function handleContainerToPlayerMove(
             });
             
             try {
-                (connection.reducers as any)[reducerName](sourceEntityId, targetTypeStr, targetIndexNum);
+                connection.reducers[reducerName]({ brothPotId: sourceEntityId, targetSlotType: targetTypeStr, targetSlotIndex: targetIndexNum });
             } catch (error: any) {
                 console.error(`[ContainerToPlayer WaterContainer] Error calling reducer:`, error);
                 return true; // Silently reject - reducer error
@@ -318,7 +332,7 @@ export function handleContainerToPlayerMove(
             });
             
             try {
-                (connection.reducers as any)[reducerName](sourceEntityId, targetTypeStr, targetIndexNum);
+                connection.reducers[reducerName]({ brothPotId: sourceEntityId, targetSlotType: targetTypeStr, targetSlotIndex: targetIndexNum });
             } catch (error: any) {
                 console.error(`[ContainerToPlayer Output] Error calling reducer:`, error);
                 return true; // Silently reject - reducer error
@@ -328,7 +342,8 @@ export function handleContainerToPlayerMove(
                 console.error(`[ContainerToPlayer] Reducer ${reducerName} not found. Available reducers:`, Object.keys(connection.reducers || {}));
                 return true; // Silently reject - reducer not found
             }
-            connection.reducers[reducerName](sourceEntityId, sourceSlotIndex, targetSlotType, targetSlotIndex);
+            const entityParam = ENTITY_ID_PARAM[containerType];
+            (connection.reducers as any)[reducerName]({ [entityParam]: sourceEntityId, sourceSlotIndex, targetSlotType, targetSlotIndex });
         }
         
         return true;
@@ -383,7 +398,7 @@ export function handlePlayerToContainerMove(
         let entity: ContainerEntity | undefined = undefined;
         if (containerType === 'wooden_storage_box' && connection?.db) {
             try {
-                const boxTable = connection.db.woodenStorageBox;
+                const boxTable = connection.db.wooden_storage_box;
                 const box = boxTable.id.find(containerIdNum);
                 if (box) {
                     entity = box;
@@ -421,15 +436,14 @@ export function handlePlayerToContainerMove(
         
         if (connection.reducers[reducerName]) {
             if (containerType === 'rain_collector') {
-                connection.reducers[reducerName](containerIdNum, itemInstanceId, targetIndexNum);
+                connection.reducers.moveItemToRainCollector({ collectorId: containerIdNum, itemInstanceId, targetSlotIndex: targetIndexNum });
             } else if (targetSlot.type === 'broth_pot_water_container') {
-                // Water container slot reducer only takes broth_pot_id and item_instance_id
-                connection.reducers[reducerName](containerIdNum, itemInstanceId);
+                connection.reducers.moveItemToBrothPotWaterContainer({ brothPotId: containerIdNum, itemInstanceId });
             } else {
-                // Standard pattern: (container_id, slot_index, item_instance_id)
-                // This works for broth_pot ingredient slots too: moveItemToBrothPot(broth_pot_id, slot_index, item_instance_id)
-                console.log(`[PlayerToContainer] Calling ${reducerName}(${containerIdNum}, ${targetIndexNum}, ${itemInstanceId})`);
-                connection.reducers[reducerName](containerIdNum, targetIndexNum, itemInstanceId);
+                // Standard pattern: entity param varies by container type
+                const entityParam = ENTITY_ID_PARAM[containerType];
+                console.log(`[PlayerToContainer] Calling ${reducerName}({ ${entityParam}: ${containerIdNum}, targetSlotIndex: ${targetIndexNum}, itemInstanceId })`);
+                (connection.reducers as any)[reducerName]({ [entityParam]: containerIdNum, targetSlotIndex: targetIndexNum, itemInstanceId });
             }
         } else {
             console.warn(`[PlayerToContainer] Reducer ${reducerName} NOT FOUND!`);
@@ -483,7 +497,8 @@ export function handleWithinContainerMove(
         const reducerName = reducers.moveWithin;
         
         if (connection.reducers[reducerName]) {
-            connection.reducers[reducerName](sourceContainerId, sourceSlotIndex, targetSlotIndex);
+            const entityParam = ENTITY_ID_PARAM[containerType];
+            (connection.reducers as any)[reducerName]({ [entityParam]: sourceContainerId, sourceSlotIndex, targetSlotIndex });
         } else {
             // Silently reject - reducer not available
         }
@@ -652,7 +667,7 @@ function findFirstAvailableInventorySlot(connection: any): number {
     if (!playerIdentity) return -1;
     
     // Get all player items in inventory
-    const playerItems = Array.from(connection.db.inventoryItem.iter()).filter((item: any) => 
+    const playerItems = Array.from(connection.db.inventory_item.iter()).filter((item: any) => 
         item.location.tag === 'Inventory' &&
         item.location.value.ownerId && item.location.value.ownerId.isEqual(playerIdentity)
     );
@@ -992,17 +1007,12 @@ export function handlePlayerToContainerSplit(
         // Use appropriate reducer based on container type
         const reducerName = reducers.splitFromPlayer;
         if (connection.reducers[reducerName]) {
-            // Different parameter orders for fuel vs storage containers
-            // Note: homestead_hearth and fumarole use fuel container parameter order
             const isFuel = ['campfire', 'furnace', 'barbecue', 'lantern', 'homestead_hearth', 'fumarole'].includes(containerType);
-            
-            if (isFuel) {
-                // Fuel containers, hearth, and fumarole: (sourceItemInstanceId, quantityToSplit, targetContainerId, targetSlotIndex)
-                connection.reducers[reducerName](sourceInstanceId, quantityToSplit, targetContainerIdNum, targetSlotIndexNum);
-            } else {
-                // Storage containers: (containerId, targetSlotIndex, sourceItemInstanceId, quantityToSplit)
-                connection.reducers[reducerName](targetContainerIdNum, targetSlotIndexNum, sourceInstanceId, quantityToSplit);
-            }
+            const targetParam = isFuel ? `target${ENTITY_ID_PARAM[containerType].charAt(0).toUpperCase()}${ENTITY_ID_PARAM[containerType].slice(1)}` : ENTITY_ID_PARAM[containerType];
+            const args = isFuel
+                ? { sourceItemInstanceId: sourceInstanceId, quantityToSplit, [targetParam]: targetContainerIdNum, targetSlotIndex: targetSlotIndexNum }
+                : { [targetParam]: targetContainerIdNum, targetSlotIndex: targetSlotIndexNum, sourceItemInstanceId: sourceInstanceId, quantityToSplit };
+            (connection.reducers as any)[reducerName](args);
         } else {
             // Silently reject - reducer not available
         }
@@ -1064,13 +1074,14 @@ export function handleContainerToPlayerSplit(
         
         const reducerName = reducers.splitToPlayer;
         if (connection.reducers[reducerName]) {
-            connection.reducers[reducerName](
-                sourceEntityId,
+            const sourceParam = SPLIT_FROM_SOURCE_PARAM[containerType];
+            (connection.reducers as any)[reducerName]({
+                [sourceParam]: sourceEntityId,
                 sourceSlotIndex,
-                quantityToSplitNum,
+                quantityToSplit: quantityToSplitNum,
                 targetSlotType,
-                targetSlotIndexNum
-            );
+                targetSlotIndex: targetSlotIndexNum
+            });
         } else {
             // Silently reject - reducer not available
         }
@@ -1166,26 +1177,13 @@ export function handleWithinContainerSplit(
         
         const reducerName = reducers.splitWithin;
         if (connection.reducers[reducerName]) {
-            // Different parameter orders for fuel vs storage containers
-            const isFuel = ['campfire', 'furnace', 'barbecue', 'lantern', 'fumarole'].includes(containerType);
-            
-            if (isFuel) {
-                // Fuel containers and fumarole: (id, sourceSlotIndex, quantityToSplit, targetSlotIndex)
-                connection.reducers[reducerName](
-                    sourceContainerId,
-                    sourceSlotIndex,
-                    quantityToSplitNum,
-                    targetSlotIndex
-                );
-            } else {
-                // Storage containers: (id, sourceSlotIndex, targetSlotIndex, quantityToSplit)
-                connection.reducers[reducerName](
-                    sourceContainerId,
-                    sourceSlotIndex,
-                    targetSlotIndex,
-                    quantityToSplitNum
-                );
-            }
+            const entityParam = ENTITY_ID_PARAM[containerType];
+            (connection.reducers as any)[reducerName]({
+                [entityParam]: sourceContainerId,
+                sourceSlotIndex,
+                targetSlotIndex,
+                quantityToSplit: quantityToSplitNum
+            });
         } else {
             // Silently reject - reducer not available
         }

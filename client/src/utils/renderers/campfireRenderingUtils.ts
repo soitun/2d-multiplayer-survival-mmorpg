@@ -17,7 +17,7 @@
  * 4. PARTICLE EMISSION: FIRE_EMISSION_VISUAL_CENTER_Y_OFFSET for useCampfireParticles.
  */
 
-import { Campfire } from '../../generated'; // Import generated Campfire type
+import { Campfire } from '../../generated/types'; // Import generated Campfire type
 import campfireImage from '../../assets/doodads/campfire.png'; // Direct import ON
 import campfireOffImage from '../../assets/doodads/campfire_off.png'; // Direct import OFF
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer

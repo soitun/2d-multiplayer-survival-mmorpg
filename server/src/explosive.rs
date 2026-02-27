@@ -67,7 +67,7 @@ pub enum ExplosiveType {
 }
 
 // --- Placed Explosive Table ---
-#[table(name = placed_explosive, public)]
+#[table(accessor = placed_explosive, public)]
 #[derive(Clone, Debug)]
 pub struct PlacedExplosive {
     #[primary_key]
@@ -89,7 +89,7 @@ pub struct PlacedExplosive {
 }
 
 // --- Explosive Detonation Check Schedule ---
-#[table(name = explosive_detonation_schedule, scheduled(check_explosive_detonations))]
+#[table(accessor = explosive_detonation_schedule, scheduled(check_explosive_detonations))]
 #[derive(Clone, Debug)]
 pub struct ExplosiveDetonationSchedule {
     #[primary_key]
@@ -126,7 +126,7 @@ pub fn init_explosive_system(ctx: &ReducerContext) -> Result<(), String> {
 // --- Placement Reducer ---
 #[reducer]
 pub fn place_explosive(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, world_y: f32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let players = ctx.db.player();
@@ -683,7 +683,7 @@ fn damage_resources_in_radius(ctx: &ReducerContext, attacker_id: Identity, cente
 
 // --- Wild Animal Damage ---
 fn damage_animals_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32, _radius: f32, radius_sq: f32, damage: f32) {
-    let attacker_id = ctx.sender;
+    let attacker_id = ctx.sender();
     
     // Damage wild animals
     let animals_to_damage: Vec<u64> = ctx.db.wild_animal().iter()
@@ -703,7 +703,7 @@ fn damage_animals_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32, 
 
 // --- Player Damage (Friendly Fire) ---
 fn damage_players_in_radius(ctx: &ReducerContext, center_x: f32, center_y: f32, radius: f32, radius_sq: f32, damage: f32) {
-    damage_players_in_radius_with_attacker(ctx, ctx.sender, center_x, center_y, radius, radius_sq, damage);
+    damage_players_in_radius_with_attacker(ctx, ctx.sender(), center_x, center_y, radius, radius_sq, damage);
 }
 
 fn damage_players_in_radius_with_attacker(ctx: &ReducerContext, attacker_id: Identity, center_x: f32, center_y: f32, _radius: f32, radius_sq: f32, damage: f32) {
@@ -742,7 +742,7 @@ fn damage_players_in_radius_with_attacker(ctx: &ReducerContext, attacker_id: Ide
 // --- Re-light Dud Explosive Reducer ---
 #[reducer]
 pub fn relight_dud_explosive(ctx: &ReducerContext, explosive_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let explosives = ctx.db.placed_explosive();
     
     let explosive = explosives.id().find(explosive_id)

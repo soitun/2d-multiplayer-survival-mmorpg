@@ -19,29 +19,30 @@ import DraggableItem from './DraggableItem';
 import DurabilityBar from './DurabilityBar';
 import { getAllSlotProgress } from '../utils/containerProgressUtils';
 
-// Import Types
-import { 
-    ItemDefinition, InventoryItem, DbConnection, 
-    RangedWeaponStats, // ADDED: For ammo bar display
+// Import Types (SpacetimeDB 2.0: types from generated/types, runtime from generated)
+import { DbConnection } from '../generated';
+import {
+    ItemDefinition, InventoryItem,
+    RangedWeaponStats,
     Campfire as SpacetimeDBCampfire,
     Furnace as SpacetimeDBFurnace,
-    Barbecue as SpacetimeDBBarbecue, // ADDED: Barbecue import
-    Fumarole as SpacetimeDBFumarole, // ADDED: Fumarole import
+    Barbecue as SpacetimeDBBarbecue,
+    Fumarole as SpacetimeDBFumarole,
     Lantern as SpacetimeDBLantern,
-    Turret as SpacetimeDBTurret, // ADDED: Turret import
-    WoodenStorageBox as SpacetimeDBWoodenStorageBox, 
-    PlayerCorpse, 
+    Turret as SpacetimeDBTurret,
+    WoodenStorageBox as SpacetimeDBWoodenStorageBox,
+    PlayerCorpse,
     Stash as SpacetimeDBStash,
     Shelter as SpacetimeDBShelter,
     Tree as SpacetimeDBTree,
     RainCollector as SpacetimeDBRainCollector,
-    HomesteadHearth as SpacetimeDBHomesteadHearth, // ADDED: HomesteadHearth import
-    BrothPot as SpacetimeDBBrothPot, // ADDED: BrothPot import
-    HearthUpkeepQueryResult, // ADDED: For upkeep query results
+    HomesteadHearth as SpacetimeDBHomesteadHearth,
+    BrothPot as SpacetimeDBBrothPot,
+    HearthUpkeepQueryResult,
     WorldState,
     Player,
     ActiveConsumableEffect,
-} from '../generated';
+} from '../generated/types';
 import { InteractionTarget } from '../hooks/useInteractionManager';
 import { DragSourceSlotInfo, DraggedItemInfo } from '../types/dragDropTypes';
 import { PopulatedItem } from './InventoryUI';
@@ -66,7 +67,8 @@ import {
     generateFullBrewRecipe, 
     recipeToServerJson, 
     getIngredientRarities,
-    computeRecipeHash 
+    computeRecipeHash,
+    setBrewingConnection,
 } from '../services/brewingAIService';
 
 // Import new utilities
@@ -211,6 +213,10 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
     setHotLootCurrentHover,
     onSelectInventoryItem,
 }) => {
+    useEffect(() => {
+        setBrewingConnection(connection);
+    }, [connection]);
+
     // Add ref to track when drag operations complete
     const lastDragCompleteTime = useRef<number>(0);
 
@@ -570,7 +576,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         
         const stashIdNum = typeof container.containerId === 'bigint' ? Number(container.containerId) : container.containerId;
         try {
-            connection.reducers.toggleStashVisibility(stashIdNum);
+            connection.reducers.toggleStashVisibility({ stashId: stashIdNum });
         } catch (e: any) {
             console.error("Error toggling stash visibility:", e);
         }
@@ -582,7 +588,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         
         const rainCollectorIdNum = typeof container.containerId === 'bigint' ? Number(container.containerId) : container.containerId;
         try {
-            connection.reducers.fillWaterContainer(rainCollectorIdNum);
+            connection.reducers.fillWaterContainer({ collectorId: rainCollectorIdNum });
         } catch (e: any) {
             console.error("Error filling water container:", e);
         }
@@ -594,7 +600,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         
         const boxId = typeof container.containerId === 'bigint' ? Number(container.containerId) : container.containerId;
         try {
-            connection.reducers.repairItem(boxId);
+            connection.reducers.repairItem({ boxId });
         } catch (e: any) {
             console.error("Error repairing item:", e);
         }
@@ -629,56 +635,19 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         setIsTogglingPrivilege(true);
         const hearthIdNum = typeof container.containerId === 'bigint' ? Number(container.containerId) : container.containerId;
         
-        // Register one-time callback to handle the response
-        const handlePrivilegeResponse = (ctx: any, hearthIdParam: number) => {
-            if (hearthIdParam !== hearthIdNum) return; // Not our call
-            
-            // Remove callback after handling
-            if (connection?.reducers?.removeOnGrantBuildingPrivilegeFromHearth) {
-                connection.reducers.removeOnGrantBuildingPrivilegeFromHearth(handlePrivilegeResponse);
-            }
-            
-            // Reset toggle flag
-            setIsTogglingPrivilege(false);
-            
-            // Check reducer event status
-            const status = ctx.event?.status;
-            if (status?.tag === 'Failed') {
-                const errorMsg = status.value || 'Failed to toggle building privilege';
-                console.error("[BuildingPrivilege] Failed to toggle privilege:", errorMsg);
-                // Show error to user
-                alert(`Failed to toggle building privilege: ${errorMsg}`);
-            } else if (status?.tag === 'Committed') {
+        const finishToggle = () => setIsTogglingPrivilege(false);
+        
+        connection.reducers.grantBuildingPrivilegeFromHearth({ hearthId: hearthIdNum })
+            .then(() => {
+                finishToggle();
                 console.log("[BuildingPrivilege] Successfully toggled building privilege");
-                // State will update automatically via activeConsumableEffects subscription
-                // Give it a moment to propagate
-                setTimeout(() => {
-                    console.log("[BuildingPrivilege] State should be updated now");
-                }, 100);
-            }
-        };
-        
-        // Register callback before calling reducer
-        if (connection.reducers.onGrantBuildingPrivilegeFromHearth) {
-            connection.reducers.onGrantBuildingPrivilegeFromHearth(handlePrivilegeResponse);
-        }
-        
-        try {
-            console.log("[BuildingPrivilege] Calling grantBuildingPrivilegeFromHearth for hearth", hearthIdNum);
-            connection.reducers.grantBuildingPrivilegeFromHearth(hearthIdNum);
-            
-            // Timeout fallback in case callback never fires (shouldn't happen, but safety net)
-            setTimeout(() => {
-                setIsTogglingPrivilege(false);
-            }, 5000); // 5 second timeout
-        } catch (e: any) {
-            console.error("[BuildingPrivilege] Error calling reducer:", e);
-            setIsTogglingPrivilege(false);
-            // Remove callback on error
-            if (connection?.reducers?.removeOnGrantBuildingPrivilegeFromHearth) {
-                connection.reducers.removeOnGrantBuildingPrivilegeFromHearth(handlePrivilegeResponse);
-            }
-        }
+            })
+            .catch((e: any) => {
+                finishToggle();
+                const errorMsg = e?.message || e?.toString?.() || 'Failed to toggle building privilege';
+                console.error("[BuildingPrivilege] Failed to toggle privilege:", errorMsg);
+                alert(`Failed to toggle building privilege: ${errorMsg}`);
+            });
     }, [connection, container.containerId, container.containerEntity, isTogglingPrivilege]);
 
     // Get list of players with building privilege
@@ -744,7 +713,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         }
 
         // Check for existing result first (may already be cached)
-        const existingResult = connection.db?.hearthUpkeepQueryResult?.hearthId?.find(hearthId);
+        const existingResult = connection.db?.hearth_upkeep_query_result?.hearthId?.find(hearthId);
         console.log('[Upkeep] Checking for existing result:', { 
             hearthId, 
             hasExistingResult: !!existingResult,
@@ -809,9 +778,9 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         let subscriptionHandle: any = null;
         let interval: NodeJS.Timeout | null = null;
         
-        if (connection.db?.hearthUpkeepQueryResult) {
-            connection.db.hearthUpkeepQueryResult.onInsert(handleUpkeepUpdate);
-            connection.db.hearthUpkeepQueryResult.onUpdate(handleUpkeepUpdate);
+        if (connection.db?.hearth_upkeep_query_result) {
+            connection.db.hearth_upkeep_query_result.onInsert(handleUpkeepUpdate);
+            connection.db.hearth_upkeep_query_result.onUpdate(handleUpkeepUpdate);
             
             // Subscribe to the table to receive updates (callbacks only fire for subscribed tables)
             try {
@@ -824,59 +793,20 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 console.error('[Upkeep] Failed to subscribe to upkeep query result table:', error);
             }
             
-            // Call reducer to trigger update (reducer updates the table)
-            // Add error handling via reducer callback
-            const handleQueryError = (ctx: any, hearthIdParam: number) => {
-                if (hearthIdParam === hearthId) {
-                    // Check reducer event status
-                    if (ctx.event?.status?.tag === 'Failed') {
-                        const errorMsg = ctx.event.status.value || 'Failed to query upkeep costs';
-                        console.error('[Upkeep] Failed to query upkeep costs for hearth', hearthIdParam, ':', errorMsg);
-                        // Log the error but don't clear existing state - keep showing last known values
-                    } else if (ctx.event?.status?.tag === 'Committed') {
-                        console.log('[Upkeep] Successfully queried upkeep costs for hearth', hearthIdParam);
-                        // Manually check the table after reducer commits (table update callback may not fire immediately)
-                        setTimeout(() => {
-                                const result = connection.db?.hearthUpkeepQueryResult?.hearthId?.find(hearthId);
-                            if (result) {
-                                console.log('[Upkeep] Manually reading table after reducer commit:', result);
-                                setUpkeepCosts({
-                                    requiredWood: result.requiredWood,
-                                    requiredStone: result.requiredStone,
-                                    requiredMetal: result.requiredMetal,
-                                    availableWood: result.availableWood,
-                                    availableStone: result.availableStone,
-                                    availableMetal: result.availableMetal,
-                                    estimatedDecayHours: (result as any).estimatedDecayHours ?? null,
-                                });
-                            } else {
-                                console.warn('[Upkeep] Reducer committed but table result not found yet');
-                            }
-                        }, 100); // Small delay to allow table update to propagate
-                    }
-                }
-            };
-            
+            // Call reducer to trigger update (reducer updates the table; onInsert/onUpdate will fire)
             if (connection.reducers && typeof connection.reducers.queryHearthUpkeepCosts === 'function') {
-                // Register error callback
-                connection.reducers.onQueryHearthUpkeepCosts(handleQueryError);
-                
-                // Call reducer to trigger update
-                try {
-                    connection.reducers.queryHearthUpkeepCosts(hearthId);
-                } catch (error) {
-                    console.error('[Upkeep] Error calling queryHearthUpkeepCosts:', error);
-                }
+                // Call reducer to trigger update (SpacetimeDB 2.0: returns Promise)
+                connection.reducers.queryHearthUpkeepCosts({ hearthId }).catch((err: any) => {
+                    console.error('[Upkeep] Error calling queryHearthUpkeepCosts:', err);
+                });
             }
             
             // Refresh every 5 seconds by calling reducer again
             interval = setInterval(() => {
                 if (connection.reducers && typeof connection.reducers.queryHearthUpkeepCosts === 'function' && hearthId !== null && hearthId !== undefined) {
-                    try {
-                        connection.reducers.queryHearthUpkeepCosts(hearthId);
-                    } catch (error) {
-                        console.error('[Upkeep] Error refreshing upkeep costs:', error);
-                    }
+                    connection.reducers.queryHearthUpkeepCosts({ hearthId }).catch((err: any) => {
+                        console.error('[Upkeep] Error refreshing upkeep costs:', err);
+                    });
                 }
             }, 5000);
         }
@@ -893,13 +823,9 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                     console.error('[Upkeep] Error unsubscribing:', error);
                 }
             }
-            if (connection?.db?.hearthUpkeepQueryResult) {
-                connection.db.hearthUpkeepQueryResult.removeOnInsert(handleUpkeepUpdate);
-                connection.db.hearthUpkeepQueryResult.removeOnUpdate(handleUpkeepUpdate);
-            }
-            if (connection?.reducers && typeof connection.reducers.removeOnQueryHearthUpkeepCosts === 'function') {
-                // Note: handleQueryError is defined inside the if block, so we can't remove it here
-                // This is okay - the cleanup will happen when the component unmounts
+            if (connection?.db?.hearth_upkeep_query_result) {
+                connection.db.hearth_upkeep_query_result.removeOnInsert(handleUpkeepUpdate);
+                connection.db.hearth_upkeep_query_result.removeOnUpdate(handleUpkeepUpdate);
             }
         };
     }, [container.containerType, container.containerEntity, container.containerId, connection]);
@@ -913,9 +839,9 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         
         try { 
             if (lantern.isBurning) {
-                connection.reducers.extinguishLantern(lanternIdNum);
+                connection.reducers.extinguishLantern({ lanternId: lanternIdNum });
             } else {
-                connection.reducers.lightLantern(lanternIdNum);
+                connection.reducers.lightLantern({ lanternId: lanternIdNum });
             }
         } catch (e: any) { 
             console.error("Error toggle lantern burn:", e); 
@@ -1077,7 +1003,8 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 const result = await generateFullBrewRecipe(
                     ingredientNames,
                     getIngredientRarities(ingredientNames),
-                    true // Icon generation enabled via Retro Diffusion API
+                    true, // Icon generation enabled if server provides one
+                    connection
                 );
 
                 console.log('[AI Brewing] ===== RECIPE RESULT RECEIVED =====');
@@ -1091,7 +1018,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 // Cache the recipe on the server via reducer
                 console.log('[AI Brewing] Caching recipe on server via createGeneratedBrew reducer...');
                 try {
-                    connection.reducers.createGeneratedBrew(recipeJson, result.icon_base64 ?? undefined);
+                    connection.reducers.createGeneratedBrew({ recipeJson, iconBase64: result.icon_base64 ?? undefined });
                     console.log('[AI Brewing] createGeneratedBrew reducer called successfully');
                 } catch (reducerError) {
                     console.error('[AI Brewing] createGeneratedBrew reducer call FAILED:', reducerError);
@@ -1115,32 +1042,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
 
     }, [attachedBrothPot, connection, itemDefinitions]);
 
-    // Register reducer callback to track if createGeneratedBrew succeeds or fails
-    useEffect(() => {
-        if (!connection?.reducers) return;
-
-        const handleReducerResult = (ctx: any, recipeJson: string, iconBase64: string | undefined) => {
-            console.log('[AI Brewing] ===== REDUCER CALLBACK FIRED =====');
-            console.log('[AI Brewing] Event status:', ctx.event?.status);
-            console.log('[AI Brewing] Event message:', ctx.event?.message);
-            
-            if (ctx.event?.status === 'Committed') {
-                console.log('[AI Brewing] ✅ createGeneratedBrew reducer COMMITTED successfully!');
-            } else if (ctx.event?.status === 'Failed') {
-                console.error('[AI Brewing] ❌ createGeneratedBrew reducer FAILED:', ctx.event?.message || ctx.event?.status);
-            } else {
-                console.log('[AI Brewing] ⚠️ createGeneratedBrew reducer status:', ctx.event?.status);
-            }
-        };
-
-        connection.reducers.onCreateGeneratedBrew(handleReducerResult);
-
-        return () => {
-            if (connection?.reducers?.removeOnCreateGeneratedBrew) {
-                connection.reducers.removeOnCreateGeneratedBrew(handleReducerResult);
-            }
-        };
-    }, [connection]);
+    // SpacetimeDB 2.0: createGeneratedBrew returns a Promise; no callback registration needed
 
     // Check if we have a cached recipe ready for the current ingredients
     // Now checks BOTH local state AND server's brew_recipe_cache table
@@ -1181,7 +1083,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         // This handles recipes generated by other players or in previous sessions
         try {
             const currentHashBigInt = BigInt(currentHash);
-            for (const cachedRecipe of connection.db.brewRecipeCache.iter()) {
+            for (const cachedRecipe of connection.db.brew_recipe_cache.iter()) {
                 if (cachedRecipe.recipeHash === currentHashBigInt) {
                     // Get the output item name from the item definitions
                     const outputDef = itemDefinitions.get(cachedRecipe.outputItemDefId.toString());
@@ -1227,7 +1129,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                 
                 // Look up in server cache
                 try {
-                    for (const cachedRecipe of connection?.db?.brewRecipeCache?.iter() || []) {
+                    for (const cachedRecipe of connection?.db?.brew_recipe_cache?.iter() || []) {
                         if (cachedRecipe.recipeHash === recipeHashBigInt) {
                             // Found the recipe - register effect and category
                             registerBrewEffect(potId, cachedRecipe.effectType, cachedRecipe.category);
@@ -1313,7 +1215,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             if (!connection?.reducers || container.containerId === null) return;
                             const boxId = typeof container.containerId === 'bigint' ? Number(container.containerId) : container.containerId;
                             try {
-                                connection.reducers.sortStorageBox(boxId);
+                                connection.reducers.sortStorageBox({ boxId });
                                 playImmediateSound('item_pickup');
                             } catch (e: any) {
                                 console.error('Error sorting storage box:', e);
@@ -1342,7 +1244,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                             if (!connection?.reducers || container.containerId === null) return;
                             const furnaceId = typeof container.containerId === 'bigint' ? Number(container.containerId) : container.containerId;
                             try {
-                                connection.reducers.splitFurnaceOreEvenly(furnaceId);
+                                connection.reducers.splitFurnaceOreEvenly({ furnaceId });
                                 playImmediateSound('item_pickup');
                             } catch (e: any) {
                                 console.error('Error splitting furnace ore:', e);
@@ -2242,7 +2144,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                     }
                                     
                                     try {
-                                        connection.reducers.pickupBrothPot(attachedBrothPot.id);
+                                        connection.reducers.pickupBrothPot({ brothPotId: typeof attachedBrothPot.id === 'bigint' ? Number(attachedBrothPot.id) : attachedBrothPot.id });
                                     } catch (e: any) {
                                         console.error("Error picking up broth pot:", e);
                                     }
@@ -2879,7 +2781,7 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                         }
                                         
                                         try {
-                                            connection.reducers.pickupBrothPot(brothPotIdNum);
+                                            connection.reducers.pickupBrothPot({ brothPotId: brothPotIdNum });
                                         } catch (e: any) {
                                             console.error("Error picking up broth pot:", e);
                                         }

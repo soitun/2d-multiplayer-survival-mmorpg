@@ -34,7 +34,7 @@ use crate::environment::calculate_chunk_index; // Assuming helper is here or in 
 use crate::active_equipment::active_equipment as ActiveEquipmentTableTrait; // For dropping active weapon on death
 
 // Define the table for items dropped in the world
-#[spacetimedb::table(name = dropped_item, public)]
+#[spacetimedb::table(accessor = dropped_item, public)]
 #[derive(Clone, Debug)]
 pub struct DroppedItem {
     #[primary_key]
@@ -55,7 +55,7 @@ pub struct DroppedItem {
 
 // --- Schedule Table --- 
 // Link reducer via scheduled(), remove public for now, ensure field is scheduled_at
-#[spacetimedb::table(name = dropped_item_despawn_schedule, scheduled(despawn_expired_items))]
+#[spacetimedb::table(accessor = dropped_item_despawn_schedule, scheduled(despawn_expired_items))]
 #[derive(Clone)]
 pub struct DroppedItemDespawnSchedule {
     #[primary_key]
@@ -66,7 +66,7 @@ pub struct DroppedItemDespawnSchedule {
 
 // --- Flare Expiry Schedule ---
 // Flares on ground have a fixed lifetime; timer does NOT continue in inventory/container.
-#[spacetimedb::table(name = flare_expiry_schedule, scheduled(check_flare_expiry))]
+#[spacetimedb::table(accessor = flare_expiry_schedule, scheduled(check_flare_expiry))]
 #[derive(Clone)]
 pub struct FlareExpirySchedule {
     #[primary_key]
@@ -102,7 +102,7 @@ const MONUMENT_LOOT_NEVER_DESPAWN: &[&str] = &[
 /// Called by the client when they attempt to pick up a dropped item.
 #[spacetimedb::reducer]
 pub fn pickup_dropped_item(ctx: &ReducerContext, dropped_item_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let dropped_items_table = ctx.db.dropped_item();
     let players_table = ctx.db.player();
     let item_defs_table = ctx.db.item_definition(); // Needed for logging
@@ -240,7 +240,7 @@ pub fn pickup_dropped_item(ctx: &ReducerContext, dropped_item_id: u64) -> Result
 #[spacetimedb::reducer]
 pub fn despawn_expired_items(ctx: &ReducerContext, _schedule: DroppedItemDespawnSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("despawn_expired_items may only be called by the scheduler.".to_string());
     }
 
@@ -314,7 +314,7 @@ struct FlareTimerData {
 /// Flare timer does NOT continue in inventory/container.
 #[spacetimedb::reducer]
 pub fn check_flare_expiry(ctx: &ReducerContext, _schedule: FlareExpirySchedule) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("check_flare_expiry may only be called by the scheduler.".into());
     }
 
@@ -742,7 +742,7 @@ pub fn debug_spawn_item(ctx: &ReducerContext, item_name: String, quantity: u32) 
     let is_stackable = item_def.is_stackable;
     
     // Get the player's position
-    let player = ctx.db.player().identity().find(&ctx.sender)
+    let player = ctx.db.player().identity().find(&ctx.sender())
         .ok_or_else(|| "Player not found".to_string())?;
     
     // Calculate drop position in front of player
@@ -787,7 +787,7 @@ pub fn debug_spawn_item(ctx: &ReducerContext, item_name: String, quantity: u32) 
     
     log::info!(
         "📦 Debug spawned {} '{}' (DefID: {}) near player {:?} at ({:.1}, {:.1}) in {} drop(s)",
-        quantity, item_name, item_def_id, ctx.sender, drop_x, drop_y, drops_created
+        quantity, item_name, item_def_id, ctx.sender(), drop_x, drop_y, drops_created
     );
     
     Ok(())

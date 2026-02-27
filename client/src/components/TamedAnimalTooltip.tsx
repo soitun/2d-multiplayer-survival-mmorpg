@@ -1,9 +1,6 @@
 import React, { useMemo } from 'react';
-import { WildAnimal, Player } from '../generated';
-import { CaribouBreedingData } from '../generated/caribou_breeding_data_type';
-import { WalrusBreedingData } from '../generated/walrus_breeding_data_type';
-import { CaribouRutState } from '../generated/caribou_rut_state_type';
-import { WalrusRutState } from '../generated/walrus_rut_state_type';
+import { WildAnimal, Player } from '../generated/types';
+import type { CaribouBreedingData, WalrusBreedingData, CaribouRutState, WalrusRutState } from '../generated/types';
 import styles from './TamedAnimalTooltip.module.css';
 
 // Animal species info for display

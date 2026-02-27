@@ -1,4 +1,4 @@
-import { Door as SpacetimeDBDoor } from '../../generated';
+import { Door as SpacetimeDBDoor } from '../../generated/types';
 import { FOUNDATION_TILE_SIZE } from '../../config/gameConfig';
 
 // Door rendering dimensions

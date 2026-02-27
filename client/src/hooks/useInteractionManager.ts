@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { InteractionConfig, InteractableTarget, INTERACTION_CONFIGS, hasSecondaryHoldAction, getSecondaryHoldDuration } from '../types/interactions';
-import { DbConnection, InventoryItem, Campfire, Lantern } from '../generated';
+import { InventoryItem, Campfire, Lantern } from '../generated/types';
+import { DbConnection } from '../generated';
 import { Identity } from 'spacetimedb';
 
 // Define the shape of the interaction target
@@ -183,10 +184,10 @@ export function useTargetInteractionManager({
 
         switch (target.type) {
             case 'harvestable_resource':
-                connection.reducers.interactWithHarvestableResource(BigInt(target.id as bigint));
+                connection.reducers.interactWithHarvestableResource({ resourceId: BigInt(target.id as bigint) });
                 break;
             case 'dropped_item':
-                connection.reducers.pickupDroppedItem(BigInt(target.id as bigint));
+                connection.reducers.pickupDroppedItem({ droppedItemId: BigInt(target.id as bigint) });
                 break;
             case 'campfire':
                 // Open campfire interface - could trigger UI modal opening
@@ -196,11 +197,11 @@ export function useTargetInteractionManager({
             case 'barbecue':
                 // Open barbecue interface - same as campfire
                 console.log(`[InteractionManager] Opening barbecue interface for ID: ${target.id}`);
-                connection.reducers.interactWithBarbecue(Number(target.id));
+                connection.reducers.interactWithBarbecue({ barbecueId: Number(target.id) });
                 break;
             case 'lantern':
                 // Interact with lantern to open interface
-                connection.reducers.interactWithLantern(Number(target.id));
+                connection.reducers.interactWithLantern({ lanternId: Number(target.id) });
                 break;
             case 'box':
                 console.log(`[InteractionManager] Opening storage box interface for ID: ${target.id}`);
@@ -230,7 +231,7 @@ export function useTargetInteractionManager({
                 break;
             case 'door':
                 // Toggle door open/close state
-                connection.reducers.interactDoor(BigInt(target.id as bigint));
+                connection.reducers.interactDoor({ doorId: BigInt(target.id as bigint) });
                 break;
             default:
                 console.warn(`[InteractionManager] Unhandled tap action for target type: ${target.type}`);
@@ -243,10 +244,10 @@ export function useTargetInteractionManager({
 
         switch (target.type) {
             case 'knocked_out_player':
-                connection.reducers.reviveKnockedOutPlayer(Identity.fromString(String(target.id)));
+                connection.reducers.reviveKnockedOutPlayer({ targetPlayerId: Identity.fromString(String(target.id)) });
                 break;
             case 'water':
-                connection.reducers.drinkWater();
+                connection.reducers.drinkWater({});
                 break;
             default:
                 console.warn(`[InteractionManager] Unhandled hold action for target type: ${target.type}`);
@@ -261,16 +262,16 @@ export function useTargetInteractionManager({
             case 'box':
                 // Pickup empty box
                 if (target.data?.isEmpty) {
-                    connection.reducers.pickupStorageBox(Number(target.id));
+                    connection.reducers.pickupStorageBox({ boxId: Number(target.id) });
                 }
                 break;
             case 'lantern':
                 // Pickup empty lantern or toggle burning state
                 if (target.data?.isEmpty) {
-                    connection.reducers.pickupLantern(Number(target.id));
+                    connection.reducers.pickupLantern({ lanternId: Number(target.id) });
                 } else {
                     // Toggle burning state for non-empty lanterns
-                    connection.reducers.toggleLantern(Number(target.id));
+                    connection.reducers.toggleLantern({ lanternId: Number(target.id) });
                 }
                 break;
             case 'campfire':
@@ -282,21 +283,21 @@ export function useTargetInteractionManager({
                 break;
             case 'barbecue':
                 // Toggle burning state
-                connection.reducers.toggleBarbecueBurning(Number(target.id));
+                connection.reducers.toggleBarbecueBurning({ barbecueId: Number(target.id) });
                 break;
             case 'stash':
                 // Toggle visibility
-                connection.reducers.toggleStashVisibility(Number(target.id));
+                connection.reducers.toggleStashVisibility({ stashId: Number(target.id) });
                 break;
             case 'broth_pot':
                 // Pickup empty broth pot
                 if (target.data?.isEmpty) {
-                    connection.reducers.pickupBrothPot(Number(target.id));
+                    connection.reducers.pickupBrothPot({ brothPotId: Number(target.id) });
                 }
                 break;
             case 'door':
                 // Pickup door (owner only - server validates)
-                connection.reducers.pickupDoor(BigInt(target.id as bigint));
+                connection.reducers.pickupDoor({ doorId: BigInt(target.id as bigint) });
                 break;
             default:
                 console.warn(`[InteractionManager] Unhandled secondary hold action for target type: ${target.type}`);

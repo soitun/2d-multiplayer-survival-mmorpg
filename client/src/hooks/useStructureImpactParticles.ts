@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { Particle } from './useCampfireParticles';
-import { WallCell as SpacetimeDBWallCell, Door as SpacetimeDBDoor, Shelter as SpacetimeDBShelter } from '../generated';
+import { WallCell as SpacetimeDBWallCell, Door as SpacetimeDBDoor, Shelter as SpacetimeDBShelter } from '../generated/types';
 import { FOUNDATION_TILE_SIZE } from '../config/gameConfig';
 import { SHELTER_DIMS } from '../utils/clientCollision';
 

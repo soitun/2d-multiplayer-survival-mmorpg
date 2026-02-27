@@ -3,7 +3,7 @@ import {
     Player as SpacetimeDBPlayer,
     ActiveEquipment as SpacetimeDBActiveEquipment,
     ItemDefinition as SpacetimeDBItemDefinition,
-} from '../generated';
+} from '../generated/types';
 import {
     CAMPFIRE_LIGHT_RADIUS_BASE, // We can reuse or define new constants for torch
     CAMPFIRE_FLICKER_AMOUNT,

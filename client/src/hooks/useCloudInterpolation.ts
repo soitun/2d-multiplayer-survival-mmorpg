@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Cloud as SpacetimeDBCloud, CloudShapeType } from '../generated'; // Assuming generated types
+import { Cloud as SpacetimeDBCloud, CloudShapeType } from '../generated/types'; // Assuming generated types
 
 const SERVER_UPDATE_INTERVAL_MS = 5000; // Cloud position updates from server every 5 seconds
 

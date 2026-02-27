@@ -2,7 +2,7 @@
  * Client-side collision shapes for monument buildings.
  * Abstraction layer for monument-specific collision (village campfires, scarecrow, etc.).
  */
-import type { MonumentPart } from '../generated';
+import type { MonumentPart } from '../generated/types';
 import type { CollisionShape } from './clientCollision';
 
 // --- Monument scarecrow collision (matches wooden storage box - 20px radius, same position) ---

@@ -1,5 +1,5 @@
 // AAA-Quality Client-side Collision Detection System
-import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, LivingCoral, Lantern, Turret, Fence, RoadLamppost, MonumentPart } from '../generated';
+import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, Shelter, RainCollector, WildAnimal, Barrel, Furnace, Barbecue, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, LivingCoral, Lantern, Turret, Fence, RoadLamppost, MonumentPart } from '../generated/types';
 import { getVillageCampfireCollisionShapes, getMonumentScarecrowCollisionShapes } from './monumentCollision';
 // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
 import { gameConfig, FOUNDATION_TILE_SIZE, foundationCellToWorldCenter } from '../config/gameConfig';

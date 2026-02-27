@@ -14,7 +14,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Player as SpacetimeDBPlayer } from '../generated';
+import { Player as SpacetimeDBPlayer } from '../generated/types';
 
 // --- Screen Shake Configuration ---
 const SHAKE_DURATION_MS = 250;           // How long the shake lasts

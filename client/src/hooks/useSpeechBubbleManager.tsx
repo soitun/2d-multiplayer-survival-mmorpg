@@ -1,5 +1,5 @@
 import { useGameViewport } from './useGameViewport';
-import { Player as SpacetimeDBPlayer } from '../generated';
+import { Player as SpacetimeDBPlayer } from '../generated/types';
 
 interface SpeechBubbleManagerHookResult {
   cameraOffsetX: number;

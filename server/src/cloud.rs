@@ -23,7 +23,7 @@ pub enum CloudType {
     Cirrus,       // High thin clouds (very low opacity, very slow evolution)
 }
 
-#[table(name = cloud, public)]
+#[table(accessor = cloud, public)]
 #[derive(Clone)]
 pub struct Cloud {
     #[primary_key]
@@ -59,7 +59,7 @@ pub struct Cloud {
 // const PLACEHOLDER_WORLD_WIDTH_IN_CHUNKS: u32 = 64; // Example, replace with actual
 
 // Table to trigger the cloud update reducer
-#[table(name = cloud_update_schedule, scheduled(update_cloud_positions))]
+#[table(accessor = cloud_update_schedule, scheduled(update_cloud_positions))]
 pub struct CloudUpdateSchedule {
     #[primary_key]
     #[auto_inc]
@@ -71,7 +71,7 @@ pub struct CloudUpdateSchedule {
 #[reducer]
 pub fn update_cloud_positions(ctx: &ReducerContext, schedule_args: CloudUpdateSchedule) -> Result<(), String> {
     // Security check: Ensure this reducer is only called by the scheduler
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Reducer `update_cloud_positions` can only be invoked by the scheduler.".into());
     }
 
@@ -338,7 +338,7 @@ fn calculate_cloud_opacity(cloud: &Cloud, weather: &WeatherType, current_time: T
 // --- Scheduled Reducer for Cloud Intensity Updates ---
 
 // Table to trigger the cloud intensity update reducer
-#[table(name = cloud_intensity_schedule, scheduled(update_cloud_intensities))]
+#[table(accessor = cloud_intensity_schedule, scheduled(update_cloud_intensities))]
 pub struct CloudIntensitySchedule {
     #[primary_key]
     #[auto_inc]
@@ -349,7 +349,7 @@ pub struct CloudIntensitySchedule {
 #[reducer]
 pub fn update_cloud_intensities(ctx: &ReducerContext, _schedule_args: CloudIntensitySchedule) -> Result<(), String> {
     // Security check: Ensure this reducer is only called by the scheduler
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Reducer `update_cloud_intensities` can only be invoked by the scheduler.".into());
     }
 

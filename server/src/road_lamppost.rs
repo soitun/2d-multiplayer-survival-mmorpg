@@ -22,7 +22,7 @@ const ROAD_TILES_PER_LAMPPOST: f32 = 267.0; // Was 80; 80/0.3 ≈ 267 for 70% fe
 /// Distance within which a lamppost is considered "near a barrel cluster" (for flavor)
 const NEAR_BARREL_RADIUS_SQ: f32 = 250.0 * 250.0;
 
-#[spacetimedb::table(name = road_lamppost, public)]
+#[spacetimedb::table(accessor = road_lamppost, public)]
 #[derive(Clone, Debug)]
 pub struct RoadLamppost {
     #[primary_key]

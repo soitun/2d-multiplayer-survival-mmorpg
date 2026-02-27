@@ -7,7 +7,7 @@
  * Only RAW seeds can be planted - cooked/burnt/toasted variants cannot be planted.
  */
 
-import { ItemDefinition } from '../generated';
+import { ItemDefinition } from '../generated/types';
 
 /**
  * Determines if an item is plantable (seeds, cuttings, bulbs, etc.) based on SpacetimeDB item definitions

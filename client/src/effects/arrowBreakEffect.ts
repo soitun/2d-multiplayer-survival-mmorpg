@@ -1,4 +1,4 @@
-import { ArrowBreakEvent } from '../generated';
+import { ArrowBreakEvent } from '../generated/types';
 
 interface ArrowBreakParticle {
     id: string;

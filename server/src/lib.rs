@@ -179,6 +179,7 @@ mod military_ration; // <<< ADDED: Military ration loot crate system
 mod mine_cart; // <<< ADDED: Mine cart loot crate system (quarry-only spawns)
 mod wild_beehive; // <<< ADDED: Wild beehive loot system (forest-only spawns)
 mod road_lamppost; // <<< ADDED: Aleutian whale oil lampposts along dirt roads
+mod sova_procedure; // <<< ADDED: SOVA HTTP procedures (ask_sova, transcribe_speech)
 
 // ADD: Re-export respawn reducer
 pub use respawn::respawn_randomly;
@@ -261,7 +262,7 @@ pub use matronage::{
 pub const KILL_COMMAND_COOLDOWN_SECONDS: u64 = 300;
 
 // Table to store the last time a player used the /kill command
-#[spacetimedb::table(name = player_kill_command_cooldown)]
+#[spacetimedb::table(accessor = player_kill_command_cooldown)]
 #[derive(Clone, Debug)]
 pub struct PlayerKillCommandCooldown {
     #[primary_key]
@@ -270,7 +271,7 @@ pub struct PlayerKillCommandCooldown {
 }
 
 // Table for private system messages to individual players
-#[spacetimedb::table(name = private_message, public)] // Public so client can subscribe with filter
+#[spacetimedb::table(accessor = private_message, public)] // Public so client can subscribe with filter
 #[derive(Clone, Debug)]
 pub struct PrivateMessage {
     #[primary_key]
@@ -696,10 +697,10 @@ pub fn get_tile_type_at_position(ctx: &ReducerContext, world_x: i32, world_y: i3
 
 // Player table to store position
 #[spacetimedb::table(
-    name = player,
+    accessor = player,
     public,
     // Add spatial index
-    index(name = idx_player_pos, btree(columns = [position_x, position_y]))
+    index(accessor = idx_player_pos, name = "idx_player_pos", btree(columns = [position_x, position_y]))
 )]
 #[derive(Clone)]
 pub struct Player {
@@ -758,7 +759,7 @@ pub struct Player {
 }
 
 // Table to store the last attack timestamp for each player
-#[spacetimedb::table(name = player_last_attack_timestamp)]
+#[spacetimedb::table(accessor = player_last_attack_timestamp)]
 #[derive(Clone, Debug)]
 pub struct PlayerLastAttackTimestamp {
     #[primary_key]
@@ -767,7 +768,7 @@ pub struct PlayerLastAttackTimestamp {
 }
 
 // --- NEW: Define ActiveConnection Table --- 
-#[spacetimedb::table(name = active_connection, public)]
+#[spacetimedb::table(accessor = active_connection, public)]
 #[derive(Clone, Debug)]
 pub struct ActiveConnection {
     #[primary_key]
@@ -778,7 +779,7 @@ pub struct ActiveConnection {
 }
 
 // --- NEW: Define ClientViewport Table ---
-#[spacetimedb::table(name = client_viewport)]
+#[spacetimedb::table(accessor = client_viewport)]
 #[derive(Clone, Debug)]
 pub struct ClientViewport {
     #[primary_key]
@@ -1355,8 +1356,8 @@ pub fn identity_connected(ctx: &ReducerContext) -> Result<(), String> {
     // The seeders are idempotent but calling them on every client connection is wasteful
 
     // --- Track Active Connection ---
-    let client_identity = ctx.sender;
-    let connection_id = ctx.connection_id.ok_or_else(|| {
+    let client_identity = ctx.sender();
+    let connection_id = ctx.connection_id().ok_or_else(|| {
         log::error!("[Connect] Missing ConnectionId in client_connected context for {:?}", client_identity);
         "Internal error: Missing connection ID on connect".to_string()
     })?;
@@ -1566,8 +1567,8 @@ pub fn identity_connected(ctx: &ReducerContext) -> Result<(), String> {
 /// - Preserving state if the player has already reconnected
 #[spacetimedb::reducer(client_disconnected)]
 pub fn identity_disconnected(ctx: &ReducerContext) {
-    let sender_id = ctx.sender;
-    let disconnecting_connection_id = match ctx.connection_id {
+    let sender_id = ctx.sender();
+    let disconnecting_connection_id = match ctx.connection_id() {
         Some(id) => id,
         None => {
             return;
@@ -1646,7 +1647,7 @@ pub fn identity_disconnected(ctx: &ReducerContext) {
 /// For existing players, it updates their connection status and timestamps.
 #[spacetimedb::reducer]
 pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     log::info!("Attempting registration/login for identity: {:?}, username: {}", sender_id, username);
 
@@ -1700,7 +1701,7 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
         players.identity().update(existing_player.clone()); // Perform the player update
 
         // --- ALSO Update ActiveConnection record --- 
-        let connection_id = ctx.connection_id.ok_or_else(|| {
+        let connection_id = ctx.connection_id().ok_or_else(|| {
             log::error!("[RegisterPlayer] Missing ConnectionId in context for existing player {:?}", sender_id);
             "Internal error: Missing connection ID on reconnect".to_string()
         })?;
@@ -2276,7 +2277,7 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
             log::info!("Player registered: {}. Granting starting items...", username);
 
             // --- ADD ActiveConnection record for NEW player ---
-             let connection_id = ctx.connection_id.ok_or_else(|| {
+             let connection_id = ctx.connection_id().ok_or_else(|| {
                  log::error!("[RegisterPlayer] Missing ConnectionId in context for NEW player {:?}", sender_id);
                  "Internal error: Missing connection ID on initial registration".to_string()
              })?;
@@ -2342,7 +2343,7 @@ pub fn register_player(ctx: &ReducerContext, username: String) -> Result<(), Str
 /// - Receive role-appropriate starting items
 #[spacetimedb::reducer]
 pub fn register_npc(ctx: &ReducerContext, username: String, role: String) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     log::info!("[NPC] Attempting NPC registration for identity: {:?}, username: {}, role: {}", 
         sender_id, username, role);
@@ -2446,7 +2447,7 @@ pub fn register_npc(ctx: &ReducerContext, username: String, role: String) -> Res
             log::info!("[NPC] NPC registered: {} (role: {}). Granting starting items...", username, role);
 
             // Track connection for NPCs too
-            if let Some(connection_id) = ctx.connection_id {
+            if let Some(connection_id) = ctx.connection_id() {
                 let new_active_conn = ActiveConnection {
                     identity: sender_id,
                     connection_id,
@@ -2558,7 +2559,7 @@ fn spawn_starter_beach_lyme_grass(ctx: &ReducerContext, spawn_x: f32, spawn_y: f
 /// optimizing game state updates and rendering.
 #[spacetimedb::reducer]
 pub fn update_viewport(ctx: &ReducerContext, min_x: f32, min_y: f32, max_x: f32, max_y: f32) -> Result<(), String> {
-    let client_id = ctx.sender;
+    let client_id = ctx.sender();
     let viewports = ctx.db.client_viewport();
     log::trace!("Reducer update_viewport called by {:?} with bounds: ({}, {}), ({}, {})",
              client_id, min_x, min_y, max_x, max_y);
@@ -2694,9 +2695,9 @@ pub struct WorldGenConfig {
 
 // ADD: Compressed chunk data table for efficient tile transmission
 #[spacetimedb::table(
-    name = world_chunk_data, 
+    accessor = world_chunk_data, 
     public,
-    index(name = idx_chunk_coords, btree(columns = [chunk_x, chunk_y]))
+    index(accessor = idx_chunk_coords, name = "idx_chunk_coords", btree(columns = [chunk_x, chunk_y]))
 )]
 #[derive(Clone, Debug)]
 pub struct WorldChunkData {
@@ -2712,10 +2713,10 @@ pub struct WorldChunkData {
 }
 
 #[spacetimedb::table(
-    name = world_tile, 
+    accessor = world_tile, 
     public,
-    index(name = idx_chunk_position, btree(columns = [chunk_x, chunk_y])),
-    index(name = idx_world_position, btree(columns = [world_x, world_y]))
+    index(accessor = idx_chunk_position, name = "idx_chunk_position", btree(columns = [chunk_x, chunk_y])),
+    index(accessor = idx_world_position, name = "idx_world_position", btree(columns = [world_x, world_y]))
 )]
 #[derive(Clone, Debug)]
 pub struct WorldTile {
@@ -2736,7 +2737,7 @@ pub struct WorldTile {
 /// Pre-computed coastal spawn points for fast respawn lookups.
 /// These are beach tiles adjacent to water, used for player spawning.
 /// Generated once during world initialization to avoid expensive runtime scanning.
-#[spacetimedb::table(name = coastal_spawn_point, public)]
+#[spacetimedb::table(accessor = coastal_spawn_point, public)]
 #[derive(Clone, Debug)]
 pub struct CoastalSpawnPoint {
     #[primary_key]
@@ -2836,7 +2837,7 @@ pub fn populate_coastal_spawn_points(ctx: &ReducerContext) -> Result<(), String>
     Ok(())
 }
 
-#[spacetimedb::table(name = minimap_cache, public)]
+#[spacetimedb::table(accessor = minimap_cache, public)]
 #[derive(Clone, Debug)]
 pub struct MinimapCache {
     #[primary_key]
@@ -2864,7 +2865,7 @@ pub enum MonumentType {
 
 /// Unified monument part table for all monument types
 /// Replaces separate shipwreck_part, fishing_village_part, and whale_bone_graveyard_part tables
-#[spacetimedb::table(name = monument_part, public)]
+#[spacetimedb::table(accessor = monument_part, public)]
 #[derive(Clone, Debug)]
 pub struct MonumentPart {
     #[primary_key]
@@ -2890,7 +2891,7 @@ pub struct MonumentPart {
 }
 
 /// Large quarry locations with resource type (displayed on minimap as landmarks)
-#[spacetimedb::table(name = large_quarry, public)]
+#[spacetimedb::table(accessor = large_quarry, public)]
 #[derive(Clone, Debug)]
 pub struct LargeQuarry {
     #[primary_key]
@@ -2909,7 +2910,7 @@ pub struct LargeQuarry {
 /// Reed Marsh zones - environmental monuments located in larger rivers
 /// Contains reeds, water barrels, memory shards, and attracts terns
 /// Building is restricted within these zones
-#[spacetimedb::table(name = reed_marsh, public)]
+#[spacetimedb::table(accessor = reed_marsh, public)]
 #[derive(Clone, Debug)]
 pub struct ReedMarsh {
     #[primary_key]
@@ -2926,7 +2927,7 @@ pub struct ReedMarsh {
 /// Tide Pool zones - coastal inlets on ocean beaches (never inland rivers/lakes)
 /// Contains crabs, terns, reeds, coral fragments, plastic water jugs, vitamin drink (washed up)
 /// Building is restricted within these zones
-#[spacetimedb::table(name = tide_pool, public)]
+#[spacetimedb::table(accessor = tide_pool, public)]
 #[derive(Clone, Debug)]
 pub struct TidePool {
     #[primary_key]
@@ -3032,7 +3033,7 @@ impl TileType {
 /// This can be called by clients to force regeneration of compressed chunk data
 #[spacetimedb::reducer]
 pub fn regenerate_compressed_chunks(ctx: &ReducerContext) -> Result<(), String> {
-    log::info!("Manual regeneration of compressed chunk data requested by {:?}", ctx.sender);
+    log::info!("Manual regeneration of compressed chunk data requested by {:?}", ctx.sender());
     
     // Clear existing compressed chunk data
     let world_chunk_data = ctx.db.world_chunk_data();
@@ -3059,7 +3060,7 @@ pub fn regenerate_compressed_chunks(ctx: &ReducerContext) -> Result<(), String> 
 /// This persists server-side so clearing browser cache won't replay the intro
 #[spacetimedb::reducer]
 pub fn mark_sova_intro_seen(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     let players = ctx.db.player();
     
     if let Some(mut player) = players.identity().find(&player_id) {
@@ -3077,7 +3078,7 @@ pub fn mark_sova_intro_seen(ctx: &ReducerContext) -> Result<(), String> {
 /// Mark SOVA tutorial hint ("Press V to Talk") as seen
 #[spacetimedb::reducer]
 pub fn mark_tutorial_hint_seen(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     let players = ctx.db.player();
     
     if let Some(mut player) = players.identity().find(&player_id) {
@@ -3095,7 +3096,7 @@ pub fn mark_tutorial_hint_seen(ctx: &ReducerContext) -> Result<(), String> {
 /// Mark hostile encounter tutorial (night apparitions) as seen
 #[spacetimedb::reducer]
 pub fn mark_hostile_encounter_tutorial_seen(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     let players = ctx.db.player();
     
     if let Some(mut player) = players.identity().find(&player_id) {
@@ -3113,7 +3114,7 @@ pub fn mark_hostile_encounter_tutorial_seen(ctx: &ReducerContext) -> Result<(), 
 /// Mark rune stone tutorial as seen
 #[spacetimedb::reducer]
 pub fn mark_rune_stone_tutorial_seen(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     let players = ctx.db.player();
     
     if let Some(mut player) = players.identity().find(&player_id) {
@@ -3131,7 +3132,7 @@ pub fn mark_rune_stone_tutorial_seen(ctx: &ReducerContext) -> Result<(), String>
 /// Mark ALK station tutorial as seen
 #[spacetimedb::reducer]
 pub fn mark_alk_station_tutorial_seen(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     let players = ctx.db.player();
     
     if let Some(mut player) = players.identity().find(&player_id) {
@@ -3149,7 +3150,7 @@ pub fn mark_alk_station_tutorial_seen(ctx: &ReducerContext) -> Result<(), String
 /// Mark crashed drone tutorial as seen
 #[spacetimedb::reducer]
 pub fn mark_crashed_drone_tutorial_seen(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     let players = ctx.db.player();
     
     if let Some(mut player) = players.identity().find(&player_id) {

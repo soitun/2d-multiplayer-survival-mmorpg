@@ -6,7 +6,7 @@
  *                                                                            *
  ******************************************************************************/
 
-import { FirePatch } from '../../generated';
+import { FirePatch } from '../../generated/types';
 
 // --- Constants ---
 

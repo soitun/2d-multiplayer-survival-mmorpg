@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { WildAnimal } from '../generated';
+import { WildAnimal } from '../generated/types';
 
 /**
  * Hook to manage tamed animal hover states for displaying info tooltips.

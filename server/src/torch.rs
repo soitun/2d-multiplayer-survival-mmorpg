@@ -11,7 +11,7 @@ pub const TORCH_WARMTH_PER_SECOND: f32 = 1.75;
 
 #[spacetimedb::reducer]
 pub fn toggle_torch(ctx: &ReducerContext) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let mut players_table = ctx.db.player();
     let mut active_equipments_table = ctx.db.active_equipment();
     let item_defs_table = ctx.db.item_definition();

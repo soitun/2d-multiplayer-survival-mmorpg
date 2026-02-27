@@ -4,113 +4,69 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { WildAnimal } from "./wild_animal_type";
-import { AnimalSpecies } from "./animal_species_type";
-// Mark import as potentially unused
-declare type __keep_AnimalSpecies = AnimalSpecies;
-import { AnimalState } from "./animal_state_type";
-// Mark import as potentially unused
-declare type __keep_AnimalState = AnimalState;
-import { MovementPattern } from "./movement_pattern_type";
-// Mark import as potentially unused
-declare type __keep_MovementPattern = MovementPattern;
+import {
+  AnimalSpecies,
+  AnimalState,
+  MovementPattern,
+} from "./types";
 
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
-declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-/**
- * Table handle for the table `wild_animal`.
- *
- * Obtain a handle from the [`wildAnimal`] property on [`RemoteTables`],
- * like `ctx.db.wildAnimal`.
- *
- * Users are encouraged not to explicitly reference this type,
- * but to directly chain method calls,
- * like `ctx.db.wildAnimal.on_insert(...)`.
- */
-export class WildAnimalTableHandle<TableName extends string> implements __TableHandle<TableName> {
-  // phantom type to track the table name
-  readonly tableName!: TableName;
-  tableCache: __TableCache<WildAnimal>;
-
-  constructor(tableCache: __TableCache<WildAnimal>) {
-    this.tableCache = tableCache;
-  }
-
-  count(): number {
-    return this.tableCache.count();
-  }
-
-  iter(): Iterable<WildAnimal> {
-    return this.tableCache.iter();
-  }
-  /**
-   * Access to the `id` unique index on the table `wild_animal`,
-   * which allows point queries on the field of the same name
-   * via the [`WildAnimalIdUnique.find`] method.
-   *
-   * Users are encouraged not to explicitly reference this type,
-   * but to directly chain method calls,
-   * like `ctx.db.wildAnimal.id().find(...)`.
-   *
-   * Get a handle on the `id` unique index on the table `wild_animal`.
-   */
-  id = {
-    // Find the subscribed row whose `id` column value is equal to `col_val`,
-    // if such a row is present in the client cache.
-    find: (col_val: bigint): WildAnimal | undefined => {
-      for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.id, col_val)) {
-          return row;
-        }
-      }
-    },
-  };
-
-  onInsert = (cb: (ctx: EventContext, row: WildAnimal) => void) => {
-    return this.tableCache.onInsert(cb);
-  }
-
-  removeOnInsert = (cb: (ctx: EventContext, row: WildAnimal) => void) => {
-    return this.tableCache.removeOnInsert(cb);
-  }
-
-  onDelete = (cb: (ctx: EventContext, row: WildAnimal) => void) => {
-    return this.tableCache.onDelete(cb);
-  }
-
-  removeOnDelete = (cb: (ctx: EventContext, row: WildAnimal) => void) => {
-    return this.tableCache.removeOnDelete(cb);
-  }
-
-  // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: WildAnimal, newRow: WildAnimal) => void) => {
-    return this.tableCache.onUpdate(cb);
-  }
-
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: WildAnimal, newRow: WildAnimal) => void) => {
-    return this.tableCache.removeOnUpdate(cb);
-  }}
+export default __t.row({
+  id: __t.u64().primaryKey(),
+  get species() {
+    return AnimalSpecies;
+  },
+  posX: __t.f32().name("pos_x"),
+  posY: __t.f32().name("pos_y"),
+  directionX: __t.f32().name("direction_x"),
+  directionY: __t.f32().name("direction_y"),
+  facingDirection: __t.string().name("facing_direction"),
+  get state() {
+    return AnimalState;
+  },
+  health: __t.f32(),
+  spawnX: __t.f32().name("spawn_x"),
+  spawnY: __t.f32().name("spawn_y"),
+  targetPlayerId: __t.option(__t.identity()).name("target_player_id"),
+  lastAttackTime: __t.option(__t.timestamp()).name("last_attack_time"),
+  stateChangeTime: __t.timestamp().name("state_change_time"),
+  hideUntil: __t.option(__t.timestamp()).name("hide_until"),
+  investigationX: __t.option(__t.f32()).name("investigation_x"),
+  investigationY: __t.option(__t.f32()).name("investigation_y"),
+  patrolPhase: __t.f32().name("patrol_phase"),
+  scentPingTimer: __t.u64().name("scent_ping_timer"),
+  get movementPattern() {
+    return MovementPattern.name("movement_pattern");
+  },
+  chunkIndex: __t.u32().name("chunk_index"),
+  createdAt: __t.timestamp().name("created_at"),
+  lastHitTime: __t.option(__t.timestamp()).name("last_hit_time"),
+  packId: __t.option(__t.u64()).name("pack_id"),
+  isPackLeader: __t.bool().name("is_pack_leader"),
+  packJoinTime: __t.option(__t.timestamp()).name("pack_join_time"),
+  lastPackCheck: __t.option(__t.timestamp()).name("last_pack_check"),
+  fireFearOverriddenBy: __t.option(__t.identity()).name("fire_fear_overridden_by"),
+  tamedBy: __t.option(__t.identity()).name("tamed_by"),
+  tamedAt: __t.option(__t.timestamp()).name("tamed_at"),
+  heartEffectUntil: __t.option(__t.timestamp()).name("heart_effect_until"),
+  cryingEffectUntil: __t.option(__t.timestamp()).name("crying_effect_until"),
+  lastFoodCheck: __t.option(__t.timestamp()).name("last_food_check"),
+  heldItemName: __t.option(__t.string()).name("held_item_name"),
+  heldItemQuantity: __t.option(__t.u32()).name("held_item_quantity"),
+  flyingTargetX: __t.option(__t.f32()).name("flying_target_x"),
+  flyingTargetY: __t.option(__t.f32()).name("flying_target_y"),
+  isFlying: __t.bool().name("is_flying"),
+  isHostileNpc: __t.bool().name("is_hostile_npc"),
+  targetStructureId: __t.option(__t.u64()).name("target_structure_id"),
+  targetStructureType: __t.option(__t.string()).name("target_structure_type"),
+  stalkAngle: __t.f32().name("stalk_angle"),
+  stalkDistance: __t.f32().name("stalk_distance"),
+  despawnAt: __t.option(__t.timestamp()).name("despawn_at"),
+  shockActiveUntil: __t.option(__t.timestamp()).name("shock_active_until"),
+  lastShockTime: __t.option(__t.timestamp()).name("last_shock_time"),
+});

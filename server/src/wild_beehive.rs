@@ -48,7 +48,7 @@ const MAX_RESPAWN_SECS: u64 = 900;  // 15 minutes
 
 // --- Respawn Schedule Table ---
 
-#[spacetimedb::table(name = wild_beehive_respawn_schedule, scheduled(respawn_wild_beehives))]
+#[spacetimedb::table(accessor = wild_beehive_respawn_schedule, scheduled(respawn_wild_beehives))]
 #[derive(Clone)]
 pub struct WildBeehiveRespawnSchedule {
     #[primary_key]
@@ -357,7 +357,7 @@ pub fn check_and_despawn_wild_beehive_if_empty(
 #[spacetimedb::reducer]
 pub fn respawn_wild_beehives(ctx: &ReducerContext, schedule: WildBeehiveRespawnSchedule) -> Result<(), String> {
     // Security check: only the scheduler should call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Respawn reducer may only be called by the scheduler".to_string());
     }
     

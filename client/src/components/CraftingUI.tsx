@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './InventoryUI.module.css'; // Reuse styles for consistency
+import { DbConnection } from '../generated';
 import {
     Recipe,
     RecipeIngredient,
     CraftingQueueItem,
     ItemDefinition,
     InventoryItem,
-    DbConnection,
     InventoryLocationData,
     HotbarLocationData,
     ItemCategory,
     ActiveConsumableEffect,
-} from '../generated';
+} from '../generated/types';
 import { Identity } from 'spacetimedb';
 import { PopulatedItem } from './InventoryUI'; // Reuse PopulatedItem type
 import { getItemIcon } from '../utils/itemIconUtils';
@@ -169,7 +169,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
         try {
             if (quantity > 0) { // Ensure quantity is positive
                 // Call the new reducer
-                connection.reducers.startCraftingMultiple(recipeId, quantity);
+                connection.reducers.startCraftingMultiple({ recipeId: BigInt(recipeId), quantityToCraft: quantity });
                 // Optimistically add to crafted this session
                 setCraftedRecipeIdsThisSession(prev => new Set(prev).add(recipeId.toString()));
             } else {
@@ -185,7 +185,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
         if (!connection?.reducers) return;
         // console.log(`Attempting to cancel craft queue item ID: ${queueItemId}`);
         try {
-            connection.reducers.cancelCraftingItem(queueItemId);
+            connection.reducers.cancelCraftingItem({ queueItemId: BigInt(queueItemId) });
         } catch (err) {
             console.error("Error calling cancelCraftingItem reducer:", err);
             // TODO: Show user-friendly error feedback
@@ -196,7 +196,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
         if (!connection?.reducers) return;
         // console.log("Attempting to cancel all crafting items.");
         try {
-            connection.reducers.cancelAllCrafting();
+            connection.reducers.cancelAllCrafting({});
         } catch (err) {
             console.error("Error calling cancelAllCrafting reducer:", err);
             // TODO: Show user-friendly error feedback
@@ -206,7 +206,7 @@ const CraftingUI: React.FC<CraftingUIProps> = ({
     const handleMoveToFront = (queueItemId: bigint) => {
         if (!connection?.reducers) return;
         try {
-            connection.reducers.moveCraftingQueueItemToFront(queueItemId);
+            connection.reducers.moveCraftingQueueItemToFront({ queueItemId: BigInt(queueItemId) });
         } catch (err) {
             console.error("Error calling moveCraftingQueueItemToFront reducer:", err);
         }

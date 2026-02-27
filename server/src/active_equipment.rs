@@ -124,7 +124,7 @@ const PLAYER_INTERACT_DISTANCE: f32 = 80.0;
 const PLAYER_INTERACT_DISTANCE_SQUARED: f32 = PLAYER_INTERACT_DISTANCE * PLAYER_INTERACT_DISTANCE;
 
 /// Represents a player's equipped items, both in hand and armor slots
-#[spacetimedb::table(name = active_equipment, public)]
+#[spacetimedb::table(accessor = active_equipment, public)]
 #[derive(Clone, Default, Debug)]
 pub struct ActiveEquipment {
     #[primary_key]
@@ -149,7 +149,7 @@ pub struct ActiveEquipment {
 }
 
 /// Schedule table for filling equipped water containers during rain
-#[spacetimedb::table(name = water_container_fill_schedule, scheduled(fill_equipped_water_containers))]
+#[spacetimedb::table(accessor = water_container_fill_schedule, scheduled(fill_equipped_water_containers))]
 #[derive(Clone, Debug)]
 pub struct WaterContainerFillSchedule {
     #[primary_key]
@@ -195,7 +195,7 @@ pub fn init_water_container_fill_schedule(ctx: &ReducerContext) -> Result<(), St
 /// to reflect which item is currently wielded/active.
 #[spacetimedb::reducer]
 pub fn set_active_item_reducer(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let active_equipments = ctx.db.active_equipment();
@@ -458,7 +458,7 @@ pub fn clear_active_item_reducer(ctx: &ReducerContext, player_identity: Identity
 /// For magazine-based weapons, consumes ammo from inventory and tracks loaded count.
 #[spacetimedb::reducer]
 pub fn load_ranged_weapon(ctx: &ReducerContext) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     log::info!("[LoadRangedWeapon] Reducer called by player: {:?}", sender_id);
 
     let active_equipments = ctx.db.active_equipment();
@@ -737,7 +737,7 @@ pub fn load_ranged_weapon(ctx: &ReducerContext) -> Result<(), String> {
 /// damage application, and resource gathering.
 #[spacetimedb::reducer]
 pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let now_ts = ctx.timestamp;
     let now_micros = now_ts.to_micros_since_unix_epoch();
     let now_ms = (now_micros / 1000) as u64;
@@ -1276,7 +1276,7 @@ fn get_or_create_active_equipment(ctx: &ReducerContext, player_id: Identity) -> 
 /// Handles swapping with existing armor if a slot is already occupied.
 #[spacetimedb::reducer]
 pub fn equip_armor(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     log::info!("Player {:?} attempting to equip armor item instance {}", sender_id, item_instance_id);
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
@@ -1299,14 +1299,14 @@ pub fn equip_armor(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), St
     match &item_to_equip.location {
         ItemLocation::Inventory(_) | ItemLocation::Hotbar(_) => {
             // Item is in player's direct possession slots (Inventory or Hotbar).
-            // The owner_id within these ItemLocationData variants should ideally match ctx.sender.
-            // This reducer proceeds to equip it for ctx.sender regardless of a potential mismatch here,
+            // The owner_id within these ItemLocationData variants should ideally match ctx.sender().
+            // This reducer proceeds to equip it for ctx.sender() regardless of a potential mismatch here,
             // as the act of equipping by sender_id implies claim and corrects its state to Equipped by sender_id.
             log::debug!("[EquipArmor] Item {} found in Inventory/Hotbar ({:?}), proceeding to equip for player {:?}.", item_instance_id, item_to_equip.location, sender_id);
         }
         ItemLocation::Unknown => {
             // Item's location is Unknown. This typically means it's not properly tracked in a specific player slot or container.
-            // Allowing equip from Unknown implies the player (ctx.sender) is claiming this unlocated item.
+            // Allowing equip from Unknown implies the player (ctx.sender()) is claiming this unlocated item.
             log::warn!("[EquipArmor] Equipping item {} which has an ItemLocation::Unknown for player {:?}. The item will be claimed and its location updated to Equipped.", item_instance_id, sender_id);
         }
         // Other locations (Container, Dropped, already Equipped in a different slot) are not directly handled here.
@@ -1414,7 +1414,7 @@ pub fn equip_armor(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), St
 #[spacetimedb::reducer]
 pub fn fill_equipped_water_containers(ctx: &ReducerContext, _args: WaterContainerFillSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to run this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Water container filling can only be run by scheduler".to_string());
     }
 

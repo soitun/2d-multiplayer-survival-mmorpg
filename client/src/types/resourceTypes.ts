@@ -1,5 +1,5 @@
 // Unified Resource Type System for Harvestable Resources
-import { HarvestableResource, PlantType } from '../generated';
+import { HarvestableResource, PlantType } from '../generated/types';
 
 // Extract ResourceType from the generated PlantType - no more hard-coding!
 // This automatically stays in sync with the server's PlantType enum

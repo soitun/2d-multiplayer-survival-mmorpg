@@ -90,7 +90,7 @@ pub fn tree_type_stats(tree_type: &TreeType) -> (u32, u32, u32) {
     }
 }
 
-#[spacetimedb::table(name = tree, public)]
+#[spacetimedb::table(accessor = tree, public)]
 #[derive(Clone)]
 pub struct Tree {
     #[primary_key]

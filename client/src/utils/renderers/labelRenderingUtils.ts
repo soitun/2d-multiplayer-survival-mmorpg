@@ -14,7 +14,7 @@ import {
     Door as SpacetimeDBDoor, // ADDED: Door
     AlkStation as SpacetimeDBAlkStation, // ADDED: ALK Station
     Barbecue as SpacetimeDBBarbecue // ADDED: Barbecue
-} from '../../generated';
+} from '../../generated/types';
 
 // Centralized visual config - single source of truth for all entity visual bounds
 import { ENTITY_VISUAL_CONFIG, getLabelPosition } from '../entityVisualConfig';

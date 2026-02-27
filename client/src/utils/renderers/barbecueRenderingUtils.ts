@@ -1,4 +1,4 @@
-import { Barbecue } from '../../generated'; // Import generated Barbecue type
+import { Barbecue } from '../../generated/types'; // Import generated Barbecue type
 import barbecueImage from '../../assets/doodads/barbecue.png'; // Direct import OFF state
 import barbecueOnImage from '../../assets/doodads/barbecue_on.png'; // Direct import ON state
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer

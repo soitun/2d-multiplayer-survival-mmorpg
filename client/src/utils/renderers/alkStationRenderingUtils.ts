@@ -5,7 +5,7 @@
  * These are large industrial structures where players can deliver contracts
  */
 
-import { AlkStation as SpacetimeDBAlkStation } from '../../generated';
+import { AlkStation as SpacetimeDBAlkStation } from '../../generated/types';
 import { drawDynamicGroundShadow } from './shadowUtils';
 import { renderBuildingRestrictionOverlay, BuildingRestrictionZoneConfig } from './buildingRestrictionOverlayUtils';
 

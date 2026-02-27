@@ -1374,7 +1374,7 @@ pub enum PlantCategory {
 }
 
 /// Public table exposing plant yield configurations to clients
-#[spacetimedb::table(name = plant_config_definition, public)]
+#[spacetimedb::table(accessor = plant_config_definition, public)]
 #[derive(Clone, Debug)]
 pub struct PlantConfigDefinition {
     #[primary_key]

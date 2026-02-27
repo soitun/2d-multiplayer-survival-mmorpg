@@ -166,7 +166,7 @@ export function useWallTargeting(
     let closestTileX = mouseCellX;
     let closestTileY = mouseCellY;
 
-    for (const wall of connection.db.wallCell.iter()) {
+    for (const wall of connection.db.wall_cell.iter()) {
       if (wall.isDestroyed) continue;
 
       // Convert foundation cell to world coordinates (center of foundation cell)

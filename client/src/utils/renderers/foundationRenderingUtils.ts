@@ -5,7 +5,7 @@
  * Also renders walls as thin rectangles on tile edges.
  */
 
-import { FoundationCell } from '../../generated';
+import { FoundationCell } from '../../generated/types';
 // WallCell will be available after regenerating client bindings
 // For now, using any type - will be fixed after running: spacetime generate --lang typescript --out-dir ../client/src/generated --project-path .
 import { TILE_SIZE, FOUNDATION_TILE_SIZE, foundationCellToWorldPixels } from '../../config/gameConfig';
@@ -3062,7 +3062,7 @@ export function renderWallPreview({
   let foundationShape = 1; // Default to Full
   let isTriangle = false;
   if (connection) {
-    for (const foundation of connection.db.foundationCell.iter()) {
+    for (const foundation of connection.db.foundation_cell.iter()) {
       if (foundation.cellX === cellX && foundation.cellY === cellY && !foundation.isDestroyed) {
         foundationShape = foundation.shape as number;
         isTriangle = foundationShape >= 2 && foundationShape <= 5;

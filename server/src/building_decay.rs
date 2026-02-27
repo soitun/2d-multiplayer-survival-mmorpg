@@ -79,7 +79,7 @@ pub fn get_decay_damage_per_interval(tier: u8) -> f32 {
 
 // --- Decay Schedule Table ---
 
-#[spacetimedb::table(name = building_decay_schedule, scheduled(process_building_decay))]
+#[spacetimedb::table(accessor = building_decay_schedule, scheduled(process_building_decay))]
 #[derive(Clone)]
 pub struct BuildingDecaySchedule {
     #[primary_key]
@@ -284,7 +284,7 @@ fn apply_wall_decay(
 #[spacetimedb::reducer]
 pub fn process_building_decay(ctx: &ReducerContext, _schedule: BuildingDecaySchedule) -> Result<(), String> {
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("process_building_decay may only be called by the scheduler.".to_string());
     }
 

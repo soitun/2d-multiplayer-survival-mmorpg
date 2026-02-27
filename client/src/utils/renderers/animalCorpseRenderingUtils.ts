@@ -1,4 +1,4 @@
-import { AnimalCorpse as SpacetimeDBAnimalCorpse } from '../../generated';
+import { AnimalCorpse as SpacetimeDBAnimalCorpse } from '../../generated/types';
 import { imageManager } from './imageManager';
 import { calculateShakeOffsets } from './shadowUtils';
 

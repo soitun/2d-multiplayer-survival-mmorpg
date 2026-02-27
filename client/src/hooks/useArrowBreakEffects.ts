@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { ArrowBreakEvent, DbConnection } from '../generated';
+import { DbConnection } from '../generated';
+import { ArrowBreakEvent } from '../generated/types';
 import { spawnArrowBreakParticles } from '../effects/arrowBreakEffect';
 
 interface UseArrowBreakEffectsProps {
@@ -20,7 +21,7 @@ export function useArrowBreakEffects({ connection }: UseArrowBreakEffectsProps) 
         };
 
         // Register the callback
-        connection.db.arrowBreakEvent.onInsert(handleArrowBreakInsert);
+        connection.db.arrow_break_event.onInsert(handleArrowBreakInsert);
 
         // Cleanup function to unregister the callback
         return () => {

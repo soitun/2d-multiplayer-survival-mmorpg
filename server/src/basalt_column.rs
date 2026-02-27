@@ -39,7 +39,7 @@ impl BasaltColumnType {
 /// --- Basalt Column Data Structure ---
 /// Represents a decorative basalt column formation in quarry areas.
 /// Basalt columns are permanent, non-mineable obstacles with collision.
-#[spacetimedb::table(name = basalt_column, public)]
+#[spacetimedb::table(accessor = basalt_column, public)]
 #[derive(Clone)]
 pub struct BasaltColumn {
     #[primary_key]

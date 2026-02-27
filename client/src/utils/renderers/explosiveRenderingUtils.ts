@@ -6,7 +6,7 @@
  *                                                                            *
  ******************************************************************************/
 
-import { PlacedExplosive } from '../../generated';
+import { PlacedExplosive } from '../../generated/types';
 
 // Import doodad images directly
 import babushkaSurpriseImg from '../../assets/doodads/babushka_surprise.png';

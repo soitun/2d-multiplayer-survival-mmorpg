@@ -33,7 +33,7 @@ pub const COMPOST_FERTILIZER_PER_ITEM: u32 = 1; // Each compostable item produce
 pub const COMPOST_FERTILIZER_SPOILED_MULTIPLIER: u32 = 3; // Spoiled items give 3x fertilizer (already breaking down)
 
 // --- Compost Schedule Table ---
-#[spacetimedb::table(name = compost_process_schedule, scheduled(process_compost_conversion))]
+#[spacetimedb::table(accessor = compost_process_schedule, scheduled(process_compost_conversion))]
 #[derive(Clone)]
 pub struct CompostProcessSchedule {
     #[primary_key]
@@ -305,7 +305,7 @@ pub fn quick_move_to_compost(
 #[spacetimedb::reducer]
 pub fn process_compost_conversion(ctx: &ReducerContext, _args: CompostProcessSchedule) -> Result<(), String> {
     // Security check - only scheduler can run this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Compost processing can only be run by scheduler".to_string());
     }
     

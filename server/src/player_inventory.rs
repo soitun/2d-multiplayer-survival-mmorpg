@@ -31,9 +31,9 @@ pub fn get_player_item(ctx: &ReducerContext, instance_id: u64) -> Result<Invento
         .find(|i| 
             i.instance_id == instance_id && 
             match &i.location {
-                ItemLocation::Inventory(data) => data.owner_id == ctx.sender,
-                ItemLocation::Hotbar(data) => data.owner_id == ctx.sender,
-                ItemLocation::Equipped(data) => data.owner_id == ctx.sender,
+                ItemLocation::Inventory(data) => data.owner_id == ctx.sender(),
+                ItemLocation::Hotbar(data) => data.owner_id == ctx.sender(),
+                ItemLocation::Equipped(data) => data.owner_id == ctx.sender(),
                 _ => false,
             }
         )
@@ -44,14 +44,14 @@ pub fn get_player_item(ctx: &ReducerContext, instance_id: u64) -> Result<Invento
 pub(crate) fn find_item_in_inventory_slot(ctx: &ReducerContext, slot_index_to_find: u16) -> Option<InventoryItem> {
     ctx.db
         .inventory_item().iter()
-        .find(|i| matches!(&i.location, ItemLocation::Inventory(data) if data.owner_id == ctx.sender && data.slot_index == slot_index_to_find))
+        .find(|i| matches!(&i.location, ItemLocation::Inventory(data) if data.owner_id == ctx.sender() && data.slot_index == slot_index_to_find))
 }
 
 // Helper to find an item occupying a specific hotbar slot for the caller
 pub(crate) fn find_item_in_hotbar_slot(ctx: &ReducerContext, slot_index_to_find: u8) -> Option<InventoryItem> {
     ctx.db
         .inventory_item().iter()
-        .find(|i| matches!(&i.location, ItemLocation::Hotbar(data) if data.owner_id == ctx.sender && data.slot_index == slot_index_to_find))
+        .find(|i| matches!(&i.location, ItemLocation::Hotbar(data) if data.owner_id == ctx.sender() && data.slot_index == slot_index_to_find))
 }
 
 // Function to find the first available inventory slot (0-23)
@@ -103,7 +103,7 @@ pub fn move_item_to_inventory(ctx: &ReducerContext, item_instance_id: u64, targe
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let active_equip_table = ctx.db.active_equipment(); // Added for checking active item
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
 
     // --- 1. Find Item to Move --- 
     let mut item_to_move = inventory_items.instance_id().find(item_instance_id)
@@ -253,7 +253,7 @@ pub fn move_item_to_hotbar(ctx: &ReducerContext, item_instance_id: u64, target_h
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let active_equip_table = ctx.db.active_equipment(); // Added for checking active item
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
 
     // --- 1. Find Item to Move --- 
     let mut item_to_move = inventory_items.instance_id().find(item_instance_id)
@@ -434,7 +434,7 @@ pub fn split_stack(
     target_slot_type: String,    // "inventory" or "hotbar"
     target_slot_index: u32,    // Use u32 to accept both potential u8/u16 client values easily
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_table = ctx.db.inventory_item();
     let item_def_table = ctx.db.item_definition();
 
@@ -626,7 +626,7 @@ pub fn split_stack(
 
 #[spacetimedb::reducer]
 pub fn move_to_first_available_hotbar_slot(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_items = ctx.db.inventory_item();
     let active_equip_table = ctx.db.active_equipment(); // Added for checking active item
 
@@ -701,7 +701,7 @@ pub fn move_to_first_available_hotbar_slot(ctx: &ReducerContext, item_instance_i
 
 #[spacetimedb::reducer]
 pub fn move_to_first_available_inventory_slot(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_items = ctx.db.inventory_item();
     let active_equip_table = ctx.db.active_equipment();
 

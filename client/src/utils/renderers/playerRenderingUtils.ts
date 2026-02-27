@@ -19,7 +19,7 @@
  *    SpacetimeDB subscriptions.
  */
 
-import { Player as SpacetimeDBPlayer, ActiveEquipment as SpacetimeDBActiveEquipment, ItemDefinition as SpacetimeDBItemDefinition, ActiveConsumableEffect, EffectType } from '../../generated';
+import { Player as SpacetimeDBPlayer, ActiveEquipment as SpacetimeDBActiveEquipment, ItemDefinition as SpacetimeDBItemDefinition, ActiveConsumableEffect, EffectType } from '../../generated/types';
 import { gameConfig } from '../../config/gameConfig';
 import { drawShadow, drawDynamicGroundShadow } from './shadowUtils';
 import { drawSwimmingEffectsUnder, drawSwimmingEffectsOver, drawShorelineWaterLine } from './swimmingEffectsUtils';

@@ -58,7 +58,7 @@ const CHARCOAL_PRODUCTION_AMOUNT: u32 = 3; // Produce 3 charcoal per item (rewar
 /// Represents a geothermal vent in quarry areas that provides warmth and incinerates items.
 /// Fumaroles are permanent features with no collision - players can walk over them.
 /// Items placed in fumaroles are destroyed and converted to charcoal at a fast rate.
-#[spacetimedb::table(name = fumarole, public)]
+#[spacetimedb::table(accessor = fumarole, public)]
 #[derive(Clone)]
 pub struct Fumarole {
     #[primary_key]
@@ -187,7 +187,7 @@ impl Fumarole {
 }
 
 // Global schedule table - processes ALL fumaroles in one reducer call (1 tx/sec vs N tx/sec)
-#[spacetimedb::table(name = fumarole_global_schedule, scheduled(process_all_fumaroles_scheduled))]
+#[spacetimedb::table(accessor = fumarole_global_schedule, scheduled(process_all_fumaroles_scheduled))]
 #[derive(Clone)]
 pub struct FumaroleGlobalSchedule {
     #[primary_key]
@@ -379,7 +379,7 @@ pub fn split_and_move_from_fumarole(
     target_slot_type: String,    // "inventory", "hotbar", or "fumarole_slot"
     target_slot_index: u32,     // Numeric index for inventory/hotbar/fumarole
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let fumaroles = ctx.db.fumarole();
     let mut inventory_items = ctx.db.inventory_item();
 
@@ -512,7 +512,7 @@ pub fn interact_with_fumarole(ctx: &ReducerContext, fumarole_id: u32) -> Result<
 /// Scheduled reducer: Processes ALL fumaroles in one call (1 tx/sec vs N tx/sec)
 #[spacetimedb::reducer]
 pub fn process_all_fumaroles_scheduled(ctx: &ReducerContext, _schedule: FumaroleGlobalSchedule) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Unauthorized scheduler invocation".to_string());
     }
 
@@ -751,7 +751,7 @@ fn validate_fumarole_interaction(
     ctx: &ReducerContext,
     fumarole_id: u32,
 ) -> Result<(Player, Fumarole), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let fumaroles = ctx.db.fumarole();
 

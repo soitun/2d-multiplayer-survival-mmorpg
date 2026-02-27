@@ -1,7 +1,7 @@
 use spacetimedb::{table, SpacetimeType, Timestamp};
 
 // #[derive(SpacetimeType, Clone, Debug)] // Remove this if #[table] is used, or ensure SpacetimeType is not re-derived
-#[table(name = ranged_weapon_stats, public)] // Use identifier, not string
+#[table(accessor = ranged_weapon_stats, public)] // Use identifier, not string
 #[derive(Clone, Debug)] // Keep Clone and Debug, SpacetimeType is handled by #[table]
 pub struct RangedWeaponStats {
     #[primary_key]

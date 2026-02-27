@@ -1,4 +1,4 @@
-import { BrothPot } from '../../generated';
+import { BrothPot } from '../../generated/types';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { drawDynamicGroundShadow } from './shadowUtils';
 import { imageManager } from './imageManager';

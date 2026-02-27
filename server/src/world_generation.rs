@@ -72,7 +72,7 @@ pub fn generate_world(ctx: &ReducerContext, config: WorldGenConfig) -> Result<()
     );
 
     // TEMPORARILY REMOVED: Security check for testing
-    // if ctx.sender != ctx.identity() {
+    // if ctx.sender() != ctx.identity() {
     //     return Err("Only server can generate world".to_string());
     // }
     

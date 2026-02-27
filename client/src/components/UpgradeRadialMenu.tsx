@@ -11,7 +11,8 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { BuildingTier } from '../hooks/useBuildingManager';
-import { DbConnection, InventoryItem, ItemDefinition, ActiveConsumableEffect } from '../generated';
+import { DbConnection } from '../generated';
+import { InventoryItem, ItemDefinition, ActiveConsumableEffect } from '../generated/types';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faTree, 

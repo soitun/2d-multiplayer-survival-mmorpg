@@ -1,4 +1,4 @@
-import { Fumarole } from '../../generated'; // Import generated type
+import { Fumarole } from '../../generated/types'; // Import generated type
 import fumaroleImage from '../../assets/doodads/fumarole_new2.png'; // Fumarole sprite
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer'; // Import generic renderer
 import { imageManager } from './imageManager'; // Import image manager

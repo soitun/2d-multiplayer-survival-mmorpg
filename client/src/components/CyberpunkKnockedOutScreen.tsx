@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { KnockedOutStatus } from '../generated';
+import { KnockedOutStatus } from '../generated/types';
 import sovaIcon from '../assets/ui/sova.png';
 import './CyberpunkKnockedOutScreen.css';
 

@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { DraggedItemInfo, DragSourceSlotInfo } from '../types/dragDropTypes';
-import { DbConnection, InventoryItem } from '../generated'; // Import connection type and InventoryItem
+import { DbConnection } from '../generated'; // Import connection type
 import { Identity } from 'spacetimedb'; // Ensure Identity is imported
 // Import location data types if not already present
-import { InventoryLocationData, HotbarLocationData } from '../generated'; 
+import type { InventoryItem, InventoryLocationData, HotbarLocationData } from '../generated/types'; 
 // Import the new container utilities
 import { 
     handleWorldDrop, 
@@ -87,7 +87,7 @@ export const useDragDropManager = ({
                 
                 // Fall back to default player inventory drop
                     // console.log(`[useDragDropManager Drop] Calling drop_item (default/player inventory). Item: ${itemInstanceId}, Qty: ${quantityToDrop}`);
-                    connection.reducers.dropItem(itemInstanceId, quantityToDrop);
+                    connection.reducers.dropItem({ itemInstanceId, quantityToDrop });
                 
             } catch (error) {
                 console.error(`[useDragDropManager Drop] Error calling drop reducer:`, error);
@@ -121,7 +121,7 @@ export const useDragDropManager = ({
                         // START MODIFICATION: Check if target slot is occupied by a different item type
                         let targetItemInstance: InventoryItem | undefined = undefined;
                         if (connection && playerIdentity) {
-                            const allPlayerItems = Array.from(connection.db.inventoryItem.iter());
+                            const allPlayerItems = Array.from(connection.db.inventory_item.iter());
                             if (targetSlotType === 'inventory') {
                                 targetItemInstance = allPlayerItems.find(i =>
                                     i.location.tag === 'Inventory' &&
@@ -147,7 +147,7 @@ export const useDragDropManager = ({
                         // END MODIFICATION
 
                         // console.log(`[useDragDropManager Drop Split] Calling splitStack (Inv/Hotbar -> Inv/Hotbar)`);
-                        connection.reducers.splitStack(sourceInstanceId, quantityToSplit, targetSlotType, targetSlotIndexNum);
+                        connection.reducers.splitStack({ sourceItemInstanceId: sourceInstanceId, quantityToSplit, targetSlotType, targetSlotIndex: targetSlotIndexNum });
                     } else {
                         // Try pattern-based player to container split
                         if (handlePlayerToContainerSplit(connection, sourceInstanceId, quantityToSplit, targetSlot, setDropError)) {
@@ -213,13 +213,13 @@ export const useDragDropManager = ({
                 
                 // Fall back to default player moves (inv/hotbar/equip to inv/hotbar)
                 if (targetSlot.type === 'inventory') {
-                    connection.reducers.moveItemToInventory(itemInstanceId, targetIndexNum);
+                    connection.reducers.moveItemToInventory({ itemInstanceId, targetInventorySlot: targetIndexNum });
                 } else { // hotbar
-                    connection.reducers.moveItemToHotbar(itemInstanceId, targetIndexNum);
+                    connection.reducers.moveItemToHotbar({ itemInstanceId, targetHotbarSlot: targetIndexNum });
                 }
                 
             } else if (targetSlot.type === 'equipment' && typeof targetSlot.index === 'string') {
-                connection.reducers.equipArmorFromDrag(itemInstanceId, targetSlot.index);
+                connection.reducers.equipArmorFromDrag({ itemInstanceId, targetSlotName: targetSlot.index });
                 
                 } else {
                 // Check if this is a within-container move first (same container type)

@@ -6,7 +6,7 @@
  *                                                                            *
  ******************************************************************************/
 
-import { WaterPatch } from '../../generated';
+import { WaterPatch } from '../../generated/types';
 
 // --- Constants ---
 

@@ -5,7 +5,7 @@
  * Uses genericGroundRenderer pattern (like cairn, basalt column) for reliable loading and shadows.
  */
 
-import { RoadLamppost } from '../../generated';
+import { RoadLamppost } from '../../generated/types';
 import roadLampImage from '../../assets/doodads/road_lamp.png';
 import roadLampOffImage from '../../assets/doodads/road_lamp_off.png';
 import { drawDynamicGroundShadow } from './shadowUtils';

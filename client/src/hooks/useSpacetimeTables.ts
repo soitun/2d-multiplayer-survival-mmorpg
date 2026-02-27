@@ -22,12 +22,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import * as SpacetimeDB from '../generated';
+import * as SpacetimeDB from '../generated/types';
 import {
-    DbConnection,
     RangedWeaponStats as SpacetimeDBRangedWeaponStats,
     Projectile as SpacetimeDBProjectile,
-} from '../generated';
+} from '../generated/types';
+import { DbConnection} from '../generated';
 import { Identity } from 'spacetimedb';
 import { getChunkIndicesForViewportWithBuffer } from '../utils/chunkUtils';
 import { gameConfig } from '../config/gameConfig';
@@ -2316,74 +2316,74 @@ export const useSpacetimeTables = ({
             registerTableCallbacks(connection.db.player, { onInsert: handlePlayerInsert, onUpdate: handlePlayerUpdate, onDelete: handlePlayerDelete });
             registerTableCallbacks(connection.db.tree, { onInsert: handleTreeInsert, onUpdate: handleTreeUpdate, onDelete: handleTreeDelete });
             registerTableCallbacks(connection.db.stone, { onInsert: handleStoneInsert, onUpdate: handleStoneUpdate, onDelete: handleStoneDelete });
-            registerTableCallbacks(connection.db.runeStone, { onInsert: handleRuneStoneInsert, onUpdate: handleRuneStoneUpdate, onDelete: handleRuneStoneDelete });
+            registerTableCallbacks(connection.db.rune_stone, { onInsert: handleRuneStoneInsert, onUpdate: handleRuneStoneUpdate, onDelete: handleRuneStoneDelete });
             registerTableCallbacks(connection.db.cairn, { onInsert: handleCairnInsert, onUpdate: handleCairnUpdate, onDelete: handleCairnDelete });
-            registerTableCallbacks(connection.db.playerDiscoveredCairn, { onInsert: handlePlayerDiscoveredCairnInsert, onUpdate: handlePlayerDiscoveredCairnUpdate, onDelete: handlePlayerDiscoveredCairnDelete });
+            registerTableCallbacks(connection.db.player_discovered_cairn, { onInsert: handlePlayerDiscoveredCairnInsert, onUpdate: handlePlayerDiscoveredCairnUpdate, onDelete: handlePlayerDiscoveredCairnDelete });
             registerTableCallbacks(connection.db.campfire, { onInsert: handleCampfireInsert, onUpdate: handleCampfireUpdate, onDelete: handleCampfireDelete });
             registerTableCallbacks(connection.db.barbecue, { onInsert: handleBarbecueInsert, onUpdate: handleBarbecueUpdate, onDelete: handleBarbecueDelete });
             registerTableCallbacks(connection.db.furnace, { onInsert: handleFurnaceInsert, onUpdate: handleFurnaceUpdate, onDelete: handleFurnaceDelete });
             registerTableCallbacks(connection.db.lantern, { onInsert: handleLanternInsert, onUpdate: handleLanternUpdate, onDelete: handleLanternDelete });
             registerTableCallbacks(connection.db.turret, { onInsert: handleTurretInsert, onUpdate: handleTurretUpdate, onDelete: handleTurretDelete });
-            registerTableCallbacks(connection.db.homesteadHearth, { onInsert: handleHomesteadHearthInsert, onUpdate: handleHomesteadHearthUpdate, onDelete: handleHomesteadHearthDelete });
-            registerTableCallbacks(connection.db.brothPot, { onInsert: handleBrothPotInsert, onUpdate: handleBrothPotUpdate, onDelete: handleBrothPotDelete });
-            registerTableCallbacks(connection.db.itemDefinition, { onInsert: handleItemDefInsert, onUpdate: handleItemDefUpdate, onDelete: handleItemDefDelete });
-            registerTableCallbacks(connection.db.inventoryItem, { onInsert: handleInventoryInsert, onUpdate: handleInventoryUpdate, onDelete: handleInventoryDelete });
-            registerTableCallbacks(connection.db.worldState, { onInsert: handleWorldStateInsert, onUpdate: handleWorldStateUpdate, onDelete: handleWorldStateDelete });
-            registerTableCallbacks(connection.db.activeEquipment, { onInsert: handleActiveEquipmentInsert, onUpdate: handleActiveEquipmentUpdate, onDelete: handleActiveEquipmentDelete });
-            registerTableCallbacks(connection.db.harvestableResource, { onInsert: handleHarvestableResourceInsert, onUpdate: handleHarvestableResourceUpdate, onDelete: handleHarvestableResourceDelete });
-            registerTableCallbacks(connection.db.plantedSeed, { onInsert: handlePlantedSeedInsert, onUpdate: handlePlantedSeedUpdate, onDelete: handlePlantedSeedDelete });
-            registerTableCallbacks(connection.db.droppedItem, { onInsert: handleDroppedItemInsert, onUpdate: handleDroppedItemUpdate, onDelete: handleDroppedItemDelete });
-            registerTableCallbacks(connection.db.woodenStorageBox, { onInsert: handleWoodenStorageBoxInsert, onUpdate: handleWoodenStorageBoxUpdate, onDelete: handleWoodenStorageBoxDelete });
+            registerTableCallbacks(connection.db.homestead_hearth, { onInsert: handleHomesteadHearthInsert, onUpdate: handleHomesteadHearthUpdate, onDelete: handleHomesteadHearthDelete });
+            registerTableCallbacks(connection.db.broth_pot, { onInsert: handleBrothPotInsert, onUpdate: handleBrothPotUpdate, onDelete: handleBrothPotDelete });
+            registerTableCallbacks(connection.db.item_definition, { onInsert: handleItemDefInsert, onUpdate: handleItemDefUpdate, onDelete: handleItemDefDelete });
+            registerTableCallbacks(connection.db.inventory_item, { onInsert: handleInventoryInsert, onUpdate: handleInventoryUpdate, onDelete: handleInventoryDelete });
+            registerTableCallbacks(connection.db.world_state, { onInsert: handleWorldStateInsert, onUpdate: handleWorldStateUpdate, onDelete: handleWorldStateDelete });
+            registerTableCallbacks(connection.db.active_equipment, { onInsert: handleActiveEquipmentInsert, onUpdate: handleActiveEquipmentUpdate, onDelete: handleActiveEquipmentDelete });
+            registerTableCallbacks(connection.db.harvestable_resource, { onInsert: handleHarvestableResourceInsert, onUpdate: handleHarvestableResourceUpdate, onDelete: handleHarvestableResourceDelete });
+            registerTableCallbacks(connection.db.planted_seed, { onInsert: handlePlantedSeedInsert, onUpdate: handlePlantedSeedUpdate, onDelete: handlePlantedSeedDelete });
+            registerTableCallbacks(connection.db.dropped_item, { onInsert: handleDroppedItemInsert, onUpdate: handleDroppedItemUpdate, onDelete: handleDroppedItemDelete });
+            registerTableCallbacks(connection.db.wooden_storage_box, { onInsert: handleWoodenStorageBoxInsert, onUpdate: handleWoodenStorageBoxUpdate, onDelete: handleWoodenStorageBoxDelete });
             registerTableCallbacks(connection.db.recipe, { onInsert: handleRecipeInsert, onUpdate: handleRecipeUpdate, onDelete: handleRecipeDelete });
-            registerTableCallbacks(connection.db.craftingQueueItem, { onInsert: handleCraftingQueueInsert, onUpdate: handleCraftingQueueUpdate, onDelete: handleCraftingQueueDelete });
+            registerTableCallbacks(connection.db.crafting_queue_item, { onInsert: handleCraftingQueueInsert, onUpdate: handleCraftingQueueUpdate, onDelete: handleCraftingQueueDelete });
             // UI/chat subscriptions are handled in useUISubscriptions (GameScreen scope).
             // Player progression system subscriptions
-            registerTableCallbacks(connection.db.playerStats, { onInsert: handlePlayerStatsInsert, onUpdate: handlePlayerStatsUpdate, onDelete: handlePlayerStatsDelete });
-            registerTableCallbacks(connection.db.achievementDefinition, { onInsert: handleAchievementDefinitionInsert, onUpdate: handleAchievementDefinitionUpdate, onDelete: handleAchievementDefinitionDelete });
-            registerTableCallbacks(connection.db.playerAchievement, { onInsert: handlePlayerAchievementInsert, onUpdate: handlePlayerAchievementUpdate, onDelete: handlePlayerAchievementDelete });
-            registerTableCallbacks(connection.db.achievementUnlockNotification, { onInsert: handleAchievementUnlockNotificationInsert, onUpdate: handleAchievementUnlockNotificationUpdate, onDelete: handleAchievementUnlockNotificationDelete });
-            registerTableCallbacks(connection.db.levelUpNotification, { onInsert: handleLevelUpNotificationInsert, onUpdate: handleLevelUpNotificationUpdate, onDelete: handleLevelUpNotificationDelete });
-            registerTableCallbacks(connection.db.dailyLoginNotification, { onInsert: handleDailyLoginNotificationInsert, onUpdate: handleDailyLoginNotificationUpdate, onDelete: handleDailyLoginNotificationDelete });
-            registerTableCallbacks(connection.db.progressNotification, { onInsert: handleProgressNotificationInsert, onUpdate: handleProgressNotificationUpdate, onDelete: handleProgressNotificationDelete });
-            registerTableCallbacks(connection.db.comparativeStatNotification, { onInsert: handleComparativeStatNotificationInsert, onUpdate: handleComparativeStatNotificationUpdate, onDelete: handleComparativeStatNotificationDelete });
-            registerTableCallbacks(connection.db.leaderboardEntry, { onInsert: handleLeaderboardEntryInsert, onUpdate: handleLeaderboardEntryUpdate, onDelete: handleLeaderboardEntryDelete });
-            registerTableCallbacks(connection.db.dailyLoginReward, { onInsert: handleDailyLoginRewardInsert, onUpdate: handleDailyLoginRewardUpdate, onDelete: handleDailyLoginRewardDelete });
+            registerTableCallbacks(connection.db.player_stats, { onInsert: handlePlayerStatsInsert, onUpdate: handlePlayerStatsUpdate, onDelete: handlePlayerStatsDelete });
+            registerTableCallbacks(connection.db.achievement_definition, { onInsert: handleAchievementDefinitionInsert, onUpdate: handleAchievementDefinitionUpdate, onDelete: handleAchievementDefinitionDelete });
+            registerTableCallbacks(connection.db.player_achievement, { onInsert: handlePlayerAchievementInsert, onUpdate: handlePlayerAchievementUpdate, onDelete: handlePlayerAchievementDelete });
+            registerTableCallbacks(connection.db.achievement_unlock_notification, { onInsert: handleAchievementUnlockNotificationInsert, onUpdate: handleAchievementUnlockNotificationUpdate, onDelete: handleAchievementUnlockNotificationDelete });
+            registerTableCallbacks(connection.db.level_up_notification, { onInsert: handleLevelUpNotificationInsert, onUpdate: handleLevelUpNotificationUpdate, onDelete: handleLevelUpNotificationDelete });
+            registerTableCallbacks(connection.db.daily_login_notification, { onInsert: handleDailyLoginNotificationInsert, onUpdate: handleDailyLoginNotificationUpdate, onDelete: handleDailyLoginNotificationDelete });
+            registerTableCallbacks(connection.db.progress_notification, { onInsert: handleProgressNotificationInsert, onUpdate: handleProgressNotificationUpdate, onDelete: handleProgressNotificationDelete });
+            registerTableCallbacks(connection.db.comparative_stat_notification, { onInsert: handleComparativeStatNotificationInsert, onUpdate: handleComparativeStatNotificationUpdate, onDelete: handleComparativeStatNotificationDelete });
+            registerTableCallbacks(connection.db.leaderboard_entry, { onInsert: handleLeaderboardEntryInsert, onUpdate: handleLeaderboardEntryUpdate, onDelete: handleLeaderboardEntryDelete });
+            registerTableCallbacks(connection.db.daily_login_reward, { onInsert: handleDailyLoginRewardInsert, onUpdate: handleDailyLoginRewardUpdate, onDelete: handleDailyLoginRewardDelete });
             // Plant config definitions for Encyclopedia (populated on server init)
-            registerTableCallbacks(connection.db.plantConfigDefinition, { onInsert: handlePlantConfigDefinitionInsert, onUpdate: handlePlantConfigDefinitionUpdate, onDelete: handlePlantConfigDefinitionDelete });
-            registerTableCallbacks(connection.db.playerDiscoveredPlant, { onInsert: handleDiscoveredPlantInsert, onDelete: handleDiscoveredPlantDelete });
+            registerTableCallbacks(connection.db.plant_config_definition, { onInsert: handlePlantConfigDefinitionInsert, onUpdate: handlePlantConfigDefinitionUpdate, onDelete: handlePlantConfigDefinitionDelete });
+            registerTableCallbacks(connection.db.player_discovered_plant, { onInsert: handleDiscoveredPlantInsert, onDelete: handleDiscoveredPlantDelete });
             // Quest/UI subscriptions are handled in useUISubscriptions (GameScreen scope).
-            registerTableCallbacks(connection.db.droneEvent, { onInsert: handleDroneEventInsert, onDelete: handleDroneEventDelete });
+            registerTableCallbacks(connection.db.drone_event, { onInsert: handleDroneEventInsert, onDelete: handleDroneEventDelete });
             // UI/chat subscriptions are handled in useUISubscriptions (GameScreen scope).
-            registerTableCallbacks(connection.db.sleepingBag, { onInsert: handleSleepingBagInsert, onUpdate: handleSleepingBagUpdate, onDelete: handleSleepingBagDelete });
-            registerTableCallbacks(connection.db.playerCorpse, { onInsert: handlePlayerCorpseInsert, onUpdate: handlePlayerCorpseUpdate, onDelete: handlePlayerCorpseDelete });
+            registerTableCallbacks(connection.db.sleeping_bag, { onInsert: handleSleepingBagInsert, onUpdate: handleSleepingBagUpdate, onDelete: handleSleepingBagDelete });
+            registerTableCallbacks(connection.db.player_corpse, { onInsert: handlePlayerCorpseInsert, onUpdate: handlePlayerCorpseUpdate, onDelete: handlePlayerCorpseDelete });
             registerTableCallbacks(connection.db.stash, { onInsert: handleStashInsert, onUpdate: handleStashUpdate, onDelete: handleStashDelete });
-            registerTableCallbacks(connection.db.activeConsumableEffect, { onInsert: handleActiveConsumableEffectInsert, onUpdate: handleActiveConsumableEffectUpdate, onDelete: handleActiveConsumableEffectDelete });
+            registerTableCallbacks(connection.db.active_consumable_effect, { onInsert: handleActiveConsumableEffectInsert, onUpdate: handleActiveConsumableEffectUpdate, onDelete: handleActiveConsumableEffectDelete });
             registerTableCallbacks(connection.db.cloud, { onInsert: handleCloudInsert, onUpdate: handleCloudUpdate, onDelete: handleCloudDelete });
             registerTableCallbacks(connection.db.grass, { onInsert: handleGrassInsert, onUpdate: handleGrassUpdate, onDelete: handleGrassDelete });
-            registerTableCallbacks(connection.db.grassState, { onInsert: handleGrassStateInsert, onUpdate: handleGrassStateUpdate, onDelete: handleGrassStateDelete });
-            registerTableCallbacks(connection.db.knockedOutStatus, { onInsert: handleKnockedOutStatusInsert, onUpdate: handleKnockedOutStatusUpdate, onDelete: handleKnockedOutStatusDelete });
-            registerTableCallbacks(connection.db.rangedWeaponStats, { onInsert: handleRangedWeaponStatsInsert, onUpdate: handleRangedWeaponStatsUpdate, onDelete: handleRangedWeaponStatsDelete });
+            registerTableCallbacks(connection.db.grass_state, { onInsert: handleGrassStateInsert, onUpdate: handleGrassStateUpdate, onDelete: handleGrassStateDelete });
+            registerTableCallbacks(connection.db.knocked_out_status, { onInsert: handleKnockedOutStatusInsert, onUpdate: handleKnockedOutStatusUpdate, onDelete: handleKnockedOutStatusDelete });
+            registerTableCallbacks(connection.db.ranged_weapon_stats, { onInsert: handleRangedWeaponStatsInsert, onUpdate: handleRangedWeaponStatsUpdate, onDelete: handleRangedWeaponStatsDelete });
             registerTableCallbacks(connection.db.projectile, { onInsert: handleProjectileInsert, onUpdate: handleProjectileUpdate, onDelete: handleProjectileDelete });
-            registerTableCallbacks(connection.db.deathMarker, { onInsert: handleDeathMarkerInsert, onUpdate: handleDeathMarkerUpdate, onDelete: handleDeathMarkerDelete });
+            registerTableCallbacks(connection.db.death_marker, { onInsert: handleDeathMarkerInsert, onUpdate: handleDeathMarkerUpdate, onDelete: handleDeathMarkerDelete });
             registerTableCallbacks(connection.db.shelter, { onInsert: handleShelterInsert, onUpdate: handleShelterUpdate, onDelete: handleShelterDelete });
 
             // WorldTile callbacks removed – no longer subscribing to per-tile updates
 
-            registerTableCallbacks(connection.db.minimapCache, { onInsert: handleMinimapCacheInsert, onUpdate: handleMinimapCacheUpdate, onDelete: handleMinimapCacheDelete });
-            registerTableCallbacks(connection.db.playerDodgeRollState, { onInsert: handlePlayerDodgeRollStateInsert, onUpdate: handlePlayerDodgeRollStateUpdate, onDelete: handlePlayerDodgeRollStateDelete });
-            registerTableCallbacks(connection.db.fishingSession, { onInsert: handleFishingSessionInsert, onUpdate: handleFishingSessionUpdate, onDelete: handleFishingSessionDelete });
-            registerTableCallbacks(connection.db.soundEvent, { onInsert: handleSoundEventInsert, onUpdate: handleSoundEventUpdate, onDelete: handleSoundEventDelete });
-            registerTableCallbacks(connection.db.continuousSound, { onInsert: handleContinuousSoundInsert, onUpdate: handleContinuousSoundUpdate, onDelete: handleContinuousSoundDelete });
-            registerTableCallbacks(connection.db.playerDrinkingCooldown, { onInsert: handlePlayerDrinkingCooldownInsert, onUpdate: handlePlayerDrinkingCooldownUpdate, onDelete: handlePlayerDrinkingCooldownDelete });
-            registerTableCallbacks(connection.db.rainCollector, { onInsert: handleRainCollectorInsert, onUpdate: handleRainCollectorUpdate, onDelete: handleRainCollectorDelete });
-            registerTableCallbacks(connection.db.waterPatch, { onInsert: handleWaterPatchInsert, onUpdate: handleWaterPatchUpdate, onDelete: handleWaterPatchDelete });
-            registerTableCallbacks(connection.db.fertilizerPatch, { onInsert: handleFertilizerPatchInsert, onUpdate: handleFertilizerPatchUpdate, onDelete: handleFertilizerPatchDelete });
-            registerTableCallbacks(connection.db.firePatch, { onInsert: handleFirePatchInsert, onUpdate: handleFirePatchUpdate, onDelete: handleFirePatchDelete });
+            registerTableCallbacks(connection.db.minimap_cache, { onInsert: handleMinimapCacheInsert, onUpdate: handleMinimapCacheUpdate, onDelete: handleMinimapCacheDelete });
+            registerTableCallbacks(connection.db.player_dodge_roll_state, { onInsert: handlePlayerDodgeRollStateInsert, onUpdate: handlePlayerDodgeRollStateUpdate, onDelete: handlePlayerDodgeRollStateDelete });
+            registerTableCallbacks(connection.db.fishing_session, { onInsert: handleFishingSessionInsert, onUpdate: handleFishingSessionUpdate, onDelete: handleFishingSessionDelete });
+            registerTableCallbacks(connection.db.sound_event, { onInsert: handleSoundEventInsert, onUpdate: handleSoundEventUpdate, onDelete: handleSoundEventDelete });
+            registerTableCallbacks(connection.db.continuous_sound, { onInsert: handleContinuousSoundInsert, onUpdate: handleContinuousSoundUpdate, onDelete: handleContinuousSoundDelete });
+            registerTableCallbacks(connection.db.player_drinking_cooldown, { onInsert: handlePlayerDrinkingCooldownInsert, onUpdate: handlePlayerDrinkingCooldownUpdate, onDelete: handlePlayerDrinkingCooldownDelete });
+            registerTableCallbacks(connection.db.rain_collector, { onInsert: handleRainCollectorInsert, onUpdate: handleRainCollectorUpdate, onDelete: handleRainCollectorDelete });
+            registerTableCallbacks(connection.db.water_patch, { onInsert: handleWaterPatchInsert, onUpdate: handleWaterPatchUpdate, onDelete: handleWaterPatchDelete });
+            registerTableCallbacks(connection.db.fertilizer_patch, { onInsert: handleFertilizerPatchInsert, onUpdate: handleFertilizerPatchUpdate, onDelete: handleFertilizerPatchDelete });
+            registerTableCallbacks(connection.db.fire_patch, { onInsert: handleFirePatchInsert, onUpdate: handleFirePatchUpdate, onDelete: handleFirePatchDelete });
 
             // CRITICAL FIX: Populate fire patches from existing cache after registering callbacks
             // This handles fire patches that arrived before callbacks were registered
             console.log('[FIRE_PATCH] Checking for existing fire patches in cache...');
-            const existingFirePatches = Array.from(connection.db.firePatch.iter());
+            const existingFirePatches = Array.from(connection.db.fire_patch.iter());
             if (existingFirePatches.length > 0) {
                 console.log(`[FIRE_PATCH] Found ${existingFirePatches.length} existing fire patches in cache, adding to state`);
                 setFirePatches(prev => {
@@ -2400,46 +2400,46 @@ export const useSpacetimeTables = ({
 
             // --- PlacedExplosive Callbacks (raiding explosives) ---
             console.log('[EXPLOSIVE_CALLBACKS] Registering PlacedExplosive callbacks...');
-            console.log('[EXPLOSIVE_CALLBACKS] connection.db.placedExplosive exists:', !!connection.db.placedExplosive);
-            if (connection.db.placedExplosive) {
-                registerTableCallbacks(connection.db.placedExplosive, { onInsert: handlePlacedExplosiveInsert, onUpdate: handlePlacedExplosiveUpdate, onDelete: handlePlacedExplosiveDelete });
+            console.log('[EXPLOSIVE_CALLBACKS] connection.db.placed_explosive exists:', !!connection.db.placed_explosive);
+            if (connection.db.placed_explosive) {
+                registerTableCallbacks(connection.db.placed_explosive, { onInsert: handlePlacedExplosiveInsert, onUpdate: handlePlacedExplosiveUpdate, onDelete: handlePlacedExplosiveDelete });
                 console.log('[EXPLOSIVE_CALLBACKS] PlacedExplosive callbacks registered!');
             } else {
-                console.error('[EXPLOSIVE_CALLBACKS] ERROR: connection.db.placedExplosive is undefined!');
+                console.error('[EXPLOSIVE_CALLBACKS] ERROR: connection.db.placed_explosive is undefined!');
             }
 
             // Register WildAnimal callbacks - includes hostile NPCs (Shorebound, Shardkin, DrownedWatch) with is_hostile_npc = true
-            registerTableCallbacks(connection.db.wildAnimal, { onInsert: handleWildAnimalInsert, onUpdate: handleWildAnimalUpdate, onDelete: handleWildAnimalDelete });
+            registerTableCallbacks(connection.db.wild_animal, { onInsert: handleWildAnimalInsert, onUpdate: handleWildAnimalUpdate, onDelete: handleWildAnimalDelete });
 
             // Register AnimalCorpse callbacks - NON-SPATIAL
-            registerTableCallbacks(connection.db.animalCorpse, { onInsert: handleAnimalCorpseInsert, onUpdate: handleAnimalCorpseUpdate, onDelete: handleAnimalCorpseDelete });
+            registerTableCallbacks(connection.db.animal_corpse, { onInsert: handleAnimalCorpseInsert, onUpdate: handleAnimalCorpseUpdate, onDelete: handleAnimalCorpseDelete });
 
             // Register CaribouBreedingData callbacks - NON-SPATIAL (for age-based rendering and pregnancy indicators)
-            registerTableCallbacks(connection.db.caribouBreedingData, { onInsert: handleCaribouBreedingDataInsert, onUpdate: handleCaribouBreedingDataUpdate, onDelete: handleCaribouBreedingDataDelete });
+            registerTableCallbacks(connection.db.caribou_breeding_data, { onInsert: handleCaribouBreedingDataInsert, onUpdate: handleCaribouBreedingDataUpdate, onDelete: handleCaribouBreedingDataDelete });
 
             // Register WalrusBreedingData callbacks - NON-SPATIAL (for age-based rendering and pregnancy indicators)
-            registerTableCallbacks(connection.db.walrusBreedingData, { onInsert: handleWalrusBreedingDataInsert, onUpdate: handleWalrusBreedingDataUpdate, onDelete: handleWalrusBreedingDataDelete });
+            registerTableCallbacks(connection.db.walrus_breeding_data, { onInsert: handleWalrusBreedingDataInsert, onUpdate: handleWalrusBreedingDataUpdate, onDelete: handleWalrusBreedingDataDelete });
 
             // Register CaribouRutState callbacks - GLOBAL single-row table
-            registerTableCallbacks(connection.db.caribouRutState, { onInsert: handleCaribouRutStateInsert, onUpdate: handleCaribouRutStateUpdate, onDelete: handleCaribouRutStateDelete });
+            registerTableCallbacks(connection.db.caribou_rut_state, { onInsert: handleCaribouRutStateInsert, onUpdate: handleCaribouRutStateUpdate, onDelete: handleCaribouRutStateDelete });
 
             // Register WalrusRutState callbacks - GLOBAL single-row table
-            registerTableCallbacks(connection.db.walrusRutState, { onInsert: handleWalrusRutStateInsert, onUpdate: handleWalrusRutStateUpdate, onDelete: handleWalrusRutStateDelete });
+            registerTableCallbacks(connection.db.walrus_rut_state, { onInsert: handleWalrusRutStateInsert, onUpdate: handleWalrusRutStateUpdate, onDelete: handleWalrusRutStateDelete });
 
             // Register Barrel callbacks - SPATIAL
             registerTableCallbacks(connection.db.barrel, { onInsert: handleBarrelInsert, onUpdate: handleBarrelUpdate, onDelete: handleBarrelDelete });
 
             // Register RoadLamppost callbacks - SPATIAL
-            registerTableCallbacks(connection.db.roadLamppost, { onInsert: handleRoadLamppostInsert, onUpdate: handleRoadLamppostUpdate, onDelete: handleRoadLamppostDelete });
+            registerTableCallbacks(connection.db.road_lamppost, { onInsert: handleRoadLamppostInsert, onUpdate: handleRoadLamppostUpdate, onDelete: handleRoadLamppostDelete });
 
             // Register SeaStack callbacks - SPATIAL
-            registerTableCallbacks(connection.db.seaStack, { onInsert: handleSeaStackInsert, onUpdate: handleSeaStackUpdate, onDelete: handleSeaStackDelete });
+            registerTableCallbacks(connection.db.sea_stack, { onInsert: handleSeaStackInsert, onUpdate: handleSeaStackUpdate, onDelete: handleSeaStackDelete });
 
             // Register FoundationCell callbacks - SPATIAL
-            registerTableCallbacks(connection.db.foundationCell, { onInsert: handleFoundationCellInsert, onUpdate: handleFoundationCellUpdate, onDelete: handleFoundationCellDelete });
+            registerTableCallbacks(connection.db.foundation_cell, { onInsert: handleFoundationCellInsert, onUpdate: handleFoundationCellUpdate, onDelete: handleFoundationCellDelete });
 
             // Register WallCell callbacks - SPATIAL
-            registerTableCallbacks(connection.db.wallCell, { onInsert: handleWallCellInsert, onUpdate: handleWallCellUpdate, onDelete: handleWallCellDelete });
+            registerTableCallbacks(connection.db.wall_cell, { onInsert: handleWallCellInsert, onUpdate: handleWallCellUpdate, onDelete: handleWallCellDelete });
 
             // Register Door callbacks - SPATIAL
             registerTableCallbacks(connection.db.door, { onInsert: handleDoorInsert, onUpdate: handleDoorUpdate, onDelete: handleDoorDelete });
@@ -2451,37 +2451,37 @@ export const useSpacetimeTables = ({
             registerTableCallbacks(connection.db.fumarole, { onInsert: handleFumaroleInsert, onUpdate: handleFumaroleUpdate, onDelete: handleFumaroleDelete });
 
             // Register BasaltColumn callbacks - SPATIAL
-            registerTableCallbacks(connection.db.basaltColumn, { onInsert: handleBasaltColumnInsert, onUpdate: handleBasaltColumnUpdate, onDelete: handleBasaltColumnDelete });
+            registerTableCallbacks(connection.db.basalt_column, { onInsert: handleBasaltColumnInsert, onUpdate: handleBasaltColumnUpdate, onDelete: handleBasaltColumnDelete });
 
             // Register LivingCoral callbacks - SPATIAL (underwater coral via combat system)
-            registerTableCallbacks(connection.db.livingCoral, { onInsert: handleLivingCoralInsert, onUpdate: handleLivingCoralUpdate, onDelete: handleLivingCoralDelete });
+            registerTableCallbacks(connection.db.living_coral, { onInsert: handleLivingCoralInsert, onUpdate: handleLivingCoralUpdate, onDelete: handleLivingCoralDelete });
 
             // Register ChunkWeather callbacks - NON-SPATIAL
-            registerTableCallbacks(connection.db.chunkWeather, { onInsert: handleChunkWeatherInsert, onUpdate: handleChunkWeatherUpdate, onDelete: handleChunkWeatherDelete });
+            registerTableCallbacks(connection.db.chunk_weather, { onInsert: handleChunkWeatherInsert, onUpdate: handleChunkWeatherUpdate, onDelete: handleChunkWeatherDelete });
 
             // Register ALK Station callbacks - for minimap delivery points
-            registerTableCallbacks(connection.db.alkStation, { onInsert: handleAlkStationInsert, onUpdate: handleAlkStationUpdate, onDelete: handleAlkStationDelete });
+            registerTableCallbacks(connection.db.alk_station, { onInsert: handleAlkStationInsert, onUpdate: handleAlkStationUpdate, onDelete: handleAlkStationDelete });
 
             // Register Monument Part callbacks - unified subscription for all monument types
-            registerTableCallbacks(connection.db.monumentPart, { onInsert: handleMonumentPartInsert, onUpdate: handleMonumentPartUpdate, onDelete: handleMonumentPartDelete });
+            registerTableCallbacks(connection.db.monument_part, { onInsert: handleMonumentPartInsert, onUpdate: handleMonumentPartUpdate, onDelete: handleMonumentPartDelete });
 
             // Register Large Quarry callbacks - for minimap quarry type labels
-            registerTableCallbacks(connection.db.largeQuarry, { onInsert: handleLargeQuarryInsert, onUpdate: handleLargeQuarryUpdate, onDelete: handleLargeQuarryDelete });
+            registerTableCallbacks(connection.db.large_quarry, { onInsert: handleLargeQuarryInsert, onUpdate: handleLargeQuarryUpdate, onDelete: handleLargeQuarryDelete });
 
             // Register ALK Contract callbacks
-            registerTableCallbacks(connection.db.alkContract, { onInsert: handleAlkContractInsert, onUpdate: handleAlkContractUpdate, onDelete: handleAlkContractDelete });
+            registerTableCallbacks(connection.db.alk_contract, { onInsert: handleAlkContractInsert, onUpdate: handleAlkContractUpdate, onDelete: handleAlkContractDelete });
 
             // Register ALK Player Contract callbacks
-            registerTableCallbacks(connection.db.alkPlayerContract, { onInsert: handleAlkPlayerContractInsert, onUpdate: handleAlkPlayerContractUpdate, onDelete: handleAlkPlayerContractDelete });
+            registerTableCallbacks(connection.db.alk_player_contract, { onInsert: handleAlkPlayerContractInsert, onUpdate: handleAlkPlayerContractUpdate, onDelete: handleAlkPlayerContractDelete });
 
             // Register ALK State callbacks
-            registerTableCallbacks(connection.db.alkState, { onInsert: handleAlkStateInsert, onUpdate: handleAlkStateUpdate, onDelete: handleAlkStateDelete });
+            registerTableCallbacks(connection.db.alk_state, { onInsert: handleAlkStateInsert, onUpdate: handleAlkStateUpdate, onDelete: handleAlkStateDelete });
 
             // Register Player Shard Balance callbacks
-            registerTableCallbacks(connection.db.playerShardBalance, { onInsert: handlePlayerShardBalanceInsert, onUpdate: handlePlayerShardBalanceUpdate, onDelete: handlePlayerShardBalanceDelete });
+            registerTableCallbacks(connection.db.player_shard_balance, { onInsert: handlePlayerShardBalanceInsert, onUpdate: handlePlayerShardBalanceUpdate, onDelete: handlePlayerShardBalanceDelete });
 
             // Register Memory Grid Progress callbacks
-            registerTableCallbacks(connection.db.memoryGridProgress, { onInsert: handleMemoryGridProgressInsert, onUpdate: handleMemoryGridProgressUpdate, onDelete: handleMemoryGridProgressDelete });
+            registerTableCallbacks(connection.db.memory_grid_progress, { onInsert: handleMemoryGridProgressInsert, onUpdate: handleMemoryGridProgressUpdate, onDelete: handleMemoryGridProgressDelete });
 
             // UI/matronage subscriptions are handled in useUISubscriptions (GameScreen scope).
 

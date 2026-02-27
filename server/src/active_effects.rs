@@ -20,7 +20,7 @@ use crate::sound_events::{emit_throwing_up_sound, start_chewing_gum_sound, stop_
 use crate::armor;
 use crate::models::ImmunityType;
 
-#[table(name = active_consumable_effect, public)] // public for client UI if needed
+#[table(accessor = active_consumable_effect, public)] // public for client UI if needed
 #[derive(Clone, Debug)]
 pub struct ActiveConsumableEffect {
     #[primary_key]
@@ -107,7 +107,7 @@ pub enum EffectType {
 }
 
 // Table defining food poisoning risks for different food items
-#[table(name = food_poisoning_risk, public)]
+#[table(accessor = food_poisoning_risk, public)]
 #[derive(Clone, Debug)]
 pub struct FoodPoisoningRisk {
     #[primary_key]
@@ -119,7 +119,7 @@ pub struct FoodPoisoningRisk {
 }
 
 // Schedule table for processing effects
-#[table(name = process_effects_schedule, scheduled(process_active_consumable_effects_tick))]
+#[table(accessor = process_effects_schedule, scheduled(process_active_consumable_effects_tick))]
 pub struct ProcessEffectsSchedule {
     #[primary_key]
     #[auto_inc]
@@ -274,7 +274,7 @@ pub fn schedule_effect_processing(ctx: &ReducerContext) -> Result<(), String> {
 
 #[spacetimedb::reducer]
 pub fn process_active_consumable_effects_tick(ctx: &ReducerContext, _args: ProcessEffectsSchedule) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("process_active_consumable_effects_tick can only be called by the scheduler.".to_string());
     }
 
@@ -2631,7 +2631,7 @@ pub fn validate_safe_zone_container_access(
     // Check if another player is currently using this container
     if let Some(user_id) = active_user_id {
         // Same player is already using it - allow access
-        if user_id == ctx.sender {
+        if user_id == ctx.sender() {
             return Ok(());
         }
         

@@ -1,4 +1,4 @@
-import { LivingCoral } from '../../generated'; // Import generated type
+import { LivingCoral } from '../../generated/types'; // Import generated type
 import coralImage from '../../assets/doodads/coral.png'; // Main coral variant
 import coral1Image from '../../assets/doodads/coral1.png'; // Second coral variant
 import coral2Image from '../../assets/doodads/coral2.png'; // Third coral variant

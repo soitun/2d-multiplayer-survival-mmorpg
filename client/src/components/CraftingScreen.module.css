@@ -507,7 +507,8 @@
   font-family: inherit;
   outline: none;
   text-shadow: 0 0 5px rgba(0, 255, 255, 0.4);
-  -moz-appearance: textfield;
+  /* Fix: Prevent number input spinners in Firefox */
+  appearance: textfield;
 }
 
 .quantityInput::-webkit-outer-spin-button,

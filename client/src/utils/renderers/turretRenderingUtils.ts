@@ -1,4 +1,4 @@
-import { Turret } from '../../generated';
+import { Turret } from '../../generated/types';
 import turretTallowImage from '../../assets/doodads/turret_tallow.png';
 import alkTurretImage from '../../assets/doodads/alk_turret.png';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';

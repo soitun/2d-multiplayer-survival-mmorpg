@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import {
     HarvestableResource as SpacetimeDBHarvestableResource,
-} from '../generated';
+} from '../generated/types';
 import { Particle } from './useCampfireParticles'; // Reuse Particle type
 
 // --- Sparkle Particle Constants ---

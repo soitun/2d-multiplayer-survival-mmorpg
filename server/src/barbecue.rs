@@ -70,7 +70,7 @@ const CHARCOAL_PRODUCTION_CHANCE: u8 = 75;
 /// --- Barbecue Data Structure ---
 /// Represents a barbecue in the game world with position, owner, burning state,
 /// fuel slots (using individual fields instead of arrays), and fuel consumption timing.
-#[spacetimedb::table(name = barbecue, public)]
+#[spacetimedb::table(accessor = barbecue, public)]
 #[derive(Clone)]
 pub struct Barbecue {
     #[primary_key]
@@ -140,7 +140,7 @@ pub struct Barbecue {
 }
 
 // Schedule Table for per-barbecue processing
-#[spacetimedb::table(name = barbecue_processing_schedule, scheduled(process_barbecue_logic_scheduled))]
+#[spacetimedb::table(accessor = barbecue_processing_schedule, scheduled(process_barbecue_logic_scheduled))]
 #[derive(Clone)]
 pub struct BarbecueProcessingSchedule {
     #[primary_key]
@@ -365,7 +365,7 @@ pub fn split_stack_from_barbecue(
 
     log::info!(
         "[SplitFromBarbecue] Player {:?} delegating split {} from barbecue {} slot {} to {} slot {}",
-        ctx.sender, quantity_to_split, source_barbecue_id, source_slot_index, target_slot_type, target_slot_index
+        ctx.sender(), quantity_to_split, source_barbecue_id, source_slot_index, target_slot_type, target_slot_index
     );
 
     inventory_management::handle_split_from_container(
@@ -391,7 +391,7 @@ pub fn drop_item_from_barbecue_slot_to_world(
     let (player, mut barbecue) = validate_barbecue_interaction(ctx, barbecue_id)?;
     
     log::info!("[DropFromBarbecueToWorld] Player {} attempting to drop from barbecue ID {}, slot {}.", 
-             ctx.sender, barbecue_id, slot_index);
+             ctx.sender(), barbecue_id, slot_index);
     
     inventory_management::handle_drop_from_container_slot(ctx, &mut barbecue, slot_index, &player)?;
     let still_has_fuel = check_if_barbecue_has_fuel(ctx, &barbecue);
@@ -416,7 +416,7 @@ pub fn split_and_drop_item_from_barbecue_slot_to_world(
     let (player, mut barbecue) = validate_barbecue_interaction(ctx, barbecue_id)?;
     
     log::info!("[SplitDropFromBarbecueToWorld] Player {} attempting to split {} from barbecue ID {}, slot {}.", 
-             ctx.sender, quantity_to_split, barbecue_id, slot_index);
+             ctx.sender(), quantity_to_split, barbecue_id, slot_index);
     
     inventory_management::handle_split_and_drop_from_container_slot(ctx, &mut barbecue, slot_index, quantity_to_split, &player)?;
     ctx.db.barbecue().id().update(barbecue.clone());
@@ -443,9 +443,9 @@ pub fn toggle_barbecue_burning(ctx: &ReducerContext, barbecue_id: u32) -> Result
         barbecue.is_burning = false;
         barbecue.current_fuel_def_id = None;
         barbecue.remaining_fuel_burn_time_secs = None;
-        log::info!("Barbecue {} extinguished by player {:?}.", barbecue.id, ctx.sender);
+        log::info!("Barbecue {} extinguished by player {:?}.", barbecue.id, ctx.sender());
         stop_barbecue_sound(ctx, barbecue.id as u64);
-        crate::sound_events::emit_barbecue_off_sound(ctx, barbecue.pos_x, barbecue.pos_y, ctx.sender);
+        crate::sound_events::emit_barbecue_off_sound(ctx, barbecue.pos_x, barbecue.pos_y, ctx.sender());
     } else {
         if !check_if_barbecue_has_fuel(ctx, &barbecue) {
             return Err("Cannot light barbecue, requires fuel.".to_string());
@@ -456,9 +456,9 @@ pub fn toggle_barbecue_burning(ctx: &ReducerContext, barbecue_id: u32) -> Result
         }
         
         barbecue.is_burning = true;
-        log::info!("Barbecue {} lit by player {:?}.", barbecue.id, ctx.sender);
+        log::info!("Barbecue {} lit by player {:?}.", barbecue.id, ctx.sender());
         start_barbecue_sound(ctx, barbecue.id as u64, barbecue.pos_x, barbecue.pos_y);
-        crate::sound_events::emit_barbecue_on_sound(ctx, barbecue.pos_x, barbecue.pos_y, ctx.sender);
+        crate::sound_events::emit_barbecue_on_sound(ctx, barbecue.pos_x, barbecue.pos_y, ctx.sender());
     }
     ctx.db.barbecue().id().update(barbecue.clone());
     schedule_next_barbecue_processing(ctx, barbecue_id);
@@ -468,7 +468,7 @@ pub fn toggle_barbecue_burning(ctx: &ReducerContext, barbecue_id: u32) -> Result
 /// --- Place Barbecue ---
 #[spacetimedb::reducer]
 pub fn place_barbecue(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, world_y: f32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let players = ctx.db.player();
@@ -679,7 +679,7 @@ pub fn place_barbecue(ctx: &ReducerContext, item_instance_id: u64, world_x: f32,
 /// --- Pickup Barbecue ---
 #[spacetimedb::reducer]
 pub fn pickup_barbecue(ctx: &ReducerContext, barbecue_id: u32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let mut barbecues = ctx.db.barbecue();
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
@@ -751,7 +751,7 @@ pub fn pickup_barbecue(ctx: &ReducerContext, barbecue_id: u32) -> Result<(), Str
  ******************************************************************************/
 
 fn validate_barbecue_interaction(ctx: &ReducerContext, barbecue_id: u32) -> Result<(Player, Barbecue), String> {
-    let player = ctx.db.player().identity().find(ctx.sender)
+    let player = ctx.db.player().identity().find(ctx.sender())
         .ok_or_else(|| "Player not found".to_string())?;
 
     if player.is_dead {
@@ -794,11 +794,11 @@ pub fn open_barbecue_container(ctx: &ReducerContext, barbecue_id: u32) -> Result
     let (_player, mut barbecue) = validate_barbecue_interaction(ctx, barbecue_id)?;
     
     // Set the active user
-    barbecue.active_user_id = Some(ctx.sender);
+    barbecue.active_user_id = Some(ctx.sender());
     barbecue.active_user_since = Some(ctx.timestamp);
     
     ctx.db.barbecue().id().update(barbecue);
-    log::debug!("Player {:?} opened barbecue {} container", ctx.sender, barbecue_id);
+    log::debug!("Player {:?} opened barbecue {} container", ctx.sender(), barbecue_id);
     
     Ok(())
 }
@@ -812,12 +812,12 @@ pub fn close_barbecue_container(ctx: &ReducerContext, barbecue_id: u32) -> Resul
         .ok_or_else(|| format!("Barbecue {} not found", barbecue_id))?;
     
     // Only clear if this player is the active user
-    if barbecue.active_user_id == Some(ctx.sender) {
+    if barbecue.active_user_id == Some(ctx.sender()) {
         let mut barbecue = barbecue;
         barbecue.active_user_id = None;
         barbecue.active_user_since = None;
         ctx.db.barbecue().id().update(barbecue);
-        log::debug!("Player {:?} closed barbecue {} container", ctx.sender, barbecue_id);
+        log::debug!("Player {:?} closed barbecue {} container", ctx.sender(), barbecue_id);
     }
     
     Ok(())
@@ -1038,7 +1038,7 @@ fn try_add_charcoal_to_barbecue_or_drop(
 /// Scheduled reducer for processing barbecue logic (fuel consumption, cooking, etc.)
 #[spacetimedb::reducer]
 pub fn process_barbecue_logic_scheduled(ctx: &ReducerContext, schedule: BarbecueProcessingSchedule) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("process_barbecue_logic_scheduled may not be invoked by clients, only via scheduling.".into());
     }
 

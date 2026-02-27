@@ -35,7 +35,7 @@ import {
   AnimalCorpse,
   Barrel,
   HomesteadHearth
-} from '../generated'; // Import necessary types
+} from '../generated/types'; // Import necessary types
 import { InterpolatedGrassData } from '../hooks/useGrassInterpolation';
 import { isHarvestableResource } from '../types/resourceTypes';
 

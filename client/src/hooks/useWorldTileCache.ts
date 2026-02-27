@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ProceduralWorldRenderer } from '../utils/renderers/proceduralWorldRenderer';
-import { WorldTile } from '../generated/world_tile_type';
-import { TileType } from '../generated/tile_type_type';
+import type { WorldTile } from '../generated/types';
+import type { TileType } from '../generated/types';
 
 interface WorldTileCacheHook {
     proceduralRenderer: ProceduralWorldRenderer | null;

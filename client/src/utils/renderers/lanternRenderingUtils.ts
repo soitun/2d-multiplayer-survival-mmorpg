@@ -1,4 +1,4 @@
-import { Lantern } from '../../generated'; // Import generated Lantern type
+import { Lantern } from '../../generated/types'; // Import generated Lantern type
 import lanternOnImage from '../../assets/doodads/lantern_on.png'; // Direct import ON
 import lanternOffImage from '../../assets/doodads/lantern_off.png'; // Direct import OFF
 // Ward images - on/off states for Ancestral Ward and Signal Disruptor

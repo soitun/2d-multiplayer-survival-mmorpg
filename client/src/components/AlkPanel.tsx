@@ -35,7 +35,7 @@ import {
     AlkStationAllowance,
     WorldState,
     ItemDefinition,
-} from '../generated';
+} from '../generated/types';
 
 // Memory shard icon for rewards display
 const memoryShardIcon = getItemIcon('memory_shard.png');
@@ -1025,17 +1025,17 @@ const AlkPanel: React.FC<AlkPanelProps> = ({
     // Handlers
     const handleAcceptContract = useCallback((contractId: bigint, quantity: number) => {
         if (!connection.connection) return;
-        connection.connection.reducers.acceptAlkContract(contractId, quantity, nearbyStationId !== null ? nearbyStationId : undefined);
+        connection.connection.reducers.acceptAlkContract({ contractId, targetQuantity: quantity, preferredStationId: nearbyStationId !== null ? nearbyStationId : undefined });
     }, [connection, nearbyStationId]);
     
     const handleCancelContract = useCallback((playerContractId: bigint) => {
         if (!connection.connection) return;
-        connection.connection.reducers.cancelAlkContract(playerContractId);
+        connection.connection.reducers.cancelAlkContract({ playerContractId });
     }, [connection]);
     
     const handleDeliverContract = useCallback((playerContractId: bigint) => {
         if (!connection.connection || nearbyStationId === null) return;
-        connection.connection.reducers.deliverAlkContract(playerContractId, nearbyStationId);
+        connection.connection.reducers.deliverAlkContract({ playerContractId, stationId: nearbyStationId });
     }, [connection, nearbyStationId]);
     
     // Handler for purchasing materials from ALK (buy orders) (regenerate bindings after server publish to remove cast)

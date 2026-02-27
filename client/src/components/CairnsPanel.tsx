@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Identity } from 'spacetimedb';
-import { Cairn as SpacetimeDBCairn, PlayerDiscoveredCairn as SpacetimeDBPlayerDiscoveredCairn } from '../generated';
+import { Cairn as SpacetimeDBCairn, PlayerDiscoveredCairn as SpacetimeDBPlayerDiscoveredCairn } from '../generated/types';
 import { CAIRN_LORE_TIDBITS, CairnLoreCategory, CairnLoreEntry } from '../data/cairnLoreData';
 import { playCairnLoreAudio, stopCairnLoreAudio, isCairnAudioPlaying } from '../utils/cairnAudioUtils';
 import cairnsIcon from '../assets/ui/cairns.png';

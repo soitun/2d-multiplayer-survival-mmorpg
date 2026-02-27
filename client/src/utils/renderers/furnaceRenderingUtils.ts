@@ -1,4 +1,4 @@
-import { Furnace } from '../../generated'; // Import generated Furnace type
+import { Furnace } from '../../generated/types'; // Import generated Furnace type
 import furnaceImage from '../../assets/doodads/furnace_simple.png'; // Direct import OFF
 import furnaceOnImage from '../../assets/doodads/furnace_simple_on.png'; // Direct import ON
 import largeFurnaceImage from '../../assets/doodads/large_furnace_off.png'; // Direct import OFF

@@ -25,8 +25,19 @@
 
 import { useEffect, useRef, useState, useCallback, RefObject } from 'react';
 import { useLatest } from './useLatest';
-import * as SpacetimeDB from '../generated';
-import { DbConnection, Player, ItemDefinition, ActiveEquipment, WoodenStorageBox, Stash, PlayerCorpse } from '../generated';
+import { DbConnection } from '../generated';
+import {
+    Player,
+    ItemDefinition,
+    ActiveEquipment,
+    WoodenStorageBox,
+    Stash,
+    PlayerCorpse,
+    InventoryItem,
+    RangedWeaponStats,
+    ItemCategory,
+} from '../generated/types';
+import type { Projectile, PlayerDiscoveredCairn, HarvestableResource } from '../generated/types';
 import { Identity } from 'spacetimedb';
 import { PlacementItemInfo, PlacementActions } from './usePlacementManager'; // Assuming usePlacementManager exports these
 import { BuildingMode } from './useBuildingManager'; // ADDED: Building mode enum
@@ -64,7 +75,7 @@ import {
 import { wasAlkPanelJustClosed } from '../components/AlkDeliveryPanel';
 import { CAIRN_LORE_TIDBITS, CairnLoreEntry } from '../data/cairnLoreData';
 import { playImmediateSound } from './useSoundSystem';
-import { Cairn as SpacetimeDBCairn } from '../generated';
+import { Cairn as SpacetimeDBCairn } from '../generated/types';
 import { createCairnLoreAudio, isCairnAudioPlaying, getTotalCairnLoreCount, stopCairnLoreAudio } from '../utils/cairnAudioUtils';
 import { CairnNotification } from '../components/CairnUnlockNotification';
 import { registerLocalPlayerSwing } from '../utils/renderers/equippedItemRenderingUtils';
@@ -100,9 +111,9 @@ interface InputHandlerProps {
     getCurrentPositionNow: () => { x: number; y: number } | null; // ADDED: Function for exact position at firing time
     activeEquipments: Map<string, ActiveEquipment>;
     itemDefinitions: Map<string, ItemDefinition>;
-    inventoryItems: Map<string, SpacetimeDB.InventoryItem>;
-    rangedWeaponStats?: Map<string, SpacetimeDB.RangedWeaponStats>; // ADDED: For auto-fire detection
-    serverProjectiles?: Map<string, SpacetimeDB.Projectile>; // Lifecycle-only reconciliation for optimistic projectiles
+    inventoryItems: Map<string, InventoryItem>;
+    rangedWeaponStats?: Map<string, RangedWeaponStats>; // ADDED: For auto-fire detection
+    serverProjectiles?: Map<string, Projectile>; // Lifecycle-only reconciliation for optimistic projectiles
     placementInfo: PlacementItemInfo | null;
     placementActions: PlacementActions;
     buildingState?: { isBuilding: boolean; mode: string }; // ADDED: Building state
@@ -125,7 +136,7 @@ interface InputHandlerProps {
     players: Map<string, Player>;
     turrets: Map<string, any>; // ADDED: Turrets for pickup check
     cairns: Map<string, SpacetimeDBCairn>; // ADDED: Cairns for lore lookup
-    playerDiscoveredCairns: Map<string, SpacetimeDB.PlayerDiscoveredCairn>; // ADDED: Player discovery tracking
+    playerDiscoveredCairns: Map<string, PlayerDiscoveredCairn>; // ADDED: Player discovery tracking
     playerCorpses: Map<string, PlayerCorpse>; // ADDED: Player corpses for protection check
     
     onSetInteractingWith: (target: any | null) => void;
@@ -164,7 +175,7 @@ export interface InputHandlerState {
     setShowBuildingRadialMenu: (show: boolean) => void;
     showUpgradeRadialMenu: boolean;
     setShowUpgradeRadialMenu: (show: boolean) => void;
-    optimisticProjectiles: Map<string, SpacetimeDB.Projectile>;
+    optimisticProjectiles: Map<string, Projectile>;
     // Function to be called each frame by the game loop
     processInputsAndActions: () => void;
 }
@@ -278,7 +289,7 @@ export const useInputHandler = ({
     // --- Internal State and Refs ---
     const [isAutoAttacking, setIsAutoAttacking] = useState(false);
     const [isCrouching, setIsCrouching] = useState(false);
-    const [optimisticProjectiles, setOptimisticProjectiles] = useState<Map<string, SpacetimeDB.Projectile>>(new Map());
+    const [optimisticProjectiles, setOptimisticProjectiles] = useState<Map<string, Projectile>>(new Map());
     const pendingCrouchToggleRef = useRef<boolean>(false); // Track pending crouch requests
     const isAutoWalkingRef = useLatest(isAutoWalking); // Track auto-walk state for event handlers
 
@@ -449,7 +460,7 @@ export const useInputHandler = ({
         const syntheticId = 9_000_000_000_000_000_000n + BigInt(nowMs) * 1000n + BigInt(seq % 1000);
         const key = `opt-${syntheticId.toString()}`;
 
-        const optimisticProjectile: SpacetimeDB.Projectile = {
+        const optimisticProjectile: Projectile = {
             id: syntheticId,
             ownerId: player.identity,
             itemDefId: equippedItemDefId,
@@ -498,7 +509,7 @@ export const useInputHandler = ({
         const serverMap = serverProjectilesRef.current;
         if (!serverMap) return;
 
-        const localServerProjectiles = new Map<string, SpacetimeDB.Projectile>();
+        const localServerProjectiles = new Map<string, Projectile>();
         for (const [id, projectile] of serverMap.entries()) {
             if (projectile.sourceType === 0 && projectile.ownerId.toHexString() === localPlayerId) {
                 localServerProjectiles.set(id, projectile);
@@ -561,7 +572,7 @@ export const useInputHandler = ({
     useEffect(() => {
         if (!connection) return;
         
-        const handlePlayerDiscoveredCairnInsert = (ctx: any, discovery: SpacetimeDB.PlayerDiscoveredCairn) => {
+        const handlePlayerDiscoveredCairnInsert = (ctx: any, discovery: PlayerDiscoveredCairn) => {
             console.log(`[Cairn INPUT HANDLER] Discovery insert received: cairnId=${discovery.cairnId}, playerIdentity=${discovery.playerIdentity?.toHexString()?.slice(0, 16)}..., localPlayerId=${localPlayerId?.slice(0, 16)}...`);
             
             // Only play sound if this is our own discovery (check player identity)
@@ -593,10 +604,10 @@ export const useInputHandler = ({
         };
         
         // Register callback for PlayerDiscoveredCairn inserts
-        connection.db.playerDiscoveredCairn.onInsert(handlePlayerDiscoveredCairnInsert);
+        connection.db.player_discovered_cairn.onInsert(handlePlayerDiscoveredCairnInsert);
         
         return () => {
-            connection.db.playerDiscoveredCairn.removeOnInsert(handlePlayerDiscoveredCairnInsert);
+            connection.db.player_discovered_cairn.removeOnInsert(handlePlayerDiscoveredCairnInsert);
         };
     }, [connection, localPlayerId]);
 
@@ -655,27 +666,27 @@ export const useInputHandler = ({
                     switch (holdTarget.targetType) {
                         case 'knocked_out_player':
                             console.log('[E-Hold ACTION] Attempting to revive player:', holdTarget.targetId);
-                            connection.reducers.reviveKnockedOutPlayer(Identity.fromString(holdTarget.targetId as string));
+                            connection.reducers.reviveKnockedOutPlayer({ targetPlayerId: Identity.fromString(holdTarget.targetId as string) });
                             actionTaken = true;
                             break;
                         case 'water':
                             console.log('[E-Hold ACTION] Attempting to drink water');
-                            connection.reducers.drinkWater();
+                            connection.reducers.drinkWater({});
                             actionTaken = true;
                             break;
                         case 'campfire':
                             console.log('[E-Hold ACTION] Attempting to toggle campfire burning:', holdTarget.targetId);
-                            connection.reducers.toggleCampfireBurning(Number(holdTarget.targetId));
+                            connection.reducers.toggleCampfireBurning({ campfireId: Number(holdTarget.targetId) });
                             actionTaken = true;
                             break;
                         case 'furnace':
                             console.log('[E-Hold ACTION] Attempting to toggle furnace burning:', holdTarget.targetId);
-                            connection.reducers.toggleFurnaceBurning(Number(holdTarget.targetId));
+                            connection.reducers.toggleFurnaceBurning({ furnaceId: Number(holdTarget.targetId) });
                             actionTaken = true;
                             break;
                         case 'barbecue':
                             console.log('[E-Hold ACTION] Attempting to toggle barbecue burning:', holdTarget.targetId);
-                            connection.reducers.toggleBarbecueBurning(Number(holdTarget.targetId));
+                            connection.reducers.toggleBarbecueBurning({ barbecueId: Number(holdTarget.targetId) });
                             actionTaken = true;
                             break;
                         case 'turret' as InteractionTargetType:
@@ -683,25 +694,25 @@ export const useInputHandler = ({
                             const turret = turrets?.get(String(holdTarget.targetId));
                             if (turret && !turret.ammoInstanceId && !turret.isMonument) {
                                 console.log('[E-Hold ACTION] Attempting to pickup empty turret:', holdTarget.targetId);
-                                connection.reducers.pickupTurret(Number(holdTarget.targetId));
+                                connection.reducers.pickupTurret({ turretId: Number(holdTarget.targetId) });
                                 actionTaken = true;
                             }
                             break;
                         case 'lantern':
                             if (currentTarget.data?.isEmpty) {
                                 console.log('[E-Hold ACTION] Attempting to pickup empty lantern:', holdTarget.targetId);
-                                connection.reducers.pickupLantern(Number(holdTarget.targetId));
+                                connection.reducers.pickupLantern({ lanternId: Number(holdTarget.targetId) });
                                 actionTaken = true;
                             } else {
                                 console.log('[E-Hold ACTION] Attempting to toggle lantern burning:', holdTarget.targetId);
-                                connection.reducers.toggleLantern(Number(holdTarget.targetId));
+                                connection.reducers.toggleLantern({ lanternId: Number(holdTarget.targetId) });
                                 actionTaken = true;
                             }
                             break;
                         case 'box':
                             if (currentTarget.data?.isEmpty) {
                                 console.log('[E-Hold ACTION] Attempting to pickup storage box:', holdTarget.targetId);
-                                connection.reducers.pickupStorageBox(Number(holdTarget.targetId));
+                                connection.reducers.pickupStorageBox({ boxId: Number(holdTarget.targetId) });
                                 actionTaken = true;
                             } else {
                                 console.log('[E-Hold FAILED] Storage box is no longer empty');
@@ -709,18 +720,18 @@ export const useInputHandler = ({
                             break;
                         case 'stash':
                             console.log('[E-Hold ACTION] Attempting to toggle stash visibility:', holdTarget.targetId);
-                            connection.reducers.toggleStashVisibility(Number(holdTarget.targetId));
+                            connection.reducers.toggleStashVisibility({ stashId: Number(holdTarget.targetId) });
                             actionTaken = true;
                             break;
                         case 'homestead_hearth':
                             console.log('[E-Hold ACTION] Attempting to grant building privilege from hearth:', holdTarget.targetId);
-                            connection.reducers.grantBuildingPrivilegeFromHearth(Number(holdTarget.targetId));
+                            connection.reducers.grantBuildingPrivilegeFromHearth({ hearthId: Number(holdTarget.targetId) });
                             actionTaken = true;
                             break;
                         case 'door':
                             // Pickup door (owner only - server validates)
                             console.log('[E-Hold ACTION] Attempting to pickup door:', holdTarget.targetId);
-                            connection.reducers.pickupDoor(holdTarget.targetId as bigint);
+                            connection.reducers.pickupDoor({ doorId: holdTarget.targetId as bigint });
                             actionTaken = true;
                             break;
                         default:
@@ -792,7 +803,7 @@ export const useInputHandler = ({
                 registerLocalPlayerSwing();
                 // 🔊 IMMEDIATE SOUND: Play weapon swing sound for instant feedback
                 // playWeaponSwingSound(0.8);
-                connectionRef.current.reducers.useEquippedItem();
+                connectionRef.current.reducers.useEquippedItem({});
                 lastClientSwingAttemptRef.current = nowUnarmed;
                 lastServerSwingTimestampRef.current = nowUnarmed;
             } catch (err) {
@@ -801,7 +812,7 @@ export const useInputHandler = ({
         } else {
             // Armed (melee/tool)
             if (!itemDef) return;
-            if (itemDef.name === "Bandage" || itemDef.name === "Selo Olive Oil" || itemDef.name === "Hunting Bow" || itemDef.category === SpacetimeDB.ItemCategory.RangedWeapon) {
+            if (itemDef.name === "Bandage" || itemDef.name === "Selo Olive Oil" || itemDef.name === "Hunting Bow" || itemDef.category === ItemCategory.RangedWeapon) {
                 // Ranged/Bandage/Selo Olive Oil should not be triggered by swing
                 return;
             }
@@ -896,7 +907,7 @@ export const useInputHandler = ({
                     });
                     (best as { trigger: () => void } | null)?.trigger();
                 }
-                connectionRef.current.reducers.useEquippedItem();
+                connectionRef.current.reducers.useEquippedItem({});
                 lastClientSwingAttemptRef.current = now;
                 lastServerSwingTimestampRef.current = now;
             } catch (err) {
@@ -978,7 +989,7 @@ export const useInputHandler = ({
                         }
                         setIsCrouching(prev => {
                             pendingCrouchToggleRef.current = true; // Mark as pending
-                            connectionRef.current?.reducers.toggleCrouch();
+                            connectionRef.current?.reducers.toggleCrouch({});
                             // Clear pending flag after a brief delay (server should respond by then)
                             setTimeout(() => {
                                 pendingCrouchToggleRef.current = false;
@@ -1064,7 +1075,7 @@ export const useInputHandler = ({
                         // Dodge Roll (works with both manual movement and auto-walk)
                         try {
                             if (connectionRef.current?.reducers) {
-                                connectionRef.current.reducers.dodgeRoll(moveX, moveY);
+                                connectionRef.current.reducers.dodgeRoll({ moveX, moveY });
                                 console.log('[Input] Dodge roll triggered', { direction: { x: moveX, y: moveY }, isAutoWalking: isAutoWalkingRef.current });
                             }
                         } catch (err) {
@@ -1117,10 +1128,10 @@ export const useInputHandler = ({
                                     console.log(`[F-Key] Attempting to fill ${equippedItemDef.name} with ${fillAmount}mL from fresh water source`);
 
                                     try {
-                                        connectionRef.current.reducers.fillWaterContainerFromNaturalSource(
-                                            localPlayerActiveEquipment.equippedItemInstanceId, 
-                                            fillAmount
-                                        );
+                                        connectionRef.current.reducers.fillWaterContainerFromNaturalSource({
+                                            itemInstanceId: localPlayerActiveEquipment.equippedItemInstanceId,
+                                            fillAmountMl: fillAmount
+                                        });
                                         console.log(`[F-Key] Successfully called fillWaterContainerFromNaturalSource`);
                                         handledWaterFilling = true;
                                     } catch (err) {
@@ -1150,7 +1161,7 @@ export const useInputHandler = ({
                             if (headItemDef.name === 'Headlamp') {
                                 console.log('[F-Key] Toggling headlamp');
                                 try {
-                                    connectionRef.current.reducers.toggleHeadlamp();
+                                    connectionRef.current.reducers.toggleHeadlamp({});
                                     console.log('[F-Key] Successfully called toggleHeadlamp');
                                     handledHeadlampToggle = true;
                                 } catch (err) {
@@ -1173,7 +1184,7 @@ export const useInputHandler = ({
                                                 try {
                                                     // Use Identity.fromString to convert localPlayerId to proper Identity type
                                                     const playerIdentity = Identity.fromString(localPlayerId);
-                                                    connectionRef.current.reducers.clearActiveItemReducer(playerIdentity);
+                                                    connectionRef.current.reducers.clearActiveItemReducer({ playerIdentity });
                                                 } catch (err) {
                                                     console.error('[F-Key] Error unequipping torch:', err);
                                                 }
@@ -1183,7 +1194,7 @@ export const useInputHandler = ({
                                     
                                     console.log('[F-Key] Toggling snorkel (player is on water)');
                                     try {
-                                        connectionRef.current.reducers.toggleSnorkel();
+                                        connectionRef.current.reducers.toggleSnorkel({});
                                         console.log('[F-Key] Successfully called toggleSnorkel');
                                         handledSnorkelToggle = true;
                                     } catch (err) {
@@ -1253,11 +1264,11 @@ export const useInputHandler = ({
                             case 'harvestable_resource':
                                 const resourceId = currentTarget.id as bigint;
                                 console.log('[E-KeyDown] Immediate harvest:', resourceId);
-                                currentConnection.reducers.interactWithHarvestableResource(resourceId);
+                                currentConnection.reducers.interactWithHarvestableResource({ resourceId });
                                 break;
                             case 'dropped_item':
                                 console.log('[E-KeyDown] Immediate pickup:', currentTarget.id);
-                                currentConnection.reducers.pickupDroppedItem(currentTarget.id as bigint);
+                                currentConnection.reducers.pickupDroppedItem({ droppedItemId: currentTarget.id as bigint });
                                 break;
                             case 'cairn':
                                 // Interact with cairn: call reducer, play audio, show lore text in SOVA chat
@@ -1295,7 +1306,7 @@ export const useInputHandler = ({
                                         
                                         // Call the reducer
                                         try {
-                                            currentConnection.reducers.interactWithCairn(cairnId);
+                                            currentConnection.reducers.interactWithCairn({ cairnId });
                                             console.log(`[Cairn] Reducer called for cairn ${cairnId}`);
                                             
                                             // Note: Sound is played via PlayerDiscoveredCairn.onInsert callback
@@ -1476,10 +1487,10 @@ export const useInputHandler = ({
                                         // Try to get the resource entity from the connection's database
                                         let resourceEntity = null;
                                         try {
-                                            if (connectionRef.current?.db?.harvestableResource) {
+                                            if (connectionRef.current?.db?.harvestable_resource) {
                                                 // Use the generated table handle to find the resource by ID
-                                                resourceEntity = Array.from(connectionRef.current.db.harvestableResource.iter())
-                                                    .find(resource => resource.id === resourceId);
+                                                resourceEntity = Array.from(connectionRef.current.db.harvestable_resource.iter())
+                                                    .find((resource: { id: bigint }) => resource.id === resourceId);
                                             }
                                         } catch (error) {
                                             console.warn('[E-Tap ACTION] Error accessing harvestable resources:', error);
@@ -1510,18 +1521,18 @@ export const useInputHandler = ({
                                         }
                                         
                                         // console.log('[E-Tap ACTION] Harvesting resource:', currentTarget.id);
-                                        connectionRef.current.reducers.interactWithHarvestableResource(resourceId);
+                                        connectionRef.current.reducers.interactWithHarvestableResource({ resourceId });
                                         tapActionTaken = true;
                                         break;
                                     case 'dropped_item':
                                         // console.log('[E-Tap ACTION] Picking up dropped item:', currentTarget.id);
-                                        connectionRef.current.reducers.pickupDroppedItem(currentTarget.id as bigint);
+                                        connectionRef.current.reducers.pickupDroppedItem({ droppedItemId: currentTarget.id as bigint });
                                         tapActionTaken = true;
                                         break;
                                     case 'door':
                                         // Toggle door open/close state
                                         console.log('[E-Tap ACTION] Interacting with door:', currentTarget.id);
-                                        connectionRef.current.reducers.interactDoor(currentTarget.id as bigint);
+                                        connectionRef.current.reducers.interactDoor({ doorId: currentTarget.id as bigint });
                                         tapActionTaken = true;
                                         break;
                                 }
@@ -1701,7 +1712,7 @@ export const useInputHandler = ({
                     isAimingThrowRef.current = false;
                     if (connectionRef.current?.reducers) {
                         try {
-                            connectionRef.current.reducers.setThrowAim(false);
+                            connectionRef.current.reducers.setThrowAim({ isAiming: false });
                         } catch (err) {
                             console.error('[ThrowAim] Error cancelling throw aim:', err);
                         }
@@ -1745,12 +1756,12 @@ export const useInputHandler = ({
                                         localPlayerActiveEquipment.loadedAmmoDefId,
                                         equippedItemDef.name
                                     );
-                                    connectionRef.current.reducers.fireProjectile(
-                                        worldMousePosRefInternal.current.x, 
-                                        worldMousePosRefInternal.current.y,
-                                        fireX,
-                                        fireY
-                                    );
+                                    connectionRef.current.reducers.fireProjectile({
+                                        targetWorldX: worldMousePosRefInternal.current.x,
+                                        targetWorldY: worldMousePosRefInternal.current.y,
+                                        clientPlayerX: fireX,
+                                        clientPlayerY: fireY
+                                    });
                                 } else {
                                     console.warn("[InputHandler MOUSEDOWN] Cannot fire ranged weapon: No connection/reducers or invalid mouse position.");
                                 }
@@ -1793,7 +1804,7 @@ export const useInputHandler = ({
                                 // Not on water - check if container has water for watering crops
                                 if (hasWaterContent(waterContainer)) {
                                     // console.log("[InputHandler] Water container with water equipped. Calling water_crops reducer.");
-                                    connectionRef.current.reducers.waterCrops(localPlayerActiveEquipment.equippedItemInstanceId);
+                                    connectionRef.current.reducers.waterCrops({ containerInstanceId: localPlayerActiveEquipment.equippedItemInstanceId });
                                     return;
                                 } else {
                                     // console.log('[InputHandler] No water content - falling through to normal swing behavior');
@@ -1823,7 +1834,7 @@ export const useInputHandler = ({
                                     quantity: fertilizerItem.quantity
                                 });
                                 try {
-                                    connectionRef.current.reducers.applyFertilizer(localPlayerActiveEquipment.equippedItemInstanceId);
+                                    connectionRef.current.reducers.applyFertilizer({ fertilizerInstanceId: localPlayerActiveEquipment.equippedItemInstanceId });
                                     console.log("[InputHandler] Successfully called applyFertilizer reducer");
                                     return;
                                 } catch (err) {
@@ -2010,7 +2021,7 @@ export const useInputHandler = ({
                         // Notify server (syncs to other players for visual feedback)
                         if (connectionRef.current?.reducers) {
                             try {
-                                connectionRef.current.reducers.setThrowAim(true);
+                                connectionRef.current.reducers.setThrowAim({ isAiming: true });
                             } catch (err) {
                                 console.error('[ThrowAim] Error setting throw aim:', err);
                             }
@@ -2032,7 +2043,7 @@ export const useInputHandler = ({
                     isAimingThrowRef.current = false;
                     if (connectionRef.current?.reducers) {
                         try {
-                            connectionRef.current.reducers.setThrowAim(false);
+                            connectionRef.current.reducers.setThrowAim({ isAiming: false });
                             console.log('[ThrowAim] Cancelled throw aim with left click');
                         } catch (err) {
                             console.error('[ThrowAim] Error cancelling throw aim:', err);
@@ -2135,7 +2146,7 @@ export const useInputHandler = ({
                 if (localEquipment?.equippedItemDefId && currentPlayer) {
                     const itemDef = itemDefinitionsRef.current.get(String(localEquipment.equippedItemDefId));
 
-                    if (itemDef && (itemDef.name === "Hunting Bow" || itemDef.category === SpacetimeDB.ItemCategory.RangedWeapon)) {
+                    if (itemDef && (itemDef.name === "Hunting Bow" || itemDef.category === ItemCategory.RangedWeapon)) {
                         try {
                             // Use EXACT position calculated at this moment for perfect accuracy
                             const fireX = exactPos?.x ?? fallbackPos?.x ?? currentPlayer.positionX;
@@ -2149,12 +2160,12 @@ export const useInputHandler = ({
                                 localEquipment.loadedAmmoDefId,
                                 itemDef.name
                             );
-                            connectionRef.current.reducers.fireProjectile(
-                                worldMousePosRefInternal.current.x, 
-                                worldMousePosRefInternal.current.y,
-                                fireX,
-                                fireY
-                            );
+                            connectionRef.current.reducers.fireProjectile({
+                                targetWorldX: worldMousePosRefInternal.current.x,
+                                targetWorldY: worldMousePosRefInternal.current.y,
+                                clientPlayerX: fireX,
+                                clientPlayerY: fireY
+                            });
                             lastClientSwingAttemptRef.current = Date.now();
                             lastServerSwingTimestampRef.current = Date.now();
                             return;
@@ -2182,14 +2193,14 @@ export const useInputHandler = ({
                     registerLocalPlayerSwing();
                     // 🔊 IMMEDIATE SOUND: Play unarmed swing sound
                     // playWeaponSwingSound(0.8);
-                    connectionRef.current.reducers.useEquippedItem();
+                    connectionRef.current.reducers.useEquippedItem({});
                     lastClientSwingAttemptRef.current = nowUnarmed;
                     lastServerSwingTimestampRef.current = nowUnarmed;
                 } catch (err) { console.error("[CanvasClick Unarmed] Error calling useEquippedItem reducer:", err); }
             } else {
                 // Armed (melee/tool)
                 if (!itemDef) return;
-                if (itemDef.name === "Bandage" || itemDef.name === "Selo Olive Oil" || itemDef.name === "Hunting Bow" || itemDef.category === SpacetimeDB.ItemCategory.RangedWeapon) {
+                if (itemDef.name === "Bandage" || itemDef.name === "Selo Olive Oil" || itemDef.name === "Hunting Bow" || itemDef.category === ItemCategory.RangedWeapon) {
                     // Ranged/Bandage/Selo Olive Oil already handled or should not be triggered by this melee path
                     return;
                 }
@@ -2275,7 +2286,7 @@ export const useInputHandler = ({
                         });
                         (best as { trigger: () => void } | null)?.trigger();
                     }
-                    connectionRef.current.reducers.useEquippedItem();
+                    connectionRef.current.reducers.useEquippedItem({});
                     lastClientSwingAttemptRef.current = now;
                     lastServerSwingTimestampRef.current = now;
                 } catch (err) { console.error("[CanvasClick Armed] Error calling useEquippedItem reducer:", err); }
@@ -2308,7 +2319,7 @@ export const useInputHandler = ({
                         event.preventDefault();
                         if (connectionRef.current?.reducers) {
                             // console.log("[InputHandler CTXMENU] Calling loadRangedWeapon reducer.");
-                            connectionRef.current.reducers.loadRangedWeapon();
+                            connectionRef.current.reducers.loadRangedWeapon({});
                         } else {
                             console.warn("[InputHandler CTXMENU] No connection or reducers to call loadRangedWeapon.");
                         }
@@ -2319,7 +2330,7 @@ export const useInputHandler = ({
                         event.preventDefault();
                         if (connectionRef.current?.reducers) {
                             // console.log("[InputHandler CTXMENU] Calling toggleTorch reducer.");
-                            connectionRef.current.reducers.toggleTorch();
+                            connectionRef.current.reducers.toggleTorch({});
                         } else {
                             console.warn("[InputHandler CTXMENU] No connection or reducers to call toggleTorch.");
                         }
@@ -2329,7 +2340,7 @@ export const useInputHandler = ({
                         event.preventDefault();
                         if (connectionRef.current?.reducers) {
                             console.log("[InputHandler CTXMENU] Calling toggleFlashlight reducer.");
-                            connectionRef.current.reducers.toggleFlashlight();
+                            connectionRef.current.reducers.toggleFlashlight({});
                         } else {
                             console.warn("[InputHandler CTXMENU] No connection or reducers to call toggleFlashlight.");
                         }
@@ -2357,7 +2368,7 @@ export const useInputHandler = ({
                             // console.log("[InputHandler CTXMENU] Calling useEquippedItem for Bandage.");
                             // 🔊 IMMEDIATE SOUND: Play button click for bandage use
                             // playButtonClickSound(0.6);
-                            connectionRef.current.reducers.useEquippedItem();
+                            connectionRef.current.reducers.useEquippedItem({});
                         } else {
                             console.warn("[InputHandler CTXMENU] No connection or reducers to call useEquippedItem for Bandage.");
                         }
@@ -2369,7 +2380,7 @@ export const useInputHandler = ({
                             // console.log("[InputHandler CTXMENU] Calling useEquippedItem for Selo Olive Oil.");
                             // 🔊 IMMEDIATE SOUND: Play button click for Selo Olive Oil use
                             // playButtonClickSound(0.6);
-                            connectionRef.current.reducers.useEquippedItem();
+                            connectionRef.current.reducers.useEquippedItem({});
                         } else {
                             console.warn("[InputHandler CTXMENU] No connection or reducers to call useEquippedItem for Selo Olive Oil.");
                         }
@@ -2379,7 +2390,7 @@ export const useInputHandler = ({
                         event.preventDefault();
                         
                         // Find the equipped item instance to check if it has water
-                        const equippedItemInstance = Array.from(inventoryItems.values()).find((item: SpacetimeDB.InventoryItem) => 
+                        const equippedItemInstance = Array.from(inventoryItems.values()).find((item: InventoryItem) => 
                             item.instanceId === BigInt(localPlayerActiveEquipment?.equippedItemInstanceId || 0)
                         );
                         
@@ -2390,7 +2401,7 @@ export const useInputHandler = ({
                             if (connectionRef.current?.reducers && localPlayerActiveEquipment?.equippedItemInstanceId) {
                                 // console.log("[InputHandler] Calling consumeFilledWaterContainer for equipped water container.");
                                 try {
-                                    connectionRef.current.reducers.consumeFilledWaterContainer(BigInt(localPlayerActiveEquipment.equippedItemInstanceId));
+                                    connectionRef.current.reducers.consumeFilledWaterContainer({ itemInstanceId: localPlayerActiveEquipment.equippedItemInstanceId });
                                     // console.log("[InputHandler] Successfully called consumeFilledWaterContainer");
                                 } catch (err) {
                                     console.error("[InputHandler] Error calling consumeFilledWaterContainer:", err);
@@ -2481,7 +2492,7 @@ export const useInputHandler = ({
                     // console.log("[InputHandler] Right-click - THROWING:", equippedItemDef.name, "from", player.positionX, player.positionY, "to", targetX, targetY, "direction:", throwingDirection);
 
                     try {
-                        connectionRef.current.reducers.throwItem(targetX, targetY);
+                        connectionRef.current.reducers.throwItem({ targetWorldX: targetX, targetWorldY: targetY });
                         console.log("[ThrowAim] Item thrown successfully!");
                     } catch (err) {
                         console.error("[ThrowAim] Error throwing item:", err);
@@ -2490,7 +2501,7 @@ export const useInputHandler = ({
                     // Clear throw aim state after throwing
                     isAimingThrowRef.current = false;
                     try {
-                        connectionRef.current.reducers.setThrowAim(false);
+                        connectionRef.current.reducers.setThrowAim({ isAiming: false });
                     } catch (err) {
                         // Silently ignore - server will clear it anyway in throw_item
                     }
@@ -2553,7 +2564,7 @@ export const useInputHandler = ({
                 isAimingThrowRef.current = false;
                 if (connectionRef.current?.reducers) {
                     try {
-                        connectionRef.current.reducers.setThrowAim(false);
+                        connectionRef.current.reducers.setThrowAim({ isAiming: false });
                     } catch (err) { /* ignore */ }
                 }
             }
@@ -2764,12 +2775,12 @@ export const useInputHandler = ({
                                         localPlayerActiveEquipment.loadedAmmoDefId,
                                         equippedItemDef.name
                                     );
-                                    connectionRef.current.reducers.fireProjectile(
-                                        worldMousePosRefInternal.current.x,
-                                        worldMousePosRefInternal.current.y,
-                                        fireX,
-                                        fireY
-                                    );
+                                    connectionRef.current.reducers.fireProjectile({
+                                        targetWorldX: worldMousePosRefInternal.current.x,
+                                        targetWorldY: worldMousePosRefInternal.current.y,
+                                        clientPlayerX: fireX,
+                                        clientPlayerY: fireY
+                                    });
                                     lastRangedFireTimeRef.current = now;
                                 }
                             }
@@ -2804,7 +2815,7 @@ export const useInputHandler = ({
     ]);
 
     // Helper function to check if an item is throwable
-    const isItemThrowable = useCallback((itemDef: SpacetimeDB.ItemDefinition | undefined): boolean => {
+    const isItemThrowable = useCallback((itemDef: ItemDefinition | undefined): boolean => {
         if (!itemDef) {
             // console.log("[isItemThrowable] No item definition provided");
             return false;

@@ -18,7 +18,7 @@
  * 4. INTERACTION: PLAYER_BARREL_INTERACTION_DISTANCE_SQUARED for E-key targeting.
  */
 
-import { Barrel } from '../../generated'; // Import generated type
+import { Barrel } from '../../generated/types'; // Import generated type
 import barrelImage from '../../assets/doodads/barrel.png'; // Variant 0
 import barrel2Image from '../../assets/doodads/barrel2.png'; // Variant 1 
 import barrel3Image from '../../assets/doodads/barrel3.png'; // Variant 2

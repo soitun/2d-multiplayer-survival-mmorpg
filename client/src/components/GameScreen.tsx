@@ -37,10 +37,10 @@ import CairnUnlockNotification, { CairnNotification } from './CairnUnlockNotific
 import QuestsPanel from './QuestsPanel';
 import UplinkNotifications from './UplinkNotifications'; // Unified notifications in uplink style
 import ErrorDisplay from './ErrorDisplay'; // In-game error feedback above XP bar
-import * as SpacetimeDB from '../generated';
+import type { DroneEvent, RoadLamppost, GrassState, LevelUpNotification, AchievementUnlockNotification } from '../generated/types';
 
 // Import types used by props
-import {
+import type {
     Player as SpacetimeDBPlayer,
     Tree as SpacetimeDBTree,
     Stone as SpacetimeDBStone,
@@ -61,7 +61,6 @@ import {
     ActiveEquipment as SpacetimeDBActiveEquipment,
     Recipe as SpacetimeDBRecipe,
     CraftingQueueItem as SpacetimeDBCraftingQueueItem,
-    DbConnection,
     SleepingBag as SpacetimeDBSleepingBag,
     PlayerCorpse as SpacetimeDBPlayerCorpse,
     Stash as SpacetimeDBStash,
@@ -93,8 +92,8 @@ import {
     AlkState as SpacetimeDBAlkState,
     PlayerShardBalance as SpacetimeDBPlayerShardBalance,
     MemoryGridProgress as SpacetimeDBMemoryGridProgress,
-} from '../generated';
-// PlayerStats is accessed via SpacetimeDB namespace
+} from '../generated/types';
+import { DbConnection } from '../generated';
 import { Identity } from 'spacetimedb';
 import { PlacementItemInfo, PlacementActions } from '../hooks/usePlacementManager';
 import { InteractionTarget } from '../hooks/useInteractionManager';
@@ -134,7 +133,7 @@ interface GameScreenProps {
     players: Map<string, SpacetimeDBPlayer>;
     trees: Map<string, SpacetimeDBTree>;
     clouds: Map<string, SpacetimeDBCloud>;
-    droneEvents: Map<string, SpacetimeDB.DroneEvent>;
+    droneEvents: Map<string, DroneEvent>;
     stones: Map<string, SpacetimeDBStone>;
     runeStones: Map<string, SpacetimeDBRuneStone>;
     cairns: Map<string, SpacetimeDBCairn>;
@@ -158,7 +157,7 @@ interface GameScreenProps {
     hostileDeathEvents: Array<{ id: string, x: number, y: number, species: string, timestamp: number }>; // Client-side death events for particles
     animalCorpses: Map<string, SpacetimeDBAnimalCorpse>;
     barrels: Map<string, SpacetimeDBBarrel>;
-    roadLampposts: Map<string, SpacetimeDB.RoadLamppost>;
+    roadLampposts: Map<string, RoadLamppost>;
     seaStacks: Map<string, any>;
     homesteadHearths: Map<string, SpacetimeDBHomesteadHearth>;
     foundationCells: Map<string, any>;
@@ -176,7 +175,7 @@ interface GameScreenProps {
     craftingQueueItems: Map<string, SpacetimeDBCraftingQueueItem>;
     activeConsumableEffects: Map<string, SpacetimeDBActiveConsumableEffect>;
     grass: Map<string, SpacetimeDBGrass>;
-    grassState: Map<string, SpacetimeDB.GrassState>; // Split tables: dynamic state
+    grassState: Map<string, GrassState>; // Split tables: dynamic state
     knockedOutStatus: Map<string, SpacetimeDBKnockedOutStatus>;
     rangedWeaponStats: Map<string, RangedWeaponStats>;
 
@@ -311,8 +310,8 @@ interface GameScreenProps {
 
 
     // Player progression notifications (unified in UplinkNotifications)
-    levelUpNotifications?: SpacetimeDB.LevelUpNotification[];
-    achievementUnlockNotifications?: SpacetimeDB.AchievementUnlockNotification[];
+    levelUpNotifications?: LevelUpNotification[];
+    achievementUnlockNotifications?: AchievementUnlockNotification[];
     onOpenAchievements?: () => void;
 
     // Mobile controls
@@ -715,7 +714,7 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     const handleTitleSelect = useCallback((titleId: string | null) => {
         if (props.connection?.reducers) {
             try {
-                props.connection.reducers.setActiveTitle(titleId ?? '');
+                props.connection.reducers.setActiveTitle({ titleId: titleId ?? undefined });
             } catch (error) {
                 console.error('[GameScreen] Failed to set active title:', error);
             }

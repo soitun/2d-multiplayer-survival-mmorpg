@@ -20,7 +20,7 @@ use crate::player_progression::player_stats as PlayerStatsTableTrait;
 
 // --- Unified Harvestable Resource Table ---
 
-#[spacetimedb::table(name = harvestable_resource, public)]
+#[spacetimedb::table(accessor = harvestable_resource, public)]
 #[derive(Clone, Debug)]
 pub struct HarvestableResource {
     #[primary_key]
@@ -64,7 +64,7 @@ impl RespawnableResource for HarvestableResource {
 // --- Player Discovery Tracking ---
 
 /// Tracks which plant types each player has discovered (harvested at least once)
-#[spacetimedb::table(name = player_discovered_plant, public)]
+#[spacetimedb::table(accessor = player_discovered_plant, public)]
 #[derive(Clone, Debug)]
 pub struct PlayerDiscoveredPlant {
     #[primary_key]
@@ -128,7 +128,7 @@ pub fn record_plant_discovery(ctx: &ReducerContext, player_id: Identity, plant_t
 pub fn interact_with_harvestable_resource(ctx: &ReducerContext, resource_id: u64) -> Result<(), String> {
     use crate::plants_database::SpawnCondition;
     
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Find the resource
     let resource = ctx.db.harvestable_resource().id().find(resource_id)

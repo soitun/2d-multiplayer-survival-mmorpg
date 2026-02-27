@@ -80,7 +80,7 @@ use crate::dropped_item::create_dropped_item_entity;
 /// --- Homestead Hearth Data Structure ---
 /// Represents a homestead hearth in the game world with position, owner,
 /// inventory slots for building materials, and building privilege management.
-#[spacetimedb::table(name = homestead_hearth, public)]
+#[spacetimedb::table(accessor = homestead_hearth, public)]
 #[derive(Clone)]
 pub struct HomesteadHearth {
     #[primary_key]
@@ -157,7 +157,7 @@ fn is_item_allowed(item_def: &ItemDefinition) -> bool {
 
 /// Validates that a player is within interaction distance of a hearth
 fn validate_hearth_interaction(ctx: &ReducerContext, hearth_id: u32) -> Result<(Player, HomesteadHearth), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let hearths = ctx.db.homestead_hearth();
 
@@ -638,7 +638,7 @@ fn consume_upkeep_resources(
 // PERFORMANCE: Increased from 2s to 60s - this reducer now does nothing (privilege is permanent)
 pub(crate) const BUILDING_PRIVILEGE_CHECK_INTERVAL_SECS: u64 = 60;
 
-#[spacetimedb::table(name = building_privilege_check_schedule, scheduled(check_building_privilege_distance))]
+#[spacetimedb::table(accessor = building_privilege_check_schedule, scheduled(check_building_privilege_distance))]
 #[derive(Clone)]
 pub struct BuildingPrivilegeCheckSchedule {
     #[primary_key]
@@ -678,7 +678,7 @@ pub fn init_building_privilege_check_schedule(ctx: &ReducerContext) -> Result<()
 #[spacetimedb::reducer]
 pub fn check_building_privilege_distance(ctx: &ReducerContext, _schedule: BuildingPrivilegeCheckSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("check_building_privilege_distance may only be called by the scheduler.".to_string());
     }
 
@@ -692,7 +692,7 @@ pub fn check_building_privilege_distance(ctx: &ReducerContext, _schedule: Buildi
 
 // --- Upkeep Processing Schedule ---
 
-#[spacetimedb::table(name = hearth_upkeep_schedule, scheduled(process_hearth_upkeep))]
+#[spacetimedb::table(accessor = hearth_upkeep_schedule, scheduled(process_hearth_upkeep))]
 #[derive(Clone)]
 pub struct HearthUpkeepSchedule {
     #[primary_key]
@@ -702,7 +702,7 @@ pub struct HearthUpkeepSchedule {
 }
 
 /// Table to store upkeep query results for client UI
-#[spacetimedb::table(name = hearth_upkeep_query_result, public)]
+#[spacetimedb::table(accessor = hearth_upkeep_query_result, public)]
 #[derive(Clone)]
 pub struct HearthUpkeepQueryResult {
     #[primary_key]
@@ -746,7 +746,7 @@ pub fn process_hearth_upkeep(ctx: &ReducerContext, _schedule: HearthUpkeepSchedu
     use crate::player as PlayerTableTrait;
     
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("process_hearth_upkeep may only be called by the scheduler.".to_string());
     }
 
@@ -979,7 +979,7 @@ pub fn place_homestead_hearth(
     world_x: f32,
     world_y: f32,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let players = ctx.db.player();
@@ -1169,7 +1169,7 @@ pub fn grant_building_privilege_from_hearth(
     ctx: &ReducerContext,
     hearth_id: u32,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let (_player, hearth) = validate_hearth_interaction(ctx, hearth_id)?;
 
     // Check if player already has building privilege
@@ -1211,7 +1211,7 @@ pub fn revoke_player_building_privilege(
     hearth_id: u32,
     target_player_id: Identity,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let (_player, _hearth) = validate_hearth_interaction(ctx, hearth_id)?;
 
     // Only players with building privilege can revoke others' privileges
@@ -1233,7 +1233,7 @@ pub fn wipe_all_building_privileges(
     ctx: &ReducerContext,
     hearth_id: u32,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let (_player, _hearth) = validate_hearth_interaction(ctx, hearth_id)?;
 
     // Only players with building privilege can wipe all privileges
@@ -1443,7 +1443,7 @@ pub fn drop_item_from_hearth_slot_to_world(
     hearth_id: u32,
     slot_index: u8,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let player_table = ctx.db.player();
     let mut hearth_table = ctx.db.homestead_hearth();
 
@@ -1475,7 +1475,7 @@ pub fn split_and_drop_item_from_hearth_slot_to_world(
     slot_index: u8,
     quantity_to_split: u32,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let player_table = ctx.db.player();
     let mut hearth_table = ctx.db.homestead_hearth();
 

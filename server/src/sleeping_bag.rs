@@ -46,7 +46,7 @@ use crate::sleeping_bag::sleeping_bag_deterioration_schedule as SleepingBagDeter
 
 /// --- Sleeping Bag Data Structure ---
 /// Represents a placed sleeping bag in the world.
-#[spacetimedb::table(name = sleeping_bag, public)]
+#[spacetimedb::table(accessor = sleeping_bag, public)]
 #[derive(Clone)]
 pub struct SleepingBag {
     #[primary_key]
@@ -78,7 +78,7 @@ pub struct SleepingBag {
 
 /// --- Deterioration Schedule Table ---
 /// Schedules periodic deterioration checks for sleeping bags
-#[spacetimedb::table(name = sleeping_bag_deterioration_schedule, scheduled(process_sleeping_bag_deterioration))]
+#[spacetimedb::table(accessor = sleeping_bag_deterioration_schedule, scheduled(process_sleeping_bag_deterioration))]
 #[derive(Clone)]
 pub struct SleepingBagDeteriorationSchedule {
     #[primary_key]
@@ -94,7 +94,7 @@ pub struct SleepingBagDeteriorationSchedule {
 /// Places a sleeping bag from the player's inventory into the world.
 #[spacetimedb::reducer]
 pub fn place_sleeping_bag(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, world_y: f32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let players = ctx.db.player();
@@ -222,7 +222,7 @@ pub fn place_sleeping_bag(ctx: &ReducerContext, item_instance_id: u64, world_x: 
 /// Allows a dead player to respawn at a sleeping bag they placed.
 #[spacetimedb::reducer]
 pub fn respawn_at_sleeping_bag(ctx: &ReducerContext, bag_id: u32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let sleeping_bags = ctx.db.sleeping_bag();
     let item_defs = ctx.db.item_definition();
@@ -349,7 +349,7 @@ pub fn respawn_at_sleeping_bag(ctx: &ReducerContext, bag_id: u32) -> Result<(), 
 #[spacetimedb::reducer]
 pub fn interact_with_sleeping_bag(ctx: &ReducerContext, bag_id: u32) -> Result<(), String> {
     validate_sleeping_bag_interaction(ctx, bag_id)?; // Use helper for validation
-    log::debug!("Player {:?} interaction check OK for sleeping bag {}", ctx.sender, bag_id);
+    log::debug!("Player {:?} interaction check OK for sleeping bag {}", ctx.sender(), bag_id);
     // Currently no action on interact, but check succeeds if close enough.
     Ok(())
 }
@@ -360,7 +360,7 @@ pub fn interact_with_sleeping_bag(ctx: &ReducerContext, bag_id: u32) -> Result<(
 #[spacetimedb::reducer]
 pub fn process_sleeping_bag_deterioration(ctx: &ReducerContext, schedule_args: SleepingBagDeteriorationSchedule) -> Result<(), String> {
     // Security check: only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("process_sleeping_bag_deterioration may only be called by the scheduler.".to_string());
     }
 
@@ -436,7 +436,7 @@ fn validate_sleeping_bag_interaction(
     ctx: &ReducerContext,
     bag_id: u32,
 ) -> Result<(Player, SleepingBag), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let sleeping_bags = ctx.db.sleeping_bag();
 

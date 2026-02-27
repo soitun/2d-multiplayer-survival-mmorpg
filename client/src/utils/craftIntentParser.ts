@@ -6,9 +6,9 @@
  * missing-resource failure without duplicating server crafting logic.
  */
 
-import type { Recipe, RecipeIngredient, InventoryItem, ItemDefinition } from '../generated';
+import type { Recipe, RecipeIngredient, InventoryItem, ItemDefinition } from '../generated/types';
 import type { Identity } from 'spacetimedb';
-import { InventoryLocationData, HotbarLocationData } from '../generated';
+import type { InventoryLocationData, HotbarLocationData } from '../generated/types';
 
 /** Patterns that indicate a craft intent (case-insensitive) */
 const CRAFT_PATTERNS = [

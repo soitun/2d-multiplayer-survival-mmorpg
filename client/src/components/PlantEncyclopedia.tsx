@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { PlantConfigDefinition, PlantCategory } from '../generated';
+import { PlantConfigDefinition, PlantCategory } from '../generated/types';
 import { getItemIcon } from '../utils/itemIconUtils';
 import plantsIcon from '../assets/ui/plants.png';
 import './PlantEncyclopedia.css';

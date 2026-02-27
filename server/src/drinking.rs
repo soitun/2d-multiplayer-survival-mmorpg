@@ -22,7 +22,7 @@ const RIVER_WATER_THIRST_GAIN: f32 = 20.0; // One gulp from natural water source
 const SEA_WATER_THIRST_LOSS: f32 = -10.0; // Reduced dehydration to match new scale
 
 // Drinking action table to track cooldowns (shared between drinking and water filling)
-#[spacetimedb::table(name = player_drinking_cooldown, public)]
+#[spacetimedb::table(accessor = player_drinking_cooldown, public)]
 #[derive(Clone, Debug)]
 pub struct PlayerDrinkingCooldown {
     #[primary_key]
@@ -144,7 +144,7 @@ fn update_drinking_cooldown(ctx: &ReducerContext, player_id: Identity) {
 /// Differentiates between inland water (rivers/lakes) which hydrates, and sea water which dehydrates
 #[spacetimedb::reducer]
 pub fn drink_water(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     log::info!("Player {:?} attempting to drink water", player_id);
     
@@ -220,7 +220,7 @@ pub fn drink_water(ctx: &ReducerContext) -> Result<(), String> {
 /// Allows players to fill water containers directly from water tiles they're standing on/near
 #[spacetimedb::reducer]
 pub fn fill_water_container_from_natural_source(ctx: &ReducerContext, item_instance_id: u64, fill_amount_ml: u32) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     log::info!("Player {:?} attempting to fill water container {} with {}mL from natural source", 
                player_id, item_instance_id, fill_amount_ml);

@@ -24,7 +24,7 @@ use crate::inventory_management::is_container_empty;
 
 // --- Respawn Schedule Table ---
 
-#[spacetimedb::table(name = mine_cart_respawn_schedule, scheduled(respawn_mine_carts))]
+#[spacetimedb::table(accessor = mine_cart_respawn_schedule, scheduled(respawn_mine_carts))]
 #[derive(Clone)]
 pub struct MineCartRespawnSchedule {
     #[primary_key]
@@ -419,7 +419,7 @@ pub fn check_and_despawn_mine_cart_if_empty(
 #[spacetimedb::reducer]
 pub fn respawn_mine_carts(ctx: &ReducerContext, schedule: MineCartRespawnSchedule) -> Result<(), String> {
     // Security check: only the scheduler should call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Respawn reducer may only be called by the scheduler".to_string());
     }
     

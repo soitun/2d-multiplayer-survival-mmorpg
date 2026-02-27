@@ -35,10 +35,10 @@ pub const DOOR_INTERACTION_DISTANCE_SQUARED: f32 = DOOR_INTERACTION_DISTANCE * D
 // --- Door Table ---
 
 #[spacetimedb::table(
-    name = door,
+    accessor = door,
     public,
-    index(name = idx_chunk, btree(columns = [chunk_index])),
-    index(name = idx_cell_coords, btree(columns = [cell_x, cell_y]))
+    index(accessor = idx_chunk, name = "idx_door_chunk", btree(columns = [chunk_index])),
+    index(accessor = idx_cell_coords, name = "idx_door_cell_coords", btree(columns = [cell_x, cell_y]))
 )]
 #[derive(Clone, Debug)]
 pub struct Door {
@@ -285,10 +285,10 @@ pub fn damage_door_explosive(
         if door.health <= 0.0 {
             door.is_destroyed = true;
             door.destroyed_at = Some(ctx.timestamp);
-            crate::sound_events::emit_door_destroyed_sound(ctx, door.pos_x, door.pos_y, ctx.sender);
+            crate::sound_events::emit_door_destroyed_sound(ctx, door.pos_x, door.pos_y, ctx.sender());
             log::info!("[DoorExplosiveDamage] {} Door {} destroyed by explosion", door_name, door_id);
         } else {
-            crate::sound_events::emit_melee_hit_sharp_sound(ctx, door.pos_x, door.pos_y, ctx.sender);
+            crate::sound_events::emit_melee_hit_sharp_sound(ctx, door.pos_x, door.pos_y, ctx.sender());
             log::info!("[DoorExplosiveDamage] {} Door {} took {:.1} explosive damage, health: {:.1}", door_name, door_id, damage, door.health);
         }
         
@@ -536,7 +536,7 @@ pub fn place_door(
     world_y: f32,
     door_type: u8,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     
     log::info!(
@@ -677,7 +677,7 @@ pub fn place_door(
 /// Toggle door open/closed state (requires building privilege)
 #[spacetimedb::reducer]
 pub fn interact_door(ctx: &ReducerContext, door_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let doors = ctx.db.door();
     
@@ -740,7 +740,7 @@ pub fn interact_door(ctx: &ReducerContext, door_id: u64) -> Result<(), String> {
 /// Pick up a door and return it to inventory (requires building privilege)
 #[spacetimedb::reducer]
 pub fn pickup_door(ctx: &ReducerContext, door_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let doors = ctx.db.door();
     let item_defs = ctx.db.item_definition();

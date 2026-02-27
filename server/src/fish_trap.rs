@@ -50,7 +50,7 @@ pub const FISH_TRAP_VILLAGE_CONVERSION_TIME_SECS: u64 = 300; // 5 minutes (half 
 pub const FISH_TRAP_VILLAGE_DOUBLE_YIELD: bool = true; // Double yield (2x output) when in village
 
 // --- Fish Trap Schedule Table ---
-#[spacetimedb::table(name = fish_trap_process_schedule, scheduled(process_fish_trap_conversion))]
+#[spacetimedb::table(accessor = fish_trap_process_schedule, scheduled(process_fish_trap_conversion))]
 #[derive(Clone)]
 pub struct FishTrapProcessSchedule {
     #[primary_key]
@@ -338,7 +338,7 @@ impl FishTrapOutputCache {
 #[spacetimedb::reducer]
 pub fn process_fish_trap_conversion(ctx: &ReducerContext, _args: FishTrapProcessSchedule) -> Result<(), String> {
     // Security check - only scheduler can run this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Fish trap processing can only be run by scheduler".to_string());
     }
     

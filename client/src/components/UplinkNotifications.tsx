@@ -9,7 +9,7 @@
  */
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import * as SpacetimeDB from '../generated';
+import type { LevelUpNotification, AchievementUnlockNotification, AchievementDefinition } from '../generated/types';
 import { queueNotificationSound } from '../utils/notificationSoundQueue';
 
 // Style constants - matching DayNightCycleTracker exactly
@@ -59,11 +59,11 @@ function saveSeenIds(key: string, ids: Set<string>): void {
 
 interface UplinkNotificationsProps {
   // Level up notifications
-  levelUpNotifications: SpacetimeDB.LevelUpNotification[];
+  levelUpNotifications: LevelUpNotification[];
   // Achievement notifications
-  achievementNotifications: SpacetimeDB.AchievementUnlockNotification[];
+  achievementNotifications: AchievementUnlockNotification[];
   // Achievement definitions (for looking up descriptions)
-  achievementDefinitions?: Map<string, SpacetimeDB.AchievementDefinition>;
+  achievementDefinitions?: Map<string, AchievementDefinition>;
   // Quest completion (from useQuestNotifications)
   questCompletionNotification: {
     id: string;

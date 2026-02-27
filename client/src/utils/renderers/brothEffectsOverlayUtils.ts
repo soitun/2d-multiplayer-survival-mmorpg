@@ -6,7 +6,7 @@
  * Intoxicated: Drunk effect - blurred edges, wobble, warm tint
  */
 
-import type { ActiveConsumableEffect } from '../../generated';
+import type { ActiveConsumableEffect } from '../../generated/types';
 
 // Animation state for effects
 interface EffectAnimationState {

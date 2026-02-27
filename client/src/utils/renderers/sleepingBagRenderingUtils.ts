@@ -1,4 +1,4 @@
-import { SleepingBag } from '../../generated';
+import { SleepingBag } from '../../generated/types';
 import sleepingBagImageSrc from '../../assets/doodads/sleeping_bag.png';
 import { GroundEntityConfig, renderConfiguredGroundEntity } from './genericGroundRenderer';
 import { imageManager } from './imageManager';

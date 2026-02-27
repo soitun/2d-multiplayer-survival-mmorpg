@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, RefObject, useMemo } from 'react';
-import { Player as SpacetimeDBPlayer, PlayerPin } from '../generated';
+import { Player as SpacetimeDBPlayer, PlayerPin } from '../generated/types';
 import { gameConfig } from '../config/gameConfig';
 
 // Hook Constants
@@ -368,7 +368,7 @@ export function useMinimapInteraction({
         // DEBUG: Uncomment for coordinate debugging
         // console.log(`[Minimap] Pin placed at world (${clampedWorldX}, ${clampedWorldY})`);
         try {
-            connection.reducers.setPlayerPin(clampedWorldX, clampedWorldY);
+            connection.reducers.setPlayerPin({ pinX: clampedWorldX, pinY: clampedWorldY });
         } catch (err) {
             console.error("Error calling setPlayerPin reducer:", err);
         }

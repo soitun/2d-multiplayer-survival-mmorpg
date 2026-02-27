@@ -88,7 +88,7 @@ pub const FURNACE_TYPE_LARGE: u8 = 1;
 /// --- Furnace Data Structure ---
 /// Represents a furnace in the game world with position, owner, burning state,
 /// fuel slots (using individual fields instead of arrays), and fuel consumption timing.
-#[spacetimedb::table(name = furnace, public)]
+#[spacetimedb::table(accessor = furnace, public)]
 #[derive(Clone)]
 pub struct Furnace {
     #[primary_key]
@@ -179,7 +179,7 @@ pub struct Furnace {
 }
 
 // Schedule Table for per-furnace processing
-#[spacetimedb::table(name = furnace_processing_schedule, scheduled(process_furnace_logic_scheduled))]
+#[spacetimedb::table(accessor = furnace_processing_schedule, scheduled(process_furnace_logic_scheduled))]
 #[derive(Clone)]
 pub struct FurnaceProcessingSchedule {
     #[primary_key]
@@ -368,7 +368,7 @@ pub fn split_stack_from_furnace(
 
     log::info!(
         "[SplitFromFurnace] Player {:?} delegating split {} from furnace {} slot {} to {} slot {}",
-        ctx.sender, quantity_to_split, source_furnace_id, source_slot_index, target_slot_type, target_slot_index
+        ctx.sender(), quantity_to_split, source_furnace_id, source_slot_index, target_slot_type, target_slot_index
     );
 
     // --- Call GENERIC Handler --- 
@@ -408,7 +408,7 @@ pub fn split_and_move_from_furnace(
     target_slot_type: String,    // "inventory", "hotbar", or "furnace_fuel"
     target_slot_index: u32,     // Numeric index for inventory/hotbar/furnace
 ) -> Result<(), String> {
-    let sender_id = ctx.sender; 
+    let sender_id = ctx.sender(); 
     let furnaces = ctx.db.furnace();
     let mut inventory_items = ctx.db.inventory_item(); 
 
@@ -494,7 +494,7 @@ pub fn drop_item_from_furnace_slot_to_world(
     furnace_id: u32,
     slot_index: u8, // This will be 0-4 for fuel slots
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let player_table = ctx.db.player();
     let mut furnace_table = ctx.db.furnace();
 
@@ -527,7 +527,7 @@ pub fn split_and_drop_item_from_furnace_slot_to_world(
     slot_index: u8, // This will be 0-4 for fuel slots
     quantity_to_split: u32,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let player_table = ctx.db.player();
     let mut furnace_table = ctx.db.furnace();
 
@@ -656,7 +656,7 @@ pub fn split_furnace_ore_evenly(ctx: &ReducerContext, furnace_id: u32) -> Result
 
     ctx.db.furnace().id().update(furnace.clone());
     schedule_next_furnace_processing(ctx, furnace_id);
-    log::debug!("Player {:?} split furnace {} ore evenly.", ctx.sender, furnace_id);
+    log::debug!("Player {:?} split furnace {} ore evenly.", ctx.sender(), furnace_id);
     Ok(())
 }
 
@@ -679,14 +679,14 @@ pub fn toggle_furnace_burning(ctx: &ReducerContext, furnace_id: u32) -> Result<(
         furnace.is_burning = false;
         furnace.current_fuel_def_id = None;
         furnace.remaining_fuel_burn_time_secs = None;
-        log::info!("Furnace {} extinguished by player {:?}.", furnace.id, ctx.sender);
+        log::info!("Furnace {} extinguished by player {:?}.", furnace.id, ctx.sender());
     } else {
         if !check_if_furnace_has_fuel(ctx, &furnace) {
             return Err("Cannot light furnace, requires fuel.".to_string());
         }
         
         furnace.is_burning = true;
-        log::info!("Furnace {} lit by player {:?}.", furnace.id, ctx.sender);
+        log::info!("Furnace {} lit by player {:?}.", furnace.id, ctx.sender());
     }
     ctx.db.furnace().id().update(furnace.clone());
     schedule_next_furnace_processing(ctx, furnace_id);
@@ -696,7 +696,7 @@ pub fn toggle_furnace_burning(ctx: &ReducerContext, furnace_id: u32) -> Result<(
 // Reducer to place a furnace
 #[spacetimedb::reducer]
 pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, world_y: f32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let players = ctx.db.player();
@@ -944,7 +944,7 @@ pub fn place_furnace(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
 #[spacetimedb::reducer]
 pub fn process_furnace_logic_scheduled(ctx: &ReducerContext, schedule_args: FurnaceProcessingSchedule) -> Result<(), String> {
     // Security check
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Only the module itself can call scheduled furnace processing.".to_string());
     }
 
@@ -1311,7 +1311,7 @@ fn validate_furnace_interaction(
     ctx: &ReducerContext,
     furnace_id: u32,
 ) -> Result<(Player, Furnace), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let furnaces = ctx.db.furnace();
 
@@ -1364,11 +1364,11 @@ pub fn open_furnace_container(ctx: &ReducerContext, furnace_id: u32) -> Result<(
     let (_player, mut furnace) = validate_furnace_interaction(ctx, furnace_id)?;
     
     // Set the active user
-    furnace.active_user_id = Some(ctx.sender);
+    furnace.active_user_id = Some(ctx.sender());
     furnace.active_user_since = Some(ctx.timestamp);
     
     ctx.db.furnace().id().update(furnace);
-    log::debug!("Player {:?} opened furnace {} container", ctx.sender, furnace_id);
+    log::debug!("Player {:?} opened furnace {} container", ctx.sender(), furnace_id);
     
     Ok(())
 }
@@ -1382,12 +1382,12 @@ pub fn close_furnace_container(ctx: &ReducerContext, furnace_id: u32) -> Result<
         .ok_or_else(|| format!("Furnace {} not found", furnace_id))?;
     
     // Only clear if this player is the active user
-    if furnace.active_user_id == Some(ctx.sender) {
+    if furnace.active_user_id == Some(ctx.sender()) {
         let mut furnace = furnace;
         furnace.active_user_id = None;
         furnace.active_user_since = None;
         ctx.db.furnace().id().update(furnace);
-        log::debug!("Player {:?} closed furnace {} container", ctx.sender, furnace_id);
+        log::debug!("Player {:?} closed furnace {} container", ctx.sender(), furnace_id);
     }
     
     Ok(())

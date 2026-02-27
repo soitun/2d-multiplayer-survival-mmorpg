@@ -27,7 +27,7 @@ use crate::inventory_management::is_container_empty;
 
 // --- Respawn Schedule Table ---
 
-#[spacetimedb::table(name = military_ration_respawn_schedule, scheduled(respawn_military_rations))]
+#[spacetimedb::table(accessor = military_ration_respawn_schedule, scheduled(respawn_military_rations))]
 #[derive(Clone)]
 pub struct MilitaryRationRespawnSchedule {
     #[primary_key]
@@ -40,7 +40,7 @@ pub struct MilitaryRationRespawnSchedule {
     pub chunk_index: u32,
 }
 
-#[spacetimedb::table(name = military_crate_respawn_schedule, scheduled(respawn_military_crates))]
+#[spacetimedb::table(accessor = military_crate_respawn_schedule, scheduled(respawn_military_crates))]
 #[derive(Clone)]
 pub struct MilitaryCrateRespawnSchedule {
     #[primary_key]
@@ -521,7 +521,7 @@ pub fn check_and_despawn_military_ration_if_empty(
 #[spacetimedb::reducer]
 pub fn respawn_military_rations(ctx: &ReducerContext, schedule: MilitaryRationRespawnSchedule) -> Result<(), String> {
     // Security check: only the scheduler should call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Respawn reducer may only be called by the scheduler".to_string());
     }
     
@@ -718,7 +718,7 @@ pub fn check_and_despawn_military_crate_if_empty(
 
 #[spacetimedb::reducer]
 pub fn respawn_military_crates(ctx: &ReducerContext, schedule: MilitaryCrateRespawnSchedule) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Respawn reducer may only be called by the scheduler".to_string());
     }
     

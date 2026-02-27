@@ -8,7 +8,7 @@
  *   - Each NPC has its own SpacetimeDB connection + Identity
  *   - NPCs call the SAME reducers as human players (zero server changes)
  *   - Fast loop (10 Hz): deterministic movement/combat/gather, NO LLM
- *   - Slow loop (~30s): GPT-4o-mini planner via proxy for goal setting
+ *   - Slow loop (~30s): GPT-4o-mini planner for goal setting
  *   - ElizaOS plugin wraps providers/actions/evaluators
  *
  * Usage:
@@ -19,7 +19,7 @@
  *   1. SpacetimeDB server running locally
  *   2. Server module published: spacetime publish --project-path ./server broth-bullets-local
  *   3. Bindings generated: npm run generate
- *   4. API proxy running (for LLM calls): cd api-proxy && npm run dev
+ *   4. OPENAI_API_KEY set for planner LLM calls
  */
 
 import 'dotenv/config';
@@ -33,7 +33,7 @@ async function main(): Promise<void> {
   const config = loadConfig();
   console.log(`Config: ${config.npcCount} NPCs, ${config.fastLoopHz} Hz fast loop, ${config.plannerIntervalMs}ms planner`);
   console.log(`SpacetimeDB: ${config.spacetimedbUri} / ${config.spacetimedbModule}`);
-  console.log(`LLM Proxy: ${config.proxyUrl}`);
+  console.log(`LLM Model: ${config.llmModel}`);
 
   const manager = new NpcManager(config);
 

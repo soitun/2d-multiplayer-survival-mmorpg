@@ -8,7 +8,7 @@
  * AAA quality pixel art style inspired by Sea of Stars / Hyper Light Drifter.
  */
 
-import { MonumentPart, MonumentType } from '../../generated';
+import { MonumentPart, MonumentType } from '../../generated/types';
 import { isNightTime, NIGHT_LIGHTS_ON, LIGHT_FADE_FULL_AT, TWILIGHT_MORNING_FADE_START, TWILIGHT_MORNING_END } from '../../config/dayNightConstants';
 
 // ═══════════════════════════════════════════════════════════════════════════

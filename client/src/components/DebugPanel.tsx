@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useDebug } from '../contexts/DebugContext';
-import { WorldState as SpacetimeDBWorldState, ItemDefinition } from '../generated';
+import { WorldState as SpacetimeDBWorldState, ItemDefinition } from '../generated/types';
 import { DbConnection } from '../generated';
 import springIcon from '../assets/ui/spring.png';
 import summerIcon from '../assets/ui/summer.png';

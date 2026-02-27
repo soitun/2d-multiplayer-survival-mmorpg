@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Player, InventoryItem, ItemDefinition, DbConnection, ActiveEquipment, Campfire as SpacetimeDBCampfire, Furnace as SpacetimeDBFurnace, Barbecue as SpacetimeDBBarbecue, Fumarole as SpacetimeDBFumarole, Lantern as SpacetimeDBLantern, Turret as SpacetimeDBTurret, WoodenStorageBox as SpacetimeDBWoodenStorageBox, Recipe, CraftingQueueItem, PlayerCorpse, StatThresholdsConfig, Stash as SpacetimeDBStash, ActiveConsumableEffect, KnockedOutStatus, WorldState, RainCollector as SpacetimeDBRainCollector, BrothPot as SpacetimeDBBrothPot, HomesteadHearth as SpacetimeDBHomesteadHearth, RangedWeaponStats, MemoryGridProgress as SpacetimeDBMemoryGridProgress } from '../generated';
+import { DbConnection } from '../generated';
+import { Player, InventoryItem, ItemDefinition, ActiveEquipment, Campfire as SpacetimeDBCampfire, Furnace as SpacetimeDBFurnace, Barbecue as SpacetimeDBBarbecue, Fumarole as SpacetimeDBFumarole, Lantern as SpacetimeDBLantern, Turret as SpacetimeDBTurret, WoodenStorageBox as SpacetimeDBWoodenStorageBox, Recipe, CraftingQueueItem, PlayerCorpse, StatThresholdsConfig, Stash as SpacetimeDBStash, ActiveConsumableEffect, KnockedOutStatus, WorldState, RainCollector as SpacetimeDBRainCollector, BrothPot as SpacetimeDBBrothPot, HomesteadHearth as SpacetimeDBHomesteadHearth, RangedWeaponStats, MemoryGridProgress as SpacetimeDBMemoryGridProgress } from '../generated/types';
 import { Identity } from 'spacetimedb';
 import InventoryUI, { PopulatedItem } from './InventoryUI';
 import Hotbar from './Hotbar';
@@ -399,11 +400,11 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
 
         if (localPlayer.isKnockedOut) {
             // Call the reducer immediately when player becomes knocked out
-            connection.reducers.getKnockedOutStatus();
+            connection.reducers.getKnockedOutStatus({});
             
             // Set up interval to call it every 2 seconds while knocked out
             intervalId = setInterval(() => {
-                connection.reducers.getKnockedOutStatus();
+                connection.reducers.getKnockedOutStatus({});
             }, 2000);
         }
 
@@ -431,7 +432,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
             }
         };
 
-        const configIterable = connection.db.statThresholdsConfig.iter();
+        const configIterable = connection.db.stat_thresholds_config.iter();
         const initialConfigArray = Array.from(configIterable);
         const initialConfig = initialConfigArray.length > 0 ? initialConfigArray[0] : undefined;
         
@@ -446,14 +447,14 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
             setLowNeedThreshold(20.0);
         };
 
-        connection.db.statThresholdsConfig.onInsert(onInsertConfigCallback);
-        connection.db.statThresholdsConfig.onUpdate(onUpdateConfigCallback);
-        connection.db.statThresholdsConfig.onDelete(onDeleteConfigCallback);
+        connection.db.stat_thresholds_config.onInsert(onInsertConfigCallback);
+        connection.db.stat_thresholds_config.onUpdate(onUpdateConfigCallback);
+        connection.db.stat_thresholds_config.onDelete(onDeleteConfigCallback);
 
         return () => {
-            connection.db.statThresholdsConfig.removeOnInsert(onInsertConfigCallback);
-            connection.db.statThresholdsConfig.removeOnUpdate(onUpdateConfigCallback);
-            connection.db.statThresholdsConfig.removeOnDelete(onDeleteConfigCallback);
+            connection.db.stat_thresholds_config.removeOnInsert(onInsertConfigCallback);
+            connection.db.stat_thresholds_config.removeOnUpdate(onUpdateConfigCallback);
+            connection.db.stat_thresholds_config.removeOnDelete(onDeleteConfigCallback);
         };
     }, [connection]);
 
@@ -471,7 +472,7 @@ const PlayerUI: React.FC<PlayerUIProps> = ({
 
         let total = 0;
         const playerIdentityHex = identity.toHexString();
-        for (const invItem of connection.db.inventoryItem.iter()) {
+        for (const invItem of connection.db.inventory_item.iter()) {
             if (invItem.itemDefId === itemDefId) {
                 if (invItem.location.tag === 'Inventory' && invItem.location.value.ownerId.toHexString() === playerIdentityHex) {
                     total += invItem.quantity;

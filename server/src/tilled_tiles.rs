@@ -36,9 +36,9 @@ pub const PREPARED_SOIL_GROWTH_MULTIPLIER: f32 = 1.5; // +50% growth
 
 /// Stores metadata about tilled tiles for tracking reversion
 #[spacetimedb::table(
-    name = tilled_tile_metadata, 
+    accessor = tilled_tile_metadata, 
     public,
-    index(name = idx_tile_coords, btree(columns = [tile_x, tile_y]))
+    index(accessor = idx_tile_coords, name = "idx_tile_coords", btree(columns = [tile_x, tile_y]))
 )]
 #[derive(Clone, Debug)]
 pub struct TilledTileMetadata {
@@ -61,7 +61,7 @@ pub struct TilledTileMetadata {
 
 // --- Reversion Schedule Table ---
 
-#[spacetimedb::table(name = tilled_tile_reversion_schedule, scheduled(process_tilled_tile_reversions))]
+#[spacetimedb::table(accessor = tilled_tile_reversion_schedule, scheduled(process_tilled_tile_reversions))]
 #[derive(Clone)]
 pub struct TilledTileReversionSchedule {
     #[primary_key]
@@ -300,7 +300,7 @@ pub fn process_tilled_tile_reversions(
     _schedule: TilledTileReversionSchedule,
 ) -> Result<(), String> {
     // Security check - only scheduler can run this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Tilled tile reversion can only be run by scheduler".to_string());
     }
     
@@ -340,7 +340,7 @@ pub fn process_tilled_tile_reversions(
 /// Reducer called when a player uses a tiller tool
 #[spacetimedb::reducer]
 pub fn till_ground(ctx: &ReducerContext, world_x: f32, world_y: f32) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Verify player exists
     let player = ctx.db.player().identity().find(&player_id)

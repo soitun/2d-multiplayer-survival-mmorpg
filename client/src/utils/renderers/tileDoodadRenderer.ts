@@ -6,7 +6,7 @@
  */
 
 import { gameConfig } from '../../config/gameConfig';
-import { WorldTile } from '../../generated/world_tile_type';
+import type { WorldTile } from '../../generated/types';
 import { getDualGridTileInfoMultiLayer } from '../dualGridAutotile';
 
 // ============================================================================

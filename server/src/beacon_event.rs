@@ -60,7 +60,7 @@ pub const WORLD_EDGE_BUFFER_PX: f32 = 500.0;
 
 /// Tracks active beacon drop events
 /// Only one can exist at a time - checked before spawning new one
-#[spacetimedb::table(name = beacon_drop_event, public)]
+#[spacetimedb::table(accessor = beacon_drop_event, public)]
 #[derive(Clone, Debug)]
 pub struct BeaconDropEvent {
     #[primary_key]

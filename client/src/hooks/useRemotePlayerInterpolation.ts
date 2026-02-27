@@ -1,5 +1,5 @@
 import { useRef, useCallback, useMemo } from 'react';
-import { Player } from '../generated';
+import { Player } from '../generated/types';
 
 /**
  * Remote player interpolation - display-rate independent.

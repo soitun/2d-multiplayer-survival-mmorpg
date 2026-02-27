@@ -12,7 +12,7 @@
 
 import { useEffect } from 'react';
 import { Identity } from 'spacetimedb';
-import { Player, Campfire, Furnace, Fumarole, WoodenStorageBox, Stash, PlayerCorpse, RainCollector } from '../generated';
+import { Player, Campfire, Furnace, Fumarole, WoodenStorageBox, Stash, PlayerCorpse, RainCollector } from '../generated/types';
 import { InteractionTarget } from './useInteractionManager';
 import { PLAYER_BOX_INTERACTION_DISTANCE_SQUARED, PLAYER_TALL_BOX_INTERACTION_DISTANCE_SQUARED, PLAYER_BEEHIVE_INTERACTION_DISTANCE_SQUARED, getBoxDimensions, BOX_TYPE_COMPOST, BOX_TYPE_COOKING_STATION, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_WILD_BEEHIVE, MONUMENT_COMPOST_HEIGHT, MONUMENT_COOKING_STATION_HEIGHT, MONUMENT_REPAIR_BENCH_HEIGHT } from '../utils/renderers/woodenStorageBoxRenderingUtils';
 import { PLAYER_MONUMENT_BOX_INTERACTION_DISTANCE_SQUARED } from './useInteractionFinder';

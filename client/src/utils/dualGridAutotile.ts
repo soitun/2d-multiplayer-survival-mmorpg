@@ -13,7 +13,7 @@
  * - Simpler code (~200 lines vs 1700+)
  */
 
-import { WorldTile } from '../generated/world_tile_type';
+import type { WorldTile } from '../generated/types';
 
 type AssetModule = { default: string };
 

@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react';
-import type { Player } from '../generated';
+import type { Player } from '../generated/types';
 
 interface UseInsanitySovaSoundsProps {
   localPlayer: Player | undefined;

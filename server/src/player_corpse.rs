@@ -45,7 +45,7 @@ use crate::death_marker::death_marker as DeathMarkerTableTrait; // For ctx.db.de
 /// --- Player Corpse Data Structure ---
 /// Represents a lootable backpack dropped when a player dies.
 /// Contains the player's inventory at the time of death.
-#[spacetimedb::table(name = player_corpse, public)]
+#[spacetimedb::table(accessor = player_corpse, public)]
 #[derive(Clone)]
 pub struct PlayerCorpse {
     #[primary_key]
@@ -351,7 +351,7 @@ pub fn try_add_item_to_corpse_inventory(
  *                         DESPAWN SCHEDULING                             *
  ******************************************************************************/
 
-#[spacetimedb::table(name = player_corpse_despawn_schedule, public, scheduled(process_corpse_despawn))]
+#[spacetimedb::table(accessor = player_corpse_despawn_schedule, public, scheduled(process_corpse_despawn))]
 #[derive(Clone)]
 pub struct PlayerCorpseDespawnSchedule {
     #[primary_key]
@@ -363,7 +363,7 @@ pub struct PlayerCorpseDespawnSchedule {
 /// Scheduled reducer to despawn a player corpse after a certain time.
 #[spacetimedb::reducer(name = "process_corpse_despawn")]
 pub fn process_corpse_despawn(ctx: &ReducerContext, args: PlayerCorpseDespawnSchedule) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("process_corpse_despawn can only be called by the scheduler".to_string());
     }
 
@@ -417,7 +417,7 @@ fn validate_corpse_interaction(
     ctx: &ReducerContext,
     corpse_id: u32,
 ) -> Result<(Player, PlayerCorpse), String> { 
-    let player = ctx.db.player().identity().find(&ctx.sender)
+    let player = ctx.db.player().identity().find(&ctx.sender())
         .ok_or_else(|| "Player not found".to_string())?;
     let corpse = ctx.db.player_corpse().id().find(corpse_id)
         .ok_or_else(|| "Corpse not found".to_string())?;
@@ -432,10 +432,10 @@ fn validate_corpse_interaction(
     // Only the owner can loot their corpse during the protection period.
     // Non-owners receive a specific error that the client can detect to play the Sova voice line.
     if let Some(locked_until) = corpse.locked_until {
-        if ctx.timestamp < locked_until && ctx.sender != corpse.player_identity {
+        if ctx.timestamp < locked_until && ctx.sender() != corpse.player_identity {
             log::info!(
                 "[CorpseProtection] Player {:?} attempted to loot protected corpse {} belonging to {:?}. Protection expires at {:?}.",
-                ctx.sender, corpse_id, corpse.player_identity, locked_until
+                ctx.sender(), corpse_id, corpse.player_identity, locked_until
             );
             return Err("CORPSE_PROTECTED".to_string());
         }
@@ -575,7 +575,7 @@ pub fn drop_item_from_corpse_slot_to_world(
     corpse_id: u32,
     slot_index: u8,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let player_table = ctx.db.player(); // For fetching the player for drop location
     let mut corpse_table = ctx.db.player_corpse();
 
@@ -606,7 +606,7 @@ pub fn split_and_drop_item_from_corpse_slot_to_world(
     slot_index: u8,
     quantity_to_split: u32,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let player_table = ctx.db.player(); // For fetching the player for drop location
     let mut corpse_table = ctx.db.player_corpse();
 

@@ -12,7 +12,7 @@ import {
     getLanternFuelTypeName
 } from '../utils/containerUtils';
 import { PopulatedItem } from './InventoryUI';
-import { Campfire, Furnace, Lantern } from '../generated';
+import { Campfire, Furnace, Lantern } from '../generated/types';
 import styles from './InventoryUI.module.css';
 
 interface ContainerButtonsProps {

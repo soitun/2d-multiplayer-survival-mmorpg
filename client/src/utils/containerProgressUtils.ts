@@ -5,7 +5,7 @@
  * to display visual progress overlays similar to weapon cooldowns
  */
 
-import { Campfire, Furnace, Barbecue, Fumarole, WoodenStorageBox, Lantern, CookingProgress, InventoryItem } from '../generated';
+import { Campfire, Furnace, Barbecue, Fumarole, WoodenStorageBox, Lantern, CookingProgress, InventoryItem } from '../generated/types';
 import { ContainerType, ContainerEntity } from './containerUtils';
 
 const COMPOST_CONVERSION_TIME_SECS = 300; // 5 minutes (matching server constant)

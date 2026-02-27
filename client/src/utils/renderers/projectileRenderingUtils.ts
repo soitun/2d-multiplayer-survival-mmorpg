@@ -1,4 +1,4 @@
-import { Projectile as SpacetimeDBProjectile } from '../../generated';
+import { Projectile as SpacetimeDBProjectile } from '../../generated/types';
 
 // Full 64x64px rendering for all projectiles
 const DEFAULT_ARROW_SCALE = 0.7; // Full size arrows (Hunting Bow)

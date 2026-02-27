@@ -83,7 +83,7 @@ pub struct FlexibleIngredient {
     pub group_name: String,        // Display name like "Any Berry" or "Any Cooked Root"
 }
 
-#[spacetimedb::table(name = item_definition, public)]
+#[spacetimedb::table(accessor = item_definition, public)]
 #[derive(Clone, Debug)] // Removed SpacetimeType, Serialize, Deserialize here as it's a table
                        // It will get them from the #[table] macro automatically.
 pub struct ItemDefinition {
@@ -190,7 +190,7 @@ pub struct ItemDefinition {
 // --- Inventory Table ---
 
 // Represents an instance of an item in a player's inventory
-#[spacetimedb::table(name = inventory_item, public)]
+#[spacetimedb::table(accessor = inventory_item, public)]
 #[derive(Clone, Debug)]
 pub struct InventoryItem {
     #[primary_key]
@@ -555,7 +555,7 @@ pub(crate) fn get_ranged_weapon_stats(ctx: &ReducerContext, item_name: &str) -> 
 pub(crate) fn get_player_item(ctx: &ReducerContext, instance_id: u64) -> Result<InventoryItem, String> {
     ctx.db
         .inventory_item().iter()
-        .find(|i| i.instance_id == instance_id && i.location.is_player_bound() == Some(ctx.sender))
+        .find(|i| i.instance_id == instance_id && i.location.is_player_bound() == Some(ctx.sender()))
         .ok_or_else(|| format!("Item instance {} not found or not owned by caller.", instance_id))
 }
 
@@ -564,7 +564,7 @@ fn find_item_in_inventory_slot(ctx: &ReducerContext, slot: u16) -> Option<Invent
     ctx.db
         .inventory_item().iter()
         .find(|i| match &i.location { 
-            ItemLocation::Inventory(data) => data.owner_id == ctx.sender && data.slot_index == slot,
+            ItemLocation::Inventory(data) => data.owner_id == ctx.sender() && data.slot_index == slot,
             _ => false,
         })
 }
@@ -574,7 +574,7 @@ fn find_item_in_hotbar_slot(ctx: &ReducerContext, slot: u8) -> Option<InventoryI
     ctx.db
         .inventory_item().iter()
         .find(|i| match &i.location { 
-            ItemLocation::Hotbar(data) => data.owner_id == ctx.sender && data.slot_index == slot,
+            ItemLocation::Hotbar(data) => data.owner_id == ctx.sender() && data.slot_index == slot,
             _ => false,
         })
 }
@@ -1201,7 +1201,7 @@ pub(crate) fn clear_item_from_any_container(ctx: &ReducerContext, item_instance_
 // Clears an item from equipment OR container slots based on its state
 // This should be called *before* modifying or deleting the InventoryItem itself.
 fn clear_item_from_source_location(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let item_opt = ctx.db.inventory_item().instance_id().find(item_instance_id);
     if item_opt.is_none() {
         log::debug!("[ClearSource] Item {} already gone. No clearing needed.", item_instance_id);
@@ -1230,7 +1230,7 @@ fn clear_item_from_source_location(ctx: &ReducerContext, item_instance_id: u64) 
 #[spacetimedb::reducer]
 pub fn equip_armor_from_drag(ctx: &ReducerContext, item_instance_id: u64, target_slot_name: String) -> Result<(), String> {
     log::info!("[EquipArmorDrag] Attempting to equip item {} to slot {}", item_instance_id, target_slot_name);
-    let sender_id = ctx.sender; // Get sender early
+    let sender_id = ctx.sender(); // Get sender early
     let inventory_items = ctx.db.inventory_item(); // Need table access
 
     // 1. Get Item and Definition (Fetch directly, don't assume player ownership yet)
@@ -1411,7 +1411,7 @@ pub fn drop_item(
     item_instance_id: u64,
     quantity_to_drop: u32, // How many to drop (can be less than total stack)
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     log::info!("[DropItem] Player {:?} attempting to drop {} of item instance {}", sender_id, quantity_to_drop, item_instance_id);
 
     let inventory_items = ctx.db.inventory_item();
@@ -1516,7 +1516,7 @@ pub fn drop_item(
 // --- NEW: Reducer to equip armor directly from inventory/hotbar ---
 #[spacetimedb::reducer]
 pub fn equip_armor_from_inventory(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     log::info!("[EquipArmorInv] Player {:?} attempting to equip item {} from inventory/hotbar.", sender_id, item_instance_id);
 
     // 1. Get Item and Definition

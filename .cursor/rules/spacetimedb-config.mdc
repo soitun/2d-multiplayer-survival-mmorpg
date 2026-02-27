@@ -11,9 +11,9 @@ alwaysApply: true
 
 | Component | Version |
 |-----------|---------|
-| SpacetimeDB CLI | 1.6.0 |
-| SpacetimeDB Rust Crate | 1.6.0 |
-| SpacetimeDB TypeScript SDK | spacetimedb@1.6.1 (npm package) |
+| SpacetimeDB CLI | 2.0.x |
+| SpacetimeDB Rust Crate | 2.0 |
+| SpacetimeDB TypeScript SDK | spacetimedb@2.0.1 (npm package) |
 
 When editing `Cargo.toml`, `package.json`, lockfiles, Dockerfiles, CI, or deployment commands, preserve these exact versions. Do not upgrade, downgrade, or suggest alternative versions unless explicitly requested by the user.
 

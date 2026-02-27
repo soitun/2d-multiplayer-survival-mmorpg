@@ -23,7 +23,7 @@ use crate::player_progression::player_stats as PlayerStatsTableTrait;
 use crate::player_inventory::{find_first_empty_player_slot, get_player_item};
 
 // --- Crafting Queue Table ---
-#[spacetimedb::table(name = crafting_queue_item, public)]
+#[spacetimedb::table(accessor = crafting_queue_item, public)]
 #[derive(Clone, Debug)]
 pub struct CraftingQueueItem {
     #[primary_key]
@@ -39,7 +39,7 @@ pub struct CraftingQueueItem {
 
 // --- Scheduled Reducer Table --- 
 // This table drives the periodic check for finished crafting items.
-#[spacetimedb::table(name = crafting_finish_schedule, scheduled(check_finished_crafting))]
+#[spacetimedb::table(accessor = crafting_finish_schedule, scheduled(check_finished_crafting))]
 #[derive(Clone)]
 pub struct CraftingFinishSchedule {
     #[primary_key]
@@ -55,7 +55,7 @@ const CRAFTING_CHECK_INTERVAL_SECS: u64 = 1; // Check every second
 /// Starts crafting an item if the player has the required resources.
 #[spacetimedb::reducer]
 pub fn start_crafting(ctx: &ReducerContext, recipe_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let recipe_table = ctx.db.recipe();
     let inventory_table = ctx.db.inventory_item();
     let queue_table = ctx.db.crafting_queue_item();
@@ -290,7 +290,7 @@ pub fn start_crafting_multiple(ctx: &ReducerContext, recipe_id: u64, quantity_to
         return Err("Quantity to craft must be greater than 0.".to_string());
     }
 
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let recipe_table = ctx.db.recipe();
     let inventory_table = ctx.db.inventory_item();
     let queue_table = ctx.db.crafting_queue_item();
@@ -516,7 +516,7 @@ pub fn start_crafting_multiple(ctx: &ReducerContext, recipe_id: u64, quantity_to
 #[spacetimedb::reducer]
 pub fn check_finished_crafting(ctx: &ReducerContext, _schedule: CraftingFinishSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Reducer check_finished_crafting may not be invoked by clients, only via scheduling.".to_string());
     }
 
@@ -646,7 +646,7 @@ pub fn check_finished_crafting(ctx: &ReducerContext, _schedule: CraftingFinishSc
 /// Cancels a specific item in the player's crafting queue and refunds resources.
 #[spacetimedb::reducer]
 pub fn cancel_crafting_item(ctx: &ReducerContext, queue_item_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let queue_table = ctx.db.crafting_queue_item();
     let recipe_table = ctx.db.recipe();
     let player_table = ctx.db.player();
@@ -896,7 +896,7 @@ fn refund_crafting_materials_to_inventory_or_drop(ctx: &ReducerContext, player_i
 /// Right-click on a queue item to prioritize it. Does not refund or lose any items.
 #[spacetimedb::reducer]
 pub fn move_crafting_queue_item_to_front(ctx: &ReducerContext, queue_item_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let queue_table = ctx.db.crafting_queue_item();
 
     // 1. Find the queue item
@@ -942,7 +942,7 @@ pub fn move_crafting_queue_item_to_front(ctx: &ReducerContext, queue_item_id: u6
 /// Cancels all items in the player's crafting queue and refunds all resources.
 #[spacetimedb::reducer]
 pub fn cancel_all_crafting(ctx: &ReducerContext) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let queue_table = ctx.db.crafting_queue_item();
     let recipe_table = ctx.db.recipe();
     let player_table = ctx.db.player();

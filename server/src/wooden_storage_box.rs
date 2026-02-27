@@ -191,7 +191,7 @@ pub use crate::refrigerator::is_item_allowed_in_refrigerator;
 /// Represents a storage box in the game world with position, owner, and
 /// inventory slots (using individual fields instead of arrays).
 /// Provides 18 slots for storing items that players can access when nearby.
-#[spacetimedb::table(name = wooden_storage_box, public)]
+#[spacetimedb::table(accessor = wooden_storage_box, public)]
 #[derive(Clone)]
 pub struct WoodenStorageBox {
     #[primary_key]
@@ -786,7 +786,7 @@ pub fn quick_move_to_box(
 /// the storage box entity. Uses the generic container system for item management.
 #[spacetimedb::reducer]
 pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, world_y: f32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let mut inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let mut boxes = ctx.db.wooden_storage_box();
@@ -1038,7 +1038,7 @@ pub fn place_wooden_storage_box(ctx: &ReducerContext, item_instance_id: u64, wor
 #[spacetimedb::reducer]
 pub fn interact_with_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<(), String> {
     validate_box_interaction(ctx, box_id)?; // Use helper for validation
-    log::debug!("Player {:?} interaction check OK for box {}", ctx.sender, box_id);
+    log::debug!("Player {:?} interaction check OK for box {}", ctx.sender(), box_id);
     Ok(())
 }
 
@@ -1046,7 +1046,7 @@ pub fn interact_with_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<()
 /// Allows a player to pick up an *empty* storage box, returning it to their inventory.
 #[spacetimedb::reducer]
 pub fn pickup_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let mut boxes_table = ctx.db.wooden_storage_box();
     let item_defs_table = ctx.db.item_definition();
     // inventory_items_table is not needed if the box must be empty
@@ -1111,7 +1111,7 @@ pub fn drop_item_from_box_slot_to_world(
     box_id: u32,
     slot_index: u8,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let player_table = ctx.db.player();
     let mut wooden_box_table = ctx.db.wooden_storage_box();
 
@@ -1183,7 +1183,7 @@ pub fn split_and_drop_item_from_box_slot_to_world(
     slot_index: u8,
     quantity_to_split: u32,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let player_table = ctx.db.player();
     let mut wooden_box_table = ctx.db.wooden_storage_box();
 
@@ -1525,7 +1525,7 @@ pub fn validate_box_interaction(
     ctx: &ReducerContext,
     box_id: u32,
 ) -> Result<(Player, WoodenStorageBox), String> { // Use corrected Player type
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let boxes = ctx.db.wooden_storage_box();
 
@@ -1675,7 +1675,7 @@ pub fn sort_storage_box(ctx: &ReducerContext, box_id: u32) -> Result<(), String>
     }
 
     boxes.id().update(storage_box);
-    log::debug!("Player {:?} sorted storage box {}", ctx.sender, box_id);
+    log::debug!("Player {:?} sorted storage box {}", ctx.sender(), box_id);
 
     Ok(())
 }
@@ -1688,11 +1688,11 @@ pub fn open_storage_box_container(ctx: &ReducerContext, box_id: u32) -> Result<(
     let (_player, mut storage_box) = validate_box_interaction(ctx, box_id)?;
     
     // Set the active user
-    storage_box.active_user_id = Some(ctx.sender);
+    storage_box.active_user_id = Some(ctx.sender());
     storage_box.active_user_since = Some(ctx.timestamp);
     
     ctx.db.wooden_storage_box().id().update(storage_box);
-    log::debug!("Player {:?} opened storage box {} container", ctx.sender, box_id);
+    log::debug!("Player {:?} opened storage box {} container", ctx.sender(), box_id);
     
     Ok(())
 }
@@ -1706,12 +1706,12 @@ pub fn close_storage_box_container(ctx: &ReducerContext, box_id: u32) -> Result<
         .ok_or_else(|| format!("Storage box {} not found", box_id))?;
     
     // Only clear if this player is the active user
-    if storage_box.active_user_id == Some(ctx.sender) {
+    if storage_box.active_user_id == Some(ctx.sender()) {
         let mut storage_box = storage_box;
         storage_box.active_user_id = None;
         storage_box.active_user_since = None;
         ctx.db.wooden_storage_box().id().update(storage_box);
-        log::debug!("Player {:?} closed storage box {} container", ctx.sender, box_id);
+        log::debug!("Player {:?} closed storage box {} container", ctx.sender(), box_id);
     }
     
     Ok(())

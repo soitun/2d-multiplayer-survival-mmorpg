@@ -20,6 +20,7 @@
  */
 
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { DbConnection } from '../generated';
 import {
     Player as SpacetimeDBPlayer,
     Campfire as SpacetimeDBCampfire,
@@ -45,11 +46,10 @@ import {
     CaribouBreedingData as SpacetimeDBCaribouBreedingData, // ADDED: Caribou breeding data for milking check
     WalrusBreedingData as SpacetimeDBWalrusBreedingData, // ADDED: Walrus breeding data for milking check
     WorldState as SpacetimeDBWorldState, // ADDED: World state for current game day
-    DbConnection,
     InventoryItem as SpacetimeDBInventoryItem,
     ItemDefinition as SpacetimeDBItemDefinition,
     PlayerDrinkingCooldown as SpacetimeDBPlayerDrinkingCooldown,
-} from '../generated';
+} from '../generated/types';
 import { InteractableTarget, InteractionTargetType } from '../types/interactions';
 import { selectHighestPriorityTarget } from '../types/interactions'; // ADDED: Import priority selection helper
 import {

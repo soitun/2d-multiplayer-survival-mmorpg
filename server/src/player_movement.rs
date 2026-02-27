@@ -41,7 +41,7 @@ pub const DODGE_ROLL_COOLDOWN_MS: u64 = 500; // 500ms cooldown - prevents spam b
 pub const DODGE_ROLL_SPEED: f32 = DODGE_ROLL_DISTANCE / (DODGE_ROLL_DURATION_MS as f32 / 1000.0); // 900 px/s
 
 // Table to track dodge roll state for each player
-#[spacetimedb::table(name = player_dodge_roll_state, public)]
+#[spacetimedb::table(accessor = player_dodge_roll_state, public)]
 #[derive(Clone, Debug)]
 pub struct PlayerDodgeRollState {
     #[primary_key]
@@ -56,7 +56,7 @@ pub struct PlayerDodgeRollState {
 }
 
 // Schedule table for dodge roll state cleanup
-#[spacetimedb::table(name = dodge_roll_cleanup_schedule, scheduled(cleanup_expired_dodge_rolls))]
+#[spacetimedb::table(accessor = dodge_roll_cleanup_schedule, scheduled(cleanup_expired_dodge_rolls))]
 #[derive(Clone)]
 pub struct DodgeRollCleanupSchedule {
     #[primary_key]
@@ -66,7 +66,7 @@ pub struct DodgeRollCleanupSchedule {
 }
 
 // Table to track walking sound cadence for each player
-#[spacetimedb::table(name = player_walking_sound_state, public)]
+#[spacetimedb::table(accessor = player_walking_sound_state, public)]
 #[derive(Clone, Debug)]
 pub struct PlayerWalkingSoundState {
     #[primary_key]
@@ -108,7 +108,7 @@ pub struct PlayerWalkingSoundState {
 /// It verifies the player is alive and not knocked out before allowing the sprint state change.
 #[spacetimedb::reducer]
 pub fn set_sprinting(ctx: &ReducerContext, sprinting: bool) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
 
     if let Some(mut player) = players.identity().find(&sender_id) {
@@ -143,7 +143,7 @@ pub fn set_sprinting(ctx: &ReducerContext, sprinting: bool) -> Result<(), String
 /// The crouching state affects player movement speed and potentially other gameplay mechanics.
 #[spacetimedb::reducer]
 pub fn toggle_crouch(ctx: &ReducerContext) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
 
     if let Some(mut player) = players.identity().find(&sender_id) {
@@ -185,7 +185,7 @@ pub fn toggle_crouch(ctx: &ReducerContext) -> Result<(), String> {
 /// the jump cooldown before allowing the jump to occur.
 #[spacetimedb::reducer]
 pub fn jump(ctx: &ReducerContext) -> Result<(), String> {
-   let identity = ctx.sender;
+   let identity = ctx.sender();
    
    let players = ctx.db.player();
    if let Some(mut player) = players.identity().find(&identity) {
@@ -238,7 +238,7 @@ pub fn jump(ctx: &ReducerContext) -> Result<(), String> {
 /// Supports 8-directional movement including diagonals.
 #[spacetimedb::reducer]
 pub fn dodge_roll(ctx: &ReducerContext, move_x: f32, move_y: f32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let dodge_roll_states = ctx.db.player_dodge_roll_state();
 
@@ -423,7 +423,7 @@ pub fn update_player_position_simple(
     facing_direction: String,
     client_sequence: u64,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     
     let mut current_player = players.identity()
@@ -772,7 +772,7 @@ pub fn update_player_position_simple(
 #[spacetimedb::reducer]
 pub fn cleanup_expired_dodge_rolls(ctx: &ReducerContext, _args: DodgeRollCleanupSchedule) -> Result<(), String> {
     // Security check: only the module itself can call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Only the module can call cleanup_expired_dodge_rolls".to_string());
     }
 

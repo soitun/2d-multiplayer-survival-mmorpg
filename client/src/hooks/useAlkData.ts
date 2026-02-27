@@ -135,7 +135,7 @@ export function useAlkData({
         // Check if ALK tables exist in the generated bindings
         const db = connection.db as any;
         
-        if (!db.alkState || !db.alkStation || !db.alkContract || !db.alkPlayerContract || !db.playerShardBalance) {
+        if (!db.alk_state || !db.alk_station || !db.alk_contract || !db.alk_player_contract || !db.player_shard_balance) {
             console.warn('[ALK] ALK tables not found in generated bindings. Run `spacetime generate` after building the server.');
             setIsLoading(false);
             return;
@@ -144,24 +144,24 @@ export function useAlkData({
         subscriptionSetup.current = true;
         
         // ALK State handlers
-        db.alkState.onInsert((ctx: any, state: any) => {
+        db.alk_state.onInsert((ctx: any, state: any) => {
             setAlkState(state);
         });
-        db.alkState.onUpdate((ctx: any, oldState: any, newState: any) => {
+        db.alk_state.onUpdate((ctx: any, oldState: any, newState: any) => {
             setAlkState(newState);
         });
-        db.alkState.onDelete((ctx: any, state: any) => {
+        db.alk_state.onDelete((ctx: any, state: any) => {
             setAlkState(null);
         });
         
         // ALK Stations handlers
-        db.alkStation.onInsert((ctx: any, station: any) => {
+        db.alk_station.onInsert((ctx: any, station: any) => {
             setAlkStations(prev => new Map(prev).set(station.stationId.toString(), station));
         });
-        db.alkStation.onUpdate((ctx: any, oldStation: any, newStation: any) => {
+        db.alk_station.onUpdate((ctx: any, oldStation: any, newStation: any) => {
             setAlkStations(prev => new Map(prev).set(newStation.stationId.toString(), newStation));
         });
-        db.alkStation.onDelete((ctx: any, station: any) => {
+        db.alk_station.onDelete((ctx: any, station: any) => {
             setAlkStations(prev => {
                 const newMap = new Map(prev);
                 newMap.delete(station.stationId.toString());
@@ -170,13 +170,13 @@ export function useAlkData({
         });
         
         // ALK Contracts handlers
-        db.alkContract.onInsert((ctx: any, contract: any) => {
+        db.alk_contract.onInsert((ctx: any, contract: any) => {
             setAlkContracts(prev => new Map(prev).set(contract.contractId.toString(), contract));
         });
-        db.alkContract.onUpdate((ctx: any, oldContract: any, newContract: any) => {
+        db.alk_contract.onUpdate((ctx: any, oldContract: any, newContract: any) => {
             setAlkContracts(prev => new Map(prev).set(newContract.contractId.toString(), newContract));
         });
-        db.alkContract.onDelete((ctx: any, contract: any) => {
+        db.alk_contract.onDelete((ctx: any, contract: any) => {
             setAlkContracts(prev => {
                 const newMap = new Map(prev);
                 newMap.delete(contract.contractId.toString());
@@ -185,13 +185,13 @@ export function useAlkData({
         });
         
         // ALK Player Contracts handlers
-        db.alkPlayerContract.onInsert((ctx: any, pc: any) => {
+        db.alk_player_contract.onInsert((ctx: any, pc: any) => {
             setAlkPlayerContracts(prev => new Map(prev).set(pc.id.toString(), pc));
         });
-        db.alkPlayerContract.onUpdate((ctx: any, oldPc: any, newPc: any) => {
+        db.alk_player_contract.onUpdate((ctx: any, oldPc: any, newPc: any) => {
             setAlkPlayerContracts(prev => new Map(prev).set(newPc.id.toString(), newPc));
         });
-        db.alkPlayerContract.onDelete((ctx: any, pc: any) => {
+        db.alk_player_contract.onDelete((ctx: any, pc: any) => {
             setAlkPlayerContracts(prev => {
                 const newMap = new Map(prev);
                 newMap.delete(pc.id.toString());
@@ -200,17 +200,17 @@ export function useAlkData({
         });
         
         // Player Shard Balance handlers
-        db.playerShardBalance.onInsert((ctx: any, balance: any) => {
+        db.player_shard_balance.onInsert((ctx: any, balance: any) => {
             if (playerIdentity && balance.playerId.toHexString() === playerIdentity.toHexString()) {
                 setPlayerShardBalance(balance);
             }
         });
-        db.playerShardBalance.onUpdate((ctx: any, oldBalance: any, newBalance: any) => {
+        db.player_shard_balance.onUpdate((ctx: any, oldBalance: any, newBalance: any) => {
             if (playerIdentity && newBalance.playerId.toHexString() === playerIdentity.toHexString()) {
                 setPlayerShardBalance(newBalance);
             }
         });
-        db.playerShardBalance.onDelete((ctx: any, balance: any) => {
+        db.player_shard_balance.onDelete((ctx: any, balance: any) => {
             if (playerIdentity && balance.playerId.toHexString() === playerIdentity.toHexString()) {
                 setPlayerShardBalance(null);
             }
@@ -219,34 +219,34 @@ export function useAlkData({
         // Initial data load from existing subscriptions
         const loadInitialData = () => {
             // Load ALK state
-            for (const state of db.alkState.iter()) {
+            for (const state of db.alk_state.iter()) {
                 setAlkState(state);
             }
             
             // Load stations
             const stationsMap = new Map<string, AlkStation>();
-            for (const station of db.alkStation.iter()) {
+            for (const station of db.alk_station.iter()) {
                 stationsMap.set(station.stationId.toString(), station);
             }
             setAlkStations(stationsMap);
             
             // Load contracts
             const contractsMap = new Map<string, AlkContract>();
-            for (const contract of db.alkContract.iter()) {
+            for (const contract of db.alk_contract.iter()) {
                 contractsMap.set(contract.contractId.toString(), contract);
             }
             setAlkContracts(contractsMap);
             
             // Load player contracts
             const playerContractsMap = new Map<string, AlkPlayerContract>();
-            for (const pc of db.alkPlayerContract.iter()) {
+            for (const pc of db.alk_player_contract.iter()) {
                 playerContractsMap.set(pc.id.toString(), pc);
             }
             setAlkPlayerContracts(playerContractsMap);
             
             // Load player shard balance
             if (playerIdentity) {
-                for (const balance of db.playerShardBalance.iter()) {
+                for (const balance of db.player_shard_balance.iter()) {
                     if (balance.playerId.toHexString() === playerIdentity.toHexString()) {
                         setPlayerShardBalance(balance);
                         break;
@@ -295,7 +295,7 @@ export function useAlkData({
         
         const reducers = connection.reducers as any;
         if (reducers.debugRefreshAlkContracts) {
-            reducers.debugRefreshAlkContracts();
+            reducers.debugRefreshAlkContracts({});
         }
     }, [connection]);
     
@@ -305,7 +305,7 @@ export function useAlkData({
         
         const reducers = connection.reducers as any;
         if (reducers.checkAlkStationProximity) {
-            reducers.checkAlkStationProximity();
+            reducers.checkAlkStationProximity({});
         }
     }, [connection]);
     

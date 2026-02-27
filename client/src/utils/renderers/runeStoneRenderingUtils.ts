@@ -1,4 +1,4 @@
-import { RuneStone } from '../../generated';
+import { RuneStone } from '../../generated/types';
 import monumentBlueImage from '../../assets/doodads/monument_blue.png';
 import monumentRedImage from '../../assets/doodads/monument_red.png';
 import monumentGreenImage from '../../assets/doodads/monument_green.png';

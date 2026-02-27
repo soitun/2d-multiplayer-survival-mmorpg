@@ -78,10 +78,10 @@ pub const FOUNDATION_TILE_SIZE_PX: u32 = 96; // 2x TILE_SIZE_PX
 
 // --- Foundation Cell Table ---
 #[spacetimedb::table(
-    name = foundation_cell,
+    accessor = foundation_cell,
     public,
-    index(name = idx_chunk, btree(columns = [chunk_index])),
-    index(name = idx_cell_coords, btree(columns = [cell_x, cell_y]))
+    index(accessor = idx_chunk, name = "idx_foundation_chunk", btree(columns = [chunk_index])),
+    index(accessor = idx_cell_coords, name = "idx_foundation_cell_coords", btree(columns = [cell_x, cell_y]))
 )]
 #[derive(Clone, Debug)]
 pub struct FoundationCell {
@@ -106,10 +106,10 @@ pub struct FoundationCell {
 
 // --- Wall Cell Table ---
 #[spacetimedb::table(
-    name = wall_cell,
+    accessor = wall_cell,
     public,
-    index(name = idx_chunk, btree(columns = [chunk_index])),
-    index(name = idx_cell_coords, btree(columns = [cell_x, cell_y]))
+    index(accessor = idx_chunk, name = "idx_wall_chunk", btree(columns = [chunk_index])),
+    index(accessor = idx_cell_coords, name = "idx_wall_cell_coords", btree(columns = [cell_x, cell_y]))
 )]
 #[derive(Clone, Debug)]
 pub struct WallCell {
@@ -755,7 +755,7 @@ pub fn place_foundation(
     shape: u8,
     tier: u8,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let foundations = ctx.db.foundation_cell();
     
@@ -1080,7 +1080,7 @@ pub fn upgrade_foundation(
     foundation_id: u64,
     new_tier: u8,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let foundations = ctx.db.foundation_cell();
     
@@ -1411,7 +1411,7 @@ pub fn upgrade_foundation(
 pub fn destroy_foundation(ctx: &ReducerContext, foundation_id: u64) -> Result<(), String> {
     use crate::sound_events;
     
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let foundations = ctx.db.foundation_cell();
     let players = ctx.db.player();
     
@@ -1514,7 +1514,7 @@ pub fn place_wall(
     world_y: f32,
     tier: u8,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let walls = ctx.db.wall_cell();
     let foundations = ctx.db.foundation_cell();
@@ -1714,7 +1714,7 @@ pub fn upgrade_wall(
     wall_id: u64,
     new_tier: u8,
 ) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let walls = ctx.db.wall_cell();
     
@@ -2009,7 +2009,7 @@ pub fn upgrade_wall(
 pub fn destroy_wall(ctx: &ReducerContext, wall_id: u64) -> Result<(), String> {
     use crate::sound_events;
     
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let walls = ctx.db.wall_cell();
     let players = ctx.db.player();
     
@@ -2231,10 +2231,10 @@ pub fn damage_wall_explosive(
         if wall.health <= 0.0 {
             wall.is_destroyed = true;
             wall.destroyed_at = Some(ctx.timestamp);
-            crate::sound_events::emit_foundation_twig_destroyed_sound(ctx, world_x, world_y, ctx.sender);
+            crate::sound_events::emit_foundation_twig_destroyed_sound(ctx, world_x, world_y, ctx.sender());
             log::info!("[WallExplosiveDamage] Wall {} destroyed by explosion", wall_id);
         } else {
-            crate::sound_events::emit_melee_hit_sharp_sound(ctx, world_x, world_y, ctx.sender);
+            crate::sound_events::emit_melee_hit_sharp_sound(ctx, world_x, world_y, ctx.sender());
             log::info!("[WallExplosiveDamage] Wall {} took {:.1} explosive damage, health: {:.1}", wall_id, damage, wall.health);
         }
         
@@ -2285,10 +2285,10 @@ pub fn damage_foundation_explosive(
         if foundation.health <= 0.0 {
             foundation.is_destroyed = true;
             foundation.destroyed_at = Some(ctx.timestamp);
-            crate::sound_events::emit_foundation_twig_destroyed_sound(ctx, world_x, world_y, ctx.sender);
+            crate::sound_events::emit_foundation_twig_destroyed_sound(ctx, world_x, world_y, ctx.sender());
             log::info!("[FoundationExplosiveDamage] Foundation {} destroyed by explosion", foundation_id);
         } else {
-            crate::sound_events::emit_melee_hit_sharp_sound(ctx, world_x, world_y, ctx.sender);
+            crate::sound_events::emit_melee_hit_sharp_sound(ctx, world_x, world_y, ctx.sender());
             log::info!("[FoundationExplosiveDamage] Foundation {} took {:.1} explosive damage, health: {:.1}", foundation_id, damage, foundation.health);
         }
         

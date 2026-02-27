@@ -52,10 +52,10 @@ export function useThunderEffects({ connection, localPlayer }: UseThunderEffects
       handleServerThunderEvent(thunderEvent);
     };
 
-    connection.db.thunderEvent.onInsert(handleThunderEvent);
+    connection.db.thunder_event.onInsert(handleThunderEvent);
 
     return () => {
-      connection.db.thunderEvent?.removeOnInsert?.(handleThunderEvent);
+      connection.db.thunder_event?.removeOnInsert?.(handleThunderEvent);
       processedThunderIds.current.clear();
     };
   }, [connection]);

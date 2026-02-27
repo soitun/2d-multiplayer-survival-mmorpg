@@ -108,7 +108,7 @@ npm run dev
 ./deploy-local.ps1           # Windows - Update existing database
 # Or manually:
 spacetime publish broth-bullets-local
-spacetime generate --lang typescript --out-dir ../client/src/generated --project-path .
+spacetime generate --lang typescript --out-dir ../client/src/generated -p .
 ```
 
 🎉 **That's it! Your multiplayer survival game is up and running!** 🎮✨
@@ -133,13 +133,13 @@ docker compose up --build
 
 # 3. Deploy database (run in a new terminal, one-time or after server changes)
 cd server
-spacetime publish --project-path . broth-bullets-local
-spacetime generate --lang typescript --out-dir ../client/src/generated --project-path .
+spacetime publish -p . broth-bullets-local
+spacetime generate --lang typescript --out-dir ../client/src/generated -p .
 
 # 4. Open http://localhost:3008
 ```
 
-Services: SpacetimeDB (3000), Auth Server (4001), Client (3008), API Proxy (8002), Kokoro TTS (8001).
+Services: SpacetimeDB (3000), Auth Server (4001), Client (3008), Kokoro TTS (8001).
 
 Create `.env` from `.env.example` and add API keys before first run:
 
@@ -154,7 +154,7 @@ copy .env.example .env   # Windows
 
 **Only needed if you want to use the in-game AI assistant (SOVA).**
 
-**Terminal 4 - API Proxy (Secure AI Provider):**
+**1) Configure API keys in root `.env`:**
 
 ```bash
 # Create .env file in project root first
@@ -163,17 +163,11 @@ echo "OPENAI_API_KEY=sk-your-openai-api-key-here" > .env
 # Add at least one AI provider key for SOVA responses:
 echo "GROK_API_KEY=xai-your-grok-api-key-here" >> .env
 # OR echo "GEMINI_API_KEY=your-gemini-api-key-here" >> .env
-# (If using OpenAI for SOVA, you already have OPENAI_API_KEY above)
-echo "PROXY_PORT=8002" >> .env
-
-# Start proxy server
-cd api-proxy
-npm install
-npm start
-# API Proxy running on http://localhost:8002
+# Optional provider selection (defaults to grok)
+echo "VITE_AI_PROVIDER=grok" >> .env
 ```
 
-**Terminal 5 - Kokoro TTS Backend:**
+**2) Terminal 4 - Kokoro TTS Backend:**
 
 ```bash
 cd tts-backend
@@ -184,14 +178,11 @@ python app.py
 # Kokoro TTS running on http://localhost:8001
 ```
 
-**Client Environment Variables (for AI assistant):**
+**3) Client environment variables (for AI assistant):**
 
 ```bash
 # Add to .env file in project root
-echo "VITE_API_PROXY_URL=http://localhost:8002" >> .env
 echo "VITE_KOKORO_BASE_URL=http://localhost:8001" >> .env
-# Optional: Select AI provider (defaults to 'grok')
-echo "VITE_AI_PROVIDER=grok" >> .env    # Options: 'openai', 'grok', 'gemini'
 ```
 
 See the [SOVA AI Assistant Configuration](#-sova-ai-assistant-configuration) section below for details.
@@ -221,7 +212,7 @@ cd server/
 spacetime publish broth-bullets-local  # Local
 # OR
 spacetime publish --server maincloud broth-bullets  # Production
-spacetime generate --lang typescript --out-dir ../client/src/generated --project-path .
+spacetime generate --lang typescript --out-dir ../client/src/generated -p .
 ```
 
 ## 🗺️ Roadmap
@@ -412,9 +403,9 @@ This project includes SOVA (Sentient Ocular Virtual Assistant), an intelligent A
 
 ### Quick Setup
 
-**All API keys are secured server-side - never exposed to the browser!**
+**All API keys are secured server-side - never exposed to the browser.**
 
-1. **Start Secure API Proxy:**
+1. **Set server-side API keys in root `.env`:**
   ```bash
    # Create .env file in project root
    # OpenAI API key is REQUIRED for Whisper (speech-to-text)
@@ -422,13 +413,8 @@ This project includes SOVA (Sentient Ocular Virtual Assistant), an intelligent A
    # Add at least one AI provider key for SOVA responses:
    echo "GROK_API_KEY=xai-your-grok-api-key-here" >> .env
    # OR echo "GEMINI_API_KEY=your-gemini-api-key-here" >> .env
-   # (If using OpenAI for SOVA, you already have OPENAI_API_KEY above)
-   echo "PROXY_PORT=8002" >> .env
-
-   # Start proxy server
-   cd api-proxy
-   npm install
-   npm start
+   # Optional provider selection (defaults to 'grok')
+   echo "VITE_AI_PROVIDER=grok" >> .env
   ```
 2. **Start Kokoro TTS Backend (Self-hosted, Free):**
   **Prerequisites:** Python 3.10-3.12 (Python 3.13 not supported yet)
@@ -436,17 +422,14 @@ This project includes SOVA (Sentient Ocular Virtual Assistant), an intelligent A
 3. **Configure Client (No API Keys Needed!):**
   ```bash
    # Add to .env file in project root
-   echo "VITE_API_PROXY_URL=http://localhost:8002" >> .env
    echo "VITE_KOKORO_BASE_URL=http://localhost:8001" >> .env
-   # Optional: Select AI provider (defaults to 'grok')
-   echo "VITE_AI_PROVIDER=grok" >> .env    # Options: 'openai', 'grok', 'gemini'
   ```
 
 ### Features
 
 - 🎤 **Voice Synthesis:** High-quality voice responses using Kokoro TTS (self-hosted, free)
-- 🎙️ **Voice Commands:** Hold V key for speech-to-text input (OpenAI Whisper via secure proxy)
-- 🧠 **AI Personality:** Intelligent responses powered by multiple providers (Grok/OpenAI/Gemini via secure proxy)
+- 🎙️ **Voice Commands:** Hold V key for speech-to-text input (OpenAI Whisper)
+- 🧠 **AI Personality:** Intelligent responses powered by multiple providers (Grok/OpenAI/Gemini)
 - 🔄 **Provider Switching:** Easy switching between AI providers via `VITE_AI_PROVIDER` environment variable
 - 🔒 **Secure:** All API keys stay on server - never exposed to browser
 - 🎯 **Game Knowledge:** Contextual survival tips and tactical advice
@@ -457,22 +440,20 @@ This project includes SOVA (Sentient Ocular Virtual Assistant), an intelligent A
 
 - **Push-to-Talk:** Hold **V** key to activate voice recording
 - **Cyberpunk UI:** Animated recording interface with status indicators
-- **Speech-to-Text:** OpenAI Whisper converts speech to text (via secure proxy)
+- **Speech-to-Text:** OpenAI Whisper converts speech to text
 - **Chat Integration:** Voice messages appear in chat like typed messages
 - **AI Response:** SOVA responds intelligently with voice synthesis (Kokoro TTS)
 
 ### Services Required
 
-You need **3 services running** for full voice functionality:
+You need **2 services running** for full voice functionality:
 
-1. **API Proxy Server** (`api-proxy/`) - Handles OpenAI API calls securely
-2. **Kokoro TTS Backend** (`tts-backend/`) - Local text-to-speech synthesis
-3. **Game Client** (`npm run dev`) - React frontend
+1. **Kokoro TTS Backend** (`tts-backend/`) - Local text-to-speech synthesis
+2. **Game Client** (`npm run dev`) - React frontend
 
 ### Documentation
 
-- **[ENVIRONMENT_SETUP.md](./ENVIRONMENT_SETUP.md)** - Complete environment variable guide
-- **[SECURE_API_SETUP.md](./SECURE_API_SETUP.md)** - Secure proxy setup guide
+- **[docs/setup/ENVIRONMENT_SETUP.md](./docs/setup/ENVIRONMENT_SETUP.md)** - Complete AI environment variable guide
 - **[KOKORO_INTEGRATION.md](./docs/audio/KOKORO_INTEGRATION.md)** - **Complete Kokoro TTS setup guide** (Python version requirements, troubleshooting, voice options, production deployment)
 - **[WHISPER_OPTIMIZATION.md](./WHISPER_OPTIMIZATION.md)** - Speech-to-text optimization guide
 
@@ -563,7 +544,7 @@ The `WorldGenConfig` struct controls procedural world generation:
   ```bash
     cd server
     spacetime publish vibe-survival-game --clear-database  # Clear DB for schema changes
-    spacetime generate --lang typescript --out-dir ../client/src/generated --project-path .
+    spacetime generate --lang typescript --out-dir ../client/src/generated -p .
     cd ..
   ```
 
@@ -583,9 +564,6 @@ spacetime publish vibe-survival-game
 vibe-coding-starter-pack-2d-survival/
 ├── .cursor/                # Cursor AI configuration
 │   └── rules/              # *.mdc rule files for AI context
-├── api-proxy/              # Secure API proxy server (Node.js/Express)
-│   ├── server.ts          # Proxy server for OpenAI API calls
-│   └── package.json       # Node.js dependencies
 ├── auth-server-openauth/   # Authentication server (Node.js/Hono)
 │   ├── data/              # User storage (users.json)
 │   ├── index.ts           # Main auth server logic
@@ -652,7 +630,7 @@ vibe-coding-starter-pack-2d-survival/
 ## 🔧 Troubleshooting Local Setup
 
 - `**Cannot find module './generated'` error in client:**
-  - Ensure you ran `spacetime generate --lang typescript --out-dir ../client/src/generated --project-path .` from the `server` directory *after* the last `spacetime publish` was **successful**. Check the publish output for errors.
+  - Ensure you ran `spacetime generate --lang typescript --out-dir ../client/src/generated -p .` from the `server` directory *after* the last `spacetime publish` was **successful**. Check the publish output for errors.
   - Make sure the `client/src/generated` folder was actually created and contains `.ts` files, including `index.ts`.
   - Restart the Vite dev server (`npm run dev`). Sometimes Vite needs a restart after significant file changes.
 - **Client connects but game doesn't load / players don't appear:**

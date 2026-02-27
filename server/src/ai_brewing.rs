@@ -29,7 +29,7 @@ use crate::active_effects::EffectType;
 /// Cache for AI-generated brew recipes.
 /// Once a recipe is generated for a specific ingredient combination,
 /// it's stored here so the same ingredients always produce the same result.
-#[spacetimedb::table(name = brew_recipe_cache, public)]
+#[spacetimedb::table(accessor = brew_recipe_cache, public)]
 #[derive(Clone, Debug)]
 pub struct BrewRecipeCache {
     #[primary_key]

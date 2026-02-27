@@ -4,107 +4,61 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { Campfire } from "./campfire_type";
-import { CookingProgress } from "./cooking_progress_type";
-// Mark import as potentially unused
-declare type __keep_CookingProgress = CookingProgress;
+import {
+  CookingProgress,
+} from "./types";
 
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
-declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-/**
- * Table handle for the table `campfire`.
- *
- * Obtain a handle from the [`campfire`] property on [`RemoteTables`],
- * like `ctx.db.campfire`.
- *
- * Users are encouraged not to explicitly reference this type,
- * but to directly chain method calls,
- * like `ctx.db.campfire.on_insert(...)`.
- */
-export class CampfireTableHandle<TableName extends string> implements __TableHandle<TableName> {
-  // phantom type to track the table name
-  readonly tableName!: TableName;
-  tableCache: __TableCache<Campfire>;
-
-  constructor(tableCache: __TableCache<Campfire>) {
-    this.tableCache = tableCache;
-  }
-
-  count(): number {
-    return this.tableCache.count();
-  }
-
-  iter(): Iterable<Campfire> {
-    return this.tableCache.iter();
-  }
-  /**
-   * Access to the `id` unique index on the table `campfire`,
-   * which allows point queries on the field of the same name
-   * via the [`CampfireIdUnique.find`] method.
-   *
-   * Users are encouraged not to explicitly reference this type,
-   * but to directly chain method calls,
-   * like `ctx.db.campfire.id().find(...)`.
-   *
-   * Get a handle on the `id` unique index on the table `campfire`.
-   */
-  id = {
-    // Find the subscribed row whose `id` column value is equal to `col_val`,
-    // if such a row is present in the client cache.
-    find: (col_val: number): Campfire | undefined => {
-      for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.id, col_val)) {
-          return row;
-        }
-      }
-    },
-  };
-
-  onInsert = (cb: (ctx: EventContext, row: Campfire) => void) => {
-    return this.tableCache.onInsert(cb);
-  }
-
-  removeOnInsert = (cb: (ctx: EventContext, row: Campfire) => void) => {
-    return this.tableCache.removeOnInsert(cb);
-  }
-
-  onDelete = (cb: (ctx: EventContext, row: Campfire) => void) => {
-    return this.tableCache.onDelete(cb);
-  }
-
-  removeOnDelete = (cb: (ctx: EventContext, row: Campfire) => void) => {
-    return this.tableCache.removeOnDelete(cb);
-  }
-
-  // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: Campfire, newRow: Campfire) => void) => {
-    return this.tableCache.onUpdate(cb);
-  }
-
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: Campfire, newRow: Campfire) => void) => {
-    return this.tableCache.removeOnUpdate(cb);
-  }}
+export default __t.row({
+  id: __t.u32().primaryKey(),
+  posX: __t.f32().name("pos_x"),
+  posY: __t.f32().name("pos_y"),
+  chunkIndex: __t.u32().name("chunk_index"),
+  placedBy: __t.identity().name("placed_by"),
+  placedAt: __t.timestamp().name("placed_at"),
+  isBurning: __t.bool().name("is_burning"),
+  slotInstanceId0: __t.option(__t.u64()).name("slot_instance_id_0"),
+  slotDefId0: __t.option(__t.u64()).name("slot_def_id_0"),
+  slotInstanceId1: __t.option(__t.u64()).name("slot_instance_id_1"),
+  slotDefId1: __t.option(__t.u64()).name("slot_def_id_1"),
+  slotInstanceId2: __t.option(__t.u64()).name("slot_instance_id_2"),
+  slotDefId2: __t.option(__t.u64()).name("slot_def_id_2"),
+  slotInstanceId3: __t.option(__t.u64()).name("slot_instance_id_3"),
+  slotDefId3: __t.option(__t.u64()).name("slot_def_id_3"),
+  slotInstanceId4: __t.option(__t.u64()).name("slot_instance_id_4"),
+  slotDefId4: __t.option(__t.u64()).name("slot_def_id_4"),
+  currentFuelDefId: __t.option(__t.u64()).name("current_fuel_def_id"),
+  remainingFuelBurnTimeSecs: __t.option(__t.f32()).name("remaining_fuel_burn_time_secs"),
+  health: __t.f32(),
+  maxHealth: __t.f32().name("max_health"),
+  isDestroyed: __t.bool().name("is_destroyed"),
+  destroyedAt: __t.option(__t.timestamp()).name("destroyed_at"),
+  lastHitTime: __t.option(__t.timestamp()).name("last_hit_time"),
+  lastDamagedBy: __t.option(__t.identity()).name("last_damaged_by"),
+  get slot0CookingProgress() {
+    return __t.option(CookingProgress).name("slot_0_cooking_progress");
+  },
+  get slot1CookingProgress() {
+    return __t.option(CookingProgress).name("slot_1_cooking_progress");
+  },
+  get slot2CookingProgress() {
+    return __t.option(CookingProgress).name("slot_2_cooking_progress");
+  },
+  get slot3CookingProgress() {
+    return __t.option(CookingProgress).name("slot_3_cooking_progress");
+  },
+  get slot4CookingProgress() {
+    return __t.option(CookingProgress).name("slot_4_cooking_progress");
+  },
+  lastDamageApplicationTime: __t.option(__t.timestamp()).name("last_damage_application_time"),
+  isPlayerInHotZone: __t.bool().name("is_player_in_hot_zone"),
+  attachedBrothPotId: __t.option(__t.u32()).name("attached_broth_pot_id"),
+  isMonument: __t.bool().name("is_monument"),
+  activeUserId: __t.option(__t.identity()).name("active_user_id"),
+  activeUserSince: __t.option(__t.timestamp()).name("active_user_since"),
+});

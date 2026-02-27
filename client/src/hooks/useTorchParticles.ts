@@ -3,7 +3,7 @@ import {
     Player as SpacetimeDBPlayer,
     ActiveEquipment as SpacetimeDBActiveEquipment,
     ItemDefinition as SpacetimeDBItemDefinition,
-} from '../generated';
+} from '../generated/types';
 import { Particle } from './useCampfireParticles'; // Reuse Particle type
 import { JUMP_DURATION_MS, JUMP_HEIGHT_PX } from '../config/gameConfig';
 import { gameConfig } from '../config/gameConfig'; // <<< ADDED for spriteWidth/Height

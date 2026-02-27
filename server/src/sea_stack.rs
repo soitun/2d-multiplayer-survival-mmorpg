@@ -34,7 +34,7 @@ pub enum SeaStackVariant {
     Wide,
 }
 
-#[table(name = sea_stack, public)]
+#[table(accessor = sea_stack, public)]
 #[derive(Clone, Debug)]
 pub struct SeaStack {
     #[primary_key]

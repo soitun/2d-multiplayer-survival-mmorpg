@@ -44,7 +44,7 @@ pub const BEEHIVE_PRODUCTION_TIME_SECS: u64 = 300; // 5 minutes to produce 1 hon
 pub const HONEYCOMB_PER_PRODUCTION: u32 = 1; // Produce 1 honeycomb per cycle
 
 // --- Beehive Schedule Table ---
-#[spacetimedb::table(name = beehive_process_schedule, scheduled(process_beehive_production))]
+#[spacetimedb::table(accessor = beehive_process_schedule, scheduled(process_beehive_production))]
 #[derive(Clone)]
 pub struct BeehiveProcessSchedule {
     #[primary_key]
@@ -226,7 +226,7 @@ pub fn add_item_to_beehive_slot(
 #[spacetimedb::reducer]
 pub fn process_beehive_production(ctx: &ReducerContext, _schedule: BeehiveProcessSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Beehive production can only be triggered by the scheduler.".to_string());
     }
     

@@ -58,7 +58,7 @@ const MatronageInvitationNotification: React.FC<MatronageInvitationNotificationP
         setIsDecliningAll(true);
         try {
             for (const inv of pendingInvitations) {
-                await connection.reducers.declineMatronageInvitation(inv.id);
+                await connection.reducers.declineMatronageInvitation({ invitationId: inv.id });
             }
         } catch (error) {
             console.error('Failed to decline invitations:', error);

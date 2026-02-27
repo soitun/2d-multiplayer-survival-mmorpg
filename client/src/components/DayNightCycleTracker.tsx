@@ -8,7 +8,7 @@ import {
     DailyQuestDefinition,
     PlayerTutorialProgress,
     PlayerDailyQuest,
-} from '../generated';
+} from '../generated/types';
 import { Identity } from 'spacetimedb';
 import { calculateChunkIndex } from '../utils/chunkUtils';
 import springIcon from '../assets/ui/spring.png';

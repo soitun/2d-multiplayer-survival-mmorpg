@@ -1,4 +1,4 @@
-import { GrassAppearanceType } from '../../generated';
+import { GrassAppearanceType } from '../../generated/types';
 import { imageManager } from './imageManager';
 import { InterpolatedGrassData } from '../../hooks/useGrassInterpolation';
 

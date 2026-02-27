@@ -1,4 +1,5 @@
-import { Grass, GrassState, DbConnection, GrassAppearanceType } from '../generated';
+import { DbConnection } from '../generated';
+import { Grass, GrassState, GrassAppearanceType } from '../generated/types';
 
 // ============================================================================
 // AAA PIXEL ART CUT GRASS ANIMATION EFFECT
@@ -116,14 +117,14 @@ function handleGrassStateDestroyed(context: any, grassState: GrassState) {
 export function initCutGrassEffectSystem(connection: DbConnection) {
     dbConn = connection;
     // Subscribe to GrassState deletions (not Grass - static table is never deleted)
-    if (dbConn.db && dbConn.db.grassState) {
-        dbConn.db.grassState.onDelete(handleGrassStateDestroyed);
+    if (dbConn.db && dbConn.db.grass_state) {
+        dbConn.db.grass_state.onDelete(handleGrassStateDestroyed);
         // console.log("[CutGrassEffect] Successfully subscribed to grassState.onDelete");
     } else {
         // console.warn("[CutGrassEffect] GrassState table not available on DB connection at init time. Retrying subscription shortly...");
         setTimeout(() => {
-            if (dbConn && dbConn.db && dbConn.db.grassState) {
-                dbConn.db.grassState.onDelete(handleGrassStateDestroyed);
+            if (dbConn && dbConn.db && dbConn.db.grass_state) {
+                dbConn.db.grass_state.onDelete(handleGrassStateDestroyed);
                 // console.log("[CutGrassEffect] Successfully subscribed to grassState.onDelete (retry)");
             } else {
                 // console.error("[CutGrassEffect] Failed to subscribe to grassState.onDelete even after retry. Cut grass effect will not work.");
@@ -358,7 +359,7 @@ export function renderCutGrassEffects(ctx: CanvasRenderingContext2D, nowMs: numb
 
 // Cleanup function
 export function cleanupCutGrassEffectSystem() {
-    if (dbConn && dbConn.db && dbConn.db.grassState) {
+    if (dbConn && dbConn.db && dbConn.db.grass_state) {
         // Clear subscription (if SDK supports it)
     }
     activeParticles.length = 0;

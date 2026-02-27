@@ -154,7 +154,7 @@ pub fn line_circle_first_impact_point(
     Some((x1 + t * dx, y1 + t * dy))
 }
 
-#[table(name = projectile, public)]
+#[table(accessor = projectile, public)]
 #[derive(Clone, Debug)]
 pub struct Projectile {
     #[primary_key]
@@ -174,7 +174,7 @@ pub struct Projectile {
 }
 
 // Scheduled table for projectile updates
-#[table(name = projectile_update_schedule, scheduled(update_projectiles))]
+#[table(accessor = projectile_update_schedule, scheduled(update_projectiles))]
 #[derive(Clone, Debug)]
 pub struct ProjectileUpdateSchedule {
     #[primary_key]
@@ -183,7 +183,7 @@ pub struct ProjectileUpdateSchedule {
     pub scheduled_at: ScheduleAt,
 }
 
-#[table(name = arrow_break_event, public)]
+#[table(accessor = arrow_break_event, public)]
 #[derive(Clone, Debug)]
 pub struct ArrowBreakEvent {
     #[primary_key]
@@ -296,7 +296,7 @@ pub fn fire_projectile(
     client_player_x: f32,  // Client's predicted position
     client_player_y: f32,
 ) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Find the player
     let player = ctx.db.player().identity().find(&player_id)
@@ -1197,7 +1197,7 @@ fn consume_projectile_on_impact(
 #[reducer]
 pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Only the scheduler can update projectiles".to_string());
     }
 
@@ -3210,7 +3210,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
 /// Remote players can see when someone is preparing to throw
 #[reducer]
 pub fn set_throw_aim(ctx: &ReducerContext, is_aiming: bool) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     let mut player = ctx.db.player().identity().find(&player_id)
         .ok_or("Player not found")?;
@@ -3240,9 +3240,9 @@ pub fn set_throw_aim(ctx: &ReducerContext, is_aiming: bool) -> Result<(), String
 pub fn throw_item(ctx: &ReducerContext, target_world_x: f32, target_world_y: f32) -> Result<(), String> {
     log::info!("=== THROW_ITEM REDUCER CALLED ===");
     log::info!("Target position: ({:.2}, {:.2})", target_world_x, target_world_y);
-    log::info!("Caller identity: {}", ctx.sender.to_string());
+    log::info!("Caller identity: {}", ctx.sender().to_string());
     
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Find the player
     let player = ctx.db.player().identity().find(&player_id)

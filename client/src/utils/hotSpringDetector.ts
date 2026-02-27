@@ -5,7 +5,7 @@
  *                                                                            *
  ******************************************************************************/
 
-import { WorldChunkData } from '../generated';
+import { WorldChunkData } from '../generated/types';
 
 export interface DetectedHotSpring {
     id: string; // Unique ID based on center position

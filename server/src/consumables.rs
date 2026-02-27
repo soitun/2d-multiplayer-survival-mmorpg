@@ -39,7 +39,7 @@ use crate::rain_collector::{REED_WATER_BOTTLE_CAPACITY, PLASTIC_WATER_JUG_CAPACI
 
 #[spacetimedb::reducer]
 pub fn consume_item(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players_table = ctx.db.player();
     let item_defs = ctx.db.item_definition();
 
@@ -364,7 +364,7 @@ pub fn apply_item_effects_and_consume(
                 }
             } else if item_def.name == "Selo Olive Oil" {
                 // SECURITY CHECK: Selo Olive Oil can only heal the consuming player (yourself)
-                if player_id != ctx.sender {
+                if player_id != ctx.sender() {
                     return Err("Selo Olive Oil can only be used on yourself.".to_string());
                 }
                 
@@ -782,7 +782,7 @@ fn try_grant_seed_from_consumption(
 /// Consume a filled water container (bottles/jugs) to replenish thirst
 #[spacetimedb::reducer]
 pub fn consume_filled_water_container(ctx: &ReducerContext, item_instance_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players_table = ctx.db.player();
     let item_defs = ctx.db.item_definition();
 

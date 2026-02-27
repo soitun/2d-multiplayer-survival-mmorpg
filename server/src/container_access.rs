@@ -27,7 +27,7 @@ const CONTAINER_INTERACTION_DISTANCE_SQUARED: f32 = 96.0 * 96.0;
 /// Returns Err if the item is in a container the player cannot access.
 
 pub fn validate_player_can_use_item(ctx: &ReducerContext, item: &InventoryItem) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
 
     match &item.location {
         ItemLocation::Inventory(data) if data.owner_id == sender_id => Ok(()),
@@ -50,7 +50,7 @@ fn validate_container_access(
     container_id: u64,
 ) -> Result<(), String> {
     let container_id_u32 = container_id as u32;
-    let player = ctx.db.player().identity().find(&ctx.sender)
+    let player = ctx.db.player().identity().find(&ctx.sender())
         .ok_or_else(|| "Player not found".to_string())?;
 
     // Wooden storage boxes use validate_box_interaction for correct distance/center (tall boxes, monument buildings)
@@ -132,7 +132,7 @@ fn validate_container_access(
     // Shelter access check for world containers
     if !crate::shelter::can_player_interact_with_object_in_shelter(
         ctx,
-        ctx.sender,
+        ctx.sender(),
         player.position_x,
         player.position_y,
         pos_x,

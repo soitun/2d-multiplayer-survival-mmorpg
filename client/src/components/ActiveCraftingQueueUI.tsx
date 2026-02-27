@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { CraftingQueueItem, ItemDefinition, DbConnection } from '../generated';
+import { DbConnection } from '../generated';
+import { CraftingQueueItem, ItemDefinition } from '../generated/types';
 import { Identity } from 'spacetimedb';
 import { getItemIcon } from '../utils/itemIconUtils';
 
@@ -23,7 +24,7 @@ const ActiveCraftingQueueUI: React.FC<ActiveCraftingQueueUIProps> = ({
   const handleCancelCraft = useCallback((queueItemId: bigint) => {
     if (!connection?.reducers) return;
     try {
-      connection.reducers.cancelCraftingItem(queueItemId);
+      connection.reducers.cancelCraftingItem({ queueItemId: BigInt(queueItemId) });
     } catch (err) {
       console.error("Error calling cancelCraftingItem reducer:", err);
     }

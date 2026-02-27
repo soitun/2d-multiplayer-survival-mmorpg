@@ -116,7 +116,7 @@ pub fn get_terrain_variant_at_position(ctx: &ReducerContext, world_x: f32, world
 
 /// --- Shelter Data Structure ---
 /// Represents a player-built shelter in the game world.
-#[spacetimedb::table(name = shelter, public)]
+#[spacetimedb::table(accessor = shelter, public)]
 #[derive(Clone, Debug)]
 pub struct Shelter {
     #[primary_key]
@@ -141,7 +141,7 @@ pub struct Shelter {
 // --- Reducer to Place a Shelter ---
 #[spacetimedb::reducer]
 pub fn place_shelter(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, world_y: f32) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let players = ctx.db.player();

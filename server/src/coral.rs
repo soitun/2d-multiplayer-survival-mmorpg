@@ -33,7 +33,7 @@ pub(crate) const LIVING_CORAL_MAX_RESOURCES: u32 = 300;
 
 // --- Living Coral Table ---
 
-#[spacetimedb::table(name = living_coral, public)]
+#[spacetimedb::table(accessor = living_coral, public)]
 #[derive(Clone, Debug)]
 pub struct LivingCoral {
     #[primary_key]

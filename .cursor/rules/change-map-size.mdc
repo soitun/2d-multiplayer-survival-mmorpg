@@ -45,9 +45,9 @@ These two should stay aligned unless you intentionally want different behavior.
 From project root:
 
 ```bash
-spacetime build --project-path ./server
-spacetime publish -c --project-path ./server broth-bullets-local
-spacetime generate --lang typescript --out-dir ./client/src/generated --project-path ./server
+spacetime build -p ./server
+spacetime publish -c -p ./server broth-bullets-local
+spacetime generate --lang typescript --out-dir ./client/src/generated -p ./server
 ```
 
 Restart client after generation (`npm run dev` if needed).

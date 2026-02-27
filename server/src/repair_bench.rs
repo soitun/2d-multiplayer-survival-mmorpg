@@ -102,7 +102,7 @@ pub fn place_repair_bench(
     let mut boxes = ctx.db.wooden_storage_box();
     
     // Get the player
-    let player = players.identity().find(&ctx.sender)
+    let player = players.identity().find(&ctx.sender())
         .ok_or("Player not found")?;
     
     if player.is_dead {
@@ -115,7 +115,7 @@ pub fn place_repair_bench(
     
     // Verify the item is owned by this player
     if let Some(owner_id) = item.location.is_player_bound() {
-        if owner_id != ctx.sender {
+        if owner_id != ctx.sender() {
             return Err("You don't own this item".to_string());
         }
     } else {
@@ -148,7 +148,7 @@ pub fn place_repair_bench(
         pos_x,
         pos_y: pos_y + BOX_COLLISION_Y_OFFSET,
         chunk_index,
-        placed_by: ctx.sender,
+        placed_by: ctx.sender(),
         box_type: BOX_TYPE_REPAIR_BENCH,
         // Initialize all slots as empty (repair bench only uses slot 0)
         slot_instance_id_0: None, slot_def_id_0: None,
@@ -218,7 +218,7 @@ pub fn place_repair_bench(
         Ok(inserted) => {
             log::info!(
                 "[RepairBench] Player {:?} placed Repair Bench {} at ({}, {})",
-                ctx.sender, inserted.id, pos_x, pos_y
+                ctx.sender(), inserted.id, pos_x, pos_y
             );
             
             // Remove the item from inventory
@@ -328,14 +328,14 @@ pub fn repair_item(
     
     log::info!(
         "[RepairBench] Player {:?} attempting to repair '{}' (instance {}). Cost: {:?}",
-        ctx.sender, item_def.name, item_instance_id, repair_cost
+        ctx.sender(), item_def.name, item_instance_id, repair_cost
     );
     
     // Check player has materials
-    check_player_has_repair_materials(ctx, ctx.sender, &repair_cost)?;
+    check_player_has_repair_materials(ctx, ctx.sender(), &repair_cost)?;
     
     // Consume materials
-    consume_repair_materials(ctx, ctx.sender, &repair_cost)?;
+    consume_repair_materials(ctx, ctx.sender(), &repair_cost)?;
     
     // Perform the repair
     let mut item_to_repair = item.clone();
@@ -354,7 +354,7 @@ pub fn repair_item(
     );
     
     // Emit repair sound for clients (positioned at repair bench)
-    sound_events::emit_repair_sound(ctx, storage_box.pos_x, storage_box.pos_y, ctx.sender);
+    sound_events::emit_repair_sound(ctx, storage_box.pos_x, storage_box.pos_y, ctx.sender());
     
     Ok(())
 }
@@ -383,14 +383,14 @@ pub fn pickup_repair_bench(
         .ok_or("Repair Bench item definition not found")?;
     
     // Add the repair bench back to player inventory
-    add_item_to_player_inventory(ctx, ctx.sender, repair_bench_def.id, 1)?;
+    add_item_to_player_inventory(ctx, ctx.sender(), repair_bench_def.id, 1)?;
     
     // Delete the repair bench entity
     boxes.id().delete(box_id);
     
     log::info!(
         "[RepairBench] Player {:?} picked up Repair Bench {} at ({}, {})",
-        ctx.sender, box_id, storage_box.pos_x, storage_box.pos_y
+        ctx.sender(), box_id, storage_box.pos_x, storage_box.pos_y
     );
     
     Ok(())

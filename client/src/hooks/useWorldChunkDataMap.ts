@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import type { WorldChunkData } from '../generated';
+import type { WorldChunkData } from '../generated/types';
 import { gameConfig } from '../config/gameConfig';
 
 /**
@@ -20,7 +20,7 @@ export function useWorldChunkDataMap(connection: any): Map<string, WorldChunkDat
 
     const syncFromTable = () => {
       chunkCacheRef.current.clear();
-      for (const chunk of connection.db.worldChunkData.iter()) {
+      for (const chunk of connection.db.world_chunk_data.iter()) {
         const key = `${chunk.chunkX},${chunk.chunkY}`;
         chunkCacheRef.current.set(key, chunk);
         chunkSizeRef.current = chunk.chunkSize || chunkSizeRef.current;
@@ -48,9 +48,9 @@ export function useWorldChunkDataMap(connection: any): Map<string, WorldChunkDat
       setVersion(v => v + 1);
     };
 
-    connection.db.worldChunkData.onInsert(handleChunkInsert);
-    connection.db.worldChunkData.onUpdate(handleChunkUpdate);
-    connection.db.worldChunkData.onDelete(handleChunkDelete);
+    connection.db.world_chunk_data.onInsert(handleChunkInsert);
+    connection.db.world_chunk_data.onUpdate(handleChunkUpdate);
+    connection.db.world_chunk_data.onDelete(handleChunkDelete);
 
     // Initial sync from existing data (e.g. if subscription already applied)
     syncFromTable();
@@ -67,9 +67,9 @@ export function useWorldChunkDataMap(connection: any): Map<string, WorldChunkDat
       } catch {
         /* ignore */
       }
-      connection.db.worldChunkData.removeOnInsert(handleChunkInsert);
-      connection.db.worldChunkData.removeOnUpdate(handleChunkUpdate);
-      connection.db.worldChunkData.removeOnDelete(handleChunkDelete);
+      connection.db.world_chunk_data.removeOnInsert(handleChunkInsert);
+      connection.db.world_chunk_data.removeOnUpdate(handleChunkUpdate);
+      connection.db.world_chunk_data.removeOnDelete(handleChunkDelete);
     };
   }, [connection]);
 

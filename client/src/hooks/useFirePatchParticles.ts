@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { FirePatch as SpacetimeDBFirePatch, Player as SpacetimeDBPlayer } from '../generated';
+import { FirePatch as SpacetimeDBFirePatch, Player as SpacetimeDBPlayer } from '../generated/types';
 import { FIRE_PATCH_VISUAL_RADIUS } from '../utils/renderers/firePatchRenderingUtils';
 
 // --- Particle System Types and Constants ---

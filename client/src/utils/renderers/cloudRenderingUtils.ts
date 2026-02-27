@@ -1,4 +1,4 @@
-import { Cloud } from '../../generated'; // Import generated types
+import { Cloud } from '../../generated/types'; // Import generated types
 import { InterpolatedCloudData } from '../../hooks/useCloudInterpolation'; // <<< Added import
 
 export type { Cloud };

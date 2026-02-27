@@ -32,7 +32,7 @@ pub const WATER_PATCH_CLEANUP_INTERVAL_SECS: u64 = 30; // Check for expired patc
 
 // --- Water Patch Table ---
 
-#[spacetimedb::table(name = water_patch, public)]
+#[spacetimedb::table(accessor = water_patch, public)]
 #[derive(Clone, Debug)]
 pub struct WaterPatch {
     #[primary_key]
@@ -52,7 +52,7 @@ pub struct WaterPatch {
 
 // --- Cleanup Schedule Table ---
 
-#[spacetimedb::table(name = water_patch_cleanup_schedule, scheduled(cleanup_expired_water_patches))]
+#[spacetimedb::table(accessor = water_patch_cleanup_schedule, scheduled(cleanup_expired_water_patches))]
 #[derive(Clone)]
 pub struct WaterPatchCleanupSchedule {
     #[primary_key]
@@ -162,7 +162,7 @@ pub fn get_water_patch_growth_multiplier(ctx: &ReducerContext, plant_x: f32, pla
 /// Water crops with a water container (triggered by left-click with water container)
 #[spacetimedb::reducer]
 pub fn water_crops(ctx: &ReducerContext, container_instance_id: u64) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     log::info!("Player {} attempting to water crops with container {}", player_id, container_instance_id);
     
@@ -367,7 +367,7 @@ pub fn water_crops(ctx: &ReducerContext, container_instance_id: u64) -> Result<(
 #[spacetimedb::reducer]
 pub fn cleanup_expired_water_patches(ctx: &ReducerContext, _args: WaterPatchCleanupSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("This reducer can only be called by the scheduler".to_string());
     }
     

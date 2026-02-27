@@ -8,7 +8,7 @@
  */
 
 import { CollisionShape, COLLISION_OFFSETS, PLAYER_RADIUS } from '../clientCollision';
-import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, RainCollector, Furnace, Barbecue, Shelter, WildAnimal, Barrel, SeaStack, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, Campfire, Lantern, DroppedItem, HarvestableResource, PlayerCorpse, Stash, SleepingBag, PlantedSeed, BrothPot, AnimalCorpse, Fumarole, LivingCoral, Projectile } from '../../generated';
+import { Player, Tree, Stone, RuneStone, Cairn, WoodenStorageBox, RainCollector, Furnace, Barbecue, Shelter, WildAnimal, Barrel, SeaStack, WallCell, FoundationCell, HomesteadHearth, BasaltColumn, Door, AlkStation, Campfire, Lantern, DroppedItem, HarvestableResource, PlayerCorpse, Stash, SleepingBag, PlantedSeed, BrothPot, AnimalCorpse, Fumarole, LivingCoral, Projectile } from '../../generated/types';
 import { YSortedEntityType, CompoundBuildingEntity } from '../../hooks/useEntityFiltering';
 
 // Projectile constants for debug rendering (must match server values)

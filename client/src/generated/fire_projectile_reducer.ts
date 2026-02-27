@@ -4,67 +4,15 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
 
-export type FireProjectile = {
-  targetWorldX: number,
-  targetWorldY: number,
-  clientPlayerX: number,
-  clientPlayerY: number,
+export default {
+  targetWorldX: __t.f32(),
+  targetWorldY: __t.f32(),
+  clientPlayerX: __t.f32(),
+  clientPlayerY: __t.f32(),
 };
-let _cached_FireProjectile_type_value: __AlgebraicTypeType | null = null;
-
-/**
- * An object for generated helper functions.
- */
-export const FireProjectile = {
-  /**
-  * A function which returns this type represented as an AlgebraicType.
-  * This function is derived from the AlgebraicType used to generate this type.
-  */
-  getTypeScriptAlgebraicType(): __AlgebraicTypeType {
-    if (_cached_FireProjectile_type_value) return _cached_FireProjectile_type_value;
-    _cached_FireProjectile_type_value = __AlgebraicTypeValue.Product({ elements: [] });
-    _cached_FireProjectile_type_value.value.elements.push(
-      { name: "targetWorldX", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "targetWorldY", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "clientPlayerX", algebraicType: __AlgebraicTypeValue.F32 },
-      { name: "clientPlayerY", algebraicType: __AlgebraicTypeValue.F32 },
-    );
-    return _cached_FireProjectile_type_value;
-  },
-
-  serialize(writer: __BinaryWriter, value: FireProjectile): void {
-    __AlgebraicTypeValue.serializeValue(writer, FireProjectile.getTypeScriptAlgebraicType(), value);
-  },
-
-  deserialize(reader: __BinaryReader): FireProjectile {
-    return __AlgebraicTypeValue.deserializeValue(reader, FireProjectile.getTypeScriptAlgebraicType());
-  },
-
-}
-
-export default FireProjectile;
-

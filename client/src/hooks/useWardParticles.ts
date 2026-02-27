@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Lantern as SpacetimeDBLantern } from '../generated';
+import { Lantern as SpacetimeDBLantern } from '../generated/types';
 import { Particle } from './useCampfireParticles';
 import { 
     LANTERN_TYPE_ANCESTRAL_WARD, 

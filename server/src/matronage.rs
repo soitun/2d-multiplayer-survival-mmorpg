@@ -62,7 +62,7 @@ pub enum MatronageRole {
 // ============================================================================
 
 /// Main Matronage entity - represents a pooling organization
-#[spacetimedb::table(name = matronage, public)]
+#[spacetimedb::table(accessor = matronage, public)]
 #[derive(Clone, Debug)]
 pub struct Matronage {
     #[primary_key]
@@ -93,9 +93,9 @@ pub struct Matronage {
 
 /// Membership tracking - links players to matronages
 #[spacetimedb::table(
-    name = matronage_member, 
+    accessor = matronage_member, 
     public,
-    index(name = idx_matronage_members, btree(columns = [matronage_id]))
+    index(accessor = idx_matronage_members, name = "idx_matronage_members", btree(columns = [matronage_id]))
 )]
 #[derive(Clone, Debug)]
 pub struct MatronageMember {
@@ -114,10 +114,10 @@ pub struct MatronageMember {
 
 /// Pending invitations - invite by username (works for offline players)
 #[spacetimedb::table(
-    name = matronage_invitation, 
+    accessor = matronage_invitation, 
     public,
-    index(name = idx_invitation_target, btree(columns = [target_username])),
-    index(name = idx_invitation_matronage, btree(columns = [matronage_id]))
+    index(accessor = idx_invitation_target, name = "idx_invitation_target", btree(columns = [target_username])),
+    index(accessor = idx_invitation_matronage, name = "idx_invitation_matronage", btree(columns = [matronage_id]))
 )]
 #[derive(Clone, Debug)]
 pub struct MatronageInvitation {
@@ -139,7 +139,7 @@ pub struct MatronageInvitation {
 }
 
 /// Owed shard balances - persists after leaving/dissolution
-#[spacetimedb::table(name = matronage_owed_shards, public)]
+#[spacetimedb::table(accessor = matronage_owed_shards, public)]
 #[derive(Clone, Debug)]
 pub struct MatronageOwedShards {
     #[primary_key]
@@ -150,7 +150,7 @@ pub struct MatronageOwedShards {
 }
 
 /// Scheduled payout (interval-based)
-#[spacetimedb::table(name = matronage_payout_schedule, scheduled(process_matronage_payout))]
+#[spacetimedb::table(accessor = matronage_payout_schedule, scheduled(process_matronage_payout))]
 #[derive(Clone, Debug)]
 pub struct MatronagePayoutSchedule {
     #[primary_key]
@@ -241,7 +241,7 @@ fn verify_pra_matron(ctx: &ReducerContext, player_id: &Identity, matronage_id: u
 /// Use a Matron's Mark to create a new Matronage at the central compound
 #[spacetimedb::reducer]
 pub fn use_matrons_mark(ctx: &ReducerContext, matronage_name: String) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Validate player is at central compound
     if !is_player_at_central_compound(ctx, &player_id)? {
@@ -329,7 +329,7 @@ pub fn use_matrons_mark(ctx: &ReducerContext, matronage_name: String) -> Result<
 /// Pra Matron invites a player by username
 #[spacetimedb::reducer]
 pub fn invite_to_matronage(ctx: &ReducerContext, target_username: String) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Get sender's matronage
     let member = ctx.db.matronage_member().player_id().find(&player_id)
@@ -393,7 +393,7 @@ pub fn invite_to_matronage(ctx: &ReducerContext, target_username: String) -> Res
 /// Accept a pending invitation
 #[spacetimedb::reducer]
 pub fn accept_matronage_invitation(ctx: &ReducerContext, invitation_id: u64) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Get the invitation
     let invitation = ctx.db.matronage_invitation().id().find(&invitation_id)
@@ -449,7 +449,7 @@ pub fn accept_matronage_invitation(ctx: &ReducerContext, invitation_id: u64) -> 
 /// Decline a pending invitation
 #[spacetimedb::reducer]
 pub fn decline_matronage_invitation(ctx: &ReducerContext, invitation_id: u64) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Get the invitation
     let invitation = ctx.db.matronage_invitation().id().find(&invitation_id)
@@ -478,7 +478,7 @@ pub fn decline_matronage_invitation(ctx: &ReducerContext, invitation_id: u64) ->
 /// Leave the matronage voluntarily
 #[spacetimedb::reducer]
 pub fn leave_matronage(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     let member = ctx.db.matronage_member().player_id().find(&player_id)
         .ok_or("You are not in a matronage")?;
@@ -515,7 +515,7 @@ pub fn leave_matronage(ctx: &ReducerContext) -> Result<(), String> {
 /// Pra Matron removes a member from the matronage
 #[spacetimedb::reducer]
 pub fn remove_from_matronage(ctx: &ReducerContext, target_player_id: Identity) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     let member = ctx.db.matronage_member().player_id().find(&player_id)
         .ok_or("You are not in a matronage")?;
@@ -546,7 +546,7 @@ pub fn remove_from_matronage(ctx: &ReducerContext, target_player_id: Identity) -
 /// Pra Matron promotes another member to Pra Matron (transfers leadership)
 #[spacetimedb::reducer]
 pub fn promote_to_pra_matron(ctx: &ReducerContext, target_player_id: Identity) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     let mut member = ctx.db.matronage_member().player_id().find(&player_id)
         .ok_or("You are not in a matronage")?;
@@ -582,7 +582,7 @@ pub fn promote_to_pra_matron(ctx: &ReducerContext, target_player_id: Identity) -
 /// Pra Matron renames the matronage
 #[spacetimedb::reducer]
 pub fn rename_matronage(ctx: &ReducerContext, new_name: String) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     let member = ctx.db.matronage_member().player_id().find(&player_id)
         .ok_or("You are not in a matronage")?;
@@ -625,7 +625,7 @@ const ALLOWED_ICONS: &[&str] = &[
 /// Pra Matron updates the matronage icon
 #[spacetimedb::reducer]
 pub fn update_matronage_icon(ctx: &ReducerContext, new_icon: String) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
 
     let member = ctx.db.matronage_member().player_id().find(&player_id)
         .ok_or("You are not in a matronage")?;
@@ -653,7 +653,7 @@ pub fn update_matronage_icon(ctx: &ReducerContext, new_icon: String) -> Result<(
 /// Pra Matron updates the matronage description
 #[spacetimedb::reducer]
 pub fn update_matronage_description(ctx: &ReducerContext, new_description: String) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
 
     let member = ctx.db.matronage_member().player_id().find(&player_id)
         .ok_or("You are not in a matronage")?;
@@ -681,7 +681,7 @@ pub fn update_matronage_description(ctx: &ReducerContext, new_description: Strin
 /// Pra Matron dissolves the matronage (at central compound)
 #[spacetimedb::reducer]
 pub fn dissolve_matronage(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Must be at central compound
     if !is_player_at_central_compound(ctx, &player_id)? {
@@ -779,7 +779,7 @@ pub fn deposit_to_matronage_pool(ctx: &ReducerContext, player_id: &Identity, amo
 /// Withdraw owed shards at the central compound
 #[spacetimedb::reducer]
 pub fn withdraw_matronage_shards(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Must be at central compound
     if !is_player_at_central_compound(ctx, &player_id)? {
@@ -833,7 +833,7 @@ pub fn withdraw_matronage_shards(ctx: &ReducerContext) -> Result<(), String> {
 #[spacetimedb::reducer]
 pub fn process_matronage_payout(ctx: &ReducerContext, _args: MatronagePayoutSchedule) -> Result<(), String> {
     // Security check - only scheduler can run this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Matronage payout can only be run by scheduler".to_string());
     }
     

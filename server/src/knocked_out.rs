@@ -11,7 +11,7 @@ use crate::Player;
 // --- NEW: Knocked Out Recovery/Death System ---
 
 /// Table for scheduling knocked out player recovery checks
-#[spacetimedb::table(name = knocked_out_recovery_schedule, public, scheduled(process_knocked_out_recovery))]
+#[spacetimedb::table(accessor = knocked_out_recovery_schedule, public, scheduled(process_knocked_out_recovery))]
 #[derive(Clone)]
 pub struct KnockedOutRecoverySchedule {
     #[primary_key]
@@ -26,7 +26,7 @@ pub struct KnockedOutRecoverySchedule {
 #[spacetimedb::reducer(name = "process_knocked_out_recovery")]
 pub fn process_knocked_out_recovery(ctx: &ReducerContext, args: KnockedOutRecoverySchedule) -> Result<(), String> {
     // Security check
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("process_knocked_out_recovery can only be called by the scheduler".to_string());
     }
 
@@ -260,7 +260,7 @@ pub fn schedule_knocked_out_recovery(ctx: &ReducerContext, player_id: Identity) 
 /// Reducer for other players to revive a knocked out player
 #[spacetimedb::reducer]
 pub fn revive_knocked_out_player(ctx: &ReducerContext, target_player_id: Identity) -> Result<(), String> {
-    let reviver_id = ctx.sender;
+    let reviver_id = ctx.sender();
     let players = ctx.db.player();
     let recovery_schedule_table = ctx.db.knocked_out_recovery_schedule();
 
@@ -325,7 +325,7 @@ pub fn revive_knocked_out_player(ctx: &ReducerContext, target_player_id: Identit
 }
 
 /// Table for tracking knocked out player state for UI display
-#[spacetimedb::table(name = knocked_out_status, public)]
+#[spacetimedb::table(accessor = knocked_out_status, public)]
 #[derive(Clone)]
 pub struct KnockedOutStatus {
     #[primary_key]
@@ -341,7 +341,7 @@ pub struct KnockedOutStatus {
 /// Reducer to calculate and update knocked out status for UI display
 #[spacetimedb::reducer]
 pub fn get_knocked_out_status(ctx: &ReducerContext) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let knocked_out_status_table = ctx.db.knocked_out_status();
 

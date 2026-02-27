@@ -103,7 +103,7 @@ pub const MEMORY_BEACON_HEALTH: f32 = 300.0;
 // --- Lantern Table ---
 // Also used for Wards (lantern_type > 0)
 // lantern_type: 0 = Lantern, 1 = Ancestral Ward, 2 = Signal Disruptor, 3 = Memory Beacon
-#[spacetimedb::table(name = lantern, public)]
+#[spacetimedb::table(accessor = lantern, public)]
 #[derive(Clone, Debug)]
 pub struct Lantern {
     #[primary_key]
@@ -134,7 +134,7 @@ pub struct Lantern {
 }
 
 // --- Scheduled Processing Table ---
-#[spacetimedb::table(name = lantern_processing_schedule, scheduled(process_lantern_logic_scheduled), public)]
+#[spacetimedb::table(accessor = lantern_processing_schedule, scheduled(process_lantern_logic_scheduled), public)]
 pub struct LanternProcessingSchedule {
     #[primary_key]
     pub lantern_id: u64,
@@ -263,7 +263,7 @@ pub fn light_lantern(ctx: &ReducerContext, lantern_id: u32) -> Result<(), String
         return Err(format!("Failed to start burning {} - no valid fuel found.", structure_name));
     }
     
-    log::info!("{} {} activated by player {:?}.", structure_name, lantern.id, ctx.sender);
+    log::info!("{} {} activated by player {:?}.", structure_name, lantern.id, ctx.sender());
     
     // Start lantern sound (only for actual lanterns)
     if lantern.lantern_type == LANTERN_TYPE_LANTERN {
@@ -288,7 +288,7 @@ pub fn extinguish_lantern(ctx: &ReducerContext, lantern_id: u32) -> Result<(), S
     lantern.is_burning = false;
     lantern.current_fuel_def_id = None;
     lantern.remaining_fuel_burn_time_secs = None;
-    log::info!("{} {} deactivated by player {:?}.", structure_name, lantern.id, ctx.sender);
+    log::info!("{} {} deactivated by player {:?}.", structure_name, lantern.id, ctx.sender());
     
     // Stop lantern sound (only for actual lanterns)
     if lantern.lantern_type == LANTERN_TYPE_LANTERN {
@@ -314,7 +314,7 @@ pub fn toggle_lantern(ctx: &ReducerContext, lantern_id: u32) -> Result<(), Strin
         lantern.is_burning = false;
         lantern.current_fuel_def_id = None;
         lantern.remaining_fuel_burn_time_secs = None;
-        log::info!("{} {} deactivated by player {:?}.", structure_name, lantern.id, ctx.sender);
+        log::info!("{} {} deactivated by player {:?}.", structure_name, lantern.id, ctx.sender());
         
         // Stop lantern sound (only for actual lanterns)
         if lantern.lantern_type == LANTERN_TYPE_LANTERN {
@@ -335,7 +335,7 @@ pub fn toggle_lantern(ctx: &ReducerContext, lantern_id: u32) -> Result<(), Strin
             return Err(format!("Failed to start burning {} - no valid fuel found.", structure_name));
         }
         
-        log::info!("{} {} activated by player {:?}.", structure_name, lantern.id, ctx.sender);
+        log::info!("{} {} activated by player {:?}.", structure_name, lantern.id, ctx.sender());
         
         // Start lantern sound (only for actual lanterns)
         if lantern.lantern_type == LANTERN_TYPE_LANTERN {
@@ -379,7 +379,7 @@ pub fn pickup_lantern(ctx: &ReducerContext, lantern_id: u32) -> Result<(), Strin
         .ok_or_else(|| format!("{} item definition not found.", expected_item_name))?;
     
     // Add item to player inventory
-    let new_location = find_first_empty_player_slot(ctx, ctx.sender)
+    let new_location = find_first_empty_player_slot(ctx, ctx.sender())
         .ok_or_else(|| format!("Player inventory is full, cannot pickup {}.", structure_name))?;
     
     let new_item = InventoryItem {
@@ -401,7 +401,7 @@ pub fn pickup_lantern(ctx: &ReducerContext, lantern_id: u32) -> Result<(), Strin
     // Delete the lantern/ward entity
     ctx.db.lantern().id().delete(lantern_id);
     
-    log::info!("Player {:?} picked up {} {}", ctx.sender, structure_name, lantern_id);
+    log::info!("Player {:?} picked up {} {}", ctx.sender(), structure_name, lantern_id);
     Ok(())
 }
 
@@ -431,7 +431,7 @@ fn get_health_for_lantern_type(lantern_type: u8) -> (f32, f32) {
 /// lantern_type: 0 = Lantern, 1 = Ancestral Ward, 2 = Signal Disruptor, 3 = Memory Beacon
 #[spacetimedb::reducer]
 pub fn place_lantern(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, world_y: f32, lantern_type: u8) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_items = ctx.db.inventory_item();
     let item_defs = ctx.db.item_definition();
     let players = ctx.db.player();
@@ -590,7 +590,7 @@ pub fn place_lantern(ctx: &ReducerContext, item_instance_id: u64, world_x: f32, 
 #[spacetimedb::reducer]
 pub fn process_lantern_logic_scheduled(ctx: &ReducerContext, schedule_args: LanternProcessingSchedule) -> Result<(), String> {
     // Security check
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Reducer process_lantern_logic_scheduled may not be invoked by clients, only via scheduling.".into());
     }
 
@@ -728,7 +728,7 @@ pub fn process_lantern_logic_scheduled(ctx: &ReducerContext, schedule_args: Lant
  ******************************************************************************/
 
 fn validate_lantern_interaction(ctx: &ReducerContext, lantern_id: u32) -> Result<(Player, Lantern), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let players = ctx.db.player();
     let lanterns = ctx.db.lantern();
 
@@ -1109,7 +1109,7 @@ pub fn split_stack_from_lantern(
 
     log::info!(
         "[SplitFromLantern] Player {:?} delegating split {} from lantern {} slot {} to {} slot {}",
-        ctx.sender, quantity_to_split, source_lantern_id, source_slot_index, target_slot_type, target_slot_index
+        ctx.sender(), quantity_to_split, source_lantern_id, source_slot_index, target_slot_type, target_slot_index
     );
 
     // Call GENERIC Handler
@@ -1201,6 +1201,6 @@ pub fn split_and_drop_item_from_lantern_slot_to_world(
 #[spacetimedb::reducer]
 pub fn interact_with_lantern(ctx: &ReducerContext, lantern_id: u32) -> Result<(), String> {
     let (_player, _lantern) = validate_lantern_interaction(ctx, lantern_id)?;
-    log::info!("Player {:?} interacted with lantern {}", ctx.sender, lantern_id);
+    log::info!("Player {:?} interacted with lantern {}", ctx.sender(), lantern_id);
     Ok(())
 } 

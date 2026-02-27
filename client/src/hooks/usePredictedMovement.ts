@@ -23,7 +23,8 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { Player, DbConnection, ActiveConsumableEffect, EffectType } from '../generated';
+import { DbConnection } from '../generated';
+import { Player, ActiveConsumableEffect, EffectType } from '../generated/types';
 import { usePlayerActions } from '../contexts/PlayerActionsContext';
 import { resolveClientCollision, GameEntities } from '../utils/clientCollision';
 import { gameConfig } from '../config/gameConfig';
@@ -43,7 +44,7 @@ const MAX_WATER_SPEED_BONUS = 2.0;
 const hasExhaustedEffect = (connection: DbConnection | null, playerId: string): boolean => {
   if (!connection) return false;
   
-  for (const effect of connection.db.activeConsumableEffect.iter()) {
+  for (const effect of connection.db.active_consumable_effect.iter()) {
     if (effect.playerId.toHexString() === playerId && effect.effectType.tag === 'Exhausted') {
       return true;
     }
@@ -490,14 +491,14 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
           try {
             if (connection.reducers.updatePlayerPositionSimple && pendingPosition.current) {
               clientSequenceRef.current += 1n;
-              connection.reducers.updatePlayerPositionSimple(
-                pendingPosition.current.x,
-                pendingPosition.current.y,
-                clientTimestamp,
-                false, // Never sprinting when knocked out
-                lastFacingDirection.current,
-                clientSequenceRef.current
-              );
+              connection.reducers.updatePlayerPositionSimple({
+                newX: pendingPosition.current.x,
+                newY: pendingPosition.current.y,
+                clientTimestampMs: clientTimestamp,
+                isSprinting: false, // Never sprinting when knocked out
+                facingDirection: lastFacingDirection.current,
+                clientSequence: clientSequenceRef.current,
+              });
               lastSentTime.current = now;
             }
           } catch (error) {
@@ -524,14 +525,14 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
           
           clientSequenceRef.current += 1n;
           // console.log(`[PREDICT] Sending update with sequence: ${clientSequenceRef.current}`);
-          connection.reducers.updatePlayerPositionSimple(
-            pendingPosition.current.x,
-            pendingPosition.current.y,
-            clientTimestamp,
-            sprinting && isMoving.current && !localPlayer.isKnockedOut, // Can't sprint when knocked out
-            lastFacingDirection.current,
-            clientSequenceRef.current
-          );
+          connection.reducers.updatePlayerPositionSimple({
+            newX: pendingPosition.current.x,
+            newY: pendingPosition.current.y,
+            clientTimestampMs: clientTimestamp,
+            isSprinting: sprinting && isMoving.current && !localPlayer.isKnockedOut, // Can't sprint when knocked out
+            facingDirection: lastFacingDirection.current,
+            clientSequence: clientSequenceRef.current,
+          });
           
           lastSentTime.current = now;
           movementMonitor.logUpdate(performance.now() - updateStartTime, true);

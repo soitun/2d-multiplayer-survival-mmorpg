@@ -1,4 +1,4 @@
-import { PlantedSeed, PlantType, TreeType } from '../../generated';
+import { PlantedSeed, PlantType, TreeType } from '../../generated/types';
 import { RESOURCE_IMAGE_SOURCES } from './resourceImageConfigs';
 import type { ResourceType } from '../../types/resourceTypes';
 

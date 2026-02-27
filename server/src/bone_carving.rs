@@ -38,7 +38,7 @@ pub struct BoneCarvingRecipe {
 }
 
 /// Table for tracking bone carving kit respawn schedule
-#[spacetimedb::table(name = bone_carving_kit_respawn, scheduled(respawn_bone_carving_kit))]
+#[spacetimedb::table(accessor = bone_carving_kit_respawn, scheduled(respawn_bone_carving_kit))]
 #[derive(Clone)]
 pub struct BoneCarvingKitRespawn {
     #[primary_key]
@@ -241,7 +241,7 @@ pub fn get_bone_carving_recipe(recipe_id: u64) -> Option<BoneCarvingRecipe> {
 /// Reducer to start bone carving
 #[spacetimedb::reducer]
 pub fn start_bone_carving(ctx: &ReducerContext, recipe_id: u64) -> Result<(), String> {
-    let sender_id = ctx.sender;
+    let sender_id = ctx.sender();
     let inventory_table = ctx.db.inventory_item();
     let item_def_table = ctx.db.item_definition();
     let queue_table = ctx.db.crafting_queue_item();
@@ -399,7 +399,7 @@ pub fn start_bone_carving(ctx: &ReducerContext, recipe_id: u64) -> Result<(), St
 #[spacetimedb::reducer]
 pub fn respawn_bone_carving_kit(ctx: &ReducerContext, _args: BoneCarvingKitRespawn) -> Result<(), String> {
     // Only allow the scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("Bone carving kit respawn can only be triggered by scheduler.".to_string());
     }
 

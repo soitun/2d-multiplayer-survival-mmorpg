@@ -7,7 +7,7 @@
 
 import React, { useMemo } from 'react';
 import styles from './ArmorStatsPanel.module.css';
-import { ItemDefinition } from '../generated';
+import { ItemDefinition } from '../generated/types';
 
 interface ArmorStatsPanelProps {
     equippedArmor: ItemDefinition[];

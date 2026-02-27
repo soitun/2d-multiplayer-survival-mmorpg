@@ -33,7 +33,7 @@ use crate::fishing::is_water_tile;
 
 // --- Planted Seed Tracking Table ---
 
-#[spacetimedb::table(name = planted_seed, public)]
+#[spacetimedb::table(accessor = planted_seed, public)]
 #[derive(Clone, Debug)]
 pub struct PlantedSeed {
     #[primary_key]
@@ -59,7 +59,7 @@ pub struct PlantedSeed {
 
 // --- Growth Schedule Table ---
 
-#[spacetimedb::table(name = planted_seed_growth_schedule, scheduled(check_plant_growth))]
+#[spacetimedb::table(accessor = planted_seed_growth_schedule, scheduled(check_plant_growth))]
 #[derive(Clone)]
 pub struct PlantedSeedGrowthSchedule {
     #[primary_key]
@@ -826,7 +826,7 @@ pub fn plant_seed(
     plant_pos_x: f32, 
     plant_pos_y: f32
 ) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     log::info!("PLANT_SEED: Player {:?} attempting to plant item {} at ({:.1}, {:.1})", 
               player_id, item_instance_id, plant_pos_x, plant_pos_y);
@@ -1266,7 +1266,7 @@ pub fn plant_seed(
 /// Apply fertilizer to nearby crops (triggered by left-click with fertilizer equipped)
 #[spacetimedb::reducer]
 pub fn apply_fertilizer(ctx: &ReducerContext, fertilizer_instance_id: u64) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     log::info!("Player {} attempting to apply fertilizer with item {}", player_id, fertilizer_instance_id);
     
@@ -1374,7 +1374,7 @@ pub fn apply_fertilizer(ctx: &ReducerContext, fertilizer_instance_id: u64) -> Re
 #[spacetimedb::reducer]
 pub fn check_plant_growth(ctx: &ReducerContext, _args: PlantedSeedGrowthSchedule) -> Result<(), String> {
     // Security check - only allow scheduler to call this
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("This reducer can only be called by the scheduler".to_string());
     }
     

@@ -19,7 +19,7 @@
  * 4. USE ANIMATIONS: Bandaging, Selo Olive Oil, water drinking wobble/rotation.
  */
 
-import { Player as SpacetimeDBPlayer, ActiveEquipment as SpacetimeDBActiveEquipment, ItemDefinition as SpacetimeDBItemDefinition, ActiveConsumableEffect, EffectType } from '../../generated';
+import { Player as SpacetimeDBPlayer, ActiveEquipment as SpacetimeDBActiveEquipment, ItemDefinition as SpacetimeDBItemDefinition, ActiveConsumableEffect, EffectType } from '../../generated/types';
 import { gameConfig } from '../../config/gameConfig';
 import { PLAYER_RADIUS } from '../clientCollision';
 

@@ -4,103 +4,60 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { Player } from "./player_type";
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
-declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-/**
- * Table handle for the table `player`.
- *
- * Obtain a handle from the [`player`] property on [`RemoteTables`],
- * like `ctx.db.player`.
- *
- * Users are encouraged not to explicitly reference this type,
- * but to directly chain method calls,
- * like `ctx.db.player.on_insert(...)`.
- */
-export class PlayerTableHandle<TableName extends string> implements __TableHandle<TableName> {
-  // phantom type to track the table name
-  readonly tableName!: TableName;
-  tableCache: __TableCache<Player>;
-
-  constructor(tableCache: __TableCache<Player>) {
-    this.tableCache = tableCache;
-  }
-
-  count(): number {
-    return this.tableCache.count();
-  }
-
-  iter(): Iterable<Player> {
-    return this.tableCache.iter();
-  }
-  /**
-   * Access to the `identity` unique index on the table `player`,
-   * which allows point queries on the field of the same name
-   * via the [`PlayerIdentityUnique.find`] method.
-   *
-   * Users are encouraged not to explicitly reference this type,
-   * but to directly chain method calls,
-   * like `ctx.db.player.identity().find(...)`.
-   *
-   * Get a handle on the `identity` unique index on the table `player`.
-   */
-  identity = {
-    // Find the subscribed row whose `identity` column value is equal to `col_val`,
-    // if such a row is present in the client cache.
-    find: (col_val: __Identity): Player | undefined => {
-      for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.identity, col_val)) {
-          return row;
-        }
-      }
-    },
-  };
-
-  onInsert = (cb: (ctx: EventContext, row: Player) => void) => {
-    return this.tableCache.onInsert(cb);
-  }
-
-  removeOnInsert = (cb: (ctx: EventContext, row: Player) => void) => {
-    return this.tableCache.removeOnInsert(cb);
-  }
-
-  onDelete = (cb: (ctx: EventContext, row: Player) => void) => {
-    return this.tableCache.onDelete(cb);
-  }
-
-  removeOnDelete = (cb: (ctx: EventContext, row: Player) => void) => {
-    return this.tableCache.removeOnDelete(cb);
-  }
-
-  // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: Player, newRow: Player) => void) => {
-    return this.tableCache.onUpdate(cb);
-  }
-
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: Player, newRow: Player) => void) => {
-    return this.tableCache.removeOnUpdate(cb);
-  }}
+export default __t.row({
+  identity: __t.identity().primaryKey(),
+  username: __t.string(),
+  positionX: __t.f32().name("position_x"),
+  positionY: __t.f32().name("position_y"),
+  direction: __t.string(),
+  lastUpdate: __t.timestamp().name("last_update"),
+  lastStatUpdate: __t.timestamp().name("last_stat_update"),
+  jumpStartTimeMs: __t.u64().name("jump_start_time_ms"),
+  health: __t.f32(),
+  stamina: __t.f32(),
+  thirst: __t.f32(),
+  hunger: __t.f32(),
+  warmth: __t.f32(),
+  isSprinting: __t.bool().name("is_sprinting"),
+  isDead: __t.bool().name("is_dead"),
+  deathTimestamp: __t.option(__t.timestamp()).name("death_timestamp"),
+  lastHitTime: __t.option(__t.timestamp()).name("last_hit_time"),
+  isOnline: __t.bool().name("is_online"),
+  isTorchLit: __t.bool().name("is_torch_lit"),
+  isFlashlightOn: __t.bool().name("is_flashlight_on"),
+  isHeadlampLit: __t.bool().name("is_headlamp_lit"),
+  flashlightAimAngle: __t.f32().name("flashlight_aim_angle"),
+  lastConsumedAt: __t.option(__t.timestamp()).name("last_consumed_at"),
+  isCrouching: __t.bool().name("is_crouching"),
+  isKnockedOut: __t.bool().name("is_knocked_out"),
+  knockedOutAt: __t.option(__t.timestamp()).name("knocked_out_at"),
+  isOnWater: __t.bool().name("is_on_water"),
+  isSnorkeling: __t.bool().name("is_snorkeling"),
+  clientMovementSequence: __t.u64().name("client_movement_sequence"),
+  isInsideBuilding: __t.bool().name("is_inside_building"),
+  lastRespawnTime: __t.timestamp().name("last_respawn_time"),
+  insanity: __t.f32(),
+  lastInsanityThreshold: __t.f32().name("last_insanity_threshold"),
+  shardCarryStartTime: __t.option(__t.timestamp()).name("shard_carry_start_time"),
+  offlineCorpseId: __t.option(__t.u32()).name("offline_corpse_id"),
+  isAimingThrow: __t.bool().name("is_aiming_throw"),
+  hasSeenMemoryShardTutorial: __t.bool().name("has_seen_memory_shard_tutorial"),
+  hasSeenMemoryShard200Tutorial: __t.bool().name("has_seen_memory_shard_200_tutorial"),
+  hasSeenSovaIntro: __t.bool().name("has_seen_sova_intro"),
+  hasSeenTutorialHint: __t.bool().name("has_seen_tutorial_hint"),
+  hasSeenHostileEncounterTutorial: __t.bool().name("has_seen_hostile_encounter_tutorial"),
+  hasSeenRuneStoneTutorial: __t.bool().name("has_seen_rune_stone_tutorial"),
+  hasSeenAlkStationTutorial: __t.bool().name("has_seen_alk_station_tutorial"),
+  hasSeenCrashedDroneTutorial: __t.bool().name("has_seen_crashed_drone_tutorial"),
+  pvpEnabled: __t.bool().name("pvp_enabled"),
+  pvpEnabledUntil: __t.option(__t.timestamp()).name("pvp_enabled_until"),
+  lastPvpCombatTime: __t.option(__t.timestamp()).name("last_pvp_combat_time"),
+  isNpc: __t.bool().name("is_npc"),
+  npcRole: __t.string().name("npc_role"),
+});

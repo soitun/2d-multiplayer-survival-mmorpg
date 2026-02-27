@@ -290,7 +290,7 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
         setIsLoading(true);
         setError(null);
         try {
-            await connection.reducers.withdrawMatronageShards();
+            await connection.reducers.withdrawMatronageShards({});
         } catch (e: any) {
             setError(e.message || 'Failed to withdraw shards');
         }
@@ -302,7 +302,7 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
         setIsLoading(true);
         setError(null);
         try {
-            await connection.reducers.acceptMatronageInvitation(invitationId);
+            await connection.reducers.acceptMatronageInvitation({ invitationId });
         } catch (e: any) {
             setError(e.message || 'Failed to accept invitation');
         }
@@ -314,7 +314,7 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
         setIsLoading(true);
         setError(null);
         try {
-            await connection.reducers.declineMatronageInvitation(invitationId);
+            await connection.reducers.declineMatronageInvitation({ invitationId });
         } catch (e: any) {
             setError(e.message || 'Failed to decline invitation');
         }
@@ -327,7 +327,7 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
         setIsLoading(true);
         setError(null);
         try {
-            await connection.reducers.inviteToMatronage(targetUsername);
+            await connection.reducers.inviteToMatronage({ targetUsername });
             // Only clear the search field if inviting from the direct input (not from quick invite button)
             if (!username) {
                 setPlayerSearchFilter('');
@@ -345,7 +345,7 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
         setIsLoading(true);
         setError(null);
         try {
-            await connection.reducers.removeFromMatronage(targetIdentity);
+            await connection.reducers.removeFromMatronage({ targetPlayerId: targetIdentity });
         } catch (e: any) {
             setError(e.message || 'Failed to remove member');
         }
@@ -357,7 +357,7 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
         setIsLoading(true);
         setError(null);
         try {
-            await connection.reducers.promoteToPraMatron(targetIdentity);
+            await connection.reducers.promoteToPraMatron({ targetPlayerId: targetIdentity });
         } catch (e: any) {
             setError(e.message || 'Failed to promote member');
         }
@@ -369,7 +369,7 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
         setIsLoading(true);
         setError(null);
         try {
-            await connection.reducers.renameMatronage(newName.trim());
+            await connection.reducers.renameMatronage({ newName: newName.trim() });
             setNewName('');
             setRenameSuccess(true);
             setTimeout(() => setRenameSuccess(false), 2000);
@@ -384,7 +384,7 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
         setIsLoading(true);
         setError(null);
         try {
-            await connection.reducers.updateMatronageDescription(newDescription.trim());
+            await connection.reducers.updateMatronageDescription({ newDescription: newDescription.trim() });
             setDescriptionSuccess(true);
             setTimeout(() => setDescriptionSuccess(false), 2000);
         } catch (e: any) {
@@ -398,7 +398,7 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
         setIsLoading(true);
         setError(null);
         try {
-            await connection.reducers.updateMatronageIcon(iconId);
+            await connection.reducers.updateMatronageIcon({ newIcon: iconId });
             setSelectedIcon(iconId);
             setIconSuccess(true);
             setTimeout(() => setIconSuccess(false), 2000);
@@ -413,7 +413,7 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
         setIsLoading(true);
         setError(null);
         try {
-            await connection.reducers.leaveMatronage();
+            await connection.reducers.leaveMatronage({});
         } catch (e: any) {
             setError(e.message || 'Failed to leave matronage');
         }
@@ -426,7 +426,7 @@ const MatronagePanel: React.FC<MatronagePanelProps> = ({
         setIsLoading(true);
         setError(null);
         try {
-            await connection.reducers.dissolveMatronage();
+            await connection.reducers.dissolveMatronage({});
         } catch (e: any) {
             setError(e.message || 'Failed to dissolve matronage');
         }

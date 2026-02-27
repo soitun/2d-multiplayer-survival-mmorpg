@@ -4,128 +4,105 @@
 /* eslint-disable */
 /* tslint:disable */
 import {
-  AlgebraicType as __AlgebraicTypeValue,
-  BinaryReader as __BinaryReader,
-  BinaryWriter as __BinaryWriter,
-  ClientCache as __ClientCache,
-  ConnectionId as __ConnectionId,
-  DbConnectionBuilder as __DbConnectionBuilder,
-  DbConnectionImpl as __DbConnectionImpl,
-  Identity as __Identity,
-  SubscriptionBuilderImpl as __SubscriptionBuilderImpl,
-  TableCache as __TableCache,
-  TimeDuration as __TimeDuration,
-  Timestamp as __Timestamp,
-  deepEqual as __deepEqual,
-  type AlgebraicType as __AlgebraicTypeType,
-  type AlgebraicTypeVariants as __AlgebraicTypeVariants,
-  type CallReducerFlags as __CallReducerFlags,
-  type ErrorContextInterface as __ErrorContextInterface,
-  type Event as __Event,
-  type EventContextInterface as __EventContextInterface,
-  type ReducerEventContextInterface as __ReducerEventContextInterface,
-  type SubscriptionEventContextInterface as __SubscriptionEventContextInterface,
-  type TableHandle as __TableHandle,
+  TypeBuilder as __TypeBuilder,
+  t as __t,
+  type AlgebraicTypeType as __AlgebraicTypeType,
+  type Infer as __Infer,
 } from "spacetimedb";
-import { ItemDefinition } from "./item_definition_type";
-import { EquipmentSlotType } from "./equipment_slot_type_type";
-// Mark import as potentially unused
-declare type __keep_EquipmentSlotType = EquipmentSlotType;
-import { ItemCategory } from "./item_category_type";
-// Mark import as potentially unused
-declare type __keep_ItemCategory = ItemCategory;
-import { TargetType } from "./target_type_type";
-// Mark import as potentially unused
-declare type __keep_TargetType = TargetType;
-import { CostIngredient } from "./cost_ingredient_type";
-// Mark import as potentially unused
-declare type __keep_CostIngredient = CostIngredient;
-import { FlexibleIngredient } from "./flexible_ingredient_type";
-// Mark import as potentially unused
-declare type __keep_FlexibleIngredient = FlexibleIngredient;
-import { DamageType } from "./damage_type_type";
-// Mark import as potentially unused
-declare type __keep_DamageType = DamageType;
-import { ArmorResistances } from "./armor_resistances_type";
-// Mark import as potentially unused
-declare type __keep_ArmorResistances = ArmorResistances;
-import { AmmoType } from "./ammo_type_type";
-// Mark import as potentially unused
-declare type __keep_AmmoType = AmmoType;
+import {
+  EquipmentSlotType,
+  ItemCategory,
+  TargetType,
+  CostIngredient,
+  FlexibleIngredient,
+  DamageType,
+  ArmorResistances,
+  AmmoType,
+} from "./types";
 
-import { type EventContext, type Reducer, RemoteReducers, RemoteTables } from ".";
-declare type __keep = [EventContext, Reducer, RemoteReducers, RemoteTables];
 
-/**
- * Table handle for the table `item_definition`.
- *
- * Obtain a handle from the [`itemDefinition`] property on [`RemoteTables`],
- * like `ctx.db.itemDefinition`.
- *
- * Users are encouraged not to explicitly reference this type,
- * but to directly chain method calls,
- * like `ctx.db.itemDefinition.on_insert(...)`.
- */
-export class ItemDefinitionTableHandle<TableName extends string> implements __TableHandle<TableName> {
-  // phantom type to track the table name
-  readonly tableName!: TableName;
-  tableCache: __TableCache<ItemDefinition>;
-
-  constructor(tableCache: __TableCache<ItemDefinition>) {
-    this.tableCache = tableCache;
-  }
-
-  count(): number {
-    return this.tableCache.count();
-  }
-
-  iter(): Iterable<ItemDefinition> {
-    return this.tableCache.iter();
-  }
-  /**
-   * Access to the `id` unique index on the table `item_definition`,
-   * which allows point queries on the field of the same name
-   * via the [`ItemDefinitionIdUnique.find`] method.
-   *
-   * Users are encouraged not to explicitly reference this type,
-   * but to directly chain method calls,
-   * like `ctx.db.itemDefinition.id().find(...)`.
-   *
-   * Get a handle on the `id` unique index on the table `item_definition`.
-   */
-  id = {
-    // Find the subscribed row whose `id` column value is equal to `col_val`,
-    // if such a row is present in the client cache.
-    find: (col_val: bigint): ItemDefinition | undefined => {
-      for (let row of this.tableCache.iter()) {
-        if (__deepEqual(row.id, col_val)) {
-          return row;
-        }
-      }
-    },
-  };
-
-  onInsert = (cb: (ctx: EventContext, row: ItemDefinition) => void) => {
-    return this.tableCache.onInsert(cb);
-  }
-
-  removeOnInsert = (cb: (ctx: EventContext, row: ItemDefinition) => void) => {
-    return this.tableCache.removeOnInsert(cb);
-  }
-
-  onDelete = (cb: (ctx: EventContext, row: ItemDefinition) => void) => {
-    return this.tableCache.onDelete(cb);
-  }
-
-  removeOnDelete = (cb: (ctx: EventContext, row: ItemDefinition) => void) => {
-    return this.tableCache.removeOnDelete(cb);
-  }
-
-  // Updates are only defined for tables with primary keys.
-  onUpdate = (cb: (ctx: EventContext, oldRow: ItemDefinition, newRow: ItemDefinition) => void) => {
-    return this.tableCache.onUpdate(cb);
-  }
-
-  removeOnUpdate = (cb: (ctx: EventContext, onRow: ItemDefinition, newRow: ItemDefinition) => void) => {
-    return this.tableCache.removeOnUpdate(cb);
-  }}
+export default __t.row({
+  id: __t.u64().primaryKey(),
+  name: __t.string(),
+  description: __t.string(),
+  get category() {
+    return ItemCategory;
+  },
+  iconAssetName: __t.string().name("icon_asset_name"),
+  isStackable: __t.bool().name("is_stackable"),
+  stackSize: __t.u32().name("stack_size"),
+  isEquippable: __t.bool().name("is_equippable"),
+  get equipmentSlotType() {
+    return __t.option(EquipmentSlotType).name("equipment_slot_type");
+  },
+  fuelBurnDurationSecs: __t.option(__t.f32()).name("fuel_burn_duration_secs"),
+  primaryTargetDamageMin: __t.option(__t.u32()).name("primary_target_damage_min"),
+  primaryTargetDamageMax: __t.option(__t.u32()).name("primary_target_damage_max"),
+  primaryTargetYieldMin: __t.option(__t.u32()).name("primary_target_yield_min"),
+  primaryTargetYieldMax: __t.option(__t.u32()).name("primary_target_yield_max"),
+  get primaryTargetType() {
+    return __t.option(TargetType).name("primary_target_type");
+  },
+  primaryYieldResourceName: __t.option(__t.string()).name("primary_yield_resource_name"),
+  pvpDamageMin: __t.option(__t.u32()).name("pvp_damage_min"),
+  pvpDamageMax: __t.option(__t.u32()).name("pvp_damage_max"),
+  bleedDamagePerTick: __t.option(__t.f32()).name("bleed_damage_per_tick"),
+  bleedDurationSeconds: __t.option(__t.f32()).name("bleed_duration_seconds"),
+  bleedTickIntervalSeconds: __t.option(__t.f32()).name("bleed_tick_interval_seconds"),
+  craftingCost: __t.option(__t.array(CostIngredient)).name("crafting_cost"),
+  alternativeCraftingCosts: __t.option(__t.array(__t.array(CostIngredient))).name("alternative_crafting_costs"),
+  flexibleIngredients: __t.option(__t.array(FlexibleIngredient)).name("flexible_ingredients"),
+  craftingOutputQuantity: __t.option(__t.u32()).name("crafting_output_quantity"),
+  craftingTimeSecs: __t.option(__t.u32()).name("crafting_time_secs"),
+  requiresStation: __t.option(__t.string()).name("requires_station"),
+  consumableHealthGain: __t.option(__t.f32()).name("consumable_health_gain"),
+  consumableHungerSatiated: __t.option(__t.f32()).name("consumable_hunger_satiated"),
+  consumableThirstQuenched: __t.option(__t.f32()).name("consumable_thirst_quenched"),
+  consumableDurationSecs: __t.option(__t.f32()).name("consumable_duration_secs"),
+  cookTimeSecs: __t.option(__t.f32()).name("cook_time_secs"),
+  cookedItemDefName: __t.option(__t.string()).name("cooked_item_def_name"),
+  requiresFurnaceForCooking: __t.bool().name("requires_furnace_for_cooking"),
+  extractionOutputName: __t.option(__t.string()).name("extraction_output_name"),
+  extractionOutputMin: __t.option(__t.u32()).name("extraction_output_min"),
+  extractionOutputMax: __t.option(__t.u32()).name("extraction_output_max"),
+  extractionActionLabel: __t.option(__t.string()).name("extraction_action_label"),
+  damageResistance: __t.option(__t.f32()).name("damage_resistance"),
+  warmthBonus: __t.option(__t.f32()).name("warmth_bonus"),
+  respawnTimeSeconds: __t.option(__t.u32()).name("respawn_time_seconds"),
+  attackIntervalSecs: __t.option(__t.f32()).name("attack_interval_secs"),
+  get damageType() {
+    return __t.option(DamageType).name("damage_type");
+  },
+  get armorResistances() {
+    return __t.option(ArmorResistances).name("armor_resistances");
+  },
+  movementSpeedModifier: __t.option(__t.f32()).name("movement_speed_modifier"),
+  staminaRegenModifier: __t.option(__t.f32()).name("stamina_regen_modifier"),
+  reflectsMeleeDamage: __t.option(__t.f32()).name("reflects_melee_damage"),
+  fireDamageMultiplier: __t.option(__t.f32()).name("fire_damage_multiplier"),
+  detectionRadiusBonus: __t.option(__t.f32()).name("detection_radius_bonus"),
+  lowHealthDamageBonus: __t.option(__t.f32()).name("low_health_damage_bonus"),
+  grantsBurnImmunity: __t.bool().name("grants_burn_immunity"),
+  grantsColdImmunity: __t.bool().name("grants_cold_immunity"),
+  grantsWetnessImmunity: __t.bool().name("grants_wetness_immunity"),
+  grantsKnockbackImmunity: __t.bool().name("grants_knockback_immunity"),
+  grantsBleedImmunity: __t.bool().name("grants_bleed_immunity"),
+  grantsNightVision: __t.bool().name("grants_night_vision"),
+  noiseOnSprint: __t.bool().name("noise_on_sprint"),
+  silencesMovement: __t.bool().name("silences_movement"),
+  intimidatesAnimals: __t.bool().name("intimidates_animals"),
+  get ammoType() {
+    return __t.option(AmmoType).name("ammo_type");
+  },
+  attackArcDegrees: __t.option(__t.f32()).name("attack_arc_degrees"),
+  waterSpeedBonus: __t.option(__t.f32()).name("water_speed_bonus"),
+  isPreserved: __t.bool().name("is_preserved"),
+  spoilsAfterHours: __t.option(__t.f32()).name("spoils_after_hours"),
+  harvestBonus: __t.option(__t.f32()).name("harvest_bonus"),
+  allyDamageBonus: __t.option(__t.f32()).name("ally_damage_bonus"),
+  poisonDamageOnHit: __t.option(__t.f32()).name("poison_damage_on_hit"),
+  maxHealthBonus: __t.option(__t.i32()).name("max_health_bonus"),
+  bleedChanceOnMelee: __t.option(__t.f32()).name("bleed_chance_on_melee"),
+  reducesAnimalDetection: __t.option(__t.f32()).name("reduces_animal_detection"),
+  meleeDamageBonus: __t.option(__t.f32()).name("melee_damage_bonus"),
+});

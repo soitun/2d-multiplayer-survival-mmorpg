@@ -149,7 +149,7 @@ pub enum ObjectiveLogic {
 // ============================================================================
 
 /// Tutorial Quest Definition - sequential quests that teach gameplay
-#[spacetimedb::table(name = tutorial_quest_definition, public)]
+#[spacetimedb::table(accessor = tutorial_quest_definition, public)]
 #[derive(Clone, Debug)]
 pub struct TutorialQuestDefinition {
     #[primary_key]
@@ -190,7 +190,7 @@ pub struct TutorialQuestDefinition {
 }
 
 /// Daily Quest Definition - pool of possible daily quests
-#[spacetimedb::table(name = daily_quest_definition, public)]
+#[spacetimedb::table(accessor = daily_quest_definition, public)]
 #[derive(Clone, Debug)]
 pub struct DailyQuestDefinition {
     #[primary_key]
@@ -211,9 +211,9 @@ pub struct DailyQuestDefinition {
 
 /// Player Tutorial Progress - tracks tutorial quest completion
 #[spacetimedb::table(
-    name = player_tutorial_progress,
+    accessor = player_tutorial_progress,
     public,
-    index(name = idx_tutorial_player, btree(columns = [player_id]))
+    index(accessor = idx_tutorial_player, name = "idx_tutorial_player", btree(columns = [player_id]))
 )]
 #[derive(Clone, Debug)]
 pub struct PlayerTutorialProgress {
@@ -231,10 +231,10 @@ pub struct PlayerTutorialProgress {
 
 /// Player Daily Quest - assigned daily quests for a player
 #[spacetimedb::table(
-    name = player_daily_quest,
+    accessor = player_daily_quest,
     public,
-    index(name = idx_daily_player, btree(columns = [player_id])),
-    index(name = idx_daily_day, btree(columns = [assigned_day]))
+    index(accessor = idx_daily_player, name = "idx_daily_player", btree(columns = [player_id])),
+    index(accessor = idx_daily_day, name = "idx_daily_day", btree(columns = [assigned_day]))
 )]
 #[derive(Clone, Debug)]
 pub struct PlayerDailyQuest {
@@ -257,7 +257,7 @@ pub struct PlayerDailyQuest {
 // ============================================================================
 
 /// Quest Completion Notification - sent to client for celebration UI
-#[spacetimedb::table(name = quest_completion_notification, public)]
+#[spacetimedb::table(accessor = quest_completion_notification, public)]
 #[derive(Clone, Debug)]
 pub struct QuestCompletionNotification {
     #[primary_key]
@@ -273,7 +273,7 @@ pub struct QuestCompletionNotification {
 }
 
 /// Quest Progress Notification - milestone updates
-#[spacetimedb::table(name = quest_progress_notification, public)]
+#[spacetimedb::table(accessor = quest_progress_notification, public)]
 #[derive(Clone, Debug)]
 pub struct QuestProgressNotification {
     #[primary_key]
@@ -289,7 +289,7 @@ pub struct QuestProgressNotification {
 
 /// SOVA Quest Message - special messages from SOVA about quests
 /// These get routed to the SOVA chat tab on the client
-#[spacetimedb::table(name = sova_quest_message, public)]
+#[spacetimedb::table(accessor = sova_quest_message, public)]
 #[derive(Clone, Debug)]
 pub struct SovaQuestMessage {
     #[primary_key]
@@ -1093,7 +1093,7 @@ pub fn assign_daily_quests(ctx: &ReducerContext, player_id: Identity) -> Result<
 #[spacetimedb::reducer]
 pub fn init_quest_system(ctx: &ReducerContext) -> Result<(), String> {
     // Note: This is called from init_module during first publish/republish
-    // During init, ctx.sender == ctx.identity() (the module itself)
+    // During init, ctx.sender() == ctx.identity() (the module itself)
     
     seed_tutorial_quests(ctx)?;
     seed_daily_quests(ctx)?;
@@ -1105,7 +1105,7 @@ pub fn init_quest_system(ctx: &ReducerContext) -> Result<(), String> {
 /// Request a hint for current tutorial quest
 #[spacetimedb::reducer]
 pub fn request_tutorial_hint(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     let progress_table = ctx.db.player_tutorial_progress();
     let mut progress = get_or_init_tutorial_progress(ctx, player_id);
     
@@ -1149,7 +1149,7 @@ pub fn request_tutorial_hint(ctx: &ReducerContext) -> Result<(), String> {
 /// This will delete ALL daily quests for the player and assign fresh ones
 #[spacetimedb::reducer]
 pub fn refresh_my_daily_quests(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     let daily_table = ctx.db.player_daily_quest();
     
     // Delete ALL daily quests for this player (clears any accumulated quests)
@@ -1174,7 +1174,7 @@ pub fn refresh_my_daily_quests(ctx: &ReducerContext) -> Result<(), String> {
 /// Call this if quests are not showing up properly
 #[spacetimedb::reducer]
 pub fn initialize_my_quests(ctx: &ReducerContext) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     // Verify player exists
     if ctx.db.player().identity().find(&player_id).is_none() {

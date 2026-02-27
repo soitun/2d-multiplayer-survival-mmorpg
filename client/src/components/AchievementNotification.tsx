@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import * as SpacetimeDB from '../generated';
+import type { AchievementUnlockNotification, AchievementDefinition } from '../generated/types';
 import { queueNotificationSound } from '../utils/notificationSoundQueue';
 
 interface AchievementNotificationProps {
-  notifications: SpacetimeDB.AchievementUnlockNotification[];
+  notifications: AchievementUnlockNotification[];
   onOpenAchievements?: () => void;
-  achievementDefinitions?: Map<string, SpacetimeDB.AchievementDefinition>;
+  achievementDefinitions?: Map<string, AchievementDefinition>;
 }
 
 const MAX_NOTIFICATIONS = 3;
@@ -67,7 +67,7 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
   onOpenAchievements,
   achievementDefinitions,
 }) => {
-  const [visibleNotifications, setVisibleNotifications] = useState<SpacetimeDB.AchievementUnlockNotification[]>([]);
+  const [visibleNotifications, setVisibleNotifications] = useState<AchievementUnlockNotification[]>([]);
   const [fadingOutIds, setFadingOutIds] = useState<Set<string>>(new Set());
   // Initialize dismissedIds from localStorage to persist across page reloads
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => loadSeenAchievementIds());

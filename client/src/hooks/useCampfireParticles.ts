@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { Campfire as SpacetimeDBCampfire } from '../generated';
+import { Campfire as SpacetimeDBCampfire } from '../generated/types';
 import { CAMPFIRE_RENDER_Y_OFFSET, CAMPFIRE_HEIGHT } from '../utils/renderers/campfireRenderingUtils';
 
 // --- Particle System Types and Constants ---

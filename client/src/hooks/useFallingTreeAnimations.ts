@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Tree } from '../generated';
+import { Tree } from '../generated/types';
 
 /**
  * Configuration for falling tree animations

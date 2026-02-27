@@ -867,7 +867,7 @@ fn calculate_combat_multiplier(combat_score: f32) -> f32 {
 
 // --- Player Camping Tracker Table ---
 // Tracks player positions and when they started being stationary
-#[table(name = player_camping_state, public)]
+#[table(accessor = player_camping_state, public)]
 pub struct PlayerCampingState {
     #[primary_key]
     pub player_identity: spacetimedb::Identity,
@@ -878,7 +878,7 @@ pub struct PlayerCampingState {
 
 // --- Player Combat Readiness Table ---
 // Tracks weapon power to scale hostile spawn rates appropriately
-#[table(name = player_combat_readiness, public)]
+#[table(accessor = player_combat_readiness, public)]
 #[derive(Clone)]
 pub struct PlayerCombatReadiness {
     #[primary_key]
@@ -891,7 +891,7 @@ pub struct PlayerCombatReadiness {
 
 // --- Schedule Tables ---
 
-#[table(name = hostile_spawn_schedule, scheduled(process_hostile_spawns))]
+#[table(accessor = hostile_spawn_schedule, scheduled(process_hostile_spawns))]
 pub struct HostileSpawnSchedule {
     #[primary_key]
     #[auto_inc]
@@ -899,7 +899,7 @@ pub struct HostileSpawnSchedule {
     pub scheduled_at: ScheduleAt,
 }
 
-#[table(name = hostile_dawn_cleanup_schedule, scheduled(process_dawn_cleanup))]
+#[table(accessor = hostile_dawn_cleanup_schedule, scheduled(process_dawn_cleanup))]
 pub struct HostileDawnCleanupSchedule {
     #[primary_key]
     #[auto_inc]
@@ -953,7 +953,7 @@ pub fn init_hostile_spawning_system(ctx: &ReducerContext) -> Result<(), String> 
 
 #[spacetimedb::reducer]
 pub fn process_hostile_spawns(ctx: &ReducerContext, _args: HostileSpawnSchedule) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("process_hostile_spawns can only be called by the scheduler".to_string());
     }
     
@@ -1534,7 +1534,7 @@ fn start_dawn_cleanup_if_needed(ctx: &ReducerContext, current_time: Timestamp) {
 
 #[spacetimedb::reducer]
 pub fn process_dawn_cleanup(ctx: &ReducerContext, args: HostileDawnCleanupSchedule) -> Result<(), String> {
-    if ctx.sender != ctx.identity() {
+    if ctx.sender() != ctx.identity() {
         return Err("process_dawn_cleanup can only be called by the scheduler".to_string());
     }
     

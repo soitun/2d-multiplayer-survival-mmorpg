@@ -83,7 +83,7 @@ fn get_cairn_reward_for_lore_id(lore_id: &str) -> u32 {
 
 // --- Cairn Table ---
 
-#[spacetimedb::table(name = cairn, public)]
+#[spacetimedb::table(accessor = cairn, public)]
 #[derive(Clone, Debug)]
 pub struct Cairn {
     #[primary_key]
@@ -98,7 +98,7 @@ pub struct Cairn {
 
 // --- Player Discovery Tracking ---
 
-#[spacetimedb::table(name = player_discovered_cairn, public)]
+#[spacetimedb::table(accessor = player_discovered_cairn, public)]
 #[derive(Clone, Debug)]
 pub struct PlayerDiscoveredCairn {
     #[primary_key]
@@ -116,7 +116,7 @@ pub struct PlayerDiscoveredCairn {
 /// Player interacts with a cairn to discover its lore
 #[spacetimedb::reducer]
 pub fn interact_with_cairn(ctx: &ReducerContext, cairn_id: u64) -> Result<(), String> {
-    let player_id = ctx.sender;
+    let player_id = ctx.sender();
     
     log::info!("🗿 [Cairn] interact_with_cairn called: cairn_id={}, player_id={}", cairn_id, player_id);
     

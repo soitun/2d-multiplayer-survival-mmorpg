@@ -5,7 +5,8 @@
  * This eliminates code duplication across InventoryUI, Hotbar, and useHotLoot.
  */
 
-import { DbConnection, WoodenStorageBox, Stash, Campfire, Fumarole, BrothPot } from '../generated';
+import { DbConnection } from '../generated';
+import { WoodenStorageBox, Stash, Campfire, Fumarole, BrothPot } from '../generated/types';
 import { isWaterContainer } from './waterContainerHelpers';
 import { getContainerTypeFromSlotType } from './containerUtils';
 
@@ -50,22 +51,22 @@ export function quickMoveToContainer(
     try {
         switch (target.type) {
             case 'player_corpse':
-                connection.reducers.quickMoveToCorpse(containerId, itemInstanceId);
+                connection.reducers.quickMoveToCorpse({ corpseId: containerId, itemInstanceId });
                 return true;
 
             case 'wooden_storage_box':
                 // Check box type for compost/refrigerator/repair_bench variants
                 const boxEntity = woodenStorageBoxes?.get(containerId.toString());
                 if (boxEntity?.boxType === BOX_TYPE_COMPOST) {
-                    connection.reducers.quickMoveToCompost(containerId, itemInstanceId);
+                    connection.reducers.quickMoveToCompost({ boxId: containerId, itemInstanceId });
                 } else if (boxEntity?.boxType === BOX_TYPE_REFRIGERATOR) {
-                    connection.reducers.quickMoveToRefrigerator(containerId, itemInstanceId);
+                    connection.reducers.quickMoveToRefrigerator({ boxId: containerId, itemInstanceId });
                 } else if (boxEntity?.boxType === BOX_TYPE_REPAIR_BENCH) {
-                    connection.reducers.quickMoveToRepairBench(containerId, itemInstanceId);
+                    connection.reducers.quickMoveToRepairBench({ boxId: containerId, itemInstanceId });
                 } else if (boxEntity?.boxType === BOX_TYPE_FISH_TRAP) {
-                    connection.reducers.quickMoveToFishTrap(containerId, itemInstanceId);
+                    connection.reducers.quickMoveToFishTrap({ boxId: containerId, itemInstanceId });
                 } else {
-                    connection.reducers.quickMoveToBox(containerId, itemInstanceId);
+                    connection.reducers.quickMoveToBox({ boxId: containerId, itemInstanceId });
                 }
                 return true;
 
@@ -75,7 +76,7 @@ export function quickMoveToContainer(
                     console.warn('[QuickMove] Cannot move to hidden stash');
                     return false;
                 }
-                connection.reducers.quickMoveToStash(containerId, itemInstanceId);
+                connection.reducers.quickMoveToStash({ stashId: containerId, itemInstanceId });
                 return true;
 
             case 'campfire':
@@ -86,10 +87,10 @@ export function quickMoveToContainer(
                     // If item is a water container AND water container slot is empty, use water slot
                     if (itemDefinitionName && isWaterContainer(itemDefinitionName) && !pot?.waterContainerInstanceId) {
                         try {
-                            (connection.reducers as any).quickMoveToBrothPotWaterContainer(
-                                campfireEntity.attachedBrothPotId,
+                            connection.reducers.quickMoveToBrothPotWaterContainer({
+                                brothPotId: campfireEntity.attachedBrothPotId,
                                 itemInstanceId
-                            );
+                            });
                             return true;
                         } catch (e) {
                             // Fall through to ingredient slots
@@ -97,25 +98,25 @@ export function quickMoveToContainer(
                     }
                     // Send to broth pot ingredient slots
                     try {
-                        connection.reducers.quickMoveToBrothPot(
-                            campfireEntity.attachedBrothPotId,
+                        connection.reducers.quickMoveToBrothPot({
+                            brothPotId: campfireEntity.attachedBrothPotId,
                             itemInstanceId
-                        );
+                        });
                         return true;
                     } catch (e) {
                         // Fall through to campfire fuel slots
                     }
                 }
                 // Only send to campfire fuel slots if NO broth pot is attached (or broth pot failed)
-                connection.reducers.quickMoveToCampfire(containerId, itemInstanceId);
+                connection.reducers.quickMoveToCampfire({ campfireId: containerId, itemInstanceId });
                 return true;
 
             case 'furnace':
-                connection.reducers.quickMoveToFurnace(containerId, itemInstanceId);
+                connection.reducers.quickMoveToFurnace({ furnaceId: containerId, itemInstanceId });
                 return true;
 
             case 'barbecue':
-                connection.reducers.quickMoveToBarbecue(containerId, itemInstanceId);
+                connection.reducers.quickMoveToBarbecue({ barbecueId: containerId, itemInstanceId });
                 return true;
 
             case 'fumarole':
@@ -126,10 +127,10 @@ export function quickMoveToContainer(
                     // If item is a water container AND water container slot is empty, use water slot
                     if (itemDefinitionName && isWaterContainer(itemDefinitionName) && !pot?.waterContainerInstanceId) {
                         try {
-                            (connection.reducers as any).quickMoveToBrothPotWaterContainer(
-                                fumaroleEntity.attachedBrothPotId,
+                            connection.reducers.quickMoveToBrothPotWaterContainer({
+                                brothPotId: fumaroleEntity.attachedBrothPotId,
                                 itemInstanceId
-                            );
+                            });
                             return true;
                         } catch (e) {
                             // Fall through to ingredient slots
@@ -137,10 +138,10 @@ export function quickMoveToContainer(
                     }
                     // Send to broth pot ingredient slots
                     try {
-                        connection.reducers.quickMoveToBrothPot(
-                            fumaroleEntity.attachedBrothPotId,
+                        connection.reducers.quickMoveToBrothPot({
+                            brothPotId: fumaroleEntity.attachedBrothPotId,
                             itemInstanceId
-                        );
+                        });
                         return true;
                     } catch (e) {
                         // Fall through - but DON'T send to fumarole incineration!
@@ -149,28 +150,27 @@ export function quickMoveToContainer(
                     }
                 }
                 // Only send to fumarole incineration if NO broth pot is attached
-                connection.reducers.quickMoveToFumarole(containerId, itemInstanceId);
+                connection.reducers.quickMoveToFumarole({ fumaroleId: containerId, itemInstanceId });
                 return true;
 
             case 'lantern':
-                connection.reducers.quickMoveToLantern(containerId, itemInstanceId);
+                connection.reducers.quickMoveToLantern({ lanternId: containerId, itemInstanceId });
                 return true;
 
             case 'turret':
-                connection.reducers.quickMoveToTurret(containerId, itemInstanceId);
+                connection.reducers.quickMoveToTurret({ turretId: containerId, itemInstanceId });
                 return true;
 
             case 'homestead_hearth':
-                connection.reducers.quickMoveToHearth(containerId, itemInstanceId);
+                connection.reducers.quickMoveToHearth({ hearthId: containerId, itemInstanceId });
                 return true;
 
             case 'rain_collector':
-                // Rain collectors use a different function signature
-                connection.reducers.moveItemToRainCollector(containerId, itemInstanceId, 0);
+                connection.reducers.moveItemToRainCollector({ collectorId: containerId, itemInstanceId, targetSlotIndex: 0 });
                 return true;
 
             case 'broth_pot':
-                connection.reducers.quickMoveToBrothPot(containerId, itemInstanceId);
+                connection.reducers.quickMoveToBrothPot({ brothPotId: containerId, itemInstanceId });
                 return true;
 
             default:
@@ -206,51 +206,51 @@ export function quickMoveToPlayer(
     try {
         switch (containerType) {
             case 'wooden_storage_box':
-                connection.reducers.quickMoveFromBox(containerIdNum, slotIndex);
+                connection.reducers.quickMoveFromBox({ boxId: containerIdNum, sourceSlotIndex: slotIndex });
                 return true;
 
             case 'player_corpse':
-                connection.reducers.quickMoveFromCorpse(containerIdNum, slotIndex);
+                connection.reducers.quickMoveFromCorpse({ corpseId: containerIdNum, sourceSlotIndex: slotIndex });
                 return true;
 
             case 'stash':
-                connection.reducers.quickMoveFromStash(containerIdNum, slotIndex);
+                connection.reducers.quickMoveFromStash({ stashId: containerIdNum, sourceSlotIndex: slotIndex });
                 return true;
 
             case 'campfire':
-                connection.reducers.quickMoveFromCampfire(containerIdNum, slotIndex);
+                connection.reducers.quickMoveFromCampfire({ campfireId: containerIdNum, sourceSlotIndex: slotIndex });
                 return true;
 
             case 'furnace':
-                connection.reducers.quickMoveFromFurnace(containerIdNum, slotIndex);
+                connection.reducers.quickMoveFromFurnace({ furnaceId: containerIdNum, sourceSlotIndex: slotIndex });
                 return true;
 
             case 'barbecue':
-                connection.reducers.quickMoveFromBarbecue(containerIdNum, slotIndex);
+                connection.reducers.quickMoveFromBarbecue({ barbecueId: containerIdNum, sourceSlotIndex: slotIndex });
                 return true;
 
             case 'fumarole':
-                connection.reducers.quickMoveFromFumarole(containerIdNum, slotIndex);
+                connection.reducers.quickMoveFromFumarole({ fumaroleId: containerIdNum, sourceSlotIndex: slotIndex });
                 return true;
 
             case 'lantern':
-                connection.reducers.quickMoveFromLantern(containerIdNum, slotIndex);
+                connection.reducers.quickMoveFromLantern({ lanternId: containerIdNum, sourceSlotIndex: slotIndex });
                 return true;
 
             case 'turret':
-                connection.reducers.quickMoveFromTurret(containerIdNum, slotIndex);
+                connection.reducers.quickMoveFromTurret({ turretId: containerIdNum, slotIndex });
                 return true;
 
             case 'homestead_hearth':
-                connection.reducers.quickMoveFromHearth(containerIdNum, slotIndex);
+                connection.reducers.quickMoveFromHearth({ hearthId: containerIdNum, sourceSlotIndex: slotIndex });
                 return true;
 
             case 'rain_collector':
-                connection.reducers.quickMoveFromRainCollector(containerIdNum, slotIndex);
+                connection.reducers.quickMoveFromRainCollector({ collectorId: containerIdNum, sourceSlotIndex: slotIndex });
                 return true;
 
             case 'broth_pot':
-                connection.reducers.quickMoveFromBrothPot(containerIdNum, slotIndex);
+                connection.reducers.quickMoveFromBrothPot({ brothPotId: containerIdNum, sourceSlotIndex: slotIndex });
                 return true;
 
             default:

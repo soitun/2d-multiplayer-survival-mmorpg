@@ -182,7 +182,7 @@ export const GameConnectionProvider: React.FC<GameConnectionProviderProps> = ({ 
         try {
             const builder = DbConnection.builder()
                 .withUri(SPACETIME_DB_ADDRESS)
-                .withModuleName(SPACETIME_DB_NAME)
+                .withDatabaseName(SPACETIME_DB_NAME)
                 .withToken(spacetimeToken)
                 .onConnect((conn: DbConnection, identity: SpacetimeDBIdentity) => {
                     if (abortController.signal.aborted) return;
@@ -312,7 +312,7 @@ export const GameConnectionProvider: React.FC<GameConnectionProviderProps> = ({ 
         };
     }, [spacetimeToken, invalidateCurrentToken, retryCount, cleanupConnection, updateConnectionState]);
 
-    // Player registration function
+    // Player registration function (SpacetimeDB 2.0: registerPlayer returns Promise)
     const registerPlayer = useCallback(async (username: string): Promise<void> => {
         if (connectionState !== ConnectionState.CONNECTED || !connection || !dbIdentity || !username.trim()) {
             const errorMessage = "Cannot register: Not connected to game servers";
@@ -321,36 +321,15 @@ export const GameConnectionProvider: React.FC<GameConnectionProviderProps> = ({ 
         }
 
         setConnectionError(null);
-        
-        return new Promise<void>((resolve, reject) => {
-            const handleRegisterResult = (ctx: any, submittedUsername: string) => {
-                connection.reducers.removeOnRegisterPlayer(handleRegisterResult);
-                
-                if (ctx.event?.status?.tag === 'Committed') {
-                    console.log('[GameConn] Player registration successful');
-                    resolve();
-                } else {
-                    let errorMessage = 'Registration failed';
-                    if (ctx.event?.status?.tag === 'Failed' && ctx.event?.status?.value) {
-                        errorMessage = ctx.event.status.value;
-                    } else if (ctx.event?.status?.tag === 'OutOfEnergy') {
-                        errorMessage = 'Server overloaded, try again later';
-                    }
-                    reject(new Error(errorMessage));
-                }
-            };
 
-            connection.reducers.onRegisterPlayer(handleRegisterResult);
-
-            try {
-                connection.reducers.registerPlayer(username);
-            } catch (err: any) {
-                connection.reducers.removeOnRegisterPlayer(handleRegisterResult);
-                const errorMessage = `Registration failed: ${err.message || err}`;
-                setConnectionError(errorMessage);
-                reject(new Error(errorMessage));
-            }
-        });
+        try {
+            await connection.reducers.registerPlayer({ username });
+            console.log('[GameConn] Player registration successful');
+        } catch (err: any) {
+            const errorMessage = err?.message || err?.toString?.() || 'Registration failed';
+            setConnectionError(errorMessage);
+            throw new Error(errorMessage);
+        }
     }, [connectionState, connection, dbIdentity]);
 
     // Derived state for context

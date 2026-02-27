@@ -15,7 +15,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 // Import the Player type from generated bindings
-import { Player } from '../generated'; // Adjusted path
+import { Player } from '../generated/types'; // Adjusted path
 // Import FontAwesome
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDiscord, faXTwitter, faGithub } from '@fortawesome/free-brands-svg-icons';

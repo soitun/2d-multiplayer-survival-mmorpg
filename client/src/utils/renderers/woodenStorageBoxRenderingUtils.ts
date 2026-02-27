@@ -1,4 +1,4 @@
-import { WoodenStorageBox } from '../../generated'; // Import generated type
+import { WoodenStorageBox } from '../../generated/types'; // Import generated type
 import boxImage from '../../assets/doodads/wooden_storage_box.png'; // Direct import
 import largeBoxImage from '../../assets/doodads/large_wood_box.png'; // Large box image
 import refrigeratorImage from '../../assets/doodads/refrigerator.png'; // Refrigerator image

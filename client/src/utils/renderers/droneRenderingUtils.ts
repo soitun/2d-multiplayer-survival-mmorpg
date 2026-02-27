@@ -3,7 +3,7 @@
  * Renders drone.png as a dark shadow (brightness 0%) for mysterious sky presence.
  */
 
-import { DroneEvent } from '../../generated';
+import { DroneEvent } from '../../generated/types';
 
 export interface InterpolatedDroneData {
   id: string;

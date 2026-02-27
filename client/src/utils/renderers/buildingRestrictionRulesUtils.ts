@@ -1,7 +1,7 @@
 import {
   ActiveEquipment as SpacetimeDBActiveEquipment,
   ItemDefinition as SpacetimeDBItemDefinition,
-} from '../../generated';
+} from '../../generated/types';
 import { BuildingRestrictionZoneConfig } from './buildingRestrictionOverlayUtils';
 
 export function shouldShowBuildingRestrictionOverlay(

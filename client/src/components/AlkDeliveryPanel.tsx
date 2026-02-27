@@ -17,7 +17,7 @@ import {
     PlayerShardBalance,
     ItemDefinition,
     InventoryItem,
-} from '../generated';
+} from '../generated/types';
 
 // Module-level flag to prevent immediate reopening after E key close
 // This is shared across all instances and persists briefly after panel closes
@@ -137,7 +137,7 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
         setIsCreatingMatronage(true);
         setMatronageError(null);
         try {
-            await connection.reducers.useMatronsMark(matronageName.trim());
+            await connection.reducers.useMatronsMark({ matronageName: matronageName.trim() });
             setMatronageName(''); // Clear input on success
             // Close this panel and open the matronage page so user can see their new matronage
             if (onMatronageCreated) {
@@ -288,7 +288,7 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
         setDeliveryStatus('Processing delivery...');
 
         try {
-            connection.reducers.deliverAlkContract(playerContractId, stationId);
+            connection.reducers.deliverAlkContract({ playerContractId: BigInt(playerContractId), stationId });
             setDeliveryStatus('✓ Delivery successful!');
             setTimeout(() => setDeliveryStatus(null), 2000);
         } catch (error: any) {
@@ -307,7 +307,7 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
         setDeliveryStatus('Assigning to Matronage...');
 
         try {
-            connection.reducers.deliverAlkContractToMatronage(playerContractId, stationId);
+            connection.reducers.deliverAlkContractToMatronage({ playerContractId: BigInt(playerContractId), stationId });
             setDeliveryStatus('✓ Assigned to Matronage pool!');
             setTimeout(() => setDeliveryStatus(null), 2000);
         } catch (error: any) {
@@ -331,7 +331,7 @@ export const AlkDeliveryPanel: React.FC<AlkDeliveryPanelProps> = ({
         for (const { playerContract, canDeliver } of activeContracts) {
             if (canDeliver) {
                 try {
-                    connection.reducers.deliverAlkContract(playerContract.id, stationId);
+                    connection.reducers.deliverAlkContract({ playerContractId: BigInt(playerContract.id), stationId });
                     successCount++;
                 } catch {
                     failCount++;

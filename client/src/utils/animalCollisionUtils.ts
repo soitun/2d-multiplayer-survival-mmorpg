@@ -1,4 +1,4 @@
-import { WildAnimal } from '../generated';
+import { WildAnimal } from '../generated/types';
 
 export interface AnimalCollisionBounds {
   x: number;
