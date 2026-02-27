@@ -464,6 +464,7 @@ interface RenderYSortedEntitiesProps {
   walrusBreedingData?: Map<string, WalrusBreedingData>;
   chunkWeather?: Map<string, { currentWeather?: { tag?: string } }>;
   seaTransitionTileLookup?: Map<string, boolean>; // Shore transition tiles (Beach/Sea, Beach/HotSpringWater, Asphalt/Sea): player renders as normal, not swimming
+  waterTileLookup?: Map<string, boolean>; // Fast tile water lookup for immediate local land/sea sprite switching
   // Note: viewBounds for terrain footprints has been moved to GameCanvas.tsx
   // Footprints are now rendered once before any renderYSortedEntities calls
 }
@@ -544,6 +545,7 @@ export const renderYSortedEntities = ({
   walrusBreedingData,
   chunkWeather,
   seaTransitionTileLookup, // Sea transition tiles: player renders as normal, not swimming
+  waterTileLookup, // Fast tile water lookup for immediate local land/sea sprite switching
 }: RenderYSortedEntitiesProps) => {
   // PERFORMANCE: Avoid calling cleanup function unless interval elapsed
   const nowForCleanup = performance.now();
@@ -991,7 +993,16 @@ export const renderYSortedEntities = ({
         // Snorkeling players are still underwater, so they must keep swim animation/tint,
         // but should NOT use split waterline rendering.
         const playerIsSnorkelingEarly = isLocalPlayer ? isLocalPlayerSnorkeling : playerForRendering.isSnorkeling;
-        const effectiveIsOnWater = playerIsSnorkelingEarly;
+        const tileX = Math.floor(playerForRendering.positionX / gameConfig.tileSize);
+        const tileY = Math.floor(playerForRendering.positionY / gameConfig.tileSize);
+        const tileKey = `${tileX},${tileY}`;
+        const isOnSeaTransitionTile = seaTransitionTileLookup?.get(tileKey) ?? false;
+        // Keep local player water-state in sync with predicted tile crossing to avoid
+        // split-render desync (e.g., bottom-half-only frame when exiting sea).
+        const localPredictedIsOnWater = isLocalPlayer
+          ? (waterTileLookup?.get(tileKey) ?? playerForRendering.isOnWater)
+          : playerForRendering.isOnWater;
+        const effectiveIsOnWater = (localPredictedIsOnWater && !isOnSeaTransitionTile) || playerIsSnorkelingEarly;
          
          // Choose sprite based on priority: dodge roll > water > crouching > default
          let heroImg: HTMLImageElement | null;
@@ -1046,10 +1057,6 @@ export const renderYSortedEntities = ({
           // If so, skip equipped item rendering here — it's handled in the swimming top half pass.
           // On sea transition tiles: no split render (player shows as normal).
           const isSwimmingSplitRender = effectiveIsOnWater && !playerForRendering.isDead && !playerForRendering.isKnockedOut && !playerIsSnorkelingEarly;
-
-          const tileX = Math.floor(playerForRendering.positionX / gameConfig.tileSize);
-          const tileY = Math.floor(playerForRendering.positionY / gameConfig.tileSize);
-          const isOnSeaTransitionTile = seaTransitionTileLookup?.get(`${tileX},${tileY}`) ?? false;
 
           // Determine rendering order based on player direction
           if (playerForRendering.direction === 'up' || playerForRendering.direction === 'left') {

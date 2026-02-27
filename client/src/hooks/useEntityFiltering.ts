@@ -824,7 +824,8 @@ export function useEntityFiltering(
   monumentParts?: Map<string, any>, // ADDED: Unified monument parts (shipwreck, fishing village, whale bone graveyard)
   // StormPile removed - storms now spawn HarvestableResources and DroppedItems directly
   livingCorals?: Map<string, SpacetimeDBLivingCoral>, // Living corals (uses combat system)
-  seaTransitionTileLookup?: Map<string, boolean> // Shore transition tiles (Beach/Sea, Beach/HotSpringWater, Asphalt/Sea): player renders full sprite, no swimming split
+  seaTransitionTileLookup?: Map<string, boolean>, // Shore transition tiles (Beach/Sea, Beach/HotSpringWater, Asphalt/Sea): player renders full sprite, no swimming split
+  waterTileLookup?: Map<string, boolean> // Fast local tile water detection for immediate land/sea sprite transitions
 ): EntityFilteringResult {
   // Increment frame counter for throttling
   frameCounter++;
@@ -2087,7 +2088,12 @@ export function useEntityFiltering(
       const posY = isLocal && localPlayerPredictedPosition ? localPlayerPredictedPosition.y : e.positionY;
       const tileKey = `${Math.floor(posX / gameConfig.tileSize)},${Math.floor(posY / gameConfig.tileSize)}`;
       const isOnSeaTransition = seaTransitionTileLookup?.get(tileKey) ?? false;
-      const effectiveIsOnWater = e.isOnWater && !isOnSeaTransition;
+      // Local player should transition visuals immediately based on predicted tile,
+      // instead of waiting for replicated server isOnWater.
+      const localPredictedIsOnWater = isLocal && localPlayerPredictedPosition
+        ? (waterTileLookup?.get(tileKey) ?? false)
+        : undefined;
+      const effectiveIsOnWater = (localPredictedIsOnWater ?? e.isOnWater) && !isOnSeaTransition;
       const isSwimming = effectiveIsOnWater && !e.isDead && !e.isKnockedOut && !e.isSnorkeling;
       const isLocalAndSnorkeling = isSnorkeling && isLocal;
       const isRemoteSnorkeling = e.isSnorkeling;
@@ -3050,6 +3056,7 @@ export function useEntityFiltering(
     buildingClusters, // ADDED: Depend on building clusters for fog overlay calculation
     playerBuildingClusterId, // ADDED: Depend on player building cluster for fog overlay calculation
     seaTransitionTileLookup, // Swimming split-render: transition tiles use full sprite
+    waterTileLookup, // Swimming split-render: local player uses predicted tile water immediately
     localPlayerPredictedPosition, // Swimming Y-sort: use predicted pos for local player
     localPlayerId, // Swimming: identify local vs remote
     isLocalPlayerSnorkeling, // Swimming: snorkeling players use full sprite

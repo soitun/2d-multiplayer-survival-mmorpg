@@ -669,6 +669,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const interpolatedCloudsRef = useRef<Map<string, any>>(new Map());
   const cycleProgressRef = useRef<number>(0.375);
   const ySortedEntitiesRef = useRef<any[]>([]);
+  const swimmingPlayersForBottomHalfRef = useRef<SpacetimeDBPlayer[]>([]);
+  const localSwimTransitionRef = useRef<{ wasSwimming: boolean; enteredWaterAtMs: number }>({
+    wasSwimming: false,
+    enteredWaterAtMs: 0,
+  });
 
   // Phase 3d: Reusable scratch objects for render hot path (avoid spread-operator allocation)
   const swimmingPlayerScratchRef = useRef<Partial<SpacetimeDBPlayer> & { positionX: number; positionY: number }>({ positionX: 0, positionY: 0 });
@@ -738,7 +743,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const isLocalPlayerProjectile =
         projectile.sourceType === 0 &&
         projectile.ownerId?.toHexString?.() === localPlayerId;
-      if (isLocalPlayerProjectile) {
+      const isThrownProjectile = projectile.ammoDefId === projectile.itemDefId;
+      // Keep authoritative thrown projectiles visible: right-click throw path does not
+      // currently spawn an optimistic projectile, so filtering these hides flight entirely.
+      const shouldHideAuthoritative = isLocalPlayerProjectile && !isThrownProjectile;
+      if (shouldHideAuthoritative) {
         removedAny = true;
         return;
       }
@@ -1167,7 +1176,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     alkStations,
     monumentParts,
     livingCorals, // Living coral for underwater harvesting (uses combat system)
-    seaTransitionTileLookup // Sea transition tiles: player renders full sprite, no swimming split
+    seaTransitionTileLookup, // Sea transition tiles: player renders full sprite, no swimming split
+    waterTileLookup // Immediate local land/sea transition via predicted tile lookup
   );
 
   // Memoize predictedPosition by coordinates so useDayNightCycle's effect doesn't re-run
@@ -1574,6 +1584,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     });
     return withOptimistic;
   }, [ySortedEntities, optimisticProjectiles]);
+
+  // Keep both render lists synchronized in the same render pass to avoid one-frame
+  // split-render mismatches (bottom half rendered while top half list is stale).
+  ySortedEntitiesRef.current = ySortedEntitiesWithOptimisticProjectiles;
+  swimmingPlayersForBottomHalfRef.current = swimmingPlayersForBottomHalfFromHook;
 
   // Override render list with optimistic projectiles included so shots appear instantly,
   // even before the server projectile row is replicated.
@@ -2171,6 +2186,28 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const currentCanvasHeight = canvasSize.height;
     const viewBounds = getViewBounds(currentCameraOffsetX, currentCameraOffsetY, currentCanvasWidth, currentCanvasHeight);
     const rd = renderGameDepsRef.current;
+    const LOCAL_WATER_ENTRY_FULL_SPRITE_GRACE_MS = 250;
+
+    // Transition stabilizer: when entering water, draw local player as full sprite briefly.
+    // This prevents one-frame top-half misses while split-render lists catch up.
+    let localIsSwimmingNow = false;
+    if (currentPredictedPosition) {
+      const localTileX = Math.floor(currentPredictedPosition.x / gameConfig.tileSize);
+      const localTileY = Math.floor(currentPredictedPosition.y / gameConfig.tileSize);
+      const localTileKey = `${localTileX},${localTileY}`;
+      const onTransitionTile = seaTransitionTileLookup.get(localTileKey) ?? false;
+      localIsSwimmingNow = (waterTileLookup.get(localTileKey) ?? false) && !onTransitionTile;
+    }
+    if (localIsSwimmingNow && !localSwimTransitionRef.current.wasSwimming) {
+      localSwimTransitionRef.current.enteredWaterAtMs = now_ms;
+    } else if (!localIsSwimmingNow && localSwimTransitionRef.current.wasSwimming) {
+      localSwimTransitionRef.current.enteredWaterAtMs = 0;
+    }
+    localSwimTransitionRef.current.wasSwimming = localIsSwimmingNow;
+    const localWaterEntryGraceActive =
+      localIsSwimmingNow &&
+      localSwimTransitionRef.current.enteredWaterAtMs > 0 &&
+      (now_ms - localSwimTransitionRef.current.enteredWaterAtMs) < LOCAL_WATER_ENTRY_FULL_SPRITE_GRACE_MS;
 
     // Y-sort debug logging (throttled). Helps diagnose order mismatches in real time.
     if (ENABLE_YSORT_DEBUG && localPlayerId) {
@@ -2411,7 +2448,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // --- STEP 1: Render ONLY swimming player bottom halves ---
     // Use single source of truth from useEntityFiltering - prevents half-body glitches (head/body invisible)
-    const swimmingPlayersForBottomHalf = swimmingPlayersForBottomHalfFromHook;
+    const swimmingPlayersForBottomHalf = swimmingPlayersForBottomHalfRef.current;
 
     // Render swimming player bottom halves using exact same logic as renderYSortedEntities
     if (allShadowsEnabled) {
@@ -2434,20 +2471,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const moving = isPlayerMoving(lastPos, playerForRendering.positionX, playerForRendering.positionY);
 
       // EXACT same animation frame logic as renderYSortedEntities
-      let currentAnimFrame: number;
-      if (playerForRendering.isOnWater) {
-        // Swimming animations - ALL swimming uses idle animation frames from water sprite
-        currentAnimFrame = currentIdleAnimationFrame; // Swimming sprite uses idle frames for all swimming movement
-      } else {
-        // Land animation
-        if (!moving) {
-          currentAnimFrame = currentIdleAnimationFrame;
-        } else if (playerForRendering.isSprinting) {
-          currentAnimFrame = currentSprintAnimationFrame;
-        } else {
-          currentAnimFrame = currentAnimationFrame;
-        }
-      }
+      // This pass only renders players that use swimming split-render.
+      // Force swimming frames here to avoid waiting on delayed server isOnWater.
+      const currentAnimFrame = currentIdleAnimationFrame;
 
       // Update last positions (same as renderYSortedEntities)
       lastPositionsRef.current?.set(playerId, { x: playerForRendering.positionX, y: playerForRendering.positionY });
@@ -2458,6 +2484,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (heroImg) {
         const isOnline = activeConnections ? activeConnections.has(playerId) : false;
         const isHovered = worldMousePos ? isPlayerHovered(worldMousePos.x, worldMousePos.y, playerForRendering) : false;
+        const forceFullSpriteForLocalWaterEntry = isLocalPlayer && localWaterEntryGraceActive;
 
         renderPlayer(
           ctx,
@@ -2480,11 +2507,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           false, // not corpse
           currentCycleProgress,
           localPlayerIsCrouching,
-          'bottom', // Render only bottom half
+          forceFullSpriteForLocalWaterEntry ? 'full' : 'bottom', // Prevent head flicker briefly when entering water
           false, // isDodgeRolling - swimming players don't dodge roll
           0, // dodgeRollProgress
           false, // isSnorkeling - these are regular swimming players (snorkeling ones are excluded)
-          isSnorkeling // isViewerUnderwater - pass local player's snorkeling state
+          isSnorkeling, // isViewerUnderwater - pass local player's snorkeling state
+          undefined, // activeTitle
+          true // effectiveIsOnWaterFromCaller: force immediate swim rendering for split bottom-half pass
         );
       }
       });
@@ -2743,6 +2772,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           walrusBreedingData,
           chunkWeather,
           seaTransitionTileLookup,
+          waterTileLookup,
         });
       }
     };
@@ -2751,33 +2781,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const renderSwimmingPlayerTopHalf = (item: { entity: SpacetimeDBPlayer; playerId: string; yPosition: number }) => {
       const player = item.entity;
       const playerId = item.playerId;
+      const isLocalTopHalf = playerId === localPlayerId;
+      if (isLocalTopHalf && localWaterEntryGraceActive) {
+        return;
+      }
 
       const lastPos = lastPositionsRef.current?.get(playerId);
       const moving = isPlayerMoving(lastPos, player.positionX, player.positionY);
 
-      let currentAnimFrame: number;
-      if (player.isOnWater) {
-        // Swimming: use idle frames for ALL swimming movement (matches bottom half - Phase 3c fix)
-        currentAnimFrame = currentIdleAnimationFrame;
-      } else {
-        if (!moving) {
-          currentAnimFrame = currentIdleAnimationFrame;
-        } else if (player.isSprinting) {
-          currentAnimFrame = currentSprintAnimationFrame;
-        } else {
-          currentAnimFrame = currentAnimationFrame;
-        }
-      }
+      // This helper only runs for `swimmingPlayerTopHalf` entities.
+      // Force swimming frames to keep top-half synchronized during land->water transitions.
+      const currentAnimFrame = currentIdleAnimationFrame;
 
       // FIX: Add fallbacks to ensure we render with available sprite
-      let heroImg: HTMLImageElement | null;
-      if (player.isOnWater) {
-        heroImg = heroWaterImageRef.current || heroImageRef.current;
-      } else if (player.isCrouching) {
-        heroImg = heroCrouchImageRef.current || heroImageRef.current;
-      } else {
-        heroImg = heroImageRef.current;
-      }
+      const heroImg: HTMLImageElement | null = heroWaterImageRef.current || heroImageRef.current;
 
       if (heroImg) {
         const isOnline = activeConnections ? activeConnections.has(playerId) : false;
@@ -2840,7 +2857,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           false,
           0,
           false,
-          isSnorkeling
+          isSnorkeling,
+          undefined, // activeTitle
+          true // effectiveIsOnWaterFromCaller: force immediate swim rendering for split top-half pass
         );
 
         if (!itemBehindPlayer && canRenderItem && equipment) {
@@ -2850,37 +2869,52 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     };
 
     // Phase 3c: Iterate over pre-merged ySortedEntities from useEntityFiltering
+    const renderedSwimmingTopHalfIds = new Set<string>();
+    const renderTopHalfForPlayer = (sourcePlayer: SpacetimeDBPlayer, sourcePlayerId: string, sourceY: number) => {
+      const scratch = swimmingPlayerScratchRef.current;
+      const topHalfScratch = swimmingPlayerTopHalfScratchRef.current;
+      let playerForRendering: SpacetimeDBPlayer = sourcePlayer;
+      if (sourcePlayerId === localPlayerId && currentPredictedPosition) {
+        Object.assign(scratch, sourcePlayer);
+        scratch.positionX = currentPredictedPosition.x;
+        scratch.positionY = currentPredictedPosition.y;
+        scratch.direction = currentLocalFacingDirection ?? sourcePlayer.direction;
+        playerForRendering = scratch as SpacetimeDBPlayer;
+      } else if (remotePlayerInterpolation) {
+        const interp = remotePlayerInterpolation.updateAndGetSmoothedPosition(sourcePlayer, localPlayerId);
+        Object.assign(scratch, sourcePlayer);
+        scratch.positionX = interp.x;
+        scratch.positionY = interp.y;
+        playerForRendering = scratch as SpacetimeDBPlayer;
+      }
+      topHalfScratch.entity = playerForRendering;
+      topHalfScratch.playerId = sourcePlayerId;
+      topHalfScratch.yPosition = sourceY;
+      renderSwimmingPlayerTopHalf(topHalfScratch);
+      renderedSwimmingTopHalfIds.add(sourcePlayerId);
+    };
+
     let currentBatch: typeof currentYSortedEntities = [];
     for (const item of currentYSortedEntities) {
       if (item.type === 'swimmingPlayerTopHalf') {
         flushBatch(currentBatch);
         currentBatch.length = 0;
-        const scratch = swimmingPlayerScratchRef.current;
-        const topHalfScratch = swimmingPlayerTopHalfScratchRef.current;
-        let playerForRendering: SpacetimeDBPlayer = item.entity;
-        if (item.playerId === localPlayerId && currentPredictedPosition) {
-          Object.assign(scratch, item.entity);
-          scratch.positionX = currentPredictedPosition.x;
-          scratch.positionY = currentPredictedPosition.y;
-          scratch.direction = currentLocalFacingDirection ?? item.entity.direction;
-          playerForRendering = scratch as SpacetimeDBPlayer;
-        } else if (remotePlayerInterpolation) {
-          const interp = remotePlayerInterpolation.updateAndGetSmoothedPosition(item.entity, localPlayerId);
-          Object.assign(scratch, item.entity);
-          scratch.positionX = interp.x;
-          scratch.positionY = interp.y;
-          playerForRendering = scratch as SpacetimeDBPlayer;
-        }
-        topHalfScratch.entity = playerForRendering;
-        topHalfScratch.playerId = item.playerId;
-        topHalfScratch.yPosition = item.yPosition;
-        renderSwimmingPlayerTopHalf(topHalfScratch);
+        renderTopHalfForPlayer(item.entity, item.playerId, item.yPosition);
       } else {
         currentBatch.push(item);
       }
     }
     flushBatch(currentBatch);
     currentBatch.length = 0;
+
+    // Safety net: ensure every swimming bottom-half player also gets a top-half draw
+    // in this same frame, even if y-sorted top-half list misses one frame.
+    for (const swimPlayer of swimmingPlayersForBottomHalfRef.current) {
+      const swimPlayerId = swimPlayer.identity.toHexString();
+      if (renderedSwimmingTopHalfIds.has(swimPlayerId)) continue;
+      const fallbackY = swimPlayer.positionY;
+      renderTopHalfForPlayer(swimPlayer, swimPlayerId, fallbackY);
+    }
     // --- END Y-SORTED ENTITIES AND SWIMMING PLAYER TOP HALVES ---
     const _t3 = mark(showFpsProfiler);
 

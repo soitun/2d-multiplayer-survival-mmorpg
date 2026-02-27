@@ -1075,6 +1075,11 @@ export const useInputHandler = ({
                     const isMoving = Math.abs(moveX) > 0.01 || Math.abs(moveY) > 0.01 || isAutoWalkingRef.current;
 
                     if (isMoving) {
+                        if (localPlayerRef.current.isOnWater) {
+                            console.log('[Input] Dodge roll blocked - player is on water');
+                            return;
+                        }
+
                         // Dodge Roll (works with both manual movement and auto-walk)
                         try {
                             if (connectionRef.current?.reducers) {

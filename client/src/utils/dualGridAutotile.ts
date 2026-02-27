@@ -21,7 +21,7 @@ type AssetModule = { default: string };
  * Enable this to automatically prefer same-named PNGs in `tiles/new/hd/`.
  * Missing HD files gracefully fall back to `tiles/new/`.
  */
-export const USE_HD_TILE_ASSETS = true;
+export const USE_HD_TILE_ASSETS = false;
 
 /**
  * Optional per-file override when global HD is disabled.

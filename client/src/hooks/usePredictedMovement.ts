@@ -185,6 +185,8 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
 
   const triggerOptimisticDodgeRoll = useCallback((moveX: number, moveY: number) => {
     if (!clientPositionRef.current) return;
+    if (localPlayer?.isOnWater) return;
+
     const nowMs = Date.now();
     const optimisticElapsed = nowMs - optimisticDodgeRollStartMsRef.current;
     const isOptimisticActive = optimisticDodgeRollStartMsRef.current > 0 && optimisticElapsed < DODGE_ROLL_DURATION_MS;
@@ -239,7 +241,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     };
     optimisticDodgeRollStartMsRef.current = nowMs;
     lastOptimisticDodgeRollStartMsRef.current = nowMs;
-  }, [localPlayer?.direction]);
+  }, [localPlayer?.direction, localPlayer?.isOnWater]);
 
   // Initialize position from server
   useEffect(() => {
