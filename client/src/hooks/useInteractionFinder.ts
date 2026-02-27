@@ -1305,13 +1305,13 @@ export function useInteractionFinder({
     updateCallbackRef.current = updateInteractionResult;
 
     useEffect(() => {
-        // PERFORMANCE: Throttle to every 3rd frame (~20Hz) - cuts scan cost by ~66%
-        // 20Hz is still instant-feeling for interaction prompts while reducing main-thread contention
+        // Run interaction scans at ~30Hz (every 2nd frame) for snappier pickup/harvest targeting.
+        // This keeps scan cost lower than full-rate while reducing "press E but nothing happens" feel.
         let animationFrameId: number | null = null;
         let frameSkip = 0;
         
         const updateLoop = () => {
-            if (++frameSkip % 3 === 0) {
+            if (++frameSkip % 2 === 0) {
                 updateCallbackRef.current();
             }
             animationFrameId = requestAnimationFrame(updateLoop);

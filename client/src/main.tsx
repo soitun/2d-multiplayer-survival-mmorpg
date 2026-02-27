@@ -4,6 +4,13 @@ import './utils/productionLogger';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
+const EXPECTED_SILENT_SENDER_ERRORS = [
+  'Too far away to interact with this resource',
+  'Too far away to pick up the item',
+  'This resource has already been harvested and is respawning.',
+  'Dropped item with ID',
+];
+
 // Global error handler for unhandled promise rejections
 window.addEventListener('unhandledrejection', (event) => {
   const error = event.reason;
@@ -34,6 +41,16 @@ window.addEventListener('unhandledrejection', (event) => {
     }, 3000);
     
     return;
+  }
+
+  // Ignore expected reducer rejections that are normal gameplay races
+  // (e.g., target moved out of range or another player harvested first).
+  if (error?.name === 'SenderError') {
+    const shouldSilence = EXPECTED_SILENT_SENDER_ERRORS.some((msg) => errorMessage.includes(msg));
+    if (shouldSilence) {
+      event.preventDefault();
+      return;
+    }
   }
   
   // Log other unhandled rejections but don't prevent them
