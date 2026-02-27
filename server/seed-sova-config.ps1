@@ -48,8 +48,8 @@ if ([string]::IsNullOrWhiteSpace($ServerName)) {
   spacetime call --no-config $Database configure_sova $p $o $g $x
   spacetime sql --no-config $Database "SELECT id, active_provider FROM ai_http_config"
 } else {
-  spacetime call --server $ServerName $Database configure_sova $p $o $g $x
-  spacetime sql --server $ServerName $Database "SELECT id, active_provider FROM ai_http_config"
+  spacetime call --no-config --server $ServerName $Database configure_sova $p $o $g $x
+  spacetime sql --no-config --server $ServerName $Database "SELECT id, active_provider FROM ai_http_config"
 }
 
 if ($LASTEXITCODE -ne 0) {
