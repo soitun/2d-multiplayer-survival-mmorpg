@@ -87,22 +87,24 @@ pub fn resolve_animal_collision(
     // PERFORMANCE: Use cached spatial grid instead of creating new one
     let grid = spatial_grid::get_cached_spatial_grid(&ctx.db, ctx.timestamp);
     
-    // Look up the animal's species for special handling (bees, walruses, etc.)
-    let animal_species = ctx.db.wild_animal().id().find(&animal_id)
-        .map(|a| a.species);
+    // Look up species + movement mode for special handling.
+    let animal_row = ctx.db.wild_animal().id().find(&animal_id);
+    let animal_species = animal_row.as_ref().map(|a| a.species);
+    let animal_is_flying = animal_row.as_ref().map(|a| a.is_flying).unwrap_or(false);
     
     // BEES: No collision with players - they fly through everything
     let is_bee = matches!(animal_species, Some(crate::wild_animal_npc::AnimalSpecies::Bee));
     
-    // Check water collision - but allow walruses to swim!
+    // Check water collision. Land animals are blocked; aquatic/flying species can traverse.
     if is_water_tile(ctx, proposed_x, proposed_y) {
-        // Walruses can swim - they're not blocked by water
-        // Bees fly over water too
         let can_traverse_water = matches!(
             animal_species,
             Some(crate::wild_animal_npc::AnimalSpecies::ArcticWalrus) | 
+            Some(crate::wild_animal_npc::AnimalSpecies::BeachCrab) |
+            Some(crate::wild_animal_npc::AnimalSpecies::SalmonShark) |
+            Some(crate::wild_animal_npc::AnimalSpecies::Jellyfish) |
             Some(crate::wild_animal_npc::AnimalSpecies::Bee)
-        );
+        ) || animal_is_flying;
         
         if !can_traverse_water {
             log::debug!("[AnimalCollision] Animal {} movement blocked by water at ({:.1}, {:.1})", 

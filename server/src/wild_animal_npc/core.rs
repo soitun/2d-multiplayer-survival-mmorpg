@@ -2400,6 +2400,17 @@ pub fn can_attack(animal: &WildAnimal, current_time: Timestamp, stats: &AnimalSt
     }
 }
 
+fn can_animal_traverse_water(animal: &WildAnimal) -> bool {
+    matches!(
+        animal.species,
+        AnimalSpecies::ArcticWalrus
+            | AnimalSpecies::BeachCrab
+            | AnimalSpecies::SalmonShark
+            | AnimalSpecies::Jellyfish
+            | AnimalSpecies::Bee
+    ) || animal.is_flying
+}
+
 pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target_x: f32, target_y: f32, speed: f32, dt: f32) {
     let dx = target_x - animal.pos_x;
     let dy = target_y - animal.pos_y;
@@ -2508,6 +2519,50 @@ pub fn move_towards_target(ctx: &ReducerContext, animal: &mut WildAnimal, target
             proposed_y,
             is_attacking,
         );
+
+        // Water-edge recovery for non-aquatic animals:
+        // if movement is fully blocked by water, pick a deterministic turn-away heading
+        // and set a nearby investigation target so they turn around instead of "buzzing" in place.
+        let attempted_step = ((proposed_x - start_x).powi(2) + (proposed_y - start_y).powi(2)).sqrt();
+        let actual_step = ((final_x - start_x).powi(2) + (final_y - start_y).powi(2)).sqrt();
+        let blocked_by_water = attempted_step > 1.0
+            && actual_step < 0.5
+            && !can_animal_traverse_water(animal)
+            && crate::fishing::is_water_tile(ctx, proposed_x, proposed_y);
+
+        if blocked_by_water {
+            let blocked_dx = proposed_x - start_x;
+            let blocked_dy = proposed_y - start_y;
+            let blocked_len = (blocked_dx * blocked_dx + blocked_dy * blocked_dy).sqrt().max(0.001);
+
+            // Base "away from water" direction
+            let away_x = -blocked_dx / blocked_len;
+            let away_y = -blocked_dy / blocked_len;
+
+            // Deterministic side step based on animal id to prevent herd-wide lockstep.
+            let side_sign = if animal.id % 2 == 0 { 1.0 } else { -1.0 };
+            let turn_angle = 0.75 * side_sign; // ~43 degrees
+            let sin_t = turn_angle.sin();
+            let cos_t = turn_angle.cos();
+            let steer_x = away_x * cos_t - away_y * sin_t;
+            let steer_y = away_x * sin_t + away_y * cos_t;
+
+            animal.direction_x = steer_x;
+            animal.direction_y = steer_y;
+
+            let escape_distance = stats.patrol_radius.clamp(120.0, 320.0);
+            let mut escape_x = (start_x + steer_x * escape_distance).clamp(50.0, WORLD_WIDTH_PX - 50.0);
+            let mut escape_y = (start_y + steer_y * escape_distance).clamp(50.0, WORLD_HEIGHT_PX - 50.0);
+
+            // If deterministic route still points to water, use straight-away fallback.
+            if crate::fishing::is_water_tile(ctx, escape_x, escape_y) {
+                escape_x = (start_x + away_x * (escape_distance * 0.7)).clamp(50.0, WORLD_WIDTH_PX - 50.0);
+                escape_y = (start_y + away_y * (escape_distance * 0.7)).clamp(50.0, WORLD_HEIGHT_PX - 50.0);
+            }
+
+            animal.investigation_x = Some(escape_x);
+            animal.investigation_y = Some(escape_y);
+        }
         
         // CRITICAL ANTI-OVERLAP ENFORCEMENT: After all collision resolution,
         // do a final check to ensure we're not inside any player.
@@ -5262,9 +5317,8 @@ pub fn execute_standard_patrol(
     let target_x = animal.pos_x + animal.direction_x * stats.movement_speed * dt;
     let target_y = animal.pos_y + animal.direction_y * stats.movement_speed * dt;
     
-    // Check if target position is safe (avoid shelters and water)
-    // BeachCrab can swim in water (tide pool inlets) - allow water movement
-    let water_blocks = animal.species != AnimalSpecies::BeachCrab && crate::fishing::is_water_tile(ctx, target_x, target_y);
+    // Check if target position is safe (avoid shelters and disallowed water).
+    let water_blocks = !can_animal_traverse_water(animal) && crate::fishing::is_water_tile(ctx, target_x, target_y);
     if !is_position_in_shelter(ctx, target_x, target_y) && !water_blocks {
         move_towards_target(ctx, animal, target_x, target_y, stats.movement_speed, dt);
         

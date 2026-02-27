@@ -2029,6 +2029,19 @@ export function useEntityFiltering(
     
     // Use cached result when no re-sort is needed - significant performance gain!
     if (!needsResort && ySortedCache.entities.length > 0) {
+      // CRITICAL: Refresh dynamic wild-animal references even when sort order is cached.
+      // Without this, cached y-sorted entries can hold stale animal objects while
+      // collision/debug reads fresh table state, causing visible sprite/collision desync.
+      for (const cachedEntity of ySortedCache.entities) {
+        if (cachedEntity.type !== 'wild_animal') continue;
+        const cachedAnimal = cachedEntity.entity as SpacetimeDBWildAnimal;
+        const latestAnimal = wildAnimals?.get(cachedAnimal.id.toString());
+        if (!latestAnimal) continue;
+        cachedEntity.entity = latestAnimal;
+        // Keep key in sync so nearby depth ordering stays reasonable between full resorts.
+        cachedEntity._ySortKey = latestAnimal.posY;
+      }
+
       // Use cached result - huge performance gain!
       return {
         entities: ySortedCache.entities as YSortedEntityType[],

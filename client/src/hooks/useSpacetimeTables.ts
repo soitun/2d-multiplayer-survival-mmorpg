@@ -320,10 +320,11 @@ export const useSpacetimeTables = ({
     const chunkWeatherRef = useRef<Map<string, any>>(new Map());
     const chunkWeatherUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Batched wild animal updates (AI ticks 8x/sec) - reduces React re-renders
+    // Batched wild animal updates (AI ticks 8x/sec) - keep responsive while still
+    // limiting React churn when many animals are active.
     const wildAnimalsRef = useRef<Map<string, SpacetimeDB.WildAnimal>>(new Map());
     const wildAnimalsUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const WILD_ANIMAL_BATCH_INTERVAL_MS = 100; // Flush at 10fps - smooth enough for animation
+    const WILD_ANIMAL_BATCH_INTERVAL_MS = 50; // Flush at 20fps for lower perceived movement latency
 
     // Batched projectile updates (high frequency during combat)
     const projectilesRef = useRef<Map<string, SpacetimeDBProjectile>>(new Map());
