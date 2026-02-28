@@ -1796,6 +1796,7 @@ export const useInputHandler = ({
                         else if (
                             equippedItemDef.name === "Bandage" ||
                             equippedItemDef.name === "Med Kit" ||
+                            equippedItemDef.name === "Jellyfish Compress" ||
                             equippedItemDef.name === "Selo Olive Oil"
                         ) {
                             // console.log("[InputHandler MOUSEDOWN] Medical consumable equipped. Left-click does nothing. Use Right-Click.");
@@ -2368,8 +2369,8 @@ export const useInputHandler = ({
                             console.warn("[InputHandler CTXMENU] No connection or reducers to call useEquippedItem for Bandage.");
                         }
                         return;
-                    } else if (equippedItemDef.name === "Selo Olive Oil" || equippedItemDef.name === "Med Kit") {
-                        // console.log("[InputHandler CTXMENU] Selo Olive Oil equipped. Attempting to use.");
+                    } else if (equippedItemDef.name === "Selo Olive Oil" || equippedItemDef.name === "Med Kit" || equippedItemDef.name === "Jellyfish Compress") {
+                        // console.log("[InputHandler CTXMENU] Medical consumable equipped. Attempting to use.");
                         event.preventDefault();
                         if (connectionRef.current?.reducers) {
                             // console.log("[InputHandler CTXMENU] Calling useEquippedItem for Selo Olive Oil / Med Kit.");
@@ -2838,7 +2839,7 @@ export const useInputHandler = ({
             // console.log("[isItemThrowable] Rejected: RangedWeapon");
             return false;
         }
-        if (itemDef.name === "Bandage" || itemDef.name === "Selo Olive Oil" || itemDef.name === "Med Kit") {
+        if (itemDef.name === "Bandage" || itemDef.name === "Selo Olive Oil" || itemDef.name === "Med Kit" || itemDef.name === "Jellyfish Compress") {
             // console.log("[isItemThrowable] Rejected: medical consumables");
             return false;
         }

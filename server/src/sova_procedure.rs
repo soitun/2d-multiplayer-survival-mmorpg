@@ -32,6 +32,50 @@ fn provider_url_and_key(provider: &str, cfg: &AiHttpConfig) -> Result<(String, S
     }
 }
 
+/// Shared HTTP client for OpenAI/Grok API calls. Used by both ask_sova and generate_brew_recipe
+/// so they hit the same code path and avoid divergent behavior.
+fn send_openai_compatible_request(
+    ctx: &mut ProcedureContext,
+    url: &str,
+    api_key: &str,
+    body: serde_json::Value,
+    timeout_secs: u64,
+) -> Result<String, String> {
+    let request = Request::builder()
+        .uri(url)
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .extension(Timeout(std::time::Duration::from_secs(timeout_secs).into()))
+        .body(body.to_string())
+        .map_err(|e| format!("Failed to build request: {}", e))?;
+
+    let response = ctx
+        .http
+        .send(request)
+        .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+    let (parts, body) = response.into_parts();
+    let body_str = body.into_string_lossy();
+    if !parts.status.is_success() {
+        return Err(format!("API returned status {}: {}", parts.status, body_str));
+    }
+
+    let data: serde_json::Value =
+        serde_json::from_str(&body_str).map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    let content = data
+        .get("choices")
+        .and_then(|c| c.get(0))
+        .and_then(|c| c.get("message"))
+        .and_then(|m| m.get("content"))
+        .and_then(|c| c.as_str())
+        .map(|s| s.trim().to_string())
+        .ok_or_else(|| "No response content in LLM reply".to_string())?;
+
+    Ok(content)
+}
+
 fn audio_format_from_mime(mime_type: &str) -> &'static str {
     let normalized = mime_type.to_lowercase();
     if normalized.contains("webm") {
@@ -219,35 +263,8 @@ pub fn generate_brew_recipe(
                 "temperature": 0.7
             });
 
-            let request = Request::builder()
-                .uri(&url)
-                .method("POST")
-                .header("Content-Type", "application/json")
-                .header("Authorization", format!("Bearer {}", api_key))
-                .extension(Timeout(std::time::Duration::from_secs(45).into()))
-                .body(request_json.to_string())
-                .map_err(|e| format!("Failed to build brew request: {}", e))?;
-
-            let response = ctx
-                .http
-                .send(request)
-                .map_err(|e| format!("Brew HTTP request failed: {}", e))?;
-            let (parts, body) = response.into_parts();
-            let body_str = body.into_string_lossy();
-            if !parts.status.is_success() {
-                return Err(format!("Brew API returned status {}: {}", parts.status, body_str));
-            }
-
-            let data: serde_json::Value = serde_json::from_str(&body_str)
-                .map_err(|e| format!("Failed to parse brew LLM response: {}", e))?;
-
-            data.get("choices")
-                .and_then(|c| c.get(0))
-                .and_then(|c| c.get("message"))
-                .and_then(|m| m.get("content"))
-                .and_then(|c| c.as_str())
-                .ok_or_else(|| "Brew LLM response missing content".to_string())?
-                .to_string()
+            send_openai_compatible_request(ctx, &url, &api_key, request_json, 45)
+                .map_err(|e| format!("Brew {}", e))?
         }
     };
 
@@ -480,41 +497,7 @@ pub fn ask_sova(ctx: &mut ProcedureContext, request_body: String) -> Result<Stri
     }
 
     let (url, api_key) = provider_url_and_key(&selected_provider, &cfg)?;
-
-    let request = Request::builder()
-        .uri(&url)
-        .method("POST")
-        .header("Content-Type", "application/json")
-        .header("Authorization", format!("Bearer {}", api_key))
-        .extension(Timeout(std::time::Duration::from_secs(30).into()))
-        .body(payload.to_string())
-        .map_err(|e| format!("Failed to build request: {}", e))?;
-
-    let response = ctx
-        .http
-        .send(request)
-        .map_err(|e| format!("HTTP request failed: {}", e))?;
-
-    let (parts, body) = response.into_parts();
-    let body_str = body.into_string_lossy();
-
-    if !parts.status.is_success() {
-        return Err(format!("LLM API returned status {}: {}", parts.status, body_str));
-    }
-
-    let data: serde_json::Value =
-        serde_json::from_str(&body_str).map_err(|e| format!("Failed to parse LLM response: {}", e))?;
-
-    let content = data
-        .get("choices")
-        .and_then(|c| c.get(0))
-        .and_then(|c| c.get("message"))
-        .and_then(|m| m.get("content"))
-        .and_then(|c| c.as_str())
-        .map(|s| s.trim().to_string())
-        .ok_or_else(|| "No response content in LLM reply".to_string())?;
-
-    Ok(content)
+    send_openai_compatible_request(ctx, &url, &api_key, payload, 30)
 }
 
 /// Upserts the singleton AI config row (id=1).

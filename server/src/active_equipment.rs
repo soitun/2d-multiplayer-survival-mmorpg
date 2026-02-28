@@ -829,7 +829,7 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
     // --- END ATTACK SPEED CHECK ---
 
     // --- BEGIN BANDAGE-LIKE MEDICAL HANDLING ---
-    if item_def.name == "Bandage" || item_def.name == "Med Kit" {
+    if item_def.name == "Bandage" || item_def.name == "Med Kit" || item_def.name == "Jellyfish Compress" {
         log::info!("[UseEquippedItem] Player {:?} is using equipped {} (Instance: {}, Def: {}, Health Gain: {:?}).", 
             sender_id, item_def.name, equipped_item_instance_id, item_def.id, item_def.consumable_health_gain);
 

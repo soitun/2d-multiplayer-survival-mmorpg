@@ -634,6 +634,7 @@ const entityCache = new Map<string, {
   lastPlayerX: number;
   lastPlayerY: number;
   sourceRef: unknown;
+  filterToken?: unknown;
 }>();
 
 // ===== PERFORMANCE LOGGING SYSTEM =====
@@ -735,7 +736,8 @@ function getCachedFilteredEntities<T extends { posX: number; posY: number }>(
   maxDistanceSq: number,
   maxCount: number,
   playerPos: { x: number; y: number } | null,
-  additionalFilter?: (entity: T) => boolean
+  additionalFilter?: (entity: T) => boolean,
+  filterToken?: unknown
 ): T[] {
   if (!entities || !playerPos) return [];
   
@@ -744,6 +746,7 @@ function getCachedFilteredEntities<T extends { posX: number; posY: number }>(
   // Check if we can use cached results
   if (cache && 
       cache.sourceRef === entities &&
+      cache.filterToken === filterToken &&
       (frameCounter - cache.lastUpdateFrame) < updateInterval &&
       Math.abs(cache.lastPlayerX - playerPos.x) < 100 &&
       Math.abs(cache.lastPlayerY - playerPos.y) < 100) {
@@ -772,7 +775,8 @@ function getCachedFilteredEntities<T extends { posX: number; posY: number }>(
     lastUpdateFrame: frameCounter,
     lastPlayerX: playerPos.x,
     lastPlayerY: playerPos.y,
-    sourceRef: entities
+    sourceRef: entities,
+    filterToken
   });
   
   return filteredEntities;
@@ -1070,7 +1074,8 @@ export function useEntityFiltering(
         }
         
         return (tree.health > 0 || isFalling) && isEntityInView(tree, viewBounds, stableTimestamp);
-      }
+      },
+      isTreeFalling
     );
   }, [trees, playerPos, viewBounds, stableTimestamp, frameCounter, isTreeFalling]);
 
