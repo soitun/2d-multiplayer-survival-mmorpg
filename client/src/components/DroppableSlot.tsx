@@ -62,7 +62,8 @@ const DroppableSlot: React.FC<DroppableSlotProps> = ({
   const combinedClassName = `${styles.droppableSlot} ${className} ${isHotLootActive ? styles.hotLootActive : ''}`;
 
   // Prepare parentId attribute conditionally
-  const parentIdAttr = slotInfo.parentId ? { 'data-slot-parent-id': slotInfo.parentId.toString() } : {};
+  const hasParentId = slotInfo.parentId !== null && slotInfo.parentId !== undefined;
+  const parentIdAttr = hasParentId ? { 'data-slot-parent-id': slotInfo.parentId!.toString() } : {};
 
   const showHotLootIndicator = hotLootIndicatorProgress !== undefined && hotLootIndicatorProgress >= 0;
 

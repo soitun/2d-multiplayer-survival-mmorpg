@@ -165,7 +165,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
                     
                     // Parse parentId: Attempt BigInt conversion, handle potential errors/NaN
                     let parentId: number | bigint | undefined = undefined;
-                    if (targetParentIdAttr) {
+                    if (targetParentIdAttr !== null && targetParentIdAttr !== undefined) {
                         try {
                             // Attempt BigInt conversion first (common case)
                             parentId = BigInt(targetParentIdAttr);

@@ -1166,7 +1166,8 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
         
         try {
             // Water container slot quick move doesn't take slot index
-            (connection.reducers as any).quickMoveFromBrothPotWaterContainer(attachedBrothPot.id);
+            const brothPotIdNum = typeof attachedBrothPot.id === 'bigint' ? Number(attachedBrothPot.id) : attachedBrothPot.id;
+            (connection.reducers as any).quickMoveFromBrothPotWaterContainer({ brothPotId: brothPotIdNum });
         } catch (e: any) {
             console.error(`[WaterContainer QuickMove]`, e);
         }
@@ -1658,7 +1659,8 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                                                         
                                                         try {
                                                             // Output slot quick move doesn't take slot index
-                                                            (connection.reducers as any).quickMoveFromBrothPotOutput(attachedBrothPot.id);
+                                                            const brothPotIdNum = typeof attachedBrothPot.id === 'bigint' ? Number(attachedBrothPot.id) : attachedBrothPot.id;
+                                                            (connection.reducers as any).quickMoveFromBrothPotOutput({ brothPotId: brothPotIdNum });
                                                         } catch (e: any) {
                                                             console.error(`[OutputSlot QuickMove]`, e);
                                                         }
@@ -2070,9 +2072,8 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         onClick={() => {
                             if (!connection?.reducers) return;
                             try {
-                                (connection.reducers as any).transferWaterFromPotToContainer(
-                                    attachedBrothPot.id
-                                );
+                                const brothPotIdNum = typeof attachedBrothPot.id === 'bigint' ? Number(attachedBrothPot.id) : attachedBrothPot.id;
+                                (connection.reducers as any).transferWaterFromPotToContainer({ brothPotId: brothPotIdNum });
                             } catch (e: any) {
                                 console.error("Error transferring water from pot to container:", e);
                             }
@@ -2101,9 +2102,8 @@ const ExternalContainerUI: React.FC<ExternalContainerUIProps> = ({
                         onClick={() => {
                             if (!connection?.reducers) return;
                             try {
-                                (connection.reducers as any).transferWaterFromContainerToPot(
-                                    attachedBrothPot.id
-                                );
+                                const brothPotIdNum = typeof attachedBrothPot.id === 'bigint' ? Number(attachedBrothPot.id) : attachedBrothPot.id;
+                                (connection.reducers as any).transferWaterFromContainerToPot({ brothPotId: brothPotIdNum });
                             } catch (e: any) {
                                 console.error("Error transferring water from container to pot:", e);
                             }
