@@ -55,19 +55,19 @@ function callOpenContainerReducer(connection: DbConnection, type: string, id: nu
     
     switch (type) {
         case 'campfire':
-            reducers.openCampfireContainer?.(numericId);
+            reducers.openCampfireContainer?.({ campfireId: numericId });
             break;
         case 'furnace':
-            reducers.openFurnaceContainer?.(numericId);
+            reducers.openFurnaceContainer?.({ furnaceId: numericId });
             break;
         case 'barbecue':
-            reducers.openBarbecueContainer?.(numericId);
+            reducers.openBarbecueContainer?.({ barbecueId: numericId });
             break;
         case 'rain_collector':
-            reducers.openRainCollectorContainer?.(numericId);
+            reducers.openRainCollectorContainer?.({ collectorId: numericId });
             break;
         case 'wooden_storage_box':
-            reducers.openStorageBoxContainer?.(numericId);
+            reducers.openStorageBoxContainer?.({ boxId: numericId });
             break;
     }
 }
@@ -83,19 +83,19 @@ function callCloseContainerReducer(connection: DbConnection, type: string, id: n
     
     switch (type) {
         case 'campfire':
-            reducers.closeCampfireContainer?.(numericId);
+            reducers.closeCampfireContainer?.({ campfireId: numericId });
             break;
         case 'furnace':
-            reducers.closeFurnaceContainer?.(numericId);
+            reducers.closeFurnaceContainer?.({ furnaceId: numericId });
             break;
         case 'barbecue':
-            reducers.closeBarbecueContainer?.(numericId);
+            reducers.closeBarbecueContainer?.({ barbecueId: numericId });
             break;
         case 'rain_collector':
-            reducers.closeRainCollectorContainer?.(numericId);
+            reducers.closeRainCollectorContainer?.({ collectorId: numericId });
             break;
         case 'wooden_storage_box':
-            reducers.closeStorageBoxContainer?.(numericId);
+            reducers.closeStorageBoxContainer?.({ boxId: numericId });
             break;
     }
 }

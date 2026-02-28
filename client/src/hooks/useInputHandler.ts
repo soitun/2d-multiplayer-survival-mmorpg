@@ -1792,9 +1792,13 @@ export const useInputHandler = ({
                         else if (equippedItemDef.name === "Broken Lighter") {
                             return;
                         }
-                        // 3. Bandage: Prevent left-click swing (already handled by right-click)
-                        else if (equippedItemDef.name === "Bandage") {
-                            // console.log("[InputHandler MOUSEDOWN] Bandage equipped. Left-click does nothing. Use Right-Click.");
+                        // 3. Medical consumables: Prevent left-click swing (handled by right-click)
+                        else if (
+                            equippedItemDef.name === "Bandage" ||
+                            equippedItemDef.name === "Med Kit" ||
+                            equippedItemDef.name === "Selo Olive Oil"
+                        ) {
+                            // console.log("[InputHandler MOUSEDOWN] Medical consumable equipped. Left-click does nothing. Use Right-Click.");
                             return;
                         }
                                                 // 5. Water Containers: Prevent left-click pouring while on water, only allow crop watering
@@ -2364,16 +2368,16 @@ export const useInputHandler = ({
                             console.warn("[InputHandler CTXMENU] No connection or reducers to call useEquippedItem for Bandage.");
                         }
                         return;
-                    } else if (equippedItemDef.name === "Selo Olive Oil") {
+                    } else if (equippedItemDef.name === "Selo Olive Oil" || equippedItemDef.name === "Med Kit") {
                         // console.log("[InputHandler CTXMENU] Selo Olive Oil equipped. Attempting to use.");
                         event.preventDefault();
                         if (connectionRef.current?.reducers) {
-                            // console.log("[InputHandler CTXMENU] Calling useEquippedItem for Selo Olive Oil.");
-                            // 🔊 IMMEDIATE SOUND: Play button click for Selo Olive Oil use
+                            // console.log("[InputHandler CTXMENU] Calling useEquippedItem for Selo Olive Oil / Med Kit.");
+                            // 🔊 IMMEDIATE SOUND: Play button click for consumable use
                             // playButtonClickSound(0.6);
                             connectionRef.current.reducers.useEquippedItem({});
                         } else {
-                            console.warn("[InputHandler CTXMENU] No connection or reducers to call useEquippedItem for Selo Olive Oil.");
+                            console.warn("[InputHandler CTXMENU] No connection or reducers to call useEquippedItem for Selo Olive Oil / Med Kit.");
                         }
                         return;
                     } else if (equippedItemDef.name === "Reed Water Bottle" || equippedItemDef.name === "Plastic Water Jug") {
@@ -2834,8 +2838,8 @@ export const useInputHandler = ({
             // console.log("[isItemThrowable] Rejected: RangedWeapon");
             return false;
         }
-        if (itemDef.name === "Bandage" || itemDef.name === "Selo Olive Oil") {
-            // console.log("[isItemThrowable] Rejected: Bandage/Selo Olive Oil");
+        if (itemDef.name === "Bandage" || itemDef.name === "Selo Olive Oil" || itemDef.name === "Med Kit") {
+            // console.log("[isItemThrowable] Rejected: medical consumables");
             return false;
         }
         if (itemDef.name === "Torch") {

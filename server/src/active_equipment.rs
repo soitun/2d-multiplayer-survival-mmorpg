@@ -828,10 +828,10 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
     }
     // --- END ATTACK SPEED CHECK ---
 
-    // --- BEGIN BANDAGE HANDLING ---
-    if item_def.name == "Bandage" {
-        log::info!("[UseEquippedItem] Player {:?} is using an equipped Bandage (Instance: {}, Def: {}, Health Gain: {:?}).", 
-            sender_id, equipped_item_instance_id, item_def.id, item_def.consumable_health_gain);
+    // --- BEGIN BANDAGE-LIKE MEDICAL HANDLING ---
+    if item_def.name == "Bandage" || item_def.name == "Med Kit" {
+        log::info!("[UseEquippedItem] Player {:?} is using equipped {} (Instance: {}, Def: {}, Health Gain: {:?}).", 
+            sender_id, item_def.name, equipped_item_instance_id, item_def.id, item_def.consumable_health_gain);
 
         // Check for existing active BandageBurst effect from ANY bandage item to prevent stacking this specific effect type.
         let has_active_bandage_burst_effect = ctx.db.active_consumable_effect().iter().any(|effect| {
@@ -842,13 +842,13 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
         });
 
         if has_active_bandage_burst_effect {
-            log::warn!("[UseEquippedItem] Player {:?} tried to use Bandage while another bandage effect is already active.", sender_id);
+            log::warn!("[UseEquippedItem] Player {:?} tried to use {} while another bandage-type effect is already active.", sender_id, item_def.name);
             return Err("You are already applying or receiving a bandage.".to_string());
         }
 
         // Get the player's position to check for nearby players
         let player_pos = players_table.identity().find(sender_id)
-            .ok_or_else(|| "Player not found for bandage use".to_string())?;
+            .ok_or_else(|| "Player not found for medical consumable use".to_string())?;
 
         // Find nearby players within healing range (use a reasonable range, e.g., 4 tiles)
         const HEALING_RANGE: f32 = 4.0 * 32.0; // 4 tiles * 32 pixels per tile (increased from 2 tiles)
@@ -875,6 +875,8 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
         }
 
         if let Some((target_id, _)) = nearest_wounded_player {
+            let duration_secs = item_def.consumable_duration_secs.unwrap_or(5.0).max(0.1);
+
             // Create a RemoteBandageBurst effect for the target
             let effect = ActiveConsumableEffect {
                 effect_id: 0, // Will be auto-incremented
@@ -883,7 +885,7 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
                 item_def_id: item_def.id,
                 consuming_item_instance_id: Some(equipped_item_instance_id),
                 started_at: ctx.timestamp,
-                ends_at: ctx.timestamp + Duration::from_secs(5), // 5 second duration
+                ends_at: ctx.timestamp + Duration::from_micros((duration_secs * 1_000_000.0) as u64),
                 total_amount: item_def.consumable_health_gain,
                 amount_applied_so_far: Some(0.0),
                 effect_type: EffectType::RemoteBandageBurst,
@@ -892,8 +894,8 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
             };
 
             ctx.db.active_consumable_effect().insert(effect);
-            log::info!("[UseEquippedItem] RemoteBandageBurst effect initiated from player {:?} to target {:?}", 
-                sender_id, target_id);
+            log::info!("[UseEquippedItem] RemoteBandageBurst effect initiated from player {:?} to target {:?} using {}", 
+                sender_id, target_id, item_def.name);
             
             // Play bandaging sound for remote bandaging
             sound_events::emit_bandaging_sound(ctx, player_pos.position_x, player_pos.position_y, sender_id);
@@ -906,6 +908,8 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
             // No nearby wounded players, apply to self as normal
             log::info!("[UseEquippedItem] No nearby wounded players found, applying bandage to self (Player {:?})", sender_id);
             
+            let duration_secs = item_def.consumable_duration_secs.unwrap_or(5.0).max(0.1);
+
             // Create a BandageBurst effect for self-healing
             let effect = ActiveConsumableEffect {
                 effect_id: 0, // Will be auto-incremented
@@ -914,7 +918,7 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
                 item_def_id: item_def.id,
                 consuming_item_instance_id: Some(equipped_item_instance_id),
                 started_at: ctx.timestamp,
-                ends_at: ctx.timestamp + Duration::from_secs(5), // 5 second duration
+                ends_at: ctx.timestamp + Duration::from_micros((duration_secs * 1_000_000.0) as u64),
                 total_amount: item_def.consumable_health_gain,
                 amount_applied_so_far: Some(0.0),
                 effect_type: EffectType::BandageBurst,
@@ -923,8 +927,8 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
             };
 
             ctx.db.active_consumable_effect().insert(effect);
-            log::info!("[UseEquippedItem] BandageBurst effect initiated for self-healing player {:?} with bandage instance {}. Heal amount: {:?}", 
-                sender_id, equipped_item_instance_id, item_def.consumable_health_gain);
+            log::info!("[UseEquippedItem] BandageBurst effect initiated for self-healing player {:?} with {} instance {}. Heal amount: {:?}", 
+                sender_id, item_def.name, equipped_item_instance_id, item_def.consumable_health_gain);
             
             // Play bandaging sound for self-bandaging
             sound_events::emit_bandaging_sound(ctx, player_pos.position_x, player_pos.position_y, sender_id);
@@ -934,7 +938,7 @@ pub fn use_equipped_item(ctx: &ReducerContext) -> Result<(), String> {
             player_to_update.last_consumed_at = Some(ctx.timestamp);
             players_table.identity().update(player_to_update);
         }
-        return Ok(()); // Bandage handling complete
+        return Ok(()); // Bandage-like handling complete
     }
 
     if item_def.name == "Selo Olive Oil" {

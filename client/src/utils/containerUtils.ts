@@ -633,7 +633,8 @@ export function createContainerCallbacks(
         const containerIdNum = typeof containerId === 'bigint' ? Number(containerId) : containerId;
         
         try {
-            (connection.reducers as any)[reducerName](containerIdNum);
+            const entityParam = ENTITY_ID_PARAM[containerType];
+            (connection.reducers as any)[reducerName]?.({ [entityParam]: containerIdNum });
         } catch (e: any) {
             console.error(`[ContainerCallback toggle ${containerType}]`, e);
         }
