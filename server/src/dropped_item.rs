@@ -40,6 +40,7 @@ pub struct DroppedItem {
     #[primary_key]
     #[auto_inc]
     pub id: u64,               // Unique ID for this dropped item instance
+    #[index(btree)]
     pub item_def_id: u64,      // Links to ItemDefinition table
     pub quantity: u32,         // How many of this item are in the sack
     pub pos_x: f32,            // World X position (final landing position)
@@ -320,14 +321,23 @@ pub fn check_flare_expiry(ctx: &ReducerContext, _schedule: FlareExpirySchedule) 
         return Err("check_flare_expiry may only be called by the scheduler.".into());
     }
 
+    // Skip all work while server is empty.
+    if !ctx.db.player().iter().any(|p| p.is_online) {
+        return Ok(());
+    }
+
+    let dropped_items = ctx.db.dropped_item();
+    if dropped_items.iter().next().is_none() {
+        return Ok(());
+    }
+
     let flare_def_id = match ctx.db.item_definition().iter().find(|d| d.name == "Flare") {
         Some(d) => d.id,
         None => return Ok(()),
     };
 
     let now_secs = ctx.timestamp.to_micros_since_unix_epoch() as f64 / 1_000_000.0;
-    let to_delete: Vec<u64> = ctx.db.dropped_item().iter()
-        .filter(|d| d.item_def_id == flare_def_id)
+    let to_delete: Vec<u64> = dropped_items.item_def_id().filter(flare_def_id)
         .filter_map(|d| {
             let data = d.item_data.as_ref()?;
             let timer: FlareTimerData = serde_json::from_str(data).ok()?;
@@ -339,9 +349,13 @@ pub fn check_flare_expiry(ctx: &ReducerContext, _schedule: FlareExpirySchedule) 
         })
         .collect();
 
+    let mut expired_count = 0u32;
     for id in to_delete {
-        ctx.db.dropped_item().id().delete(&id);
-        log::info!("[FlareExpiry] Expired flare dropped item {}", id);
+        dropped_items.id().delete(&id);
+        expired_count += 1;
+    }
+    if expired_count > 0 {
+        log::info!("[FlareExpiry] Expired {} flare dropped items", expired_count);
     }
 
     Ok(())
@@ -349,6 +363,10 @@ pub fn check_flare_expiry(ctx: &ReducerContext, _schedule: FlareExpirySchedule) 
 
 /// Initialize flare expiry schedule. Call from init reducer.
 pub fn init_flare_expiry_schedule(ctx: &ReducerContext) {
+    // Don't run periodic flare expiry checks on an empty server.
+    if !ctx.db.player().iter().any(|p| p.is_online) {
+        return;
+    }
     if ctx.db.flare_expiry_schedule().iter().next().is_some() {
         return;
     }

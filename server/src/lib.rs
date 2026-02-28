@@ -452,6 +452,7 @@ use crate::items::inventory_item as InventoryItemTableTrait;
 use crate::items::item_definition as ItemDefinitionTableTrait;
 use crate::active_equipment::active_equipment as ActiveEquipmentTableTrait;
 use crate::dropped_item::dropped_item_despawn_schedule as DroppedItemDespawnScheduleTableTrait;
+use crate::dropped_item::flare_expiry_schedule as FlareExpiryScheduleTableTrait;
 use crate::wooden_storage_box::wooden_storage_box as WoodenStorageBoxTableTrait;
 use crate::chat::message as MessageTableTrait; // Import the trait for Message table
 use crate::sleeping_bag::sleeping_bag as SleepingBagTableTrait; // ADD Sleeping Bag trait import
@@ -1167,6 +1168,10 @@ fn pause_game_systems(ctx: &ReducerContext) {
     let dropped_item_ids: Vec<u64> = ctx.db.dropped_item_despawn_schedule().iter().map(|r| r.id).collect();
     for id in dropped_item_ids {
         ctx.db.dropped_item_despawn_schedule().id().delete(id);
+    }
+    let flare_expiry_ids: Vec<u64> = ctx.db.flare_expiry_schedule().iter().map(|r| r.id).collect();
+    for id in flare_expiry_ids {
+        ctx.db.flare_expiry_schedule().id().delete(id);
     }
     let alk_ids: Vec<u64> = ctx.db.alk_contract_refresh_schedule().iter().map(|r| r.schedule_id).collect();
     for id in alk_ids {
