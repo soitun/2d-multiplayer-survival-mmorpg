@@ -112,8 +112,8 @@ export const renderProjectile = ({
   } else if (itemDefinitions) {
     const weaponDef = itemDefinitions.get(projectile.itemDefId.toString());
     if (weaponDef) {
-      if (weaponDef.name === "Crossbow") {
-        gravityMultiplier = 0.0; // Crossbow projectiles have NO gravity effect (straight line)
+      if (weaponDef.name === "Crossbow" || weaponDef.name === "Hunting Bow") {
+        gravityMultiplier = 0.0; // Crossbow/Hunting Bow projectiles have NO gravity effect (straight line)
       } else if (weaponDef.name === "Makarov PM" || weaponDef.name === "PP-91 KEDR") {
         gravityMultiplier = 0.15; // Firearm projectiles have minimal gravity effect (fast arc)
         isBullet = true;

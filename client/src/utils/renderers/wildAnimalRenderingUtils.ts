@@ -361,7 +361,14 @@ const speciesFlyingSpriteSheets: Record<string, string> = {
 // --- Constants for damage visual effects ---
 const ANIMAL_SHAKE_DURATION_MS = 200; // How long the shake lasts
 const ANIMAL_SHAKE_AMOUNT_PX = 4;     // Max pixels to offset (slightly more than players)
-const ANIMAL_HIT_FLASH_DURATION_MS = 120; // Duration of the white flash on hit (slightly longer than players)
+const ANIMAL_HIT_FLASH_DURATION_MS = 180; // Slightly longer to make hit confirmation obvious on animals/hostile NPCs
+
+function getAnimalFlashAlpha(animal: WildAnimal): number {
+    // Hostile apparitions/NPCs need a stronger flash so hits are unmistakable at night.
+    if (animal.isHostileNpc) return 1.0;
+    if (animal.species.tag === 'BeachCrab' || animal.species.tag === 'Vole') return 1.0;
+    return 0.95;
+}
 
 // --- Hit state tracking for animals (similar to player system) ---
 interface AnimalHitState {
@@ -1300,7 +1307,7 @@ export function renderWildAnimal({
 
                 // Apply white flash if needed
                 if (isFlashing) {
-                    const flashAlpha = (animal.species.tag === 'BeachCrab' || animal.species.tag === 'Vole') ? 1.0 : 0.85;
+                    const flashAlpha = getAnimalFlashAlpha(animal);
                     offscreenCtx.globalCompositeOperation = 'source-in';
                     offscreenCtx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
                     offscreenCtx.fillRect(0, 0, sw, sh);
@@ -1326,7 +1333,7 @@ export function renderWildAnimal({
 
                 // Apply white flash if needed
                 if (isFlashing) {
-                    const flashAlpha = (animal.species.tag === 'BeachCrab' || animal.species.tag === 'Vole') ? 1.0 : 0.85;
+                    const flashAlpha = getAnimalFlashAlpha(animal);
                     offscreenCtx.globalCompositeOperation = 'source-in';
                     offscreenCtx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
                     offscreenCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);

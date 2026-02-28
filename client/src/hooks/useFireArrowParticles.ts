@@ -299,9 +299,9 @@ export function useFireArrowParticles({
 
                 // Get weapon definition to determine gravity effect (matching server logic)
                 const weaponDef = itemDefinitions.get(projectile.itemDefId.toString());
-                let gravityMultiplier = 1.0; // Default for bows
-                if (weaponDef && weaponDef.name === "Crossbow") {
-                    gravityMultiplier = 0.0; // Crossbow projectiles have NO gravity effect (straight line)
+                let gravityMultiplier = 1.0; // Default for unsupported weapons
+                if (weaponDef && (weaponDef.name === "Crossbow" || weaponDef.name === "Hunting Bow")) {
+                    gravityMultiplier = 0.0; // Crossbow/Hunting Bow projectiles have NO gravity effect (straight line)
                 }
 
                 // Check if this is a thrown item (ammo_def_id == item_def_id) - no gravity for thrown items

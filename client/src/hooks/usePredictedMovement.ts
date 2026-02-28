@@ -321,6 +321,13 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
         return;
       }
 
+      // Dead players should not send movement reducers; server rejects with
+      // "Player is dead" and would otherwise spam unhandled promise rejections.
+      if (localPlayer.isDead) {
+        movementMonitor.logUpdate(performance.now() - updateStartTime, false);
+        return;
+      }
+
       const now = performance.now();
       lastUpdateTime.current = now;
 
@@ -606,6 +613,8 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
                 isSprinting: false, // Never sprinting when knocked out
                 facingDirection: lastFacingDirection.current,
                 clientSequence: clientSequenceRef.current,
+              }).catch((error: any) => {
+                console.error(`❌ [KnockedOut] Failed to send facing direction update:`, error);
               });
               lastSentTime.current = now;
             }
@@ -640,6 +649,8 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
             isSprinting: sprinting && isMoving.current && !localPlayer.isKnockedOut, // Can't sprint when knocked out
             facingDirection: lastFacingDirection.current,
             clientSequence: clientSequenceRef.current,
+          }).catch((error: any) => {
+            console.error(`❌ [SimpleMovement] Failed to send position update:`, error);
           });
           
           lastSentTime.current = now;

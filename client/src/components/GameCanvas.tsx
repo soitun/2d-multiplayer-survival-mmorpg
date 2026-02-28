@@ -4221,11 +4221,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           // onRespawn={handleRespawnRequest} // We'll wire new callbacks later
           onRespawnRandomly={() => {
             logDebug('Respawn Randomly Clicked');
-            connection?.reducers?.respawnRandomly();
+            return connection?.reducers?.respawnRandomly({})
+              .catch((err: any) => {
+                console.error('[DeathScreen] respawnRandomly failed:', err);
+                throw err;
+              });
           }}
           onRespawnAtBag={(bagId) => {
             logDebug('Respawn At Bag Clicked:', bagId);
-            connection?.reducers?.respawnAtSleepingBag(bagId);
+            return connection?.reducers?.respawnAtSleepingBag({ bagId })
+              .catch((err: any) => {
+                console.error('[DeathScreen] respawnAtSleepingBag failed:', err);
+                throw err;
+              });
           }}
           localPlayerIdentity={localPlayerId ?? null}
           sleepingBags={sleepingBagsById} // Pass converted map

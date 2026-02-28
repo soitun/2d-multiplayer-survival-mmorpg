@@ -9,8 +9,8 @@ interface DeathScreenProps {
   // onRespawn: () => void;
 
   // Add new props
-  onRespawnRandomly: () => void;
-  onRespawnAtBag: (bagId: number) => void;
+  onRespawnRandomly: () => void | Promise<void>;
+  onRespawnAtBag: (bagId: number) => void | Promise<void>;
   localPlayerIdentity: string | null;
   sleepingBags: Map<number, SleepingBag>;
   players: Map<string, SpacetimeDBPlayer>;
@@ -384,7 +384,14 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
   const handleRandomRespawn = useCallback(() => {
     console.log('[DeathScreen] Random respawn clicked - setting loading state');
     setIsRespawning(true);
-    onRespawnRandomly();
+    Promise.resolve(onRespawnRandomly())
+      .catch((error) => {
+        console.error('[DeathScreen] Random respawn failed:', error);
+      })
+      .finally(() => {
+        // If respawn succeeds, component unmounts. If it fails, re-enable buttons.
+        setIsRespawning(false);
+      });
   }, [onRespawnRandomly]);
 
   // Handler for nearest bag respawn with loading state
@@ -392,7 +399,14 @@ const DeathScreen: React.FC<DeathScreenProps> = ({
     if (nearestBag) {
       console.log('[DeathScreen] Bag respawn clicked - setting loading state');
       setIsRespawning(true);
-      onRespawnAtBag((nearestBag as SleepingBag).id);
+      Promise.resolve(onRespawnAtBag((nearestBag as SleepingBag).id))
+        .catch((error) => {
+          console.error('[DeathScreen] Sleeping bag respawn failed:', error);
+        })
+        .finally(() => {
+          // If respawn succeeds, component unmounts. If it fails, re-enable buttons.
+          setIsRespawning(false);
+        });
     }
   }, [nearestBag, onRespawnAtBag]);
 

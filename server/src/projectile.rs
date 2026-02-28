@@ -610,8 +610,9 @@ pub fn fire_projectile(
     let final_vx: f32;
     let final_vy: f32;
 
-    // Crossbows, Grenade, and Flare fire in a straight line with no gravity (no bounce)
-    if item_def.name == "Crossbow" || item_def.name == "Grenade" || item_def.name == "Flare" {
+    // Crossbow and Hunting Bow now share straight-line projectile physics.
+    // Hunting Bow keeps its shorter range via weapon stats/max_range, not extra gravity arc.
+    if item_def.name == "Crossbow" || item_def.name == "Hunting Bow" || item_def.name == "Grenade" || item_def.name == "Flare" {
         let distance = distance_sq.sqrt();
         let time_to_target = distance / v0;
         
@@ -1225,8 +1226,8 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         let gravity_multiplier = if projectile.source_type == PROJECTILE_SOURCE_MONUMENT_TURRET {
             0.0 // Monument turret projectiles have no gravity (direct trajectory at high speed)
         } else if let Some(weapon_def) = weapon_item_def_cached.as_ref() {
-            if weapon_def.name == "Crossbow" {
-                0.0 // Crossbow projectiles have NO gravity effect (straight line)
+            if weapon_def.name == "Crossbow" || weapon_def.name == "Hunting Bow" {
+                0.0 // Crossbow/Hunting Bow projectiles have NO gravity effect (straight line)
             } else if weapon_def.name == "Makarov PM" || weapon_def.name == "PP-91 KEDR" {
                 0.15 // Firearm projectiles have minimal gravity effect (fast arc)
             } else {
@@ -2774,12 +2775,13 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             // - Fast projectiles (450-550 px/s) can travel far between ticks
             // - Network latency means player positions may be slightly stale
             // - 64px radius = 2x normal player radius for forgiving but fair collision
-            // Player projectiles use standard PLAYER_RADIUS (32px)
+            // Player-fired projectiles also use a slightly expanded hit radius for better PvP feel.
             const NPC_PROJECTILE_PLAYER_HIT_RADIUS: f32 = 64.0;
+            const PLAYER_PROJECTILE_PLAYER_HIT_RADIUS: f32 = 48.0;
             let player_radius = if projectile.source_type == PROJECTILE_SOURCE_NPC {
                 NPC_PROJECTILE_PLAYER_HIT_RADIUS  // Large radius for NPC projectiles - compensates for speed/latency
             } else {
-                crate::PLAYER_RADIUS
+                PLAYER_PROJECTILE_PLAYER_HIT_RADIUS
             };
             let collision_detected = line_intersects_circle(prev_x, prev_y, current_x, current_y, player_to_check.position_x, player_to_check.position_y, player_radius);
             
@@ -2891,8 +2893,8 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 }
                 // === END PROJECTILE DIAGNOSTIC LOGGING ===
                 
-                log::info!("Projectile {} from owner {:?} hit living player {:?} along path from ({:.1}, {:.1}) to ({:.1}, {:.1}) with PLAYER_RADIUS ({:.1})", 
-                         projectile.id, projectile.owner_id, player_to_check.identity, prev_x, prev_y, current_x, current_y, crate::PLAYER_RADIUS);
+                log::info!("Projectile {} from owner {:?} hit living player {:?} along path from ({:.1}, {:.1}) to ({:.1}, {:.1}) with collision radius ({:.1})", 
+                         projectile.id, projectile.owner_id, player_to_check.identity, prev_x, prev_y, current_x, current_y, player_radius);
                 
                 // Monument turret projectiles: instant-kill players, no item def lookup needed
                 if projectile.source_type == PROJECTILE_SOURCE_MONUMENT_TURRET {
