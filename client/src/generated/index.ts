@@ -1279,6 +1279,9 @@ const tablesSchema = __schema({
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
+      { name: 'item_def_id', algorithm: 'btree', columns: [
+        'itemDefId',
+      ] },
     ],
     constraints: [
       { name: 'dropped_item_id_key', constraint: 'unique', columns: ['id'] },
