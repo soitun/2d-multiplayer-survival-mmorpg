@@ -2914,6 +2914,7 @@ export const SoundType = __t.enum("SoundType", {
   FoundationMetalUpgraded: __t.unit(),
   FoundationTwigDestroyed: __t.unit(),
   ItemThrown: __t.unit(),
+  BreakItem: __t.unit(),
   ErrorResources: __t.unit(),
   ErrorCantPickUpCauldron: __t.unit(),
   DoneCooking: __t.unit(),
