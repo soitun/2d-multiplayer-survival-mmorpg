@@ -77,6 +77,13 @@ interface UseImpactParticlesProps {
     localPlayer: SpacetimeDBPlayer | null | undefined;
 }
 
+interface CachedAnimalState {
+    posX: number;
+    posY: number;
+    species: string;
+    lastHitTimeMicros: bigint;
+}
+
 export function useImpactParticles({
     wildAnimals,
     animalCorpses,
@@ -90,6 +97,7 @@ export function useImpactParticles({
     const animalHitRecordsRef = useRef<Map<string, HitRecord>>(new Map());
     const corpseHitRecordsRef = useRef<Map<string, HitRecord>>(new Map());
     const playerHitRecordRef = useRef<bigint>(0n);
+    const prevAnimalsRef = useRef<Map<string, CachedAnimalState>>(new Map());
     
     // Generate blood particles
     const generateBloodParticles = useCallback((x: number, y: number, count: number) => {
@@ -169,6 +177,31 @@ export function useImpactParticles({
             });
         }
         
+        return newParticles;
+    }, []);
+
+    // Generate short-lived white flash particles (used for lethal-hit confirmation).
+    const generateWhiteFlashParticles = useCallback((x: number, y: number, count: number) => {
+        const now = performance.now();
+        const newParticles: Particle[] = [];
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+            const speed = 0.5 + Math.random() * 1.2;
+            newParticles.push({
+                id: `flash-${now}-${i}-${Math.random()}`,
+                type: 'spark' as const,
+                x: x + (Math.random() - 0.5) * 12,
+                y: y + (Math.random() - 0.5) * 12,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                spawnTime: now,
+                initialLifetime: 110 + Math.random() * 50,
+                lifetime: 110 + Math.random() * 50,
+                size: 2.5 + Math.random() * 2.5,
+                color: '#FFFFFF',
+                alpha: 1.0,
+            });
+        }
         return newParticles;
     }, []);
     
@@ -273,6 +306,37 @@ export function useImpactParticles({
                     });
                 }
             });
+
+            // Lethal-hit fallback: if an animal disappears shortly after a hit timestamp,
+            // emit a final impact effect so kill hits still feel responsive.
+            const nowUnixMs = Date.now();
+            const currentAnimalIds = new Set(wildAnimals.keys());
+            prevAnimalsRef.current.forEach((cached, id) => {
+                if (currentAnimalIds.has(id)) return;
+                const hitMs = cached.lastHitTimeMicros > 0n ? Number(cached.lastHitTimeMicros / 1000n) : 0;
+                if (hitMs <= 0) return;
+                if (nowUnixMs - hitMs > 500) return;
+
+                if (HOSTILE_SPECIES.includes(cached.species)) {
+                    particlesRef.current.push(...generateWhiteFlashParticles(cached.posX, cached.posY, 12));
+                    particlesRef.current.push(...generateEtherealParticles(cached.posX, cached.posY, 12, cached.species));
+                } else {
+                    particlesRef.current.push(...generateWhiteFlashParticles(cached.posX, cached.posY, 10));
+                    particlesRef.current.push(...generateBloodParticles(cached.posX, cached.posY, 14));
+                }
+            });
+
+            // Refresh previous animal snapshot for next frame
+            const nextPrevAnimals = new Map<string, CachedAnimalState>();
+            wildAnimals.forEach((animal, id) => {
+                nextPrevAnimals.set(id, {
+                    posX: animal.posX,
+                    posY: animal.posY,
+                    species: (animal.species as any)?.tag || 'Unknown',
+                    lastHitTimeMicros: animal.lastHitTime?.microsSinceUnixEpoch ?? 0n,
+                });
+            });
+            prevAnimalsRef.current = nextPrevAnimals;
             
             // Cleanup old records for animals that no longer exist
             if (animalHitRecordsRef.current.size > wildAnimals.size * 2) {
@@ -344,7 +408,7 @@ export function useImpactParticles({
                 cancelAnimationFrame(animationFrameRef.current);
             }
         };
-    }, [wildAnimals, animalCorpses, localPlayer, generateBloodParticles, generateEtherealParticles]);
+    }, [wildAnimals, animalCorpses, localPlayer, generateBloodParticles, generateEtherealParticles, generateWhiteFlashParticles]);
     
     return particlesRef.current;
 }

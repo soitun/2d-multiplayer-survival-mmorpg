@@ -7,6 +7,7 @@
  ******************************************************************************/
 
 // Standard library imports
+use std::collections::HashSet;
 use std::time::Duration;
 
 // SpacetimeDB imports
@@ -17,7 +18,7 @@ use rand::Rng;
 // Table trait imports for database access
 use crate::items::{inventory_item as InventoryItemTableTrait, item_definition as ItemDefinitionTableTrait};
 use crate::player as PlayerTableTrait;
-use crate::environment::calculate_chunk_index;
+use crate::environment::{calculate_chunk_index, WORLD_WIDTH_CHUNKS, WORLD_HEIGHT_CHUNKS};
 use crate::harvestable_resource::{harvestable_resource as HarvestableResourceTableTrait};
 use crate::plants_database::PlantType;
 use crate::world_state::{world_state as WorldStateTableTrait, WeatherType, TimeOfDay};
@@ -73,15 +74,15 @@ pub struct PlantedSeedGrowthSchedule {
 
 /// Get growth configuration for a seed type from the central plants database
 fn get_growth_config_from_database(seed_type: &str) -> Option<(u64, u64, PlantType)> {
-    log::info!("get_growth_config_from_database: Looking up seed type '{}'", seed_type);
+    log::debug!("get_growth_config_from_database: Looking up seed type '{}'", seed_type);
     
     // Convert seed type to plant type using centralized metadata provider
     let plant_type = crate::metadata_providers::get_plant_type_from_seed_name(seed_type)?;
-    log::info!("get_growth_config_from_database: Found plant type {:?} for seed '{}'", plant_type, seed_type);
+    log::debug!("get_growth_config_from_database: Found plant type {:?} for seed '{}'", plant_type, seed_type);
     
     // Get the plant config from the central database
     let config = crate::plants_database::get_plant_config(&plant_type)?;
-    log::info!("get_growth_config_from_database: Found config for {:?}", plant_type);
+    log::debug!("get_growth_config_from_database: Found config for {:?}", plant_type);
     
     // Return (min_growth_time_secs, max_growth_time_secs, plant_type)
     // Growth time comes from the central database's min/max_respawn_time_secs
@@ -828,7 +829,7 @@ pub fn plant_seed(
 ) -> Result<(), String> {
     let player_id = ctx.sender();
     
-    log::info!("PLANT_SEED: Player {:?} attempting to plant item {} at ({:.1}, {:.1})", 
+    log::debug!("PLANT_SEED: Player {:?} attempting to plant item {} at ({:.1}, {:.1})", 
               player_id, item_instance_id, plant_pos_x, plant_pos_y);
     
     // Check if position is within monument zones (ALK stations, rune stones, hot springs, quarries)
@@ -861,7 +862,7 @@ pub fn plant_seed(
     let distance_sq = dx * dx + dy * dy;
     const MAX_PLANTING_DISTANCE_SQ: f32 = 150.0 * 150.0;
     
-    log::info!("PLANT_SEED: Player at ({:.1}, {:.1}), planting at ({:.1}, {:.1}), distance: {:.1}px", 
+    log::debug!("PLANT_SEED: Player at ({:.1}, {:.1}), planting at ({:.1}, {:.1}), distance: {:.1}px", 
               player.position_x, player.position_y, plant_pos_x, plant_pos_y, distance_sq.sqrt());
     
     if distance_sq > MAX_PLANTING_DISTANCE_SQ {
@@ -877,7 +878,7 @@ pub fn plant_seed(
             "Seed item not found".to_string()
         })?;
     
-    log::info!("PLANT_SEED: Found seed item: {} (quantity: {})", seed_item.item_def_id, seed_item.quantity);
+    log::debug!("PLANT_SEED: Found seed item: {} (quantity: {})", seed_item.item_def_id, seed_item.quantity);
     
     // Validate ownership
     let item_location = &seed_item.location;
@@ -899,17 +900,17 @@ pub fn plant_seed(
             "Item definition not found".to_string()
         })?;
     
-    log::info!("PLANT_SEED: Item definition found: {}", item_def.name);
+    log::debug!("PLANT_SEED: Item definition found: {}", item_def.name);
     
     // Verify it's a plantable seed (using centralized database)
-    log::info!("PLANT_SEED: Checking if '{}' is plantable...", item_def.name);
+    log::debug!("PLANT_SEED: Checking if '{}' is plantable...", item_def.name);
     let (min_growth_time_secs, max_growth_time_secs, plant_type) = get_growth_config_from_database(&item_def.name)
         .ok_or_else(|| {
             log::error!("PLANT_SEED: '{}' is not a plantable seed", item_def.name);
             format!("'{}' is not a plantable seed", item_def.name)
         })?;
     
-    log::info!("PLANT_SEED: '{}' is plantable! Plant type: {:?}, growth time: {}-{} seconds", 
+    log::debug!("PLANT_SEED: '{}' is plantable! Plant type: {:?}, growth time: {}-{} seconds", 
               item_def.name, plant_type, min_growth_time_secs, max_growth_time_secs);
     
     // Special validation for Reed Rhizome - must be planted on water near shore
@@ -1056,28 +1057,44 @@ pub fn plant_seed(
         
         // Tree seeds need clearance from other planted seeds
         // Using tree trunk radius (24px) + additional buffer for the tree crown (120px total)
-        // This ensures the tree won't immediately engulf adjacent plants when it matures
+        // Chunk-aware: only check seeds in this chunk and 8 neighbors (120px < chunk size 768px, but boundary seeds may span chunks)
         const TREE_SEED_MIN_DISTANCE_FROM_OTHER_SEEDS: f32 = 120.0;
         const TREE_SEED_MIN_DISTANCE_SQ: f32 = TREE_SEED_MIN_DISTANCE_FROM_OTHER_SEEDS * TREE_SEED_MIN_DISTANCE_FROM_OTHER_SEEDS;
         
-        // Check distance to all other planted seeds
-        for other_seed in ctx.db.planted_seed().iter() {
-            let dx = plant_pos_x - other_seed.pos_x;
-            let dy = plant_pos_y - other_seed.pos_y;
-            let distance_sq = dx * dx + dy * dy;
-            
-            if distance_sq < TREE_SEED_MIN_DISTANCE_SQ {
-                let distance = distance_sq.sqrt();
-                log::error!("PLANT_SEED: {} cannot be planted within {} pixels of other seeds (found {} at {:.1}px away)", 
-                    item_def.name, TREE_SEED_MIN_DISTANCE_FROM_OTHER_SEEDS, other_seed.seed_type, distance);
-                return Err(format!(
-                    "Cannot plant {} here - too close to another planted seed ({} at {:.0}px away). Trees need at least {:.0}px clearance from other plants.",
-                    item_def.name, other_seed.seed_type, distance, TREE_SEED_MIN_DISTANCE_FROM_OTHER_SEEDS
-                ));
+        let center_chunk = calculate_chunk_index(plant_pos_x, plant_pos_y);
+        let center_chunk_x = (center_chunk % WORLD_WIDTH_CHUNKS) as i32;
+        let center_chunk_y = (center_chunk / WORLD_WIDTH_CHUNKS) as i32;
+        let w = WORLD_WIDTH_CHUNKS as i32;
+        let h = WORLD_HEIGHT_CHUNKS as i32;
+
+        // Near edges, clamped neighbors can collapse to same chunk; dedupe to avoid redundant scans.
+        let mut nearby_chunks = HashSet::with_capacity(9);
+        for dcy in -1..=1 {
+            for dcx in -1..=1 {
+                let cx = (center_chunk_x + dcx).clamp(0, w - 1);
+                let cy = (center_chunk_y + dcy).clamp(0, h - 1);
+                nearby_chunks.insert(cy as u32 * WORLD_WIDTH_CHUNKS + cx as u32);
+            }
+        }
+
+        for chunk_idx in nearby_chunks {
+            for other_seed in ctx.db.planted_seed().chunk_index().filter(chunk_idx) {
+                    let dx = plant_pos_x - other_seed.pos_x;
+                    let dy = plant_pos_y - other_seed.pos_y;
+                    let distance_sq = dx * dx + dy * dy;
+                    if distance_sq < TREE_SEED_MIN_DISTANCE_SQ {
+                        let distance = distance_sq.sqrt();
+                        log::error!("PLANT_SEED: {} cannot be planted within {} pixels of other seeds (found {} at {:.1}px away)", 
+                            item_def.name, TREE_SEED_MIN_DISTANCE_FROM_OTHER_SEEDS, other_seed.seed_type, distance);
+                        return Err(format!(
+                            "Cannot plant {} here - too close to another planted seed ({} at {:.0}px away). Trees need at least {:.0}px clearance from other plants.",
+                            item_def.name, other_seed.seed_type, distance, TREE_SEED_MIN_DISTANCE_FROM_OTHER_SEEDS
+                        ));
+                    }
             }
         }
         
-        log::info!("PLANT_SEED: Tree seed {} passed all planting checks", item_def.name);
+        log::debug!("PLANT_SEED: Tree seed {} passed all planting checks", item_def.name);
     }
     
     // === DETERMINE TARGET TREE TYPE FOR TREE SEEDS ===
@@ -1149,7 +1166,7 @@ pub fn plant_seed(
             }
         };
         
-        log::info!("PLANT_SEED: Tree type {:?} determined for {} (beach={}, alpine={}, tundra={})", 
+        log::debug!("PLANT_SEED: Tree type {:?} determined for {} (beach={}, alpine={}, tundra={})", 
             tree_type, item_def.name, is_beach, is_alpine, is_tundra);
         Some(tree_type)
     } else {
@@ -1162,11 +1179,13 @@ pub fn plant_seed(
     let final_plant_x = (tile_x as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
     let final_plant_y = (tile_y as f32 + 0.5) * crate::TILE_SIZE_PX as f32;
     
-    log::info!("PLANT_SEED: Snapping to tile center at ({:.1}, {:.1}) for tile ({}, {})", 
+    log::debug!("PLANT_SEED: Snapping to tile center at ({:.1}, {:.1}) for tile ({}, {})", 
               final_plant_x, final_plant_y, tile_x, tile_y);
     
     // Check if there's already a planted seed on this tile (one seed per tile)
-    let existing_seed_on_tile = ctx.db.planted_seed().iter().any(|seed| {
+    // Chunk-aware: only check seeds in the same chunk (tile is fully within one chunk)
+    let plant_chunk = calculate_chunk_index(final_plant_x, final_plant_y);
+    let existing_seed_on_tile = ctx.db.planted_seed().chunk_index().filter(plant_chunk).any(|seed| {
         let (seed_tile_x, seed_tile_y) = crate::world_pos_to_tile_coords(seed.pos_x, seed.pos_y);
         seed_tile_x == tile_x && seed_tile_y == tile_y
     });
@@ -1195,7 +1214,7 @@ pub fn plant_seed(
     let maturity_time = ctx.timestamp + TimeDuration::from(Duration::from_secs(adjusted_growth_secs));
     let chunk_index = calculate_chunk_index(final_plant_x, final_plant_y);
     
-    log::info!("PLANT_SEED: Creating planted seed - growth time: {}s, chunk: {}", growth_time_secs, chunk_index);
+    log::debug!("PLANT_SEED: Creating planted seed - growth time: {}s, chunk: {}", growth_time_secs, chunk_index);
     
     // Create the planted seed with initial maturity estimate
     // Note: will_mature_at will be dynamically updated based on environmental conditions
@@ -1218,7 +1237,7 @@ pub fn plant_seed(
     
     match ctx.db.planted_seed().try_insert(planted_seed) {
         Ok(inserted) => {
-            log::info!("PLANT_SEED: Successfully inserted planted seed with ID: {}", inserted.id);
+            log::debug!("PLANT_SEED: Successfully inserted planted seed with ID: {}", inserted.id);
         }
         Err(e) => {
             log::error!("PLANT_SEED: Failed to insert planted seed: {}", e);
@@ -1232,14 +1251,13 @@ pub fn plant_seed(
         updated_item.quantity -= 1;
         let new_quantity = updated_item.quantity; // Store quantity before move
         ctx.db.inventory_item().instance_id().update(updated_item);
-        log::info!("PLANT_SEED: Reduced seed quantity to {}", new_quantity);
+        log::debug!("PLANT_SEED: Reduced seed quantity to {}", new_quantity);
     } else {
         ctx.db.inventory_item().instance_id().delete(item_instance_id);
-        log::info!("PLANT_SEED: Deleted last seed item");
+        log::debug!("PLANT_SEED: Deleted last seed item");
     }
     
-    log::info!("PLANT_SEED: SUCCESS - Player {:?} planted {} at ({:.1}, {:.1}) on tile ({}, {}) - will mature in {} seconds", 
-              player_id, item_def.name, final_plant_x, final_plant_y, tile_x, tile_y, growth_time_secs);
+    log::info!("PLANT_SEED: Player {:?} planted {} at ({:.1}, {:.1})", player_id, item_def.name, final_plant_x, final_plant_y);
     
     // Track seeds_planted stat for farming achievements
     if let Err(e) = crate::player_progression::track_stat_and_check_achievements(ctx, player_id, "seeds_planted", 1) {

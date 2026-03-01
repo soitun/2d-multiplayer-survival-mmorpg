@@ -32,6 +32,8 @@ const DEATH_PARTICLE_COLORS_WHITE = [
     "#F5F3FF", // Purple white
     "#FFFFFF", // Pure white
 ];
+const WHITE_FLASH_LIFETIME_MS = 120;
+const WHITE_FLASH_PARTICLE_COUNT = 18;
 
 // Species-specific colors for variety
 const SPECIES_COLORS: Record<string, string[]> = {
@@ -82,6 +84,27 @@ export function useHostileDeathEffects({
         const particleCount = SPECIES_PARTICLE_COUNT[speciesName] || 40;
         const speciesColors = SPECIES_COLORS[speciesName] || DEATH_PARTICLE_COLORS_BASE;
         
+        // Lethal-hit confirmation flash: short bright burst at death point.
+        // This gives "white hit flash" feedback even when the entity is removed immediately.
+        for (let i = 0; i < WHITE_FLASH_PARTICLE_COUNT; i++) {
+            const angle = (Math.PI * 2 * i) / WHITE_FLASH_PARTICLE_COUNT + (Math.random() - 0.5) * 0.6;
+            const speed = 0.6 + Math.random() * 1.4;
+            newParticles.push({
+                id: `death-flash-${event.id}-${i}-${now}`,
+                type: 'spark' as const,
+                x: event.x + (Math.random() - 0.5) * 10,
+                y: event.y + (Math.random() - 0.5) * 10,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                spawnTime: now,
+                initialLifetime: WHITE_FLASH_LIFETIME_MS,
+                lifetime: WHITE_FLASH_LIFETIME_MS,
+                size: 3 + Math.random() * 3,
+                color: '#FFFFFF',
+                alpha: 1.0,
+            });
+        }
+
         // Create burst of particles
         for (let i = 0; i < particleCount; i++) {
             const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5;

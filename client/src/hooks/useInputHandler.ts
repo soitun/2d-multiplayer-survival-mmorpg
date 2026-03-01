@@ -23,7 +23,7 @@
  * interaction check. Tap-to-walk and mobile controls supported.
  */
 
-import { useEffect, useRef, useState, useCallback, RefObject } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo, RefObject } from 'react';
 import { useLatest } from './useLatest';
 import { DbConnection } from '../generated';
 import {
@@ -299,7 +299,6 @@ export const useInputHandler = ({
     const isEHeldDownRef = useRef<boolean>(false);
     const isMouseDownRef = useRef<boolean>(false);
     const lastClientSwingAttemptRef = useRef<number>(0);
-    const lastServerSwingTimestampRef = useRef<number>(0); // To store server-confirmed swing time
     const lastRangedFireTimeRef = useRef<number>(0); // ADDED: Track last ranged weapon fire time for auto-fire
     const eKeyDownTimestampRef = useRef<number>(0);
     const eKeyHoldTimerRef = useRef<NodeJS.Timeout | number | null>(null); // Use number for browser timeout ID
@@ -342,7 +341,7 @@ export const useInputHandler = ({
     const serverProjectilesRef = useLatest(serverProjectiles);
     const optimisticProjectileSeqRef = useRef<number>(0);
     const optimisticProjectileCleanupTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-    const optimisticProjectileMetaRef = useRef<Map<string, { createdAtMs: number; matchedServerId?: string }>>(new Map());
+    const optimisticProjectileMetaRef = useRef<Map<string, { createdAtMs: number; matchedServerId?: string; velocityX?: number; velocityY?: number }>>(new Map());
     const lastOptimisticSpawnRef = useRef<{ at: number; fireX: number; fireY: number; targetX: number; targetY: number } | null>(null);
 
     // Add after existing refs in the hook
@@ -487,7 +486,7 @@ export const useInputHandler = ({
             next.set(key, optimisticProjectile);
             return next;
         });
-        optimisticProjectileMetaRef.current.set(key, { createdAtMs: nowMs });
+        optimisticProjectileMetaRef.current.set(key, { createdAtMs: nowMs, velocityX, velocityY });
 
         const existingTimer = optimisticProjectileCleanupTimersRef.current.get(key);
         if (existingTimer) clearTimeout(existingTimer);
@@ -508,12 +507,11 @@ export const useInputHandler = ({
         optimisticProjectileCleanupTimersRef.current.set(key, timer);
     }, [localPlayerRef, rangedWeaponStatsRef]);
 
-    // Lifecycle reconciliation only (no position reconciliation):
-    // once a matching server projectile appears, end optimistic projectile
-    // immediately when that server projectile is removed by collision/range.
+    // Lifecycle reconciliation: match optimistic→server deterministically, retire immediately when
+    // authoritative projectile is removed (hit/range). Stricter matching: 400ms window, 24px pos, velocity.
     useEffect(() => {
         if (!localPlayerId || optimisticProjectiles.size === 0) return;
-        const serverMap = serverProjectilesRef.current;
+        const serverMap = serverProjectiles ?? serverProjectilesRef.current;
         if (!serverMap) return;
 
         const localServerProjectiles = new Map<string, Projectile>();
@@ -538,11 +536,16 @@ export const useInputHandler = ({
 
             for (const [serverId, serverProjectile] of localServerProjectiles.entries()) {
                 const serverStartMs = Number(serverProjectile.startTime.microsSinceUnixEpoch / 1000n);
-                if (Math.abs(serverStartMs - meta.createdAtMs) > 1200) continue;
+                if (Math.abs(serverStartMs - meta.createdAtMs) > 400) continue;
                 if (serverProjectile.ammoDefId !== optimisticProjectile.ammoDefId) continue;
                 const dx = serverProjectile.startPosX - optimisticProjectile.startPosX;
                 const dy = serverProjectile.startPosY - optimisticProjectile.startPosY;
-                if ((dx * dx + dy * dy) > (48 * 48)) continue;
+                if ((dx * dx + dy * dy) > (24 * 24)) continue;
+                if (meta.velocityX != null && meta.velocityY != null) {
+                    const optSpeed = Math.hypot(meta.velocityX, meta.velocityY);
+                    const srvSpeed = Math.hypot(serverProjectile.velocityX, serverProjectile.velocityY);
+                    if (optSpeed > 1 && Math.abs(optSpeed - srvSpeed) / optSpeed > 0.15) continue;
+                }
                 meta.matchedServerId = serverId;
                 optimisticProjectileMetaRef.current.set(key, meta);
                 break;
@@ -562,7 +565,29 @@ export const useInputHandler = ({
                 return next;
             });
         }
-    }, [localPlayerId, optimisticProjectiles, serverProjectilesRef]);
+    }, [localPlayerId, optimisticProjectiles, serverProjectiles]);
+
+    // Filter optimistics for rendering: exclude those whose matched server projectile is gone.
+    // Ensures no pass-through visuals when server deletes projectile (hit/range).
+    const filteredOptimisticProjectiles = useMemo(() => {
+        if (!localPlayerId || optimisticProjectiles.size === 0) return optimisticProjectiles;
+        const serverMap = serverProjectiles ?? serverProjectilesRef.current;
+        if (!serverMap) return optimisticProjectiles;
+        const localServerIds = new Set<string>();
+        for (const [id, p] of serverMap.entries()) {
+            if (p.sourceType === 0 && p.ownerId.toHexString() === localPlayerId) localServerIds.add(id);
+        }
+        const filtered = new Map<string, Projectile>();
+        optimisticProjectiles.forEach((opt, key) => {
+            const meta = optimisticProjectileMetaRef.current.get(key);
+            if (!meta?.matchedServerId) {
+                filtered.set(key, opt);
+                return;
+            }
+            if (localServerIds.has(meta.matchedServerId)) filtered.set(key, opt);
+        });
+        return filtered;
+    }, [localPlayerId, optimisticProjectiles, serverProjectiles]);
 
     useEffect(() => {
         return () => {
@@ -808,11 +833,8 @@ export const useInputHandler = ({
             try {
                 // 🎬 CLIENT-AUTHORITATIVE ANIMATION: Register swing immediately for smooth visuals
                 registerLocalPlayerSwing();
-                // 🔊 IMMEDIATE SOUND: Play weapon swing sound for instant feedback
-                // playWeaponSwingSound(0.8);
                 connectionRef.current.reducers.useEquippedItem({});
                 lastClientSwingAttemptRef.current = nowUnarmed;
-                lastServerSwingTimestampRef.current = nowUnarmed;
             } catch (err) {
                 console.error("[attemptSwing Unarmed] Error calling useEquippedItem reducer:", err);
             }
@@ -825,7 +847,6 @@ export const useInputHandler = ({
             }
             const now = Date.now();
             const attackIntervalMs = itemDef.attackIntervalSecs ? itemDef.attackIntervalSecs * 1000 : SWING_COOLDOWN_MS;
-            if (now - lastServerSwingTimestampRef.current < attackIntervalMs) return;
             if (now - lastClientSwingAttemptRef.current < attackIntervalMs) return;
             if (now - Number(localEquipment.swingStartTimeMs) < attackIntervalMs) return;
             try {
@@ -858,21 +879,21 @@ export const useInputHandler = ({
                     treesRef.current?.forEach((tree) => {
                         if (tree.health === 0) return;
                         const { inCone, distSq } = isInAttackCone(px, py, dir, tree.posX, tree.posY, TREE_COLLISION_Y_OFFSET, attackRange, attackAngle);
-                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerTreeShakeOptimistic(tree.id.toString(), tree.posX, tree.posY) };
+                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => { triggerTreeShakeOptimistic(tree.id.toString(), tree.posX, tree.posY); playImmediateSound('tree_chop', 0.5); } };
                     });
                     // Stones - any weapon can hit
                     const STONE_COLLISION_Y_OFFSET = 50;
                     stonesRef.current?.forEach((stone) => {
                         if (stone.health === 0) return;
                         const { inCone, distSq } = isInAttackCone(px, py, dir, stone.posX, stone.posY, STONE_COLLISION_Y_OFFSET, attackRange, attackAngle);
-                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerStoneShakeOptimistic(stone.id.toString(), stone.posX, stone.posY, getStoneOreType(stone as any)) };
+                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => { triggerStoneShakeOptimistic(stone.id.toString(), stone.posX, stone.posY, getStoneOreType(stone as any)); playImmediateSound('stone_hit', 0.5); } };
                     });
                     // Corals - only when snorkeling (underwater)
                     if (player.isSnorkeling) {
                         const CORAL_COLLISION_Y_OFFSET = 60;
                         livingCoralsRef.current?.forEach((coral) => {
                             const { inCone, distSq } = isInAttackCone(px, py, dir, coral.posX, coral.posY, CORAL_COLLISION_Y_OFFSET, OPTIMISTIC_SPEAR_RANGE, 60);
-                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerCoralShakeOptimistic(coral.id.toString(), coral.posX, coral.posY, Number(coral.id) % 4) };
+                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => { triggerCoralShakeOptimistic(coral.id.toString(), coral.posX, coral.posY, Number(coral.id) % 4); playImmediateSound('stone_hit', 0.5); } };
                         });
                     }
                     // Barrels - any weapon can hit (variant 6 = buoy uses different collision offset)
@@ -881,7 +902,7 @@ export const useInputHandler = ({
                         const barrelVariant = (barrel as { variant?: number }).variant ?? 0;
                         const barrelCollisionYOffset = barrelVariant === 6 ? 110 : barrelVariant === 4 ? 96 : 48;
                         const { inCone, distSq } = isInAttackCone(px, py, dir, barrel.posX, barrel.posY, barrelCollisionYOffset, attackRange, attackAngle);
-                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerBarrelShakeOptimistic(barrel.id.toString()) };
+                        if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => { triggerBarrelShakeOptimistic(barrel.id.toString()); playImmediateSound('barrel_hit', 0.5); } };
                     });
                     // Animal corpses - any weapon can hit
                     const ANIMAL_CORPSE_COLLISION_Y_OFFSET = 8;
@@ -916,12 +937,46 @@ export const useInputHandler = ({
                 }
                 connectionRef.current.reducers.useEquippedItem({});
                 lastClientSwingAttemptRef.current = now;
-                lastServerSwingTimestampRef.current = now;
             } catch (err) {
                 console.error("[attemptSwing Armed] Error calling useEquippedItem reducer:", err);
             }
         }
     }, [localPlayerId, isFishing]); // 🎣 FISHING INPUT FIX: Add isFishing dependency
+
+    // Unified ranged fire: single dispatch path for click and held-auto-fire, shared cooldown
+    const attemptRangedFire = useCallback(() => {
+        if (!connectionRef.current?.reducers || !localPlayerId || worldMousePosRefInternal.current.x === null || worldMousePosRefInternal.current.y === null) return;
+        const eq = activeEquipmentsRef.current?.get(localPlayerId);
+        if (!eq?.isReadyToFire || !eq.equippedItemDefId) return;
+        const itemDef = itemDefinitionsRef.current?.get(String(eq.equippedItemDefId));
+        if (!itemDef || itemDef.category?.tag !== "RangedWeapon") return;
+        const weaponStats = rangedWeaponStatsRef.current?.get(itemDef.name || "");
+        const fireIntervalMs = (weaponStats?.reloadTimeSecs ?? 0.1) * 1000;
+        const now = performance.now();
+        if (now - lastRangedFireTimeRef.current < fireIntervalMs) return;
+        const currentPlayer = localPlayerRef.current;
+        if (!currentPlayer) return;
+        const exactPos = getCurrentPositionNowRef.current?.();
+        const fallbackPos = predictedPositionRef.current;
+        const fireX = exactPos?.x ?? fallbackPos?.x ?? currentPlayer.positionX;
+        const fireY = exactPos?.y ?? fallbackPos?.y ?? currentPlayer.positionY;
+        spawnOptimisticProjectile(
+            worldMousePosRefInternal.current.x,
+            worldMousePosRefInternal.current.y,
+            fireX,
+            fireY,
+            eq.equippedItemDefId,
+            eq.loadedAmmoDefId,
+            itemDef.name
+        );
+        connectionRef.current.reducers.fireProjectile({
+            targetWorldX: worldMousePosRefInternal.current.x,
+            targetWorldY: worldMousePosRefInternal.current.y,
+            clientPlayerX: fireX,
+            clientPlayerY: fireY,
+        });
+        lastRangedFireTimeRef.current = now;
+    }, [localPlayerId, spawnOptimisticProjectile]);
 
     // --- Input Event Handlers ---
     useEffect(() => {
@@ -1747,41 +1802,10 @@ export const useInputHandler = ({
                     if (equippedItemDef) {
                         // console.log("[InputHandler DEBUG MOUSEDOWN] Equipped item name: ", equippedItemDef.name, "Category tag:", equippedItemDef.category?.tag);
 
-                        // 1. Ranged Weapon Firing
+                        // 1. Ranged Weapon Firing (unified path: click + auto-fire share attemptRangedFire)
                         if (equippedItemDef.category?.tag === "RangedWeapon") {
-                            if (localPlayerActiveEquipment.isReadyToFire) {
-                                const currentPlayer = localPlayerRef.current;
-                                // CRITICAL: Use getCurrentPositionNow() for EXACT position at this moment
-                                // This calculates position on-demand, not from last animation frame
-                                const exactPos = getCurrentPositionNowRef.current?.();
-                                const fallbackPos = predictedPositionRef.current;
-                                if (connectionRef.current?.reducers && worldMousePosRefInternal.current.x !== null && worldMousePosRefInternal.current.y !== null && currentPlayer) {
-                                    // console.log("[InputHandler MOUSEDOWN] Ranged weapon loaded. Firing!");
-                                    // Use EXACT position calculated at this moment for perfect accuracy
-                                    const fireX = exactPos?.x ?? fallbackPos?.x ?? currentPlayer.positionX;
-                                    const fireY = exactPos?.y ?? fallbackPos?.y ?? currentPlayer.positionY;
-                                    spawnOptimisticProjectile(
-                                        worldMousePosRefInternal.current.x,
-                                        worldMousePosRefInternal.current.y,
-                                        fireX,
-                                        fireY,
-                                        localPlayerActiveEquipment.equippedItemDefId,
-                                        localPlayerActiveEquipment.loadedAmmoDefId,
-                                        equippedItemDef.name
-                                    );
-                                    connectionRef.current.reducers.fireProjectile({
-                                        targetWorldX: worldMousePosRefInternal.current.x,
-                                        targetWorldY: worldMousePosRefInternal.current.y,
-                                        clientPlayerX: fireX,
-                                        clientPlayerY: fireY
-                                    });
-                                } else {
-                                    console.warn("[InputHandler MOUSEDOWN] Cannot fire ranged weapon: No connection/reducers or invalid mouse position.");
-                                }
-                            } else {
-                                // console.log("[InputHandler MOUSEDOWN] Ranged weapon equipped but not ready to fire (isReadyToFire: false).");
-                            }
-                            return; // Ranged weapon logic handled (fired or noted as not ready)
+                            attemptRangedFire();
+                            return; // Ranged weapon logic handled
                         }
                         // 2. Torch: Prevent left-click swing   
                         else if (equippedItemDef.name === "Torch") {
@@ -2172,121 +2196,8 @@ export const useInputHandler = ({
                 }
             }
 
-            // --- Re-evaluate swing logic directly for canvas click, similar to attemptSwing ---
-            // Ensure connectionRef is used here as well if currentConnection was from outer scope
-            if (!connectionRef.current?.reducers || !localPlayerId) return;
-            // ... rest of melee swing logic, ensure it uses refs if needed ...
-            const localEquipment = activeEquipmentsRef.current?.get(localPlayerId);
-            const itemDef = itemDefinitionsRef.current?.get(String(localEquipment?.equippedItemDefId));
-
-            if (!localEquipment || localEquipment.equippedItemDefId === null || localEquipment.equippedItemInstanceId === null) {
-                // Unarmed
-                const nowUnarmed = Date.now();
-                if (nowUnarmed - lastClientSwingAttemptRef.current < SWING_COOLDOWN_MS) return;
-                if (nowUnarmed - Number(localEquipment?.swingStartTimeMs || 0) < SWING_COOLDOWN_MS) return;
-                try {
-                    // 🎬 CLIENT-AUTHORITATIVE ANIMATION: Register swing immediately for smooth visuals
-                    registerLocalPlayerSwing();
-                    // 🔊 IMMEDIATE SOUND: Play unarmed swing sound
-                    // playWeaponSwingSound(0.8);
-                    connectionRef.current.reducers.useEquippedItem({});
-                    lastClientSwingAttemptRef.current = nowUnarmed;
-                    lastServerSwingTimestampRef.current = nowUnarmed;
-                } catch (err) { console.error("[CanvasClick Unarmed] Error calling useEquippedItem reducer:", err); }
-            } else {
-                // Armed (melee/tool)
-                if (!itemDef) return;
-                if (itemDef.name === "Bandage" || itemDef.name === "Selo Olive Oil" || itemDef.name === "Hunting Bow" || itemDef.category === ItemCategory.RangedWeapon) {
-                    // Ranged/Bandage/Selo Olive Oil already handled or should not be triggered by this melee path
-                    return;
-                }
-                
-                // Water containers are now handled in handleMouseDown to prevent conflicts
-                // This section is for regular melee weapons and tools only
-                const now = Date.now();
-                const attackIntervalMs = itemDef.attackIntervalSecs ? itemDef.attackIntervalSecs * 1000 : SWING_COOLDOWN_MS;
-                if (now - lastServerSwingTimestampRef.current < attackIntervalMs) return;
-                if (now - lastClientSwingAttemptRef.current < attackIntervalMs) return;
-                if (now - Number(localEquipment.swingStartTimeMs) < attackIntervalMs) return;
-                try {
-                    // 🎬 CLIENT-AUTHORITATIVE ANIMATION: Register swing immediately for smooth visuals
-                    registerLocalPlayerSwing();
-                    // 🔊 IMMEDIATE SOUND: Only play generic swing for non-resource tools
-                    const isResourceTool = itemDef?.name && (
-                        itemDef.name.toLowerCase().includes('hatchet') || 
-                        itemDef.name.toLowerCase().includes('axe') ||
-                        itemDef.name.toLowerCase().includes('pickaxe') ||
-                        itemDef.name.toLowerCase().includes('pick')
-                    );
-                    if (!isResourceTool) {
-                        // playWeaponSwingSound(0.8);
-                    }
-                    // Optimistic shake: any melee weapon can damage trees/stones/corals
-                    const clickPlayer = localPlayerRef.current;
-                    if (clickPlayer) {
-                        const px = predictedPositionRef.current?.x ?? clickPlayer.positionX;
-                        const py = predictedPositionRef.current?.y ?? clickPlayer.positionY;
-                        const dir = clickPlayer.direction ?? 'down';
-                        let best: { d2: number; trigger: () => void } | null = null;
-                        const attackAngle = 90;
-                        const attackRange = OPTIMISTIC_AXE_RANGE;
-                        treesRef.current?.forEach((tree) => {
-                            if (tree.health === 0) return;
-                            const { inCone, distSq } = isInAttackCone(px, py, dir, tree.posX, tree.posY, TREE_COLLISION_Y_OFFSET, attackRange, attackAngle);
-                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerTreeShakeOptimistic(tree.id.toString(), tree.posX, tree.posY) };
-                        });
-                        const STONE_COLLISION_Y_OFFSET = 50;
-                        stonesRef.current?.forEach((stone) => {
-                            if (stone.health === 0) return;
-                            const { inCone, distSq } = isInAttackCone(px, py, dir, stone.posX, stone.posY, STONE_COLLISION_Y_OFFSET, attackRange, attackAngle);
-                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerStoneShakeOptimistic(stone.id.toString(), stone.posX, stone.posY, getStoneOreType(stone as any)) };
-                        });
-                        if (clickPlayer.isSnorkeling) {
-                            const CORAL_COLLISION_Y_OFFSET = 60;
-                            livingCoralsRef.current?.forEach((coral) => {
-                                const { inCone, distSq } = isInAttackCone(px, py, dir, coral.posX, coral.posY, CORAL_COLLISION_Y_OFFSET, OPTIMISTIC_SPEAR_RANGE, 60);
-                                if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerCoralShakeOptimistic(coral.id.toString(), coral.posX, coral.posY, Number(coral.id) % 4) };
-                            });
-                        }
-                        barrelsRef.current?.forEach((barrel) => {
-                            if (barrel.health === 0) return;
-                            const barrelVariant = (barrel as { variant?: number }).variant ?? 0;
-                        const barrelCollisionYOffset = barrelVariant === 6 ? 110 : barrelVariant === 4 ? 96 : 48;
-                            const { inCone, distSq } = isInAttackCone(px, py, dir, barrel.posX, barrel.posY, barrelCollisionYOffset, attackRange, attackAngle);
-                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerBarrelShakeOptimistic(barrel.id.toString()) };
-                        });
-                        const ANIMAL_CORPSE_COLLISION_Y_OFFSET = 8;
-                        animalCorpsesRef.current?.forEach((corpse) => {
-                            if (corpse.health === 0) return;
-                            const { inCone, distSq } = isInAttackCone(px, py, dir, corpse.posX, corpse.posY, ANIMAL_CORPSE_COLLISION_Y_OFFSET, attackRange, attackAngle);
-                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerAnimalCorpseShakeOptimistic(corpse.id.toString()) };
-                        });
-                        const PLAYER_CORPSE_COLLISION_Y_OFFSET = 10;
-                        playerCorpsesRef.current?.forEach((corpse) => {
-                            if (corpse.health === 0) return;
-                            const { inCone, distSq } = isInAttackCone(px, py, dir, corpse.posX, corpse.posY, PLAYER_CORPSE_COLLISION_Y_OFFSET, attackRange, attackAngle);
-                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerPlayerCorpseShakeOptimistic(corpse.id.toString()) };
-                        });
-                        const PLAYER_COLLISION_Y_OFFSET = 0;
-                        playersRef.current?.forEach((p) => {
-                            if (p.identity.toHexString() === localPlayerId) return;
-                            if (p.isDead) return;
-                            const { inCone, distSq } = isInAttackCone(px, py, dir, p.positionX, p.positionY, PLAYER_COLLISION_Y_OFFSET, attackRange, attackAngle);
-                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerPlayerShakeOptimistic(p.identity.toHexString()) };
-                        });
-                        const WILD_ANIMAL_COLLISION_Y_OFFSET = 40;
-                        wildAnimalsRef.current?.forEach((animal) => {
-                            if (animal.health === 0) return;
-                            const { inCone, distSq } = isInAttackCone(px, py, dir, animal.posX, animal.posY, WILD_ANIMAL_COLLISION_Y_OFFSET, attackRange, attackAngle);
-                            if (inCone && (!best || distSq < best.d2)) best = { d2: distSq, trigger: () => triggerAnimalShakeOptimistic(animal.id.toString()) };
-                        });
-                        (best as { trigger: () => void } | null)?.trigger();
-                    }
-                    connectionRef.current.reducers.useEquippedItem({});
-                    lastClientSwingAttemptRef.current = now;
-                    lastServerSwingTimestampRef.current = now;
-                } catch (err) { console.error("[CanvasClick Armed] Error calling useEquippedItem reducer:", err); }
-            }
+            // Unified melee dispatch: canvas click uses same path as mousedown/auto-attack
+            attemptSwing();
         };
 
         // --- Context Menu for Placement Cancellation ---
@@ -2751,58 +2662,20 @@ export const useInputHandler = ({
         if (isMouseDownRef.current && !placementInfo && !isChatting && !isSearchingCraftRecipes) {
             // 🎣 FISHING INPUT FIX: Disable continuous swing while fishing
             if (!isFishing) {
-                // Check if this is an automatic ranged weapon being held down
+                // Ranged vs melee: unified dispatch paths
                 const localPlayerActiveEquipment = localPlayerId ? activeEquipmentsRef.current?.get(localPlayerId) : undefined;
                 if (localPlayerActiveEquipment?.equippedItemDefId && itemDefinitionsRef.current) {
                     const equippedItemDef = itemDefinitionsRef.current.get(String(localPlayerActiveEquipment.equippedItemDefId));
-                    
-                    if (equippedItemDef?.category?.tag === "RangedWeapon") {
-                        // Check if this is an automatic weapon
-                        const weaponStats = rangedWeaponStatsRef.current?.get(equippedItemDef.name || '');
-                        
-                        if (weaponStats?.isAutomatic && localPlayerActiveEquipment.isReadyToFire) {
-                            // AUTOMATIC WEAPON AUTO-FIRE: Fire continuously while holding mouse button
-                            const now = performance.now();
-                            const fireIntervalMs = (weaponStats.reloadTimeSecs || 0.1) * 1000; // Convert to ms
-                            
-                            if (now - lastRangedFireTimeRef.current >= fireIntervalMs) {
-                                // Fire the weapon
-                                const currentPlayer = localPlayerRef.current;
-                                const exactPos = getCurrentPositionNowRef.current?.();
-                                const fallbackPos = predictedPositionRef.current;
-                                
-                                if (connectionRef.current?.reducers && 
-                                    worldMousePosRefInternal.current.x !== null && 
-                                    worldMousePosRefInternal.current.y !== null && 
-                                    currentPlayer) {
-                                    const fireX = exactPos?.x ?? fallbackPos?.x ?? currentPlayer.positionX;
-                                    const fireY = exactPos?.y ?? fallbackPos?.y ?? currentPlayer.positionY;
-                                    spawnOptimisticProjectile(
-                                        worldMousePosRefInternal.current.x,
-                                        worldMousePosRefInternal.current.y,
-                                        fireX,
-                                        fireY,
-                                        localPlayerActiveEquipment.equippedItemDefId!,
-                                        localPlayerActiveEquipment.loadedAmmoDefId,
-                                        equippedItemDef.name
-                                    );
-                                    connectionRef.current.reducers.fireProjectile({
-                                        targetWorldX: worldMousePosRefInternal.current.x,
-                                        targetWorldY: worldMousePosRefInternal.current.y,
-                                        clientPlayerX: fireX,
-                                        clientPlayerY: fireY
-                                    });
-                                    lastRangedFireTimeRef.current = now;
-                                }
-                            }
-                        }
-                        // Don't call attemptSwing for ranged weapons (they don't swing)
+                    const weaponStats = equippedItemDef ? rangedWeaponStatsRef.current?.get(equippedItemDef.name || '') : undefined;
+                    if (equippedItemDef?.category?.tag === "RangedWeapon" && weaponStats?.isAutomatic) {
+                        attemptRangedFire(); // Shared path: click + held-auto-fire
+                    } else if (equippedItemDef?.category?.tag === "RangedWeapon") {
+                        // Semi-auto weapons fire on click/mousedown path only.
+                        // Avoid re-firing while mouse is held in per-frame loop.
                     } else {
-                        // Non-ranged weapon: use normal swing
                         attemptSwing();
                     }
                 } else {
-                    // No equipped item or item defs not loaded: use normal swing (unarmed)
                     attemptSwing();
                 }
             }
@@ -2818,7 +2691,7 @@ export const useInputHandler = ({
             }
         }
     }, [
-        isPlayerDead, attemptSwing, placementInfo,
+        isPlayerDead, attemptSwing, attemptRangedFire, placementInfo,
         localPlayerId, localPlayer, activeEquipments, worldMousePos, connection,
         closestInteractableTarget, onSetInteractingWith,
         isChatting, isSearchingCraftRecipes, setIsMinimapOpen, isInventoryOpen,
@@ -2894,7 +2767,7 @@ export const useInputHandler = ({
         setShowBuildingRadialMenu, // Expose setter so parent can close menu
         showUpgradeRadialMenu,
         setShowUpgradeRadialMenu,
-        optimisticProjectiles,
+        optimisticProjectiles: filteredOptimisticProjectiles,
         processInputsAndActions,
     };
 }; 

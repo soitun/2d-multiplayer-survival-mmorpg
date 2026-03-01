@@ -26,7 +26,7 @@ const NPC_PROJECTILE_VENOM_SPITTLE = 3;   // Viper: green toxic glob
 // Client-side projectile lifetime limits for cleanup (in case server is slow)
 const MAX_PROJECTILE_LIFETIME_MS = 12000; // 12 seconds max
 const MAX_PROJECTILE_DISTANCE = 1200; // Max distance before client cleanup
-const PROJECTILE_TRACKING_DELETE_GRACE_MS = 750; // Grace period to survive brief subscription churn
+const PROJECTILE_TRACKING_DELETE_GRACE_MS = 100; // Minimal grace for subscription churn; normal hit/delete is immediate
 
 // --- Client-side animation tracking for projectiles ---
 const clientProjectileStartTimes = new Map<string, number>(); // projectileId -> client timestamp when projectile started
@@ -60,27 +60,14 @@ export const renderProjectile = ({
   const usePrimitiveSpriteFallback = !isNpcOrTurretProjectile && !hasValidSprite;
 
   const projectileId = projectile.id.toString();
-  // Check if this is a NEW projectile by checking if we've tracked it before
-  let clientStartTime = clientProjectileStartTimes.get(projectileId);
-  let elapsedTimeSeconds = 0;
-  
-  if (clientStartTime === undefined) {
-    // New projectile: start local visual time at frame of first receipt.
-    // This keeps rendered trajectory aligned with where the projectile appears.
-    clientStartTime = currentTimeMs;
-    clientProjectileStartTimes.set(projectileId, clientStartTime);
-    elapsedTimeSeconds = 0;
-  } else {
-    // Existing projectile - calculate elapsed time from client start
-    const elapsedClientMs = currentTimeMs - clientStartTime;
-    elapsedTimeSeconds = elapsedClientMs / 1000;
+  // Anchor rendering to authoritative start_time to avoid visual over-travel
+  // (e.g. projectile appearing to pass through target before deletion arrives).
+  if (!clientProjectileStartTimes.has(projectileId)) {
+    clientProjectileStartTimes.set(projectileId, currentTimeMs);
   }
+  const serverStartMs = Number(projectile.startTime.microsSinceUnixEpoch / 1000n);
+  const elapsedTimeSeconds = Math.max(0, (Date.now() - serverStartMs) / 1000);
   projectileMissingSince.delete(projectileId);
-  
-  // Safety check: Don't allow negative elapsed time
-  if (elapsedTimeSeconds < 0) {
-    elapsedTimeSeconds = 0;
-  }
   
   // Client-side safety checks to prevent projectiles from lingering indefinitely
   const distanceTraveled = Math.sqrt(
