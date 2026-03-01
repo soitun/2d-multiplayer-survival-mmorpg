@@ -2772,21 +2772,38 @@ pub fn seed_environment(ctx: &ReducerContext) -> Result<(), String> {
         });
         hot_spring_shack_count += 1;
         
-        // Spawn loot crates near the shack (military crates for exploration rewards)
-        // Place 2-3 crates around the shack entrance
-        let crate_positions = [
+        // Spawn loot near the shack: 2 barrels + 1 military ration
+        let barrel_positions = [
             (shack_x + 80.0, shack_y + 30.0),   // Right side of shack
             (shack_x - 60.0, shack_y + 40.0),   // Left side of shack
-            (shack_x + 20.0, shack_y + 60.0),   // Front of shack
         ];
-        
-        for (crate_x, crate_y) in crate_positions {
-            // Use military_ration module to spawn military crates (loot containers)
-            if let Err(e) = crate::military_ration::spawn_military_ration_at_position(ctx, crate_x, crate_y) {
-                log::warn!("Failed to spawn hot spring loot crate at ({:.0}, {:.0}): {}", crate_x, crate_y, e);
-            } else {
-                hot_spring_crate_count += 1;
+        let ration_position = (shack_x + 20.0, shack_y + 60.0); // Front of shack
+
+        for (barrel_x, barrel_y) in barrel_positions {
+            let chunk_idx = calculate_chunk_index(barrel_x, barrel_y);
+            use crate::barrel::{Barrel, BARREL_INITIAL_HEALTH};
+            let variant = ctx.rng().gen_range(0..3u8); // Road barrel variants (0, 1, 2)
+            match ctx.db.barrel().try_insert(Barrel {
+                id: 0,
+                pos_x: barrel_x,
+                pos_y: barrel_y,
+                chunk_index: chunk_idx,
+                health: BARREL_INITIAL_HEALTH,
+                variant,
+                last_hit_time: None,
+                respawn_at: Timestamp::UNIX_EPOCH,
+                cluster_id: 0,
+                is_monument: false,
+            }) {
+                Ok(_) => hot_spring_crate_count += 1,
+                Err(e) => log::warn!("Failed to spawn hot spring barrel at ({:.0}, {:.0}): {}", barrel_x, barrel_y, e),
             }
+        }
+
+        if let Err(e) = crate::military_ration::spawn_military_ration_at_position(ctx, ration_position.0, ration_position.1) {
+            log::warn!("Failed to spawn hot spring military ration at ({:.0}, {:.0}): {}", ration_position.0, ration_position.1, e);
+        } else {
+            hot_spring_crate_count += 1;
         }
     }
     log::info!("🏚️ Spawned {} abandoned shacks at hot springs", hot_spring_shack_count);

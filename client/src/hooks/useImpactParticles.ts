@@ -98,6 +98,8 @@ export function useImpactParticles({
     const corpseHitRecordsRef = useRef<Map<string, HitRecord>>(new Map());
     const playerHitRecordRef = useRef<bigint>(0n);
     const prevAnimalsRef = useRef<Map<string, CachedAnimalState>>(new Map());
+    const initializedCorpsesRef = useRef<boolean>(false);
+    const seenCorpsesRef = useRef<Set<string>>(new Set());
     
     // Generate blood particles
     const generateBloodParticles = useCallback((x: number, y: number, count: number) => {
@@ -348,6 +350,24 @@ export function useImpactParticles({
                 }
             }
             
+            // Lethal-hit confirmation: newly created corpse means a kill happened.
+            // Emit white flash + blood even if last_hit_time timing was missed.
+            if (!initializedCorpsesRef.current) {
+                seenCorpsesRef.current = new Set(animalCorpses.keys());
+                initializedCorpsesRef.current = true;
+            } else {
+                animalCorpses.forEach((corpse, id) => {
+                    if (seenCorpsesRef.current.has(id)) return;
+                    particlesRef.current.push(...generateWhiteFlashParticles(corpse.posX, corpse.posY, 12));
+                    particlesRef.current.push(...generateBloodParticles(corpse.posX, corpse.posY, 14));
+                    seenCorpsesRef.current.add(id);
+                });
+                const currentCorpseIds = new Set(animalCorpses.keys());
+                for (const id of Array.from(seenCorpsesRef.current)) {
+                    if (!currentCorpseIds.has(id)) seenCorpsesRef.current.delete(id);
+                }
+            }
+
             // Check for animal CORPSE hits - same blood effect as live animals
             animalCorpses.forEach((corpse, id) => {
                 const hitTimeMicros = corpse.lastHitTime?.microsSinceUnixEpoch ?? 0n;

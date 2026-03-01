@@ -29,8 +29,63 @@ const MAX_PROJECTILE_DISTANCE = 1200; // Max distance before client cleanup
 const PROJECTILE_TRACKING_DELETE_GRACE_MS = 100; // Minimal grace for subscription churn; normal hit/delete is immediate
 
 // --- Client-side animation tracking for projectiles ---
-const clientProjectileStartTimes = new Map<string, number>(); // projectileId -> client timestamp when projectile started
+const clientProjectileStartTimes = new Map<string, number>(); // projectileId -> first-seen performance.now timestamp
+const clientProjectileInitialElapsedMs = new Map<string, number>(); // projectileId -> clamped estimated elapsed at first sight
 const projectileMissingSince = new Map<string, number>(); // projectileId -> first timestamp seen missing from current set
+const projectileLatchedImpactPoint = new Map<string, { x: number; y: number }>(); // projectileId -> first predicted impact point
+
+/** Collision circle for client-side projectile hit prediction (matches server radii) */
+export interface ProjectileCollisionCircle {
+  cx: number;
+  cy: number;
+  radius: number;
+  /** When set, projectiles from this owner skip this circle (exclude shooter) */
+  ownerIdentity?: string;
+}
+
+// Server radii (must match projectile.rs) for client-side collision prediction
+const TREE_R = 30; const TREE_Y = 10;
+const STONE_R = 25; const STONE_Y = 5;
+const ANIMAL_R = 32;
+const BARREL_R = 28; const BARREL_Y = 10;
+const PLAYER_R = 48;
+const BOX_R = 28; const BOX_Y = 5;
+const CAMPFIRE_R = 32; const CAMPFIRE_Y = -5;
+const STASH_R = 25;
+const SLEEPING_BAG_R = 28;
+const FURNACE_R = 40; const FURNACE_Y = 5;
+const LANTERN_R = 25; const LANTERN_Y = 0;
+const RUNE_STONE_R = 80; const RUNE_STONE_Y = 100;
+const BASALT_R = 35; const BASALT_Y = 40;
+const ANIMAL_CORPSE_R = 20; const ANIMAL_CORPSE_Y = 5;
+const PLAYER_CORPSE_R = 25; const PLAYER_CORPSE_Y = 5;
+const RAIN_COLLECTOR_R = 35; const RAIN_COLLECTOR_Y = 5;
+const BARBECUE_R = 40; const BARBECUE_Y = 5;
+const HEARTH_R = 60; const HEARTH_Y = 5;
+const LIVING_CORAL_R = 25;
+
+/** Returns first impact point (x, y, t) where segment hits circle, or null. t in [0,1]. */
+function lineCircleFirstImpactPoint(
+  x1: number, y1: number, x2: number, y2: number,
+  cx: number, cy: number, radius: number
+): { x: number; y: number; t: number } | null {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const fx = x1 - cx;
+  const fy = y1 - cy;
+  const a = dx * dx + dy * dy;
+  if (a < 1e-8) return null;
+  const b = 2 * (fx * dx + fy * dy);
+  const c = fx * fx + fy * fy - radius * radius;
+  const discriminant = b * b - 4 * a * c;
+  if (discriminant < 0) return null;
+  const sqrtD = Math.sqrt(discriminant);
+  const t1 = (-b - sqrtD) / (2 * a);
+  const t2 = (-b + sqrtD) / (2 * a);
+  const t = (t1 >= 0 && t1 <= 1) ? t1 : (t2 >= 0 && t2 <= 1) ? t2 : null;
+  if (t == null) return null;
+  return { x: x1 + t * dx, y: y1 + t * dy, t };
+}
 
 interface RenderProjectileProps {
   ctx: CanvasRenderingContext2D;
@@ -39,6 +94,8 @@ interface RenderProjectileProps {
   currentTimeMs: number;
   itemDefinitions?: Map<string, any>; // NEW: Add itemDefinitions to determine weapon type
   applyUnderwaterTint?: boolean; // Apply teal underwater tint when projectile is underwater
+  /** Client-side collision prediction: clamp render position at first hit */
+  collisionCircles?: ProjectileCollisionCircle[];
 }
 
 export const renderProjectile = ({
@@ -48,6 +105,7 @@ export const renderProjectile = ({
   currentTimeMs,
   itemDefinitions, // NEW: Add itemDefinitions parameter
   applyUnderwaterTint = false, // Apply teal underwater tint when projectile is underwater
+  collisionCircles,
 }: RenderProjectileProps) => {
   // IMPORTANT: Check for NPC/turret projectiles FIRST - they use primitive rendering, not images
   const isNpcOrTurretProjectile = projectile.sourceType === PROJECTILE_SOURCE_NPC || 
@@ -60,13 +118,21 @@ export const renderProjectile = ({
   const usePrimitiveSpriteFallback = !isNpcOrTurretProjectile && !hasValidSprite;
 
   const projectileId = projectile.id.toString();
-  // Anchor rendering to authoritative start_time to avoid visual over-travel
-  // (e.g. projectile appearing to pass through target before deletion arrives).
-  if (!clientProjectileStartTimes.has(projectileId)) {
-    clientProjectileStartTimes.set(projectileId, currentTimeMs);
-  }
+  // Anchor to authoritative start_time, but clamp initial catch-up to avoid
+  // over-travel artifacts from clock skew or delayed first receipt.
   const serverStartMs = Number(projectile.startTime.microsSinceUnixEpoch / 1000n);
-  const elapsedTimeSeconds = Math.max(0, (Date.now() - serverStartMs) / 1000);
+  let firstSeenPerfMs = clientProjectileStartTimes.get(projectileId);
+  let initialElapsedMs = clientProjectileInitialElapsedMs.get(projectileId);
+  if (firstSeenPerfMs === undefined || initialElapsedMs === undefined) {
+    firstSeenPerfMs = currentTimeMs;
+    clientProjectileStartTimes.set(projectileId, firstSeenPerfMs);
+    const estimatedElapsedMs = Date.now() - serverStartMs;
+    // Keep first-frame catch-up modest; prevents arrows appearing far ahead.
+    initialElapsedMs = Math.min(250, Math.max(0, estimatedElapsedMs));
+    clientProjectileInitialElapsedMs.set(projectileId, initialElapsedMs);
+  }
+  const elapsedSinceFirstSeenMs = Math.max(0, currentTimeMs - firstSeenPerfMs);
+  const elapsedTimeSeconds = (initialElapsedMs + elapsedSinceFirstSeenMs) / 1000;
   projectileMissingSince.delete(projectileId);
   
   // Client-side safety checks to prevent projectiles from lingering indefinitely
@@ -75,11 +141,17 @@ export const renderProjectile = ({
     Math.pow(projectile.startPosY - (projectile.startPosY + projectile.velocityY * elapsedTimeSeconds), 2)
   );
   
+  const maxRenderableDistance = Math.min(
+    MAX_PROJECTILE_DISTANCE,
+    Math.max(32, projectile.maxRange + 16) // small tolerance for sprite size/sub-frame drift
+  );
   // Don't render if projectile has exceeded reasonable limits (client-side cleanup)
-  if (elapsedTimeSeconds > 15 || distanceTraveled > MAX_PROJECTILE_DISTANCE) {
+  if (elapsedTimeSeconds > 15 || distanceTraveled > maxRenderableDistance) {
     // Clean up tracking for this projectile
     clientProjectileStartTimes.delete(projectileId);
+    clientProjectileInitialElapsedMs.delete(projectileId);
     projectileMissingSince.delete(projectileId);
+    projectileLatchedImpactPoint.delete(projectileId);
     return;
   }
   
@@ -109,11 +181,35 @@ export const renderProjectile = ({
   }
   
   // Calculate current position with sub-pixel precision
-  const currentX = projectile.startPosX + (projectile.velocityX * elapsedTimeSeconds);
+  let currentX = projectile.startPosX + (projectile.velocityX * elapsedTimeSeconds);
   // FIXED: Apply gravity with correct multiplier based on weapon type
   const finalGravityMultiplier = isThrown ? 0.0 : gravityMultiplier;
   const gravityEffect = 0.5 * GRAVITY * finalGravityMultiplier * elapsedTimeSeconds * elapsedTimeSeconds;
-  const currentY = projectile.startPosY + (projectile.velocityY * elapsedTimeSeconds) + gravityEffect;
+  let currentY = projectile.startPosY + (projectile.velocityY * elapsedTimeSeconds) + gravityEffect;
+
+  // Client-side collision prediction: latch at first hit so moving targets don't "unstick" arrows.
+  const latchedImpact = projectileLatchedImpactPoint.get(projectileId);
+  if (latchedImpact) {
+    currentX = latchedImpact.x;
+    currentY = latchedImpact.y;
+  } else {
+    const ownerId = projectile.ownerId?.toHexString?.();
+    if (collisionCircles && collisionCircles.length > 0) {
+      let closestHit: { x: number; y: number; t: number } | null = null;
+      for (const { cx, cy, radius, ownerIdentity } of collisionCircles) {
+        if (ownerIdentity && ownerId && ownerIdentity === ownerId) continue;
+        const hit = lineCircleFirstImpactPoint(
+          projectile.startPosX, projectile.startPosY, currentX, currentY, cx, cy, radius
+        );
+        if (hit && (!closestHit || hit.t < closestHit.t)) closestHit = hit;
+      }
+      if (closestHit) {
+        projectileLatchedImpactPoint.set(projectileId, { x: closestHit.x, y: closestHit.y });
+        currentX = closestHit.x;
+        currentY = closestHit.y;
+      }
+    }
+  }
 
   // Calculate rotation based on velocity vector
   let angle: number;
@@ -520,6 +616,84 @@ export const renderProjectile = ({
   ctx.restore();
 };
 
+/** Build collision circles from Y-sorted entities for client-side projectile hit prediction */
+export function buildProjectileCollisionCircles(
+  entities: Array<{ type: string; entity: any }>
+): ProjectileCollisionCircle[] {
+  const circles: ProjectileCollisionCircle[] = [];
+  for (const { type, entity } of entities) {
+    if (!entity) continue;
+    switch (type) {
+      case 'tree':
+        circles.push({ cx: entity.posX, cy: entity.posY + TREE_Y, radius: TREE_R });
+        break;
+      case 'stone':
+        circles.push({ cx: entity.posX, cy: entity.posY + STONE_Y, radius: STONE_R });
+        break;
+      case 'rune_stone':
+        circles.push({ cx: entity.posX, cy: entity.posY - RUNE_STONE_Y, radius: RUNE_STONE_R });
+        break;
+      case 'basalt_column':
+        circles.push({ cx: entity.posX, cy: entity.posY - BASALT_Y, radius: BASALT_R });
+        break;
+      case 'wild_animal':
+        circles.push({ cx: entity.posX, cy: entity.posY, radius: ANIMAL_R });
+        break;
+      case 'barrel':
+        circles.push({ cx: entity.posX, cy: entity.posY + BARREL_Y, radius: BARREL_R });
+        break;
+      case 'player':
+        circles.push({
+          cx: entity.positionX, cy: entity.positionY, radius: PLAYER_R,
+          ownerIdentity: entity.identity?.toHexString?.(),
+        });
+        break;
+      case 'wooden_storage_box':
+        circles.push({ cx: entity.posX, cy: entity.posY + BOX_Y, radius: BOX_R });
+        break;
+      case 'campfire':
+        circles.push({ cx: entity.posX, cy: entity.posY + CAMPFIRE_Y, radius: CAMPFIRE_R });
+        break;
+      case 'stash':
+        circles.push({ cx: entity.posX, cy: entity.posY, radius: STASH_R });
+        break;
+      case 'sleeping_bag':
+        circles.push({ cx: entity.posX, cy: entity.posY, radius: SLEEPING_BAG_R });
+        break;
+      case 'furnace':
+        circles.push({ cx: entity.posX, cy: entity.posY - FURNACE_Y, radius: FURNACE_R });
+        break;
+      case 'barbecue':
+        circles.push({ cx: entity.posX, cy: entity.posY - BARBECUE_Y, radius: BARBECUE_R });
+        break;
+      case 'lantern':
+        circles.push({ cx: entity.posX, cy: entity.posY + LANTERN_Y, radius: LANTERN_R });
+        break;
+      case 'homestead_hearth':
+        circles.push({ cx: entity.posX, cy: entity.posY - HEARTH_Y, radius: HEARTH_R });
+        break;
+      case 'animal_corpse':
+        circles.push({ cx: entity.posX, cy: entity.posY - ANIMAL_CORPSE_Y, radius: ANIMAL_CORPSE_R });
+        break;
+      case 'player_corpse':
+        circles.push({ cx: entity.posX, cy: entity.posY - PLAYER_CORPSE_Y, radius: PLAYER_CORPSE_R });
+        break;
+      case 'rain_collector':
+        circles.push({ cx: entity.posX, cy: entity.posY - RAIN_COLLECTOR_Y, radius: RAIN_COLLECTOR_R });
+        break;
+      case 'living_coral':
+        circles.push({ cx: entity.posX, cy: entity.posY, radius: LIVING_CORAL_R });
+        break;
+      case 'harvestable_resource':
+        circles.push({ cx: entity.posX, cy: entity.posY, radius: STONE_R });
+        break;
+      default:
+        break;
+    }
+  }
+  return circles;
+}
+
 // Cleanup entries for projectiles that no longer exist (hit something, max range, etc.)
 // Call with current projectile IDs from useSpacetimeTables - prevents unbounded growth during combat
 export const cleanupProjectileTrackingForDeleted = (currentProjectileIds: Set<string>) => {
@@ -540,7 +714,9 @@ export const cleanupProjectileTrackingForDeleted = (currentProjectileIds: Set<st
 
     if (now - missingSince >= PROJECTILE_TRACKING_DELETE_GRACE_MS) {
       clientProjectileStartTimes.delete(projectileId);
+      clientProjectileInitialElapsedMs.delete(projectileId);
       projectileMissingSince.delete(projectileId);
+      projectileLatchedImpactPoint.delete(projectileId);
       removed += 1;
     }
   }
@@ -560,7 +736,9 @@ export const cleanupOldProjectileTracking = () => {
   
   for (const projectileId of toDelete) {
     clientProjectileStartTimes.delete(projectileId);
+    clientProjectileInitialElapsedMs.delete(projectileId);
     projectileMissingSince.delete(projectileId);
+    projectileLatchedImpactPoint.delete(projectileId);
   }
   
   if (toDelete.length > 0) {

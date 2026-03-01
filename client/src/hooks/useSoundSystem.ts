@@ -57,6 +57,7 @@ const SOUND_DEFINITIONS = {
     melee_hit_blunt: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.2, maxDistance: 600 }, // Blunt weapon hits on players/corpses
     weapon_swing: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.8, maxDistance: 400 }, // All weapon swings
     item_thrown: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.9, maxDistance: 500 }, // Item/weapon thrown sound
+    break_item: { strategy: SoundStrategy.SERVER_ONLY, volume: 0.95, maxDistance: 500 }, // Arrows/projectiles breaking on impact
     arrow_hit: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.1, maxDistance: 550 }, // Arrow hits on players/corpses
     shoot_bow: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.0, maxDistance: 800 }, // Hunting bow firing
     shoot_crossbow: { strategy: SoundStrategy.SERVER_ONLY, volume: 1.1, maxDistance: 850 }, // Crossbow firing

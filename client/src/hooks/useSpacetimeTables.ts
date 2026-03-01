@@ -1869,11 +1869,12 @@ export const useSpacetimeTables = ({
             const handleWildAnimalDelete = (ctx: any, animal: SpacetimeDB.WildAnimal) => {
                 // Check if this was a hostile NPC death - trigger client-side particle effects
                 if (animal.isHostileNpc) {
+                    const speciesTag = (animal.species as { tag?: string })?.tag ?? String(animal.species);
                     const deathEvent = {
                         id: `death-${animal.id}-${Date.now()}`,
                         x: animal.posX,
                         y: animal.posY,
-                        species: String(animal.species), // Convert AnimalSpecies enum to string
+                        species: speciesTag,
                         timestamp: Date.now(),
                     };
                     setHostileDeathEvents(prev => {

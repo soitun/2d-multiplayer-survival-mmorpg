@@ -516,7 +516,11 @@ export const useInputHandler = ({
 
         const localServerProjectiles = new Map<string, Projectile>();
         for (const [id, projectile] of serverMap.entries()) {
-            if (projectile.sourceType === 0 && projectile.ownerId.toHexString() === localPlayerId) {
+            const ownerId =
+                typeof (projectile as any).ownerId === 'string'
+                    ? (projectile as any).ownerId
+                    : projectile.ownerId?.toHexString?.();
+            if (projectile.sourceType === 0 && ownerId === localPlayerId) {
                 localServerProjectiles.set(id, projectile);
             }
         }
@@ -574,17 +578,47 @@ export const useInputHandler = ({
         const serverMap = serverProjectiles ?? serverProjectilesRef.current;
         if (!serverMap) return optimisticProjectiles;
         const localServerIds = new Set<string>();
+        const localServerProjectiles: Projectile[] = [];
         for (const [id, p] of serverMap.entries()) {
-            if (p.sourceType === 0 && p.ownerId.toHexString() === localPlayerId) localServerIds.add(id);
+            const ownerId =
+                typeof (p as any).ownerId === 'string'
+                    ? (p as any).ownerId
+                    : p.ownerId?.toHexString?.();
+            if (p.sourceType === 0 && ownerId === localPlayerId) {
+                localServerIds.add(id);
+                localServerProjectiles.push(p);
+            }
         }
         const filtered = new Map<string, Projectile>();
         optimisticProjectiles.forEach((opt, key) => {
             const meta = optimisticProjectileMetaRef.current.get(key);
-            if (!meta?.matchedServerId) {
+            if (!meta) {
                 filtered.set(key, opt);
                 return;
             }
-            if (localServerIds.has(meta.matchedServerId)) filtered.set(key, opt);
+            if (!meta?.matchedServerId) {
+                // Fallback suppression: if strict matching missed, hide optimistic that clearly overlaps
+                // a just-spawned authoritative projectile from this player.
+                const nearAuthoritativeTwin = localServerProjectiles.some((serverProjectile) => {
+                    if (serverProjectile.ammoDefId !== opt.ammoDefId) return false;
+                    const serverStartMs = Number(serverProjectile.startTime.microsSinceUnixEpoch / 1000n);
+                    if (Math.abs(serverStartMs - meta.createdAtMs) > 700) return false;
+                    const dx = serverProjectile.startPosX - opt.startPosX;
+                    const dy = serverProjectile.startPosY - opt.startPosY;
+                    if ((dx * dx + dy * dy) > (40 * 40)) return false;
+                    if (meta.velocityX != null && meta.velocityY != null) {
+                        const optSpeed = Math.hypot(meta.velocityX, meta.velocityY);
+                        const srvSpeed = Math.hypot(serverProjectile.velocityX, serverProjectile.velocityY);
+                        if (optSpeed > 1 && Math.abs(optSpeed - srvSpeed) / optSpeed > 0.25) return false;
+                    }
+                    return true;
+                });
+                if (!nearAuthoritativeTwin) filtered.set(key, opt);
+                return;
+            }
+            // Exclude matched optimistics when server projectile exists - only server renders
+            if (localServerIds.has(meta.matchedServerId)) return;
+            filtered.set(key, opt);
         });
         return filtered;
     }, [localPlayerId, optimisticProjectiles, serverProjectiles]);

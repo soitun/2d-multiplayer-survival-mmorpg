@@ -3173,7 +3173,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                     grenade_owner_hex
                 ))
             } else if def.name == "Flare" {
-                const FLARE_DURATION_SECS: f64 = 60.0;
+                const FLARE_DURATION_SECS: f64 = 120.0;
                 let started_at = ctx.timestamp.to_micros_since_unix_epoch() as f64 / 1_000_000.0;
                 let expires_at = started_at + FLARE_DURATION_SECS;
                 Some(format!(

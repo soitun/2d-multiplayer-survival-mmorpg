@@ -78,6 +78,7 @@ pub enum SoundType {
     FoundationMetalUpgraded,   // foundation_metal_upgraded.mp3 (1 variation - when foundation upgraded to metal)
     FoundationTwigDestroyed,   // twig_foundation_destroyed.mp3 (1 variation - when twig foundation is destroyed)
     ItemThrown,                // item_thrown.mp3 (1 variation - when a weapon/item is thrown)
+    BreakItem,                 // break_item.mp3 (1 variation - when arrows/projectiles break on impact)
     ErrorResources,           // error_resources.mp3 (1 variation - when player doesn't have enough resources)
     ErrorCantPickUpCauldron,  // error_cant_pick_up_cauldron.mp3 (1 variation - when trying to pick up cauldron with contents)
     DoneCooking,              // done_cooking.mp3 (1 variation - when items finish cooking in campfire)
@@ -212,6 +213,7 @@ impl SoundType {
             SoundType::FoundationMetalUpgraded => "foundation_metal_upgraded",
             SoundType::FoundationTwigDestroyed => "twig_foundation_destroyed",
             SoundType::ItemThrown => "item_thrown",
+            SoundType::BreakItem => "break_item",
             SoundType::ErrorResources => "error_resources",
             SoundType::ErrorCantPickUpCauldron => "error_cant_pick_up_cauldron",
             SoundType::DoneCooking => "done_cooking",
@@ -342,6 +344,7 @@ impl SoundType {
             SoundType::FoundationMetalUpgraded => 1,
             SoundType::FoundationTwigDestroyed => 1,
             SoundType::ItemThrown => 1,
+            SoundType::BreakItem => 1,
             SoundType::ErrorResources => 3, // error_resources.mp3, error_resources2.mp3, error_resources3.mp3
             SoundType::ErrorCantPickUpCauldron => 1, // error_cant_pick_up_cauldron.mp3 (single variation)
             SoundType::DoneCooking => 1,
@@ -1135,13 +1138,14 @@ pub fn emit_item_thrown_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, play
     let _ = emit_sound_at_position_with_distance(ctx, SoundType::ItemThrown, pos_x, pos_y, 0.9, 500.0, player_id);
 }
 
-/// Emit projectile/item break sound at impact position.
-/// Uses a dedicated filename while staying on the server sound-event pipeline.
+/// Emit projectile/item break sound at impact position (arrows, projectiles breaking on impact).
 pub fn emit_break_item_sound(ctx: &ReducerContext, pos_x: f32, pos_y: f32, player_id: Identity) {
+    let mut rng = ctx.rng();
+    let filename = SoundType::BreakItem.get_random_filename(&mut rng);
     let sound_event = SoundEvent {
         id: 0, // Auto-incremented
-        sound_type: SoundType::ItemThrown, // Reuse existing type; filename selects the actual asset
-        filename: "break_item.mp3".to_string(),
+        sound_type: SoundType::BreakItem,
+        filename,
         pos_x,
         pos_y,
         volume: 0.95,

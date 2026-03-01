@@ -168,7 +168,7 @@ import { renderTillerPreview } from '../utils/renderers/tillerPreviewRenderingUt
 import { renderCloudsDirectly } from '../utils/renderers/cloudRenderingUtils';
 import { renderDronesDirectly, getInterpolatedDrones } from '../utils/renderers/droneRenderingUtils';
 import { useFallingTreeAnimations } from '../hooks/useFallingTreeAnimations';
-import { renderProjectile, cleanupProjectileTrackingForDeleted } from '../utils/renderers/projectileRenderingUtils';
+import { renderProjectile, cleanupProjectileTrackingForDeleted, buildProjectileCollisionCircles } from '../utils/renderers/projectileRenderingUtils';
 import { renderShelter } from '../utils/renderers/shelterRenderingUtils';
 import { setShelterClippingData, setGlobalShadowsEnabled } from '../utils/renderers/shadowUtils';
 import { renderRain } from '../utils/renderers/rainRenderingUtils';
@@ -2698,6 +2698,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // Phase 3c: useEntityFiltering now pre-merges swimmingPlayerTopHalf into ySortedEntities.
     // Single loop: batch non-swimming entities, flush and render swimming tops when encountered.
+    const projectileCollisionCircles = buildProjectileCollisionCircles(currentYSortedEntities);
     const flushBatch = (batch: typeof currentYSortedEntities) => {
       if (batch.length > 0) {
         renderYSortedEntities({
@@ -2771,6 +2772,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           chunkWeather,
           seaTransitionTileLookup,
           waterTileLookup,
+          projectileCollisionCircles,
         });
       }
     };

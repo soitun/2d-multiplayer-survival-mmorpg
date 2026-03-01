@@ -112,7 +112,7 @@ import { renderSeaStackSingle } from './seaStackRenderingUtils';
 import { renderHearth } from './hearthRenderingUtils';
 import { renderGrass } from './grassRenderingUtils';
 import { renderDroppedItem } from './droppedItemRenderingUtils';
-import { renderProjectile } from './projectileRenderingUtils';
+import { renderProjectile, buildProjectileCollisionCircles, type ProjectileCollisionCircle } from './projectileRenderingUtils';
 
 // --- Utilities ---
 import { imageManager } from './imageManager';
@@ -465,6 +465,8 @@ interface RenderYSortedEntitiesProps {
   chunkWeather?: Map<string, { currentWeather?: { tag?: string } }>;
   seaTransitionTileLookup?: Map<string, boolean>; // Shore transition tiles (Beach/Sea, Beach/HotSpringWater, Asphalt/Sea): player renders as normal, not swimming
   waterTileLookup?: Map<string, boolean>; // Fast tile water lookup for immediate local land/sea sprite switching
+  /** Collision circles for client-side projectile hit prediction (arrows stop at targets) */
+  projectileCollisionCircles?: ProjectileCollisionCircle[];
   // Note: viewBounds for terrain footprints has been moved to GameCanvas.tsx
   // Footprints are now rendered once before any renderYSortedEntities calls
 }
@@ -546,6 +548,7 @@ export const renderYSortedEntities = ({
   chunkWeather,
   seaTransitionTileLookup, // Sea transition tiles: player renders as normal, not swimming
   waterTileLookup, // Fast tile water lookup for immediate local land/sea sprite switching
+  projectileCollisionCircles,
 }: RenderYSortedEntitiesProps) => {
   // PERFORMANCE: Avoid calling cleanup function unless interval elapsed
   const nowForCleanup = performance.now();
@@ -1585,6 +1588,7 @@ export const renderYSortedEntities = ({
                   currentTimeMs: nowMs,
                   itemDefinitions,
                   applyUnderwaterTint: isLocalPlayerSnorkeling,
+                  collisionCircles: projectileCollisionCircles,
               });
           } else {
               // Regular projectiles (arrows, bullets, thrown items) - use sprite images
@@ -1622,6 +1626,7 @@ export const renderYSortedEntities = ({
                   currentTimeMs: nowMs,
                   itemDefinitions, // FIXED: Add itemDefinitions for weapon type detection
                   applyUnderwaterTint: isLocalPlayerSnorkeling, // Teal tint when local player is underwater
+                  collisionCircles: projectileCollisionCircles,
               });
           }
       } else if (type === 'planted_seed') {
