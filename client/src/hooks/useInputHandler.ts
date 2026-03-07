@@ -149,7 +149,7 @@ interface InputHandlerProps {
     setMusicPanelVisible: React.Dispatch<React.SetStateAction<boolean>>;
     movementDirection: { x: number; y: number };
     isAutoWalking: boolean; // Auto-walk state for dodge roll detection
-    onDodgeRollStart?: (moveX: number, moveY: number) => void; // Optional optimistic local dodge start hook
+    onDodgeRollStart?: (moveX: number, moveY: number) => boolean | void; // Optional optimistic local dodge start hook; returns false to skip reducer call
     targetedFoundation: any | null; // ADDED: Targeted foundation for upgrade menu
     targetedWall: any | null; // ADDED: Targeted wall for upgrade menu
     targetedFence: any | null; // ADDED: Targeted fence for repair/demolish
@@ -1071,14 +1071,18 @@ export const useInputHandler = ({
                         }
 
                         // Dodge Roll (works with both manual movement and auto-walk)
-                        try {
-                            if (connectionRef.current?.reducers) {
-                                onDodgeRollStartRef.current?.(moveX, moveY);
-                                connectionRef.current.reducers.dodgeRoll({ moveX, moveY });
-                                console.log('[Input] Dodge roll triggered', { direction: { x: moveX, y: moveY }, isAutoWalking: isAutoWalkingRef.current });
-                            }
-                        } catch (err) {
-                            console.error("[InputHandler] Error calling dodgeRoll:", err);
+                        // Only call reducer when optimistic trigger actually ran (avoids "Already dodge rolling" rejections)
+                        const didTrigger = onDodgeRollStartRef.current?.(moveX, moveY);
+                        if (connectionRef.current?.reducers && didTrigger !== false) {
+                            connectionRef.current.reducers.dodgeRoll({ moveX, moveY })
+                                .catch((err: unknown) => {
+                                    // Silently ignore expected server rejections (already rolling, cooldown, etc.)
+                                    const msg = err instanceof Error ? err.message : String(err);
+                                    if (!msg.includes('Already dodge rolling') && !msg.includes('cooldown')) {
+                                        console.error('[InputHandler] dodgeRoll rejected:', err);
+                                    }
+                                });
+                            console.log('[Input] Dodge roll triggered', { direction: { x: moveX, y: moveY }, isAutoWalking: isAutoWalkingRef.current });
                         }
                     } else {
                         // Jump (only when truly stationary - no manual input AND no auto-walk)

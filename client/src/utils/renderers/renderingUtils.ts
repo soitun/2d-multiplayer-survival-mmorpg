@@ -1014,7 +1014,9 @@ export const renderYSortedEntities = ({
          // console.log(`[DEBUG] Image refs available - heroImageRef:`, !!heroImageRef.current, 'heroWaterImageRef:', !!heroWaterImageRef.current, 'heroCrouchImageRef:', !!heroCrouchImageRef.current, 'heroDodgeImageRef:', !!heroDodgeImageRef?.current);
          
         if (isDodgeRolling) {
-            heroImg = heroDodgeImageRef?.current || heroImageRef.current; // HIGHEST PRIORITY: Use dodge roll sprite when dodge rolling, fallback to normal
+            const dodgeImg = heroDodgeImageRef?.current;
+            const dodgeUsable = dodgeImg && dodgeImg.complete && dodgeImg.naturalWidth > 0;
+            heroImg = dodgeUsable ? dodgeImg : heroImageRef.current; // Use dodge sprite when loaded, fallback to normal to avoid invisibility
             // console.log(`[DEBUG] Using dodge roll sprite for ${playerId}:`, !!heroImg);
         } else if (effectiveIsOnWater && !isCurrentlyJumping) {
             // FIX: Add fallback to walking sprite if water sprite not loaded

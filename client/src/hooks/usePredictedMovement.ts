@@ -186,16 +186,16 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
   const clientSequenceRef = useRef(0n);
   const lastAckedSequenceRef = useRef(0n);
 
-  const triggerOptimisticDodgeRoll = useCallback((moveX: number, moveY: number) => {
-    if (!clientPositionRef.current) return;
-    if (localPlayer?.isOnWater) return;
+  const triggerOptimisticDodgeRoll = useCallback((moveX: number, moveY: number): boolean => {
+    if (!clientPositionRef.current) return false;
+    if (localPlayer?.isOnWater) return false;
 
     const nowMs = Date.now();
     const optimisticElapsed = nowMs - optimisticDodgeRollStartMsRef.current;
     const isOptimisticActive = optimisticDodgeRollStartMsRef.current > 0 && optimisticElapsed < DODGE_ROLL_DURATION_MS;
     const timeSinceLastStart = nowMs - lastOptimisticDodgeRollStartMsRef.current;
     // Local guard to prevent duplicate client-only rolls while server cooldown rejects.
-    if (isOptimisticActive || timeSinceLastStart < DODGE_ROLL_COOLDOWN_MS) return;
+    if (isOptimisticActive || timeSinceLastStart < DODGE_ROLL_COOLDOWN_MS) return false;
 
     let dirX = moveX;
     let dirY = moveY;
@@ -244,6 +244,7 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     };
     optimisticDodgeRollStartMsRef.current = nowMs;
     lastOptimisticDodgeRollStartMsRef.current = nowMs;
+    return true;
   }, [localPlayer?.direction, localPlayer?.isOnWater]);
 
   // Initialize position from server

@@ -9,6 +9,7 @@ const EXPECTED_SILENT_SENDER_ERRORS = [
   'Too far away to pick up the item',
   'This resource has already been harvested and is respawning.',
   'Dropped item with ID',
+  'Already dodge rolling.',
 ];
 
 // Global error handler for unhandled promise rejections
