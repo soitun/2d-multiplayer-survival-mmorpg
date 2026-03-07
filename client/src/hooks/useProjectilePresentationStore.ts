@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DbConnection } from '../generated';
 import { Projectile, ProjectileResolvedEvent } from '../generated/types';
-import { recordProjectileDebugEvent } from '../utils/projectileDebug';
+import { getProjectileVisualDedupKey } from '../utils/renderers/projectileRenderingUtils';
 
 interface UseProjectilePresentationStoreProps {
   connection: DbConnection | null;
@@ -110,27 +110,19 @@ export function useProjectilePresentationStore({
       }
     });
 
-    return merged;
+    const visuallyDeduped = new Map<string, Projectile>();
+    const seenVisualKeys = new Set<string>();
+    merged.forEach((projectile, key) => {
+      const visualKey = getProjectileVisualDedupKey(projectile);
+      if (seenVisualKeys.has(visualKey)) {
+        return;
+      }
+      seenVisualKeys.add(visualKey);
+      visuallyDeduped.set(key, projectile);
+    });
+
+    return visuallyDeduped;
   }, [authoritativeProjectiles, optimisticProjectiles, resolvedClientShotIds, resolvedProjectileIds]);
-
-  useEffect(() => {
-    if (!localPlayerId) return;
-
-    const localRenderable = Array.from(renderableProjectiles.values())
-      .filter((projectile) => projectile.ownerId?.toHexString?.() === localPlayerId && projectile.sourceType === 0)
-      .map((projectile) => ({
-        id: projectile.id.toString(),
-        clientShotId: projectile.clientShotId?.trim?.() ?? '',
-        trackingKey: getPresentationKey(projectile, projectile.id.toString()),
-      }));
-
-    if (localRenderable.length > 0) {
-      recordProjectileDebugEvent('presentation-local-renderables', {
-        count: localRenderable.length,
-        renderables: localRenderable,
-      });
-    }
-  }, [localPlayerId, renderableProjectiles]);
 
   return renderableProjectiles;
 }

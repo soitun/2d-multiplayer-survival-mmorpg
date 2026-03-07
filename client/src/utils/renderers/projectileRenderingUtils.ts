@@ -10,8 +10,6 @@ import {
   PROJECTILE_SOURCE_TURRET,
 } from '../../config/projectileConstants';
 import { sampleProjectileState } from '../projectileSampling';
-import { recordProjectileDebugEvent } from '../projectileDebug';
-
 // Full 64x64px rendering for all projectiles
 const DEFAULT_ARROW_SCALE = 0.7; // Full size arrows (Hunting Bow)
 const CROSSBOW_ARROW_SCALE = 0.7; // Full size crossbow bolts
@@ -31,9 +29,7 @@ const PROJECTILE_INITIAL_CATCHUP_WINDOW_MS = 120;
 const clientProjectileStartTimes = new Map<string, number>(); // projectileId -> first-seen performance.now timestamp
 const clientProjectileInitialElapsedMs = new Map<string, number>(); // projectileId -> clamped estimated elapsed at first sight
 const projectileMissingSince = new Map<string, number>(); // projectileId -> first timestamp seen missing from current set
-const projectileRenderCountsByFrame = new Map<string, number>();
 const projectileDrawnKeysThisPass = new Set<string>();
-let lastProjectileRenderFrameBucket = -1;
 let activeProjectileRenderPassToken = -1;
 
 /** Collision circle for client-side projectile hit prediction (matches server radii) */
@@ -106,6 +102,14 @@ export function getProjectileTrackingKey(projectile: SpacetimeDBProjectile): str
   return clientShotId.length > 0 ? clientShotId : projectile.id.toString();
 }
 
+export function getProjectileVisualDedupKey(projectile: SpacetimeDBProjectile): string {
+  const clientShotId = projectile.clientShotId?.trim?.() ?? '';
+  if (clientShotId.length > 0) {
+    return clientShotId;
+  }
+  return projectile.id.toString();
+}
+
 export function beginProjectileRenderPass(passToken: number): void {
   if (activeProjectileRenderPassToken === passToken) return;
   activeProjectileRenderPassToken = passToken;
@@ -142,33 +146,11 @@ export const renderProjectile = ({
   const hasValidSprite = !!arrowImage && arrowImage.complete && arrowImage.naturalHeight > 0;
   const usePrimitiveSpriteFallback = !isNpcOrTurretProjectile && !hasValidSprite;
 
-  const projectileId = getProjectileTrackingKey(projectile);
+  const projectileId = getProjectileVisualDedupKey(projectile);
   if (projectileDrawnKeysThisPass.has(projectileId)) {
-    recordProjectileDebugEvent('render-skip-duplicate-same-pass', {
-      projectileId,
-      sourceType: projectile.sourceType,
-      ownerId: projectile.ownerId?.toHexString?.(),
-      clientShotId: projectile.clientShotId?.trim?.() ?? '',
-    });
     return;
   }
   projectileDrawnKeysThisPass.add(projectileId);
-  const frameBucket = Math.floor(currentTimeMs / 16.6667);
-  if (frameBucket !== lastProjectileRenderFrameBucket) {
-    projectileRenderCountsByFrame.clear();
-    lastProjectileRenderFrameBucket = frameBucket;
-  }
-  const renderCountThisFrame = (projectileRenderCountsByFrame.get(projectileId) ?? 0) + 1;
-  projectileRenderCountsByFrame.set(projectileId, renderCountThisFrame);
-  if (renderCountThisFrame === 2) {
-    recordProjectileDebugEvent('render-duplicate-same-key', {
-      projectileId,
-      sourceType: projectile.sourceType,
-      ownerId: projectile.ownerId?.toHexString?.(),
-      clientShotId: projectile.clientShotId?.trim?.() ?? '',
-      frameBucket,
-    });
-  }
 
   // Anchor to authoritative timing, but ease late arrivals in from spawn instead
   // of popping them halfway through the arc on first render.

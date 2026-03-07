@@ -93,6 +93,7 @@ import { hasActiveStoneDestruction, checkStoneDestructionVisibility } from '../u
 import { hasActiveCoralDestruction, checkCoralDestructionVisibility } from '../utils/renderers/livingCoralRenderingUtils'; // Import coral destruction tracking
 import { checkBarrelDestructionVisibility } from '../utils/renderers/barrelRenderingUtils'; // Barrel destruction chunks
 import { BOX_TYPE_LARGE, BOX_TYPE_COMPOST, BOX_TYPE_REPAIR_BENCH, BOX_TYPE_COOKING_STATION, BOX_TYPE_SCARECROW, BOX_TYPE_PLAYER_BEEHIVE, BOX_TYPE_WILD_BEEHIVE } from '../utils/renderers/woodenStorageBoxRenderingUtils'; // Import box type constants for y-sorting
+import { getProjectileVisualDedupKey } from '../utils/renderers/projectileRenderingUtils';
 // Ward radius constants for expanded viewport filtering (to render ward circles even when ward is off-screen)
 import { 
   LANTERN_TYPE_LANTERN,
@@ -1899,7 +1900,7 @@ export function useEntityFiltering(
       .sort()
       .join('|');
     const projectileSignature = visibleProjectiles
-      .map(projectile => projectile.clientShotId?.trim?.() || projectile.id.toString())
+      .map(projectile => getProjectileVisualDedupKey(projectile))
       .sort()
       .join('|');
 

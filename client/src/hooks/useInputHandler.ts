@@ -342,9 +342,6 @@ export const useInputHandler = ({
     // Add after existing refs in the hook
     const isRightMouseDownRef = useRef<boolean>(false);
     
-    // ADDED: Track throw aiming state (right mouse held with throwable item)
-    const isAimingThrowRef = useRef<boolean>(false);
-    
     // ADDED: Building radial menu state
     const [showBuildingRadialMenu, setShowBuildingRadialMenu] = useState(false);
     const [showUpgradeRadialMenu, setShowUpgradeRadialMenu] = useState(false);
@@ -1709,20 +1706,6 @@ export const useInputHandler = ({
                     return;
                 }
                 
-                // ADDED: Cancel throw aim on left click DOWN (while holding right-click to prepare throw)
-                if (isAimingThrowRef.current) {
-                    isAimingThrowRef.current = false;
-                    if (connectionRef.current?.reducers) {
-                        try {
-                            connectionRef.current.reducers.setThrowAim({ isAiming: false });
-                        } catch (err) {
-                            console.error('[ThrowAim] Error cancelling throw aim:', err);
-                        }
-                    }
-                    event.preventDefault();
-                    return; // Don't process other left-click actions when cancelling throw
-                }
-                
                 // Normal left click logic for attacks, interactions, etc.
                 isMouseDownRef.current = true;
 
@@ -1988,23 +1971,6 @@ export const useInputHandler = ({
                     }
                 }
                 
-                // ADDED: Check if equipped item is throwable - enter throw aim mode
-                if (localPlayerActiveEquipment?.equippedItemDefId && itemDefinitionsRef.current) {
-                    const equippedItemDefForThrow = itemDefinitionsRef.current.get(String(localPlayerActiveEquipment.equippedItemDefId));
-                    if (equippedItemDefForThrow && isItemThrowable(equippedItemDefForThrow)) {
-                        // Enter throw aim mode
-                        isAimingThrowRef.current = true;
-                        // Notify server (syncs to other players for visual feedback)
-                        if (connectionRef.current?.reducers) {
-                            try {
-                                connectionRef.current.reducers.setThrowAim({ isAiming: true });
-                            } catch (err) {
-                                console.error('[ThrowAim] Error setting throw aim:', err);
-                            }
-                        }
-                    }
-                }
-
                 // Normal right-click logic for context menu, etc.
             }
         };
@@ -2013,20 +1979,6 @@ export const useInputHandler = ({
             // Handle both left and right mouse button releases
             if (event.button === 0) { // Left mouse
                 isMouseDownRef.current = false;
-                
-                // ADDED: Cancel throw aim on left click
-                if (isAimingThrowRef.current) {
-                    isAimingThrowRef.current = false;
-                    if (connectionRef.current?.reducers) {
-                        try {
-                            connectionRef.current.reducers.setThrowAim({ isAiming: false });
-                            console.log('[ThrowAim] Cancelled throw aim with left click');
-                        } catch (err) {
-                            console.error('[ThrowAim] Error cancelling throw aim:', err);
-                        }
-                    }
-                    return; // Don't process other left-click actions when cancelling throw
-                }
                 
                 // ADDED: Close radial menu on left click
                 if (showBuildingRadialMenu) {
@@ -2265,115 +2217,6 @@ export const useInputHandler = ({
                 // console.log("[InputHandler DEBUG CTXMENU] No active equipment or itemDefinitions for right-click logic.");
             }
 
-            // Check if the equipped item is throwable and handle throwing
-            if (localPlayerActiveEquipment?.equippedItemDefId && itemDefinitionsRef.current) {
-                const equippedItemDef = itemDefinitionsRef.current.get(String(localPlayerActiveEquipment.equippedItemDefId));
-
-                if (equippedItemDef && isItemThrowable(equippedItemDef)) {
-                    event.preventDefault();
-                    
-                    // CRITICAL: Only throw if we're still in aim mode (not cancelled by left-click)
-                    if (!isAimingThrowRef.current) {
-                        console.log('[ThrowAim] Throw cancelled - aim was cancelled with left click');
-                        return;
-                    }
-
-                    // Quick checks
-                    if (!connectionRef.current?.reducers || !localPlayerId || isPlayerDead) {
-                        // console.log("[InputHandler] Right-click throw - basic requirements not met");
-                        isAimingThrowRef.current = false;
-                        return;
-                    }
-
-                    const player = localPlayerRef.current;
-                    if (!player) {
-                        // console.log("[InputHandler] Right-click throw - no local player found");
-                        isAimingThrowRef.current = false;
-                        return;
-                    }
-
-                    // Determine throwing direction based on movement or facing direction
-                    let throwingDirection = { dx: 0, dy: 1 }; // Default: facing down
-
-                    // Check if player is currently moving
-                    const isCurrentlyMoving = (
-                        keysPressed.current.has('w') || keysPressed.current.has('arrowup') ||
-                        keysPressed.current.has('s') || keysPressed.current.has('arrowdown') ||
-                        keysPressed.current.has('a') || keysPressed.current.has('arrowleft') ||
-                        keysPressed.current.has('d') || keysPressed.current.has('arrowright')
-                    );
-
-                    if (isCurrentlyMoving) {
-                        // Use current movement direction
-                        const dx = (keysPressed.current.has('d') || keysPressed.current.has('arrowright') ? 1 : 0) -
-                            (keysPressed.current.has('a') || keysPressed.current.has('arrowleft') ? 1 : 0);
-                        const dy = (keysPressed.current.has('s') || keysPressed.current.has('arrowdown') ? 1 : 0) -
-                            (keysPressed.current.has('w') || keysPressed.current.has('arrowup') ? 1 : 0);
-
-                        if (dx !== 0 || dy !== 0) {
-                            throwingDirection = { dx, dy };
-                        }
-                        // console.log("[InputHandler] Right-click throw - using current movement direction:", throwingDirection);
-                    } else {
-                        // Player is not moving, use their stored facing direction
-                        const playerFacingDirection = player.direction || 'down';
-                        throwingDirection = getDirectionVector(playerFacingDirection);
-                        // console.log("[InputHandler] Right-click throw - using player facing direction:", playerFacingDirection, "->", throwingDirection);
-                    }
-
-                    // Calculate target position based on direction and throwing distance
-                    const THROWING_DISTANCE = 400.0;
-                    const magnitude = Math.sqrt(throwingDirection.dx * throwingDirection.dx + throwingDirection.dy * throwingDirection.dy);
-                    const normalizedDx = magnitude > 0 ? throwingDirection.dx / magnitude : 0;
-                    const normalizedDy = magnitude > 0 ? throwingDirection.dy / magnitude : 1;
-
-                    const targetX = player.positionX + (normalizedDx * THROWING_DISTANCE);
-                    const targetY = player.positionY + (normalizedDy * THROWING_DISTANCE);
-
-                    // console.log("[InputHandler] Right-click - THROWING:", equippedItemDef.name, "from", player.positionX, player.positionY, "to", targetX, targetY, "direction:", throwingDirection);
-
-                    try {
-                        const exactThrowPos = getCurrentPositionNowRef.current?.();
-                        const throwX = exactThrowPos?.x ?? predictedPositionRef.current?.x ?? player.positionX;
-                        const throwY = exactThrowPos?.y ?? predictedPositionRef.current?.y ?? player.positionY;
-                        const clientShotId = createClientShotId();
-                        spawnOptimisticProjectile(
-                            targetX,
-                            targetY,
-                            throwX,
-                            throwY,
-                            localPlayerActiveEquipment.equippedItemDefId!,
-                            localPlayerActiveEquipment.loadedAmmoDefId,
-                            equippedItemDef.name,
-                            true,
-                            800, // Match server throw_item THROWING_SPEED
-                            400, // Match server throw_item max_range
-                            clientShotId
-                        );
-                        connectionRef.current.reducers.throwItem({
-                            targetWorldX: targetX,
-                            targetWorldY: targetY,
-                            clientPlayerX: throwX,
-                            clientPlayerY: throwY,
-                            clientShotId,
-                        });
-                        console.log("[ThrowAim] Item thrown successfully!");
-                    } catch (err) {
-                        console.error("[ThrowAim] Error throwing item:", err);
-                    }
-                    
-                    // Clear throw aim state after throwing
-                    isAimingThrowRef.current = false;
-                    try {
-                        connectionRef.current.reducers.setThrowAim({ isAiming: false });
-                    } catch (err) {
-                        // Silently ignore - server will clear it anyway in throw_item
-                    }
-
-                    return; // Always return after handling throw
-                }
-            }
-
             if (placementInfo) {
                 // console.log("[InputHandler CTXMENU] Right-click during placement - cancelling placement.");
                 event.preventDefault();
@@ -2422,16 +2265,6 @@ export const useInputHandler = ({
             // keysPressed.current.clear(); // Keep this commented out
             isMouseDownRef.current = false;
             isRightMouseDownRef.current = false; // Reset right mouse state
-            
-            // ADDED: Clear throw aim state on blur/visibility change
-            if (isAimingThrowRef.current) {
-                isAimingThrowRef.current = false;
-                if (connectionRef.current?.reducers) {
-                    try {
-                        connectionRef.current.reducers.setThrowAim({ isAiming: false });
-                    } catch (err) { /* ignore */ }
-                }
-            }
             
             isEHeldDownRef.current = false;
             if (eKeyHoldTimerRef.current) clearTimeout(eKeyHoldTimerRef.current);
@@ -2644,49 +2477,6 @@ export const useInputHandler = ({
         isAutoAttacking, isFishing, movementDirection, isActivelyHolding, interactionProgress,
         syncCurrentJumpOffsetToEngine
     ]);
-
-    // Helper function to check if an item is throwable
-    const isItemThrowable = useCallback((itemDef: ItemDefinition | undefined): boolean => {
-        if (!itemDef) {
-            // console.log("[isItemThrowable] No item definition provided");
-            return false;
-        }
-
-        // console.log("[isItemThrowable] Checking item:", itemDef.name, "category:", itemDef.category);
-
-        // Don't allow throwing ranged weapons, bandages, or consumables
-        if (itemDef.category?.tag === "RangedWeapon") {
-            // console.log("[isItemThrowable] Rejected: RangedWeapon");
-            return false;
-        }
-        if (itemDef.name === "Bandage" || itemDef.name === "Selo Olive Oil" || itemDef.name === "Med Kit" || itemDef.name === "Jellyfish Compress") {
-            // console.log("[isItemThrowable] Rejected: medical consumables");
-            return false;
-        }
-        if (itemDef.name === "Torch") {
-            // console.log("[isItemThrowable] Rejected: Torch");
-            return false;
-        }
-
-        // Allow throwing tools and melee weapons
-        const throwableNames = [
-            "Rock", "Spear", "Stone Hatchet", "Stone Pickaxe", "Combat Ladle",
-            "Bone Club", "Bone Knife", "Stone Spear", "Wooden Spear",
-            "Stone Axe", "Stone Knife", "Wooden Club", "Improvised Knife", "Bone Gaff Hook",
-            "Bush Knife"
-        ];
-
-        const nameMatch = throwableNames.includes(itemDef.name);
-        const categoryMatch = itemDef.category?.tag === "Weapon" || itemDef.category?.tag === "Tool";
-
-        // console.log("[isItemThrowable] Name match:", nameMatch, "Category match:", categoryMatch);
-        // console.log("[isItemThrowable] Category tag:", itemDef.category?.tag);
-
-        const result = nameMatch || categoryMatch;
-        // console.log("[isItemThrowable] Final result:", result);
-
-        return result;
-    }, []);
 
     useEffect(() => {
         runtimeEngine.updateInputState('processInputsAndActions', processInputsAndActions);

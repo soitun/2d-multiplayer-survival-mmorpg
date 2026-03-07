@@ -317,6 +317,8 @@ export const renderEquippedItem = (
   if (!equipment.equippedItemInstanceId) {
     return;
   }
+  const playerId = player.identity.toHexString();
+  const isLocalPlayer = localPlayerId && playerId === localPlayerId;
   // --- Calculate Shake Offset (Only if alive) ---
   let shakeX = 0;
   let shakeY = 0;
@@ -697,8 +699,6 @@ export const renderEquippedItem = (
 
   // --- Swing/Thrust Animation --- 
   const swingStartTime = Number(equipment.swingStartTimeMs);
-  const playerId = player.identity.toHexString();
-  const isLocalPlayer = localPlayerId && playerId === localPlayerId;
   let elapsedSwingTime = 0;
   let currentAngle = 0; 
   let thrustDistance = 0; 

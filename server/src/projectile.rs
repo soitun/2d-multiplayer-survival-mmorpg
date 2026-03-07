@@ -1094,13 +1094,7 @@ fn calculate_projectile_damage(
         rng.gen_range(ammo_damage_min..=ammo_damage_max)
     };
 
-    // Check if this is a thrown item (ammo_def_id == item_def_id)
-    let is_thrown_item = projectile.ammo_def_id == projectile.item_def_id;
-
-    if is_thrown_item {
-        // Thrown items do double the weapon's base damage
-        weapon_damage * 2.0
-    } else if ammo_item_def.name == "Fire Arrow" {
+    if ammo_item_def.name == "Fire Arrow" {
         ammo_damage
     } else if ammo_item_def.name == "Hollow Reed Arrow" {
         // Hollow Reed Arrows: Subtract ammo damage from weapon damage due to light construction
@@ -1323,7 +1317,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
         let weapon_item_def_cached = item_defs_table.id().find(projectile.item_def_id);
         let ammo_item_def_cached = item_defs_table.id().find(projectile.ammo_def_id);
         
-        // Get weapon definition to determine gravity effect
+        // Get weapon definition to determine gravity effect (thrown-item path removed)
         // Monument turret projectiles fire in a straight line - no gravity
         let gravity_multiplier = if projectile.source_type == PROJECTILE_SOURCE_MONUMENT_TURRET {
             PROJECTILE_STRAIGHT_LINE_GRAVITY_MULTIPLIER
@@ -1339,13 +1333,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             1.0 // Default to full gravity if weapon not found
         };
         
-        // Check if this is a thrown item (ammo_def_id == item_def_id) - no gravity for thrown items
-        let is_thrown_item = projectile.ammo_def_id == projectile.item_def_id;
-        let final_gravity_multiplier = if is_thrown_item {
-            0.0 // Thrown items have no gravity (straight line)
-        } else {
-            gravity_multiplier
-        };
+        let final_gravity_multiplier = gravity_multiplier;
         
         // Calculate current position
         let current_x = projectile.start_pos_x + projectile.velocity_x * elapsed_time as f32;
@@ -2990,13 +2978,8 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 // Calculate damage using the centralized helper function
                 let final_damage = calculate_projectile_damage(&weapon_item_def, &ammo_item_def, &projectile, &mut rng);
 
-                if is_thrown_item {
-                    log::info!("Thrown item damage to wild animal: Item '{}' dealt {:.1} total damage", 
-                             weapon_item_def.name, final_damage);
-                } else {
-                    log::info!("Projectile damage to wild animal: Weapon '{}' + Ammo '{}' = {:.1} total damage", 
-                             weapon_item_def.name, ammo_item_def.name, final_damage);
-                }
+                log::info!("Projectile damage to wild animal: Weapon '{}' + Ammo '{}' = {:.1} total damage",
+                         weapon_item_def.name, ammo_item_def.name, final_damage);
 
                 // Apply damage to wild animal (with weapon tracking for achievements)
                 match crate::wild_animal_npc::damage_wild_animal_with_weapon(ctx, wild_animal.id, final_damage, projectile.owner_id, Some(&weapon_item_def.name)) {
@@ -3298,13 +3281,8 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 // Calculate damage using the centralized helper function
                 let final_damage = calculate_projectile_damage(&weapon_item_def, &ammo_item_def, &projectile, &mut rng);
 
-                if is_thrown_item {
-                    log::info!("Thrown item damage calculation: Item '{}' dealt {:.1} total damage", 
-                             weapon_item_def.name, final_damage);
-                } else {
-                    log::info!("Projectile damage calculation: Weapon '{}' + Ammo '{}' = {:.1} total damage", 
-                             weapon_item_def.name, ammo_item_def.name, final_damage);
-                }
+                log::info!("Projectile damage calculation: Weapon '{}' + Ammo '{}' = {:.1} total damage",
+                         weapon_item_def.name, ammo_item_def.name, final_damage);
 
                 // Apply combined damage via combat::damage_player
                 // IMPORTANT: Pass weapon_item_def (not ammo) for damage type - bows/crossbows have DamageType::Projectile
@@ -3457,12 +3435,7 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             continue; // Skip creating dropped item - bullet is destroyed
         }
         
-        // Check if this is a thrown weapon (ammo_def_id == item_def_id)
         let projectile_record = ctx.db.projectile().id().find(&projectile_id);
-        let is_thrown_weapon = projectile_record
-            .as_ref()
-            .map(|p| p.ammo_def_id == p.item_def_id)
-            .unwrap_or(false);
         
         // Grenade and Flare never break on impact - they always land as dropped items with timer metadata
         let is_grenade_or_flare = ammo_item_def
@@ -3470,11 +3443,9 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             .map(|def| def.name == "Grenade" || def.name == "Flare")
             .unwrap_or(false);
 
-        // Different break chances: 0% for grenade/flare, 5% for thrown weapons, 15% for arrows/projectiles
+        // Different break chances: 0% for grenade/flare, 15% for arrows and other projectiles
         let break_chance = if is_grenade_or_flare {
             0.0
-        } else if is_thrown_weapon {
-            0.05 // 5% chance for thrown weapons to break
         } else {
             0.15 // 15% chance for arrows and other projectiles to break
         };
@@ -3594,327 +3565,3 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
 
     Ok(())
 }
-
-/// Sets the player's throw aiming state (used for visual feedback when holding right mouse)
-/// Remote players can see when someone is preparing to throw
-#[reducer]
-pub fn set_throw_aim(ctx: &ReducerContext, is_aiming: bool) -> Result<(), String> {
-    let player_id = ctx.sender();
-    
-    let mut player = ctx.db.player().identity().find(&player_id)
-        .ok_or("Player not found")?;
-    
-    if player.is_dead || player.is_knocked_out {
-        // Silently ignore if dead/knocked out - don't spam errors
-        return Ok(());
-    }
-    
-    // Only update if state changed
-    if player.is_aiming_throw != is_aiming {
-        player.is_aiming_throw = is_aiming;
-        player.last_update = ctx.timestamp;
-        ctx.db.player().identity().update(player);
-        
-        if is_aiming {
-            log::debug!("Player {:?} entered throw aim state", player_id);
-        } else {
-            log::debug!("Player {:?} exited throw aim state", player_id);
-        }
-    }
-    
-    Ok(())
-}
-
-#[reducer]
-pub fn throw_item(
-    ctx: &ReducerContext,
-    target_world_x: f32,
-    target_world_y: f32,
-    client_player_x: f32,
-    client_player_y: f32,
-    client_shot_id: String,
-) -> Result<(), String> {
-    log::info!("=== THROW_ITEM REDUCER CALLED ===");
-    log::info!("Target position: ({:.2}, {:.2})", target_world_x, target_world_y);
-    log::info!("Caller identity: {}", ctx.sender().to_string());
-    
-    let player_id = ctx.sender();
-    
-    // Find the player
-    let player = ctx.db.player().identity().find(&player_id)
-        .ok_or("Player not found")?;
-    
-    if player.is_dead {
-        return Err("Dead players cannot throw items".to_string());
-    }
-
-    // Get the equipped item and its definition
-    let mut equipment = ctx.db.active_equipment().player_identity().find(&player_id)
-        .ok_or("No active equipment record found for player.")?;
-    
-    let equipped_item_def_id = equipment.equipped_item_def_id
-        .ok_or("No item equipped to throw.")?;
-    
-    let equipped_item_instance_id = equipment.equipped_item_instance_id
-        .ok_or("No item instance equipped to throw.")?;
-    
-    let item_def = ctx.db.item_definition().id().find(equipped_item_def_id)
-        .ok_or("Equipped item definition not found.")?;
-
-    // Check if the item is throwable (not a ranged weapon, bandage, etc.)
-    let is_throwable = match item_def.category {
-        crate::items::ItemCategory::RangedWeapon => false,
-        _ => {
-            // Allow specific throwable items
-            let throwable_names = [
-                // Tools
-                "Rock", "Stone Hatchet", "Stone Pickaxe", "Combat Ladle", "Diving Pick", "Stone Tiller",
-                // Basic melee
-                "Bone Club", "Bone Knife", "Wooden Club", "Bone Gaff Hook",
-                // Spears & harpoons
-                "Stone Spear", "Wooden Spear", "Reed Harpoon",
-                // Blades
-                "Naval Cutlass", "AK74 Bayonet", "Bush Knife", "Metal Dagger", "Bone Shiv", "Battle Axe",
-                // Blunt weapons (can stun!)
-                "Stone Mace", "War Hammer", "Kayak Paddle", "Engineers Maul", "Military Crowbar",
-                // Skulls (blunt, can stun!)
-                "Human Skull", "Fox Skull", "Wolf Skull", "Viper Skull", "Walrus Skull"
-            ];
-            
-            throwable_names.contains(&item_def.name.as_str()) ||
-            item_def.name.contains("Hatchet") || item_def.name.contains("Axe") ||
-            item_def.name.contains("Pickaxe") || item_def.name.contains("Spear") ||
-            item_def.name.contains("Club") || item_def.name.contains("Knife")
-        }
-    };
-
-    if !is_throwable {
-        return Err(format!("Item '{}' cannot be thrown.", item_def.name));
-    }
-
-    // Check if the item is bandage, torch, or other special items that shouldn't be thrown
-    if item_def.name == "Bandage" || item_def.name == "Selo Olive Oil" || item_def.name == "Torch" {
-        return Err(format!("Item '{}' cannot be thrown.", item_def.name));
-    }
-
-    // --- IMPROVED: Remove the item from the player's equipment and inventory ---
-    let inventory_items_table = ctx.db.inventory_item();
-    let mut item_found = false;
-
-    log::info!("[ThrowItem] Attempting to remove item instance {} (def_id: {}) from player {}", 
-               equipped_item_instance_id, equipped_item_def_id, player_id.to_string());
-
-    // Find and remove the specific item instance
-    if let Some(inventory_item) = inventory_items_table.instance_id().find(&equipped_item_instance_id) {
-        log::info!("[ThrowItem] Found inventory item: quantity={}, location={:?}", 
-                   inventory_item.quantity, inventory_item.location);
-        
-        if inventory_item.quantity > 1 {
-            // Capture quantities before moving the values
-            let original_quantity = inventory_item.quantity;
-            let new_quantity = original_quantity - 1;
-            
-            // Reduce quantity by 1
-            let mut updated_item = inventory_item;
-            updated_item.quantity = new_quantity;
-            inventory_items_table.instance_id().update(updated_item);
-            log::info!("[ThrowItem] Reduced item quantity from {} to {} for instance {}", 
-                       original_quantity, new_quantity, equipped_item_instance_id);
-            item_found = true;
-        } else {
-            // Remove the item entirely
-            inventory_items_table.instance_id().delete(&equipped_item_instance_id);
-            log::info!("[ThrowItem] Completely removed item instance {} from inventory", 
-                       equipped_item_instance_id);
-            item_found = true;
-        }
-    } else {
-        log::error!("[ThrowItem] Could not find inventory item with instance_id {} for player {}", 
-                    equipped_item_instance_id, player_id.to_string());
-    }
-
-    if !item_found {
-        return Err("Could not find equipped item in inventory to throw.".to_string());
-    }
-
-    let thrower_dx = client_player_x - player.position_x;
-    let thrower_dy = client_player_y - player.position_y;
-    let thrower_desync_sq = thrower_dx * thrower_dx + thrower_dy * thrower_dy;
-    const MAX_THROW_POSITION_DESYNC: f32 = 2000.0;
-    let (spawn_x, spawn_y) = if thrower_desync_sq <= MAX_THROW_POSITION_DESYNC * MAX_THROW_POSITION_DESYNC {
-        (client_player_x, client_player_y)
-    } else {
-        return Err(format!(
-            "Throw position validation failed: desync too large ({:.1} units)",
-            thrower_desync_sq.sqrt()
-        ));
-    };
-
-    // Only clear the equipped item if it was completely consumed (quantity reached 0)
-    // Check if the item still exists after throwing
-    let item_still_exists = inventory_items_table.instance_id().find(&equipped_item_instance_id).is_some();
-    
-    if !item_still_exists {
-        // Item was completely consumed - clear it from equipment
-        log::info!("[ThrowItem] Item completely consumed - clearing equipped item from player {} equipment", player_id.to_string());
-        equipment.equipped_item_def_id = None;
-        equipment.equipped_item_instance_id = None;
-        equipment.swing_start_time_ms = (ctx.timestamp.to_micros_since_unix_epoch() / 1000) as u64;
-        ctx.db.active_equipment().player_identity().update(equipment);
-        log::info!("[ThrowItem] Equipment cleared for player {}", player_id.to_string());
-    } else {
-        // Item still has quantity remaining - keep it equipped but update swing time
-        log::info!("[ThrowItem] Item still has quantity remaining - keeping equipped for player {}", player_id.to_string());
-        equipment.swing_start_time_ms = (ctx.timestamp.to_micros_since_unix_epoch() / 1000) as u64;
-        ctx.db.active_equipment().player_identity().update(equipment);
-    }
-
-    // --- NEW: Check shelter protection rule for thrown items ---
-    // Players inside their own shelter cannot throw items outside
-    if let Some(shelter_id) = shelter::is_owner_inside_shelter(ctx, player_id, spawn_x, spawn_y) {
-        // Check if target is outside the shelter
-        if !shelter::is_player_inside_shelter(target_world_x, target_world_y, &ctx.db.shelter().id().find(shelter_id).unwrap()) {
-            return Err("Cannot throw from inside your shelter to targets outside. Leave your shelter to attack.".to_string());
-        }
-        log::debug!("Player {:?} throwing from inside their shelter {} to target inside same shelter - allowed", player_id, shelter_id);
-    }
-
-    // --- Check if projectile path would immediately hit a wall very close to player ---
-    if let Some((wall_id, collision_x, collision_y)) = crate::building::check_projectile_wall_collision(
-        ctx,
-        spawn_x,
-        spawn_y,
-        target_world_x,
-        target_world_y,
-    ) {
-        let collision_distance = ((collision_x - spawn_x).powi(2) + (collision_y - spawn_y).powi(2)).sqrt();
-        const MIN_THROWING_DISTANCE: f32 = 80.0; // About 2 tiles
-        
-        if collision_distance < MIN_THROWING_DISTANCE {
-            return Err(format!("Cannot throw item - wall too close ({:.1} units)", collision_distance));
-        }
-    }
-    
-    // --- Check if projectile path would immediately hit a closed door very close to player ---
-    if let Some((door_id, collision_x, collision_y)) = crate::door::check_door_projectile_collision(ctx, spawn_x, spawn_y, target_world_x, target_world_y) {
-        let collision_distance = ((collision_x - spawn_x).powi(2) + (collision_y - spawn_y).powi(2)).sqrt();
-        const MIN_THROWING_DISTANCE: f32 = 80.0;
-        
-        if collision_distance < MIN_THROWING_DISTANCE {
-            return Err(format!("Cannot throw item - closed door too close ({:.1} units)", collision_distance));
-        }
-    }
-    
-    // --- Check if projectile path would immediately hit a fence very close to player ---
-    if let Some((fence_id, collision_x, collision_y)) = crate::fence::check_projectile_fence_collision(ctx, spawn_x, spawn_y, target_world_x, target_world_y) {
-        let collision_distance = ((collision_x - spawn_x).powi(2) + (collision_y - spawn_y).powi(2)).sqrt();
-        const MIN_THROWING_DISTANCE: f32 = 80.0;
-        
-        if collision_distance < MIN_THROWING_DISTANCE {
-            return Err(format!("Cannot throw item - fence too close ({:.1} units)", collision_distance));
-        }
-    }
-    
-    // --- Check if projectile path would immediately hit a shelter wall very close to player ---
-    if let Some((shelter_id, collision_x, collision_y)) = shelter::check_projectile_shelter_collision(
-        ctx,
-        spawn_x,
-        spawn_y,
-        target_world_x,
-        target_world_y,
-    ) {
-        // Only block the throw if the collision happens very close to the player
-        let collision_distance = ((collision_x - spawn_x).powi(2) + (collision_y - spawn_y).powi(2)).sqrt();
-        const MIN_THROWING_DISTANCE: f32 = 80.0; // About 2 tiles
-        
-        if collision_distance < MIN_THROWING_DISTANCE {
-            return Err(format!("Cannot throw item - shelter wall too close ({:.1} units)", collision_distance));
-        }
-        
-        log::info!("Player {:?} targeting shelter {} at distance {:.1} - throw allowed", player_id, shelter_id, collision_distance);
-    }
-
-    // --- Physics Calculation for Thrown Item ---
-    let delta_x = target_world_x - spawn_x;
-    let delta_y = target_world_y - spawn_y;
-    
-    // All thrown items have the same throwing speed
-    const THROWING_SPEED: f32 = 800.0; // Increased from 400.0 for faster throwing
-    let v0 = THROWING_SPEED;
-    
-    let distance_sq = delta_x * delta_x + delta_y * delta_y;
-    if distance_sq < 1.0 {
-        return Err("Target too close".to_string());
-    }
-
-    // Straight-line physics for thrown items (no gravity arc)
-    let distance = distance_sq.sqrt();
-    let normalized_dx = delta_x / distance;
-    let normalized_dy = delta_y / distance;
-    
-    let final_vx = normalized_dx * v0;
-    let final_vy = normalized_dy * v0;
-
-    // Create projectile for the thrown item
-    let projectile = Projectile {
-        id: 0, // auto_inc
-        client_shot_id,
-        owner_id: player_id,
-        item_def_id: equipped_item_def_id,
-        ammo_def_id: equipped_item_def_id, // For thrown items, ammo_def_id is the same as item_def_id
-        source_type: PROJECTILE_SOURCE_PLAYER,
-        npc_projectile_type: NPC_PROJECTILE_NONE, // Not an NPC projectile
-        start_time: ctx.timestamp,
-        start_pos_x: spawn_x,
-        start_pos_y: spawn_y,
-        velocity_x: final_vx,
-        velocity_y: final_vy,
-        max_range: 400.0, // Increased from 300.0 to match client throwing distance
-    };
-
-    insert_projectile_with_runtime_state(ctx, projectile);
-
-    // Emit item thrown sound
-    sound_events::emit_item_thrown_sound(ctx, spawn_x, spawn_y, player_id);
-
-    // Update last attack timestamp
-    let timestamp_record = PlayerLastAttackTimestamp {
-        player_id,
-        last_attack_timestamp: ctx.timestamp,
-    };
-    
-    if ctx.db.player_last_attack_timestamp().player_id().find(&player_id).is_some() {
-        ctx.db.player_last_attack_timestamp().player_id().update(timestamp_record);
-    } else {
-        ctx.db.player_last_attack_timestamp().insert(timestamp_record);
-    }
-
-    // --- VERIFICATION: Double-check that item was actually removed ---
-    let verification_item = inventory_items_table.instance_id().find(&equipped_item_instance_id);
-    let verification_equipment = ctx.db.active_equipment().player_identity().find(&player_id);
-    
-    if verification_item.is_some() {
-        log::warn!("[ThrowItem] WARNING: Item instance {} still exists in inventory after throwing!", 
-                   equipped_item_instance_id);
-    }
-    
-    if let Some(eq) = verification_equipment {
-        if eq.equipped_item_instance_id.is_some() {
-            log::warn!("[ThrowItem] WARNING: Player {} still has equipped item after throwing!", 
-                       player_id.to_string());
-        }
-    }
-
-    log::info!("Item '{}' thrown by player {} towards ({:.1}, {:.1}) with initial V_x={:.1}, V_y={:.1}", 
-        item_def.name, player_id.to_string(), target_world_x, target_world_y, final_vx, final_vy);
-    
-    // Clear throw aim state after successful throw
-    if let Some(mut player_updated) = ctx.db.player().identity().find(&player_id) {
-        if player_updated.is_aiming_throw {
-            player_updated.is_aiming_throw = false;
-            ctx.db.player().identity().update(player_updated);
-        }
-    }
-    
-    Ok(())
-} 

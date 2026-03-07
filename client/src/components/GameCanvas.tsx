@@ -168,7 +168,7 @@ import { renderTillerPreview } from '../utils/renderers/tillerPreviewRenderingUt
 import { renderCloudsDirectly } from '../utils/renderers/cloudRenderingUtils';
 import { renderDronesDirectly, getInterpolatedDrones } from '../utils/renderers/droneRenderingUtils';
 import { useFallingTreeAnimations } from '../hooks/useFallingTreeAnimations';
-import { beginProjectileRenderPass, renderProjectile, cleanupProjectileTrackingForDeleted, buildProjectileCollisionCircles, getProjectileTrackingKey } from '../utils/renderers/projectileRenderingUtils';
+import { beginProjectileRenderPass, renderProjectile, cleanupProjectileTrackingForDeleted, buildProjectileCollisionCircles, getProjectileVisualDedupKey } from '../utils/renderers/projectileRenderingUtils';
 import { renderShelter } from '../utils/renderers/shelterRenderingUtils';
 import { setShelterClippingData, setGlobalShadowsEnabled } from '../utils/renderers/shadowUtils';
 import { renderRain } from '../utils/renderers/rainRenderingUtils';
@@ -218,6 +218,7 @@ import { useViewportSync } from '../hooks/useViewportSync';
 import { useRemotePlayerInterpolation } from '../hooks/useRemotePlayerInterpolation';
 import { useEngineFrameLoop } from '../engine/react/useEngineFrameLoop';
 import { useRuntimeFrameBridge } from '../engine/react/useRuntimeFrameBridge';
+import { recordProjectileDebugEvent } from '../utils/projectileDebug';
 import { runtimeEngine } from '../engine/runtimeEngine';
 
 // Import cut grass effect renderer
@@ -1025,7 +1026,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const lookup = new Map<string, boolean>();
     if (visibleWorldTiles) {
       visibleWorldTiles.forEach(tile => {
-        lookup.set(`${tile.worldX},${tile.worldY}`, isOceanTileTag(tile.tileType?.tag));
+        lookup.set(`${tile.worldX},${tile.worldY}`, isWaterTileTag(tile.tileType?.tag));
       });
     }
     return lookup;
@@ -1034,7 +1035,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const lookup = new Map<string, boolean>();
     if (!connection || !visibleWorldTiles) return lookup;
     const isLandAtShore = (t: string | null) => t === 'Beach' || t === 'Asphalt';
-    const isShoreWater = (t: string | null) => isWaterTileTag(t);
+    const isShoreWater = (t: string | null) => isOceanTileTag(t);
     visibleWorldTiles.forEach(tile => {
       const tx = tile.worldX;
       const ty = tile.worldY;
@@ -1246,14 +1247,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     maskCanvasRef,
     frameVisibility,
   });
-
-  // Cleanup projectile tracking for deleted projectiles (player, hostile, turret - all types)
-  // Prevents unbounded Map growth during long combat sessions
-  useEffect(() => {
-    const ids = new Set<string>();
-    projectiles.forEach((projectile) => ids.add(getProjectileTrackingKey(projectile)));
-    cleanupProjectileTrackingForDeleted(ids);
-  }, [projectiles]);
 
   // Filter shipwreck parts from unified monument parts (for night lights rendering)
   const shipwreckPartsMap = useMemo(() => {
@@ -1601,6 +1594,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     optimisticProjectiles,
     localPlayerId: localPlayer?.identity?.toHexString(),
   });
+
+  // Cleanup projectile tracking using the actual renderable set so optimistic ->
+  // authoritative handoffs do not purge timing state mid-flight.
+  useEffect(() => {
+    const ids = new Set<string>();
+    renderableProjectiles.forEach((projectile) => ids.add(getProjectileVisualDedupKey(projectile)));
+    cleanupProjectileTrackingForDeleted(ids);
+  }, [renderableProjectiles]);
 
   const corpseSourceAnimalIds = useMemo(() => {
     const ids = new Set<string>();
@@ -2852,7 +2853,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         if (equipment && equipment.equippedItemDefId) {
           const resolvedItemDef = itemDefinitions.get(equipment.equippedItemDefId.toString()) || null;
           if (isLocalTopHalf) {
-            // Keep local swimming top-half held-item visuals responsive on instant equips.
             itemDef = resolvedItemDef;
             itemImg = (resolvedItemDef ? itemImagesRef.current.get(resolvedItemDef.iconAssetName) : null) || null;
           } else if (equipment.equippedItemInstanceId) {

@@ -2109,11 +2109,9 @@ export const useSpacetimeTables = ({
             const currentInitialSubs = setupGameplayConnection({
                 connection,
                 tableBindings,
-                onFirePatchCacheHydrated: (existingFirePatches) => {
-                    if (existingFirePatches.length === 0) {
-                        return;
-                    }
-
+            });
+            const existingFirePatches = Array.from(connection.db.fire_patch.iter());
+            if (existingFirePatches.length > 0) {
                 setFirePatches(prev => {
                     const newMap = new Map(prev);
                     existingFirePatches.forEach(fp => {
@@ -2122,8 +2120,7 @@ export const useSpacetimeTables = ({
                     });
                     return newMap;
                 });
-                },
-            });
+            }
             gameplaySubscriptionsRuntime.replaceNonSpatialHandles(currentInitialSubs);
             gameplaySubscriptionsRuntime.markConnectionSetupComplete();
         }

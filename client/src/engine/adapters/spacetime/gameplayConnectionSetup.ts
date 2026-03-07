@@ -1,5 +1,4 @@
 import type { DbConnection } from '../../../generated';
-import type { FirePatch } from '../../../generated/types';
 import {
   subscribeNonSpatialQueries,
   type NonSpatialSubscriptionSpec,
@@ -71,6 +70,7 @@ const GAMEPLAY_TABLE_REGISTRATIONS = [
   'water_patch',
   'fertilizer_patch',
   'fire_patch',
+  'placed_explosive',
   'wild_animal',
   'animal_corpse',
   'caribou_breeding_data',
@@ -98,7 +98,7 @@ const GAMEPLAY_TABLE_REGISTRATIONS = [
   'memory_grid_progress',
 ] as const;
 
-type GameplayTableName = (typeof GAMEPLAY_TABLE_REGISTRATIONS)[number] | 'placed_explosive';
+type GameplayTableName = (typeof GAMEPLAY_TABLE_REGISTRATIONS)[number];
 
 type GameplayNonSpatialSubscriptionDefinition = {
   query: string;
@@ -208,19 +208,37 @@ export type GameplayTableBindings = Record<GameplayTableName, TableEventHandlers
 interface SetupGameplayConnectionOptions {
   connection: DbConnection;
   tableBindings: GameplayTableBindings;
-  onFirePatchCacheHydrated: (firePatches: FirePatch[]) => void;
 }
 
-function registerTableCallbacks(table: any, handlers: TableEventHandlers): void {
+function registerTableCallbacks(table: any, handlers: TableEventHandlers): SubscriptionHandle[] {
+  const cleanupHandles: SubscriptionHandle[] = [];
+
   if (handlers.onInsert) {
     table.onInsert(handlers.onInsert);
+    cleanupHandles.push({
+      unsubscribe: () => {
+        table.removeOnInsert?.(handlers.onInsert);
+      },
+    });
   }
   if (handlers.onUpdate) {
     table.onUpdate(handlers.onUpdate);
+    cleanupHandles.push({
+      unsubscribe: () => {
+        table.removeOnUpdate?.(handlers.onUpdate);
+      },
+    });
   }
   if (handlers.onDelete) {
     table.onDelete(handlers.onDelete);
+    cleanupHandles.push({
+      unsubscribe: () => {
+        table.removeOnDelete?.(handlers.onDelete);
+      },
+    });
   }
+
+  return cleanupHandles;
 }
 
 function toSubscriptionSpec(spec: GameplayNonSpatialSubscriptionDefinition): NonSpatialSubscriptionSpec {
@@ -242,9 +260,9 @@ function toSubscriptionSpec(spec: GameplayNonSpatialSubscriptionDefinition): Non
 export function setupGameplayConnection({
   connection,
   tableBindings,
-  onFirePatchCacheHydrated,
 }: SetupGameplayConnectionOptions): SubscriptionHandle[] {
   const dbTables = connection.db as Record<string, any>;
+  const cleanupHandles: SubscriptionHandle[] = [];
 
   for (const tableName of GAMEPLAY_TABLE_REGISTRATIONS) {
     const table = dbTables[tableName];
@@ -252,30 +270,15 @@ export function setupGameplayConnection({
       console.error(`[GameplayConnectionSetup] Missing required gameplay table: ${tableName}`);
       continue;
     }
-    registerTableCallbacks(table, tableBindings[tableName]);
-  }
-
-  console.log('[FIRE_PATCH] Checking for existing fire patches in cache...');
-  const existingFirePatches = Array.from(connection.db.fire_patch.iter());
-  if (existingFirePatches.length > 0) {
-    console.log(`[FIRE_PATCH] Found ${existingFirePatches.length} existing fire patches in cache, adding to state`);
-  } else {
-    console.log('[FIRE_PATCH] No existing fire patches found in cache');
-  }
-  onFirePatchCacheHydrated(existingFirePatches);
-
-  console.log('[EXPLOSIVE_CALLBACKS] Registering PlacedExplosive callbacks...');
-  console.log('[EXPLOSIVE_CALLBACKS] connection.db.placed_explosive exists:', !!connection.db.placed_explosive);
-  if (connection.db.placed_explosive) {
-    registerTableCallbacks(connection.db.placed_explosive, tableBindings.placed_explosive);
-    console.log('[EXPLOSIVE_CALLBACKS] PlacedExplosive callbacks registered!');
-  } else {
-    console.error('[EXPLOSIVE_CALLBACKS] ERROR: connection.db.placed_explosive is undefined!');
+    cleanupHandles.push(...registerTableCallbacks(table, tableBindings[tableName]));
   }
 
   const gameplayNonSpatialSpecs = GAMEPLAY_NON_SPATIAL_SUBSCRIPTIONS
     .filter((spec) => !UI_ONLY_NON_SPATIAL_QUERIES.has(spec.query))
     .map(toSubscriptionSpec);
 
-  return subscribeNonSpatialQueries(connection, gameplayNonSpatialSpecs);
+  return [
+    ...cleanupHandles,
+    ...subscribeNonSpatialQueries(connection, gameplayNonSpatialSpecs),
+  ];
 }
