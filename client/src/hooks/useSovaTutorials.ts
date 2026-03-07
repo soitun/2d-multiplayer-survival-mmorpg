@@ -384,6 +384,9 @@ export function useSovaTutorials({
         return seenTutorialIds.includes(tutorialId);
     }, [seenTutorialIds]);
 
+    // Stable key for effect deps: only changes when the actual set of seen IDs changes, not on reference churn
+    const seenTutorialIdsKey = seenTutorialIds === undefined ? '__undefined__' : seenTutorialIds.join(',');
+
     // Track if component is mounted to avoid state updates after unmount
     const isMountedRef = useRef(true);
     
@@ -428,7 +431,7 @@ export function useSovaTutorials({
         }
         
         // Skip if server says player has already seen the intro
-        if (hasSeenTutorial(TUTORIALS.crashIntro.id)) {
+        if (seenTutorialIds!.includes(TUTORIALS.crashIntro.id)) {
             console.log('[SovaTutorials] 🚢 Server confirms intro already seen, skipping');
             hasTriggeredIntroThisSession.current = true;
             return;
@@ -489,7 +492,7 @@ export function useSovaTutorials({
         }, delayMs);
 
         return () => clearTimeout(timer);
-    }, [localPlayerId, seenTutorialIds, hasSeenTutorial, showSovaSoundBoxRef, sovaMessageAdderRef, onMarkTutorialSeen, onSovaError]);
+    }, [localPlayerId, seenTutorialIdsKey, showSovaSoundBoxRef, sovaMessageAdderRef, onMarkTutorialSeen, onSovaError]);
 
     // ========================================================================
     // Part 2: SOVA Tutorial Hint (3.5 minutes after spawn)
@@ -505,12 +508,12 @@ export function useSovaTutorials({
         }
         
         // Skip if server says already seen
-        if (hasSeenTutorial(TUTORIALS.tutorialHint.id)) {
+        if (seenTutorialIds.includes(TUTORIALS.tutorialHint.id)) {
             return;
         }
         
         // Skip if returning player (intro seen) - tutorial hint is for brand new players only
-        if (hasSeenTutorial(TUTORIALS.crashIntro.id)) {
+        if (seenTutorialIds.includes(TUTORIALS.crashIntro.id)) {
             return;
         }
 
@@ -547,7 +550,7 @@ export function useSovaTutorials({
         }, delayMs);
 
         return () => clearTimeout(timer);
-    }, [localPlayerId, seenTutorialIds, hasSeenTutorial, showSovaSoundBoxRef, sovaMessageAdderRef, onMarkTutorialSeen, onSovaError]);
+    }, [localPlayerId, seenTutorialIdsKey, showSovaSoundBoxRef, sovaMessageAdderRef, onMarkTutorialSeen, onSovaError]);
 
     // ========================================================================
     // Part 3: Memory Shard Tutorial (Event-driven)
