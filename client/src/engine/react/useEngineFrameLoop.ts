@@ -4,7 +4,7 @@ import type { RuntimeEngineConfig } from '../types';
 import { runtimeEngine } from '../runtimeEngine';
 
 export function useEngineFrameLoop(
-  callback: (frameInfo: FrameInfo) => void,
+  callback: ((frameInfo: FrameInfo) => void) | null,
   config: RuntimeEngineConfig
 ): void {
   const callbackRef = useRef(callback);
@@ -15,7 +15,7 @@ export function useEngineFrameLoop(
 
   useEffect(() => {
     runtimeEngine.setFrameCallback((frameInfo) => {
-      callbackRef.current(frameInfo);
+      callbackRef.current?.(frameInfo);
     });
     runtimeEngine.start(config);
 

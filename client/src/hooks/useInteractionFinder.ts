@@ -19,7 +19,7 @@
  *    animal, cairn, etc.) with type-specific distance and validity checks.
  */
 
-import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import { DbConnection } from '../generated';
 import {
     Player as SpacetimeDBPlayer,
@@ -152,6 +152,7 @@ interface UseInteractionFinderProps {
 // Define the hook's return type
 
 interface UseInteractionFinderResult {
+    updateInteractionResult?: () => void;
     // Single closest target across all types
     closestInteractableTarget: InteractableTarget | null;
     
@@ -184,8 +185,6 @@ interface UseInteractionFinderResult {
 const NUM_BOX_SLOTS = 18;
 const NUM_LARGE_BOX_SLOTS = 48;
 const BOX_TYPE_LARGE = 1;
-
-const INTERACTION_CHECK_INTERVAL = 16; // ms - Reduced for immediate responsiveness (was 100ms)
 
 // --- Locally Defined Interaction Distance Constants (formerly in gameConfig.ts) ---
 // PLAYER_BOX_INTERACTION_DISTANCE_SQUARED is now imported from woodenStorageBoxRenderingUtils
@@ -1311,35 +1310,9 @@ export function useInteractionFinder({
         }
     }, [localPlayer, playerPositionOverride, getCurrentPlayerPosition, harvestableResources, campfires, furnaces, barbecues, fumaroles, lanterns, homesteadHearths, droppedItems, woodenStorageBoxes, playerCorpses, stashes, rainCollectors, sleepingBags, players, shelters, inventoryItems, itemDefinitions, connection, playerDrinkingCooldowns, doors, alkStations, cairns, worldTiles, wildAnimals, caribouBreedingData, walrusBreedingData, worldState]);
 
-    // Store callback in ref to avoid RAF loop restart on callback recreation
-    const updateCallbackRef = useRef(updateInteractionResult);
-    updateCallbackRef.current = updateInteractionResult;
-
-    useEffect(() => {
-        // Run interaction scans at ~30Hz (every 2nd frame) for snappier pickup/harvest targeting.
-        // This keeps scan cost lower than full-rate while reducing "press E but nothing happens" feel.
-        let animationFrameId: number | null = null;
-        let frameSkip = 0;
-        
-        const updateLoop = () => {
-            if (++frameSkip % 2 === 0) {
-                updateCallbackRef.current();
-            }
-            animationFrameId = requestAnimationFrame(updateLoop);
-        };
-        
-        // Start the update loop
-        animationFrameId = requestAnimationFrame(updateLoop);
-        
-        return () => {
-            if (animationFrameId !== null) {
-                cancelAnimationFrame(animationFrameId);
-            }
-        };
-    }, []); // Empty deps - loop starts once and never restarts
-
     const r = resultRef.current;
     return {
+        updateInteractionResult,
         closestInteractableTarget: r.closestInteractableTarget,
         closestInteractableHarvestableResourceId: r.closestInteractableHarvestableResourceId,
         closestInteractableCampfireId: r.closestInteractableCampfireId,

@@ -304,6 +304,7 @@ export const useInputHandler = ({
     const [isActivelyHolding, setIsActivelyHolding] = useState<boolean>(false);
     // Use ref for jump offset to avoid re-renders every frame
     const currentJumpOffsetYRef = useRef<number>(0);
+    const lastSyncedJumpOffsetYRef = useRef<number>(0);
 
     const lastMovementDirectionRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 1 });
     const movementDirectionRef = useLatest(movementDirection);
@@ -376,10 +377,6 @@ export const useInputHandler = ({
     }, [isActivelyHolding]);
 
     useEffect(() => {
-        runtimeEngine.updateInputState('currentJumpOffsetY', currentJumpOffsetYRef.current);
-    });
-
-    useEffect(() => {
         runtimeEngine.updateInputState('optimisticProjectiles', optimisticProjectiles as Map<string, unknown>);
     }, [optimisticProjectiles]);
 
@@ -388,6 +385,14 @@ export const useInputHandler = ({
         runtimeEngine.updateUiState('showUpgradeRadialMenu', showUpgradeRadialMenu);
         runtimeEngine.updateUiState('radialMenuMouse', { x: radialMenuMouseX, y: radialMenuMouseY });
     }, [showBuildingRadialMenu, showUpgradeRadialMenu, radialMenuMouseX, radialMenuMouseY]);
+
+    const syncCurrentJumpOffsetToEngine = useCallback(() => {
+        if (lastSyncedJumpOffsetYRef.current === currentJumpOffsetYRef.current) {
+            return;
+        }
+        lastSyncedJumpOffsetYRef.current = currentJumpOffsetYRef.current;
+        runtimeEngine.updateInputState('currentJumpOffsetY', currentJumpOffsetYRef.current);
+    }, []);
 
     // --- Effect to reset sprint state if player dies --- 
     useEffect(() => {
@@ -2566,6 +2571,7 @@ export const useInputHandler = ({
         // Input is disabled if the player is dead
         // Do not process any game-related input if disabled
         if (isInputDisabledState) {
+            syncCurrentJumpOffsetToEngine();
             return; // Early return - player is dead, skip all input processing
         }
 
@@ -2584,6 +2590,7 @@ export const useInputHandler = ({
             if (isAutoAttacking && !currentLocalPlayer?.isDead && !placementInfo && !isFishing) {
                 attemptSwing();
             }
+            syncCurrentJumpOffsetToEngine();
             return;
         }
 
@@ -2597,6 +2604,7 @@ export const useInputHandler = ({
         const hasCombatOrUseAction = isMouseDownRef.current || isAutoAttacking;
         if (!hasJumpAnimation && !hasActiveInteraction && !hasCombatOrUseAction) {
             if (currentJumpOffsetYRef.current !== 0) currentJumpOffsetYRef.current = 0;
+            syncCurrentJumpOffsetToEngine();
             return;
         }
 
@@ -2639,6 +2647,7 @@ export const useInputHandler = ({
             currentJumpOffsetYRef.current = 0;
         }
         // --- End Jump Offset Calculation ---
+        syncCurrentJumpOffsetToEngine();
 
         // Handle continuous swing check (removed movement tracking for weapons)
         // NOTE: Continuous swing (holding left mouse) now works regardless of inventory UI state
@@ -2679,7 +2688,8 @@ export const useInputHandler = ({
         localPlayerId, localPlayer, activeEquipments, worldMousePos, connection,
         closestInteractableTarget, onSetInteractingWith,
         isChatting, isSearchingCraftRecipes, setIsMinimapOpen, isInventoryOpen,
-        isAutoAttacking, isFishing, movementDirection, isActivelyHolding, interactionProgress
+        isAutoAttacking, isFishing, movementDirection, isActivelyHolding, interactionProgress,
+        syncCurrentJumpOffsetToEngine
     ]);
 
     // Helper function to check if an item is throwable

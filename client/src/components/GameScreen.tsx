@@ -113,11 +113,10 @@ import { useEntrainmentSovaSounds } from '../hooks/useEntrainmentSovaSounds';
 
 // Import other necessary imports
 import { useInteractionManager } from '../hooks/useInteractionManager';
-import { useWorldChunkDataMap, createIsWaterTile } from '../hooks/useWorldChunkDataMap';
+import { createIsWaterTile } from '../hooks/useWorldChunkDataMap';
 import { useSovaTutorials } from '../hooks/useSovaTutorials';
 import { useQuestNotifications } from '../hooks/useQuestNotifications';
 import { useMusicSystem } from '../hooks/useMusicSystem';
-import { useUISubscriptions } from '../hooks/useUISubscriptions';
 import { useEngineSnapshot } from '../engine/react/useEngineSnapshot';
 
 // Import debug context
@@ -448,8 +447,6 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
         showSovaSoundBox,
     } = props;
 
-    // Keep the existing subscription hook active, but consume UI state from engine snapshot selectors.
-    useUISubscriptions(connection);
     const uiTables = useEngineSnapshot((snapshot) => snapshot.ui.uiTables);
     const messages = (uiTables.messages as Map<string, any>) ?? new Map();
     const playerPins = (uiTables.playerPins as Map<string, any>) ?? new Map();
@@ -470,7 +467,9 @@ const GameScreen: React.FC<GameScreenProps> = (props) => {
     const gameCanvasRef = useRef<HTMLCanvasElement>(null);
 
     // O(1) chunk Map for water tile detection (fishing, etc.) - avoids O(n) iteration over all chunks
-    const worldChunkDataMap = useWorldChunkDataMap(connection);
+    const worldChunkDataMap = useEngineSnapshot(
+        (snapshot) => snapshot.world.chunkDataMap as Map<string, any> | null
+    ) ?? undefined;
     const isWaterTile = useMemo(
         () => createIsWaterTile(worldChunkDataMap),
         [worldChunkDataMap]

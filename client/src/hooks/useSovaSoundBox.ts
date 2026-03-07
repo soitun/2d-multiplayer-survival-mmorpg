@@ -35,6 +35,11 @@ declare global {
     __SOVA_SOUNDBOX_IS_PLAYING__?: () => boolean;
     __SOVA_SOUNDBOX_AUDIO_REF__?: HTMLAudioElement | null;
     __SOVA_SOUNDBOX_IS_ACTIVE__?: boolean; // Flag set immediately when showSovaSoundBox is called
+    __CYBERPUNK_LOADING_SOVA_STATE__?: {
+      hasStarted: boolean;
+      active: boolean;
+      currentAudio: HTMLAudioElement | null;
+    };
   }
 }
 
@@ -108,8 +113,8 @@ export interface SovaSoundState {
 
 /** Options for showSovaSoundBox - intro cannot be interrupted by other SOVA audio */
 export interface SovaSoundBoxOptions {
-  /** When 'intro', this audio cannot be interrupted - other tutorials will be skipped until it ends */
-  priority?: 'intro';
+  /** 'intro' is non-interruptable, while 'loading' yields to regular gameplay tutorials. */
+  priority?: 'intro' | 'loading';
   /** Called when this audio finishes playing */
   onEnded?: () => void;
   /** When true, play audio without showing the SovaSoundBox UI (e.g. loading screen sequence) */
@@ -135,6 +140,9 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
   const introPlayingRef = useRef(false);
   const introOnEndedRef = useRef<(() => void) | null>(null);
   const genericOnEndedRef = useRef<(() => void) | null>(null);
+  const currentPriorityRef = useRef<'normal' | 'intro' | 'loading'>('normal');
+  const cleanupAudioRef = useRef<HTMLAudioElement | null>(null);
+  const cleanupHandlerRef = useRef<(() => void) | null>(null);
 
   // Expose global function to check if SOVA is playing
   // This allows achievement/level up/mission notifications to check before playing
@@ -154,6 +162,10 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
 
     return () => {
       // Clean up on unmount
+      if (cleanupAudioRef.current && cleanupHandlerRef.current) {
+        cleanupAudioRef.current.removeEventListener('ended', cleanupHandlerRef.current);
+        cleanupAudioRef.current.removeEventListener('error', cleanupHandlerRef.current);
+      }
       delete window.__SOVA_SOUNDBOX_IS_PLAYING__;
       delete window.__SOVA_SOUNDBOX_AUDIO_REF__;
       window.__SOVA_SOUNDBOX_IS_ACTIVE__ = false;
@@ -165,21 +177,50 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
     window.__SOVA_SOUNDBOX_AUDIO_REF__ = audioRef.current;
   }, [soundState]);
 
+  const detachAudioCleanup = useCallback(() => {
+    if (cleanupAudioRef.current && cleanupHandlerRef.current) {
+      cleanupAudioRef.current.removeEventListener('ended', cleanupHandlerRef.current);
+      cleanupAudioRef.current.removeEventListener('error', cleanupHandlerRef.current);
+    }
+    cleanupAudioRef.current = null;
+    cleanupHandlerRef.current = null;
+  }, []);
+
+  const clearLoadingScreenAudioStateIfNeeded = useCallback((audio: HTMLAudioElement | null) => {
+    if (!audio) return;
+
+    const loadingState = window.__CYBERPUNK_LOADING_SOVA_STATE__;
+    if (loadingState?.currentAudio === audio) {
+      loadingState.active = false;
+      loadingState.currentAudio = null;
+    }
+  }, []);
+
   const showSovaSoundBox = useCallback((audio: HTMLAudioElement, label: string = 'SOVA', options?: SovaSoundBoxOptions) => {
     const hideUI = options?.hideUI === true;
+    const requestedPriority = options?.priority ?? 'normal';
     // SOVA INTRO IS NON-INTERRUPTABLE: If intro is playing, skip any other SOVA audio
     // This prevents quest complete, memory shard tutorial, etc. from cutting off the crash intro
-    if (introPlayingRef.current && options?.priority !== 'intro') {
+    if (introPlayingRef.current && requestedPriority !== 'intro') {
       console.log('[SovaSoundBox] ⏸️ Skipping - SOVA intro is playing and cannot be interrupted');
       return;
     }
 
+    const activeAudio = audioRef.current;
+    const isCurrentlyPlaying = !!activeAudio && !activeAudio.paused && !activeAudio.ended;
+    const currentPriority = currentPriorityRef.current;
+    const interruptingLoadingAudio =
+      isCurrentlyPlaying && currentPriority === 'loading' && requestedPriority !== 'loading';
+
     // If SOVA is already playing (non-intro), skip - don't queue. The tutorial will trigger again
     // when the player returns to that event/location and no other tutorial is playing.
-    const isCurrentlyPlaying = audioRef.current && !audioRef.current.paused && !audioRef.current.ended;
-    if (isCurrentlyPlaying && options?.priority !== 'intro') {
+    if (isCurrentlyPlaying && requestedPriority !== 'intro' && !interruptingLoadingAudio) {
       console.log(`[SovaSoundBox] ⏸️ Skipping ${label} - another tutorial is playing`);
       return;
+    }
+
+    if (interruptingLoadingAudio) {
+      console.log(`[SovaSoundBox] ▶ Interrupting loading audio with ${label}`);
     }
 
     // CRITICAL: Set active flag IMMEDIATELY before any async operations
@@ -192,20 +233,25 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
     stopNotificationSound();
     
     // Stop any existing SovaSoundBox audio first (unless we're the intro replacing something - shouldn't happen)
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+    if (activeAudio) {
+      detachAudioCleanup();
+      if (currentPriority === 'loading') {
+        clearLoadingScreenAudioStateIfNeeded(activeAudio);
+      }
+      activeAudio.pause();
+      activeAudio.currentTime = 0;
     }
 
     // Track intro state for non-interruptable behavior
-    if (options?.priority === 'intro') {
+    if (requestedPriority === 'intro') {
       introPlayingRef.current = true;
-      introOnEndedRef.current = options.onEnded ?? null;
+      introOnEndedRef.current = options?.onEnded ?? null;
       genericOnEndedRef.current = null;
     } else {
       introOnEndedRef.current = null;
       genericOnEndedRef.current = options?.onEnded ?? null;
     }
+    currentPriorityRef.current = requestedPriority;
 
     // Loading screen now uses SovaSoundBox - showSovaSoundBox replaces current audio,
     // so no separate stop call needed
@@ -216,10 +262,9 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
     // Set up event listener to clear the active flag when audio ends
     const clearActiveFlag = () => {
       window.__SOVA_SOUNDBOX_IS_ACTIVE__ = false;
-      audio.removeEventListener('ended', clearActiveFlag);
-      audio.removeEventListener('error', clearActiveFlag);
+      detachAudioCleanup();
       // If this was the intro, clear intro state and call onEnded (e.g. mark intro as seen on server)
-      if (introPlayingRef.current) {
+      if (currentPriorityRef.current === 'intro') {
         introPlayingRef.current = false;
         introOnEndedRef.current?.();
         introOnEndedRef.current = null;
@@ -227,7 +272,11 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
       // Call generic onEnded (e.g. loading screen sequence: play next clip)
       genericOnEndedRef.current?.();
       genericOnEndedRef.current = null;
+      currentPriorityRef.current = 'normal';
+      clearLoadingScreenAudioStateIfNeeded(audio);
     };
+    cleanupAudioRef.current = audio;
+    cleanupHandlerRef.current = clearActiveFlag;
     audio.addEventListener('ended', clearActiveFlag);
     audio.addEventListener('error', clearActiveFlag);
     
@@ -236,20 +285,28 @@ export function useSovaSoundBox(): UseSovaSoundBoxReturn {
       label,
       isVisible: !hideUI,
     });
-  }, []);
+  }, [clearLoadingScreenAudioStateIfNeeded, detachAudioCleanup]);
 
   const hideSovaSoundBox = useCallback(() => {
     // Clear the active flag when hiding
     window.__SOVA_SOUNDBOX_IS_ACTIVE__ = false;
+    detachAudioCleanup();
     
     if (audioRef.current) {
+      if (currentPriorityRef.current === 'loading') {
+        clearLoadingScreenAudioStateIfNeeded(audioRef.current);
+      }
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
+    introPlayingRef.current = false;
+    introOnEndedRef.current = null;
+    genericOnEndedRef.current = null;
+    currentPriorityRef.current = 'normal';
     audioRef.current = null;
     window.__SOVA_SOUNDBOX_AUDIO_REF__ = null;
     setSoundState(null);
-  }, []);
+  }, [clearLoadingScreenAudioStateIfNeeded, detachAudioCleanup]);
 
   /** Reveal the SOVA sound box UI when it was shown with hideUI (e.g. loading screen → game) */
   const revealSovaSoundBoxUI = useCallback(() => {

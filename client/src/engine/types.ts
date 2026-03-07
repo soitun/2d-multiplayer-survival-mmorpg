@@ -68,3 +68,17 @@ export interface RuntimeEngineConfig {
   enableProfiling?: boolean;
 }
 
+export interface RuntimeFramePipelineConfig {
+  fixedSimulationEnabled: boolean;
+  fixedSimulationDtMs: number;
+  maxSimulationStepsPerFrame: number;
+}
+
+export interface RuntimeFramePipeline {
+  prepareFrame?: (frameInfo: FrameInfo) => void;
+  processInputs?: () => void;
+  stepSimulation?: (dtMs: number) => void;
+  renderFrame?: (renderAlpha: number) => void;
+  getConfig?: () => RuntimeFramePipelineConfig;
+}
+

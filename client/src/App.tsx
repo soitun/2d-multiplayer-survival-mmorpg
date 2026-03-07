@@ -82,6 +82,7 @@ import { filterVisibleEntities, filterVisibleTrees } from './utils/entityFilteri
 import { resetBrothEffectsState } from './utils/renderers/brothEffectsOverlayUtils';
 import { resetInsanityState } from './utils/renderers/insanityOverlayUtils';
 import { runtimeEngine } from './engine/runtimeEngine';
+import { useRuntimeBootstrap } from './engine/react/useRuntimeBootstrap';
 
 // Graceful error boundary that logs errors but doesn't crash the app
 class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: any; hasError: boolean }> {
@@ -131,6 +132,7 @@ function AppContent() {
         registerPlayer,
         retryConnection,
     } = useGameConnection();
+    useRuntimeBootstrap(connection);
 
     // --- Player Actions ---
     const {

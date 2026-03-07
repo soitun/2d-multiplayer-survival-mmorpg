@@ -29,13 +29,13 @@ import {
 } from '../generated/types';
 import { DbConnection} from '../generated';
 import { Identity } from 'spacetimedb';
-import { getChunkIndicesForViewportWithBuffer } from '../utils/chunkUtils';
 import { gameConfig } from '../config/gameConfig';
 import { triggerExplosionEffect } from '../utils/renderers/explosiveRenderingUtils';
 import { triggerAnimalCorpseDestructionEffect } from '../utils/renderers/animalCorpseRenderingUtils';
 import { triggerBarrelDestructionEffect } from '../utils/renderers/barrelRenderingUtils';
 import { runtimeEngine } from '../engine/runtimeEngine';
 import { useEngineWorldTableState } from '../engine/react/useEngineStoreState';
+import { gameplaySubscriptionsRuntime } from '../engine/runtime/gameplaySubscriptionsRuntime';
 import { recordProjectileDebugEvent } from '../utils/projectileDebug';
 import { subscribeNonSpatialQueries } from '../engine/adapters/spacetime/nonSpatialSubscriptions';
 import { subscribeChunkBatches } from '../engine/adapters/spacetime/spatialSubscriptions';
@@ -53,12 +53,6 @@ const ENABLE_CLOUDS = true; // Controls cloud spatial subscriptions
 // Performance tuning flags.
 const GRASS_PERFORMANCE_MODE = true; // If enabled, only subscribe to healthy grass (reduces update volume)
 
-// Chunk optimization flags.
-const CHUNK_BUFFER_SIZE = 1; // Buffer radius in chunk units around viewport.
-const CHUNK_UNSUBSCRIBE_DELAY_MS = 3000; // How long to keep chunks after leaving them (prevents rapid re-sub/unsub)
-
-// Adaptive throttling based on movement patterns.
-const MIN_CHUNK_UPDATE_INTERVAL_MS = 100; // Base throttling interval (reduced from 150ms)
 // Batched subscription optimization.
 const ENABLE_BATCHED_SUBSCRIPTIONS = true; // Combines similar tables into batched queries for massive performance gains
 
@@ -69,10 +63,6 @@ let hasDispatchedHostileEncounterEvent = false;
 // Toggle ENABLE_BATCHED_SUBSCRIPTIONS to compare:
 // - true:  ~3 batched calls per chunk (recommended for production)
 // - false: ~12 individual calls per chunk (legacy approach, for debugging only)
-
-// Chunk update throttling to prevent rapid subscription churn.
-const CHUNK_UPDATE_THROTTLE_MS = 150; // Minimum time between chunk updates (prevents spam and rapid re-subscriptions)
-const CHUNK_SUBSCRIBE_BATCH_SIZE = 1; // 1 chunk per frame (~8ms each) - keeps under 16ms budget
 
 // Define the shape of the state returned by the hook
 export interface SpacetimeTableStates {
@@ -347,20 +337,6 @@ export const useSpacetimeTables = ({
     const cancelPlacementRef = useRef(cancelPlacement);
     useEffect(() => { cancelPlacementRef.current = cancelPlacement; }, [cancelPlacement]);
 
-    // Keep viewport in a ref for use in callbacks
-    const viewportRef = useRef(viewport);
-    useEffect(() => { viewportRef.current = viewport; }, [viewport]);
-
-    // Track current chunk indices to avoid unnecessary resubscriptions
-    const currentChunksRef = useRef<number[]>([]);
-
-    // ─── Subscription Management Refs ─────────────────────────────────────────
-    const nonSpatialHandlesRef = useRef<SubscriptionHandle[]>([]);
-    // Spatial subs keyed by chunk index
-    const spatialSubsRef = useRef<Map<number, SubscriptionHandle[]>>(new Map());
-    const subscribedChunksRef = useRef<Set<number>>(new Set());
-    const isSubscribingRef = useRef(false);
-
     const playerDodgeRollStatesRef = useRef<Map<string, SpacetimeDB.PlayerDodgeRollState>>(new Map());
     const playersRef = useRef<Map<string, SpacetimeDB.Player>>(new Map());
     // PERF FIX: Use a global render timestamp instead of per-player.
@@ -370,13 +346,6 @@ export const useSpacetimeTables = ({
     const playerRenderPendingRef = useRef<boolean>(false);
     const playerRenderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Throttle spatial subscription updates to prevent frame drops
-    const lastSpatialUpdateRef = useRef<number>(0);
-    const pendingChunkUpdateRef = useRef<{ chunks: Set<number>; timestamp: number } | null>(null);
-
-    // Hysteresis system for delayed unsubscription
-    const chunkUnsubscribeTimersRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
-
     // Phase 4a: queueMicrotask batching for entity inserts (collapses N Map copies into 1 per microtask)
     const treeBatchRef = useRef<SpacetimeDB.Tree[]>([]);
     const treeFlushScheduledRef = useRef(false);
@@ -384,13 +353,6 @@ export const useSpacetimeTables = ({
     const stoneFlushScheduledRef = useRef(false);
     const campfireBatchRef = useRef<SpacetimeDB.Campfire[]>([]);
     const campfireFlushScheduledRef = useRef(false);
-
-    // Track chunk crossing frequency for lag spike detection
-    const chunkCrossingStatsRef = useRef<{ lastCrossing: number; crossingCount: number; lastResetTime: number }>({
-        lastCrossing: 0,
-        crossingCount: 0,
-        lastResetTime: performance.now()
-    });
 
     // 🧪 CHUNK SIZE PERFORMANCE TESTING: Track metrics for different chunk sizes
     const chunkPerformanceMetricsRef = useRef<{
@@ -581,205 +543,10 @@ export const useSpacetimeTables = ({
         return newHandlesForChunk;
     };
 
-    // ─── processPendingChunkUpdate: Apply viewport changes to spatial subs ───
-    // Hysteresis: delay unsubscription when leaving chunk to avoid rapid re-sub cycles.
-    const processPendingChunkUpdate = () => {
-        const startTime = performance.now();
-        const pending = pendingChunkUpdateRef.current;
-        if (!pending || !connection) return;
-
-        // MASTER SWITCH: Early return if all spatial subscriptions are disabled
-        if (DISABLE_ALL_SPATIAL_SUBSCRIPTIONS) {
-            pendingChunkUpdateRef.current = null;
-            lastSpatialUpdateRef.current = performance.now();
-            return;
-        }
-
-        // Clear pending update
-        pendingChunkUpdateRef.current = null;
-        const now = performance.now();
-        lastSpatialUpdateRef.current = now;
-
-        const newChunkIndicesSet = pending.chunks;
-        const currentChunkIndicesSet = new Set(currentChunksRef.current);
-
-        if (newChunkIndicesSet.size === 0) {
-            // If viewport is empty, ensure all spatial subs are cleaned up
-            if (currentChunkIndicesSet.size > 0) {
-                // Use setTimeout to make cleanup async
-                setTimeout(() => {
-                    for (const chunkIdx of currentChunkIndicesSet) {
-                        const handles = spatialSubsRef.current.get(chunkIdx) || [];
-                        handles.forEach(safeUnsubscribe);
-                    }
-                    spatialSubsRef.current.clear();
-                    currentChunksRef.current = [];
-                }, 0);
-            }
-            return;
-        }
-
-        // Calculate differences only if new chunks are needed
-        const addedChunks = [...newChunkIndicesSet].filter(idx => !currentChunkIndicesSet.has(idx));
-        const removedChunks = [...currentChunkIndicesSet].filter(idx => !newChunkIndicesSet.has(idx));
-
-        // 🧪 PERFORMANCE TRACKING: Track chunk crossings
-        if (ENABLE_CHUNK_PERFORMANCE_LOGGING && (addedChunks.length > 0 || removedChunks.length > 0)) {
-            const metrics = chunkPerformanceMetricsRef.current;
-            const crossingStartTime = performance.now();
-            metrics.totalChunkCrossings++;
-            metrics.chunksVisibleHistory.push(newChunkIndicesSet.size);
-
-            // Keep only last 100 measurements
-            if (metrics.chunksVisibleHistory.length > 100) {
-                metrics.chunksVisibleHistory.shift();
-            }
-
-            // Log periodic summary
-            const timeSinceLastLog = now - metrics.lastMetricsLog;
-            if (timeSinceLastLog >= CHUNK_METRICS_LOG_INTERVAL_MS) {
-                const avgSubscriptionTime = metrics.subscriptionCreationTimes.length > 0
-                    ? metrics.subscriptionCreationTimes.reduce((a, b) => a + b, 0) / metrics.subscriptionCreationTimes.length
-                    : 0;
-                const avgChunksVisible = metrics.chunksVisibleHistory.length > 0
-                    ? metrics.chunksVisibleHistory.reduce((a, b) => a + b, 0) / metrics.chunksVisibleHistory.length
-                    : 0;
-                const maxSubscriptionTime = metrics.subscriptionCreationTimes.length > 0
-                    ? Math.max(...metrics.subscriptionCreationTimes)
-                    : 0;
-
-                // Reset metrics for next interval
-                metrics.totalChunkCrossings = 0;
-                metrics.totalSubscriptionTime = 0;
-                metrics.totalSubscriptionsCreated = 0;
-                metrics.lastMetricsLog = now;
-            }
-
-            // Track this crossing time
-            const crossingTime = performance.now() - crossingStartTime;
-            metrics.chunkCrossingTimes.push(crossingTime);
-            if (metrics.chunkCrossingTimes.length > 100) {
-                metrics.chunkCrossingTimes.shift();
-            }
-        }
-
-        // Only proceed if there are actual changes
-        if (addedChunks.length > 0 || removedChunks.length > 0) {
-
-            // Limit chunk processing to prevent frame drops
-            if (addedChunks.length > 20) {
-                // console.warn(`[CHUNK_PERF] 🎯 PERFORMANCE LIMIT: Reducing ${addedChunks.length} chunks to 20 to prevent lag spike`);
-                addedChunks.splice(20); // Keep only first 20 chunks
-            }
-            // Track chunk crossing frequency for lag detection
-            const now = performance.now();
-            const stats = chunkCrossingStatsRef.current;
-            stats.crossingCount++;
-
-            // Reset counter every 5 seconds
-            if (now - stats.lastResetTime > 5000) {
-                if (stats.crossingCount > 8) { // More than 8 crossings per 5 seconds (with buffer=2, should be reasonable)
-                    console.warn(`[CHUNK_PERF] High chunk crossing frequency: ${stats.crossingCount} crossings in 5 seconds - consider smoother movement or larger buffer!`);
-                }
-                stats.crossingCount = 0;
-                stats.lastResetTime = now;
-            }
-
-            // Detect rapid chunk crossings (potential boundary jitter) - should be rare with buffer=2 and throttling
-            if (now - stats.lastCrossing < MIN_CHUNK_UPDATE_INTERVAL_MS && stats.lastCrossing > 0) {
-                console.warn(`[CHUNK_PERF] ⚡ Rapid chunk crossing detected! ${(now - stats.lastCrossing).toFixed(1)}ms since last crossing (throttling should prevent this)`);
-            }
-            stats.lastCrossing = now;
-
-            // Log chunk changes for debugging with performance timing
-            const chunkCalcTime = performance.now() - startTime;
-            // Only log chunk changes if there are significant changes or performance issues
-            if (addedChunks.length + removedChunks.length > 20 || chunkCalcTime > 2) {
-                console.log(`[CHUNK_BUFFER] Changes: +${addedChunks.length} chunks, -${removedChunks.length} chunks (buffer: ${CHUNK_BUFFER_SIZE}, delay: ${CHUNK_UNSUBSCRIBE_DELAY_MS}ms) [calc: ${chunkCalcTime.toFixed(2)}ms]`);
-            }
-
-            // Make subscription changes async to avoid blocking
-            // --- Handle Removed Chunks with Hysteresis (fast - just scheduling) ---
-            removedChunks.forEach(chunkIndex => {
-                const existingTimer = chunkUnsubscribeTimersRef.current.get(chunkIndex);
-                if (existingTimer) {
-                    clearTimeout(existingTimer);
-                    chunkUnsubscribeTimersRef.current.delete(chunkIndex);
-                }
-                const unsubscribeTimer = setTimeout(() => {
-                    const handles = spatialSubsRef.current.get(chunkIndex);
-                    if (handles) {
-                        console.log(`[CHUNK_BUFFER] Delayed unsubscribe from chunk ${chunkIndex} (${handles.length} subscriptions)`);
-                        handles.forEach(safeUnsubscribe);
-                        spatialSubsRef.current.delete(chunkIndex);
-                        subscribedChunksRef.current.delete(chunkIndex);
-                    }
-                    chunkUnsubscribeTimersRef.current.delete(chunkIndex);
-                }, CHUNK_UNSUBSCRIBE_DELAY_MS);
-                chunkUnsubscribeTimersRef.current.set(chunkIndex, unsubscribeTimer);
-                console.log(`[CHUNK_BUFFER] Scheduled delayed unsubscribe for chunk ${chunkIndex} in ${CHUNK_UNSUBSCRIBE_DELAY_MS}ms`);
-            });
-
-            // --- Handle Added Chunks in batches (spread across frames to stay under 16ms budget) ---
-            let addedIndex = 0;
-            const processAddedBatch = () => {
-                const batchStartIdx = addedIndex;
-                const batchStart = performance.now();
-                const batchEnd = Math.min(addedIndex + CHUNK_SUBSCRIBE_BATCH_SIZE, addedChunks.length);
-                for (; addedIndex < batchEnd; addedIndex++) {
-                    const chunkIndex = addedChunks[addedIndex];
-                    const pendingUnsubTimer = chunkUnsubscribeTimersRef.current.get(chunkIndex);
-                    if (pendingUnsubTimer) {
-                        clearTimeout(pendingUnsubTimer);
-                        chunkUnsubscribeTimersRef.current.delete(chunkIndex);
-                        console.log(`[CHUNK_BUFFER] Cancelled delayed unsubscribe for chunk ${chunkIndex} (chunk came back into viewport)`);
-                        if (spatialSubsRef.current.has(chunkIndex)) continue;
-                    }
-                    if (spatialSubsRef.current.has(chunkIndex)) continue;
-
-                    const subStartTime = performance.now();
-                    console.log(`[CHUNK_BUFFER] Creating new subscriptions for chunk ${chunkIndex} (was pending unsubscribe: ${!!pendingUnsubTimer})`);
-
-                    const newHandlesForChunk = subscribeToChunk(chunkIndex);
-                    if (newHandlesForChunk.length > 0) {
-                        spatialSubsRef.current.set(chunkIndex, newHandlesForChunk);
-                        subscribedChunksRef.current.add(chunkIndex);
-                        const subTime = performance.now() - subStartTime;
-                        const subscriptionMethod = ENABLE_BATCHED_SUBSCRIPTIONS ? 'batched' : 'individual';
-                        const expectedHandles = ENABLE_BATCHED_SUBSCRIPTIONS ? 3 : 12;
-                        if (subTime > 10) {
-                            console.warn(`[CHUNK_PERF] Chunk ${chunkIndex} ${subscriptionMethod} subscriptions took ${subTime.toFixed(2)}ms (${newHandlesForChunk.length}/${expectedHandles} subs)`);
-                        } else if (subTime > 5) {
-                            console.log(`[CHUNK_PERF] Chunk ${chunkIndex} ${subscriptionMethod} subscriptions: ${subTime.toFixed(2)}ms (${newHandlesForChunk.length} subs)`);
-                        }
-                    }
-                }
-
-                const batchTime = performance.now() - batchStart;
-                if (batchTime > 16) {
-                    console.warn(`[CHUNK_PERF] Single batch (${batchEnd - batchStartIdx} chunks) took ${batchTime.toFixed(2)}ms`);
-                }
-                if (addedIndex < addedChunks.length) {
-                    setTimeout(processAddedBatch, 0);
-                } else {
-                    currentChunksRef.current = [...newChunkIndicesSet];
-                }
-            };
-            setTimeout(processAddedBatch, 0);
-        } else {
-            // Log when no-op update is unexpectedly slow
-            const totalTime = performance.now() - startTime;
-            if (totalTime > 5) {
-                console.warn(`[CHUNK_PERF] No-op chunk update took ${totalTime.toFixed(2)}ms (unexpected!)`);
-            }
-        }
-    };
-
-    // ─── Main Effect: Register callbacks + non-spatial subs + spatial subs ─────
-    useEffect(() => {
+    const ensureConnectionSetup = () => {
         // Callback registration and initial non-spatial subscriptions (once per connection)
-        if (connection && !isSubscribingRef.current) {
-            console.log("[useSpacetimeTables] ENTERING main useEffect for callbacks and initial subscriptions.");
+        if (connection && !gameplaySubscriptionsRuntime.isConnectionSetupComplete()) {
+            console.log("[useSpacetimeTables] ENTERING gameplay subscription runtime connection setup.");
 
             // Define table callbacks (insert/update/delete handlers that update React state)
             const upsertMapState = <T,>(setter: Dispatch<SetStateAction<Map<string, T>>>, key: string, value: T) => {
@@ -1740,16 +1507,13 @@ export const useSpacetimeTables = ({
                 const patchChunkIndex = waterPatch.chunkIndex;
 
                 // Check if we're subscribed to this chunk
-                if (!spatialSubsRef.current.has(patchChunkIndex) && connection) {
+                if (!gameplaySubscriptionsRuntime.hasSpatialSubscription(patchChunkIndex) && connection) {
                     // We received a water patch insert but aren't subscribed to its chunk
                     // This can happen if the water patch was created just outside the viewport buffer
                     // Subscribe to this chunk immediately to ensure we receive updates
                     console.log(`[WATER_PATCH] Received water patch insert for chunk ${patchChunkIndex} but not subscribed - subscribing now`);
 
-                    const newHandlesForChunk = subscribeToChunk(patchChunkIndex);
-                    if (newHandlesForChunk.length > 0) {
-                        spatialSubsRef.current.set(patchChunkIndex, newHandlesForChunk);
-                    }
+                    gameplaySubscriptionsRuntime.ensureChunkSubscribed(patchChunkIndex, subscribeToChunk);
                 }
 
                 // Add the water patch to state
@@ -1768,13 +1532,10 @@ export const useSpacetimeTables = ({
                 const patchChunkIndex = fertilizerPatch.chunkIndex;
 
                 // Check if we're subscribed to this chunk
-                if (!spatialSubsRef.current.has(patchChunkIndex) && connection) {
+                if (!gameplaySubscriptionsRuntime.hasSpatialSubscription(patchChunkIndex) && connection) {
                     console.log(`[FERTILIZER_PATCH] Received fertilizer patch insert for chunk ${patchChunkIndex} but not subscribed - subscribing now`);
 
-                    const newHandlesForChunk = subscribeToChunk(patchChunkIndex);
-                    if (newHandlesForChunk.length > 0) {
-                        spatialSubsRef.current.set(patchChunkIndex, newHandlesForChunk);
-                    }
+                    gameplaySubscriptionsRuntime.ensureChunkSubscribed(patchChunkIndex, subscribeToChunk);
                 }
 
                 // Add the fertilizer patch to state
@@ -1796,16 +1557,13 @@ export const useSpacetimeTables = ({
                 console.log(`[FIRE_PATCH] Insert callback: fire patch ${firePatch.id} at chunk ${patchChunkIndex}, pos (${firePatch.posX.toFixed(1)}, ${firePatch.posY.toFixed(1)})`);
 
                 // Check if we're subscribed to this chunk
-                if (!spatialSubsRef.current.has(patchChunkIndex) && connection) {
+                if (!gameplaySubscriptionsRuntime.hasSpatialSubscription(patchChunkIndex) && connection) {
                     // We received a fire patch insert but aren't subscribed to its chunk
                     // This can happen if the fire patch was created just outside the viewport buffer
                     // Subscribe to this chunk immediately to ensure we receive updates
                     console.log(`[FIRE_PATCH] Received fire patch insert for chunk ${patchChunkIndex} but not subscribed - subscribing now`);
 
-                    const newHandlesForChunk = subscribeToChunk(patchChunkIndex);
-                    if (newHandlesForChunk.length > 0) {
-                        spatialSubsRef.current.set(patchChunkIndex, newHandlesForChunk);
-                    }
+                    gameplaySubscriptionsRuntime.ensureChunkSubscribed(patchChunkIndex, subscribeToChunk);
                 }
 
                 // Add the fire patch to state
@@ -1824,8 +1582,8 @@ export const useSpacetimeTables = ({
 
             // Placed Explosive handlers
             const handlePlacedExplosiveInsert = (ctx: any, explosive: SpacetimeDB.PlacedExplosive) => {
-                const subscribedChunks = Array.from(subscribedChunksRef.current).sort((a, b) => a - b);
-                const isChunkSubscribed = subscribedChunksRef.current.has(explosive.chunkIndex);
+                const subscribedChunks = gameplaySubscriptionsRuntime.getSubscribedChunks().sort((a, b) => a - b);
+                const isChunkSubscribed = subscribedChunks.includes(explosive.chunkIndex);
                 console.log(`[EXPLOSIVE INSERT] id=${explosive.id}, type=${explosive.explosiveType.tag}, pos=(${explosive.posX.toFixed(1)}, ${explosive.posY.toFixed(1)}), chunk=${explosive.chunkIndex}`);
                 console.log(`[EXPLOSIVE INSERT] Subscribed chunks: [${subscribedChunks.slice(0, 20).join(', ')}${subscribedChunks.length > 20 ? '...' : ''}] (total: ${subscribedChunks.length})`);
                 console.log(`[EXPLOSIVE INSERT] Chunk ${explosive.chunkIndex} is ${isChunkSubscribed ? 'IN' : 'NOT IN'} subscribed chunks`);
@@ -2527,11 +2285,7 @@ export const useSpacetimeTables = ({
 
             // UI/matronage subscriptions are handled in useUISubscriptions (GameScreen scope).
 
-            isSubscribingRef.current = true;
-
             // --- Create Initial Non-Spatial Subscriptions ---
-            nonSpatialHandlesRef.current.forEach(sub => safeUnsubscribe(sub));
-            nonSpatialHandlesRef.current = [];
 
             // console.log("[useSpacetimeTables] Setting up initial non-spatial subscriptions.");
             type NonSpatialSubscriptionSpec = {
@@ -2663,302 +2417,107 @@ export const useSpacetimeTables = ({
                         ? (err) => console.error(`[${spec.errorLabel} Sub Error]:`, err)
                         : undefined),
             })));
-            nonSpatialHandlesRef.current = currentInitialSubs;
+            gameplaySubscriptionsRuntime.replaceNonSpatialHandles(currentInitialSubs);
+            gameplaySubscriptionsRuntime.markConnectionSetupComplete();
+        }
+    };
+
+    const subscribeGrassForChunk = (chunkIndex: number): SubscriptionHandle[] => {
+        if (!connection) {
+            return [];
         }
 
-        // ─── Spatial subscriptions: subscribe to chunks in viewport + buffer ───
-        if (connection && viewport) {
-            // Guard for invalid viewport values
-            if (isNaN(viewport.minX) || isNaN(viewport.minY) || isNaN(viewport.maxX) || isNaN(viewport.maxY)) {
-                console.warn('[SPATIAL] Viewport contains NaN values, skipping spatial update.', viewport);
-                return;
-            }
-
-            // Check for zero-sized viewport (common on initial load)
-            const viewportWidth = viewport.maxX - viewport.minX;
-            const viewportHeight = viewport.maxY - viewport.minY;
-            if (viewportWidth <= 0 || viewportHeight <= 0) {
-                console.warn('[SPATIAL] Viewport has zero or negative size, skipping spatial update.', {
-                    viewport,
-                    width: viewportWidth,
-                    height: viewportHeight
-                });
-                return;
-            }
-
-            // MASTER SWITCH: Skip spatial subscription logic if all spatial subscriptions are disabled
-            if (DISABLE_ALL_SPATIAL_SUBSCRIPTIONS) {
-                // Clean up any existing spatial subscriptions if they exist
-                if (spatialSubsRef.current.size > 0) {
-                    spatialSubsRef.current.forEach((handles) => {
-                        handles.forEach(safeUnsubscribe);
-                    });
-                    spatialSubsRef.current.clear();
-                    currentChunksRef.current = [];
-                    // Clear any pending unsubscribe timers
-                    chunkUnsubscribeTimersRef.current.forEach(timer => clearTimeout(timer));
-                    chunkUnsubscribeTimersRef.current.clear();
-                }
-                return; // Early return to skip all spatial logic
-            }
-
-            const currentChunks = getChunkIndicesForViewportWithBuffer(viewport, CHUNK_BUFFER_SIZE);
-            const currentChunksKey = currentChunks.sort((a, b) => a - b).join(',');
-            const lastChunksKey = (window as any).lastChunksKey || '';
-
-            if (currentChunksKey !== lastChunksKey && currentChunks.length > 0) {
-                (window as any).lastChunksKey = currentChunksKey;
-            }
-
-            // Separate logic for initial subscription vs. subsequent updates
-            // This prevents race conditions on startup.
-            if (!subscribedChunksRef.current.size) {
-                // --- INITIAL SUBSCRIPTION ---
-                console.log("[SPATIAL] First valid viewport received. Performing initial subscription.", {
-                    viewport,
-                    width: viewportWidth,
-                    height: viewportHeight,
-                    chunks: getChunkIndicesForViewportWithBuffer(viewport, CHUNK_BUFFER_SIZE).length
-                });
-
-                // Ensure any old subscriptions are cleared (shouldn't be any, but for safety)
-                spatialSubsRef.current.forEach((handles) => handles.forEach(safeUnsubscribe));
-                spatialSubsRef.current.clear();
-                chunkUnsubscribeTimersRef.current.forEach(timer => clearTimeout(timer));
-                chunkUnsubscribeTimersRef.current.clear();
-
-                const newChunkIndicesSet = new Set(getChunkIndicesForViewportWithBuffer(viewport, CHUNK_BUFFER_SIZE));
-
-                // Use a helper to subscribe without diffing logic
-                const subscribeToInitialChunks = (chunksToSub: number[]) => {
-                    chunksToSub.forEach(chunkIndex => {
-                        // This is the same logic from processPendingChunkUpdate, but called directly
-                        const newHandlesForChunk: SubscriptionHandle[] = [];
-                        try {
-                            if (ENABLE_BATCHED_SUBSCRIPTIONS) {
-                                const resourceQueries = [
-                                    `SELECT * FROM tree WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM stone WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM rune_stone WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM cairn WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM harvestable_resource WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM campfire WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM barbecue WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM furnace WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM lantern WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM turret WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM homestead_hearth WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM broth_pot WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM wooden_storage_box WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM dropped_item WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM rain_collector WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM water_patch WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM fertilizer_patch WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM fire_patch WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM placed_explosive WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM wild_animal WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM planted_seed WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM barrel WHERE chunk_index = ${chunkIndex}`, `SELECT * FROM sea_stack WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM foundation_cell WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM wall_cell WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM door WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM fence WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM fumarole WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM basalt_column WHERE chunk_index = ${chunkIndex}`,
-                                    `SELECT * FROM living_coral WHERE chunk_index = ${chunkIndex}`,
-                                ];
-                                const environmentalQueries = [];
-                                if (ENABLE_CLOUDS) environmentalQueries.push(`SELECT * FROM cloud WHERE chunk_index = ${chunkIndex}`);
-                                if (grassEnabled) {
-                                    // Split tables: grass (static) + grass_state (dynamic)
-                                    environmentalQueries.push(`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`);
-                                    if (GRASS_PERFORMANCE_MODE) {
-                                        // Use is_alive = true for efficient index usage (boolean equality vs range query)
-                                        environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND is_alive = true`);
-                                    } else {
-                                        environmentalQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`);
-                                    }
-                                }
-                                const chunkHandles = subscribeChunkBatches(connection, chunkIndex, [], [
-                                    ...resourceQueries,
-                                    ...environmentalQueries,
-                                ]);
-                                newHandlesForChunk.push(...chunkHandles);
-                            } else {
-                                // Legacy individual subscriptions can be added here if needed for fallback
-                                console.error("Batched subscriptions are disabled, but non-batched initial subscription is not fully implemented in this path.");
-                            }
-                            spatialSubsRef.current.set(chunkIndex, newHandlesForChunk);
-                            subscribedChunksRef.current.add(chunkIndex); // CRITICAL FIX: Mark as subscribed during initial load
-                        } catch (error) {
-                            newHandlesForChunk.forEach(safeUnsubscribe);
-                            console.error(`[CHUNK_ERROR] Failed to create initial subscriptions for chunk ${chunkIndex}:`, error);
-                        }
-                    });
-                };
-
-                subscribeToInitialChunks([...newChunkIndicesSet]);
-
-                currentChunksRef.current = [...newChunkIndicesSet];
-                // subscribedChunksRef is now updated inside subscribeToInitialChunks for each chunk
-                lastSpatialUpdateRef.current = performance.now(); // Set initial timestamp
-
+        try {
+            const grassQueries = [`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`];
+            if (GRASS_PERFORMANCE_MODE) {
+                grassQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND is_alive = true`);
             } else {
-                // --- SUBSEQUENT UPDATES (existing logic) ---
-                const newChunkIndicesSet = new Set(getChunkIndicesForViewportWithBuffer(viewport, CHUNK_BUFFER_SIZE));
-
-                // Store the pending update and schedule async processing
-                const now = performance.now();
-                pendingChunkUpdateRef.current = { chunks: newChunkIndicesSet, timestamp: now };
-
-                // Throttle updates to prevent frame drops
-                const timeSinceLastUpdate = now - lastSpatialUpdateRef.current;
-
-                if (timeSinceLastUpdate >= CHUNK_UPDATE_THROTTLE_MS) {
-                    // Process immediately
-                    processPendingChunkUpdate();
-                } else {
-                    // Schedule delayed processing
-                    const delay = CHUNK_UPDATE_THROTTLE_MS - timeSinceLastUpdate;
-                    setTimeout(processPendingChunkUpdate, delay);
-                }
+                grassQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`);
             }
-        } else if (!viewport) {
-            // If viewport becomes null, clean up ALL spatial subs and reset the flag
-            if (spatialSubsRef.current.size > 0) {
-                spatialSubsRef.current.forEach((handles) => {
-                    handles.forEach(safeUnsubscribe);
-                });
-                spatialSubsRef.current.clear();
-                currentChunksRef.current = [];
-                // Clear any pending unsubscribe timers
-                chunkUnsubscribeTimersRef.current.forEach(timer => clearTimeout(timer));
-                chunkUnsubscribeTimersRef.current.clear();
-                subscribedChunksRef.current.clear();
-            }
+
+            console.log(`[GRASS_RESUB] Subscribing to grass/grass_state for chunk ${chunkIndex}`);
+            const handle = connection.subscriptionBuilder()
+                .onError((err) => console.error(`Grass Re-sub Error (Chunk ${chunkIndex}):`, err))
+                .subscribe(grassQueries);
+
+            return [handle];
+        } catch (error) {
+            console.error(`[GRASS_RESUB] Failed to re-subscribe grass for chunk ${chunkIndex}:`, error);
+            return [];
         }
-        // ─── Cleanup: unsubscribe all on connection loss or unmount ─────────── 
+    };
+
+    const clearGrassData = () => {
+        console.log('[useSpacetimeTables] Grass disabled - clearing grass/grassState maps');
+        setGrass(new Map());
+        setGrassState(new Map());
+    };
+
+    const resetDataState = () => {
+        if (playerRenderTimerRef.current) {
+            clearTimeout(playerRenderTimerRef.current);
+            playerRenderTimerRef.current = null;
+        }
+
+        setLocalPlayerRegistered(false);
+
+        const mapResetters: Array<React.Dispatch<React.SetStateAction<Map<any, any>>>> = [
+            setPlayers, setTrees, setStones, setRuneStones, setCairns, setPlayerDiscoveredCairns,
+            setCampfires, setBarbecues, setFurnaces, setLanterns, setHomesteadHearths, setBrothPots,
+            setHarvestableResources, setItemDefinitions, setRecipes, setInventoryItems, setActiveEquipments,
+            setDroppedItems, setWoodenStorageBoxes, setCraftingQueueItems, setMessages, setPlayerPins,
+            setActiveConnections, setSleepingBags, setPlayerCorpses, setStashes, setRainCollectors,
+            setWaterPatches, setFertilizerPatches, setFirePatches, setPlacedExplosives, setHotSprings,
+            setActiveConsumableEffects, setClouds, setGrass, setGrassState, setKnockedOutStatus,
+            setRangedWeaponStats, setProjectiles, setDeathMarkers, setShelters, setPlayerDodgeRollStates,
+            setFishingSessions, setPlantedSeeds, setSoundEvents, setContinuousSounds,
+            setPlayerDrinkingCooldowns, setWildAnimals, setAnimalCorpses, setSeaStacks, setChunkWeather,
+            setFumaroles, setBasaltColumns, setLivingCorals,
+        ];
+        for (const resetMap of mapResetters) {
+            resetMap(new Map());
+        }
+        setWorldState(null);
+
+        projectilesRef.current.clear();
+        if (projectilesUpdateTimeoutRef.current) {
+            clearTimeout(projectilesUpdateTimeoutRef.current);
+            projectilesUpdateTimeoutRef.current = null;
+        }
+
+        playerDodgeRollStatesRef.current.clear();
+        wildAnimalsRef.current.clear();
+        if (wildAnimalsUpdateTimeoutRef.current) {
+            clearTimeout(wildAnimalsUpdateTimeoutRef.current);
+            wildAnimalsUpdateTimeoutRef.current = null;
+        }
+
+        hostileDeathCleanupTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
+        hostileDeathCleanupTimeoutsRef.current.clear();
+        setHostileDeathEvents([]);
+    };
+
+    useEffect(() => {
+        gameplaySubscriptionsRuntime.sync({
+            connection,
+            viewport,
+            grassEnabled,
+            ensureConnectionSetup,
+            subscribeToChunk,
+            subscribeGrassForChunk,
+            clearGrassData,
+            resetDataState,
+            setViewport: (nextViewport) => runtimeEngine.setWorldViewport(nextViewport),
+        });
+    }, [connection, viewport, grassEnabled, ensureConnectionSetup]);
+
+    useEffect(() => {
         return () => {
-            const isConnectionLost = !connection;
-            // console.log(`[useSpacetimeTables] Running cleanup. Connection Lost: ${isConnectionLost}, Viewport was present: ${!!viewport}`);
-
-            if (isConnectionLost) {
-                // console.log("[useSpacetimeTables] Cleanup due to connection loss: Unsubscribing non-spatial & all spatial, resetting state.");
-                nonSpatialHandlesRef.current.forEach(sub => safeUnsubscribe(sub));
-                nonSpatialHandlesRef.current = [];
-
-                // Unsubscribe all remaining spatial subs on connection loss
-                spatialSubsRef.current.forEach((handles) => { // Use the ref here
-                    handles.forEach(safeUnsubscribe);
-                });
-                spatialSubsRef.current.clear();
-
-                // Clear any pending unsubscribe timers
-                chunkUnsubscribeTimersRef.current.forEach(timer => clearTimeout(timer));
-                chunkUnsubscribeTimersRef.current.clear();
-
-                // Clear pending player render timer
-                if (playerRenderTimerRef.current) {
-                    clearTimeout(playerRenderTimerRef.current);
-                    playerRenderTimerRef.current = null;
-                }
-
-                isSubscribingRef.current = false;
-                subscribedChunksRef.current.clear();
-                currentChunksRef.current = [];
-                setLocalPlayerRegistered(false);
-                // Reset table states
-                const mapResetters: Array<React.Dispatch<React.SetStateAction<Map<any, any>>>> = [
-                    setPlayers, setTrees, setStones, setRuneStones, setCairns, setPlayerDiscoveredCairns,
-                    setCampfires, setBarbecues, setFurnaces, setLanterns, setHomesteadHearths, setBrothPots,
-                    setHarvestableResources, setItemDefinitions, setRecipes, setInventoryItems, setActiveEquipments,
-                    setDroppedItems, setWoodenStorageBoxes, setCraftingQueueItems, setMessages, setPlayerPins,
-                    setActiveConnections, setSleepingBags, setPlayerCorpses, setStashes, setRainCollectors,
-                    setWaterPatches, setFirePatches, setPlacedExplosives, setHotSprings, setActiveConsumableEffects,
-                    setClouds, setGrass, setGrassState, setKnockedOutStatus, setRangedWeaponStats, setProjectiles,
-                    setDeathMarkers, setShelters, setPlayerDodgeRollStates, setFishingSessions, setPlantedSeeds,
-                    setSoundEvents, setContinuousSounds, setPlayerDrinkingCooldowns, setWildAnimals, setAnimalCorpses,
-                    setSeaStacks, setChunkWeather, setFumaroles, setBasaltColumns, setLivingCorals,
-                ];
-                for (const resetMap of mapResetters) {
-                    resetMap(new Map());
-                }
-                setWorldState(null);
-                // Clear the projectiles ref and cancel pending timeout
-                projectilesRef.current.clear();
-                if (projectilesUpdateTimeoutRef.current) {
-                    clearTimeout(projectilesUpdateTimeoutRef.current);
-                    projectilesUpdateTimeoutRef.current = null;
-                }
-                // Clear the playerDodgeRollStates ref as well
-                playerDodgeRollStatesRef.current.clear();
-                // Clear the wildAnimals ref and cancel pending timeout
-                wildAnimalsRef.current.clear();
-                if (wildAnimalsUpdateTimeoutRef.current) {
-                    clearTimeout(wildAnimalsUpdateTimeoutRef.current);
-                    wildAnimalsUpdateTimeoutRef.current = null;
-                }
-                // Clear hostile death events and cancel pending cleanup timeouts (prevents memory leak)
-                hostileDeathCleanupTimeoutsRef.current.forEach(t => clearTimeout(t));
-                hostileDeathCleanupTimeoutsRef.current.clear();
-                setHostileDeathEvents([]);
-            }
-        };
-
-    }, [connection, viewport]);
-
-    // Track previous grassEnabled state to detect re-enable
-    const prevGrassEnabledRef = useRef(grassEnabled);
-
-    // Handle grass toggle - clear when disabled, force re-subscription when re-enabled
-    useEffect(() => {
-        const wasDisabled = !prevGrassEnabledRef.current;
-        const isNowEnabled = grassEnabled;
-
-        if (!grassEnabled) {
-            // Grass disabled - clear both grass maps (split tables)
-            console.log('[useSpacetimeTables] Grass disabled - clearing grass/grassState maps');
-            setGrass(new Map());
-            setGrassState(new Map());
-        } else if (wasDisabled && isNowEnabled && connection) {
-            // Grass was just re-enabled - force re-subscription of current chunks
-            // Use currentChunksRef (the actively tracked chunks) rather than subscribedChunksRef
-            const currentChunks = currentChunksRef.current;
-            console.log(`[useSpacetimeTables] Grass re-enabled - subscribing to ${currentChunks.length} chunks:`, currentChunks);
-
-            if (currentChunks.length === 0) {
-                console.warn('[useSpacetimeTables] No current chunks found for grass re-subscription!');
-            }
-
-            // Subscribe to grass + grass_state for all current chunks (split tables)
-            currentChunks.forEach(chunkIndex => {
-                try {
-                    // Split tables: subscribe to both static (grass) and dynamic (grass_state)
-                    const grassQueries = [`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`];
-                    if (GRASS_PERFORMANCE_MODE) {
-                        grassQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND is_alive = true`);
-                    } else {
-                        grassQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`);
-                    }
-
-                    console.log(`[GRASS_RESUB] Subscribing to grass/grass_state for chunk ${chunkIndex}`);
-
-                    const handle = connection.subscriptionBuilder()
-                        .onError((err) => console.error(`Grass Re-sub Error (Chunk ${chunkIndex}):`, err))
-                        .subscribe(grassQueries);
-
-                    // Add to existing chunk handles
-                    const existingHandles = spatialSubsRef.current.get(chunkIndex) || [];
-                    existingHandles.push(handle);
-                    spatialSubsRef.current.set(chunkIndex, existingHandles);
-                } catch (error) {
-                    console.error(`[GRASS_RESUB] Failed to re-subscribe grass for chunk ${chunkIndex}:`, error);
-                }
+            gameplaySubscriptionsRuntime.stop({
+                resetDataState,
             });
-        }
-
-        // Update the ref for next comparison
-        prevGrassEnabledRef.current = grassEnabled;
-    }, [grassEnabled, connection]);
-
-    useEffect(() => {
-        runtimeEngine.setWorldViewport(viewport);
-    }, [viewport]);
+        };
+    }, []);
 
     // ─── Return: all entity state for consumers (App.tsx → GameScreen → GameCanvas) ─
     return {
@@ -3005,7 +2564,7 @@ export const useSpacetimeTables = ({
         deathMarkers,
         shelters,
         minimapCache,
-        playerDodgeRollStates: playerDodgeRollStatesRef.current,
+        playerDodgeRollStates,
         fishingSessions,
         plantedSeeds,
         soundEvents,

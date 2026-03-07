@@ -19,8 +19,8 @@
  * 4. SMOOTH POSITION: Returns smoothed position for camera and rendering. Interpolates
  *    between predicted and server positions to avoid rubber-banding.
  *
- * 5. FIXED-STEP MODE: When gameConfig.fixedSimulationEnabled, exposes stepPredictedMovement(dtMs)
- *    for deterministic simulation. Internal RAF loop is disabled; GameCanvas calls step each sim tick.
+ * 5. ENGINE-OWNED TIMING: Prediction exposes stepPredictedMovement(dtMs) and the runtime engine
+ *    decides when to advance it. This hook no longer owns its own RAF loop.
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
@@ -144,7 +144,7 @@ const movementMonitor = new SimpleMovementMonitor();
 // REMOVED: Rubber band logging - proper prediction shouldn't need it
 
 // Simple client-authoritative movement hook with optimized rendering
-export const usePredictedMovement = ({ connection, localPlayer, inputState, inputStateRef, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus = 0, movementSpeedModifier = 0, isOnSeaTile, fixedSimulationEnabled }: SimpleMovementProps) => {
+export const usePredictedMovement = ({ connection, localPlayer, inputState, inputStateRef, isUIFocused, entities, playerDodgeRollStates, mobileSprintOverride, waterSpeedBonus = 0, movementSpeedModifier = 0, isOnSeaTile }: SimpleMovementProps) => {
   // Use refs instead of state to avoid re-renders during movement
   const clientPositionRef = useRef<{ x: number; y: number } | null>(null);
   const serverPositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -687,17 +687,9 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     syncEngineMovementState();
   }, [syncEngineMovementState]);
 
-  // Variable-step update (used when !fixedSimulationEnabled)
-  const updatePosition = useCallback(() => {
-    const updateStartTime = performance.now();
-    const now = performance.now();
-    const deltaTime = Math.min((now - lastUpdateTime.current) / 1000, 0.1);
-    applyMovementStep(deltaTime, updateStartTime);
-  }, [applyMovementStep]);
-
   /**
    * Deterministic step: advance prediction by fixed dt (ms).
-   * Used when fixedSimulationEnabled; GameCanvas calls this each sim tick.
+   * Used by the runtime engine frame pipeline.
    * Network send remains throttled by POSITION_UPDATE_INTERVAL_MS.
    */
   const stepPredictedMovement = useCallback((dtMs: number) => {
@@ -705,30 +697,6 @@ export const usePredictedMovement = ({ connection, localPlayer, inputState, inpu
     const dtSec = Math.min(dtMs / 1000, 0.1);
     applyMovementStep(dtSec, updateStartTime);
   }, [applyMovementStep]);
-
-  // Run position updates with optimized timing (disabled when fixedSimulationEnabled)
-  const useFixedSim = fixedSimulationEnabled ?? gameConfig.fixedSimulationEnabled;
-  useEffect(() => {
-    if (useFixedSim) return; // GameCanvas calls stepPredictedMovement instead
-    let animationId: number;
-    let lastFrameTime = 0;
-    
-    const loop = (currentTime: number) => {
-      // Throttle to ~60fps to prevent excessive updates
-      if (currentTime - lastFrameTime >= 16) {
-        updatePosition();
-        lastFrameTime = currentTime;
-      }
-      animationId = requestAnimationFrame(loop);
-    };
-    
-    lastUpdateTime.current = performance.now();
-    animationId = requestAnimationFrame(loop);
-
-    return () => {
-      cancelAnimationFrame(animationId);
-    };
-  }, [updatePosition, useFixedSim]);
 
   // ADDED: Function to get the EXACT position at this moment (not cached from last frame)
   // This is critical for accurate projectile spawning during fast movement

@@ -59,12 +59,19 @@ export class UiSnapshotStore {
   };
 
   setSnapshot = (next: EngineRuntimeSnapshot): void => {
+    if (Object.is(this.snapshot, next)) {
+      return;
+    }
     this.snapshot = next;
     this.emit();
   };
 
   updateSnapshot = (updater: (current: EngineRuntimeSnapshot) => EngineRuntimeSnapshot): void => {
-    this.snapshot = updater(this.snapshot);
+    const next = updater(this.snapshot);
+    if (Object.is(this.snapshot, next)) {
+      return;
+    }
+    this.snapshot = next;
     this.emit();
   };
 

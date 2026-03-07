@@ -94,7 +94,7 @@ import { useGameViewport } from '../hooks/useGameViewport';
 import { useMousePosition } from '../hooks/useMousePosition';
 import { useDayNightCycle } from '../hooks/useDayNightCycle';
 import { useInteractionFinder } from '../hooks/useInteractionFinder';
-import type { FrameInfo, GameLoopMetrics } from '../hooks/useGameLoop';
+import type { GameLoopMetrics } from '../hooks/useGameLoop';
 import { usePlayerHover } from '../hooks/usePlayerHover';
 import { usePlantedSeedHover } from '../hooks/usePlantedSeedHover';
 import { useTamedAnimalHover } from '../hooks/useTamedAnimalHover';
@@ -895,8 +895,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Use ref instead of state to avoid re-renders every frame
   const deltaTimeRef = useRef<number>(0);
-  // Fixed simulation accumulator (used when fixedSimulationEnabled)
-  const simAccumulatorRef = useRef<number>(0);
+  const interactionScanFrameSkipRef = useRef<number>(0);
   // Dev-only: telemetry for acceptance gates (FPS, slow-frame ratio, max frame time)
   const gameLoopMetricsRef = useRef<GameLoopMetrics | null>(null);
 
@@ -1439,6 +1438,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // --- Interaction Finding System ---
   const {
+    updateInteractionResult,
     closestInteractableTarget,
     closestInteractableHarvestableResourceId,
     closestInteractableCampfireId,
@@ -3850,59 +3850,58 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     showFpsProfiler,
   ]);
 
-  const gameLoopCallback = useCallback((frameInfo: FrameInfo) => {
-    // Update deltaTime ref directly to avoid re-renders
-    // Clamp deltaTime to reasonable bounds for consistent particle behavior
-    if (frameInfo.deltaTime > 0 && frameInfo.deltaTime < 100) {
-      deltaTimeRef.current = frameInfo.deltaTime;
-    } else {
-      // Use fallback deltaTime for extreme cases (pause/resume, tab switching, etc.)
-      deltaTimeRef.current = 16.667; // 60fps fallback
-    }
+  useEffect(() => {
+    runtimeEngine.setFramePipeline({
+      prepareFrame: (frameInfo) => {
+        // Clamp deltaTime to reasonable bounds for consistent particle behavior.
+        deltaTimeRef.current =
+          frameInfo.deltaTime > 0 && frameInfo.deltaTime < 100 ? frameInfo.deltaTime : 16.667;
 
-    // Keep render-critical refs on the hot path so local movement/camera stay smooth
-    // even when React props update at lower frequency.
-    const livePredictedPosition = getCurrentPositionNow?.() ?? predictedPositionRef.current;
-    const liveFacingDirection = getCurrentFacingDirectionNow?.() ?? localFacingDirectionRef.current;
-    if (livePredictedPosition) {
-      predictedPositionRef.current = livePredictedPosition;
-      cameraOffsetRef.current = {
-        x: (canvasSize.width / 2) - livePredictedPosition.x,
-        y: (canvasSize.height / 2) - livePredictedPosition.y,
-      };
-    } else if (localPlayer) {
-      cameraOffsetRef.current = {
-        x: (canvasSize.width / 2) - localPlayer.positionX,
-        y: (canvasSize.height / 2) - localPlayer.positionY,
-      };
-    }
-    if (liveFacingDirection) {
-      localFacingDirectionRef.current = liveFacingDirection;
-    }
+        if (++interactionScanFrameSkipRef.current % 2 === 0) {
+          updateInteractionResult?.();
+        }
 
-    const { fixedSimDtMs, maxSimStepsPerFrame } = gameConfig;
-    const useFixedSim = fixedSimulationEnabled;
+        // Keep render-critical refs on the hot path so local movement/camera stay smooth
+        // even when React props update at lower frequency.
+        const livePredictedPosition = getCurrentPositionNow?.() ?? predictedPositionRef.current;
+        const liveFacingDirection = getCurrentFacingDirectionNow?.() ?? localFacingDirectionRef.current;
+        if (livePredictedPosition) {
+          predictedPositionRef.current = livePredictedPosition;
+          cameraOffsetRef.current = {
+            x: (canvasSize.width / 2) - livePredictedPosition.x,
+            y: (canvasSize.height / 2) - livePredictedPosition.y,
+          };
+        } else if (localPlayer) {
+          cameraOffsetRef.current = {
+            x: (canvasSize.width / 2) - localPlayer.positionX,
+            y: (canvasSize.height / 2) - localPlayer.positionY,
+          };
+        }
+        if (liveFacingDirection) {
+          localFacingDirectionRef.current = liveFacingDirection;
+        }
+      },
+      processInputs: processInputsAndActions,
+      stepSimulation: (dtMs) => {
+        stepPredictedMovement?.(dtMs);
+      },
+      renderFrame: () => {
+        renderGame();
 
-    if (useFixedSim) {
-      // Fixed simulation + variable render: run sim at 30 Hz, render every frame
-      simAccumulatorRef.current = Math.min(
-        simAccumulatorRef.current + frameInfo.deltaTime,
-        fixedSimDtMs * maxSimStepsPerFrame
-      );
-      let steps = 0;
-      while (simAccumulatorRef.current >= fixedSimDtMs && steps < maxSimStepsPerFrame) {
-        stepPredictedMovement?.(fixedSimDtMs); // Advance prediction at fixed cadence
-        processInputsAndActions();
-        simAccumulatorRef.current -= fixedSimDtMs;
-        steps++;
-      }
-      const alpha = simAccumulatorRef.current / fixedSimDtMs; // 0..1 interpolation factor
-      renderGame(alpha);
-    } else {
-      // Legacy: process inputs and render every frame
-      processInputsAndActions();
-      renderGame(1);
-    }
+        if (isMinimapOpen && droneEvents && droneEvents.size > 0) {
+          minimapDrawRef.current();
+        }
+      },
+      getConfig: () => ({
+        fixedSimulationEnabled,
+        fixedSimulationDtMs: gameConfig.fixedSimDtMs,
+        maxSimulationStepsPerFrame: gameConfig.maxSimStepsPerFrame,
+      }),
+    });
+
+    return () => {
+      runtimeEngine.setFramePipeline(null);
+    };
   }, [
     renderGame,
     processInputsAndActions,
@@ -3910,14 +3909,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     fixedSimulationEnabled,
     getCurrentPositionNow,
     getCurrentFacingDirectionNow,
-    getCurrentDodgeRollVisualNow,
     localPlayer,
+    updateInteractionResult,
     canvasSize.width,
     canvasSize.height,
+    isMinimapOpen,
+    droneEvents,
   ]);
 
-  // Engine-owned frame loop: GameCanvas only provides the frame callback.
-  useEngineFrameLoop(gameLoopCallback, {
+  // Engine-owned frame loop: GameCanvas only wires the engine lifecycle.
+  useEngineFrameLoop(null, {
     targetFPS: 0, // uncapped render callback for smooth high-refresh movement
     maxFrameTime: 33, // 30fps budget to avoid false alarms on lower-end devices
     enableProfiling: false,
@@ -4046,19 +4047,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       resizeObserver.disconnect();
     };
   }, [isMinimapOpen, isMobile]);
-
-  // --- Drone flyover: RAF loop for smooth minimap interpolation ---
-  // PERFORMANCE: Call draw directly via ref - no setState, no React re-renders every frame
-  useEffect(() => {
-    if (!isMinimapOpen || !droneEvents || droneEvents.size === 0) return;
-    let rafId: number;
-    const loop = () => {
-      minimapDrawRef.current();
-      rafId = requestAnimationFrame(loop);
-    };
-    rafId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafId);
-  }, [isMinimapOpen, droneEvents?.size ?? 0]);
 
   // --- Minimap rendering effect ---
   useEffect(() => {

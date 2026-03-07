@@ -62,7 +62,11 @@ export interface AssetLoadingProgress {
     fromCache: number;
 }
 
-export type ShowSovaSoundBoxFn = (audio: HTMLAudioElement, label: string, options?: { hideUI?: boolean; onEnded?: () => void }) => void;
+export type ShowSovaSoundBoxFn = (
+    audio: HTMLAudioElement,
+    label: string,
+    options?: { hideUI?: boolean; onEnded?: () => void; priority?: 'loading' }
+) => void;
 
 interface CyberpunkLoadingScreenProps {
     authLoading: boolean;
@@ -83,15 +87,54 @@ interface CyberpunkLoadingScreenProps {
     hasLastKnownPlayer?: boolean;
 }
 
-// Audio preloading and management
-// Use a global variable that persists across HMR (Hot Module Reload)
-// @ts-ignore - Attach to window to persist across HMR
-if (!window.__SOVA_AUDIO_FILES__) {
-    // @ts-ignore
-    window.__SOVA_AUDIO_FILES__ = {};
+interface LoadingScreenSovaState {
+    hasStarted: boolean;
+    active: boolean;
+    currentAudio: HTMLAudioElement | null;
 }
-// @ts-ignore
-const preloadedAudioFiles: { [key: string]: HTMLAudioElement } = window.__SOVA_AUDIO_FILES__;
+
+declare global {
+    interface Window {
+        __SOVA_AUDIO_FILES__?: Record<string, HTMLAudioElement>;
+        __CYBERPUNK_LOADING_SOVA_STATE__?: LoadingScreenSovaState;
+    }
+}
+
+// Audio preloading and playback state both persist across HMR.
+const preloadedAudioFiles = window.__SOVA_AUDIO_FILES__ ?? (window.__SOVA_AUDIO_FILES__ = {});
+const loadingScreenSovaState =
+    window.__CYBERPUNK_LOADING_SOVA_STATE__ ??
+    (window.__CYBERPUNK_LOADING_SOVA_STATE__ = {
+        hasStarted: false,
+        active: false,
+        currentAudio: null,
+    });
+
+const clearLoadingScreenSovaState = () => {
+    loadingScreenSovaState.active = false;
+    loadingScreenSovaState.currentAudio = null;
+};
+
+const stopLoadingScreenSovaAudio = () => {
+    const currentAudio = loadingScreenSovaState.currentAudio;
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+    }
+    clearLoadingScreenSovaState();
+};
+
+const markLoadingScreenSovaActive = (audio: HTMLAudioElement) => {
+    const currentAudio = loadingScreenSovaState.currentAudio;
+    if (currentAudio && currentAudio !== audio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+    }
+
+    loadingScreenSovaState.hasStarted = true;
+    loadingScreenSovaState.active = true;
+    loadingScreenSovaState.currentAudio = audio;
+};
 
 // Loading screen now plays through SovaSoundBox (showSovaSoundBox/hideSovaSoundBox)
 // - No separate __STOP_LOADING_SCREEN_SOVA_AUDIO__ / __LOADING_SCREEN_AUDIO_IS_PLAYING__
@@ -352,7 +395,12 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
 
     // Play 1-21 sequence through SovaSoundBox (headless, cancellable via hideSovaSoundBox)
     const playLoadingScreenSequence = useCallback((startIndex: number) => {
-        if (!showSovaSoundBox || !isReturningPlayer || startIndex > TOTAL_SOVA_SOUNDS) return;
+        if (!showSovaSoundBox || !isReturningPlayer) return;
+        if (startIndex > TOTAL_SOVA_SOUNDS) {
+            clearLoadingScreenSovaState();
+            setIsSovaSpeaking(false);
+            return;
+        }
 
         const audio = preloadedAudioFiles[startIndex.toString()];
         if (!audio || audio.readyState < 2) {
@@ -366,12 +414,16 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             if (startIndex < TOTAL_SOVA_SOUNDS) {
                 playLoadingScreenSequence(startIndex + 1);
             } else {
+                clearLoadingScreenSovaState();
                 setIsSovaSpeaking(false);
             }
         };
 
+        audio.currentTime = 0;
+        markLoadingScreenSovaActive(audio);
         showSovaSoundBox(audio, `SOVA`, {
             hideUI: true,
+            priority: 'loading',
             onEnded: playNext,
         });
         audio.volume = 0.85;
@@ -383,6 +435,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
             saveAudioPreference(true);
         }).catch((err) => {
             console.warn('[CyberpunkLoadingScreen] SOVA sequence play blocked (user gesture may be required):', err);
+            clearLoadingScreenSovaState();
             setIsSovaSpeaking(false);
             setShowAudioPrompt(true);
             saveAudioPreference(false);
@@ -401,6 +454,7 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         // If sequence is playing, stop it (cancellable)
         if (isSovaSpeaking && hideSovaSoundBox) {
             hideSovaSoundBox();
+            stopLoadingScreenSovaAudio();
             setIsSovaSpeaking(false);
             return;
         }
@@ -412,6 +466,17 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
     useEffect(() => {
         if (!isReturningPlayer) {
             console.log('[CyberpunkLoadingScreen] SOVA sequence skip: confirmed first-time player', { hasSeenSovaIntro, hasLastKnownPlayer });
+            return;
+        }
+        if (loadingScreenSovaState.active && loadingScreenSovaState.currentAudio && !loadingScreenSovaState.currentAudio.ended) {
+            hasPlayedReconnect.current = true;
+            setIsSovaSpeaking(true);
+            console.log('[CyberpunkLoadingScreen] SOVA sequence skip: already active from existing mount');
+            return;
+        }
+        if (loadingScreenSovaState.hasStarted) {
+            hasPlayedReconnect.current = true;
+            console.log('[CyberpunkLoadingScreen] SOVA sequence skip: already started in this page session');
             return;
         }
         if (hasPlayedReconnect.current) return;
@@ -566,18 +631,24 @@ const CyberpunkLoadingScreen: React.FC<CyberpunkLoadingScreenProps> = ({
         if (!audio || audio.readyState < 2) return;
 
         audio.currentTime = 0;
+        markLoadingScreenSovaActive(audio);
         setIsSovaSpeaking(true);
         hasPlayedReconnect.current = true;
         lastPlayedSoundIndex.current = randomIndex;
         showSovaSoundBox(audio, 'SOVA', {
             hideUI: true,
-            onEnded: () => setIsSovaSpeaking(false),
+            priority: 'loading',
+            onEnded: () => {
+                clearLoadingScreenSovaState();
+                setIsSovaSpeaking(false);
+            },
         });
         audio.play().then(() => {
             setAudioContextUnlocked(true);
             saveAudioPreference(true);
         }).catch((err) => {
             console.error('Failed to enable audio:', err);
+            clearLoadingScreenSovaState();
             setIsSovaSpeaking(false);
         });
     };
