@@ -38,6 +38,8 @@ const PROJECTILE_LANTERN_Y_OFFSET: f32 = 0.0; // No Y offset needed
 use crate::homestead_hearth::{HomesteadHearth, HEARTH_COLLISION_RADIUS, HEARTH_COLLISION_Y_OFFSET, homestead_hearth as HomesteadHearthTableTrait};
 use crate::wild_animal_npc::animal_corpse::{AnimalCorpse, ANIMAL_CORPSE_COLLISION_RADIUS, ANIMAL_CORPSE_COLLISION_Y_OFFSET, animal_corpse as AnimalCorpseTableTrait};
 
+const PROJECTILE_RESOLVED_EVENT_RETENTION_MICROS: i64 = 5_000_000;
+
 // Import natural obstacle modules for collision detection
 use crate::tree::{Tree, tree as TreeTableTrait};
 use crate::stone::{Stone, stone as StoneTableTrait};
@@ -3568,6 +3570,17 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
             created_dropped_item: created_drop_projectiles.contains(&resolution.projectile_id),
             timestamp: ctx.timestamp,
         });
+    }
+
+    let resolved_event_table = ctx.db.projectile_resolved_event();
+    let resolved_event_cutoff = ctx.timestamp - TimeDuration::from_micros(PROJECTILE_RESOLVED_EVENT_RETENTION_MICROS);
+    let expired_resolved_event_ids: Vec<u64> = resolved_event_table
+        .iter()
+        .filter(|event| event.timestamp < resolved_event_cutoff)
+        .map(|event| event.id)
+        .collect();
+    for event_id in expired_resolved_event_ids {
+        resolved_event_table.id().delete(event_id);
     }
 
     // Delete all projectiles that need to be removed
