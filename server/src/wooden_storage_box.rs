@@ -72,7 +72,8 @@ pub(crate) fn get_box_collision_radius(box_type: u8) -> f32 {
         BOX_TYPE_LARGE => LARGE_BOX_COLLISION_RADIUS,
         BOX_TYPE_REFRIGERATOR => REFRIGERATOR_COLLISION_RADIUS,
         BOX_TYPE_COMPOST => COMPOST_COLLISION_RADIUS,
-        BOX_TYPE_BACKPACK => BOX_COLLISION_RADIUS,
+        // Backpacks are loot containers only - they must never block movement or shots.
+        BOX_TYPE_BACKPACK => 0.0,
         BOX_TYPE_REPAIR_BENCH => REPAIR_BENCH_COLLISION_RADIUS,
         BOX_TYPE_COOKING_STATION => COOKING_STATION_COLLISION_RADIUS,
         BOX_TYPE_SCARECROW => SCARECROW_COLLISION_RADIUS,

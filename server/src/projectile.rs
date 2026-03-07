@@ -2043,6 +2043,9 @@ pub fn update_projectiles(ctx: &ReducerContext, _args: ProjectileUpdateSchedule)
                 if storage_box.is_destroyed {
                     continue;
                 }
+                if storage_box.box_type == crate::wooden_storage_box::BOX_TYPE_BACKPACK {
+                    continue;
+                }
                 
                 // Use a more generous hit radius for projectiles
                 const PROJECTILE_BOX_HIT_RADIUS: f32 = 28.0; // Larger than collision radius (18.0)
