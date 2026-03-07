@@ -36,9 +36,18 @@ import { triggerBarrelDestructionEffect } from '../utils/renderers/barrelRenderi
 import { runtimeEngine } from '../engine/runtimeEngine';
 import { useEngineWorldTableState } from '../engine/react/useEngineStoreState';
 import { gameplaySubscriptionsRuntime } from '../engine/runtime/gameplaySubscriptionsRuntime';
+import {
+    setupGameplayConnection,
+    type GameplayTableBindings,
+} from '../engine/adapters/spacetime/gameplayConnectionSetup';
 import { recordProjectileDebugEvent } from '../utils/projectileDebug';
-import { subscribeNonSpatialQueries } from '../engine/adapters/spacetime/nonSpatialSubscriptions';
-import { subscribeChunkBatches } from '../engine/adapters/spacetime/spatialSubscriptions';
+import {
+    getDefaultEnvironmentalQueries,
+    getDefaultSpatialResourceTables,
+    subscribeChunkBatches,
+    subscribeChunkIndividually,
+    subscribeGrassChunk,
+} from '../engine/adapters/spacetime/spatialSubscriptions';
 
 // ─── Spatial chunk-subscription strategy ─────────────────────────────────────
 // - Batch and throttle chunk subscriptions to avoid bursty update spikes.
@@ -388,91 +397,6 @@ export const useSpacetimeTables = ({
         }
     };
 
-    // ─── subscribeToChunk: Create spatial subscriptions for a single chunk ────
-    const chunkQuery = (tableName: string, chunkIndex: number) =>
-        `SELECT * FROM ${tableName} WHERE chunk_index = ${chunkIndex}`;
-
-    const getBatchedResourceQueries = (chunkIndex: number): string[] => [
-        chunkQuery('tree', chunkIndex),
-        chunkQuery('stone', chunkIndex),
-        chunkQuery('rune_stone', chunkIndex),
-        chunkQuery('cairn', chunkIndex),
-        chunkQuery('harvestable_resource', chunkIndex),
-        chunkQuery('campfire', chunkIndex),
-        chunkQuery('barbecue', chunkIndex),
-        chunkQuery('furnace', chunkIndex),
-        chunkQuery('lantern', chunkIndex),
-        chunkQuery('turret', chunkIndex),
-        chunkQuery('homestead_hearth', chunkIndex),
-        chunkQuery('broth_pot', chunkIndex),
-        chunkQuery('wooden_storage_box', chunkIndex),
-        chunkQuery('dropped_item', chunkIndex),
-        chunkQuery('rain_collector', chunkIndex),
-        chunkQuery('water_patch', chunkIndex),
-        chunkQuery('fertilizer_patch', chunkIndex),
-        chunkQuery('fire_patch', chunkIndex),
-        chunkQuery('placed_explosive', chunkIndex),
-        chunkQuery('barrel', chunkIndex),
-        chunkQuery('road_lamppost', chunkIndex),
-        chunkQuery('planted_seed', chunkIndex),
-        chunkQuery('sea_stack', chunkIndex),
-        chunkQuery('foundation_cell', chunkIndex),
-        chunkQuery('wall_cell', chunkIndex),
-        chunkQuery('door', chunkIndex),
-        chunkQuery('fence', chunkIndex),
-        chunkQuery('fumarole', chunkIndex),
-        chunkQuery('basalt_column', chunkIndex),
-        chunkQuery('wild_animal', chunkIndex),
-        chunkQuery('living_coral', chunkIndex),
-    ];
-
-    const getEnvironmentalQueries = (chunkIndex: number): string[] => {
-        const queries: string[] = [];
-        if (ENABLE_CLOUDS) {
-            queries.push(chunkQuery('cloud', chunkIndex));
-        }
-        if (grassEnabled) {
-            // Split tables: grass (static) + grass_state (dynamic)
-            queries.push(chunkQuery('grass', chunkIndex));
-            if (GRASS_PERFORMANCE_MODE) {
-                // Use is_alive = true for efficient index usage (boolean equality vs range query)
-                queries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND is_alive = true`);
-            } else {
-                queries.push(chunkQuery('grass_state', chunkIndex));
-            }
-        }
-        return queries;
-    };
-
-    const getUnbatchedResourceQueries = (chunkIndex: number): Array<{ queryName: string; query: string }> => [
-        { queryName: 'Tree', query: chunkQuery('tree', chunkIndex) },
-        { queryName: 'Stone', query: chunkQuery('stone', chunkIndex) },
-        { queryName: 'RuneStone', query: chunkQuery('rune_stone', chunkIndex) },
-        { queryName: 'Cairn', query: chunkQuery('cairn', chunkIndex) },
-        { queryName: 'HarvestableResource', query: chunkQuery('harvestable_resource', chunkIndex) },
-        { queryName: 'Campfire', query: chunkQuery('campfire', chunkIndex) },
-        { queryName: 'Barbecue', query: chunkQuery('barbecue', chunkIndex) },
-        { queryName: 'BrothPot', query: chunkQuery('broth_pot', chunkIndex) },
-        { queryName: 'WoodenStorageBox', query: chunkQuery('wooden_storage_box', chunkIndex) },
-        { queryName: 'DroppedItem', query: chunkQuery('dropped_item', chunkIndex) },
-        { queryName: 'RainCollector', query: chunkQuery('rain_collector', chunkIndex) },
-        { queryName: 'WaterPatch', query: chunkQuery('water_patch', chunkIndex) },
-        { queryName: 'FertilizerPatch', query: chunkQuery('fertilizer_patch', chunkIndex) },
-        { queryName: 'FirePatch', query: chunkQuery('fire_patch', chunkIndex) },
-        { queryName: 'PlacedExplosive', query: chunkQuery('placed_explosive', chunkIndex) },
-        { queryName: 'Barrel', query: chunkQuery('barrel', chunkIndex) },
-        { queryName: 'RoadLamppost', query: chunkQuery('road_lamppost', chunkIndex) },
-        { queryName: 'SeaStack', query: chunkQuery('sea_stack', chunkIndex) },
-        { queryName: 'FoundationCell', query: chunkQuery('foundation_cell', chunkIndex) },
-        { queryName: 'WallCell', query: chunkQuery('wall_cell', chunkIndex) },
-        { queryName: 'Door', query: chunkQuery('door', chunkIndex) },
-        { queryName: 'Fence', query: chunkQuery('fence', chunkIndex) },
-        { queryName: 'Fumarole', query: chunkQuery('fumarole', chunkIndex) },
-        { queryName: 'BasaltColumn', query: chunkQuery('basalt_column', chunkIndex) },
-        { queryName: 'WildAnimal', query: chunkQuery('wild_animal', chunkIndex) }, // Includes hostile NPCs (Shorebound, Shardkin, DrownedWatch) with is_hostile_npc = true
-        { queryName: 'LivingCoral', query: chunkQuery('living_coral', chunkIndex) }, // Living coral
-    ];
-
     const subscribeToChunk = (chunkIndex: number): SubscriptionHandle[] => {
         if (!connection) return [];
 
@@ -480,44 +404,25 @@ export const useSpacetimeTables = ({
         const newHandlesForChunk: SubscriptionHandle[] = [];
         try {
             if (ENABLE_BATCHED_SUBSCRIPTIONS) {
-                const timedBatchedSubscribe = (batchName: string, queries: string[]) => {
-                    const handle = connection.subscriptionBuilder()
-                        .onError((err) => console.error(`${batchName} Batch Sub Error (Chunk ${chunkIndex}):`, err))
-                        .subscribe(queries);
-                    return handle;
-                };
-
-                const resourceQueries = getBatchedResourceQueries(chunkIndex);
-                newHandlesForChunk.push(timedBatchedSubscribe('Resources', resourceQueries));
-
-                const environmentalQueries = getEnvironmentalQueries(chunkIndex);
-                if (environmentalQueries.length > 0) {
-                    newHandlesForChunk.push(timedBatchedSubscribe('Environmental', environmentalQueries));
-                }
+                const resourceTables = getDefaultSpatialResourceTables();
+                const environmentalQueries = getDefaultEnvironmentalQueries(chunkIndex, {
+                    cloudsEnabled: ENABLE_CLOUDS,
+                    grassEnabled,
+                    grassPerformanceMode: GRASS_PERFORMANCE_MODE,
+                });
+                newHandlesForChunk.push(
+                    ...subscribeChunkBatches(connection, chunkIndex, resourceTables, environmentalQueries),
+                );
             } else {
-                const timedSubscribe = (queryName: string, query: string) => {
-                    return connection.subscriptionBuilder()
-                        .onError((err) => console.error(`${queryName} Sub Error (Chunk ${chunkIndex}):`, err))
-                        .subscribe(query);
-                };
-
-                for (const { queryName, query } of getUnbatchedResourceQueries(chunkIndex)) {
-                    newHandlesForChunk.push(timedSubscribe(queryName, query));
-                }
-
-                if (ENABLE_CLOUDS) {
-                    newHandlesForChunk.push(timedSubscribe('Cloud', chunkQuery('cloud', chunkIndex)));
-                }
-                if (grassEnabled) {
-                    // Split tables: grass (static) + grass_state (dynamic)
-                    newHandlesForChunk.push(timedSubscribe('Grass', chunkQuery('grass', chunkIndex)));
-                    if (GRASS_PERFORMANCE_MODE) {
-                        // Use is_alive = true for efficient index usage (boolean equality vs range query)
-                        newHandlesForChunk.push(timedSubscribe('GrassState(Perf)', `SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND is_alive = true`));
-                    } else {
-                        newHandlesForChunk.push(timedSubscribe('GrassState(Full)', chunkQuery('grass_state', chunkIndex)));
-                    }
-                }
+                const resourceTables = getDefaultSpatialResourceTables();
+                const environmentalQueries = getDefaultEnvironmentalQueries(chunkIndex, {
+                    cloudsEnabled: ENABLE_CLOUDS,
+                    grassEnabled,
+                    grassPerformanceMode: GRASS_PERFORMANCE_MODE,
+                });
+                newHandlesForChunk.push(
+                    ...subscribeChunkIndividually(connection, chunkIndex, resourceTables, environmentalQueries),
+                );
             }
         } catch (error) {
             console.error(`[CHUNK_ERROR] Failed to create subscriptions for chunk ${chunkIndex}:`, error);
@@ -2101,322 +2006,111 @@ export const useSpacetimeTables = ({
                 setMatronageOwedShards(prev => { const newMap = new Map(prev); newMap.delete(owed.playerId.toHexString()); return newMap; });
             };
 
-            // --- Register Callbacks ---
-            type TableEventHandlers = {
-                onInsert?: (...args: any[]) => void;
-                onUpdate?: (...args: any[]) => void;
-                onDelete?: (...args: any[]) => void;
+            const tableBindings: GameplayTableBindings = {
+                player: { onInsert: handlePlayerInsert, onUpdate: handlePlayerUpdate, onDelete: handlePlayerDelete },
+                tree: { onInsert: handleTreeInsert, onUpdate: handleTreeUpdate, onDelete: handleTreeDelete },
+                stone: { onInsert: handleStoneInsert, onUpdate: handleStoneUpdate, onDelete: handleStoneDelete },
+                rune_stone: { onInsert: handleRuneStoneInsert, onUpdate: handleRuneStoneUpdate, onDelete: handleRuneStoneDelete },
+                cairn: { onInsert: handleCairnInsert, onUpdate: handleCairnUpdate, onDelete: handleCairnDelete },
+                player_discovered_cairn: { onInsert: handlePlayerDiscoveredCairnInsert, onUpdate: handlePlayerDiscoveredCairnUpdate, onDelete: handlePlayerDiscoveredCairnDelete },
+                campfire: { onInsert: handleCampfireInsert, onUpdate: handleCampfireUpdate, onDelete: handleCampfireDelete },
+                barbecue: { onInsert: handleBarbecueInsert, onUpdate: handleBarbecueUpdate, onDelete: handleBarbecueDelete },
+                furnace: { onInsert: handleFurnaceInsert, onUpdate: handleFurnaceUpdate, onDelete: handleFurnaceDelete },
+                lantern: { onInsert: handleLanternInsert, onUpdate: handleLanternUpdate, onDelete: handleLanternDelete },
+                turret: { onInsert: handleTurretInsert, onUpdate: handleTurretUpdate, onDelete: handleTurretDelete },
+                homestead_hearth: { onInsert: handleHomesteadHearthInsert, onUpdate: handleHomesteadHearthUpdate, onDelete: handleHomesteadHearthDelete },
+                broth_pot: { onInsert: handleBrothPotInsert, onUpdate: handleBrothPotUpdate, onDelete: handleBrothPotDelete },
+                item_definition: { onInsert: handleItemDefInsert, onUpdate: handleItemDefUpdate, onDelete: handleItemDefDelete },
+                inventory_item: { onInsert: handleInventoryInsert, onUpdate: handleInventoryUpdate, onDelete: handleInventoryDelete },
+                world_state: { onInsert: handleWorldStateInsert, onUpdate: handleWorldStateUpdate, onDelete: handleWorldStateDelete },
+                active_equipment: { onInsert: handleActiveEquipmentInsert, onUpdate: handleActiveEquipmentUpdate, onDelete: handleActiveEquipmentDelete },
+                harvestable_resource: { onInsert: handleHarvestableResourceInsert, onUpdate: handleHarvestableResourceUpdate, onDelete: handleHarvestableResourceDelete },
+                planted_seed: { onInsert: handlePlantedSeedInsert, onUpdate: handlePlantedSeedUpdate, onDelete: handlePlantedSeedDelete },
+                dropped_item: { onInsert: handleDroppedItemInsert, onUpdate: handleDroppedItemUpdate, onDelete: handleDroppedItemDelete },
+                wooden_storage_box: { onInsert: handleWoodenStorageBoxInsert, onUpdate: handleWoodenStorageBoxUpdate, onDelete: handleWoodenStorageBoxDelete },
+                recipe: { onInsert: handleRecipeInsert, onUpdate: handleRecipeUpdate, onDelete: handleRecipeDelete },
+                crafting_queue_item: { onInsert: handleCraftingQueueInsert, onUpdate: handleCraftingQueueUpdate, onDelete: handleCraftingQueueDelete },
+                player_stats: { onInsert: handlePlayerStatsInsert, onUpdate: handlePlayerStatsUpdate, onDelete: handlePlayerStatsDelete },
+                achievement_definition: { onInsert: handleAchievementDefinitionInsert, onUpdate: handleAchievementDefinitionUpdate, onDelete: handleAchievementDefinitionDelete },
+                player_achievement: { onInsert: handlePlayerAchievementInsert, onUpdate: handlePlayerAchievementUpdate, onDelete: handlePlayerAchievementDelete },
+                achievement_unlock_notification: { onInsert: handleAchievementUnlockNotificationInsert, onUpdate: handleAchievementUnlockNotificationUpdate, onDelete: handleAchievementUnlockNotificationDelete },
+                level_up_notification: { onInsert: handleLevelUpNotificationInsert, onUpdate: handleLevelUpNotificationUpdate, onDelete: handleLevelUpNotificationDelete },
+                daily_login_notification: { onInsert: handleDailyLoginNotificationInsert, onUpdate: handleDailyLoginNotificationUpdate, onDelete: handleDailyLoginNotificationDelete },
+                progress_notification: { onInsert: handleProgressNotificationInsert, onUpdate: handleProgressNotificationUpdate, onDelete: handleProgressNotificationDelete },
+                comparative_stat_notification: { onInsert: handleComparativeStatNotificationInsert, onUpdate: handleComparativeStatNotificationUpdate, onDelete: handleComparativeStatNotificationDelete },
+                leaderboard_entry: { onInsert: handleLeaderboardEntryInsert, onUpdate: handleLeaderboardEntryUpdate, onDelete: handleLeaderboardEntryDelete },
+                daily_login_reward: { onInsert: handleDailyLoginRewardInsert, onUpdate: handleDailyLoginRewardUpdate, onDelete: handleDailyLoginRewardDelete },
+                plant_config_definition: { onInsert: handlePlantConfigDefinitionInsert, onUpdate: handlePlantConfigDefinitionUpdate, onDelete: handlePlantConfigDefinitionDelete },
+                player_discovered_plant: { onInsert: handleDiscoveredPlantInsert, onDelete: handleDiscoveredPlantDelete },
+                drone_event: { onInsert: handleDroneEventInsert, onDelete: handleDroneEventDelete },
+                sleeping_bag: { onInsert: handleSleepingBagInsert, onUpdate: handleSleepingBagUpdate, onDelete: handleSleepingBagDelete },
+                player_corpse: { onInsert: handlePlayerCorpseInsert, onUpdate: handlePlayerCorpseUpdate, onDelete: handlePlayerCorpseDelete },
+                stash: { onInsert: handleStashInsert, onUpdate: handleStashUpdate, onDelete: handleStashDelete },
+                active_consumable_effect: { onInsert: handleActiveConsumableEffectInsert, onUpdate: handleActiveConsumableEffectUpdate, onDelete: handleActiveConsumableEffectDelete },
+                cloud: { onInsert: handleCloudInsert, onUpdate: handleCloudUpdate, onDelete: handleCloudDelete },
+                grass: { onInsert: handleGrassInsert, onUpdate: handleGrassUpdate, onDelete: handleGrassDelete },
+                grass_state: { onInsert: handleGrassStateInsert, onUpdate: handleGrassStateUpdate, onDelete: handleGrassStateDelete },
+                knocked_out_status: { onInsert: handleKnockedOutStatusInsert, onUpdate: handleKnockedOutStatusUpdate, onDelete: handleKnockedOutStatusDelete },
+                ranged_weapon_stats: { onInsert: handleRangedWeaponStatsInsert, onUpdate: handleRangedWeaponStatsUpdate, onDelete: handleRangedWeaponStatsDelete },
+                projectile: { onInsert: handleProjectileInsert, onUpdate: handleProjectileUpdate, onDelete: handleProjectileDelete },
+                death_marker: { onInsert: handleDeathMarkerInsert, onUpdate: handleDeathMarkerUpdate, onDelete: handleDeathMarkerDelete },
+                shelter: { onInsert: handleShelterInsert, onUpdate: handleShelterUpdate, onDelete: handleShelterDelete },
+                minimap_cache: { onInsert: handleMinimapCacheInsert, onUpdate: handleMinimapCacheUpdate, onDelete: handleMinimapCacheDelete },
+                player_dodge_roll_state: { onInsert: handlePlayerDodgeRollStateInsert, onUpdate: handlePlayerDodgeRollStateUpdate, onDelete: handlePlayerDodgeRollStateDelete },
+                fishing_session: { onInsert: handleFishingSessionInsert, onUpdate: handleFishingSessionUpdate, onDelete: handleFishingSessionDelete },
+                sound_event: { onInsert: handleSoundEventInsert, onUpdate: handleSoundEventUpdate, onDelete: handleSoundEventDelete },
+                continuous_sound: { onInsert: handleContinuousSoundInsert, onUpdate: handleContinuousSoundUpdate, onDelete: handleContinuousSoundDelete },
+                player_drinking_cooldown: { onInsert: handlePlayerDrinkingCooldownInsert, onUpdate: handlePlayerDrinkingCooldownUpdate, onDelete: handlePlayerDrinkingCooldownDelete },
+                rain_collector: { onInsert: handleRainCollectorInsert, onUpdate: handleRainCollectorUpdate, onDelete: handleRainCollectorDelete },
+                water_patch: { onInsert: handleWaterPatchInsert, onUpdate: handleWaterPatchUpdate, onDelete: handleWaterPatchDelete },
+                fertilizer_patch: { onInsert: handleFertilizerPatchInsert, onUpdate: handleFertilizerPatchUpdate, onDelete: handleFertilizerPatchDelete },
+                fire_patch: { onInsert: handleFirePatchInsert, onUpdate: handleFirePatchUpdate, onDelete: handleFirePatchDelete },
+                placed_explosive: { onInsert: handlePlacedExplosiveInsert, onUpdate: handlePlacedExplosiveUpdate, onDelete: handlePlacedExplosiveDelete },
+                wild_animal: { onInsert: handleWildAnimalInsert, onUpdate: handleWildAnimalUpdate, onDelete: handleWildAnimalDelete },
+                animal_corpse: { onInsert: handleAnimalCorpseInsert, onUpdate: handleAnimalCorpseUpdate, onDelete: handleAnimalCorpseDelete },
+                caribou_breeding_data: { onInsert: handleCaribouBreedingDataInsert, onUpdate: handleCaribouBreedingDataUpdate, onDelete: handleCaribouBreedingDataDelete },
+                walrus_breeding_data: { onInsert: handleWalrusBreedingDataInsert, onUpdate: handleWalrusBreedingDataUpdate, onDelete: handleWalrusBreedingDataDelete },
+                caribou_rut_state: { onInsert: handleCaribouRutStateInsert, onUpdate: handleCaribouRutStateUpdate, onDelete: handleCaribouRutStateDelete },
+                walrus_rut_state: { onInsert: handleWalrusRutStateInsert, onUpdate: handleWalrusRutStateUpdate, onDelete: handleWalrusRutStateDelete },
+                barrel: { onInsert: handleBarrelInsert, onUpdate: handleBarrelUpdate, onDelete: handleBarrelDelete },
+                road_lamppost: { onInsert: handleRoadLamppostInsert, onUpdate: handleRoadLamppostUpdate, onDelete: handleRoadLamppostDelete },
+                sea_stack: { onInsert: handleSeaStackInsert, onUpdate: handleSeaStackUpdate, onDelete: handleSeaStackDelete },
+                foundation_cell: { onInsert: handleFoundationCellInsert, onUpdate: handleFoundationCellUpdate, onDelete: handleFoundationCellDelete },
+                wall_cell: { onInsert: handleWallCellInsert, onUpdate: handleWallCellUpdate, onDelete: handleWallCellDelete },
+                door: { onInsert: handleDoorInsert, onUpdate: handleDoorUpdate, onDelete: handleDoorDelete },
+                fence: { onInsert: handleFenceInsert, onUpdate: handleFenceUpdate, onDelete: handleFenceDelete },
+                fumarole: { onInsert: handleFumaroleInsert, onUpdate: handleFumaroleUpdate, onDelete: handleFumaroleDelete },
+                basalt_column: { onInsert: handleBasaltColumnInsert, onUpdate: handleBasaltColumnUpdate, onDelete: handleBasaltColumnDelete },
+                living_coral: { onInsert: handleLivingCoralInsert, onUpdate: handleLivingCoralUpdate, onDelete: handleLivingCoralDelete },
+                chunk_weather: { onInsert: handleChunkWeatherInsert, onUpdate: handleChunkWeatherUpdate, onDelete: handleChunkWeatherDelete },
+                alk_station: { onInsert: handleAlkStationInsert, onUpdate: handleAlkStationUpdate, onDelete: handleAlkStationDelete },
+                monument_part: { onInsert: handleMonumentPartInsert, onUpdate: handleMonumentPartUpdate, onDelete: handleMonumentPartDelete },
+                large_quarry: { onInsert: handleLargeQuarryInsert, onUpdate: handleLargeQuarryUpdate, onDelete: handleLargeQuarryDelete },
+                alk_contract: { onInsert: handleAlkContractInsert, onUpdate: handleAlkContractUpdate, onDelete: handleAlkContractDelete },
+                alk_player_contract: { onInsert: handleAlkPlayerContractInsert, onUpdate: handleAlkPlayerContractUpdate, onDelete: handleAlkPlayerContractDelete },
+                alk_state: { onInsert: handleAlkStateInsert, onUpdate: handleAlkStateUpdate, onDelete: handleAlkStateDelete },
+                player_shard_balance: { onInsert: handlePlayerShardBalanceInsert, onUpdate: handlePlayerShardBalanceUpdate, onDelete: handlePlayerShardBalanceDelete },
+                memory_grid_progress: { onInsert: handleMemoryGridProgressInsert, onUpdate: handleMemoryGridProgressUpdate, onDelete: handleMemoryGridProgressDelete },
             };
-            const registerTableCallbacks = (table: any, handlers: TableEventHandlers) => {
-                if (handlers.onInsert) table.onInsert(handlers.onInsert);
-                if (handlers.onUpdate) table.onUpdate(handlers.onUpdate);
-                if (handlers.onDelete) table.onDelete(handlers.onDelete);
-            };
 
-            registerTableCallbacks(connection.db.player, { onInsert: handlePlayerInsert, onUpdate: handlePlayerUpdate, onDelete: handlePlayerDelete });
-            registerTableCallbacks(connection.db.tree, { onInsert: handleTreeInsert, onUpdate: handleTreeUpdate, onDelete: handleTreeDelete });
-            registerTableCallbacks(connection.db.stone, { onInsert: handleStoneInsert, onUpdate: handleStoneUpdate, onDelete: handleStoneDelete });
-            registerTableCallbacks(connection.db.rune_stone, { onInsert: handleRuneStoneInsert, onUpdate: handleRuneStoneUpdate, onDelete: handleRuneStoneDelete });
-            registerTableCallbacks(connection.db.cairn, { onInsert: handleCairnInsert, onUpdate: handleCairnUpdate, onDelete: handleCairnDelete });
-            registerTableCallbacks(connection.db.player_discovered_cairn, { onInsert: handlePlayerDiscoveredCairnInsert, onUpdate: handlePlayerDiscoveredCairnUpdate, onDelete: handlePlayerDiscoveredCairnDelete });
-            registerTableCallbacks(connection.db.campfire, { onInsert: handleCampfireInsert, onUpdate: handleCampfireUpdate, onDelete: handleCampfireDelete });
-            registerTableCallbacks(connection.db.barbecue, { onInsert: handleBarbecueInsert, onUpdate: handleBarbecueUpdate, onDelete: handleBarbecueDelete });
-            registerTableCallbacks(connection.db.furnace, { onInsert: handleFurnaceInsert, onUpdate: handleFurnaceUpdate, onDelete: handleFurnaceDelete });
-            registerTableCallbacks(connection.db.lantern, { onInsert: handleLanternInsert, onUpdate: handleLanternUpdate, onDelete: handleLanternDelete });
-            registerTableCallbacks(connection.db.turret, { onInsert: handleTurretInsert, onUpdate: handleTurretUpdate, onDelete: handleTurretDelete });
-            registerTableCallbacks(connection.db.homestead_hearth, { onInsert: handleHomesteadHearthInsert, onUpdate: handleHomesteadHearthUpdate, onDelete: handleHomesteadHearthDelete });
-            registerTableCallbacks(connection.db.broth_pot, { onInsert: handleBrothPotInsert, onUpdate: handleBrothPotUpdate, onDelete: handleBrothPotDelete });
-            registerTableCallbacks(connection.db.item_definition, { onInsert: handleItemDefInsert, onUpdate: handleItemDefUpdate, onDelete: handleItemDefDelete });
-            registerTableCallbacks(connection.db.inventory_item, { onInsert: handleInventoryInsert, onUpdate: handleInventoryUpdate, onDelete: handleInventoryDelete });
-            registerTableCallbacks(connection.db.world_state, { onInsert: handleWorldStateInsert, onUpdate: handleWorldStateUpdate, onDelete: handleWorldStateDelete });
-            registerTableCallbacks(connection.db.active_equipment, { onInsert: handleActiveEquipmentInsert, onUpdate: handleActiveEquipmentUpdate, onDelete: handleActiveEquipmentDelete });
-            registerTableCallbacks(connection.db.harvestable_resource, { onInsert: handleHarvestableResourceInsert, onUpdate: handleHarvestableResourceUpdate, onDelete: handleHarvestableResourceDelete });
-            registerTableCallbacks(connection.db.planted_seed, { onInsert: handlePlantedSeedInsert, onUpdate: handlePlantedSeedUpdate, onDelete: handlePlantedSeedDelete });
-            registerTableCallbacks(connection.db.dropped_item, { onInsert: handleDroppedItemInsert, onUpdate: handleDroppedItemUpdate, onDelete: handleDroppedItemDelete });
-            registerTableCallbacks(connection.db.wooden_storage_box, { onInsert: handleWoodenStorageBoxInsert, onUpdate: handleWoodenStorageBoxUpdate, onDelete: handleWoodenStorageBoxDelete });
-            registerTableCallbacks(connection.db.recipe, { onInsert: handleRecipeInsert, onUpdate: handleRecipeUpdate, onDelete: handleRecipeDelete });
-            registerTableCallbacks(connection.db.crafting_queue_item, { onInsert: handleCraftingQueueInsert, onUpdate: handleCraftingQueueUpdate, onDelete: handleCraftingQueueDelete });
-            // UI/chat subscriptions are handled in useUISubscriptions (GameScreen scope).
-            // Player progression system subscriptions
-            registerTableCallbacks(connection.db.player_stats, { onInsert: handlePlayerStatsInsert, onUpdate: handlePlayerStatsUpdate, onDelete: handlePlayerStatsDelete });
-            registerTableCallbacks(connection.db.achievement_definition, { onInsert: handleAchievementDefinitionInsert, onUpdate: handleAchievementDefinitionUpdate, onDelete: handleAchievementDefinitionDelete });
-            registerTableCallbacks(connection.db.player_achievement, { onInsert: handlePlayerAchievementInsert, onUpdate: handlePlayerAchievementUpdate, onDelete: handlePlayerAchievementDelete });
-            registerTableCallbacks(connection.db.achievement_unlock_notification, { onInsert: handleAchievementUnlockNotificationInsert, onUpdate: handleAchievementUnlockNotificationUpdate, onDelete: handleAchievementUnlockNotificationDelete });
-            registerTableCallbacks(connection.db.level_up_notification, { onInsert: handleLevelUpNotificationInsert, onUpdate: handleLevelUpNotificationUpdate, onDelete: handleLevelUpNotificationDelete });
-            registerTableCallbacks(connection.db.daily_login_notification, { onInsert: handleDailyLoginNotificationInsert, onUpdate: handleDailyLoginNotificationUpdate, onDelete: handleDailyLoginNotificationDelete });
-            registerTableCallbacks(connection.db.progress_notification, { onInsert: handleProgressNotificationInsert, onUpdate: handleProgressNotificationUpdate, onDelete: handleProgressNotificationDelete });
-            registerTableCallbacks(connection.db.comparative_stat_notification, { onInsert: handleComparativeStatNotificationInsert, onUpdate: handleComparativeStatNotificationUpdate, onDelete: handleComparativeStatNotificationDelete });
-            registerTableCallbacks(connection.db.leaderboard_entry, { onInsert: handleLeaderboardEntryInsert, onUpdate: handleLeaderboardEntryUpdate, onDelete: handleLeaderboardEntryDelete });
-            registerTableCallbacks(connection.db.daily_login_reward, { onInsert: handleDailyLoginRewardInsert, onUpdate: handleDailyLoginRewardUpdate, onDelete: handleDailyLoginRewardDelete });
-            // Plant config definitions for Encyclopedia (populated on server init)
-            registerTableCallbacks(connection.db.plant_config_definition, { onInsert: handlePlantConfigDefinitionInsert, onUpdate: handlePlantConfigDefinitionUpdate, onDelete: handlePlantConfigDefinitionDelete });
-            registerTableCallbacks(connection.db.player_discovered_plant, { onInsert: handleDiscoveredPlantInsert, onDelete: handleDiscoveredPlantDelete });
-            // Quest/UI subscriptions are handled in useUISubscriptions (GameScreen scope).
-            registerTableCallbacks(connection.db.drone_event, { onInsert: handleDroneEventInsert, onDelete: handleDroneEventDelete });
-            // UI/chat subscriptions are handled in useUISubscriptions (GameScreen scope).
-            registerTableCallbacks(connection.db.sleeping_bag, { onInsert: handleSleepingBagInsert, onUpdate: handleSleepingBagUpdate, onDelete: handleSleepingBagDelete });
-            registerTableCallbacks(connection.db.player_corpse, { onInsert: handlePlayerCorpseInsert, onUpdate: handlePlayerCorpseUpdate, onDelete: handlePlayerCorpseDelete });
-            registerTableCallbacks(connection.db.stash, { onInsert: handleStashInsert, onUpdate: handleStashUpdate, onDelete: handleStashDelete });
-            registerTableCallbacks(connection.db.active_consumable_effect, { onInsert: handleActiveConsumableEffectInsert, onUpdate: handleActiveConsumableEffectUpdate, onDelete: handleActiveConsumableEffectDelete });
-            registerTableCallbacks(connection.db.cloud, { onInsert: handleCloudInsert, onUpdate: handleCloudUpdate, onDelete: handleCloudDelete });
-            registerTableCallbacks(connection.db.grass, { onInsert: handleGrassInsert, onUpdate: handleGrassUpdate, onDelete: handleGrassDelete });
-            registerTableCallbacks(connection.db.grass_state, { onInsert: handleGrassStateInsert, onUpdate: handleGrassStateUpdate, onDelete: handleGrassStateDelete });
-            registerTableCallbacks(connection.db.knocked_out_status, { onInsert: handleKnockedOutStatusInsert, onUpdate: handleKnockedOutStatusUpdate, onDelete: handleKnockedOutStatusDelete });
-            registerTableCallbacks(connection.db.ranged_weapon_stats, { onInsert: handleRangedWeaponStatsInsert, onUpdate: handleRangedWeaponStatsUpdate, onDelete: handleRangedWeaponStatsDelete });
-            registerTableCallbacks(connection.db.projectile, { onInsert: handleProjectileInsert, onUpdate: handleProjectileUpdate, onDelete: handleProjectileDelete });
-            registerTableCallbacks(connection.db.death_marker, { onInsert: handleDeathMarkerInsert, onUpdate: handleDeathMarkerUpdate, onDelete: handleDeathMarkerDelete });
-            registerTableCallbacks(connection.db.shelter, { onInsert: handleShelterInsert, onUpdate: handleShelterUpdate, onDelete: handleShelterDelete });
+            const currentInitialSubs = setupGameplayConnection({
+                connection,
+                tableBindings,
+                onFirePatchCacheHydrated: (existingFirePatches) => {
+                    if (existingFirePatches.length === 0) {
+                        return;
+                    }
 
-            // WorldTile callbacks removed – no longer subscribing to per-tile updates
-
-            registerTableCallbacks(connection.db.minimap_cache, { onInsert: handleMinimapCacheInsert, onUpdate: handleMinimapCacheUpdate, onDelete: handleMinimapCacheDelete });
-            registerTableCallbacks(connection.db.player_dodge_roll_state, { onInsert: handlePlayerDodgeRollStateInsert, onUpdate: handlePlayerDodgeRollStateUpdate, onDelete: handlePlayerDodgeRollStateDelete });
-            registerTableCallbacks(connection.db.fishing_session, { onInsert: handleFishingSessionInsert, onUpdate: handleFishingSessionUpdate, onDelete: handleFishingSessionDelete });
-            registerTableCallbacks(connection.db.sound_event, { onInsert: handleSoundEventInsert, onUpdate: handleSoundEventUpdate, onDelete: handleSoundEventDelete });
-            registerTableCallbacks(connection.db.continuous_sound, { onInsert: handleContinuousSoundInsert, onUpdate: handleContinuousSoundUpdate, onDelete: handleContinuousSoundDelete });
-            registerTableCallbacks(connection.db.player_drinking_cooldown, { onInsert: handlePlayerDrinkingCooldownInsert, onUpdate: handlePlayerDrinkingCooldownUpdate, onDelete: handlePlayerDrinkingCooldownDelete });
-            registerTableCallbacks(connection.db.rain_collector, { onInsert: handleRainCollectorInsert, onUpdate: handleRainCollectorUpdate, onDelete: handleRainCollectorDelete });
-            registerTableCallbacks(connection.db.water_patch, { onInsert: handleWaterPatchInsert, onUpdate: handleWaterPatchUpdate, onDelete: handleWaterPatchDelete });
-            registerTableCallbacks(connection.db.fertilizer_patch, { onInsert: handleFertilizerPatchInsert, onUpdate: handleFertilizerPatchUpdate, onDelete: handleFertilizerPatchDelete });
-            registerTableCallbacks(connection.db.fire_patch, { onInsert: handleFirePatchInsert, onUpdate: handleFirePatchUpdate, onDelete: handleFirePatchDelete });
-
-            // CRITICAL FIX: Populate fire patches from existing cache after registering callbacks
-            // This handles fire patches that arrived before callbacks were registered
-            console.log('[FIRE_PATCH] Checking for existing fire patches in cache...');
-            const existingFirePatches = Array.from(connection.db.fire_patch.iter());
-            if (existingFirePatches.length > 0) {
-                console.log(`[FIRE_PATCH] Found ${existingFirePatches.length} existing fire patches in cache, adding to state`);
-                setFirePatches(prev => {
-                    const newMap = new Map(prev);
-                    existingFirePatches.forEach(fp => {
-                        newMap.set(fp.id.toString(), fp);
-                        console.log(`[FIRE_PATCH] Added cached fire patch ${fp.id} at (${fp.posX.toFixed(1)}, ${fp.posY.toFixed(1)})`);
+                    setFirePatches(prev => {
+                        const newMap = new Map(prev);
+                        existingFirePatches.forEach(fp => {
+                            newMap.set(fp.id.toString(), fp);
+                            console.log(`[FIRE_PATCH] Added cached fire patch ${fp.id} at (${fp.posX.toFixed(1)}, ${fp.posY.toFixed(1)})`);
+                        });
+                        return newMap;
                     });
-                    return newMap;
-                });
-            } else {
-                console.log('[FIRE_PATCH] No existing fire patches found in cache');
-            }
-
-            // --- PlacedExplosive Callbacks (raiding explosives) ---
-            console.log('[EXPLOSIVE_CALLBACKS] Registering PlacedExplosive callbacks...');
-            console.log('[EXPLOSIVE_CALLBACKS] connection.db.placed_explosive exists:', !!connection.db.placed_explosive);
-            if (connection.db.placed_explosive) {
-                registerTableCallbacks(connection.db.placed_explosive, { onInsert: handlePlacedExplosiveInsert, onUpdate: handlePlacedExplosiveUpdate, onDelete: handlePlacedExplosiveDelete });
-                console.log('[EXPLOSIVE_CALLBACKS] PlacedExplosive callbacks registered!');
-            } else {
-                console.error('[EXPLOSIVE_CALLBACKS] ERROR: connection.db.placed_explosive is undefined!');
-            }
-
-            // Register WildAnimal callbacks - includes hostile NPCs (Shorebound, Shardkin, DrownedWatch) with is_hostile_npc = true
-            registerTableCallbacks(connection.db.wild_animal, { onInsert: handleWildAnimalInsert, onUpdate: handleWildAnimalUpdate, onDelete: handleWildAnimalDelete });
-
-            // Register AnimalCorpse callbacks - NON-SPATIAL
-            registerTableCallbacks(connection.db.animal_corpse, { onInsert: handleAnimalCorpseInsert, onUpdate: handleAnimalCorpseUpdate, onDelete: handleAnimalCorpseDelete });
-
-            // Register CaribouBreedingData callbacks - NON-SPATIAL (for age-based rendering and pregnancy indicators)
-            registerTableCallbacks(connection.db.caribou_breeding_data, { onInsert: handleCaribouBreedingDataInsert, onUpdate: handleCaribouBreedingDataUpdate, onDelete: handleCaribouBreedingDataDelete });
-
-            // Register WalrusBreedingData callbacks - NON-SPATIAL (for age-based rendering and pregnancy indicators)
-            registerTableCallbacks(connection.db.walrus_breeding_data, { onInsert: handleWalrusBreedingDataInsert, onUpdate: handleWalrusBreedingDataUpdate, onDelete: handleWalrusBreedingDataDelete });
-
-            // Register CaribouRutState callbacks - GLOBAL single-row table
-            registerTableCallbacks(connection.db.caribou_rut_state, { onInsert: handleCaribouRutStateInsert, onUpdate: handleCaribouRutStateUpdate, onDelete: handleCaribouRutStateDelete });
-
-            // Register WalrusRutState callbacks - GLOBAL single-row table
-            registerTableCallbacks(connection.db.walrus_rut_state, { onInsert: handleWalrusRutStateInsert, onUpdate: handleWalrusRutStateUpdate, onDelete: handleWalrusRutStateDelete });
-
-            // Register Barrel callbacks - SPATIAL
-            registerTableCallbacks(connection.db.barrel, { onInsert: handleBarrelInsert, onUpdate: handleBarrelUpdate, onDelete: handleBarrelDelete });
-
-            // Register RoadLamppost callbacks - SPATIAL
-            registerTableCallbacks(connection.db.road_lamppost, { onInsert: handleRoadLamppostInsert, onUpdate: handleRoadLamppostUpdate, onDelete: handleRoadLamppostDelete });
-
-            // Register SeaStack callbacks - SPATIAL
-            registerTableCallbacks(connection.db.sea_stack, { onInsert: handleSeaStackInsert, onUpdate: handleSeaStackUpdate, onDelete: handleSeaStackDelete });
-
-            // Register FoundationCell callbacks - SPATIAL
-            registerTableCallbacks(connection.db.foundation_cell, { onInsert: handleFoundationCellInsert, onUpdate: handleFoundationCellUpdate, onDelete: handleFoundationCellDelete });
-
-            // Register WallCell callbacks - SPATIAL
-            registerTableCallbacks(connection.db.wall_cell, { onInsert: handleWallCellInsert, onUpdate: handleWallCellUpdate, onDelete: handleWallCellDelete });
-
-            // Register Door callbacks - SPATIAL
-            registerTableCallbacks(connection.db.door, { onInsert: handleDoorInsert, onUpdate: handleDoorUpdate, onDelete: handleDoorDelete });
-
-            // Register Fence callbacks - SPATIAL
-            registerTableCallbacks(connection.db.fence, { onInsert: handleFenceInsert, onUpdate: handleFenceUpdate, onDelete: handleFenceDelete });
-
-            // Register Fumarole callbacks - SPATIAL
-            registerTableCallbacks(connection.db.fumarole, { onInsert: handleFumaroleInsert, onUpdate: handleFumaroleUpdate, onDelete: handleFumaroleDelete });
-
-            // Register BasaltColumn callbacks - SPATIAL
-            registerTableCallbacks(connection.db.basalt_column, { onInsert: handleBasaltColumnInsert, onUpdate: handleBasaltColumnUpdate, onDelete: handleBasaltColumnDelete });
-
-            // Register LivingCoral callbacks - SPATIAL (underwater coral via combat system)
-            registerTableCallbacks(connection.db.living_coral, { onInsert: handleLivingCoralInsert, onUpdate: handleLivingCoralUpdate, onDelete: handleLivingCoralDelete });
-
-            // Register ChunkWeather callbacks - NON-SPATIAL
-            registerTableCallbacks(connection.db.chunk_weather, { onInsert: handleChunkWeatherInsert, onUpdate: handleChunkWeatherUpdate, onDelete: handleChunkWeatherDelete });
-
-            // Register ALK Station callbacks - for minimap delivery points
-            registerTableCallbacks(connection.db.alk_station, { onInsert: handleAlkStationInsert, onUpdate: handleAlkStationUpdate, onDelete: handleAlkStationDelete });
-
-            // Register Monument Part callbacks - unified subscription for all monument types
-            registerTableCallbacks(connection.db.monument_part, { onInsert: handleMonumentPartInsert, onUpdate: handleMonumentPartUpdate, onDelete: handleMonumentPartDelete });
-
-            // Register Large Quarry callbacks - for minimap quarry type labels
-            registerTableCallbacks(connection.db.large_quarry, { onInsert: handleLargeQuarryInsert, onUpdate: handleLargeQuarryUpdate, onDelete: handleLargeQuarryDelete });
-
-            // Register ALK Contract callbacks
-            registerTableCallbacks(connection.db.alk_contract, { onInsert: handleAlkContractInsert, onUpdate: handleAlkContractUpdate, onDelete: handleAlkContractDelete });
-
-            // Register ALK Player Contract callbacks
-            registerTableCallbacks(connection.db.alk_player_contract, { onInsert: handleAlkPlayerContractInsert, onUpdate: handleAlkPlayerContractUpdate, onDelete: handleAlkPlayerContractDelete });
-
-            // Register ALK State callbacks
-            registerTableCallbacks(connection.db.alk_state, { onInsert: handleAlkStateInsert, onUpdate: handleAlkStateUpdate, onDelete: handleAlkStateDelete });
-
-            // Register Player Shard Balance callbacks
-            registerTableCallbacks(connection.db.player_shard_balance, { onInsert: handlePlayerShardBalanceInsert, onUpdate: handlePlayerShardBalanceUpdate, onDelete: handlePlayerShardBalanceDelete });
-
-            // Register Memory Grid Progress callbacks
-            registerTableCallbacks(connection.db.memory_grid_progress, { onInsert: handleMemoryGridProgressInsert, onUpdate: handleMemoryGridProgressUpdate, onDelete: handleMemoryGridProgressDelete });
-
-            // UI/matronage subscriptions are handled in useUISubscriptions (GameScreen scope).
-
-            // --- Create Initial Non-Spatial Subscriptions ---
-
-            // console.log("[useSpacetimeTables] Setting up initial non-spatial subscriptions.");
-            type NonSpatialSubscriptionSpec = {
-                query: string;
-                errorLabel?: string;
-                errorPrefix?: string;
-                onError?: (err: any) => void;
-                onApplied?: () => void;
-            };
-            const subscribeNonSpatial = (spec: NonSpatialSubscriptionSpec): SubscriptionHandle => {
-                const builder = connection.subscriptionBuilder();
-                if (spec.onError) {
-                    builder.onError(spec.onError);
-                } else if (spec.errorPrefix) {
-                    builder.onError((err) => console.error(spec.errorPrefix, err));
-                } else if (spec.errorLabel) {
-                    builder.onError((err) => console.error(`[${spec.errorLabel} Sub Error]:`, err));
-                }
-                if (spec.onApplied) {
-                    builder.onApplied(spec.onApplied);
-                }
-                return builder.subscribe(spec.query);
-            };
-            // Non-spatial tables: subscribe once on connect (small or global data)
-            const nonSpatialSubscriptionSpecs: NonSpatialSubscriptionSpec[] = [
-                { query: 'SELECT * FROM player', errorLabel: 'PLAYER' },
-                { query: 'SELECT * FROM rune_stone', errorLabel: 'RUNE_STONE' }, // Global subscription for minimap visibility
-                { query: 'SELECT * FROM cairn', errorLabel: 'CAIRN' }, // Global subscription for minimap visibility
-                { query: 'SELECT * FROM player_discovered_cairn', errorLabel: 'PLAYER_DISCOVERED_CAIRN' }, // Global subscription for discovery tracking
-                { query: 'SELECT * FROM item_definition' },
-                { query: 'SELECT * FROM recipe' },
-                { query: 'SELECT * FROM world_state' },
-                { query: 'SELECT * FROM minimap_cache', errorLabel: 'MINIMAP_CACHE' },
-                { query: 'SELECT * FROM inventory_item', errorPrefix: '[useSpacetimeTables] Non-spatial INVENTORY subscription error:' },
-                { query: 'SELECT * FROM active_equipment', errorPrefix: '[useSpacetimeTables] Non-spatial EQUIPMENT subscription error:' },
-                { query: 'SELECT * FROM crafting_queue_item', errorPrefix: '[useSpacetimeTables] Non-spatial CRAFTING subscription error:' },
-                { query: 'SELECT * FROM message', errorPrefix: '[useSpacetimeTables] Non-spatial MESSAGE subscription error:' },
-                { query: 'SELECT * FROM player_pin', errorPrefix: '[useSpacetimeTables] Non-spatial PLAYER_PIN subscription error:' },
-                { query: 'SELECT * FROM active_connection', errorPrefix: '[useSpacetimeTables] Non-spatial ACTIVE_CONNECTION subscription error:' },
-                { query: 'SELECT * FROM sleeping_bag', errorPrefix: '[useSpacetimeTables] Non-spatial SLEEPING_BAG subscription error:' },
-                { query: 'SELECT * FROM player_corpse', errorPrefix: '[useSpacetimeTables] Non-spatial PLAYER_CORPSE subscription error:' },
-                { query: 'SELECT * FROM memory_grid_progress', errorPrefix: '[useSpacetimeTables] Non-spatial MEMORY_GRID_PROGRESS subscription error:' },
-                { query: 'SELECT * FROM stash', errorPrefix: '[useSpacetimeTables] Non-spatial STASH subscription error:' },
-                { query: 'SELECT * FROM active_consumable_effect', errorPrefix: "[useSpacetimeTables] Subscription for 'active_consumable_effect' ERROR:" },
-                { query: 'SELECT * FROM knocked_out_status', errorPrefix: "[useSpacetimeTables] Subscription for 'knocked_out_status' ERROR:" },
-                { query: 'SELECT * FROM ranged_weapon_stats', errorLabel: 'RANGED_WEAPON_STATS' },
-                { query: 'SELECT * FROM projectile', errorLabel: 'PROJECTILE' },
-                { query: 'SELECT * FROM projectile_resolved_event', errorLabel: 'PROJECTILE_RESOLVED_EVENT' },
-                { query: 'SELECT * FROM death_marker', errorLabel: 'DEATH_MARKER' },
-                { query: 'SELECT * FROM shelter', errorLabel: 'SHELTER' },
-                { query: 'SELECT * FROM arrow_break_event', errorLabel: 'ARROW_BREAK_EVENT' },
-                { query: 'SELECT * FROM thunder_event', errorLabel: 'THUNDER_EVENT' },
-                {
-                    query: 'SELECT * FROM player_dodge_roll_state',
-                    onError: (errCtx) => {
-                        console.error('[PLAYER_DODGE_ROLL_STATE Sub Error] Full error details:', errCtx);
-                    },
-                    onApplied: () => {
-                        console.log('[PLAYER_DODGE_ROLL_STATE] Subscription applied successfully!');
-                    },
                 },
-                { query: 'SELECT * FROM fishing_session', errorLabel: 'FISHING_SESSION' },
-                { query: 'SELECT * FROM sound_event', errorLabel: 'SOUND_EVENT' },
-                { query: 'SELECT * FROM continuous_sound', errorLabel: 'CONTINUOUS_SOUND' },
-                { query: 'SELECT * FROM player_drinking_cooldown', errorLabel: 'PLAYER_DRINKING_COOLDOWN' },
-                { query: 'SELECT * FROM animal_corpse', errorLabel: 'ANIMAL_CORPSE' },
-                // wild_animal uses spatial chunk subscriptions (see subscribeToChunk)
-                { query: 'SELECT * FROM chunk_weather', errorLabel: 'CHUNK_WEATHER' },
-                { query: 'SELECT * FROM alk_station', errorLabel: 'ALK_STATION' },
-                { query: 'SELECT * FROM alk_contract', errorLabel: 'ALK_CONTRACT' },
-                { query: 'SELECT * FROM alk_player_contract', errorLabel: 'ALK_PLAYER_CONTRACT' },
-                { query: 'SELECT * FROM alk_state', errorLabel: 'ALK_STATE' },
-                { query: 'SELECT * FROM player_shard_balance', errorLabel: 'PLAYER_SHARD_BALANCE' },
-                { query: 'SELECT * FROM monument_part', errorLabel: 'MONUMENT_PART' },
-                { query: 'SELECT * FROM large_quarry', errorLabel: 'LARGE_QUARRY' },
-                { query: 'SELECT * FROM matronage', errorLabel: 'MATRONAGE' },
-                { query: 'SELECT * FROM matronage_member', errorLabel: 'MATRONAGE_MEMBER' },
-                { query: 'SELECT * FROM matronage_invitation', errorLabel: 'MATRONAGE_INVITATION' },
-                { query: 'SELECT * FROM matronage_owed_shards', errorLabel: 'MATRONAGE_OWED_SHARDS' },
-                { query: 'SELECT * FROM caribou_breeding_data', errorLabel: 'CARIBOU_BREEDING_DATA' },
-                { query: 'SELECT * FROM walrus_breeding_data', errorLabel: 'WALRUS_BREEDING_DATA' },
-                { query: 'SELECT * FROM caribou_rut_state', errorLabel: 'CARIBOU_RUT_STATE' },
-                { query: 'SELECT * FROM walrus_rut_state', errorLabel: 'WALRUS_RUT_STATE' },
-                { query: 'SELECT * FROM player_stats', errorLabel: 'PLAYER_STATS' },
-                { query: 'SELECT * FROM achievement_definition', errorLabel: 'ACHIEVEMENT_DEFINITION' },
-                { query: 'SELECT * FROM player_achievement', errorLabel: 'PLAYER_ACHIEVEMENT' },
-                { query: 'SELECT * FROM achievement_unlock_notification', errorLabel: 'ACHIEVEMENT_UNLOCK_NOTIFICATION' },
-                { query: 'SELECT * FROM level_up_notification', errorLabel: 'LEVEL_UP_NOTIFICATION' },
-                { query: 'SELECT * FROM daily_login_notification', errorLabel: 'DAILY_LOGIN_NOTIFICATION' },
-                { query: 'SELECT * FROM progress_notification', errorLabel: 'PROGRESS_NOTIFICATION' },
-                { query: 'SELECT * FROM comparative_stat_notification', errorLabel: 'COMPARATIVE_STAT_NOTIFICATION' },
-                { query: 'SELECT * FROM leaderboard_entry', errorLabel: 'LEADERBOARD_ENTRY' },
-                { query: 'SELECT * FROM daily_login_reward', errorLabel: 'DAILY_LOGIN_REWARD' },
-                { query: 'SELECT * FROM plant_config_definition', errorLabel: 'PLANT_CONFIG_DEFINITION' },
-                { query: 'SELECT * FROM player_discovered_plant', errorLabel: 'PLAYER_DISCOVERED_PLANT' },
-                { query: 'SELECT * FROM tutorial_quest_definition', errorLabel: 'TUTORIAL_QUEST_DEFINITION' },
-                { query: 'SELECT * FROM daily_quest_definition', errorLabel: 'DAILY_QUEST_DEFINITION' },
-                { query: 'SELECT * FROM player_tutorial_progress', errorLabel: 'PLAYER_TUTORIAL_PROGRESS' },
-                { query: 'SELECT * FROM player_daily_quest', errorLabel: 'PLAYER_DAILY_QUEST' },
-                { query: 'SELECT * FROM quest_completion_notification', errorLabel: 'QUEST_COMPLETION_NOTIFICATION' },
-                { query: 'SELECT * FROM quest_progress_notification', errorLabel: 'QUEST_PROGRESS_NOTIFICATION' },
-                { query: 'SELECT * FROM sova_quest_message', errorLabel: 'SOVA_QUEST_MESSAGE' },
-                { query: 'SELECT * FROM beacon_drop_event', errorLabel: 'BEACON_DROP_EVENT' },
-                { query: 'SELECT * FROM drone_event', errorLabel: 'DRONE_EVENT' },
-            ];
-            const uiOnlyQueries = new Set([
-                'SELECT * FROM message',
-                'SELECT * FROM player_pin',
-                'SELECT * FROM active_connection',
-                'SELECT * FROM matronage',
-                'SELECT * FROM matronage_member',
-                'SELECT * FROM matronage_invitation',
-                'SELECT * FROM matronage_owed_shards',
-                'SELECT * FROM tutorial_quest_definition',
-                'SELECT * FROM daily_quest_definition',
-                'SELECT * FROM player_tutorial_progress',
-                'SELECT * FROM player_daily_quest',
-                'SELECT * FROM quest_completion_notification',
-                'SELECT * FROM quest_progress_notification',
-                'SELECT * FROM sova_quest_message',
-                'SELECT * FROM beacon_drop_event',
-            ]);
-            const filteredNonSpatialSpecs = nonSpatialSubscriptionSpecs.filter((spec) => !uiOnlyQueries.has(spec.query));
-            const currentInitialSubs = subscribeNonSpatialQueries(connection, filteredNonSpatialSpecs.map((spec) => ({
-                query: spec.query,
-                onError: spec.onError ?? (spec.errorPrefix
-                    ? (err) => console.error(spec.errorPrefix, err)
-                    : spec.errorLabel
-                        ? (err) => console.error(`[${spec.errorLabel} Sub Error]:`, err)
-                        : undefined),
-            })));
+            });
             gameplaySubscriptionsRuntime.replaceNonSpatialHandles(currentInitialSubs);
             gameplaySubscriptionsRuntime.markConnectionSetupComplete();
         }
@@ -2428,19 +2122,8 @@ export const useSpacetimeTables = ({
         }
 
         try {
-            const grassQueries = [`SELECT * FROM grass WHERE chunk_index = ${chunkIndex}`];
-            if (GRASS_PERFORMANCE_MODE) {
-                grassQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex} AND is_alive = true`);
-            } else {
-                grassQueries.push(`SELECT * FROM grass_state WHERE chunk_index = ${chunkIndex}`);
-            }
-
             console.log(`[GRASS_RESUB] Subscribing to grass/grass_state for chunk ${chunkIndex}`);
-            const handle = connection.subscriptionBuilder()
-                .onError((err) => console.error(`Grass Re-sub Error (Chunk ${chunkIndex}):`, err))
-                .subscribe(grassQueries);
-
-            return [handle];
+            return subscribeGrassChunk(connection, chunkIndex, GRASS_PERFORMANCE_MODE);
         } catch (error) {
             console.error(`[GRASS_RESUB] Failed to re-subscribe grass for chunk ${chunkIndex}:`, error);
             return [];

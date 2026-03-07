@@ -67,12 +67,6 @@ import { isOceanTileTag } from './utils/tileTypeGuards';
 // Assets & Styles
 import './App.css';
 
-// Viewport constants
-const VIEWPORT_WIDTH = 1200;
-const VIEWPORT_HEIGHT = 800;
-const VIEWPORT_BUFFER = 300;
-const VIEWPORT_UPDATE_THRESHOLD_SQ = (VIEWPORT_WIDTH / 2) ** 2; // Increased threshold (was WIDTH/4), so updates happen less frequently
-
 // Auto-close interaction when player moves too far from container
 import { useInteractionAutoClose } from './hooks/useInteractionAutoClose';
 
@@ -81,8 +75,10 @@ import { initCutGrassEffectSystem, cleanupCutGrassEffectSystem } from './effects
 import { filterVisibleEntities, filterVisibleTrees } from './utils/entityFilteringUtils';
 import { resetBrothEffectsState } from './utils/renderers/brothEffectsOverlayUtils';
 import { resetInsanityState } from './utils/renderers/insanityOverlayUtils';
-import { runtimeEngine } from './engine/runtimeEngine';
 import { useRuntimeBootstrap } from './engine/react/useRuntimeBootstrap';
+import { useRuntimeConnectionBridge } from './engine/react/useRuntimeConnectionBridge';
+import { useRuntimeViewport } from './engine/react/useRuntimeViewport';
+import { useEngineSnapshot } from './engine/react/useEngineSnapshot';
 
 // Graceful error boundary that logs errors but doesn't crash the app
 class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: any; hasError: boolean }> {
@@ -133,6 +129,12 @@ function AppContent() {
         retryConnection,
     } = useGameConnection();
     useRuntimeBootstrap(connection);
+    useRuntimeConnectionBridge({
+        connection,
+        identityHex: dbIdentity ? dbIdentity.toHexString() : null,
+        connected: Boolean(spacetimeConnected),
+        loading: Boolean(authLoading || spacetimeLoading),
+    });
 
     // --- Player Actions ---
     const {
@@ -181,10 +183,7 @@ function AppContent() {
         fixedSimulationEnabled,
     } = useSettings();
 
-    // --- Viewport State & Refs ---
-    const [currentViewport, setCurrentViewport] = useState<{ minX: number, minY: number, maxX: number, maxY: number } | null>(null);
-    const lastSentViewportCenterRef = useRef<{ x: number, y: number } | null>(null);
-    const localPlayerRef = useRef<any>(null); // Ref to hold local player data
+    const currentViewport = useEngineSnapshot((snapshot) => snapshot.world.viewport);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
     // --- Pass viewport state to useSpacetimeTables ---
@@ -276,6 +275,14 @@ function AppContent() {
     const isUIFocused = isChatting || isCraftingSearchFocused;
     const localPlayer = dbIdentity ? players.get(dbIdentity.toHexString()) : undefined;
     const isDead = localPlayer?.isDead ?? false;
+    useRuntimeViewport({
+        localPlayer,
+        onRespawn: () => {
+            console.log('[App] Respawn detected - resetting overlay states');
+            resetBrothEffectsState();
+            resetInsanityState();
+        },
+    });
     
     // --- Calculate Water Speed Bonus and Land Movement Speed Modifier from Equipped Armor ---
     // These values are passed to usePredictedMovement for client-side movement prediction
@@ -621,63 +628,6 @@ function AppContent() {
         placementInfoRef.current = placementInfo;
     }, [placementInfo]);
 
-    // Track previous player state to detect respawns
-    const prevPlayerStateRef = useRef<{ isDead: boolean; positionX: number; positionY: number } | null>(null);
-
-    // --- Effect to Update Viewport Based on Player Position ---
-    useEffect(() => {
-        const localPlayer = connection?.identity ? players.get(connection.identity.toHexString()) : undefined;
-        localPlayerRef.current = localPlayer; // Update ref whenever local player changes
-
-        // If player is gone, dead, or not fully connected yet, clear viewport
-        if (!localPlayer || localPlayer.isDead) {
-             if (currentViewport) setCurrentViewport(null);
-             // Consider if we need to tell the server the viewport is invalid?
-             // Server might time out old viewports anyway.
-             prevPlayerStateRef.current = localPlayer ? { isDead: localPlayer.isDead, positionX: localPlayer.positionX, positionY: localPlayer.positionY } : null;
-             return;
-        }
-
-        const playerCenterX = localPlayer.positionX;
-        const playerCenterY = localPlayer.positionY;
-
-        // Detect respawn: player was dead and is now alive
-        const prevState = prevPlayerStateRef.current;
-        const wasDead = prevState?.isDead ?? false;
-        const isAlive = !localPlayer.isDead;
-        const respawnDetected = wasDead && isAlive;
-
-        // Check if viewport center moved significantly enough
-        const lastSentCenter = lastSentViewportCenterRef.current;
-        const shouldUpdate = !lastSentCenter ||
-            respawnDetected || // Force update on respawn
-            (playerCenterX - lastSentCenter.x)**2 + (playerCenterY - lastSentCenter.y)**2 > VIEWPORT_UPDATE_THRESHOLD_SQ;
-
-        if (shouldUpdate) {
-            const newMinX = playerCenterX - (VIEWPORT_WIDTH / 2) - VIEWPORT_BUFFER;
-            const newMaxX = playerCenterX + (VIEWPORT_WIDTH / 2) + VIEWPORT_BUFFER;
-            const newMinY = playerCenterY - (VIEWPORT_HEIGHT / 2) - VIEWPORT_BUFFER;
-            const newMaxY = playerCenterY + (VIEWPORT_HEIGHT / 2) + VIEWPORT_BUFFER;
-            const newViewport = { minX: newMinX, minY: newMinY, maxX: newMaxX, maxY: newMaxY };
-
-            setCurrentViewport(newViewport); // Update local state immediately for useSpacetimeTables
-            
-            // Update last sent center immediately to prevent continuous updates
-            lastSentViewportCenterRef.current = { x: playerCenterX, y: playerCenterY };
-                
-            // Reset overlay states ONLY on actual respawn (dead -> alive transition)
-            if (respawnDetected) {
-                console.log('[App] Respawn detected - resetting overlay states');
-                resetBrothEffectsState();
-                resetInsanityState();
-            }
-        }
-        
-        // Update previous state tracking
-        prevPlayerStateRef.current = { isDead: localPlayer.isDead, positionX: playerCenterX, positionY: playerCenterY };
-    // Depend on the players map (specifically the local player's position), connection identity, and app connected status.
-    }, [players, connection?.identity]); // Removed currentViewport dependency to avoid loops
-
     // --- Effect to initialize and cleanup cut grass effect system ---
     useEffect(() => {
         if (connection && localPlayerRegistered) {
@@ -930,24 +880,6 @@ function AppContent() {
     const hasPlayerDataOrUsername = loggedInPlayer || getStoredUsername;
     const isSpacetimeReady = !spacetimeLoading && !!connection && !!dbIdentity;
     const shouldShowLoadingScreen = isAuthenticated && hasPlayerDataOrUsername && (authLoading || !isSpacetimeReady || !loadingSequenceComplete);
-
-    useEffect(() => {
-        runtimeEngine.dispatch({
-            type: 'runtime/setConnectionState',
-            connected: Boolean(spacetimeConnected),
-            loading: Boolean(authLoading || spacetimeLoading),
-        });
-        runtimeEngine.setConnection(connection, dbIdentity ? dbIdentity.toHexString() : null);
-    }, [spacetimeConnected, authLoading, spacetimeLoading, connection, dbIdentity]);
-
-    useEffect(() => {
-        runtimeEngine.setPredictedPosition(predictedPosition ?? null);
-        runtimeEngine.setWorldViewport(currentViewport);
-    }, [
-        predictedPosition,
-        currentViewport,
-    ]);
-
 
     // Track when isSpacetimeReady changes (key metric for connection readiness)
     useEffect(() => {
